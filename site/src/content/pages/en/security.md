@@ -100,4 +100,4 @@ Deterministic builds that allow anyone to verify the deployed code matches the o
 
 ## Verify it yourself
 
-Llamenos is fully open source. Every encryption operation, every API endpoint, every client-side check — it's all in the repository. Read the code, audit the crypto, file issues. [github.com/llamenos-org/llamenos](https://github.com/llamenos-org/llamenos)
+Llamenos is fully open source. Every encryption operation, every API endpoint, every client-side check — it's all in the repository. Read the code, audit the crypto, file issues. [github.com/rhonda-rodododo/llamenos](https://github.com/rhonda-rodododo/llamenos)
