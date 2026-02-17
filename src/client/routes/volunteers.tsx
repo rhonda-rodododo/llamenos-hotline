@@ -248,7 +248,7 @@ function InviteForm({ onCreated, onCancel }: {
   const { toast } = useToast()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [role, setRole] = useState<'volunteer' | 'admin'>('volunteer')
+  const [role, setRole] = useState<'volunteer' | 'admin' | 'reporter'>('volunteer')
   const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -299,6 +299,19 @@ function InviteForm({ onCreated, onCancel }: {
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="invite-role">{t('volunteers.role')}</Label>
+            <Select value={role} onValueChange={(v) => setRole(v as 'volunteer' | 'admin' | 'reporter')}>
+              <SelectTrigger id="invite-role">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="volunteer">{t('volunteers.roleVolunteer')}</SelectItem>
+                <SelectItem value="admin">{t('volunteers.roleAdmin')}</SelectItem>
+                <SelectItem value="reporter">{t('volunteers.roleReporter', { defaultValue: 'Reporter' })}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex gap-2">
             <Button type="submit" disabled={saving}>
               {saving ? t('common.loading') : t('volunteers.createInvite')}
@@ -321,7 +334,7 @@ function AddVolunteerForm({ onCreated, onCancel }: {
   const { toast } = useToast()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [role, setRole] = useState<'volunteer' | 'admin'>('volunteer')
+  const [role, setRole] = useState<'volunteer' | 'admin' | 'reporter'>('volunteer')
   const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -375,13 +388,14 @@ function AddVolunteerForm({ onCreated, onCancel }: {
           </div>
           <div className="space-y-2">
             <Label htmlFor="vol-role">{t('volunteers.role')}</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as 'volunteer' | 'admin')}>
+            <Select value={role} onValueChange={(v) => setRole(v as 'volunteer' | 'admin' | 'reporter')}>
               <SelectTrigger id="vol-role">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="volunteer">{t('volunteers.roleVolunteer')}</SelectItem>
                 <SelectItem value="admin">{t('volunteers.roleAdmin')}</SelectItem>
+                <SelectItem value="reporter">{t('volunteers.roleReporter', { defaultValue: 'Reporter' })}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -462,6 +476,8 @@ function VolunteerRow({ volunteer, onUpdate, onDelete }: {
         <Badge variant={volunteer.role === 'admin' ? 'default' : 'secondary'}>
           {volunteer.role === 'admin' ? (
             <><ShieldCheck className="h-3 w-3" /> {t('volunteers.roleAdmin')}</>
+          ) : volunteer.role === 'reporter' ? (
+            t('volunteers.roleReporter', { defaultValue: 'Reporter' })
           ) : (
             t('volunteers.roleVolunteer')
           )}

@@ -59,21 +59,13 @@ export function ReportForm({ open, onOpenChange, onCreated, adminPubkey }: Repor
     try {
       const recipientPubkey = adminPubkey || keyPair.publicKey
 
-      // Encrypt title for the reporter
-      const titleEncrypted = encryptForPublicKey(title.trim(), keyPair.publicKey)
-      // Encrypt title for the admin
-      const titleEncryptedAdmin = encryptForPublicKey(title.trim(), recipientPubkey)
-
       // Encrypt body for the reporter
       const bodyEncrypted = encryptForPublicKey(body.trim(), keyPair.publicKey)
       // Encrypt body for the admin
       const bodyEncryptedAdmin = encryptForPublicKey(body.trim(), recipientPubkey)
 
       const report = await createReport({
-        encryptedTitle: titleEncrypted.encryptedContent,
-        ephemeralPubkeyTitle: titleEncrypted.ephemeralPubkey,
-        encryptedTitleAdmin: titleEncryptedAdmin.encryptedContent,
-        ephemeralPubkeyTitleAdmin: titleEncryptedAdmin.ephemeralPubkey,
+        title: title.trim(),
         category: category || undefined,
         encryptedContent: bodyEncrypted.encryptedContent,
         ephemeralPubkey: bodyEncrypted.ephemeralPubkey,

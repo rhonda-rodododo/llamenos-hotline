@@ -49,16 +49,9 @@ reports.post('/', async (c) => {
   }
 
   const body = await c.req.json() as {
-    encryptedTitle: string
-    ephemeralPubkeyTitle: string
-    encryptedTitleAdmin: string
-    ephemeralPubkeyTitleAdmin: string
+    title: string
     category?: string
-    encryptedCustomFields?: string
-    ephemeralPubkeyCustomFields?: string
-    encryptedCustomFieldsAdmin?: string
-    ephemeralPubkeyCustomFieldsAdmin?: string
-    // First message content
+    // First message content (encrypted)
     encryptedContent: string
     ephemeralPubkey: string
     encryptedContentAdmin: string
@@ -76,9 +69,8 @@ reports.post('/', async (c) => {
     status: 'waiting',
     metadata: {
       type: 'report',
-      reportTitle: body.encryptedTitle,
+      reportTitle: body.title,
       reportCategory: body.category,
-      customFieldValues: body.encryptedCustomFields,
     },
   }
 
