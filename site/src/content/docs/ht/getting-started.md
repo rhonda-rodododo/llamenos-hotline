@@ -15,7 +15,7 @@ Deplwaye pwòp liy dirèk Llamenos ou nan mwens ke yon èdtan. W ap bezwen yon k
 ## 1. Klone epi enstale
 
 ```bash
-git clone https://github.com/rhonda-rodododo/llamenos.git
+git clone https://github.com/llamenos-org/llamenos.git
 cd llamenos
 bun install
 ```

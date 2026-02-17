@@ -15,7 +15,7 @@ Deployez votre propre ligne Llamenos en moins d'une heure. Vous aurez besoin d'u
 ## 1. Cloner et installer
 
 ```bash
-git clone https://github.com/rhonda-rodododo/llamenos.git
+git clone https://github.com/llamenos-org/llamenos.git
 cd llamenos
 bun install
 ```

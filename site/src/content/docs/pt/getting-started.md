@@ -15,7 +15,7 @@ Implante sua propria linha Llamenos em menos de uma hora. Voce precisara de uma 
 ## 1. Clonar e instalar
 
 ```bash
-git clone https://github.com/rhonda-rodododo/llamenos.git
+git clone https://github.com/llamenos-org/llamenos.git
 cd llamenos
 bun install
 ```
