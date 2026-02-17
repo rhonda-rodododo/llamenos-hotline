@@ -6,7 +6,8 @@ import { updateMyProfile } from '@/lib/api'
 import { setLanguage } from '@/lib/i18n'
 import { useToast } from '@/lib/toast'
 import { LANGUAGES } from '@shared/languages'
-import { Globe, Languages, Phone, ArrowRight, Check } from 'lucide-react'
+import { Globe, Languages, ArrowRight, Check } from 'lucide-react'
+import { LogoMark } from '@/components/logo-mark'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 
@@ -61,11 +62,14 @@ function ProfileSetupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <Card className="w-full max-w-lg">
+    <div className="relative flex min-h-screen items-center justify-center bg-background overflow-hidden">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-1/3 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl" />
+      </div>
+      <Card className="relative z-10 w-full max-w-lg">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-            <Phone className="h-7 w-7 text-primary" />
+          <div className="mx-auto mb-3">
+            <LogoMark size="xl" />
           </div>
           <CardTitle className="text-2xl">{t('profile.welcome')}</CardTitle>
           {name && (

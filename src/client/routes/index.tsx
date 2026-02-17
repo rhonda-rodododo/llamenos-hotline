@@ -14,6 +14,7 @@ import {
   Activity,
   Clock,
   BarChart3,
+  LayoutDashboard,
   Save,
   ShieldBan,
   Lock,
@@ -75,16 +76,17 @@ function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
+        <LayoutDashboard className="h-6 w-6 text-primary" />
         <h1 className="text-xl font-bold sm:text-2xl">{t('dashboard.title')}</h1>
         <WebRtcStatus />
       </div>
 
       {/* Status cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card>
+        <Card className={activeCalls.length > 0 ? 'border-green-500/20 bg-green-50/50 dark:bg-green-950/10' : undefined}>
           <CardContent className="flex items-center gap-4 py-0">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
-              <Activity className="h-5 w-5 text-green-500" />
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${activeCalls.length > 0 ? 'bg-green-500/15' : 'bg-muted'}`}>
+              <Activity className={`h-5 w-5 ${activeCalls.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{t('dashboard.activeCalls')}</p>
@@ -92,12 +94,12 @@ function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className={onBreak ? 'border-yellow-400/30 dark:border-yellow-600/30' : onShift ? 'border-green-400/30 dark:border-green-600/30' : undefined}>
+        <Card className={onBreak ? 'border-yellow-400/30 bg-yellow-50/50 dark:border-yellow-600/30 dark:bg-yellow-950/10' : onShift ? 'border-primary/20 bg-primary/5' : undefined}>
           <CardContent className="flex items-center gap-4 py-0">
             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-              onBreak ? 'bg-yellow-500/10' : onShift ? 'bg-green-500/10' : 'bg-blue-500/10'
+              onBreak ? 'bg-yellow-500/15' : onShift ? 'bg-primary/10' : 'bg-muted'
             }`}>
-              {onBreak ? <Coffee className="h-5 w-5 text-yellow-500" /> : <Clock className={`h-5 w-5 ${onShift ? 'text-green-500' : 'text-blue-500'}`} />}
+              {onBreak ? <Coffee className="h-5 w-5 text-yellow-600 dark:text-yellow-400" /> : <Clock className={`h-5 w-5 ${onShift ? 'text-primary' : 'text-muted-foreground'}`} />}
             </div>
             <div className="flex-1">
               <p className="text-sm text-muted-foreground">{t('dashboard.currentShift')}</p>
@@ -136,8 +138,8 @@ function DashboardPage() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-4 py-0">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-500/10">
-              <BarChart3 className="h-5 w-5 text-purple-500" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <BarChart3 className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{t('dashboard.callsToday')}</p>
@@ -213,7 +215,7 @@ function DashboardPage() {
         <Card>
           <CardHeader className="border-b">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <Users className="h-4 w-4 text-primary" />
               {t('dashboard.volunteerStatus')}
             </CardTitle>
           </CardHeader>
@@ -248,7 +250,7 @@ function DashboardPage() {
         <Card>
           <CardHeader className="border-b">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="h-4 w-4 text-muted-foreground" />
+              <Activity className="h-4 w-4 text-primary" />
               {t('dashboard.activeCalls')}
             </CardTitle>
           </CardHeader>

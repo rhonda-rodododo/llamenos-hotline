@@ -64,7 +64,10 @@ function ShiftsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold sm:text-2xl">{t('shifts.title')}</h1>
+        <div className="flex items-center gap-2">
+          <Clock className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-bold sm:text-2xl">{t('shifts.title')}</h1>
+        </div>
         <Button onClick={() => { setShowForm(true); setEditingShift(null) }}>
           <CalendarPlus className="h-4 w-4" />
           {t('shifts.createShift')}

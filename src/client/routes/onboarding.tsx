@@ -12,7 +12,8 @@ import { LANGUAGES } from '@shared/languages'
 import { PinInput } from '@/components/pin-input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Phone, Globe, KeyRound, ShieldCheck, ArrowRight, ArrowLeft, Check, Copy, Download } from 'lucide-react'
+import { Globe, KeyRound, ShieldCheck, ArrowRight, ArrowLeft, Check, Copy, Download, AlertTriangle } from 'lucide-react'
+import { LogoMark } from '@/components/logo-mark'
 
 export const Route = createFileRoute('/onboarding')({
   component: OnboardingPage,
@@ -176,7 +177,7 @@ function OnboardingPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-2 text-muted-foreground">
-          <Phone className="h-5 w-5 animate-pulse" />
+          <LogoMark size="sm" className="animate-pulse" />
           {t('common.loading')}
         </div>
       </div>
@@ -186,9 +187,12 @@ function OnboardingPage() {
   if (step === 'error') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md border-amber-500/30">
           <CardHeader className="text-center">
-            <CardTitle className="text-destructive">{t('onboarding.errorTitle')}</CardTitle>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
+              <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <CardTitle>{t('onboarding.errorTitle')}</CardTitle>
             <CardDescription>{errorMsg}</CardDescription>
           </CardHeader>
           <CardContent className="text-center">
@@ -202,13 +206,16 @@ function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-lg">
+    <div className="relative flex min-h-screen items-center justify-center bg-background p-4 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-1/3 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl" />
+      </div>
+      <Card className="relative z-10 w-full max-w-lg">
         {step === 'welcome' && (
           <>
             <CardHeader className="text-center">
-              <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                <Phone className="h-7 w-7 text-primary" />
+              <div className="mx-auto mb-3">
+                <LogoMark size="xl" />
               </div>
               <CardTitle className="text-2xl">
                 {t('onboarding.welcomeTitle', { name: hotlineName })}
@@ -254,8 +261,8 @@ function OnboardingPage() {
         {step === 'pin' && (
           <>
             <CardHeader className="text-center">
-              <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                <KeyRound className="h-7 w-7 text-primary" />
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <KeyRound className="h-6 w-6 text-primary" />
               </div>
               <CardTitle>
                 {pinStep === 'create' ? t('pin.createTitle') : t('pin.confirmTitle')}
@@ -294,7 +301,7 @@ function OnboardingPage() {
         {step === 'keypair' && (
           <CardContent className="flex items-center justify-center py-12">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Phone className="h-5 w-5 animate-pulse" />
+              <LogoMark size="sm" className="animate-pulse" />
               {t('onboarding.generatingKeys')}
             </div>
           </CardContent>
@@ -303,8 +310,8 @@ function OnboardingPage() {
         {step === 'backup' && (
           <>
             <CardHeader className="text-center">
-              <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                <ShieldCheck className="h-7 w-7 text-primary" />
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <ShieldCheck className="h-6 w-6 text-primary" />
               </div>
               <CardTitle>{t('onboarding.backupTitle')}</CardTitle>
               <CardDescription>{t('onboarding.backupDescription')}</CardDescription>
