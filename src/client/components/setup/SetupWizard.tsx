@@ -10,7 +10,8 @@ import type { ChannelType } from '@shared/types'
 import type { TelephonyProviderConfig, WhatsAppConfig, SignalConfig } from '@shared/types'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Phone, ArrowLeft, ArrowRight, SkipForward } from 'lucide-react'
+import { ArrowLeft, ArrowRight, SkipForward } from 'lucide-react'
+import { LogoMark } from '@/components/logo-mark'
 import { StepIdentity } from './StepIdentity'
 import { StepChannels } from './StepChannels'
 import { StepProviders } from './StepProviders'
@@ -123,7 +124,7 @@ export function SetupWizard() {
       {/* Header */}
       <div className="px-6 pt-6">
         <div className="flex items-center gap-2 mb-4">
-          <Phone className="h-5 w-5 text-primary" />
+          <LogoMark size="sm" />
           <h1 className="text-xl font-bold">{t('setup.title')}</h1>
         </div>
         {/* Progress */}

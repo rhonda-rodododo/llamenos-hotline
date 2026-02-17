@@ -7,7 +7,8 @@ import { useTheme } from '@/lib/theme'
 import { isValidNsec } from '@/lib/crypto'
 import { readBackupFile } from '@/lib/backup'
 import { isWebAuthnAvailable, loginWithPasskey } from '@/lib/webauthn'
-import { Phone, KeyRound, LogIn, Lock, Sun, Moon, Monitor, Upload, ChevronDown, ChevronUp, Fingerprint } from 'lucide-react'
+import { KeyRound, LogIn, Shield, Sun, Moon, Monitor, Upload, ChevronDown, ChevronUp, Fingerprint } from 'lucide-react'
+import { LogoMark } from '@/components/logo-mark'
 import { LanguageSelect } from '@/components/language-select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -76,11 +77,16 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <Card className="w-full max-w-md">
+    <div className="relative flex min-h-screen items-center justify-center bg-background overflow-hidden">
+      {/* Subtle radial gradient background */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-1/3 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl" />
+      </div>
+
+      <Card className="relative z-10 w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-            <Phone className="h-7 w-7 text-primary" />
+          <div className="mx-auto mb-3">
+            <LogoMark size="xl" className="animate-in fade-in zoom-in duration-700" />
           </div>
           <CardTitle className="text-2xl">{t('auth.loginTitle', { name: hotlineName })}</CardTitle>
           <CardDescription>{t('auth.loginDescription')}</CardDescription>
@@ -198,8 +204,8 @@ function LoginPage() {
         </CardContent>
 
         <CardFooter className="justify-center">
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Lock className="h-3 w-3" />
+          <p className="flex items-center gap-1.5 rounded-full bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary">
+            <Shield className="h-3 w-3" />
             {t('auth.securityNote')}
           </p>
         </CardFooter>

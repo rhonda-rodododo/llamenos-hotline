@@ -49,7 +49,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/docs';
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <title>{title} | Llámenos Docs</title>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -69,7 +69,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/docs';
                     class:list={[
                       'block px-3 py-2 rounded-lg text-sm transition-colors',
                       currentPath === item.href.replace(/\/$/, '')
-                        ? 'text-fg bg-bg-soft font-medium'
+                        ? 'text-accent-bright bg-accent/10 font-medium border-l-2 border-accent'
                         : 'text-fg-muted hover:text-fg hover:bg-bg-soft/50'
                     ]}
                   >
@@ -89,7 +89,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/docs';
                     class:list={[
                       'block px-3 py-2 rounded-lg text-sm transition-colors',
                       currentPath === item.href.replace(/\/$/, '')
-                        ? 'text-fg bg-bg-soft font-medium'
+                        ? 'text-accent-bright bg-accent/10 font-medium border-l-2 border-accent'
                         : 'text-fg-muted hover:text-fg hover:bg-bg-soft/50'
                     ]}
                   >

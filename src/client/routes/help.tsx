@@ -20,7 +20,10 @@ function HelpPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
-        <h1 className="text-xl font-bold sm:text-2xl">{t('help.title', { defaultValue: 'Help & Reference' })}</h1>
+        <div className="flex items-center gap-2">
+          <HelpCircle className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-bold sm:text-2xl">{t('help.title', { defaultValue: 'Help & Reference' })}</h1>
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {t('help.subtitle', { defaultValue: 'Quick guides, frequently asked questions, and keyboard shortcuts.' })}
         </p>

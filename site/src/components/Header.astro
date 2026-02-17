@@ -28,7 +28,13 @@ const navItems = [
 <header class="fixed top-0 left-0 right-0 z-50 border-b border-border bg-bg/80 backdrop-blur-xl">
   <nav class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
     <a href={lang === defaultLang ? '/' : `/${lang}`} class="flex items-center gap-2.5 text-fg font-semibold text-lg tracking-tight">
-      <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white text-sm font-bold">L</span>
+      <svg viewBox="0 0 32 32" class="h-8 w-8" aria-hidden="true">
+        <path d="M16 1.5L3.5 6.5v9c0 8.5 5.5 14.5 12.5 16 7-1.5 12.5-7.5 12.5-16v-9L16 1.5z" fill="oklch(0.60 0.14 195)" />
+        <path d="M16 3L5 7.5v8.25c0 7.5 4.75 12.75 11 14.25 6.25-1.5 11-6.75 11-14.25V7.5L16 3z" fill="oklch(0.42 0.10 195)" />
+        <path d="M11 10.5c0-.83.67-1.5 1.5-1.5h1c.83 0 1.5.67 1.5 1.5v3.5h4c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5h-1c-.83 0-1.5-.67-1.5-1.5V17h-4c-.83 0-1.5-.67-1.5-1.5v-5z" fill="oklch(0.90 0.06 195)" />
+        <path d="M21.5 10.5a5 5 0 0 1 0 5" stroke="oklch(0.90 0.06 195)" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.7" />
+        <path d="M23.5 9a7.5 7.5 0 0 1 0 8" stroke="oklch(0.90 0.06 195)" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.4" />
+      </svg>
       Llámenos
     </a>
 
@@ -40,7 +46,7 @@ const navItems = [
           class:list={[
             'px-3.5 py-2 rounded-lg text-sm font-medium transition-colors',
             currentPath.startsWith(item.href)
-              ? 'text-fg bg-bg-soft'
+              ? 'text-accent-bright bg-accent/10'
               : 'text-fg-muted hover:text-fg hover:bg-bg-soft/50'
           ]}
         >
@@ -52,7 +58,7 @@ const navItems = [
       </div>
       <a
         href="https://github.com/rhonda-rodododo/llamenos"
-        class="ml-2 inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-bright"
+        class="ml-2 inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-all hover:bg-accent-bright hover:shadow-lg hover:shadow-accent/20"
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -80,7 +86,7 @@ const navItems = [
           class:list={[
             'px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
             currentPath.startsWith(item.href)
-              ? 'text-fg bg-bg-soft'
+              ? 'text-accent-bright bg-accent/10'
               : 'text-fg-muted hover:text-fg hover:bg-bg-soft/50'
           ]}
         >

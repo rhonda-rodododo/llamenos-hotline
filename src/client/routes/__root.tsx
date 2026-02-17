@@ -11,6 +11,7 @@ import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog'
 import { NoteSheet } from '@/components/note-sheet'
 import { useKeyboardShortcuts } from '@/lib/use-keyboard-shortcuts'
 import { LanguageSelect } from '@/components/language-select'
+import { LogoMark } from '@/components/logo-mark'
 import {
   LayoutDashboard,
   StickyNote,
@@ -24,7 +25,6 @@ import {
   LogOut,
   FileText,
 
-  Phone,
   PhoneCall,
   Sun,
   Moon,
@@ -84,7 +84,7 @@ function RootLayout() {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="flex items-center gap-2 text-muted-foreground">
-          <Phone className="h-5 w-5 animate-pulse" />
+          <LogoMark size="sm" className="animate-pulse" />
           {t('common.loading')}
         </div>
       </div>
@@ -99,7 +99,7 @@ function RootLayout() {
       return (
         <div className="flex h-screen items-center justify-center">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Phone className="h-5 w-5 animate-pulse" />
+            <LogoMark size="sm" className="animate-pulse" />
           </div>
         </div>
       )
@@ -140,17 +140,17 @@ function AuthenticatedLayout() {
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <nav className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-border bg-sidebar transition-transform md:static md:visible md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full invisible'}`}>
-        <div className="border-b border-border px-4 py-5">
+      <nav className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-sidebar-border bg-sidebar transition-transform md:static md:visible md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full invisible'}`}>
+        <div className="border-b border-sidebar-border px-4 py-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Phone className="h-5 w-5 text-primary" />
+            <div className="flex items-center gap-2.5">
+              <LogoMark size="sm" />
               <p className="text-lg font-bold text-sidebar-foreground">{hotlineName}</p>
             </div>
             <button onClick={() => setSidebarOpen(false)} className="md:hidden text-muted-foreground hover:text-foreground" aria-label={t('a11y.closeSidebar')}>
@@ -160,7 +160,7 @@ function AuthenticatedLayout() {
           {name && (
             <div className="mt-2 space-y-1.5">
               <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-primary">
                   {name.charAt(0).toUpperCase()}
                 </div>
                 <div>
@@ -179,7 +179,7 @@ function AuthenticatedLayout() {
               {/* Shift status indicator */}
               {!currentCall && (
                 <div className="flex items-center gap-1.5 px-2">
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${onShift ? 'bg-green-500' : 'bg-gray-400'}`} />
+                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${onShift ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-xs text-muted-foreground">
                     {onShift && currentShift
                       ? `${currentShift.name} — ${t('shifts.until')} ${currentShift.endTime}`
@@ -231,8 +231,8 @@ function AuthenticatedLayout() {
 
           {isAdmin && (
             <>
-              <div className="my-2 border-t border-border" />
-              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="my-2 border-t border-sidebar-border" />
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-primary">
                 {t('nav.admin', { defaultValue: 'Admin' })}
               </p>
               <NavLink to="/shifts" icon={<Clock className="h-4 w-4" />}>{t('nav.shifts')}</NavLink>
@@ -247,7 +247,7 @@ function AuthenticatedLayout() {
           <NavLink to="/help" icon={<HelpCircle className="h-4 w-4" />}>{t('nav.help', { defaultValue: 'Help' })}</NavLink>
         </div>
 
-        <div className="border-t border-border p-3 space-y-1">
+        <div className="border-t border-sidebar-border p-3 space-y-1">
           <LanguageSelect size="sm" fullWidth />
           <div className="flex items-center gap-2 rounded-md px-3 py-2">
             {theme === 'dark' ? <Moon className="h-4 w-4 text-muted-foreground" /> : theme === 'light' ? <Sun className="h-4 w-4 text-muted-foreground" /> : <Monitor className="h-4 w-4 text-muted-foreground" />}
@@ -266,7 +266,7 @@ function AuthenticatedLayout() {
           </div>
           <button
             onClick={triggerCommandPalette}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
             <Search className="h-4 w-4" />
             {t('commandPalette.label')}
@@ -279,7 +279,7 @@ function AuthenticatedLayout() {
               signOut()
               navigate({ to: '/login' })
             }}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
             <LogOut className="h-4 w-4" />
             {t('common.logout')}
@@ -295,7 +295,7 @@ function AuthenticatedLayout() {
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            <Phone className="h-4 w-4 text-primary" />
+            <LogoMark size="sm" />
             <span className="font-semibold">{hotlineName}</span>
           </div>
         </header>
@@ -357,13 +357,19 @@ function AuthenticatedLayout() {
 }
 
 function NavLink({ to, children, icon }: { to: string; children: ReactNode; icon?: ReactNode }) {
+  const location = useLocation()
+  const isActive = location.pathname === to || (to === '/' ? false : location.pathname.startsWith(to))
+
   return (
     <Link
       to={to}
-      className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
-      activeProps={{ className: 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' }}
+      className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent ${
+        isActive
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-l-[3px] border-primary pl-[9px]'
+          : 'text-sidebar-foreground'
+      }`}
     >
-      {icon && <span className="text-muted-foreground">{icon}</span>}
+      {icon && <span className={isActive ? 'text-primary' : 'text-muted-foreground'}>{icon}</span>}
       {children}
     </Link>
   )

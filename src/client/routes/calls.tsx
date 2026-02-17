@@ -107,7 +107,7 @@ function CallHistoryPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <PhoneIncoming className="h-6 w-6 text-muted-foreground" />
+        <PhoneIncoming className="h-6 w-6 text-primary" />
         <h1 className="text-xl font-bold sm:text-2xl">{t('callHistory.title')}</h1>
       </div>
 
