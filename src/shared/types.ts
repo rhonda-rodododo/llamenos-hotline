@@ -73,8 +73,59 @@ export interface CustomFieldDefinition {
   }
   visibleToVolunteers: boolean
   editableByVolunteers: boolean
+  context: 'call-notes' | 'reports' | 'both'  // where this field appears
+  allowFileUpload?: boolean  // this field accepts file attachments
+  acceptedFileTypes?: string[] // e.g., ['image/*', 'video/*', 'application/pdf']
   order: number
   createdAt: string
+}
+
+// --- Encrypted File Upload Types ---
+
+export interface EncryptedFileMetadata {
+  originalName: string
+  mimeType: string
+  size: number
+  dimensions?: { width: number; height: number }
+  duration?: number
+  checksum: string   // SHA-256 of plaintext for integrity verification
+}
+
+export interface RecipientEnvelope {
+  pubkey: string
+  encryptedFileKey: string
+  ephemeralPubkey: string
+}
+
+export interface FileRecord {
+  id: string
+  conversationId: string
+  messageId?: string
+  uploadedBy: string         // pubkey of uploader
+  recipientEnvelopes: RecipientEnvelope[]
+  encryptedMetadata: Array<{
+    pubkey: string
+    encryptedContent: string
+    ephemeralPubkey: string
+  }>
+  totalSize: number          // encrypted size in bytes
+  totalChunks: number
+  status: 'uploading' | 'complete' | 'failed'
+  completedChunks: number
+  createdAt: string
+  completedAt?: string
+}
+
+export interface UploadInit {
+  totalSize: number
+  totalChunks: number
+  conversationId: string
+  recipientEnvelopes: RecipientEnvelope[]
+  encryptedMetadata: Array<{
+    pubkey: string
+    encryptedContent: string
+    ephemeralPubkey: string
+  }>
 }
 
 /** What gets encrypted before storage — replaces plain text */

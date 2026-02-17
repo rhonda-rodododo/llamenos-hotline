@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VolunteersRouteImport } from './routes/volunteers'
 import { Route as ShiftsRouteImport } from './routes/shifts'
+import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ProfileSetupRouteImport } from './routes/profile-setup'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NotesRouteImport } from './routes/notes'
@@ -34,9 +36,19 @@ const ShiftsRoute = ShiftsRouteImport.update({
   path: '/shifts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileSetupRoute = ProfileSetupRouteImport.update({
@@ -105,7 +117,9 @@ export interface FileRoutesByFullPath {
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/profile-setup': typeof ProfileSetupRoute
+  '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
+  '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
   '/volunteers': typeof VolunteersRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -121,7 +135,9 @@ export interface FileRoutesByTo {
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/profile-setup': typeof ProfileSetupRoute
+  '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
+  '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
   '/volunteers': typeof VolunteersRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -138,7 +154,9 @@ export interface FileRoutesById {
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
   '/profile-setup': typeof ProfileSetupRoute
+  '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
+  '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
   '/volunteers': typeof VolunteersRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -156,7 +174,9 @@ export interface FileRouteTypes {
     | '/notes'
     | '/onboarding'
     | '/profile-setup'
+    | '/reports'
     | '/settings'
+    | '/setup'
     | '/shifts'
     | '/volunteers'
     | '/admin/settings'
@@ -172,7 +192,9 @@ export interface FileRouteTypes {
     | '/notes'
     | '/onboarding'
     | '/profile-setup'
+    | '/reports'
     | '/settings'
+    | '/setup'
     | '/shifts'
     | '/volunteers'
     | '/admin/settings'
@@ -188,7 +210,9 @@ export interface FileRouteTypes {
     | '/notes'
     | '/onboarding'
     | '/profile-setup'
+    | '/reports'
     | '/settings'
+    | '/setup'
     | '/shifts'
     | '/volunteers'
     | '/admin/settings'
@@ -205,7 +229,9 @@ export interface RootRouteChildren {
   NotesRoute: typeof NotesRoute
   OnboardingRoute: typeof OnboardingRoute
   ProfileSetupRoute: typeof ProfileSetupRoute
+  ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
+  SetupRoute: typeof SetupRoute
   ShiftsRoute: typeof ShiftsRoute
   VolunteersRoute: typeof VolunteersRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
@@ -228,11 +254,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShiftsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile-setup': {
@@ -325,7 +365,9 @@ const rootRouteChildren: RootRouteChildren = {
   NotesRoute: NotesRoute,
   OnboardingRoute: OnboardingRoute,
   ProfileSetupRoute: ProfileSetupRoute,
+  ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
+  SetupRoute: SetupRoute,
   ShiftsRoute: ShiftsRoute,
   VolunteersRoute: VolunteersRoute,
   AdminSettingsRoute: AdminSettingsRoute,

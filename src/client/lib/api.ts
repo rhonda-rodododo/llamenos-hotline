@@ -55,11 +55,12 @@ export class ApiError extends Error {
 
 export async function getConfig() {
   const res = await fetch(`${API_BASE}/config`)
-  if (!res.ok) return { hotlineName: 'Hotline', hotlineNumber: '', channels: undefined }
+  if (!res.ok) return { hotlineName: 'Hotline', hotlineNumber: '', channels: undefined, setupCompleted: undefined }
   return res.json() as Promise<{
     hotlineName: string
     hotlineNumber: string
     channels?: import('@shared/types').EnabledChannels
+    setupCompleted?: boolean
   }>
 }
 
@@ -321,7 +322,7 @@ export async function listInvites() {
   return request<{ invites: InviteCode[] }>('/invites')
 }
 
-export async function createInvite(data: { name: string; phone: string; role: 'volunteer' | 'admin' }) {
+export async function createInvite(data: { name: string; phone: string; role: UserRole }) {
   return request<{ invite: InviteCode }>('/invites', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -660,6 +661,189 @@ export async function getMessagingConfig() {
 export async function updateMessagingConfig(data: Partial<MessagingConfig>) {
   return request<MessagingConfig>('/settings/messaging', {
     method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+// --- Setup State ---
+
+export type { SetupState } from '@shared/types'
+import type { SetupState } from '@shared/types'
+
+export async function getSetupState() {
+  return request<SetupState>('/setup/state')
+}
+
+export async function updateSetupState(data: Partial<SetupState>) {
+  return request<SetupState>('/setup/state', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function completeSetup() {
+  return request<SetupState>('/setup/complete', { method: 'POST' })
+}
+
+export async function testSignalBridge(data: { bridgeUrl: string; bridgeApiKey: string }) {
+  return request<{ ok: boolean; error?: string }>('/setup/test/signal', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function testWhatsAppConnection(data: { phoneNumberId: string; accessToken: string }) {
+  return request<{ ok: boolean; error?: string }>('/setup/test/whatsapp', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+// --- Reports ---
+
+export interface Report extends Conversation {
+  metadata: {
+    type: 'report'
+    reportTitle?: string
+    reportCategory?: string
+    customFieldValues?: string
+    linkedCallId?: string
+    reportId?: string
+  }
+}
+
+export async function listReports(params?: { status?: string; category?: string; page?: number; limit?: number }) {
+  const qs = new URLSearchParams()
+  if (params?.status) qs.set('status', params.status)
+  if (params?.category) qs.set('category', params.category)
+  if (params?.page) qs.set('page', String(params.page))
+  if (params?.limit) qs.set('limit', String(params.limit))
+  return request<{ conversations: Report[]; total: number }>(`/reports?${qs}`)
+}
+
+export async function createReport(data: {
+  encryptedTitle: string
+  ephemeralPubkeyTitle: string
+  encryptedTitleAdmin: string
+  ephemeralPubkeyTitleAdmin: string
+  category?: string
+  encryptedContent: string
+  ephemeralPubkey: string
+  encryptedContentAdmin: string
+  ephemeralPubkeyAdmin: string
+}) {
+  return request<Report>('/reports', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getReport(id: string) {
+  return request<Report>(`/reports/${id}`)
+}
+
+export async function getReportMessages(id: string, params?: { page?: number; limit?: number }) {
+  const qs = new URLSearchParams()
+  if (params?.page) qs.set('page', String(params.page))
+  if (params?.limit) qs.set('limit', String(params.limit))
+  return request<{ messages: ConversationMessage[]; total: number }>(`/reports/${id}/messages?${qs}`)
+}
+
+export async function sendReportMessage(id: string, data: {
+  encryptedContent: string
+  ephemeralPubkey: string
+  encryptedContentAdmin: string
+  ephemeralPubkeyAdmin: string
+  attachmentIds?: string[]
+}) {
+  return request<ConversationMessage>(`/reports/${id}/messages`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function assignReport(id: string, assignedTo: string) {
+  return request<Report>(`/reports/${id}/assign`, {
+    method: 'POST',
+    body: JSON.stringify({ assignedTo }),
+  })
+}
+
+export async function updateReport(id: string, data: { status?: string }) {
+  return request<Report>(`/reports/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getReportCategories() {
+  return request<{ categories: string[] }>('/reports/categories')
+}
+
+export async function getReportFiles(id: string) {
+  return request<{ files: import('@shared/types').FileRecord[] }>(`/reports/${id}/files`)
+}
+
+// --- File Uploads ---
+
+export async function initUpload(data: import('@shared/types').UploadInit) {
+  return request<{ uploadId: string; totalChunks: number }>('/uploads/init', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function uploadChunk(uploadId: string, chunkIndex: number, data: ArrayBuffer) {
+  const headers = {
+    ...getAuthHeaders(),
+    'Content-Type': 'application/octet-stream',
+  }
+  const res = await fetch(`${API_BASE}/uploads/${uploadId}/chunks/${chunkIndex}`, {
+    method: 'PUT',
+    headers,
+    body: data,
+  })
+  if (!res.ok) {
+    if (res.status === 401) onAuthExpired?.()
+    throw new ApiError(res.status, await res.text())
+  }
+  onApiActivity?.()
+  return res.json() as Promise<{ chunkIndex: number; completedChunks: number; totalChunks: number }>
+}
+
+export async function completeUpload(uploadId: string) {
+  return request<{ fileId: string; status: string }>(`/uploads/${uploadId}/complete`, { method: 'POST' })
+}
+
+export async function getUploadStatus(uploadId: string) {
+  return request<{ uploadId: string; status: string; completedChunks: number; totalChunks: number }>(`/uploads/${uploadId}/status`)
+}
+
+export async function downloadFile(fileId: string): Promise<ArrayBuffer> {
+  const headers = getAuthHeaders()
+  const res = await fetch(`${API_BASE}/files/${fileId}/content`, { headers })
+  if (!res.ok) {
+    if (res.status === 401) onAuthExpired?.()
+    throw new ApiError(res.status, await res.text())
+  }
+  onApiActivity?.()
+  return res.arrayBuffer()
+}
+
+export async function getFileEnvelopes(fileId: string) {
+  return request<{ envelopes: import('@shared/types').RecipientEnvelope[] }>(`/files/${fileId}/envelopes`)
+}
+
+export async function getFileMetadata(fileId: string) {
+  return request<{ metadata: Array<{ pubkey: string; encryptedContent: string; ephemeralPubkey: string }> }>(`/files/${fileId}/metadata`)
+}
+
+export async function shareFile(fileId: string, data: {
+  envelope: import('@shared/types').RecipientEnvelope
+  encryptedMetadata: { pubkey: string; encryptedContent: string; ephemeralPubkey: string }
+}) {
+  return request<{ ok: true }>(`/files/${fileId}/share`, {
+    method: 'POST',
     body: JSON.stringify(data),
   })
 }

@@ -65,6 +65,7 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle }: Pr
           validation: editing.validation,
           visibleToVolunteers: editing.visibleToVolunteers ?? true,
           editableByVolunteers: editing.editableByVolunteers ?? true,
+          context: editing.context ?? 'both',
           order: fields.length,
           createdAt: new Date().toISOString(),
         }

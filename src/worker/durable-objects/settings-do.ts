@@ -66,6 +66,10 @@ export class SettingsDO extends DurableObject<Env> {
     // --- Enabled Channels (computed) ---
     this.router.get('/settings/enabled-channels', () => this.getEnabledChannels())
 
+    // --- Report Categories ---
+    this.router.get('/settings/report-categories', () => this.getReportCategories())
+    this.router.put('/settings/report-categories', async (req) => this.updateReportCategories(await req.json()))
+
     // --- Fallback Group ---
     this.router.get('/fallback', () => this.getFallbackGroup())
     this.router.put('/fallback', async (req) => this.setFallbackGroup(await req.json()))
@@ -239,9 +243,9 @@ export class SettingsDO extends DurableObject<Env> {
   // --- Custom Fields ---
 
   private async getCustomFields(role: string): Promise<Response> {
-    const fields = await this.ctx.storage.get<CustomFieldDefinition[]>('customFields') || []
+    let fields = await this.ctx.storage.get<CustomFieldDefinition[]>('customFields') || []
     if (role !== 'admin') {
-      return Response.json({ fields: fields.filter(f => f.visibleToVolunteers) })
+      fields = fields.filter(f => f.visibleToVolunteers)
     }
     return Response.json({ fields })
   }
@@ -292,7 +296,12 @@ export class SettingsDO extends DurableObject<Env> {
       }
     }
 
-    const normalized = fields.map((f, i) => ({ ...f, order: i }))
+    const validContexts = ['call-notes', 'reports', 'both']
+    const normalized = fields.map((f, i) => ({
+      ...f,
+      order: i,
+      context: validContexts.includes(f.context) ? f.context : 'both',
+    }))
     await this.ctx.storage.put('customFields', normalized)
     return Response.json({ fields: normalized })
   }
@@ -355,6 +364,22 @@ export class SettingsDO extends DurableObject<Env> {
     }
 
     return Response.json(channels)
+  }
+
+  // --- Report Categories ---
+
+  private async getReportCategories(): Promise<Response> {
+    const categories = await this.ctx.storage.get<string[]>('reportCategories') || ['Incident Report', 'Field Observation', 'Evidence', 'Other']
+    return Response.json({ categories })
+  }
+
+  private async updateReportCategories(data: { categories: string[] }): Promise<Response> {
+    if (!Array.isArray(data.categories)) {
+      return new Response(JSON.stringify({ error: 'categories must be an array' }), { status: 400 })
+    }
+    const categories = data.categories.slice(0, 50) // max 50 categories
+    await this.ctx.storage.put('reportCategories', categories)
+    return Response.json({ categories })
   }
 
   // --- Telephony Provider ---

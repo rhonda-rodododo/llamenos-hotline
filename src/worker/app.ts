@@ -20,6 +20,10 @@ import telephonyRoutes from './routes/telephony'
 import webrtcRoutes from './routes/webrtc'
 import messagingRoutes from './messaging/router'
 import conversationsRoutes from './routes/conversations'
+import uploadsRoutes from './routes/uploads'
+import filesRoutes from './routes/files'
+import reportsRoutes from './routes/reports'
+import setupRoutes from './routes/setup'
 import { getDOs } from './lib/do-access'
 
 const app = new Hono<AppEnv>()
@@ -62,6 +66,10 @@ authenticated.route('/audit', auditRoutes)
 authenticated.route('/settings', settingsRoutes)
 authenticated.route('/telephony', webrtcRoutes)
 authenticated.route('/conversations', conversationsRoutes)
+authenticated.route('/uploads', uploadsRoutes)
+authenticated.route('/files', filesRoutes)
+authenticated.route('/reports', reportsRoutes)
+authenticated.route('/setup', setupRoutes)
 
 api.route('/', authenticated)
 

@@ -22,6 +22,7 @@ import {
   ScrollText,
   Settings,
   LogOut,
+  FileText,
 
   Phone,
   PhoneCall,
@@ -92,7 +93,7 @@ function RootLayout() {
   if (!isAuthenticated || !profileCompleted) {
     // Only render Outlet for public routes — prevent protected route components
     // from mounting and making API calls before the redirect effect fires
-    const publicPaths = ['/login', '/onboarding', '/profile-setup']
+    const publicPaths = ['/login', '/onboarding', '/profile-setup', '/setup']
     if (!publicPaths.includes(location.pathname)) {
       return (
         <div className="flex h-screen items-center justify-center">
@@ -200,12 +201,28 @@ function AuthenticatedLayout() {
         </div>
 
         <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
-          <NavLink to="/" icon={<LayoutDashboard className="h-4 w-4" />}>{t('nav.dashboard')}</NavLink>
-          <NavLink to="/notes" icon={<StickyNote className="h-4 w-4" />}>{t('nav.notes')}</NavLink>
-          {hasMessaging && (
-            <NavLink to="/conversations" icon={<MessageSquare className="h-4 w-4" />}>
-              {t('nav.conversations', { defaultValue: 'Conversations' })}
-            </NavLink>
+          {role === 'reporter' ? (
+            <>
+              {/* Reporter-specific nav: reports only */}
+              <NavLink to="/reports" icon={<FileText className="h-4 w-4" />}>
+                {t('nav.reports', { defaultValue: 'My Reports' })}
+              </NavLink>
+            </>
+          ) : (
+            <>
+              <NavLink to="/" icon={<LayoutDashboard className="h-4 w-4" />}>{t('nav.dashboard')}</NavLink>
+              <NavLink to="/notes" icon={<StickyNote className="h-4 w-4" />}>{t('nav.notes')}</NavLink>
+              {hasMessaging && (
+                <NavLink to="/conversations" icon={<MessageSquare className="h-4 w-4" />}>
+                  {t('nav.conversations', { defaultValue: 'Conversations' })}
+                </NavLink>
+              )}
+              {(channels?.reports || isAdmin) && (
+                <NavLink to="/reports" icon={<FileText className="h-4 w-4" />}>
+                  {t('nav.reports', { defaultValue: 'Reports' })}
+                </NavLink>
+              )}
+            </>
           )}
 
           {isAdmin && (
