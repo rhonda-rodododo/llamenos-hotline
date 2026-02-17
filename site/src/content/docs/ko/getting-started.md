@@ -15,7 +15,7 @@ description: 1시간 이내에 나만의 Llamenos 핫라인을 배포하세요.
 ## 1. 클론 및 설치
 
 ```bash
-git clone https://github.com/rikki-llamenos/llamenos.git
+git clone https://github.com/llamenos-org/llamenos.git
 cd llamenos
 bun install
 ```

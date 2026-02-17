@@ -15,7 +15,7 @@ Deploy your own Llamenos hotline in under an hour. You'll need a Cloudflare acco
 ## 1. Clone and install
 
 ```bash
-git clone https://github.com/rikki-llamenos/llamenos.git
+git clone https://github.com/llamenos-org/llamenos.git
 cd llamenos
 bun install
 ```

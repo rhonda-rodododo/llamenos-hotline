@@ -15,7 +15,7 @@ description: Разверните свою горячую линию Llamenos м
 ## 1. Клонирование и установка
 
 ```bash
-git clone https://github.com/rikki-llamenos/llamenos.git
+git clone https://github.com/llamenos-org/llamenos.git
 cd llamenos
 bun install
 ```

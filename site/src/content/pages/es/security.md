@@ -100,4 +100,4 @@ Compilaciones deterministas que permitan a cualquier persona verificar que el co
 
 ## Verificalo tu mismo
 
-Llamenos es completamente de codigo abierto. Cada operacion de cifrado, cada endpoint de API, cada verificacion del lado del cliente — todo esta en el repositorio. Lee el codigo, audita la criptografia, reporta problemas. [github.com/rikki-llamenos/llamenos](https://github.com/rikki-llamenos/llamenos)
+Llamenos es completamente de codigo abierto. Cada operacion de cifrado, cada endpoint de API, cada verificacion del lado del cliente — todo esta en el repositorio. Lee el codigo, audita la criptografia, reporta problemas. [github.com/llamenos-org/llamenos](https://github.com/llamenos-org/llamenos)

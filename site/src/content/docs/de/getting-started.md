@@ -15,7 +15,7 @@ Stellen Sie Ihre eigene Llamenos-Hotline in weniger als einer Stunde bereit. Sie
 ## 1. Klonen und installieren
 
 ```bash
-git clone https://github.com/rikki-llamenos/llamenos.git
+git clone https://github.com/llamenos-org/llamenos.git
 cd llamenos
 bun install
 ```

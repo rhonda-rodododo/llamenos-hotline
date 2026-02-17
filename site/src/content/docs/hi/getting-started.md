@@ -15,7 +15,7 @@ description: एक घंटे से भी कम समय में अप
 ## 1. क्लोन और इंस्टॉल करें
 
 ```bash
-git clone https://github.com/rikki-llamenos/llamenos.git
+git clone https://github.com/llamenos-org/llamenos.git
 cd llamenos
 bun install
 ```
