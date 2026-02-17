@@ -1,4 +1,4 @@
-# Epic 46: Reporter Role & Encrypted File Uploads
+# Epic 47: Reporter Role & Encrypted File Uploads
 
 ## Problem
 

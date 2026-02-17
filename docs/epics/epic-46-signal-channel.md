@@ -1,4 +1,4 @@
-# Epic 45: Signal Channel
+# Epic 46: Signal Channel
 
 ## Problem
 
@@ -219,7 +219,8 @@ Create an admin-facing setup guide (in the docs section) covering:
 ## Dependencies
 
 - Epic 42 (Messaging Architecture)
-- Epic 46 (Encrypted File Uploads — for voice message audio storage)
+- Epic 43 (Setup Wizard — channel configuration flows)
+- Epic 47 (Encrypted File Uploads — for voice message audio storage)
 
 ## Testing
 
