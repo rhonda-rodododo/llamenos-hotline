@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers'
-import type { Env, Volunteer, InviteCode, WebAuthnCredential, WebAuthnSettings, ServerSession } from '../types'
+import type { Env, UserRole, Volunteer, InviteCode, WebAuthnCredential, WebAuthnSettings, ServerSession } from '../types'
 import { DORouter } from '../lib/do-router'
 
 /**
@@ -157,7 +157,7 @@ export class IdentityDO extends DurableObject<Env> {
     pubkey: string
     name: string
     phone: string
-    role: 'volunteer' | 'admin'
+    role: UserRole
     encryptedSecretKey: string
   }): Promise<Response> {
     const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
@@ -221,7 +221,7 @@ export class IdentityDO extends DurableObject<Env> {
     return Response.json({ invites: invites.filter(i => !i.usedAt) })
   }
 
-  private async createInvite(data: { name: string; phone: string; role: 'volunteer' | 'admin'; createdBy: string }): Promise<Response> {
+  private async createInvite(data: { name: string; phone: string; role: UserRole; createdBy: string }): Promise<Response> {
     const invites = await this.ctx.storage.get<InviteCode[]>('invites') || []
     const code = crypto.randomUUID()
     const invite: InviteCode = {

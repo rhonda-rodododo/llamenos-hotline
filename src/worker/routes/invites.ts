@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import type { AppEnv } from '../types'
+import type { AppEnv, UserRole } from '../types'
 import { getDOs } from '../lib/do-access'
 import { isValidE164, checkRateLimit } from '../lib/helpers'
 import { hashIP } from '../lib/crypto'
@@ -42,7 +42,7 @@ invites.get('/', async (c) => {
 invites.post('/', async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json() as { name: string; phone: string; role: 'volunteer' | 'admin' }
+  const body = await c.req.json() as { name: string; phone: string; role: UserRole }
   if (body.phone && !isValidE164(body.phone)) {
     return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
   }

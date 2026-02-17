@@ -78,7 +78,7 @@ export async function logout() {
 }
 
 export async function getMe() {
-  return request<{ pubkey: string; role: 'volunteer' | 'admin'; name: string; transcriptionEnabled: boolean; spokenLanguages: string[]; uiLanguage: string; profileCompleted: boolean; onBreak: boolean; callPreference: 'phone' | 'browser' | 'both'; webauthnRequired: boolean; webauthnRegistered: boolean }>('/auth/me')
+  return request<{ pubkey: string; role: UserRole; name: string; transcriptionEnabled: boolean; spokenLanguages: string[]; uiLanguage: string; profileCompleted: boolean; onBreak: boolean; callPreference: 'phone' | 'browser' | 'both'; webauthnRequired: boolean; webauthnRegistered: boolean }>('/auth/me')
 }
 
 // --- Volunteers (admin only) ---
@@ -87,14 +87,14 @@ export async function listVolunteers() {
   return request<{ volunteers: Volunteer[] }>('/volunteers')
 }
 
-export async function createVolunteer(data: { name: string; phone: string; role: 'volunteer' | 'admin'; pubkey: string }) {
+export async function createVolunteer(data: { name: string; phone: string; role: UserRole; pubkey: string }) {
   return request<{ volunteer: Volunteer }>('/volunteers', {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
-export async function updateVolunteer(pubkey: string, data: Partial<{ name: string; phone: string; role: 'volunteer' | 'admin'; active: boolean }>) {
+export async function updateVolunteer(pubkey: string, data: Partial<{ name: string; phone: string; role: UserRole; active: boolean }>) {
   return request<{ volunteer: Volunteer }>(`/volunteers/${pubkey}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -722,10 +722,7 @@ export async function listReports(params?: { status?: string; category?: string;
 }
 
 export async function createReport(data: {
-  encryptedTitle: string
-  ephemeralPubkeyTitle: string
-  encryptedTitleAdmin: string
-  ephemeralPubkeyTitleAdmin: string
+  title: string
   category?: string
   encryptedContent: string
   ephemeralPubkey: string

@@ -14,6 +14,7 @@ dev.post('/test-reset', async (c) => {
   await dos.records.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.shifts.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.calls.fetch(new Request('http://do/reset', { method: 'POST' }))
+  await dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' }))
   return c.json({ ok: true })
 })
 
