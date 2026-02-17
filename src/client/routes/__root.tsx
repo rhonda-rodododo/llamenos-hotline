@@ -32,6 +32,7 @@ import {
   Menu,
   X,
   Search,
+  HelpCircle,
 } from 'lucide-react'
 
 export const Route = createRootRoute({
@@ -203,9 +204,12 @@ function AuthenticatedLayout() {
         <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
           {role === 'reporter' ? (
             <>
-              {/* Reporter-specific nav: reports only */}
+              {/* Reporter-specific nav: reports and help */}
               <NavLink to="/reports" icon={<FileText className="h-4 w-4" />}>
                 {t('nav.reports', { defaultValue: 'My Reports' })}
+              </NavLink>
+              <NavLink to="/help" icon={<HelpCircle className="h-4 w-4" />}>
+                {t('nav.help', { defaultValue: 'Help' })}
               </NavLink>
             </>
           ) : (
@@ -240,6 +244,7 @@ function AuthenticatedLayout() {
             </>
           )}
           <NavLink to="/settings" icon={<Settings className="h-4 w-4" />}>{t('nav.settings')}</NavLink>
+          <NavLink to="/help" icon={<HelpCircle className="h-4 w-4" />}>{t('nav.help', { defaultValue: 'Help' })}</NavLink>
         </div>
 
         <div className="border-t border-border p-3 space-y-1">
