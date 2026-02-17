@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { WebRtcStatus, WebRtcCallControls } from '@/components/webrtc-call'
+import { GettingStartedChecklist } from '@/components/getting-started'
 
 export const Route = createFileRoute('/')({
   component: DashboardPage,
@@ -145,6 +146,9 @@ function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Getting started checklist (admin only) */}
+      {isAdmin && <GettingStartedChecklist />}
 
       {/* On break notice */}
       {onBreak && !currentCall && (

@@ -31,6 +31,7 @@ import {
   Plus,
   Search,
   Keyboard,
+  HelpCircle,
 } from 'lucide-react'
 
 let openCommandPalette: (() => void) | null = null
@@ -160,6 +161,10 @@ export function CommandPalette() {
               <Coffee className="h-4 w-4" />
               {onBreak ? t('dashboard.endBreak') : t('dashboard.goOnBreak')}
               <CommandShortcut>{mod}+Shift+B</CommandShortcut>
+            </CommandItem>
+            <CommandItem onSelect={() => runCommand(() => navigate({ to: '/help' }))}>
+              <HelpCircle className="h-4 w-4" />
+              {t('nav.help', { defaultValue: 'Help' })}
             </CommandItem>
             <CommandItem onSelect={() => runCommand(() => triggerShortcutsDialog())}>
               <Keyboard className="h-4 w-4" />
