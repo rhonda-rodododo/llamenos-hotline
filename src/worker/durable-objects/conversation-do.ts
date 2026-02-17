@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers'
 import type { Env, Conversation, EncryptedMessage, ConversationStatus } from '../types'
 import type { IncomingMessage } from '../messaging/adapter'
-import type { MessagingChannelType } from '../../shared/types'
+import type { MessagingChannelType, FileRecord, RecipientEnvelope } from '../../shared/types'
 import { encryptForPublicKey, hashPhone } from '../lib/crypto'
 import { DORouter } from '../lib/do-router'
 
@@ -36,11 +36,22 @@ export class ConversationDO extends DurableObject<Env> {
     this.router.get('/conversations/:id/messages', (req, { id }) => this.getMessages(id, req))
     this.router.post('/conversations/:id/messages', async (req, { id }) => this.addMessage(id, await req.json()))
 
+    // --- Create conversation (for reports / web-originated) ---
+    this.router.post('/conversations', async (req) => this.createConversation(await req.json()))
+
     // --- Inbound from webhooks ---
     this.router.post('/conversations/incoming', async (req) => this.handleIncoming(await req.json()))
 
     // --- Stats ---
     this.router.get('/conversations/stats', () => this.getStats())
+
+    // --- File Records ---
+    this.router.post('/files', async (req) => this.createFileRecord(await req.json()))
+    this.router.get('/files/:id', (_req, { id }) => this.getFileRecord(id))
+    this.router.get('/files', (req) => this.listFileRecords(req))
+    this.router.post('/files/:id/chunk-complete', async (req, { id }) => this.markChunkComplete(id, await req.json()))
+    this.router.post('/files/:id/complete', async (_req, { id }) => this.markFileComplete(id))
+    this.router.post('/files/:id/share', async (req, { id }) => this.addFileRecipient(id, await req.json()))
 
     // --- Test Reset ---
     this.router.post('/reset', async () => {
@@ -272,6 +283,93 @@ export class ConversationDO extends DurableObject<Env> {
     const today = conversations.filter(c => new Date(c.createdAt).getTime() >= todayMs).length
 
     return Response.json({ waiting, active, closed, today, total: conversations.length })
+  }
+
+  // --- Create Conversation (for web-originated / reports) ---
+
+  private async createConversation(data: Partial<Conversation>): Promise<Response> {
+    const conversations = await this.ctx.storage.get<Conversation[]>('conversations') || []
+    const now = new Date().toISOString()
+
+    const conv: Conversation = {
+      id: crypto.randomUUID(),
+      channelType: (data.channelType as MessagingChannelType | 'web') || 'web',
+      contactIdentifierHash: data.contactIdentifierHash || '',
+      contactLast4: data.contactLast4,
+      assignedTo: data.assignedTo,
+      status: (data.status as ConversationStatus) || 'waiting',
+      createdAt: now,
+      updatedAt: now,
+      lastMessageAt: now,
+      messageCount: 0,
+      metadata: data.metadata,
+    }
+
+    conversations.push(conv)
+    await this.ctx.storage.put('conversations', conversations)
+    return Response.json(conv)
+  }
+
+  // --- File Records ---
+
+  private async createFileRecord(data: FileRecord): Promise<Response> {
+    const files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
+    files.push(data)
+    await this.ctx.storage.put('fileRecords', files)
+    return Response.json(data)
+  }
+
+  private async getFileRecord(id: string): Promise<Response> {
+    const files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
+    const file = files.find(f => f.id === id)
+    if (!file) return new Response('File not found', { status: 404 })
+    return Response.json(file)
+  }
+
+  private async listFileRecords(req: Request): Promise<Response> {
+    const url = new URL(req.url)
+    const conversationId = url.searchParams.get('conversationId')
+    let files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
+    if (conversationId) {
+      files = files.filter(f => f.conversationId === conversationId)
+    }
+    return Response.json({ files: files.filter(f => f.status === 'complete') })
+  }
+
+  private async markChunkComplete(id: string, data: { chunkIndex: number }): Promise<Response> {
+    const files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
+    const file = files.find(f => f.id === id)
+    if (!file) return new Response('File not found', { status: 404 })
+    file.completedChunks = (file.completedChunks || 0) + 1
+    await this.ctx.storage.put('fileRecords', files)
+    return Response.json({ completedChunks: file.completedChunks, totalChunks: file.totalChunks })
+  }
+
+  private async markFileComplete(id: string): Promise<Response> {
+    const files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
+    const file = files.find(f => f.id === id)
+    if (!file) return new Response('File not found', { status: 404 })
+    file.status = 'complete'
+    file.completedAt = new Date().toISOString()
+    await this.ctx.storage.put('fileRecords', files)
+    return Response.json(file)
+  }
+
+  private async addFileRecipient(id: string, data: { envelope: RecipientEnvelope; encryptedMetadata: { pubkey: string; encryptedContent: string; ephemeralPubkey: string } }): Promise<Response> {
+    const files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
+    const file = files.find(f => f.id === id)
+    if (!file) return new Response('File not found', { status: 404 })
+
+    // Add envelope if not already present
+    if (!file.recipientEnvelopes.some(e => e.pubkey === data.envelope.pubkey)) {
+      file.recipientEnvelopes.push(data.envelope)
+    }
+    if (data.encryptedMetadata && !file.encryptedMetadata.some(m => m.pubkey === data.encryptedMetadata.pubkey)) {
+      file.encryptedMetadata.push(data.encryptedMetadata)
+    }
+
+    await this.ctx.storage.put('fileRecords', files)
+    return Response.json(file)
   }
 
   // --- Alarm: auto-close inactive conversations ---

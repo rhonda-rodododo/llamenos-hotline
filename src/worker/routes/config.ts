@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import type { AppEnv } from '../types'
 import { getDOs } from '../lib/do-access'
-import type { EnabledChannels } from '../../shared/types'
+import type { EnabledChannels, SetupState } from '../../shared/types'
 
 const config = new Hono<AppEnv>()
 
@@ -22,10 +22,21 @@ config.get('/', async (c) => {
     }
   } catch { /* ignore */ }
 
+  // Fetch setup state
+  let setupCompleted = true
+  try {
+    const setupRes = await dos.settings.fetch(new Request('http://do/settings/setup'))
+    if (setupRes.ok) {
+      const setupState = await setupRes.json() as SetupState
+      setupCompleted = setupState.setupCompleted
+    }
+  } catch { /* default to true */ }
+
   return c.json({
     hotlineName: c.env.HOTLINE_NAME || 'Hotline',
     hotlineNumber,
     channels,
+    setupCompleted,
   })
 })
 

@@ -6,6 +6,7 @@ interface ConfigContextValue {
   hotlineName: string
   hotlineNumber: string
   channels: EnabledChannels
+  setupCompleted: boolean
   isLoading: boolean
 }
 
@@ -21,6 +22,7 @@ const ConfigContext = createContext<ConfigContextValue>({
   hotlineName: 'Hotline',
   hotlineNumber: '',
   channels: defaultChannels,
+  setupCompleted: true,
   isLoading: true,
 })
 
@@ -28,6 +30,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const [hotlineName, setHotlineName] = useState('Hotline')
   const [hotlineNumber, setHotlineNumber] = useState('')
   const [channels, setChannels] = useState<EnabledChannels>(defaultChannels)
+  const [setupCompleted, setSetupCompleted] = useState(true)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -36,6 +39,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         setHotlineName(config.hotlineName)
         setHotlineNumber(config.hotlineNumber || '')
         if (config.channels) setChannels(config.channels)
+        if (config.setupCompleted !== undefined) setSetupCompleted(config.setupCompleted)
       })
       .finally(() => setIsLoading(false))
   }, [])
@@ -46,7 +50,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   }, [hotlineName, isLoading])
 
   return (
-    <ConfigContext.Provider value={{ hotlineName, hotlineNumber, channels, isLoading }}>
+    <ConfigContext.Provider value={{ hotlineName, hotlineNumber, channels, setupCompleted, isLoading }}>
       {children}
     </ConfigContext.Provider>
   )
