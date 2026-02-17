@@ -1,4 +1,4 @@
-# Epic 44: WhatsApp Business Channel
+# Epic 45: WhatsApp Business Channel
 
 ## Problem
 
@@ -142,6 +142,7 @@ Templates must be submitted to Meta for approval (typically 24-48 hours).
 ## Dependencies
 
 - Epic 42 (Messaging Architecture)
+- Epic 43 (Setup Wizard — channel configuration flows)
 
 ## Testing
 

@@ -1,4 +1,4 @@
-# Epic 43: SMS Channel
+# Epic 44: SMS Channel
 
 ## Problem
 
@@ -78,7 +78,7 @@ For providers where voice and SMS have separate webhook configs (Vonage, Plivo),
 4. `SMSAdapter.parseIncomingMessage()` extracts sender, body, media
 5. Server hashes sender phone number for storage
 6. Server encrypts message body via ECIES (dual-encrypted: volunteer + admin)
-7. If media attachments exist: download from provider, encrypt with ECIES, upload to R2 (see Epic 46)
+7. If media attachments exist: download from provider, encrypt with ECIES, upload to R2 (see Epic 47)
 8. Store encrypted message in `ConversationDO`
 9. Route to on-shift volunteer (new conversation) or existing assignee (ongoing conversation)
 10. WebSocket broadcast: `message:new` or `conversation:new`
@@ -127,6 +127,7 @@ Admin toggle: "Delete messages from provider after processing" (default: on).
 ## Dependencies
 
 - Epic 42 (Messaging Architecture)
+- Epic 43 (Setup Wizard — channel configuration flows)
 
 ## Testing
 

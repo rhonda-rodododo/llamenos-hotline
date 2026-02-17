@@ -2,11 +2,11 @@
 
 ## Problem
 
-Llamenos currently supports voice calls only. Many crisis contacts prefer text-based communication (easier to express feelings, more private from nearby people, accessible when calling isn't safe). Adding SMS, WhatsApp, and Signal requires a unified messaging layer that doesn't exist. The current data model is call-centric (`CallRecord`, `EncryptedNote` with `callId`). There's no concept of a text conversation, message threading, or multi-channel routing.
+Llamenos currently supports voice calls only, and telephony is a hard requirement. Many crisis contacts prefer text-based communication (easier to express feelings, more private from nearby people, accessible when calling isn't safe). Some deployments may not need voice at all — a text-only or report-only hotline should be a first-class option. Adding SMS, WhatsApp, and Signal requires a unified messaging layer that doesn't exist. The current data model is call-centric (`CallRecord`, `EncryptedNote` with `callId`). There's no concept of a text conversation, message threading, or multi-channel routing. Voice/telephony must become one optional channel among many, not a prerequisite.
 
 ## Solution
 
-Build a foundational messaging architecture parallel to the existing telephony system: a `MessagingAdapter` interface, a new `ConversationDO` Durable Object for message state, a conversation/thread data model, and WebSocket events for real-time message delivery. This epic provides the infrastructure; epics 43-45 implement specific channel adapters.
+Build a foundational messaging architecture that treats all channels — including voice — as optional modules: a `MessagingAdapter` interface, a new `ConversationDO` Durable Object for message state, a conversation/thread data model, and WebSocket events for real-time message delivery. Refactor the existing telephony system so that voice/phone calls are one optional channel, not a hard dependency. The app should function fully with any combination of channels enabled (voice-only, SMS-only, text-only, multi-channel, or reports-only). This epic provides the infrastructure; Epic 43 provides the setup wizard; Epics 44-46 implement specific channel adapters.
 
 ## Threat Model Considerations
 
@@ -37,6 +37,9 @@ interface MessagingAdapter {
 }
 
 type MessagingChannelType = 'sms' | 'whatsapp' | 'signal'
+// Voice/telephony is tracked separately via TelephonyProviderConfig
+// The unified channel type for UI/settings:
+type ChannelType = 'voice' | MessagingChannelType | 'reports'
 
 interface IncomingMessage {
   channelType: MessagingChannelType
@@ -65,7 +68,7 @@ interface SendMediaParams extends SendMessageParams {
 **Design decisions:**
 - `MessagingAdapter` is deliberately simpler than `TelephonyAdapter` (no IVR, queues, DTMF)
 - `senderIdentifier` is hashed before storage (like `callerNumber` hashing in `CallRouterDO`)
-- Media attachments are URLs that the adapter provides; the server downloads, encrypts, and stores them in R2 (see epic 46)
+- Media attachments are URLs that the adapter provides; the server downloads, encrypts, and stores them in R2 (see Epic 47)
 
 ## ConversationDO
 
@@ -88,7 +91,7 @@ interface Conversation {
   lastMessageAt: string
   metadata?: {
     linkedCallId?: string        // if conversation started from a call
-    reportId?: string            // if conversation is a report thread (epic 46)
+    reportId?: string            // if conversation is a report thread (Epic 47)
   }
 }
 
@@ -124,7 +127,7 @@ interface EncryptedMessage {
 
 ## WebSocket Events
 
-New events broadcast via `CallRouterDO` (extend existing WS hub):
+New events broadcast via the WS hub. If voice is enabled, extend `CallRouterDO`. If voice is not enabled, `CallRouterDO` still serves as the WebSocket hub for conversation events (rename consideration: `RealtimeDO`):
 
 ```
 conversation:new        — new inbound conversation waiting for assignment
@@ -202,7 +205,21 @@ When an inbound message arrives via webhook:
 - **Modify:** `src/shared/types.ts` — add MessagingChannelType, MessagingConfig
 - **Modify:** `wrangler.jsonc` — add ConversationDO binding
 - **Modify:** `src/client/lib/ws.ts` — add conversation event handlers
-- **Modify:** `src/client/routes/__root.tsx` — add conversations nav item
+- **Modify:** `src/client/routes/__root.tsx` — conditional nav based on enabled channels
+- **Modify:** `src/worker/lib/do-access.ts` — `getTelephony()` returns null when unconfigured
+- **Modify:** `src/worker/routes/telephony.ts` — graceful 404 when telephony disabled
+- **Modify:** `src/client/components/Dashboard.tsx` — adaptive dashboard based on enabled channels
+
+## Making Voice Optional
+
+The existing codebase assumes telephony is always available. This epic includes:
+
+- `getTelephony()` in `do-access.ts` returns `null` if no `TelephonyProviderConfig` is set (currently throws)
+- All telephony webhook routes (`/api/telephony/*`) return a helpful 404 if voice is disabled
+- `CallRouterDO` continues to function as the WebSocket hub for real-time events even without voice enabled
+- The sidebar conditionally shows/hides "Calls" based on voice being enabled
+- The dashboard adapts: shows conversation metrics when messaging is enabled, call metrics when voice is enabled, or both
+- Shift scheduling works for both call routing and conversation assignment regardless of which channels are active
 
 ## Dependencies
 
@@ -214,4 +231,4 @@ When an inbound message arrives via webhook:
 
 ## Blocks
 
-- Epic 43 (SMS), Epic 44 (WhatsApp), Epic 45 (Signal), Epic 46 (Reporter Role)
+- Epic 43 (Setup Wizard), Epic 44 (SMS), Epic 45 (WhatsApp), Epic 46 (Signal), Epic 47 (Reporter Role)
