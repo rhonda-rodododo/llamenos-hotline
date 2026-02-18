@@ -86,13 +86,17 @@ bun install                              # Install dependencies
 bun run dev                              # Vite dev server (frontend only)
 bun run dev:worker                       # Wrangler dev server (Worker + DOs)
 bun run build                            # Vite build → dist/client/
-bun run deploy                           # Build + wrangler deploy
+bun run deploy                           # Deploy EVERYTHING (app + marketing site)
+bun run deploy:demo                      # Deploy app Worker only
+bun run deploy:site                      # Deploy marketing site only (cd site && ...)
 bunx playwright test                     # Run all E2E tests
 bunx playwright test tests/smoke.spec.ts # Run a single test file
 bun run test:ui                          # Playwright UI mode
 bun run typecheck                        # Type check (tsc --noEmit)
 bun run bootstrap-admin                  # Generate admin keypair
 ```
+
+**Deployment rules — NEVER run `wrangler pages deploy` or `wrangler deploy` directly.** Always use the root `package.json` scripts (`bun run deploy`, `bun run deploy:demo`, `bun run deploy:site`). Running `wrangler pages deploy dist` from the wrong directory will deploy the Vite app build to Pages instead of the Astro site, breaking the marketing site with 404s.
 
 **Key config files**: `wrangler.jsonc` (Worker + DO bindings), `playwright.config.ts`, `.dev.vars` (Twilio creds + ADMIN_PUBKEY, gitignored)
 

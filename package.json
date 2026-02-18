@@ -1,5 +1,6 @@
 {
   "name": "llamenos",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,7 +16,10 @@
     "test": "bunx playwright test",
     "test:ui": "bunx playwright test --ui",
     "site:dev": "cd site && bun run dev",
-    "site:build": "cd site && bun run build"
+    "site:build": "cd site && bun run build",
+    "changelog": "git-cliff --output CHANGELOG.md",
+    "changelog:preview": "git-cliff --unreleased",
+    "version:bump": "bun run scripts/bump-version.ts"
   },
   "dependencies": {
     "@noble/ciphers": "^2.1.1",
