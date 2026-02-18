@@ -3,13 +3,17 @@ title: Getting Started
 description: Deploy your own Llamenos hotline in under an hour.
 ---
 
-Deploy your own Llamenos hotline in under an hour. You'll need a Cloudflare account, a telephony provider account, and a machine with Bun installed.
+Deploy your own Llamenos hotline in under an hour. You'll need a Cloudflare account, at least one communication channel (voice, SMS, WhatsApp, or Signal), and a machine with Bun installed.
 
 ## Prerequisites
 
 - [Bun](https://bun.sh) v1.0 or later (runtime and package manager)
 - A [Cloudflare](https://www.cloudflare.com) account (free tier works for development)
-- A telephony provider account — [Twilio](https://www.twilio.com) is the easiest to start with, but Llamenos also supports [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), and [self-hosted Asterisk](/docs/setup-asterisk). See the [Telephony Providers](/docs/telephony-providers) comparison for help choosing.
+- At least one communication channel:
+  - **Voice**: [Twilio](https://www.twilio.com) is the easiest to start with, but Llamenos also supports [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), and [self-hosted Asterisk](/docs/setup-asterisk). See the [Telephony Providers](/docs/telephony-providers) comparison.
+  - **SMS**: Included with Twilio, SignalWire, Vonage, or Plivo — see [SMS Setup](/docs/setup-sms).
+  - **WhatsApp**: Requires a [Meta Business](https://business.facebook.com) account — see [WhatsApp Setup](/docs/setup-whatsapp).
+  - **Signal**: Requires a self-hosted [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) bridge — see [Signal Setup](/docs/setup-signal).
 - Git
 
 ## 1. Clone and install
@@ -32,39 +36,62 @@ Save the `nsec` securely — this is your admin login credential. You'll need th
 
 ## 3. Configure secrets
 
-Create a `.dev.vars` file in the project root for local development. This example uses Twilio — if you're using a different provider, you can skip the Twilio variables and configure your provider through the admin UI after first login.
+Create a `.dev.vars` file in the project root for local development. At minimum you need the admin public key. Twilio credentials are optional if you plan to configure channels through the setup wizard instead.
 
 ```bash
 # .dev.vars
+ADMIN_PUBKEY=your_hex_public_key_from_step_2
+ENVIRONMENT=development
+
+# Voice provider (optional — can be configured via admin UI instead)
 TWILIO_ACCOUNT_SID=your_twilio_account_sid
 TWILIO_AUTH_TOKEN=your_twilio_auth_token
 TWILIO_PHONE_NUMBER=+1234567890
-ADMIN_PUBKEY=your_hex_public_key_from_step_2
-ENVIRONMENT=development
+
+# WhatsApp (optional — can be configured via admin UI instead)
+# WHATSAPP_ACCESS_TOKEN=your_meta_access_token
+# WHATSAPP_VERIFY_TOKEN=your_webhook_verify_token
+# WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
 ```
 
 For production, set these as Wrangler secrets:
 
 ```bash
 bunx wrangler secret put ADMIN_PUBKEY
-# If using Twilio as the default provider via env vars:
+
+# If using Twilio as the default voice provider via env vars:
 bunx wrangler secret put TWILIO_ACCOUNT_SID
 bunx wrangler secret put TWILIO_AUTH_TOKEN
 bunx wrangler secret put TWILIO_PHONE_NUMBER
+
+# If using WhatsApp via env vars:
+bunx wrangler secret put WHATSAPP_ACCESS_TOKEN
+bunx wrangler secret put WHATSAPP_VERIFY_TOKEN
+bunx wrangler secret put WHATSAPP_PHONE_NUMBER_ID
 ```
 
-> **Note**: You can also configure your telephony provider entirely through the admin Settings UI instead of using environment variables. This is required for non-Twilio providers. See the [setup guide for your provider](/docs/telephony-providers).
+> **Note**: You can configure all providers and channels through the admin Settings UI or the setup wizard instead of environment variables. Env vars serve as a fallback for voice (Twilio only). For non-Twilio providers, SMS, WhatsApp, and Signal, use the admin UI. See the [setup guide for your provider](/docs/telephony-providers).
 
-## 4. Configure telephony webhooks
+## 4. Configure webhooks
 
-Configure your telephony provider to send voice webhooks to your Worker. The webhook URLs are the same regardless of provider:
+Configure your providers to send webhooks to your Worker. The webhook URLs depend on which channels you enable:
 
-- **Incoming call URL**: `https://your-worker.your-domain.com/telephony/incoming` (POST)
-- **Status callback URL**: `https://your-worker.your-domain.com/telephony/status` (POST)
+**Voice** (all providers):
+- **Incoming call**: `https://your-worker.your-domain.com/telephony/incoming` (POST)
+- **Status callback**: `https://your-worker.your-domain.com/telephony/status` (POST)
 
-For provider-specific webhook setup instructions, see: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), or [Asterisk](/docs/setup-asterisk).
+**SMS** (if enabled):
+- **Inbound SMS**: `https://your-worker.your-domain.com/api/messaging/sms/webhook` (POST)
 
-For local development, you'll need a tunnel (like Cloudflare Tunnel or ngrok) to expose your local Worker to your telephony provider.
+**WhatsApp** (if enabled):
+- **Webhook**: `https://your-worker.your-domain.com/api/messaging/whatsapp/webhook` (GET for verification, POST for messages)
+
+**Signal** (if using the bridge):
+- Configure the signal-cli bridge to forward to: `https://your-worker.your-domain.com/api/messaging/signal/webhook`
+
+For provider-specific setup: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk), [SMS](/docs/setup-sms), [WhatsApp](/docs/setup-whatsapp), [Signal](/docs/setup-signal).
+
+For local development, you'll need a tunnel (like Cloudflare Tunnel or ngrok) to expose your local Worker to your providers.
 
 ## 5. Run locally
 
@@ -80,6 +107,17 @@ bun run dev:worker
 
 The app will be available at `http://localhost:8787`. Log in with the admin nsec from step 2.
 
+### First-login setup wizard
+
+On your first login as admin, the app will redirect you to the **setup wizard**. This guided flow helps you:
+
+1. **Name your hotline** — set the display name
+2. **Choose channels** — enable Voice, SMS, WhatsApp, Signal, and/or Reports
+3. **Configure providers** — enter credentials for each enabled channel
+4. **Review and finish** — the wizard marks setup as complete
+
+You can re-configure all of these settings later from **Admin Settings**.
+
 ## 6. Deploy to Cloudflare
 
 ```bash
@@ -90,7 +128,11 @@ This builds the frontend and deploys the Worker with Durable Objects to Cloudfla
 
 ## Next steps
 
-- [Admin Guide](/docs/admin-guide) — add volunteers, create shifts, configure settings
+- [Admin Guide](/docs/admin-guide) — add volunteers, create shifts, configure channels and settings
 - [Volunteer Guide](/docs/volunteer-guide) — share with your volunteers
-- [Telephony Providers](/docs/telephony-providers) — compare providers and switch from Twilio if needed
+- [Reporter Guide](/docs/reporter-guide) — set up the reporter role for encrypted report submissions
+- [SMS Setup](/docs/setup-sms) — enable SMS messaging
+- [WhatsApp Setup](/docs/setup-whatsapp) — connect WhatsApp Business
+- [Signal Setup](/docs/setup-signal) — set up the Signal channel
+- [Telephony Providers](/docs/telephony-providers) — compare voice providers and switch from Twilio if needed
 - [Security Model](/security) — understand the encryption and threat model

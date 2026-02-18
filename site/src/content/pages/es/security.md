@@ -1,6 +1,6 @@
 ---
 title: Modelo de seguridad y privacidad
-subtitle: Una evaluacion honesta de lo que Llamenos cifra de extremo a extremo, lo que el servidor puede ver y lo que estamos trabajando para mejorar.
+subtitle: Una evaluacion honesta de lo que Llamenos cifra de extremo a extremo, lo que el servidor puede ver y lo que estamos trabajando para mejorar. Cubre llamadas de voz, canales de mensajeria, notas, reportes y transcripciones.
 ---
 
 ## Que esta cifrado de extremo a extremo
@@ -33,12 +33,29 @@ Las notas en progreso se guardan automaticamente como borradores cifrados en el 
 
 </details>
 
+<details>
+<summary><strong>Reportes cifrados</strong></summary>
+
+Los reportes enviados por el rol de reportero se cifran usando el mismo esquema ECIES. El cuerpo del reporte se cifra en el navegador antes de subirlo — el servidor almacena solo texto cifrado. Los titulos de los reportes se almacenan en texto plano para permitir la clasificacion y el seguimiento de estado. Los archivos adjuntos se cifran por separado antes de subirlos. Tanto el reportero como el administrador reciben copias cifradas de forma independiente.
+
+</details>
+
 ## Lo que el servidor nunca ve
 
 - Contenido de las notas (texto libre y valores de campos personalizados)
 - Texto de transcripciones despues del cifrado
-- Claves secretas de voluntarios (nsec) — la autenticacion usa firmas de desafio-respuesta
+- Contenido del cuerpo de reportes y archivos adjuntos
+- Claves secretas de voluntarios y reporteros (nsec) — la autenticacion usa firmas de desafio-respuesta
 - Contenido de borradores de notas (almacenados localmente en el navegador)
+
+## Canales de mensajeria
+
+<details>
+<summary><strong>Contenido de mensajes SMS, WhatsApp y Signal</strong></summary>
+
+Los mensajes de texto enviados via SMS, WhatsApp o Signal son procesados por el proveedor de mensajeria respectivo (tu proveedor de telefonia para SMS, Meta para WhatsApp, o el bridge signal-cli para Signal). El contenido de los mensajes pasa a traves de estos intermediarios. Llamenos almacena los mensajes de conversacion en el servidor para la vista de conversaciones con hilos. A diferencia de las notas y reportes, el contenido de mensajeria no esta cifrado de extremo a extremo entre el navegador y el servidor — llega a traves de webhooks del proveedor y se almacena tal como se recibe.
+
+</details>
 
 ## Limitaciones honestas
 

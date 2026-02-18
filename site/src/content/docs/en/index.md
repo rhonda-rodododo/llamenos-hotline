@@ -4,17 +4,29 @@ description: Learn how to deploy, configure, and use Llamenos.
 guidesHeading: Guides
 guides:
   - title: Getting Started
-    description: Prerequisites, installation, telephony setup, and your first deployment.
+    description: Prerequisites, installation, setup wizard, and your first deployment.
     href: /docs/getting-started
   - title: Admin Guide
-    description: Manage volunteers, shifts, ban lists, custom fields, and settings.
+    description: Manage volunteers, shifts, channels, ban lists, reports, and settings.
     href: /docs/admin-guide
   - title: Volunteer Guide
-    description: Log in, receive calls, write notes, and use transcription.
+    description: Log in, receive calls, respond to messages, write notes, and use transcription.
     href: /docs/volunteer-guide
+  - title: Reporter Guide
+    description: Submit encrypted reports and track their status.
+    href: /docs/reporter-guide
   - title: Telephony Providers
     description: Compare supported telephony providers and choose the best fit for your hotline.
     href: /docs/telephony-providers
+  - title: "Setup: SMS"
+    description: Enable inbound/outbound SMS messaging via your telephony provider.
+    href: /docs/setup-sms
+  - title: "Setup: WhatsApp"
+    description: Connect WhatsApp Business via the Meta Cloud API.
+    href: /docs/setup-whatsapp
+  - title: "Setup: Signal"
+    description: Set up the Signal channel via the signal-cli bridge.
+    href: /docs/setup-signal
   - title: "Setup: Twilio"
     description: Step-by-step guide to configure Twilio as your telephony provider.
     href: /docs/setup-twilio
@@ -40,13 +52,14 @@ guides:
 
 ## Architecture overview
 
-Llamenos is a single-page application (SPA) backed by Cloudflare Workers and Durable Objects. There are no traditional servers to manage.
+Llamenos is a single-page application (SPA) backed by Cloudflare Workers and Durable Objects. There are no traditional servers to manage. It supports voice calls, SMS, WhatsApp, and Signal — all routed to on-shift volunteers through a unified interface.
 
 | Component | Technology |
 |---|---|
 | Frontend | Vite + React + TanStack Router |
-| Backend | Cloudflare Workers + Durable Objects |
-| Telephony | Twilio, SignalWire, Vonage, Plivo, or Asterisk (via TelephonyAdapter interface) |
+| Backend | Cloudflare Workers + 4 Durable Objects |
+| Voice | Twilio, SignalWire, Vonage, Plivo, or Asterisk (via TelephonyAdapter) |
+| Messaging | SMS, WhatsApp Business, Signal (via MessagingAdapter) |
 | Auth | Nostr keypairs (BIP-340 Schnorr) + WebAuthn |
 | Encryption | ECIES (secp256k1 + XChaCha20-Poly1305) |
 | Transcription | Cloudflare Workers AI (Whisper) |
@@ -56,6 +69,7 @@ Llamenos is a single-page application (SPA) backed by Cloudflare Workers and Dur
 
 | Role | Can see | Can do |
 |---|---|---|
-| **Caller** | Nothing (GSM phone) | Call the hotline number |
-| **Volunteer** | Own notes only | Answer calls, write notes during shift |
-| **Admin** | All notes, audit logs, call data | Manage volunteers, shifts, bans, settings |
+| **Caller** | Nothing (phone/SMS/WhatsApp/Signal) | Call or message the hotline |
+| **Volunteer** | Own notes, assigned conversations | Answer calls, write notes, respond to messages |
+| **Reporter** | Own reports only | Submit encrypted reports with file attachments |
+| **Admin** | All notes, reports, conversations, audit logs | Manage volunteers, shifts, channels, bans, settings |

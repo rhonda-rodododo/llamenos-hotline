@@ -1,9 +1,9 @@
 ---
 title: Volunteer Guide
-description: Everything you need to know as a volunteer — logging in, receiving calls, writing notes, and using transcription.
+description: Everything you need to know as a volunteer — logging in, receiving calls, responding to messages, writing notes, and using transcription.
 ---
 
-This guide covers everything you need to know as a volunteer: logging in, receiving calls, writing notes, and using the transcription feature.
+This guide covers everything you need to know as a volunteer: logging in, receiving calls, responding to messages, writing notes, and using the transcription feature.
 
 ## Getting your credentials
 
@@ -70,6 +70,17 @@ You can toggle transcription on or off in **Settings**. When disabled, your call
 
 Transcripts are encrypted at rest — the server processes the audio temporarily, then encrypts the resulting text.
 
+## Conversations
+
+If your admin has enabled messaging channels (SMS, WhatsApp, or Signal), you'll see a **Conversations** link in the sidebar. This shows threaded conversations from people who contacted the hotline via text.
+
+Each conversation displays:
+- Message bubbles with timestamps showing who sent what
+- The channel the message came from (SMS, WhatsApp, Signal)
+- New messages appear in real time
+
+To respond, type your message in the reply box at the bottom of the conversation. Your response is sent back through the same channel the person used to contact you.
+
 ## Going on break
 
 Toggle the **break** switch in the sidebar to pause incoming calls without leaving your shift. Calls won't ring your phone while you're on break. Toggle it back when you're ready.
@@ -80,3 +91,4 @@ Toggle the **break** switch in the sidebar to pause incoming calls without leavi
 - Press <kbd>?</kbd> to see all keyboard shortcuts
 - Install the app as a PWA for a native app experience and better notifications
 - Keep your browser tab open during your shift for real-time call alerts
+- Use the **Help** page (sidebar link or command palette) for FAQ, guides, and keyboard shortcuts

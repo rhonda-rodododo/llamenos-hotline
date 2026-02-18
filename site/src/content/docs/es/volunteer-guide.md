@@ -1,9 +1,9 @@
 ---
 title: Guia de Voluntario
-description: Todo lo que necesitas saber como voluntario — iniciar sesion, recibir llamadas, escribir notas y usar la transcripcion.
+description: Todo lo que necesitas saber como voluntario — iniciar sesion, recibir llamadas, responder mensajes, escribir notas y usar la transcripcion.
 ---
 
-Esta guia cubre todo lo que necesitas saber como voluntario: iniciar sesion, recibir llamadas, escribir notas y usar la funcion de transcripcion.
+Esta guia cubre todo lo que necesitas saber como voluntario: iniciar sesion, recibir llamadas, responder mensajes, escribir notas y usar la funcion de transcripcion.
 
 ## Obtener tus credenciales
 
@@ -70,6 +70,17 @@ Puedes activar o desactivar la transcripcion en **Configuracion**. Cuando esta d
 
 Las transcripciones se cifran en reposo: el servidor procesa el audio temporalmente y luego cifra el texto resultante.
 
+## Conversaciones
+
+Si tu administrador ha habilitado canales de mensajeria (SMS, WhatsApp o Signal), veras un enlace de **Conversaciones** en la barra lateral. Esto muestra las conversaciones con hilos de personas que contactaron la linea por texto.
+
+Cada conversacion muestra:
+- Burbujas de mensajes con marcas de tiempo mostrando quien envio que
+- El canal por el que llego el mensaje (SMS, WhatsApp, Signal)
+- Los nuevos mensajes aparecen en tiempo real
+
+Para responder, escribe tu mensaje en el cuadro de respuesta en la parte inferior de la conversacion. Tu respuesta se envia por el mismo canal que la persona uso para contactarte.
+
 ## Tomar un descanso
 
 Activa el interruptor de **descanso** en la barra lateral para pausar las llamadas entrantes sin abandonar tu turno. Las llamadas no sonaran en tu telefono mientras estes en descanso. Desactivalo cuando estes listo.
@@ -80,3 +91,4 @@ Activa el interruptor de **descanso** en la barra lateral para pausar las llamad
 - Presiona <kbd>?</kbd> para ver todos los atajos de teclado
 - Instala la aplicacion como PWA para una experiencia nativa y mejores notificaciones
 - Manten tu pestana del navegador abierta durante tu turno para recibir alertas de llamadas en tiempo real
+- Usa la pagina de **Ayuda** (enlace en la barra lateral o paleta de comandos) para preguntas frecuentes, guias y atajos de teclado

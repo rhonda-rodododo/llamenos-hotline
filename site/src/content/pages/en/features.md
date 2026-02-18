@@ -1,6 +1,6 @@
 ---
 title: Features
-subtitle: Everything a crisis hotline needs, in one open-source package. Built on Cloudflare Workers with zero servers to manage.
+subtitle: Everything a crisis response platform needs, in one open-source package. Voice, SMS, WhatsApp, Signal, and encrypted reports — built on Cloudflare Workers with zero servers to manage.
 ---
 
 ## Call Routing
@@ -41,15 +41,39 @@ subtitle: Everything a crisis hotline needs, in one open-source package. Built o
 
 **Custom IVR prompts** — Record custom voice prompts for each supported language. The system uses your recordings for IVR flows, falling back to text-to-speech when no recording exists.
 
+## Multi-Channel Messaging
+
+**SMS** — Inbound and outbound SMS messaging via Twilio, SignalWire, Vonage, or Plivo. Auto-response with configurable welcome messages. Messages flow into the threaded conversation view.
+
+**WhatsApp Business** — Connect via the Meta Cloud API (Graph API v21.0). Template message support for initiating conversations within the 24-hour messaging window. Media message support for images, documents, and audio.
+
+**Signal** — Privacy-focused messaging via a self-hosted signal-cli-rest-api bridge. Health monitoring with graceful degradation. Voice message transcription via Workers AI Whisper.
+
+**Threaded conversations** — All messaging channels flow into a unified conversation view. Message bubbles with timestamps and direction indicators. Real-time updates via WebSocket.
+
+## Encrypted Reports
+
+**Reporter role** — A dedicated role for people who submit tips or reports. Reporters see a simplified interface with only reports and help. Invited through the same flow as volunteers, with a role selector.
+
+**Encrypted submissions** — Report body content is encrypted using ECIES before leaving the browser. Plaintext titles for triage, encrypted content for privacy. File attachments are encrypted separately.
+
+**Report workflow** — Categories for organizing reports. Status tracking (open, claimed, resolved). Admins can claim reports and respond with threaded, encrypted replies.
+
 ## Admin Dashboard
 
-**Real-time call monitoring** — See active calls, queued callers, and volunteer status in real time via WebSocket. Metrics update instantly.
+**Setup wizard** — Guided multi-step setup on first admin login. Choose which channels to enable (Voice, SMS, WhatsApp, Signal, Reports), configure providers, and set your hotline name.
 
-**Volunteer management** — Add volunteers with generated keypairs, manage roles, view online status. Invite links for self-registration.
+**Getting Started checklist** — Dashboard widget that tracks setup progress: channel configuration, volunteer onboarding, shift creation.
 
-**Audit logging** — Every call answered, note created, setting changed, and admin action is logged. Paginated viewer for admins.
+**Real-time monitoring** — See active calls, queued callers, conversations, and volunteer status in real time via WebSocket. Metrics update instantly.
+
+**Volunteer management** — Add volunteers with generated keypairs, manage roles (volunteer, admin, reporter), view online status. Invite links for self-registration with role selection.
+
+**Audit logging** — Every call answered, note created, message sent, report submitted, setting changed, and admin action is logged. Paginated viewer for admins.
 
 **Call history** — Searchable, filterable call history with date ranges, phone number search, and volunteer assignment. GDPR-compliant data export.
+
+**In-app help** — FAQ sections, role-specific guides, quick reference cards for keyboard shortcuts and security. Accessible from the sidebar and command palette.
 
 ## Multi-Language & Mobile
 

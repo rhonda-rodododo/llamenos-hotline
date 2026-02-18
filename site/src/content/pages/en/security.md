@@ -1,6 +1,6 @@
 ---
 title: Security & Privacy Model
-subtitle: An honest assessment of what Llamenos encrypts end-to-end, what the server can see, and what we're working to improve.
+subtitle: An honest assessment of what Llamenos encrypts end-to-end, what the server can see, and what we're working to improve. Covers voice calls, messaging channels, notes, reports, and transcriptions.
 ---
 
 ## What is encrypted end-to-end
@@ -33,12 +33,29 @@ In-progress notes are auto-saved as encrypted drafts in the browser's localStora
 
 </details>
 
+<details>
+<summary><strong>Encrypted reports</strong></summary>
+
+Reports submitted by the reporter role are encrypted using the same ECIES scheme. The report body is encrypted client-side before upload — the server stores only ciphertext. Report titles are stored in plaintext to allow triage and status tracking. File attachments are encrypted separately before upload. Both the reporter and admin receive independently encrypted copies.
+
+</details>
+
 ## What the server never sees
 
 - Note content (free-text and custom field values)
 - Transcript text after encryption
-- Volunteer secret keys (nsec) — authentication uses challenge-response signatures
+- Report body content and file attachments
+- Volunteer and reporter secret keys (nsec) — authentication uses challenge-response signatures
 - Draft note content (stored locally in the browser)
+
+## Messaging channels
+
+<details>
+<summary><strong>SMS, WhatsApp, and Signal message content</strong></summary>
+
+Text messages sent via SMS, WhatsApp, or Signal are processed by the respective messaging provider (your telephony provider for SMS, Meta for WhatsApp, or the signal-cli bridge for Signal). Message content passes through these intermediaries. Llamenos stores conversation messages server-side for the threaded conversation view. Unlike notes and reports, messaging content is not end-to-end encrypted between the browser and server — it arrives via provider webhooks and is stored as received.
+
+</details>
 
 ## Honest limitations
 
