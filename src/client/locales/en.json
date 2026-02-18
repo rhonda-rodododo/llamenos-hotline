@@ -696,5 +696,27 @@
     "themeSystem": "System theme",
     "themeLight": "Light theme",
     "themeDark": "Dark theme"
+  },
+  "deviceLink": {
+    "title": "Link Device",
+    "description": "Set up this device by linking it to your existing account.",
+    "instructions": "On your primary device, go to Settings and open the 'Linked Devices' section. Then scan the QR code or enter the code shown here.",
+    "startLinking": "Start Linking",
+    "waitingForPrimary": "Waiting for primary device",
+    "scanFromPrimary": "Scan this code from your primary device's Settings.",
+    "orEnterCode": "Or enter this code on your primary device:",
+    "expiresIn5": "This code expires in 5 minutes.",
+    "linkSuccess": "Device linked successfully!",
+    "linkSuccessDesc": "Your account is now available on this device. Set a PIN to protect it.",
+    "linkFailed": "Device linking failed",
+    "linkExpired": "The linking session expired. Please try again.",
+    "linkedDevices": "Linked Devices",
+    "linkedDevicesDesc": "Link a new device to your account by entering its provisioning code.",
+    "linkFromPrimary": "To link a new device, open the Hotline app on the new device, tap 'Link this device', then enter the displayed code below.",
+    "enterCode": "Provisioning Code",
+    "codePlaceholder": "Paste QR data or code...",
+    "link": "Link",
+    "linkThisDevice": "Link this device",
+    "invalidCode": "Invalid provisioning code. Please scan the QR code or copy the full code."
   }
 }

@@ -24,6 +24,7 @@ import uploadsRoutes from './routes/uploads'
 import filesRoutes from './routes/files'
 import reportsRoutes from './routes/reports'
 import setupRoutes from './routes/setup'
+import provisioningRoutes from './routes/provisioning'
 import { getDOs } from './lib/do-access'
 
 const app = new Hono<AppEnv>()
@@ -39,6 +40,9 @@ api.route('/auth', authRoutes)
 api.route('/webauthn', webauthnRoutes)
 api.route('/invites', invitesRoutes)
 api.route('/', websocketRoutes)
+
+// Device provisioning (mixed auth — room creation is public, payload submission is authenticated)
+api.route('/provision', provisioningRoutes)
 
 // Telephony webhooks (validated by Twilio signature, not our auth)
 api.route('/telephony', telephonyRoutes)

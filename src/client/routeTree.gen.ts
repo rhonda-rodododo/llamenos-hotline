@@ -18,6 +18,7 @@ import { Route as ProfileSetupRouteImport } from './routes/profile-setup'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as LinkDeviceRouteImport } from './routes/link-device'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ConversationsRouteImport } from './routes/conversations'
 import { Route as CallsRouteImport } from './routes/calls'
@@ -72,6 +73,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LinkDeviceRoute = LinkDeviceRouteImport.update({
+  id: '/link-device',
+  path: '/link-device',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HelpRoute = HelpRouteImport.update({
   id: '/help',
   path: '/help',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/calls': typeof CallsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
+  '/link-device': typeof LinkDeviceRoute
   '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
@@ -139,6 +146,7 @@ export interface FileRoutesByTo {
   '/calls': typeof CallsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
+  '/link-device': typeof LinkDeviceRoute
   '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/calls': typeof CallsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
+  '/link-device': typeof LinkDeviceRoute
   '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
@@ -180,6 +189,7 @@ export interface FileRouteTypes {
     | '/calls'
     | '/conversations'
     | '/help'
+    | '/link-device'
     | '/login'
     | '/notes'
     | '/onboarding'
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
     | '/calls'
     | '/conversations'
     | '/help'
+    | '/link-device'
     | '/login'
     | '/notes'
     | '/onboarding'
@@ -218,6 +229,7 @@ export interface FileRouteTypes {
     | '/calls'
     | '/conversations'
     | '/help'
+    | '/link-device'
     | '/login'
     | '/notes'
     | '/onboarding'
@@ -238,6 +250,7 @@ export interface RootRouteChildren {
   CallsRoute: typeof CallsRoute
   ConversationsRoute: typeof ConversationsRoute
   HelpRoute: typeof HelpRoute
+  LinkDeviceRoute: typeof LinkDeviceRoute
   LoginRoute: typeof LoginRoute
   NotesRoute: typeof NotesRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -316,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/link-device': {
+      id: '/link-device'
+      path: '/link-device'
+      fullPath: '/link-device'
+      preLoaderRoute: typeof LinkDeviceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/help': {
       id: '/help'
       path: '/help'
@@ -382,6 +402,7 @@ const rootRouteChildren: RootRouteChildren = {
   CallsRoute: CallsRoute,
   ConversationsRoute: ConversationsRoute,
   HelpRoute: HelpRoute,
+  LinkDeviceRoute: LinkDeviceRoute,
   LoginRoute: LoginRoute,
   NotesRoute: NotesRoute,
   OnboardingRoute: OnboardingRoute,

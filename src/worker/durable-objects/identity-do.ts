@@ -69,6 +69,16 @@ export class IdentityDO extends DurableObject<Env> {
     })
     this.router.delete('/sessions/revoke-all/:pubkey', (_req, { pubkey }) => this.revokeAllSessions(pubkey))
 
+    // --- Device Provisioning ---
+    this.router.post('/provision/rooms', async (req) => this.createProvisionRoom(await req.json()))
+    this.router.get('/provision/rooms/:id', (req, { id }) => {
+      const token = new URL(req.url).searchParams.get('token')
+      if (!token) return new Response('Missing token', { status: 400 })
+      return this.getProvisionRoom(id, token)
+    })
+    this.router.post('/provision/rooms/:id/payload', async (req, { id }) =>
+      this.setProvisionPayload(id, await req.json()))
+
     // --- Test Reset ---
     this.router.post('/reset', async () => {
       await this.ctx.storage.deleteAll()
@@ -133,6 +143,15 @@ export class IdentityDO extends DurableObject<Env> {
     for (const [key, value] of sessionKeys) {
       const session = value as ServerSession
       if (new Date(session.expiresAt) < new Date()) {
+        await this.ctx.storage.delete(key)
+      }
+    }
+
+    // Clean up expired provisioning rooms (5-minute TTL)
+    const provisionKeys = await this.ctx.storage.list({ prefix: 'provision:' })
+    for (const [key, value] of provisionKeys) {
+      const room = value as ProvisionRoom
+      if (now - room.createdAt > 5 * 60 * 1000) {
         await this.ctx.storage.delete(key)
       }
     }
@@ -417,4 +436,74 @@ export class IdentityDO extends DurableObject<Env> {
     }
     return Response.json({ ok: true, revoked: count })
   }
+
+  // --- Device Provisioning Methods ---
+
+  private async createProvisionRoom(data: { ephemeralPubkey: string }): Promise<Response> {
+    const roomId = crypto.randomUUID()
+    const tokenBytes = new Uint8Array(16)
+    crypto.getRandomValues(tokenBytes)
+    const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('')
+
+    const room: ProvisionRoom = {
+      ephemeralPubkey: data.ephemeralPubkey,
+      token,
+      createdAt: Date.now(),
+      status: 'waiting',
+    }
+    await this.ctx.storage.put(`provision:${roomId}`, room)
+    // Schedule cleanup
+    this.ctx.storage.setAlarm(Date.now() + 5 * 60 * 1000)
+    return Response.json({ roomId, token })
+  }
+
+  private async getProvisionRoom(id: string, token: string): Promise<Response> {
+    const room = await this.ctx.storage.get<ProvisionRoom>(`provision:${id}`)
+    if (!room) return new Response('Room not found', { status: 404 })
+    if (room.token !== token) return new Response('Invalid token', { status: 403 })
+    if (Date.now() - room.createdAt > 5 * 60 * 1000) {
+      await this.ctx.storage.delete(`provision:${id}`)
+      return Response.json({ status: 'expired' })
+    }
+    if (room.encryptedNsec) {
+      // Consume: delete after delivering payload
+      await this.ctx.storage.delete(`provision:${id}`)
+      return Response.json({
+        status: 'ready',
+        ephemeralPubkey: room.ephemeralPubkey,
+        encryptedNsec: room.encryptedNsec,
+        primaryPubkey: room.primaryPubkey,
+      })
+    }
+    return Response.json({ status: 'waiting', ephemeralPubkey: room.ephemeralPubkey })
+  }
+
+  private async setProvisionPayload(id: string, data: {
+    token: string
+    encryptedNsec: string
+    primaryPubkey: string
+    senderPubkey: string
+  }): Promise<Response> {
+    const room = await this.ctx.storage.get<ProvisionRoom>(`provision:${id}`)
+    if (!room) return new Response('Room not found', { status: 404 })
+    if (room.token !== data.token) return new Response('Invalid token', { status: 403 })
+    if (Date.now() - room.createdAt > 5 * 60 * 1000) {
+      await this.ctx.storage.delete(`provision:${id}`)
+      return new Response('Room expired', { status: 410 })
+    }
+    room.encryptedNsec = data.encryptedNsec
+    room.primaryPubkey = data.primaryPubkey
+    room.status = 'ready'
+    await this.ctx.storage.put(`provision:${id}`, room)
+    return Response.json({ ok: true })
+  }
+}
+
+interface ProvisionRoom {
+  ephemeralPubkey: string
+  token: string
+  createdAt: number
+  status: 'waiting' | 'ready'
+  encryptedNsec?: string
+  primaryPubkey?: string
 }
