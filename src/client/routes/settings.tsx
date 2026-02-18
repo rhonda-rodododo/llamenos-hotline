@@ -11,9 +11,14 @@ import {
 import * as keyManager from '@/lib/key-manager'
 import { nip19 } from 'nostr-tools'
 import { useToast } from '@/lib/toast'
-import { Settings2, Mic, Bell, User, Globe, Fingerprint, KeyRound, Trash2, Plus, Phone, Monitor, PhoneCall } from 'lucide-react'
+import { Settings2, Mic, Bell, User, Globe, Fingerprint, KeyRound, Trash2, Plus, Phone, Monitor, PhoneCall, Smartphone, Loader2, CheckCircle2 } from 'lucide-react'
 import { isWebAuthnAvailable, registerCredential, listCredentials, deleteCredential, type WebAuthnCredentialInfo } from '@/lib/webauthn'
 import { PhoneInput } from '@/components/phone-input'
+import {
+  getProvisioningRoom,
+  encryptNsecForDevice,
+  sendProvisionedKey,
+} from '@/lib/provisioning'
 import { getNotificationPrefs, setNotificationPrefs } from '@/lib/notifications'
 import { LANGUAGES } from '@shared/languages'
 import { SettingsSection } from '@/components/settings-section'
@@ -241,6 +246,18 @@ function SettingsPage() {
         </p>
       </SettingsSection>
 
+      {/* Link Device */}
+      <SettingsSection
+        id="linked-devices"
+        title={t('deviceLink.linkedDevices')}
+        description={t('deviceLink.linkedDevicesDesc')}
+        icon={<Smartphone className="h-5 w-5 text-muted-foreground" />}
+        expanded={expanded.has('linked-devices')}
+        onToggle={(open) => toggleSection('linked-devices', open)}
+      >
+        <LinkDeviceSection />
+      </SettingsSection>
+
       {/* Passkeys (WebAuthn) — all users */}
       {webauthnAvailable && (
         <SettingsSection
@@ -449,6 +466,110 @@ function SettingsPage() {
           />
         </div>
       </SettingsSection>
+    </div>
+  )
+}
+
+function LinkDeviceSection() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const [linkCode, setLinkCode] = useState('')
+  const [status, setStatus] = useState<'idle' | 'linking' | 'success' | 'error'>('idle')
+  const [statusMessage, setStatusMessage] = useState('')
+
+  async function handleLinkDevice() {
+    if (!linkCode.trim()) return
+    setStatus('linking')
+    try {
+      // Parse the code — could be JSON from QR or short code (roomId prefix)
+      let roomId: string
+      let token: string
+      try {
+        const parsed = JSON.parse(linkCode)
+        roomId = parsed.r
+        token = parsed.t
+      } catch {
+        // Treat as short code — but we need the full roomId
+        // Short codes aren't enough; user must paste the full QR data or use camera
+        setStatus('error')
+        setStatusMessage(t('deviceLink.invalidCode'))
+        return
+      }
+
+      // Fetch room to get ephemeral pubkey
+      const room = await getProvisioningRoom(roomId, token)
+      if (room.status !== 'waiting') {
+        setStatus('error')
+        setStatusMessage(t('deviceLink.linkExpired'))
+        return
+      }
+
+      // Get nsec from key-manager
+      const nsecStr = keyManager.getNsec()
+      if (!nsecStr) {
+        setStatus('error')
+        setStatusMessage(t('pin.keyLocked'))
+        return
+      }
+
+      const secretKey = keyManager.getSecretKey()
+      const publicKey = keyManager.getPublicKeyHex()!
+
+      // ECDH encrypt nsec for the new device
+      const encrypted = encryptNsecForDevice(nsecStr, room.ephemeralPubkey, secretKey)
+
+      // Send encrypted payload (authenticated)
+      const authToken = keyManager.createAuthToken(Date.now())
+      await sendProvisionedKey(roomId, token, encrypted, publicKey, {
+        'Authorization': `Bearer ${authToken}`,
+      })
+
+      setStatus('success')
+      setStatusMessage(t('deviceLink.linkSuccess'))
+    } catch {
+      setStatus('error')
+      setStatusMessage(t('deviceLink.linkFailed'))
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">{t('deviceLink.linkFromPrimary')}</p>
+
+      {status === 'idle' || status === 'error' ? (
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label htmlFor="link-code">{t('deviceLink.enterCode')}</Label>
+            <div className="flex gap-2">
+              <Input
+                id="link-code"
+                value={linkCode}
+                onChange={e => setLinkCode(e.target.value)}
+                placeholder={t('deviceLink.codePlaceholder')}
+                className="font-mono"
+                data-testid="link-code-input"
+              />
+              <Button onClick={handleLinkDevice} disabled={!linkCode.trim()} data-testid="link-device-button">
+                <Smartphone className="h-4 w-4" />
+                {t('deviceLink.link')}
+              </Button>
+            </div>
+          </div>
+          {status === 'error' && (
+            <p className="text-sm text-destructive">{statusMessage}</p>
+          )}
+        </div>
+      ) : status === 'linking' ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {t('common.loading')}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-sm text-green-600">
+          <CheckCircle2 className="h-4 w-4" />
+          {statusMessage}
+        </div>
+      )}
     </div>
   )
 }

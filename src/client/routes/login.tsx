@@ -9,7 +9,8 @@ import { hasStoredKey } from '@/lib/key-store'
 import { readBackupFile, restoreFromBackupWithPin, restoreFromBackupWithRecoveryKey } from '@/lib/backup'
 import * as keyManager from '@/lib/key-manager'
 import { isWebAuthnAvailable } from '@/lib/webauthn'
-import { KeyRound, LogIn, Shield, Sun, Moon, Monitor, Fingerprint, Key } from 'lucide-react'
+import { KeyRound, LogIn, Shield, Sun, Moon, Monitor, Fingerprint, Key, Smartphone } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { LogoMark } from '@/components/logo-mark'
 import { LanguageSelect } from '@/components/language-select'
 import { PinInput } from '@/components/pin-input'
@@ -439,6 +440,16 @@ function LoginPage() {
                 )}
               </Button>
             </>
+          )}
+
+          {/* Link device from another device */}
+          {recoveryStep === 'upload' && (
+            <Link to="/link-device" className="block">
+              <Button variant="outline" className="w-full" type="button">
+                <Smartphone className="h-4 w-4" />
+                {t('deviceLink.linkThisDevice')}
+              </Button>
+            </Link>
           )}
 
           {/* Back to PIN login */}
