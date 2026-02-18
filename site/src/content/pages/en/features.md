@@ -83,10 +83,20 @@ subtitle: Everything a crisis response platform needs, in one open-source packag
 
 **Mobile-first design** — Responsive layout built for phones and tablets. Collapsible sidebar, touch-friendly controls, and adaptive layouts.
 
-## Authentication
+## Authentication & Key Management
+
+**PIN-protected local key store** — Your secret key is encrypted with a 6-digit PIN using PBKDF2 (600,000 iterations) + XChaCha20-Poly1305. The raw key never touches sessionStorage or any browser API — it lives only in an in-memory closure, zeroed on lock.
+
+**Auto-lock** — The key manager locks automatically after idle timeout or when the browser tab is hidden. Re-enter your PIN to unlock. Configurable idle duration.
+
+**Device linking** — Set up new devices without ever exposing your secret key. Scan a QR code or enter a short provisioning code. Uses ephemeral ECDH key exchange to transfer your encrypted key securely between devices. Provisioning rooms expire after 5 minutes.
+
+**Recovery keys** — During onboarding, you receive a Base32-formatted recovery key (128-bit entropy). This replaces the old nsec-display flow. Mandatory encrypted backup download before you can proceed.
+
+**Per-note forward secrecy** — Each note is encrypted with a unique random key, then that key is wrapped via ECIES for each authorized reader. Compromising the identity key does not reveal past notes.
 
 **Nostr keypair auth** — Volunteers authenticate with Nostr-compatible keypairs (nsec/npub). BIP-340 Schnorr signature verification. No passwords, no email addresses.
 
 **WebAuthn passkeys** — Optional passkey support for multi-device login. Register a hardware key or biometric, then sign in without typing your secret key.
 
-**Session management** — 8-hour session tokens with idle timeout warnings. Session renewal, expiry dialogs, and automatic cleanup.
+**Session management** — Two-tier access model: "authenticated but locked" (session token only) vs "authenticated and unlocked" (PIN entered, full crypto access). 8-hour session tokens with idle timeout warnings.

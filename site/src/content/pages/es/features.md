@@ -83,10 +83,20 @@ subtitle: Todo lo que una plataforma de respuesta a crisis necesita, en un paque
 
 **Diseno mobile-first** — Diseno responsivo construido para telefonos y tabletas. Barra lateral plegable, controles tactiles y disenos adaptables.
 
-## Autenticacion
+## Autenticacion y gestion de claves
+
+**Almacen de claves protegido por PIN** — Tu clave secreta se cifra con un PIN de 6 digitos usando PBKDF2 (600,000 iteraciones) + XChaCha20-Poly1305. La clave sin cifrar nunca toca sessionStorage ni ninguna API del navegador — solo existe en una variable en memoria, que se borra al bloquear.
+
+**Bloqueo automatico** — El administrador de claves se bloquea automaticamente despues de inactividad o cuando la pestana del navegador se oculta. Reingresa tu PIN para desbloquear.
+
+**Vinculacion de dispositivos** — Configura nuevos dispositivos sin exponer tu clave secreta. Escanea un codigo QR o ingresa un codigo de aprovisionamiento. Usa intercambio de claves ECDH efimero para transferir tu clave cifrada de forma segura entre dispositivos. Las salas de aprovisionamiento expiran despues de 5 minutos.
+
+**Claves de recuperacion** — Durante la incorporacion, recibes una clave de recuperacion en formato Base32 (128 bits de entropia). Esto reemplaza el flujo anterior de mostrar el nsec. Es obligatorio descargar una copia de seguridad cifrada antes de continuar.
+
+**Secreto hacia adelante por nota** — Cada nota se cifra con una clave aleatoria unica, que luego se envuelve via ECIES para cada lector autorizado. Comprometer la clave de identidad no revela notas anteriores.
 
 **Autenticacion con claves Nostr** — Los voluntarios se autentican con pares de claves compatibles con Nostr (nsec/npub). Verificacion de firma BIP-340 Schnorr. Sin contrasenas, sin direcciones de correo electronico.
 
 **Passkeys con WebAuthn** — Soporte opcional de passkeys para inicio de sesion en multiples dispositivos. Registra una llave de hardware o biometria, y luego inicia sesion sin escribir tu clave secreta.
 
-**Gestion de sesiones** — Tokens de sesion de 8 horas con avisos de inactividad. Renovacion de sesion, dialogos de expiracion y limpieza automatica.
+**Gestion de sesiones** — Modelo de acceso en dos niveles: "autenticado pero bloqueado" (solo token de sesion) vs "autenticado y desbloqueado" (PIN ingresado, acceso criptografico completo). Tokens de sesion de 8 horas con avisos de inactividad.
