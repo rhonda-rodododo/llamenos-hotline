@@ -6,9 +6,9 @@ subtitle: An honest assessment of what Llamenos encrypts end-to-end, what the se
 ## What is encrypted end-to-end
 
 <details>
-<summary><strong>Call notes</strong></summary>
+<summary><strong>Call notes (with forward secrecy)</strong></summary>
 
-Notes are encrypted client-side using ECIES: an ephemeral ECDH key exchange on secp256k1, followed by XChaCha20-Poly1305 symmetric encryption. The encrypted payload leaves the browser — the server stores only ciphertext. Each note is dual-encrypted: one copy for the volunteer who wrote it, one for the admin. Both can decrypt independently using their private keys.
+Each note is encrypted with a unique random 32-byte key using XChaCha20-Poly1305. That per-note key is then wrapped via ECIES (ephemeral ECDH on secp256k1) for each authorized reader — one envelope for the volunteer, one for the admin. Both can decrypt independently using their private keys. Because each note uses a fresh random key, compromising the identity key does not retroactively reveal past notes.
 
 </details>
 
@@ -45,7 +45,8 @@ Reports submitted by the reporter role are encrypted using the same ECIES scheme
 - Note content (free-text and custom field values)
 - Transcript text after encryption
 - Report body content and file attachments
-- Volunteer and reporter secret keys (nsec) — authentication uses challenge-response signatures
+- Volunteer and reporter secret keys (nsec) — never stored in plaintext; PIN-encrypted at rest, held only in memory when unlocked
+- Per-note encryption keys — each note uses a fresh random key; the identity key alone cannot decrypt stored notes
 - Draft note content (stored locally in the browser)
 
 ## Messaging channels
@@ -80,6 +81,29 @@ Timestamps, call durations, routing decisions, queue positions, and which volunt
 
 </details>
 
+## Local key protection
+
+<details>
+<summary><strong>PIN-encrypted key store</strong></summary>
+
+Your secret key (nsec) is encrypted in the browser's localStorage using PBKDF2-SHA256 (600,000 iterations) to derive a key-encryption key, then XChaCha20-Poly1305 to encrypt the nsec. The raw key is never stored in sessionStorage, cookies, or any browser-accessible location. When you enter your PIN, the key is decrypted into a JavaScript closure variable — it exists only in memory and is zeroed on lock or logout.
+
+</details>
+
+<details>
+<summary><strong>Device linking protocol</strong></summary>
+
+Adding a new device uses an ephemeral ECDH key exchange. The new device generates a temporary secp256k1 keypair and displays a QR code. The primary device scans it, computes a shared secret via ECDH, encrypts the nsec with XChaCha20-Poly1305, and sends it through a single-use relay room. The new device decrypts, prompts for a new PIN, and stores the key locally. The relay room expires after 5 minutes and is deleted after one use.
+
+</details>
+
+<details>
+<summary><strong>Recovery keys</strong></summary>
+
+During onboarding, a 128-bit recovery key is generated and displayed in Base32 format. This key encrypts a backup copy of the nsec (PBKDF2 + XChaCha20-Poly1305). The raw nsec is never shown to users — they receive only the recovery key. A mandatory encrypted backup file must be downloaded before proceeding.
+
+</details>
+
 ## Threat model
 
 Llamenos is designed to protect crisis hotline volunteers and callers against:
@@ -89,6 +113,8 @@ Llamenos is designed to protect crisis hotline volunteers and callers against:
 3. **Network surveillance** — All connections use TLS. WebSocket connections are authenticated. The server enforces HSTS and strict CSP headers.
 4. **Volunteer impersonation** — Authentication uses BIP-340 Schnorr signatures. Without the volunteer's private key, login is impossible. WebAuthn passkeys add hardware-backed second factor.
 5. **Insider threat (volunteer)** — Volunteers can only decrypt their own notes. They cannot see other volunteers' notes, personal information, or admin-only data.
+6. **XSS / browser extension** — The secret key is never in sessionStorage or global scope. It exists only in a closure variable, zeroed on lock. An XSS attack during an unlocked session could sign requests, but cannot extract the key for offline use.
+7. **Device seizure** — A seized device yields only the PIN-encrypted key blob. Without the PIN (and the 600,000-iteration PBKDF2 derivation), the key is unrecoverable. Per-note forward secrecy means even recovering the identity key does not reveal past notes.
 
 No system is perfectly secure. The goal is to minimize the trust surface and be transparent about what remains.
 

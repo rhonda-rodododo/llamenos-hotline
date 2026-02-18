@@ -6,9 +6,9 @@ subtitle: Una evaluacion honesta de lo que Llamenos cifra de extremo a extremo, 
 ## Que esta cifrado de extremo a extremo
 
 <details>
-<summary><strong>Notas de llamadas</strong></summary>
+<summary><strong>Notas de llamadas (con secreto hacia adelante)</strong></summary>
 
-Las notas se cifran en el navegador usando ECIES: un intercambio de claves ECDH efimero sobre secp256k1, seguido de cifrado simetrico XChaCha20-Poly1305. El contenido cifrado sale del navegador — el servidor almacena solo texto cifrado. Cada nota tiene doble cifrado: una copia para el voluntario que la escribio, otra para el administrador. Ambos pueden descifrar de forma independiente usando sus claves privadas.
+Cada nota se cifra con una clave aleatoria unica de 32 bytes usando XChaCha20-Poly1305. Esa clave por nota se envuelve via ECIES (ECDH efimero sobre secp256k1) para cada lector autorizado — un sobre para el voluntario, otro para el administrador. Ambos pueden descifrar de forma independiente usando sus claves privadas. Dado que cada nota usa una clave aleatoria nueva, comprometer la clave de identidad no revela retroactivamente las notas pasadas.
 
 </details>
 
@@ -45,7 +45,8 @@ Los reportes enviados por el rol de reportero se cifran usando el mismo esquema 
 - Contenido de las notas (texto libre y valores de campos personalizados)
 - Texto de transcripciones despues del cifrado
 - Contenido del cuerpo de reportes y archivos adjuntos
-- Claves secretas de voluntarios y reporteros (nsec) — la autenticacion usa firmas de desafio-respuesta
+- Claves secretas de voluntarios y reporteros (nsec) — nunca se almacenan en texto plano; cifradas con PIN en reposo, solo en memoria cuando estan desbloqueadas
+- Claves de cifrado por nota — cada nota usa una clave aleatoria nueva; la clave de identidad sola no puede descifrar notas almacenadas
 - Contenido de borradores de notas (almacenados localmente en el navegador)
 
 ## Canales de mensajeria
@@ -80,6 +81,29 @@ Marcas de tiempo, duraciones de llamadas, decisiones de enrutamiento, posiciones
 
 </details>
 
+## Proteccion local de claves
+
+<details>
+<summary><strong>Almacen de claves cifrado con PIN</strong></summary>
+
+Tu clave secreta (nsec) se cifra en el localStorage del navegador usando PBKDF2-SHA256 (600,000 iteraciones) para derivar una clave de cifrado, luego XChaCha20-Poly1305 para cifrar el nsec. La clave sin cifrar nunca se almacena en sessionStorage, cookies ni ninguna ubicacion accesible del navegador. Cuando ingresas tu PIN, la clave se descifra en una variable de clausura de JavaScript — solo existe en memoria y se limpia al bloquear o cerrar sesion.
+
+</details>
+
+<details>
+<summary><strong>Protocolo de vinculacion de dispositivos</strong></summary>
+
+Agregar un nuevo dispositivo usa un intercambio de claves ECDH efimero. El nuevo dispositivo genera un par de claves secp256k1 temporal y muestra un codigo QR. El dispositivo principal lo escanea, calcula un secreto compartido via ECDH, cifra el nsec con XChaCha20-Poly1305 y lo envia a traves de una sala de retransmision de un solo uso. El nuevo dispositivo descifra, solicita un nuevo PIN y almacena la clave localmente. La sala de retransmision expira despues de 5 minutos y se elimina despues de un uso.
+
+</details>
+
+<details>
+<summary><strong>Claves de recuperacion</strong></summary>
+
+Durante la incorporacion, se genera una clave de recuperacion de 128 bits y se muestra en formato Base32. Esta clave cifra una copia de respaldo del nsec (PBKDF2 + XChaCha20-Poly1305). El nsec sin cifrar nunca se muestra a los usuarios — solo reciben la clave de recuperacion. Es obligatorio descargar un archivo de respaldo cifrado antes de continuar.
+
+</details>
+
 ## Modelo de amenazas
 
 Llamenos esta disenado para proteger a los voluntarios y llamantes de lineas de crisis contra:
@@ -89,6 +113,8 @@ Llamenos esta disenado para proteger a los voluntarios y llamantes de lineas de 
 3. **Vigilancia de red** — Todas las conexiones usan TLS. Las conexiones WebSocket estan autenticadas. El servidor aplica HSTS y encabezados CSP estrictos.
 4. **Suplantacion de voluntario** — La autenticacion usa firmas BIP-340 Schnorr. Sin la clave privada del voluntario, el inicio de sesion es imposible. Los passkeys de WebAuthn agregan un segundo factor respaldado por hardware.
 5. **Amenaza interna (voluntario)** — Los voluntarios solo pueden descifrar sus propias notas. No pueden ver las notas de otros voluntarios, informacion personal ni datos exclusivos del administrador.
+6. **XSS / extension del navegador** — La clave secreta nunca esta en sessionStorage ni en el ambito global. Solo existe en una variable de clausura, que se limpia al bloquear. Un ataque XSS durante una sesion desbloqueada podria firmar solicitudes, pero no puede extraer la clave para uso fuera de linea.
+7. **Confiscacion de dispositivo** — Un dispositivo confiscado solo contiene el blob de clave cifrado con PIN. Sin el PIN (y la derivacion PBKDF2 de 600,000 iteraciones), la clave es irrecuperable. El secreto hacia adelante por nota significa que incluso recuperar la clave de identidad no revela notas pasadas.
 
 Ningun sistema es perfectamente seguro. El objetivo es minimizar la superficie de confianza y ser transparentes sobre lo que queda.
 

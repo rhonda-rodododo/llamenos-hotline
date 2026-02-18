@@ -46,9 +46,9 @@ function HelpPage() {
           icon={<Shield className="h-5 w-5" />}
           title={t('help.securityCard', { defaultValue: 'Security' })}
           items={[
-            { label: t('help.secNotes', { defaultValue: 'Notes' }), value: t('help.secE2ee', { defaultValue: 'E2E encrypted' }) },
+            { label: t('help.secNotes', { defaultValue: 'Notes' }), value: t('help.secForwardSecret', { defaultValue: 'E2E + forward secrecy' }) },
             { label: t('help.secReports', { defaultValue: 'Reports' }), value: t('help.secE2ee', { defaultValue: 'E2E encrypted' }) },
-            { label: t('help.secAuth', { defaultValue: 'Auth' }), value: t('help.secNostr', { defaultValue: 'Nostr keypairs' }) },
+            { label: t('help.secAuth', { defaultValue: 'Auth' }), value: t('help.secPinLocked', { defaultValue: 'PIN-locked key store' }) },
             { label: t('help.secSessions', { defaultValue: 'Sessions' }), value: t('help.secWebauthn', { defaultValue: 'WebAuthn/passkeys' }) },
           ]}
         />
@@ -68,11 +68,11 @@ function HelpPage() {
           items={[
             {
               q: t('help.faqLoginQ', { defaultValue: 'How do I log in?' }),
-              a: t('help.faqLoginA', { defaultValue: 'Use your secret key (nsec) on the login page. If you have a passkey set up, you can use that instead. Your admin provides the secret key during onboarding.' }),
+              a: t('help.faqLoginA', { defaultValue: 'Enter your 6-digit PIN on the login page to unlock your key store. If you have a passkey set up, you can use that instead. To set up a new device, use the "Link this device" option to scan a QR code from your primary device.' }),
             },
             {
               q: t('help.faqKeyQ', { defaultValue: 'What is my secret key and where do I find it?' }),
-              a: t('help.faqKeyA', { defaultValue: 'Your secret key (nsec) was generated during onboarding. You should have saved a backup. If you set up a passkey, you can also log in with your device biometrics. Contact your admin if you\'ve lost access.' }),
+              a: t('help.faqKeyA', { defaultValue: 'Your key is stored encrypted on this device, protected by your PIN. During onboarding you received a recovery key — use it to restore access on a new device. You can also link devices via QR code from Settings. Contact your admin if you\'ve lost both your PIN and recovery key.' }),
             },
             {
               q: t('help.faqPwaQ', { defaultValue: 'Can I install this as an app?' }),

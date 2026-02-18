@@ -1,5 +1,46 @@
 # Completed Backlog
 
+## 2026-02-17: Epic 54 — Device-Centric Auth & Forward-Secret Encryption
+
+### Phase 1: PIN-First Local Key Store
+- [x] `key-manager.ts` singleton — holds nsec in closure variable only, zeroed on lock
+- [x] `unlock(pin)` decrypts nsec from localStorage via PBKDF2 (600K iterations) + XChaCha20-Poly1305
+- [x] `importKey(nsec, pin)` for onboarding/recovery
+- [x] Auto-lock on idle timeout + `document.hidden`
+- [x] Login page redesigned: PIN entry as primary (stored key) or recovery options (no stored key)
+- [x] Removed nsec from sessionStorage entirely — `storeSession()`/`getStoredSession()` deleted
+- [x] `getAuthHeaders()` uses key-manager token if unlocked, session token if locked
+- [x] Components show "Enter PIN to decrypt" overlay when key is locked
+
+### Phase 2: Device Linking (Signal-Style QR Provisioning)
+- [x] Provisioning room relay via IdentityDO with `provision:` prefix, 5-min TTL
+- [x] Ephemeral ECDH key exchange protocol (new device generates temp keypair)
+- [x] QR code display and manual code entry fallback
+- [x] `/link-device` standalone page for new devices
+- [x] Settings > Linked Devices section with code input
+- [x] Provisioning rooms auto-cleaned via DO alarm
+
+### Phase 3: Per-Note Ephemeral Keys (Forward Secrecy)
+- [x] Each note encrypted with unique random 32-byte key (XChaCha20-Poly1305)
+- [x] Per-note key wrapped via ECIES for each reader (author + admin envelopes)
+- [x] `encryptNote()` / `decryptNote()` with `decryptNoteLegacy()` for backward compat
+- [x] Note model updated with `authorEnvelope` and `adminEnvelope` fields
+- [x] Compromising identity key no longer reveals past notes
+
+### Phase 4: Simplified Onboarding & Recovery
+- [x] nsec never displayed to users — replaced with Base32 recovery key (128-bit entropy)
+- [x] Recovery key verification during onboarding (character check)
+- [x] Mandatory encrypted backup download before proceeding
+- [x] nsec flows directly from `generateKeyPair()` into `keyManager.importKey()`
+
+### E2E Tests
+- [x] `tests/device-linking.spec.ts` — 11 tests for /link-device page, settings section, login integration
+- [x] `/link-device` added to public paths in `__root.tsx`
+
+### Files Changed (16+ files)
+- New: `src/client/lib/key-manager.ts`, `src/client/lib/provisioning.ts`, `src/client/components/qr-provisioning.tsx`, `src/client/routes/link-device.tsx`, `src/worker/routes/provisioning.ts`, `tests/device-linking.spec.ts`
+- Modified: `src/client/lib/auth.tsx`, `api.ts`, `ws.ts`, `crypto.ts`, `backup.ts`, `src/client/routes/login.tsx`, `onboarding.tsx`, `settings.tsx`, `__root.tsx`, `src/worker/durable-objects/identity-do.ts`, `src/worker/app.ts`, `src/shared/types.ts`
+
 ## 2026-02-17: Epic 53 — Deep Security Audit & Hardening (Round 5)
 
 ### Critical Fixes

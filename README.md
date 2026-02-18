@@ -219,10 +219,13 @@ site/              # Marketing site (Astro + Tailwind, Cloudflare Pages)
 ### Security model
 
 - **Authentication**: Nostr keypairs (BIP-340 Schnorr) + WebAuthn passkeys
-- **Note encryption**: XChaCha20-Poly1305 client-side encryption
+- **Local key protection**: PIN-encrypted key store (PBKDF2 600K iterations + XChaCha20-Poly1305); raw nsec never in sessionStorage — in-memory closure only, zeroed on lock
+- **Note encryption**: Per-note forward secrecy — each note encrypted with a unique random key, wrapped via ECIES for each authorized reader
 - **Transcription encryption**: ECIES (ephemeral ECDH + XChaCha20-Poly1305) dual-key
 - **Report encryption**: ECIES encrypted body + encrypted file attachments
-- **Zero-knowledge server**: the Worker never sees plaintext notes, transcriptions, or report content
+- **Device linking**: Signal-style QR provisioning via ephemeral ECDH key exchange; 5-minute single-use relay rooms
+- **Recovery keys**: 128-bit Base32 recovery keys with mandatory encrypted backup download
+- **Zero-knowledge server**: the Worker never sees plaintext notes, transcriptions, report content, or per-note encryption keys
 - **Volunteer privacy**: personal info visible only to admins
 
 ### Roles
