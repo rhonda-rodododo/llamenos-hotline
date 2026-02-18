@@ -12,9 +12,12 @@ import '@/app.css'
 
 const router = createRouter({ routeTree })
 
-// Expose router for E2E test navigation (avoids full page reloads)
+// Expose router and key-manager for E2E test navigation
 if (typeof window !== 'undefined') {
   ;(window as any).__TEST_ROUTER = router
+  import('./lib/key-manager').then(km => {
+    ;(window as any).__TEST_KEY_MANAGER = km
+  })
 }
 
 declare module '@tanstack/react-router' {
