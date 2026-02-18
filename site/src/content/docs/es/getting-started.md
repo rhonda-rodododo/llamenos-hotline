@@ -3,13 +3,17 @@ title: Primeros Pasos
 description: Despliega tu propia linea de Llamenos en menos de una hora.
 ---
 
-Despliega tu propia linea de Llamenos en menos de una hora. Necesitaras una cuenta de Cloudflare, una cuenta de proveedor de telefonia y una maquina con Bun instalado.
+Despliega tu propia linea de Llamenos en menos de una hora. Necesitaras una cuenta de Cloudflare, al menos un canal de comunicacion (voz, SMS, WhatsApp o Signal) y una maquina con Bun instalado.
 
 ## Requisitos previos
 
 - [Bun](https://bun.sh) v1.0 o superior (entorno de ejecucion y gestor de paquetes)
 - Una cuenta de [Cloudflare](https://www.cloudflare.com) (el nivel gratuito funciona para desarrollo)
-- Una cuenta de proveedor de telefonia — [Twilio](https://www.twilio.com) es el mas facil para empezar, pero Llamenos tambien soporta [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo) y [Asterisk autoalojado](/docs/setup-asterisk). Consulta la [comparativa de proveedores](/docs/telephony-providers) para elegir.
+- Al menos un canal de comunicacion:
+  - **Voz**: [Twilio](https://www.twilio.com) es el mas facil para empezar, pero tambien se soporta [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo) y [Asterisk autoalojado](/docs/setup-asterisk). Consulta la [comparativa de proveedores](/docs/telephony-providers).
+  - **SMS**: Incluido con Twilio, SignalWire, Vonage o Plivo — consulta [Configurar SMS](/docs/setup-sms).
+  - **WhatsApp**: Requiere una cuenta de [Meta Business](https://business.facebook.com) — consulta [Configurar WhatsApp](/docs/setup-whatsapp).
+  - **Signal**: Requiere un bridge [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) autoalojado — consulta [Configurar Signal](/docs/setup-signal).
 - Git
 
 ## 1. Clonar e instalar
@@ -32,39 +36,62 @@ Guarda el `nsec` de forma segura: es tu credencial de inicio de sesion como admi
 
 ## 3. Configurar secretos
 
-Crea un archivo `.dev.vars` en la raiz del proyecto para desarrollo local. Este ejemplo usa Twilio — si usas otro proveedor, puedes omitir las variables de Twilio y configurar tu proveedor a traves de la interfaz de administracion despues del primer inicio de sesion.
+Crea un archivo `.dev.vars` en la raiz del proyecto para desarrollo local. Como minimo necesitas la clave publica del administrador. Las credenciales de Twilio son opcionales si planeas configurar los canales a traves del asistente de configuracion.
 
 ```bash
 # .dev.vars
+ADMIN_PUBKEY=tu_clave_publica_hex_del_paso_2
+ENVIRONMENT=development
+
+# Proveedor de voz (opcional — se puede configurar via interfaz de admin)
 TWILIO_ACCOUNT_SID=tu_twilio_account_sid
 TWILIO_AUTH_TOKEN=tu_twilio_auth_token
 TWILIO_PHONE_NUMBER=+1234567890
-ADMIN_PUBKEY=tu_clave_publica_hex_del_paso_2
-ENVIRONMENT=development
+
+# WhatsApp (opcional — se puede configurar via interfaz de admin)
+# WHATSAPP_ACCESS_TOKEN=tu_token_de_acceso_meta
+# WHATSAPP_VERIFY_TOKEN=tu_token_de_verificacion
+# WHATSAPP_PHONE_NUMBER_ID=tu_id_de_numero
 ```
 
 Para produccion, configura estos como secretos de Wrangler:
 
 ```bash
 bunx wrangler secret put ADMIN_PUBKEY
-# Si usas Twilio como proveedor por defecto via variables de entorno:
+
+# Si usas Twilio como proveedor de voz por defecto via variables de entorno:
 bunx wrangler secret put TWILIO_ACCOUNT_SID
 bunx wrangler secret put TWILIO_AUTH_TOKEN
 bunx wrangler secret put TWILIO_PHONE_NUMBER
+
+# Si usas WhatsApp via variables de entorno:
+bunx wrangler secret put WHATSAPP_ACCESS_TOKEN
+bunx wrangler secret put WHATSAPP_VERIFY_TOKEN
+bunx wrangler secret put WHATSAPP_PHONE_NUMBER_ID
 ```
 
-> **Nota**: Tambien puedes configurar tu proveedor de telefonia completamente a traves de la interfaz de Configuracion del administrador en lugar de usar variables de entorno. Esto es obligatorio para proveedores que no sean Twilio. Consulta la [guia de configuracion de tu proveedor](/docs/telephony-providers).
+> **Nota**: Puedes configurar todos los proveedores y canales a traves de la interfaz de Configuracion del administrador o el asistente de configuracion en lugar de variables de entorno. Las variables de entorno sirven como respaldo para voz (solo Twilio). Para proveedores que no sean Twilio, SMS, WhatsApp y Signal, usa la interfaz de administracion. Consulta la [guia de configuracion de tu proveedor](/docs/telephony-providers).
 
-## 4. Configurar los webhooks de telefonia
+## 4. Configurar los webhooks
 
-Configura tu proveedor de telefonia para enviar webhooks de voz a tu Worker. Las URLs de webhook son las mismas independientemente del proveedor:
+Configura tus proveedores para enviar webhooks a tu Worker. Las URLs dependen de los canales que habilites:
 
-- **URL de llamada entrante**: `https://tu-worker.tu-dominio.com/telephony/incoming` (POST)
-- **URL de callback de estado**: `https://tu-worker.tu-dominio.com/telephony/status` (POST)
+**Voz** (todos los proveedores):
+- **Llamada entrante**: `https://tu-worker.tu-dominio.com/telephony/incoming` (POST)
+- **Callback de estado**: `https://tu-worker.tu-dominio.com/telephony/status` (POST)
 
-Para instrucciones especificas de cada proveedor, consulta: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo) o [Asterisk](/docs/setup-asterisk).
+**SMS** (si esta habilitado):
+- **SMS entrante**: `https://tu-worker.tu-dominio.com/api/messaging/sms/webhook` (POST)
 
-Para desarrollo local, necesitaras un tunel (como Cloudflare Tunnel o ngrok) para exponer tu Worker local a tu proveedor de telefonia.
+**WhatsApp** (si esta habilitado):
+- **Webhook**: `https://tu-worker.tu-dominio.com/api/messaging/whatsapp/webhook` (GET para verificacion, POST para mensajes)
+
+**Signal** (si usas el bridge):
+- Configura el bridge signal-cli para reenviar a: `https://tu-worker.tu-dominio.com/api/messaging/signal/webhook`
+
+Para configuracion especifica: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk), [SMS](/docs/setup-sms), [WhatsApp](/docs/setup-whatsapp), [Signal](/docs/setup-signal).
+
+Para desarrollo local, necesitaras un tunel (como Cloudflare Tunnel o ngrok) para exponer tu Worker local a tus proveedores.
 
 ## 5. Ejecutar localmente
 
@@ -80,6 +107,17 @@ bun run dev:worker
 
 La aplicacion estara disponible en `http://localhost:8787`. Inicia sesion con el nsec de administrador del paso 2.
 
+### Asistente de configuracion del primer inicio
+
+En tu primer inicio de sesion como administrador, la aplicacion te redirigira al **asistente de configuracion**. Este flujo guiado te ayuda a:
+
+1. **Nombrar tu linea** — establece el nombre para mostrar
+2. **Elegir canales** — habilita Voz, SMS, WhatsApp, Signal y/o Reportes
+3. **Configurar proveedores** — ingresa las credenciales de cada canal habilitado
+4. **Revisar y finalizar** — el asistente marca la configuracion como completada
+
+Puedes reconfigurar todos estos ajustes despues desde **Configuracion del administrador**.
+
 ## 6. Desplegar en Cloudflare
 
 ```bash
@@ -90,7 +128,11 @@ Esto construye el frontend y despliega el Worker con Durable Objects en Cloudfla
 
 ## Siguientes pasos
 
-- [Guia de Administrador](/es/docs/admin-guide) -- agrega voluntarios, crea turnos, configura ajustes
-- [Guia de Voluntario](/es/docs/volunteer-guide) -- comparte con tus voluntarios
-- [Proveedores de Telefonia](/docs/telephony-providers) -- compara proveedores y cambia de Twilio si lo necesitas
-- [Modelo de Seguridad](/es/security) -- entiende el cifrado y el modelo de amenazas
+- [Guia de Administrador](/es/docs/admin-guide) — agrega voluntarios, crea turnos, configura canales y ajustes
+- [Guia de Voluntario](/es/docs/volunteer-guide) — comparte con tus voluntarios
+- [Guia de Reportero](/es/docs/reporter-guide) — configura el rol de reportero para envio de reportes cifrados
+- [Configurar SMS](/es/docs/setup-sms) — habilita la mensajeria SMS
+- [Configurar WhatsApp](/es/docs/setup-whatsapp) — conecta WhatsApp Business
+- [Configurar Signal](/es/docs/setup-signal) — configura el canal de Signal
+- [Proveedores de Telefonia](/es/docs/telephony-providers) — compara proveedores de voz y cambia de Twilio si lo necesitas
+- [Modelo de Seguridad](/es/security) — entiende el cifrado y el modelo de amenazas

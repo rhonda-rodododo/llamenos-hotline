@@ -33,6 +33,10 @@ bun run test:ui      # Playwright UI mode
 src/
   client/              # Frontend SPA
     routes/            # TanStack Router file-based routes
+      setup.tsx        # Admin setup wizard (first-login flow)
+      conversations.tsx # Threaded messaging conversations
+      reports.tsx      # Reporter submission + admin review
+      help.tsx         # In-app FAQ and role-specific guides
     components/        # App components + ui/ (shadcn primitives)
     lib/               # Client utilities
       api.ts           # REST API client
@@ -43,11 +47,12 @@ src/
     locales/           # 13 locale JSON files
   worker/              # Cloudflare Worker backend
     routes/            # Hono API route handlers
-    durable-objects/   # 3 singleton DOs
-      session-manager.ts  # Auth, settings, presence, WebSocket
-      shift-manager.ts    # Shifts, volunteers, invites
-      call-router.ts      # Calls, notes, audit, recordings
-    telephony/         # Provider adapters
+    durable-objects/   # 4 singleton DOs
+      session-manager.ts   # Auth, settings, presence, WebSocket
+      shift-manager.ts     # Shifts, volunteers, invites
+      call-router.ts       # Calls, notes, audit, recordings
+      conversation-do.ts   # Threaded messaging conversations
+    telephony/         # Voice provider adapters
       adapter.ts       # TelephonyAdapter interface
       twilio.ts        # Twilio implementation
       signalwire.ts    # SignalWire (extends Twilio)
@@ -55,13 +60,18 @@ src/
       plivo.ts         # Plivo (Plivo XML format)
       asterisk.ts      # Asterisk ARI (JSON commands)
       webrtc-tokens.ts # WebRTC token generation
+    messaging/         # Messaging channel adapters
+      adapter.ts       # MessagingAdapter interface
+      sms/             # SMS adapters (Twilio, SignalWire, Vonage, Plivo)
+      whatsapp.ts      # WhatsApp Business Cloud API (Meta Graph API v21.0)
+      signal.ts        # Signal via signal-cli-rest-api bridge
     lib/               # Server utilities
   shared/              # Cross-boundary code
-    types.ts           # Shared types (CustomFieldDefinition, NotePayload, etc.)
+    types.ts           # Shared types (UserRole, ConversationMessage, ReportPayload, etc.)
     languages.ts       # Language config (codes, labels, voice IDs)
-tests/                 # Playwright E2E tests
+tests/                 # Playwright E2E tests (214+ tests)
 site/                  # Marketing site (Astro + Tailwind)
-asterisk-bridge/       # ARI bridge service (standalone)
+asterisk-bridge/       # ARI bridge service (standalone Bun service)
 ```
 
 ## Path Aliases
@@ -84,13 +94,14 @@ Configured in both `tsconfig.json` and `vite.config.ts`:
 
 ### Durable Objects
 
-Three singleton DOs accessed via `idFromName()`:
+Four singleton DOs accessed via `idFromName()`:
 
 | DO | ID | Purpose |
 |----|-----|---------|
 | SessionManagerDO | `global-session` | Auth, settings, WebSocket, presence |
 | ShiftManagerDO | `global-shifts` | Shifts, volunteers, invites |
 | CallRouterDO | `global-calls` | Calls, notes, audit, recordings |
+| ConversationDO | `global-conversations` | Threaded messaging conversations (SMS, WhatsApp, Signal) |
 
 ### Authentication
 
@@ -98,9 +109,9 @@ Dual auth modes:
 1. **Schnorr signatures** — `Authorization: Bearer {timestamp}:{hex-signature}` (BIP-340)
 2. **WebAuthn sessions** — `Authorization: Session {token}` (256-bit random, 8hr expiry)
 
-### Telephony
+### Telephony (Voice)
 
-The `TelephonyAdapter` interface abstracts provider-specific APIs. All adapters implement the same interface for call flow (IVR, CAPTCHA, queueing, ringing, recording, voicemail).
+The `TelephonyAdapter` interface abstracts provider-specific voice APIs. All adapters implement the same interface for call flow (IVR, CAPTCHA, queueing, ringing, recording, voicemail).
 
 Provider responses vary:
 - **Twilio/SignalWire**: TwiML (XML)
@@ -108,11 +119,36 @@ Provider responses vary:
 - **Plivo**: Plivo XML
 - **Asterisk**: JSON commands (via ARI bridge)
 
+### Messaging (SMS, WhatsApp, Signal)
+
+The `MessagingAdapter` interface abstracts text messaging across channels. Each adapter implements `sendMessage()`, `sendMediaMessage()`, `parseInboundWebhook()`, and `validateWebhook()`.
+
+| Channel | Adapter | Webhook Endpoint |
+|---------|---------|-----------------|
+| SMS | Per-provider (Twilio, SignalWire, Vonage, Plivo) | `POST /api/messaging/sms/webhook` |
+| WhatsApp | Meta Graph API v21.0 | `POST /api/messaging/whatsapp/webhook` |
+| Signal | signal-cli-rest-api bridge | `POST /api/messaging/signal/webhook` |
+
+All inbound messages are routed to the ConversationDO and broadcast via WebSocket (`conversation:new`, `message:new`).
+
+### Roles
+
+Four user roles defined in `src/shared/types.ts` (`UserRole`):
+
+| Role | Permissions |
+|------|------------|
+| `admin` | Full access: settings, volunteers, shifts, notes, calls, conversations, reports, audit |
+| `volunteer` | Answer calls, write notes, respond to conversations, view own data |
+| `reporter` | Submit encrypted reports with file attachments, view own reports |
+
+The `reporter` role has restricted navigation (reports + help only). Reporters are invited via the same invite flow as volunteers, with a role selector.
+
 ### Encryption
 
 - **Notes**: XChaCha20-Poly1305, client-side encrypt/decrypt
 - **Transcriptions**: ECIES — ephemeral ECDH (secp256k1) + XChaCha20-Poly1305, dual-encrypted for volunteer + admin
-- **Key derivation**: `sha256("llamenos:transcription" + sharedX)` domain separation
+- **Reports**: ECIES encrypted body + encrypted file attachments, dual-encrypted for reporter + admin
+- **Key derivation**: HKDF-SHA256 with domain separation
 
 ## Testing
 
@@ -132,7 +168,7 @@ bun run test:ui
 bunx playwright test --debug
 ```
 
-Test helpers in `tests/helpers.ts` provide `loginAsAdmin()`, `loginAsVolunteer()`, `resetTestState()`.
+Test helpers in `tests/helpers.ts` provide `loginAsAdmin()`, `loginAsVolunteer()`, `loginAsReporter()`, `resetTestState()`.
 
 ### Writing Tests
 

@@ -1,24 +1,40 @@
 # Llámenos
 
-A secure, self-hosted crisis hotline platform. Callers dial a phone number; calls are routed to on-shift volunteers via parallel ringing. Volunteers log encrypted notes in a webapp. Admins manage shifts, volunteers, and ban lists.
+A secure, self-hosted crisis response platform. Supports voice calls, SMS, WhatsApp, and Signal — all routed to on-shift volunteers. Volunteers log encrypted notes and manage conversations in a webapp. Admins manage shifts, volunteers, channels, and ban lists. Reporters can submit encrypted reports through a dedicated portal.
 
-Built for organizations that need to protect the identity of both callers and volunteers against well-funded adversaries.
+Built for organizations that need to protect the identity of callers, reporters, and volunteers against well-funded adversaries.
 
 ## Features
 
-- **End-to-end encrypted notes and transcriptions** — the server never sees plaintext
+### Voice Calling
 - **Multi-provider telephony** — Twilio, SignalWire, Vonage, Plivo, or self-hosted Asterisk
-- **WebRTC browser calling** — volunteers can answer calls directly in the browser
 - **Parallel ringing** — all on-shift volunteers ring at once; first pickup wins
+- **WebRTC browser calling** — volunteers can answer calls directly in the browser
 - **Automated shift scheduling** — recurring schedules with fallback ring groups
 - **Call spam mitigation** — real-time ban lists, voice CAPTCHA, rate limiting
 - **AI transcription** — Cloudflare Workers AI (Whisper), E2EE with dual-key encryption
 - **Voicemail** — automatic fallback when no volunteers are available
+
+### Multi-Channel Messaging
+- **SMS** — inbound/outbound SMS via Twilio, SignalWire, Vonage, or Plivo
+- **WhatsApp Business** — Meta Cloud API with template messages, media support, and 24-hour window handling
+- **Signal** — via signal-cli-rest-api bridge with voice message transcription
+- **Threaded conversations** — all messaging channels flow into a unified conversation view with message bubbles, timestamps, and direction indicators
+- **Real-time updates** — new messages and conversations appear instantly via WebSocket
+
+### Encrypted Notes & Reports
+- **End-to-end encrypted notes** — the server never sees plaintext
 - **Custom note fields** — admin-configurable fields (text, number, select, checkbox)
+- **Reporter role** — dedicated portal for submitting encrypted reports with file attachments
+- **Report workflow** — categories, status tracking (open/claimed/resolved), threaded replies
+
+### Administration
+- **Setup wizard** — guided multi-step setup on first admin login (name, channels, providers)
+- **In-app help** — FAQ, role-specific guides, getting started checklist
+- **Audit log** — every call, note, and admin action tracked
 - **12 languages** — English, Spanish, Chinese, Tagalog, Vietnamese, Arabic, French, Haitian Creole, Korean, Russian, Hindi, Portuguese
-- **Mobile responsive PWA** — works on desktop and phone browsers, installable
+- **Mobile responsive PWA** — installable on any device
 - **Accessibility** — skip nav, ARIA labels, RTL support, screen reader friendly
-- **Audit log** — every call and note action tracked for admin review
 - **GDPR compliant** — designed for EU-based organizations
 
 ## Quick Start
@@ -61,12 +77,15 @@ Edit `.dev.vars` with your admin public key and telephony credentials:
 
 ```env
 ADMIN_PUBKEY=hex_public_key_from_step_2
+ENVIRONMENT=development
+
+# Twilio (default voice provider — optional if configuring via admin UI)
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=your_auth_token_here
 TWILIO_PHONE_NUMBER=+1234567890
 ```
 
-> **Note:** Twilio env vars are the default fallback. You can configure any provider from the admin settings UI after deploying.
+> **Note:** Twilio env vars are the default fallback for voice. You can configure any voice provider, plus SMS, WhatsApp, and Signal channels from the admin settings UI after deploying. The setup wizard will guide you through channel configuration on first login.
 
 ### 4. Run locally
 
@@ -79,10 +98,27 @@ The app runs at `http://localhost:8787`. Log in with the admin nsec from step 2.
 
 ### 5. Set up webhooks
 
-Point your telephony provider's voice webhook to:
+Point your telephony provider's webhooks to your Worker URL:
 
+**Voice:**
 ```
-https://your-domain.com/api/telephony/incoming
+https://your-domain.com/api/telephony/incoming    (incoming calls)
+https://your-domain.com/api/telephony/status       (call status updates)
+```
+
+**SMS** (if enabled):
+```
+https://your-domain.com/api/messaging/sms/webhook
+```
+
+**WhatsApp** (if enabled):
+```
+https://your-domain.com/api/messaging/whatsapp/webhook
+```
+
+**Signal** (if using signal-cli bridge):
+```
+Configure the bridge to forward to: https://your-domain.com/api/messaging/signal/webhook
 ```
 
 For local development, use [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/):
@@ -94,31 +130,50 @@ cloudflared tunnel --url http://localhost:8787
 ## Deploy to Cloudflare
 
 ```bash
-# Set secrets
+# Set required secrets
 bunx wrangler secret put ADMIN_PUBKEY
+
+# Set voice provider secrets (if using Twilio env vars as default)
 bunx wrangler secret put TWILIO_ACCOUNT_SID
 bunx wrangler secret put TWILIO_AUTH_TOKEN
 bunx wrangler secret put TWILIO_PHONE_NUMBER
+
+# Optional: WhatsApp Cloud API credentials
+bunx wrangler secret put WHATSAPP_ACCESS_TOKEN
+bunx wrangler secret put WHATSAPP_VERIFY_TOKEN
+bunx wrangler secret put WHATSAPP_PHONE_NUMBER_ID
 
 # Deploy
 bun run deploy
 ```
 
-After deploying, update your telephony provider's webhook URL to point to your Workers URL.
+After deploying, update your telephony and messaging provider webhook URLs to point to your Workers URL. Messaging channel credentials can also be configured entirely through the admin Settings UI.
 
 ## Telephony Providers
 
-Llámenos supports 5 telephony providers. Configure your provider in **Admin Settings > Telephony Provider**.
+Llámenos supports 5 voice telephony providers. Configure your provider in **Admin Settings > Telephony Provider** or during the setup wizard.
 
-| Provider | Type | Pricing | Setup | Best For |
-|----------|------|---------|-------|----------|
-| **Twilio** | Cloud | Per-minute | Easy | Getting started quickly |
-| **SignalWire** | Cloud | Per-minute (cheaper) | Easy | Cost-conscious orgs |
-| **Vonage** | Cloud | Per-minute | Medium | International coverage |
-| **Plivo** | Cloud | Per-minute | Medium | Budget cloud option |
-| **Asterisk** | Self-hosted | SIP trunk only | Advanced | Maximum privacy, at-scale |
+| Provider | Type | Voice | SMS | Pricing | Setup | Best For |
+|----------|------|-------|-----|---------|-------|----------|
+| **Twilio** | Cloud | Yes | Yes | Per-minute/msg | Easy | Getting started quickly |
+| **SignalWire** | Cloud | Yes | Yes | Per-minute/msg | Easy | Cost-conscious orgs |
+| **Vonage** | Cloud | Yes | Yes | Per-minute/msg | Medium | International coverage |
+| **Plivo** | Cloud | Yes | Yes | Per-minute/msg | Medium | Budget cloud option |
+| **Asterisk** | Self-hosted | Yes | No | SIP trunk only | Advanced | Maximum privacy, at-scale |
 
-See the [setup guides](https://llamenos-hotline.com/docs) for detailed instructions per provider.
+## Messaging Channels
+
+In addition to voice, Llámenos supports text-based messaging channels:
+
+| Channel | Provider | Setup |
+|---------|----------|-------|
+| **SMS** | Twilio, SignalWire, Vonage, or Plivo | Configure in admin settings; point inbound webhook to `/api/messaging/sms/webhook` |
+| **WhatsApp** | Meta WhatsApp Business Cloud API | Requires Meta Business account; configure webhook at `/api/messaging/whatsapp/webhook` |
+| **Signal** | signal-cli-rest-api bridge | Self-hosted bridge service; configure bridge URL in admin settings |
+
+All messaging channels flow into a unified **Conversations** view. Enable/disable channels from Admin Settings or the setup wizard.
+
+See the [setup guides](https://llamenos-hotline.com/docs) for detailed instructions per provider and channel.
 
 ## Customization
 
@@ -141,17 +196,24 @@ Translation files are in `src/client/locales/`. Language config is centralized i
 ```
 src/
   client/          # React SPA (Vite + TanStack Router)
-    routes/        # File-based routing
+    routes/        # File-based routing (/setup, /conversations, /reports, /help, etc.)
     components/    # shadcn/ui components
     locales/       # Translation files (13 locales)
     lib/           # Auth, crypto, WebRTC, API client
   worker/          # Cloudflare Worker backend
     durable-objects/
-      session-manager.ts  # Auth, settings, WebSocket, presence
-      shift-manager.ts    # Shift scheduling, volunteer management
-      call-router.ts      # Call routing, notes, audit log
-    telephony/     # Provider adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk)
+      session-manager.ts   # Auth, settings, WebSocket, presence
+      shift-manager.ts     # Shift scheduling, volunteer management
+      call-router.ts       # Call routing, notes, audit log
+      conversation-do.ts   # Threaded messaging conversations
+    telephony/     # Voice provider adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk)
+    messaging/     # Messaging channel adapters (SMS, WhatsApp, Signal)
+    routes/        # API route handlers
   shared/          # Code shared between client and worker
+    types.ts       # Shared types (roles, conversations, reports, etc.)
+    languages.ts   # Centralized language config
+asterisk-bridge/   # Standalone ARI bridge for self-hosted Asterisk
+site/              # Marketing site (Astro + Tailwind, Cloudflare Pages)
 ```
 
 ### Security model
@@ -159,16 +221,18 @@ src/
 - **Authentication**: Nostr keypairs (BIP-340 Schnorr) + WebAuthn passkeys
 - **Note encryption**: XChaCha20-Poly1305 client-side encryption
 - **Transcription encryption**: ECIES (ephemeral ECDH + XChaCha20-Poly1305) dual-key
-- **Zero-knowledge server**: the Worker never sees plaintext notes or transcriptions
+- **Report encryption**: ECIES encrypted body + encrypted file attachments
+- **Zero-knowledge server**: the Worker never sees plaintext notes, transcriptions, or report content
 - **Volunteer privacy**: personal info visible only to admins
 
 ### Roles
 
 | Role | Can see | Can do |
 |------|---------|--------|
-| Caller | Nothing (GSM phone) | Call the hotline |
-| Volunteer | Own notes only | Answer calls, write notes |
-| Admin | All notes, audit logs, active calls | Manage everything |
+| Caller | Nothing (GSM/SMS/WhatsApp/Signal) | Call or message the hotline |
+| Volunteer | Own notes, assigned conversations | Answer calls, write notes, respond to messages |
+| Reporter | Own reports only | Submit encrypted reports with file attachments |
+| Admin | All notes, reports, audit logs, conversations | Manage everything |
 
 ## Development
 

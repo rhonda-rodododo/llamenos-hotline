@@ -1,6 +1,6 @@
 ---
 title: Funcionalidades
-subtitle: Todo lo que una linea de crisis necesita, en un paquete de codigo abierto. Construido sobre Cloudflare Workers sin servidores que administrar.
+subtitle: Todo lo que una plataforma de respuesta a crisis necesita, en un paquete de codigo abierto. Voz, SMS, WhatsApp, Signal y reportes cifrados — construido sobre Cloudflare Workers sin servidores que administrar.
 ---
 
 ## Enrutamiento de llamadas
@@ -41,15 +41,39 @@ subtitle: Todo lo que una linea de crisis necesita, en un paquete de codigo abie
 
 **Mensajes IVR personalizados** — Graba mensajes de voz personalizados para cada idioma soportado. El sistema usa tus grabaciones para los flujos IVR, recurriendo a texto a voz cuando no existe una grabacion.
 
+## Mensajeria multicanal
+
+**SMS** — Mensajeria SMS entrante y saliente via Twilio, SignalWire, Vonage o Plivo. Auto-respuesta con mensajes de bienvenida configurables. Los mensajes fluyen hacia la vista de conversaciones con hilos.
+
+**WhatsApp Business** — Conexion via la API Cloud de Meta (Graph API v21.0). Soporte de mensajes de plantilla para iniciar conversaciones dentro de la ventana de 24 horas. Soporte de mensajes multimedia para imagenes, documentos y audio.
+
+**Signal** — Mensajeria enfocada en la privacidad a traves de un bridge signal-cli-rest-api autoalojado. Monitoreo de salud con degradacion elegante. Transcripcion de mensajes de voz via Workers AI Whisper.
+
+**Conversaciones con hilos** — Todos los canales de mensajeria fluyen hacia una vista de conversaciones unificada. Burbujas de mensajes con marcas de tiempo e indicadores de direccion. Actualizaciones en tiempo real via WebSocket.
+
+## Reportes cifrados
+
+**Rol de reportero** — Un rol dedicado para personas que envian informes o denuncias. Los reporteros ven una interfaz simplificada con solo reportes y ayuda. Invitados a traves del mismo flujo que los voluntarios, con un selector de rol.
+
+**Envios cifrados** — El contenido de los reportes se cifra usando ECIES antes de salir del navegador. Titulos en texto plano para clasificacion, contenido cifrado para privacidad. Los archivos adjuntos se cifran por separado.
+
+**Flujo de trabajo de reportes** — Categorias para organizar reportes. Seguimiento de estado (abierto, reclamado, resuelto). Los administradores pueden reclamar reportes y responder con mensajes cifrados en hilo.
+
 ## Panel de administracion
 
-**Monitoreo de llamadas en tiempo real** — Ve las llamadas activas, los llamantes en cola y el estado de los voluntarios en tiempo real via WebSocket. Las metricas se actualizan al instante.
+**Asistente de configuracion** — Configuracion guiada paso a paso en el primer inicio de sesion del administrador. Elige que canales habilitar (Voz, SMS, WhatsApp, Signal, Reportes), configura proveedores y establece el nombre de tu linea.
 
-**Gestion de voluntarios** — Agrega voluntarios con pares de claves generados, gestiona roles, consulta el estado en linea. Enlaces de invitacion para autoregistro.
+**Lista de verificacion de inicio** — Widget en el panel que da seguimiento al progreso de configuracion: configuracion de canales, incorporacion de voluntarios, creacion de turnos.
 
-**Registro de auditoria** — Cada llamada respondida, nota creada, configuracion modificada y accion de administrador queda registrada. Visor paginado para administradores.
+**Monitoreo en tiempo real** — Ve las llamadas activas, los llamantes en cola, las conversaciones y el estado de los voluntarios en tiempo real via WebSocket. Las metricas se actualizan al instante.
+
+**Gestion de voluntarios** — Agrega voluntarios con pares de claves generados, gestiona roles (voluntario, administrador, reportero), consulta el estado en linea. Enlaces de invitacion para autoregistro con seleccion de rol.
+
+**Registro de auditoria** — Cada llamada respondida, nota creada, mensaje enviado, reporte enviado, configuracion modificada y accion de administrador queda registrada. Visor paginado para administradores.
 
 **Historial de llamadas** — Historial de llamadas con busqueda, filtros por rango de fechas, busqueda por numero de telefono y asignacion de voluntarios. Exportacion de datos compatible con GDPR.
+
+**Ayuda dentro de la aplicacion** — Secciones de preguntas frecuentes, guias por rol, tarjetas de referencia rapida para atajos de teclado y seguridad. Accesible desde la barra lateral y la paleta de comandos.
 
 ## Multilenguaje y movil
 
