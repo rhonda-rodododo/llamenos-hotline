@@ -140,12 +140,18 @@ export async function createBackup(
   nsec: string,
   pin: string,
   pubkey: string,
-  recoveryKey?: string,
+  recoveryKey: string,
 ): Promise<BackupFile> {
   const salt = new Uint8Array(16)
   crypto.getRandomValues(salt)
   const kek = await deriveFromPin(pin, salt)
   const { nonce, ciphertext } = encrypt(nsec, kek)
+
+  // Recovery key encryption is mandatory
+  const rSalt = new Uint8Array(16)
+  crypto.getRandomValues(rSalt)
+  const rKek = await deriveFromRecoveryKey(recoveryKey, rSalt)
+  const { nonce: rNonce, ciphertext: rCt } = encrypt(nsec, rKek)
 
   const backup: BackupFile = {
     version: 1,
@@ -158,19 +164,12 @@ export async function createBackup(
       nonce,
       ciphertext,
     },
-  }
-
-  if (recoveryKey) {
-    const rSalt = new Uint8Array(16)
-    crypto.getRandomValues(rSalt)
-    const rKek = await deriveFromRecoveryKey(recoveryKey, rSalt)
-    const { nonce: rNonce, ciphertext: rCt } = encrypt(nsec, rKek)
-    backup.recoveryKey = {
+    recoveryKey: {
       salt: bytesToHex(rSalt),
       iterations: 100_000,
       nonce: rNonce,
       ciphertext: rCt,
-    }
+    },
   }
 
   return backup

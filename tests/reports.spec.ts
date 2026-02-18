@@ -13,13 +13,13 @@ async function navigateToReports(page: Page): Promise<void> {
 /**
  * Helper: Complete the onboarding flow for an invited user.
  * Assumes the page is at /onboarding?code=... and the welcome screen is visible.
- * Returns the nsec from the backup step.
+ * Returns the encrypted key data from localStorage (to inject in later tests).
  */
 async function completeOnboarding(page: Page): Promise<string> {
   // Click Get Started
   await page.getByRole('button', { name: /get started/i }).click()
 
-  // Create PIN (6 digits)
+  // Create PIN (6 digits: 1,2,3,4,5,0)
   await expect(page.getByText(/create a pin/i)).toBeVisible({ timeout: 5000 })
   for (let i = 0; i < 6; i++) {
     const input = page.locator(`input[aria-label="PIN digit ${i + 1}"]`)
@@ -35,30 +35,34 @@ async function completeOnboarding(page: Page): Promise<string> {
     await input.pressSequentially(`${(i + 1) % 10}`)
   }
 
-  // Backup page — grab nsec
-  await expect(page.getByText(/back up your key/i)).toBeVisible({ timeout: 15000 })
-  const nsecEl = page.locator('code').first()
-  await expect(nsecEl).toBeVisible()
-  const nsec = await nsecEl.textContent()
-  if (!nsec || !nsec.startsWith('nsec1')) throw new Error('Failed to get nsec from onboarding')
+  // Recovery key page (nsec is NOT shown)
+  await expect(page.getByText(/save your recovery key/i)).toBeVisible({ timeout: 15000 })
+  const recoveryKeyEl = page.getByTestId('recovery-key')
+  await expect(recoveryKeyEl).toBeVisible()
+  const recoveryKey = await recoveryKeyEl.textContent()
+  if (!recoveryKey || !recoveryKey.match(/^[A-Z2-7]{4}-/)) throw new Error('Failed to get recovery key from onboarding')
 
-  // Verify backup (fill 4 character positions)
+  // Download backup (mandatory before continue)
+  await page.getByRole('button', { name: /download encrypted backup/i }).click()
+
+  // Verify recovery key (fill 4 character positions)
   const charInputs = page.locator('input[type="text"][maxlength="1"]')
   const charCount = await charInputs.count()
   expect(charCount).toBe(4)
 
+  const rkNoDash = recoveryKey.replace(/-/g, '')
   for (let i = 0; i < charCount; i++) {
     const label = charInputs.nth(i).locator('xpath=..').locator('label')
     const labelText = await label.textContent()
     const match = labelText?.match(/#(\d+)/)
-    if (match && nsec) {
+    if (match && rkNoDash) {
       const position = parseInt(match[1]) - 1
-      await charInputs.nth(i).fill(nsec[position])
+      await charInputs.nth(i).fill(rkNoDash[position])
     }
   }
 
   await page.getByRole('button', { name: /verify/i }).click()
-  await expect(page.getByText(/backup verified/i)).toBeVisible({ timeout: 5000 })
+  await expect(page.getByText(/recovery key verified/i)).toBeVisible({ timeout: 5000 })
 
   // Continue to profile setup / dashboard
   await page.getByRole('button', { name: /continue/i }).click()
@@ -67,8 +71,15 @@ async function completeOnboarding(page: Page): Promise<string> {
     return path === '/profile-setup' || path === '/' || path === '/reports'
   }, { timeout: 15000 })
 
+  // Extract nsec from key-manager while still unlocked (in memory after onboarding)
+  const nsec = await page.evaluate(() => {
+    const km = (window as any).__TEST_KEY_MANAGER
+    return km?.getNsec?.() ?? null
+  })
+  if (!nsec) throw new Error('Failed to extract nsec from key-manager after onboarding')
   return nsec
 }
+
 
 /**
  * Helper: Create a reporter via the invite API while admin is logged in.
@@ -392,7 +403,7 @@ test.describe('Reports feature', () => {
       await page.goto(reporterInviteLink)
       await expect(page.getByText(/welcome/i)).toBeVisible({ timeout: 15000 })
 
-      // Complete onboarding
+      // Complete onboarding — nsec extracted from key-manager (never shown in UI)
       reporterNsec = await completeOnboarding(page)
       expect(reporterNsec).toMatch(/^nsec1/)
     })

@@ -57,31 +57,37 @@ test.describe('Invite-based onboarding', () => {
       await input.pressSequentially(`${(i + 1) % 10}`)
     }
 
-    // --- Step 7: Backup page with secret key ---
-    await expect(page.getByText(/back up your key/i)).toBeVisible({ timeout: 15000 })
-    const nsecEl = page.locator('code').first()
-    await expect(nsecEl).toBeVisible()
-    const nsec = await nsecEl.textContent()
-    expect(nsec).toMatch(/^nsec1/)
+    // --- Step 7: Recovery key page (nsec is NOT shown) ---
+    await expect(page.getByText(/save your recovery key/i)).toBeVisible({ timeout: 15000 })
+    const recoveryKeyEl = page.getByTestId('recovery-key')
+    await expect(recoveryKeyEl).toBeVisible()
+    const recoveryKey = await recoveryKeyEl.textContent()
+    expect(recoveryKey).toMatch(/^[A-Z2-7]{4}-/)
 
-    // --- Step 8: Verify backup (fill in the 4 characters) ---
+    // Download backup (mandatory before continue)
+    await page.getByRole('button', { name: /download encrypted backup/i }).click()
+
+    // --- Step 8: Verify recovery key (fill in the 4 characters) ---
     const charInputs = page.locator('input[type="text"][maxlength="1"]')
     const charCount = await charInputs.count()
     expect(charCount).toBe(4)
+
+    // Recovery key without dashes for position lookup
+    const rkNoDash = recoveryKey!.replace(/-/g, '')
 
     for (let i = 0; i < charCount; i++) {
       const label = charInputs.nth(i).locator('xpath=..').locator('label')
       const labelText = await label.textContent()
       // Extract position number from "Character #N"
       const match = labelText?.match(/#(\d+)/)
-      if (match && nsec) {
+      if (match && rkNoDash) {
         const position = parseInt(match[1]) - 1 // 0-indexed
-        await charInputs.nth(i).fill(nsec[position])
+        await charInputs.nth(i).fill(rkNoDash[position])
       }
     }
 
     await page.getByRole('button', { name: /verify/i }).click()
-    await expect(page.getByText(/backup verified/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/recovery key verified/i)).toBeVisible({ timeout: 5000 })
 
     // --- Step 9: Continue to profile setup ---
     await page.getByRole('button', { name: /continue/i }).click()

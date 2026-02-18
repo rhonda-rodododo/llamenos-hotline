@@ -45,15 +45,16 @@ function OnboardingPage() {
   const [pinStep, setPinStep] = useState<'create' | 'confirm'>('create')
   const [pinError, setPinError] = useState('')
 
-  // Keypair state
+  // Keypair state (nsec never displayed to user)
   const [nsec, setNsec] = useState('')
-  const [npub, setNpub] = useState('')
   const [pubkey, setPubkey] = useState('')
 
-  // Backup verification
+  // Recovery key & backup verification
+  const [recoveryKeyStr, setRecoveryKeyStr] = useState('')
   const [verifyChars, setVerifyChars] = useState<{ index: number; char: string }[]>([])
   const [verifyInputs, setVerifyInputs] = useState<string[]>([])
   const [backupVerified, setBackupVerified] = useState(false)
+  const [backupDownloaded, setBackupDownloaded] = useState(false)
 
   // Validate invite on initial mount only (ref survives re-renders but not re-mounts)
   const validatingRef = useRef(false)
@@ -114,22 +115,25 @@ function OnboardingPage() {
     try {
       const kp = generateKeyPair()
       setNsec(kp.nsec)
-      setNpub(kp.npub)
       setPubkey(kp.publicKey)
       setConfirmedPin(pin)
 
       // Redeem invite on server (with Schnorr signature proving key ownership)
       await redeemInvite(inviteCode, kp.publicKey, kp.secretKey)
 
-      // Set up backup verification (4 random chars from nsec)
-      const nsecStr = kp.nsec
+      // Generate recovery key (shown to user instead of nsec)
+      const rk = generateRecoveryKey()
+      setRecoveryKeyStr(rk)
+
+      // Set up verification (4 random chars from recovery key, skipping dashes)
+      const rkNoDash = rk.replace(/-/g, '')
       const indices: number[] = []
       while (indices.length < 4) {
-        const idx = Math.floor(Math.random() * (nsecStr.length - 5)) + 5 // Skip "nsec1" prefix
+        const idx = Math.floor(Math.random() * rkNoDash.length)
         if (!indices.includes(idx)) indices.push(idx)
       }
       indices.sort((a, b) => a - b)
-      setVerifyChars(indices.map(i => ({ index: i, char: nsecStr[i] })))
+      setVerifyChars(indices.map(i => ({ index: i, char: rkNoDash[i] })))
       setVerifyInputs(Array(4).fill(''))
       setStep('backup')
     } catch (err) {
@@ -147,18 +151,11 @@ function OnboardingPage() {
     }
   }
 
-  // Recovery key — generated once per onboarding
-  const [recoveryKeyStr, setRecoveryKeyStr] = useState('')
-
   async function downloadBackup() {
-    // Generate recovery key if not yet created
-    let rk = recoveryKeyStr
-    if (!rk) {
-      rk = generateRecoveryKey()
-      setRecoveryKeyStr(rk)
-    }
-    const backup = await createBackup(nsec, confirmedPin, pubkey, rk)
+    const backup = await createBackup(nsec, confirmedPin, pubkey, recoveryKeyStr)
     downloadBackupFile(backup)
+    setBackupDownloaded(true)
+    toast(t('onboarding.backupDownloaded'), 'success')
   }
 
   async function handleComplete() {
@@ -316,32 +313,35 @@ function OnboardingPage() {
               <CardDescription>{t('onboarding.backupDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Show nsec */}
+              {/* Show recovery key (NOT nsec) */}
               <div className="space-y-2">
-                <p className="text-sm font-medium">{t('onboarding.yourSecretKey')}</p>
+                <p className="text-sm font-medium">{t('onboarding.recoveryKey')}</p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 break-all rounded-md bg-muted px-3 py-2 text-xs">
-                    {nsec}
+                  <code data-testid="recovery-key" className="flex-1 break-all rounded-md bg-muted px-3 py-2 text-sm font-mono tracking-wider">
+                    {recoveryKeyStr}
                   </code>
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => { navigator.clipboard.writeText(nsec); toast(t('common.success'), 'success'); setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), 30000) }}
+                    onClick={() => { navigator.clipboard.writeText(recoveryKeyStr); toast(t('common.success'), 'success'); setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), 30000) }}
                     aria-label={t('a11y.copyToClipboard')}
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                <p className="text-xs text-destructive">{t('onboarding.secretKeyWarning')}</p>
+                <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/20 dark:text-amber-300">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>{t('onboarding.recoveryKeyWarning')}</span>
+                </div>
               </div>
 
-              {/* Download backup */}
+              {/* Download backup (mandatory) */}
               <Button variant="outline" onClick={downloadBackup} className="w-full">
                 <Download className="h-4 w-4" />
                 {t('onboarding.downloadBackup')}
               </Button>
 
-              {/* Verification */}
+              {/* Verification — verify recovery key chars */}
               {!backupVerified && (
                 <div className="space-y-3">
                   <p className="text-sm font-medium">{t('onboarding.verifyTitle')}</p>
@@ -361,7 +361,7 @@ function OnboardingPage() {
                             newInputs[i] = e.target.value
                             setVerifyInputs(newInputs)
                           }}
-                          className="h-9 w-full rounded-md border border-input bg-background px-3 text-center font-mono text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                          className="h-9 w-full rounded-md border border-input bg-background px-3 text-center font-mono text-sm uppercase focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                         />
                       </div>
                     ))}
@@ -382,7 +382,7 @@ function OnboardingPage() {
                     <Check className="h-4 w-4" />
                     {t('onboarding.verifySuccess')}
                   </div>
-                  <Button onClick={handleComplete} className="w-full" size="lg">
+                  <Button onClick={handleComplete} className="w-full" size="lg" disabled={!backupDownloaded}>
                     {t('onboarding.continue')}
                     <ArrowRight className="h-4 w-4" />
                   </Button>

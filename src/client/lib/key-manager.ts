@@ -168,3 +168,12 @@ export class KeyLockedError extends Error {
     this.name = 'KeyLockedError'
   }
 }
+
+/**
+ * Get the nsec as bech32 string (for testing/backup only).
+ * Returns null if locked.
+ */
+export function getNsec(): string | null {
+  if (!secretKey) return null
+  return nip19.nsecEncode(secretKey)
+}
