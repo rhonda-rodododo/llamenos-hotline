@@ -142,11 +142,12 @@ test.describe('Ban management', () => {
     await page.getByRole('button', { name: /save/i }).click()
     await expect(page.getByText(phone2)).toBeVisible({ timeout: 10000 })
 
-    // Both should be visible
-    await expect(page.getByText(phone1)).toBeVisible()
-    await expect(page.getByText(phone2)).toBeVisible()
-    await expect(page.getByText('First ban')).toBeVisible()
-    await expect(page.getByText('Second ban')).toBeVisible()
+    // Both should be visible in the ban list
+    const list = page.locator('main')
+    await expect(list.getByText(phone1).first()).toBeVisible()
+    await expect(list.getByText(phone2).first()).toBeVisible()
+    await expect(list.getByText('First ban')).toBeVisible()
+    await expect(list.getByText('Second ban')).toBeVisible()
   })
 
   test('bulk import form opens and closes', async ({ page }) => {
