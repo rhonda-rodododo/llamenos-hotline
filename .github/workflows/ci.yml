@@ -38,7 +38,6 @@ jobs:
       new_version: ${{ steps.version.outputs.new_version }}
       old_version: ${{ steps.version.outputs.old_version }}
       bump_type: ${{ steps.version.outputs.bump_type }}
-      changelog_body: ${{ steps.changelog.outputs.body }}
       should_release: ${{ steps.version.outputs.should_release }}
 
     steps:
@@ -160,28 +159,21 @@ jobs:
 
       - name: Generate changelog and commit release
         if: steps.version.outputs.should_release == 'true'
-        id: changelog
         run: |
           NEW_VERSION="${{ steps.version.outputs.new_version }}"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Stage version files first (needed for git-cliff to see the version)
+          # Stage version files
           git add package.json deploy/helm/llamenos/Chart.yaml
 
-          # Create a temporary tag so git-cliff can generate notes for this version
+          # Create tag so git-cliff can generate notes for this version
           git commit -m "chore(release): v${NEW_VERSION}"
           git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
 
-          # Generate full changelog (includes the new tag)
+          # Generate full CHANGELOG.md (includes the new tag)
           git-cliff --output CHANGELOG.md
-
-          # Extract just this version's notes for the GitHub Release body
-          BODY=$(git-cliff --latest --strip header)
-          echo "body<<CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
-          echo "$BODY" >> "$GITHUB_OUTPUT"
-          echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
 
           # Amend the release commit to include the changelog
           git add CHANGELOG.md
@@ -270,12 +262,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Install git-cliff
+        run: |
+          curl -sSfL https://github.com/orhun/git-cliff/releases/download/v2.7.0/git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz \
+            | tar xz -C /usr/local/bin --strip-components=1 git-cliff-2.7.0/git-cliff
+
+      - name: Generate release notes
+        run: |
+          git-cliff --latest --strip header > RELEASE_NOTES.md
+          echo "--- Release notes ---"
+          cat RELEASE_NOTES.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
         with:
           tag_name: v${{ needs.build.outputs.new_version }}
           name: v${{ needs.build.outputs.new_version }}
-          body: ${{ needs.build.outputs.changelog_body }}
+          body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false
