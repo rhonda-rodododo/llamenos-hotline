@@ -159,7 +159,7 @@ function AdminSettingsPage() {
   const ivrStatus = `${ivrEnabled.length} ${t('settings.languages', { defaultValue: 'languages' })}`
 
   const callStatus = callSet
-    ? `${t('settings.queue', { defaultValue: 'Queue' })}: ${callSet.queueTimeout || 180}s, ${t('settings.voicemail', { defaultValue: 'VM' })}: ${callSet.voicemailEnabled ? t('common.on', { defaultValue: 'on' }) : t('common.off', { defaultValue: 'off' })}`
+    ? `${t('settings.queue', { defaultValue: 'Queue' })}: ${callSet.queueTimeoutSeconds || 180}s, ${t('settings.voicemail', { defaultValue: 'VM' })}: ${callSet.voicemailMaxSeconds}s`
     : undefined
 
   const customFieldsStatus = customFieldDefs.length > 0
