@@ -11,6 +11,7 @@ interface SettingsSectionProps {
   id: string
   title: string
   description?: string
+  statusSummary?: string
   icon: ReactNode
   expanded: boolean
   onToggle: (open: boolean) => void
@@ -22,6 +23,7 @@ export function SettingsSection({
   id,
   title,
   description,
+  statusSummary,
   icon,
   expanded,
   onToggle,
@@ -54,7 +56,10 @@ export function SettingsSection({
                 {icon}
                 {title}
               </CardTitle>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
+                {!expanded && statusSummary && (
+                  <span className="hidden text-xs text-muted-foreground sm:block">{statusSummary}</span>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"

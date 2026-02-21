@@ -137,6 +137,39 @@ function AdminSettingsPage() {
     rateLimit: confirmToggle?.newValue ? t('confirm.rateLimitEnable') : t('confirm.rateLimitDisable'),
   }
 
+  // Compute status summaries for collapsed sections
+  const passkeyStatus = webauthnSettings
+    ? (webauthnSettings.requireForAdmins && webauthnSettings.requireForVolunteers)
+      ? t('webauthn.requiredAll', { defaultValue: 'Required for all' })
+      : webauthnSettings.requireForAdmins
+        ? t('webauthn.requiredAdmins', { defaultValue: 'Required for admins' })
+        : webauthnSettings.requireForVolunteers
+          ? t('webauthn.requiredVolunteers', { defaultValue: 'Required for volunteers' })
+          : t('webauthn.notRequired', { defaultValue: 'Not required' })
+    : undefined
+
+  const telephonyStatus = providerConfig?.type
+    ? providerConfig.type.charAt(0).toUpperCase() + providerConfig.type.slice(1)
+    : t('settings.notConfigured', { defaultValue: 'Not configured' })
+
+  const transcriptionStatus = globalTranscription
+    ? t('common.enabled', { defaultValue: 'Enabled' })
+    : t('common.disabled', { defaultValue: 'Disabled' })
+
+  const ivrStatus = `${ivrEnabled.length} ${t('settings.languages', { defaultValue: 'languages' })}`
+
+  const callStatus = callSet
+    ? `${t('settings.queue', { defaultValue: 'Queue' })}: ${callSet.queueTimeout || 180}s, ${t('settings.voicemail', { defaultValue: 'VM' })}: ${callSet.voicemailEnabled ? t('common.on', { defaultValue: 'on' }) : t('common.off', { defaultValue: 'off' })}`
+    : undefined
+
+  const customFieldsStatus = customFieldDefs.length > 0
+    ? `${customFieldDefs.length} ${t('settings.fields', { defaultValue: 'fields' })}`
+    : t('common.none', { defaultValue: 'None' })
+
+  const spamStatus = spam
+    ? `${t('settings.captcha', { defaultValue: 'CAPTCHA' })}: ${spam.voiceCaptchaEnabled ? t('common.on', { defaultValue: 'on' }) : t('common.off', { defaultValue: 'off' })}, ${t('settings.rateLimit', { defaultValue: 'Rate limit' })}: ${spam.rateLimitEnabled ? t('common.on', { defaultValue: 'on' }) : t('common.off', { defaultValue: 'off' })}`
+    : undefined
+
   if (!isAdmin) return <div className="text-muted-foreground">{t('common.error')}</div>
   if (loading) return <div className="text-muted-foreground">{t('common.loading')}</div>
 
@@ -154,6 +187,7 @@ function AdminSettingsPage() {
           onChange={setWebauthnSettings}
           expanded={expanded.has('passkey-policy')}
           onToggle={(open) => toggleSection('passkey-policy', open)}
+          statusSummary={passkeyStatus}
         />
       )}
 
@@ -164,6 +198,7 @@ function AdminSettingsPage() {
         onDraftChange={setProviderDraft}
         expanded={expanded.has('telephony-provider')}
         onToggle={(open) => toggleSection('telephony-provider', open)}
+        statusSummary={telephonyStatus}
       />
 
       <TranscriptionSection
@@ -174,6 +209,7 @@ function AdminSettingsPage() {
         onConfirmToggle={handleConfirmToggle}
         expanded={expanded.has('transcription')}
         onToggle={(open) => toggleSection('transcription', open)}
+        statusSummary={transcriptionStatus}
       />
 
       <IvrLanguagesSection
@@ -181,6 +217,7 @@ function AdminSettingsPage() {
         onChange={setIvrEnabled}
         expanded={expanded.has('ivr-languages')}
         onToggle={(open) => toggleSection('ivr-languages', open)}
+        statusSummary={ivrStatus}
       />
 
       {callSet && (
@@ -189,6 +226,7 @@ function AdminSettingsPage() {
           onChange={setCallSet}
           expanded={expanded.has('call-settings')}
           onToggle={(open) => toggleSection('call-settings', open)}
+          statusSummary={callStatus}
         />
       )}
 
@@ -198,6 +236,7 @@ function AdminSettingsPage() {
         onRecordingsChange={setIvrAudio}
         expanded={expanded.has('voice-prompts')}
         onToggle={(open) => toggleSection('voice-prompts', open)}
+        statusSummary={ivrAudio.length > 0 ? t('settings.customized', { defaultValue: 'Customized' }) : t('settings.default', { defaultValue: 'Default' })}
       />
 
       <CustomFieldsSection
@@ -205,6 +244,7 @@ function AdminSettingsPage() {
         onChange={setCustomFieldDefs}
         expanded={expanded.has('custom-fields')}
         onToggle={(open) => toggleSection('custom-fields', open)}
+        statusSummary={customFieldsStatus}
       />
 
       {spam && (
@@ -214,6 +254,7 @@ function AdminSettingsPage() {
           onConfirmToggle={handleConfirmToggle}
           expanded={expanded.has('spam')}
           onToggle={(open) => toggleSection('spam', open)}
+          statusSummary={spamStatus}
         />
       )}
 

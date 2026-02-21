@@ -13,9 +13,10 @@ interface Props {
   onConfirmToggle: (key: string, newValue: boolean) => void
   expanded: boolean
   onToggle: (open: boolean) => void
+  statusSummary?: string
 }
 
-export function SpamSection({ settings, onChange, onConfirmToggle, expanded, onToggle }: Props) {
+export function SpamSection({ settings, onChange, onConfirmToggle, expanded, onToggle, statusSummary }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
 
@@ -27,6 +28,7 @@ export function SpamSection({ settings, onChange, onConfirmToggle, expanded, onT
       expanded={expanded}
       onToggle={onToggle}
       basePath="/admin/settings"
+      statusSummary={statusSummary}
     >
       <div className="flex items-center justify-between rounded-lg border border-border p-4">
         <div className="flex items-start gap-3">

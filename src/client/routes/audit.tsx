@@ -1,16 +1,43 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { listAuditLog, listVolunteers, type AuditLogEntry, type Volunteer } from '@/lib/api'
-import { ScrollText, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ScrollText, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 export const Route = createFileRoute('/audit')({
   component: AuditPage,
 })
+
+const EVENT_CATEGORIES = [
+  { value: 'all', labelKey: 'auditLog.allEvents' },
+  { value: 'authentication', labelKey: 'auditLog.categoryAuth' },
+  { value: 'volunteers', labelKey: 'auditLog.categoryVolunteers' },
+  { value: 'calls', labelKey: 'auditLog.categoryCalls' },
+  { value: 'settings', labelKey: 'auditLog.categorySettings' },
+  { value: 'shifts', labelKey: 'auditLog.categoryShifts' },
+  { value: 'notes', labelKey: 'auditLog.categoryNotes' },
+] as const
+
+function getEventCategoryColor(event: string): string {
+  const authEvents = ['login', 'logout', 'sessionCreated', 'sessionExpired', 'passkeyRegistered', 'deviceLinked']
+  const volEvents = ['volunteerAdded', 'volunteerRemoved', 'volunteerRoleChanged', 'volunteerActivated', 'volunteerDeactivated', 'volunteerOnBreak', 'volunteerOffBreak', 'inviteCreated', 'inviteRedeemed']
+  const callEvents = ['callAnswered', 'callEnded', 'callMissed', 'spamReported', 'voicemailReceived']
+  const settingsEvents = ['settingsUpdated', 'telephonyConfigured', 'transcriptionToggled', 'ivrUpdated', 'customFieldsUpdated', 'spamSettingsUpdated', 'callSettingsUpdated']
+  const shiftEvents = ['shiftCreated', 'shiftUpdated', 'shiftDeleted']
+
+  if (authEvents.includes(event)) return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+  if (volEvents.includes(event)) return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+  if (callEvents.includes(event)) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+  if (settingsEvents.includes(event)) return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+  if (shiftEvents.includes(event)) return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300'
+  return 'bg-secondary text-secondary-foreground'
+}
 
 function AuditPage() {
   const { t } = useTranslation()
@@ -20,18 +47,38 @@ function AuditPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [volunteers, setVolunteers] = useState<Volunteer[]>([])
+  const [searchText, setSearchText] = useState('')
+  const [eventType, setEventType] = useState('all')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const limit = 50
 
   useEffect(() => {
     listVolunteers().then(r => setVolunteers(r.volunteers)).catch(() => {})
   }, [])
 
-  useEffect(() => {
+  const fetchEntries = useCallback(() => {
     setLoading(true)
-    listAuditLog({ page, limit })
+    listAuditLog({
+      page,
+      limit,
+      eventType: eventType !== 'all' ? eventType : undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      search: searchText || undefined,
+    })
       .then(r => { setEntries(r.entries); setTotal(r.total) })
       .finally(() => setLoading(false))
-  }, [page])
+  }, [page, eventType, dateFrom, dateTo, searchText])
+
+  useEffect(() => {
+    fetchEntries()
+  }, [fetchEntries])
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [eventType, dateFrom, dateTo, searchText])
 
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -53,6 +100,67 @@ function AuditPage() {
         <ScrollText className="h-6 w-6 text-primary" />
         <h1 className="text-xl font-bold sm:text-2xl">{t('auditLog.title')}</h1>
       </div>
+
+      {/* Filter bar */}
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-3 py-3">
+          <div className="flex-1 min-w-[180px]">
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">{t('common.search', { defaultValue: 'Search' })}</label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+                placeholder={t('auditLog.searchPlaceholder', { defaultValue: 'Search actor or event...' })}
+                className="h-8 pl-8 text-sm"
+              />
+            </div>
+          </div>
+          <div className="min-w-[150px]">
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">{t('auditLog.eventType', { defaultValue: 'Event Type' })}</label>
+            <Select value={eventType} onValueChange={setEventType}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EVENT_CATEGORIES.map(cat => (
+                  <SelectItem key={cat.value} value={cat.value}>
+                    {t(cat.labelKey, { defaultValue: cat.value === 'all' ? 'All Events' : cat.value.charAt(0).toUpperCase() + cat.value.slice(1) })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">{t('callHistory.from', { defaultValue: 'From' })}</label>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">{t('callHistory.to', { defaultValue: 'To' })}</label>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+          {(searchText || eventType !== 'all' || dateFrom || dateTo) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              onClick={() => { setSearchText(''); setEventType('all'); setDateFrom(''); setDateTo('') }}
+            >
+              {t('common.clear', { defaultValue: 'Clear' })}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-0">
@@ -79,7 +187,7 @@ function AuditPage() {
                   <span className="w-full text-xs text-muted-foreground whitespace-nowrap sm:w-36 sm:shrink-0">
                     {new Date(entry.createdAt).toLocaleString()}
                   </span>
-                  <Badge variant="secondary">
+                  <Badge variant="secondary" className={getEventCategoryColor(entry.event)}>
                     {t(`auditLog.events.${entry.event}`, { defaultValue: entry.event })}
                   </Badge>
                   <ActorDisplay pubkey={entry.actorPubkey} nameMap={nameMap} />

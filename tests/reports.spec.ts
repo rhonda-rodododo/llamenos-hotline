@@ -7,7 +7,7 @@ import { loginAsAdmin, loginAsVolunteer, uniquePhone, resetTestState, logout } f
  */
 async function navigateToReports(page: Page): Promise<void> {
   await page.getByRole('link', { name: 'Reports' }).click()
-  await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible({ timeout: 10000 })
+  await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({ timeout: 10000 })
 }
 
 /**
@@ -448,7 +448,7 @@ test.describe('Reports feature', () => {
       // Navigate to reports
       await page.getByRole('link', { name: 'Reports' }).click()
       await page.waitForURL(/\/reports/, { timeout: 10000 })
-      await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible({ timeout: 10000 })
+      await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({ timeout: 10000 })
       await expect(page.getByRole('button', { name: /new/i })).toBeVisible()
     })
 

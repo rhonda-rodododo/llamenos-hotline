@@ -84,6 +84,10 @@
 - [x] CI/CD GitHub Actions workflow for Docker image builds (GHCR)
 - [x] Health check endpoint (`/api/health`)
 
+## UI Polish (Epics 56–57)
+- [ ] Epic 56: Page consistency & visual refinement (conversations heading, reports empty state, volunteer phone display, login file picker, dashboard stat cards)
+- [ ] Epic 57: Admin UX improvements (audit log filtering, admin settings status summaries)
+
 ## Low Priority (Post-Launch)
 - [ ] Add call recording playback in notes view
 - [x] Marketing site + docs at llamenos-hotline.com (Astro + Cloudflare Pages)

@@ -118,23 +118,6 @@ function DashboardPage() {
                 </p>
               )}
             </div>
-            {!currentCall && (
-              <Button
-                variant={onBreak ? 'default' : 'outline'}
-                size="sm"
-                onClick={async () => {
-                  try {
-                    await toggleBreak()
-                  } catch {
-                    toast(t('common.error'), 'error')
-                  }
-                }}
-                className={onBreak ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
-              >
-                <Coffee className="h-3.5 w-3.5" />
-                {onBreak ? t('dashboard.endBreak') : t('dashboard.goOnBreak')}
-              </Button>
-            )}
           </CardContent>
         </Card>
         <Card>
@@ -149,6 +132,27 @@ function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Shift action */}
+      {!currentCall && (
+        <div className="flex items-center gap-3">
+          <Button
+            variant={onBreak ? 'default' : 'outline'}
+            size="sm"
+            onClick={async () => {
+              try {
+                await toggleBreak()
+              } catch {
+                toast(t('common.error'), 'error')
+              }
+            }}
+            className={onBreak ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
+          >
+            <Coffee className="h-3.5 w-3.5" />
+            {onBreak ? t('dashboard.endBreak') : t('dashboard.goOnBreak')}
+          </Button>
+        </div>
+      )}
 
       {/* Getting started checklist (admin only) */}
       {isAdmin && <GettingStartedChecklist />}

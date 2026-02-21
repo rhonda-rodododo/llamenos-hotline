@@ -14,11 +14,12 @@ interface Props {
   onRecordingsChange: (recordings: IvrAudioRecording[]) => void
   expanded: boolean
   onToggle: (open: boolean) => void
+  statusSummary?: string
 }
 
 const PROMPT_TYPES = ['greeting', 'pleaseHold', 'waitMessage', 'rateLimited', 'captchaPrompt'] as const
 
-export function VoicePromptsSection({ ivrEnabled, recordings, onRecordingsChange, expanded, onToggle }: Props) {
+export function VoicePromptsSection({ ivrEnabled, recordings, onRecordingsChange, expanded, onToggle, statusSummary }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [audioSaving, setAudioSaving] = useState<string | null>(null)
@@ -32,6 +33,7 @@ export function VoicePromptsSection({ ivrEnabled, recordings, onRecordingsChange
       expanded={expanded}
       onToggle={onToggle}
       basePath="/admin/settings"
+      statusSummary={statusSummary}
     >
       {PROMPT_TYPES.map(promptType => (
         <div key={promptType} className="space-y-2">

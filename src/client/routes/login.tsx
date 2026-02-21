@@ -9,7 +9,7 @@ import { hasStoredKey } from '@/lib/key-store'
 import { readBackupFile, restoreFromBackupWithPin, restoreFromBackupWithRecoveryKey } from '@/lib/backup'
 import * as keyManager from '@/lib/key-manager'
 import { isWebAuthnAvailable } from '@/lib/webauthn'
-import { KeyRound, LogIn, Shield, Sun, Moon, Monitor, Fingerprint, Key, Smartphone } from 'lucide-react'
+import { KeyRound, LogIn, Shield, Sun, Moon, Monitor, Fingerprint, Key, Smartphone, Upload } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { LogoMark } from '@/components/logo-mark'
 import { LanguageSelect } from '@/components/language-select'
@@ -48,6 +48,7 @@ function LoginPage() {
   const [newPinStep, setNewPinStep] = useState<'create' | 'confirm'>('create')
   const [pinError, setPinError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
 
   // --- PIN unlock (primary flow when key exists) ---
   async function handlePinUnlock(pin: string): Promise<boolean> {
@@ -93,9 +94,8 @@ function LoginPage() {
   }
 
   // --- Backup file restore ---
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  async function processFile(file: File) {
+    setSelectedFileName(file.name)
     const backup = await readBackupFile(file)
     if (!backup) {
       setValidationError(t('auth.invalidBackup'))
@@ -104,6 +104,19 @@ function LoginPage() {
     setBackupFile(backup)
     setRecoveryStep('decrypt')
     setValidationError('')
+  }
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    await processFile(file)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    e.currentTarget.classList.remove('border-primary')
+    const file = e.dataTransfer.files?.[0]
+    if (file) processFile(file)
   }
 
   async function handleBackupDecrypt() {
@@ -300,16 +313,26 @@ function LoginPage() {
           {recoveryMode !== 'nsec' && (
             <div className="space-y-3">
               {recoveryStep === 'upload' && (
-                <>
+                <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">{t('auth.selectBackupFile')}</p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json"
-                    onChange={handleFileSelect}
-                    className="block w-full text-sm file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
-                  />
-                </>
+                  <div
+                    className="flex cursor-pointer items-center gap-3 rounded-lg border-2 border-dashed border-border p-4 transition-colors hover:border-primary/50"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-primary') }}
+                    onDragLeave={e => e.currentTarget.classList.remove('border-primary')}
+                    onDrop={handleDrop}
+                  >
+                    <Upload className="h-5 w-5 shrink-0 text-muted-foreground" />
+                    <span className="text-sm">
+                      {selectedFileName ? (
+                        <span className="font-medium text-foreground">{selectedFileName}</span>
+                      ) : (
+                        <span className="text-muted-foreground">{t('auth.dropOrChoose', { defaultValue: 'Drop a backup file or click to browse' })}</span>
+                      )}
+                    </span>
+                    <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
+                  </div>
+                </div>
               )}
 
               {recoveryStep === 'decrypt' && backupFile && (

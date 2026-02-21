@@ -40,7 +40,11 @@ export class RecordsDO extends DurableObject<Env> {
       const page = parseInt(url.searchParams.get('page') || '1')
       const limit = parseInt(url.searchParams.get('limit') || '50')
       const actorPubkey = url.searchParams.get('actorPubkey') || undefined
-      return this.getAuditLog(page, limit, actorPubkey)
+      const eventType = url.searchParams.get('eventType') || undefined
+      const dateFrom = url.searchParams.get('dateFrom') || undefined
+      const dateTo = url.searchParams.get('dateTo') || undefined
+      const search = url.searchParams.get('search') || undefined
+      return this.getAuditLog(page, limit, actorPubkey, eventType, dateFrom, dateTo, search)
     })
     this.router.post('/audit', async (req) => this.addAuditEntry(await req.json()))
 
@@ -168,9 +172,51 @@ export class RecordsDO extends DurableObject<Env> {
 
   // --- Audit Log Methods ---
 
-  private async getAuditLog(page: number, limit: number, actorPubkey?: string): Promise<Response> {
+  private async getAuditLog(
+    page: number,
+    limit: number,
+    actorPubkey?: string,
+    eventType?: string,
+    dateFrom?: string,
+    dateTo?: string,
+    search?: string,
+  ): Promise<Response> {
     const entries = await this.ctx.storage.get<AuditLogEntry[]>('auditLog') || []
-    const filtered = actorPubkey ? entries.filter(e => e.actorPubkey === actorPubkey) : entries
+
+    // Event type category mapping
+    const eventCategories: Record<string, string[]> = {
+      authentication: ['login', 'logout', 'sessionCreated', 'sessionExpired', 'passkeyRegistered', 'deviceLinked'],
+      volunteers: ['volunteerAdded', 'volunteerRemoved', 'volunteerRoleChanged', 'volunteerActivated', 'volunteerDeactivated', 'volunteerOnBreak', 'volunteerOffBreak', 'inviteCreated', 'inviteRedeemed'],
+      calls: ['callAnswered', 'callEnded', 'callMissed', 'spamReported', 'voicemailReceived'],
+      settings: ['settingsUpdated', 'telephonyConfigured', 'transcriptionToggled', 'ivrUpdated', 'customFieldsUpdated', 'spamSettingsUpdated', 'callSettingsUpdated'],
+      shifts: ['shiftCreated', 'shiftUpdated', 'shiftDeleted'],
+      notes: ['noteCreated', 'noteUpdated'],
+    }
+
+    const fromTime = dateFrom ? new Date(dateFrom).getTime() : undefined
+    const toTime = dateTo ? new Date(dateTo + 'T23:59:59.999Z').getTime() : undefined
+
+    let filtered = entries
+
+    if (actorPubkey) filtered = filtered.filter(e => e.actorPubkey === actorPubkey)
+
+    if (eventType && eventCategories[eventType]) {
+      const allowedEvents = eventCategories[eventType]
+      filtered = filtered.filter(e => allowedEvents.includes(e.event))
+    }
+
+    if (fromTime) filtered = filtered.filter(e => new Date(e.createdAt).getTime() >= fromTime)
+    if (toTime) filtered = filtered.filter(e => new Date(e.createdAt).getTime() <= toTime)
+
+    if (search) {
+      const lower = search.toLowerCase()
+      filtered = filtered.filter(e =>
+        e.event.toLowerCase().includes(lower) ||
+        e.actorPubkey.toLowerCase().includes(lower) ||
+        JSON.stringify(e.details).toLowerCase().includes(lower)
+      )
+    }
+
     const sorted = filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     const start = (page - 1) * limit
     return Response.json({

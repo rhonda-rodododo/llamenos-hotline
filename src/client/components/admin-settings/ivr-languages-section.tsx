@@ -12,9 +12,10 @@ interface Props {
   onChange: (enabled: string[]) => void
   expanded: boolean
   onToggle: (open: boolean) => void
+  statusSummary?: string
 }
 
-export function IvrLanguagesSection({ enabled, onChange, expanded, onToggle }: Props) {
+export function IvrLanguagesSection({ enabled, onChange, expanded, onToggle, statusSummary }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
 
@@ -27,6 +28,7 @@ export function IvrLanguagesSection({ enabled, onChange, expanded, onToggle }: P
       expanded={expanded}
       onToggle={onToggle}
       basePath="/admin/settings"
+      statusSummary={statusSummary}
     >
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {IVR_LANGUAGES.map((code, index) => {

@@ -467,12 +467,14 @@ function VolunteerRow({ volunteer, onUpdate, onDelete }: {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{volunteer.name} <span className="font-mono text-xs text-muted-foreground">({volunteer.pubkey.slice(0, 8)})</span></p>
-          <p className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
-            {showPhone ? volunteer.phone : maskedPhone(volunteer.phone)}
-            <button onClick={() => setShowPhone(!showPhone)} className="text-muted-foreground hover:text-foreground">
-              {showPhone ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-            </button>
-          </p>
+          {volunteer.phone && (
+            <p className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
+              {showPhone ? volunteer.phone : maskedPhone(volunteer.phone)}
+              <button onClick={() => setShowPhone(!showPhone)} className="text-muted-foreground hover:text-foreground">
+                {showPhone ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              </button>
+            </p>
+          )}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
