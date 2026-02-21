@@ -22,9 +22,10 @@ interface Props {
   onDraftChange: (draft: Partial<TelephonyProviderConfig>) => void
   expanded: boolean
   onToggle: (open: boolean) => void
+  statusSummary?: string
 }
 
-export function TelephonyProviderSection({ config, draft, onConfigChange, onDraftChange, expanded, onToggle }: Props) {
+export function TelephonyProviderSection({ config, draft, onConfigChange, onDraftChange, expanded, onToggle, statusSummary }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [testing, setTesting] = useState(false)
@@ -44,6 +45,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
       expanded={expanded}
       onToggle={onToggle}
       basePath="/admin/settings"
+      statusSummary={statusSummary}
     >
       {config && (
         <div className="rounded-lg border border-border bg-muted/50 p-3">

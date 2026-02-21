@@ -75,11 +75,11 @@ test.describe('Conversations — with channels enabled', () => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/reports')
 
-    // Reports page should show the two-column layout
-    await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible({ timeout: 10000 })
+    // Reports page should show the heading
+    await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({ timeout: 10000 })
 
-    // Detail area placeholder: "Select a report to view details"
-    await expect(page.getByText('Select a report to view details')).toBeVisible()
+    // Empty state shows "No reports" message
+    await expect(page.getByText('No reports')).toBeVisible()
   })
 
   test('empty reports list shows no reports state', async ({ page }) => {
@@ -96,7 +96,7 @@ test.describe('Conversations — with channels enabled', () => {
     // but the Reports page should work fine
     await loginAsAdmin(page)
     await page.getByRole('link', { name: 'Reports' }).click()
-    await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({ timeout: 10000 })
 
     // The "No messaging channels enabled" text should NOT appear on reports page
     await expect(page.getByText('No messaging channels enabled')).not.toBeVisible()
@@ -112,7 +112,7 @@ test.describe('Conversations — with channels enabled', () => {
     // Should navigate to /reports
     await expect(page).toHaveURL(/\/reports/)
 
-    // Page content should be visible
-    await expect(page.getByText('Select a report to view details')).toBeVisible()
+    // Page content should be visible (empty state since no reports exist yet)
+    await expect(page.getByText('No reports')).toBeVisible()
   })
 })

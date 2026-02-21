@@ -11,9 +11,10 @@ interface Props {
   onChange: (settings: CallSettings) => void
   expanded: boolean
   onToggle: (open: boolean) => void
+  statusSummary?: string
 }
 
-export function CallSettingsSection({ settings, onChange, expanded, onToggle }: Props) {
+export function CallSettingsSection({ settings, onChange, expanded, onToggle, statusSummary }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
 
@@ -26,6 +27,7 @@ export function CallSettingsSection({ settings, onChange, expanded, onToggle }: 
       expanded={expanded}
       onToggle={onToggle}
       basePath="/admin/settings"
+      statusSummary={statusSummary}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">

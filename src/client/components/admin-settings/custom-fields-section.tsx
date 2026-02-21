@@ -16,9 +16,10 @@ interface Props {
   onChange: (fields: CustomFieldDefinition[]) => void
   expanded: boolean
   onToggle: (open: boolean) => void
+  statusSummary?: string
 }
 
-export function CustomFieldsSection({ fields, onChange, expanded, onToggle }: Props) {
+export function CustomFieldsSection({ fields, onChange, expanded, onToggle, statusSummary }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [editing, setEditing] = useState<Partial<CustomFieldDefinition> | null>(null)
@@ -91,6 +92,7 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle }: Pr
       expanded={expanded}
       onToggle={onToggle}
       basePath="/admin/settings"
+      statusSummary={statusSummary}
     >
       {fields.length === 0 && !editing ? (
         <p className="text-sm text-muted-foreground">{t('customFields.noFields')}</p>

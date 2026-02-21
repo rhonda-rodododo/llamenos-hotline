@@ -14,9 +14,10 @@ interface Props {
   onConfirmToggle: (key: string, newValue: boolean) => void
   expanded: boolean
   onToggle: (open: boolean) => void
+  statusSummary?: string
 }
 
-export function TranscriptionSection({ globalEnabled, allowOptOut, onOptOutChange, onConfirmToggle, expanded, onToggle }: Props) {
+export function TranscriptionSection({ globalEnabled, allowOptOut, onOptOutChange, onConfirmToggle, expanded, onToggle, statusSummary }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
 
@@ -29,6 +30,7 @@ export function TranscriptionSection({ globalEnabled, allowOptOut, onOptOutChang
       expanded={expanded}
       onToggle={onToggle}
       basePath="/admin/settings"
+      statusSummary={statusSummary}
     >
       <div className="flex items-center justify-between rounded-lg border border-border p-4">
         <div className="space-y-0.5">

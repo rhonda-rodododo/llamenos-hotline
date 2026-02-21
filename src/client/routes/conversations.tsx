@@ -123,20 +123,31 @@ function ConversationsPage() {
 
   if (!hasAnyMessaging) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">
-          {t('conversations.noChannels', { defaultValue: 'No messaging channels enabled' })}
-        </h2>
-        <p className="text-muted-foreground max-w-md">
-          {t('conversations.noChannelsDescription', { defaultValue: 'Enable SMS, WhatsApp, Signal, or Reports in Admin Settings to start receiving messages.' })}
-        </p>
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <MessageSquare className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-bold sm:text-2xl">{t('conversations.title', { defaultValue: 'Conversations' })}</h1>
+        </div>
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">
+            {t('conversations.noChannels', { defaultValue: 'No messaging channels enabled' })}
+          </h2>
+          <p className="text-muted-foreground max-w-md">
+            {t('conversations.noChannelsDescription', { defaultValue: 'Enable SMS, WhatsApp, Signal, or Reports in Admin Settings to start receiving messages.' })}
+          </p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] gap-4">
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <MessageSquare className="h-6 w-6 text-primary" />
+        <h1 className="text-xl font-bold sm:text-2xl">{t('conversations.title', { defaultValue: 'Conversations' })}</h1>
+      </div>
+    <div className="flex h-[calc(100vh-12rem)] gap-4">
       {/* Conversation list sidebar */}
       <div className="w-80 shrink-0 overflow-y-auto rounded-lg border border-border bg-card">
         <div className="sticky top-0 z-10 border-b border-border bg-card p-3">
@@ -222,6 +233,7 @@ function ConversationsPage() {
           </div>
         )}
       </div>
+    </div>
     </div>
   )
 }

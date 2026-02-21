@@ -19,6 +19,7 @@ import { FilePreview } from '@/components/FilePreview'
 import { FileUpload } from '@/components/FileUpload'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   FileText, Plus, Lock, Send, Loader2, Clock,
@@ -172,97 +173,115 @@ function ReportsPage() {
       .catch(() => {})
   }, [])
 
+  const showEmptyState = !loading && reports.length === 0
+
   return (
-    <div className="flex h-[calc(100vh-8rem)] gap-4">
-      {/* Report list sidebar */}
-      <div className="w-80 shrink-0 overflow-y-auto rounded-lg border border-border bg-card">
-        <div className="sticky top-0 z-10 border-b border-border bg-card p-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              {t('reports.title', { defaultValue: 'Reports' })}
-            </h2>
-            <Button size="sm" onClick={() => setShowForm(true)}>
-              <Plus className="h-3.5 w-3.5" />
-              {t('reports.new', { defaultValue: 'New' })}
-            </Button>
-          </div>
-
-          {isAdmin && (
-            <div className="flex gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger size="sm" className="flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('reports.allStatuses', { defaultValue: 'All statuses' })}</SelectItem>
-                  <SelectItem value="waiting">{t('reports.statusWaiting', { defaultValue: 'Waiting' })}</SelectItem>
-                  <SelectItem value="active">{t('reports.statusActive', { defaultValue: 'Active' })}</SelectItem>
-                  <SelectItem value="closed">{t('reports.statusClosed', { defaultValue: 'Closed' })}</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger size="sm" className="flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('reports.allCategories', { defaultValue: 'All categories' })}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <FileText className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-bold sm:text-2xl">{t('reports.title', { defaultValue: 'Reports' })}</h1>
         </div>
+        <Button size="sm" onClick={() => setShowForm(true)}>
+          <Plus className="h-3.5 w-3.5" />
+          {t('reports.new', { defaultValue: 'New' })}
+        </Button>
+      </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      {showEmptyState ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <FileText className="mb-3 h-10 w-10 text-muted-foreground/40" />
+            <p className="text-muted-foreground">{t('reports.noReports', { defaultValue: 'No reports' })}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t('reports.noReportsHint', { defaultValue: 'Reports submitted by volunteers and reporters will appear here.' })}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex h-[calc(100vh-12rem)] gap-4">
+          {/* Report list sidebar */}
+          <div className="w-80 shrink-0 overflow-y-auto rounded-lg border border-border bg-card">
+            <div className="sticky top-0 z-10 border-b border-border bg-card p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  {t('reports.title', { defaultValue: 'Reports' })}
+                </h2>
+              </div>
+
+              {isAdmin && (
+                <div className="flex gap-2">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger size="sm" className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('reports.allStatuses', { defaultValue: 'All statuses' })}</SelectItem>
+                      <SelectItem value="waiting">{t('reports.statusWaiting', { defaultValue: 'Waiting' })}</SelectItem>
+                      <SelectItem value="active">{t('reports.statusActive', { defaultValue: 'Active' })}</SelectItem>
+                      <SelectItem value="closed">{t('reports.statusClosed', { defaultValue: 'Closed' })}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger size="sm" className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('reports.allCategories', { defaultValue: 'All categories' })}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="p-2 space-y-1.5">
+                {reports.map(report => (
+                  <ReportCard
+                    key={report.id}
+                    report={report}
+                    isSelected={selectedId === report.id}
+                    onSelect={setSelectedId}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        ) : reports.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center text-sm text-muted-foreground">
-            <FileText className="mb-2 h-8 w-8 opacity-40" />
-            <p>{t('reports.noReports', { defaultValue: 'No reports' })}</p>
-          </div>
-        ) : (
-          <div className="p-2 space-y-1.5">
-            {reports.map(report => (
-              <ReportCard
-                key={report.id}
-                report={report}
-                isSelected={selectedId === report.id}
-                onSelect={setSelectedId}
+
+          {/* Report detail */}
+          <div className="flex flex-1 flex-col rounded-lg border border-border bg-card overflow-hidden">
+            {selectedReport ? (
+              <ReportDetail
+                report={selectedReport}
+                messages={messages}
+                messagesLoading={messagesLoading}
+                replyText={replyText}
+                onReplyChange={setReplyText}
+                onSend={handleSendReply}
+                sending={sending}
+                onAssign={handleAssign}
+                onClose={handleClose}
+                isAdmin={isAdmin}
+                role={role}
+                showFileUpload={showFileUpload}
+                onToggleFileUpload={() => setShowFileUpload(prev => !prev)}
+                onFileUploadComplete={handleFileUploadComplete}
+                keyPair={keyPair}
               />
-            ))}
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center text-muted-foreground">
+                <FileText className="h-10 w-10 mb-3" />
+                <p>{t('reports.selectReport', { defaultValue: 'Select a report to view details' })}</p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-
-      {/* Report detail */}
-      <div className="flex flex-1 flex-col rounded-lg border border-border bg-card overflow-hidden">
-        {selectedReport ? (
-          <ReportDetail
-            report={selectedReport}
-            messages={messages}
-            messagesLoading={messagesLoading}
-            replyText={replyText}
-            onReplyChange={setReplyText}
-            onSend={handleSendReply}
-            sending={sending}
-            onAssign={handleAssign}
-            onClose={handleClose}
-            isAdmin={isAdmin}
-            role={role}
-            showFileUpload={showFileUpload}
-            onToggleFileUpload={() => setShowFileUpload(prev => !prev)}
-            onFileUploadComplete={handleFileUploadComplete}
-            keyPair={keyPair}
-          />
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center text-muted-foreground">
-            <FileText className="h-10 w-10 mb-3" />
-            <p>{t('reports.selectReport', { defaultValue: 'Select a report to view details' })}</p>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <ReportForm
         open={showForm}
