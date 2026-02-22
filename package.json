@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "deploy": "bun run deploy:demo && bun run deploy:site",
     "deploy:demo": "bun run build && bunx wrangler deploy",
+    "deploy:next": "bun run build && bunx wrangler deploy --env next",
     "deploy:site": "cd site && bun run deploy",
     "dev:worker": "bunx wrangler dev",
     "build:node": "node esbuild.node.mjs",
