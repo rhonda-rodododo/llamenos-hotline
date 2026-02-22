@@ -251,7 +251,7 @@ function InviteForm({ onCreated, onCancel }: {
   const { toast } = useToast()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [role, setRole] = useState<'volunteer' | 'admin' | 'reporter'>('volunteer')
+  const [roleId, setRoleId] = useState('role-volunteer')
   const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -262,7 +262,7 @@ function InviteForm({ onCreated, onCancel }: {
     }
     setSaving(true)
     try {
-      const res = await createInvite({ name, phone, role })
+      const res = await createInvite({ name, phone, roleIds: [roleId] })
       onCreated(res.invite)
       toast(t('volunteers.inviteCreated'), 'success')
     } catch {
@@ -304,14 +304,14 @@ function InviteForm({ onCreated, onCancel }: {
           </div>
           <div className="space-y-2">
             <Label htmlFor="invite-role">{t('volunteers.role')}</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as 'volunteer' | 'admin' | 'reporter')}>
+            <Select value={roleId} onValueChange={setRoleId}>
               <SelectTrigger id="invite-role">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="volunteer">{t('volunteers.roleVolunteer')}</SelectItem>
-                <SelectItem value="admin">{t('volunteers.roleAdmin')}</SelectItem>
-                <SelectItem value="reporter">{t('volunteers.roleReporter', { defaultValue: 'Reporter' })}</SelectItem>
+                <SelectItem value="role-volunteer">{t('volunteers.roleVolunteer')}</SelectItem>
+                <SelectItem value="role-super-admin">{t('volunteers.roleAdmin')}</SelectItem>
+                <SelectItem value="role-reporter">{t('volunteers.roleReporter', { defaultValue: 'Reporter' })}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -337,7 +337,7 @@ function AddVolunteerForm({ onCreated, onCancel }: {
   const { toast } = useToast()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [role, setRole] = useState<'volunteer' | 'admin' | 'reporter'>('volunteer')
+  const [roleId, setRoleId] = useState('role-volunteer')
   const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -349,7 +349,7 @@ function AddVolunteerForm({ onCreated, onCancel }: {
     setSaving(true)
     try {
       const keyPair = generateKeyPair()
-      const res = await createVolunteer({ name, phone, role, pubkey: keyPair.publicKey })
+      const res = await createVolunteer({ name, phone, roleIds: [roleId], pubkey: keyPair.publicKey })
       onCreated(res.volunteer, keyPair.nsec)
       toast(t('volunteers.volunteerAdded'), 'success')
     } catch {
@@ -391,14 +391,14 @@ function AddVolunteerForm({ onCreated, onCancel }: {
           </div>
           <div className="space-y-2">
             <Label htmlFor="vol-role">{t('volunteers.role')}</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as 'volunteer' | 'admin' | 'reporter')}>
+            <Select value={roleId} onValueChange={setRoleId}>
               <SelectTrigger id="vol-role">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="volunteer">{t('volunteers.roleVolunteer')}</SelectItem>
-                <SelectItem value="admin">{t('volunteers.roleAdmin')}</SelectItem>
-                <SelectItem value="reporter">{t('volunteers.roleReporter', { defaultValue: 'Reporter' })}</SelectItem>
+                <SelectItem value="role-volunteer">{t('volunteers.roleVolunteer')}</SelectItem>
+                <SelectItem value="role-super-admin">{t('volunteers.roleAdmin')}</SelectItem>
+                <SelectItem value="role-reporter">{t('volunteers.roleReporter', { defaultValue: 'Reporter' })}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -432,9 +432,10 @@ function VolunteerRow({ volunteer, onUpdate, onDelete }: {
   }
 
   async function toggleRole() {
-    const newRole = volunteer.role === 'admin' ? 'volunteer' : 'admin'
+    const isCurrentlyAdmin = volunteer.roles.includes('role-super-admin')
+    const newRoles = isCurrentlyAdmin ? ['role-volunteer'] : ['role-super-admin']
     try {
-      const res = await updateVolunteer(volunteer.pubkey, { role: newRole })
+      const res = await updateVolunteer(volunteer.pubkey, { roles: newRoles })
       onUpdate(res.volunteer)
     } catch {
       toast(t('common.error'), 'error')
@@ -478,10 +479,10 @@ function VolunteerRow({ volunteer, onUpdate, onDelete }: {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-        <Badge variant={volunteer.role === 'admin' ? 'default' : 'secondary'}>
-          {volunteer.role === 'admin' ? (
+        <Badge variant={volunteer.roles.includes('role-super-admin') ? 'default' : 'secondary'}>
+          {volunteer.roles.includes('role-super-admin') ? (
             <><ShieldCheck className="h-3 w-3" /> {t('volunteers.roleAdmin')}</>
-          ) : volunteer.role === 'reporter' ? (
+          ) : volunteer.roles.includes('role-reporter') ? (
             t('volunteers.roleReporter', { defaultValue: 'Reporter' })
           ) : (
             t('volunteers.roleVolunteer')
@@ -504,7 +505,7 @@ function VolunteerRow({ volunteer, onUpdate, onDelete }: {
         )}
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="xs" onClick={toggleRole}>
-            {volunteer.role === 'admin' ? (
+            {volunteer.roles.includes('role-super-admin') ? (
               <><Shield className="h-3 w-3" /> {t('volunteers.removeAdmin')}</>
             ) : (
               <><ShieldCheck className="h-3 w-3" /> {t('volunteers.makeAdmin')}</>

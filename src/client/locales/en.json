@@ -50,6 +50,7 @@
     "callHistory": "Call History",
     "settings": "Settings",
     "adminSettings": "Admin Settings",
+    "hubs": "Hubs",
     "reports": "Reports"
   },
   "dashboard": {
@@ -730,5 +731,26 @@
     "link": "Link",
     "linkThisDevice": "Link this device",
     "invalidCode": "Invalid provisioning code. Please scan the QR code or copy the full code."
+  },
+  "hubs": {
+    "title": "Hub Management",
+    "createHub": "Create Hub",
+    "createHubDescription": "Create a new hub to organize your hotline operations.",
+    "editHub": "Edit Hub",
+    "editHubDescription": "Update the hub name, description, or phone number.",
+    "hubName": "Hub Name",
+    "hubNamePlaceholder": "e.g. NYC Crisis Line",
+    "hubDescription": "Description",
+    "hubDescriptionPlaceholder": "Brief description of this hub's purpose...",
+    "hubPhoneNumber": "Phone Number",
+    "hubPhoneNumberHelp": "The primary phone number for this hub (E.164 format).",
+    "hubCreated": "Hub created successfully",
+    "hubUpdated": "Hub updated successfully",
+    "noHubs": "No hubs yet. Create a hub to start organizing your hotline.",
+    "status": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "archived": "Archived"
+    }
   }
 }

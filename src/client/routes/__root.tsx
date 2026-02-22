@@ -13,6 +13,7 @@ import { useKeyboardShortcuts } from '@/lib/use-keyboard-shortcuts'
 import { LanguageSelect } from '@/components/language-select'
 import { LogoMark } from '@/components/logo-mark'
 import { DemoBanner } from '@/components/demo-banner'
+import { HubSwitcher } from '@/components/hub-switcher'
 import {
   LayoutDashboard,
   StickyNote,
@@ -25,7 +26,7 @@ import {
   Settings,
   LogOut,
   FileText,
-
+  Building2,
   PhoneCall,
   Sun,
   Moon,
@@ -42,7 +43,7 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   const { t } = useTranslation()
-  const { isAuthenticated, isAdmin, signOut, name, role, isLoading, profileCompleted } = useAuth()
+  const { isAuthenticated, isAdmin, signOut, name, isLoading, profileCompleted, hasPermission, primaryRoleName } = useAuth()
   const { hotlineName, needsBootstrap, isLoading: configLoading } = useConfig()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
@@ -121,7 +122,7 @@ const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'frid
 
 function AuthenticatedLayout() {
   const { t } = useTranslation()
-  const { isAdmin, signOut, name, role, sessionExpiring, sessionExpired, renewSession } = useAuth()
+  const { isAdmin, signOut, name, sessionExpiring, sessionExpired, renewSession, hasPermission, primaryRoleName } = useAuth()
   const { hotlineName, hotlineNumber, channels, demoMode } = useConfig()
   const hasMessaging = useHasMessaging()
   const { theme, setTheme } = useTheme()
@@ -172,7 +173,7 @@ function AuthenticatedLayout() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-sidebar-foreground">{name}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{role}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{primaryRoleName}</p>
                 </div>
               </div>
               {/* In-call indicator */}
@@ -208,8 +209,9 @@ function AuthenticatedLayout() {
           )}
         </div>
 
+        <HubSwitcher />
         <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
-          {role === 'reporter' ? (
+          {hasPermission('reports:create') && !hasPermission('calls:answer') ? (
             <>
               {/* Reporter-specific nav: reports and help */}
               <NavLink to="/reports" icon={<FileText className="h-4 w-4" />}>
@@ -248,6 +250,9 @@ function AuthenticatedLayout() {
               <NavLink to="/calls" icon={<PhoneIncoming className="h-4 w-4" />}>{t('nav.callHistory')}</NavLink>
               <NavLink to="/audit" icon={<ScrollText className="h-4 w-4" />}>{t('nav.auditLog')}</NavLink>
               <NavLink to="/admin/settings" icon={<Settings className="h-4 w-4" />}>{t('nav.adminSettings')}</NavLink>
+              {hasPermission('system:manage-hubs') && (
+                <NavLink to="/admin/hubs" icon={<Building2 className="h-4 w-4" />}>{t('nav.hubs', { defaultValue: 'Hubs' })}</NavLink>
+              )}
             </>
           )}
           <NavLink to="/settings" icon={<Settings className="h-4 w-4" />}>{t('nav.settings')}</NavLink>
