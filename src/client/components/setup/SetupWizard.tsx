@@ -5,6 +5,7 @@ import { useToast } from '@/lib/toast'
 import {
   updateSetupState,
   completeSetup,
+  seedDemoData,
 } from '@/lib/api'
 import type { ChannelType } from '@shared/types'
 import type { TelephonyProviderConfig, WhatsAppConfig, SignalConfig } from '@shared/types'
@@ -97,10 +98,17 @@ export function SetupWizard() {
     if (step < TOTAL_STEPS - 1) setStep(s => s + 1)
   }
 
-  async function handleComplete() {
+  async function handleComplete({ demoMode }: { demoMode: boolean }) {
     setSaving(true)
     try {
-      await completeSetup()
+      await completeSetup(demoMode)
+      if (demoMode) {
+        try {
+          await seedDemoData()
+        } catch {
+          toast(t('setup.demoSeedFailed', { defaultValue: 'Sample data partially created' }), 'error')
+        }
+      }
       toast(t('setup.complete'), 'success')
       navigate({ to: '/' })
     } catch {

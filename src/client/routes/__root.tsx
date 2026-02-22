@@ -12,6 +12,7 @@ import { NoteSheet } from '@/components/note-sheet'
 import { useKeyboardShortcuts } from '@/lib/use-keyboard-shortcuts'
 import { LanguageSelect } from '@/components/language-select'
 import { LogoMark } from '@/components/logo-mark'
+import { DemoBanner } from '@/components/demo-banner'
 import {
   LayoutDashboard,
   StickyNote,
@@ -115,7 +116,7 @@ const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'frid
 function AuthenticatedLayout() {
   const { t } = useTranslation()
   const { isAdmin, signOut, name, role, sessionExpiring, sessionExpired, renewSession } = useAuth()
-  const { hotlineName, hotlineNumber, channels } = useConfig()
+  const { hotlineName, hotlineNumber, channels, demoMode } = useConfig()
   const hasMessaging = useHasMessaging()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
@@ -289,6 +290,8 @@ function AuthenticatedLayout() {
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
+        {demoMode && <DemoBanner />}
+
         {/* Mobile top bar */}
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background px-4 py-3 md:hidden">
           <button onClick={() => setSidebarOpen(true)} aria-label={t('a11y.openMenu')}>

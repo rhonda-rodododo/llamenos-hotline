@@ -9,6 +9,7 @@ import { hasStoredKey } from '@/lib/key-store'
 import { readBackupFile, restoreFromBackupWithPin, restoreFromBackupWithRecoveryKey } from '@/lib/backup'
 import * as keyManager from '@/lib/key-manager'
 import { isWebAuthnAvailable } from '@/lib/webauthn'
+import { DemoAccountPicker } from '@/components/demo-account-picker'
 import { KeyRound, LogIn, Shield, Sun, Moon, Monitor, Fingerprint, Key, Smartphone, Upload } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { LogoMark } from '@/components/logo-mark'
@@ -26,7 +27,7 @@ export const Route = createFileRoute('/login')({
 function LoginPage() {
   const { t } = useTranslation()
   const { signIn, signInWithPasskey, unlockWithPin, error, isLoading } = useAuth()
-  const { hotlineName } = useConfig()
+  const { hotlineName, demoMode } = useConfig()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const [validationError, setValidationError] = useState('')
@@ -251,6 +252,8 @@ function LoginPage() {
               <Key className="h-3.5 w-3.5" />
               {t('recovery.options', { defaultValue: 'Recovery options' })}
             </Button>
+
+            {demoMode && <DemoAccountPicker />}
           </CardContent>
 
           <CardFooter className="justify-center">
@@ -486,6 +489,8 @@ function LoginPage() {
               {t('common.back')}
             </Button>
           )}
+
+          {demoMode && <DemoAccountPicker />}
         </CardContent>
 
         <CardFooter className="justify-center">

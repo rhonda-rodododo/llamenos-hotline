@@ -24,11 +24,13 @@ config.get('/', async (c) => {
 
   // Fetch setup state
   let setupCompleted = true
+  let demoMode = false
   try {
     const setupRes = await dos.settings.fetch(new Request('http://do/settings/setup'))
     if (setupRes.ok) {
-      const setupState = await setupRes.json() as SetupState
+      const setupState = await setupRes.json() as SetupState & { demoMode?: boolean }
       setupCompleted = setupState.setupCompleted
+      demoMode = setupState.demoMode ?? false
     }
   } catch { /* default to true */ }
 
@@ -38,6 +40,7 @@ config.get('/', async (c) => {
     channels,
     setupCompleted,
     adminPubkey: c.env.ADMIN_PUBKEY,
+    demoMode,
   })
 })
 

@@ -30,13 +30,14 @@ setup.patch('/state', adminGuard, async (c) => {
 setup.post('/complete', adminGuard, async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
+  const body = await c.req.json().catch(() => ({})) as { demoMode?: boolean }
 
   const res = await dos.settings.fetch(new Request('http://do/settings/setup', {
     method: 'PATCH',
-    body: JSON.stringify({ setupCompleted: true }),
+    body: JSON.stringify({ setupCompleted: true, demoMode: body.demoMode ?? false }),
   }))
 
-  if (res.ok) await audit(dos.records, 'setupCompleted', pubkey, {})
+  if (res.ok) await audit(dos.records, 'setupCompleted', pubkey, { demoMode: body.demoMode ?? false })
   return new Response(res.body, res)
 })
 
