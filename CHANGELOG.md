@@ -5,12 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-02-22
+
+### Bug Fixes
+
+- add [skip ci] to release commits to prevent re-triggering
+
+### Features
+
+- add demo mode with sample data and one-click login
+
+### Miscellaneous
+
+- v0.14.0 [skip ci]
+
 ## [0.13.0] - 2026-02-21
 
 ### Bug Fixes
 
 - remove invalid workflows permission from version job
 - use correct CallSettings property names in status summary
+
+### Documentation
+
+- add pre-push typecheck/build requirement to CLAUDE.md
 
 ### Features
 
