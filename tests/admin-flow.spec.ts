@@ -226,6 +226,27 @@ test.describe('Admin flow', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   })
 
+  test('admin settings shows status summaries when collapsed', async ({ page }) => {
+    await page.getByRole('link', { name: 'Admin Settings' }).click()
+    await expect(page.getByRole('heading', { name: 'Admin Settings', exact: true })).toBeVisible()
+
+    // Wait for settings to load
+    await page.waitForTimeout(1000)
+
+    // Telephony section should show status summary (e.g., "Not configured" or provider name)
+    // The status text is in a span with text-xs text-muted-foreground, hidden on mobile (sm:block)
+    const telephonyCard = page.locator('#telephony-provider')
+    await expect(telephonyCard).toBeVisible()
+
+    // Transcription status should show "Enabled" or "Disabled"
+    const transcriptionCard = page.locator('#transcription')
+    await expect(transcriptionCard).toBeVisible()
+    const transcriptionStatus = transcriptionCard.locator('span.text-xs')
+    // At least one status text should be visible (on desktop viewports)
+    const statusCount = await page.locator('.text-xs.text-muted-foreground').filter({ hasText: /(Enabled|Disabled|Not configured|Not required|languages|fields|None|CAPTCHA|Default|Customized)/i }).count()
+    expect(statusCount).toBeGreaterThan(0)
+  })
+
   test('logout works', async ({ page }) => {
     await page.getByRole('button', { name: /log out/i }).click()
     await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()

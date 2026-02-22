@@ -31,6 +31,7 @@ import { CallSettingsSection } from '@/components/admin-settings/call-settings-s
 import { VoicePromptsSection } from '@/components/admin-settings/voice-prompts-section'
 import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-section'
 import { SpamSection } from '@/components/admin-settings/spam-section'
+import { RolesSection } from '@/components/admin-settings/roles-section'
 
 export const Route = createFileRoute('/admin/settings')({
   component: AdminSettingsPage,
@@ -190,6 +191,12 @@ function AdminSettingsPage() {
           statusSummary={passkeyStatus}
         />
       )}
+
+      <RolesSection
+        expanded={expanded.has('roles')}
+        onToggle={(open) => toggleSection('roles', open)}
+        statusSummary={t('roles.summary', { defaultValue: 'Manage roles' })}
+      />
 
       <TelephonyProviderSection
         config={providerConfig}
