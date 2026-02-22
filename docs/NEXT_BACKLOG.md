@@ -84,6 +84,9 @@
 - [x] CI/CD GitHub Actions workflow for Docker image builds (GHCR)
 - [x] Health check endpoint (`/api/health`)
 
+## Demo Mode (Epic 58)
+- [ ] Epic 58: Demo mode — env var toggle, pre-seeded data, one-click demo login, setup wizard skip, daily reset cron, demo banner
+
 ## UI Polish (Epics 56–57)
 - [ ] Epic 56: Page consistency & visual refinement (conversations heading, reports empty state, volunteer phone display, login file picker, dashboard stat cards)
 - [ ] Epic 57: Admin UX improvements (audit log filtering, admin settings status summaries)

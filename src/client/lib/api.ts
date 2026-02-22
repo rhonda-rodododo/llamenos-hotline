@@ -66,6 +66,7 @@ export async function getConfig() {
     channels?: import('@shared/types').EnabledChannels
     setupCompleted?: boolean
     adminPubkey?: string
+    demoMode?: boolean
   }>
 }
 
@@ -718,8 +719,11 @@ export async function updateSetupState(data: Partial<SetupState>) {
   })
 }
 
-export async function completeSetup() {
-  return request<SetupState>('/setup/complete', { method: 'POST' })
+export async function completeSetup(demoMode = false) {
+  return request<SetupState>('/setup/complete', {
+    method: 'POST',
+    body: JSON.stringify({ demoMode }),
+  })
 }
 
 export async function testSignalBridge(data: { bridgeUrl: string; bridgeApiKey: string }) {
@@ -880,4 +884,73 @@ export async function shareFile(fileId: string, data: {
     method: 'POST',
     body: JSON.stringify(data),
   })
+}
+
+// --- Demo Seed ---
+
+export async function seedDemoData() {
+  const { DEMO_ACCOUNTS } = await import('@shared/demo-accounts')
+
+  // Create demo volunteers (admin is already created via ADMIN_PUBKEY)
+  const nonAdminAccounts = DEMO_ACCOUNTS.filter(a => a.role !== 'admin')
+  for (const account of nonAdminAccounts) {
+    try {
+      await createVolunteer({
+        name: account.name,
+        phone: account.phone,
+        role: account.role,
+        pubkey: account.pubkey,
+      })
+    } catch { /* may already exist */ }
+  }
+
+  // Deactivate Fatima (inactive volunteer demo)
+  const fatima = DEMO_ACCOUNTS.find(a => a.name === 'Fatima Al-Rashid')
+  if (fatima) {
+    try {
+      await request(`/volunteers/${fatima.pubkey}?admin=true`, {
+        method: 'PATCH',
+        body: JSON.stringify({ active: false }),
+      })
+    } catch { /* ignore */ }
+  }
+
+  // Mark all demo profiles as completed and set browser call preference
+  for (const account of nonAdminAccounts) {
+    try {
+      await request(`/volunteers/${account.pubkey}?admin=true`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          profileCompleted: true,
+          callPreference: 'browser',
+          spokenLanguages: account.spokenLanguages,
+        }),
+      })
+    } catch { /* ignore */ }
+  }
+
+  // Create shifts
+  const maria = DEMO_ACCOUNTS.find(a => a.name === 'Maria Santos')!
+  const james = DEMO_ACCOUNTS.find(a => a.name === 'James Chen')!
+  const shifts = [
+    { name: 'Morning Team', startTime: '08:00', endTime: '16:00', days: [1, 2, 3, 4, 5], volunteerPubkeys: [maria.pubkey, james.pubkey], createdAt: new Date().toISOString() },
+    { name: 'Evening Team', startTime: '16:00', endTime: '23:59', days: [1, 2, 3, 4, 5], volunteerPubkeys: [maria.pubkey], createdAt: new Date().toISOString() },
+    { name: 'Weekend Coverage', startTime: '10:00', endTime: '18:00', days: [0, 6], volunteerPubkeys: [james.pubkey], createdAt: new Date().toISOString() },
+  ]
+  for (const shift of shifts) {
+    try {
+      await createShift(shift)
+    } catch { /* ignore */ }
+  }
+
+  // Add sample bans
+  const bans = [
+    { phone: '+15559999001', reason: 'Repeated prank calls' },
+    { phone: '+15559999002', reason: 'Threatening language towards volunteers' },
+  ]
+  for (const ban of bans) {
+    try {
+      await addBan(ban)
+    } catch { /* ignore */ }
+  }
 }
