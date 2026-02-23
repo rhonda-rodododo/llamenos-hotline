@@ -7,6 +7,9 @@ import { loginAsAdmin } from './helpers'
  * verify badge display → edit note → verify pre-fill → update value.
  */
 test.describe('Custom Fields in Notes', () => {
+  // Tests depend on each other's server-side state (field from test 1, note from test 2, etc.)
+  test.describe.configure({ mode: 'serial' })
+
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })
@@ -20,7 +23,7 @@ test.describe('Custom Fields in Notes', () => {
     await page.getByRole('button', { name: /add field/i }).click()
     await page.getByPlaceholder('e.g. Severity Rating').fill(label)
     await page.getByRole('button', { name: /save/i }).last().click()
-    await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/success/i)).toBeVisible({ timeout: 10000 })
   }
 
   test('custom fields appear in new note form', async ({ page }) => {

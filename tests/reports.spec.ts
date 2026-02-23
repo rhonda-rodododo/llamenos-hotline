@@ -97,6 +97,9 @@ async function createReporterInvite(page: Page, reporterName: string): Promise<s
 
 test.describe('Reports feature', () => {
   test.describe('Admin reports management', () => {
+    // Tests depend on each other's server-side state (create → claim → close → filter)
+    test.describe.configure({ mode: 'serial' })
+
     test('reports page loads for admin', async ({ page }) => {
       await loginAsAdmin(page)
       await navigateToReports(page)
@@ -367,6 +370,9 @@ test.describe('Reports feature', () => {
   })
 
   test.describe('Reporter role', () => {
+    // Tests share state via variables and depend on sequential execution
+    test.describe.configure({ mode: 'serial' })
+
     let reporterNsec: string
     let reporterInviteLink: string
 
