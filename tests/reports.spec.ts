@@ -122,14 +122,14 @@ test.describe('Reports feature', () => {
 
       // Fill in the report form
       await expect(page.getByPlaceholder('Brief description of the report')).toBeVisible({ timeout: 5000 })
-      await page.getByPlaceholder('Brief description of the report').fill('Test Report')
+      await page.getByPlaceholder('Brief description of the report').fill('Admin Report')
       await page.getByPlaceholder('Describe the situation in detail...').fill('This is a test report created by admin')
 
       // Submit the report
       await page.getByRole('button', { name: /submit report/i }).click()
 
       // Verify the report appears in the list (sheet should close and list should refresh)
-      await expect(page.getByText('Test Report').first()).toBeVisible({ timeout: 15000 })
+      await expect(page.getByText('Admin Report').first()).toBeVisible({ timeout: 15000 })
     })
 
     test('report shows in list with correct status', async ({ page }) => {
@@ -137,11 +137,11 @@ test.describe('Reports feature', () => {
       await navigateToReports(page)
 
       // Wait for reports to load
-      await expect(page.getByText('Test Report').first()).toBeVisible({ timeout: 15000 })
+      await expect(page.getByText('Admin Report').first()).toBeVisible({ timeout: 15000 })
 
       // Verify the waiting status indicator (yellow dot) is present
       // The report card should show a yellow dot for waiting status
-      const reportCard = page.locator('button[type="button"]').filter({ hasText: 'Test Report' })
+      const reportCard = page.locator('button[type="button"]').filter({ hasText: 'Admin Report' })
       await expect(reportCard).toBeVisible()
 
       // Verify message count is shown
@@ -153,10 +153,10 @@ test.describe('Reports feature', () => {
       await navigateToReports(page)
 
       // Wait for report list to load
-      await expect(page.getByText('Test Report').first()).toBeVisible({ timeout: 15000 })
+      await expect(page.getByText('Admin Report').first()).toBeVisible({ timeout: 15000 })
 
       // Click on the report card
-      await page.locator('button[type="button"]').filter({ hasText: 'Test Report' }).click()
+      await page.locator('button[type="button"]').filter({ hasText: 'Admin Report' }).click()
 
       // Verify detail view shows the report title, encryption note, and status
       await expect(page.getByText('End-to-end encrypted')).toBeVisible({ timeout: 5000 })
@@ -170,8 +170,8 @@ test.describe('Reports feature', () => {
       await navigateToReports(page)
 
       // Wait and select the report
-      await expect(page.getByText('Test Report').first()).toBeVisible({ timeout: 15000 })
-      await page.locator('button[type="button"]').filter({ hasText: 'Test Report' }).click()
+      await expect(page.getByText('Admin Report').first()).toBeVisible({ timeout: 15000 })
+      await page.locator('button[type="button"]').filter({ hasText: 'Admin Report' }).click()
 
       // Wait for the detail view to load
       await expect(page.getByText('End-to-end encrypted')).toBeVisible({ timeout: 5000 })
@@ -192,8 +192,8 @@ test.describe('Reports feature', () => {
       await navigateToReports(page)
 
       // Wait and select the report (should now be Active from previous test)
-      await expect(page.getByText('Test Report').first()).toBeVisible({ timeout: 15000 })
-      await page.locator('button[type="button"]').filter({ hasText: 'Test Report' }).click()
+      await expect(page.getByText('Admin Report').first()).toBeVisible({ timeout: 15000 })
+      await page.locator('button[type="button"]').filter({ hasText: 'Admin Report' }).click()
 
       // Wait for the detail view
       await expect(page.getByText('End-to-end encrypted')).toBeVisible({ timeout: 5000 })
@@ -204,7 +204,7 @@ test.describe('Reports feature', () => {
 
       // After closing, the report should be removed from the list
       // (the filter defaults to 'all' but handleClose removes it from the list)
-      await expect(page.locator('button[type="button"]').filter({ hasText: 'Test Report' })).not.toBeVisible({ timeout: 10000 })
+      await expect(page.locator('button[type="button"]').filter({ hasText: 'Admin Report' })).not.toBeVisible({ timeout: 10000 })
     })
 
     test('status filter works', async ({ page }) => {

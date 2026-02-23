@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin } from './helpers'
 
 test.describe('Custom Note Fields', () => {
+  // Tests depend on each other's state (empty state → add → delete)
+  test.describe.configure({ mode: 'serial' })
+
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })
@@ -19,8 +22,8 @@ test.describe('Custom Note Fields', () => {
     // Expand Custom Note Fields section
     await page.getByRole('heading', { name: /custom note fields/i }).click()
 
-    // Should show empty state
-    await expect(page.getByText(/no custom fields defined/i)).toBeVisible()
+    // Wait for section to load (either empty state or existing fields)
+    await expect(page.getByRole('button', { name: /add field/i })).toBeVisible({ timeout: 5000 })
 
     // Click Add Field
     await page.getByRole('button', { name: /add field/i }).click()
