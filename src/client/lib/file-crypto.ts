@@ -94,7 +94,7 @@ function encryptMetadataForPubkey(
   const shared = secp256k1.getSharedSecret(ephemeralSecret, recipientCompressed)
   const sharedX = shared.slice(1, 33)
 
-  const context = utf8ToBytes('llamenos:transcription')
+  const context = utf8ToBytes('llamenos:file-metadata')
   const keyInput = new Uint8Array(context.length + sharedX.length)
   keyInput.set(context)
   keyInput.set(sharedX, context.length)
@@ -129,7 +129,7 @@ export function decryptFileMetadata(
     const shared = secp256k1.getSharedSecret(secretKey, ephemeralPub)
     const sharedX = shared.slice(1, 33)
 
-    const context = utf8ToBytes('llamenos:transcription')
+    const context = utf8ToBytes('llamenos:file-metadata')
     const keyInput = new Uint8Array(context.length + sharedX.length)
     keyInput.set(context)
     keyInput.set(sharedX, context.length)

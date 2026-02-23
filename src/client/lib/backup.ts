@@ -204,7 +204,9 @@ export function downloadBackupFile(backup: BackupFile): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `llamenos-backup-${backup.pubkey.slice(0, 8)}.json`
+  const randomSuffix = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+    .map(b => b.toString(16).padStart(2, '0')).join('')
+  a.download = `backup-${randomSuffix}.json`
   a.click()
   URL.revokeObjectURL(url)
 }

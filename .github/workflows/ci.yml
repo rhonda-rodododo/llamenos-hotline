@@ -81,7 +81,7 @@ jobs:
   e2e-cf:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -99,8 +99,20 @@ jobs:
         run: |
           printf 'ADMIN_PUBKEY=%s\nENVIRONMENT=development\n' "${{ env.TEST_ADMIN_PUBKEY }}" > .dev.vars
 
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lockb') }}
+
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: bunx playwright install --with-deps chromium
+
+      - name: Install Playwright deps (cached browsers)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps chromium
 
       - name: Run E2E tests (Cloudflare Workers)
         run: bunx playwright test
@@ -116,7 +128,7 @@ jobs:
           path: |
             playwright-report/
             test-results/
-          retention-days: 7
+          retention-days: 1
 
   # ─── E2E Tests: Docker Compose (Node.js platform) ─────────
   e2e-docker:
@@ -136,8 +148,20 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lockb') }}
+
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: bunx playwright install --with-deps chromium
+
+      - name: Install Playwright deps (cached browsers)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps chromium
 
       - name: Create .env for Docker Compose
         run: |
@@ -181,7 +205,7 @@ jobs:
           path: |
             playwright-report/
             test-results/
-          retention-days: 7
+          retention-days: 1
 
       - name: Tear down Docker Compose
         if: always()
@@ -259,8 +283,10 @@ jobs:
       - name: Install git-cliff
         if: steps.version.outputs.should_release == 'true'
         run: |
-          curl -sSfL https://github.com/orhun/git-cliff/releases/download/v2.7.0/git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz \
-            | tar xz -C /usr/local/bin --strip-components=1 git-cliff-2.7.0/git-cliff
+          curl -sSfL https://github.com/orhun/git-cliff/releases/download/v2.7.0/git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz -o /tmp/git-cliff.tar.gz
+          echo "d9705c9f43bd74e2d10ca7df10b624bbe6f15bd4774f6c1e012db5be276f91f7  /tmp/git-cliff.tar.gz" | sha256sum -c -
+          tar xz -C /usr/local/bin --strip-components=1 -f /tmp/git-cliff.tar.gz git-cliff-2.7.0/git-cliff
+          rm /tmp/git-cliff.tar.gz
 
       - name: Bump version in package.json
         if: steps.version.outputs.should_release == 'true'
@@ -390,8 +416,10 @@ jobs:
 
       - name: Install git-cliff
         run: |
-          curl -sSfL https://github.com/orhun/git-cliff/releases/download/v2.7.0/git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz \
-            | tar xz -C /usr/local/bin --strip-components=1 git-cliff-2.7.0/git-cliff
+          curl -sSfL https://github.com/orhun/git-cliff/releases/download/v2.7.0/git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz -o /tmp/git-cliff.tar.gz
+          echo "d9705c9f43bd74e2d10ca7df10b624bbe6f15bd4774f6c1e012db5be276f91f7  /tmp/git-cliff.tar.gz" | sha256sum -c -
+          tar xz -C /usr/local/bin --strip-components=1 -f /tmp/git-cliff.tar.gz git-cliff-2.7.0/git-cliff
+          rm /tmp/git-cliff.tar.gz
 
       - name: Generate release notes
         run: |

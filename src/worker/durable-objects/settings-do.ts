@@ -277,7 +277,7 @@ export class SettingsDO extends DurableObject<Env> {
     recent.push(now)
     await this.ctx.storage.put(storageKey, recent)
     try { await this.ctx.storage.setAlarm(now + windowMs + 1000) } catch { /* alarm already set */ }
-    const limited = recent.length > data.maxPerMinute
+    const limited = recent.length >= data.maxPerMinute
     return Response.json({ limited })
   }
 
@@ -682,7 +682,28 @@ export class SettingsDO extends DurableObject<Env> {
   }
 
   private async setHubTelephonyProvider(hubId: string, config: unknown): Promise<Response> {
-    await this.ctx.storage.put(`hub:${hubId}:telephony-provider`, config)
+    // Validate hub telephony config with the same rules as global provider
+    if (!config || typeof config !== 'object') {
+      return new Response(JSON.stringify({ error: 'Invalid request body' }), { status: 400 })
+    }
+    const typed = config as TelephonyProviderConfig
+    if (!typed.type) {
+      return new Response(JSON.stringify({ error: 'Provider type is required' }), { status: 400 })
+    }
+    const validTypes = ['twilio', 'signalwire', 'vonage', 'plivo', 'asterisk']
+    if (!validTypes.includes(typed.type)) {
+      return new Response(JSON.stringify({ error: `Invalid provider type: ${typed.type}` }), { status: 400 })
+    }
+    const required = PROVIDER_REQUIRED_FIELDS[typed.type]
+    for (const field of required) {
+      if (!typed[field]) {
+        return new Response(JSON.stringify({ error: `Missing required field: ${field}` }), { status: 400 })
+      }
+    }
+    if (typed.phoneNumber && !/^\+\d{7,15}$/.test(typed.phoneNumber)) {
+      return new Response(JSON.stringify({ error: 'Phone number must be in E.164 format' }), { status: 400 })
+    }
+    await this.ctx.storage.put(`hub:${hubId}:telephony-provider`, typed)
     return Response.json({ ok: true })
   }
 
