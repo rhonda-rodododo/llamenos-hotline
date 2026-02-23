@@ -6,7 +6,7 @@ import { checkPermission } from '../middleware/permission-guard'
 
 const calls = new Hono<AppEnv>()
 
-calls.get('/active', async (c) => {
+calls.get('/active', requirePermission('calls:read-active'), async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
   const permissions = c.get('permissions')
   const canSeeFullInfo = checkPermission(permissions, 'calls:read-active-full')
@@ -19,7 +19,7 @@ calls.get('/active', async (c) => {
   return res
 })
 
-calls.get('/today-count', async (c) => {
+calls.get('/today-count', requirePermission('calls:read-active'), async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
   return dos.calls.fetch(new Request('http://do/calls/today-count'))
 })

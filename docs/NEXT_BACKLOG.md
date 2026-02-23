@@ -57,6 +57,58 @@
 - [ ] Consider re-auth step-up for sensitive actions (e.g., unmasking volunteer phone numbers)
 - [ ] Auth token nonce-based replay protection (currently mitigated by HTTPS + Schnorr signatures + 5min window)
 
+## Security Audit Findings (2026-02-23, Round 6)
+
+Full report: [`docs/security/SECURITY_AUDIT_2026-02-R6.md`](security/SECURITY_AUDIT_2026-02-R6.md)
+Threat model: [`docs/security/THREAT_MODEL.md`](security/THREAT_MODEL.md)
+Deployment guide: [`docs/security/DEPLOYMENT_HARDENING.md`](security/DEPLOYMENT_HARDENING.md)
+
+### Critical — Epic 64
+- [x] ~~**C-1**: Caller phone number broadcast to ALL volunteers~~ — VERIFIED NOT VULNERABLE (already hashed + redacted server-side)
+- [x] **C-2**: `codeql-action` uses mutable `@v3` tag — pinned to SHA
+- [x] **C-3**: `git-cliff` binary downloaded without SHA256 verification — checksum added
+
+### High — Epic 64
+- [ ] **H-1**: V1 legacy encryption still callable (no forward secrecy) — remove encrypt path
+- [ ] **H-2**: Dev reset endpoints rely solely on `ENVIRONMENT` var — add secondary gate
+- [x] **H-3**: Hub telephony provider config stored without validation — validation added
+- [ ] **H-4**: Demo nsec values compiled into all production bundles — tree-shake with dynamic import
+- [ ] **H-5**: Docker Stage 3 resolves deps without lockfile — use `bun install --frozen-lockfile`
+- [ ] **H-6**: Asterisk `ARI_PASSWORD` has no required override in compose
+
+### Medium — Epic 65
+- [ ] **M-1**: SSRF blocklist incomplete (IPv6, CGNAT, mapped addresses)
+- [x] **M-2**: `/calls/active` and `/calls/today-count` missing permission guards — added
+- [ ] **M-3**: `isAdmin` query param on internal DO API — replace with dedicated route
+- [x] **M-4**: Missing security headers in Worker — added CORP and X-Permitted-Cross-Domain-Policies
+- [ ] **M-5**: Phone hashing with bare SHA-256 — upgrade to HMAC with server secret
+- [x] **M-6**: Backup filename leaks pubkey fragment — now uses random suffix
+- [x] **M-7**: File metadata ECIES uses wrong context string — fixed to `llamenos:file-metadata`
+- [ ] **M-8**: No JS dependency vulnerability scanning in CI
+- [ ] **M-9**: Floating Docker base image tags — pin to digests
+- [ ] **M-10**: Helm NetworkPolicy missing PostgreSQL egress rule
+
+### Low — Epic 67
+- [ ] **L-1**: `adminPubkey` in public config — restrict to authenticated users
+- [ ] **L-2**: Phone numbers unmasked in invite list and delete dialogs
+- [ ] **L-3**: `keyPair.secretKey` propagated through React state — refactor to closure
+- [ ] **L-4**: Schnorr tokens not bound to request path
+- [x] **L-5**: Rate limiter off-by-one (`>` vs `>=`) — fixed
+- [ ] **L-6**: Shift time format not validated
+- [ ] **L-7**: Document CSP `style-src 'unsafe-inline'` trade-off
+- [x] **L-8**: Reduce Playwright trace artifact retention to 1 day — done
+- [ ] **L-9**: Add panic-wipe mechanism for device seizure
+- [ ] **L-10**: SRI hashes for service worker cached assets
+
+## Deployment Hardening Tooling — Epic 66
+- [ ] Ansible playbook for VPS hardening (SSH, firewall, kernel, Docker, fail2ban)
+- [ ] Ansible playbook for application deployment (docker-compose, secrets, health check)
+- [ ] Ansible playbook for updates and rollbacks
+- [ ] Ansible playbook for encrypted backups
+- [ ] OpenTofu module for Hetzner VPS provisioning (optional)
+- [ ] Quick start guide for first-time operators
+- [ ] Operator runbook (secret rotation, incident response, backup recovery)
+
 ## Multi-Provider Telephony (Epics 32–36) — COMPLETE
 - [x] Epic 32: Provider Configuration System (admin UI, API, DO storage, connection test)
 - [x] Epic 33: Cloud Provider Adapters (SignalWire extends TwilioAdapter, Vonage, Plivo)
