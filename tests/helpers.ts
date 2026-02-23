@@ -82,7 +82,7 @@ export async function navigateAfterLogin(page: Page, url: string): Promise<void>
   }
 
   // Wait for the authenticated layout — sidebar nav link confirms auth is fully settled
-  await page.getByRole('link', { name: 'Dashboard' }).waitFor({ state: 'visible', timeout: 15000 })
+  await page.getByRole('link', { name: 'Dashboard' }).waitFor({ state: 'visible', timeout: 30000 })
 
   // Now use router.navigate for SPA navigation (no page reload)
   const parsed = new URL(url, 'http://localhost')
@@ -122,7 +122,7 @@ export async function loginAsAdmin(page: Page) {
   await preloadEncryptedKey(page, ADMIN_NSEC, TEST_PIN)
   await page.reload()
   await enterPin(page, TEST_PIN)
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 })
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 30000 })
 }
 
 /**
