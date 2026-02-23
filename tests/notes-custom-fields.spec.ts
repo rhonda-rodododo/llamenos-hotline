@@ -97,9 +97,11 @@ test.describe('Custom Fields in Notes', () => {
     // Save
     await page.getByRole('button', { name: /save/i }).click()
 
-    // Badge should show updated value
-    await expect(page.getByText('Priority Level: Critical')).toBeVisible()
-    await expect(page.getByText('Priority Level: High')).not.toBeVisible()
+    // Badge should show updated value on the edited note
+    // Scope to the specific note card to avoid false positives from duplicate notes created by retries
+    const noteCard = page.locator('.py-4').filter({ hasText: 'Note with priority field' }).first()
+    await expect(noteCard.getByText('Priority Level: Critical')).toBeVisible()
+    await expect(noteCard.getByText('Priority Level: High')).not.toBeVisible()
   })
 
   test('edit preserves note text when changing field value', async ({ page }) => {
