@@ -190,24 +190,10 @@ export function decryptNoteV2(
   }
 }
 
-// --- Legacy V1 Encryption (kept for backward compatibility) ---
+// --- Legacy V1 Decryption (kept for backward compatibility with pre-V2 notes) ---
+// V1 encrypt path removed (no forward secrecy). All new notes MUST use encryptNoteV2.
 
-/** @deprecated Use encryptNoteV2 for new notes */
-export function encryptNote(payload: NotePayload, secretKey: Uint8Array): string {
-  const key = deriveEncryptionKey(secretKey, 'notes')
-  const nonce = randomBytes(24)
-  const jsonString = JSON.stringify(payload)
-  const data = utf8ToBytes(jsonString)
-  const cipher = xchacha20poly1305(key, nonce)
-  const ciphertext = cipher.encrypt(data)
-
-  const packed = new Uint8Array(nonce.length + ciphertext.length)
-  packed.set(nonce)
-  packed.set(ciphertext, nonce.length)
-  return bytesToHex(packed)
-}
-
-/** @deprecated Use decryptNoteV2 for V2 notes, falls back to this for legacy */
+/** Decrypt a legacy V1 note — kept for backward compatibility only. */
 export function decryptNote(packed: string, secretKey: Uint8Array): NotePayload | null {
   try {
     const key = deriveEncryptionKey(secretKey, 'notes')

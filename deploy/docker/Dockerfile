@@ -27,10 +27,10 @@ COPY tsconfig.json esbuild.node.mjs ./
 RUN node esbuild.node.mjs
 
 # Stage 3: Install runtime deps (pure JS — no native build tools needed)
-FROM node:22-slim AS deps
+FROM oven/bun:1 AS deps
 WORKDIR /app
-COPY package.json ./
-RUN npm install --production && npm cache clean --force
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile --production --ignore-scripts
 
 # Stage 4: Production
 FROM node:22-slim

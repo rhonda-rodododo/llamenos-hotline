@@ -163,6 +163,8 @@ services:
     restart: unless-stopped
     environment:
       - ARI_URL=ws://asterisk:8088/ari/events
+      - ARI_USERNAME=${ARI_USERNAME:-llamenos}
+      - ARI_PASSWORD=${ARI_PASSWORD:?ARI_PASSWORD is required — do NOT use the default}
       - WORKER_WEBHOOK_URL=http://app:3000
       - BRIDGE_SECRET=${BRIDGE_SECRET:?BRIDGE_SECRET is required — generate a random value}
     networks:

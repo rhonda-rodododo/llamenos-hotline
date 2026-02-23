@@ -1,11 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
-import { getDemoAccountsWithNsec } from '@/lib/demo-accounts'
 import * as keyManager from '@/lib/key-manager'
 import { Shield, Users, UserCog, FileText, LogIn, Info } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
 const DEMO_PIN = '000000'
 
@@ -23,12 +21,27 @@ const roleColors: Record<string, string> = {
   'role-reporter': 'bg-green-500/10 text-green-600 dark:text-green-400',
 }
 
+interface DemoAccount {
+  pubkey: string
+  name: string
+  description: string
+  roleIds: string[]
+  nsec: string
+}
+
 export function DemoAccountPicker() {
   const { t } = useTranslation()
   const { signIn } = useAuth()
   const navigate = useNavigate()
   const [loadingPubkey, setLoadingPubkey] = useState<string | null>(null)
-  const accounts = getDemoAccountsWithNsec()
+  const [accounts, setAccounts] = useState<DemoAccount[]>([])
+
+  // Dynamic import: nsec values are only fetched when this component mounts (demo mode active)
+  useEffect(() => {
+    import('@/lib/demo-accounts').then(({ getDemoAccountsWithNsec }) => {
+      setAccounts(getDemoAccountsWithNsec())
+    })
+  }, [])
 
   async function handleDemoLogin(nsec: string, pubkey: string) {
     setLoadingPubkey(pubkey)
@@ -41,6 +54,8 @@ export function DemoAccountPicker() {
       setLoadingPubkey(null)
     }
   }
+
+  if (accounts.length === 0) return null
 
   return (
     <div className="space-y-3">

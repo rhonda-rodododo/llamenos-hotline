@@ -26,9 +26,9 @@ COPY --from=base /app/package.json ./
 ENV ARI_URL=ws://asterisk:8088/ari/events
 ENV ARI_REST_URL=http://asterisk:8088/ari
 ENV ARI_USERNAME=llamenos
-ENV ARI_PASSWORD=changeme
+# ARI_PASSWORD must be set at runtime — no default (CWE-798)
 ENV WORKER_WEBHOOK_URL=https://your-worker.example.com
-ENV BRIDGE_SECRET=changeme
+# BRIDGE_SECRET must be set at runtime — no default
 ENV BRIDGE_PORT=3000
 ENV STASIS_APP=llamenos
 
