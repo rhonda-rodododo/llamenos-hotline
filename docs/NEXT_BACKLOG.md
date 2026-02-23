@@ -69,12 +69,12 @@ Deployment guide: [`docs/security/DEPLOYMENT_HARDENING.md`](security/DEPLOYMENT_
 - [x] **C-3**: `git-cliff` binary downloaded without SHA256 verification — checksum added
 
 ### High — Epic 64
-- [ ] **H-1**: V1 legacy encryption still callable (no forward secrecy) — remove encrypt path
-- [ ] **H-2**: Dev reset endpoints rely solely on `ENVIRONMENT` var — add secondary gate
+- [x] **H-1**: V1 legacy encryption still callable (no forward secrecy) — removed `encryptNote` export
+- [x] **H-2**: Dev reset endpoints rely solely on `ENVIRONMENT` var — added `DEV_RESET_SECRET` secondary gate
 - [x] **H-3**: Hub telephony provider config stored without validation — validation added
-- [ ] **H-4**: Demo nsec values compiled into all production bundles — tree-shake with dynamic import
-- [ ] **H-5**: Docker Stage 3 resolves deps without lockfile — use `bun install --frozen-lockfile`
-- [ ] **H-6**: Asterisk `ARI_PASSWORD` has no required override in compose
+- [x] **H-4**: Demo nsec values compiled into all production bundles — dynamic import, code-split chunk
+- [x] **H-5**: Docker Stage 3 resolves deps without lockfile — switched to bun with `--frozen-lockfile`
+- [x] **H-6**: Asterisk `ARI_PASSWORD` has no required override in compose — added `:?` required syntax
 
 ### Medium — Epic 65
 - [ ] **M-1**: SSRF blocklist incomplete (IPv6, CGNAT, mapped addresses)

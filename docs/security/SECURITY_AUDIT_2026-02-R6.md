@@ -64,25 +64,21 @@ A pre-compiled binary is downloaded and executed without SHA256 verification. Gi
 
 ### HIGH
 
-#### H-1: V1 Legacy Encryption Still Callable (No Forward Secrecy)
+#### ~~H-1: V1 Legacy Encryption Still Callable (No Forward Secrecy)~~ — FIXED
 
 **File**: `src/client/lib/crypto.ts:193-232`
 
-V1 note encryption derives a static key from the volunteer's identity key via HKDF. All V1 notes share the same derived key — compromising the identity key reveals ALL V1 notes retroactively. V1 is marked `@deprecated` but remains active in the decrypt path (`notes.tsx:98`).
+V1 note encryption derives a static key from the volunteer's identity key via HKDF. All V1 notes share the same derived key — compromising the identity key reveals ALL V1 notes retroactively.
 
-**Impact**: Identity key compromise → all historical V1 notes decrypted. No forward secrecy.
+**Fix**: Removed the V1 `encryptNote()` export entirely. V1 `decryptNote()` retained for backward compat. All new notes use `encryptNoteV2()` with per-note ephemeral ECDH.
 
-**Recommendation**: Since the project is pre-production with no V1 data in the wild, remove the V1 encrypt path entirely. Keep the V1 decrypt path for one release cycle with a migration warning, then remove.
+#### ~~H-2: Dev Reset Endpoints Rely Solely on `ENVIRONMENT` Variable~~ — FIXED
 
-#### H-2: Dev Reset Endpoints Rely Solely on `ENVIRONMENT` Variable
+**File**: `src/worker/routes/dev.ts`
 
-**File**: `src/worker/routes/dev.ts:9-11`, `src/worker/app.ts:44`
+Three destructive endpoints (`test-reset`, `test-reset-no-admin`, `test-reset-records`) were protected only by `ENVIRONMENT !== 'development'`.
 
-Three destructive endpoints (`test-reset`, `test-reset-no-admin`, `test-reset-records`) are mounted without authentication, protected only by `ENVIRONMENT !== 'development'`. A misconfigured deployment (operator accidentally sets `ENVIRONMENT=development`) exposes full data wipe to unauthenticated callers.
-
-**Impact**: Complete data destruction without authentication.
-
-**Recommendation**: Add a secondary gate — require a `DEV_RESET_SECRET` even in development mode, or compile out the dev routes in production builds via build-time flag.
+**Fix**: Added secondary gate via `DEV_RESET_SECRET` / `E2E_TEST_SECRET`. If either env var is set, all reset endpoints require matching `X-Test-Secret` header. Local dev without the secret still works for convenience.
 
 #### H-3: Hub Telephony Provider Config Stored Without Validation
 
@@ -94,44 +90,29 @@ Three destructive endpoints (`test-reset`, `test-reset-no-admin`, `test-reset-re
 
 **Recommendation**: Apply the same validation logic used in `updateTelephonyProvider` to the hub variant.
 
-#### H-4: Demo Account nsec Values in All Production Bundles
+#### ~~H-4: Demo Account nsec Values in All Production Bundles~~ — FIXED
 
-**File**: `src/client/lib/demo-accounts.ts:7-18`
+**File**: `src/client/components/demo-account-picker.tsx`
 
-Five demo nsec values are compiled into the JavaScript bundle unconditionally (the `demo-accounts.ts` module is imported in `login.tsx`). Any user who downloads the production JS and searches for `nsec1` recovers all five private keys.
+Five demo nsec values were compiled into the login bundle unconditionally.
 
-**Impact**: If a production deployment has these demo accounts seeded (e.g., via leftover demo data), those accounts are fully compromised. The nsec values are extractable from any build.
+**Fix**: Changed `DemoAccountPicker` to use dynamic `import()` for `@/lib/demo-accounts`. The nsec values are now code-split into a separate chunk (`demo-accounts-*.js`) only loaded when demo mode is active. Verified: login bundle contains zero nsec private keys.
 
-**Recommendation**: Use dynamic `import()` gated on `demoMode` to tree-shake demo secrets out of non-demo production builds.
-
-#### H-5: Docker Stage 3 Resolves Dependencies Without Lockfile
+#### ~~H-5: Docker Stage 3 Resolves Dependencies Without Lockfile~~ — FIXED
 
 **File**: `deploy/docker/Dockerfile` (Stage 3 `deps`)
 
-```dockerfile
-FROM node:22-slim AS deps
-RUN npm install --production
-```
+Stage 3 used `npm install --production` without any lockfile, causing supply chain drift.
 
-The `bun.lockb` is not copied into this stage. npm resolves dependencies independently, potentially pulling different versions than those tested. The `ws` and `postgres` packages are production dependencies resolved this way.
+**Fix**: Changed Stage 3 to use `oven/bun:1` with `bun install --frozen-lockfile --production --ignore-scripts`, matching Stages 1 and 2.
 
-**Impact**: Supply chain drift — production Docker images may contain dependency versions different from those tested in CI.
+#### ~~H-6: Asterisk Bridge `ARI_PASSWORD` Has No Required Override~~ — FIXED
 
-**Recommendation**: Copy `bun.lockb` and use `bun install --frozen-lockfile --production`, or generate and commit a `package-lock.json` for the Docker build stage.
+**File**: `asterisk-bridge/Dockerfile`, `deploy/docker/docker-compose.yml`, `deploy/docker/.env.example`
 
-#### H-6: Asterisk Bridge `ARI_PASSWORD` Has No Required Override
+The `ARI_PASSWORD` defaulted to `changeme` with no required override in compose.
 
-**File**: `asterisk-bridge/Dockerfile:29-30`, `deploy/docker/docker-compose.yml`
-
-```dockerfile
-ENV ARI_PASSWORD=changeme
-```
-
-The `docker-compose.yml` requires `BRIDGE_SECRET` via `:?` syntax, but `ARI_PASSWORD` has no such guard. An operator who deploys without setting it uses `changeme` against their Asterisk ARI interface.
-
-**Impact**: Default credentials on the Asterisk management interface.
-
-**Recommendation**: Add `ARI_PASSWORD` to the compose required vars: `${ARI_PASSWORD:?Set ARI_PASSWORD}`.
+**Fix**: Added `ARI_PASSWORD` with `:?` required syntax in docker-compose.yml. Removed hardcoded default from Dockerfile. Added to `.env.example`. Updated README to show generation command.
 
 ---
 

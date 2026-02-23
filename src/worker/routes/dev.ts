@@ -4,10 +4,23 @@ import { getDOs } from '../lib/do-access'
 
 const dev = new Hono<AppEnv>()
 
+/**
+ * Secondary gate: if DEV_RESET_SECRET is set, require X-Test-Secret header.
+ * Protects against accidental ENVIRONMENT=development in production.
+ */
+function checkResetSecret(c: { env: { DEV_RESET_SECRET?: string; E2E_TEST_SECRET?: string }; req: { header(name: string): string | undefined } }): boolean {
+  const secret = c.env.DEV_RESET_SECRET || c.env.E2E_TEST_SECRET
+  if (!secret) return true // No secret configured — allow (local dev)
+  return c.req.header('X-Test-Secret') === secret
+}
+
 dev.post('/test-reset', async (c) => {
   // Full reset: development only — too destructive for staging
   if (c.env.ENVIRONMENT !== 'development') {
     return c.json({ error: 'Not Found' }, 404)
+  }
+  if (!checkResetSecret(c)) {
+    return c.json({ error: 'Forbidden' }, 403)
   }
   const dos = getDOs(c.env)
   await dos.identity.fetch(new Request('http://do/reset', { method: 'POST' }))
@@ -25,6 +38,9 @@ dev.post('/test-reset-no-admin', async (c) => {
   // Full reset without admin: development only
   if (c.env.ENVIRONMENT !== 'development') {
     return c.json({ error: 'Not Found' }, 404)
+  }
+  if (!checkResetSecret(c)) {
+    return c.json({ error: 'Forbidden' }, 403)
   }
   const dos = getDOs(c.env)
   // Reset all DOs
@@ -51,6 +67,9 @@ dev.post('/test-reset-records', async (c) => {
     && c.req.header('X-Test-Secret') === c.env.E2E_TEST_SECRET
   if (!isDev && !isStaging) {
     return c.json({ error: 'Not Found' }, 404)
+  }
+  if (isDev && !checkResetSecret(c)) {
+    return c.json({ error: 'Forbidden' }, 403)
   }
   const dos = getDOs(c.env)
   await dos.records.fetch(new Request('http://do/reset', { method: 'POST' }))

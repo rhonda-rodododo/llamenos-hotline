@@ -76,9 +76,9 @@ Create a `.env` file:
 ARI_URL=ws://localhost:8088/ari/events
 ARI_REST_URL=http://localhost:8088/ari
 ARI_USERNAME=llamenos
-ARI_PASSWORD=changeme
+ARI_PASSWORD=<generate with: openssl rand -base64 24>
 WORKER_WEBHOOK_URL=https://your-worker.example.com
-BRIDGE_SECRET=your-shared-secret-here
+BRIDGE_SECRET=<generate with: openssl rand -hex 32>
 BRIDGE_PORT=3000
 STASIS_APP=llamenos
 HOTLINE_NUMBER=+15551234567

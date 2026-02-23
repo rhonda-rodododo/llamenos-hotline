@@ -47,6 +47,7 @@ export interface Env {
   HOTLINE_NAME: string
   ENVIRONMENT: string
   E2E_TEST_SECRET?: string
+  DEV_RESET_SECRET?: string
 }
 
 /** @deprecated Use roles array + permission system instead */
