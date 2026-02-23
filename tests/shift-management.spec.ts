@@ -34,7 +34,8 @@ test.describe('Shift management', () => {
 
     // Shift should appear in the list
     await expect(page.getByText(shiftName)).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('08:00 - 16:00')).toBeVisible()
+    const shiftCard = page.locator('h3').filter({ hasText: shiftName }).locator('..').locator('..')
+    await expect(shiftCard.getByText('08:00 - 16:00')).toBeVisible()
   })
 
   test('edit shift name and time', async ({ page }) => {
@@ -58,7 +59,8 @@ test.describe('Shift management', () => {
     await page.getByRole('button', { name: /save/i }).click()
 
     await expect(page.getByText(updatedName)).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('10:00 - 18:00')).toBeVisible()
+    const updatedCard = page.locator('h3').filter({ hasText: updatedName }).locator('..').locator('..')
+    await expect(updatedCard.getByText('10:00 - 18:00')).toBeVisible()
     await expect(page.getByText(shiftName)).not.toBeVisible()
   })
 
@@ -134,8 +136,9 @@ test.describe('Shift management', () => {
     await page.getByRole('button', { name: /save/i }).click()
     await expect(page.getByText(shiftName)).toBeVisible({ timeout: 10000 })
 
-    // Should show 1 volunteer count
-    await expect(page.getByText(/1 volunteer/i)).toBeVisible()
+    // Should show 1 volunteer count (scoped to this shift's card)
+    const shiftCard = page.locator('h3').filter({ hasText: shiftName }).locator('..').locator('..')
+    await expect(shiftCard.getByText(/1 volunteer/i)).toBeVisible()
   })
 
   test('fallback group selection', async ({ page }) => {

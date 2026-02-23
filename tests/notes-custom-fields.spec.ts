@@ -27,7 +27,7 @@ test.describe('Custom Fields in Notes', () => {
   }
 
   test('custom fields appear in new note form', async ({ page }) => {
-    await createCustomTextField(page, 'Severity')
+    await createCustomTextField(page, 'Priority Level')
 
     // Navigate to notes
     await page.getByRole('link', { name: 'Notes' }).click()
@@ -37,7 +37,7 @@ test.describe('Custom Fields in Notes', () => {
     await page.getByRole('button', { name: /new note/i }).click()
 
     // Custom field label should appear in the form
-    const fieldInput = page.locator('#new-field-severity')
+    const fieldInput = page.locator('#new-field-priority-level')
     await expect(fieldInput).toBeVisible()
   })
 
@@ -51,19 +51,19 @@ test.describe('Custom Fields in Notes', () => {
     await page.locator('#call-id').fill('cf-test-' + Date.now())
 
     // Fill note text (first textarea in the new note form)
-    await page.locator('textarea').first().fill('Note with severity field')
+    await page.locator('textarea').first().fill('Note with priority field')
 
     // Fill the custom field
-    await page.locator('#new-field-severity').fill('High')
+    await page.locator('#new-field-priority-level').fill('High')
 
     // Save
     await page.getByRole('button', { name: /save/i }).click()
 
     // Note text should appear
-    await expect(page.locator('p').filter({ hasText: 'Note with severity field' })).toBeVisible()
+    await expect(page.locator('p').filter({ hasText: 'Note with priority field' })).toBeVisible()
 
     // Custom field value should appear as a badge
-    await expect(page.getByText('Severity: High')).toBeVisible()
+    await expect(page.getByText('Priority Level: High')).toBeVisible()
   })
 
   test('edit form shows custom fields pre-filled', async ({ page }) => {
@@ -71,13 +71,13 @@ test.describe('Custom Fields in Notes', () => {
     await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
 
     // Badge from previous test should be visible
-    await expect(page.getByText('Severity: High')).toBeVisible()
+    await expect(page.getByText('Priority Level: High')).toBeVisible()
 
     // Click edit on the note
     await page.locator('button[aria-label="Edit"]').first().click()
 
     // The custom field input should be pre-filled
-    const fieldInput = page.locator('#edit-field-severity')
+    const fieldInput = page.locator('#edit-field-priority-level')
     await expect(fieldInput).toBeVisible()
     await expect(fieldInput).toHaveValue('High')
   })
@@ -90,7 +90,7 @@ test.describe('Custom Fields in Notes', () => {
     await page.locator('button[aria-label="Edit"]').first().click()
 
     // Change the field value
-    const fieldInput = page.locator('#edit-field-severity')
+    const fieldInput = page.locator('#edit-field-priority-level')
     await fieldInput.clear()
     await fieldInput.fill('Critical')
 
@@ -98,8 +98,8 @@ test.describe('Custom Fields in Notes', () => {
     await page.getByRole('button', { name: /save/i }).click()
 
     // Badge should show updated value
-    await expect(page.getByText('Severity: Critical')).toBeVisible()
-    await expect(page.getByText('Severity: High')).not.toBeVisible()
+    await expect(page.getByText('Priority Level: Critical')).toBeVisible()
+    await expect(page.getByText('Priority Level: High')).not.toBeVisible()
   })
 
   test('edit preserves note text when changing field value', async ({ page }) => {
@@ -111,17 +111,17 @@ test.describe('Custom Fields in Notes', () => {
 
     // Verify textarea has existing text
     const textarea = page.locator('textarea').first()
-    await expect(textarea).toHaveValue('Note with severity field')
+    await expect(textarea).toHaveValue('Note with priority field')
 
     // Change field value without changing text
-    const fieldInput = page.locator('#edit-field-severity')
+    const fieldInput = page.locator('#edit-field-priority-level')
     await fieldInput.clear()
     await fieldInput.fill('Low')
     await page.getByRole('button', { name: /save/i }).click()
 
     // Both text and field should be preserved
-    await expect(page.locator('p').filter({ hasText: 'Note with severity field' })).toBeVisible()
-    await expect(page.getByText('Severity: Low')).toBeVisible()
+    await expect(page.locator('p').filter({ hasText: 'Note with priority field' })).toBeVisible()
+    await expect(page.getByText('Priority Level: Low')).toBeVisible()
   })
 })
 
