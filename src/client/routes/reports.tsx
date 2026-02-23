@@ -428,7 +428,7 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
             </Button>
           )}
           {report.status === 'active' && isAdmin && (
-            <Button size="sm" variant="outline" onClick={() => onClose(report.id)}>
+            <Button size="sm" variant="outline" data-testid="close-report" onClick={() => onClose(report.id)}>
               <X className="h-3.5 w-3.5" />
               {t('reports.closeReport', { defaultValue: 'Close' })}
             </Button>

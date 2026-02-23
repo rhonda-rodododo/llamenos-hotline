@@ -171,6 +171,12 @@ export async function createVolunteerAndGetNsec(page: Page, name: string, phone:
   return nsec
 }
 
+/** Dismiss the nsec card shown after volunteer creation. */
+export async function dismissNsecCard(page: Page): Promise<void> {
+  await page.getByTestId('dismiss-nsec').click()
+  await expect(page.getByTestId('dismiss-nsec')).not.toBeVisible()
+}
+
 export async function completeProfileSetup(page: Page) {
   if (page.url().includes('profile-setup')) {
     await page.getByRole('button', { name: /complete setup/i }).click()

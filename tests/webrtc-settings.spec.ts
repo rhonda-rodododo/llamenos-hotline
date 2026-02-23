@@ -1,11 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, resetTestState, enterPin, TEST_PIN, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, enterPin, TEST_PIN, navigateAfterLogin } from './helpers'
 
 test.describe('WebRTC & Call Preference Settings', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })
@@ -135,18 +131,16 @@ test.describe('WebRTC & Call Preference Settings', () => {
     await page.getByText('Telephony Provider').first().click()
 
     // Fill in basic Twilio credentials
-    await page.getByPlaceholder('+12125551234').fill('+15551234567')
-    await page.getByPlaceholder('AC...').fill('ACwebrtctest123')
-    const authTokenInput = page.locator('input[type="password"]').first()
-    await authTokenInput.fill('webrtc-auth-token')
+    await page.getByTestId('account-sid').fill('ACwebrtctest123')
+    await page.getByTestId('auth-token').fill('webrtc-auth-token')
 
     // Enable WebRTC and fill API Key fields
     const webrtcSection = page.locator('div').filter({ hasText: /WebRTC Configuration/ }).filter({ has: page.getByRole('switch') }).last()
     const toggle = webrtcSection.getByRole('switch')
     await toggle.click()
 
-    await page.getByPlaceholder('SK...').fill('SKtestkey123')
-    await page.getByPlaceholder('AP...').fill('APtestapp456')
+    await page.getByTestId('api-key-sid').fill('SKtestkey123')
+    await page.getByTestId('twiml-app-sid').fill('APtestapp456')
 
     // Save
     await page.getByRole('button', { name: /save provider/i }).click()
@@ -163,7 +157,7 @@ test.describe('WebRTC & Call Preference Settings', () => {
     await page.getByText('Telephony Provider').first().click()
 
     // Verify WebRTC fields are populated
-    await expect(page.getByPlaceholder('SK...')).toHaveValue('SKtestkey123')
-    await expect(page.getByPlaceholder('AP...')).toHaveValue('APtestapp456')
+    await expect(page.getByTestId('api-key-sid')).toHaveValue('SKtestkey123')
+    await expect(page.getByTestId('twiml-app-sid')).toHaveValue('APtestapp456')
   })
 })

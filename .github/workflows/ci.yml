@@ -81,7 +81,7 @@ jobs:
   e2e-cf:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
 
     steps:
       - name: Checkout

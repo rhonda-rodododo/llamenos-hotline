@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, resetTestState } from './helpers'
+import { loginAsAdmin, navigateAfterLogin } from './helpers'
 
 test.describe('Device linking — /link-device page', () => {
   test.beforeEach(async ({ page }) => {
@@ -54,10 +54,6 @@ test.describe('Device linking — /link-device page', () => {
 })
 
 test.describe('Device linking — settings section', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test('settings page has linked devices section with code input', async ({ page }) => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/settings?section=linked-devices')

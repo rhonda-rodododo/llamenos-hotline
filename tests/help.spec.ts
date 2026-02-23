@@ -1,11 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, resetTestState } from './helpers'
+import { loginAsAdmin } from './helpers'
 
 test.describe('Help & Getting Started', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test('help page loads with FAQ sections', async ({ page }) => {
     await loginAsAdmin(page)
     await page.getByRole('link', { name: 'Help' }).click()

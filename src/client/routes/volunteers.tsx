@@ -106,7 +106,7 @@ function VolunteersPage() {
                 <Copy className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setGeneratedNsec(null)}>
+            <Button variant="ghost" size="sm" data-testid="dismiss-nsec" onClick={() => setGeneratedNsec(null)}>
               {t('common.close')}
             </Button>
           </CardContent>
@@ -135,7 +135,7 @@ function VolunteersPage() {
                 <Copy className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setInviteLink(null)}>
+            <Button variant="ghost" size="sm" data-testid="dismiss-invite" onClick={() => setInviteLink(null)}>
               {t('common.close')}
             </Button>
           </CardContent>

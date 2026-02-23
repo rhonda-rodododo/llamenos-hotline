@@ -1,14 +1,10 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, resetTestState, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, navigateAfterLogin } from './helpers'
 
 // Tests depend on each other's server-side state (test 2 seeds data for 3-7)
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Demo Mode', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   // --- Helpers ---
 
   async function goToSetup(page: import('@playwright/test').Page) {

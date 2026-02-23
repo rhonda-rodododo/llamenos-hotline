@@ -1,11 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, uniquePhone, resetTestState, completeProfileSetup, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, dismissNsecCard, uniquePhone, completeProfileSetup, navigateAfterLogin } from './helpers'
 
 test.describe('Audit log', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })
@@ -20,7 +16,7 @@ test.describe('Audit log', () => {
     const phone = uniquePhone()
     const name = `AuditVol ${Date.now()}`
     await createVolunteerAndGetNsec(page, name, phone)
-    await page.getByRole('button', { name: /close/i }).click()
+    await dismissNsecCard(page)
 
     // Navigate to audit log
     await page.getByRole('link', { name: 'Audit Log' }).click()
@@ -35,7 +31,7 @@ test.describe('Audit log', () => {
     const phone = uniquePhone()
     const name = `TimestampVol ${Date.now()}`
     await createVolunteerAndGetNsec(page, name, phone)
-    await page.getByRole('button', { name: /close/i }).click()
+    await dismissNsecCard(page)
 
     await page.getByRole('link', { name: 'Audit Log' }).click()
     await expect(page.getByRole('heading', { name: /audit log/i })).toBeVisible()
@@ -54,7 +50,7 @@ test.describe('Audit log', () => {
     const phone = uniquePhone()
     const name = `LinkVol ${Date.now()}`
     await createVolunteerAndGetNsec(page, name, phone)
-    await page.getByRole('button', { name: /close/i }).click()
+    await dismissNsecCard(page)
 
     await page.getByRole('link', { name: 'Audit Log' }).click()
     await expect(page.getByText('Volunteer Added').first()).toBeVisible({ timeout: 10000 })
@@ -74,7 +70,7 @@ test.describe('Audit log', () => {
     const phone = uniquePhone()
     const name = `NoAuditVol ${Date.now()}`
     const nsec = await createVolunteerAndGetNsec(page, name, phone)
-    await page.getByRole('button', { name: /close/i }).click()
+    await dismissNsecCard(page)
 
     // Login as the volunteer
     await page.getByRole('button', { name: /log out/i }).click()
@@ -91,7 +87,7 @@ test.describe('Audit log', () => {
     const phone = uniquePhone()
     const name = `MultiAudit ${Date.now()}`
     await createVolunteerAndGetNsec(page, name, phone)
-    await page.getByRole('button', { name: /close/i }).click()
+    await dismissNsecCard(page)
 
     // Delete the volunteer
     const volRow = page.locator('.divide-y > div').filter({ hasText: name })
@@ -125,7 +121,7 @@ test.describe('Audit log', () => {
     // Generate a volunteer event first
     const phone = uniquePhone()
     await createVolunteerAndGetNsec(page, `FilterVol ${Date.now()}`, phone)
-    await page.getByRole('button', { name: /close/i }).click()
+    await dismissNsecCard(page)
 
     await page.getByRole('link', { name: 'Audit Log' }).click()
     await expect(page.getByText('Volunteer Added').first()).toBeVisible({ timeout: 10000 })
@@ -153,7 +149,7 @@ test.describe('Audit log', () => {
     const phone = uniquePhone()
     const name = `SearchVol ${Date.now()}`
     await createVolunteerAndGetNsec(page, name, phone)
-    await page.getByRole('button', { name: /close/i }).click()
+    await dismissNsecCard(page)
 
     await page.getByRole('link', { name: 'Audit Log' }).click()
     await expect(page.getByText('Volunteer Added').first()).toBeVisible({ timeout: 10000 })
@@ -196,7 +192,7 @@ test.describe('Audit log', () => {
     // Generate a volunteer event
     const phone = uniquePhone()
     await createVolunteerAndGetNsec(page, `BadgeVol ${Date.now()}`, phone)
-    await page.getByRole('button', { name: /close/i }).click()
+    await dismissNsecCard(page)
 
     await page.getByRole('link', { name: 'Audit Log' }).click()
     await expect(page.getByText('Volunteer Added').first()).toBeVisible({ timeout: 10000 })
