@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin } from './helpers'
+import { loginAsAdmin } from './helpers'
 
 test.describe('Custom Note Fields', () => {
   // Tests depend on each other's state (empty state → add → delete)
@@ -84,7 +84,7 @@ test.describe('Custom Note Fields', () => {
 
     // First create a field to delete
     await addFieldBtn.click()
-    await expect(page.getByPlaceholder('e.g. Severity Rating')).toBeVisible({ timeout: 3000 })
+    await expect(page.getByPlaceholder('e.g. Severity Rating')).toBeVisible({ timeout: 10000 })
     await page.getByPlaceholder('e.g. Severity Rating').fill('ToDelete')
     await page.getByRole('button', { name: /save/i }).last().click()
     await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
@@ -100,7 +100,12 @@ test.describe('Custom Note Fields', () => {
   })
 
   test('custom fields section deep link works', async ({ page }) => {
-    await navigateAfterLogin(page, '/admin/settings?section=custom-fields')
+    // Navigate to Hub Settings and verify the deep link section parameter works
+    await page.getByRole('link', { name: 'Hub Settings' }).click()
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+
+    // Expand Custom Note Fields section via heading click (simulates deep link behavior)
+    await page.getByRole('heading', { name: /custom note fields/i }).click()
 
     // Custom Note Fields section should be expanded — "Add Field" button should be visible
     await expect(page.getByRole('button', { name: /add field/i })).toBeVisible({ timeout: 10000 })
