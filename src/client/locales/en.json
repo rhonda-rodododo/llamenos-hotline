@@ -325,9 +325,11 @@
     "updateProfile": "Update Profile"
   },
   "phone": {
-    "hint": "Format: +1234567890",
+    "hint": "Select country and enter number",
     "valid": "Valid phone number",
-    "invalid": "Invalid phone number"
+    "invalid": "Invalid phone number",
+    "searchCountry": "Search country...",
+    "noCountry": "No country found."
   },
   "settings": {
     "title": "Account Settings",

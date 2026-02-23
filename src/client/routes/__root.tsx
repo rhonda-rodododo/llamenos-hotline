@@ -65,6 +65,10 @@ function RootLayout() {
       if (needsBootstrap) {
         navigate({ to: '/setup' })
       } else {
+        // Store the current path so we can return after PIN unlock
+        if (location.pathname !== '/') {
+          sessionStorage.setItem('returnTo', location.pathname)
+        }
         navigate({ to: '/login' })
       }
     }

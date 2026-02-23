@@ -46,6 +46,7 @@ export interface Env {
   ADMIN_PUBKEY: string
   HOTLINE_NAME: string
   ENVIRONMENT: string
+  E2E_TEST_SECRET?: string
 }
 
 /** @deprecated Use roles array + permission system instead */

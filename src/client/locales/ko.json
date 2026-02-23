@@ -311,9 +311,11 @@
     "updateProfile": "프로필 업데이트"
   },
   "phone": {
-    "hint": "형식: +1234567890",
+    "hint": "국가를 선택하고 번호를 입력하세요",
     "valid": "유효한 전화번호",
-    "invalid": "유효하지 않은 전화번호"
+    "invalid": "유효하지 않은 전화번호",
+    "searchCountry": "국가 검색...",
+    "noCountry": "국가를 찾을 수 없습니다."
   },
   "settings": {
     "title": "계정 설정",

@@ -311,9 +311,11 @@
     "updateProfile": "Profil aktualisieren"
   },
   "phone": {
-    "hint": "Format: +1234567890",
+    "hint": "Land auswählen und Nummer eingeben",
     "valid": "Gültige Telefonnummer",
-    "invalid": "Ungültige Telefonnummer"
+    "invalid": "Ungültige Telefonnummer",
+    "searchCountry": "Land suchen...",
+    "noCountry": "Kein Land gefunden."
   },
   "settings": {
     "title": "Kontoeinstellungen",

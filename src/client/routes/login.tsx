@@ -56,7 +56,10 @@ function LoginPage() {
     setValidationError('')
     const success = await unlockWithPin(pin)
     if (success) {
-      navigate({ to: '/' })
+      // Return to the page the user was on before the lock, or default to dashboard
+      const returnTo = sessionStorage.getItem('returnTo')
+      sessionStorage.removeItem('returnTo')
+      navigate({ to: returnTo || '/' })
       return true
     }
     return false
