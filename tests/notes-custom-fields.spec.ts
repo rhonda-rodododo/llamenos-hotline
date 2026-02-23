@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { loginAsAdmin, resetTestState } from './helpers'
+import { loginAsAdmin } from './helpers'
 
 /**
  * End-to-end: custom fields defined in admin settings → used in notes forms.
@@ -7,10 +7,6 @@ import { loginAsAdmin, resetTestState } from './helpers'
  * verify badge display → edit note → verify pre-fill → update value.
  */
 test.describe('Custom Fields in Notes', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })
@@ -127,10 +123,6 @@ test.describe('Custom Fields in Notes', () => {
 })
 
 test.describe('Notes Call Headers', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })

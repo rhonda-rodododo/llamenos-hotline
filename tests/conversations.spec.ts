@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, resetTestState } from './helpers'
+import { loginAsAdmin, navigateAfterLogin } from './helpers'
 
 test.describe('Conversations — no channels configured', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
+
 
   test('no messaging channels shows empty state on /conversations', async ({ page }) => {
     await loginAsAdmin(page)
@@ -26,9 +24,7 @@ test.describe('Conversations — no channels configured', () => {
 })
 
 test.describe('Conversations — with channels enabled', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
+
 
   /**
    * Helper: enable channels using the setup wizard flow.

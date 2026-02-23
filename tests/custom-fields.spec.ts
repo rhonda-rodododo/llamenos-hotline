@@ -1,11 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, resetTestState, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, navigateAfterLogin } from './helpers'
 
 test.describe('Custom Note Fields', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })

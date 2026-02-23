@@ -88,6 +88,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
           <PhoneInput
             value={draft.phoneNumber || ''}
             onChange={(val) => updateDraft({ phoneNumber: val })}
+            id="provider-phone"
           />
         </div>
 
@@ -101,6 +102,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
                   value={draft.accountSid || ''}
                   onChange={e => updateDraft({ accountSid: e.target.value })}
                   placeholder="AC..."
+                  data-testid="account-sid"
                 />
               </div>
               <div className="space-y-1">
@@ -109,6 +111,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
                   type="password"
                   value={draft.authToken || ''}
                   onChange={e => updateDraft({ authToken: e.target.value })}
+                  data-testid="auth-token"
                 />
               </div>
             </div>
@@ -237,6 +240,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
                     value={draft.apiKeySid || ''}
                     onChange={e => updateDraft({ apiKeySid: e.target.value })}
                     placeholder="SK..."
+                    data-testid="api-key-sid"
                   />
                 </div>
                 <div className="space-y-1">
@@ -254,6 +258,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
                     value={draft.twimlAppSid || ''}
                     onChange={e => updateDraft({ twimlAppSid: e.target.value })}
                     placeholder="AP..."
+                    data-testid="twiml-app-sid"
                   />
                 </div>
               </div>

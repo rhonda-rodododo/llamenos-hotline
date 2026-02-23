@@ -1,11 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, uniquePhone, resetTestState } from './helpers'
+import { loginAsAdmin, uniquePhone } from './helpers'
 
 test.describe('Admin flow', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })

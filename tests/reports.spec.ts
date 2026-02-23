@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, uniquePhone, resetTestState, logout } from './helpers'
+import { loginAsAdmin, loginAsVolunteer, uniquePhone, logout } from './helpers'
 
 /**
  * Navigate to the Reports page via sidebar link (SPA navigation).
@@ -96,10 +96,6 @@ async function createReporterInvite(page: Page, reporterName: string): Promise<s
 }
 
 test.describe('Reports feature', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.describe('Admin reports management', () => {
     test('reports page loads for admin', async ({ page }) => {
       await loginAsAdmin(page)
@@ -199,9 +195,9 @@ test.describe('Reports feature', () => {
       // Wait for the detail view
       await expect(page.getByText('End-to-end encrypted')).toBeVisible({ timeout: 5000 })
 
-      // Click the "Close" button
-      await expect(page.getByRole('button', { name: /close/i }).first()).toBeVisible({ timeout: 5000 })
-      await page.getByRole('button', { name: /close/i }).first().click()
+      // Click the "Close Report" button
+      await expect(page.getByTestId('close-report')).toBeVisible({ timeout: 5000 })
+      await page.getByTestId('close-report').click()
 
       // After closing, the report should be removed from the list
       // (the filter defaults to 'all' but handleClose removes it from the list)
@@ -552,7 +548,7 @@ test.describe('Reports feature', () => {
 
       // Reporter should NOT see Claim or Close buttons
       await expect(page.getByRole('button', { name: /claim/i })).not.toBeVisible()
-      await expect(page.getByRole('button', { name: /close/i })).not.toBeVisible()
+      await expect(page.getByTestId('close-report')).not.toBeVisible()
     })
 
     test('reporter does not see status filter', async ({ page }) => {

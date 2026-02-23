@@ -1,11 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, uniquePhone, resetTestState } from './helpers'
+import { loginAsAdmin, uniquePhone } from './helpers'
 
 test.describe('Invite-based onboarding', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   let inviteLink: string
 
   test('admin creates invite and volunteer completes onboarding', async ({ page }) => {
@@ -112,7 +108,7 @@ test.describe('Invite-based onboarding', () => {
     await page.getByRole('button', { name: /create invite/i }).click()
 
     // Close the invite link card
-    await page.getByRole('button', { name: /close/i }).click()
+    await page.getByTestId('dismiss-invite').click()
 
     // Pending invites section should show our invite
     await expect(page.getByText(volName)).toBeVisible()

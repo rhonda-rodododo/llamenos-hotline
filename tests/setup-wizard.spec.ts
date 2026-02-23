@@ -1,11 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, resetTestState, uniquePhone, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, uniquePhone, navigateAfterLogin } from './helpers'
 
 test.describe('Setup Wizard', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })
@@ -65,8 +61,8 @@ test.describe('Setup Wizard', () => {
     // Should show the identity step heading
     await expect(page.getByText('Name Your Hotline')).toBeVisible()
 
-    // Should show the step indicator "Step 1 of 6"
-    await expect(page.getByText('Identity')).toBeVisible()
+    // Should show the step indicator "Step 1 of 6" — use exact to avoid matching sr-only announcement
+    await expect(page.getByText('Identity', { exact: true })).toBeVisible()
 
     // Identity form fields should be visible
     await expect(page.locator('#hotline-name')).toBeVisible()

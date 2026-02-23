@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, completeProfileSetup, uniquePhone, resetTestState } from './helpers'
+import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, completeProfileSetup, uniquePhone } from './helpers'
 
 /**
  * Helper to make authenticated API calls from the browser context.
@@ -41,9 +41,7 @@ test.describe('Role Management API', () => {
 
   let customRoleId: string
 
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
+
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
@@ -179,9 +177,7 @@ test.describe('Permission Enforcement', () => {
   let volunteerNsec: string
   let reporterNsec: string
 
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
+
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage()
@@ -319,9 +315,7 @@ test.describe('Multi-role users', () => {
 
   let multiRoleNsec: string
 
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
+
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage()
@@ -379,9 +373,7 @@ test.describe('Custom role with specific permissions', () => {
   let customNsec: string
   let customRoleId: string
 
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
+
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage()
@@ -483,9 +475,7 @@ test.describe('Custom role with specific permissions', () => {
 test.describe('Role-based UI visibility', () => {
   let reporterNsec: string
 
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
+
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage()
@@ -539,9 +529,7 @@ test.describe('Wildcard permission resolution', () => {
 
   let wildcardNsec: string
 
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
+
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage()
@@ -596,9 +584,7 @@ test.describe('Wildcard permission resolution', () => {
 test.describe('Role Assignment UI', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
+
 
   test('role selector dropdown in volunteer list shows all default roles', async ({ page }) => {
     await loginAsAdmin(page)
