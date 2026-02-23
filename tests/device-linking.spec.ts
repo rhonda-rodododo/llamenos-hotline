@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin } from './helpers'
+import { loginAsAdmin } from './helpers'
 
 test.describe('Device linking — /link-device page', () => {
   test.beforeEach(async ({ page }) => {
@@ -54,25 +54,29 @@ test.describe('Device linking — /link-device page', () => {
 })
 
 test.describe('Device linking — settings section', () => {
-  test('settings page has linked devices section with code input', async ({ page }) => {
+  async function goToLinkedDevices(page: import('@playwright/test').Page) {
     await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/settings?section=linked-devices')
+    await page.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+    await page.getByRole('heading', { name: /linked devices/i }).click()
+  }
+
+  test('settings page has linked devices section with code input', async ({ page }) => {
+    await goToLinkedDevices(page)
 
     await expect(page.getByTestId('link-code-input')).toBeVisible({ timeout: 10000 })
     await expect(page.getByTestId('link-device-button')).toBeVisible()
   })
 
   test('link device button is disabled when code input is empty', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/settings?section=linked-devices')
+    await goToLinkedDevices(page)
 
     await expect(page.getByTestId('link-device-button')).toBeVisible({ timeout: 10000 })
     await expect(page.getByTestId('link-device-button')).toBeDisabled()
   })
 
   test('entering invalid JSON code shows error', async ({ page }) => {
-    await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/settings?section=linked-devices')
+    await goToLinkedDevices(page)
 
     await page.getByTestId('link-code-input').fill('not-valid-json')
     await page.getByTestId('link-device-button').click()

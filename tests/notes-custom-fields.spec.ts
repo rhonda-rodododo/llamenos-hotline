@@ -37,7 +37,7 @@ test.describe('Custom Fields in Notes', () => {
     await page.getByRole('button', { name: /new note/i }).click()
 
     // Custom field label should appear in the form
-    const fieldInput = page.locator('#new-field-priority-level')
+    const fieldInput = page.locator('#new-field-priority_level')
     await expect(fieldInput).toBeVisible()
   })
 
@@ -54,7 +54,7 @@ test.describe('Custom Fields in Notes', () => {
     await page.locator('textarea').first().fill('Note with priority field')
 
     // Fill the custom field
-    await page.locator('#new-field-priority-level').fill('High')
+    await page.locator('#new-field-priority_level').fill('High')
 
     // Save
     await page.getByRole('button', { name: /save/i }).click()
@@ -77,7 +77,7 @@ test.describe('Custom Fields in Notes', () => {
     await page.locator('button[aria-label="Edit"]').first().click()
 
     // The custom field input should be pre-filled
-    const fieldInput = page.locator('#edit-field-priority-level')
+    const fieldInput = page.locator('#edit-field-priority_level')
     await expect(fieldInput).toBeVisible()
     await expect(fieldInput).toHaveValue('High')
   })
@@ -90,7 +90,7 @@ test.describe('Custom Fields in Notes', () => {
     await page.locator('button[aria-label="Edit"]').first().click()
 
     // Change the field value
-    const fieldInput = page.locator('#edit-field-priority-level')
+    const fieldInput = page.locator('#edit-field-priority_level')
     await fieldInput.clear()
     await fieldInput.fill('Critical')
 
@@ -114,7 +114,7 @@ test.describe('Custom Fields in Notes', () => {
     await expect(textarea).toHaveValue('Note with priority field')
 
     // Change field value without changing text
-    const fieldInput = page.locator('#edit-field-priority-level')
+    const fieldInput = page.locator('#edit-field-priority_level')
     await fieldInput.clear()
     await fieldInput.fill('Low')
     await page.getByRole('button', { name: /save/i }).click()
