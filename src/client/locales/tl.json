@@ -311,9 +311,11 @@
     "updateProfile": "I-update ang Profile"
   },
   "phone": {
-    "hint": "Format: +1234567890",
-    "valid": "Valid na numero ng telepono",
-    "invalid": "Hindi valid na numero ng telepono"
+    "hint": "Pumili ng bansa at ilagay ang numero",
+    "valid": "Wastong numero ng telepono",
+    "invalid": "Hindi wastong numero ng telepono",
+    "searchCountry": "Maghanap ng bansa...",
+    "noCountry": "Walang nahanap na bansa."
   },
   "settings": {
     "title": "Mga Setting ng Account",

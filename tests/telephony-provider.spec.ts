@@ -93,7 +93,7 @@ test.describe('Telephony Provider Settings', () => {
     await page.getByText('Telephony Provider').first().click()
 
     // Fill in Twilio credentials
-    await page.getByPlaceholder('+12125551234').fill('+15551234567')
+    await page.locator('input[type="tel"]').fill('+15551234567')
     await page.getByPlaceholder('AC...').fill('AC1234567890abcdef')
     // Auth token is type=password, use label
     const authTokenInput = page.locator('input[type="password"]').first()
@@ -114,7 +114,7 @@ test.describe('Telephony Provider Settings', () => {
   test('saved provider config persists after page reload', async ({ page }) => {
     // First save a config
     await page.getByText('Telephony Provider').first().click()
-    await page.getByPlaceholder('+12125551234').fill('+15559876543')
+    await page.locator('input[type="tel"]').fill('+15559876543')
     await page.getByPlaceholder('AC...').fill('AC9876543210abcdef')
     const authTokenInput = page.locator('input[type="password"]').first()
     await authTokenInput.fill('test-auth-token-456')
@@ -135,8 +135,8 @@ test.describe('Telephony Provider Settings', () => {
     // Should show current provider
     await expect(page.getByText(/current provider/i)).toBeVisible()
 
-    // The phone number should be pre-filled
-    await expect(page.getByPlaceholder('+12125551234')).toHaveValue('+15559876543')
+    // The phone number should be pre-filled (formatted by react-phone-number-input)
+    await expect(page.locator('input[type="tel"]')).toHaveValue(/555\s*987\s*6543/)
     // Account SID should be pre-filled
     await expect(page.getByPlaceholder('AC...')).toHaveValue('AC9876543210abcdef')
   })
@@ -149,7 +149,7 @@ test.describe('Telephony Provider Settings', () => {
     await select.selectOption('signalwire')
 
     // Fill in SignalWire credentials
-    await page.getByPlaceholder('+12125551234').fill('+15551112222')
+    await page.locator('input[type="tel"]').fill('+15551112222')
     await page.getByPlaceholder('AC...').fill('SW-project-id-123')
     const authTokenInput = page.locator('input[type="password"]').first()
     await authTokenInput.fill('sw-auth-token-789')
@@ -167,7 +167,7 @@ test.describe('Telephony Provider Settings', () => {
     await page.getByText('Telephony Provider').first().click()
 
     // Fill minimal Twilio creds
-    await page.getByPlaceholder('+12125551234').fill('+15551234567')
+    await page.locator('input[type="tel"]').fill('+15551234567')
     await page.getByPlaceholder('AC...').fill('ACfake123')
     const authTokenInput = page.locator('input[type="password"]').first()
     await authTokenInput.fill('fake-token')

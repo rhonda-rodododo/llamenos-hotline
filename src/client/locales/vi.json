@@ -311,9 +311,11 @@
     "updateProfile": "Cập nhật hồ sơ"
   },
   "phone": {
-    "hint": "Định dạng: +1234567890",
+    "hint": "Chọn quốc gia và nhập số",
     "valid": "Số điện thoại hợp lệ",
-    "invalid": "Số điện thoại không hợp lệ"
+    "invalid": "Số điện thoại không hợp lệ",
+    "searchCountry": "Tìm quốc gia...",
+    "noCountry": "Không tìm thấy quốc gia."
   },
   "settings": {
     "title": "Cài đặt tài khoản",

@@ -311,9 +311,11 @@
     "updateProfile": "Mete Pwofil Ajou"
   },
   "phone": {
-    "hint": "Fòma: +1234567890",
-    "valid": "Nimewo telefòn valid",
-    "invalid": "Nimewo telefòn envalid"
+    "hint": "Chwazi peyi a epi antre nimewo",
+    "valid": "Nimewo telefòn valab",
+    "invalid": "Nimewo telefòn envalid",
+    "searchCountry": "Chèche peyi...",
+    "noCountry": "Pa gen peyi ki jwenn."
   },
   "settings": {
     "title": "Paramèt Kont",

@@ -311,9 +311,11 @@
     "updateProfile": "更新个人资料"
   },
   "phone": {
-    "hint": "格式：+1234567890",
-    "valid": "有效的电话号码",
-    "invalid": "无效的电话号码"
+    "hint": "选择国家并输入号码",
+    "valid": "有效电话号码",
+    "invalid": "无效电话号码",
+    "searchCountry": "搜索国家...",
+    "noCountry": "未找到国家。"
   },
   "settings": {
     "title": "账户设置",

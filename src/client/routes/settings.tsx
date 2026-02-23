@@ -1,7 +1,7 @@
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import {
   updateMyTranscriptionPreference,
   updateMyProfile,
@@ -22,7 +22,7 @@ import {
 import { getNotificationPrefs, setNotificationPrefs } from '@/lib/notifications'
 import { useNotificationPermission } from '@/lib/use-notification-permission'
 import { LANGUAGES } from '@shared/languages'
-import { SettingsSection } from '@/components/settings-section'
+import { SettingsSection, usePersistedExpanded } from '@/components/settings-section'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -52,25 +52,13 @@ function SettingsPage() {
   const [currentCallPref, setCurrentCallPref] = useState<'phone' | 'browser' | 'both'>(callPreference)
   const [webrtcAvailable, setWebrtcAvailable] = useState(false)
 
-  // Collapsible state — profile expanded by default, plus any deep-linked section
-  const [expanded, setExpanded] = useState<Set<string>>(() => {
-    const initial = new Set(['profile', 'key-backup'])
-    if (section) initial.add(section)
-    return initial
-  })
+  // Collapsible state — persisted in sessionStorage, profile expanded by default
+  const { expanded, toggleSection } = usePersistedExpanded(
+    'settings-expanded:/settings',
+    ['profile', 'key-backup'],
+    section || undefined,
+  )
   const scrolledRef = useRef(false)
-
-  const toggleSection = useCallback((id: string, open: boolean) => {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (open) {
-        next.add(id)
-      } else {
-        next.delete(id)
-      }
-      return next
-    })
-  }, [])
 
   // Profile state
   const [profileName, setProfileName] = useState(authName || '')

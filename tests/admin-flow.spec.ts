@@ -37,8 +37,8 @@ test.describe('Admin flow', () => {
     // Should show the generated nsec
     await expect(page.getByText(/nsec1/)).toBeVisible({ timeout: 15000 })
 
-    // Close the nsec card
-    await page.getByRole('button', { name: /close/i }).click()
+    // Close the nsec card — use data-slot to avoid matching toast dismiss icon
+    await page.locator('button[data-slot="button"]').filter({ hasText: 'Close' }).click()
 
     // Volunteer should appear (phone is masked by default)
     await expect(page.getByText(volName).first()).toBeVisible()

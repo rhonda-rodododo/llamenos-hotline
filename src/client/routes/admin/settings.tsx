@@ -1,7 +1,7 @@
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import {
   getSpamSettings,
   updateSpamSettings,
@@ -21,6 +21,7 @@ import {
 import { getWebAuthnSettings, type WebAuthnSettings } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { Settings2 } from 'lucide-react'
+import { usePersistedExpanded } from '@/components/settings-section'
 import { IVR_LANGUAGES } from '@shared/languages'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PasskeyPolicySection } from '@/components/admin-settings/passkey-policy-section'
@@ -58,20 +59,12 @@ function AdminSettingsPage() {
   const [providerConfig, setProviderConfig] = useState<TelephonyProviderConfig | null>(null)
   const [providerDraft, setProviderDraft] = useState<Partial<TelephonyProviderConfig>>({ type: 'twilio' })
 
-  const [expanded, setExpanded] = useState<Set<string>>(() => {
-    const initial = new Set(['passkey-policy'])
-    if (section) initial.add(section)
-    return initial
-  })
+  const { expanded, toggleSection } = usePersistedExpanded(
+    'settings-expanded:/admin/settings',
+    ['passkey-policy'],
+    section || undefined,
+  )
   const scrolledRef = useRef(false)
-
-  const toggleSection = useCallback((id: string, open: boolean) => {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (open) next.add(id); else next.delete(id)
-      return next
-    })
-  }, [])
 
   useEffect(() => {
     if (!isAdmin) return
