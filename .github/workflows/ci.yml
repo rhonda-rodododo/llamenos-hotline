@@ -1,15 +1,17 @@
 # Continuous Integration & Deployment
 #
 # On every push to main:
-#   1. Build & validate (typecheck, vite build, esbuild, site build)
-#   2. E2E tests against Cloudflare Workers (wrangler dev / miniflare)
-#   3. E2E tests against Docker Compose (Node.js self-hosted platform)
-#   4. Auto-determine version bump from conventional commits
-#   5. Bump version, generate changelog, commit + tag
-#   6. Deploy app to Cloudflare Workers + marketing site to Cloudflare Pages
-#   7. Create GitHub Release with changelog
+#   1. Detect changed files — skip E2E tests for docs/site-only changes
+#   2. Build & validate (typecheck, vite build, esbuild, site build)
+#   3. E2E tests against Cloudflare Workers (wrangler dev / miniflare)
+#   4. E2E tests against Docker Compose (Node.js self-hosted platform)
+#   5. Auto-determine version bump from conventional commits
+#   6. Bump version, generate changelog, commit + tag
+#   7. Deploy app to Cloudflare Workers + marketing site to Cloudflare Pages
+#   8. Create GitHub Release with changelog
 #
-# E2E tests MUST pass before any version bump, deployment, or release.
+# E2E tests MUST pass before any version bump, deployment, or release
+# (unless only docs/site files changed — then E2E is skipped).
 # The created tag also triggers docker.yml for Docker image builds.
 
 name: CI
@@ -29,11 +31,58 @@ env:
   TEST_ADMIN_PUBKEY: "ac4718373d30301e5c7cf55e9e6f2568efb94f3278fb88f37f4981e880505228"
 
 jobs:
+  # ─── Detect Changed Files ─────────────────────────────────────
+  changes:
+    runs-on: ubuntu-latest
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 2
+
+      - name: Detect changes
+        id: filter
+        run: |
+          # Get changed files between HEAD^ and HEAD
+          CHANGED=$(git diff --name-only HEAD^ HEAD 2>/dev/null || git diff --name-only HEAD)
+
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          # Patterns that indicate app code changes (require E2E tests)
+          APP_PATTERNS="^src/|^tests/|^playwright|^wrangler|^vite|^tsconfig|^package\.json|^bun\.lockb|^deploy/"
+
+          # Check if any changed file matches app patterns
+          APP_CHANGED="false"
+          while IFS= read -r file; do
+            if [[ -n "$file" ]] && echo "$file" | grep -qE "$APP_PATTERNS"; then
+              APP_CHANGED="true"
+              echo "App file changed: $file"
+              break
+            fi
+          done <<< "$CHANGED"
+
+          echo "app=$APP_CHANGED" >> "$GITHUB_OUTPUT"
+
+          # docs_only is true when NO app files changed
+          if [[ "$APP_CHANGED" == "false" ]]; then
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+            echo "Only docs/site files changed — E2E tests will be skipped"
+          else
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            echo "App files changed — E2E tests required"
+          fi
+
   # ─── Build & Validate ──────────────────────────────────────
   build:
+    needs: changes
     runs-on: ubuntu-latest
-    # Skip commits made by this workflow (version bumps, changelog updates)
-    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
 
     steps:
       - name: Checkout
@@ -79,8 +128,8 @@ jobs:
 
   # ─── Dependency Vulnerability Scan ───────────────────────────
   audit:
+    needs: changes
     runs-on: ubuntu-latest
-    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
 
     steps:
       - name: Checkout
@@ -102,7 +151,9 @@ jobs:
 
   # ─── E2E Tests: Cloudflare Workers (wrangler dev) ──────────
   e2e-cf:
-    needs: build
+    needs: [changes, build]
+    # Skip E2E when only docs/site files changed
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -155,7 +206,9 @@ jobs:
 
   # ─── E2E Tests: Docker Compose (Node.js platform) ─────────
   e2e-docker:
-    needs: build
+    needs: [changes, build]
+    # Skip E2E when only docs/site files changed
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -239,7 +292,14 @@ jobs:
 
   # ─── Version Bump & Changelog ──────────────────────────────
   version:
-    needs: [build, audit, e2e-cf, e2e-docker]
+    needs: [changes, build, audit, e2e-cf, e2e-docker]
+    # Run if E2E passed OR was skipped (docs-only changes)
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      needs.audit.result == 'success' &&
+      (needs.e2e-cf.result == 'success' || needs.e2e-cf.result == 'skipped') &&
+      (needs.e2e-docker.result == 'success' || needs.e2e-docker.result == 'skipped')
     runs-on: ubuntu-latest
 
     permissions:
