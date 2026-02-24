@@ -15,6 +15,7 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ProfileSetupRouteImport } from './routes/profile-setup'
+import { Route as PreferencesRouteImport } from './routes/preferences'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as LoginRouteImport } from './routes/login'
@@ -22,6 +23,7 @@ import { Route as LinkDeviceRouteImport } from './routes/link-device'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ConversationsRouteImport } from './routes/conversations'
 import { Route as CallsRouteImport } from './routes/calls'
+import { Route as BlastsRouteImport } from './routes/blasts'
 import { Route as BansRouteImport } from './routes/bans'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
@@ -59,6 +61,11 @@ const ProfileSetupRoute = ProfileSetupRouteImport.update({
   path: '/profile-setup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PreferencesRoute = PreferencesRouteImport.update({
+  id: '/preferences',
+  path: '/preferences',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -92,6 +99,11 @@ const ConversationsRoute = ConversationsRouteImport.update({
 const CallsRoute = CallsRouteImport.update({
   id: '/calls',
   path: '/calls',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlastsRoute = BlastsRouteImport.update({
+  id: '/blasts',
+  path: '/blasts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BansRoute = BansRouteImport.update({
@@ -129,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
   '/bans': typeof BansRoute
+  '/blasts': typeof BlastsRoute
   '/calls': typeof CallsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
@@ -136,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
+  '/preferences': typeof PreferencesRoute
   '/profile-setup': typeof ProfileSetupRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -150,6 +164,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
   '/bans': typeof BansRoute
+  '/blasts': typeof BlastsRoute
   '/calls': typeof CallsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
@@ -157,6 +172,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
+  '/preferences': typeof PreferencesRoute
   '/profile-setup': typeof ProfileSetupRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -172,6 +188,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
   '/bans': typeof BansRoute
+  '/blasts': typeof BlastsRoute
   '/calls': typeof CallsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
@@ -179,6 +196,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
   '/onboarding': typeof OnboardingRoute
+  '/preferences': typeof PreferencesRoute
   '/profile-setup': typeof ProfileSetupRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -195,6 +213,7 @@ export interface FileRouteTypes {
     | '/'
     | '/audit'
     | '/bans'
+    | '/blasts'
     | '/calls'
     | '/conversations'
     | '/help'
@@ -202,6 +221,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/notes'
     | '/onboarding'
+    | '/preferences'
     | '/profile-setup'
     | '/reports'
     | '/settings'
@@ -216,6 +236,7 @@ export interface FileRouteTypes {
     | '/'
     | '/audit'
     | '/bans'
+    | '/blasts'
     | '/calls'
     | '/conversations'
     | '/help'
@@ -223,6 +244,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/notes'
     | '/onboarding'
+    | '/preferences'
     | '/profile-setup'
     | '/reports'
     | '/settings'
@@ -237,6 +259,7 @@ export interface FileRouteTypes {
     | '/'
     | '/audit'
     | '/bans'
+    | '/blasts'
     | '/calls'
     | '/conversations'
     | '/help'
@@ -244,6 +267,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/notes'
     | '/onboarding'
+    | '/preferences'
     | '/profile-setup'
     | '/reports'
     | '/settings'
@@ -259,6 +283,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuditRoute: typeof AuditRoute
   BansRoute: typeof BansRoute
+  BlastsRoute: typeof BlastsRoute
   CallsRoute: typeof CallsRoute
   ConversationsRoute: typeof ConversationsRoute
   HelpRoute: typeof HelpRoute
@@ -266,6 +291,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   NotesRoute: typeof NotesRoute
   OnboardingRoute: typeof OnboardingRoute
+  PreferencesRoute: typeof PreferencesRoute
   ProfileSetupRoute: typeof ProfileSetupRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
@@ -321,6 +347,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileSetupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/preferences': {
+      id: '/preferences'
+      path: '/preferences'
+      fullPath: '/preferences'
+      preLoaderRoute: typeof PreferencesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
@@ -368,6 +401,13 @@ declare module '@tanstack/react-router' {
       path: '/calls'
       fullPath: '/calls'
       preLoaderRoute: typeof CallsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blasts': {
+      id: '/blasts'
+      path: '/blasts'
+      fullPath: '/blasts'
+      preLoaderRoute: typeof BlastsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bans': {
@@ -419,6 +459,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditRoute: AuditRoute,
   BansRoute: BansRoute,
+  BlastsRoute: BlastsRoute,
   CallsRoute: CallsRoute,
   ConversationsRoute: ConversationsRoute,
   HelpRoute: HelpRoute,
@@ -426,6 +467,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   NotesRoute: NotesRoute,
   OnboardingRoute: OnboardingRoute,
+  PreferencesRoute: PreferencesRoute,
   ProfileSetupRoute: ProfileSetupRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,

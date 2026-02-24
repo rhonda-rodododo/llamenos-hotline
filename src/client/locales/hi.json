@@ -45,7 +45,8 @@
     "auditLog": "ऑडिट लॉग",
     "callHistory": "कॉल इतिहास",
     "settings": "सेटिंग्स",
-    "hubSettings": "हब सेटिंग्स"
+    "hubSettings": "हब सेटिंग्स",
+    "blasts": "Blasts"
   },
   "dashboard": {
     "title": "डैशबोर्ड",
@@ -594,5 +595,62 @@
     "link": "जोड़ें",
     "linkThisDevice": "इस डिवाइस को जोड़ें",
     "invalidCode": "अमान्य प्रावधान कोड। कृपया QR कोड स्कैन करें या पूरा कोड कॉपी करें।"
+  },
+  "blasts": {
+    "title": "Message Blasts",
+    "newBlast": "New Blast",
+    "allBlasts": "All Blasts",
+    "noBlasts": "No blasts yet. Create one to get started.",
+    "selectOrCreate": "Select a blast or create a new one",
+    "blastName": "Blast Name",
+    "blastNamePlaceholder": "e.g. Weekly Update",
+    "messageText": "Message Text",
+    "messageTextPlaceholder": "Type your message...",
+    "characters": "characters",
+    "channels": "Target Channels",
+    "saveDraft": "Save Draft",
+    "sendNow": "Send Now",
+    "cancelScheduled": "Cancel Scheduled",
+    "cancelSending": "Cancel Sending",
+    "recipients": "recipients",
+    "sentCount": "sent",
+    "delivered": "Delivered",
+    "failed": "Failed",
+    "sent": "Blast sent",
+    "fillRequired": "Please fill in name and message",
+    "subscribers": "Subscribers",
+    "settings": "Settings",
+    "totalSubscribers": "Total",
+    "activeSubscribers": "Active",
+    "importSubscribers": "Import Subscribers",
+    "importHelp": "One per line: phone,channel,tag1,tag2",
+    "importPlaceholder": "+15551234567,sms,vip\n+15559876543,whatsapp",
+    "import": "Import",
+    "importResult": "Imported {{imported}}, skipped {{skipped}}",
+    "subscriberList": "Subscriber List",
+    "noSubscribers": "No subscribers yet",
+    "blastSettings": "Blast Settings",
+    "subscribeKeyword": "Subscribe Keyword",
+    "unsubscribeKeyword": "Unsubscribe Keyword",
+    "stopRequired": "STOP is always recognized (TCPA compliance)",
+    "confirmationMsg": "Confirmation Message",
+    "unsubscribeMsg": "Unsubscribe Message",
+    "optOutFooter": "Opt-out Footer",
+    "doubleOptIn": "Double Opt-in",
+    "doubleOptInDesc": "Require subscribers to confirm before receiving blasts",
+    "maxPerDay": "Max Blasts Per Day",
+    "rateLimit": "Rate Limit (msgs/sec)",
+    "status": {
+      "draft": "Draft",
+      "scheduled": "Scheduled",
+      "sending": "Sending",
+      "sent": "Sent",
+      "cancelled": "Cancelled"
+    }
+  },
+  "preferences": {
+    "title": "Message Preferences",
+    "invalidToken": "Invalid or expired preferences link",
+    "unsubscribe": "Unsubscribe from all messages"
   }
 }

@@ -91,6 +91,45 @@ messaging.post('/:channel/webhook', async (c) => {
     return c.json({ error: 'Failed to parse message' }, 400)
   }
 
+  // Keyword interception for blast subscribe/unsubscribe
+  if (incoming.body) {
+    const normalizedBody = incoming.body.trim().toUpperCase()
+    // STOP is always recognized (TCPA compliance)
+    if (normalizedBody === 'STOP') {
+      await dos.conversations.fetch(new Request('http://do/subscribers/keyword', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: incoming.senderIdentifier,
+          identifierHash: incoming.senderIdentifierHash,
+          keyword: 'STOP',
+          channel: incoming.channelType,
+        }),
+      }))
+      // Still forward to conversation for logging
+    } else {
+      // Check if it matches the subscribe keyword
+      try {
+        const settingsRes = await dos.conversations.fetch(new Request('http://do/blast-settings'))
+        if (settingsRes.ok) {
+          const settings = await settingsRes.json() as { subscribeKeyword: string }
+          if (normalizedBody === settings.subscribeKeyword.toUpperCase()) {
+            await dos.conversations.fetch(new Request('http://do/subscribers/keyword', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                identifier: incoming.senderIdentifier,
+                identifierHash: incoming.senderIdentifierHash,
+                keyword: normalizedBody,
+                channel: incoming.channelType,
+              }),
+            }))
+          }
+        }
+      } catch { /* blast settings not configured — ignore */ }
+    }
+  }
+
   // Forward to hub-scoped ConversationDO for processing
   const convRes = await dos.conversations.fetch(new Request('http://do/conversations/incoming', {
     method: 'POST',
