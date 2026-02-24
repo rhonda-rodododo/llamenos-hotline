@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useCallback } from 'react'
+import { type ReactNode, useState, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ChevronDown, Link as LinkIcon } from 'lucide-react'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
@@ -24,6 +24,19 @@ export function usePersistedExpanded(storageKey: string, defaults: string[], dee
     if (deepLink) set.add(deepLink)
     return set
   })
+
+  // Handle deep link changes after initial mount (e.g. search-only navigation)
+  useEffect(() => {
+    if (deepLink) {
+      setExpanded(prev => {
+        if (prev.has(deepLink)) return prev
+        const next = new Set(prev)
+        next.add(deepLink)
+        try { sessionStorage.setItem(storageKey, JSON.stringify([...next])) } catch { /* ignore */ }
+        return next
+      })
+    }
+  }, [deepLink, storageKey])
 
   const toggleSection = useCallback((id: string, open: boolean) => {
     setExpanded(prev => {
