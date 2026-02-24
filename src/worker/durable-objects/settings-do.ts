@@ -401,6 +401,7 @@ export class SettingsDO extends DurableObject<Env> {
       sms: messagingConfig?.enabledChannels.includes('sms') ?? false,
       whatsapp: messagingConfig?.enabledChannels.includes('whatsapp') ?? false,
       signal: messagingConfig?.enabledChannels.includes('signal') ?? false,
+      rcs: messagingConfig?.enabledChannels.includes('rcs') ?? false,
       reports: setupState?.selectedChannels.includes('reports') ?? false,
     }
 
