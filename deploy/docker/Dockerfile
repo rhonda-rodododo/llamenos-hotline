@@ -7,7 +7,7 @@
 #   Stage 4: Production image
 
 # Stage 1: Build frontend SPA
-FROM oven/bun:1 AS frontend
+FROM oven/bun:1@sha256:856da45d07aeb62eb38ea3e7f9e1794c0143a4ff63efb00e6c4491b627e2a521 AS frontend
 WORKDIR /app
 COPY package.json bun.lockb ./
 RUN bun install --frozen-lockfile --ignore-scripts
@@ -18,7 +18,7 @@ COPY tailwind.config.ts* ./
 RUN bun run build
 
 # Stage 2: Build Node.js server
-FROM oven/bun:1 AS backend
+FROM oven/bun:1@sha256:856da45d07aeb62eb38ea3e7f9e1794c0143a4ff63efb00e6c4491b627e2a521 AS backend
 WORKDIR /app
 COPY package.json bun.lockb ./
 RUN bun install --frozen-lockfile --ignore-scripts
@@ -27,13 +27,13 @@ COPY tsconfig.json esbuild.node.mjs ./
 RUN node esbuild.node.mjs
 
 # Stage 3: Install runtime deps (pure JS — no native build tools needed)
-FROM oven/bun:1 AS deps
+FROM oven/bun:1@sha256:856da45d07aeb62eb38ea3e7f9e1794c0143a4ff63efb00e6c4491b627e2a521 AS deps
 WORKDIR /app
 COPY package.json bun.lockb ./
 RUN bun install --frozen-lockfile --production --ignore-scripts
 
 # Stage 4: Production
-FROM node:22-slim
+FROM node:22-slim@sha256:5373f1906319b3a1f291da5d102f4ce5c77ccbe29eb637f072b6c7b70443fc36
 
 # Install curl for healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends curl \

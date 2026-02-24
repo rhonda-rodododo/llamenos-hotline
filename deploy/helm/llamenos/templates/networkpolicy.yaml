@@ -55,6 +55,15 @@ spec:
         - protocol: TCP
           port: 8080
     {{- end }}
+    # Allow PostgreSQL (external database, e.g. RDS)
+    {{- if .Values.postgres.host }}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: {{ .Values.postgres.port }}
+    {{- end }}
     # Allow external (telephony providers, etc.)
     - to:
         - ipBlock:

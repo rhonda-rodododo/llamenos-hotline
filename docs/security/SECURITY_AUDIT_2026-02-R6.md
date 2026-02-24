@@ -183,13 +183,15 @@ A seized device's downloads folder reveals both the app identity ("llamenos") an
 
 **Recommendation**: Change to `llamenos:file-metadata`.
 
-#### M-8: No JavaScript Dependency Vulnerability Scanning in CI
+#### M-8: No JavaScript Dependency Vulnerability Scanning in CI — FIXED
 
 Neither CI workflow runs `bun audit` or equivalent. The Trivy scan on Docker images covers OS-level CVEs but not JavaScript dependency CVEs.
 
 **Recommendation**: Add `bun audit` (or `npm audit --omit=dev`) as a CI step.
 
-#### M-9: Floating Base Image Tags in Dockerfiles
+**Fix**: Added `audit` job to CI workflow that runs `bun audit --audit-level=high`. Gates the `version` job (and therefore deployment/release) on clean audit results.
+
+#### M-9: Floating Base Image Tags in Dockerfiles — FIXED
 
 **Files**: `deploy/docker/Dockerfile` (`oven/bun:1`, `node:22-slim`), `asterisk-bridge/Dockerfile` (`oven/bun:latest`)
 
@@ -197,11 +199,15 @@ Mutable image tags allow supply chain drift. The asterisk-bridge using `bun:late
 
 **Recommendation**: Pin all base images to specific digests (`image@sha256:...`).
 
-#### M-10: Helm NetworkPolicy Missing PostgreSQL Egress Rule
+**Fix**: Pinned all Docker base images to SHA256 digests in Dockerfile (4 stages), asterisk-bridge/Dockerfile (2 stages), and docker-compose.yml (5 of 6 services; whisper server image tag pending verification). Also pinned Helm values.yaml image tags.
+
+#### M-10: Helm NetworkPolicy Missing PostgreSQL Egress Rule — FIXED
 
 **File**: `deploy/helm/llamenos/templates/networkpolicy.yaml`
 
 No egress rule for external PostgreSQL (port 5432). In a default-deny Kubernetes CNI, the app cannot connect to managed database services.
+
+**Fix**: Added conditional PostgreSQL egress rule (`when postgres.host is set`) allowing TCP traffic on the configured `postgres.port` (default 5432).
 
 **Recommendation**: Add an egress rule for the database service, either by service selector (for in-cluster) or CIDR (for external managed DB).
 
