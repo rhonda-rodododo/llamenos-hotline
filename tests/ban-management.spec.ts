@@ -170,9 +170,9 @@ test.describe('Ban management', () => {
     await page.getByLabel(/reason/i).fill('Bulk ban reason')
     await page.getByRole('button', { name: /submit/i }).click()
 
-    // Both phones should appear in the list
-    await expect(page.getByText(phone1)).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText(phone2)).toBeVisible()
+    // Both phones should appear in the ban list (use .first() to handle retry duplicates)
+    await expect(page.getByText(phone1).first()).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(phone2).first()).toBeVisible()
   })
 
   test('bulk import rejects invalid phones', async ({ page }) => {

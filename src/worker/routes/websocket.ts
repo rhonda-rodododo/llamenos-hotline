@@ -36,7 +36,8 @@ websocket.get('/ws', async (c) => {
       const b64 = authB64.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice(0, (4 - authB64.length % 4) % 4)
       const auth = JSON.parse(atob(b64)) as { pubkey: string; timestamp: number; token: string }
       const { verifyAuthToken } = await import('../lib/auth')
-      if (await verifyAuthToken(auth)) {
+      const wsUrl = new URL(c.req.url)
+      if (await verifyAuthToken(auth, c.req.method, wsUrl.pathname)) {
         wsPubkey = auth.pubkey
       }
     } catch {

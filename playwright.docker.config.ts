@@ -30,7 +30,14 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      testIgnore: /bootstrap\.spec\.ts/,
       dependencies: ["setup"],
+    },
+    {
+      name: "bootstrap",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /bootstrap\.spec\.ts/,
+      dependencies: ["chromium"],
     },
     {
       name: "mobile-chromium",

@@ -4,6 +4,11 @@ import { DORouter } from '../lib/do-router'
 import { runMigrations } from '../../shared/migrations/runner'
 import { migrations } from '../../shared/migrations'
 
+/** Validate HH:MM format (00:00–23:59) */
+function isValidTimeFormat(time: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(time)
+}
+
 /**
  * ShiftManagerDO — manages shift schedules and routing.
  * Determines which volunteers should receive calls at any given time.
@@ -45,6 +50,9 @@ export class ShiftManagerDO extends DurableObject<Env> {
   }
 
   private async createShift(data: Omit<Shift, 'id' | 'createdAt'>): Promise<Response> {
+    if (!isValidTimeFormat(data.startTime) || !isValidTimeFormat(data.endTime)) {
+      return Response.json({ error: 'Invalid time format — expected HH:MM (00:00–23:59)' }, { status: 400 })
+    }
     const shifts = await this.ctx.storage.get<Shift[]>('shifts') || []
     const shift: Shift = {
       ...data,
@@ -57,6 +65,10 @@ export class ShiftManagerDO extends DurableObject<Env> {
   }
 
   private async updateShift(id: string, data: Partial<Shift>): Promise<Response> {
+    if ((data.startTime && !isValidTimeFormat(data.startTime)) ||
+        (data.endTime && !isValidTimeFormat(data.endTime))) {
+      return Response.json({ error: 'Invalid time format — expected HH:MM (00:00–23:59)' }, { status: 400 })
+    }
     const shifts = await this.ctx.storage.get<Shift[]>('shifts') || []
     const idx = shifts.findIndex(s => s.id === id)
     if (idx === -1) return new Response('Not found', { status: 404 })

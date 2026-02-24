@@ -27,7 +27,7 @@ export const Route = createFileRoute('/conversations')({
 
 function ConversationsPage() {
   const { t } = useTranslation()
-  const { isAdmin, keyPair } = useAuth()
+  const { isAdmin, hasNsec, publicKey } = useAuth()
   const { channels } = useConfig()
   const { toast } = useToast()
   const { conversations, waitingConversations } = useConversations()
@@ -100,12 +100,12 @@ function ConversationsPage() {
 
   // Wrapper that handles encryption before sending
   const handleComposerSend = useCallback((data: { plaintextForSending?: string }) => {
-    if (!data.plaintextForSending || !keyPair) return
+    if (!data.plaintextForSending || !hasNsec || !publicKey) return
 
     const plaintext = data.plaintextForSending
 
     // Encrypt for the current user (volunteer/admin)
-    const myEncrypted = encryptForPublicKey(plaintext, keyPair.publicKey)
+    const myEncrypted = encryptForPublicKey(plaintext, publicKey)
 
     // Encrypt admin copy — if we're admin, use same; otherwise, duplicate for now
     const adminEncrypted = myEncrypted
@@ -117,7 +117,7 @@ function ConversationsPage() {
       ephemeralPubkeyAdmin: adminEncrypted.ephemeralPubkey,
       plaintextForSending: plaintext,
     })
-  }, [keyPair, handleSend])
+  }, [hasNsec, publicKey, handleSend])
 
   const hasAnyMessaging = channels.sms || channels.whatsapp || channels.signal || channels.reports
 

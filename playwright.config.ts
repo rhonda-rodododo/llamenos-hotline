@@ -26,7 +26,16 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      // Exclude bootstrap tests — they delete admin state and interfere with parallel tests
+      testIgnore: /bootstrap\.spec\.ts/,
       dependencies: ["setup"],
+    },
+    {
+      // Bootstrap tests run after main tests to avoid admin-deletion race conditions
+      name: "bootstrap",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /bootstrap\.spec\.ts/,
+      dependencies: ["chromium"],
     },
     {
       name: "mobile-chromium",

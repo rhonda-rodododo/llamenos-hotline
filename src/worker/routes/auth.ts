@@ -29,7 +29,8 @@ auth.post('/login', async (c) => {
   if (!body.pubkey || !body.timestamp || !body.token) {
     return c.json({ error: 'Invalid credentials' }, 401)
   }
-  const isValid = await verifyAuthToken({ pubkey: body.pubkey, timestamp: body.timestamp, token: body.token })
+  const url = new URL(c.req.url)
+  const isValid = await verifyAuthToken({ pubkey: body.pubkey, timestamp: body.timestamp, token: body.token }, c.req.method, url.pathname)
   if (!isValid) return c.json({ error: 'Invalid credentials' }, 401)
 
   const res = await dos.identity.fetch(new Request(`http://do/volunteer/${body.pubkey}`))
@@ -57,7 +58,8 @@ auth.post('/bootstrap', async (c) => {
   }
 
   // Verify Schnorr signature — proves caller owns the private key
-  const isValid = await verifyAuthToken({ pubkey: body.pubkey, timestamp: body.timestamp, token: body.token })
+  const bootstrapUrl = new URL(c.req.url)
+  const isValid = await verifyAuthToken({ pubkey: body.pubkey, timestamp: body.timestamp, token: body.token }, c.req.method, bootstrapUrl.pathname)
   if (!isValid) return c.json({ error: 'Invalid signature' }, 401)
 
   // Check if admin already exists
@@ -114,6 +116,7 @@ auth.get('/me', async (c) => {
     callPreference: volunteer.callPreference ?? 'phone',
     webauthnRequired,
     webauthnRegistered: webauthnCreds.length > 0,
+    adminPubkey: c.env.ADMIN_PUBKEY,
   })
 })
 

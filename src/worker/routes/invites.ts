@@ -30,7 +30,8 @@ invites.post('/redeem', async (c) => {
   if (!body.pubkey || !body.timestamp || !body.token) {
     return c.json({ error: 'Signature proof required' }, 400)
   }
-  const isValid = await verifyAuthToken({ pubkey: body.pubkey, timestamp: body.timestamp, token: body.token })
+  const inviteUrl = new URL(c.req.url)
+  const isValid = await verifyAuthToken({ pubkey: body.pubkey, timestamp: body.timestamp, token: body.token }, c.req.method, inviteUrl.pathname)
   if (!isValid) {
     return c.json({ error: 'Invalid signature' }, 401)
   }

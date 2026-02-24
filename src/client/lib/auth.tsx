@@ -23,6 +23,7 @@ interface AuthState {
   callPreference: 'phone' | 'browser' | 'both'
   sessionExpiring: boolean
   sessionExpired: boolean
+  adminPubkey: string
 }
 
 interface AuthContextValue extends AuthState {
@@ -38,7 +39,7 @@ interface AuthContextValue extends AuthState {
   isAdmin: boolean
   isAuthenticated: boolean
   hasNsec: boolean
-  /** @deprecated Use keyManager.getSecretKey() directly instead */
+  adminPubkey: string
   keyPair: KeyPair | null
 }
 
@@ -62,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     callPreference: 'phone',
     sessionExpiring: false,
     sessionExpired: false,
+    adminPubkey: '',
   })
 
   const lastApiActivity = useRef(Date.now())
@@ -142,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             profileCompleted: me.profileCompleted ?? true,
             onBreak: me.onBreak ?? false,
             callPreference: me.callPreference ?? 'phone',
+            adminPubkey: me.adminPubkey || '',
             sessionExpiring: false,
             sessionExpired: false,
           })
@@ -173,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             profileCompleted: me.profileCompleted ?? true,
             onBreak: me.onBreak ?? false,
             callPreference: me.callPreference ?? 'phone',
+            adminPubkey: me.adminPubkey || '',
             sessionExpiring: false,
             sessionExpired: false,
           })
@@ -195,7 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
     try {
-      const token = createAuthToken(keyPair.secretKey, Date.now())
+      const token = createAuthToken(keyPair.secretKey, Date.now(), 'POST', '/api/auth/login')
       const parsed = JSON.parse(token)
       await login(parsed.pubkey, parsed.timestamp, parsed.token)
       const me = await getMe()
@@ -215,6 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileCompleted: me.profileCompleted ?? true,
         onBreak: me.onBreak ?? false,
         callPreference: me.callPreference ?? 'phone',
+        adminPubkey: me.adminPubkey || '',
         sessionExpiring: false,
         sessionExpired: false,
       })
@@ -250,6 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileCompleted: me.profileCompleted ?? true,
         onBreak: me.onBreak ?? false,
         callPreference: me.callPreference ?? 'phone',
+        adminPubkey: me.adminPubkey || '',
         sessionExpiring: false,
         sessionExpired: false,
       })
@@ -287,6 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileCompleted: me.profileCompleted ?? true,
         onBreak: me.onBreak ?? false,
         callPreference: me.callPreference ?? 'phone',
+        adminPubkey: me.adminPubkey || '',
         sessionExpiring: false,
         sessionExpired: false,
       })
@@ -316,6 +323,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileCompleted: me.profileCompleted ?? true,
         onBreak: me.onBreak ?? false,
         callPreference: me.callPreference ?? 'phone',
+        adminPubkey: me.adminPubkey || '',
         sessionExpiring: false,
         sessionExpired: false,
       }))
@@ -341,6 +349,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileCompleted: me.profileCompleted ?? true,
         onBreak: me.onBreak ?? false,
         callPreference: me.callPreference ?? 'phone',
+        adminPubkey: me.adminPubkey || '',
         sessionExpiring: false,
         sessionExpired: false,
       }))
@@ -384,6 +393,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileCompleted: true,
       onBreak: false,
       callPreference: 'phone',
+      adminPubkey: '',
       sessionExpiring: false,
       sessionExpired: false,
     })
@@ -391,20 +401,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasSessionToken = typeof window !== 'undefined' && !!sessionStorage.getItem('llamenos-session-token')
 
-  // Build a backward-compatible keyPair object from the key manager
-  // This is deprecated — components should use keyManager.getSecretKey() directly
+  // Build keyPair from key manager when unlocked
   let keyPair: KeyPair | null = null
   if (state.isKeyUnlocked) {
     try {
       const sk = keyManager.getSecretKey()
       const pk = keyManager.getPublicKeyHex()
       if (pk) {
-        keyPair = {
-          secretKey: sk,
-          publicKey: pk,
-          nsec: '', // Not exposed — recovery only
-          npub: '', // Not exposed
-        }
+        keyPair = { secretKey: sk, publicKey: pk, nsec: '', npub: '' }
       }
     } catch {
       // Key became locked between render cycles

@@ -31,7 +31,7 @@ export function connectWebSocket() {
   } else if (keyManager.isUnlocked()) {
     // Use Schnorr signature auth from key manager
     try {
-      const token = keyManager.createAuthToken(Date.now())
+      const token = keyManager.createAuthToken(Date.now(), 'GET', '/api/ws')
       // Use base64url encoding (no padding, URL-safe chars) — valid as HTTP token / subprotocol
       authProtocol = btoa(token).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
     } catch {

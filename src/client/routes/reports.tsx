@@ -32,7 +32,7 @@ export const Route = createFileRoute('/reports')({
 
 function ReportsPage() {
   const { t } = useTranslation()
-  const { keyPair, isAdmin, hasPermission } = useAuth()
+  const { hasNsec, publicKey, isAdmin, hasPermission } = useAuth()
   const { toast } = useToast()
 
   const [reports, setReports] = useState<Report[]>([])
@@ -97,15 +97,15 @@ function ReportsPage() {
   }, [selectedId])
 
   const handleAssign = useCallback(async (reportId: string) => {
-    if (!keyPair) return
+    if (!publicKey) return
     try {
-      await assignReport(reportId, keyPair.publicKey)
-      setReports(prev => prev.map(r => r.id === reportId ? { ...r, assignedTo: keyPair.publicKey, status: 'active' } : r))
+      await assignReport(reportId, publicKey)
+      setReports(prev => prev.map(r => r.id === reportId ? { ...r, assignedTo: publicKey, status: 'active' } : r))
       toast(t('reports.assigned', { defaultValue: 'Report assigned to you' }))
     } catch {
       toast(t('reports.assignError', { defaultValue: 'Failed to assign report' }), 'error')
     }
-  }, [keyPair, toast, t])
+  }, [publicKey, toast, t])
 
   const handleClose = useCallback(async (reportId: string) => {
     try {
@@ -119,11 +119,11 @@ function ReportsPage() {
   }, [selectedId, toast, t])
 
   const handleSendReply = useCallback(async () => {
-    if (!selectedId || !replyText.trim() || !keyPair) return
+    if (!selectedId || !replyText.trim() || !hasNsec || !publicKey) return
     setSending(true)
     try {
-      const recipientPubkey = selectedReport?.assignedTo || keyPair.publicKey
-      const myEncrypted = encryptForPublicKey(replyText.trim(), keyPair.publicKey)
+      const recipientPubkey = selectedReport?.assignedTo || publicKey
+      const myEncrypted = encryptForPublicKey(replyText.trim(), publicKey)
       const adminEncrypted = encryptForPublicKey(replyText.trim(), recipientPubkey)
 
       const msg = await sendReportMessage(selectedId, {
@@ -139,14 +139,14 @@ function ReportsPage() {
     } finally {
       setSending(false)
     }
-  }, [selectedId, replyText, keyPair, selectedReport, toast, t])
+  }, [selectedId, replyText, hasNsec, publicKey, selectedReport, toast, t])
 
   const handleFileUploadComplete = useCallback(async (fileIds: string[]) => {
-    if (!selectedId || !keyPair) return
+    if (!selectedId || !hasNsec || !publicKey) return
     try {
-      const recipientPubkey = selectedReport?.assignedTo || keyPair.publicKey
+      const recipientPubkey = selectedReport?.assignedTo || publicKey
       const placeholder = t('reports.filesAttached', { defaultValue: '[Files attached]', count: fileIds.length })
-      const myEncrypted = encryptForPublicKey(placeholder, keyPair.publicKey)
+      const myEncrypted = encryptForPublicKey(placeholder, publicKey)
       const adminEncrypted = encryptForPublicKey(placeholder, recipientPubkey)
 
       const msg = await sendReportMessage(selectedId, {
@@ -161,7 +161,7 @@ function ReportsPage() {
     } catch {
       toast(t('reports.sendError', { defaultValue: 'Failed to send message' }), 'error')
     }
-  }, [selectedId, keyPair, selectedReport, toast, t])
+  }, [selectedId, hasNsec, publicKey, selectedReport, toast, t])
 
   const handleReportCreated = useCallback((reportId: string) => {
     // Refresh reports list and select the new one
@@ -271,7 +271,6 @@ function ReportsPage() {
                 showFileUpload={showFileUpload}
                 onToggleFileUpload={() => setShowFileUpload(prev => !prev)}
                 onFileUploadComplete={handleFileUploadComplete}
-                keyPair={keyPair}
               />
             ) : (
               <div className="flex flex-1 flex-col items-center justify-center text-muted-foreground">
@@ -341,7 +340,7 @@ function ReportCard({ report, isSelected, onSelect }: {
   )
 }
 
-function ReportDetail({ report, messages, messagesLoading, replyText, onReplyChange, onSend, sending, onAssign, onClose, isAdmin, hasPermission, showFileUpload, onToggleFileUpload, onFileUploadComplete, keyPair }: {
+function ReportDetail({ report, messages, messagesLoading, replyText, onReplyChange, onSend, sending, onAssign, onClose, isAdmin, hasPermission, showFileUpload, onToggleFileUpload, onFileUploadComplete }: {
   report: Report
   messages: ConversationMessage[]
   messagesLoading: boolean
@@ -356,9 +355,9 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
   showFileUpload: boolean
   onToggleFileUpload: () => void
   onFileUploadComplete: (fileIds: string[]) => void
-  keyPair: { publicKey: string; secretKey: Uint8Array } | null
 }) {
   const { t } = useTranslation()
+  const { hasNsec, publicKey } = useAuth()
   const [decryptedContent, setDecryptedContent] = useState<Map<string, string>>(new Map())
   const scrollRef = useCallback((node: HTMLDivElement | null) => {
     if (node) node.scrollTop = node.scrollHeight
@@ -368,7 +367,10 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
   useEffect(() => {
     if (messages.length === 0) return
 
-    const secretKey = resolveSecretKey(keyPair)
+    let secretKey: Uint8Array | null = null
+    if (hasNsec) {
+      try { secretKey = keyManager.getSecretKey() } catch { /* locked */ }
+    }
     if (!secretKey) return
 
     const decrypted = new Map<string, string>()
