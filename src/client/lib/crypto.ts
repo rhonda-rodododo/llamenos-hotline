@@ -346,9 +346,10 @@ export function encryptExport(jsonString: string, secretKey: Uint8Array): Uint8A
 // --- Session Token ---
 // Create a signed challenge for API authentication
 
-export function createAuthToken(secretKey: Uint8Array, timestamp: number): string {
+export function createAuthToken(secretKey: Uint8Array, timestamp: number, method: string, path: string): string {
   const publicKey = getPublicKey(secretKey)
-  const message = `llamenos:auth:${publicKey}:${timestamp}`
+  // Bind token to specific request method+path to prevent cross-endpoint replay
+  const message = `llamenos:auth:${publicKey}:${timestamp}:${method}:${path}`
   const messageHash = sha256(utf8ToBytes(message))
   // Sign with Schnorr (BIP-340) — proves possession of the secret key
   const signature = schnorr.sign(messageHash, secretKey)

@@ -134,7 +134,7 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
       setConfirmedPin(pin)
 
       // Create Schnorr signature to prove key ownership
-      const tokenJson = createAuthToken(kp.secretKey, Date.now())
+      const tokenJson = createAuthToken(kp.secretKey, Date.now(), 'POST', '/api/auth/bootstrap')
       const parsed = JSON.parse(tokenJson)
 
       // Call bootstrap endpoint

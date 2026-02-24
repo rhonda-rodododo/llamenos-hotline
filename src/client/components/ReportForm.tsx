@@ -16,12 +16,11 @@ interface ReportFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreated: (reportId: string) => void
-  adminPubkey?: string
 }
 
-export function ReportForm({ open, onOpenChange, onCreated, adminPubkey }: ReportFormProps) {
+export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
   const { t } = useTranslation()
-  const { keyPair } = useAuth()
+  const { keyPair, adminPubkey } = useAuth()
   const { toast } = useToast()
 
   const [title, setTitle] = useState('')

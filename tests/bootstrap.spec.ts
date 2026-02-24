@@ -114,7 +114,7 @@ test.describe('In-Browser Admin Bootstrap', () => {
     const downloadPromise = page.waitForEvent('download')
     await page.getByRole('button', { name: /download encrypted backup/i }).click()
     const download = await downloadPromise
-    expect(download.suggestedFilename()).toContain('llamenos-backup-')
+    expect(download.suggestedFilename()).toMatch(/^backup-[0-9a-f]+\.json$/)
 
     // Acknowledge backup saved
     await page.getByText('I have saved my recovery key').click()

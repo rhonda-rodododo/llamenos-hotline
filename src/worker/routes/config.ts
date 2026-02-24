@@ -61,7 +61,6 @@ config.get('/', async (c) => {
     hotlineNumber,
     channels,
     setupCompleted,
-    adminPubkey: c.env.ADMIN_PUBKEY,
     demoMode,
     needsBootstrap,
     hubs,

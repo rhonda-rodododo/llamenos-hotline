@@ -8,7 +8,7 @@ import * as keyManager from './key-manager'
 
 const API_BASE = '/api'
 
-function getAuthHeaders(): Record<string, string> {
+function getAuthHeaders(method: string, path: string): Record<string, string> {
   // Prefer session token if available
   const sessionToken = sessionStorage.getItem('llamenos-session-token')
   if (sessionToken) {
@@ -17,7 +17,7 @@ function getAuthHeaders(): Record<string, string> {
   // Use key manager for Schnorr auth if unlocked
   if (keyManager.isUnlocked()) {
     try {
-      const token = keyManager.createAuthToken(Date.now())
+      const token = keyManager.createAuthToken(Date.now(), method, `${API_BASE}${path}`)
       return { 'Authorization': `Bearer ${token}` }
     } catch {
       return {}
@@ -40,12 +40,11 @@ export function isWebAuthnAvailable(): boolean {
  * Requires existing auth (nsec or session token).
  */
 export async function registerCredential(label: string): Promise<void> {
-  const headers = getAuthHeaders()
-
   // 1. Get registration options from server
+  const optionsHeaders = getAuthHeaders('POST', '/webauthn/register/options')
   const optionsRes = await fetch(`${API_BASE}/webauthn/register/options`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
+    headers: { 'Content-Type': 'application/json', ...optionsHeaders },
     body: JSON.stringify({ label }),
   })
   if (!optionsRes.ok) throw new Error('Failed to get registration options')
@@ -55,9 +54,10 @@ export async function registerCredential(label: string): Promise<void> {
   const attestation = await startRegistration({ optionsJSON })
 
   // 3. Verify with server
+  const verifyHeaders = getAuthHeaders('POST', '/webauthn/register/verify')
   const verifyRes = await fetch(`${API_BASE}/webauthn/register/verify`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
+    headers: { 'Content-Type': 'application/json', ...verifyHeaders },
     body: JSON.stringify({ attestation, label, challengeId }),
   })
   if (!verifyRes.ok) throw new Error('Failed to verify registration')
@@ -101,7 +101,7 @@ export interface WebAuthnCredentialInfo {
  * List registered credentials for the current user.
  */
 export async function listCredentials(): Promise<WebAuthnCredentialInfo[]> {
-  const headers = getAuthHeaders()
+  const headers = getAuthHeaders('GET', '/webauthn/credentials')
   const res = await fetch(`${API_BASE}/webauthn/credentials`, { headers })
   if (!res.ok) throw new Error('Failed to list credentials')
   const data = await res.json() as { credentials: WebAuthnCredentialInfo[] }
@@ -112,7 +112,7 @@ export async function listCredentials(): Promise<WebAuthnCredentialInfo[]> {
  * Delete a registered credential.
  */
 export async function deleteCredential(id: string): Promise<void> {
-  const headers = getAuthHeaders()
+  const headers = getAuthHeaders('DELETE', `/webauthn/credentials/${encodeURIComponent(id)}`)
   const res = await fetch(`${API_BASE}/webauthn/credentials/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers,

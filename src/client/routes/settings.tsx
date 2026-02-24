@@ -563,7 +563,8 @@ function LinkDeviceSection() {
       const encrypted = encryptNsecForDevice(nsecStr, room.ephemeralPubkey, secretKey)
 
       // Send encrypted payload (authenticated)
-      const authToken = keyManager.createAuthToken(Date.now())
+      const provisionPath = `/api/provision/rooms/${roomId}/payload`
+      const authToken = keyManager.createAuthToken(Date.now(), 'POST', provisionPath)
       await sendProvisionedKey(roomId, token, encrypted, publicKey, {
         'Authorization': `Bearer ${authToken}`,
       })

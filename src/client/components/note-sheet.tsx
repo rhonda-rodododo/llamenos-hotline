@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth'
 import { useNoteSheet } from '@/lib/note-sheet-context'
 import { useDraft } from '@/lib/use-draft'
 import { encryptNoteV2 } from '@/lib/crypto'
-import { useConfig } from '@/lib/config'
+
 import { createNote, updateNote, getCallHistory, getCustomFields, type CallRecord, type CustomFieldDefinition } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import type { NotePayload } from '@shared/types'
@@ -26,8 +26,7 @@ import { Lock, Save, Clock } from 'lucide-react'
 
 export function NoteSheet() {
   const { t } = useTranslation()
-  const { keyPair, isAdmin } = useAuth()
-  const { adminPubkey } = useConfig()
+  const { keyPair, isAdmin, adminPubkey } = useAuth()
   const { isOpen, mode, editNoteId, initialCallId, initialText, initialFields, close, onSaved } = useNoteSheet()
   const { toast } = useToast()
   const [saving, setSaving] = useState(false)

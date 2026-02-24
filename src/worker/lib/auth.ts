@@ -28,11 +28,13 @@ export function validateToken(auth: AuthPayload): boolean {
   return true
 }
 
-export async function verifyAuthToken(auth: AuthPayload): Promise<boolean> {
+export async function verifyAuthToken(auth: AuthPayload, method?: string, path?: string): Promise<boolean> {
   if (!validateToken(auth)) return false
   try {
-    // Reconstruct the signed message
-    const message = `llamenos:auth:${auth.pubkey}:${auth.timestamp}`
+    // Reconstruct the signed message — tokens are bound to request method+path
+    const message = method && path
+      ? `llamenos:auth:${auth.pubkey}:${auth.timestamp}:${method}:${path}`
+      : `llamenos:auth:${auth.pubkey}:${auth.timestamp}`
     const messageHash = sha256(utf8ToBytes(message))
     // Verify Schnorr signature (BIP-340) against the x-only pubkey
     return schnorr.verify(hexToBytes(auth.token), messageHash, hexToBytes(auth.pubkey))
@@ -63,7 +65,8 @@ export async function authenticateRequest(
   // Fall back to Schnorr signature auth
   const auth = parseAuthHeader(authHeader)
   if (!auth) return null
-  if (!(await verifyAuthToken(auth))) return null
+  const url = new URL(request.url)
+  if (!(await verifyAuthToken(auth, request.method, url.pathname))) return null
 
   // Look up volunteer in identity DO
   const res = await identityDO.fetch(new Request('http://do/volunteer/' + auth.pubkey))

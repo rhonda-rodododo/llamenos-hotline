@@ -31,6 +31,11 @@ export const Route = createFileRoute('/volunteers')({
   component: VolunteersPage,
 })
 
+function maskedPhone(phone: string) {
+  if (!phone || phone.length < 6) return phone
+  return phone.slice(0, 3) + '\u2022'.repeat(phone.length - 5) + phone.slice(-2)
+}
+
 function VolunteersPage() {
   const { t } = useTranslation()
   const { isAdmin } = useAuth()
@@ -183,7 +188,7 @@ function VolunteersPage() {
                 <div key={invite.code} className="flex items-center justify-between px-4 py-3 sm:px-6">
                   <div>
                     <p className="text-sm font-medium">{invite.name}</p>
-                    <p className="text-xs text-muted-foreground">{invite.phone}</p>
+                    <p className="text-xs text-muted-foreground">{maskedPhone(invite.phone)}</p>
                   </div>
                   <Button
                     variant="ghost"
@@ -436,11 +441,6 @@ function VolunteerRow({ volunteer, roles, onUpdate, onDelete }: {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showPhone, setShowPhone] = useState(false)
 
-  function maskedPhone(phone: string) {
-    if (!phone || phone.length < 6) return phone
-    return phone.slice(0, 3) + '•'.repeat(phone.length - 5) + phone.slice(-2)
-  }
-
   const primaryRoleId = volunteer.roles[0] || 'role-volunteer'
   const primaryRole = roles.find(r => r.id === primaryRoleId)
   const isAdminRole = primaryRoleId === 'role-super-admin' || primaryRoleId === 'role-hub-admin'
@@ -536,7 +536,7 @@ function VolunteerRow({ volunteer, roles, onUpdate, onDelete }: {
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
         title={t('volunteers.removeVolunteer')}
-        description={`${volunteer.name} (${volunteer.phone})`}
+        description={`${volunteer.name} (${maskedPhone(volunteer.phone)})`}
         confirmLabel={t('common.delete')}
         onConfirm={handleDelete}
       />

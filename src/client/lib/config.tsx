@@ -7,7 +7,6 @@ interface ConfigContextValue {
   hotlineNumber: string
   channels: EnabledChannels
   setupCompleted: boolean
-  adminPubkey: string
   demoMode: boolean
   needsBootstrap: boolean
   isLoading: boolean
@@ -31,7 +30,6 @@ const ConfigContext = createContext<ConfigContextValue>({
   hotlineNumber: '',
   channels: defaultChannels,
   setupCompleted: true,
-  adminPubkey: '',
   demoMode: false,
   needsBootstrap: false,
   isLoading: true,
@@ -47,7 +45,6 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const [hotlineNumber, setHotlineNumber] = useState('')
   const [channels, setChannels] = useState<EnabledChannels>(defaultChannels)
   const [setupCompleted, setSetupCompleted] = useState(true)
-  const [adminPubkey, setAdminPubkey] = useState('')
   const [demoMode, setDemoMode] = useState(false)
   const [needsBootstrap, setNeedsBootstrap] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -67,7 +64,6 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         setHotlineNumber(config.hotlineNumber || '')
         if (config.channels) setChannels(config.channels)
         if (config.setupCompleted !== undefined) setSetupCompleted(config.setupCompleted)
-        if (config.adminPubkey) setAdminPubkey(config.adminPubkey)
         if (config.demoMode) setDemoMode(config.demoMode)
         setNeedsBootstrap(!!config.needsBootstrap)
         if (config.hubs?.length) {
@@ -91,7 +87,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
 
   return (
     <ConfigContext.Provider value={{
-      hotlineName, hotlineNumber, channels, setupCompleted, adminPubkey,
+      hotlineName, hotlineNumber, channels, setupCompleted,
       demoMode, needsBootstrap, isLoading, hubs, defaultHubId, currentHubId,
       setCurrentHubId, isMultiHub,
     }}>

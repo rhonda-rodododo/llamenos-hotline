@@ -6,7 +6,7 @@ import { useCalls, useCallTimer, useShiftStatus } from '@/lib/hooks'
 import { createNote, addBan, getCallsTodayCount, getVolunteerPresence, listVolunteers, type ActiveCall, type VolunteerPresence, type Volunteer } from '@/lib/api'
 import { onMessage } from '@/lib/ws'
 import { encryptNoteV2 } from '@/lib/crypto'
-import { useConfig } from '@/lib/config'
+
 import { useToast } from '@/lib/toast'
 import {
   PhoneIncoming,
@@ -313,7 +313,7 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, secretKey,
 }) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { adminPubkey } = useConfig()
+  const { adminPubkey } = useAuth()
   const { formatted } = useCallTimer(call.startedAt)
   const [noteText, setNoteText] = useState('')
   const [saving, setSaving] = useState(false)

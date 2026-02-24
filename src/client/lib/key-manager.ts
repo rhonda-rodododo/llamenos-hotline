@@ -163,10 +163,10 @@ export { hasStoredKey } from './key-store'
  * Create a Schnorr auth token using the in-memory secret key.
  * Throws KeyLockedError if locked.
  */
-export function createAuthToken(timestamp: number): string {
+export function createAuthToken(timestamp: number, method: string, path: string): string {
   if (!secretKey) throw new KeyLockedError()
   resetIdleTimer()
-  return _createAuthToken(secretKey, timestamp)
+  return _createAuthToken(secretKey, timestamp, method, path)
 }
 
 /**
