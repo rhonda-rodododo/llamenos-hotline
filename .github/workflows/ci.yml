@@ -97,7 +97,7 @@ jobs:
 
       - name: Create .dev.vars for tests
         run: |
-          printf 'ADMIN_PUBKEY=%s\nENVIRONMENT=development\n' "${{ env.TEST_ADMIN_PUBKEY }}" > .dev.vars
+          printf 'ADMIN_PUBKEY=%s\nENVIRONMENT=development\nHMAC_SECRET=%s\n' "${{ env.TEST_ADMIN_PUBKEY }}" "$(openssl rand -hex 32)" > .dev.vars
 
       - name: Cache Playwright browsers
         id: playwright-cache
@@ -169,6 +169,7 @@ jobs:
             "ADMIN_PUBKEY=${{ env.TEST_ADMIN_PUBKEY }}" \
             "DOMAIN=localhost" \
             "PG_PASSWORD=ci-test-password" \
+            "HMAC_SECRET=$(openssl rand -hex 32)" \
             "MINIO_ACCESS_KEY=testaccess" \
             "MINIO_SECRET_KEY=testsecret123456" \
             "HOTLINE_NAME=Llámenos" \

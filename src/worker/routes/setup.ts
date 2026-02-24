@@ -3,6 +3,7 @@ import type { AppEnv } from '../types'
 import { getDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
+import { validateExternalUrl } from '../lib/ssrf-guard'
 
 const setup = new Hono<AppEnv>()
 
@@ -79,18 +80,9 @@ setup.post('/test/signal', requirePermission('settings:manage-messaging'), async
     return c.json({ ok: false, error: 'Bridge URL is required' }, 400)
   }
 
-  // Validate URL
-  let parsed: URL
-  try { parsed = new URL(body.bridgeUrl) } catch {
-    return c.json({ ok: false, error: 'Invalid bridge URL' }, 400)
-  }
-
-  // Block internal addresses
-  const hostname = parsed.hostname
-  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' ||
-      hostname.startsWith('10.') || hostname.startsWith('172.') || hostname.startsWith('192.168.') ||
-      hostname === '169.254.169.254' || hostname === '0.0.0.0') {
-    return c.json({ ok: false, error: 'Bridge URL must not point to internal addresses' }, 400)
+  const bridgeError = validateExternalUrl(body.bridgeUrl, 'Bridge URL')
+  if (bridgeError) {
+    return c.json({ ok: false, error: bridgeError }, 400)
   }
 
   try {

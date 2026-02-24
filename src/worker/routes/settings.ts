@@ -3,6 +3,7 @@ import type { AppEnv } from '../types'
 import { getDOs } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
+import { validateExternalUrl } from '../lib/ssrf-guard'
 
 const settings = new Hono<AppEnv>()
 
@@ -161,18 +162,9 @@ settings.post('/telephony-provider/test', requirePermission('settings:manage-tel
         if (!body.ariUrl) {
           return Response.json({ ok: false, error: 'ARI URL is required' }, { status: 400 })
         }
-        let ariParsed: URL
-        try { ariParsed = new URL(body.ariUrl) } catch {
-          return Response.json({ ok: false, error: 'Invalid ARI URL' }, { status: 400 })
-        }
-        const hostname = ariParsed.hostname
-        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' ||
-            hostname.startsWith('10.') || hostname.startsWith('172.') || hostname.startsWith('192.168.') ||
-            hostname === '169.254.169.254' || hostname === '0.0.0.0') {
-          return Response.json({ ok: false, error: 'ARI URL must not point to internal/loopback addresses' }, { status: 400 })
-        }
-        if (ariParsed.protocol !== 'https:' && ariParsed.protocol !== 'http:') {
-          return Response.json({ ok: false, error: 'ARI URL must use HTTPS' }, { status: 400 })
+        const ariError = validateExternalUrl(body.ariUrl, 'ARI URL')
+        if (ariError) {
+          return Response.json({ ok: false, error: ariError }, { status: 400 })
         }
         testUrl = `${body.ariUrl}/api/asterisk/info`
         testHeaders['Authorization'] = 'Basic ' + btoa(`${body.ariUsername}:${body.ariPassword}`)

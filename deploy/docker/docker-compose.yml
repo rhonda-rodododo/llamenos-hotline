@@ -43,6 +43,7 @@ services:
       - ADMIN_PUBKEY=${ADMIN_PUBKEY:?ADMIN_PUBKEY is required}
       - HOTLINE_NAME=${HOTLINE_NAME:-Hotline}
       - ENVIRONMENT=${ENVIRONMENT:-production}
+      - "HMAC_SECRET=${HMAC_SECRET:?HMAC_SECRET is required — generate with openssl rand -hex 32}"
       - MINIO_ENDPOINT=http://minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}

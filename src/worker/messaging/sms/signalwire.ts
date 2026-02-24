@@ -9,8 +9,8 @@ import { TwilioSMSAdapter } from './twilio'
 export class SignalWireSMSAdapter extends TwilioSMSAdapter {
   private space: string
 
-  constructor(accountSid: string, authToken: string, phoneNumber: string, space: string) {
-    super(accountSid, authToken, phoneNumber)
+  constructor(accountSid: string, authToken: string, phoneNumber: string, space: string, hmacSecret: string) {
+    super(accountSid, authToken, phoneNumber, hmacSecret)
     this.space = space
   }
 

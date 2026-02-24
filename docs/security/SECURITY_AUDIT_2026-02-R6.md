@@ -153,13 +153,15 @@ Missing headers that are present in the Caddy config but absent from the Worker:
 
 **Recommendation**: Add all three headers to the Worker middleware for parity with the Docker/Caddy deployment.
 
-#### M-5: Phone Number Hashing Uses Bare SHA-256
+#### M-5: Phone Number Hashing Uses Bare SHA-256 — FIXED
 
 **File**: `src/worker/lib/crypto.ts:56-62`
 
 Phone hashing uses `SHA-256("llamenos:phone:" + phone)`. The domain prefix prevents rainbow table reuse, but SHA-256 provides no computational hardness. With ~10B possible phone numbers globally, an adversary can precompute the entire hash space in hours on commodity hardware.
 
 **Recommendation**: For ban list checks (which need speed), the current approach is acceptable. For stored identifiers in conversations and audit logs, consider HMAC-SHA256 with a server-side secret key (stored as a Cloudflare secret / environment variable). This makes precomputation impossible without the key.
+
+**Fix**: Upgraded `hashPhone()` and `hashIP()` to HMAC-SHA256 with a required `HMAC_SECRET` env var (64-char hex). Domain-separated: `llamenos:phone:{phone}` and `llamenos:ip:{ip}`. Threaded secret through all 5 messaging adapter constructors, 3 factories, `getMessagingAdapter()`, `audit()`, 6 Hono route handlers, and `CallRouterDO`. Added `HMAC_SECRET` to Env type, Node.js env shim, docker-compose.yml, .env.example, Helm values, and CI workflows.
 
 #### M-6: Backup Filename Leaks Pubkey Fragment
 

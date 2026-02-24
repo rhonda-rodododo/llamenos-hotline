@@ -3,6 +3,7 @@
  * Uses advisory locks to emulate CF's single-writer DO guarantee.
  */
 import type { StorageApi } from '../../types'
+import type { JSONValue } from 'postgres'
 import { getPool } from './postgres-pool'
 /**
  * postgres.js TransactionSql loses call signatures through Omit<>.
@@ -49,7 +50,7 @@ export class PostgresStorage implements StorageApi {
       await tx`SELECT pg_advisory_xact_lock(hashtext(${this.namespace}))`
       await tx`
         INSERT INTO kv_store (namespace, key, value)
-        VALUES (${this.namespace}, ${key}, ${JSON.stringify(value)}::jsonb)
+        VALUES (${this.namespace}, ${key}, ${sql.json(value as JSONValue)})
         ON CONFLICT (namespace, key)
         DO UPDATE SET value = EXCLUDED.value
       `

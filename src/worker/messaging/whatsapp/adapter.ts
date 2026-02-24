@@ -35,9 +35,11 @@ export class WhatsAppAdapter implements MessagingAdapter {
   private readonly config: WhatsAppConfig
   private readonly client: WhatsAppClient
   private readonly integrationMode: 'twilio' | 'direct'
+  private readonly hmacSecret: string
 
-  constructor(config: WhatsAppConfig) {
+  constructor(config: WhatsAppConfig, hmacSecret: string) {
     this.config = config
+    this.hmacSecret = hmacSecret
     this.integrationMode = config.integrationMode
 
     if (config.integrationMode === 'direct') {
@@ -67,12 +69,14 @@ export class WhatsAppAdapter implements MessagingAdapter {
   static createWithTwilioClient(
     config: WhatsAppConfig,
     client: TwilioWhatsAppClient,
+    hmacSecret: string,
   ): WhatsAppAdapter {
     const adapter = Object.create(WhatsAppAdapter.prototype) as WhatsAppAdapter
     Object.defineProperty(adapter, 'channelType', { value: 'whatsapp' as const })
     Object.defineProperty(adapter, 'config', { value: config })
     Object.defineProperty(adapter, 'client', { value: client })
     Object.defineProperty(adapter, 'integrationMode', { value: config.integrationMode })
+    Object.defineProperty(adapter, 'hmacSecret', { value: hmacSecret })
     return adapter
   }
 
@@ -224,7 +228,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
       channelType: 'whatsapp',
       externalId: msg.id,
       senderIdentifier: msg.from,
-      senderIdentifierHash: hashPhone(msg.from),
+      senderIdentifierHash: hashPhone(msg.from, this.hmacSecret),
       body,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       mediaTypes: mediaTypes.length > 0 ? mediaTypes : undefined,
@@ -371,7 +375,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
       channelType: 'whatsapp',
       externalId: data.MessageSid,
       senderIdentifier: rawFrom,
-      senderIdentifierHash: hashPhone(rawFrom),
+      senderIdentifierHash: hashPhone(rawFrom, this.hmacSecret),
       body: data.Body || undefined,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       mediaTypes: mediaTypes.length > 0 ? mediaTypes : undefined,

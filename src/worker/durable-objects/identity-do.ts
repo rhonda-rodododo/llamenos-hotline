@@ -25,9 +25,10 @@ export class IdentityDO extends DurableObject<Env> {
     this.router.post('/volunteers', async (req) => this.createVolunteer(await req.json()))
     this.router.get('/volunteer/:pubkey', (_req, { pubkey }) => this.getVolunteer(pubkey))
     this.router.patch('/volunteers/:pubkey', async (req, { pubkey }) => {
-      const url = new URL(req.url)
-      const isAdmin = url.searchParams.get('admin') === 'true'
-      return this.updateVolunteer(pubkey, await req.json(), isAdmin)
+      return this.updateVolunteer(pubkey, await req.json(), false)
+    })
+    this.router.patch('/admin/volunteers/:pubkey', async (req, { pubkey }) => {
+      return this.updateVolunteer(pubkey, await req.json(), true)
     })
     this.router.delete('/volunteers/:pubkey', (_req, { pubkey }) => this.deleteVolunteer(pubkey))
 

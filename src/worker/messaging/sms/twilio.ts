@@ -20,11 +20,13 @@ export class TwilioSMSAdapter implements MessagingAdapter {
   protected accountSid: string
   protected authToken: string
   protected phoneNumber: string
+  protected hmacSecret: string
 
-  constructor(accountSid: string, authToken: string, phoneNumber: string) {
+  constructor(accountSid: string, authToken: string, phoneNumber: string, hmacSecret: string) {
     this.accountSid = accountSid
     this.authToken = authToken
     this.phoneNumber = phoneNumber
+    this.hmacSecret = hmacSecret
   }
 
   async parseIncomingMessage(request: Request): Promise<IncomingMessage> {
@@ -48,7 +50,7 @@ export class TwilioSMSAdapter implements MessagingAdapter {
       channelType: this.channelType,
       externalId: messageSid,
       senderIdentifier: from,
-      senderIdentifierHash: hashPhone(from),
+      senderIdentifierHash: hashPhone(from, this.hmacSecret),
       body,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       mediaTypes: mediaTypes.length > 0 ? mediaTypes : undefined,

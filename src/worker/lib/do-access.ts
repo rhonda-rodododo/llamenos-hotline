@@ -119,6 +119,7 @@ export async function getHubTelephony(env: Env, hubId: string): Promise<Telephon
 export async function getMessagingAdapter(
   channel: MessagingChannelType,
   dos: DurableObjects,
+  hmacSecret: string,
 ): Promise<MessagingAdapter> {
   const res = await dos.settings.fetch(new Request('http://do/settings/messaging'))
   if (!res.ok) throw new Error('Messaging config not found')
@@ -136,15 +137,15 @@ export async function getMessagingAdapter(
       if (!telRes.ok) throw new Error('SMS requires a configured telephony provider')
       const telConfig = await telRes.json() as TelephonyProviderConfig | null
       if (!telConfig) throw new Error('SMS requires a configured telephony provider')
-      return createSMSAdapter(telConfig, config.sms)
+      return createSMSAdapter(telConfig, config.sms, hmacSecret)
     }
     case 'whatsapp': {
       if (!config.whatsapp) throw new Error('WhatsApp is not configured')
-      return createWhatsAppAdapter(config.whatsapp)
+      return createWhatsAppAdapter(config.whatsapp, hmacSecret)
     }
     case 'signal': {
       if (!config.signal) throw new Error('Signal is not configured')
-      return createSignalAdapter(config.signal)
+      return createSignalAdapter(config.signal, hmacSecret)
     }
     default:
       throw new Error(`Unknown channel: ${channel}`)

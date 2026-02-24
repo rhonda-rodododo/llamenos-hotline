@@ -173,7 +173,7 @@ conversations.post('/:id/messages', async (c) => {
   // Send via messaging adapter if plaintext provided (for external channels)
   if (body.plaintextForSending && conv.channelType !== 'web') {
     try {
-      const adapter = await getMessagingAdapter(conv.channelType as 'sms' | 'whatsapp' | 'signal', dos)
+      const adapter = await getMessagingAdapter(conv.channelType as 'sms' | 'whatsapp' | 'signal', dos, c.env.HMAC_SECRET)
       // Fetch the actual contact identifier from ConversationDO (server-side only)
       const contactRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}/contact`))
       if (!contactRes.ok) throw new Error('Contact identifier not available for outbound')

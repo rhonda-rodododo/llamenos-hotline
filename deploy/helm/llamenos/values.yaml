@@ -119,6 +119,7 @@ secrets:
   # Or provide values directly (will be base64-encoded into a Secret)
   adminPubkey: ""
   postgresPassword: ""  # Required
+  hmacSecret: ""         # Required: 64-char hex, generate with: openssl rand -hex 32
   twilioAccountSid: ""
   twilioAuthToken: ""
   twilioPhoneNumber: ""

@@ -17,7 +17,7 @@ invites.get('/validate/:code', async (c) => {
   const code = c.req.param('code')
   // Rate limit invite validation to prevent enumeration
   const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-  const limited = await checkRateLimit(dos.settings, `invite-validate:${hashIP(clientIp)}`, 5)
+  const limited = await checkRateLimit(dos.settings, `invite-validate:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 5)
   if (limited) return c.json({ error: 'Too many requests' }, 429)
   return dos.identity.fetch(new Request(`http://do/invites/validate/${code}`))
 })
@@ -37,7 +37,7 @@ invites.post('/redeem', async (c) => {
 
   // Rate limit redemption attempts
   const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-  const limited = await checkRateLimit(dos.settings, `invite-redeem:${hashIP(clientIp)}`, 5)
+  const limited = await checkRateLimit(dos.settings, `invite-redeem:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 5)
   if (limited) return c.json({ error: 'Too many requests' }, 429)
 
   return dos.identity.fetch(new Request('http://do/invites/redeem', {
