@@ -22,6 +22,7 @@ const defaultChannels: EnabledChannels = {
   sms: false,
   whatsapp: false,
   signal: false,
+  rcs: false,
   reports: false,
 }
 

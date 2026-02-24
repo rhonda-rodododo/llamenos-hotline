@@ -10,6 +10,7 @@ import { AsteriskAdapter } from '../telephony/asterisk'
 import { createSMSAdapter } from '../messaging/sms/factory'
 import { createWhatsAppAdapter } from '../messaging/whatsapp/factory'
 import { createSignalAdapter } from '../messaging/signal/factory'
+import { createRCSAdapter } from '../messaging/rcs/factory'
 
 const IDENTITY_ID = 'global-identity'
 const SETTINGS_ID = 'global-settings'
@@ -146,6 +147,10 @@ export async function getMessagingAdapter(
     case 'signal': {
       if (!config.signal) throw new Error('Signal is not configured')
       return createSignalAdapter(config.signal, hmacSecret)
+    }
+    case 'rcs': {
+      if (!config.rcs) throw new Error('RCS is not configured')
+      return createRCSAdapter(config.rcs, hmacSecret)
     }
     default:
       throw new Error(`Unknown channel: ${channel}`)

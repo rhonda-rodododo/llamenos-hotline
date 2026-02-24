@@ -39,6 +39,15 @@ messaging.get('/whatsapp/webhook', async (c) => {
 })
 
 /**
+ * RCS webhook verification (GET).
+ * Google RBM sends a GET request to verify webhook ownership during setup.
+ */
+messaging.get('/rcs/webhook', async (c) => {
+  // Google RBM webhook verification — just return 200
+  return c.text('OK', 200)
+})
+
+/**
  * Messaging webhook handler.
  * Each channel has its own webhook URL:
  *   /api/messaging/sms/webhook?hub={hubId}
@@ -49,7 +58,7 @@ messaging.get('/whatsapp/webhook', async (c) => {
  */
 messaging.post('/:channel/webhook', async (c) => {
   const channel = c.req.param('channel') as MessagingChannelType
-  const validChannels: MessagingChannelType[] = ['sms', 'whatsapp', 'signal']
+  const validChannels: MessagingChannelType[] = ['sms', 'whatsapp', 'signal', 'rcs']
   if (!validChannels.includes(channel)) {
     return c.json({ error: 'Unknown channel' }, 404)
   }

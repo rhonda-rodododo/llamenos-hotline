@@ -143,7 +143,7 @@ export const FIELD_NAME_REGEX = /^[a-zA-Z0-9_]+$/
 
 // --- Messaging Channel Types ---
 
-export type MessagingChannelType = 'sms' | 'whatsapp' | 'signal'
+export type MessagingChannelType = 'sms' | 'whatsapp' | 'signal' | 'rcs'
 
 /** All possible channel types including voice and reports */
 export type ChannelType = 'voice' | MessagingChannelType | 'reports'
@@ -156,6 +156,7 @@ export const CHANNEL_SECURITY: Record<ChannelType, TransportSecurity> = {
   sms: 'none',
   whatsapp: 'provider-encrypted',
   signal: 'e2ee-to-bridge',
+  rcs: 'provider-encrypted',
   reports: 'e2ee',
 }
 
@@ -164,6 +165,7 @@ export const CHANNEL_LABELS: Record<ChannelType, string> = {
   sms: 'SMS',
   whatsapp: 'WhatsApp',
   signal: 'Signal',
+  rcs: 'RCS',
   reports: 'Reports',
 }
 
@@ -198,11 +200,21 @@ export interface SignalConfig {
   afterHoursResponse?: string
 }
 
+export interface RCSConfig {
+  agentId: string
+  serviceAccountKey: string    // JSON string of Google service account key
+  webhookSecret?: string
+  fallbackToSms: boolean
+  autoResponse?: string
+  afterHoursResponse?: string
+}
+
 export interface MessagingConfig {
   enabledChannels: MessagingChannelType[]
   sms: SMSConfig | null
   whatsapp: WhatsAppConfig | null
   signal: SignalConfig | null
+  rcs: RCSConfig | null
   autoAssign: boolean               // auto-assign to on-shift volunteers
   inactivityTimeout: number         // minutes before auto-close
   maxConcurrentPerVolunteer: number  // conversation limit per volunteer
@@ -213,6 +225,7 @@ export const DEFAULT_MESSAGING_CONFIG: MessagingConfig = {
   sms: null,
   whatsapp: null,
   signal: null,
+  rcs: null,
   autoAssign: true,
   inactivityTimeout: 60,
   maxConcurrentPerVolunteer: 3,
@@ -243,6 +256,7 @@ export interface EnabledChannels {
   sms: boolean
   whatsapp: boolean
   signal: boolean
+  rcs: boolean
   reports: boolean
 }
 

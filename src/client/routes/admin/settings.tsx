@@ -17,7 +17,9 @@ import {
   type IvrAudioRecording,
   type CustomFieldDefinition,
   type TelephonyProviderConfig,
+  getMessagingConfig,
 } from '@/lib/api'
+import type { MessagingConfig } from '@shared/types'
 import { getWebAuthnSettings, type WebAuthnSettings } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { Settings2 } from 'lucide-react'
@@ -33,6 +35,7 @@ import { VoicePromptsSection } from '@/components/admin-settings/voice-prompts-s
 import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-section'
 import { SpamSection } from '@/components/admin-settings/spam-section'
 import { RolesSection } from '@/components/admin-settings/roles-section'
+import { RCSChannelSection } from '@/components/admin-settings/rcs-channel-section'
 
 export const Route = createFileRoute('/admin/settings')({
   component: AdminSettingsPage,
@@ -58,6 +61,7 @@ function AdminSettingsPage() {
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([])
   const [providerConfig, setProviderConfig] = useState<TelephonyProviderConfig | null>(null)
   const [providerDraft, setProviderDraft] = useState<Partial<TelephonyProviderConfig>>({ type: 'twilio' })
+  const [messagingConfig, setMessagingConfig] = useState<MessagingConfig | null>(null)
 
   const { expanded, toggleSection } = usePersistedExpanded(
     'settings-expanded:/admin/settings',
@@ -82,6 +86,7 @@ function AdminSettingsPage() {
       getTelephonyProvider().then(config => {
         if (config) { setProviderConfig(config); setProviderDraft(config) }
       }).catch(() => {}),
+      getMessagingConfig().then(setMessagingConfig).catch(() => {}),
     ])
       .catch(() => toast(t('common.error'), 'error'))
       .finally(() => setLoading(false))
@@ -255,6 +260,16 @@ function AdminSettingsPage() {
           expanded={expanded.has('spam')}
           onToggle={(open) => toggleSection('spam', open)}
           statusSummary={spamStatus}
+        />
+      )}
+
+      {messagingConfig && (
+        <RCSChannelSection
+          config={messagingConfig}
+          onConfigChange={setMessagingConfig}
+          expanded={expanded.has('rcs-channel')}
+          onToggle={(open) => toggleSection('rcs-channel', open)}
+          statusSummary={messagingConfig.rcs ? t('common.configured', { defaultValue: 'Configured' }) : t('settings.notConfigured', { defaultValue: 'Not configured' })}
         />
       )}
 

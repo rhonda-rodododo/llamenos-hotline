@@ -513,6 +513,18 @@
     "error": "Failed to load recording",
     "noRecording": "No recording available"
   },
+  "rcs": {
+    "title": "RCS Channel",
+    "description": "Google RCS Business Messaging for rich messaging experiences.",
+    "agentId": "Agent ID",
+    "serviceAccountKey": "Service Account Key (JSON)",
+    "webhookUrl": "Webhook URL",
+    "webhookSecret": "Webhook Secret",
+    "fallbackToSms": "Fallback to SMS",
+    "fallbackToSmsDesc": "Send via SMS when RCS is unavailable for the recipient.",
+    "autoResponse": "Auto-Response",
+    "channelBadge": "RCS"
+  },
   "a11y": {
     "skipToContent": "Ir al contenido",
     "switchToLanguage": "Cambiar a {{language}}",

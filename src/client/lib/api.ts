@@ -777,6 +777,13 @@ export async function updateMessagingConfig(data: Partial<MessagingConfig>) {
   })
 }
 
+export async function testMessagingChannel(channel: string) {
+  return request<{ connected: boolean }>('/settings/messaging/test', {
+    method: 'POST',
+    body: JSON.stringify({ channel }),
+  })
+}
+
 // --- Setup State ---
 
 export type { SetupState } from '@shared/types'
