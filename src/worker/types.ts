@@ -46,6 +46,7 @@ export interface Env {
   ADMIN_PUBKEY: string
   HOTLINE_NAME: string
   ENVIRONMENT: string
+  HMAC_SECRET: string
   E2E_TEST_SECRET?: string
   DEV_RESET_SECRET?: string
 }

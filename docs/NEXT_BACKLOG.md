@@ -79,9 +79,9 @@ Deployment guide: [`docs/security/DEPLOYMENT_HARDENING.md`](security/DEPLOYMENT_
 ### Medium — Epic 65
 - [ ] **M-1**: SSRF blocklist incomplete (IPv6, CGNAT, mapped addresses)
 - [x] **M-2**: `/calls/active` and `/calls/today-count` missing permission guards — added
-- [ ] **M-3**: `isAdmin` query param on internal DO API — replace with dedicated route
+- [x] **M-3**: `isAdmin` query param on internal DO API — replaced with dedicated `/admin/volunteers/:pubkey` DO route
 - [x] **M-4**: Missing security headers in Worker — added CORP and X-Permitted-Cross-Domain-Policies
-- [ ] **M-5**: Phone hashing with bare SHA-256 — upgrade to HMAC with server secret
+- [x] **M-5**: Phone hashing with bare SHA-256 — upgraded hashPhone/hashIP to HMAC-SHA256 with HMAC_SECRET env var, threaded through all adapters/routes/DOs
 - [x] **M-6**: Backup filename leaks pubkey fragment — now uses random suffix
 - [x] **M-7**: File metadata ECIES uses wrong context string — fixed to `llamenos:file-metadata`
 - [ ] **M-8**: No JS dependency vulnerability scanning in CI

@@ -35,11 +35,13 @@ export class VonageSMSAdapter implements MessagingAdapter {
   private apiKey: string
   private apiSecret: string
   private phoneNumber: string
+  private hmacSecret: string
 
-  constructor(apiKey: string, apiSecret: string, phoneNumber: string) {
+  constructor(apiKey: string, apiSecret: string, phoneNumber: string, hmacSecret: string) {
     this.apiKey = apiKey
     this.apiSecret = apiSecret
     this.phoneNumber = phoneNumber
+    this.hmacSecret = hmacSecret
   }
 
   async parseIncomingMessage(request: Request): Promise<IncomingMessage> {
@@ -52,7 +54,7 @@ export class VonageSMSAdapter implements MessagingAdapter {
       channelType: this.channelType,
       externalId: data.messageId,
       senderIdentifier: senderNumber,
-      senderIdentifierHash: hashPhone(senderNumber),
+      senderIdentifierHash: hashPhone(senderNumber, this.hmacSecret),
       body: data.text || undefined,
       timestamp: data['message-timestamp'] || data.timestamp || new Date().toISOString(),
       metadata: {

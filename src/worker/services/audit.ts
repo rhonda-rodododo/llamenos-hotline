@@ -6,14 +6,14 @@ export async function audit(
   event: string,
   actorPubkey: string,
   details: Record<string, unknown> = {},
-  request?: Request,
+  ctx?: { request: Request; hmacSecret: string },
 ) {
   const meta: Record<string, unknown> = {}
-  if (request) {
-    const rawIp = request.headers.get('CF-Connecting-IP')
-    meta.ip = rawIp ? hashIP(rawIp) : null
-    meta.country = request.headers.get('CF-IPCountry')
-    meta.ua = request.headers.get('User-Agent')
+  if (ctx) {
+    const rawIp = ctx.request.headers.get('CF-Connecting-IP')
+    meta.ip = rawIp ? hashIP(rawIp, ctx.hmacSecret) : null
+    meta.country = ctx.request.headers.get('CF-IPCountry')
+    meta.ua = ctx.request.headers.get('User-Agent')
   }
   await records.fetch(new Request('http://do/audit', {
     method: 'POST',

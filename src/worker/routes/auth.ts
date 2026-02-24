@@ -18,7 +18,7 @@ auth.post('/login', async (c) => {
   // Rate limit login attempts by IP (skip in development for testing)
   if (c.env.ENVIRONMENT !== 'development') {
     const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-    const limited = await checkRateLimit(dos.settings, `auth:${hashIP(clientIp)}`, 10)
+    const limited = await checkRateLimit(dos.settings, `auth:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 10)
     if (limited) {
       return c.json({ error: 'Too many login attempts. Try again later.' }, 429)
     }
@@ -45,7 +45,7 @@ auth.post('/bootstrap', async (c) => {
   // Rate limit by IP
   if (c.env.ENVIRONMENT !== 'development') {
     const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-    const limited = await checkRateLimit(dos.settings, `bootstrap:${hashIP(clientIp)}`, 5)
+    const limited = await checkRateLimit(dos.settings, `bootstrap:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 5)
     if (limited) {
       return c.json({ error: 'Too many attempts. Try again later.' }, 429)
     }

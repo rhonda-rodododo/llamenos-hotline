@@ -29,13 +29,15 @@ export class SignalAdapter implements MessagingAdapter {
   private readonly bridgeApiKey: string
   private readonly webhookSecret: string
   private readonly registeredNumber: string
+  private readonly hmacSecret: string
 
-  constructor(config: SignalConfig) {
+  constructor(config: SignalConfig, hmacSecret: string) {
     // Strip trailing slash from bridge URL for consistent path construction
     this.bridgeUrl = config.bridgeUrl.replace(/\/+$/, '')
     this.bridgeApiKey = config.bridgeApiKey
     this.webhookSecret = config.webhookSecret
     this.registeredNumber = config.registeredNumber
+    this.hmacSecret = hmacSecret
   }
 
   /**
@@ -87,7 +89,7 @@ export class SignalAdapter implements MessagingAdapter {
       channelType: 'signal',
       externalId: String(envelope.timestamp),
       senderIdentifier,
-      senderIdentifierHash: hashPhone(source),
+      senderIdentifierHash: hashPhone(source, this.hmacSecret),
       body,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       mediaTypes: mediaTypes.length > 0 ? mediaTypes : undefined,

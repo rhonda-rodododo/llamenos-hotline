@@ -50,7 +50,7 @@ volunteers.patch('/:targetPubkey', requirePermission('volunteers:update'), async
   const pubkey = c.get('pubkey')
   const targetPubkey = c.req.param('targetPubkey')
   const body = await c.req.json()
-  const res = await dos.identity.fetch(new Request(`http://do/volunteers/${targetPubkey}?admin=true`, {
+  const res = await dos.identity.fetch(new Request(`http://do/admin/volunteers/${targetPubkey}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   }))

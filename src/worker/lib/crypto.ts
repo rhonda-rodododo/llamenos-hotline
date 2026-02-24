@@ -1,6 +1,7 @@
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { sha256 } from '@noble/hashes/sha2.js'
+import { hmac } from '@noble/hashes/hmac.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 
@@ -55,17 +56,20 @@ export function encryptForPublicKey(
 
 /**
  * Hash a phone number for storage (one-way — compare by re-hashing).
- * Uses SHA-256 with a domain separator to prevent rainbow table attacks.
+ * Uses HMAC-SHA256 with a server secret to prevent precomputation attacks.
  */
-export function hashPhone(phone: string): string {
+export function hashPhone(phone: string, secret: string): string {
+  const key = hexToBytes(secret)
   const input = utf8ToBytes(`llamenos:phone:${phone}`)
-  return bytesToHex(sha256(input))
+  return bytesToHex(hmac(sha256, key, input))
 }
 
 /**
  * Hash an IP address for storage in audit logs.
+ * Uses HMAC-SHA256 with a server secret, truncated to 96 bits.
  */
-export function hashIP(ip: string): string {
+export function hashIP(ip: string, secret: string): string {
+  const key = hexToBytes(secret)
   const input = utf8ToBytes(`llamenos:ip:${ip}`)
-  return bytesToHex(sha256(input)).slice(0, 24) // Truncate to 24 hex chars (96-bit) for collision resistance
+  return bytesToHex(hmac(sha256, key, input)).slice(0, 24)
 }

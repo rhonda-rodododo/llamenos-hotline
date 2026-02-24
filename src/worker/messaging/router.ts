@@ -61,7 +61,7 @@ messaging.post('/:channel/webhook', async (c) => {
 
   let adapter: MessagingAdapter
   try {
-    adapter = await getMessagingAdapter(channel, dos)
+    adapter = await getMessagingAdapter(channel, dos, c.env.HMAC_SECRET)
   } catch {
     return c.json({ error: `${channel} channel is not configured` }, 404)
   }

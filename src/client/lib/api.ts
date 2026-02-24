@@ -979,7 +979,7 @@ export async function seedDemoData() {
   const fatima = DEMO_ACCOUNTS.find(a => a.name === 'Fatima Al-Rashid')
   if (fatima) {
     try {
-      await request(`/volunteers/${fatima.pubkey}?admin=true`, {
+      await request(`/volunteers/${fatima.pubkey}`, {
         method: 'PATCH',
         body: JSON.stringify({ active: false }),
       })
@@ -989,7 +989,7 @@ export async function seedDemoData() {
   // Mark all demo profiles as completed and set browser call preference
   for (const account of nonAdminAccounts) {
     try {
-      await request(`/volunteers/${account.pubkey}?admin=true`, {
+      await request(`/volunteers/${account.pubkey}`, {
         method: 'PATCH',
         body: JSON.stringify({
           profileCompleted: true,

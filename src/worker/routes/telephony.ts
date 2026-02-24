@@ -127,7 +127,7 @@ telephony.post('/language-selected', async (c) => {
   if (spamSettings.rateLimitEnabled) {
     const rlRes = await dos.settings.fetch(new Request('http://do/rate-limit/check', {
       method: 'POST',
-      body: JSON.stringify({ key: `phone:${hashPhone(callerNumber)}`, maxPerMinute: spamSettings.maxCallsPerMinute }),
+      body: JSON.stringify({ key: `phone:${hashPhone(callerNumber, c.env.HMAC_SECRET)}`, maxPerMinute: spamSettings.maxCallsPerMinute }),
     }))
     const rlData = await rlRes.json() as { limited: boolean }
     rateLimited = rlData.limited
@@ -369,7 +369,7 @@ telephony.post('/voicemail-recording', async (c) => {
       method: 'POST',
     }))
 
-    await audit(dos.records, 'voicemailReceived', 'system', { callSid }, c.req.raw)
+    await audit(dos.records, 'voicemailReceived', 'system', { callSid }, { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET })
 
     c.executionCtx.waitUntil(transcribeVoicemail(callSid, c.env, dos))
   }

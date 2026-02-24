@@ -20,11 +20,13 @@ export class PlivoSMSAdapter implements MessagingAdapter {
   private authId: string
   private authToken: string
   private phoneNumber: string
+  private hmacSecret: string
 
-  constructor(authId: string, authToken: string, phoneNumber: string) {
+  constructor(authId: string, authToken: string, phoneNumber: string, hmacSecret: string) {
     this.authId = authId
     this.authToken = authToken
     this.phoneNumber = phoneNumber
+    this.hmacSecret = hmacSecret
   }
 
   async parseIncomingMessage(request: Request): Promise<IncomingMessage> {
@@ -47,7 +49,7 @@ export class PlivoSMSAdapter implements MessagingAdapter {
       channelType: this.channelType,
       externalId: messageUUID,
       senderIdentifier: from,
-      senderIdentifierHash: hashPhone(from),
+      senderIdentifierHash: hashPhone(from, this.hmacSecret),
       body: text,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       timestamp: new Date().toISOString(),

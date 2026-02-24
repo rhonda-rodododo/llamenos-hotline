@@ -18,6 +18,7 @@ import { AsteriskSMSAdapter } from './asterisk'
 export function createSMSAdapter(
   telephonyConfig: TelephonyProviderConfig,
   _smsConfig: SMSConfig,
+  hmacSecret: string,
 ): MessagingAdapter {
   const phoneNumber = telephonyConfig.phoneNumber
 
@@ -30,6 +31,7 @@ export function createSMSAdapter(
         telephonyConfig.accountSid,
         telephonyConfig.authToken,
         phoneNumber,
+        hmacSecret,
       )
     }
 
@@ -42,6 +44,7 @@ export function createSMSAdapter(
         telephonyConfig.authToken,
         phoneNumber,
         telephonyConfig.signalwireSpace,
+        hmacSecret,
       )
     }
 
@@ -53,6 +56,7 @@ export function createSMSAdapter(
         telephonyConfig.apiKey,
         telephonyConfig.apiSecret,
         phoneNumber,
+        hmacSecret,
       )
     }
 
@@ -64,6 +68,7 @@ export function createSMSAdapter(
         telephonyConfig.authId,
         telephonyConfig.authToken,
         phoneNumber,
+        hmacSecret,
       )
     }
 
@@ -74,6 +79,7 @@ export function createSMSAdapter(
           telephonyConfig.accountSid,
           telephonyConfig.authToken,
           phoneNumber,
+          hmacSecret,
         )
         return new AsteriskSMSAdapter(twilioDelegate)
       }
@@ -92,6 +98,7 @@ export function createSMSAdapter(
         telephonyConfig.accountSid,
         telephonyConfig.authToken,
         phoneNumber,
+        hmacSecret,
       )
     }
   }

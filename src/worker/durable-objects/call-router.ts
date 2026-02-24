@@ -297,7 +297,7 @@ export class CallRouterDO extends DurableObject<Env> {
 
     const call: CallRecord = {
       id: data.callSid,
-      callerNumber: hashPhone(data.callerNumber),
+      callerNumber: hashPhone(data.callerNumber, this.env.HMAC_SECRET),
       callerLast4: last4,
       answeredBy: null,
       startedAt: new Date().toISOString(),
