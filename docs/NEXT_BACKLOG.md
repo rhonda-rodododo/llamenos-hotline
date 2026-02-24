@@ -84,9 +84,9 @@ Deployment guide: [`docs/security/DEPLOYMENT_HARDENING.md`](security/DEPLOYMENT_
 - [x] **M-5**: Phone hashing with bare SHA-256 — upgraded hashPhone/hashIP to HMAC-SHA256 with HMAC_SECRET env var, threaded through all adapters/routes/DOs
 - [x] **M-6**: Backup filename leaks pubkey fragment — now uses random suffix
 - [x] **M-7**: File metadata ECIES uses wrong context string — fixed to `llamenos:file-metadata`
-- [ ] **M-8**: No JS dependency vulnerability scanning in CI
-- [ ] **M-9**: Floating Docker base image tags — pin to digests
-- [ ] **M-10**: Helm NetworkPolicy missing PostgreSQL egress rule
+- [x] **M-8**: No JS dependency vulnerability scanning in CI — added `bun audit --audit-level=high` job gating releases
+- [x] **M-9**: Floating Docker base image tags — pinned all images to SHA256 digests (Dockerfile, compose, Helm)
+- [x] **M-10**: Helm NetworkPolicy missing PostgreSQL egress rule — added conditional TCP egress for postgres.port
 
 ### Low — Epic 67
 - [ ] **L-1**: `adminPubkey` in public config — restrict to authenticated users

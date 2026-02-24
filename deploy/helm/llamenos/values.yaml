@@ -31,7 +31,7 @@ minio:
   enabled: true
   image:
     repository: minio/minio
-    tag: "RELEASE.2025-01-20T14-49-07Z"
+    tag: "RELEASE.2025-01-20T14-49-07Z@sha256:ed9be66eb5f2636c18289c34c3b725ddf57815f2777c77b5938543b78a44f144"
   persistence:
     size: 50Gi
     storageClass: ""
@@ -53,7 +53,7 @@ whisper:
   enabled: false
   image:
     repository: fedirz/faster-whisper-server
-    tag: "0.4.1"
+    tag: "0.4.1"  # TODO: pin to digest when available
   model: "Systran/faster-whisper-base"
   device: "cpu"  # or "cuda" for GPU
   resources:
@@ -85,7 +85,7 @@ signal:
   enabled: false
   image:
     repository: bbernhard/signal-cli-rest-api
-    tag: "0.92"
+    tag: "0.92@sha256:702db336aa1a87611595e66755c9ccf65b24c25589857301eabef1d46056b3c5"
   persistence:
     size: 1Gi
 

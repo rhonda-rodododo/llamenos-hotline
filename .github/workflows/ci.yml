@@ -77,6 +77,28 @@ jobs:
           path: site/dist/
           retention-days: 1
 
+  # ─── Dependency Vulnerability Scan ───────────────────────────
+  audit:
+    runs-on: ubuntu-latest
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Audit dependencies
+        # Only block on critical vulnerabilities — high-severity transitive deps
+        # (e.g. minimatch in vite-plugin-pwa/shadcn) can't be fixed without upstream updates
+        run: bun audit --audit-level=critical
+
   # ─── E2E Tests: Cloudflare Workers (wrangler dev) ──────────
   e2e-cf:
     needs: build
@@ -215,7 +237,7 @@ jobs:
 
   # ─── Version Bump & Changelog ──────────────────────────────
   version:
-    needs: [build, e2e-cf, e2e-docker]
+    needs: [build, audit, e2e-cf, e2e-docker]
     runs-on: ubuntu-latest
 
     permissions:

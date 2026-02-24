@@ -68,7 +68,7 @@ services:
       start_period: 20s
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:3430fe182f5065a6ea505c3d432d2c7fff18fbab954df8f277c1dbf4c70124af
     restart: unless-stopped
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -86,7 +86,7 @@ services:
       start_period: 10s
 
   caddy:
-    image: caddy:2.9-alpine
+    image: caddy:2.9-alpine@sha256:b4e3952384eb9524a887633ce65c752dd7c71314d2c2acf98cd5c715aaa534f0
     restart: unless-stopped
     ports:
       - "${HTTP_PORT:-80}:80"
@@ -106,7 +106,7 @@ services:
         condition: service_healthy
 
   minio:
-    image: minio/minio:RELEASE.2025-01-20T14-49-07Z
+    image: minio/minio:RELEASE.2025-01-20T14-49-07Z@sha256:ed9be66eb5f2636c18289c34c3b725ddf57815f2777c77b5938543b78a44f144
     command: server /data --console-address ":9001"
     restart: unless-stopped
     volumes:
@@ -125,7 +125,7 @@ services:
 
   # ── Optional: Whisper Transcription ───────────────────────
   whisper:
-    image: fedirz/faster-whisper-server:0.4.1
+    image: fedirz/faster-whisper-server:0.4.1  # TODO: pin to digest when available
     profiles: ["transcription"]
     restart: unless-stopped
     environment:
@@ -142,7 +142,7 @@ services:
 
   # ── Optional: Asterisk PBX ───────────────────────────────
   asterisk:
-    image: andrius/asterisk:20.11
+    image: andrius/asterisk@sha256:e30df5ec1b512827bf3cffc49b8000b07376a05c950736d028348eba80035015 # 20.x
     profiles: ["asterisk"]
     restart: unless-stopped
     volumes:
@@ -178,7 +178,7 @@ services:
 
   # ── Optional: Signal Messaging ───────────────────────────
   signal-cli:
-    image: bbernhard/signal-cli-rest-api:0.92
+    image: bbernhard/signal-cli-rest-api:0.92@sha256:702db336aa1a87611595e66755c9ccf65b24c25589857301eabef1d46056b3c5
     profiles: ["signal"]
     restart: unless-stopped
     environment:
