@@ -1,0 +1,33 @@
+---
+# Server Hardening Playbook
+#
+# Applies security hardening to a fresh Ubuntu 22.04/24.04 VPS:
+# - Base packages, NTP, locale, unattended upgrades
+# - SSH hardening (disable password auth, disable root, custom port)
+# - UFW firewall (default deny, allow SSH/HTTP/HTTPS)
+# - Kernel sysctl hardening (network, memory protections)
+# - Fail2ban (SSH brute-force protection)
+# - Docker CE with security defaults (userns-remap, no-new-privileges)
+#
+# Usage:
+#   ansible-playbook playbooks/harden.yml --ask-vault-pass
+#   ansible-playbook playbooks/harden.yml --ask-vault-pass --check --diff
+
+- name: Harden server
+  hosts: all
+  become: true
+  vars_files:
+    - ../vars.yml
+  roles:
+    - role: common
+      tags: [common, harden]
+    - role: ssh-hardening
+      tags: [ssh, harden]
+    - role: firewall
+      tags: [firewall, harden]
+    - role: kernel-hardening
+      tags: [kernel, harden]
+    - role: fail2ban
+      tags: [fail2ban, harden]
+    - role: docker
+      tags: [docker, harden]

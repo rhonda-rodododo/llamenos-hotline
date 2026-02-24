@@ -2,6 +2,12 @@
 
 This guide provides security-focused deployment recommendations for Llamenos operators. Since Llamenos is self-hosted open-source software, the operator is responsible for infrastructure security. This document covers three deployment architectures in order of complexity.
 
+**Related documents**:
+- [Quick Start Guide](../QUICKSTART.md) -- step-by-step deployment walkthrough for first-time operators
+- [Operator Runbook](../RUNBOOK.md) -- operational procedures, incident response, backup/recovery, and troubleshooting
+- [Threat Model](THREAT_MODEL.md) -- adversary profiles, trust boundaries, and cryptographic guarantees
+- [Security Audit Report (R6)](SECURITY_AUDIT_2026-02-R6.md) -- latest security audit findings and fixes
+
 ## Architecture Overview
 
 | Architecture | Best For | Complexity | Security Surface |
@@ -35,12 +41,20 @@ All three architectures provide E2EE for call notes and transcriptions. The secu
 
 ### VPS Hardening with Ansible
 
-We provide an Ansible playbook for automated VPS hardening. This is the recommended approach for operators who are not Linux security specialists.
+We provide Ansible playbooks for automated VPS hardening and application deployment. This is the recommended approach for operators who are not Linux security specialists. The playbooks live in the repository at `deploy/ansible/`.
+
+**Ansible tooling**:
+- `deploy/ansible/ansible.cfg` -- Ansible configuration (SSH pipelining, YAML output, sudo escalation)
+- `deploy/ansible/inventory.example.yml` -- Example inventory with annotated configuration
+- `deploy/ansible/playbooks/harden.yml` -- Server hardening (SSH, firewall, kernel, Docker, fail2ban, auditd)
+- `deploy/ansible/playbooks/deploy.yml` -- Application deployment (Docker Compose, secrets, health check)
+- `deploy/ansible/playbooks/update.yml` -- Rolling updates with pre-update backup and rollback
+- `deploy/ansible/playbooks/backup.yml` -- Automated encrypted database backups
+
+**Quick start** (see [`docs/QUICKSTART.md`](../QUICKSTART.md) for the full walkthrough):
 
 ```bash
-# Clone the deployment repo
-git clone https://github.com/llamenos/deploy-ansible.git
-cd deploy-ansible
+cd deploy/ansible
 
 # Configure your inventory
 cp inventory.example.yml inventory.yml
@@ -53,7 +67,7 @@ ansible-playbook -i inventory.yml playbooks/harden.yml
 ansible-playbook -i inventory.yml playbooks/deploy.yml
 ```
 
-The hardening playbook performs:
+The hardening playbook is idempotent -- it is safe to run multiple times. It performs:
 
 #### OS-Level Hardening
 - **Unattended security updates** (`unattended-upgrades` with security-only sources)
@@ -323,24 +337,33 @@ resource "hcloud_firewall" "llamenos" {
 
 ### Workflow
 
+The recommended end-to-end flow for a new deployment:
+
 ```bash
-# 1. Provision infrastructure
+# 1. Provision infrastructure (optional -- skip if you created the VPS manually)
 cd deploy/opentofu
 tofu init
 tofu plan -var-file=production.tfvars
 tofu apply -var-file=production.tfvars
 
 # 2. Harden the server
-cd ../ansible
+cd deploy/ansible
 ansible-playbook -i inventory.yml playbooks/harden.yml
 
 # 3. Deploy Llamenos
 ansible-playbook -i inventory.yml playbooks/deploy.yml
+
+# 4. Update (subsequent deploys)
+ansible-playbook -i inventory.yml playbooks/update.yml
 ```
+
+For the manual (non-Ansible) equivalent of each step, see the [Quick Start Guide](../QUICKSTART.md).
 
 ---
 
 ## Operational Security Procedures
+
+For detailed operational procedures including secret rotation steps, backup/recovery, incident response checklists, and troubleshooting guides, see the [Operator Runbook](../RUNBOOK.md).
 
 ### Key Management
 
@@ -413,4 +436,5 @@ ansible-playbook -i inventory.yml playbooks/deploy.yml
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-02-23 | 1.1 | Added cross-references to QUICKSTART.md, RUNBOOK.md; updated Ansible tooling to reference in-repo paths at `deploy/ansible/`; documented playbook inventory and roles |
 | 2026-02-23 | 1.0 | Initial deployment hardening guide |

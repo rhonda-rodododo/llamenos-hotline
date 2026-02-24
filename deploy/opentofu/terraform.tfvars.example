@@ -1,0 +1,41 @@
+# Llamenos OpenTofu Variables
+# Copy this file to terraform.tfvars and fill in your values.
+#
+# SECURITY: terraform.tfvars is gitignored — never commit it.
+#
+# Usage:
+#   cp terraform.tfvars.example terraform.tfvars
+#   # Edit terraform.tfvars with your values
+#   tofu init
+#   tofu plan
+#   tofu apply
+
+# Required: Hetzner Cloud API token
+# Generate at: https://console.hetzner.cloud/projects/*/security/tokens
+hcloud_token = ""
+
+# Required: Domain for the deployment
+domain = "hotline.example.org"
+
+# Optional: Path to SSH public key (default: ~/.ssh/id_ed25519.pub)
+# ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+
+# Optional: Server type (default: cx22 — 2 vCPU, 4 GB RAM)
+# server_type = "cx22"
+
+# Optional: Datacenter location (default: nbg1 — Nuremberg, EU/GDPR)
+# Other EU options: fsn1 (Falkenstein), hel1 (Helsinki)
+# location = "nbg1"
+
+# Optional: Server hostname (default: llamenos)
+# server_name = "llamenos"
+
+# Optional: OS image (default: ubuntu-24.04)
+# image = "ubuntu-24.04"
+
+# Optional: Enable automated backups (default: true, recommended)
+# enable_backups = true
+
+# Optional: Path to Ansible playbooks directory (default: ../ansible)
+# Set to "" to skip Ansible inventory generation
+# ansible_dir = "../ansible"

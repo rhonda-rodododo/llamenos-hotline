@@ -1,0 +1,71 @@
+# Llamenos Caddyfile — managed by Ansible
+# Do not edit manually; changes will be overwritten on next deploy.
+#
+# Domain: {{ domain }}
+# ACME Email: {{ acme_email }}
+
+{% if acme_email %}
+{
+	email {{ acme_email }}
+}
+{% endif %}
+
+{{ domain }} {
+	# API, telephony, messaging, and WebSocket routes
+	handle /api/* {
+		reverse_proxy app:3000
+	}
+
+	handle /telephony/* {
+		reverse_proxy app:3000
+	}
+
+	handle /messaging/* {
+		reverse_proxy app:3000
+	}
+
+	# Everything else (SPA static files)
+	handle {
+		reverse_proxy app:3000
+	}
+
+	# Security headers
+	header {
+		# HSTS with 2-year max-age, preload eligible
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+		# Prevent MIME sniffing
+		X-Content-Type-Options "nosniff"
+
+		# Prevent framing (clickjacking protection)
+		X-Frame-Options "DENY"
+
+		# Control referrer information leakage
+		Referrer-Policy "strict-origin-when-cross-origin"
+
+		# Block cross-domain policies
+		X-Permitted-Cross-Domain-Policies "none"
+
+		# Content Security Policy
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' wss://{{ domain }}; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+
+		# Permissions Policy (restrict browser features)
+		Permissions-Policy "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()"
+
+		# Remove server identification
+		-Server
+	}
+
+	# Compression
+	encode gzip zstd
+
+	# Access logging
+	log {
+		output file /data/access.log {
+			roll_size 10mb
+			roll_keep 3
+			roll_keep_for 168h
+		}
+		format json
+	}
+}

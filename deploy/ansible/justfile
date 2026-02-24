@@ -1,0 +1,77 @@
+# Llamenos Ansible Deployment Commands
+#
+# Prerequisites:
+#   - Ansible installed (pip install ansible)
+#   - just installed (https://github.com/casey/just)
+#   - inventory.yml and vars.yml configured
+#
+# Quick start:
+#   cp inventory.example.yml inventory.yml
+#   cp vars.example.yml vars.yml
+#   # Edit both files with your values
+#   ansible-vault encrypt vars.yml
+#   just setup-all
+
+# Default recipe: show available commands
+default:
+    @just --list
+
+# Full server setup: harden + deploy
+setup-all *ARGS:
+    ansible-playbook setup.yml --ask-vault-pass {{ARGS}}
+
+# Harden the server (SSH, firewall, kernel, fail2ban, Docker)
+harden *ARGS:
+    ansible-playbook playbooks/harden.yml --ask-vault-pass {{ARGS}}
+
+# Deploy or update the application
+deploy *ARGS:
+    ansible-playbook playbooks/deploy.yml --ask-vault-pass {{ARGS}}
+
+# Pull latest images and restart with health check and rollback
+update *ARGS:
+    ansible-playbook playbooks/update.yml --ask-vault-pass {{ARGS}}
+
+# Run encrypted backup
+backup *ARGS:
+    ansible-playbook playbooks/backup.yml --ask-vault-pass {{ARGS}}
+
+# Check configuration without making changes
+check *ARGS:
+    ansible-playbook setup.yml --check --diff --ask-vault-pass {{ARGS}}
+
+# Encrypt the vars file with Ansible Vault
+encrypt-vars:
+    ansible-vault encrypt vars.yml
+
+# Edit encrypted vars file
+edit-vars:
+    ansible-vault edit vars.yml
+
+# View encrypted vars file
+view-vars:
+    ansible-vault view vars.yml
+
+# Test SSH connectivity to all hosts
+ping:
+    ansible all -m ping
+
+# Show gathered facts for debugging
+facts:
+    ansible all -m setup --ask-vault-pass
+
+# Generate secrets for a new deployment
+generate-secrets:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "=== Generated Secrets ==="
+    echo ""
+    echo "pg_password: $(openssl rand -base64 24)"
+    echo "hmac_secret: $(openssl rand -hex 32)"
+    echo "minio_access_key: $(openssl rand -base64 24)"
+    echo "minio_secret_key: $(openssl rand -base64 24)"
+    echo "ari_password: $(openssl rand -base64 24)"
+    echo "bridge_secret: $(openssl rand -base64 24)"
+    echo ""
+    echo "Copy these into your vars.yml before encrypting."
+    echo "Run: just encrypt-vars"
