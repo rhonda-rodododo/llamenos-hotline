@@ -5,7 +5,7 @@ export const common: Record<string, {
     docsHeading: string;
     tagline: string;
     copyright: string;
-    deployedOn: string;
+
     gettingStarted: string;
     adminGuide: string;
     volunteerGuide: string;
@@ -46,7 +46,7 @@ export const common: Record<string, {
       docsHeading: 'Documentation',
       tagline: 'Open-source secure crisis response hotline software. Built with end-to-end encryption by default.',
       copyright: 'Llámenos contributors. Open source under MIT license.',
-      deployedOn: 'Deployed on',
+
       gettingStarted: 'Getting Started',
       adminGuide: 'Admin Guide',
       volunteerGuide: 'Volunteer Guide',
@@ -87,7 +87,7 @@ export const common: Record<string, {
       docsHeading: 'Documentación',
       tagline: 'Software de línea de crisis segura y de código abierto. Cifrado de extremo a extremo por defecto.',
       copyright: 'Colaboradores de Llámenos. Código abierto bajo licencia MIT.',
-      deployedOn: 'Desplegado en',
+
       gettingStarted: 'Primeros pasos',
       adminGuide: 'Guía del administrador',
       volunteerGuide: 'Guía del voluntario',
@@ -128,7 +128,7 @@ export const common: Record<string, {
       docsHeading: '文档',
       tagline: '开源安全危机响应热线软件。默认端到端加密。',
       copyright: 'Llámenos 贡献者。MIT 许可证开源。',
-      deployedOn: '部署于',
+
       gettingStarted: '快速入门',
       adminGuide: '管理员指南',
       volunteerGuide: '志愿者指南',
@@ -169,7 +169,7 @@ export const common: Record<string, {
       docsHeading: 'Dokumentasyon',
       tagline: 'Open-source na secure na crisis response hotline software. May end-to-end encryption bilang default.',
       copyright: 'Mga kontribyutor ng Llámenos. Open source sa ilalim ng MIT license.',
-      deployedOn: 'Naka-deploy sa',
+
       gettingStarted: 'Pagsisimula',
       adminGuide: 'Gabay ng Admin',
       volunteerGuide: 'Gabay ng Volunteer',
@@ -210,7 +210,7 @@ export const common: Record<string, {
       docsHeading: 'Tài liệu',
       tagline: 'Phần mềm đường dây nóng ứng phó khủng hoảng mã nguồn mở và bảo mật. Mã hóa đầu cuối theo mặc định.',
       copyright: 'Những người đóng góp Llámenos. Mã nguồn mở theo giấy phép MIT.',
-      deployedOn: 'Triển khai trên',
+
       gettingStarted: 'Bắt đầu',
       adminGuide: 'Hướng dẫn quản trị',
       volunteerGuide: 'Hướng dẫn tình nguyện viên',
@@ -251,7 +251,7 @@ export const common: Record<string, {
       docsHeading: 'التوثيق',
       tagline: 'برنامج خط ساخن مفتوح المصدر وآمن للاستجابة للأزمات. تشفير من طرف إلى طرف افتراضيًا.',
       copyright: 'مساهمو Llámenos. مصدر مفتوح بموجب رخصة MIT.',
-      deployedOn: 'منشور على',
+
       gettingStarted: 'البدء',
       adminGuide: 'دليل المسؤول',
       volunteerGuide: 'دليل المتطوع',
@@ -292,7 +292,7 @@ export const common: Record<string, {
       docsHeading: 'Documentation',
       tagline: "Logiciel de ligne d'urgence sécurisé et open source. Chiffrement de bout en bout par défaut.",
       copyright: 'Contributeurs de Llámenos. Open source sous licence MIT.',
-      deployedOn: 'Déployé sur',
+
       gettingStarted: 'Premiers pas',
       adminGuide: "Guide de l'administrateur",
       volunteerGuide: 'Guide du bénévole',
@@ -333,7 +333,7 @@ export const common: Record<string, {
       docsHeading: 'Dokimantasyon',
       tagline: 'Lojisyèl liy kriz ki an sekirite epi open source. Chifre bout-an-bout pa defo.',
       copyright: 'Kontribitè Llámenos. Open source anba lisans MIT.',
-      deployedOn: 'Deplwaye sou',
+
       gettingStarted: 'Kòmanse',
       adminGuide: 'Gid Administratè',
       volunteerGuide: 'Gid Volontè',
@@ -374,7 +374,7 @@ export const common: Record<string, {
       docsHeading: '문서',
       tagline: '오픈 소스 보안 위기 대응 핫라인 소프트웨어. 기본적으로 종단간 암호화.',
       copyright: 'Llámenos 기여자. MIT 라이선스 오픈 소스.',
-      deployedOn: '배포 위치',
+
       gettingStarted: '시작하기',
       adminGuide: '관리자 가이드',
       volunteerGuide: '자원봉사자 가이드',
@@ -415,7 +415,7 @@ export const common: Record<string, {
       docsHeading: 'Документация',
       tagline: 'Открытое безопасное программное обеспечение для кризисной горячей линии. Сквозное шифрование по умолчанию.',
       copyright: 'Участники Llámenos. Открытый исходный код по лицензии MIT.',
-      deployedOn: 'Развёрнуто на',
+
       gettingStarted: 'Начало работы',
       adminGuide: 'Руководство администратора',
       volunteerGuide: 'Руководство волонтёра',
@@ -456,7 +456,7 @@ export const common: Record<string, {
       docsHeading: 'दस्तावेज़',
       tagline: 'ओपन-सोर्स सुरक्षित संकट प्रतिक्रिया हॉटलाइन सॉफ़्टवेयर। डिफ़ॉल्ट रूप से एंड-टू-एंड एन्क्रिप्शन।',
       copyright: 'Llámenos योगदानकर्ता। MIT लाइसेंस के तहत ओपन सोर्स।',
-      deployedOn: 'पर तैनात',
+
       gettingStarted: 'शुरू करें',
       adminGuide: 'प्रशासक गाइड',
       volunteerGuide: 'स्वयंसेवक गाइड',
@@ -497,7 +497,7 @@ export const common: Record<string, {
       docsHeading: 'Documentação',
       tagline: 'Software de linha de crise seguro e de código aberto. Criptografia de ponta a ponta por padrão.',
       copyright: 'Contribuidores do Llámenos. Código aberto sob licença MIT.',
-      deployedOn: 'Implantado em',
+
       gettingStarted: 'Primeiros passos',
       adminGuide: 'Guia do administrador',
       volunteerGuide: 'Guia do voluntário',
@@ -538,7 +538,7 @@ export const common: Record<string, {
       docsHeading: 'Dokumentation',
       tagline: 'Open-Source-Software für sichere Krisenhotlines. Standardmäßig Ende-zu-Ende-verschlüsselt.',
       copyright: 'Llámenos-Mitwirkende. Open Source unter MIT-Lizenz.',
-      deployedOn: 'Bereitgestellt auf',
+
       gettingStarted: 'Erste Schritte',
       adminGuide: 'Administratorhandbuch',
       volunteerGuide: 'Freiwilligenhandbuch',
