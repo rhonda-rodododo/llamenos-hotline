@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-02-24
+
+### Bug Fixes
+
+- update reporter onboarding test for simplified backup flow
+- add missing PG_PASSWORD to docker E2E, increase CF timeout, exclude live tests
+- use data-testid selectors, enable parallel E2E, reduce timeouts
+- increase login timeouts and add serial mode for state-dependent tests
+- resolve parallel execution conflicts in E2E tests
+- increase e2e-docker timeout from 20 to 30 minutes
+- fix field slug, remove double logins, increase timeouts
+- scope custom field badge assertion to specific note card
+- restore bun.lockb compatible with CI bun v1.2
+- make custom field creation idempotent, scope edit assertions
+- prevent section toggle race in custom fields tests
+- audit round 6 — supply chain, crypto hygiene, permission guards
+- audit R6 high — remove V1 encrypt, gate resets, tree-shake demo, lockfile, ARI creds
+- audit R6 medium — SSRF guard, DO admin routes, HMAC-SHA256 hashing
+- audit R6 medium — dep scanning, image pinning, PG egress
+- improve test-reset error handling and robustness
+- request-bound auth tokens, adminPubkey migration, CI test fixes
+- complete keyPair→keyManager migration in remaining components
+- complete L-3 keyPair removal from auth context
+- add token verification fallback and fix test token creation
+- strip query params from token path to match server pathname
+- skip live telephony in CI, fix strict mode and flaky navigation
+- handle deep link section expansion on search-only navigation
+
+### CI/CD
+
+- trigger fresh CI run for e2e-docker validation
+
+### Features
+
+- add in-browser admin bootstrap
+- add permission-based access control, UI polish, and admin improvements
+- add storage migration framework and PostgreSQL improvements
+- add multi-hub architecture with per-hub isolation
+- dynamic role assignment UI, notification/PWA banners, logo refresh, and setup wizard improvements
+- add live telephony E2E tests, UX improvements, and phone input upgrade
+
+### Miscellaneous
+
+- add next staging environment for pre-release testing
+- v0.15.0 [skip ci]
+
 ## [0.14.0] - 2026-02-22
 
 ### Bug Fixes
