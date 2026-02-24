@@ -6,6 +6,7 @@ export default defineConfig({
   output: 'static',
   integrations: [
     mermaid({
+      // Dark theme for better readability on dark backgrounds
       theme: 'dark',
     }),
   ],
