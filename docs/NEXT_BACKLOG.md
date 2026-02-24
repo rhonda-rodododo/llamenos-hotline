@@ -106,8 +106,9 @@ Deployment guide: [`docs/security/DEPLOYMENT_HARDENING.md`](security/DEPLOYMENT_
 - [ ] Ansible playbook for updates and rollbacks
 - [ ] Ansible playbook for encrypted backups
 - [ ] OpenTofu module for Hetzner VPS provisioning (optional)
-- [ ] Quick start guide for first-time operators
-- [ ] Operator runbook (secret rotation, incident response, backup recovery)
+- [x] Quick start guide for first-time operators (`docs/QUICKSTART.md`)
+- [x] Operator runbook (secret rotation, incident response, backup recovery) (`docs/RUNBOOK.md`)
+- [x] Updated DEPLOYMENT_HARDENING.md with Ansible tooling cross-references
 
 ## Multi-Provider Telephony (Epics 32–36) — COMPLETE
 - [x] Epic 32: Provider Configuration System (admin UI, API, DO storage, connection test)

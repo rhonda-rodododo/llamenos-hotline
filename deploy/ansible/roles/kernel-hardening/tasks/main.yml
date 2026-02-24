@@ -1,0 +1,105 @@
+---
+# Kernel Hardening role
+#
+# Applies sysctl settings for network and memory hardening.
+# These settings are critical for a crisis hotline server
+# that may be targeted by sophisticated adversaries.
+
+- name: Apply kernel hardening sysctl settings
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-llamenos-hardening.conf
+    reload: true
+    state: present
+  loop:
+    # ── Network hardening ─────────────────────────────────────
+    # Enable SYN cookies to prevent SYN flood attacks
+    - { key: "net.ipv4.tcp_syncookies", value: "1" }
+
+    # Enable reverse path filtering (strict mode)
+    - { key: "net.ipv4.conf.all.rp_filter", value: "1" }
+    - { key: "net.ipv4.conf.default.rp_filter", value: "1" }
+
+    # Disable ICMP redirects (prevent MITM routing attacks)
+    - { key: "net.ipv4.conf.all.accept_redirects", value: "0" }
+    - { key: "net.ipv4.conf.default.accept_redirects", value: "0" }
+    - { key: "net.ipv4.conf.all.send_redirects", value: "0" }
+    - { key: "net.ipv4.conf.default.send_redirects", value: "0" }
+    - { key: "net.ipv6.conf.all.accept_redirects", value: "0" }
+    - { key: "net.ipv6.conf.default.accept_redirects", value: "0" }
+
+    # Disable source routing (prevent IP spoofing)
+    - { key: "net.ipv4.conf.all.accept_source_route", value: "0" }
+    - { key: "net.ipv4.conf.default.accept_source_route", value: "0" }
+    - { key: "net.ipv6.conf.all.accept_source_route", value: "0" }
+    - { key: "net.ipv6.conf.default.accept_source_route", value: "0" }
+
+    # Log martian packets (packets with impossible source addresses)
+    - { key: "net.ipv4.conf.all.log_martians", value: "1" }
+    - { key: "net.ipv4.conf.default.log_martians", value: "1" }
+
+    # Ignore ICMP broadcast requests (prevent smurf attacks)
+    - { key: "net.ipv4.icmp_echo_ignore_broadcasts", value: "1" }
+
+    # Ignore bogus ICMP error responses
+    - { key: "net.ipv4.icmp_ignore_bogus_error_responses", value: "1" }
+
+    # Disable IP forwarding for non-Docker interfaces
+    # Note: Docker manages its own forwarding rules via iptables
+    # We keep forwarding enabled but restrict via iptables
+    - { key: "net.ipv4.ip_forward", value: "1" }
+
+    # Disable IPv6 router advertisements
+    - { key: "net.ipv6.conf.all.accept_ra", value: "0" }
+    - { key: "net.ipv6.conf.default.accept_ra", value: "0" }
+
+    # ── TCP performance tuning ────────────────────────────────
+    # Increase TCP max SYN backlog
+    - { key: "net.ipv4.tcp_max_syn_backlog", value: "4096" }
+
+    # Enable TCP Fast Open (client + server)
+    - { key: "net.ipv4.tcp_fastopen", value: "3" }
+
+    # Optimize TCP keepalive (detect dead connections faster)
+    - { key: "net.ipv4.tcp_keepalive_time", value: "600" }
+    - { key: "net.ipv4.tcp_keepalive_intvl", value: "60" }
+    - { key: "net.ipv4.tcp_keepalive_probes", value: "5" }
+
+    # Reduce TIME_WAIT sockets
+    - { key: "net.ipv4.tcp_fin_timeout", value: "15" }
+
+    # ── Memory protections ────────────────────────────────────
+    # Restrict access to kernel pointers (prevent KASLR bypass)
+    - { key: "kernel.kptr_restrict", value: "2" }
+
+    # Restrict access to dmesg (prevent kernel info leaks)
+    - { key: "kernel.dmesg_restrict", value: "1" }
+
+    # Restrict perf_event access
+    - { key: "kernel.perf_event_paranoid", value: "3" }
+
+    # Restrict eBPF (prevent container escape techniques)
+    - { key: "kernel.unprivileged_bpf_disabled", value: "1" }
+
+    # Protect hardlinks and symlinks
+    - { key: "fs.protected_hardlinks", value: "1" }
+    - { key: "fs.protected_symlinks", value: "1" }
+
+    # Restrict core dumps
+    - { key: "fs.suid_dumpable", value: "0" }
+
+    # ── Connection tracking ───────────────────────────────────
+    # Increase connection tracking table size for high traffic
+    - { key: "net.netfilter.nf_conntrack_max", value: "131072" }
+
+- name: Disable core dumps via limits
+  ansible.builtin.copy:
+    dest: /etc/security/limits.d/99-llamenos-no-core.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Llamenos: disable core dumps (may contain sensitive data)
+      * hard core 0
+      * soft core 0

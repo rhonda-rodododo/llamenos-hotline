@@ -1,0 +1,22 @@
+---
+# Application Deployment Playbook
+#
+# Deploys the Llamenos stack via Docker Compose:
+# - Ensures Docker is installed
+# - Templates docker-compose.yml, .env, and Caddyfile
+# - Pulls images and starts services
+# - Waits for health check to pass
+#
+# Usage:
+#   ansible-playbook playbooks/deploy.yml --ask-vault-pass
+
+- name: Deploy Llamenos
+  hosts: all
+  become: true
+  vars_files:
+    - ../vars.yml
+  roles:
+    - role: docker
+      tags: [docker, deploy]
+    - role: llamenos
+      tags: [llamenos, deploy]

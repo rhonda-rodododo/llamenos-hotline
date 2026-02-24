@@ -1,0 +1,30 @@
+---
+# Llamenos Main Setup Playbook
+#
+# This is the single entry point for all deployment operations.
+# It runs hardening and deployment in the correct order.
+#
+# Usage:
+#   ansible-playbook setup.yml                     # Full setup
+#   ansible-playbook setup.yml --tags harden       # Hardening only
+#   ansible-playbook setup.yml --tags deploy       # Deploy only
+#   ansible-playbook setup.yml --ask-vault-pass    # If vars.yml is encrypted
+
+- name: Load configuration variables
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Include vars file
+      ansible.builtin.include_vars:
+        file: vars.yml
+      tags: always
+
+- name: Harden server
+  ansible.builtin.import_playbook: playbooks/harden.yml
+  tags:
+    - harden
+
+- name: Deploy Llamenos
+  ansible.builtin.import_playbook: playbooks/deploy.yml
+  tags:
+    - deploy

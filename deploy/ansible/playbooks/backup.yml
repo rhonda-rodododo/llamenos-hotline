@@ -1,0 +1,17 @@
+---
+# Backup Playbook
+#
+# Runs an encrypted backup of the PostgreSQL database and uploads
+# it to an off-site storage destination via rclone.
+#
+# Usage:
+#   ansible-playbook playbooks/backup.yml --ask-vault-pass
+
+- name: Run backup
+  hosts: all
+  become: true
+  vars_files:
+    - ../vars.yml
+  roles:
+    - role: backup
+      tags: [backup]

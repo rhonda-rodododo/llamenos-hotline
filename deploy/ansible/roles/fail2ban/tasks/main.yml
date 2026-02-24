@@ -1,0 +1,68 @@
+---
+# Fail2ban role
+#
+# Provides brute-force protection for SSH.
+# Bans IPs after repeated failed authentication attempts.
+
+- name: Install fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+
+- name: Configure fail2ban SSH jail
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/llamenos-sshd.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Llamenos fail2ban configuration — managed by Ansible
+
+      [DEFAULT]
+      # Ban for 1 hour after 3 failures within 10 minutes
+      bantime = 3600
+      findtime = 600
+      maxretry = 3
+      # Use systemd journal for log parsing
+      backend = systemd
+      # Ban action: use UFW integration
+      banaction = ufw
+
+      [sshd]
+      enabled = true
+      port = {{ ssh_port }}
+      filter = sshd
+      maxretry = 3
+      findtime = 600
+      bantime = 3600
+
+      [sshd-aggressive]
+      enabled = true
+      port = {{ ssh_port }}
+      filter = sshd[mode=aggressive]
+      maxretry = 3
+      findtime = 1800
+      bantime = 86400
+  notify: Restart fail2ban
+
+- name: Configure fail2ban UFW action
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/action.d/ufw.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Fail2ban UFW action — managed by Ansible
+      [Definition]
+      actionstart =
+      actionstop =
+      actioncheck =
+      actionban = ufw insert 1 deny from <ip> to any comment "fail2ban: <name>"
+      actionunban = ufw delete deny from <ip> to any
+  notify: Restart fail2ban
+
+- name: Enable and start fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    enabled: true
+    state: started

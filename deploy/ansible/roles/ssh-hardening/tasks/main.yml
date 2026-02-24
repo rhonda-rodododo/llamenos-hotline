@@ -1,0 +1,73 @@
+---
+# SSH Hardening role
+#
+# - Disables password authentication
+# - Disables root login
+# - Changes SSH port
+# - Restricts allowed users
+# - Hardens SSH crypto settings
+
+- name: Configure SSH server
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-llamenos-hardening.conf
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      # Llamenos SSH hardening — managed by Ansible
+      # Do not edit manually; changes will be overwritten on next deploy.
+
+      # Listen on custom port
+      Port {{ ssh_port }}
+
+      # Authentication
+      PermitRootLogin no
+      PasswordAuthentication no
+      ChallengeResponseAuthentication no
+      KbdInteractiveAuthentication no
+      UsePAM yes
+      PubkeyAuthentication yes
+      AuthenticationMethods publickey
+      MaxAuthTries 3
+      MaxSessions 3
+      LoginGraceTime 30
+
+      # Disable unused authentication methods
+      HostbasedAuthentication no
+      PermitEmptyPasswords no
+      KerberosAuthentication no
+      GSSAPIAuthentication no
+
+      # Restrict users
+      AllowUsers {{ deploy_user }}
+
+      # Disable forwarding (not needed for deployment)
+      AllowTcpForwarding no
+      AllowAgentForwarding no
+      X11Forwarding no
+      PermitTunnel no
+
+      # Hardened crypto
+      KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org
+      Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com
+      MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+
+      # Idle timeout (disconnect after 5 minutes of inactivity)
+      ClientAliveInterval 300
+      ClientAliveCountMax 0
+
+      # Logging
+      LogLevel VERBOSE
+
+      # Misc
+      PermitUserEnvironment no
+      PrintMotd no
+      PrintLastLog yes
+      TCPKeepAlive no
+      Compression no
+      UseDNS no
+  notify: Restart sshd
+
+- name: Validate SSH configuration
+  ansible.builtin.command: sshd -t
+  changed_when: false

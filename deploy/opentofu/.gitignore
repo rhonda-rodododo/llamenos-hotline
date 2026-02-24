@@ -1,0 +1,17 @@
+# OpenTofu / Terraform state — contains secrets, never commit
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+.terraform/
+.terraform.lock.hcl
+
+# Variable files with secrets
+*.tfvars
+!terraform.tfvars.example
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Plan output files
+*.tfplan
