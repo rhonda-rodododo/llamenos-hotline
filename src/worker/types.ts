@@ -215,6 +215,24 @@ export interface EncryptedMessage {
   externalId?: string              // provider's message ID
 }
 
+// --- Blast Queue ---
+
+export interface BlastQueueItem {
+  subscriberId: string
+  channel: MessagingChannelType
+  identifier: string            // actual phone/contact (server-only, not stored)
+  status: 'pending' | 'sent' | 'failed'
+  error?: string
+  sentAt?: string
+}
+
+export interface BlastDeliveryQueue {
+  blastId: string
+  items: BlastQueueItem[]
+  processedCount: number
+  totalCount: number
+}
+
 // Hono typed context
 export type AppEnv = {
   Bindings: Env

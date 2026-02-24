@@ -231,6 +231,82 @@ export const DEFAULT_MESSAGING_CONFIG: MessagingConfig = {
   maxConcurrentPerVolunteer: 3,
 }
 
+// --- Message Blasts ---
+
+export interface Subscriber {
+  id: string
+  identifierHash: string         // HMAC hash of phone/identifier
+  channels: SubscriberChannel[]
+  tags: string[]
+  language: string               // preferred language code
+  subscribedAt: string
+  status: 'active' | 'paused' | 'unsubscribed'
+  doubleOptInConfirmed: boolean
+  preferenceToken: string        // HMAC token for self-service preferences
+}
+
+export interface SubscriberChannel {
+  type: MessagingChannelType
+  verified: boolean
+}
+
+export interface Blast {
+  id: string
+  name: string
+  content: BlastContent
+  status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'cancelled'
+  targetChannels: MessagingChannelType[]
+  targetTags: string[]            // empty = all subscribers
+  targetLanguages: string[]       // empty = all languages
+  scheduledAt?: string
+  sentAt?: string
+  cancelledAt?: string
+  createdBy: string               // pubkey
+  createdAt: string
+  updatedAt: string
+  stats: BlastStats
+}
+
+export interface BlastContent {
+  text: string
+  mediaUrl?: string
+  mediaType?: string
+  // Per-channel overrides
+  smsText?: string
+  whatsappTemplateId?: string
+  rcsRichCard?: boolean
+}
+
+export interface BlastStats {
+  totalRecipients: number
+  sent: number
+  delivered: number
+  failed: number
+  optedOut: number
+}
+
+export interface BlastSettings {
+  subscribeKeyword: string        // default: "JOIN"
+  unsubscribeKeyword: string      // default: "STOP"
+  confirmationMessage: string
+  unsubscribeMessage: string
+  doubleOptIn: boolean
+  optOutFooter: string            // appended to every blast message
+  maxBlastsPerDay: number
+  rateLimitPerSecond: number      // sending rate
+}
+
+export const DEFAULT_BLAST_SETTINGS: BlastSettings = {
+  subscribeKeyword: 'JOIN',
+  unsubscribeKeyword: 'STOP',
+  confirmationMessage: 'You have been subscribed. Reply STOP to unsubscribe.',
+  unsubscribeMessage: 'You have been unsubscribed. Reply JOIN to resubscribe.',
+  doubleOptIn: false,
+  optOutFooter: '\nReply STOP to unsubscribe.',
+  maxBlastsPerDay: 10,
+  rateLimitPerSecond: 10,
+}
+
 // --- Setup State ---
 
 export interface SetupState {
