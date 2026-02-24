@@ -19,7 +19,7 @@ async function apiCall(page: import('@playwright/test').Page, method: string, pa
       const km = (window as any).__TEST_KEY_MANAGER
       if (km?.isUnlocked?.()) {
         try {
-          const token = km.createAuthToken(Date.now())
+          const token = km.createAuthToken(Date.now(), method, `/api${path}`)
           headers['Authorization'] = `Bearer ${token}`
         } catch { /* key locked or unavailable */ }
       }

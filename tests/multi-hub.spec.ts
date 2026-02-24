@@ -23,7 +23,9 @@ test.describe('Multi-hub architecture', () => {
           ...(options.headers as Record<string, string> || {}),
         }
         if (km?.isUnlocked()) {
-          const token = km.createAuthToken(Date.now())
+          const reqMethod = (options.method || 'GET').toUpperCase()
+          const reqPath = new URL(url, location.origin).pathname
+          const token = km.createAuthToken(Date.now(), reqMethod, reqPath)
           headers['Authorization'] = `Bearer ${token}`
         }
         return fetch(url, { ...options, headers })
