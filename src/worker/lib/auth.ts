@@ -31,12 +31,17 @@ export function validateToken(auth: AuthPayload): boolean {
 export async function verifyAuthToken(auth: AuthPayload, method?: string, path?: string): Promise<boolean> {
   if (!validateToken(auth)) return false
   try {
-    // Reconstruct the signed message — tokens are bound to request method+path
-    const message = method && path
-      ? `llamenos:auth:${auth.pubkey}:${auth.timestamp}:${method}:${path}`
-      : `llamenos:auth:${auth.pubkey}:${auth.timestamp}`
+    // Try request-bound verification first (new format: method+path in message)
+    if (method && path) {
+      const boundMessage = `llamenos:auth:${auth.pubkey}:${auth.timestamp}:${method}:${path}`
+      const boundHash = sha256(utf8ToBytes(boundMessage))
+      if (schnorr.verify(hexToBytes(auth.token), boundHash, hexToBytes(auth.pubkey))) {
+        return true
+      }
+      // Fallback: verify without method+path (transition period for old tokens)
+    }
+    const message = `llamenos:auth:${auth.pubkey}:${auth.timestamp}`
     const messageHash = sha256(utf8ToBytes(message))
-    // Verify Schnorr signature (BIP-340) against the x-only pubkey
     return schnorr.verify(hexToBytes(auth.token), messageHash, hexToBytes(auth.pubkey))
   } catch {
     return false
