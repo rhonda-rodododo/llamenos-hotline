@@ -10,7 +10,8 @@
 #   7. Deploy app to Cloudflare Workers + marketing site to Cloudflare Pages
 #   8. Create GitHub Release with changelog
 #
-# Docs-only changes (site/, *.md, etc.) skip E2E tests, versioning, and deploy.
+# Docs-only changes (*.md files) skip E2E tests, versioning, and app deployment.
+# Site changes (site/) skip E2E tests and versioning but STILL deploy to Pages.
 # App changes require E2E tests to pass before version bump or deployment.
 # The created tag also triggers docker.yml for Docker image builds.
 
@@ -38,6 +39,7 @@ jobs:
 
     outputs:
       app: ${{ steps.filter.outputs.app }}
+      site: ${{ steps.filter.outputs.site }}
       docs_only: ${{ steps.filter.outputs.docs_only }}
 
     steps:
@@ -69,6 +71,17 @@ jobs:
           done <<< "$CHANGED"
 
           echo "app=$APP_CHANGED" >> "$GITHUB_OUTPUT"
+
+          # Check if site files changed (need to deploy site even without version bump)
+          SITE_CHANGED="false"
+          while IFS= read -r file; do
+            if [[ -n "$file" ]] && [[ "$file" == site/* ]]; then
+              SITE_CHANGED="true"
+              echo "Site file changed: $file"
+              break
+            fi
+          done <<< "$CHANGED"
+          echo "site=$SITE_CHANGED" >> "$GITHUB_OUTPUT"
 
           # docs_only is true when NO app files changed
           if [[ "$APP_CHANGED" == "false" ]]; then
@@ -456,9 +469,13 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   # ─── Deploy Site to Cloudflare Pages ────────────────────────
+  # Deploy when: (1) there's a versioned release, OR (2) site files changed
   deploy-site:
-    needs: version
-    if: needs.version.outputs.should_release == 'true'
+    needs: [changes, build, version]
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.version.outputs.should_release == 'true' || needs.changes.outputs.site == 'true')
     runs-on: ubuntu-latest
 
     permissions:
@@ -487,7 +504,7 @@ jobs:
 
   # ─── Create GitHub Release ──────────────────────────────────
   release:
-    needs: [version, deploy-app, deploy-site]
+    needs: [version, deploy-app]
     if: needs.version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
 
