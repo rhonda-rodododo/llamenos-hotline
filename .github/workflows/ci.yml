@@ -1,7 +1,7 @@
 # Continuous Integration & Deployment
 #
 # On every push to main:
-#   1. Detect changed files — skip E2E tests for docs/site-only changes
+#   1. Detect changed files — skip E2E/version/deploy for docs-only changes
 #   2. Build & validate (typecheck, vite build, esbuild, site build)
 #   3. E2E tests against Cloudflare Workers (wrangler dev / miniflare)
 #   4. E2E tests against Docker Compose (Node.js self-hosted platform)
@@ -10,8 +10,8 @@
 #   7. Deploy app to Cloudflare Workers + marketing site to Cloudflare Pages
 #   8. Create GitHub Release with changelog
 #
-# E2E tests MUST pass before any version bump, deployment, or release
-# (unless only docs/site files changed — then E2E is skipped).
+# Docs-only changes (site/, *.md, etc.) skip E2E tests, versioning, and deploy.
+# App changes require E2E tests to pass before version bump or deployment.
 # The created tag also triggers docker.yml for Docker image builds.
 
 name: CI
@@ -293,13 +293,14 @@ jobs:
   # ─── Version Bump & Changelog ──────────────────────────────
   version:
     needs: [changes, build, audit, e2e-cf, e2e-docker]
-    # Run if E2E passed OR was skipped (docs-only changes)
+    # Skip version bump for docs-only changes; require E2E success for app changes
     if: |
       always() &&
+      needs.changes.outputs.docs_only != 'true' &&
       needs.build.result == 'success' &&
       needs.audit.result == 'success' &&
-      (needs.e2e-cf.result == 'success' || needs.e2e-cf.result == 'skipped') &&
-      (needs.e2e-docker.result == 'success' || needs.e2e-docker.result == 'skipped')
+      needs.e2e-cf.result == 'success' &&
+      needs.e2e-docker.result == 'success'
     runs-on: ubuntu-latest
 
     permissions:
