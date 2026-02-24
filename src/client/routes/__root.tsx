@@ -96,8 +96,13 @@ function RootLayout() {
     }
   }, [isLoading, isAuthenticated, profileCompleted, location.pathname, navigate])
 
+  // PanicWipeIndicator renders at root level unconditionally so it persists
+  // across auth state changes during a wipe (when keyManager.wipeKey() fires,
+  // isAuthenticated flips but the overlay must remain visible)
+  let content: ReactNode
+
   if (isLoading) {
-    return (
+    content = (
       <div className="flex h-screen items-center justify-center">
         <div className="flex items-center gap-2 text-muted-foreground">
           <LogoMark size="sm" className="animate-pulse" />
@@ -105,25 +110,31 @@ function RootLayout() {
         </div>
       </div>
     )
-  }
-
-  if (!isAuthenticated || !profileCompleted) {
+  } else if (!isAuthenticated || !profileCompleted) {
     // Only render Outlet for public routes — prevent protected route components
     // from mounting and making API calls before the redirect effect fires
     const publicPaths = ['/login', '/onboarding', '/profile-setup', '/setup', '/link-device', '/preferences']
     if (!publicPaths.includes(location.pathname)) {
-      return (
+      content = (
         <div className="flex h-screen items-center justify-center">
           <div className="flex items-center gap-2 text-muted-foreground">
             <LogoMark size="sm" className="animate-pulse" />
           </div>
         </div>
       )
+    } else {
+      content = <Outlet />
     }
-    return <Outlet />
+  } else {
+    content = <AuthenticatedLayout />
   }
 
-  return <AuthenticatedLayout />
+  return (
+    <>
+      <PanicWipeIndicator />
+      {content}
+    </>
+  )
 }
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const
@@ -339,7 +350,6 @@ function AuthenticatedLayout() {
       <CommandPalette />
       <KeyboardShortcutsDialog />
       <NoteSheet />
-      <PanicWipeIndicator />
 
       {/* Session expiring warning */}
       {sessionExpiring && !sessionExpired && (

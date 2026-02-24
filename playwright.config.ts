@@ -13,7 +13,7 @@ export default defineConfig({
     timeout: 10_000,
   },
   use: {
-    baseURL: "http://localhost:8787",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:8787",
     trace: "on-first-retry",
     actionTimeout: 10_000,
     navigationTimeout: 15_000,
@@ -44,9 +44,11 @@ export default defineConfig({
       dependencies: ["setup"],
     },
   ],
-  webServer: {
-    command: "bun run build && bun run dev:worker",
-    url: "http://localhost:8787",
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: process.env.PLAYWRIGHT_BASE_URL
+    ? undefined
+    : {
+        command: "bun run build && bun run dev:worker",
+        url: "http://localhost:8787",
+        reuseExistingServer: !process.env.CI,
+      },
 });

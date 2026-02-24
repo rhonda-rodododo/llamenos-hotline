@@ -19,52 +19,54 @@ let panicWipeCallback: (() => void) | null = null
  * Execute the panic wipe: zero keys, clear all storage, redirect.
  */
 export function performPanicWipe(): void {
-  // 1. Zero out the cryptographic key
+  // 1. Fire the UI flash callback FIRST so the overlay renders
+  //    before storage clearing triggers React auth redirect
+  panicWipeCallback?.()
+
+  // 2. Zero out the cryptographic key in memory immediately
   try {
     keyManager.wipeKey()
   } catch {
     // Key may already be wiped or locked — continue
   }
 
-  // 2. Clear all browser storage
-  try {
-    localStorage.clear()
-  } catch {
-    // Storage may be unavailable
-  }
-  try {
-    sessionStorage.clear()
-  } catch {
-    // Storage may be unavailable
-  }
-
-  // 3. Clear IndexedDB databases
-  try {
-    if (typeof indexedDB !== 'undefined') {
-      indexedDB.databases?.().then(dbs => {
-        dbs.forEach(db => {
-          if (db.name) indexedDB.deleteDatabase(db.name)
-        })
-      }).catch(() => {})
-    }
-  } catch {
-    // IndexedDB may be unavailable
-  }
-
-  // 4. Unregister service workers
-  try {
-    navigator.serviceWorker?.getRegistrations().then(registrations => {
-      registrations.forEach(reg => reg.unregister())
-    }).catch(() => {})
-  } catch {
-    // SW API may be unavailable
-  }
-
-  // 5. Fire the UI flash callback
-  panicWipeCallback?.()
-
-  // 6. Redirect after brief flash
+  // 3. Defer storage clearing and redirect — gives React one frame
+  //    to paint the overlay before localStorage.clear() triggers auth changes
   setTimeout(() => {
+    try {
+      localStorage.clear()
+    } catch {
+      // Storage may be unavailable
+    }
+    try {
+      sessionStorage.clear()
+    } catch {
+      // Storage may be unavailable
+    }
+
+    // Clear IndexedDB databases
+    try {
+      if (typeof indexedDB !== 'undefined') {
+        indexedDB.databases?.().then(dbs => {
+          dbs.forEach(db => {
+            if (db.name) indexedDB.deleteDatabase(db.name)
+          })
+        }).catch(() => {})
+      }
+    } catch {
+      // IndexedDB may be unavailable
+    }
+
+    // Unregister service workers
+    try {
+      navigator.serviceWorker?.getRegistrations().then(registrations => {
+        registrations.forEach(reg => reg.unregister())
+      }).catch(() => {})
+    } catch {
+      // SW API may be unavailable
+    }
+
+    // Full-page redirect (destroys all React state)
     window.location.href = '/login'
   }, FLASH_DURATION_MS)
 }
