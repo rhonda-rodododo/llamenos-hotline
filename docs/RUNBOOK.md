@@ -20,6 +20,8 @@ This runbook provides procedures for common operational tasks, incident response
 8. [Scaling Considerations](#8-scaling-considerations)
 9. [Emergency Procedures](#9-emergency-procedures)
 
+> **Key Revocation and Rotation**: For cryptographic key compromise, volunteer departure key revocation, device seizure response, and hub key rotation procedures, see the dedicated [Key Revocation Runbook](security/KEY_REVOCATION_RUNBOOK.md).
+
 ---
 
 ## 1. Secret Rotation
@@ -438,6 +440,8 @@ When a security incident is suspected, follow this checklist in order:
 
 ### 5.2 Volunteer Account Compromise
 
+> **See also**: The [Key Revocation Runbook](security/KEY_REVOCATION_RUNBOOK.md) covers volunteer departure key revocation (friendly and hostile), device seizure response, and hub key rotation procedures.
+
 A volunteer's device or credentials have been compromised.
 
 ```bash
@@ -465,6 +469,8 @@ After the incident:
 - Review the audit log for any unauthorized actions during the compromise window.
 
 ### 5.3 Admin Account Compromise
+
+> **See also**: The [Key Revocation Runbook](security/KEY_REVOCATION_RUNBOOK.md) covers the full cryptographic response procedure for admin key compromise, including hub key rotation, envelope re-wrapping, GDPR assessment, and maximum response timeframes.
 
 This is the most severe account compromise scenario.
 
