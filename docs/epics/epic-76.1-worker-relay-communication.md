@@ -625,3 +625,27 @@ The server key can decrypt hub-encrypted event content (server needs to include 
 ## Estimated Effort
 
 Medium — 3 weeks total. The Nosflare fork is the largest piece of work. PoC scripts and Node publisher are straightforward.
+
+## Execution Context
+
+### Wrangler Configuration
+- `wrangler.jsonc` — `env.next` section exists; needs `services` array for NOSFLARE binding
+- Current DO bindings: CALL_ROUTER, SHIFT_MANAGER, IDENTITY_DO, SETTINGS_DO, RECORDS_DO, CONVERSATION_DO
+
+### Platform Abstraction Pattern
+- `src/platform/` directory contains CF/Node split pattern
+- `NostrPublisher` should follow same pattern: `src/platform/cloudflare/nostr-publisher.ts` + `src/platform/node/nostr-publisher.ts`
+- `src/worker/lib/do-access.ts` — `getScopedDOs()` pattern for wiring publisher into DO constructors
+
+### Docker Compose
+- `docker-compose.yml` — current services include postgres, caddy, minio; strfry goes alongside these
+- strfry image: `dockurr/strfry:latest`, port 7777, volume `nostr-data:/app/strfry-db`
+
+### Server Event Signing
+- `nostr-tools` already a dependency (`^2.23.0`)
+- `import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'` for event signing/verification
+- Server keypair: derive from `SERVER_NOSTR_SECRET` env var via HKDF
+
+### CallRouterDO Integration Points
+- `src/worker/durable-objects/call-router.ts` — needs `NostrPublisher` injected for publishing call events
+- Current broadcast methods: `broadcastAll()`, `broadcastTargeted()` — these become `this.publisher.publish()`

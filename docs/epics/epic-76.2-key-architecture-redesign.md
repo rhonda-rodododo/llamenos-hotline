@@ -732,3 +732,31 @@ If a hostile departure warrants removing historical access:
 ## Estimated Effort
 
 Large — 4 weeks total. This is a fundamental rewrite of the key management layer affecting crypto, storage, auth, and UI. However, the pre-production context means no migration code, which significantly reduces complexity.
+
+## Execution Context
+
+### Current encryptNoteV2 Signature
+- `src/client/lib/crypto.ts` L140-161 — `encryptNoteV2(payload: NotePayload, authorPubkey: string, adminPubkey: string): EncryptedNoteV2`
+- Returns `{ encryptedContent, authorEnvelope, adminEnvelope }` — single admin envelope
+- **Change to:** `encryptNoteV2(payload, authorPubkey, adminPubkeys: string[]): EncryptedNoteV2` with `adminEnvelopes: NoteEnvelope[]`
+
+### RecordsDO Note Storage
+- `src/worker/durable-objects/records-do.ts` — notes stored with `adminEnvelope` (singular) field
+- **Change to:** `adminEnvelopes` (array) — single admin = array of one
+
+### ConversationDO Message Storage
+- `src/worker/durable-objects/conversation-do.ts` — messages need same envelope pattern
+- Current message storage: per-conversation arrays; needs per-message keys (`message:${id}`)
+
+### Bootstrap Script
+- `scripts/bootstrap-admin.ts` — currently generates one keypair; needs identity + decryption separation
+- Output format: `ADMIN_PUBKEY=<identity>` + `ADMIN_DECRYPTION_PUBKEY=<decryption>` (new env var)
+
+### Auth Context
+- `src/client/lib/auth.tsx` — `AuthState` interface has `adminPubkey: string`
+- **Add:** `adminDecryptionPubkey: string` field
+- `/api/auth/me` endpoint returns admin pubkey; needs to also return decryption pubkey
+
+### File Crypto Pattern to Reuse
+- `src/client/lib/file-crypto.ts` L164-208 — `encryptFile()` already does multi-recipient ECIES wrapping
+- `wrapKeyForPubkey()` at L18-52 — reuse this pattern for hub key wrapping (change domain label)

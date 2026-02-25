@@ -352,3 +352,32 @@ The current implementation assumes a single `ADMIN_PUBKEY`. Epic 76.2 designs th
 ## Estimated Effort
 
 Medium-Large — touches messaging adapters, DO storage, conversation UI, and adds rewrap endpoint. The envelope pattern itself is well-established from notes; the main work is migrating the dual-ECIES pattern and adding the rewrap flow.
+
+## Execution Context
+
+### ConversationDO Message Handling
+- `src/worker/durable-objects/conversation-do.ts` — current message storage in conversation arrays
+- `/conversations/:id/messages` POST — add message endpoint
+- `/conversations/incoming` POST — inbound message from webhook
+
+### Messaging Adapters (Inbound Encryption Points)
+- `src/worker/messaging/sms-adapter.ts` — inbound SMS handler; plaintext arrives from Twilio webhook
+- `src/worker/messaging/whatsapp-adapter.ts` — inbound WhatsApp handler
+- `src/worker/messaging/signal-adapter.ts` — inbound Signal handler (self-hosted bridge)
+
+### Client Encryption Pattern
+- `src/client/lib/crypto.ts` L140-161 — `encryptNoteV2()` template for `encryptMessage()`
+- Same pattern: random per-message key + XChaCha20-Poly1305 + ECIES-wrap for each reader
+- `wrapKeyForPubkey()` at L76-105 — reuse with domain label `"llamenos:message"`
+
+### Server-Side Encryption
+- `src/worker/lib/crypto.ts` L16-55 — `encryptForPublicKey()` for server-side ECIES
+- Needs: `encryptMessageForStorage()` — generates per-message key, encrypts content, wraps for recipients
+
+### Conversation UI
+- `src/client/components/ConversationThread.tsx` — currently renders plaintext messages; needs client-side decrypt
+- `src/client/routes/conversations.tsx` — already sends `plaintextForSending` alongside encrypted content
+
+### Shared Types
+- `src/shared/types.ts` — `RecipientEnvelope` already defined: `{ pubkey, encryptedFileKey, ephemeralPubkey }`
+- Reuse for message envelopes (rename `encryptedFileKey` → `encryptedKey` in shared type, or create alias)

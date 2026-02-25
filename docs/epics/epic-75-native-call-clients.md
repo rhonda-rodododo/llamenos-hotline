@@ -613,3 +613,27 @@ KEK + nsec -> XChaCha20-Poly1305 -> encrypted_nsec (stored)
 - **Epic 76.1 (Worker-to-Relay) — Must Be Resolved**
   - Push notification design depends on how the Worker publishes events to the relay
 - Existing Twilio Voice SDK infrastructure in web app
+
+## Execution Context
+
+### Existing Call Handling
+- `src/client/lib/webrtc.ts` — Twilio Voice JS SDK wrapper (NOT raw WebRTC)
+- `src/client/lib/call-manager.ts` — Call state management
+- These work in Tauri WebView (WKWebView/WebView2) but NOT in React Native
+
+### Crypto Layer Portability
+- `@noble/curves` v2.x requires BigInt — needs Hermes >= 0.12 (React Native >= 0.71)
+- `@noble/ciphers` and `@noble/hashes` work without BigInt (pure JS)
+- `src/client/lib/key-store.ts` — uses `crypto.subtle.importKey` for PBKDF2; needs `react-native-quick-crypto` replacement
+
+### Nostr Relay Connection
+- After Epic 76: `src/client/lib/nostr/relay.ts` — `RelayManager` class; portable to native clients
+- `nostr-tools` works with BigInt (same Hermes requirement as `@noble/curves`)
+
+### Key Manager
+- `src/client/lib/key-manager.ts` — closure-scoped secret key; auto-lock on idle (5 min) + visibility change
+- Native clients need platform-specific secure storage (Keychain, Credential Manager, Keystore)
+
+### Push Notification Infrastructure
+- `src/worker/durable-objects/call-router.ts` — needs push notification sending alongside Nostr relay publish
+- New endpoint: `POST /api/devices/register` for push token + wake key registration

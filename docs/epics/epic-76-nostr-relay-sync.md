@@ -1085,3 +1085,33 @@ This epic CANNOT start until:
   - Epic 75 (Native Clients) -- connect to relay
   - Epic 77 (Metadata Encryption) -- builds on relay infrastructure
   - Epic 74 (E2EE Messaging) -- message notifications via relay
+
+## Execution Context
+
+### WebSocket Files to Delete
+- `src/client/lib/ws.ts` — 104 lines; exports: `connectWebSocket`, `disconnectWebSocket`, `onMessage`, `sendMessage`
+- `src/worker/routes/websocket.ts` — 75 lines; WS upgrade + auth parsing
+- `src/platform/node/websocket-pair.ts` — Node WS polyfill
+
+### Root Route Connection
+- `src/client/routes/__root.tsx` — `connectWebSocket()` called on auth; becomes relay connect
+
+### Hook Rewrite Targets
+- `src/client/lib/hooks.ts` L9-120 — `useCalls()`: WS events `calls:sync`, `call:incoming`, `call:update`, `call:hangup`
+- `src/client/lib/hooks.ts` L149-233 — `useConversations()`: WS events `conversations:sync`, `conversation:new`, `conversation:assigned`, `conversation:closed`, `message:new`, `message:status`
+- `src/client/lib/hooks.ts` L125-144 — `useShiftStatus()`: REST polling only (no change)
+- `src/client/lib/hooks.ts` L238-263 — `useCallTimer()`: interval-based (no change)
+
+### CallRouterDO WebSocket Handling
+- `src/worker/durable-objects/call-router.ts` — WS message types: `call:answer`, `call:hangup`, `call:reportSpam`
+- Hibernation API: `this.ctx.acceptWebSocket(server, [pubkey, role])` with `ctx.getWebSockets(tag?)`
+- `broadcastAll()` broadcasts to all connected WS clients
+- After migration: call mutations become REST endpoints, broadcasts become relay publishes
+
+### Nostr Tools Available
+- `nostr-tools` already at `^2.23.0`
+- Import paths: `nostr-tools/pure` (finalizeEvent, verifyEvent), `nostr-tools/relay` (Relay class), `nostr-tools/nip44` (NIP-44 encryption)
+
+### Playwright Config
+- `playwright.config.ts` — current `webServer` config; needs second webServer for relay (Nosflare dev or strfry)
+- `tests/helpers.ts` — needs `waitForRelayConnection()`, update `loginAsAdmin`/`loginAsVolunteer`

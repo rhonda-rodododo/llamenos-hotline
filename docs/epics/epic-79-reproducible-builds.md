@@ -690,3 +690,22 @@ Verifier
 4. **Tailwind CSS ordering**: Will future Tailwind versions improve determinism?
    - Monitor Tailwind v4 releases for deterministic output options
    - For now: Docker-only verification is the pragmatic solution
+
+## Execution Context
+
+### Current Build Configuration
+- `vite.config.ts` — current rollup output config, check for non-deterministic patterns
+- `package.json` — check dependency version pinning (currently uses `^` ranges)
+- `bun.lockb` — binary lockfile, needs integrity verification step
+
+### CI Workflows
+- `.github/workflows/` — current CI steps; needs container build + determinism check
+- `wrangler.jsonc` — Worker bundle via `wrangler deploy --dry-run --outdir dist/worker-bundle/`
+
+### Tailwind CSS
+- Tailwind v4 — filesystem glob ordering differs Linux vs macOS
+- All verification builds MUST use Docker (Linux)
+
+### Deploy Scripts
+- `package.json` `deploy` scripts — verify they use `wrangler deploy` (not direct Pages deploy)
+- Never run `wrangler pages deploy` directly
