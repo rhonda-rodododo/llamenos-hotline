@@ -3,7 +3,7 @@ import type { Env, Conversation, EncryptedMessage, ConversationStatus } from '..
 import type { IncomingMessage, MessageStatusUpdate } from '../messaging/adapter'
 import type { MessagingChannelType, FileRecord, RecipientEnvelope, Subscriber, Blast, BlastSettings, BlastContent } from '../../shared/types'
 import { DEFAULT_BLAST_SETTINGS } from '../../shared/types'
-import { encryptForPublicKey, hashPhone } from '../lib/crypto'
+import { encryptMessageForStorage, hashPhone } from '../lib/crypto'
 import { DORouter } from '../lib/do-router'
 import { runMigrations } from '../../shared/migrations/runner'
 import { migrations } from '../../shared/migrations'
@@ -365,30 +365,24 @@ export class ConversationDO extends DurableObject<Env> {
       await this.ctx.storage.put(`contact:${conv.id}`, incoming.senderIdentifier)
     }
 
-    // Encrypt the message content using ECIES for the assigned volunteer (if any) and admin
+    // Encrypt the message content using envelope pattern (Epic 74)
     // For inbound messages, the server encrypts the plaintext that arrived via the channel
-    // The plaintext is discarded after encryption
+    // The plaintext is discarded after encryption — server cannot read stored messages
     const adminDecryptionPubkey = this.env.ADMIN_DECRYPTION_PUBKEY || this.env.ADMIN_PUBKEY
-    const adminEncrypted = encryptForPublicKey(incoming.body || '', adminDecryptionPubkey)
-
-    let volunteerEncrypted = { encryptedContent: '', ephemeralPubkey: '' }
-    if (conv.assignedTo) {
-      volunteerEncrypted = encryptForPublicKey(incoming.body || '', conv.assignedTo)
-    } else {
-      // If no volunteer assigned, duplicate the admin encryption
-      // When a volunteer claims the conversation, admin can re-encrypt for them
-      volunteerEncrypted = { ...adminEncrypted }
+    const readerPubkeys = [adminDecryptionPubkey]
+    if (conv.assignedTo && conv.assignedTo !== adminDecryptionPubkey) {
+      readerPubkeys.push(conv.assignedTo)
     }
+
+    const encrypted = encryptMessageForStorage(incoming.body || '', readerPubkeys)
 
     const message: EncryptedMessage = {
       id: crypto.randomUUID(),
       conversationId: conv.id,
       direction: 'inbound',
       authorPubkey: 'system:inbound',
-      encryptedContent: volunteerEncrypted.encryptedContent,
-      ephemeralPubkey: volunteerEncrypted.ephemeralPubkey,
-      encryptedContentAdmin: adminEncrypted.encryptedContent,
-      ephemeralPubkeyAdmin: adminEncrypted.ephemeralPubkey,
+      encryptedContent: encrypted.encryptedContent,
+      readerEnvelopes: encrypted.readerEnvelopes,
       hasAttachments: !!(incoming.mediaUrls && incoming.mediaUrls.length > 0),
       createdAt: incoming.timestamp || now,
       externalId: incoming.externalId,

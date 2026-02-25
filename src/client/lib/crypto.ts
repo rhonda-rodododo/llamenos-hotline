@@ -8,6 +8,7 @@ import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import type { NotePayload } from '@shared/types'
 import {
   LABEL_NOTE_KEY,
+  LABEL_MESSAGE,
   LABEL_TRANSCRIPTION,
   HKDF_SALT,
   HKDF_CONTEXT_NOTES,
@@ -217,6 +218,80 @@ export function decryptNoteV2(
       // Not JSON
     }
     return { text: decoded }
+  } catch {
+    return null
+  }
+}
+
+// --- E2EE Message Encryption (Epic 74) ---
+// Same envelope pattern as notes, using LABEL_MESSAGE for domain separation.
+// Used for SMS, WhatsApp, Signal, and web report messages.
+
+export interface EncryptedMessagePayload {
+  encryptedContent: string              // hex: nonce(24) + ciphertext
+  readerEnvelopes: RecipientKeyEnvelope[] // message key wrapped for each reader
+}
+
+/**
+ * Encrypt a message for multiple readers using the envelope pattern.
+ * Generates a random per-message symmetric key, wraps it for each reader via ECIES.
+ *
+ * @param plaintext - Message text to encrypt
+ * @param readerPubkeys - Array of reader x-only pubkeys (volunteer + admins)
+ */
+export function encryptMessage(
+  plaintext: string,
+  readerPubkeys: string[],
+): EncryptedMessagePayload {
+  // Generate random per-message symmetric key
+  const messageKey = randomBytes(32)
+  const nonce = randomBytes(24)
+  const cipher = xchacha20poly1305(messageKey, nonce)
+  const ciphertext = cipher.encrypt(utf8ToBytes(plaintext))
+
+  const packed = new Uint8Array(nonce.length + ciphertext.length)
+  packed.set(nonce)
+  packed.set(ciphertext, nonce.length)
+
+  return {
+    encryptedContent: bytesToHex(packed),
+    readerEnvelopes: readerPubkeys.map(pk => ({
+      pubkey: pk,
+      ...eciesWrapKey(messageKey, pk, LABEL_MESSAGE),
+    })),
+  }
+}
+
+/**
+ * Decrypt a message using the reader's envelope.
+ * Finds the envelope matching the reader's pubkey and unwraps the message key.
+ *
+ * @param encryptedContent - hex: nonce(24) + ciphertext
+ * @param readerEnvelopes - array of per-reader ECIES envelopes
+ * @param secretKey - reader's secret key (Uint8Array)
+ * @param readerPubkey - reader's x-only pubkey (hex) to find the matching envelope
+ */
+export function decryptMessage(
+  encryptedContent: string,
+  readerEnvelopes: RecipientKeyEnvelope[],
+  secretKey: Uint8Array,
+  readerPubkey: string,
+): string | null {
+  try {
+    // Find the envelope for this reader
+    const envelope = readerEnvelopes.find(e => e.pubkey === readerPubkey)
+    if (!envelope) return null
+
+    // Unwrap the message key
+    const messageKey = eciesUnwrapKey(envelope, secretKey, LABEL_MESSAGE)
+
+    // Decrypt the message content
+    const data = hexToBytes(encryptedContent)
+    const nonce = data.slice(0, 24)
+    const ciphertext = data.slice(24)
+    const cipher = xchacha20poly1305(messageKey, nonce)
+    const plaintext = cipher.decrypt(ciphertext)
+    return new TextDecoder().decode(plaintext)
   } catch {
     return null
   }

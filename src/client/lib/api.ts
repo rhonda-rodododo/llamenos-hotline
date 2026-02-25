@@ -734,15 +734,20 @@ export interface Conversation {
 
 export type MessageDeliveryStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed'
 
+/** ECIES-wrapped message key for a specific reader. */
+export interface MessageKeyEnvelope {
+  pubkey: string           // reader's x-only pubkey (hex)
+  wrappedKey: string       // hex: nonce(24) + ciphertext(48)
+  ephemeralPubkey: string  // hex: compressed 33-byte ephemeral pubkey
+}
+
 export interface ConversationMessage {
   id: string
   conversationId: string
   direction: 'inbound' | 'outbound'
   authorPubkey: string
-  encryptedContent: string
-  ephemeralPubkey: string
-  encryptedContentAdmin: string
-  ephemeralPubkeyAdmin: string
+  encryptedContent: string         // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
+  readerEnvelopes: MessageKeyEnvelope[]  // per-reader ECIES-wrapped message keys
   hasAttachments: boolean
   attachmentIds?: string[]
   // Delivery status tracking (Epic 71)
@@ -787,9 +792,7 @@ export async function getConversationMessages(id: string, params?: { page?: numb
 
 export async function sendConversationMessage(id: string, data: {
   encryptedContent: string
-  ephemeralPubkey: string
-  encryptedContentAdmin: string
-  ephemeralPubkeyAdmin: string
+  readerEnvelopes: MessageKeyEnvelope[]
   plaintextForSending?: string
 }) {
   return request<ConversationMessage>(hp(`/conversations/${id}/messages`), {
@@ -903,9 +906,7 @@ export async function createReport(data: {
   title: string
   category?: string
   encryptedContent: string
-  ephemeralPubkey: string
-  encryptedContentAdmin: string
-  ephemeralPubkeyAdmin: string
+  readerEnvelopes: MessageKeyEnvelope[]
 }) {
   return request<Report>(hp('/reports'), {
     method: 'POST',
@@ -926,9 +927,7 @@ export async function getReportMessages(id: string, params?: { page?: number; li
 
 export async function sendReportMessage(id: string, data: {
   encryptedContent: string
-  ephemeralPubkey: string
-  encryptedContentAdmin: string
-  ephemeralPubkeyAdmin: string
+  readerEnvelopes: MessageKeyEnvelope[]
   attachmentIds?: string[]
 }) {
   return request<ConversationMessage>(hp(`/reports/${id}/messages`), {

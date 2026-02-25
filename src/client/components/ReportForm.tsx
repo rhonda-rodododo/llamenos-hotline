@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { createReport, getReportCategories } from '@/lib/api'
-import { encryptForPublicKey } from '@/lib/crypto'
+import { encryptMessage } from '@/lib/crypto'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -56,20 +56,19 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
     setSubmitting(true)
 
     try {
-      const recipientPubkey = adminDecryptionPubkey || publicKey
+      // Build reader list: reporter + admin decryption key
+      const readerPubkeys = [publicKey]
+      if (adminDecryptionPubkey && adminDecryptionPubkey !== publicKey) {
+        readerPubkeys.push(adminDecryptionPubkey)
+      }
 
-      // Encrypt body for the reporter
-      const bodyEncrypted = encryptForPublicKey(body.trim(), publicKey)
-      // Encrypt body for the admin
-      const bodyEncryptedAdmin = encryptForPublicKey(body.trim(), recipientPubkey)
+      const encrypted = encryptMessage(body.trim(), readerPubkeys)
 
       const report = await createReport({
         title: title.trim(),
         category: category || undefined,
-        encryptedContent: bodyEncrypted.encryptedContent,
-        ephemeralPubkey: bodyEncrypted.ephemeralPubkey,
-        encryptedContentAdmin: bodyEncryptedAdmin.encryptedContent,
-        ephemeralPubkeyAdmin: bodyEncryptedAdmin.ephemeralPubkey,
+        encryptedContent: encrypted.encryptedContent,
+        readerEnvelopes: encrypted.readerEnvelopes,
       })
 
       toast(t('reports.created', { defaultValue: 'Report submitted' }), 'success')
