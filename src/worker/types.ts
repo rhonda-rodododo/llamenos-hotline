@@ -219,15 +219,21 @@ export interface Conversation {
 
 export type MessageDeliveryStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed'
 
+/**
+ * Encrypted message using the envelope pattern (Epic 74).
+ *
+ * Single ciphertext encrypted with a random per-message symmetric key.
+ * The key is ECIES-wrapped separately for each authorized reader.
+ * Domain separation label: 'llamenos:message'.
+ */
 export interface EncryptedMessage {
   id: string
   conversationId: string
   direction: 'inbound' | 'outbound'
   authorPubkey: string             // volunteer pubkey or 'system:inbound'
-  encryptedContent: string         // ECIES-encrypted message text
-  ephemeralPubkey: string          // for ECIES decryption
-  encryptedContentAdmin: string    // admin copy
-  ephemeralPubkeyAdmin: string
+  encryptedContent: string         // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
+  // Per-reader key envelopes (ECIES-wrapped message key)
+  readerEnvelopes: MessageKeyEnvelope[]
   hasAttachments: boolean
   attachmentIds?: string[]         // references to R2 encrypted blobs
   createdAt: string
@@ -238,6 +244,13 @@ export interface EncryptedMessage {
   readAt?: string                  // ISO timestamp when read (if supported)
   failureReason?: string           // error message for failed messages
   retryCount?: number              // number of retry attempts
+}
+
+/** ECIES-wrapped message key for a specific reader. */
+export interface MessageKeyEnvelope {
+  pubkey: string           // reader's x-only pubkey (hex)
+  wrappedKey: string       // hex: nonce(24) + ciphertext(48 = 32 key + 16 tag)
+  ephemeralPubkey: string  // hex: compressed 33-byte ephemeral pubkey
 }
 
 // --- Blast Queue ---

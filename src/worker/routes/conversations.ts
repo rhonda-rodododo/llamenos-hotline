@@ -173,7 +173,7 @@ conversations.get('/:id/messages', async (c) => {
 
 /**
  * POST /conversations/:id/messages — send outbound message
- * Body: { encryptedContent, ephemeralPubkey, encryptedContentAdmin, ephemeralPubkeyAdmin, plaintext? }
+ * Body: { encryptedContent, readerEnvelopes, plaintextForSending? }
  * If plaintext is provided, it's sent via the messaging adapter then discarded.
  */
 conversations.post('/:id/messages', async (c) => {
@@ -198,9 +198,7 @@ conversations.post('/:id/messages', async (c) => {
 
   const body = await c.req.json() as {
     encryptedContent: string
-    ephemeralPubkey: string
-    encryptedContentAdmin: string
-    ephemeralPubkeyAdmin: string
+    readerEnvelopes: import('../types').MessageKeyEnvelope[]
     plaintextForSending?: string
   }
 
@@ -211,9 +209,7 @@ conversations.post('/:id/messages', async (c) => {
     direction: 'outbound',
     authorPubkey: pubkey,
     encryptedContent: body.encryptedContent,
-    ephemeralPubkey: body.ephemeralPubkey,
-    encryptedContentAdmin: body.encryptedContentAdmin,
-    ephemeralPubkeyAdmin: body.ephemeralPubkeyAdmin,
+    readerEnvelopes: body.readerEnvelopes,
     hasAttachments: false,
     createdAt: new Date().toISOString(),
     status: 'pending',

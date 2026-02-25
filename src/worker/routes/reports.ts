@@ -66,14 +66,12 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
   const body = await c.req.json() as {
     title: string
     category?: string
-    // First message content (encrypted)
+    // First message content (envelope-encrypted)
     encryptedContent: string
-    ephemeralPubkey: string
-    encryptedContentAdmin: string
-    ephemeralPubkeyAdmin: string
+    readerEnvelopes: import('../types').MessageKeyEnvelope[]
   }
 
-  if (!body.encryptedContent || !body.ephemeralPubkey) {
+  if (!body.encryptedContent || !body.readerEnvelopes?.length) {
     return c.json({ error: 'Report content is required' }, 400)
   }
 
@@ -107,9 +105,7 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
       direction: 'inbound',
       authorPubkey: pubkey,
       encryptedContent: body.encryptedContent,
-      ephemeralPubkey: body.ephemeralPubkey,
-      encryptedContentAdmin: body.encryptedContentAdmin,
-      ephemeralPubkeyAdmin: body.ephemeralPubkeyAdmin,
+      readerEnvelopes: body.readerEnvelopes,
     }),
   }))
 
@@ -243,9 +239,7 @@ reports.post('/:id/messages', async (c) => {
 
   const body = await c.req.json() as {
     encryptedContent: string
-    ephemeralPubkey: string
-    encryptedContentAdmin: string
-    ephemeralPubkeyAdmin: string
+    readerEnvelopes: import('../types').MessageKeyEnvelope[]
     attachmentIds?: string[]
   }
 
@@ -258,9 +252,7 @@ reports.post('/:id/messages', async (c) => {
       direction,
       authorPubkey: pubkey,
       encryptedContent: body.encryptedContent,
-      ephemeralPubkey: body.ephemeralPubkey,
-      encryptedContentAdmin: body.encryptedContentAdmin,
-      ephemeralPubkeyAdmin: body.ephemeralPubkeyAdmin,
+      readerEnvelopes: body.readerEnvelopes,
       hasAttachments: (body.attachmentIds?.length ?? 0) > 0,
       attachmentIds: body.attachmentIds,
     }),
