@@ -9,6 +9,7 @@ import type { NotePayload } from '@shared/types'
 import {
   LABEL_NOTE_KEY,
   LABEL_MESSAGE,
+  LABEL_CALL_META,
   LABEL_TRANSCRIPTION,
   HKDF_SALT,
   HKDF_CONTEXT_NOTES,
@@ -292,6 +293,36 @@ export function decryptMessage(
     const cipher = xchacha20poly1305(messageKey, nonce)
     const plaintext = cipher.decrypt(ciphertext)
     return new TextDecoder().decode(plaintext)
+  } catch {
+    return null
+  }
+}
+
+// --- Call Record Decryption (Epic 77) ---
+// Call history records have encrypted metadata (answeredBy, callerNumber).
+// Uses the same ECIES envelope pattern as messages but with LABEL_CALL_META.
+
+/**
+ * Decrypt a call record's encrypted metadata.
+ * Returns the decrypted fields or null if decryption fails.
+ */
+export function decryptCallRecord(
+  encryptedContent: string,
+  adminEnvelopes: RecipientKeyEnvelope[],
+  secretKey: Uint8Array,
+  readerPubkey: string,
+): { answeredBy: string | null; callerNumber: string } | null {
+  try {
+    const envelope = adminEnvelopes.find(e => e.pubkey === readerPubkey)
+    if (!envelope) return null
+
+    const recordKey = eciesUnwrapKey(envelope, secretKey, LABEL_CALL_META)
+    const data = hexToBytes(encryptedContent)
+    const nonce = data.slice(0, 24)
+    const ciphertext = data.slice(24)
+    const cipher = xchacha20poly1305(recordKey, nonce)
+    const plaintext = cipher.decrypt(ciphertext)
+    return JSON.parse(new TextDecoder().decode(plaintext))
   } catch {
     return null
   }
