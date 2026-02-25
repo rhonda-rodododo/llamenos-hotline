@@ -264,18 +264,7 @@ conversations.post('/:id/messages', async (c) => {
     return c.json({ error: 'Failed to store message' }, 500)
   }
 
-  // Broadcast new message via WebSocket hub + Nostr relay
-  await dos.calls.fetch(new Request('http://do/broadcast', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: 'message:new',
-      conversationId: id,
-      messageId: message.id,
-      direction: 'outbound',
-      authorPubkey: pubkey,
-    }),
-  }))
+  // Publish new message event to Nostr relay
   publishConversationEvent(c.env, KIND_MESSAGE_NEW, {
     type: 'message:new',
     conversationId: id,
@@ -317,18 +306,9 @@ conversations.patch('/:id', async (c) => {
     body: JSON.stringify(body),
   }))
 
-  // Broadcast status change
+  // Publish status change to Nostr relay
   const updated = await res.json()
   const convEventType = body.status === 'closed' ? 'conversation:closed' : 'conversation:assigned'
-  await dos.calls.fetch(new Request('http://do/broadcast', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: convEventType,
-      conversationId: id,
-      ...body,
-    }),
-  }))
   publishConversationEvent(c.env, KIND_CONVERSATION_ASSIGNED, {
     type: convEventType,
     conversationId: id,
@@ -396,16 +376,7 @@ conversations.post('/:id/claim', async (c) => {
     return c.json({ error: err }, res.status as 400)
   }
 
-  // Broadcast assignment
-  await dos.calls.fetch(new Request('http://do/broadcast', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: 'conversation:assigned',
-      conversationId: id,
-      assignedTo: pubkey,
-    }),
-  }))
+  // Publish assignment to Nostr relay
   publishConversationEvent(c.env, KIND_CONVERSATION_ASSIGNED, {
     type: 'conversation:assigned',
     conversationId: id,

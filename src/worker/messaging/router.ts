@@ -97,22 +97,24 @@ messaging.post('/:channel/webhook', async (c) => {
         }))
 
         if (statusRes.ok) {
-          // Broadcast status update via WebSocket
+          // Publish status update to Nostr relay
           const result = await statusRes.json() as { conversationId?: string; messageId?: string }
           if (result.conversationId && result.messageId) {
-            c.executionCtx.waitUntil(
-              dos.calls.fetch(new Request('http://do/broadcast', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            try {
+              const publisher = getNostrPublisher(c.env)
+              publisher.publish({
+                kind: KIND_MESSAGE_NEW,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [['d', 'global'], ['t', 'llamenos:event']],
+                content: JSON.stringify({
                   type: 'message:status',
                   conversationId: result.conversationId,
                   messageId: result.messageId,
                   status: statusUpdate.status,
                   timestamp: statusUpdate.timestamp,
                 }),
-              }))
-            )
+              }).catch(() => {})
+            } catch {}
           }
         }
 
@@ -288,17 +290,7 @@ async function tryAutoAssign(
     )
 
     if (assignRes.ok) {
-      // Broadcast assignment via WebSocket + Nostr
-      await dos.calls.fetch(new Request('http://do/broadcast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'conversation:assigned',
-          conversationId,
-          assignedTo: bestCandidate,
-          autoAssigned: true,
-        }),
-      }))
+      // Publish assignment to Nostr relay
       try {
         const publisher = getNostrPublisher(env)
         publisher.publish({
@@ -309,6 +301,7 @@ async function tryAutoAssign(
             type: 'conversation:assigned',
             conversationId,
             assignedTo: bestCandidate,
+            autoAssigned: true,
           }),
         }).catch(() => {})
       } catch {}
