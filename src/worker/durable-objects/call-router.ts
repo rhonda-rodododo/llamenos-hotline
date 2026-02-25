@@ -8,12 +8,13 @@ import { getNostrPublisher } from '../lib/do-access'
 import { KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_PRESENCE_UPDATE } from '../../shared/nostr-events'
 
 /**
- * CallRouterDO — manages real-time call state and WebSocket connections.
- * Uses the Hibernation API: connections survive DO hibernation via
- * ctx.getWebSockets() instead of an in-memory Map.
+ * CallRouterDO — manages real-time call state.
+ *
+ * Real-time event delivery is handled via the Nostr relay.
+ * Call actions (answer, hangup, spam) are REST endpoints.
+ * Presence is derived from shift state + active calls.
  *
  * Handles:
- * - WebSocket connections from volunteers
  * - Active call tracking
  * - Parallel ringing coordination
  * - Call history
@@ -74,24 +75,24 @@ export class CallRouterDO extends DurableObject<Env> {
         })),
       })
     })
-    // Broadcast arbitrary messages via WebSocket (used by conversation routes)
+
+    // Broadcast endpoint — publishes to Nostr relay.
+    // Previously sent to WebSocket connections; now routes publish Nostr directly
+    // but some routes still call /broadcast as a convenience endpoint.
     this.router.post('/broadcast', async (req) => {
       const message = await req.json() as Record<string, unknown>
-      this.broadcastAll(message)
+      this.publishNostrEvent(KIND_CALL_UPDATE, message)
       return Response.json({ ok: true })
     })
 
-    // Broadcast to specific pubkeys
+    // Targeted broadcast — publishes to Nostr (target filtering is client-side)
     this.router.post('/broadcast/targeted', async (req) => {
-      const { pubkeys, message } = await req.json() as { pubkeys: string[]; message: Record<string, unknown> }
-      await this.broadcast(pubkeys, message)
+      const { message } = await req.json() as { pubkeys: string[]; message: Record<string, unknown> }
+      this.publishNostrEvent(KIND_CALL_UPDATE, message)
       return Response.json({ ok: true })
     })
 
     this.router.post('/reset', async () => {
-      for (const ws of this.ctx.getWebSockets()) {
-        try { ws.close() } catch {}
-      }
       await this.ctx.storage.deleteAll()
       return Response.json({ ok: true })
     })
@@ -102,177 +103,7 @@ export class CallRouterDO extends DurableObject<Env> {
       await runMigrations(this.ctx.storage, migrations, 'calls')
       this.migrated = true
     }
-    // WebSocket upgrade bypasses router (not a standard REST route)
-    const url = new URL(request.url)
-    if (url.pathname === '/ws' && request.headers.get('Upgrade') === 'websocket') {
-      return this.handleWebSocket(request)
-    }
     return this.router.handle(request)
-  }
-
-  private handleWebSocket(request: Request): Response {
-    const url = new URL(request.url)
-    const pubkey = url.searchParams.get('pubkey')
-    if (!pubkey) return new Response('Missing pubkey', { status: 400 })
-    const role = url.searchParams.get('role') || 'volunteer'
-
-    const pair = new WebSocketPair()
-    const [client, server] = Object.values(pair)
-
-    this.ctx.acceptWebSocket(server, [pubkey, role])
-
-    // Notify about current active calls (redact caller numbers)
-    this.getActiveCallsList().then(calls => {
-      if (server.readyState === WebSocket.OPEN) {
-        const redacted = calls.map((c: CallRecord) => ({ ...c, callerNumber: '[redacted]' }))
-        server.send(JSON.stringify({ type: 'calls:sync', calls: redacted }))
-      }
-    })
-
-    // Sync conversations state for this user
-    this.syncConversations(server, pubkey, role)
-
-    // Broadcast presence update to all (new volunteer came online)
-    this.broadcastPresenceUpdate()
-
-    return new Response(null, {
-      status: 101,
-      webSocket: client,
-      headers: { 'Sec-WebSocket-Protocol': 'llamenos-auth' },
-    })
-  }
-
-  /** Rate limit tracking: message count per WebSocket in the current window */
-  private wsMessageCounts = new WeakMap<WebSocket, { count: number; windowStart: number }>()
-  private static readonly WS_RATE_LIMIT = 30 // max messages per 10 seconds
-  private static readonly WS_RATE_WINDOW = 10_000 // 10 seconds
-
-  private checkWsRateLimit(ws: WebSocket): boolean {
-    const now = Date.now()
-    let tracker = this.wsMessageCounts.get(ws)
-    if (!tracker || now - tracker.windowStart > CallRouterDO.WS_RATE_WINDOW) {
-      tracker = { count: 0, windowStart: now }
-    }
-    tracker.count++
-    this.wsMessageCounts.set(ws, tracker)
-    return tracker.count > CallRouterDO.WS_RATE_LIMIT
-  }
-
-  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
-    try {
-      // Rate limit: close connection if flooding
-      if (this.checkWsRateLimit(ws)) {
-        ws.close(1008, 'Rate limit exceeded')
-        return
-      }
-
-      const msg = JSON.parse(message as string)
-
-      // Validate message structure — reject prototype pollution and non-string fields
-      if (typeof msg !== 'object' || msg === null || Array.isArray(msg)) return
-      if ('__proto__' in msg || 'constructor' in msg || 'prototype' in msg) return
-      if (typeof msg.type !== 'string') return
-      if (msg.callId !== undefined && typeof msg.callId !== 'string') return
-
-      const tags = this.ctx.getTags(ws)
-      const pubkey = tags[0]
-      if (!pubkey) return
-
-      // Volunteer answers a call via WebSocket
-      if (msg.type === 'call:answer' && msg.callId) {
-        // Verify the call exists and is in ringing state
-        const activeCalls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
-        const call = activeCalls.find(c => c.id === msg.callId)
-        if (call && call.status === 'ringing') {
-          await this.handleCallAnswered(msg.callId, { pubkey })
-        }
-      }
-
-      // Volunteer hangs up via WebSocket
-      if (msg.type === 'call:hangup' && msg.callId) {
-        // Verify volunteer is the one who answered this call
-        const activeCalls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
-        const call = activeCalls.find(c => c.id === msg.callId)
-        if (call && call.answeredBy === pubkey) {
-          await this.handleCallEnded(msg.callId)
-        }
-      }
-
-      // Volunteer reports spam via WebSocket
-      if (msg.type === 'call:reportSpam' && typeof msg.callId === 'string') {
-        // Verify volunteer answered this call (only they should report it)
-        const activeCalls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
-        const call = activeCalls.find(c => c.id === msg.callId)
-        if (call && call.answeredBy === pubkey) {
-          await this.handleReportSpam(msg.callId, { pubkey })
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'spam:reported', callId: msg.callId, success: true }))
-          }
-        }
-      }
-    } catch {
-      // ignore malformed messages
-    }
-  }
-
-  async webSocketClose(_ws: WebSocket): Promise<void> {
-    this.broadcastPresenceUpdate()
-  }
-
-  async webSocketError(_ws: WebSocket): Promise<void> {
-    this.broadcastPresenceUpdate()
-  }
-
-  // --- Conversation Sync ---
-
-  private async syncConversations(ws: WebSocket, pubkey: string, role: string) {
-    try {
-      const convDO = this.env.CONVERSATION_DO.get(
-        this.env.CONVERSATION_DO.idFromName('global-conversations')
-      )
-
-      // Admins get all active/waiting; volunteers get assigned + waiting
-      const params = new URLSearchParams()
-      if (role !== 'admin') {
-        // Fetch assigned conversations
-        const assignedRes = await convDO.fetch(
-          new Request(`http://do/conversations?assignedTo=${pubkey}`)
-        )
-        const assigned = await assignedRes.json() as { conversations: unknown[] }
-
-        // Fetch waiting conversations
-        const waitingRes = await convDO.fetch(
-          new Request('http://do/conversations?status=waiting')
-        )
-        const waiting = await waitingRes.json() as { conversations: unknown[] }
-
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({
-            type: 'conversations:sync',
-            conversations: [...assigned.conversations, ...waiting.conversations],
-          }))
-        }
-      } else {
-        // Admin sees all non-closed conversations
-        const activeRes = await convDO.fetch(
-          new Request('http://do/conversations?status=active')
-        )
-        const active = await activeRes.json() as { conversations: unknown[] }
-        const waitingRes = await convDO.fetch(
-          new Request('http://do/conversations?status=waiting')
-        )
-        const waiting = await waitingRes.json() as { conversations: unknown[] }
-
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({
-            type: 'conversations:sync',
-            conversations: [...active.conversations, ...waiting.conversations],
-          }))
-        }
-      }
-    } catch (err) {
-      console.error('[ws] Failed to sync conversations:', err)
-    }
   }
 
   // --- Helpers ---
@@ -328,14 +159,6 @@ export class CallRouterDO extends DurableObject<Env> {
     activeCalls.push(call)
     await this.ctx.storage.put('activeCalls', activeCalls)
 
-    // Notify all on-shift, available volunteers via WebSocket
-    // Redact caller number — volunteers should not see caller phone numbers
-    this.broadcast(data.volunteerPubkeys, {
-      type: 'call:incoming',
-      ...call,
-      callerNumber: '[redacted]',
-    })
-
     // Publish to Nostr relay (redacted — no PII in relay events)
     this.publishNostrEvent(KIND_CALL_RING, {
       type: 'call:ring',
@@ -356,15 +179,6 @@ export class CallRouterDO extends DurableObject<Env> {
     call.status = 'in-progress'
     await this.ctx.storage.put('activeCalls', activeCalls)
 
-    // Notify all volunteers that the call was answered (stop ringing for others)
-    // Redact caller number in broadcasts
-    this.broadcastAll({
-      type: 'call:update',
-      ...call,
-      callerNumber: '[redacted]',
-    })
-    this.broadcastPresenceUpdate()
-
     // Publish call update to Nostr relay
     this.publishNostrEvent(KIND_CALL_UPDATE, {
       type: 'call:update',
@@ -372,6 +186,9 @@ export class CallRouterDO extends DurableObject<Env> {
       status: call.status,
       answeredBy: call.answeredBy,
     })
+
+    // Publish presence update
+    this.publishPresenceUpdate()
 
     return Response.json({ call })
   }
@@ -398,20 +215,15 @@ export class CallRouterDO extends DurableObject<Env> {
     if (history.length > 10000) history.length = 10000
     await this.ctx.storage.put('callHistory', history)
 
-    // Notify all — redact caller number
-    this.broadcastAll({
-      type: 'call:update',
-      ...call,
-      callerNumber: '[redacted]',
-    })
-    this.broadcastPresenceUpdate()
-
     // Publish call ended to Nostr relay
     this.publishNostrEvent(KIND_CALL_UPDATE, {
       type: 'call:update',
       callId: call.id,
       status: 'completed',
     })
+
+    // Publish presence update
+    this.publishPresenceUpdate()
 
     return Response.json({ call })
   }
@@ -452,14 +264,6 @@ export class CallRouterDO extends DurableObject<Env> {
     history.unshift(call)
     if (history.length > 10000) history.length = 10000
     await this.ctx.storage.put('callHistory', history)
-
-    // Notify all connected users about the voicemail
-    this.broadcastAll({
-      type: 'voicemail:new',
-      callId: call.id,
-      startedAt: call.startedAt,
-      callerNumber: '[redacted]',
-    })
 
     // Publish voicemail event to Nostr relay
     this.publishNostrEvent(KIND_CALL_VOICEMAIL, {
@@ -591,24 +395,37 @@ export class CallRouterDO extends DurableObject<Env> {
     })
   }
 
-  // --- Presence & Metrics ---
+  // --- Presence ---
 
+  /**
+   * Derive volunteer presence from shift state + active calls.
+   * Queries ShiftManagerDO for on-shift volunteers and correlates
+   * with active call assignments.
+   */
   private async getVolunteerPresence(): Promise<Response> {
     const onCallPubkeys = await this.getOnCallPubkeys()
-    const sockets = this.ctx.getWebSockets()
-    const seen = new Set<string>()
-    const statuses: Array<{ pubkey: string; status: 'available' | 'on-call' | 'online' }> = []
 
-    for (const ws of sockets) {
-      const tags = this.ctx.getTags(ws)
-      const pubkey = tags[0]
-      if (!pubkey || seen.has(pubkey)) continue
-      seen.add(pubkey)
+    // Get on-shift volunteers from ShiftManagerDO
+    let onShiftPubkeys: string[] = []
+    try {
+      const shiftDO = this.env.SHIFT_MANAGER.get(this.env.SHIFT_MANAGER.idFromName('global-shifts'))
+      const shiftRes = await shiftDO.fetch(new Request('http://do/current-volunteers'))
+      if (shiftRes.ok) {
+        const data = await shiftRes.json() as { pubkeys: string[] }
+        onShiftPubkeys = data.pubkeys
+      }
+    } catch {
+      // Shift DO not available — fall back to empty
+    }
+
+    const statuses: Array<{ pubkey: string; status: 'available' | 'on-call' | 'online' }> = []
+    for (const pubkey of onShiftPubkeys) {
       statuses.push({
         pubkey,
         status: onCallPubkeys.has(pubkey) ? 'on-call' : 'available',
       })
     }
+
     return Response.json({ volunteers: statuses })
   }
 
@@ -634,8 +451,6 @@ export class CallRouterDO extends DurableObject<Env> {
   private publishNostrEvent(kind: number, content: Record<string, unknown>): void {
     try {
       const publisher = getNostrPublisher(this.env)
-      // The hub ID is derived from this DO's name (the hub scope)
-      // For now, we tag with 'd' = 'global' for the default hub
       const hubTag = 'global'
       publisher.publish({
         kind,
@@ -653,69 +468,24 @@ export class CallRouterDO extends DurableObject<Env> {
     }
   }
 
-  // --- Broadcasting ---
-
-  private async broadcast(pubkeys: string[], message: Record<string, unknown>) {
-    const data = JSON.stringify(message)
+  /**
+   * Publish a presence summary to the Nostr relay.
+   * Derived from shift state + active calls.
+   */
+  private async publishPresenceUpdate(): Promise<void> {
     const onCallPubkeys = await this.getOnCallPubkeys()
-    for (const pubkey of pubkeys) {
-      // Don't send incoming call notifications to volunteers already on a call
-      if (onCallPubkeys.has(pubkey)) continue
-      for (const ws of this.ctx.getWebSockets(pubkey)) {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(data)
-        }
+
+    let onShiftCount = 0
+    try {
+      const shiftDO = this.env.SHIFT_MANAGER.get(this.env.SHIFT_MANAGER.idFromName('global-shifts'))
+      const shiftRes = await shiftDO.fetch(new Request('http://do/current-volunteers'))
+      if (shiftRes.ok) {
+        const data = await shiftRes.json() as { pubkeys: string[] }
+        onShiftCount = data.pubkeys.length
       }
-    }
-  }
+    } catch {}
 
-  private broadcastAll(message: Record<string, unknown>) {
-    const data = JSON.stringify(message)
-    for (const ws of this.ctx.getWebSockets()) {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data)
-      }
-    }
-  }
-
-  private async broadcastPresenceUpdate() {
-    const onCallPubkeys = await this.getOnCallPubkeys()
-    const sockets = this.ctx.getWebSockets()
-    const seen = new Set<string>()
-    let available = 0
-    let onCall = 0
-
-    for (const ws of sockets) {
-      const tags = this.ctx.getTags(ws)
-      const pubkey = tags[0]
-      if (!pubkey || seen.has(pubkey)) continue
-      seen.add(pubkey)
-      if (onCallPubkeys.has(pubkey)) onCall++
-      else available++
-    }
-
-    // Send full counts to admins only; volunteers get a minimal signal
-    // to avoid leaking staffing information to compromised accounts
-    const adminData = JSON.stringify({
-      type: 'presence:update',
-      counts: { available, onCall, total: seen.size },
-    })
-    const volunteerData = JSON.stringify({
-      type: 'presence:update',
-      counts: { hasAvailable: available > 0 },
-    })
-
-    for (const ws of this.ctx.getWebSockets()) {
-      if (ws.readyState !== WebSocket.OPEN) continue
-      const tags = this.ctx.getTags(ws)
-      const pubkey = tags[0]
-      if (!pubkey) continue
-      // Check if this volunteer is an admin by looking at tag[1]
-      const isAdmin = tags[1] === 'admin'
-      ws.send(isAdmin ? adminData : volunteerData)
-    }
-
-    // Publish presence summary to Nostr relay (volunteers see summary only)
+    const available = Math.max(0, onShiftCount - onCallPubkeys.size)
     this.publishNostrEvent(KIND_PRESENCE_UPDATE, {
       type: 'presence:summary',
       hasAvailable: available > 0,
