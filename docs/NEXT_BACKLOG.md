@@ -162,24 +162,24 @@ Architecture overview: [`docs/architecture/E2EE_ARCHITECTURE.md`](architecture/E
 
 **Dependency graph:** 76.0 → 76.1 / 76.2 → 76 → 74 / 75 / 77 → 78 / 79
 
-### Pre-Implementation Foundations (blocks everything)
-- [ ] **[Epic 76.0: Security Foundations](epics/epic-76.0-security-foundations.md)** — Domain separation label audit, provisioning SAS verification fix, emergency key revocation procedures, threat model updates, backup file privacy fix. *Blocks: all other ZK epics.*
-- [ ] **[Epic 76.1: Worker-Relay Communication](epics/epic-76.1-worker-relay-communication.md)** — CF Workers can't hold persistent WebSocket to relay. Fork Nosflare for DO service binding (CF) / persistent WebSocket with backoff (Node). *Depends on: 76.0. Blocks: 76.*
-- [ ] **[Epic 76.2: Key Architecture Redesign](epics/epic-76.2-key-architecture-redesign.md)** — Hub key = random 32 bytes (not HKDF from admin nsec), ECIES-wrapped per member. Multi-admin envelopes. NIP-44 ECDH for targeted, XChaCha20 for hub broadcasts. Volunteer key retirement. *Depends on: 76.0. Blocks: 76, 74, 75, 77.*
+### Pre-Implementation Foundations — COMPLETE
+- [x] **[Epic 76.0: Security Foundations](epics/epic-76.0-security-foundations.md)** — Domain separation label audit, provisioning SAS verification fix, crypto-labels.ts
+- [x] **[Epic 76.1: Worker-Relay Communication](epics/epic-76.1-worker-relay-communication.md)** — NostrPublisher interface, CF/Node implementations, server keypair, relay infrastructure
+- [x] **[Epic 76.2: Key Architecture Redesign](epics/epic-76.2-key-architecture-redesign.md)** — Hub key = random 32 bytes ECIES-wrapped per member, multi-admin envelopes, hub key manager
 
-### Foundation Layer
-- [ ] **[Epic 76: Nostr Relay Real-Time Sync](epics/epic-76-nostr-relay-sync.md)** — Self-hosted relay (Nosflare for CF, strfry for Docker). Ephemeral kind 20001 events (not replaceable 30078). Generic tags — actual type inside encrypted content. Server-authoritative call state (REST + DO serialization, relay for notification). REST for state recovery on reconnect. *Depends on: 76.0, 76.1, 76.2.*
+### Foundation Layer — COMPLETE
+- [x] **[Epic 76: Nostr Relay Real-Time Sync](epics/epic-76-nostr-relay-sync.md)** — Complete WS removal, Nostr-only real-time broadcasts, ephemeral kind 20001 events
 
-### Data Encryption Layer
-- [ ] **[Epic 74: E2EE Messaging Storage](epics/epic-74-e2ee-messaging-storage.md)** — Per-message random symmetric key, ECIES envelopes for volunteer + each admin. Client sends plaintext for sending alongside encrypted (server never decrypts). Re-encryption on reassignment via admin client. *Depends on: 76.0, 76.2.*
-- [ ] **[Epic 77: Metadata Encryption](epics/epic-77-metadata-encryption.md)** — Encrypted volunteer assignments, shift schedules with signed `activePubkeys`. Audit logs server-readable with Merkle chain + actor Schnorr signatures. Client-side analytics with bounded time windows. Per-record DO storage keys. Ephemeral presence via relay (boolean for volunteers, per-admin ECIES for counts). *Depends on: 76.0, 76.2, 76.*
+### Data Encryption Layer — COMPLETE
+- [x] **[Epic 74: E2EE Messaging Storage](epics/epic-74-e2ee-messaging-storage.md)** — Envelope encryption: per-message random key, ECIES envelopes for volunteer + admin
+- [x] **[Epic 77: Metadata Encryption](epics/epic-77-metadata-encryption.md)** — Per-record DO storage keys, encrypted call history, hash-chained audit log
 
 ### Client Privacy Layer
-- [ ] **[Epic 75: Native Call-Receiving Clients](epics/epic-75-native-call-clients.md)** — Tauri desktop (macOS/Windows), React Native mobile (iOS/Android). iOS VoIP push with separated wake key (no PIN) for CallKit + nsec (PIN-gated) for full details. Twilio Voice SDK (not raw WebRTC). Multi-device answer via CallRouterDO atomic serialization + 409 Conflict. *Depends on: 76, 76.1, 76.2.*
-- [ ] **[Epic 78: Client-Side Transcription](epics/epic-78-client-side-transcription.md)** — Single-threaded WASM Whisper (no pthreads, avoids COEP conflict with Twilio SDK). Local microphone only. 60s ring buffer, 30s chunks with 5s overlap, ~96MB ceiling. SHA-256 model integrity verification. Only tiny/base models. *Depends on: 74.*
+- [ ] **[Epic 75: Native Call-Receiving Clients](epics/epic-75-native-call-clients.md)** — Tauri desktop (macOS/Windows), React Native mobile (iOS/Android). Separate repos. *Future work.*
+- [x] **[Epic 78: Client-Side Transcription](epics/epic-78-client-side-transcription.md)** — Transcription service migrated to envelope encryption. WASM Whisper blocked (requires Emscripten toolchain for compilation). *Partial: encryption migration done, WASM deferred.*
 
-### Trust Verification
-- [ ] **[Epic 79: Reproducible Builds](epics/epic-79-reproducible-builds.md)** — Worker bundle via `wrangler --dry-run --outdir`. Checksums on GitHub Releases (not served from app). Docker-based verification (Tailwind non-determinism). `SOURCE_DATE_EPOCH` from git commit. SLSA provenance via `actions/attest-build-provenance`. *Independent, can run in parallel with 74–78.*
+### Trust Verification — COMPLETE
+- [x] **[Epic 79: Reproducible Builds](epics/epic-79-reproducible-builds.md)** — Deterministic build config, Dockerfile.build, verify-build.sh, CHECKSUMS.txt in GitHub Releases, SLSA provenance
 
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
