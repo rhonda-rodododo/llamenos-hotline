@@ -651,3 +651,27 @@ The decision to keep audit logs server-readable is deliberate:
 ## Estimated Effort
 
 Large — touches CallRouterDO, ShiftManagerDO, RecordsDO storage patterns, admin dashboard, and adds audit chain infrastructure. The per-record storage migration and multi-admin envelope pattern are the primary complexity drivers.
+
+## Execution Context
+
+### RecordsDO Storage
+- `src/worker/durable-objects/records-do.ts` — current audit log storage as array (hits 128KB DO limit)
+- **Must change to:** per-entry keys (`audit:${id}`) with `ctx.storage.list({ prefix: 'audit:' })`
+- Note storage already uses per-note approach
+
+### ShiftManagerDO Storage
+- `src/worker/durable-objects/shift-manager.ts` — shifts stored as array
+- Supports midnight-crossing shifts, UTC-based
+- **Split into:** `activePubkeys` (plaintext for routing) + `encryptedSchedule` (envelope pattern)
+
+### CallRouterDO Call Records
+- `src/worker/durable-objects/call-router.ts` — `activeCalls` and `callHistory` maps
+- **Change to:** per-record keys (`callrecord:${callId}`) with envelope-pattern encryption
+
+### Schnorr Signing
+- `src/client/lib/crypto.ts` L349-358 — `createAuthToken()` uses `schnorr.sign(messageHash, secretKey)`
+- Reuse `schnorr` import for actor signatures in audit entries and `activePubkeys` integrity binding
+
+### DO Storage Pattern
+- 128KB value limit per key in DO storage — critical constraint requiring per-record keys
+- `ctx.storage.list({ prefix, start, limit })` for cursor-based pagination

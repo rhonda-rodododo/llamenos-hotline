@@ -758,3 +758,26 @@ This is constant regardless of call duration due to the ring buffer approach.
 
 4. **Model updates**: How to handle new Whisper model releases?
    - Recommendation: Versioned model URLs, update hashes in source, manual updates
+
+## Execution Context
+
+### Current Transcription Flow
+- Server-side transcription via Cloudflare Workers AI
+- `src/worker/lib/crypto.ts` L16-55 — `encryptForPublicKey()` encrypts transcription text
+- `src/client/lib/crypto.ts` L224-255 — `decryptTranscription()` decrypts on client
+
+### COEP Conflict
+- Twilio Voice SDK loads cross-origin scripts without CORP headers
+- `Cross-Origin-Embedder-Policy: require-corp` would break Twilio SDK
+- Must compile whisper.cpp WITHOUT pthreads (single-threaded WASM)
+
+### Vite Config
+- `vite.config.ts` — AudioWorklet `.js` files need to be served from `/public/worklets/` or built separately
+- WASM files served from `/public/wasm/` and models from `/public/models/`
+
+### wrangler.jsonc
+- `compatibility_date: "2025-04-23"` — verify WASM support
+
+### Note Creation Endpoint
+- Notes already accept encrypted transcription text — no server-side changes needed
+- Only change is WHERE plaintext originates (client WASM vs server AI)

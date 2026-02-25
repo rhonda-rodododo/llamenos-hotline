@@ -429,3 +429,34 @@ Changes:
 ## Estimated Effort
 
 Small-Medium — primarily documentation, refactoring, and protocol fixes. No new infrastructure required. Approximately 2.5 weeks.
+
+## Execution Context
+
+### Current Hardcoded Domain Labels
+| Label | File | Line | Context |
+|-------|------|------|---------|
+| `"llamenos:note-key"` | `src/client/lib/crypto.ts` | L87, L115 | ECIES wrapping of per-note key (`wrapKeyForPubkey`, `unwrapNoteKey`) |
+| `"llamenos:transcription"` | `src/worker/lib/crypto.ts` | L33 | Server-side ECIES for transcriptions (correct) |
+| `"llamenos:transcription"` | `src/client/lib/crypto.ts` | L277 | Client-side ECIES for messages (**WRONG — should be "llamenos:message"**) |
+| `"llamenos:transcription"` | `src/client/lib/crypto.ts` | L238 | Client-side transcription decryption (correct) |
+| `"llamenos:file-key"` | `src/client/lib/file-crypto.ts` | L33, L69 | File key wrapping/unwrapping |
+| `"llamenos:file-metadata"` | `src/client/lib/file-crypto.ts` | L97, L132 | File metadata encryption/decryption |
+| `"llamenos:device-provision"` | `src/client/lib/provisioning.ts` | L31 | ECDH device provisioning |
+| `"llamenos:hkdf-salt:v1"` | `src/client/lib/crypto.ts` | L65 | `deriveEncryptionKey()` salt (used for drafts, export, legacy notes) |
+
+### Provisioning SAS Location
+- `src/client/lib/provisioning.ts` L85-103 (`decryptProvisionedNsec`) — ECDH flow completes here; SAS derivation should be added after `deriveSharedKey(sharedX)` at L94
+- `src/client/lib/provisioning.ts` L116-137 (`encryptNsecForDevice`) — Primary device side; SAS derivation after `deriveSharedKey(sharedX)` at L125
+- UI component: `src/client/components/DeviceLinking.tsx` — needs SAS display + confirmation buttons
+
+### Backup Format Location
+- `src/client/lib/key-store.ts` — contains `storeEncryptedKey()` and `decryptStoredKey()`; backup export not yet implemented as a separate file, but key format is defined in key-store
+- `src/client/lib/key-manager.ts` L211-214 — `getNsec()` exports the raw nsec
+
+### Key Revocation Documentation Targets
+- `docs/security/THREAT_MODEL.md` — exists, needs sections 4a-4f additions
+- `docs/security/KEY_REVOCATION_RUNBOOK.md` — to be created
+- `docs/RUNBOOK.md` — to be cross-referenced
+
+### Protocol Documentation
+- `docs/protocol/llamenos-protocol.md` — needs Section 5 (Encryption) and Section 10 (Provisioning) updates
