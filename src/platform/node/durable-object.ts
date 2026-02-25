@@ -135,12 +135,30 @@ export function createDOContext(className: string, instanceId: string): DOContex
 }
 
 /**
+ * Extended stub interface that exposes the DO instance for WebSocket handling on Node.js.
+ */
+export interface DOStubWithInstance {
+  fetch(req: Request): Promise<Response>
+  /** Get the underlying DO instance (Node.js only, for WebSocket wiring) */
+  getInstance(): DurableObject
+}
+
+/**
  * Create a DurableObject stub that routes .fetch() to a local instance.
  */
-export function createDOStub(instance: DurableObject): { fetch(req: Request): Promise<Response> } {
+export function createDOStub(instance: DurableObject): DOStubWithInstance {
   return {
     fetch: (req: Request) => instance.fetch(req),
+    getInstance: () => instance,
   }
+}
+
+/**
+ * Extended namespace interface with getInstance support.
+ */
+export interface DONamespaceWithInstance {
+  idFromName(name: string): { toString(): string }
+  get(id: { toString(): string }): DOStubWithInstance
 }
 
 /**
@@ -151,7 +169,7 @@ export function createDONamespace<T extends DurableObject>(
   DOClass: new (ctx: DOContext, env: unknown) => T,
   className: string,
   env: unknown,
-): { idFromName(name: string): { toString(): string }; get(id: { toString(): string }): { fetch(req: Request): Promise<Response> } } {
+): DONamespaceWithInstance {
   const instances = new Map<string, T>()
 
   return {
