@@ -51,6 +51,31 @@ Draft Encryption Key
   └── Deterministic — acceptable since drafts are local-only
 ```
 
+### 2.1 Domain Separation Labels
+
+Every cryptographic operation uses a unique domain separation string to prevent cross-context key reuse attacks. The authoritative source is `src/shared/crypto-labels.ts`; this table must match that file exactly.
+
+| Label | Purpose | Section |
+|-------|---------|---------|
+| `"llamenos:note-key"` | ECIES wrapping of per-note symmetric key | 5.2 |
+| `"llamenos:transcription"` | Server-side transcription ECIES encryption | 6 |
+| `"llamenos:message"` | E2EE message ECIES encryption | 6 (future) |
+| `"llamenos:file-key"` | Per-file symmetric key ECIES wrapping | 7 |
+| `"llamenos:file-metadata"` | File metadata ECIES encryption | 7 |
+| `"llamenos:hub-key-wrap"` | Hub key ECIES distribution | (future) |
+| `"llamenos:hub-event"` | Hub event HKDF derivation | (future) |
+| `"llamenos:device-provision"` | Device provisioning ECDH key derivation | 10 |
+| `"llamenos:sas"` / `"llamenos:provisioning-sas"` | SAS verification HKDF (salt / info) | 10 |
+| `"llamenos:hkdf-salt:v1"` | HKDF salt for legacy key derivation | 5.4 |
+| `"llamenos:notes"` | HKDF context for legacy note encryption | 5.4 |
+| `"llamenos:drafts"` | HKDF context for draft encryption | 8 |
+| `"llamenos:export"` | HKDF context for export encryption | — |
+| `"llamenos:auth:"` | Schnorr auth token message prefix | 4 |
+| `"llamenos:phone:"` | HMAC phone number hashing prefix | — |
+| `"llamenos:ip:"` | HMAC IP address hashing prefix | — |
+| `"llamenos:keyid:"` | Key identification hash prefix | 3.1 |
+| `"llamenos:recovery"` | Recovery key PBKDF2 fallback salt | 9 |
+
 ## 3. Local Key Protection
 
 ### 3.1 PIN-Encrypted Key Store
@@ -174,7 +199,7 @@ wrapKeyForPubkey(plainKey, recipientPubkeyHex):
   recipientCompressed = "02" || recipientPubkeyHex  // x-only → compressed
   shared = secp256k1.getSharedSecret(ephemeralSecret, recipientCompressed)
   sharedX = shared[1..33]  // strip prefix byte
-  symmetricKey = SHA-256("llamenos:transcription" || sharedX)
+  symmetricKey = SHA-256("llamenos:note-key" || sharedX)
   nonce = random(24 bytes)
   wrappedKey = nonce || XChaCha20-Poly1305(symmetricKey, nonce, plainKey)
   return { encryptedFileKey: hex(wrappedKey), ephemeralPubkey: hex(ephemeralPub) }
