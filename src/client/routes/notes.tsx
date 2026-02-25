@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { listNotes, createNote, updateNote, getCallHistory, listVolunteers, getCustomFields, type EncryptedNote, type CallRecord, type CustomFieldDefinition, type Volunteer } from '@/lib/api'
-import { encryptNoteV2, decryptNoteV2, decryptNote, decryptTranscription, encryptExport } from '@/lib/crypto'
+import { encryptNoteV2, decryptNoteV2, decryptNote, decryptTranscription, decryptCallRecord, encryptExport } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
 import type { NotePayload } from '@shared/types'
@@ -58,6 +58,26 @@ function NotesPage() {
       listVolunteers().then(r => setVolunteers(r.volunteers)).catch(() => {})
     }
   }, [isAdmin])
+
+  // Decrypt encrypted call records client-side (Epic 77)
+  useEffect(() => {
+    if (!hasNsec || !publicKey || recentCalls.length === 0) return
+    const secretKey = keyManager.isUnlocked() ? keyManager.getSecretKey() : null
+    if (!secretKey) return
+
+    let changed = false
+    const decrypted = recentCalls.map(call => {
+      if (call.answeredBy !== undefined) return call
+      if (!call.encryptedContent || !call.adminEnvelopes?.length) return call
+      const meta = decryptCallRecord(call.encryptedContent, call.adminEnvelopes, secretKey, publicKey)
+      if (meta) {
+        changed = true
+        return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
+      }
+      return call
+    })
+    if (changed) setRecentCalls(decrypted)
+  }, [recentCalls, hasNsec, publicKey])
 
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -308,7 +328,7 @@ function NotesPage() {
                         {callInfo.status === 'unanswered' ? (
                           <span className="text-destructive">{t('callHistory.unanswered')}</span>
                         ) : volunteerName && isAdmin ? (
-                          <Link to="/volunteers/$pubkey" params={{ pubkey: callInfo.answeredBy }} className="text-primary hover:underline">
+                          <Link to="/volunteers/$pubkey" params={{ pubkey: callInfo.answeredBy! }} className="text-primary hover:underline">
                             {volunteerName}
                           </Link>
                         ) : volunteerName ? (

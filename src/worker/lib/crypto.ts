@@ -4,7 +4,7 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { hmac } from '@noble/hashes/hmac.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
-import { LABEL_TRANSCRIPTION, LABEL_MESSAGE, HMAC_PHONE_PREFIX, HMAC_IP_PREFIX } from '@shared/crypto-labels'
+import { LABEL_TRANSCRIPTION, LABEL_MESSAGE, LABEL_CALL_META, HMAC_PHONE_PREFIX, HMAC_IP_PREFIX } from '@shared/crypto-labels'
 import type { MessageKeyEnvelope } from '../types'
 
 /**
@@ -153,4 +153,52 @@ export function encryptMessageForStorage(
     })),
   }
   // messageKey goes out of scope — never stored
+}
+
+/**
+ * Encrypt call record metadata for history storage (Epic 77).
+ * Uses the same envelope pattern as messages: random per-record key
+ * wrapped via ECIES for each admin pubkey.
+ *
+ * @param metadata - JSON-serializable call metadata (answeredBy, callerNumber, etc.)
+ * @param adminPubkeys - Admin decryption pubkeys
+ */
+export function encryptCallRecordForStorage(
+  metadata: Record<string, unknown>,
+  adminPubkeys: string[],
+): { encryptedContent: string; adminEnvelopes: MessageKeyEnvelope[] } {
+  const recordKey = new Uint8Array(32)
+  crypto.getRandomValues(recordKey)
+
+  const nonce = new Uint8Array(24)
+  crypto.getRandomValues(nonce)
+  const cipher = xchacha20poly1305(recordKey, nonce)
+  const ciphertext = cipher.encrypt(utf8ToBytes(JSON.stringify(metadata)))
+
+  const packed = new Uint8Array(nonce.length + ciphertext.length)
+  packed.set(nonce)
+  packed.set(ciphertext, nonce.length)
+
+  return {
+    encryptedContent: bytesToHex(packed),
+    adminEnvelopes: adminPubkeys.map(pk => ({
+      pubkey: pk,
+      ...eciesWrapKeyServer(recordKey, pk, LABEL_CALL_META),
+    })),
+  }
+}
+
+/**
+ * Compute SHA-256 hash of an audit entry's core content for chain linking.
+ */
+export function hashAuditEntry(entry: {
+  id: string
+  event: string
+  actorPubkey: string
+  details: Record<string, unknown>
+  createdAt: string
+  previousEntryHash?: string
+}): string {
+  const content = `${entry.id}:${entry.event}:${entry.actorPubkey}:${entry.createdAt}:${JSON.stringify(entry.details)}:${entry.previousEntryHash || ''}`
+  return bytesToHex(sha256(utf8ToBytes(content)))
 }

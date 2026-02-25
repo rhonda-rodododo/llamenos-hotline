@@ -667,16 +667,23 @@ export interface ActiveCall {
 
 export interface CallRecord {
   id: string
-  callerNumber: string
   callerLast4?: string
-  answeredBy: string
   startedAt: string
-  endedAt: string
-  duration: number
+  endedAt?: string
+  duration?: number
   hasTranscription: boolean
   hasVoicemail: boolean
   hasRecording?: boolean
+  recordingSid?: string
   status: 'completed' | 'unanswered'
+
+  // Envelope-encrypted metadata (Epic 77)
+  encryptedContent?: string
+  adminEnvelopes?: MessageKeyEnvelope[]
+
+  // Decrypted fields (populated client-side after decryption)
+  answeredBy?: string | null
+  callerNumber?: string
 }
 
 export interface AuditLogEntry {
@@ -685,6 +692,9 @@ export interface AuditLogEntry {
   actorPubkey: string
   details: Record<string, unknown>
   createdAt: string
+  // Chain integrity (Epic 77)
+  previousEntryHash?: string
+  entryHash?: string
 }
 
 export interface VolunteerPresence {

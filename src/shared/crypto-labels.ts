@@ -33,6 +33,12 @@ export const LABEL_TRANSCRIPTION = 'llamenos:transcription'
 /** E2EE message encryption (Epic 74) */
 export const LABEL_MESSAGE = 'llamenos:message'
 
+/** Encrypted call record metadata (Epic 77) — call assignments in history */
+export const LABEL_CALL_META = 'llamenos:call-meta'
+
+/** Encrypted shift schedule details (Epic 77) — full schedule beyond routing pubkeys */
+export const LABEL_SHIFT_SCHEDULE = 'llamenos:shift-schedule'
+
 // --- HKDF Derivation ---
 
 /** HKDF salt for legacy symmetric key derivation */

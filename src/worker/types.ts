@@ -118,6 +118,42 @@ export interface CallRecord {
   hasRecording?: boolean
 }
 
+/**
+ * Encrypted call record for history storage (Epic 77).
+ *
+ * Active calls remain as plaintext CallRecord (routing necessity).
+ * When a call completes, sensitive metadata (answeredBy, full callerNumber)
+ * is encrypted into an envelope and stored per-record as `callrecord:${id}`.
+ *
+ * Plaintext fields: callerLast4, timestamp, duration, status, hasTranscription, hasVoicemail
+ * Encrypted fields: answeredBy, callerNumber (original hash), outcome details
+ */
+export interface EncryptedCallRecord {
+  id: string
+  callerLast4?: string           // For display (not sensitive)
+  startedAt: string              // Needed for ordering/pagination
+  endedAt?: string               // Needed for duration display
+  duration?: number              // Acceptable trade-off (no PII)
+  status: 'completed' | 'unanswered'
+  hasTranscription: boolean
+  hasVoicemail: boolean
+  hasRecording?: boolean
+  recordingSid?: string          // Twilio ID (not PII, server needs to update post-encryption)
+
+  // Envelope-pattern encryption for admin(s)
+  encryptedContent: string       // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
+  adminEnvelopes: MessageKeyEnvelope[]  // Per-record key wrapped for each admin
+}
+
+/**
+ * Plaintext inside EncryptedCallRecord.encryptedContent.
+ * Only visible after admin decryption.
+ */
+export interface CallRecordMetadata {
+  answeredBy: string | null      // Volunteer pubkey
+  callerNumber: string           // HMAC-hashed phone number
+}
+
 export interface EncryptedNote {
   id: string
   callId: string
@@ -137,6 +173,9 @@ export interface AuditLogEntry {
   actorPubkey: string
   details: Record<string, unknown>
   createdAt: string
+  // Tamper detection (Epic 77)
+  previousEntryHash?: string     // SHA-256 of previous entry (chain link)
+  entryHash?: string             // SHA-256 of this entry's content (for chain verification)
 }
 
 export interface SpamSettings {
