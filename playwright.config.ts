@@ -13,7 +13,7 @@ export default defineConfig({
     timeout: 10_000,
   },
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:8787",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:8788",
     trace: "on-first-retry",
     actionTimeout: 10_000,
     navigationTimeout: 15_000,
@@ -47,8 +47,8 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: "bun run build && bun run dev:worker",
-        url: "http://localhost:8787",
+        command: "bun run build && bunx wrangler dev --port 8788",
+        url: "http://localhost:8788",
         reuseExistingServer: !process.env.CI,
       },
 });
