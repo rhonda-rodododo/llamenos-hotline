@@ -54,6 +54,10 @@ export interface Env {
   E2E_TEST_SECRET?: string
   DEV_RESET_SECRET?: string
 
+  // Demo mode (CF Cron Trigger resets all DOs on schedule)
+  DEMO_MODE?: string              // "true" to enable
+  DEMO_RESET_CRON?: string        // Human-readable schedule label (e.g., "every 4 hours")
+
   // Server Nostr identity (Epic 76.1) — hex secret for HKDF keypair derivation
   SERVER_NOSTR_SECRET?: string
   // Relay URL for Node.js persistent WebSocket (Docker/self-hosted)

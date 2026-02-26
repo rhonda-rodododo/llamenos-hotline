@@ -92,11 +92,18 @@
     "__BUILD_VERSION__": "'0.0.0-dev'"
   },
 
+  // Cron triggers — demo mode auto-reset every 4 hours
+  "triggers": {
+    "crons": ["0 */4 * * *"]
+  },
+
   // Environment variables (secrets go in .dev.vars for local dev)
   // SERVER_NOSTR_SECRET goes in .dev.vars (wrangler secret put SERVER_NOSTR_SECRET)
   "vars": {
     "ENVIRONMENT": "production",
-    "HOTLINE_NAME": "Llámenos"
+    "HOTLINE_NAME": "Llámenos",
+    "DEMO_MODE": "true",
+    "DEMO_RESET_CRON": "every 4 hours"
   },
 
   // Staging environment for pre-release testing
@@ -130,7 +137,9 @@
       // ],
       "vars": {
         "ENVIRONMENT": "staging",
-        "HOTLINE_NAME": "Llámenos (Next)"
+        "HOTLINE_NAME": "Llámenos (Next)",
+        "DEMO_MODE": "true",
+        "DEMO_RESET_CRON": "every 4 hours"
       }
     }
   }

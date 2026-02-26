@@ -49,7 +49,7 @@ export const Route = createRootRoute({
 function RootLayout() {
   const { t } = useTranslation()
   const { isAuthenticated, isAdmin, signOut, name, isLoading, profileCompleted, hasPermission, primaryRoleName } = useAuth()
-  const { hotlineName, needsBootstrap, isLoading: configLoading } = useConfig()
+  const { hotlineName, needsBootstrap, demoMode, isLoading: configLoading } = useConfig()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const location = useLocation()
@@ -119,7 +119,12 @@ function RootLayout() {
         </div>
       )
     } else {
-      content = <Outlet />
+      content = (
+        <>
+          {demoMode && <DemoBanner />}
+          <Outlet />
+        </>
+      )
     }
   } else {
     content = <NostrWrappedLayout />
