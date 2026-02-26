@@ -2,6 +2,18 @@
 
 ## 2026-02-26: Multi-Platform Native Clients (`desktop` branch)
 
+### Epic 80: Desktop Security Hardening (Tauri v2)
+
+- **Phase 1: Tauri Isolation Pattern** — `src-tauri/isolation/index.html` sandboxed iframe with IPC command allowlist. All 21 crypto commands + plugin commands explicitly allowed. Unlisted commands rejected at the isolation layer before reaching Rust.
+- **Phase 2: Stronghold PBKDF2-SHA256** — Replaced single SHA-256 hash with PBKDF2 (600K iterations) using domain-separated salt `llamenos:stronghold:v1`. Added `pbkdf2`, `hmac` crate dependencies.
+- **Phase 3: CSP Hardening** — Added `form-action: 'none'`, `frame-ancestors: 'none'`. Tightened `connect-src` from `*.llamenos.org` wildcards + localhost to specific origins. `isolation:` added to `default-src` for the isolation iframe.
+- **Phase 4: Capability Scoping** — Removed `fs:default` and `shell:default` entirely. Replaced `store:default` with specific `store:allow-get/set/delete/save/load`. Replaced `notification:default` with specific allow permissions. Added `process:allow-exit` only (no `process:default`).
+- **Phase 5: Updater Infrastructure** — pubkey placeholder and GitHub Releases endpoint configured. `createUpdaterArtifacts: true` in bundle config.
+- **Phase 6: CryptoState Memory Protection** — `CryptoState` struct in Rust with `Mutex<Option<String>>` for secret key and `zeroize` on lock. New stateful IPC commands: `unlock_with_pin`, `import_key_to_state`, `lock_crypto`, `is_crypto_unlocked`, `get_public_key_from_state`, `create_auth_token_from_state`, `ecies_unwrap_key_from_state`, `decrypt_note_from_state`, `decrypt_message_from_state`. Zeroization on window destroy and quit. `platform.ts` routes to stateful commands on desktop (nsec never sent back over IPC). Key-manager loads CryptoState on unlock; backward-compatible for direct callers until Epic 81 migrates them.
+- **Phase 7: Pinned Rust Toolchain** — `rust-toolchain.toml` pins to `1.85.0` with `rustfmt`, `clippy`, and cross-compilation targets (Linux, macOS x86/ARM, Windows).
+- **Phase 8: Single Instance Hardening** — Unminimize window on duplicate launch attempt for visual feedback.
+- `bech32` crate added for nsec → hex conversion in Rust.
+
 ### Epic 91: Native VoIP Calling — Linphone SDK Expo Module
 
 **llamenos-mobile repo (Expo Module + React hook):**

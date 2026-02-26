@@ -179,7 +179,7 @@ Architecture overview: [`docs/architecture/E2EE_ARCHITECTURE.md`](architecture/E
 - [x] **[Epic 78: Client-Side Transcription](epics/epic-78-client-side-transcription.md)** — @huggingface/transformers ONNX Whisper in browser, AudioWorklet ring buffer, Web Worker isolation, settings UI, auto-save encrypted transcript on hangup
 
 ### Desktop Security & Native Crypto
-- [ ] **[Epic 80: Desktop Security Hardening](epics/epic-80-desktop-security.md)** — Tauri isolation pattern, Stronghold integration, CSP hardening, IPC allowlist, auto-updater security, memory protection, reproducible builds, single instance
+- [x] **[Epic 80: Desktop Security Hardening](epics/epic-80-desktop-security.md)** — Tauri isolation pattern, Stronghold PBKDF2, CSP hardening, IPC allowlist, CryptoState memory protection, reproducible builds, single instance
 - [ ] **[Epic 81: Native Crypto Migration](epics/epic-81-native-crypto.md)** — Platform detection layer, key manager migration to Stronghold, ECIES/auth/note/message migration, WASM build for browser, cross-platform test vectors
 
 ### Trust Verification — COMPLETE
