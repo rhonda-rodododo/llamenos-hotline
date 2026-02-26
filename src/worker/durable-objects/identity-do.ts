@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers'
-import type { Env, Volunteer, InviteCode, WebAuthnCredential, WebAuthnSettings, ServerSession } from '../types'
+import type { Env, Volunteer, InviteCode, WebAuthnCredential, WebAuthnSettings, ServerSession, DeviceRecord } from '../types'
 import { DORouter } from '../lib/do-router'
 import { runMigrations } from '../../shared/migrations/runner'
 import { migrations } from '../../shared/migrations'
@@ -90,6 +90,14 @@ export class IdentityDO extends DurableObject<Env> {
     // --- Hub Role Management ---
     this.router.post('/identity/hub-role', async (req) => this.setHubRole(await req.json()))
     this.router.delete('/identity/hub-role', async (req) => this.removeHubRole(await req.json()))
+
+    // --- Device Push Token Management (Epic 86) ---
+    this.router.get('/devices/:pubkey', (_req, { pubkey }) => this.getDevices(pubkey))
+    this.router.post('/devices/:pubkey/register', async (req, { pubkey }) =>
+      this.registerDevice(pubkey, await req.json()))
+    this.router.post('/devices/:pubkey/cleanup', async (req, { pubkey }) =>
+      this.cleanupDevices(pubkey, await req.json()))
+    this.router.delete('/devices/:pubkey', (_req, { pubkey }) => this.deleteAllDevices(pubkey))
 
     // --- Test Reset ---
     this.router.post('/reset', async () => {
@@ -585,6 +593,61 @@ export class IdentityDO extends DurableObject<Env> {
     vols[data.pubkey] = vol
     await this.ctx.storage.put('volunteers', vols)
     return Response.json({ volunteer: vol })
+  }
+
+  // --- Device Push Token Management (Epic 86) ---
+
+  private async getDevices(pubkey: string): Promise<Response> {
+    const devices = await this.ctx.storage.get<DeviceRecord[]>(`devices:${pubkey}`) || []
+    return Response.json({ devices })
+  }
+
+  private async registerDevice(pubkey: string, data: {
+    platform: 'ios' | 'android'
+    pushToken: string
+    wakeKeyPublic: string
+  }): Promise<Response> {
+    const devices = await this.ctx.storage.get<DeviceRecord[]>(`devices:${pubkey}`) || []
+    const now = new Date().toISOString()
+
+    // Upsert by platform + pushToken
+    const existingIdx = devices.findIndex(d => d.pushToken === data.pushToken)
+    if (existingIdx >= 0) {
+      devices[existingIdx] = {
+        ...devices[existingIdx],
+        wakeKeyPublic: data.wakeKeyPublic,
+        lastSeenAt: now,
+      }
+    } else {
+      // Limit to 5 devices per volunteer
+      if (devices.length >= 5) {
+        // Remove oldest device
+        devices.sort((a, b) => a.lastSeenAt.localeCompare(b.lastSeenAt))
+        devices.shift()
+      }
+      devices.push({
+        platform: data.platform,
+        pushToken: data.pushToken,
+        wakeKeyPublic: data.wakeKeyPublic,
+        registeredAt: now,
+        lastSeenAt: now,
+      })
+    }
+
+    await this.ctx.storage.put(`devices:${pubkey}`, devices)
+    return Response.json({ ok: true })
+  }
+
+  private async cleanupDevices(pubkey: string, data: { tokens: string[] }): Promise<Response> {
+    const devices = await this.ctx.storage.get<DeviceRecord[]>(`devices:${pubkey}`) || []
+    const cleaned = devices.filter(d => !data.tokens.includes(d.pushToken))
+    await this.ctx.storage.put(`devices:${pubkey}`, cleaned)
+    return Response.json({ ok: true, removed: devices.length - cleaned.length })
+  }
+
+  private async deleteAllDevices(pubkey: string): Promise<Response> {
+    await this.ctx.storage.delete(`devices:${pubkey}`)
+    return Response.json({ ok: true })
   }
 }
 

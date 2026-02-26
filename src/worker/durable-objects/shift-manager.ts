@@ -3,6 +3,7 @@ import type { Env, Shift } from '../types'
 import { DORouter } from '../lib/do-router'
 import { runMigrations } from '../../shared/migrations/runner'
 import { migrations } from '../../shared/migrations'
+import { createPushDispatcher } from '../lib/push-dispatch'
 
 /** Validate HH:MM format (00:00–23:59) */
 function isValidTimeFormat(time: string): boolean {
@@ -41,7 +42,91 @@ export class ShiftManagerDO extends DurableObject<Env> {
       await runMigrations(this.ctx.storage, migrations, 'shifts')
       this.migrated = true
     }
+    // Schedule shift reminder alarm if not already set (Epic 86)
+    await this.ensureAlarm()
     return this.router.handle(request)
+  }
+
+  /**
+   * Alarm handler — checks for shifts starting soon and sends push reminders.
+   * Runs every 5 minutes.
+   */
+  override async alarm(): Promise<void> {
+    await this.sendShiftReminders()
+    // Re-schedule next alarm in 5 minutes
+    await this.ctx.storage.setAlarm(Date.now() + 5 * 60 * 1000)
+  }
+
+  private async ensureAlarm(): Promise<void> {
+    const existing = await this.ctx.storage.getAlarm()
+    if (!existing) {
+      await this.ctx.storage.setAlarm(Date.now() + 5 * 60 * 1000)
+    }
+  }
+
+  /**
+   * Check for shifts starting within 15 minutes and send push reminders.
+   * Tracks which reminders have been sent to avoid duplicates.
+   */
+  private async sendShiftReminders(): Promise<void> {
+    const shifts = await this.ctx.storage.get<Shift[]>('shifts') || []
+    if (shifts.length === 0) return
+
+    const now = new Date()
+    const currentDay = now.getUTCDay()
+    const currentMinutes = now.getUTCHours() * 60 + now.getUTCMinutes()
+
+    // Track sent reminders: key is "shiftId:day:startTime:date"
+    const sentKey = `push-reminders:${now.toISOString().slice(0, 10)}`
+    const sentRemindersArr = await this.ctx.storage.get<string[]>(sentKey) || []
+    const sentReminders = new Set(sentRemindersArr)
+    let changed = false
+
+    const identityDO = this.env.IDENTITY_DO.get(this.env.IDENTITY_DO.idFromName('global-identity'))
+    const selfStub = this.env.SHIFT_MANAGER.get(this.env.SHIFT_MANAGER.idFromName('global-shifts'))
+    const dispatcher = createPushDispatcher(this.env, identityDO, selfStub)
+
+    for (const shift of shifts) {
+      if (!shift.days.includes(currentDay)) continue
+
+      const [h, m] = shift.startTime.split(':').map(Number)
+      const shiftStartMinutes = h * 60 + m
+
+      // Check if shift starts within 10–15 minutes
+      let minutesUntilStart = shiftStartMinutes - currentMinutes
+      if (minutesUntilStart < 0) minutesUntilStart += 24 * 60 // next occurrence
+
+      if (minutesUntilStart > 0 && minutesUntilStart <= 15) {
+        const reminderKey = `${shift.id}:${currentDay}:${shift.startTime}`
+        if (sentReminders.has(reminderKey)) continue
+
+        // Send push reminder to each volunteer in the shift
+        for (const pubkey of shift.volunteerPubkeys) {
+          await dispatcher.sendToVolunteer(pubkey, {
+            type: 'shift_reminder',
+            shiftId: shift.id,
+            startsAt: shift.startTime,
+          }, {
+            type: 'shift_reminder',
+            shiftId: shift.id,
+            startsAt: shift.startTime,
+            shiftName: shift.name,
+          }).catch(() => {})
+        }
+
+        sentReminders.add(reminderKey)
+        changed = true
+      }
+    }
+
+    if (changed) {
+      await this.ctx.storage.put(sentKey, Array.from(sentReminders))
+    }
+
+    // Clean up old reminder tracking (older than yesterday)
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    const yesterdayKey = `push-reminders:${yesterday.toISOString().slice(0, 10)}`
+    await this.ctx.storage.delete(yesterdayKey)
   }
 
   private async getShifts(): Promise<Response> {

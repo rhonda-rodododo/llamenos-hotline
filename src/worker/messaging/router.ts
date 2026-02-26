@@ -7,6 +7,7 @@ import { getMessagingAdapter } from '../lib/do-access'
 import { audit } from '../services/audit'
 import { canClaimChannel } from '../../shared/permissions'
 import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '../../shared/nostr-events'
+import { createPushDispatcher } from '../lib/push-dispatch'
 
 const messaging = new Hono<AppEnv>()
 
@@ -197,6 +198,36 @@ messaging.post('/:channel/webhook', async (c) => {
     c.executionCtx.waitUntil(
       tryAutoAssign(dos, c.env, convResult.conversationId, channel, c.env.ADMIN_PUBKEY)
     )
+  }
+
+  // Push notification to assigned volunteer for new messages (Epic 86)
+  if (convResult.conversationId) {
+    c.executionCtx.waitUntil((async () => {
+      try {
+        // Fetch the conversation to get the assigned volunteer
+        const fetchConvRes = await dos.conversations.fetch(
+          new Request(`http://do/conversations/${convResult.conversationId}`),
+        )
+        if (fetchConvRes.ok) {
+          const conv = await fetchConvRes.json() as { assignedTo?: string; channelType: string }
+          if (conv.assignedTo) {
+            const globalDOs = getDOs(c.env)
+            const dispatcher = createPushDispatcher(c.env, globalDOs.identity, globalDOs.shifts)
+            await dispatcher.sendToVolunteer(conv.assignedTo, {
+              type: 'message',
+              conversationId: convResult.conversationId,
+              channelType: conv.channelType,
+            }, {
+              type: 'message',
+              conversationId: convResult.conversationId,
+              channelType: conv.channelType,
+            })
+          }
+        }
+      } catch {
+        // Push dispatch failure should not affect webhook response
+      }
+    })())
   }
 
   // Audit the incoming message (no PII — only hashed identifier)

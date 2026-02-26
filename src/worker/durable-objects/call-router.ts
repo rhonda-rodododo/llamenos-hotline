@@ -5,6 +5,7 @@ import { DORouter } from '../lib/do-router'
 import { runMigrations } from '../../shared/migrations/runner'
 import { migrations } from '../../shared/migrations'
 import { getNostrPublisher } from '../lib/do-access'
+import { createPushDispatcher } from '../lib/push-dispatch'
 import { KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_PRESENCE_UPDATE } from '../../shared/nostr-events'
 
 /**
@@ -299,6 +300,17 @@ export class CallRouterDO extends DurableObject<Env> {
       startedAt: call.startedAt,
     })
 
+    // Push notification to all on-shift volunteers (Epic 86)
+    this.dispatchPush({
+      type: 'voicemail',
+      callId: call.id,
+    }, {
+      type: 'voicemail',
+      callId: call.id,
+      callerLast4: call.callerLast4,
+      duration: call.duration,
+    })
+
     return Response.json({ call: encrypted })
   }
 
@@ -486,6 +498,22 @@ export class CallRouterDO extends DurableObject<Env> {
       })
     } catch {
       // Nostr not configured — silently skip
+    }
+  }
+
+  private dispatchPush(
+    wakePayload: import('../types').WakePayload,
+    fullPayload: import('../types').FullPushPayload,
+  ): void {
+    try {
+      const identityDO = this.env.IDENTITY_DO.get(this.env.IDENTITY_DO.idFromName('global-identity'))
+      const shiftsDO = this.env.SHIFT_MANAGER.get(this.env.SHIFT_MANAGER.idFromName('global-shifts'))
+      const dispatcher = createPushDispatcher(this.env, identityDO, shiftsDO)
+      dispatcher.sendToAllOnShift(wakePayload, fullPayload).catch(err => {
+        console.error('[push] Failed to dispatch voicemail push:', err)
+      })
+    } catch {
+      // Push not configured — silently skip
     }
   }
 

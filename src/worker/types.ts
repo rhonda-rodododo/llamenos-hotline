@@ -65,6 +65,46 @@ export interface Env {
   // Public-facing relay URL for client browser connections (e.g., wss://relay.example.com)
   // Falls back to /nostr (reverse-proxied via Caddy) if not set but relay is configured
   NOSTR_RELAY_PUBLIC_URL?: string
+
+  // Push notifications (Epic 86) — APNs (iOS)
+  APNS_KEY_P8?: string       // Apple Push Notification auth key (PEM format)
+  APNS_KEY_ID?: string       // Key ID from Apple Developer Portal
+  APNS_TEAM_ID?: string      // Apple Developer Team ID
+
+  // Push notifications (Epic 86) — FCM (Android)
+  FCM_SERVICE_ACCOUNT_KEY?: string  // Google Cloud service account JSON
+}
+
+// --- Push Notification Types (Epic 86) ---
+
+export interface DeviceRecord {
+  platform: 'ios' | 'android'
+  pushToken: string
+  wakeKeyPublic: string      // secp256k1 compressed pubkey (hex) for wake-tier ECIES
+  registeredAt: string
+  lastSeenAt: string
+}
+
+export type PushNotificationType = 'message' | 'voicemail' | 'shift_reminder' | 'assignment'
+
+/** Wake-tier payload — decryptable without PIN (minimal metadata) */
+export interface WakePayload {
+  type: PushNotificationType
+  conversationId?: string
+  channelType?: string
+  callId?: string
+  shiftId?: string
+  startsAt?: string
+}
+
+/** Full-tier payload — decryptable only with volunteer's nsec */
+export interface FullPushPayload extends WakePayload {
+  senderLast4?: string
+  previewText?: string
+  duration?: number
+  callerLast4?: string
+  shiftName?: string
+  role?: string
 }
 
 /** @deprecated Use roles array + permission system instead */

@@ -26,6 +26,7 @@ import setupRoutes from './routes/setup'
 import provisioningRoutes from './routes/provisioning'
 import hubRoutes from './routes/hubs'
 import blastsRoutes from './routes/blasts'
+import devicesRoutes from './routes/devices'
 import { hubContext } from './middleware/hub'
 import { getDOs } from './lib/do-access'
 
@@ -111,6 +112,7 @@ authenticated.route('/reports', reportsRoutes)
 authenticated.route('/setup', setupRoutes)
 authenticated.route('/hubs', hubRoutes)
 authenticated.route('/blasts', blastsRoutes)
+authenticated.route('/devices', devicesRoutes)
 
 // Hub-scoped authenticated routes
 const hubScoped = new Hono<AppEnv>()

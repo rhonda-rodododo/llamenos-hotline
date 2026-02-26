@@ -190,15 +190,15 @@ Architecture overview: [`docs/architecture/E2EE_ARCHITECTURE.md`](architecture/E
 Desktop (Tauri v2) and mobile (React Native/Expo 55) clients. Ordered by dependency:
 
 ### Desktop Verification & Distribution
-- [ ] **[Epic 82: Desktop Route Verification](epics/epic-82-desktop-route-verification.md)** — Verify all 22 web routes render in Tauri webview, fix CSP violations, test crypto IPC, system tray, single-instance
+- [x] **[Epic 82: Desktop Route Verification](epics/epic-82-desktop-route-verification.md)** — Fixed Tauri capabilities, CSP hardening, platform.ts PIN encrypt/decrypt flow
 - [ ] **[Epic 87: Desktop Auto-Updater & Distribution](epics/epic-87-desktop-auto-updater.md)** — Ed25519 signed updates, CI builds (macOS/Windows/Linux), Apple notarization, GitHub Releases manifest, self-hosted endpoint support
 
 ### Mobile Foundation & Auth
-- [ ] **[Epic 83: Mobile Foundation](epics/epic-83-mobile-foundation.md)** — Expo 55 + NativeWind 4 + Zustand/MMKV + React Query + expo-secure-store + nostr-tools + i18n, auth flow (login, onboarding, PIN lock)
+- [x] **[Epic 83: Mobile Foundation](epics/epic-83-mobile-foundation.md)** — Full crypto layer, auth flow, NativeWind 4, Zustand/MMKV, React Query, Nostr relay, i18n, tab navigator
 
 ### Mobile Core Screens
-- [ ] **[Epic 84: Mobile Core Screens](epics/epic-84-mobile-core-screens.md)** — Dashboard, calls, notes (E2EE), shifts, Nostr relay port (~600 LOC) with network-aware reconnect
-- [ ] **[Epic 85: Mobile Admin & Messaging](epics/epic-85-mobile-admin-messaging.md)** — Admin screens (volunteers, bans, audit, settings), threaded E2EE messaging, role guards
+- [x] **[Epic 84: Mobile Core Screens](epics/epic-84-mobile-core-screens.md)** — Dashboard, calls, notes (E2EE), shifts, settings, call screen with note editor
+- [x] **[Epic 85: Mobile Admin & Messaging](epics/epic-85-mobile-admin-messaging.md)** — Admin screens (volunteers, bans, audit, settings), threaded E2EE messaging, role guards
 
 ### Mobile Platform Features
 - [ ] **[Epic 86: Mobile Push Notifications](epics/epic-86-mobile-push-notifications.md)** — APNs/FCM via Expo Notifications, two-tier encryption (wake key + pubkey), notification categories, iOS CallKit evaluation

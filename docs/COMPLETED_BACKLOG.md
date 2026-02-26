@@ -1,5 +1,44 @@
 # Completed Backlog
 
+## 2026-02-26: Multi-Platform Native Clients (`desktop` branch)
+
+### Epic 82: Desktop Route Verification
+- [x] Fixed capabilities/default.json — removed references to unregistered plugins (updater, autostart)
+- [x] Hardened CSP in tauri.conf.json — added font-src, worker-src, media-src, object-src, base-uri directives
+- [x] Fixed platform.ts PIN encrypt/decrypt flow — encrypted data now stored/loaded via Tauri Store
+- [x] Cleaned up Cargo.toml — removed unused plugin dependencies
+- [x] Documented hub URL configuration design for native clients
+- [x] Identified platform.ts is dead code (key-manager.ts imports key-store.ts directly) — documented for Epic 81
+
+### Epic 85: Mobile Admin Screens & E2EE Messaging (`llamenos-mobile` repo)
+- [x] Permission system (PBAC) ported from web — 70 permissions, 13 domains, wildcard support
+- [x] usePermission, usePermissions, useIsAdmin hooks with React Query cached /api/auth/me
+- [x] PermissionGuard component for declarative UI gating
+- [x] Admin screens: volunteers (list, add with keypair gen, invite, delete), bans (add/remove), audit log (paginated, filter chips), hub settings (collapsible sections with permission gates)
+- [x] Conversations tab with waiting/active groups, ChannelBadge (SMS/WhatsApp/Signal/RCS/Web), relative time
+- [x] Conversation thread view with E2EE compose (encryptMessage per-reader envelopes), MessageBubble decryption
+- [x] Admin navigation links in settings screen
+- [x] Tab layout updated with conversations tab gated by conversations:read-assigned permission
+- [x] Root layout updated with conversation/[id] and admin route definitions
+- [x] All 15 files pass typecheck clean
+
+### Epic 83: Mobile Foundation & Auth Flow (`llamenos-mobile` repo)
+- [x] NativeWind v4 + Tailwind v3 with shared design tokens (colors match web app)
+- [x] Full crypto layer: ECIES, Schnorr, XChaCha20-Poly1305, HKDF, PBKDF2 via @noble/* with RN polyfills
+- [x] PIN-encrypted key storage via expo-secure-store (WHEN_UNLOCKED_THIS_DEVICE_ONLY)
+- [x] Key manager with AppState-based auto-lock (5min idle, 30s background grace)
+- [x] Hub key manager for E2EE envelope encryption (generateHubKey, wrap/unwrap, rotate)
+- [x] Nostr relay client (WebSocket property handlers for RN, NIP-42 auth, event dedup)
+- [x] Zustand stores with MMKV v4 persistence (auth state, hub config)
+- [x] React Query with AppState focus/online managers
+- [x] API client with Schnorr auth tokens and hub discovery (/api/config)
+- [x] i18n: 13 locales via react-i18next + expo-localization
+- [x] Login screen: hub URL configuration, PIN unlock, nsec import
+- [x] Onboarding screen: keypair generation, nsec backup, PIN setup/confirm
+- [x] Tab navigator: dashboard, shifts, notes, settings (placeholders for Epic 84)
+- [x] Auth redirect from root index based on Zustand auth state
+- [x] Cleaned up old scaffold files (.gitkeep, auth.ts, core/index.ts, removed empty dirs)
+
 ## 2026-02-25: Documentation Overhaul (`next` branch)
 
 ### ZK Architecture Documentation

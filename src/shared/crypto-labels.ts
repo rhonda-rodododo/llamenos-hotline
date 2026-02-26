@@ -106,3 +106,11 @@ export const LABEL_SERVER_NOSTR_KEY = 'llamenos:server-nostr-key'
 
 /** HKDF info parameter for server Nostr key (versioned for rotation) */
 export const LABEL_SERVER_NOSTR_KEY_INFO = 'llamenos:server-nostr-key:v1'
+
+// --- Push Notification Encryption (Epic 86) ---
+
+/** Wake-tier ECIES push payload — decryptable without PIN (minimal metadata only) */
+export const LABEL_PUSH_WAKE = 'llamenos:push-wake'
+
+/** Full-tier ECIES push payload — decryptable only with volunteer's nsec */
+export const LABEL_PUSH_FULL = 'llamenos:push-full'

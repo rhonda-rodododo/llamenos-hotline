@@ -1,11 +1,13 @@
 import { Hono } from 'hono'
 import type { AppEnv, EncryptedMessage } from '../types'
 import type { MessagingChannelType } from '../../shared/types'
-import { getScopedDOs, getMessagingAdapter, getNostrPublisher } from '../lib/do-access'
+import { getScopedDOs, getMessagingAdapter, getNostrPublisher, getDOs } from '../lib/do-access'
 import { checkPermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
 import { canClaimChannel, getClaimableChannels } from '../../shared/permissions'
 import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '../../shared/nostr-events'
+import { createPushDispatcher } from '../lib/push-dispatch'
+import type { WakePayload, FullPushPayload } from '../types'
 
 const conversations = new Hono<AppEnv>()
 
@@ -21,6 +23,22 @@ function publishConversationEvent(env: AppEnv['Bindings'], kind: number, content
     }).catch(() => {})
   } catch {
     // Nostr not configured
+  }
+}
+
+/** Dispatch push notification to a specific volunteer (Epic 86) */
+function dispatchPushToVolunteer(
+  env: AppEnv['Bindings'],
+  volunteerPubkey: string,
+  wake: WakePayload,
+  full: FullPushPayload,
+): void {
+  try {
+    const dos = getDOs(env)
+    const dispatcher = createPushDispatcher(env, dos.identity, dos.shifts)
+    dispatcher.sendToVolunteer(volunteerPubkey, wake, full).catch(() => {})
+  } catch {
+    // Push not configured
   }
 }
 
@@ -377,6 +395,17 @@ conversations.post('/:id/claim', async (c) => {
     type: 'conversation:assigned',
     conversationId: id,
     assignedTo: pubkey,
+  })
+
+  // Push notification to assigned volunteer (Epic 86)
+  dispatchPushToVolunteer(c.env, pubkey, {
+    type: 'assignment',
+    conversationId: id,
+    channelType: conv.channelType,
+  }, {
+    type: 'assignment',
+    conversationId: id,
+    channelType: conv.channelType,
   })
 
   c.executionCtx.waitUntil(
