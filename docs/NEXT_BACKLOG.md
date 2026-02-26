@@ -185,6 +185,32 @@ Architecture overview: [`docs/architecture/E2EE_ARCHITECTURE.md`](architecture/E
 ### Trust Verification — COMPLETE
 - [x] **[Epic 79: Reproducible Builds](epics/epic-79-reproducible-builds.md)** — Deterministic build config, Dockerfile.build, verify-build.sh, CHECKSUMS.txt in GitHub Releases, SLSA provenance
 
+## Multi-Platform Native Clients (Epics 82–90)
+
+Desktop (Tauri v2) and mobile (React Native/Expo 55) clients. Ordered by dependency:
+
+### Desktop Verification & Distribution
+- [ ] **[Epic 82: Desktop Route Verification](epics/epic-82-desktop-route-verification.md)** — Verify all 22 web routes render in Tauri webview, fix CSP violations, test crypto IPC, system tray, single-instance
+- [ ] **[Epic 87: Desktop Auto-Updater & Distribution](epics/epic-87-desktop-auto-updater.md)** — Ed25519 signed updates, CI builds (macOS/Windows/Linux), Apple notarization, GitHub Releases manifest, self-hosted endpoint support
+
+### Mobile Foundation & Auth
+- [ ] **[Epic 83: Mobile Foundation](epics/epic-83-mobile-foundation.md)** — Expo 55 + NativeWind 4 + Zustand/MMKV + React Query + expo-secure-store + nostr-tools + i18n, auth flow (login, onboarding, PIN lock)
+
+### Mobile Core Screens
+- [ ] **[Epic 84: Mobile Core Screens](epics/epic-84-mobile-core-screens.md)** — Dashboard, calls, notes (E2EE), shifts, Nostr relay port (~600 LOC) with network-aware reconnect
+- [ ] **[Epic 85: Mobile Admin & Messaging](epics/epic-85-mobile-admin-messaging.md)** — Admin screens (volunteers, bans, audit, settings), threaded E2EE messaging, role guards
+
+### Mobile Platform Features
+- [ ] **[Epic 86: Mobile Push Notifications](epics/epic-86-mobile-push-notifications.md)** — APNs/FCM via Expo Notifications, two-tier encryption (wake key + pubkey), notification categories, iOS CallKit evaluation
+- [ ] **[Epic 89: Mobile UI Polish & Accessibility](epics/epic-89-mobile-ui-polish.md)** — Dark mode, haptic feedback, VoiceOver/TalkBack a11y, loading skeletons, error boundaries, offline handling, 13 locale verification
+
+### Native VoIP Calling
+- [ ] **[Epic 91: Native VoIP Calling](epics/epic-91-native-voip-calling.md)** — Linphone SDK Turbo Native Module, provider-agnostic SIP, CallKit (iOS) + ConnectionService (Android), VoIP push, SRTP/ZRTP encryption, all 5 telephony providers
+
+### Cross-Platform Testing & Native Crypto
+- [ ] **[Epic 88: Desktop & Mobile E2E Tests](epics/epic-88-platform-e2e-tests.md)** — Playwright + WebDriver for desktop, Detox for mobile, CI integration
+- [ ] **[Epic 90: UniFFI Bindings for llamenos-core](epics/epic-90-uniffi-bindings.md)** — `#[uniffi::export]` annotations, Swift/Kotlin bindings, React Native native module, mobile crypto migration from JS to Rust
+
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
 - [x] Marketing site + docs at llamenos-hotline.com (Astro + Cloudflare Pages)
