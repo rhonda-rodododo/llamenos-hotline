@@ -236,10 +236,12 @@ export interface EncryptedKeyData {
   pubkey: string
 }
 
+const TAURI_ENCRYPTED_KEY_STORE = 'llamenos-encrypted-key'
+
 /**
  * Encrypt an nsec with a PIN for local storage.
- * Desktop: stores via Tauri Stronghold.
- * Browser: stores in localStorage.
+ * Desktop: Rust crypto + Tauri Store for persistence.
+ * Browser: JS crypto + localStorage.
  */
 export async function encryptWithPin(
   nsec: string,
@@ -247,7 +249,16 @@ export async function encryptWithPin(
   pubkeyHex: string,
 ): Promise<void> {
   if (isTauri()) {
-    await tauriInvoke('encrypt_with_pin', { nsec, pin, pubkeyHex })
+    const encryptedData = await tauriInvoke<EncryptedKeyData>('encrypt_with_pin', {
+      nsec,
+      pin,
+      pubkeyHex,
+    })
+    // Persist the encrypted key data via Tauri Store
+    const { Store } = await import('@tauri-apps/plugin-store')
+    const store = await Store.load('keys.json')
+    await store.set(TAURI_ENCRYPTED_KEY_STORE, encryptedData)
+    await store.save()
     return
   }
   const { storeEncryptedKey } = await import('./key-store')
@@ -260,8 +271,47 @@ export async function encryptWithPin(
  */
 export async function decryptWithPin(pin: string): Promise<string | null> {
   if (isTauri()) {
-    return tauriInvoke<string>('decrypt_with_pin', { pin })
+    const { Store } = await import('@tauri-apps/plugin-store')
+    const store = await Store.load('keys.json')
+    const data = await store.get<EncryptedKeyData>(TAURI_ENCRYPTED_KEY_STORE)
+    if (!data) return null
+    try {
+      return await tauriInvoke<string>('decrypt_with_pin', { data, pin })
+    } catch {
+      return null // Wrong PIN or corrupted data
+    }
   }
   const { decryptStoredKey } = await import('./key-store')
   return decryptStoredKey(pin)
+}
+
+/**
+ * Check if an encrypted key exists in storage.
+ * Desktop: checks Tauri Store.
+ * Browser: checks localStorage.
+ */
+export async function hasStoredKey(): Promise<boolean> {
+  if (isTauri()) {
+    const { Store } = await import('@tauri-apps/plugin-store')
+    const store = await Store.load('keys.json')
+    const data = await store.get(TAURI_ENCRYPTED_KEY_STORE)
+    return data !== null && data !== undefined
+  }
+  const { hasStoredKey: jsHasKey } = await import('./key-store')
+  return jsHasKey()
+}
+
+/**
+ * Clear the encrypted key from storage (wipe on max failed attempts).
+ */
+export async function clearStoredKey(): Promise<void> {
+  if (isTauri()) {
+    const { Store } = await import('@tauri-apps/plugin-store')
+    const store = await Store.load('keys.json')
+    await store.delete(TAURI_ENCRYPTED_KEY_STORE)
+    await store.save()
+    return
+  }
+  const { clearStoredKey: jsClear } = await import('./key-store')
+  jsClear()
 }

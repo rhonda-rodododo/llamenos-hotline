@@ -193,6 +193,16 @@ Test each IPC command end-to-end:
 - `src-tauri/src/crypto.rs` — add `get_public_key` command if missing
 - `src-tauri/src/lib.rs` — verify plugin registration order (single-instance first)
 
+## Design Decisions
+
+### Hub URL Configuration (for native clients)
+
+The desktop app needs a configurable hub API URL (same as mobile — see Epic 83). In dev mode, Vite proxies API requests, but in production the desktop app needs to know the hub URL.
+
+**Mechanism**: Tauri Store persists the hub URL. On first launch, the login screen has a URL input field that validates via `GET {hubUrl}/api/config`. QR code / invite link provisioning can also embed the URL.
+
+The web app derives this from `window.location`, but the desktop app must store it explicitly since the frontend is served from a local file.
+
 ## Acceptance Criteria
 
 - [ ] All 22 routes render without JS errors in Tauri webview

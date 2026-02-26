@@ -503,12 +503,35 @@ export default function RootLayout() {
 - **Epic 84** (Mobile Core Screens) — needs auth flow working
 - **Epic 86** (Mobile Push Notifications) — needs API client working
 
+## Design Decisions
+
+### Hub URL Configuration (RESOLVED)
+
+Each native client (desktop + mobile) must be configured with the hub's API URL. This is NOT hardcoded — every deployment has its own URL.
+
+**Mechanism**: Three paths to configure:
+
+1. **QR code / invite link**: The invite provisioning flow (device linking) embeds the API URL + relay URL alongside the invite code. This is the primary path for new volunteers.
+2. **Manual entry**: On first launch (before auth), a URL input field on the login screen. Validates by hitting `GET /api/config` which returns hub name, relay URL, features.
+3. **Persistence**: Stored in MMKV (mobile) or Tauri Store (desktop). Survives app restarts.
+
+**API discovery flow**:
+```
+Client → GET {hubUrl}/api/config
+Server → { name: "Crisis Line", relayUrl: "wss://relay.example.org", features: [...] }
+```
+
+The `/api/config` endpoint already exists (unauthenticated). Native clients use it to:
+- Display the hub name on the login screen
+- Discover the Nostr relay URL for real-time events
+- Check feature flags (messaging channels, transcription, etc.)
+
+**Implementation**: `src/lib/hub-config.ts` — singleton that loads from MMKV, provides `hubUrl` and `relayUrl` to API client and Nostr context.
+
 ## Open Questions
 
-1. **API URL configuration**: How does the mobile app discover the API URL? Options: (a) hardcoded per build, (b) configurable in settings, (c) QR code during device linking includes the API URL. Recommended: QR code provisioning includes API + relay URLs.
+1. **TextEncoder/TextDecoder**: Hermes may not have these natively. If `@noble/*` or `nostr-tools` needs them, add `fast-text-encoding` polyfill.
 
-2. **TextEncoder/TextDecoder**: Hermes may not have these natively. If `@noble/*` or `nostr-tools` needs them, add `fast-text-encoding` polyfill.
+2. **Metro `.js` extension resolution**: `@noble/ciphers/chacha.js` style imports may need `sourceExts` configuration in metro.config.js.
 
-3. **Metro `.js` extension resolution**: `@noble/ciphers/chacha.js` style imports may need `sourceExts` configuration in metro.config.js.
-
-4. **Expo Go vs dev build**: `expo-secure-store` with `requireAuthentication` doesn't work in Expo Go. Dev builds required for full testing.
+3. **Expo Go vs dev build**: `expo-secure-store` with `requireAuthentication` doesn't work in Expo Go. Dev builds required for full testing.

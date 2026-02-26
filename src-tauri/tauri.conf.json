@@ -13,10 +13,15 @@
     "security": {
       "csp": {
         "default-src": "'self' customprotocol: asset:",
-        "connect-src": "ipc: http://ipc.localhost https://*.llamenos.org wss://*.llamenos.org",
+        "script-src": "'self' 'wasm-unsafe-eval'",
+        "connect-src": "ipc: http://ipc.localhost http://localhost:* ws://localhost:* https://*.llamenos.org wss://*.llamenos.org",
         "img-src": "'self' asset: http://asset.localhost blob: data:",
         "style-src": "'unsafe-inline' 'self'",
-        "font-src": "'self' data:"
+        "font-src": "'self' data:",
+        "worker-src": "'self' blob:",
+        "media-src": "'self' blob:",
+        "object-src": "'none'",
+        "base-uri": "'self'"
       },
       "freezePrototype": true
     },
@@ -51,12 +56,5 @@
     "shortDescription": "Secure crisis response hotline",
     "longDescription": "Secure, privacy-preserving crisis response hotline with end-to-end encryption"
   },
-  "plugins": {
-    "stronghold": {
-      "maxAge": 0
-    },
-    "updater": {
-      "active": false
-    }
-  }
+  "plugins": {}
 }

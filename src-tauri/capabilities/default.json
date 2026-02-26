@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capabilities for the main window",
+  "description": "Capabilities for the Hotline desktop app",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -10,9 +10,7 @@
     "notification:default",
     "fs:default",
     "shell:default",
-    "updater:default",
     "window-state:default",
-    "autostart:default",
     "log:default"
   ]
 }
