@@ -541,6 +541,13 @@ Run through this checklist to verify your deployment:
   ```
 - [ ] fail2ban is active: `sudo fail2ban-client status sshd`
 
+### Nostr Relay (if enabled)
+
+- [ ] Relay container is running: `docker compose --profile nostr ps`
+- [ ] `/nostr` WebSocket endpoint responds: `curl -sI https://hotline.yourorg.org/nostr` returns 426 Upgrade Required
+- [ ] `SERVER_NOSTR_SECRET` is set in `.env`
+- [ ] Real-time events work: open two browser tabs, verify presence updates appear
+
 ### Telephony (if configured)
 
 - [ ] Call the hotline number from a phone
@@ -619,9 +626,36 @@ Storage migrations run automatically on application startup. No manual migration
 
 ## Optional: Enable Additional Services
 
-### Whisper Transcription
+### Nostr Relay (Real-Time Events)
 
-Enables automatic call transcription using a self-hosted Whisper model.
+Enables real-time event delivery (call notifications, presence updates, typing indicators) via an encrypted Nostr relay. **Recommended for production deployments.**
+
+```bash
+cd /opt/llamenos/deploy/docker
+
+# Generate the server Nostr secret (64-char hex)
+SERVER_NOSTR_SECRET=$(openssl rand -hex 32)
+echo "SERVER_NOSTR_SECRET=$SERVER_NOSTR_SECRET" >> .env
+
+# Start with the nostr profile
+docker compose --profile nostr up -d
+```
+
+The relay runs strfry on port 7777 internally. Caddy automatically proxies `/nostr` to the relay.
+
+**Verify the relay is running:**
+```bash
+docker compose --profile nostr ps
+# strfry should show "running"
+```
+
+Without the Nostr relay, the app falls back to REST polling for state updates. Real-time features (instant call notifications, live presence) require the relay.
+
+For detailed relay operations, hardening, and monitoring, see [`docs/RELAY_OPERATIONS.md`](RELAY_OPERATIONS.md).
+
+### Whisper Transcription (Legacy — Server-Side)
+
+> **Note**: As of Epic 78, transcription runs client-side in the browser via WASM Whisper. The server-side Whisper container is no longer needed for most deployments. Enable it only if you have a specific need for server-side transcription.
 
 ```bash
 cd /opt/llamenos/deploy/docker
@@ -663,3 +697,4 @@ docker compose --profile signal up -d
 - **Set up backups**: See [`docs/RUNBOOK.md`](RUNBOOK.md) for automated encrypted backup procedures.
 - **Review security**: Read [`docs/security/DEPLOYMENT_HARDENING.md`](security/DEPLOYMENT_HARDENING.md) for the full security hardening checklist.
 - **Incident response**: Familiarize yourself with the runbook at [`docs/RUNBOOK.md`](RUNBOOK.md) before you need it.
+- **Verify builds**: Before deploying updates, verify release integrity with [`docs/REPRODUCIBLE_BUILDS.md`](REPRODUCIBLE_BUILDS.md).
