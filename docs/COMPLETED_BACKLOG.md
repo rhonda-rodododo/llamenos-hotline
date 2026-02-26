@@ -2,6 +2,25 @@
 
 ## 2026-02-26: Multi-Platform Native Clients (`desktop` branch)
 
+### Epic 88: Desktop & Mobile E2E Tests
+
+**Desktop (llamenos repo, `desktop` branch):**
+- WebdriverIO + `tauri-driver` test infrastructure for Tauri desktop app
+- `tests/desktop/wdio.conf.ts` — config with auto-build, tauri-driver lifecycle
+- 5 test specs: `launch.spec.ts` (window, title, no console errors), `navigation.spec.ts` (routes, auth redirects), `crypto.spec.ts` (keypair gen, PIN encrypt/decrypt, ECIES, Schnorr via Rust IPC), `tray.spec.ts` (hide/show/minimize/title), `single-instance.spec.ts` (plugin loaded, window count, second launch rejection)
+- `.github/workflows/desktop-e2e.yml` — CI for Linux (xvfb) + Windows with tauri-driver
+- `bun run test:desktop` script added
+
+**Mobile (llamenos-mobile repo, `main` branch):**
+- Detox 20.x + Jest 29 test infrastructure for iOS simulator + Android emulator
+- `.detoxrc.js` — configs for ios.sim.debug/release, android.emu.debug/release
+- `e2e/jest.config.js` — Detox Jest runner with ts-jest transform
+- 5 test files: `auth.test.ts` (fresh install, onboarding, PIN entry), `dashboard.test.ts` (render, shift status, refresh, tab nav), `notes.test.ts` (list, empty state, scroll), `shifts.test.ts` (list, sign-up button, scroll), `admin.test.ts` (settings, theme toggle, language picker, tab cycling)
+- `src/test-ids.ts` — centralized testID constants (50+ IDs)
+- testID props added to 14 components/screens: login, onboarding, dashboard, notes, shifts, conversations, settings, PinInput, NoteCard, ShiftCard, CallCard, tab layout
+- `.github/workflows/mobile-e2e.yml` — CI for iOS (macos-14) + Android (emulator)
+- `bun run e2e:build:ios/android` and `bun run e2e:test:ios/android` scripts
+
 ### Epic 82: Desktop Route Verification
 - [x] Fixed capabilities/default.json — removed references to unregistered plugins (updater, autostart)
 - [x] Hardened CSP in tauri.conf.json — added font-src, worker-src, media-src, object-src, base-uri directives
