@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, ExternalLink } from 'lucide-react'
+import { useConfig } from '@/lib/config'
 
 export function DemoBanner() {
   const { t } = useTranslation()
+  const { demoResetSchedule } = useConfig()
   const [dismissed, setDismissed] = useState(() =>
     sessionStorage.getItem('demo-banner-dismissed') === 'true'
   )
@@ -15,12 +17,19 @@ export function DemoBanner() {
     setDismissed(true)
   }
 
+  const resetText = demoResetSchedule
+    ? t('demo.bannerTextSchedule', {
+        schedule: demoResetSchedule,
+        defaultValue: "You're exploring the Ll\u00e1menos demo. Data resets {{schedule}}.",
+      })
+    : t('demo.bannerText', { defaultValue: "You're exploring the Ll\u00e1menos demo. Data resets daily." })
+
   return (
     <div className="flex items-center justify-between gap-2 border-b border-primary/20 bg-primary/5 px-4 py-2 text-sm">
       <p className="flex items-center gap-2 text-muted-foreground">
         <span className="shrink-0 text-base">&#10024;</span>
         <span>
-          {t('demo.bannerText', { defaultValue: "You're exploring the Ll\u00e1menos demo. Data resets daily." })}
+          {resetText}
           {' '}
           <a
             href="https://llamenos-hotline.com/docs/getting-started"

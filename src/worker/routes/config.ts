@@ -26,14 +26,18 @@ config.get('/', async (c) => {
   // Fetch setup state
   let setupCompleted = true
   let demoMode = false
+  const envDemoMode = c.env.DEMO_MODE === 'true'
   try {
     const setupRes = await dos.settings.fetch(new Request('http://do/settings/setup'))
     if (setupRes.ok) {
       const setupState = await setupRes.json() as SetupState & { demoMode?: boolean }
       setupCompleted = setupState.setupCompleted
-      demoMode = setupState.demoMode ?? false
+      demoMode = envDemoMode || (setupState.demoMode ?? false)
     }
-  } catch { /* default to true */ }
+  } catch {
+    // If env var forces demo mode, still set it even on fetch failure
+    demoMode = envDemoMode
+  }
 
   // Check if bootstrap is needed (no admin exists)
   let needsBootstrap = false
@@ -72,6 +76,7 @@ config.get('/', async (c) => {
     channels,
     setupCompleted,
     demoMode,
+    demoResetSchedule: envDemoMode ? (c.env.DEMO_RESET_CRON || null) : null,
     needsBootstrap,
     hubs,
     defaultHubId,
