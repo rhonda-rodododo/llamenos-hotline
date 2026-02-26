@@ -180,7 +180,7 @@ Architecture overview: [`docs/architecture/E2EE_ARCHITECTURE.md`](architecture/E
 
 ### Desktop Security & Native Crypto
 - [x] **[Epic 80: Desktop Security Hardening](epics/epic-80-desktop-security.md)** — Tauri isolation pattern, Stronghold PBKDF2, CSP hardening, IPC allowlist, CryptoState memory protection, reproducible builds, single instance
-- [ ] **[Epic 81: Native Crypto Migration](epics/epic-81-native-crypto.md)** — Platform detection layer, key manager migration to Stronghold, ECIES/auth/note/message migration, WASM build for browser, cross-platform test vectors
+- [~] **[Epic 81: Native Crypto Migration](epics/epic-81-native-crypto.md)** — Phases 1-5 complete (platform abstraction, all route/component crypto migrated to platform.ts). Phases 6-7 (WASM build for browser, cross-platform test vectors) deferred to post-launch.
 
 ### Trust Verification — COMPLETE
 - [x] **[Epic 79: Reproducible Builds](epics/epic-79-reproducible-builds.md)** — Deterministic build config, Dockerfile.build, verify-build.sh, CHECKSUMS.txt in GitHub Releases, SLSA provenance

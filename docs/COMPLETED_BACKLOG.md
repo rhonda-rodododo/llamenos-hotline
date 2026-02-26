@@ -2,6 +2,17 @@
 
 ## 2026-02-26: Multi-Platform Native Clients (`desktop` branch)
 
+### Epic 81: Native Crypto Migration — Phases 1-5 (Platform Abstraction)
+
+- **Phase 1: Platform Detection Layer** — `platform.ts` extended with all crypto operation wrappers: `encryptNote`, `decryptNote`, `decryptLegacyNote`, `encryptMessage`, `decryptMessage`, `decryptCallRecord`, `decryptTranscription`, `encryptDraft`, `decryptDraft`, `encryptExport`, `isValidNsec`. Each routes to Rust IPC on desktop, JS (`@noble/*`) on browser.
+- **Phase 2-4: Key Manager + ECIES + Auth Token Migration** — `key-manager.ts` loads CryptoState on desktop via `platform.decryptWithPin`. All `createAuthToken` calls route through platform. `redeemInvite` API updated to accept `secretKeyHex` and use platform's `createAuthToken`.
+- **Phase 5: Note/Message Encryption Migration** — All 15 files migrated from `@/lib/crypto` → `@/lib/platform`:
+  - Routes: `index.tsx`, `notes.tsx`, `calls.tsx`, `conversations.tsx`, `reports.tsx`, `login.tsx`, `onboarding.tsx`, `volunteers.tsx`
+  - Components: `note-sheet.tsx`, `ConversationThread.tsx`, `ReportForm.tsx`, `AdminBootstrap.tsx`
+  - Lib: `use-draft.ts`, `api.ts`, `platform.ts`
+  - Key API changes: sync → async (`await`), `Uint8Array` → hex string (`bytesToHex`), `encryptNoteV2` → `encryptNote(JSON.stringify(...))`, `decryptNoteV2` → `decryptNote` (returns JSON string), `generateKeyPair` returns `PlatformKeyPair` with `secretKeyHex`
+- **Remaining**: Phases 6-7 (WASM build replacing `@noble/*` in browser, cross-platform test vectors) deferred to post-launch.
+
 ### Epic 80: Desktop Security Hardening (Tauri v2)
 
 - **Phase 1: Tauri Isolation Pattern** — `src-tauri/isolation/index.html` sandboxed iframe with IPC command allowlist. All 21 crypto commands + plugin commands explicitly allowed. Unlisted commands rejected at the isolation layer before reaching Rust.
