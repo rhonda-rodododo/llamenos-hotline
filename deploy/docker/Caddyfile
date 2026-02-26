@@ -17,7 +17,7 @@
 		reverse_proxy strfry:7777
 	}
 
-	# Everything else → app (serves SPA static files)
+	# Everything else → app (serves download page for browsers, API for desktop clients)
 	handle {
 		reverse_proxy app:3000
 	}

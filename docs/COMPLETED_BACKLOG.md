@@ -2,6 +2,15 @@
 
 ## 2026-02-26: Multi-Platform Native Clients (`desktop` branch)
 
+### Epic 95: Deployment Architecture for Desktop-Only
+
+Updated deployment infrastructure for desktop-only architecture:
+- **Dockerfile**: Removed frontend build stage (API-only). Added download landing page for browsers.
+- **CI/CD**: Renamed `deploy-app` → `deploy-api`. Build step uses `PLAYWRIGHT_TEST=true` for E2E. Removed Vite build from deploy job.
+- **Package.json scripts**: `dev` → `tauri dev`, `deploy:demo` → `deploy:api`, `build:docker` is API-only, added `dev:vite` for quick frontend iteration.
+- **README.md**: Major rewrite — desktop-first installation, API-only deployment, updated architecture section, removed PWA/browser references.
+- **Caddyfile**: Updated comment for API-only + download page routing.
+
 ### Epic 94: Build Cleanup, Test Infrastructure & Dead Code Removal
 
 Complete Tauri-only build cleanup with Playwright test compatibility:

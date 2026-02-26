@@ -1,6 +1,6 @@
 # Epic 95: Deployment Architecture for Desktop-Only
 
-**Status**: Planned
+**Status**: Complete
 **Depends on**: Epic 94 (Build Cleanup)
 
 ## Goal

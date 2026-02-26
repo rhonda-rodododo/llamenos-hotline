@@ -1,6 +1,6 @@
-# Llámenos
+# Llamenos
 
-A secure, self-hosted crisis response platform. Supports voice calls, SMS, WhatsApp, and Signal — all routed to on-shift volunteers. Volunteers log encrypted notes and manage conversations in a webapp. Admins manage shifts, volunteers, channels, and ban lists. Reporters can submit encrypted reports through a dedicated portal.
+A secure, self-hosted crisis response platform. Supports voice calls, SMS, WhatsApp, and Signal — all routed to on-shift volunteers. Volunteers log encrypted notes and manage conversations in a native desktop app. Admins manage shifts, volunteers, channels, and ban lists. Reporters can submit encrypted reports through a dedicated portal.
 
 Built for organizations that need to protect the identity of callers, reporters, and volunteers against well-funded adversaries.
 
@@ -35,36 +35,45 @@ Built for organizations that need to protect the identity of callers, reporters,
 </p>
 <p align="center"><em>Create recurring shift schedules</em></p>
 
-### Mobile
-<p align="center">
-  <img src="site/public/screenshots/dashboard-mobile.png" alt="Mobile Dashboard" width="200" />
-  <img src="site/public/screenshots/conversations-mobile.png" alt="Mobile Conversations" width="200" />
-  <img src="site/public/screenshots/notes-mobile.png" alt="Mobile Notes" width="200" />
-</p>
-<p align="center"><em>Fully responsive mobile interface</em></p>
-
 </details>
 
 ## How it works
 
 ```mermaid
 flowchart TD
-    A["📞 Incoming Call"] --> B{"Shift Active?"}
-    B -->|Yes| C["🔔 Ring All On-Shift Volunteers"]
-    B -->|No| D["🔔 Ring Fallback Group"]
+    A["Incoming Call"] --> B{"Shift Active?"}
+    B -->|Yes| C["Ring All On-Shift Volunteers"]
+    B -->|No| D["Ring Fallback Group"]
     C --> E{"First Pickup"}
     D --> E
-    E -->|Answered| F["✅ Connect Call"]
-    E -->|No Answer| G["📬 Voicemail"]
-    F --> H["📝 Save Encrypted Note"]
+    E -->|Answered| F["Connect Call"]
+    E -->|No Answer| G["Voicemail"]
+    F --> H["Save Encrypted Note"]
 ```
 
+## Installation
+
+Download the latest release for your platform:
+
+- **Windows**: [llamenos-desktop-setup.exe](https://github.com/your-org/llamenos/releases/latest)
+- **macOS**: [llamenos-desktop.dmg](https://github.com/your-org/llamenos/releases/latest)
+- **Linux**: [llamenos-desktop.AppImage](https://github.com/your-org/llamenos/releases/latest)
+
+The app auto-updates when new versions are available.
+
 ## Features
+
+### Desktop App
+- **Native desktop app** — Windows, macOS, and Linux via Tauri v2
+- **Hardware-backed crypto** — secret key never enters the webview; all crypto runs in Rust
+- **System tray** — status indicator, quick actions
+- **Auto-updates** — Tauri updater with SLSA provenance verification
+- **Desktop notifications** — native OS notifications for incoming calls and messages
 
 ### Voice Calling
 - **Multi-provider telephony** — Twilio, SignalWire, Vonage, Plivo, or self-hosted Asterisk
 - **Parallel ringing** — all on-shift volunteers ring at once; first pickup wins
-- **WebRTC browser calling** — volunteers can answer calls directly in the browser
+- **WebRTC calling** — volunteers answer calls directly in the app
 - **Automated shift scheduling** — recurring schedules with fallback ring groups
 - **Call spam mitigation** — real-time ban lists, voice CAPTCHA, rate limiting
 - **AI transcription** — Cloudflare Workers AI (Whisper), E2EE with dual-key encryption
@@ -72,43 +81,39 @@ flowchart TD
 
 ### Multi-Channel Messaging
 - **SMS** — inbound/outbound SMS via Twilio, SignalWire, Vonage, or Plivo
-- **WhatsApp Business** — Meta Cloud API with template messages, media support, and 24-hour window handling
+- **WhatsApp Business** — Meta Cloud API with template messages and media support
 - **Signal** — via signal-cli-rest-api bridge with voice message transcription
-- **Threaded conversations** — all messaging channels flow into a unified conversation view with message bubbles, timestamps, and direction indicators
-- **Real-time updates** — new messages and conversations appear instantly via WebSocket
+- **Threaded conversations** — all channels flow into a unified conversation view
+- **Real-time updates** — new messages appear instantly via Nostr relay
 
 ### Encrypted Notes & Reports
 - **End-to-end encrypted notes** — the server never sees plaintext
 - **Custom note fields** — admin-configurable fields (text, number, select, checkbox)
 - **Reporter role** — dedicated portal for submitting encrypted reports with file attachments
-- **Report workflow** — categories, status tracking (open/claimed/resolved), threaded replies
+- **Report workflow** — categories, status tracking, threaded replies
 
 ### Volunteer Experience
-- **Command palette** — Ctrl/Cmd+K for quick navigation, search, and one-click note creation
-- **Real-time notifications** — ringtone, browser push notifications, and tab title flash on incoming calls
-- **Volunteer presence** — real-time online/offline/on-break status visible to admins
-- **Note draft auto-save** — encrypted drafts preserved in the browser across reloads
-- **Keyboard shortcuts** — press `?` for a full shortcut reference dialog
-- **Dark/light/system themes** — toggle in sidebar, persisted per session
+- **Command palette** — Ctrl/Cmd+K for quick navigation and one-click note creation
+- **Note draft auto-save** — encrypted drafts preserved across reloads
+- **Real-time presence** — online/offline/on-break status visible to admins
+- **Keyboard shortcuts** — press `?` for a full shortcut reference
+- **Dark/light/system themes** — toggle in sidebar
 
 ### Administration
-- **Setup wizard** — guided multi-step setup on first admin login (name, channels, providers)
+- **Setup wizard** — guided multi-step setup on first admin login
 - **In-app help** — FAQ, role-specific guides, getting started checklist
-- **Custom IVR voice prompts** — record greetings per language via MediaRecorder; falls back to TTS
-- **Configurable call settings** — queue timeout and voicemail duration (30–300s each)
-- **Audit log** — every call, note, message, and admin action tracked with hashed IP metadata
-- **Encrypted data export** — GDPR-compliant notes export encrypted with user's key (.enc format)
-- **Session management** — idle timeout warnings, auto-renewal, and forced re-auth on expiry
+- **Custom IVR voice prompts** — record greetings per language
+- **Audit log** — every call, note, message, and admin action tracked
+- **Encrypted data export** — GDPR-compliant notes export encrypted with user's key
 - **13 languages** — English, Spanish, Chinese, Tagalog, Vietnamese, Arabic, French, Haitian Creole, Korean, Russian, Hindi, Portuguese, German
-- **Mobile responsive PWA** — installable on any device with push notifications
 - **Accessibility** — skip nav, ARIA labels, RTL support, screen reader friendly
-- **GDPR compliant** — designed for EU-based organizations
 
 ## Quick Start
 
 ### Prerequisites
 
 - [Bun](https://bun.sh/) (v1.0+)
+- [Rust](https://rustup.rs/) (for Tauri desktop builds)
 - A [Cloudflare](https://cloudflare.com/) account (free tier works for development)
 - A telephony provider account (see [Telephony Providers](#telephony-providers))
 
@@ -134,8 +139,6 @@ This outputs:
 
 ### 3. Configure environment
 
-Copy the example env file and fill in your values:
-
 ```bash
 cp .dev.vars.example .dev.vars
 ```
@@ -152,51 +155,33 @@ TWILIO_AUTH_TOKEN=your_auth_token_here
 TWILIO_PHONE_NUMBER=+1234567890
 ```
 
-> **Note:** Twilio env vars are the default fallback for voice. You can configure any voice provider, plus SMS, WhatsApp, and Signal channels from the admin settings UI after deploying. The setup wizard will guide you through channel configuration on first login.
-
 ### 4. Run locally
 
 ```bash
-bun run dev          # Frontend dev server (Vite)
-bun run dev:worker   # Backend dev server (Wrangler)
+bun run dev             # Launch Tauri desktop app (Vite + Rust)
+bun run dev:worker      # Backend dev server (Wrangler)
 ```
 
-The app runs at `http://localhost:8787`. Log in with the admin nsec from step 2.
+The desktop app launches automatically. The backend runs at `http://localhost:8787`.
 
 ### 5. Set up webhooks
 
-Point your telephony provider's webhooks to your Worker URL:
+Point your telephony provider's webhooks to your API URL:
 
-**Voice:**
 ```
 https://your-domain.com/api/telephony/incoming    (incoming calls)
 https://your-domain.com/api/telephony/status       (call status updates)
 ```
 
-**SMS** (if enabled):
-```
-https://your-domain.com/api/messaging/sms/webhook
-```
-
-**WhatsApp** (if enabled):
-```
-https://your-domain.com/api/messaging/whatsapp/webhook
-```
-
-**Signal** (if using signal-cli bridge):
-```
-Configure the bridge to forward to: https://your-domain.com/api/messaging/signal/webhook
-```
-
-For local development, use [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/):
+For local development with telephony webhooks:
 
 ```bash
-cloudflared tunnel --url http://localhost:8787
+bun run dev:tunnel
 ```
 
 ## Deployment
 
-Llamenos supports two deployment targets. Both run the exact same application code.
+The API backend supports two deployment targets. Desktop clients download the app separately and connect to the API.
 
 ### Option A: Cloudflare Workers (managed)
 
@@ -204,20 +189,13 @@ Llamenos supports two deployment targets. Both run the exact same application co
 # Set required secrets
 bunx wrangler secret put ADMIN_PUBKEY
 
-# Set voice provider secrets (if using Twilio env vars as default)
-bunx wrangler secret put TWILIO_ACCOUNT_SID
-bunx wrangler secret put TWILIO_AUTH_TOKEN
-bunx wrangler secret put TWILIO_PHONE_NUMBER
-
-# Deploy
-bun run deploy
+# Deploy API
+bun run deploy:api
 ```
-
-After deploying, update your telephony provider webhook URLs to point to your Workers URL. Messaging channel credentials can also be configured through the admin Settings UI.
 
 ### Option B: Self-Hosted (Docker Compose)
 
-Run Llamenos on your own server with Docker Compose. Includes Caddy (automatic HTTPS), MinIO (file storage), and optional Whisper transcription.
+Run the API on your own server with Docker Compose. Includes Caddy (automatic HTTPS), PostgreSQL, MinIO (file storage), strfry (Nostr relay), and optional Whisper transcription.
 
 ```bash
 cd deploy/docker
@@ -227,17 +205,14 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Core services: app + Caddy + MinIO. Optional profiles for transcription, Asterisk, and Signal:
+Desktop clients connect to the API. Browsers visiting the server URL see a download page.
+
+Optional service profiles:
 
 ```bash
-# Enable transcription
-docker compose --profile transcription up -d
-
-# Enable self-hosted Asterisk
-docker compose --profile asterisk up -d
-
-# Enable Signal messaging
-docker compose --profile signal up -d
+docker compose --profile transcription up -d   # + Whisper
+docker compose --profile asterisk up -d         # + Asterisk PBX
+docker compose --profile signal up -d           # + Signal messaging
 ```
 
 ### Option C: Kubernetes (Helm)
@@ -254,142 +229,82 @@ See the full [self-hosting documentation](https://llamenos-hotline.com/docs/self
 
 ## Telephony Providers
 
-Llámenos supports 5 voice telephony providers. Configure your provider in **Admin Settings > Telephony Provider** or during the setup wizard.
-
-| Provider | Type | Voice | SMS | Pricing | Setup | Best For |
-|----------|------|-------|-----|---------|-------|----------|
-| **Twilio** | Cloud | Yes | Yes | Per-minute/msg | Easy | Getting started quickly |
-| **SignalWire** | Cloud | Yes | Yes | Per-minute/msg | Easy | Cost-conscious orgs |
-| **Vonage** | Cloud | Yes | Yes | Per-minute/msg | Medium | International coverage |
-| **Plivo** | Cloud | Yes | Yes | Per-minute/msg | Medium | Budget cloud option |
-| **Asterisk** | Self-hosted | Yes | No | SIP trunk only | Advanced | Maximum privacy, at-scale |
+| Provider | Type | Voice | SMS | Best For |
+|----------|------|-------|-----|----------|
+| **Twilio** | Cloud | Yes | Yes | Getting started quickly |
+| **SignalWire** | Cloud | Yes | Yes | Cost-conscious orgs |
+| **Vonage** | Cloud | Yes | Yes | International coverage |
+| **Plivo** | Cloud | Yes | Yes | Budget cloud option |
+| **Asterisk** | Self-hosted | Yes | No | Maximum privacy |
 
 ## Messaging Channels
 
-In addition to voice, Llámenos supports text-based messaging channels:
-
 | Channel | Provider | Setup |
 |---------|----------|-------|
-| **SMS** | Twilio, SignalWire, Vonage, or Plivo | Configure in admin settings; point inbound webhook to `/api/messaging/sms/webhook` |
-| **WhatsApp** | Meta WhatsApp Business Cloud API | Requires Meta Business account; configure webhook at `/api/messaging/whatsapp/webhook` |
-| **Signal** | signal-cli-rest-api bridge | Self-hosted bridge service; configure bridge URL in admin settings |
+| **SMS** | Twilio, SignalWire, Vonage, or Plivo | Configure in admin settings |
+| **WhatsApp** | Meta WhatsApp Business Cloud API | Requires Meta Business account |
+| **Signal** | signal-cli-rest-api bridge | Self-hosted bridge service |
 
 All messaging channels flow into a unified **Conversations** view. Enable/disable channels from Admin Settings or the setup wizard.
-
-See the [setup guides](https://llamenos-hotline.com/docs) for detailed instructions per provider and channel.
-
-## Customization
-
-### Hotline name
-
-Set `HOTLINE_NAME` in `wrangler.jsonc`:
-
-```jsonc
-"vars": {
-    "HOTLINE_NAME": "Your Hotline Name"
-}
-```
-
-### Languages
-
-Translation files are in `src/client/locales/`. Language config is centralized in `src/shared/languages.ts`.
 
 ## Architecture
 
 ```
 src/
-  client/          # React SPA (Vite + TanStack Router)
-    routes/        # File-based routing (/setup, /conversations, /reports, /help, etc.)
+  client/          # Desktop frontend (Vite + React + TanStack Router)
+    routes/        # File-based routing
     components/    # shadcn/ui components
     locales/       # Translation files (13 locales)
-    lib/           # Auth, crypto, WebRTC, API client
+    lib/           # Auth, platform (Tauri IPC), WebRTC, API client
+      platform.ts  # All crypto routes through Rust via Tauri IPC
   worker/          # Backend (Cloudflare Workers or Node.js)
     durable-objects/
-      identity-do.ts       # Auth, WebSocket, presence, device provisioning
-      settings-do.ts       # Settings, custom fields, IVR audio, messaging config
-      records-do.ts        # Audit log, call history, recordings
-      shift-manager.ts     # Shift scheduling, volunteer management
-      call-router.ts       # Call routing, notes, active calls
-      conversation-do.ts   # Threaded messaging conversations
-    telephony/     # Voice provider adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk)
-    messaging/     # Messaging channel adapters (SMS, WhatsApp, Signal)
+    telephony/     # Voice provider adapters
+    messaging/     # Messaging channel adapters
     routes/        # API route handlers
-  platform/        # Platform abstraction layer
-    cloudflare.ts  # Cloudflare Workers implementation
-    node/          # Node.js implementation (SQLite, MinIO, Whisper HTTP)
-  shared/          # Code shared between client and worker
-    types.ts       # Shared types (roles, conversations, reports, etc.)
-    languages.ts   # Centralized language config
+  shared/          # Types shared between client and worker
+src-tauri/         # Tauri v2 desktop shell (Rust)
+  src/crypto.rs    # IPC commands delegating to llamenos-core
+tests/
+  mocks/           # Tauri IPC mock layer for Playwright E2E tests
 deploy/
-  docker/          # Docker Compose deployment (Dockerfile, Caddyfile, .env.example)
+  docker/          # Docker Compose (API-only — desktop clients connect to this)
   helm/            # Kubernetes Helm chart
-asterisk-bridge/   # Standalone ARI bridge for self-hosted Asterisk
-site/              # Marketing site (Astro + Tailwind, Cloudflare Pages)
+site/              # Marketing site (Astro, Cloudflare Pages)
 ```
 
 ### Security model
 
-- **Durable Objects**: 6 singletons — IdentityDO, SettingsDO, RecordsDO, ShiftManagerDO, CallRouterDO, ConversationDO
-- **Authentication**: Nostr keypairs (BIP-340 Schnorr) + WebAuthn passkeys
-- **Local key protection**: PIN-encrypted key store (PBKDF2 600K iterations + XChaCha20-Poly1305); raw nsec never in sessionStorage — in-memory closure only, zeroed on lock
-- **Note encryption**: Per-note forward secrecy — each note encrypted with a unique random key, wrapped via ECIES for each authorized reader
-- **Transcription encryption**: ECIES (ephemeral ECDH + XChaCha20-Poly1305) dual-key
-- **Report encryption**: ECIES encrypted body + encrypted file attachments
-- **Device linking**: Signal-style QR provisioning via ephemeral ECDH key exchange; 5-minute single-use relay rooms
-- **Recovery keys**: 128-bit Base32 recovery keys with mandatory encrypted backup download
-- **Zero-knowledge server**: the Worker never sees plaintext notes, transcriptions, report content, or per-note encryption keys
-- **Volunteer privacy**: personal info visible only to admins
-
-### Roles
-
-| Role | Can see | Can do |
-|------|---------|--------|
-| Caller | Nothing (GSM/SMS/WhatsApp/Signal) | Call or message the hotline |
-| Volunteer | Own notes, assigned conversations | Answer calls, write notes, respond to messages |
-| Reporter | Own reports only | Submit encrypted reports with file attachments |
-| Admin | All notes, reports, audit logs, conversations | Manage everything |
+- **Tauri desktop** — secret key (nsec) lives exclusively in the Rust process; the webview never receives it
+- **Nostr keypairs** — BIP-340 Schnorr signatures for authentication + WebAuthn passkeys
+- **PIN-encrypted key store** — PBKDF2 600K iterations + XChaCha20-Poly1305, stored in Tauri Store
+- **Per-note forward secrecy** — unique random key per note, ECIES-wrapped for each authorized reader
+- **Zero-knowledge server** — the API never sees plaintext notes, transcriptions, or encryption keys
+- **Hash-chained audit log** — SHA-256 chain for tamper detection
+- **Device linking** — Signal-style QR provisioning via ephemeral ECDH key exchange
 
 ## CI/CD
 
-Every push to `main` triggers the CI pipeline (`.github/workflows/ci.yml`):
+Every push to `main` triggers the CI pipeline:
 
-1. **Build & validate** — typecheck, Vite build, esbuild (Node.js), Astro site build
-2. **Auto-version** — determines `major`/`minor`/`patch` bump from conventional commit messages
-3. **Changelog** — generates via [git-cliff](https://git-cliff.org) from commit history
-4. **Deploy** — app Worker to Cloudflare Workers, marketing site to Cloudflare Pages (parallel)
-5. **Release** — creates GitHub Release with changelog notes
-6. **Docker** — the created tag triggers `docker.yml` to build + push images to GHCR
-
-### Required GitHub Secrets
-
-| Secret | Description |
-|--------|-------------|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Workers + Pages deploy permissions |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
-
-`GITHUB_TOKEN` is provided automatically by GitHub Actions.
-
-### Versioning
-
-Uses [conventional commits](https://www.conventionalcommits.org/) to determine the version bump:
-
-- `feat:` → minor bump (0.x.0)
-- `fix:`, `docs:`, `chore:`, etc. → patch bump (0.0.x)
-- `feat!:` or `BREAKING CHANGE` → major bump (x.0.0)
-
-Manual versioning: `bun run version:bump <major|minor|patch> [description]`
+1. **Build & validate** — typecheck, Vite build (with Tauri IPC mocks), esbuild, site build
+2. **E2E tests** — Playwright against CF Workers and Docker Compose
+3. **Auto-version** — conventional commit-based `major`/`minor`/`patch` bumps
+4. **Deploy** — API Worker to Cloudflare Workers, marketing site to Pages
+5. **Release** — GitHub Release with changelog and build attestation
+6. **Docker** — Docker image published to GHCR
+7. **Desktop** — Tauri binaries for Windows, macOS, Linux (via `tauri-release.yml`)
 
 ## Development
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for the full development guide.
-
 ```bash
-bun run dev          # Vite dev server
-bun run dev:worker   # Wrangler dev server
-bun run build        # Build frontend
-bun run deploy       # Build + deploy to Cloudflare
-bun run typecheck    # TypeScript type checking
-bunx playwright test # Run E2E tests
+bun run dev              # Launch Tauri desktop dev (Vite + Rust)
+bun run dev:vite         # Vite-only for quick frontend iteration
+bun run dev:worker       # Backend dev server
+bun run test             # Playwright E2E tests (with Tauri IPC mocks)
+bun run test:desktop     # Desktop integration tests (WebdriverIO)
+bun run typecheck        # TypeScript type checking
+cd ../llamenos-core && cargo test  # Rust crypto tests
 ```
 
 ## License

@@ -2,13 +2,14 @@
 #
 # On every push to main:
 #   1. Detect changed files — skip E2E/version/deploy for docs-only changes
-#   2. Build & validate (typecheck, vite build, esbuild, site build)
+#   2. Build & validate (typecheck, vite build with Tauri IPC mocks, esbuild, site build)
 #   3. E2E tests against Cloudflare Workers (wrangler dev / miniflare)
 #   4. E2E tests against Docker Compose (Node.js self-hosted platform)
 #   5. Auto-determine version bump from conventional commits
 #   6. Bump version, generate changelog, commit + tag
-#   7. Deploy app to Cloudflare Workers + marketing site to Cloudflare Pages
+#   7. Deploy API to Cloudflare Workers + marketing site to Cloudflare Pages
 #   8. Create GitHub Release with changelog
+#   (Desktop app releases are handled by tauri-release.yml)
 #
 # Docs-only changes (*.md files) skip E2E tests, versioning, and app deployment.
 # Site changes (site/) skip E2E tests and versioning but STILL deploy to Pages.
@@ -119,8 +120,8 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Build frontend
-        run: bun run build
+      - name: Build frontend (with Tauri IPC mocks for test builds)
+        run: PLAYWRIGHT_TEST=true bun run build
 
       - name: Build Node.js server
         run: bun run build:node
@@ -187,7 +188,7 @@ jobs:
 
       - name: Audit dependencies
         # Only block on critical vulnerabilities — high-severity transitive deps
-        # (e.g. minimatch in vite-plugin-pwa/shadcn) can't be fixed without upstream updates
+        # can't always be fixed without upstream updates
         run: bun audit --audit-level=critical
 
   # ─── E2E Tests: Cloudflare Workers (wrangler dev) ──────────
@@ -463,8 +464,9 @@ jobs:
           git pull --rebase origin main
           git push origin main --follow-tags
 
-  # ─── Deploy App to Cloudflare Workers ───────────────────────
-  deploy-app:
+  # ─── Deploy API to Cloudflare Workers ────────────────────────
+  # API-only — desktop clients connect to this Worker. No SPA served.
+  deploy-api:
     needs: version
     if: needs.version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
@@ -484,12 +486,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Download app build
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: app-build
-          path: dist/
-
       - name: Inject build-time constants into Worker config (Epic 79)
         run: |
           VERSION="${{ needs.version.outputs.new_version }}"
@@ -503,7 +499,7 @@ jobs:
             fs.writeFileSync('wrangler.jsonc', cfg);
           "
 
-      - name: Deploy Worker
+      - name: Deploy Worker (API-only)
         run: bunx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -545,7 +541,7 @@ jobs:
 
   # ─── Create GitHub Release ──────────────────────────────────
   release:
-    needs: [version, deploy-app]
+    needs: [version, deploy-api]
     if: needs.version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
 
