@@ -1,5 +1,14 @@
 # Completed Backlog
 
+## 2026-02-25: Documentation Overhaul (`next` branch)
+
+### ZK Architecture Documentation
+- [x] Security docs: THREAT_MODEL (Nostr relay trust, audit log tamper detection, admin key separation, hub key compromise, reproducible builds, client-side transcription), DEPLOYMENT_HARDENING (Caddy ingress, strfry operations, build verification), KEY_REVOCATION_RUNBOOK (verification checklists, CLI rotation), DATA_CLASSIFICATION (E2EE messaging, hash-chained audit, encrypted shifts), security/README (E2EE at rest for messages, additional security features table)
+- [x] Architecture docs: E2EE_ARCHITECTURE (implemented status, past-tense history, resolved questions), llamenos-protocol (NIP-42 auth, envelope encryption, all 25 crypto labels, hub event encryption, audit integrity)
+- [x] New docs: RELAY_OPERATIONS.md (strfry/Nosflare deployment, hardening, monitoring, backup, troubleshooting), REPRODUCIBLE_BUILDS.md (trust model, verification, scope, CI, SLSA)
+- [x] Deployment docs: QUICKSTART (relay setup, test checklist), RUNBOOK (relay troubleshooting, server Nostr secret rotation, relay monitoring/backup, scaling), Helm values.yaml (Caddy ingress, serverNostrSecret)
+- [x] Project docs: CLAUDE.md (ZK patterns, gotchas, directory structure)
+
 ## 2026-02-25: Zero-Knowledge Architecture (`next` branch)
 
 ### Epic 76.0: Security Foundations

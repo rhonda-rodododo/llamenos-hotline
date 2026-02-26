@@ -12,8 +12,8 @@
 - [x] **CRITICAL**: Caller phone hash leaked in spam report WS response
 - [x] **HIGH**: Mass assignment — volunteer self-update now restricted to safe fields allowlist
 - [x] **HIGH**: SSRF in provider test — ARI URL validation, internal IP blocking, fetch timeout
-- [x] **HIGH**: WebSocket flooding — rate limit 30 msgs/10s with auto-disconnect
-- [x] **HIGH**: WebSocket prototype pollution — reject `__proto__`/`constructor`/`prototype`
+- [x] **HIGH**: ~~WebSocket flooding~~ — WebSocket removed; Nostr relay rate limiting replaces
+- [x] **HIGH**: ~~WebSocket prototype pollution~~ — WebSocket removed; no longer applicable
 - [x] **HIGH**: Weak KDF — upgraded SHA-256 concat to HKDF-SHA256 for note encryption
 - [x] **HIGH**: Security headers — COOP, no-referrer, expanded CSP and Permissions-Policy
 
