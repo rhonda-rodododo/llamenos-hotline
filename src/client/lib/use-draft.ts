@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { encryptDraft, decryptDraft } from './crypto'
+import { encryptDraft, decryptDraft } from './platform'
 import * as keyManager from './key-manager'
+import { bytesToHex } from '@noble/hashes/utils.js'
 
 type FieldValues = Record<string, string | number | boolean>
 
@@ -26,24 +27,27 @@ export function useDraft(key: string) {
   // Restore on mount
   useEffect(() => {
     if (!keyManager.isUnlocked()) return
-    try {
-      const raw = localStorage.getItem(storageKey)
-      if (!raw) return
-      const secretKey = keyManager.getSecretKey()
-      const decrypted = decryptDraft(raw, secretKey)
-      if (!decrypted) return
-      const data: DraftData = JSON.parse(decrypted)
-      setText(data.text)
-      setCallId(data.callId)
-      setFields(data.fields || {})
-      setSavedAt(data.savedAt)
-    } catch {
-      // Corrupted draft or key locked — ignore
-    }
+    const raw = localStorage.getItem(storageKey)
+    if (!raw) return
+    const skHex = bytesToHex(keyManager.getSecretKey())
+
+    ;(async () => {
+      try {
+        const decrypted = await decryptDraft(raw, skHex)
+        if (!decrypted) return
+        const data: DraftData = JSON.parse(decrypted)
+        setText(data.text)
+        setCallId(data.callId)
+        setFields(data.fields || {})
+        setSavedAt(data.savedAt)
+      } catch {
+        // Corrupted draft or key locked — ignore
+      }
+    })()
   }, [storageKey])
 
   // Persist helper
-  const persist = useCallback((t: string, cId: string, f: FieldValues) => {
+  const persist = useCallback(async (t: string, cId: string, f: FieldValues) => {
     if (!keyManager.isUnlocked()) return
     const hasFields = Object.keys(f).length > 0
     if (!t && !cId && !hasFields) {
@@ -52,10 +56,10 @@ export function useDraft(key: string) {
       return
     }
     try {
-      const secretKey = keyManager.getSecretKey()
+      const skHex = bytesToHex(keyManager.getSecretKey())
       const now = Date.now()
       const data: DraftData = { text: t, callId: cId, fields: f, savedAt: now }
-      const encrypted = encryptDraft(JSON.stringify(data), secretKey)
+      const encrypted = await encryptDraft(JSON.stringify(data), skHex)
       localStorage.setItem(storageKey, encrypted)
       setSavedAt(now)
       setIsDirty(false)

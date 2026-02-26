@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
 import { useNoteSheet } from '@/lib/note-sheet-context'
 import { useDraft } from '@/lib/use-draft'
-import { encryptNoteV2 } from '@/lib/crypto'
+import { encryptNote } from '@/lib/platform'
 
 import { createNote, updateNote, getCallHistory, getCustomFields, type CallRecord, type CustomFieldDefinition } from '@/lib/api'
 import { useToast } from '@/lib/toast'
@@ -115,7 +115,7 @@ export function NoteSheet() {
       // V2 per-note ephemeral key encryption (forward secrecy)
       const authorPub = publicKey
       const adminPub = adminDecryptionPubkey || authorPub // fallback to self if admin decryption pubkey not available
-      const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(payload, authorPub, [adminPub])
+      const { encryptedContent, authorEnvelope, adminEnvelopes } = await encryptNote(JSON.stringify(payload), authorPub, [adminPub])
 
       if (mode === 'edit' && editNoteId) {
         await updateNote(editNoteId, { encryptedContent, authorEnvelope, adminEnvelopes })

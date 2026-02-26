@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { createReport, getReportCategories } from '@/lib/api'
-import { encryptMessage } from '@/lib/crypto'
+import { encryptMessage } from '@/lib/platform'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -62,7 +62,7 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
         readerPubkeys.push(adminDecryptionPubkey)
       }
 
-      const encrypted = encryptMessage(body.trim(), readerPubkeys)
+      const encrypted = await encryptMessage(body.trim(), readerPubkeys)
 
       const report = await createReport({
         title: title.trim(),

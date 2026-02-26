@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
-import { decryptMessage } from '@/lib/crypto'
+import { decryptMessage } from '@/lib/platform'
 import * as keyManager from '@/lib/key-manager'
+import { bytesToHex } from '@noble/hashes/utils.js'
 import type { ConversationMessage } from '@/lib/api'
 import { Lock, ArrowDown, ArrowUp, Loader2, Check, CheckCheck, Clock, AlertCircle } from 'lucide-react'
 import type { MessageDeliveryStatus } from '@/lib/api'
@@ -26,24 +27,25 @@ export function ConversationThread({ conversationId, messages, isLoading }: Conv
 
     const secretKey = resolveSecretKey()
     if (!secretKey) return
+    const skHex = bytesToHex(secretKey)
 
-    const newDecrypted = new Map<string, string>()
-
-    for (const msg of messages) {
-      if (msg.encryptedContent && msg.readerEnvelopes?.length) {
-        const plaintext = decryptMessage(
-          msg.encryptedContent,
-          msg.readerEnvelopes,
-          secretKey,
-          publicKey,
-        )
-        if (plaintext !== null) {
-          newDecrypted.set(msg.id, plaintext)
+    ;(async () => {
+      const newDecrypted = new Map<string, string>()
+      for (const msg of messages) {
+        if (msg.encryptedContent && msg.readerEnvelopes?.length) {
+          const plaintext = await decryptMessage(
+            msg.encryptedContent,
+            msg.readerEnvelopes,
+            skHex,
+            publicKey,
+          )
+          if (plaintext !== null) {
+            newDecrypted.set(msg.id, plaintext)
+          }
         }
       }
-    }
-
-    setDecryptedContent(newDecrypted)
+      setDecryptedContent(newDecrypted)
+    })()
   }, [messages, hasNsec, publicKey])
 
   // Auto-scroll to bottom when new messages arrive

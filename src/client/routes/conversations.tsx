@@ -11,7 +11,7 @@ import {
   updateConversation,
   type ConversationMessage,
 } from '@/lib/api'
-import { encryptMessage } from '@/lib/crypto'
+import { encryptMessage } from '@/lib/platform'
 import { useToast } from '@/lib/toast'
 import { ConversationList } from '@/components/ConversationList'
 import { ConversationThread } from '@/components/ConversationThread'
@@ -94,7 +94,7 @@ function ConversationsPage() {
       readerPubkeys.push(adminDecryptionPubkey)
     }
 
-    const encrypted = encryptMessage(plaintext, readerPubkeys)
+    const encrypted = await encryptMessage(plaintext, readerPubkeys)
 
     try {
       const msg = await sendConversationMessage(selectedId, {

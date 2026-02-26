@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { listNotes, createNote, updateNote, getCallHistory, listVolunteers, getCustomFields, type EncryptedNote, type CallRecord, type CustomFieldDefinition, type Volunteer } from '@/lib/api'
-import { encryptNoteV2, decryptNoteV2, decryptNote, decryptTranscription, decryptCallRecord, encryptExport } from '@/lib/crypto'
+import { encryptNote, decryptNote, decryptLegacyNote, decryptTranscription, decryptCallRecord, encryptExport } from '@/lib/platform'
 import * as keyManager from '@/lib/key-manager'
+import { bytesToHex } from '@noble/hashes/utils.js'
 import { useToast } from '@/lib/toast'
 import type { NotePayload } from '@shared/types'
 import { StickyNote, Plus, Pencil, Lock, Mic, Save, X, Search, ChevronLeft, ChevronRight, Download } from 'lucide-react'
@@ -62,21 +63,23 @@ function NotesPage() {
   // Decrypt encrypted call records client-side (Epic 77)
   useEffect(() => {
     if (!hasNsec || !publicKey || recentCalls.length === 0) return
-    const secretKey = keyManager.isUnlocked() ? keyManager.getSecretKey() : null
-    if (!secretKey) return
+    if (!keyManager.isUnlocked()) return
+    const skHex = bytesToHex(keyManager.getSecretKey())
 
-    let changed = false
-    const decrypted = recentCalls.map(call => {
-      if (call.answeredBy !== undefined) return call
-      if (!call.encryptedContent || !call.adminEnvelopes?.length) return call
-      const meta = decryptCallRecord(call.encryptedContent, call.adminEnvelopes, secretKey, publicKey)
-      if (meta) {
-        changed = true
-        return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
-      }
-      return call
-    })
-    if (changed) setRecentCalls(decrypted)
+    ;(async () => {
+      let changed = false
+      const decrypted = await Promise.all(recentCalls.map(async call => {
+        if (call.answeredBy !== undefined) return call
+        if (!call.encryptedContent || !call.adminEnvelopes?.length) return call
+        const meta = await decryptCallRecord(call.encryptedContent, call.adminEnvelopes, skHex, publicKey)
+        if (meta) {
+          changed = true
+          return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
+        }
+        return call
+      }))
+      if (changed) setRecentCalls(decrypted)
+    })()
   }, [recentCalls, hasNsec, publicKey])
 
   const nameMap = useMemo(() => {
@@ -91,47 +94,50 @@ function NotesPage() {
     return map
   }, [recentCalls])
 
-  const loadNotes = useCallback(() => {
+  const loadNotes = useCallback(async () => {
     setLoading(true)
-    listNotes({ callId: callId || undefined, page, limit })
-      .then(res => {
-        const decryptedNotes: DecryptedNote[] = res.notes
-          .filter(note => {
-            if (note.authorPubkey === 'system:transcription:admin') return isAdmin
-            if (note.authorPubkey === 'system:transcription') return !isAdmin
-            return true
-          })
-          .map(note => {
-            const isTranscription = note.authorPubkey.startsWith('system:transcription')
-            let payload: NotePayload
-            if (isTranscription && note.ephemeralPubkey && hasNsec) {
-              const sk = keyManager.getSecretKey()
-              const text = decryptTranscription(note.encryptedContent, note.ephemeralPubkey, sk) || '[Decryption failed]'
-              payload = { text }
-            } else if (isTranscription && !note.ephemeralPubkey) {
-              payload = { text: note.encryptedContent }
-            } else if (hasNsec) {
-              // Try V2 (per-note ECIES envelope) first, fall back to V1 (legacy HKDF)
-              const sk = keyManager.getSecretKey()
-              const myPubkey = publicKey!
-              const envelope = isAdmin
-                ? note.adminEnvelopes?.find(e => e.pubkey === myPubkey) ?? note.adminEnvelopes?.[0]
-                : note.authorEnvelope
-              if (envelope) {
-                payload = decryptNoteV2(note.encryptedContent, envelope, sk) || { text: '[Decryption failed]' }
-              } else {
-                payload = decryptNote(note.encryptedContent, sk) || { text: '[Decryption failed]' }
-              }
-            } else {
-              payload = { text: '[No key]' }
-            }
-            return { ...note, decrypted: payload.text, payload, isTranscription }
-          })
-        setNotes(decryptedNotes)
-        setTotal(res.total)
+    try {
+      const res = await listNotes({ callId: callId || undefined, page, limit })
+      const filtered = res.notes.filter(note => {
+        if (note.authorPubkey === 'system:transcription:admin') return isAdmin
+        if (note.authorPubkey === 'system:transcription') return !isAdmin
+        return true
       })
-      .catch(() => toast(t('common.error'), 'error'))
-      .finally(() => setLoading(false))
+      const skHex = hasNsec && keyManager.isUnlocked() ? bytesToHex(keyManager.getSecretKey()) : null
+      const decryptedNotes: DecryptedNote[] = await Promise.all(
+        filtered.map(async note => {
+          const isTranscription = note.authorPubkey.startsWith('system:transcription')
+          let payload: NotePayload
+          if (isTranscription && note.ephemeralPubkey && skHex) {
+            const text = await decryptTranscription(note.encryptedContent, note.ephemeralPubkey, skHex) || '[Decryption failed]'
+            payload = { text }
+          } else if (isTranscription && !note.ephemeralPubkey) {
+            payload = { text: note.encryptedContent }
+          } else if (skHex) {
+            // Try V2 (per-note ECIES envelope) first, fall back to V1 (legacy HKDF)
+            const myPubkey = publicKey!
+            const envelope = isAdmin
+              ? note.adminEnvelopes?.find(e => e.pubkey === myPubkey) ?? note.adminEnvelopes?.[0]
+              : note.authorEnvelope
+            if (envelope) {
+              const decryptedJson = await decryptNote(note.encryptedContent, envelope, skHex)
+              payload = decryptedJson ? JSON.parse(decryptedJson) : { text: '[Decryption failed]' }
+            } else {
+              payload = await decryptLegacyNote(note.encryptedContent, skHex) || { text: '[Decryption failed]' }
+            }
+          } else {
+            payload = { text: '[No key]' }
+          }
+          return { ...note, decrypted: payload.text, payload, isTranscription }
+        })
+      )
+      setNotes(decryptedNotes)
+      setTotal(res.total)
+    } catch {
+      toast(t('common.error'), 'error')
+    } finally {
+      setLoading(false)
+    }
   }, [page, callId, hasNsec, isAdmin])
 
   useEffect(() => { loadNotes() }, [loadNotes])
@@ -144,7 +150,7 @@ function NotesPage() {
       if (Object.keys(fields).length > 0) payload.fields = fields
       const authorPub = publicKey
       const adminPub = adminDecryptionPubkey || authorPub
-      const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(payload, authorPub, [adminPub])
+      const { encryptedContent, authorEnvelope, adminEnvelopes } = await encryptNote(JSON.stringify(payload), authorPub, [adminPub])
       const res = await updateNote(noteId, { encryptedContent, authorEnvelope, adminEnvelopes })
       setNotes(prev => prev.map(n =>
         n.id === noteId ? { ...res.note, decrypted: text, payload, isTranscription: n.isTranscription } : n
@@ -165,7 +171,7 @@ function NotesPage() {
       if (Object.keys(fields).length > 0) payload.fields = fields
       const authorPub = publicKey
       const adminPub = adminDecryptionPubkey || authorPub
-      const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(payload, authorPub, [adminPub])
+      const { encryptedContent, authorEnvelope, adminEnvelopes } = await encryptNote(JSON.stringify(payload), authorPub, [adminPub])
       const res = await createNote({ callId, encryptedContent, authorEnvelope, adminEnvelopes })
       setNotes(prev => [{ ...res.note, decrypted: text, payload, isTranscription: false }, ...prev])
       setTotal(prev => prev + 1)
@@ -201,14 +207,14 @@ function NotesPage() {
   const visibleFields = customFields.filter(f => isAdmin || f.visibleToVolunteers)
 
   async function handleExport() {
-    if (!hasNsec) return
-    const sk = keyManager.getSecretKey()
+    if (!hasNsec || !keyManager.isUnlocked()) return
+    const skHex = bytesToHex(keyManager.getSecretKey())
     const rows = filteredNotes.map(n => ({
       id: n.id, callId: n.callId, content: n.decrypted, fields: n.payload.fields,
       isTranscription: n.isTranscription, createdAt: n.createdAt, updatedAt: n.updatedAt,
     }))
     const jsonString = JSON.stringify(rows, null, 2)
-    const encrypted = encryptExport(jsonString, sk)
+    const encrypted = await encryptExport(jsonString, skHex)
     const blob = new Blob([encrypted.buffer as ArrayBuffer], { type: 'application/octet-stream' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')

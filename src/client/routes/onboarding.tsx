@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
 import { useConfig } from '@/lib/config'
 import { validateInvite, redeemInvite } from '@/lib/api'
-import { generateKeyPair } from '@/lib/crypto'
+import { generateKeyPair } from '@/lib/platform'
 import { isValidPin } from '@/lib/key-store'
 import * as keyManager from '@/lib/key-manager'
 import { createBackup, generateRecoveryKey, downloadBackupFile } from '@/lib/backup'
@@ -132,13 +132,13 @@ function OnboardingPage() {
   async function generateKeypairAndRedeem(pin: string) {
     setStep('keypair')
     try {
-      const kp = generateKeyPair()
+      const kp = await generateKeyPair()
       setNsec(kp.nsec)
       setPubkey(kp.publicKey)
       setConfirmedPin(pin)
 
       // Redeem invite on server (with Schnorr signature proving key ownership)
-      await redeemInvite(inviteCode, kp.publicKey, kp.secretKey)
+      await redeemInvite(inviteCode, kp.publicKey, kp.secretKeyHex)
 
       // Generate recovery key (shown to user instead of nsec)
       const rk = generateRecoveryKey()

@@ -15,7 +15,7 @@ import {
   type InviteCode,
   type RoleDefinition,
 } from '@/lib/api'
-import { generateKeyPair } from '@/lib/crypto'
+import { generateKeyPair } from '@/lib/platform'
 import { useToast } from '@/lib/toast'
 import { UserPlus, Shield, ShieldCheck, Trash2, Key, Copy, Coffee, Eye, EyeOff, Mail, X } from 'lucide-react'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -364,7 +364,7 @@ function AddVolunteerForm({ roles, onCreated, onCancel }: {
     }
     setSaving(true)
     try {
-      const keyPair = generateKeyPair()
+      const keyPair = await generateKeyPair()
       const res = await createVolunteer({ name, phone, roleIds: [roleId], pubkey: keyPair.publicKey })
       onCreated(res.volunteer, keyPair.nsec)
       toast(t('volunteers.volunteerAdded'), 'success')

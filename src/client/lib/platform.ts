@@ -240,6 +240,94 @@ export async function decryptMessage(
   return jsDecrypt(encryptedContent, readerEnvelopes, hexToBytes(secretKeyHex), readerPubkey)
 }
 
+// ── Additional crypto wrappers ───────────────────────────────────────
+// These delegate to the JS implementation for now. When WASM (Phase 6)
+// or additional Rust IPC commands are ready, only this file changes.
+
+/**
+ * Validate an nsec string. Re-exported here so routes import from platform.ts only.
+ */
+export { isValidNsec } from './crypto'
+
+/**
+ * Decrypt a call record's encrypted metadata.
+ * Returns the decrypted fields or null if decryption fails.
+ */
+export async function decryptCallRecord(
+  encryptedContent: string,
+  adminEnvelopes: RecipientKeyEnvelope[],
+  secretKeyHex: string,
+  readerPubkey: string,
+): Promise<{ answeredBy: string | null; callerNumber: string } | null> {
+  // On desktop, uses CryptoState for the ECIES unwrap step
+  const { decryptCallRecord: jsDecryptCallRecord } = await import('./crypto')
+  const { hexToBytes } = await import('@noble/hashes/utils.js')
+  return jsDecryptCallRecord(encryptedContent, adminEnvelopes, hexToBytes(secretKeyHex), readerPubkey)
+}
+
+/**
+ * Decrypt a legacy V1 note (backward compatibility).
+ */
+export async function decryptLegacyNote(
+  packed: string,
+  secretKeyHex: string,
+): Promise<import('@shared/types').NotePayload | null> {
+  const { decryptNote: jsDecryptLegacy } = await import('./crypto')
+  const { hexToBytes } = await import('@noble/hashes/utils.js')
+  return jsDecryptLegacy(packed, hexToBytes(secretKeyHex))
+}
+
+/**
+ * Decrypt a server-encrypted transcription.
+ */
+export async function decryptTranscription(
+  packed: string,
+  ephemeralPubkeyHex: string,
+  secretKeyHex: string,
+): Promise<string | null> {
+  const { decryptTranscription: jsDecryptTranscription } = await import('./crypto')
+  const { hexToBytes } = await import('@noble/hashes/utils.js')
+  return jsDecryptTranscription(packed, ephemeralPubkeyHex, hexToBytes(secretKeyHex))
+}
+
+/**
+ * Encrypt a draft for local auto-save.
+ */
+export async function encryptDraft(
+  plaintext: string,
+  secretKeyHex: string,
+): Promise<string> {
+  const { encryptDraft: jsEncryptDraft } = await import('./crypto')
+  const { hexToBytes } = await import('@noble/hashes/utils.js')
+  return jsEncryptDraft(plaintext, hexToBytes(secretKeyHex))
+}
+
+/**
+ * Decrypt a locally-saved draft.
+ */
+export async function decryptDraft(
+  packed: string,
+  secretKeyHex: string,
+): Promise<string | null> {
+  const { decryptDraft: jsDecryptDraft } = await import('./crypto')
+  const { hexToBytes } = await import('@noble/hashes/utils.js')
+  return jsDecryptDraft(packed, hexToBytes(secretKeyHex))
+}
+
+/**
+ * Encrypt a JSON export blob.
+ */
+export async function encryptExport(
+  jsonString: string,
+  secretKeyHex: string,
+): Promise<Uint8Array> {
+  const { encryptExport: jsEncryptExport } = await import('./crypto')
+  const { hexToBytes } = await import('@noble/hashes/utils.js')
+  return jsEncryptExport(jsonString, hexToBytes(secretKeyHex))
+}
+
+// ── Key persistence ─────────────────────────────────────────────────
+
 export interface EncryptedKeyData {
   salt: string
   iterations: number

@@ -12,8 +12,9 @@ import {
   type Report,
   type ConversationMessage,
 } from '@/lib/api'
-import { encryptMessage, decryptMessage } from '@/lib/crypto'
+import { encryptMessage, decryptMessage } from '@/lib/platform'
 import * as keyManager from '@/lib/key-manager'
+import { bytesToHex } from '@noble/hashes/utils.js'
 import { ReportForm } from '@/components/ReportForm'
 import { FilePreview } from '@/components/FilePreview'
 import { FileUpload } from '@/components/FileUpload'
@@ -128,7 +129,7 @@ function ReportsPage() {
         readerPubkeys.push(adminDecryptionPubkey)
       }
 
-      const encrypted = encryptMessage(replyText.trim(), readerPubkeys)
+      const encrypted = await encryptMessage(replyText.trim(), readerPubkeys)
 
       const msg = await sendReportMessage(selectedId, {
         encryptedContent: encrypted.encryptedContent,
@@ -153,7 +154,7 @@ function ReportsPage() {
       }
 
       const placeholder = t('reports.filesAttached', { defaultValue: '[Files attached]', count: fileIds.length })
-      const encrypted = encryptMessage(placeholder, readerPubkeys)
+      const encrypted = await encryptMessage(placeholder, readerPubkeys)
 
       const msg = await sendReportMessage(selectedId, {
         encryptedContent: encrypted.encryptedContent,
@@ -370,30 +371,26 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
   // Decrypt messages using envelope pattern
   useEffect(() => {
     if (messages.length === 0 || !publicKey) return
+    if (!hasNsec || !keyManager.isUnlocked()) return
+    const skHex = bytesToHex(keyManager.getSecretKey())
 
-    let secretKey: Uint8Array | null = null
-    if (hasNsec) {
-      try { secretKey = keyManager.getSecretKey() } catch { /* locked */ }
-    }
-    if (!secretKey) return
-
-    const decrypted = new Map<string, string>()
-
-    for (const msg of messages) {
-      if (msg.encryptedContent && msg.readerEnvelopes?.length) {
-        const plaintext = decryptMessage(
-          msg.encryptedContent,
-          msg.readerEnvelopes,
-          secretKey,
-          publicKey,
-        )
-        if (plaintext !== null) {
-          decrypted.set(msg.id, plaintext)
+    ;(async () => {
+      const decrypted = new Map<string, string>()
+      for (const msg of messages) {
+        if (msg.encryptedContent && msg.readerEnvelopes?.length) {
+          const plaintext = await decryptMessage(
+            msg.encryptedContent,
+            msg.readerEnvelopes,
+            skHex,
+            publicKey,
+          )
+          if (plaintext !== null) {
+            decrypted.set(msg.id, plaintext)
+          }
         }
       }
-    }
-
-    setDecryptedContent(decrypted)
+      setDecryptedContent(decrypted)
+    })()
   }, [messages, hasNsec, publicKey])
 
   const isReporter = hasPermission('reports:create') && !hasPermission('calls:answer')

@@ -436,13 +436,13 @@ export async function validateInvite(code: string) {
   return res.json() as Promise<{ valid: boolean; name?: string; roleIds?: string[]; error?: string }>
 }
 
-export async function redeemInvite(code: string, pubkey: string, secretKey?: Uint8Array) {
+export async function redeemInvite(code: string, pubkey: string, secretKeyHex?: string) {
   // Include Schnorr signature to prove key possession
   let authFields = {}
-  if (secretKey) {
-    const { createAuthToken } = await import('./crypto')
+  if (secretKeyHex) {
+    const { createAuthToken } = await import('./platform')
     const timestamp = Date.now()
-    const tokenJson = createAuthToken(secretKey, timestamp, 'POST', '/api/invites/redeem')
+    const tokenJson = await createAuthToken(secretKeyHex, timestamp, 'POST', '/api/invites/redeem')
     const parsed = JSON.parse(tokenJson)
     authFields = { timestamp: parsed.timestamp, token: parsed.token }
   }

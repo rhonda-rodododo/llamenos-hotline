@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth'
 import { useEffect, useState } from 'react'
 import { useCalls, useCallTimer, useShiftStatus } from '@/lib/hooks'
 import { createNote, addBan, getCallsTodayCount, getVolunteerPresence, listVolunteers, type ActiveCall, type VolunteerPresence, type Volunteer } from '@/lib/api'
-import { encryptNoteV2 } from '@/lib/crypto'
+import { encryptNote } from '@/lib/platform'
 import { useTranscription } from '@/lib/transcription'
 
 import { useToast } from '@/lib/toast'
@@ -332,7 +332,7 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
     setSaving(true)
     try {
       const adminPub = adminDecryptionPubkey || authorPubkey
-      const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2({ text: noteText }, authorPubkey, [adminPub])
+      const { encryptedContent, authorEnvelope, adminEnvelopes } = await encryptNote(JSON.stringify({ text: noteText }), authorPubkey, [adminPub])
       await createNote({ callId: call.id, encryptedContent, authorEnvelope, adminEnvelopes })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -350,8 +350,8 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
         const text = await stopTranscription()
         if (text.trim()) {
           const adminPub = adminDecryptionPubkey || authorPubkey
-          const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(
-            { text: `[${t('transcription.title')}] ${text}` },
+          const { encryptedContent, authorEnvelope, adminEnvelopes } = await encryptNote(
+            JSON.stringify({ text: `[${t('transcription.title')}] ${text}` }),
             authorPubkey,
             [adminPub],
           )
