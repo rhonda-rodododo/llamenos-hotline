@@ -176,7 +176,7 @@ Architecture overview: [`docs/architecture/E2EE_ARCHITECTURE.md`](architecture/E
 
 ### Client Privacy Layer
 - [ ] **[Epic 75: Native Call-Receiving Clients](epics/epic-75-native-call-clients.md)** — Tauri desktop (macOS/Windows), React Native mobile (iOS/Android). Separate repos. *Future work.*
-- [x] **[Epic 78: Client-Side Transcription](epics/epic-78-client-side-transcription.md)** — Transcription service migrated to envelope encryption. WASM Whisper blocked (requires Emscripten toolchain for compilation). *Partial: encryption migration done, WASM deferred.*
+- [x] **[Epic 78: Client-Side Transcription](epics/epic-78-client-side-transcription.md)** — @huggingface/transformers ONNX Whisper in browser, AudioWorklet ring buffer, Web Worker isolation, settings UI, auto-save encrypted transcript on hangup
 
 ### Trust Verification — COMPLETE
 - [x] **[Epic 79: Reproducible Builds](epics/epic-79-reproducible-builds.md)** — Deterministic build config, Dockerfile.build, verify-build.sh, CHECKSUMS.txt in GitHub Releases, SLSA provenance

@@ -40,10 +40,17 @@
 - [x] Client-side decryption in calls.tsx and notes.tsx
 - [x] Fixed `audit:_lastHash` collision with audit entry list queries
 
-### Epic 78: Client-Side Transcription (partial)
+### Epic 78: Client-Side Transcription
 - [x] Migrated transcription service from dual-ECIES to envelope encryption pattern
 - [x] Removed dead `encryptForPublicKey` from both client and server crypto modules
-- [ ] WASM Whisper compilation blocked (requires Emscripten toolchain) — deferred
+- [x] `@huggingface/transformers` v3.8.1 — ONNX Runtime single-threaded WASM (no SharedArrayBuffer)
+- [x] AudioWorklet ring buffer (`audio-capture-worklet.js`) — 60s buffer, 30s chunks, 5s overlap
+- [x] Web Worker transcription (`transcription-worker.ts`) — Whisper ONNX in isolated worker thread
+- [x] `TranscriptionManager` orchestrator + `useTranscription` React hook
+- [x] Settings UI: enable/disable toggle, model selection (tiny/base, en/multilingual)
+- [x] Auto-save encrypted transcript note on call hangup
+- [x] "Transcribes your speech only" limitation documented in UI
+- [x] E2E tests for settings persistence and configuration
 
 ### Epic 79: Reproducible Builds
 - [x] Build-time defines (`__BUILD_TIME__`, `__BUILD_COMMIT__`, `__BUILD_VERSION__`) in Vite, esbuild, Wrangler
