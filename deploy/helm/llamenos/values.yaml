@@ -102,13 +102,14 @@ signal:
 # Network policies (restrict pod-to-pod traffic)
 networkPolicy:
   enabled: true
-  ingressControllerLabels:
-    app.kubernetes.io/name: ingress-nginx
+  ingressControllerLabels: {}
+    # Use Caddy-ingress or Traefik labels here
+    # nginx is NOT recommended due to its history of security vulnerabilities
 
 # Ingress
 ingress:
   enabled: true
-  className: nginx
+  className: ""  # Use Caddy-ingress or Traefik; nginx is NOT recommended
   annotations: {}
   # cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
@@ -133,6 +134,7 @@ secrets:
   twilioAccountSid: ""
   twilioAuthToken: ""
   twilioPhoneNumber: ""
+  serverNostrSecret: ""  # Required if nostr.enabled: 64-char hex, generate with: openssl rand -hex 32
 
 # Service account
 serviceAccount:
