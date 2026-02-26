@@ -10,6 +10,47 @@
 - [x] Documented hub URL configuration design for native clients
 - [x] Identified platform.ts is dead code (key-manager.ts imports key-store.ts directly) — documented for Epic 81
 
+### Epic 89: Mobile UI Polish & Accessibility (`llamenos-mobile` repo)
+- [x] NativeWind dark mode with CSS variables matching web app's OKLCH teal/amber palette (light + dark tokens)
+- [x] Theme toggle (light/dark/system) persisted via MMKV settings store, synced via nativewind colorScheme.set()
+- [x] DM Sans font loading via expo-font (Regular/Medium/Bold TTF bundled)
+- [x] Haptic feedback via expo-haptics: semantic methods (light/medium/heavy/warning/success/error/selection) on call answer, hangup, spam, shift sign-up/drop, PIN entry, profile save, pull-to-refresh
+- [x] Animated skeleton loading components (NoteCardSkeleton, ConversationCardSkeleton, VolunteerCardSkeleton, AuditEntrySkeleton, ShiftCardSkeleton, ListSkeleton) with reanimated pulse
+- [x] Screen error boundaries with retry UI using react-error-boundary
+- [x] Offline/relay disconnected banner using NetInfo + Nostr relay context state
+- [x] Toast notifications (react-native-toast-message) with theme-aware custom config (success/error/info)
+- [x] Language picker with 13 locales, RTL support for Arabic via I18nManager.forceRTL, restart alert
+- [x] Language display names and persistence via Zustand settings store
+- [x] Accessibility: labels, roles, states, hints on all interactive elements (CallCard, NoteCard, ShiftCard, PinInput, RelayStatus, EncryptedContent, ConversationRow)
+- [x] accessibilityRole, accessibilityLiveRegion, accessibilityElementsHidden for decorative elements
+- [x] hitSlop on small touch targets (buttons, icons) for 44pt minimum
+- [x] Theme-aware tab bar, headers, RefreshControl tint colors
+- [x] Reduced motion tracking via AccessibilityInfo.isReduceMotionEnabled
+- [x] Mutation retry config for offline resilience (React Query: 2 retries, exponential backoff)
+- [x] SplashScreen management — hidden after fonts load
+- [x] StatusBar style synced with resolved color scheme
+
+### Epic 86: Mobile Push Notifications (server + mobile)
+- [x] Crypto labels: LABEL_PUSH_WAKE, LABEL_PUSH_FULL added to both repos
+- [x] Server types: DeviceRecord, WakePayload, FullPushPayload, PushNotificationType, Env push bindings
+- [x] Push encryption: two-tier ECIES (wake key for lock screen, nsec for full content)
+- [x] FCM client wrapper: fcm-cloudflare-workers with FcmOptions/sendToToken API
+- [x] APNs integration: @fivesheepco/cloudflare-apns2 with data field for encrypted payloads
+- [x] PushDispatcher: sendToVolunteer, sendToAllOnShift with stale token cleanup
+- [x] Device registration API: POST /api/devices/register, DELETE /api/devices
+- [x] IdentityDO: devices:${pubkey} storage, register/cleanup/delete methods, 5 device limit
+- [x] CallRouterDO: voicemail push dispatch after KIND_CALL_VOICEMAIL Nostr event
+- [x] ConversationDO routes: message push to assigned volunteer, assignment push on claim
+- [x] Messaging router: inbound message push dispatch via executionCtx.waitUntil
+- [x] ShiftManagerDO: 5-minute alarm for shift reminders 15 min before start, dedup tracking
+- [x] Mobile wake key: secp256k1 keypair in SecureStore (AFTER_FIRST_UNLOCK)
+- [x] Mobile push registration: native APNs/FCM token + wake key sent to server
+- [x] Notification categories: message (open, mark read), voicemail (listen), shift (view shifts)
+- [x] Notification handlers: background display, tap navigation, cold start handling
+- [x] Device unregistration on logout
+- [x] Android notification channels config in app.json
+- [x] Both repos typecheck clean
+
 ### Epic 85: Mobile Admin Screens & E2EE Messaging (`llamenos-mobile` repo)
 - [x] Permission system (PBAC) ported from web — 70 permissions, 13 domains, wildcard support
 - [x] usePermission, usePermissions, useIsAdmin hooks with React Query cached /api/auth/me
