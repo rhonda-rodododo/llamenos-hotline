@@ -14,7 +14,6 @@ import { LanguageSelect } from '@/components/language-select'
 import { LogoMark } from '@/components/logo-mark'
 import { DemoBanner } from '@/components/demo-banner'
 import { NotificationPromptBanner } from '@/components/notification-prompt-banner'
-import { PwaInstallBanner } from '@/components/pwa-install-banner'
 import { UpdateChecker } from '@/components/UpdateChecker'
 import { PanicWipeIndicator } from '@/components/panic-wipe-indicator'
 import { HubSwitcher } from '@/components/hub-switcher'
@@ -359,7 +358,6 @@ function AuthenticatedLayout() {
         {demoMode && <DemoBanner />}
         <UpdateChecker />
         <NotificationPromptBanner />
-        <PwaInstallBanner />
 
         {/* Mobile top bar */}
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background px-4 py-3 md:hidden">

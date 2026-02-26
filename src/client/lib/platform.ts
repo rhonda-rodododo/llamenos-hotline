@@ -10,8 +10,8 @@
  * Import from here instead of directly from crypto.ts or @tauri-apps/*.
  */
 
-// Type re-exports (will be moved to a shared types file in Epic 94)
-export type { KeyEnvelope, RecipientKeyEnvelope } from './crypto'
+// Type re-exports from shared types
+export type { KeyEnvelope, RecipientKeyEnvelope } from '@shared/types'
 
 // ── Tauri IPC wrapper ────────────────────────────────────────────────
 
@@ -41,13 +41,13 @@ export interface SignedNostrEvent {
 
 export interface EncryptedNoteResult {
   encryptedContent: string
-  authorEnvelope: import('./crypto').KeyEnvelope
-  adminEnvelopes: import('./crypto').RecipientKeyEnvelope[]
+  authorEnvelope: import('@shared/types').KeyEnvelope
+  adminEnvelopes: import('@shared/types').RecipientKeyEnvelope[]
 }
 
 export interface EncryptedMessageResult {
   encryptedContent: string
-  readerEnvelopes: import('./crypto').RecipientKeyEnvelope[]
+  readerEnvelopes: import('@shared/types').RecipientKeyEnvelope[]
 }
 
 export interface EncryptedKeyData {
@@ -124,8 +124,8 @@ export async function eciesWrapKey(
   keyHex: string,
   recipientPubkey: string,
   label: string,
-): Promise<import('./crypto').KeyEnvelope> {
-  return tauriInvoke<import('./crypto').KeyEnvelope>('ecies_wrap_key', {
+): Promise<import('@shared/types').KeyEnvelope> {
+  return tauriInvoke<import('@shared/types').KeyEnvelope>('ecies_wrap_key', {
     keyHex,
     recipientPubkey,
     label,
@@ -136,7 +136,7 @@ export async function eciesWrapKey(
  * ECIES unwrap a key from an envelope using CryptoState.
  */
 export async function eciesUnwrapKey(
-  envelope: import('./crypto').KeyEnvelope,
+  envelope: import('@shared/types').KeyEnvelope,
   label: string,
 ): Promise<string> {
   return tauriInvoke<string>('ecies_unwrap_key_from_state', {
@@ -167,7 +167,7 @@ export async function encryptNote(
  */
 export async function decryptNote(
   encryptedContent: string,
-  envelope: import('./crypto').KeyEnvelope,
+  envelope: import('@shared/types').KeyEnvelope,
 ): Promise<string | null> {
   return tauriInvoke<string>('decrypt_note_from_state', {
     encryptedContent,
@@ -209,7 +209,7 @@ export async function encryptMessage(
  */
 export async function decryptMessage(
   encryptedContent: string,
-  readerEnvelopes: import('./crypto').RecipientKeyEnvelope[],
+  readerEnvelopes: import('@shared/types').RecipientKeyEnvelope[],
 ): Promise<string | null> {
   try {
     return await tauriInvoke<string>('decrypt_message_from_state', {
@@ -228,7 +228,7 @@ export async function decryptMessage(
  */
 export async function decryptCallRecord(
   encryptedContent: string,
-  adminEnvelopes: import('./crypto').RecipientKeyEnvelope[],
+  adminEnvelopes: import('@shared/types').RecipientKeyEnvelope[],
 ): Promise<{ answeredBy: string | null; callerNumber: string } | null> {
   try {
     const json = await tauriInvoke<string>('decrypt_call_record_from_state', {
@@ -339,7 +339,7 @@ export async function decryptFileMetadata(
  * Unwrap a file key envelope via CryptoState.
  */
 export async function unwrapFileKey(
-  envelope: import('./crypto').KeyEnvelope,
+  envelope: import('@shared/types').KeyEnvelope,
 ): Promise<string> {
   return tauriInvoke<string>('unwrap_file_key_from_state', { envelope })
 }
@@ -348,7 +348,7 @@ export async function unwrapFileKey(
  * Unwrap a hub key envelope via CryptoState.
  */
 export async function unwrapHubKey(
-  envelope: import('./crypto').KeyEnvelope,
+  envelope: import('@shared/types').KeyEnvelope,
 ): Promise<string> {
   return tauriInvoke<string>('unwrap_hub_key_from_state', { envelope })
 }
@@ -360,8 +360,8 @@ export async function rewrapFileKey(
   encryptedFileKeyHex: string,
   ephemeralPubkeyHex: string,
   newRecipientPubkeyHex: string,
-): Promise<import('./crypto').RecipientKeyEnvelope> {
-  return tauriInvoke<import('./crypto').RecipientKeyEnvelope>('rewrap_file_key_from_state', {
+): Promise<import('@shared/types').RecipientKeyEnvelope> {
+  return tauriInvoke<import('@shared/types').RecipientKeyEnvelope>('rewrap_file_key_from_state', {
     encryptedFileKeyHex,
     ephemeralPubkeyHex,
     newRecipientPubkeyHex,

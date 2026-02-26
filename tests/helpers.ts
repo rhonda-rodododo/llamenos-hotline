@@ -70,9 +70,19 @@ async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promi
     pubkey: pubkeyHash,
   }
 
+  // Write to BOTH locations:
+  // - Legacy localStorage key (in case any test helper reads it directly)
+  // - Mock Tauri Store key (what platform.ts reads via mock Store)
   await page.evaluate(
-    ({ key, value }) => localStorage.setItem(key, value),
-    { key: 'llamenos-encrypted-key', value: JSON.stringify(data) },
+    ({ legacyKey, storeKey, value }) => {
+      localStorage.setItem(legacyKey, value)
+      localStorage.setItem(storeKey, value)
+    },
+    {
+      legacyKey: 'llamenos-encrypted-key',
+      storeKey: 'tauri-store:keys.json:llamenos-encrypted-key',
+      value: JSON.stringify(data),
+    },
   )
 }
 

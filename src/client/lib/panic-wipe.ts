@@ -32,7 +32,7 @@ export function performPanicWipe(): void {
 
   // 3. Defer storage clearing and redirect — gives React one frame
   //    to paint the overlay before localStorage.clear() triggers auth changes
-  setTimeout(() => {
+  setTimeout(async () => {
     try {
       localStorage.clear()
     } catch {
@@ -57,13 +57,20 @@ export function performPanicWipe(): void {
       // IndexedDB may be unavailable
     }
 
-    // Unregister service workers
+    // Clear Tauri Store
     try {
-      navigator.serviceWorker?.getRegistrations().then(registrations => {
-        registrations.forEach(reg => reg.unregister())
-      }).catch(() => {})
+      const { Store } = await import('@tauri-apps/plugin-store')
+      for (const name of ['keys.json', 'settings.json', 'drafts.json']) {
+        try {
+          const store = await Store.load(name)
+          await store.clear()
+          await store.save()
+        } catch {
+          // Store may not exist
+        }
+      }
     } catch {
-      // SW API may be unavailable
+      // Tauri Store may be unavailable
     }
 
     // Full-page redirect (destroys all React state)

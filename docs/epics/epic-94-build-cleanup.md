@@ -1,6 +1,6 @@
 # Epic 94: Build Cleanup, Test Infrastructure & Dead Code Removal
 
-**Status**: Planned
+**Status**: Complete
 **Depends on**: Epic 93 (Tauri-Only TS Migration)
 
 ## Goal

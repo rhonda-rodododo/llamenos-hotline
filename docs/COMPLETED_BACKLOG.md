@@ -2,6 +2,18 @@
 
 ## 2026-02-26: Multi-Platform Native Clients (`desktop` branch)
 
+### Epic 94: Build Cleanup, Test Infrastructure & Dead Code Removal
+
+Complete Tauri-only build cleanup with Playwright test compatibility:
+- **Tauri IPC mock layer**: `tests/mocks/` with `tauri-core.ts`, `tauri-store.ts`, `tauri-ipc-handler.ts`, `crypto-impl.ts`, `key-store-impl.ts`. Vite aliases activated by `PLAYWRIGHT_TEST=true` env var.
+- **Dead file removal**: Deleted `crypto.ts` (moved to test mock), `key-store.ts`, `sri-workbox-plugin.ts`, `pwa-install-banner.tsx`, `use-pwa-install.ts`, `notification-pwa.spec.ts`.
+- **Vite config simplification**: Removed `VitePWA`, `sriWorkboxPlugin`, `isTauriDev` conditionals, `__TAURI__` define. Always `esnext` target.
+- **panic-wipe.ts**: Removed service worker unregistration, added Tauri Store cleanup.
+- **Package cleanup**: Removed `vite-plugin-pwa` dependency. Added `test:build` script.
+- **Type relocation**: `KeyEnvelope`, `RecipientKeyEnvelope` moved from `crypto.ts` to `@shared/types.ts`.
+- **CLAUDE.md updated**: Reflects Tauri-only architecture, mock test infrastructure, updated commands.
+- Both production build and `PLAYWRIGHT_TEST=true` test build verified passing.
+
 ### Epic 93: Tauri-Only TypeScript Migration (e3aeabb)
 
 Complete rewrite of TypeScript crypto plumbing — nsec never enters webview:

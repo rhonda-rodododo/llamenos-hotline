@@ -1,3 +1,17 @@
+// --- ECIES Key Envelopes ---
+// Used across notes, messages, files, and hub key wrapping.
+
+/** A symmetric key wrapped via ECIES for a single recipient. */
+export interface KeyEnvelope {
+  wrappedKey: string       // hex: nonce(24) + ciphertext(48 = 32 key + 16 tag)
+  ephemeralPubkey: string  // hex: compressed 33-byte pubkey
+}
+
+/** A KeyEnvelope tagged with the recipient's pubkey (for multi-recipient scenarios). */
+export interface RecipientKeyEnvelope extends KeyEnvelope {
+  pubkey: string  // recipient's x-only pubkey (hex)
+}
+
 // --- Telephony Provider Config ---
 
 export type TelephonyProviderType = 'twilio' | 'signalwire' | 'vonage' | 'plivo' | 'asterisk'

@@ -58,9 +58,8 @@ src/
   client/           # Frontend SPA (Vite + React)
     routes/         # TanStack file-based routes
     components/     # App components + ui/ (shadcn primitives)
-    lib/            # Client utilities (auth, crypto, platform, ws, i18n, hooks)
-      platform.ts   # Platform abstraction — routes to Rust (Tauri) or JS (browser)
-      crypto.ts     # JS crypto implementations (browser fallback)
+    lib/            # Client utilities (auth, platform, ws, i18n, hooks)
+      platform.ts   # Platform abstraction — Tauri IPC to Rust CryptoState
     locales/        # 13 locale JSON files (en, es, zh, tl, vi, ar, fr, ht, ko, ru, hi, pt, de)
   worker/           # Cloudflare Worker backend
     api/            # REST API handlers
@@ -78,6 +77,13 @@ src-tauri/          # Tauri v2 desktop shell (Rust)
   Cargo.toml        # Dependencies including llamenos-core path dep
   tauri.conf.json   # Tauri config (CSP, window, bundle, plugins)
   capabilities/     # Tauri capability permissions
+tests/
+  mocks/            # Tauri IPC mock layer for Playwright test builds
+    tauri-core.ts   # Mock @tauri-apps/api/core — routes invoke() to JS crypto
+    tauri-store.ts  # Mock @tauri-apps/plugin-store — uses localStorage
+    tauri-ipc-handler.ts # IPC command router with CryptoState mirror
+    crypto-impl.ts  # JS crypto implementations (moved from src/client/lib/crypto.ts)
+    key-store-impl.ts # PIN encryption/decryption for mock
 docs/
   protocol/         # Protocol specification for cross-platform interoperability
     PROTOCOL.md     # Complete wire format, crypto, API, permission spec
@@ -98,9 +104,10 @@ docs/
 - **Durable Objects**: Six singletons accessed via `idFromName()` — IdentityDO, SettingsDO, RecordsDO, ShiftManagerDO, CallRouterDO, ConversationDO. Routed via `DORouter` (lightweight method+path router).
 - **E2EE notes**: Per-note forward secrecy — unique random key per note, wrapped via ECIES for each reader. Dual-encrypted: one copy for volunteer, one for each admin (multi-admin envelopes).
 - **E2EE messaging**: Per-message envelope encryption — random symmetric key, ECIES-wrapped for assigned volunteer + each admin. Server encrypts inbound on webhook receipt, discards plaintext immediately.
-- **Platform abstraction**: `src/client/lib/platform.ts` routes crypto calls to native Rust (Tauri IPC) on desktop or JS (@noble/*) on browser. Always import from `platform.ts` for new code, not directly from `crypto.ts`.
+- **Platform abstraction**: `src/client/lib/platform.ts` is Tauri-only — all crypto calls route through Rust via IPC. The nsec NEVER enters the webview. Always import from `platform.ts`, never from `@tauri-apps/*` directly.
 - **llamenos-core**: Shared Rust crypto crate at `~/projects/llamenos-core`. All crypto operations (ECIES, Schnorr, PBKDF2, HKDF, XChaCha20-Poly1305) implemented once in Rust, compiled to native (Tauri), WASM (browser), and UniFFI (mobile).
-- **Key management**: PIN-encrypted local key store (`key-manager.ts`). nsec held in closure only, zeroed on lock. Device linking via ephemeral ECDH provisioning rooms. Desktop uses Tauri Stronghold instead of localStorage.
+- **Key management**: PIN-encrypted keys stored in Tauri Store (`keys.json`). Rust CryptoState holds the nsec; webview only sees pubkey. `key-manager.ts` caches unlock state + pubkey locally. Device linking via ephemeral ECDH provisioning rooms.
+- **Tauri IPC mock for tests**: Playwright tests run in a regular browser. `PLAYWRIGHT_TEST=true` triggers Vite aliases that route `@tauri-apps/api/core` and `@tauri-apps/plugin-store` to JS mock implementations in `tests/mocks/`. The mock maintains a CryptoState that mirrors the Rust side.
 - **Nostr relay real-time**: Ephemeral kind 20001 events via strfry (self-hosted) or Nosflare (CF). All event content encrypted with hub key. Generic tags (`["t", "llamenos:event"]`) — relay cannot distinguish event types.
 - **Hub key distribution**: Random 32 bytes (`crypto.getRandomValues`), ECIES-wrapped individually per member via `LABEL_HUB_KEY_WRAP`. Rotation on member departure excludes departed member.
 - **Client-side transcription**: WASM Whisper via `@huggingface/transformers` ONNX runtime. AudioWorklet ring buffer → Web Worker isolation. Audio never leaves the browser.
@@ -114,28 +121,27 @@ docs/
 - `schnorr` is a separate named export: `import { schnorr } from '@noble/curves/secp256k1.js'`
 - Nostr pubkeys are x-only (32 bytes) — prepend `"02"` for ECDH compressed format
 - `secp256k1.getSharedSecret()` returns 33 bytes; extract x-coord with `.slice(1, 33)`
-- Workbox `navigateFallbackDenylist` excludes `/api/` and `/telephony/` routes from SPA caching
 - Nostr relay (strfry) is a core service, not optional — always runs with Docker Compose and Helm
 - `SERVER_NOSTR_SECRET` must be exactly 64 hex chars; server derives its Nostr keypair via HKDF
 - Hub key is random bytes, NOT derived from any identity key — see `hub-key-manager.ts`
-- **Tauri**: Vite config conditionally disables PWA when `TAURI_ENV_PLATFORM` is set. Use `isTauri()` from `platform.ts` for runtime detection.
+- **Tauri-only app**: No browser/PWA fallback. `platform.ts` always routes through Tauri IPC. Use `PLAYWRIGHT_TEST=true` for test builds that mock the IPC layer.
 - **llamenos-core path dep**: `src-tauri/Cargo.toml` references `../../llamenos-core` — both repos must be siblings
 
 ## Development Commands
 
 ```bash
 bun install                              # Install dependencies
-bun run dev                              # Vite dev server (frontend only)
-bun run dev:worker                       # Wrangler dev server (Worker + DOs)
-bun run build                            # Vite build → dist/client/
-bun run tauri:dev                        # Tauri desktop dev (Vite + Rust backend)
+bun run tauri:dev                        # Tauri desktop dev (Vite + Rust backend) — primary dev command
 bun run tauri:build                      # Tauri desktop release build
+bun run dev                              # Vite dev server (test builds only — no Rust backend)
+bun run dev:worker                       # Wrangler dev server (Worker + DOs)
+bun run build                            # Vite build → dist/client/ (production Tauri build)
+bun run test:build                       # Vite build with Tauri IPC mocks (for Playwright)
+bun run test                             # Run all Playwright E2E tests (auto-builds with mocks)
+bun run test:ui                          # Playwright UI mode
 bun run deploy                           # Deploy EVERYTHING (app + marketing site)
 bun run deploy:demo                      # Deploy app Worker only
 bun run deploy:site                      # Deploy marketing site only (cd site && ...)
-bunx playwright test                     # Run all E2E tests
-bunx playwright test tests/smoke.spec.ts # Run a single test file
-bun run test:ui                          # Playwright UI mode
 bun run typecheck                        # Type check (tsc --noEmit)
 bun run bootstrap-admin                  # Generate admin keypair
 cd ../llamenos-core && cargo test        # Run Rust crypto tests

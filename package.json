@@ -18,9 +18,10 @@
     "start:node": "PLATFORM=node node dist/server/index.js",
     "typecheck": "bunx tsc --noEmit",
     "bootstrap-admin": "bun run scripts/bootstrap-admin.ts",
-    "test": "bunx playwright test",
+    "test": "PLAYWRIGHT_TEST=true bunx playwright test",
+    "test:build": "PLAYWRIGHT_TEST=true bun run build",
     "test:live": "bunx playwright test --config playwright.live.config.ts",
-    "test:ui": "bunx playwright test --ui",
+    "test:ui": "PLAYWRIGHT_TEST=true bunx playwright test --ui",
     "test:desktop": "bunx wdio tests/desktop/wdio.conf.ts",
     "site:dev": "cd site && bun run dev",
     "site:build": "cd site && bun run build",
@@ -97,7 +98,6 @@
     "twilio": "^5.12.2",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
-    "vite-plugin-pwa": "^1.2.0",
     "webdriverio": "^9.24.0",
     "wrangler": "^4.63.0"
   }
