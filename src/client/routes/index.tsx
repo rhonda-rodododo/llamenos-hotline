@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useCalls, useCallTimer, useShiftStatus } from '@/lib/hooks'
 import { createNote, addBan, getCallsTodayCount, getVolunteerPresence, listVolunteers, type ActiveCall, type VolunteerPresence, type Volunteer } from '@/lib/api'
 import { encryptNoteV2 } from '@/lib/crypto'
+import { useTranscription } from '@/lib/transcription'
 
 import { useToast } from '@/lib/toast'
 import {
@@ -21,6 +22,8 @@ import {
   AlertTriangle,
   Coffee,
   Users,
+  Mic,
+  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -313,6 +316,16 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
   const [noteText, setNoteText] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const { status: txStatus, transcript, startTranscription, stopTranscription, cancelTranscription, settings: txSettings, progress: txProgress } = useTranscription()
+
+  // Start client-side transcription when panel mounts (call answered)
+  useEffect(() => {
+    if (txSettings.enabled) {
+      startTranscription()
+    }
+    return () => { cancelTranscription() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleSaveNote() {
     if (!noteText.trim()) return
@@ -328,6 +341,28 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleHangup() {
+    // Finalize transcription and save as encrypted note
+    if (txSettings.enabled && (txStatus === 'capturing' || txStatus === 'finalizing')) {
+      try {
+        const text = await stopTranscription()
+        if (text.trim()) {
+          const adminPub = adminDecryptionPubkey || authorPubkey
+          const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(
+            { text: `[${t('transcription.title')}] ${text}` },
+            authorPubkey,
+            [adminPub],
+          )
+          await createNote({ callId: call.id, encryptedContent, authorEnvelope, adminEnvelopes })
+          toast(t('transcription.saved'), 'success')
+        }
+      } catch {
+        // Transcription failure shouldn't block hangup
+      }
+    }
+    onHangup()
   }
 
   return (
@@ -385,10 +420,43 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
           </div>
         </div>
 
+        {/* Client-side transcription indicator */}
+        {txSettings.enabled && txStatus !== 'idle' && (
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
+            {txStatus === 'loading' && (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">
+                  {txProgress?.progress != null
+                    ? t('transcription.downloadProgress', { progress: Math.round(txProgress.progress) })
+                    : t('transcription.loading')}
+                </span>
+              </>
+            )}
+            {txStatus === 'capturing' && (
+              <>
+                <Mic className="h-3.5 w-3.5 animate-pulse text-red-500" />
+                <span className="text-xs text-muted-foreground">{t('transcription.capturing')}</span>
+              </>
+            )}
+            {txStatus === 'finalizing' && (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">{t('transcription.finalizing')}</span>
+              </>
+            )}
+            {transcript && (
+              <span className="ml-2 max-w-[200px] truncate text-xs text-muted-foreground italic">
+                {transcript.slice(-80)}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Call actions */}
         <div className="flex flex-wrap gap-2 border-t border-border pt-4">
           <WebRtcCallControls />
-          <Button variant="destructive" onClick={onHangup}>
+          <Button variant="destructive" onClick={handleHangup}>
             <PhoneOff className="h-4 w-4" />
             {t('calls.hangUp')}
           </Button>
