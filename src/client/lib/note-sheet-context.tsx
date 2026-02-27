@@ -7,12 +7,14 @@ interface NoteSheetState {
   mode: 'new' | 'edit'
   editNoteId: string | null
   initialCallId: string
+  initialConversationId: string
   initialText: string
   initialFields?: FieldValues
 }
 
 interface NoteSheetContextValue extends NoteSheetState {
   openNewNote: (callId?: string) => void
+  openNewConversationNote: (conversationId: string) => void
   openEditNote: (noteId: string, callId: string, text: string, fields?: FieldValues) => void
   close: () => void
   onSaved: (() => void) | null
@@ -27,6 +29,7 @@ export function NoteSheetProvider({ children }: { children: ReactNode }) {
     mode: 'new',
     editNoteId: null,
     initialCallId: '',
+    initialConversationId: '',
     initialText: '',
   })
   const [onSaved, setOnSaved] = useState<(() => void) | null>(null)
@@ -37,6 +40,19 @@ export function NoteSheetProvider({ children }: { children: ReactNode }) {
       mode: 'new',
       editNoteId: null,
       initialCallId: callId || '',
+      initialConversationId: '',
+      initialText: '',
+      initialFields: undefined,
+    })
+  }, [])
+
+  const openNewConversationNote = useCallback((conversationId: string) => {
+    setState({
+      isOpen: true,
+      mode: 'new',
+      editNoteId: null,
+      initialCallId: '',
+      initialConversationId: conversationId,
       initialText: '',
       initialFields: undefined,
     })
@@ -48,6 +64,7 @@ export function NoteSheetProvider({ children }: { children: ReactNode }) {
       mode: 'edit',
       editNoteId: noteId,
       initialCallId: callId,
+      initialConversationId: '',
       initialText: text,
       initialFields: fields,
     })
@@ -58,7 +75,7 @@ export function NoteSheetProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <NoteSheetContext.Provider value={{ ...state, openNewNote, openEditNote, close, onSaved, setOnSaved }}>
+    <NoteSheetContext.Provider value={{ ...state, openNewNote, openNewConversationNote, openEditNote, close, onSaved, setOnSaved }}>
       {children}
     </NoteSheetContext.Provider>
   )

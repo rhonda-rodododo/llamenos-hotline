@@ -39,6 +39,7 @@ import {
   Search,
   HelpCircle,
   Megaphone,
+  Contact,
 } from 'lucide-react'
 
 export const Route = createRootRoute({
@@ -303,6 +304,9 @@ function AuthenticatedLayout() {
               <NavLink to="/shifts" icon={<Clock className="h-4 w-4" />}>{t('nav.shifts')}</NavLink>
               <NavLink to="/volunteers" icon={<Users className="h-4 w-4" />}>{t('nav.volunteers')}</NavLink>
               <NavLink to="/bans" icon={<ShieldBan className="h-4 w-4" />}>{t('nav.banList')}</NavLink>
+              {hasPermission('contacts:view') && (
+                <NavLink to="/contacts" icon={<Contact className="h-4 w-4" />}>{t('nav.contacts', { defaultValue: 'Contacts' })}</NavLink>
+              )}
               <NavLink to="/audit" icon={<ScrollText className="h-4 w-4" />}>{t('nav.auditLog')}</NavLink>
               <NavLink to="/admin/settings" icon={<Settings className="h-4 w-4" />}>{t('nav.hubSettings', { defaultValue: 'Hub Settings' })}</NavLink>
               {hasPermission('system:manage-hubs') && (

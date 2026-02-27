@@ -22,6 +22,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkDeviceRouteImport } from './routes/link-device'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ConversationsRouteImport } from './routes/conversations'
+import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as CallsRouteImport } from './routes/calls'
 import { Route as BlastsRouteImport } from './routes/blasts'
 import { Route as BansRouteImport } from './routes/bans'
@@ -96,6 +97,11 @@ const ConversationsRoute = ConversationsRouteImport.update({
   path: '/conversations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactsRoute = ContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CallsRoute = CallsRouteImport.update({
   id: '/calls',
   path: '/calls',
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/bans': typeof BansRoute
   '/blasts': typeof BlastsRoute
   '/calls': typeof CallsRoute
+  '/contacts': typeof ContactsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
@@ -166,6 +173,7 @@ export interface FileRoutesByTo {
   '/bans': typeof BansRoute
   '/blasts': typeof BlastsRoute
   '/calls': typeof CallsRoute
+  '/contacts': typeof ContactsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
@@ -190,6 +198,7 @@ export interface FileRoutesById {
   '/bans': typeof BansRoute
   '/blasts': typeof BlastsRoute
   '/calls': typeof CallsRoute
+  '/contacts': typeof ContactsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
@@ -215,6 +224,7 @@ export interface FileRouteTypes {
     | '/bans'
     | '/blasts'
     | '/calls'
+    | '/contacts'
     | '/conversations'
     | '/help'
     | '/link-device'
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/bans'
     | '/blasts'
     | '/calls'
+    | '/contacts'
     | '/conversations'
     | '/help'
     | '/link-device'
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/bans'
     | '/blasts'
     | '/calls'
+    | '/contacts'
     | '/conversations'
     | '/help'
     | '/link-device'
@@ -285,6 +297,7 @@ export interface RootRouteChildren {
   BansRoute: typeof BansRoute
   BlastsRoute: typeof BlastsRoute
   CallsRoute: typeof CallsRoute
+  ContactsRoute: typeof ContactsRoute
   ConversationsRoute: typeof ConversationsRoute
   HelpRoute: typeof HelpRoute
   LinkDeviceRoute: typeof LinkDeviceRoute
@@ -396,6 +409,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConversationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contacts': {
+      id: '/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof ContactsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/calls': {
       id: '/calls'
       path: '/calls'
@@ -461,6 +481,7 @@ const rootRouteChildren: RootRouteChildren = {
   BansRoute: BansRoute,
   BlastsRoute: BlastsRoute,
   CallsRoute: CallsRoute,
+  ContactsRoute: ContactsRoute,
   ConversationsRoute: ConversationsRoute,
   HelpRoute: HelpRoute,
   LinkDeviceRoute: LinkDeviceRoute,

@@ -2,14 +2,14 @@ import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { listNotes, createNote, updateNote, getCallHistory, listVolunteers, getCustomFields, type EncryptedNote, type CallRecord, type Volunteer } from '@/lib/api'
+import { listNotes, createNote, updateNote, listNoteReplies, createNoteReply, getCallHistory, listVolunteers, getCustomFields, type EncryptedNote, type CallRecord, type Volunteer, type ConversationMessage } from '@/lib/api'
 import type { CustomFieldDefinition } from '@shared/types'
 import { fieldMatchesContext } from '@shared/types'
-import { encryptNote, decryptNote, decryptLegacyNote, decryptTranscription, decryptCallRecord, encryptExport } from '@/lib/platform'
+import { encryptNote, encryptMessage, decryptNote, decryptLegacyNote, decryptTranscription, decryptCallRecord, encryptExport } from '@/lib/platform'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
 import type { NotePayload } from '@shared/types'
-import { StickyNote, Plus, Pencil, Lock, Mic, Save, X, Search, ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { StickyNote, Plus, Pencil, Lock, Mic, Save, X, Search, ChevronLeft, ChevronRight, Download, MessageCircle, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -17,7 +17,9 @@ import { Input } from '@/components/ui/input'
 import { NewNoteForm } from '@/components/notes/new-note-form'
 import { NoteEditForm } from '@/components/notes/note-edit-form'
 import { RecordingPlayer } from '@/components/recording-player'
+import { ConversationThread } from '@/components/ConversationThread'
 import { CustomFieldBadges } from '@/components/notes/custom-field-badges'
+import { Textarea } from '@/components/ui/textarea'
 
 type NotesSearch = { page: number; callId: string; search: string }
 
@@ -48,6 +50,11 @@ function NotesPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showNewNote, setShowNewNote] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [expandedThreadId, setExpandedThreadId] = useState<string | null>(null)
+  const [threadReplies, setThreadReplies] = useState<ConversationMessage[]>([])
+  const [threadLoading, setThreadLoading] = useState(false)
+  const [replyText, setReplyText] = useState('')
+  const [sendingReply, setSendingReply] = useState(false)
   const [recentCalls, setRecentCalls] = useState<CallRecord[]>([])
   const [searchInput, setSearchInput] = useState(search)
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([])
@@ -208,6 +215,51 @@ function NotesPage() {
   const visibleFields = customFields
     .filter(f => fieldMatchesContext(f, 'call-notes'))
     .filter(f => isAdmin || f.visibleToVolunteers)
+
+  async function handleExpandThread(noteId: string) {
+    if (expandedThreadId === noteId) {
+      setExpandedThreadId(null)
+      setThreadReplies([])
+      setReplyText('')
+      return
+    }
+    setExpandedThreadId(noteId)
+    setThreadLoading(true)
+    try {
+      const res = await listNoteReplies(noteId)
+      setThreadReplies(res.replies)
+    } catch {
+      toast(t('common.error'), 'error')
+    } finally {
+      setThreadLoading(false)
+    }
+  }
+
+  async function handleSendReply(noteId: string) {
+    if (!replyText.trim() || !hasNsec || !publicKey) return
+    setSendingReply(true)
+    try {
+      const readerPubkeys = [publicKey]
+      if (adminDecryptionPubkey && adminDecryptionPubkey !== publicKey) {
+        readerPubkeys.push(adminDecryptionPubkey)
+      }
+      const encrypted = await encryptMessage(replyText.trim(), readerPubkeys)
+      const res = await createNoteReply(noteId, {
+        encryptedContent: encrypted.encryptedContent,
+        readerEnvelopes: encrypted.readerEnvelopes,
+      })
+      setThreadReplies(prev => [...prev, res.reply])
+      setReplyText('')
+      // Update reply count in the note list
+      setNotes(prev => prev.map(n =>
+        n.id === noteId ? { ...n, replyCount: (n.replyCount || 0) + 1 } : n
+      ))
+    } catch {
+      toast(t('common.error'), 'error')
+    } finally {
+      setSendingReply(false)
+    }
+  }
 
   async function handleExport() {
     if (!hasNsec || !keyManager.isUnlocked()) return
@@ -380,6 +432,12 @@ function NotesPage() {
                               {t('transcription.title')}
                             </Badge>
                           )}
+                          {note.conversationId && (
+                            <Badge variant="outline" className="text-[10px]">
+                              <MessageCircle className="h-3 w-3" />
+                              {t('notes.conversationNote', { defaultValue: 'Conversation' })}
+                            </Badge>
+                          )}
                         </div>
                         {editingId === note.id ? (
                           <NoteEditForm
@@ -399,17 +457,68 @@ function NotesPage() {
                           </>
                         )}
                       </div>
-                      {editingId !== note.id && (
-                        <Button
-                          data-testid="note-edit-btn"
-                          variant="ghost" size="icon-xs"
-                          onClick={() => setEditingId(note.id)}
-                          aria-label={t('a11y.editItem')}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {editingId !== note.id && (
+                          <Button
+                            data-testid="note-edit-btn"
+                            variant="ghost" size="icon-xs"
+                            onClick={() => setEditingId(note.id)}
+                            aria-label={t('a11y.editItem')}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Reply count + expand thread */}
+                    <div className="mt-2 flex items-center gap-2">
+                      <Button
+                        variant="ghost" size="sm"
+                        className="text-xs text-muted-foreground"
+                        onClick={() => handleExpandThread(note.id)}
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                        {(note.replyCount || 0) > 0
+                          ? t('notes.repliesCount', { count: note.replyCount, defaultValue: '{{count}} replies' })
+                          : t('notes.reply', { defaultValue: 'Reply' })}
+                      </Button>
+                    </div>
+
+                    {/* Expanded thread */}
+                    {expandedThreadId === note.id && (
+                      <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
+                        <ConversationThread
+                          conversationId={note.id}
+                          messages={threadReplies}
+                          isLoading={threadLoading}
+                          compact
+                        />
+                        {/* Reply composer */}
+                        <div className="mt-3 flex gap-2">
+                          <Textarea
+                            value={replyText}
+                            onChange={e => setReplyText(e.target.value)}
+                            placeholder={t('notes.replyPlaceholder', { defaultValue: 'Write a reply...' })}
+                            rows={2}
+                            className="flex-1 resize-none text-sm"
+                            onKeyDown={e => {
+                              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                                e.preventDefault()
+                                handleSendReply(note.id)
+                              }
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            disabled={sendingReply || !replyText.trim()}
+                            onClick={() => handleSendReply(note.id)}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </CardContent>

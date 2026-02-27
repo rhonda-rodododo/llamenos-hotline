@@ -13,11 +13,12 @@ import {
 } from '@/lib/api'
 import { encryptMessage } from '@/lib/platform'
 import { useToast } from '@/lib/toast'
+import { useNoteSheet } from '@/lib/note-sheet-context'
 import { ConversationList } from '@/components/ConversationList'
 import { ConversationThread } from '@/components/ConversationThread'
 import { MessageComposer } from '@/components/MessageComposer'
 import { ChannelBadge } from '@/components/ChannelBadge'
-import { MessageSquare, X, UserCheck, Lock, UserCog } from 'lucide-react'
+import { MessageSquare, X, UserCheck, Lock, UserCog, StickyNote } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ReassignDialog } from '@/components/ReassignDialog'
@@ -37,6 +38,7 @@ function ConversationsPage() {
   const [messages, setMessages] = useState<ConversationMessage[]>([])
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [reassignOpen, setReassignOpen] = useState(false)
+  const { openNewConversationNote } = useNoteSheet()
 
   const selectedConv = conversations.find(c => c.id === selectedId)
 
@@ -192,6 +194,10 @@ function ConversationsPage() {
                     {t('conversations.reassign', { defaultValue: 'Reassign' })}
                   </Button>
                 )}
+                <Button size="sm" variant="outline" onClick={() => openNewConversationNote(selectedConv.id)}>
+                  <StickyNote className="h-3.5 w-3.5 mr-1" />
+                  {t('notes.addNote', { defaultValue: 'Add Note' })}
+                </Button>
                 {selectedConv.status === 'active' && (
                   <Button size="sm" variant="outline" onClick={() => handleClose(selectedConv.id)}>
                     <X className="h-3.5 w-3.5 mr-1" />

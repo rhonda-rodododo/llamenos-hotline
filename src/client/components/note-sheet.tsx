@@ -23,20 +23,21 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { Lock, Save, Clock } from 'lucide-react'
+import { Lock, Save, Clock, MessageSquare } from 'lucide-react'
 import { CustomFieldInputs, validateCustomFields } from '@/components/notes/custom-field-inputs'
 
 export function NoteSheet() {
   const { t } = useTranslation()
   const { hasNsec, publicKey, isAdmin, adminDecryptionPubkey } = useAuth()
-  const { isOpen, mode, editNoteId, initialCallId, initialText, initialFields, close, onSaved } = useNoteSheet()
+  const { isOpen, mode, editNoteId, initialCallId, initialConversationId, initialText, initialFields, close, onSaved } = useNoteSheet()
   const { toast } = useToast()
   const [saving, setSaving] = useState(false)
   const [recentCalls, setRecentCalls] = useState<CallRecord[]>([])
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([])
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
-  const draftKey = mode === 'edit' && editNoteId ? `edit:${editNoteId}` : 'new'
+  const isConversationNote = !!initialConversationId
+  const draftKey = mode === 'edit' && editNoteId ? `edit:${editNoteId}` : isConversationNote ? `conv:${initialConversationId}` : 'new'
   const draft = useDraft(draftKey)
 
   // Seed draft from initial values when sheet opens
@@ -62,14 +63,15 @@ export function NoteSheet() {
   useEffect(() => {
     if (!isOpen) return
     getCustomFields().then(r => setCustomFields(r.fields)).catch(() => {})
-    if (isAdmin) {
+    if (isAdmin && !isConversationNote) {
       getCallHistory({ limit: 20 }).then(r => setRecentCalls(r.calls)).catch(() => {})
     }
-  }, [isAdmin, isOpen])
+  }, [isAdmin, isOpen, isConversationNote])
 
   async function handleSave() {
     if (!hasNsec || !publicKey || !draft.text.trim()) return
-    if (mode === 'new' && !draft.callId.trim()) return
+    // For new notes: require either callId or conversationId
+    if (mode === 'new' && !isConversationNote && !draft.callId.trim()) return
 
     // Validate custom fields
     const errors = validateCustomFields(visibleFields, draft.fields, t, { isAdmin })
@@ -91,6 +93,8 @@ export function NoteSheet() {
 
       if (mode === 'edit' && editNoteId) {
         await updateNote(editNoteId, { encryptedContent, authorEnvelope, adminEnvelopes })
+      } else if (isConversationNote) {
+        await createNote({ conversationId: initialConversationId, encryptedContent, authorEnvelope, adminEnvelopes })
       } else {
         await createNote({ callId: draft.callId, encryptedContent, authorEnvelope, adminEnvelopes })
       }
@@ -115,16 +119,23 @@ export function NoteSheet() {
   const modKey = isMac ? '\u2318' : 'Ctrl'
 
   // Filter fields: context match + role visibility
+  const fieldContext = isConversationNote ? 'conversation-notes' as const : 'call-notes' as const
   const visibleFields = customFields
-    .filter(f => fieldMatchesContext(f, 'call-notes'))
+    .filter(f => fieldMatchesContext(f, fieldContext))
     .filter(f => isAdmin || f.visibleToVolunteers)
+
+  const canSave = saving || !draft.text.trim() || (mode === 'new' && !isConversationNote && !draft.callId.trim())
 
   return (
     <Sheet open={isOpen} onOpenChange={open => { if (!open) close() }}>
       <SheetContent side="right" className="sm:max-w-[480px] flex flex-col" onKeyDown={handleKeyDown}>
         <SheetHeader>
           <SheetTitle>
-            {mode === 'edit' ? t('notes.editNote') : t('notes.newNote')}
+            {mode === 'edit'
+              ? t('notes.editNote')
+              : isConversationNote
+                ? t('notes.newConversationNote', { defaultValue: 'New Conversation Note' })
+                : t('notes.newNote')}
           </SheetTitle>
           <SheetDescription className="flex items-center gap-1">
             <Lock className="h-3 w-3" />
@@ -133,44 +144,55 @@ export function NoteSheet() {
         </SheetHeader>
 
         <div className="flex-1 space-y-4 px-4 overflow-y-auto">
-          {/* Call ID field */}
-          <div className="space-y-2">
-            <Label htmlFor="sheet-call-id">{t('notes.callId')}</Label>
-            {initialCallId && mode === 'new' ? (
-              <Badge variant="secondary" className="text-sm">{initialCallId.slice(0, 24)}</Badge>
-            ) : recentCalls.length > 0 ? (
-              <Select
-                value={draft.callId || undefined}
-                onValueChange={(v) => {
-                  if (v === '__manual') {
-                    draft.setCallId('')
-                  } else {
-                    draft.setCallId(v)
-                  }
-                }}
-              >
-                <SelectTrigger id="sheet-call-id">
-                  <SelectValue placeholder={t('notes.selectCall')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {recentCalls.map(call => (
-                    <SelectItem key={call.id} value={call.id}>
-                      {call.callerNumber} — {new Date(call.startedAt).toLocaleString()}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="__manual">{t('notes.enterManually')}</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                id="sheet-call-id"
-                value={draft.callId}
-                onChange={e => draft.setCallId(e.target.value)}
-                placeholder={t('notes.callIdPlaceholder')}
-                disabled={mode === 'edit'}
-              />
-            )}
-          </div>
+          {/* Conversation note indicator */}
+          {isConversationNote ? (
+            <div className="space-y-2">
+              <Label>{t('notes.linkedTo', { defaultValue: 'Linked to' })}</Label>
+              <Badge variant="secondary" className="text-sm">
+                <MessageSquare className="h-3 w-3" />
+                {t('notes.conversationNote', { defaultValue: 'Conversation' })} {initialConversationId.slice(0, 12)}...
+              </Badge>
+            </div>
+          ) : (
+            /* Call ID field */
+            <div className="space-y-2">
+              <Label htmlFor="sheet-call-id">{t('notes.callId')}</Label>
+              {initialCallId && mode === 'new' ? (
+                <Badge variant="secondary" className="text-sm">{initialCallId.slice(0, 24)}</Badge>
+              ) : recentCalls.length > 0 ? (
+                <Select
+                  value={draft.callId || undefined}
+                  onValueChange={(v) => {
+                    if (v === '__manual') {
+                      draft.setCallId('')
+                    } else {
+                      draft.setCallId(v)
+                    }
+                  }}
+                >
+                  <SelectTrigger id="sheet-call-id">
+                    <SelectValue placeholder={t('notes.selectCall')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {recentCalls.map(call => (
+                      <SelectItem key={call.id} value={call.id}>
+                        {call.callerNumber} — {new Date(call.startedAt).toLocaleString()}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__manual">{t('notes.enterManually')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="sheet-call-id"
+                  value={draft.callId}
+                  onChange={e => draft.setCallId(e.target.value)}
+                  placeholder={t('notes.callIdPlaceholder')}
+                  disabled={mode === 'edit'}
+                />
+              )}
+            </div>
+          )}
 
           {/* Custom fields */}
           <CustomFieldInputs
@@ -211,7 +233,7 @@ export function NoteSheet() {
 
         <SheetFooter className="border-t border-border">
           <div className="flex items-center gap-2 w-full">
-            <Button onClick={handleSave} disabled={saving || !draft.text.trim() || (!draft.callId.trim() && mode === 'new')}>
+            <Button onClick={handleSave} disabled={canSave}>
               <Save className="h-4 w-4" />
               {saving ? t('common.loading') : t('common.save')}
             </Button>
