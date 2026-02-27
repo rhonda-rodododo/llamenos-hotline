@@ -7,6 +7,7 @@
 #   - Exposes app port 3000 directly (bypasses Caddy)
 #   - Sets ENVIRONMENT=development (enables /api/test-reset endpoint)
 #   - Disables read_only to allow SQLite WAL files in tmpfs
+#   - Makes strfry dependency optional (app falls back to NoopNostrPublisher)
 
 services:
   app:
@@ -15,3 +16,11 @@ services:
     read_only: false
     environment:
       - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      strfry:
+        condition: service_started
+        required: false
