@@ -61,7 +61,7 @@ api.get('/messaging/preferences', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
   const dos = getDOs(c.env)
-  const res = await dos.conversations.fetch(new Request('http://do/subscribers/validate-token', {
+  const res = await dos.blasts.fetch(new Request('http://do/subscribers/validate-token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
@@ -74,7 +74,7 @@ api.patch('/messaging/preferences', async (c) => {
   if (!token) return c.json({ error: 'Token required' }, 400)
   const dos = getDOs(c.env)
   const body = await c.req.text()
-  const res = await dos.conversations.fetch(new Request('http://do/subscribers/update-preferences', {
+  const res = await dos.blasts.fetch(new Request('http://do/subscribers/update-preferences', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, ...JSON.parse(body) }),

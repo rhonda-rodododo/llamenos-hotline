@@ -47,6 +47,7 @@ export async function createNodeEnv(): Promise<Record<string, unknown>> {
   const { ShiftManagerDO } = await import('../../worker/durable-objects/shift-manager')
   const { CallRouterDO } = await import('../../worker/durable-objects/call-router')
   const { ConversationDO } = await import('../../worker/durable-objects/conversation-do')
+  const { BlastDO } = await import('../../worker/durable-objects/blast-do')
 
   // Read secrets
   const adminPubkey = readSecret('admin-pubkey', 'ADMIN_PUBKEY')
@@ -85,6 +86,7 @@ export async function createNodeEnv(): Promise<Record<string, unknown>> {
   env.SHIFT_MANAGER = createDONamespace(ShiftManagerDO as any, 'shifts', env)
   env.CALL_ROUTER = createDONamespace(CallRouterDO as any, 'calls', env)
   env.CONVERSATION_DO = createDONamespace(ConversationDO as any, 'conversations', env)
+  env.BLAST_DO = createDONamespace(BlastDO as any, 'blasts', env)
 
   // Run migrations for all existing namespaces before accepting traffic
   await runStartupMigrations()

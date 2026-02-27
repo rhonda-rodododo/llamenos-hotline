@@ -140,7 +140,7 @@ messaging.post('/:channel/webhook', async (c) => {
     const normalizedBody = incoming.body.trim().toUpperCase()
     // STOP is always recognized (TCPA compliance)
     if (normalizedBody === 'STOP') {
-      await dos.conversations.fetch(new Request('http://do/subscribers/keyword', {
+      await dos.blasts.fetch(new Request('http://do/subscribers/keyword', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -154,11 +154,11 @@ messaging.post('/:channel/webhook', async (c) => {
     } else {
       // Check if it matches the subscribe keyword
       try {
-        const settingsRes = await dos.conversations.fetch(new Request('http://do/blast-settings'))
+        const settingsRes = await dos.blasts.fetch(new Request('http://do/blast-settings'))
         if (settingsRes.ok) {
           const settings = await settingsRes.json() as { subscribeKeyword: string }
           if (normalizedBody === settings.subscribeKeyword.toUpperCase()) {
-            await dos.conversations.fetch(new Request('http://do/subscribers/keyword', {
+            await dos.blasts.fetch(new Request('http://do/subscribers/keyword', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
