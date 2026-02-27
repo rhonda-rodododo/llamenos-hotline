@@ -14,14 +14,17 @@
 
 import { test, expect } from '@playwright/test'
 import { readFileSync, existsSync } from 'fs'
-import { resolve } from 'path'
-import { sha256 } from '@noble/hashes/sha256.js'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import { sha256 } from '@noble/hashes/sha2.js'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js'
-import { secp256k1 } from '@noble/curves/secp256k1.js'
+import { secp256k1, schnorr } from '@noble/curves/secp256k1.js'
 import { hkdf } from '@noble/hashes/hkdf.js'
 import * as labels from '../src/shared/crypto-labels'
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 const VECTORS_PATH = resolve(__dirname, '../../llamenos-core/tests/fixtures/test-vectors.json')
 
 // Skip if test vectors haven't been generated yet
@@ -68,8 +71,8 @@ test.describe('Cross-platform crypto interop', () => {
     const secretKeyHex = vectors.keys.secretKeyHex
     const expectedPubkey = vectors.keys.publicKeyHex
 
-    // Derive x-only pubkey (BIP-340 style)
-    const fullPubkey = secp256k1.getPublicKey(secretKeyHex, true) // compressed
+    // Derive x-only pubkey (BIP-340 style) — v2 requires Uint8Array input
+    const fullPubkey = secp256k1.getPublicKey(hexToBytes(secretKeyHex), true) // compressed
     // x-only = drop the 02/03 prefix
     const xOnlyHex = bytesToHex(fullPubkey.slice(1))
 
@@ -80,122 +83,53 @@ test.describe('Cross-platform crypto interop', () => {
     const secretKeyHex = vectors.keys.adminSecretKeyHex
     const expectedPubkey = vectors.keys.adminPublicKeyHex
 
-    const fullPubkey = secp256k1.getPublicKey(secretKeyHex, true)
+    const fullPubkey = secp256k1.getPublicKey(hexToBytes(secretKeyHex), true)
     const xOnlyHex = bytesToHex(fullPubkey.slice(1))
 
     expect(xOnlyHex).toBe(expectedPubkey)
   })
 
   test('JS can unwrap ECIES envelope produced by Rust', () => {
-    const { envelope, originalKeyHex, label, recipientPubkeyHex } = vectors.ecies
+    const { envelope, originalKeyHex, label } = vectors.ecies
     const adminSecretKey = vectors.keys.adminSecretKeyHex
 
-    // Parse the wrapped key: nonce(24) + ciphertext(48)
-    const wrappedBytes = hexToBytes(envelope.wrappedKey)
-    const nonce = wrappedBytes.slice(0, 24)
-    const ciphertext = wrappedBytes.slice(24)
-
-    // Parse ephemeral pubkey (compressed 33 bytes)
-    const ephPubkeyBytes = hexToBytes(envelope.ephemeralPubkey)
-
-    // ECDH: recipientSecret * ephemeralPub → shared point
-    const secretKeyBytes = hexToBytes(adminSecretKey)
-    const sharedPoint = secp256k1.getSharedSecret(secretKeyBytes, ephPubkeyBytes)
-    const sharedX = sharedPoint.slice(1, 33) // x-coordinate only
-
-    // Derive symmetric key: SHA-256(label || sharedX)
-    const keyMaterial = new Uint8Array([...utf8ToBytes(label), ...sharedX])
-    const symmetricKey = sha256(keyMaterial)
-
-    // Decrypt with XChaCha20-Poly1305
-    const cipher = xchacha20poly1305(symmetricKey, nonce)
-    const decrypted = cipher.decrypt(ciphertext)
-
+    const decrypted = eciesUnwrap(envelope, adminSecretKey, label)
     expect(bytesToHex(decrypted)).toBe(originalKeyHex)
   })
 
   test('JS can decrypt note produced by Rust (author key)', () => {
-    const { encrypted, plaintext_json: plaintextJson } = vectors.noteEncryption
+    const { encrypted, plaintextJson } = vectors.noteEncryption
     const authorSecretKey = vectors.keys.secretKeyHex
 
-    // Unwrap the note key from author envelope
-    const wrappedBytes = hexToBytes(encrypted.authorEnvelope.wrappedKey)
-    const nonce = wrappedBytes.slice(0, 24)
-    const envelopeCiphertext = wrappedBytes.slice(24)
-    const ephPubkey = hexToBytes(encrypted.authorEnvelope.ephemeralPubkey)
-
-    // ECDH
-    const sharedPoint = secp256k1.getSharedSecret(hexToBytes(authorSecretKey), ephPubkey)
-    const sharedX = sharedPoint.slice(1, 33)
-
-    // Derive unwrap key
-    const keyMaterial = new Uint8Array([...utf8ToBytes(labels.LABEL_NOTE_KEY), ...sharedX])
-    const unwrapKey = sha256(keyMaterial)
-
-    // Unwrap note key
-    const unwrapCipher = xchacha20poly1305(unwrapKey, nonce)
-    const noteKey = unwrapCipher.decrypt(envelopeCiphertext)
-
-    // Decrypt note content
-    const contentBytes = hexToBytes(encrypted.encryptedContent)
-    const contentNonce = contentBytes.slice(0, 24)
-    const contentCiphertext = contentBytes.slice(24)
-
-    const contentCipher = xchacha20poly1305(noteKey, contentNonce)
-    const plaintext = contentCipher.decrypt(contentCiphertext)
-    const decoded = new TextDecoder().decode(plaintext)
-
+    const noteKey = eciesUnwrap(encrypted.authorEnvelope, authorSecretKey, labels.LABEL_NOTE_KEY)
+    const decoded = decryptContent(encrypted.encryptedContent, noteKey)
     expect(decoded).toBe(plaintextJson)
   })
 
   test('JS can decrypt note produced by Rust (admin key)', () => {
-    const { encrypted, plaintext_json: plaintextJson } = vectors.noteEncryption
+    const { encrypted, plaintextJson } = vectors.noteEncryption
     const adminSecretKey = vectors.keys.adminSecretKeyHex
     const adminPubkey = vectors.keys.adminPublicKeyHex
 
-    // Find admin's envelope
     const adminEnvelope = encrypted.adminEnvelopes.find(
       (e: { pubkey: string }) => e.pubkey === adminPubkey,
     )
     expect(adminEnvelope).toBeDefined()
 
-    // Unwrap the note key
-    const wrappedBytes = hexToBytes(adminEnvelope.wrappedKey)
-    const nonce = wrappedBytes.slice(0, 24)
-    const envelopeCiphertext = wrappedBytes.slice(24)
-    const ephPubkey = hexToBytes(adminEnvelope.ephemeralPubkey)
-
-    const sharedPoint = secp256k1.getSharedSecret(hexToBytes(adminSecretKey), ephPubkey)
-    const sharedX = sharedPoint.slice(1, 33)
-
-    const keyMaterial = new Uint8Array([...utf8ToBytes(labels.LABEL_NOTE_KEY), ...sharedX])
-    const unwrapKey = sha256(keyMaterial)
-
-    const unwrapCipher = xchacha20poly1305(unwrapKey, nonce)
-    const noteKey = unwrapCipher.decrypt(envelopeCiphertext)
-
-    // Decrypt note content
-    const contentBytes = hexToBytes(encrypted.encryptedContent)
-    const contentNonce = contentBytes.slice(0, 24)
-    const contentCiphertext = contentBytes.slice(24)
-
-    const contentCipher = xchacha20poly1305(noteKey, contentNonce)
-    const plaintext = contentCipher.decrypt(contentCiphertext)
-    const decoded = new TextDecoder().decode(plaintext)
-
+    const noteKey = eciesUnwrap(adminEnvelope, adminSecretKey, labels.LABEL_NOTE_KEY)
+    const decoded = decryptContent(encrypted.encryptedContent, noteKey)
     expect(decoded).toBe(plaintextJson)
   })
 
   test('JS can verify auth token produced by Rust', () => {
     const { token, method, path } = vectors.auth
-    const { schnorr } = secp256k1
 
     // Reconstruct the message
     const message = `${labels.AUTH_PREFIX}${token.pubkey}:${token.timestamp}:${method}:${path}`
     const messageHash = sha256(utf8ToBytes(message))
 
-    // Verify Schnorr signature
-    const valid = schnorr.verify(token.token, messageHash, token.pubkey)
+    // Verify Schnorr signature — v2: schnorr is a separate named export
+    const valid = schnorr.verify(hexToBytes(token.token), messageHash, hexToBytes(token.pubkey))
     expect(valid).toBe(true)
   })
 
@@ -203,7 +137,8 @@ test.describe('Cross-platform crypto interop', () => {
     const { encryptedHex, secretKeyHex, plaintext } = vectors.draftEncryption
 
     // Draft encryption uses HKDF-derived key from the secret key
-    const hkdfKey = hkdf(sha256, hexToBytes(secretKeyHex), labels.HKDF_SALT, labels.HKDF_CONTEXT_DRAFTS, 32)
+    // v2: HKDF requires Uint8Array for salt and info
+    const hkdfKey = hkdf(sha256, hexToBytes(secretKeyHex), utf8ToBytes(labels.HKDF_SALT), utf8ToBytes(labels.HKDF_CONTEXT_DRAFTS), 32)
 
     // Parse: nonce(24) + ciphertext
     const packed = hexToBytes(encryptedHex)
@@ -228,4 +163,251 @@ test.describe('Cross-platform crypto interop', () => {
     expect(encrypted.pubkey).toBeTruthy()
     expect(pin).toBe('1234')
   })
+
+  // ─── v2 Tests ──────────────────────────────────────────────
+
+  test('JS can decrypt message produced by Rust (volunteer)', () => {
+    const { encrypted, plaintext } = vectors.messageEncryption
+    const volSecretKey = vectors.keys.secretKeyHex
+    const volPubkey = vectors.keys.publicKeyHex
+
+    // Find volunteer's envelope
+    const volEnvelope = encrypted.readerEnvelopes.find(
+      (e: { pubkey: string }) => e.pubkey === volPubkey,
+    )
+    expect(volEnvelope).toBeDefined()
+
+    // Unwrap message key via ECIES with LABEL_MESSAGE
+    const noteKey = eciesUnwrap(volEnvelope, volSecretKey, labels.LABEL_MESSAGE)
+
+    // Decrypt content
+    const decoded = decryptContent(encrypted.encryptedContent, noteKey)
+    expect(decoded).toBe(plaintext)
+  })
+
+  test('JS can decrypt message produced by Rust (admin)', () => {
+    const { encrypted, plaintext } = vectors.messageEncryption
+    const adminSecretKey = vectors.keys.adminSecretKeyHex
+    const adminPubkey = vectors.keys.adminPublicKeyHex
+
+    const adminEnvelope = encrypted.readerEnvelopes.find(
+      (e: { pubkey: string }) => e.pubkey === adminPubkey,
+    )
+    expect(adminEnvelope).toBeDefined()
+
+    const msgKey = eciesUnwrap(adminEnvelope, adminSecretKey, labels.LABEL_MESSAGE)
+    const decoded = decryptContent(encrypted.encryptedContent, msgKey)
+    expect(decoded).toBe(plaintext)
+  })
+
+  test('JS can unwrap hub key produced by Rust', () => {
+    const { hubKeyHex, wrappedEnvelopes, label } = vectors.hubKey
+    const volSecretKey = vectors.keys.secretKeyHex
+
+    // Unwrap first envelope (volunteer)
+    const unwrapped = eciesUnwrap(wrappedEnvelopes[0], volSecretKey, label)
+    expect(bytesToHex(unwrapped)).toBe(hubKeyHex)
+
+    // Unwrap second envelope (admin)
+    const adminUnwrapped = eciesUnwrap(
+      wrappedEnvelopes[1],
+      vectors.keys.adminSecretKeyHex,
+      label,
+    )
+    expect(bytesToHex(adminUnwrapped)).toBe(hubKeyHex)
+  })
+
+  test('JS can verify Nostr event produced by Rust', () => {
+    const { event, canonicalJson } = vectors.nostrEvent
+
+    // Recompute event ID from canonical JSON
+    const computedId = bytesToHex(sha256(utf8ToBytes(canonicalJson)))
+    expect(computedId).toBe(event.id)
+
+    // Verify BIP-340 Schnorr signature over the event ID
+    const idHash = hexToBytes(event.id)
+    const valid = schnorr.verify(hexToBytes(event.sig), idHash, hexToBytes(event.pubkey))
+    expect(valid).toBe(true)
+
+    // Verify canonical JSON structure matches NIP-01
+    const parsed = JSON.parse(canonicalJson)
+    expect(parsed[0]).toBe(0)
+    expect(parsed[1]).toBe(event.pubkey)
+    expect(parsed[2]).toBe(event.createdAt)
+    expect(parsed[3]).toBe(event.kind)
+  })
+
+  test('JS can decrypt export produced by Rust', () => {
+    const { encryptedBase64, secretKeyHex, plaintextJson } = vectors.exportEncryption
+
+    // Derive key using HKDF with HKDF_CONTEXT_EXPORT
+    // v2: HKDF requires Uint8Array for salt and info
+    const exportKey = hkdf(
+      sha256,
+      hexToBytes(secretKeyHex),
+      utf8ToBytes(labels.HKDF_SALT),
+      utf8ToBytes(labels.HKDF_CONTEXT_EXPORT),
+      32,
+    )
+
+    // Decode base64 → nonce(24) + ciphertext
+    const packed = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0))
+    const nonce = packed.slice(0, 24)
+    const ciphertext = packed.slice(24)
+
+    const cipher = xchacha20poly1305(exportKey, nonce)
+    const decrypted = cipher.decrypt(ciphertext)
+    const decoded = new TextDecoder().decode(decrypted)
+
+    expect(decoded).toBe(plaintextJson)
+  })
+
+  test('JS can decrypt call record produced by Rust (admin)', () => {
+    const { encryptedContent, adminEnvelopes, plaintextJson } = vectors.callRecord
+    const adminSecretKey = vectors.keys.adminSecretKeyHex
+    const adminPubkey = vectors.keys.adminPublicKeyHex
+
+    const adminEnvelope = adminEnvelopes.find(
+      (e: { pubkey: string }) => e.pubkey === adminPubkey,
+    )
+    expect(adminEnvelope).toBeDefined()
+
+    // Unwrap with LABEL_CALL_META (not LABEL_MESSAGE)
+    const recordKey = eciesUnwrap(adminEnvelope, adminSecretKey, labels.LABEL_CALL_META)
+    const decoded = decryptContent(encryptedContent, recordKey)
+    expect(decoded).toBe(plaintextJson)
+  })
+
+  test('Domain separation prevents cross-label unwrap', () => {
+    const { wrappedWithNoteLabel, wrappedWithMessageLabel, wrappedWithHubLabel } =
+      vectors.domainSeparation
+    const adminSecretKey = vectors.keys.adminSecretKeyHex
+
+    // Same-label unwrap succeeds
+    expect(() => eciesUnwrap(wrappedWithNoteLabel, adminSecretKey, labels.LABEL_NOTE_KEY)).not.toThrow()
+    expect(() => eciesUnwrap(wrappedWithMessageLabel, adminSecretKey, labels.LABEL_MESSAGE)).not.toThrow()
+    expect(() => eciesUnwrap(wrappedWithHubLabel, adminSecretKey, labels.LABEL_HUB_KEY_WRAP)).not.toThrow()
+
+    // Cross-label unwrap fails (auth tag verification failure)
+    expect(() => eciesUnwrap(wrappedWithNoteLabel, adminSecretKey, labels.LABEL_MESSAGE)).toThrow()
+    expect(() => eciesUnwrap(wrappedWithMessageLabel, adminSecretKey, labels.LABEL_NOTE_KEY)).toThrow()
+    expect(() => eciesUnwrap(wrappedWithHubLabel, adminSecretKey, labels.LABEL_NOTE_KEY)).toThrow()
+  })
+
+  // ─── Adversarial Tests ─────────────────────────────────────
+
+  test('ECIES unwrap with tampered ciphertext throws', () => {
+    const { tamperedWrappedKey, validEnvelope, validLabel } = vectors.adversarial.ecies
+    const adminSecretKey = vectors.keys.adminSecretKeyHex
+
+    const tamperedEnvelope = {
+      wrappedKey: tamperedWrappedKey,
+      ephemeralPubkey: validEnvelope.ephemeralPubkey,
+    }
+    expect(() => eciesUnwrap(tamperedEnvelope, adminSecretKey, validLabel)).toThrow()
+  })
+
+  test('ECIES unwrap with truncated data throws', () => {
+    const { truncatedWrappedKey, validEnvelope, validLabel } = vectors.adversarial.ecies
+    const adminSecretKey = vectors.keys.adminSecretKeyHex
+
+    const truncatedEnvelope = {
+      wrappedKey: truncatedWrappedKey,
+      ephemeralPubkey: validEnvelope.ephemeralPubkey,
+    }
+    expect(() => eciesUnwrap(truncatedEnvelope, adminSecretKey, validLabel)).toThrow()
+  })
+
+  test('ECIES unwrap with wrong key throws', () => {
+    const { validEnvelope, validLabel } = vectors.adversarial.ecies
+    const wrongSecretKey = vectors.keys.wrongSecretKeyHex
+
+    expect(() => eciesUnwrap(validEnvelope, wrongSecretKey, validLabel)).toThrow()
+  })
+
+  test('Note decrypt with tampered content throws', () => {
+    const { validEncrypted, tamperedContent } = vectors.adversarial.note
+    const authorSecretKey = vectors.keys.secretKeyHex
+
+    // Unwrap the note key (should succeed)
+    const noteKey = eciesUnwrap(
+      validEncrypted.authorEnvelope,
+      authorSecretKey,
+      labels.LABEL_NOTE_KEY,
+    )
+
+    // Decrypt tampered content (should fail)
+    const contentBytes = hexToBytes(tamperedContent)
+    const contentNonce = contentBytes.slice(0, 24)
+    const contentCiphertext = contentBytes.slice(24)
+
+    expect(() => {
+      const cipher = xchacha20poly1305(noteKey, contentNonce)
+      cipher.decrypt(contentCiphertext)
+    }).toThrow()
+  })
+
+  test('Auth token with wrong method fails verification', () => {
+    const { validToken, validPath, wrongMethod } = vectors.adversarial.auth
+
+    const message = `${labels.AUTH_PREFIX}${validToken.pubkey}:${validToken.timestamp}:${wrongMethod}:${validPath}`
+    const messageHash = sha256(utf8ToBytes(message))
+    const valid = schnorr.verify(hexToBytes(validToken.token), messageHash, hexToBytes(validToken.pubkey))
+    expect(valid).toBe(false)
+  })
+
+  test('Auth token with wrong path fails verification', () => {
+    const { validToken, validMethod, wrongPath } = vectors.adversarial.auth
+
+    const message = `${labels.AUTH_PREFIX}${validToken.pubkey}:${validToken.timestamp}:${validMethod}:${wrongPath}`
+    const messageHash = sha256(utf8ToBytes(message))
+    const valid = schnorr.verify(hexToBytes(validToken.token), messageHash, hexToBytes(validToken.pubkey))
+    expect(valid).toBe(false)
+  })
+
+  test('Message decrypt with wrong reader key fails', () => {
+    const { validEncrypted } = vectors.adversarial.message
+    const wrongSecretKey = vectors.keys.wrongSecretKeyHex
+    const wrongPubkey = vectors.keys.wrongPublicKeyHex
+
+    // Wrong key won't be found in envelopes
+    const wrongEnvelope = validEncrypted.readerEnvelopes.find(
+      (e: { pubkey: string }) => e.pubkey === wrongPubkey,
+    )
+    expect(wrongEnvelope).toBeUndefined()
+  })
 })
+
+// ─── Helpers ─────────────────────────────────────────────────
+
+/** ECIES unwrap: ECDH → SHA-256(label || sharedX) → XChaCha20-Poly1305 */
+function eciesUnwrap(
+  envelope: { wrappedKey: string; ephemeralPubkey: string },
+  secretKeyHex: string,
+  label: string,
+): Uint8Array {
+  const wrappedBytes = hexToBytes(envelope.wrappedKey)
+  const nonce = wrappedBytes.slice(0, 24)
+  const ciphertext = wrappedBytes.slice(24)
+  const ephPubkey = hexToBytes(envelope.ephemeralPubkey)
+
+  const sharedPoint = secp256k1.getSharedSecret(hexToBytes(secretKeyHex), ephPubkey)
+  const sharedX = sharedPoint.slice(1, 33)
+
+  const keyMaterial = new Uint8Array([...utf8ToBytes(label), ...sharedX])
+  const symmetricKey = sha256(keyMaterial)
+
+  const cipher = xchacha20poly1305(symmetricKey, nonce)
+  return cipher.decrypt(ciphertext)
+}
+
+/** Decrypt hex(nonce24 + ciphertext) with a symmetric key */
+function decryptContent(encryptedContentHex: string, key: Uint8Array): string {
+  const contentBytes = hexToBytes(encryptedContentHex)
+  const nonce = contentBytes.slice(0, 24)
+  const ciphertext = contentBytes.slice(24)
+
+  const cipher = xchacha20poly1305(key, nonce)
+  const plaintext = cipher.decrypt(ciphertext)
+  return new TextDecoder().decode(plaintext)
+}
