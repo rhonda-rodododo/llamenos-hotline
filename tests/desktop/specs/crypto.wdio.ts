@@ -46,13 +46,11 @@ describe('Native Crypto IPC', () => {
       }
     })
 
-    expect(result.success).withContext(JSON.stringify(result)).toBe(true)
-    if (result.success) {
-      expect(result.hasPublicKey).toBe(true)
-      expect(result.hasNsec).toBe(true)
-      expect(result.hasNpub).toBe(true)
-      expect(result.hasSecretKeyHex).toBe(true)
-    }
+    if (!result.success) throw new Error(`IPC failed: ${(result as any).error}`)
+    expect(result.hasPublicKey).toBe(true)
+    expect(result.hasNsec).toBe(true)
+    expect(result.hasNpub).toBe(true)
+    expect(result.hasSecretKeyHex).toBe(true)
   })
 
   it('should validate nsec format', async () => {
@@ -72,11 +70,9 @@ describe('Native Crypto IPC', () => {
       }
     })
 
-    expect(result.success).withContext(JSON.stringify(result)).toBe(true)
-    if (result.success) {
-      expect(result.valid).toBe(true)
-      expect(result.invalid).toBe(false)
-    }
+    if (!result.success) throw new Error(`IPC failed: ${(result as any).error}`)
+    expect(result.valid).toBe(true)
+    expect(result.invalid).toBe(false)
   })
 
   it('should derive public key from secret key', async () => {
@@ -102,11 +98,9 @@ describe('Native Crypto IPC', () => {
       }
     })
 
-    expect(result.success).withContext(JSON.stringify(result)).toBe(true)
-    if (result.success) {
-      expect(result.pubkeyMatch).toBe(true)
-      expect(result.pubkeyLength).toBe(64)
-    }
+    if (!result.success) throw new Error(`IPC failed: ${(result as any).error}`)
+    expect(result.pubkeyMatch).toBe(true)
+    expect(result.pubkeyLength).toBe(64)
   })
 
   it('should encrypt and decrypt with PIN', async () => {
@@ -140,9 +134,7 @@ describe('Native Crypto IPC', () => {
       }
     })
 
-    expect(result.success).withContext(JSON.stringify(result)).toBe(true)
-    if (result.success) {
-      expect(result.roundTrip).toBe(true)
-    }
+    if (!result.success) throw new Error(`IPC failed: ${(result as any).error}`)
+    expect(result.roundTrip).toBe(true)
   })
 })
