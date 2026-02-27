@@ -1,16 +1,16 @@
 ---
 title: "Configuration : Signal"
-description: Configurez le canal de messagerie Signal via le bridge signal-cli pour une messagerie axee sur la confidentialite.
+description: Configurez le canal de messagerie Signal via le bridge signal-cli pour une messagerie axée sur la confidentialité.
 ---
 
-Llamenos prend en charge la messagerie Signal via un bridge [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) auto-heberge. Signal offre les garanties de confidentialite les plus fortes parmi tous les canaux de messagerie, ce qui le rend ideal pour les scenarios de reponse aux crises sensibles.
+Llamenos prend en charge la messagerie Signal via un bridge [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) auto-hébergé. Signal offre les garanties de confidentialité les plus fortes parmi tous les canaux de messagerie, ce qui le rend idéal pour les scénarios de réponse aux crises sensibles.
 
-## Prerequis
+## Prérequis
 
-- Un serveur Linux ou une VM pour le bridge (peut etre le meme serveur qu'Asterisk, ou separe)
-- Docker installe sur le serveur du bridge
-- Un numero de telephone dedie pour l'enregistrement Signal
-- Acces reseau du bridge a votre Cloudflare Worker
+- Un serveur Linux ou une VM pour le bridge (peut être le même serveur qu'Asterisk, ou séparé)
+- Docker installé sur le serveur du bridge
+- Un numéro de téléphone dédié pour l'enregistrement Signal
+- Accès réseau du bridge à votre Cloudflare Worker
 
 ## Architecture
 
@@ -21,11 +21,11 @@ flowchart LR
     Bridge --> Worker["Llamenos Worker<br/>(Cloudflare)"]
 ```
 
-Le bridge signal-cli fonctionne sur votre infrastructure et transmet les messages a votre Worker via des webhooks HTTP. Vous controlez ainsi l'integralite du chemin des messages, de Signal a votre application.
+Le bridge signal-cli fonctionne sur votre infrastructure et transmet les messages à votre Worker via des webhooks HTTP. Vous contrôlez ainsi l'intégralité du chemin des messages, de Signal à votre application.
 
-## 1. Deployer le bridge signal-cli
+## 1. Déployer le bridge signal-cli
 
-Executez le conteneur Docker signal-cli-rest-api :
+Exécutez le conteneur Docker signal-cli-rest-api :
 
 ```bash
 docker run -d \
@@ -37,21 +37,21 @@ docker run -d \
   bbernhard/signal-cli-rest-api:latest
 ```
 
-## 2. Enregistrer un numero de telephone
+## 2. Enregistrer un numéro de téléphone
 
-Enregistrez le bridge avec un numero de telephone dedie :
+Enregistrez le bridge avec un numéro de téléphone dédié :
 
 ```bash
-# Demander un code de verification par SMS
+# Demander un code de vérification par SMS
 curl -X POST http://localhost:8080/v1/register/+1234567890
 
-# Verifier avec le code recu
+# Vérifier avec le code reçu
 curl -X POST http://localhost:8080/v1/register/+1234567890/verify/123456
 ```
 
 ## 3. Configurer la redirection webhook
 
-Configurez le bridge pour transmettre les messages entrants a votre Worker :
+Configurez le bridge pour transmettre les messages entrants à votre Worker :
 
 ```bash
 curl -X PUT http://localhost:8080/v1/about \
@@ -66,42 +66,42 @@ curl -X PUT http://localhost:8080/v1/about \
   }'
 ```
 
-## 4. Activer Signal dans les parametres admin
+## 4. Activer Signal dans les paramètres admin
 
-Naviguez vers **Parametres admin > Canaux de messagerie** (ou utilisez l'assistant de configuration) et activez **Signal**.
+Naviguez vers **Paramètres admin > Canaux de messagerie** (ou utilisez l'assistant de configuration) et activez **Signal**.
 
 Saisissez les informations suivantes :
 - **URL du bridge** — l'URL de votre bridge signal-cli (ex. `https://signal-bridge.example.com:8080`)
-- **Cle API du bridge** — un token bearer pour authentifier les requetes au bridge
-- **Secret du webhook** — le secret utilise pour valider les webhooks entrants (doit correspondre a ce que vous avez configure a l'etape 3)
-- **Numero enregistre** — le numero de telephone enregistre avec Signal
+- **Clé API du bridge** — un token bearer pour authentifier les requêtes au bridge
+- **Secret du webhook** — le secret utilisé pour valider les webhooks entrants (doit correspondre à ce que vous avez configuré à l'étape 3)
+- **Numéro enregistré** — le numéro de téléphone enregistré avec Signal
 
 ## 5. Test
 
-Envoyez un message Signal a votre numero enregistre. La conversation devrait apparaitre dans l'onglet **Conversations**.
+Envoyez un message Signal à votre numéro enregistré. La conversation devrait apparaître dans l'onglet **Conversations**.
 
-## Surveillance de la sante
+## Surveillance de la santé
 
-Llamenos surveille la sante du bridge signal-cli :
-- Verifications de sante periodiques sur le endpoint `/v1/about` du bridge
-- Degradation gracieuse si le bridge est injoignable — les autres canaux continuent de fonctionner
+Llamenos surveille la santé du bridge signal-cli :
+- Vérifications de santé périodiques sur le endpoint `/v1/about` du bridge
+- Dégradation gracieuse si le bridge est injoignable — les autres canaux continuent de fonctionner
 - Alertes administrateur lorsque le bridge tombe en panne
 
 ## Transcription des messages vocaux
 
-Les messages vocaux Signal peuvent etre transcrits directement dans le navigateur du benevole en utilisant Whisper cote client (WASM via `@huggingface/transformers`). L'audio ne quitte jamais l'appareil — la transcription est chiffree et stockee a cote du message vocal dans la vue conversation. Les benevoles peuvent activer ou desactiver la transcription dans leurs parametres personnels.
+Les messages vocaux Signal peuvent être transcrits directement dans le navigateur du bénévole en utilisant Whisper côté client (WASM via `@huggingface/transformers`). L'audio ne quitte jamais l'appareil — la transcription est chiffrée et stockée à côté du message vocal dans la vue conversation. Les bénévoles peuvent activer ou désactiver la transcription dans leurs paramètres personnels.
 
-## Notes de securite
+## Notes de sécurité
 
 - Signal fournit un chiffrement de bout en bout entre l'utilisateur et le bridge signal-cli
-- Le bridge dechiffre les messages pour les transmettre en webhooks — le serveur du bridge a acces au texte en clair
-- L'authentification webhook utilise des tokens bearer avec comparaison a temps constant
-- Gardez le bridge sur le meme reseau que votre serveur Asterisk (le cas echeant) pour une exposition minimale
+- Le bridge déchiffre les messages pour les transmettre en webhooks — le serveur du bridge a accès au texte en clair
+- L'authentification webhook utilise des tokens bearer avec comparaison à temps constant
+- Gardez le bridge sur le même réseau que votre serveur Asterisk (le cas échéant) pour une exposition minimale
 - Le bridge stocke l'historique des messages localement dans son volume Docker — envisagez le chiffrement au repos
-- Pour une confidentialite maximale : auto-hebergez Asterisk (voix) et signal-cli (messagerie) sur votre propre infrastructure
+- Pour une confidentialité maximale : auto-hébergez Asterisk (voix) et signal-cli (messagerie) sur votre propre infrastructure
 
-## Depannage
+## Dépannage
 
-- **Le bridge ne recoit pas de messages** : Verifiez que le numero est correctement enregistre avec `GET /v1/about`
-- **Echecs de livraison webhook** : Verifiez que l'URL du webhook est joignable depuis le serveur du bridge et que l'en-tete d'autorisation correspond
-- **Problemes d'enregistrement** : Certains numeros peuvent necessiter d'etre dissocies d'un compte Signal existant au prealable
+- **Le bridge ne reçoit pas de messages** : Vérifiez que le numéro est correctement enregistré avec `GET /v1/about`
+- **Échecs de livraison webhook** : Vérifiez que l'URL du webhook est joignable depuis le serveur du bridge et que l'en-tête d'autorisation correspond
+- **Problèmes d'enregistrement** : Certains numéros peuvent nécessiter d'être dissociés d'un compte Signal existant au préalable
