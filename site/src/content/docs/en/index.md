@@ -6,6 +6,9 @@ guides:
   - title: Getting Started
     description: Prerequisites, installation, setup wizard, and your first deployment.
     href: /docs/getting-started
+  - title: Architecture
+    description: System architecture overview — repositories, data flow, encryption layers, and real-time communication.
+    href: /docs/architecture
   - title: Self-Hosting Overview
     description: Deploy on your own infrastructure with Docker Compose or Kubernetes.
     href: /docs/self-hosting
@@ -24,6 +27,9 @@ guides:
   - title: Reporter Guide
     description: Submit encrypted reports and track their status.
     href: /docs/reporter-guide
+  - title: Mobile Guide
+    description: Install and set up the Llamenos mobile app on iOS and Android.
+    href: /docs/mobile-guide
   - title: Telephony Providers
     description: Compare supported telephony providers and choose the best fit for your hotline.
     href: /docs/telephony-providers
@@ -54,6 +60,9 @@ guides:
   - title: WebRTC Browser Calling
     description: Enable in-browser call answering for volunteers using WebRTC.
     href: /docs/webrtc-calling
+  - title: Troubleshooting
+    description: Solutions for common issues with deployment, desktop, mobile, telephony, and crypto.
+    href: /docs/troubleshooting
   - title: Security Model
     description: Understand what's encrypted, what isn't, and the threat model.
     href: /security

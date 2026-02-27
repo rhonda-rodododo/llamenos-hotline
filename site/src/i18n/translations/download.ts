@@ -31,7 +31,7 @@ export const download: Record<string, {
       linuxAppImage: { name: 'Linux AppImage', description: 'Portable, runs on most distributions' },
       linuxDeb: { name: 'Linux .deb', description: 'Debian, Ubuntu, and derivatives' },
       linuxFlatpak: { name: 'Linux Flatpak', description: 'Sandboxed, auto-updating via Flathub' },
-      mobile: { name: 'Mobile', description: 'Coming soon — iOS and Android apps in development' },
+      mobile: { name: 'Mobile', description: 'Early access — Android APK and iOS TestFlight available' },
     },
     systemReqs: 'System requirements',
     reqItems: [
@@ -54,7 +54,7 @@ export const download: Record<string, {
       linuxAppImage: { name: 'Linux AppImage', description: 'Portable, funciona en la mayoria de distribuciones' },
       linuxDeb: { name: 'Linux .deb', description: 'Debian, Ubuntu y derivados' },
       linuxFlatpak: { name: 'Linux Flatpak', description: 'Aislado, actualizacion automatica via Flathub' },
-      mobile: { name: 'Movil', description: 'Proximamente — aplicaciones iOS y Android en desarrollo' },
+      mobile: { name: 'Movil', description: 'Acceso anticipado — APK Android y TestFlight iOS disponibles' },
     },
     systemReqs: 'Requisitos del sistema',
     reqItems: [
