@@ -8,16 +8,13 @@
 #   - Exposes app port 3000 directly (bypasses Caddy)
 #   - Sets ENVIRONMENT=development (enables /api/test-reset endpoint)
 #   - Disables read_only to allow SQLite WAL files in tmpfs
-#   - Disables strfry (moved to "nostr" profile) — app falls back to NoopNostrPublisher
-#     strfry's NOFILES limit (1M) exceeds CI ulimit (65536), causing crash in GitHub Actions
+#   - Fixes strfry NOFILES config for CI (default 1M exceeds GitHub Actions ulimit of 65536)
 
 services:
-  # Disable strfry in tests — put behind a profile so it never starts.
-  # strfry crashes in CI with "Unable to set NOFILES limit to 1000000, exceeds max of 65536".
-  # The app gracefully falls back to NoopNostrPublisher when no relay is available.
+  # Fix strfry for CI: mount config with nofiles=0 (don't attempt to set ulimit)
   strfry:
-    profiles:
-      - nostr
+    volumes:
+      - ./strfry-test.conf:/etc/strfry.conf:ro
 
   app:
     ports:
@@ -25,13 +22,10 @@ services:
     read_only: false
     environment:
       - ENVIRONMENT=development
-      # Point at nonexistent relay to make NoopNostrPublisher activate faster
-      - NOSTR_RELAY_URL=ws://localhost:7777
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
       strfry:
-        condition: service_started
-        required: false
+        condition: service_healthy
