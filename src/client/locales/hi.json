@@ -46,7 +46,9 @@
     "callHistory": "कॉल इतिहास",
     "settings": "सेटिंग्स",
     "hubSettings": "हब सेटिंग्स",
-    "blasts": "Blasts"
+    "blasts": "Blasts",
+    "conversations": "बातचीत",
+    "contacts": "संपर्क"
   },
   "dashboard": {
     "title": "डैशबोर्ड",
@@ -113,7 +115,14 @@
     "exportEncrypted": "एन्क्रिप्टेड निर्यात — अपनी nsec कुंजी से डिक्रिप्ट करें",
     "viewNotes": "नोट्स",
     "activeCallNote": "आपकी सक्रिय कॉल से जुड़ा नोट",
-    "draftSaved": "ड्राफ्ट सहेजा गया"
+    "draftSaved": "ड्राफ्ट सहेजा गया",
+    "addNote": "नोट जोड़ें",
+    "newConversationNote": "नई बातचीत नोट",
+    "linkedTo": "से जुड़ा",
+    "conversationNote": "बातचीत",
+    "repliesCount": "{{count}} उत्तर",
+    "reply": "उत्तर दें",
+    "replyPlaceholder": "उत्तर लिखें..."
   },
   "transcription": {
     "title": "ट्रांसक्रिप्शन",
@@ -661,5 +670,37 @@
     "title": "Message Preferences",
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
+  },
+  "conversations": {
+    "title": "बातचीत",
+    "loadError": "संदेश लोड करने में विफल",
+    "claimed": "बातचीत दावा की गई",
+    "claimError": "बातचीत दावा करने में विफल",
+    "closed": "बातचीत बंद",
+    "closeError": "बातचीत बंद करने में विफल",
+    "sendError": "संदेश भेजने में विफल",
+    "noChannels": "कोई संदेश चैनल सक्षम नहीं",
+    "noChannelsDescription": "संदेश प्राप्त करना शुरू करने के लिए हब सेटिंग्स में SMS, WhatsApp, Signal या रिपोर्ट सक्षम करें।",
+    "waiting": "प्रतीक्षा में",
+    "unknownContact": "अज्ञात",
+    "e2ee": "एंड-टू-एंड एन्क्रिप्टेड",
+    "claim": "दावा करें",
+    "reassign": "पुनः असाइन करें",
+    "close": "बंद करें",
+    "selectConversation": "संदेश देखने के लिए बातचीत चुनें",
+    "encrypted": "[एन्क्रिप्टेड]"
+  },
+  "contacts": {
+    "title": "संपर्क",
+    "description": "कॉल, बातचीत और रिपोर्ट में एकीकृत इंटरैक्शन इतिहास देखें।",
+    "contact": "संपर्क",
+    "firstSeen": "पहली बार देखा",
+    "lastSeen": "अंतिम बार देखा",
+    "call": "कॉल",
+    "conversation": "बातचीत",
+    "messages": "संदेश",
+    "report": "रिपोर्ट",
+    "noHistory": "कोई इंटरैक्शन इतिहास नहीं मिला",
+    "noContacts": "कोई संपर्क नहीं मिला"
   }
 }

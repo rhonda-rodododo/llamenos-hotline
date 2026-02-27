@@ -46,7 +46,9 @@
     "callHistory": "Historial de Llamadas",
     "settings": "Configuración",
     "hubSettings": "Configuración del Hub",
-    "blasts": "Blasts"
+    "blasts": "Blasts",
+    "conversations": "Conversaciones",
+    "contacts": "Contactos"
   },
   "dashboard": {
     "title": "Panel",
@@ -113,7 +115,14 @@
     "exportEncrypted": "Exportación cifrada — descifrar con tu clave nsec",
     "viewNotes": "Notas",
     "activeCallNote": "Nota adjunta a tu llamada activa",
-    "draftSaved": "Borrador guardado"
+    "draftSaved": "Borrador guardado",
+    "addNote": "Añadir Nota",
+    "newConversationNote": "Nueva Nota de Conversación",
+    "linkedTo": "Vinculado a",
+    "conversationNote": "Conversación",
+    "repliesCount": "{{count}} respuestas",
+    "reply": "Responder",
+    "replyPlaceholder": "Escribe una respuesta..."
   },
   "transcription": {
     "title": "Transcripción",
@@ -661,5 +670,37 @@
     "title": "Message Preferences",
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
+  },
+  "conversations": {
+    "title": "Conversaciones",
+    "loadError": "Error al cargar mensajes",
+    "claimed": "Conversación reclamada",
+    "claimError": "Error al reclamar conversación",
+    "closed": "Conversación cerrada",
+    "closeError": "Error al cerrar conversación",
+    "sendError": "Error al enviar mensaje",
+    "noChannels": "No hay canales de mensajería habilitados",
+    "noChannelsDescription": "Habilite SMS, WhatsApp, Signal o Reportes en Configuración del Hub para comenzar a recibir mensajes.",
+    "waiting": "en espera",
+    "unknownContact": "Desconocido",
+    "e2ee": "Cifrado de extremo a extremo",
+    "claim": "Reclamar",
+    "reassign": "Reasignar",
+    "close": "Cerrar",
+    "selectConversation": "Seleccione una conversación para ver los mensajes",
+    "encrypted": "[Cifrado]"
+  },
+  "contacts": {
+    "title": "Contactos",
+    "description": "Ver historial unificado de interacciones a través de llamadas, conversaciones y reportes.",
+    "contact": "Contacto",
+    "firstSeen": "Primera vez visto",
+    "lastSeen": "Última vez visto",
+    "call": "Llamada",
+    "conversation": "Conversación",
+    "messages": "mensajes",
+    "report": "Reporte",
+    "noHistory": "No se encontró historial de interacciones",
+    "noContacts": "No se encontraron contactos"
   }
 }

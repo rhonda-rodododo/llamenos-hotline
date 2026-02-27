@@ -46,7 +46,9 @@
     "callHistory": "История звонков",
     "settings": "Настройки",
     "hubSettings": "Настройки хаба",
-    "blasts": "Blasts"
+    "blasts": "Blasts",
+    "conversations": "Беседы",
+    "contacts": "Контакты"
   },
   "dashboard": {
     "title": "Панель",
@@ -113,7 +115,14 @@
     "exportEncrypted": "Зашифрованный экспорт — расшифруйте ключом nsec",
     "viewNotes": "Заметки",
     "activeCallNote": "Заметка, прикреплённая к вашему активному звонку",
-    "draftSaved": "Черновик сохранён"
+    "draftSaved": "Черновик сохранён",
+    "addNote": "Добавить заметку",
+    "newConversationNote": "Новая заметка к беседе",
+    "linkedTo": "Связано с",
+    "conversationNote": "Беседа",
+    "repliesCount": "{{count}} ответов",
+    "reply": "Ответить",
+    "replyPlaceholder": "Написать ответ..."
   },
   "transcription": {
     "title": "Транскрипция",
@@ -661,5 +670,37 @@
     "title": "Message Preferences",
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
+  },
+  "conversations": {
+    "title": "Беседы",
+    "loadError": "Не удалось загрузить сообщения",
+    "claimed": "Беседа принята",
+    "claimError": "Не удалось принять беседу",
+    "closed": "Беседа закрыта",
+    "closeError": "Не удалось закрыть беседу",
+    "sendError": "Не удалось отправить сообщение",
+    "noChannels": "Каналы обмена сообщениями не включены",
+    "noChannelsDescription": "Включите SMS, WhatsApp, Signal или Отчёты в настройках хаба, чтобы начать получать сообщения.",
+    "waiting": "ожидание",
+    "unknownContact": "Неизвестный",
+    "e2ee": "Сквозное шифрование",
+    "claim": "Принять",
+    "reassign": "Переназначить",
+    "close": "Закрыть",
+    "selectConversation": "Выберите беседу для просмотра сообщений",
+    "encrypted": "[Зашифровано]"
+  },
+  "contacts": {
+    "title": "Контакты",
+    "description": "Просмотр объединённой истории взаимодействий через звонки, беседы и отчёты.",
+    "contact": "Контакт",
+    "firstSeen": "Первое обращение",
+    "lastSeen": "Последнее обращение",
+    "call": "Звонок",
+    "conversation": "Беседа",
+    "messages": "сообщений",
+    "report": "Отчёт",
+    "noHistory": "История взаимодействий не найдена",
+    "noContacts": "Контакты не найдены"
   }
 }

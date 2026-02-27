@@ -46,7 +46,9 @@
     "callHistory": "Anrufverlauf",
     "settings": "Einstellungen",
     "hubSettings": "Hub-Einstellungen",
-    "blasts": "Blasts"
+    "blasts": "Blasts",
+    "conversations": "Gespräche",
+    "contacts": "Kontakte"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -113,7 +115,14 @@
     "exportEncrypted": "Verschlüsselter Export — mit Ihrem nsec-Schlüssel entschlüsseln",
     "viewNotes": "Notizen",
     "activeCallNote": "Notiz zu Ihrem aktiven Anruf",
-    "draftSaved": "Entwurf gespeichert"
+    "draftSaved": "Entwurf gespeichert",
+    "addNote": "Notiz hinzufügen",
+    "newConversationNote": "Neue Gesprächsnotiz",
+    "linkedTo": "Verknüpft mit",
+    "conversationNote": "Gespräch",
+    "repliesCount": "{{count}} Antworten",
+    "reply": "Antworten",
+    "replyPlaceholder": "Antwort schreiben..."
   },
   "transcription": {
     "title": "Transkription",
@@ -661,5 +670,37 @@
     "title": "Message Preferences",
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
+  },
+  "conversations": {
+    "title": "Gespräche",
+    "loadError": "Nachrichten konnten nicht geladen werden",
+    "claimed": "Gespräch übernommen",
+    "claimError": "Gespräch konnte nicht übernommen werden",
+    "closed": "Gespräch geschlossen",
+    "closeError": "Gespräch konnte nicht geschlossen werden",
+    "sendError": "Nachricht konnte nicht gesendet werden",
+    "noChannels": "Keine Nachrichtenkanäle aktiviert",
+    "noChannelsDescription": "Aktivieren Sie SMS, WhatsApp, Signal oder Berichte in den Hub-Einstellungen, um Nachrichten zu empfangen.",
+    "waiting": "wartend",
+    "unknownContact": "Unbekannt",
+    "e2ee": "Ende-zu-Ende-verschlüsselt",
+    "claim": "Übernehmen",
+    "reassign": "Neu zuweisen",
+    "close": "Schließen",
+    "selectConversation": "Wählen Sie ein Gespräch, um Nachrichten anzuzeigen",
+    "encrypted": "[Verschlüsselt]"
+  },
+  "contacts": {
+    "title": "Kontakte",
+    "description": "Einheitlichen Interaktionsverlauf über Anrufe, Gespräche und Berichte anzeigen.",
+    "contact": "Kontakt",
+    "firstSeen": "Zuerst gesehen",
+    "lastSeen": "Zuletzt gesehen",
+    "call": "Anruf",
+    "conversation": "Gespräch",
+    "messages": "Nachrichten",
+    "report": "Bericht",
+    "noHistory": "Kein Interaktionsverlauf gefunden",
+    "noContacts": "Keine Kontakte gefunden"
   }
 }

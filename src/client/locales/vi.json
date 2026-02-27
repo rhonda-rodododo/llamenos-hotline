@@ -46,7 +46,9 @@
     "callHistory": "Lịch sử cuộc gọi",
     "settings": "Cài đặt",
     "hubSettings": "Cài đặt hub",
-    "blasts": "Blasts"
+    "blasts": "Blasts",
+    "conversations": "Hội thoại",
+    "contacts": "Liên hệ"
   },
   "dashboard": {
     "title": "Bảng điều khiển",
@@ -113,7 +115,14 @@
     "exportEncrypted": "Xuất đã mã hóa — giải mã bằng khóa nsec của bạn",
     "viewNotes": "Ghi chú",
     "activeCallNote": "Ghi chú đính kèm cuộc gọi đang hoạt động của bạn",
-    "draftSaved": "Đã lưu bản nháp"
+    "draftSaved": "Đã lưu bản nháp",
+    "addNote": "Thêm Ghi chú",
+    "newConversationNote": "Ghi chú Hội thoại Mới",
+    "linkedTo": "Liên kết với",
+    "conversationNote": "Hội thoại",
+    "repliesCount": "{{count}} phản hồi",
+    "reply": "Trả lời",
+    "replyPlaceholder": "Viết phản hồi..."
   },
   "transcription": {
     "title": "Phiên âm",
@@ -661,5 +670,37 @@
     "title": "Message Preferences",
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
+  },
+  "conversations": {
+    "title": "Hội thoại",
+    "loadError": "Không thể tải tin nhắn",
+    "claimed": "Đã nhận hội thoại",
+    "claimError": "Không thể nhận hội thoại",
+    "closed": "Hội thoại đã đóng",
+    "closeError": "Không thể đóng hội thoại",
+    "sendError": "Không thể gửi tin nhắn",
+    "noChannels": "Chưa bật kênh nhắn tin nào",
+    "noChannelsDescription": "Bật SMS, WhatsApp, Signal hoặc Báo cáo trong Cài đặt Hub để bắt đầu nhận tin nhắn.",
+    "waiting": "đang chờ",
+    "unknownContact": "Không xác định",
+    "e2ee": "Mã hóa đầu cuối",
+    "claim": "Nhận",
+    "reassign": "Chuyển giao",
+    "close": "Đóng",
+    "selectConversation": "Chọn một hội thoại để xem tin nhắn",
+    "encrypted": "[Đã mã hóa]"
+  },
+  "contacts": {
+    "title": "Liên hệ",
+    "description": "Xem lịch sử tương tác thống nhất qua cuộc gọi, hội thoại và báo cáo.",
+    "contact": "Liên hệ",
+    "firstSeen": "Lần đầu thấy",
+    "lastSeen": "Lần cuối thấy",
+    "call": "Cuộc gọi",
+    "conversation": "Hội thoại",
+    "messages": "tin nhắn",
+    "report": "Báo cáo",
+    "noHistory": "Không tìm thấy lịch sử tương tác",
+    "noContacts": "Không tìm thấy liên hệ"
   }
 }

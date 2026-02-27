@@ -46,7 +46,9 @@
     "callHistory": "Histórico de Chamadas",
     "settings": "Configurações",
     "hubSettings": "Configurações do Hub",
-    "blasts": "Blasts"
+    "blasts": "Blasts",
+    "conversations": "Conversas",
+    "contacts": "Contatos"
   },
   "dashboard": {
     "title": "Painel",
@@ -113,7 +115,14 @@
     "exportEncrypted": "Exportação encriptada — desencriptar com a sua chave nsec",
     "viewNotes": "Notas",
     "activeCallNote": "Nota anexada à sua chamada ativa",
-    "draftSaved": "Rascunho salvo"
+    "draftSaved": "Rascunho salvo",
+    "addNote": "Adicionar Nota",
+    "newConversationNote": "Nova Nota de Conversa",
+    "linkedTo": "Vinculado a",
+    "conversationNote": "Conversa",
+    "repliesCount": "{{count}} respostas",
+    "reply": "Responder",
+    "replyPlaceholder": "Escreva uma resposta..."
   },
   "transcription": {
     "title": "Transcrição",
@@ -661,5 +670,37 @@
     "title": "Message Preferences",
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
+  },
+  "conversations": {
+    "title": "Conversas",
+    "loadError": "Falha ao carregar mensagens",
+    "claimed": "Conversa reivindicada",
+    "claimError": "Falha ao reivindicar conversa",
+    "closed": "Conversa encerrada",
+    "closeError": "Falha ao encerrar conversa",
+    "sendError": "Falha ao enviar mensagem",
+    "noChannels": "Nenhum canal de mensagens habilitado",
+    "noChannelsDescription": "Habilite SMS, WhatsApp, Signal ou Relatórios nas Configurações do Hub para começar a receber mensagens.",
+    "waiting": "aguardando",
+    "unknownContact": "Desconhecido",
+    "e2ee": "Criptografia ponta a ponta",
+    "claim": "Reivindicar",
+    "reassign": "Reatribuir",
+    "close": "Fechar",
+    "selectConversation": "Selecione uma conversa para ver as mensagens",
+    "encrypted": "[Criptografado]"
+  },
+  "contacts": {
+    "title": "Contatos",
+    "description": "Ver histórico unificado de interações em chamadas, conversas e relatórios.",
+    "contact": "Contato",
+    "firstSeen": "Primeiro contato",
+    "lastSeen": "Último contato",
+    "call": "Chamada",
+    "conversation": "Conversa",
+    "messages": "mensagens",
+    "report": "Relatório",
+    "noHistory": "Nenhum histórico de interação encontrado",
+    "noContacts": "Nenhum contato encontrado"
   }
 }

@@ -46,7 +46,9 @@
     "callHistory": "Istorik Apèl",
     "settings": "Paramèt",
     "hubSettings": "Paramèt Hub",
-    "blasts": "Blasts"
+    "blasts": "Blasts",
+    "conversations": "Konvèsasyon",
+    "contacts": "Kontak"
   },
   "dashboard": {
     "title": "Tablo",
@@ -113,7 +115,14 @@
     "exportEncrypted": "Ekspò chifre — dechifre ak kle nsec ou",
     "viewNotes": "Nòt",
     "activeCallNote": "Nòt ki tache ak apèl aktif ou a",
-    "draftSaved": "Bouyon anrejistre"
+    "draftSaved": "Bouyon anrejistre",
+    "addNote": "Ajoute Nòt",
+    "newConversationNote": "Nouvo Nòt Konvèsasyon",
+    "linkedTo": "Lye ak",
+    "conversationNote": "Konvèsasyon",
+    "repliesCount": "{{count}} repons",
+    "reply": "Reponn",
+    "replyPlaceholder": "Ekri yon repons..."
   },
   "transcription": {
     "title": "Transkripsyon",
@@ -661,5 +670,37 @@
     "title": "Message Preferences",
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
+  },
+  "conversations": {
+    "title": "Konvèsasyon",
+    "loadError": "Pa kapab chaje mesaj yo",
+    "claimed": "Konvèsasyon reklame",
+    "claimError": "Pa kapab reklame konvèsasyon",
+    "closed": "Konvèsasyon fèmen",
+    "closeError": "Pa kapab fèmen konvèsasyon",
+    "sendError": "Pa kapab voye mesaj",
+    "noChannels": "Pa gen kanal mesaj aktive",
+    "noChannelsDescription": "Aktive SMS, WhatsApp, Signal oswa Rapò nan Paramèt Hub pou kòmanse resevwa mesaj.",
+    "waiting": "ap tann",
+    "unknownContact": "Enkoni",
+    "e2ee": "Chifre bout-a-bout",
+    "claim": "Reklame",
+    "reassign": "Re-asiyen",
+    "close": "Fèmen",
+    "selectConversation": "Chwazi yon konvèsasyon pou wè mesaj yo",
+    "encrypted": "[Chifre]"
+  },
+  "contacts": {
+    "title": "Kontak",
+    "description": "Wè istwa entèraksyon inifye atravè apèl, konvèsasyon ak rapò.",
+    "contact": "Kontak",
+    "firstSeen": "Premye fwa wè",
+    "lastSeen": "Dènye fwa wè",
+    "call": "Apèl",
+    "conversation": "Konvèsasyon",
+    "messages": "mesaj",
+    "report": "Rapò",
+    "noHistory": "Pa jwenn istwa entèraksyon",
+    "noContacts": "Pa jwenn kontak"
   }
 }

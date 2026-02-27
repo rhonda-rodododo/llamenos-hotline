@@ -46,7 +46,9 @@
     "callHistory": "通话记录",
     "settings": "设置",
     "hubSettings": "中心设置",
-    "blasts": "Blasts"
+    "blasts": "Blasts",
+    "conversations": "对话",
+    "contacts": "联系人"
   },
   "dashboard": {
     "title": "仪表盘",
@@ -113,7 +115,14 @@
     "exportEncrypted": "加密导出 — 使用您的nsec密钥解密",
     "viewNotes": "笔记",
     "activeCallNote": "附在当前通话上的笔记",
-    "draftSaved": "草稿已保存"
+    "draftSaved": "草稿已保存",
+    "addNote": "添加备注",
+    "newConversationNote": "新对话备注",
+    "linkedTo": "关联到",
+    "conversationNote": "对话",
+    "repliesCount": "{{count}} 条回复",
+    "reply": "回复",
+    "replyPlaceholder": "写一条回复..."
   },
   "transcription": {
     "title": "转录",
@@ -661,5 +670,37 @@
     "title": "Message Preferences",
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
+  },
+  "conversations": {
+    "title": "对话",
+    "loadError": "加载消息失败",
+    "claimed": "对话已认领",
+    "claimError": "认领对话失败",
+    "closed": "对话已关闭",
+    "closeError": "关闭对话失败",
+    "sendError": "发送消息失败",
+    "noChannels": "未启用消息通道",
+    "noChannelsDescription": "在中心设置中启用短信、WhatsApp、Signal或报告以开始接收消息。",
+    "waiting": "等待中",
+    "unknownContact": "未知",
+    "e2ee": "端对端加密",
+    "claim": "认领",
+    "reassign": "重新分配",
+    "close": "关闭",
+    "selectConversation": "选择一个对话来查看消息",
+    "encrypted": "[已加密]"
+  },
+  "contacts": {
+    "title": "联系人",
+    "description": "查看跨越通话、对话和报告的统一交互历史。",
+    "contact": "联系人",
+    "firstSeen": "首次出现",
+    "lastSeen": "最后出现",
+    "call": "通话",
+    "conversation": "对话",
+    "messages": "条消息",
+    "report": "报告",
+    "noHistory": "未找到交互历史",
+    "noContacts": "未找到联系人"
   }
 }

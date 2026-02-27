@@ -46,7 +46,9 @@
     "callHistory": "Kasaysayan ng Tawag",
     "settings": "Mga Setting",
     "hubSettings": "Mga Setting ng Hub",
-    "blasts": "Blasts"
+    "blasts": "Blasts",
+    "conversations": "Mga Pag-uusap",
+    "contacts": "Mga Kontak"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -113,7 +115,14 @@
     "exportEncrypted": "Na-encrypt na export — i-decrypt gamit ang iyong nsec key",
     "viewNotes": "Mga Tala",
     "activeCallNote": "Tala na nakakabit sa iyong aktibong tawag",
-    "draftSaved": "Na-save ang draft"
+    "draftSaved": "Na-save ang draft",
+    "addNote": "Magdagdag ng Tala",
+    "newConversationNote": "Bagong Tala ng Pag-uusap",
+    "linkedTo": "Naka-link sa",
+    "conversationNote": "Pag-uusap",
+    "repliesCount": "{{count}} mga sagot",
+    "reply": "Sumagot",
+    "replyPlaceholder": "Sumulat ng sagot..."
   },
   "transcription": {
     "title": "Transkripsyon",
@@ -661,5 +670,37 @@
     "title": "Message Preferences",
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
+  },
+  "conversations": {
+    "title": "Mga Pag-uusap",
+    "loadError": "Hindi ma-load ang mga mensahe",
+    "claimed": "Na-claim ang pag-uusap",
+    "claimError": "Hindi ma-claim ang pag-uusap",
+    "closed": "Isinara ang pag-uusap",
+    "closeError": "Hindi maisara ang pag-uusap",
+    "sendError": "Hindi maipadala ang mensahe",
+    "noChannels": "Walang naka-enable na channel ng mensahe",
+    "noChannelsDescription": "I-enable ang SMS, WhatsApp, Signal, o Reports sa Hub Settings upang magsimulang makatanggap ng mga mensahe.",
+    "waiting": "naghihintay",
+    "unknownContact": "Hindi kilala",
+    "e2ee": "End-to-end encrypted",
+    "claim": "I-claim",
+    "reassign": "Muling italaga",
+    "close": "Isara",
+    "selectConversation": "Pumili ng pag-uusap upang makita ang mga mensahe",
+    "encrypted": "[Naka-encrypt]"
+  },
+  "contacts": {
+    "title": "Mga Kontak",
+    "description": "Tingnan ang pinag-isang kasaysayan ng interaksyon sa mga tawag, pag-uusap, at ulat.",
+    "contact": "Kontak",
+    "firstSeen": "Unang nakita",
+    "lastSeen": "Huling nakita",
+    "call": "Tawag",
+    "conversation": "Pag-uusap",
+    "messages": "mga mensahe",
+    "report": "Ulat",
+    "noHistory": "Walang nahanap na kasaysayan ng interaksyon",
+    "noContacts": "Walang nahanap na mga kontak"
   }
 }

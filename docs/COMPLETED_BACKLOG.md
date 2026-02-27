@@ -1,5 +1,44 @@
 # Completed Backlog
 
+## 2026-02-27: Unified Records Architecture (Epics 119-124)
+
+### Epic 119: Records Domain Consolidation
+- Fixed CRITICAL report type filtering bug — reports list was including non-report conversations
+- Extracted shared ConversationThread component used by conversations, reports, and note threads
+- Extracted BlastDO from RecordsDO for cleaner separation of concerns
+- Migrated to per-record conversation storage keys in ConversationDO
+
+### Epic 120: Unified Envelope Types
+- Consolidated `KeyEnvelope` and `MessageEnvelope` into single `RecipientEnvelope` type
+- Standardized naming across notes, messages, and call records
+- Updated all crypto functions, API endpoints, and components
+
+### Epic 121: Custom Fields Generalization
+- Extended custom fields beyond call notes to reports and conversation notes
+- Added `context` field (call-notes, conversation-notes, reports, all)
+- Shared `CustomFieldInputs` and validation components
+- Custom fields visible in report forms and conversation note sheets
+
+### Epic 122: Conversation Storage Scaling
+- Per-record storage keys in ConversationDO (conversation data in `conv:${id}:*`)
+- BlastDO extracted as standalone Durable Object
+- Pagination support for conversation and message listing
+- Auto-migration from legacy flat storage on first access
+
+### Epic 123: Conversation Notes & Contact View
+- Note threading with encrypted replies using ECIES envelope pattern
+- Conversation notes — attach E2EE notes to conversations from the detail view
+- Contact unified timeline — admin page showing all interactions per contact
+- Contact-level permissions (`contacts:view`, `contacts:view-history`)
+- Note reply API with `notes:reply` permission
+- i18n translations for all new strings across 13 languages
+
+### Epic 124: Records E2E Tests
+- Report isolation tests (reports vs conversations type filtering)
+- Custom fields context tests (call-notes, conversation-notes, reports)
+- Threaded notes tests (create, reply, conversation notes)
+- Contact view tests (admin-only access, unified timeline)
+
 ## 2026-02-27: CI Hardening, Test Vectors, Docs & Quality (Epics 111-118)
 
 ### Epic 111: CI Security Hardening

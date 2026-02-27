@@ -46,7 +46,9 @@
     "callHistory": "سجل المكالمات",
     "settings": "الإعدادات",
     "hubSettings": "إعدادات المركز",
-    "blasts": "Blasts"
+    "blasts": "Blasts",
+    "conversations": "المحادثات",
+    "contacts": "جهات الاتصال"
   },
   "dashboard": {
     "title": "لوحة التحكم",
@@ -113,7 +115,14 @@
     "exportEncrypted": "تصدير مشفر — فك التشفير باستخدام مفتاح nsec",
     "viewNotes": "ملاحظات",
     "activeCallNote": "ملاحظة مرفقة بمكالمتك النشطة",
-    "draftSaved": "تم حفظ المسودة"
+    "draftSaved": "تم حفظ المسودة",
+    "addNote": "إضافة ملاحظة",
+    "newConversationNote": "ملاحظة محادثة جديدة",
+    "linkedTo": "مرتبط بـ",
+    "conversationNote": "محادثة",
+    "repliesCount": "{{count}} ردود",
+    "reply": "رد",
+    "replyPlaceholder": "اكتب رداً..."
   },
   "transcription": {
     "title": "النسخ",
@@ -661,5 +670,37 @@
     "title": "Message Preferences",
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
+  },
+  "conversations": {
+    "title": "المحادثات",
+    "loadError": "فشل تحميل الرسائل",
+    "claimed": "تم المطالبة بالمحادثة",
+    "claimError": "فشل المطالبة بالمحادثة",
+    "closed": "تم إغلاق المحادثة",
+    "closeError": "فشل إغلاق المحادثة",
+    "sendError": "فشل إرسال الرسالة",
+    "noChannels": "لا توجد قنوات مراسلة مفعلة",
+    "noChannelsDescription": "قم بتفعيل الرسائل القصيرة أو واتساب أو سيجنال أو التقارير في إعدادات المركز لبدء استقبال الرسائل.",
+    "waiting": "في الانتظار",
+    "unknownContact": "غير معروف",
+    "e2ee": "تشفير من طرف إلى طرف",
+    "claim": "مطالبة",
+    "reassign": "إعادة تعيين",
+    "close": "إغلاق",
+    "selectConversation": "اختر محادثة لعرض الرسائل",
+    "encrypted": "[مشفر]"
+  },
+  "contacts": {
+    "title": "جهات الاتصال",
+    "description": "عرض سجل التفاعل الموحد عبر المكالمات والمحادثات والتقارير.",
+    "contact": "جهة اتصال",
+    "firstSeen": "أول ظهور",
+    "lastSeen": "آخر ظهور",
+    "call": "مكالمة",
+    "conversation": "محادثة",
+    "messages": "رسائل",
+    "report": "تقرير",
+    "noHistory": "لم يتم العثور على سجل تفاعل",
+    "noContacts": "لم يتم العثور على جهات اتصال"
   }
 }

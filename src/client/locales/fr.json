@@ -46,7 +46,9 @@
     "callHistory": "Historique des appels",
     "settings": "Paramètres",
     "hubSettings": "Paramètres du hub",
-    "blasts": "Blasts"
+    "blasts": "Blasts",
+    "conversations": "Conversations",
+    "contacts": "Contacts"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -113,7 +115,14 @@
     "exportEncrypted": "Export chiffré — déchiffrer avec votre clé nsec",
     "viewNotes": "Notes",
     "activeCallNote": "Note attachée à votre appel actif",
-    "draftSaved": "Brouillon enregistré"
+    "draftSaved": "Brouillon enregistré",
+    "addNote": "Ajouter une Note",
+    "newConversationNote": "Nouvelle Note de Conversation",
+    "linkedTo": "Lié à",
+    "conversationNote": "Conversation",
+    "repliesCount": "{{count}} réponses",
+    "reply": "Répondre",
+    "replyPlaceholder": "Écrire une réponse..."
   },
   "transcription": {
     "title": "Transcription",
@@ -661,5 +670,37 @@
     "title": "Message Preferences",
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
+  },
+  "conversations": {
+    "title": "Conversations",
+    "loadError": "Échec du chargement des messages",
+    "claimed": "Conversation réclamée",
+    "claimError": "Échec de la réclamation",
+    "closed": "Conversation fermée",
+    "closeError": "Échec de la fermeture",
+    "sendError": "Échec de l'envoi du message",
+    "noChannels": "Aucun canal de messagerie activé",
+    "noChannelsDescription": "Activez SMS, WhatsApp, Signal ou Rapports dans les paramètres du Hub pour commencer à recevoir des messages.",
+    "waiting": "en attente",
+    "unknownContact": "Inconnu",
+    "e2ee": "Chiffrement de bout en bout",
+    "claim": "Réclamer",
+    "reassign": "Réassigner",
+    "close": "Fermer",
+    "selectConversation": "Sélectionnez une conversation pour voir les messages",
+    "encrypted": "[Chiffré]"
+  },
+  "contacts": {
+    "title": "Contacts",
+    "description": "Afficher l'historique unifié des interactions à travers les appels, conversations et rapports.",
+    "contact": "Contact",
+    "firstSeen": "Première apparition",
+    "lastSeen": "Dernière apparition",
+    "call": "Appel",
+    "conversation": "Conversation",
+    "messages": "messages",
+    "report": "Rapport",
+    "noHistory": "Aucun historique d'interaction trouvé",
+    "noContacts": "Aucun contact trouvé"
   }
 }

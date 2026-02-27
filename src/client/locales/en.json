@@ -52,7 +52,9 @@
     "hubSettings": "Hub Settings",
     "hubs": "Hubs",
     "reports": "Reports",
-    "blasts": "Blasts"
+    "blasts": "Blasts",
+    "conversations": "Conversations",
+    "contacts": "Contacts"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -119,7 +121,14 @@
     "exportEncrypted": "Export encrypted — decrypt with your nsec key",
     "viewNotes": "Notes",
     "activeCallNote": "Note attached to your active call",
-    "draftSaved": "Draft saved"
+    "draftSaved": "Draft saved",
+    "addNote": "Add Note",
+    "newConversationNote": "New Conversation Note",
+    "linkedTo": "Linked to",
+    "conversationNote": "Conversation",
+    "repliesCount": "{{count}} replies",
+    "reply": "Reply",
+    "replyPlaceholder": "Write a reply..."
   },
   "transcription": {
     "title": "Transcription",
@@ -896,6 +905,38 @@
       "sent": "Sent",
       "cancelled": "Cancelled"
     }
+  },
+  "conversations": {
+    "title": "Conversations",
+    "loadError": "Failed to load messages",
+    "claimed": "Conversation claimed",
+    "claimError": "Failed to claim conversation",
+    "closed": "Conversation closed",
+    "closeError": "Failed to close conversation",
+    "sendError": "Failed to send message",
+    "noChannels": "No messaging channels enabled",
+    "noChannelsDescription": "Enable SMS, WhatsApp, Signal, or Reports in Hub Settings to start receiving messages.",
+    "waiting": "waiting",
+    "unknownContact": "Unknown",
+    "e2ee": "End-to-end encrypted",
+    "claim": "Claim",
+    "reassign": "Reassign",
+    "close": "Close",
+    "selectConversation": "Select a conversation to view messages",
+    "encrypted": "[Encrypted]"
+  },
+  "contacts": {
+    "title": "Contacts",
+    "description": "View unified interaction history across calls, conversations, and reports.",
+    "contact": "Contact",
+    "firstSeen": "First seen",
+    "lastSeen": "Last seen",
+    "call": "Call",
+    "conversation": "Conversation",
+    "messages": "messages",
+    "report": "Report",
+    "noHistory": "No interaction history found",
+    "noContacts": "No contacts found"
   },
   "preferences": {
     "title": "Message Preferences",
