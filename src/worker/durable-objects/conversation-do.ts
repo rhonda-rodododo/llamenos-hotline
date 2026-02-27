@@ -96,6 +96,10 @@ export class ConversationDO extends DurableObject<Env> {
     this.router.post('/conversations/:id/auto-assign', async (req, { id }) =>
       this.autoAssignConversation(id, await req.json()))
 
+    // --- Contacts (Epic 123) ---
+    this.router.get('/contacts', () => this.getContactSummaries())
+    this.router.get('/contacts/:hash', (_req, { hash }) => this.getContactConversations(hash))
+
     // --- Test Reset ---
     this.router.post('/reset', async () => {
       await this.ctx.storage.deleteAll()
@@ -728,5 +732,59 @@ export class ConversationDO extends DurableObject<Env> {
     try {
       await this.ctx.storage.setAlarm(now + 5 * 60 * 1000)
     } catch { /* alarm already set */ }
+  }
+
+  // --- Contact Methods (Epic 123) ---
+
+  private async getContactSummaries(): Promise<Response> {
+    const index = await this.getIndex()
+    const contactMap = new Map<string, {
+      last4?: string
+      conversationCount: number
+      reportCount: number
+      firstSeen: string
+      lastSeen: string
+    }>()
+
+    for (const entry of index) {
+      const hash = entry.contactHash
+      if (!hash) continue
+      const conv = await this.getConv(entry.id)
+      if (!conv) continue
+
+      const existing = contactMap.get(hash)
+      const isReport = conv.metadata?.type === 'report'
+      if (existing) {
+        if (isReport) existing.reportCount++
+        else existing.conversationCount++
+        if (conv.createdAt < existing.firstSeen) existing.firstSeen = conv.createdAt
+        if (conv.lastMessageAt > existing.lastSeen) existing.lastSeen = conv.lastMessageAt
+        if (conv.contactLast4) existing.last4 = conv.contactLast4
+      } else {
+        contactMap.set(hash, {
+          last4: conv.contactLast4,
+          conversationCount: isReport ? 0 : 1,
+          reportCount: isReport ? 1 : 0,
+          firstSeen: conv.createdAt,
+          lastSeen: conv.lastMessageAt,
+        })
+      }
+    }
+
+    return Response.json({ contacts: Object.fromEntries(contactMap) })
+  }
+
+  private async getContactConversations(hash: string): Promise<Response> {
+    const index = await this.getIndex()
+    const matching = index.filter(e => e.contactHash === hash)
+    const conversations: Conversation[] = []
+
+    for (const entry of matching) {
+      const conv = await this.getConv(entry.id)
+      if (conv) conversations.push(conv)
+    }
+
+    conversations.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime())
+    return Response.json({ conversations })
   }
 }

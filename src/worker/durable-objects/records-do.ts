@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers'
-import type { Env, BanEntry, EncryptedNote, AuditLogEntry } from '../types'
+import type { Env, BanEntry, EncryptedNote, EncryptedMessage, AuditLogEntry } from '../types'
 import { hashAuditEntry } from '../lib/crypto'
 import { DORouter } from '../lib/do-router'
 import { runMigrations } from '../../shared/migrations/runner'
@@ -36,12 +36,27 @@ export class RecordsDO extends DurableObject<Env> {
       const url = new URL(req.url)
       const authorPubkey = url.searchParams.get('author')
       const callId = url.searchParams.get('callId')
+      const conversationId = url.searchParams.get('conversationId')
+      const contactHash = url.searchParams.get('contactHash')
       const page = url.searchParams.get('page') ? parseInt(url.searchParams.get('page')!) : undefined
       const limit = url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!) : undefined
-      return this.getNotes(authorPubkey, callId, page, limit)
+      return this.getNotes(authorPubkey, callId, conversationId, contactHash, page, limit)
     })
     this.router.post('/notes', async (req) => this.createNoteEntry(await req.json()))
     this.router.patch('/notes/:id', async (req, { id }) => this.updateNoteEntry(id, await req.json()))
+
+    // --- Note Replies (Epic 123) ---
+    this.router.get('/notes/:id/replies', (_req, { id }) => this.getNoteReplies(id))
+    this.router.post('/notes/:id/replies', async (req, { id }) => this.addNoteReply(id, await req.json()))
+
+    // --- Contacts (Epic 123) ---
+    this.router.get('/contacts', (req) => {
+      const url = new URL(req.url)
+      const page = parseInt(url.searchParams.get('page') || '1')
+      const limit = parseInt(url.searchParams.get('limit') || '50')
+      return this.getContacts(page, limit)
+    })
+    this.router.get('/contacts/:hash', (_req, { hash }) => this.getContactNotes(hash))
 
     // --- Audit Log ---
     this.router.get('/audit', (req) => {
@@ -125,7 +140,11 @@ export class RecordsDO extends DurableObject<Env> {
 
   // --- Note Methods (per-note storage) ---
 
-  private async getNotes(authorPubkey: string | null, callId: string | null, page?: number, limit?: number): Promise<Response> {
+  private async getNotes(
+    authorPubkey: string | null, callId: string | null,
+    conversationId?: string | null, contactHash?: string | null,
+    page?: number, limit?: number,
+  ): Promise<Response> {
     const noteMap = await this.ctx.storage.list<EncryptedNote>({ prefix: 'note:' })
     let notes = Array.from(noteMap.values())
 
@@ -144,6 +163,12 @@ export class RecordsDO extends DurableObject<Env> {
     if (callId) {
       filtered = filtered.filter(n => n.callId === callId)
     }
+    if (conversationId) {
+      filtered = filtered.filter(n => n.conversationId === conversationId)
+    }
+    if (contactHash) {
+      filtered = filtered.filter(n => n.contactHash === contactHash)
+    }
     filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
     const total = filtered.length
@@ -155,13 +180,16 @@ export class RecordsDO extends DurableObject<Env> {
   }
 
   private async createNoteEntry(data: {
-    callId: string; authorPubkey: string; encryptedContent: string; ephemeralPubkey?: string
+    callId?: string; conversationId?: string; contactHash?: string
+    authorPubkey: string; encryptedContent: string; ephemeralPubkey?: string
     authorEnvelope?: import('../../shared/types').KeyEnvelope
     adminEnvelopes?: import('../../shared/types').RecipientEnvelope[]
   }): Promise<Response> {
     const note: EncryptedNote = {
       id: crypto.randomUUID(),
-      callId: data.callId,
+      ...(data.callId ? { callId: data.callId } : {}),
+      ...(data.conversationId ? { conversationId: data.conversationId } : {}),
+      ...(data.contactHash ? { contactHash: data.contactHash } : {}),
       authorPubkey: data.authorPubkey,
       encryptedContent: data.encryptedContent,
       createdAt: new Date().toISOString(),
@@ -169,6 +197,7 @@ export class RecordsDO extends DurableObject<Env> {
       ...(data.ephemeralPubkey ? { ephemeralPubkey: data.ephemeralPubkey } : {}),
       ...(data.authorEnvelope ? { authorEnvelope: data.authorEnvelope } : {}),
       ...(data.adminEnvelopes ? { adminEnvelopes: data.adminEnvelopes } : {}),
+      replyCount: 0,
     }
     await this.ctx.storage.put(`note:${note.id}`, note)
     return Response.json({ note })
@@ -197,6 +226,94 @@ export class RecordsDO extends DurableObject<Env> {
 
     await this.ctx.storage.put(`note:${id}`, note)
     return Response.json({ note })
+  }
+
+  // --- Note Reply Methods (Epic 123) ---
+
+  private async getNoteReplies(noteId: string): Promise<Response> {
+    const note = await this.ctx.storage.get<EncryptedNote>(`note:${noteId}`)
+    if (!note) return new Response('Note not found', { status: 404 })
+    const replies = await this.ctx.storage.get<EncryptedMessage[]>(`note-replies:${noteId}`) || []
+    return Response.json({ replies })
+  }
+
+  private async addNoteReply(noteId: string, data: {
+    authorPubkey: string
+    encryptedContent: string
+    readerEnvelopes: import('../../shared/types').RecipientEnvelope[]
+  }): Promise<Response> {
+    const note = await this.ctx.storage.get<EncryptedNote>(`note:${noteId}`)
+    if (!note) return new Response('Note not found', { status: 404 })
+
+    const reply: EncryptedMessage = {
+      id: crypto.randomUUID(),
+      conversationId: noteId, // note ID as thread ID
+      direction: 'outbound',
+      authorPubkey: data.authorPubkey,
+      encryptedContent: data.encryptedContent,
+      readerEnvelopes: data.readerEnvelopes,
+      hasAttachments: false,
+      createdAt: new Date().toISOString(),
+    }
+
+    const replies = await this.ctx.storage.get<EncryptedMessage[]>(`note-replies:${noteId}`) || []
+    replies.push(reply)
+    await this.ctx.storage.put(`note-replies:${noteId}`, replies)
+
+    // Update reply count on the note
+    note.replyCount = replies.length
+    note.updatedAt = new Date().toISOString()
+    await this.ctx.storage.put(`note:${noteId}`, note)
+
+    return Response.json({ reply })
+  }
+
+  // --- Contact Methods (Epic 123) ---
+
+  private async getContacts(page: number, limit: number): Promise<Response> {
+    const noteMap = await this.ctx.storage.list<EncryptedNote>({ prefix: 'note:' })
+    const notes = Array.from(noteMap.values())
+
+    // Build contact summaries from notes that have contactHash
+    const contactMap = new Map<string, {
+      contactHash: string
+      firstSeen: string
+      lastSeen: string
+      noteCount: number
+    }>()
+
+    for (const note of notes) {
+      if (!note.contactHash) continue
+      const existing = contactMap.get(note.contactHash)
+      if (existing) {
+        existing.noteCount++
+        if (note.createdAt < existing.firstSeen) existing.firstSeen = note.createdAt
+        if (note.createdAt > existing.lastSeen) existing.lastSeen = note.createdAt
+      } else {
+        contactMap.set(note.contactHash, {
+          contactHash: note.contactHash,
+          firstSeen: note.createdAt,
+          lastSeen: note.createdAt,
+          noteCount: 1,
+        })
+      }
+    }
+
+    const contacts = Array.from(contactMap.values())
+      .sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())
+
+    const total = contacts.length
+    const start = (page - 1) * limit
+    const paged = contacts.slice(start, start + limit)
+    return Response.json({ contacts: paged, total })
+  }
+
+  private async getContactNotes(contactHash: string): Promise<Response> {
+    const noteMap = await this.ctx.storage.list<EncryptedNote>({ prefix: 'note:' })
+    const notes = Array.from(noteMap.values())
+      .filter(n => n.contactHash === contactHash)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    return Response.json({ notes })
   }
 
   // --- Audit Log Methods (per-entry storage with hash chain) ---

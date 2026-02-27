@@ -25,6 +25,11 @@ export const PERMISSION_CATALOG = {
   'notes:read-all': 'Read all notes',
   'notes:read-assigned': 'Read notes from assigned volunteers',
   'notes:update-own': 'Update own notes',
+  'notes:reply': 'Reply to notes',
+
+  // Contacts
+  'contacts:view': 'View contacts page and contact timelines',
+  'contacts:view-history': 'View past interactions from other volunteers for a contact',
 
   // Reports
   'reports:create': 'Submit reports',
@@ -156,8 +161,9 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     slug: 'hub-admin',
     permissions: [
       'volunteers:*', 'shifts:*', 'settings:*', 'audit:read',
-      'bans:*', 'invites:*', 'notes:read-all', 'notes:create', 'notes:update-own',
+      'bans:*', 'invites:*', 'notes:read-all', 'notes:create', 'notes:update-own', 'notes:reply',
       'reports:*', 'conversations:*', 'calls:*', 'blasts:*', 'files:*',
+      'contacts:view', 'contacts:view-history',
     ],
     isDefault: true,
     isSystem: false,
@@ -168,7 +174,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     name: 'Reviewer',
     slug: 'reviewer',
     permissions: [
-      'notes:read-assigned', 'reports:read-assigned', 'reports:assign',
+      'notes:read-assigned', 'notes:reply', 'reports:read-assigned', 'reports:assign',
       'reports:update', 'reports:send-message',
       'conversations:read-assigned', 'conversations:send',
       'shifts:read-own', 'files:download-own', 'files:upload',
@@ -183,7 +189,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     slug: 'volunteer',
     permissions: [
       'calls:answer', 'calls:read-active',
-      'notes:create', 'notes:read-own', 'notes:update-own',
+      'notes:create', 'notes:read-own', 'notes:update-own', 'notes:reply',
       'conversations:claim', 'conversations:send', 'conversations:read-assigned',
       'conversations:claim-sms', 'conversations:claim-whatsapp',
       'conversations:claim-signal', 'conversations:claim-rcs', 'conversations:claim-web',

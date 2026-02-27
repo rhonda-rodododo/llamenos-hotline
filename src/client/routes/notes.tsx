@@ -198,7 +198,7 @@ function NotesPage() {
     : notes
 
   const notesByCall = filteredNotes.reduce<Record<string, DecryptedNote[]>>((acc, note) => {
-    const key = note.callId
+    const key = note.callId || note.conversationId || 'unlinked'
     if (!acc[key]) acc[key] = []
     acc[key].push(note)
     return acc

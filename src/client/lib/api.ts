@@ -225,16 +225,20 @@ export async function bulkAddBans(data: { phones: string[]; reason: string }) {
 
 // --- Notes ---
 
-export async function listNotes(params?: { callId?: string; page?: number; limit?: number }) {
+export async function listNotes(params?: { callId?: string; conversationId?: string; contactHash?: string; page?: number; limit?: number }) {
   const qs = new URLSearchParams()
   if (params?.callId) qs.set('callId', params.callId)
+  if (params?.conversationId) qs.set('conversationId', params.conversationId)
+  if (params?.contactHash) qs.set('contactHash', params.contactHash)
   if (params?.page) qs.set('page', String(params.page))
   if (params?.limit) qs.set('limit', String(params.limit))
   return request<{ notes: EncryptedNote[]; total: number }>(hp(`/notes?${qs}`))
 }
 
 export async function createNote(data: {
-  callId: string
+  callId?: string
+  conversationId?: string
+  contactHash?: string
   encryptedContent: string
   authorEnvelope?: import('@shared/types').KeyEnvelope
   adminEnvelopes?: import('@shared/types').RecipientEnvelope[]
@@ -254,6 +258,51 @@ export async function updateNote(id: string, data: {
     method: 'PATCH',
     body: JSON.stringify(data),
   })
+}
+
+// Note replies (Epic 123)
+export async function listNoteReplies(noteId: string) {
+  return request<{ replies: ConversationMessage[] }>(hp(`/notes/${noteId}/replies`))
+}
+
+export async function createNoteReply(noteId: string, data: {
+  encryptedContent: string
+  readerEnvelopes: import('@shared/types').RecipientEnvelope[]
+}) {
+  return request<{ reply: ConversationMessage }>(hp(`/notes/${noteId}/replies`), {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+// Contacts (Epic 123)
+export interface ContactSummary {
+  contactHash: string
+  last4?: string
+  firstSeen: string
+  lastSeen: string
+  callCount: number
+  conversationCount: number
+  noteCount: number
+  reportCount: number
+}
+
+export interface ContactTimeline {
+  contact: ContactSummary
+  calls: CallRecord[]
+  conversations: Conversation[]
+  notes: EncryptedNote[]
+}
+
+export async function listContacts(params?: { page?: number; limit?: number }) {
+  const qs = new URLSearchParams()
+  if (params?.page) qs.set('page', String(params.page))
+  if (params?.limit) qs.set('limit', String(params.limit))
+  return request<{ contacts: ContactSummary[]; total: number }>(hp(`/contacts?${qs}`))
+}
+
+export async function getContactTimeline(hash: string) {
+  return request<ContactTimeline>(hp(`/contacts/${hash}`))
 }
 
 // --- Calls ---
@@ -648,7 +697,9 @@ export interface BanEntry {
 
 export interface EncryptedNote {
   id: string
-  callId: string
+  callId?: string
+  conversationId?: string
+  contactHash?: string
   authorPubkey: string
   encryptedContent: string
   createdAt: string
@@ -657,6 +708,7 @@ export interface EncryptedNote {
   // V2 per-note ECIES envelopes (forward secrecy)
   authorEnvelope?: import('@shared/types').KeyEnvelope
   adminEnvelopes?: import('@shared/types').RecipientEnvelope[]
+  replyCount?: number
 }
 
 export interface ActiveCall {

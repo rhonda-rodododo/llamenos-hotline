@@ -201,7 +201,9 @@ export interface CallRecordMetadata {
 
 export interface EncryptedNote {
   id: string
-  callId: string
+  callId?: string              // links to a voice call
+  conversationId?: string      // links to a conversation (NEW: Epic 123)
+  contactHash?: string         // links to a contact for contact-level view (NEW: Epic 123)
   authorPubkey: string
   encryptedContent: string
   createdAt: string
@@ -210,6 +212,7 @@ export interface EncryptedNote {
   // V2 per-note ECIES envelopes (forward secrecy)
   authorEnvelope?: KeyEnvelope
   adminEnvelopes?: RecipientEnvelope[]
+  replyCount?: number          // cached count of replies (NEW: Epic 123)
 }
 
 export interface AuditLogEntry {
