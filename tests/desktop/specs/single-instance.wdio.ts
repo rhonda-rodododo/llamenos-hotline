@@ -4,9 +4,8 @@
  * The Tauri single-instance plugin (tauri-plugin-single-instance) ensures
  * that launching a second copy focuses the existing window instead.
  *
- * These tests verify the configuration is active by checking the plugin
- * state, since programmatically launching a second instance from within
- * the WebDriver session isn't reliably supported.
+ * Uses window.__TAURI_INTERNALS__ directly for Tauri API access since
+ * browser.execute() can't resolve bare module specifiers.
  *
  * Epic 88: Desktop & Mobile E2E Tests.
  */
@@ -19,14 +18,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 describe('Single Instance', () => {
   it('should have the single-instance plugin loaded', async () => {
-    const hasSingleInstance = await browser.execute(async () => {
+    const hasSingleInstance = await browser.execute(() => {
       try {
-        // The single-instance plugin registers itself on the Tauri app.
-        // We verify it's active by checking the Tauri internals.
-        const { getCurrentWindow } = await import('@tauri-apps/api/window')
-        const win = getCurrentWindow()
+        const internals = (window as any).__TAURI_INTERNALS__
+        if (!internals?.metadata) return false
         // If single-instance is active, the window label should be 'main'
-        return win.label === 'main'
+        return internals.metadata.currentWindow?.label === 'main'
       } catch {
         return false
       }
@@ -36,11 +33,11 @@ describe('Single Instance', () => {
   })
 
   it('should have only one window open', async () => {
-    const windowCount = await browser.execute(async () => {
+    const windowCount = await browser.execute(() => {
       try {
-        const { getAllWindows } = await import('@tauri-apps/api/window')
-        const windows = await getAllWindows()
-        return windows.length
+        const internals = (window as any).__TAURI_INTERNALS__
+        if (!internals?.metadata?.windows) return -1
+        return internals.metadata.windows.length
       } catch {
         return -1
       }
@@ -75,12 +72,11 @@ describe('Single Instance', () => {
   it('should focus the existing window when second instance is attempted', async () => {
     const result = await browser.execute(async () => {
       try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window')
-        const win = getCurrentWindow()
+        const invoke = (window as any).__TAURI_INTERNALS__?.invoke
+        if (!invoke) return { error: '__TAURI_INTERNALS__ not available' }
 
-        // Verify the current window is focused/visible
-        const visible = await win.isVisible()
-        const focused = await win.isFocused()
+        const visible = await invoke('plugin:window|is_visible', { label: 'main' })
+        const focused = await invoke('plugin:window|is_focused', { label: 'main' })
 
         return { visible, focused }
       } catch (e) {

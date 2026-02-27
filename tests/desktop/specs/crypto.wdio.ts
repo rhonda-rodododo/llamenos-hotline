@@ -2,7 +2,8 @@
  * Crypto tests — verify Tauri IPC crypto operations work.
  *
  * Tests that the Rust crypto backend (llamenos-core) responds correctly
- * via Tauri IPC commands. The platform.ts module routes to Rust on desktop.
+ * via Tauri IPC commands. Uses window.__TAURI_INTERNALS__.invoke() directly
+ * since browser.execute() can't resolve bare module specifiers.
  *
  * Epic 88: Desktop & Mobile E2E Tests.
  */
@@ -10,7 +11,7 @@
 describe('Native Crypto IPC', () => {
   it('should detect Tauri environment', async () => {
     const isTauri = await browser.execute(() => {
-      return typeof (window as Record<string, unknown>).__TAURI__ !== 'undefined'
+      return typeof (window as Record<string, unknown>).__TAURI_INTERNALS__ !== 'undefined'
     })
     expect(isTauri).toBe(true)
   })
@@ -18,8 +19,10 @@ describe('Native Crypto IPC', () => {
   it('should generate a keypair via Rust IPC', async () => {
     const result = await browser.execute(async () => {
       try {
-        const { invoke } = await import('@tauri-apps/api/core')
-        const keypair = await invoke<{ pubkey: string; nsec: string }>('generate_keypair')
+        const invoke = (window as any).__TAURI_INTERNALS__?.invoke
+        if (!invoke) return { success: false, error: '__TAURI_INTERNALS__ not available' }
+
+        const keypair = await invoke('generate_keypair')
         return {
           success: true,
           hasPubkey: typeof keypair.pubkey === 'string' && keypair.pubkey.length === 64,
@@ -40,19 +43,18 @@ describe('Native Crypto IPC', () => {
   it('should encrypt and decrypt via PIN-based key store', async () => {
     const result = await browser.execute(async () => {
       try {
-        const { invoke } = await import('@tauri-apps/api/core')
+        const invoke = (window as any).__TAURI_INTERNALS__?.invoke
+        if (!invoke) return { success: false, error: '__TAURI_INTERNALS__ not available' }
 
-        // Encrypt some test data with a PIN
         const testPin = '123456'
         const testNsec = 'nsec174zsa94n3e7t0ugfldh9tgkkzmaxhalr78uxt9phjq3mmn6d6xas5jdffh'
 
-        const encrypted = await invoke<string>('pin_encrypt', {
+        const encrypted = await invoke('pin_encrypt', {
           plaintext: testNsec,
           pin: testPin,
         })
 
-        // Decrypt it back
-        const decrypted = await invoke<string>('pin_decrypt', {
+        const decrypted = await invoke('pin_decrypt', {
           ciphertext: encrypted,
           pin: testPin,
         })
@@ -72,21 +74,19 @@ describe('Native Crypto IPC', () => {
   it('should perform ECIES encrypt/decrypt roundtrip', async () => {
     const result = await browser.execute(async () => {
       try {
-        const { invoke } = await import('@tauri-apps/api/core')
+        const invoke = (window as any).__TAURI_INTERNALS__?.invoke
+        if (!invoke) return { success: false, error: '__TAURI_INTERNALS__ not available' }
 
-        // Generate a keypair for ECIES
-        const kp = await invoke<{ pubkey: string; nsec: string }>('generate_keypair')
-
-        // Encrypt a message to this pubkey
+        const kp = await invoke('generate_keypair')
         const plaintext = 'Hello from Tauri E2E test'
-        const encrypted = await invoke<string>('ecies_encrypt', {
+
+        const encrypted = await invoke('ecies_encrypt', {
           recipientPubkey: kp.pubkey,
           plaintext,
           label: 'llamenos:test',
         })
 
-        // Decrypt using the secret key
-        const decrypted = await invoke<string>('ecies_decrypt', {
+        const decrypted = await invoke('ecies_decrypt', {
           nsec: kp.nsec,
           ciphertext: encrypted,
           label: 'llamenos:test',
@@ -107,17 +107,18 @@ describe('Native Crypto IPC', () => {
   it('should sign and verify Schnorr signatures', async () => {
     const result = await browser.execute(async () => {
       try {
-        const { invoke } = await import('@tauri-apps/api/core')
+        const invoke = (window as any).__TAURI_INTERNALS__?.invoke
+        if (!invoke) return { success: false, error: '__TAURI_INTERNALS__ not available' }
 
-        const kp = await invoke<{ pubkey: string; nsec: string }>('generate_keypair')
+        const kp = await invoke('generate_keypair')
         const message = 'test message for signing'
 
-        const signature = await invoke<string>('schnorr_sign', {
+        const signature = await invoke('schnorr_sign', {
           nsec: kp.nsec,
           message,
         })
 
-        const valid = await invoke<boolean>('schnorr_verify', {
+        const valid = await invoke('schnorr_verify', {
           pubkey: kp.pubkey,
           message,
           signature,
