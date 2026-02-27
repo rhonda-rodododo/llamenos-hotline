@@ -1,5 +1,34 @@
 # Completed Backlog
 
+## 2026-02-27: Mobile Records Architecture (Epics 125-128)
+
+### Epic 125: Mobile Note Threading
+- Updated mobile `types.ts` to match desktop records architecture (EncryptedNote, ConversationMessage, CustomFieldDefinition, Conversation)
+- Added `ContactSummary`, `CustomFieldContext`, `fieldMatchesContext()` types
+- Added API client methods: `listNoteReplies`, `createNoteReply`, `listContacts`, `getContactTimeline`
+- Rewrote NoteCard with optional callId, reply button, conversation badge
+- Rewrote MessageBubble to use `readerEnvelopes` instead of `adminEnvelopes`
+- Added thread expansion/collapse and encrypted reply sending to notes list and detail screens
+- Fixed cascading type errors in admin settings custom field form
+
+### Epic 126: Mobile Contacts Page
+- Created admin-only contacts list with paginated FlatList and pull-to-refresh
+- Created contact timeline detail with decrypted notes (V2/V1 fallback) and conversation metadata
+- Added contacts and contact/[hash] routes to admin stack navigator
+- Added contacts admin link in settings screen
+
+### Epic 127: Mobile Conversation Notes
+- Created NoteFormModal component with context-filtered custom fields and E2EE encryption
+- Created CustomFieldInputs component rendering text, textarea, number, checkbox, and select fields
+- Integrated "Add Note" header button into conversation thread screen
+- Field filtering via `fieldMatchesContext()` for call-notes vs conversation-notes context
+
+### Epic 128: Mobile Records i18n & Detox Tests
+- Added note threading, contacts, conversations, and custom field context translation keys to all 13 locale files
+- Created 4 Detox E2E test files: note-threading, contacts, conversation-notes, custom-field-context
+- Updated test-ids.ts with 10 new testID constants
+- All translations: en, es, zh, tl, vi, ar, fr, ht, ko, ru, hi, pt, de
+
 ## 2026-02-27: Unified Records Architecture (Epics 119-124)
 
 ### Epic 119: Records Domain Consolidation
