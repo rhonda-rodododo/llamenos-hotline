@@ -3,129 +3,129 @@ title: Guide mobile
 description: Installez et configurez l'application mobile Llamenos sur iOS et Android.
 ---
 
-L'application mobile Llamenos permet aux benevoles de repondre aux appels, reagir aux messages et rediger des notes chiffrees depuis leur telephone. Elle est construite avec React Native et partage le meme coeur cryptographique Rust que l'application de bureau.
+L'application mobile Llamenos permet aux bénévoles de répondre aux appels, réagir aux messages et rédiger des notes chiffrées depuis leur téléphone. Elle est construite avec React Native et partage le même coeur cryptographique Rust que l'application de bureau.
 
 ## Qu'est-ce que l'application mobile ?
 
-L'application mobile est un compagnon de l'application de bureau. Elle se connecte au meme backend Llamenos (Cloudflare Workers ou auto-heberge) et utilise le meme protocole, permettant aux benevoles de basculer entre bureau et mobile de maniere transparente.
+L'application mobile est un compagnon de l'application de bureau. Elle se connecte au même backend Llamenos (Cloudflare Workers ou auto-hébergé) et utilise le même protocole, permettant aux bénévoles de basculer entre bureau et mobile de manière transparente.
 
-L'application mobile se trouve dans un depot separe (`llamenos-mobile`) mais partage :
+L'application mobile se trouve dans un dépôt séparé (`llamenos-mobile`) mais partage :
 
-- **llamenos-core** — Le meme crate Rust pour toutes les operations cryptographiques, compile via UniFFI pour iOS et Android
-- **Protocole** — Le meme format filaire, les memes endpoints API et le meme schema de chiffrement
-- **Backend** — Le meme Cloudflare Worker ou serveur auto-heberge
+- **llamenos-core** — Le même crate Rust pour toutes les opérations cryptographiques, compilé via UniFFI pour iOS et Android
+- **Protocole** — Le même format filaire, les mêmes endpoints API et le même schéma de chiffrement
+- **Backend** — Le même Cloudflare Worker ou serveur auto-hébergé
 
-## Telecharger et installer
+## Télécharger et installer
 
 ### Android
 
-L'application mobile est actuellement distribuee en tant qu'APK pour l'installation manuelle :
+L'application mobile est actuellement distribuée en tant qu'APK pour l'installation manuelle :
 
-1. Telechargez le dernier fichier `.apk` depuis la page [GitHub Releases](https://github.com/rhonda-rodododo/llamenos-mobile/releases/latest)
-2. Sur votre appareil Android, allez dans **Parametres > Securite** et activez **Installation depuis des sources inconnues** (ou activez-le par application lorsque demande)
-3. Ouvrez l'APK telecharge et appuyez sur **Installer**
-4. Une fois installe, ouvrez Llamenos depuis votre tiroir d'applications
+1. Téléchargez le dernier fichier `.apk` depuis la page [GitHub Releases](https://github.com/rhonda-rodododo/llamenos-mobile/releases/latest)
+2. Sur votre appareil Android, allez dans **Paramètres > Sécurité** et activez **Installation depuis des sources inconnues** (ou activez-le par application lorsque demandé)
+3. Ouvrez l'APK téléchargé et appuyez sur **Installer**
+4. Une fois installé, ouvrez Llamenos depuis votre tiroir d'applications
 
-La distribution via App Store et Play Store est prevue pour une version future.
+La distribution via App Store et Play Store est prévue pour une version future.
 
 ### iOS
 
-Les builds iOS sont disponibles en tant que versions beta TestFlight :
+Les builds iOS sont disponibles en tant que versions bêta TestFlight :
 
 1. Installez [TestFlight](https://apps.apple.com/app/testflight/id899247664) depuis l'App Store
-2. Demandez a votre administrateur le lien d'invitation TestFlight
-3. Ouvrez le lien sur votre appareil iOS pour rejoindre la beta
+2. Demandez à votre administrateur le lien d'invitation TestFlight
+3. Ouvrez le lien sur votre appareil iOS pour rejoindre la bêta
 4. Installez Llamenos depuis TestFlight
 
-La distribution via l'App Store est prevue pour une version future.
+La distribution via l'App Store est prévue pour une version future.
 
 ## Configuration initiale
 
-L'application mobile est configuree en la liant a un compte de bureau existant. Cela garantit que la meme identite cryptographique est utilisee sur tous les appareils sans jamais transmettre la cle secrete en clair.
+L'application mobile est configurée en la liant à un compte de bureau existant. Cela garantit que la même identité cryptographique est utilisée sur tous les appareils sans jamais transmettre la clé secrète en clair.
 
 ### Provisionnement d'appareil (scan QR)
 
-1. Ouvrez l'application Llamenos de bureau et allez dans **Parametres > Appareils**
-2. Cliquez sur **Lier un nouvel appareil** — cela genere un code QR contenant un token de provisionnement a usage unique
+1. Ouvrez l'application Llamenos de bureau et allez dans **Paramètres > Appareils**
+2. Cliquez sur **Lier un nouvel appareil** — cela génère un code QR contenant un token de provisionnement à usage unique
 3. Ouvrez l'application mobile Llamenos et appuyez sur **Lier l'appareil**
-4. Scannez le code QR avec la camera de votre telephone
-5. Les applications effectuent un echange de cles ECDH ephemere pour transferer votre materiel de cle chiffre en toute securite
-6. Definissez un PIN sur l'application mobile pour proteger votre stockage de cles local
-7. L'application mobile est maintenant liee et prete a l'emploi
+4. Scannez le code QR avec la caméra de votre téléphone
+5. Les applications effectuent un échange de clés ECDH éphémère pour transférer votre matériel de clé chiffré en toute sécurité
+6. Définissez un PIN sur l'application mobile pour protéger votre stockage de clés local
+7. L'application mobile est maintenant liée et prête à l'emploi
 
-Le processus de provisionnement ne transmet jamais votre nsec en clair. L'application de bureau enveloppe le materiel de cle avec le secret partage ephemere, et l'application mobile le developpe localement.
+Le processus de provisionnement ne transmet jamais votre nsec en clair. L'application de bureau enveloppe le matériel de clé avec le secret partagé éphémère, et l'application mobile le développe localement.
 
 ### Configuration manuelle (saisie du nsec)
 
 Si vous ne pouvez pas scanner un code QR, vous pouvez saisir votre nsec directement :
 
 1. Ouvrez l'application mobile et appuyez sur **Entrer le nsec manuellement**
-2. Collez votre cle `nsec1...`
-3. Definissez un PIN pour proteger le stockage local
-4. L'application derive votre cle publique et s'enregistre aupres du backend
+2. Collez votre clé `nsec1...`
+3. Définissez un PIN pour protéger le stockage local
+4. L'application dérive votre clé publique et s'enregistre auprès du backend
 
-Cette methode necessite de manipuler votre nsec directement, ne l'utilisez que si le lien d'appareil n'est pas possible. Utilisez un gestionnaire de mots de passe pour coller le nsec plutot que de le taper.
+Cette méthode nécessite de manipuler votre nsec directement, ne l'utilisez que si le lien d'appareil n'est pas possible. Utilisez un gestionnaire de mots de passe pour coller le nsec plutôt que de le taper.
 
-## Comparaison des fonctionnalites
+## Comparaison des fonctionnalités
 
-| Fonctionnalite | Bureau | Mobile |
+| Fonctionnalité | Bureau | Mobile |
 |---|---|---|
-| Repondre aux appels entrants | Oui | Oui |
-| Rediger des notes chiffrees | Oui | Oui |
-| Champs personnalises des notes | Oui | Oui |
-| Repondre aux messages (SMS, WhatsApp, Signal) | Oui | Oui |
+| Répondre aux appels entrants | Oui | Oui |
+| Rédiger des notes chiffrées | Oui | Oui |
+| Champs personnalisés des notes | Oui | Oui |
+| Répondre aux messages (SMS, WhatsApp, Signal) | Oui | Oui |
 | Voir les conversations | Oui | Oui |
-| Statut d'equipe et pauses | Oui | Oui |
-| Transcription cote client | Oui (WASM Whisper) | Non |
+| Statut d'équipe et pauses | Oui | Oui |
+| Transcription côté client | Oui (WASM Whisper) | Non |
 | Recherche de notes | Oui | Oui |
 | Palette de commandes | Oui (Ctrl+K) | Non |
 | Raccourcis clavier | Oui | Non |
-| Parametres admin | Oui (complet) | Oui (limite) |
-| Gestion des benevoles | Oui | Lecture seule |
+| Paramètres admin | Oui (complet) | Oui (limité) |
+| Gestion des bénévoles | Oui | Lecture seule |
 | Voir les journaux d'audit | Oui | Oui |
-| Appel navigateur WebRTC | Oui | Non (utilise le telephone natif) |
+| Appel navigateur WebRTC | Oui | Non (utilise le téléphone natif) |
 | Notifications push | Notifications OS | Push natif (FCM/APNS) |
-| Mise a jour auto | Updater Tauri | App Store / TestFlight |
-| Pieces jointes (rapports) | Oui | Oui |
+| Mise à jour auto | Updater Tauri | App Store / TestFlight |
+| Pièces jointes (rapports) | Oui | Oui |
 
 ## Limitations
 
-- **Pas de transcription cote client** — Le modele WASM Whisper necessite des ressources memoire et CPU significatives, impraticables sur mobile. La transcription des appels est uniquement disponible sur bureau.
-- **Performance crypto reduite** — Bien que l'application mobile utilise le meme coeur crypto Rust via UniFFI, les operations peuvent etre plus lentes sur les appareils d'entree de gamme par rapport aux performances natives du bureau.
-- **Fonctionnalites admin limitees** — Certaines operations admin (gestion en masse des benevoles, configuration detaillee des parametres) ne sont disponibles que dans l'application de bureau. L'application mobile fournit des vues en lecture seule pour la plupart des ecrans admin.
-- **Pas d'appel WebRTC** — Les benevoles mobiles recoivent les appels sur leur numero de telephone via le fournisseur de telephonie, pas via le navigateur. L'appel WebRTC en application est reserve au bureau.
-- **Batterie et connectivite** — L'application a besoin d'une connexion persistante pour recevoir les mises a jour en temps reel. Le mode arriere-plan peut etre limite par la gestion d'energie de l'OS. Gardez l'application au premier plan pendant les equipes pour des notifications fiables.
+- **Pas de transcription côté client** — Le modèle WASM Whisper nécessite des ressources mémoire et CPU significatives, impraticables sur mobile. La transcription des appels est uniquement disponible sur bureau.
+- **Performance crypto réduite** — Bien que l'application mobile utilise le même coeur crypto Rust via UniFFI, les opérations peuvent être plus lentes sur les appareils d'entrée de gamme par rapport aux performances natives du bureau.
+- **Fonctionnalités admin limitées** — Certaines opérations admin (gestion en masse des bénévoles, configuration détaillée des paramètres) ne sont disponibles que dans l'application de bureau. L'application mobile fournit des vues en lecture seule pour la plupart des écrans admin.
+- **Pas d'appel WebRTC** — Les bénévoles mobiles reçoivent les appels sur leur numéro de téléphone via le fournisseur de téléphonie, pas via le navigateur. L'appel WebRTC en application est réservé au bureau.
+- **Batterie et connectivité** — L'application a besoin d'une connexion persistante pour recevoir les mises à jour en temps réel. Le mode arrière-plan peut être limité par la gestion d'énergie de l'OS. Gardez l'application au premier plan pendant les équipes pour des notifications fiables.
 
-## Depannage mobile
+## Dépannage mobile
 
-### L'approvisionnement echoue avec « Code QR invalide »
+### L'approvisionnement échoue avec « Code QR invalide »
 
-- Assurez-vous que le code QR a ete genere recemment (les tokens d'approvisionnement expirent apres 5 minutes)
-- Generez un nouveau code QR depuis l'application de bureau et reessayez
-- Assurez-vous que les deux appareils sont connectes a Internet
+- Assurez-vous que le code QR a été généré récemment (les tokens d'approvisionnement expirent après 5 minutes)
+- Générez un nouveau code QR depuis l'application de bureau et réessayez
+- Assurez-vous que les deux appareils sont connectés à Internet
 
 ### Pas de notifications push
 
-- Verifiez que les notifications sont activees pour Llamenos dans les parametres de votre appareil
-- Sur Android : allez dans **Parametres > Applications > Llamenos > Notifications** et activez tous les canaux
-- Sur iOS : allez dans **Reglages > Notifications > Llamenos** et activez **Autoriser les notifications**
-- Assurez-vous de ne pas etre en mode Ne pas deranger
-- Verifiez que votre equipe est active et que vous n'etes pas en pause
+- Vérifiez que les notifications sont activées pour Llamenos dans les paramètres de votre appareil
+- Sur Android : allez dans **Paramètres > Applications > Llamenos > Notifications** et activez tous les canaux
+- Sur iOS : allez dans **Réglages > Notifications > Llamenos** et activez **Autoriser les notifications**
+- Assurez-vous de ne pas être en mode Ne pas déranger
+- Vérifiez que votre équipe est active et que vous n'êtes pas en pause
 
-### L'application plante au demarrage
+### L'application plante au démarrage
 
-- Assurez-vous d'executer la derniere version de l'application
-- Videz le cache : **Parametres > Applications > Llamenos > Stockage > Vider le cache**
-- Si le probleme persiste, desinstallez et reinstallez (vous devrez re-lier l'appareil)
+- Assurez-vous d'exécuter la dernière version de l'application
+- Videz le cache : **Paramètres > Applications > Llamenos > Stockage > Vider le cache**
+- Si le problème persiste, désinstallez et réinstallez (vous devrez re-lier l'appareil)
 
-### Impossible de dechiffrer les anciennes notes apres reinstallation
+### Impossible de déchiffrer les anciennes notes après réinstallation
 
-- La reinstallation de l'application supprime le materiel de cle local
-- Re-liez l'appareil via code QR depuis votre application de bureau pour restaurer l'acces
-- Les notes chiffrees avant la reinstallation seront accessibles une fois l'appareil re-lie avec la meme identite
+- La réinstallation de l'application supprime le matériel de clé local
+- Re-liez l'appareil via code QR depuis votre application de bureau pour restaurer l'accès
+- Les notes chiffrées avant la réinstallation seront accessibles une fois l'appareil re-lié avec la même identité
 
 ### Performance lente sur les anciens appareils
 
-- Fermez les autres applications pour liberer de la memoire
-- Desactivez les animations dans les parametres de l'application si disponible
-- Envisagez d'utiliser l'application de bureau pour les operations lourdes comme la revue de notes en masse
+- Fermez les autres applications pour libérer de la mémoire
+- Désactivez les animations dans les paramètres de l'application si disponible
+- Envisagez d'utiliser l'application de bureau pour les opérations lourdes comme la revue de notes en masse
