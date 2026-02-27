@@ -63,9 +63,15 @@ jobs:
       - name: Install msedgedriver (Windows)
         if: matrix.platform == 'windows-latest'
         run: |
-          cargo install --git https://github.com/nicollasricas/msedgedriver-tool
-          & "$HOME/.cargo/bin/msedgedriver-tool.exe"
-          $PWD.Path >> $env:GITHUB_PATH
+          $edgeVersion = (Get-Item "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe").VersionInfo.FileVersion
+          $majorVersion = $edgeVersion.Split('.')[0]
+          Write-Host "Edge version: $edgeVersion (major: $majorVersion)"
+          $url = "https://msedgedriver.azureedge.net/$edgeVersion/edgedriver_win64.zip"
+          $fallbackUrl = "https://msedgedriver.microsoft.com/$edgeVersion/edgedriver_win64.zip"
+          try { Invoke-WebRequest -Uri $url -OutFile edgedriver.zip } catch { Invoke-WebRequest -Uri $fallbackUrl -OutFile edgedriver.zip }
+          Expand-Archive -Path edgedriver.zip -DestinationPath "$PWD\edgedriver"
+          "$PWD\edgedriver" >> $env:GITHUB_PATH
+          Write-Host "msedgedriver installed at $PWD\edgedriver"
         shell: pwsh
 
       - name: Install tauri-driver
