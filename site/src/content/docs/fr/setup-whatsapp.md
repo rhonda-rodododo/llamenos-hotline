@@ -1,97 +1,97 @@
 ---
 title: "Configuration : WhatsApp"
-description: Connectez WhatsApp Business via la Meta Cloud API pour la messagerie chiffree.
+description: Connectez WhatsApp Business via la Meta Cloud API pour la messagerie chiffrée.
 ---
 
 Llamenos prend en charge la messagerie WhatsApp Business via la Meta Cloud API (Graph API v21.0). WhatsApp permet une messagerie riche avec prise en charge du texte, des images, des documents, de l'audio et des messages interactifs.
 
-## Prerequis
+## Prérequis
 
 - Un [compte Meta Business](https://business.facebook.com)
-- Un numero de telephone WhatsApp Business API
-- Une application developpeur Meta avec le produit WhatsApp active
+- Un numéro de téléphone WhatsApp Business API
+- Une application développeur Meta avec le produit WhatsApp activé
 
-## Modes d'integration
+## Modes d'intégration
 
-Llamenos prend en charge deux modes d'integration WhatsApp :
+Llamenos prend en charge deux modes d'intégration WhatsApp :
 
-### Meta Direct (recommande)
+### Meta Direct (recommandé)
 
-Connectez-vous directement a la Meta Cloud API. Offre un controle total et toutes les fonctionnalites.
+Connectez-vous directement à la Meta Cloud API. Offre un contrôle total et toutes les fonctionnalités.
 
 **Identifiants requis :**
-- **Phone Number ID** — l'identifiant de votre numero WhatsApp Business
+- **Phone Number ID** — l'identifiant de votre numéro WhatsApp Business
 - **Business Account ID** — l'identifiant de votre compte Meta Business
-- **Access Token** — un token d'acces Meta API a longue duree
-- **Verify Token** — une chaine personnalisee que vous choisissez pour la verification webhook
+- **Access Token** — un token d'accès Meta API à longue durée
+- **Verify Token** — une chaîne personnalisée que vous choisissez pour la vérification webhook
 - **App Secret** — le secret de votre application Meta (pour la validation de la signature webhook)
 
 ### Mode Twilio
 
-Si vous utilisez deja Twilio pour la voix, vous pouvez router WhatsApp via votre compte Twilio. Configuration plus simple, mais certaines fonctionnalites peuvent etre limitees.
+Si vous utilisez déjà Twilio pour la voix, vous pouvez router WhatsApp via votre compte Twilio. Configuration plus simple, mais certaines fonctionnalités peuvent être limitées.
 
 **Identifiants requis :**
-- Vos Twilio Account SID et Auth Token existants, et un expediteur WhatsApp connecte a Twilio
+- Vos Twilio Account SID et Auth Token existants, et un expéditeur WhatsApp connecté à Twilio
 
-## 1. Creer une application Meta
+## 1. Créer une application Meta
 
 1. Allez sur [developers.facebook.com](https://developers.facebook.com)
-2. Creez une nouvelle application (type : Business)
+2. Créez une nouvelle application (type : Business)
 3. Ajoutez le produit **WhatsApp**
 4. Dans WhatsApp > Getting Started, notez votre **Phone Number ID** et **Business Account ID**
-5. Generez un token d'acces permanent (Settings > Access Tokens)
+5. Générez un token d'accès permanent (Settings > Access Tokens)
 
 ## 2. Configurer le webhook
 
-Dans le tableau de bord developpeur Meta :
+Dans le tableau de bord développeur Meta :
 
 1. Allez dans WhatsApp > Configuration > Webhook
-2. Definissez le Callback URL sur :
+2. Définissez le Callback URL sur :
    ```
    https://your-worker.your-domain.com/api/messaging/whatsapp/webhook
    ```
-3. Definissez le Verify Token sur la meme chaine que vous saisirez dans les parametres admin Llamenos
+3. Définissez le Verify Token sur la même chaîne que vous saisirez dans les paramètres admin Llamenos
 4. Abonnez-vous au champ webhook `messages`
 
-Meta enverra une requete GET pour verifier le webhook. Votre Worker repondra avec le challenge si le token de verification correspond.
+Meta enverra une requête GET pour vérifier le webhook. Votre Worker répondra avec le challenge si le token de vérification correspond.
 
-## 3. Activer WhatsApp dans les parametres admin
+## 3. Activer WhatsApp dans les paramètres admin
 
-Naviguez vers **Parametres admin > Canaux de messagerie** (ou utilisez l'assistant de configuration) et activez **WhatsApp**.
+Naviguez vers **Paramètres admin > Canaux de messagerie** (ou utilisez l'assistant de configuration) et activez **WhatsApp**.
 
-Selectionnez le mode **Meta Direct** ou **Twilio** et saisissez les identifiants requis.
+Sélectionnez le mode **Meta Direct** ou **Twilio** et saisissez les identifiants requis.
 
-Configurez les parametres optionnels :
-- **Message de reponse automatique** — envoye aux nouveaux contacts
-- **Reponse hors heures** — envoyee en dehors des heures d'equipe
+Configurez les paramètres optionnels :
+- **Message de réponse automatique** — envoyé aux nouveaux contacts
+- **Réponse hors heures** — envoyée en dehors des heures d'équipe
 
 ## 4. Test
 
-Envoyez un message WhatsApp a votre numero Business. La conversation devrait apparaitre dans l'onglet **Conversations**.
+Envoyez un message WhatsApp à votre numéro Business. La conversation devrait apparaître dans l'onglet **Conversations**.
 
-## Fenetre de messagerie de 24 heures
+## Fenêtre de messagerie de 24 heures
 
-WhatsApp impose une fenetre de messagerie de 24 heures :
-- Vous pouvez repondre a un utilisateur dans les 24 heures suivant son dernier message
-- Apres 24 heures, vous devez utiliser un **message template** approuve pour relancer la conversation
-- Llamenos gere cela automatiquement — si la fenetre a expire, il envoie un message template pour relancer la conversation
+WhatsApp impose une fenêtre de messagerie de 24 heures :
+- Vous pouvez répondre à un utilisateur dans les 24 heures suivant son dernier message
+- Après 24 heures, vous devez utiliser un **message template** approuvé pour relancer la conversation
+- Llamenos gère cela automatiquement — si la fenêtre a expiré, il envoie un message template pour relancer la conversation
 
-## Support media
+## Support média
 
-WhatsApp prend en charge les messages media riches :
+WhatsApp prend en charge les messages média riches :
 - **Images** (JPEG, PNG)
 - **Documents** (PDF, Word, etc.)
 - **Audio** (MP3, OGG)
-- **Video** (MP4)
+- **Vidéo** (MP4)
 - Partage de **localisation**
 - Boutons et messages de liste **interactifs**
 
-Les pieces jointes media apparaissent en ligne dans la vue conversation.
+Les pièces jointes média apparaissent en ligne dans la vue conversation.
 
-## Notes de securite
+## Notes de sécurité
 
 - WhatsApp utilise le chiffrement de bout en bout entre l'utilisateur et l'infrastructure de Meta
-- Meta peut techniquement acceder au contenu des messages sur ses serveurs
-- Les messages sont stockes dans Llamenos apres reception depuis le webhook
-- Les signatures de webhook sont validees avec HMAC-SHA256 et votre secret d'application
-- Pour une confidentialite maximale, envisagez d'utiliser Signal au lieu de WhatsApp
+- Meta peut techniquement accéder au contenu des messages sur ses serveurs
+- Les messages sont stockés dans Llamenos après réception depuis le webhook
+- Les signatures de webhook sont validées avec HMAC-SHA256 et votre secret d'application
+- Pour une confidentialité maximale, envisagez d'utiliser Signal au lieu de WhatsApp
