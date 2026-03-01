@@ -40,23 +40,10 @@ build-options:
     npm_config_nodedir: /usr/lib/sdk/node20
 
 modules:
-  # llamenos-core sibling crate (needed as path dependency)
-  - name: llamenos-core
-    buildsystem: simple
-    build-commands:
-      - cp -r . /run/build/llamenos-core
-    sources:
-      - type: git
-        url: https://github.com/rhonda-rodododo/llamenos-core.git
-        branch: main
-
-  # Main desktop application
+  # Main desktop application (crypto crate is in-repo at packages/crypto/)
   - name: llamenos-desktop
     buildsystem: simple
     build-commands:
-      # Symlink llamenos-core (Cargo.toml expects ../../../llamenos-core)
-      - ln -sf /run/build/llamenos-core ../../../llamenos-core
-
       # Install Node.js dependencies (offline from generated sources)
       - npm ci --offline
 

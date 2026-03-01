@@ -84,11 +84,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Replace local path dep with git dep so Cargo fetches from GitHub
-      - name: Use llamenos-core from GitHub
-        shell: bash
-        run: sed -i 's|llamenos-core = { path = "../../../llamenos-core" }|llamenos-core = { git = "https://github.com/rhonda-rodododo/llamenos-core.git" }|' apps/desktop/Cargo.toml
-
       # Sync version from tag into tauri.conf.json and package.json
       - name: Sync version from tag
         shell: bash

@@ -10,6 +10,7 @@ on:
   pull_request:
     paths:
       - 'apps/desktop/**'
+      - 'packages/crypto/**'
       - 'tests/desktop/**'
       - 'src/client/**'
   workflow_dispatch:
@@ -84,11 +85,6 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
-
-      # Replace local path dep with git dep so Cargo fetches from GitHub
-      - name: Use llamenos-core from GitHub
-        shell: bash
-        run: sed -i 's|llamenos-core = { path = "../../../llamenos-core" }|llamenos-core = { git = "https://github.com/rhonda-rodododo/llamenos-core.git" }|' apps/desktop/Cargo.toml
 
       # wdio.conf.ts onPrepare() handles building the debug binary
 

@@ -33,7 +33,10 @@
     "version:bump": "bun run scripts/bump-version.ts",
     "tauri:dev": "bunx tauri dev --project-path apps/desktop",
     "tauri:build": "bunx tauri build --project-path apps/desktop",
-    "tauri:icon": "bunx tauri icon --project-path apps/desktop"
+    "tauri:icon": "bunx tauri icon --project-path apps/desktop",
+    "crypto:test": "cargo test --manifest-path packages/crypto/Cargo.toml",
+    "crypto:clippy": "cargo clippy --manifest-path packages/crypto/Cargo.toml -- -D warnings",
+    "crypto:fmt": "cargo fmt --manifest-path packages/crypto/Cargo.toml --check"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.993.0",
