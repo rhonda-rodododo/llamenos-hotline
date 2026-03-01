@@ -16,3 +16,15 @@ site/node_modules/
 site/.astro/
 packages/i18n/generated/
 packages/protocol/generated/
+
+# Android build
+.gradle/
+apps/android/app/build/
+apps/android/build/
+apps/android/local.properties
+
+# iOS build
+apps/ios/.build/
+apps/ios/*.xcodeproj/
+apps/ios/DerivedData/
+apps/ios/LlamenosCoreFFI.xcframework/
