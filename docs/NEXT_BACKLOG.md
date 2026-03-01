@@ -279,10 +279,10 @@ Desktop (Tauri v2) and mobile (React Native/Expo 55) clients. Ordered by depende
 
 ### Testing & CI
 - [x] **[Epic 211: Mobile CI Testing Pipeline](epics/epic-211-mobile-ci-testing.md)** — Android + iOS build/test jobs in ci.yml, ci-status gate update
-- [ ] **[Epic 212: Test Coverage Enhancement](epics/epic-212-test-coverage-enhancement.md)** — BDD patterns, cross-platform crypto test vectors, expanded unit + UI tests
+- [x] **[Epic 212: Test Coverage Enhancement](epics/epic-212-test-coverage-enhancement.md)** — 74 Android unit tests (AuthViewModel, Models, Shifts, RetryInterceptor), KeyValueStore testability refactor
 
 ### Hardening & Crypto
-- [ ] **[Epic 213: Production Hardening](epics/epic-213-production-hardening.md)** — Error monitoring, crash reporting, network resilience, performance optimization, security review
+- [x] **[Epic 213: Production Hardening](epics/epic-213-production-hardening.md)** — RetryInterceptor with exponential backoff, NetworkMonitor + OfflineBanner, CrashReporter with local storage
 - [ ] **[Epic 214: Mobile Crypto Integration](epics/epic-214-mobile-crypto-integration.md)** — UniFFI linking for real Rust crypto on iOS and Android (replace stand-ins)
 
 ### Documentation
