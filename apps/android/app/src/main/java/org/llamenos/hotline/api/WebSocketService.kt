@@ -23,6 +23,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.llamenos.hotline.crypto.CryptoService
+import org.llamenos.hotline.crypto.KeyValueStore
 import org.llamenos.hotline.crypto.KeystoreService
 import org.llamenos.hotline.model.LlamenosEvent
 import java.util.concurrent.TimeUnit
@@ -41,7 +42,7 @@ import javax.inject.Singleton
 @Singleton
 class WebSocketService @Inject constructor(
     private val cryptoService: CryptoService,
-    private val keystoreService: KeystoreService,
+    private val keystoreService: KeyValueStore,
 ) {
 
     @Serializable

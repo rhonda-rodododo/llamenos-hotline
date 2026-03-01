@@ -1,8 +1,12 @@
 package org.llamenos.hotline.di
 
+import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import org.llamenos.hotline.crypto.KeyValueStore
+import org.llamenos.hotline.crypto.KeystoreService
+import javax.inject.Singleton
 
 /**
  * Hilt dependency injection module for the llamenos application.
@@ -16,12 +20,17 @@ import dagger.hilt.components.SingletonComponent
  * Automatically-bound singletons (via @Inject constructor + @Singleton):
  *
  *   CryptoService       (no deps)
- *   KeystoreService     (@ApplicationContext Context)
+ *   KeystoreService     (@ApplicationContext Context) -> KeyValueStore
  *   WakeKeyService      (KeystoreService)
  *   AuthInterceptor     (CryptoService)
- *   ApiService          (AuthInterceptor, KeystoreService)
- *   WebSocketService    (CryptoService, KeystoreService)
+ *   ApiService          (AuthInterceptor, KeyValueStore)
+ *   WebSocketService    (CryptoService, KeyValueStore)
  */
 @Module
 @InstallIn(SingletonComponent::class)
-object AppModule
+abstract class AppModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindKeyValueStore(keystoreService: KeystoreService): KeyValueStore
+}

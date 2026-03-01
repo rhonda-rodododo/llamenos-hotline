@@ -13,6 +13,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.EncryptedKeyData
+import org.llamenos.hotline.crypto.KeyValueStore
 import org.llamenos.hotline.crypto.KeystoreService
 import javax.inject.Inject
 
@@ -69,7 +70,7 @@ data class AuthUiState(
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val cryptoService: CryptoService,
-    private val keystoreService: KeystoreService,
+    private val keystoreService: KeyValueStore,
 ) : ViewModel() {
 
     private val json = Json { ignoreUnknownKeys = true }

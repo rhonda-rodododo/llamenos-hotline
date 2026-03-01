@@ -8,6 +8,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.llamenos.hotline.crypto.KeyValueStore
 import org.llamenos.hotline.crypto.KeystoreService
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -28,7 +29,7 @@ class ApiException(val code: Int, override val message: String) : Exception("HTT
 @Singleton
 class ApiService @Inject constructor(
     authInterceptor: AuthInterceptor,
-    @PublishedApi internal val keystoreService: KeystoreService,
+    @PublishedApi internal val keystoreService: KeyValueStore,
 ) {
 
     @PublishedApi

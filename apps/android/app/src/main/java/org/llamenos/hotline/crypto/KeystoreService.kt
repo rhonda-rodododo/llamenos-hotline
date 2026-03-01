@@ -25,7 +25,7 @@ import javax.inject.Singleton
 @Singleton
 class KeystoreService @Inject constructor(
     @ApplicationContext private val context: Context,
-) {
+) : KeyValueStore {
 
     private val masterKey: MasterKey by lazy {
         MasterKey.Builder(context)
@@ -46,35 +46,35 @@ class KeystoreService @Inject constructor(
     /**
      * Store a string value under the given key. The value is encrypted at rest.
      */
-    fun store(key: String, value: String) {
+    override fun store(key: String, value: String) {
         prefs.edit().putString(key, value).apply()
     }
 
     /**
      * Retrieve a previously stored value, or null if the key does not exist.
      */
-    fun retrieve(key: String): String? {
+    override fun retrieve(key: String): String? {
         return prefs.getString(key, null)
     }
 
     /**
      * Delete a single key-value pair.
      */
-    fun delete(key: String) {
+    override fun delete(key: String) {
         prefs.edit().remove(key).apply()
     }
 
     /**
      * Clear all stored values. Used during account reset / logout.
      */
-    fun clear() {
+    override fun clear() {
         prefs.edit().clear().apply()
     }
 
     /**
      * Check whether a key exists in the store.
      */
-    fun contains(key: String): Boolean {
+    override fun contains(key: String): Boolean {
         return prefs.contains(key)
     }
 

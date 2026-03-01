@@ -1,5 +1,6 @@
 package org.llamenos.hotline.crypto
 
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -76,6 +77,12 @@ class CryptoException(message: String, cause: Throwable? = null) : Exception(mes
 class CryptoService @Inject constructor() {
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    /**
+     * Dispatcher for CPU-intensive crypto operations.
+     * Defaults to [Dispatchers.Default]; overridden in tests to use a test dispatcher.
+     */
+    internal var computeDispatcher: CoroutineDispatcher = Dispatchers.Default
 
     private var nsecHex: String? = null
 
@@ -170,7 +177,7 @@ class CryptoService @Inject constructor() {
      * Encrypt the current private key for persistent storage using a PIN.
      * Uses PBKDF2 key derivation + XChaCha20-Poly1305 encryption via llamenos-core.
      */
-    suspend fun encryptForStorage(pin: String): EncryptedKeyData = withContext(Dispatchers.Default) {
+    suspend fun encryptForStorage(pin: String): EncryptedKeyData = withContext(computeDispatcher) {
         val secret = nsecHex ?: throw CryptoException("No key loaded")
         val pub = pubkey ?: throw CryptoException("No pubkey available")
 
@@ -191,11 +198,14 @@ class CryptoService @Inject constructor() {
         val nonceBytes = ByteArray(24)
         java.security.SecureRandom().nextBytes(nonceBytes)
 
+        // Embed PIN hash in salt so placeholder decryption can verify it
+        val pinHash = pin.hashCode().toString()
+
         EncryptedKeyData(
             ciphertext = java.util.Base64.getEncoder().encodeToString(
                 secret.toByteArray(Charsets.UTF_8)
             ),
-            salt = saltBytes.joinToString("") { "%02x".format(it) },
+            salt = pinHash + ":" + saltBytes.joinToString("") { "%02x".format(it) },
             nonce = nonceBytes.joinToString("") { "%02x".format(it) },
             pubkeyHex = pub,
         )
@@ -205,7 +215,7 @@ class CryptoService @Inject constructor() {
      * Decrypt stored key data with the user's PIN and restore the keypair.
      */
     suspend fun decryptFromStorage(data: EncryptedKeyData, pin: String): Unit =
-        withContext(Dispatchers.Default) {
+        withContext(computeDispatcher) {
             if (pin.length < 4 || pin.length > 6) {
                 throw CryptoException("PIN must be 4-6 digits")
             }
@@ -218,7 +228,12 @@ class CryptoService @Inject constructor() {
                 throw CryptoException("Native library integration pending (Epic 201)")
             }
 
-            // Placeholder: decode the Base64 ciphertext
+            // Placeholder: verify PIN hash embedded in salt, then decode Base64 ciphertext
+            val storedPinHash = data.salt.substringBefore(":")
+            if (storedPinHash != pin.hashCode().toString()) {
+                throw CryptoException("Decryption failed: incorrect PIN")
+            }
+
             val decoded = java.util.Base64.getDecoder().decode(data.ciphertext)
             val secretHex = String(decoded, Charsets.UTF_8)
 
@@ -232,7 +247,7 @@ class CryptoService @Inject constructor() {
      * This is the suspend version for use in coroutine contexts.
      */
     suspend fun createAuthToken(method: String, path: String): AuthToken =
-        withContext(Dispatchers.Default) {
+        withContext(computeDispatcher) {
             createAuthTokenInternal(method, path)
         }
 
@@ -281,7 +296,7 @@ class CryptoService @Inject constructor() {
      * Each note gets a unique random key, ECIES-wrapped for each recipient.
      */
     suspend fun encryptNote(payload: String, adminPubkeys: List<String>): EncryptedNote =
-        withContext(Dispatchers.Default) {
+        withContext(computeDispatcher) {
             val pub = pubkey ?: throw CryptoException("No key loaded")
 
             if (nativeLibLoaded) {
@@ -329,7 +344,7 @@ class CryptoService @Inject constructor() {
     suspend fun decryptNote(
         encryptedContent: String,
         envelope: RecipientEnvelope,
-    ): NotePayload? = withContext(Dispatchers.Default) {
+    ): NotePayload? = withContext(computeDispatcher) {
         val secret = nsecHex ?: throw CryptoException("No key loaded")
 
         if (nativeLibLoaded) {
@@ -372,7 +387,7 @@ class CryptoService @Inject constructor() {
     suspend fun encryptMessage(
         plaintext: String,
         readerPubkeys: List<String>,
-    ): EncryptedMessage = withContext(Dispatchers.Default) {
+    ): EncryptedMessage = withContext(computeDispatcher) {
         val pub = pubkey ?: throw CryptoException("No key loaded")
 
         if (nativeLibLoaded) {
@@ -420,7 +435,7 @@ class CryptoService @Inject constructor() {
         encryptedContent: String,
         wrappedKey: String,
         ephemeralPubkey: String,
-    ): String? = withContext(Dispatchers.Default) {
+    ): String? = withContext(computeDispatcher) {
         val secret = nsecHex ?: throw CryptoException("No key loaded")
 
         if (nativeLibLoaded) {
@@ -511,7 +526,7 @@ class CryptoService @Inject constructor() {
     suspend fun decryptWithSharedSecret(
         encrypted: String,
         sharedSecret: String,
-    ): String = withContext(Dispatchers.Default) {
+    ): String = withContext(computeDispatcher) {
         if (nativeLibLoaded) {
             // When native lib is linked:
             // return@withContext LlamenosCore.decryptWithSharedSecret(encrypted, sharedSecret)
