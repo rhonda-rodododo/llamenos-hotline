@@ -162,8 +162,15 @@ export class SettingsDO extends DurableObject<Env> {
           setupCompleted: true,
           completedSteps: ['welcome', 'telephony', 'channels'],
           pendingChannels: [],
-          selectedChannels: ['voice'],
+          selectedChannels: ['voice', 'sms', 'signal', 'reports'],
           demoMode: true,
+        })
+      }
+      // Enable messaging channels so the Conversations UI is visible
+      if (!(await this.ctx.storage.get<MessagingConfig>('messagingConfig'))) {
+        await this.ctx.storage.put<MessagingConfig>('messagingConfig', {
+          ...DEFAULT_MESSAGING_CONFIG,
+          enabledChannels: ['sms', 'signal'],
         })
       }
     }
