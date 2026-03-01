@@ -8,14 +8,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
+import org.llamenos.hotline.crypto.KeystoreService
 import org.llamenos.hotline.ui.auth.AuthViewModel
 import org.llamenos.hotline.ui.auth.LoginScreen
 import org.llamenos.hotline.ui.auth.OnboardingScreen
 import org.llamenos.hotline.ui.auth.PINSetScreen
 import org.llamenos.hotline.ui.auth.PINUnlockScreen
-import org.llamenos.hotline.ui.dashboard.DashboardScreen
-import org.llamenos.hotline.ui.dashboard.DashboardViewModel
+import org.llamenos.hotline.ui.notes.NoteCreateScreen
+import org.llamenos.hotline.ui.notes.NoteDetailScreen
+import org.llamenos.hotline.ui.notes.NotesViewModel
 
 /**
  * Type-safe route definitions for the navigation graph.
@@ -46,9 +49,23 @@ sealed interface LlamenosRoute {
         override val route = "pin_unlock"
     }
 
-    /** Main dashboard after successful authentication. */
-    data object Dashboard : LlamenosRoute {
-        override val route = "dashboard"
+    /** Main screen with bottom navigation (Dashboard, Notes, Shifts, Settings). */
+    data object Main : LlamenosRoute {
+        override val route = "main"
+    }
+
+    /** Note detail view. */
+    data class NoteDetail(val noteId: String) : LlamenosRoute {
+        override val route = "note/{noteId}"
+
+        companion object {
+            const val ROUTE_PATTERN = "note/{noteId}"
+        }
+    }
+
+    /** Note creation form. */
+    data object NoteCreate : LlamenosRoute {
+        override val route = "note_create"
     }
 }
 
@@ -61,14 +78,18 @@ sealed interface LlamenosRoute {
  * - No keys -> Login (fresh install or after reset)
  *
  * The [AuthViewModel] is scoped to the NavHost so it survives screen
- * transitions within the auth flow. The [DashboardScreen] gets its own
- * ViewModel via Hilt.
+ * transitions within the auth flow. The [MainScreen] contains bottom
+ * navigation with Dashboard, Notes, Shifts, and Settings tabs.
  *
  * @param cryptoService Injected from [MainActivity] for determining auth state
+ * @param webSocketService Injected for passing to MainScreen
+ * @param keystoreService Injected for hub URL access in MainScreen
  */
 @Composable
 fun LlamenosNavigation(
     cryptoService: CryptoService,
+    webSocketService: WebSocketService,
+    keystoreService: KeystoreService,
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
@@ -119,7 +140,7 @@ fun LlamenosNavigation(
             PINSetScreen(
                 viewModel = authViewModel,
                 onAuthenticated = {
-                    navController.navigate(LlamenosRoute.Dashboard.route) {
+                    navController.navigate(LlamenosRoute.Main.route) {
                         // Clear entire auth flow from back stack
                         popUpTo(0) { inclusive = true }
                     }
@@ -131,7 +152,7 @@ fun LlamenosNavigation(
             PINUnlockScreen(
                 viewModel = authViewModel,
                 onAuthenticated = {
-                    navController.navigate(LlamenosRoute.Dashboard.route) {
+                    navController.navigate(LlamenosRoute.Main.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 },
@@ -143,10 +164,11 @@ fun LlamenosNavigation(
             )
         }
 
-        composable(LlamenosRoute.Dashboard.route) {
-            val dashboardViewModel: DashboardViewModel = hiltViewModel()
-            DashboardScreen(
-                viewModel = dashboardViewModel,
+        composable(LlamenosRoute.Main.route) {
+            MainScreen(
+                cryptoService = cryptoService,
+                webSocketService = webSocketService,
+                keystoreService = keystoreService,
                 onLock = {
                     cryptoService.lock()
                     authViewModel.resetPinEntry()
@@ -160,6 +182,28 @@ fun LlamenosNavigation(
                         popUpTo(0) { inclusive = true }
                     }
                 },
+                onNavigateToNoteDetail = { noteId ->
+                    navController.navigate("note/$noteId")
+                },
+                onNavigateToNoteCreate = {
+                    navController.navigate(LlamenosRoute.NoteCreate.route)
+                },
+            )
+        }
+
+        composable(LlamenosRoute.NoteDetail.ROUTE_PATTERN) {
+            val notesViewModel: NotesViewModel = hiltViewModel()
+            NoteDetailScreen(
+                viewModel = notesViewModel,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(LlamenosRoute.NoteCreate.route) {
+            val notesViewModel: NotesViewModel = hiltViewModel()
+            NoteCreateScreen(
+                viewModel = notesViewModel,
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     }

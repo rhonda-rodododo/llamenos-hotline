@@ -3,6 +3,9 @@ import SwiftUI
 /// Root view that switches between screens based on the current auth status.
 /// Uses `NavigationStack` with the `Router` for push-based navigation within
 /// each auth state (e.g., login -> onboarding -> PIN set).
+///
+/// When authenticated (`rootRoute == .dashboard`), shows the `MainTabView`
+/// with four tabs: Dashboard, Notes, Shifts, Settings.
 struct ContentView: View {
     @Environment(AppState.self) private var appState
     @Environment(Router.self) private var router
@@ -30,7 +33,8 @@ struct ContentView: View {
         case .pinUnlock:
             PINUnlockView()
         case .dashboard:
-            DashboardView()
+            MainTabView()
+                .navigationBarBackButtonHidden()
         default:
             // Fallback — should not occur in normal flow
             LoginView()
@@ -54,7 +58,10 @@ struct ContentView: View {
         case .pinUnlock:
             PINUnlockView()
         case .dashboard:
-            DashboardView()
+            MainTabView()
+        case .noteDetail, .noteCreate:
+            // These are handled within the Notes tab's own NavigationStack
+            EmptyView()
         }
     }
 }

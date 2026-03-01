@@ -108,6 +108,16 @@ private func llamenosCoreIsValidPin(_ pin: String) -> Bool {
     return pin.count >= 4 && pin.count <= 6 && pin.allSatisfy(\.isNumber)
 }
 
+private func llamenosCoreDecryptNote(encryptedContentHex: String, wrappedKeyHex: String, ephemeralPubkeyHex: String, secretKeyHex: String) throws -> String {
+    // Stand-in: simulate note decryption.
+    // Real implementation uses ECIES to unwrap the note key, then XChaCha20-Poly1305
+    // to decrypt the content. See protocol spec Section 2.3.
+    let simulated = """
+    {"text":"Decrypted note content (stand-in)","fields":null}
+    """
+    return simulated
+}
+
 #endif
 
 // MARK: - CryptoService
@@ -260,6 +270,37 @@ final class CryptoService: @unchecked Sendable {
             payloadJson: payload,
             authorPubkey: pubkey,
             adminPubkeys: adminPubkeys
+        )
+        #endif
+    }
+
+    // MARK: - Note Decryption
+
+    /// Decrypt a note using the recipient envelope that matches our pubkey.
+    /// Finds our envelope, unwraps the note key via ECIES, then decrypts the content
+    /// with XChaCha20-Poly1305.
+    ///
+    /// - Parameters:
+    ///   - encryptedContent: Hex-encoded encrypted note content.
+    ///   - wrappedKey: Hex-encoded ECIES-wrapped note symmetric key.
+    ///   - ephemeralPubkey: Hex-encoded ephemeral public key used in ECIES.
+    /// - Returns: Decrypted JSON string containing the `NotePayload`.
+    func decryptNoteContent(encryptedContent: String, wrappedKey: String, ephemeralPubkey: String) throws -> String {
+        guard let nsecHex else { throw CryptoServiceError.noKeyLoaded }
+
+        #if canImport(LlamenosCore)
+        return try LlamenosCore.decryptNote(
+            encryptedContentHex: encryptedContent,
+            wrappedKeyHex: wrappedKey,
+            ephemeralPubkeyHex: ephemeralPubkey,
+            secretKeyHex: nsecHex
+        )
+        #else
+        return try llamenosCoreDecryptNote(
+            encryptedContentHex: encryptedContent,
+            wrappedKeyHex: wrappedKey,
+            ephemeralPubkeyHex: ephemeralPubkey,
+            secretKeyHex: nsecHex
         )
         #endif
     }

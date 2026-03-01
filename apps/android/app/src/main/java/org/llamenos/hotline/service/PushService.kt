@@ -8,8 +8,14 @@ import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.llamenos.hotline.R
+import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
+import org.llamenos.hotline.crypto.WakeKeyService
 import javax.inject.Inject
 
 /**
@@ -20,20 +26,32 @@ import javax.inject.Inject
  * - Shift reminders
  * - Admin announcements
  *
- * All push notification content is encrypted -- the FCM payload contains
- * only an opaque envelope that the app decrypts locally with the hub key.
- * Firebase/Google never see the notification content in plaintext.
+ * All push notification content is encrypted — the FCM payload contains
+ * only an opaque envelope that the app decrypts locally. Two decryption
+ * tiers are supported:
  *
- * Full push notification handling (displaying notifications, launching call UI,
- * ConnectionService integration) will be implemented in Epic 208. This
- * foundation registers the service, persists FCM tokens, and creates
- * notification channels.
+ * 1. **Wake tier** (via [WakeKeyService]): Decryptable without user PIN.
+ *    Shows generic "New call available" on the lock screen. The wake key
+ *    is stored in Android Keystore without user authentication requirement.
+ *
+ * 2. **Full tier** (via [CryptoService]): Requires the app to be unlocked.
+ *    Shows detailed caller context when the volunteer's nsec is available.
+ *
+ * Firebase/Google never see the notification content in plaintext.
  */
 @AndroidEntryPoint
 class PushService : FirebaseMessagingService() {
 
     @Inject
     lateinit var keystoreService: KeystoreService
+
+    @Inject
+    lateinit var cryptoService: CryptoService
+
+    @Inject
+    lateinit var wakeKeyService: WakeKeyService
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * Called when a new FCM registration token is generated.
@@ -45,13 +63,14 @@ class PushService : FirebaseMessagingService() {
      *
      * The token is stored locally and will be sent to the llamenos backend
      * so the server can target this device for push delivery.
-     *
-     * Epic 208 will implement: POST /api/v1/identity/device with the token.
      */
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d(TAG, "FCM token refreshed: ${token.take(10)}...")
         keystoreService.store(KEY_FCM_TOKEN, token)
+
+        // Ensure a wake key exists for push encryption
+        wakeKeyService.getOrCreateWakePublicKey()
     }
 
     /**
@@ -64,8 +83,8 @@ class PushService : FirebaseMessagingService() {
      * - `shift_reminder`: Upcoming shift notification
      * - `announcement`: Admin announcement
      *
-     * Epic 208 will implement full message handling with NotificationCompat,
-     * foreground service for ongoing calls, and ConnectionService integration.
+     * Each message may contain an encrypted `wake_payload` (decryptable without
+     * user PIN) and/or an encrypted `full_payload` (requires unlocked app).
      */
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
@@ -75,12 +94,103 @@ class PushService : FirebaseMessagingService() {
 
         Log.d(TAG, "FCM message received: type=$type, keys=${data.keys}")
 
+        // Try wake-tier decryption first (available without PIN unlock)
+        val wakeEncrypted = data["wake_payload"]
+        if (wakeEncrypted != null) {
+            serviceScope.launch {
+                val wakePayload = wakeKeyService.decryptWakePayload(wakeEncrypted)
+                if (wakePayload != null) {
+                    Log.d(TAG, "Wake payload decrypted: type=${wakePayload.type}")
+                    // Use wake payload for notification content when app is locked
+                    if (!cryptoService.isUnlocked) {
+                        showNotificationFromWakePayload(wakePayload.type, wakePayload.message)
+                    }
+                }
+            }
+        }
+
+        // If app is unlocked, use full-tier handling for richer notifications
+        if (cryptoService.isUnlocked) {
+            when (type) {
+                "incoming_call" -> handleIncomingCall(data)
+                "call_ended" -> handleCallEnded()
+                "shift_reminder" -> handleShiftReminder(data)
+                "announcement" -> handleAnnouncement(data)
+                else -> Log.d(TAG, "Unknown message type: $type")
+            }
+        } else if (wakeEncrypted == null) {
+            // No wake payload and app is locked — show generic notification
+            when (type) {
+                "incoming_call" -> handleIncomingCall(data)
+                "call_ended" -> handleCallEnded()
+                "shift_reminder" -> handleShiftReminder(data)
+                "announcement" -> handleAnnouncement(data)
+                else -> Log.d(TAG, "Unknown message type: $type")
+            }
+        }
+    }
+
+    /**
+     * Show a notification using wake-tier decrypted content.
+     * Used when the app is locked and full-tier decryption is unavailable.
+     */
+    private fun showNotificationFromWakePayload(type: String, message: String?) {
         when (type) {
-            "incoming_call" -> handleIncomingCall(data)
-            "call_ended" -> handleCallEnded()
-            "shift_reminder" -> handleShiftReminder(data)
-            "announcement" -> handleAnnouncement(data)
-            else -> Log.d(TAG, "Unknown message type: $type")
+            "incoming_call" -> {
+                ensureNotificationChannel(
+                    CHANNEL_CALLS,
+                    getString(R.string.notification_channel_calls),
+                    NotificationManager.IMPORTANCE_HIGH,
+                )
+                val notification = NotificationCompat.Builder(this, CHANNEL_CALLS)
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setContentTitle(getString(R.string.incoming_call))
+                    .setContentText(message ?: getString(R.string.incoming_call_body))
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setCategory(NotificationCompat.CATEGORY_CALL)
+                    .setAutoCancel(true)
+                    .setVibrate(longArrayOf(0, 500, 200, 500))
+                    .build()
+
+                val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.notify(NOTIFICATION_ID_CALL, notification)
+            }
+
+            "shift_reminder" -> {
+                ensureNotificationChannel(
+                    CHANNEL_SHIFTS,
+                    getString(R.string.notification_channel_shifts),
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                )
+                val notification = NotificationCompat.Builder(this, CHANNEL_SHIFTS)
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setContentTitle(getString(R.string.shift_reminder))
+                    .setContentText(message ?: getString(R.string.shift_reminder_body))
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setAutoCancel(true)
+                    .build()
+
+                val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.notify(NOTIFICATION_ID_SHIFT, notification)
+            }
+
+            else -> {
+                ensureNotificationChannel(
+                    CHANNEL_GENERAL,
+                    getString(R.string.notification_channel_general),
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                )
+                val notification = NotificationCompat.Builder(this, CHANNEL_GENERAL)
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setContentTitle(getString(R.string.app_name))
+                    .setContentText(message ?: getString(R.string.announcement_body))
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setAutoCancel(true)
+                    .build()
+
+                val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.notify(NOTIFICATION_ID_ANNOUNCEMENT, notification)
+            }
         }
     }
 
@@ -92,8 +202,6 @@ class PushService : FirebaseMessagingService() {
             NotificationManager.IMPORTANCE_HIGH,
         )
 
-        // Epic 208: Full-screen intent for incoming call, ringtone, vibration,
-        // foreground service, ConnectionService integration
         val notification = NotificationCompat.Builder(this, CHANNEL_CALLS)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.incoming_call))

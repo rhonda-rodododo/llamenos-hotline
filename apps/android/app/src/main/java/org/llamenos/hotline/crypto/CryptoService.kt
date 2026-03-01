@@ -2,6 +2,9 @@ package org.llamenos.hotline.crypto
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import org.llamenos.hotline.model.NotePayload
+import org.llamenos.hotline.model.RecipientEnvelope
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -54,6 +57,8 @@ class CryptoException(message: String, cause: Throwable? = null) : Exception(mes
  */
 @Singleton
 class CryptoService @Inject constructor() {
+
+    private val json = Json { ignoreUnknownKeys = true }
 
     private var nsecHex: String? = null
 
@@ -292,6 +297,50 @@ class CryptoService @Inject constructor() {
                 envelopes = envelopes,
             )
         }
+
+    /**
+     * Decrypt a note using the recipient envelope matching our keypair.
+     *
+     * Finds the envelope addressed to our pubkey, unwraps the symmetric key
+     * via ECIES using our nsec, then decrypts the note ciphertext with
+     * XChaCha20-Poly1305.
+     *
+     * @param encryptedContent Base64-encoded ciphertext of the note
+     * @param envelope The recipient envelope containing our wrapped key
+     * @return The decrypted [NotePayload], or null if decryption fails
+     */
+    suspend fun decryptNote(
+        encryptedContent: String,
+        envelope: RecipientEnvelope,
+    ): NotePayload? = withContext(Dispatchers.Default) {
+        val secret = nsecHex ?: throw CryptoException("No key loaded")
+
+        if (nativeLibLoaded) {
+            // When native lib is linked:
+            // val plaintext = LlamenosCore.decryptNote(
+            //     encryptedContent = encryptedContent,
+            //     wrappedKey = envelope.wrappedKey,
+            //     ephemeralPubkey = envelope.ephemeralPubkey,
+            //     secretKeyHex = secret
+            // )
+            // return@withContext json.decodeFromString<NotePayload>(plaintext)
+            throw CryptoException("Native library integration pending (Epic 201)")
+        }
+
+        // Placeholder: decode base64 content as if it were plaintext JSON
+        try {
+            val decoded = java.util.Base64.getDecoder().decode(encryptedContent)
+            val plaintext = String(decoded, Charsets.UTF_8)
+            json.decodeFromString<NotePayload>(plaintext)
+        } catch (_: Exception) {
+            // If it's not valid base64 JSON, try direct parsing
+            try {
+                json.decodeFromString<NotePayload>(encryptedContent)
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
 
     /**
      * Lock the CryptoService by clearing the private key from memory.

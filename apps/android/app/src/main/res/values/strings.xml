@@ -49,11 +49,56 @@
     <string name="lock_app">Lock</string>
     <string name="logout">Logout</string>
 
+    <!-- Dashboard enhanced -->
+    <string name="dashboard_recent_notes">Recent Notes</string>
+    <string name="dashboard_view_all_notes">View all</string>
+    <string name="dashboard_no_recent_notes">No recent notes</string>
+
     <!-- Connection -->
     <string name="status_connected">Connected</string>
     <string name="status_connecting">Connecting\u2026</string>
     <string name="status_reconnecting">Reconnecting\u2026</string>
     <string name="status_disconnected">Disconnected</string>
+
+    <!-- Notes -->
+    <string name="notes_title">Notes</string>
+    <string name="notes_empty">No notes yet</string>
+    <string name="notes_empty_subtitle">Notes you create will appear here</string>
+    <string name="note_create">New Note</string>
+    <string name="note_text_hint">Write your note\u2026</string>
+    <string name="note_save">Save</string>
+    <string name="note_saving">Encrypting and saving\u2026</string>
+    <string name="note_created">Note saved</string>
+    <string name="note_detail">Note Detail</string>
+    <string name="note_author">Author</string>
+    <string name="note_date">Date</string>
+    <string name="note_copy">Copy text</string>
+    <string name="note_copied">Note copied</string>
+
+    <!-- Shifts -->
+    <string name="shifts_title">Shifts</string>
+    <string name="shifts_empty">No shifts available</string>
+    <string name="shift_clock_in">Clock In</string>
+    <string name="shift_clock_out">Clock Out</string>
+    <string name="shift_sign_up">Sign Up</string>
+    <string name="shift_drop">Drop Shift</string>
+    <string name="shift_drop_confirm">Are you sure you want to drop this shift?</string>
+    <string name="shift_available">Available</string>
+    <string name="shift_assigned">Assigned</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_identity">Identity</string>
+    <string name="settings_hub">Hub Connection</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_copy_npub">Copy public key</string>
+    <string name="settings_npub_copied">Public key copied</string>
+
+    <!-- Navigation -->
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_notes">Notes</string>
+    <string name="nav_shifts">Shifts</string>
+    <string name="nav_settings">Settings</string>
 
     <!-- Notifications -->
     <string name="notification_channel_calls">Incoming Calls</string>

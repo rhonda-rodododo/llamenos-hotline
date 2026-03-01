@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -22,6 +24,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
+import org.llamenos.hotline.model.LlamenosEvent
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -71,6 +74,11 @@ class WebSocketService @Inject constructor(
 
     private val _events = MutableSharedFlow<NostrEvent>(extraBufferCapacity = 64)
     val events: SharedFlow<NostrEvent> = _events.asSharedFlow()
+
+    private val _typedEvents = MutableSharedFlow<LlamenosEvent>(extraBufferCapacity = 64)
+
+    /** Typed application events parsed from Nostr relay messages. */
+    val typedEvents: SharedFlow<LlamenosEvent> = _typedEvents.asSharedFlow()
 
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS) // No read timeout for WebSocket
@@ -171,10 +179,48 @@ class WebSocketService @Inject constructor(
 
             scope.launch {
                 _events.emit(event)
+                // Parse into typed event and emit on the typed flow
+                parseTypedEvent(event.content)?.let { typed ->
+                    _typedEvents.emit(typed)
+                }
             }
         } catch (_: Exception) {
             // Malformed messages are silently dropped — relay may send
             // NOTICE or other non-EVENT messages we don't need to handle.
+        }
+    }
+
+    /**
+     * Parse the decrypted event content JSON into a typed [LlamenosEvent].
+     * Returns null for unparseable content (graceful forward compatibility).
+     */
+    private fun parseTypedEvent(content: String): LlamenosEvent? {
+        return try {
+            val obj = json.parseToJsonElement(content).jsonObject
+            val type = obj["type"]?.jsonPrimitive?.content ?: return null
+
+            when (type) {
+                "call_ring" -> {
+                    val callId = obj["callId"]?.jsonPrimitive?.content ?: return null
+                    LlamenosEvent.CallRing(callId)
+                }
+                "call_ended" -> {
+                    val callId = obj["callId"]?.jsonPrimitive?.content ?: return null
+                    LlamenosEvent.CallEnded(callId)
+                }
+                "shift_update" -> {
+                    val shiftId = obj["shiftId"]?.jsonPrimitive?.content ?: return null
+                    val status = obj["status"]?.jsonPrimitive?.content ?: return null
+                    LlamenosEvent.ShiftUpdate(shiftId, status)
+                }
+                "note_created" -> {
+                    val noteId = obj["noteId"]?.jsonPrimitive?.content ?: return null
+                    LlamenosEvent.NoteCreated(noteId)
+                }
+                else -> LlamenosEvent.Unknown(type)
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 

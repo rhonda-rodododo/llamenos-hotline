@@ -24,6 +24,8 @@ final class AppState {
     let keychainService: KeychainService
     let apiService: APIService
     let authService: AuthService
+    let webSocketService: WebSocketService
+    let wakeKeyService: WakeKeyService
 
     // MARK: - Auth State
 
@@ -34,6 +36,11 @@ final class AppState {
     /// Distinct from authStatus == .locked because it tracks the explicit "needs re-auth" state.
     var isLocked: Bool = false
 
+    // MARK: - WebSocket Event Listener
+
+    /// Background task that listens for WebSocket events.
+    private var eventListenerTask: Task<Void, Never>?
+
     // MARK: - Initialization
 
     init() {
@@ -41,16 +48,23 @@ final class AppState {
         let keychain = KeychainService()
         let api = APIService(cryptoService: crypto)
         let auth = AuthService(cryptoService: crypto, keychainService: keychain)
+        let ws = WebSocketService()
+        let wake = WakeKeyService(keychainService: keychain, cryptoService: crypto, apiService: api)
 
         self.cryptoService = crypto
         self.keychainService = keychain
         self.apiService = api
         self.authService = auth
+        self.webSocketService = ws
+        self.wakeKeyService = wake
 
         // Configure API base URL if stored
         if let hubURL = auth.hubURL {
             try? api.configure(hubURLString: hubURL)
         }
+
+        // Generate wake keypair on first launch (non-blocking)
+        try? wake.ensureKeypairExists()
 
         // Determine initial auth state
         resolveAuthStatus()
@@ -82,6 +96,7 @@ final class AppState {
     func didUnlock() {
         isLocked = false
         authStatus = .unlocked
+        connectWebSocketIfConfigured()
     }
 
     /// Called after successful onboarding (new identity or import + PIN set).
@@ -93,12 +108,44 @@ final class AppState {
         if let hubURL = authService.hubURL {
             try? apiService.configure(hubURLString: hubURL)
         }
+
+        connectWebSocketIfConfigured()
     }
 
     /// Called when the user logs out / resets identity.
     func didLogout() {
+        webSocketService.disconnect()
+        eventListenerTask?.cancel()
+        eventListenerTask = nil
+        wakeKeyService.cleanup()
         authService.logout()
         isLocked = false
         authStatus = .unauthenticated
+    }
+
+    // MARK: - WebSocket Connection
+
+    /// Connect WebSocket to the relay if a hub URL is configured.
+    private func connectWebSocketIfConfigured() {
+        guard let hubURL = authService.hubURL else { return }
+
+        // Derive relay URL from hub URL
+        var relayURL = hubURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !relayURL.hasPrefix("wss://") && !relayURL.hasPrefix("ws://") {
+            if relayURL.hasPrefix("https://") {
+                relayURL = relayURL.replacingOccurrences(of: "https://", with: "wss://")
+            } else if relayURL.hasPrefix("http://") {
+                relayURL = relayURL.replacingOccurrences(of: "http://", with: "ws://")
+            } else {
+                relayURL = "wss://\(relayURL)"
+            }
+        }
+        if !relayURL.hasSuffix("/relay") {
+            relayURL += "/relay"
+        }
+
+        Task {
+            await webSocketService.connect(to: relayURL)
+        }
     }
 }

@@ -5,7 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dagger.hilt.android.AndroidEntryPoint
+import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
+import org.llamenos.hotline.crypto.KeystoreService
 import org.llamenos.hotline.ui.LlamenosNavigation
 import org.llamenos.hotline.ui.theme.LlamenosTheme
 import javax.inject.Inject
@@ -16,6 +18,12 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var cryptoService: CryptoService
 
+    @Inject
+    lateinit var webSocketService: WebSocketService
+
+    @Inject
+    lateinit var keystoreService: KeystoreService
+
     private var backgroundTimestamp: Long? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,7 +32,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             LlamenosTheme {
-                LlamenosNavigation(cryptoService = cryptoService)
+                LlamenosNavigation(
+                    cryptoService = cryptoService,
+                    webSocketService = webSocketService,
+                    keystoreService = keystoreService,
+                )
             }
         }
     }

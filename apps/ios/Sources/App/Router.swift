@@ -16,6 +16,10 @@ enum Route: Hashable {
     case pinUnlock
     /// Main dashboard: shift status, active calls, recent notes.
     case dashboard
+    /// Note detail view: full decrypted note.
+    case noteDetail(id: String)
+    /// Note creation form.
+    case noteCreate
 }
 
 // MARK: - Router

@@ -1,5 +1,6 @@
 package org.llamenos.hotline.ui.dashboard
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,9 +15,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,8 +29,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,30 +40,42 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.llamenos.hotline.R
 import org.llamenos.hotline.api.WebSocketService
+import org.llamenos.hotline.ui.notes.DecryptedNote
+import org.llamenos.hotline.ui.notes.NotesViewModel
 
 /**
- * Dashboard screen showing shift status, connection state, and active calls.
+ * Enhanced dashboard screen showing shift status, connection state, active calls,
+ * recent notes preview, and quick actions.
  *
- * This is the main screen after authentication. Full features (call handling,
- * note-taking, shift management) will be implemented in Epic 208.
+ * This is the main screen after authentication, displayed in the Dashboard tab
+ * of the bottom navigation. It subscribes to WebSocket events for real-time
+ * updates and shows the 3 most recent notes for quick access.
  *
  * @param viewModel Hilt-injected ViewModel for dashboard state
+ * @param notesViewModel Shared NotesViewModel for recent notes preview
  * @param onLock Callback to lock the app (clears key from memory, navigates to PIN unlock)
  * @param onLogout Callback to fully logout (clears stored keys, navigates to login)
+ * @param onNavigateToNotes Callback to switch to the Notes tab
+ * @param onNavigateToNoteDetail Callback to navigate to a specific note detail screen
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
+    notesViewModel: NotesViewModel,
     onLock: () -> Unit,
     onLogout: () -> Unit,
+    onNavigateToNotes: () -> Unit,
+    onNavigateToNoteDetail: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val notesUiState by notesViewModel.uiState.collectAsState()
 
     Scaffold(
         topBar = {
@@ -69,7 +87,29 @@ fun DashboardScreen(
                     )
                 },
                 actions = {
-                    // Lock button -- clears key from memory, keeps stored keys
+                    // Connection status indicator in the top bar
+                    val statusColor = when (uiState.connectionState) {
+                        WebSocketService.ConnectionState.CONNECTED ->
+                            MaterialTheme.colorScheme.primary
+
+                        WebSocketService.ConnectionState.CONNECTING,
+                        WebSocketService.ConnectionState.RECONNECTING ->
+                            MaterialTheme.colorScheme.tertiary
+
+                        WebSocketService.ConnectionState.DISCONNECTED ->
+                            MaterialTheme.colorScheme.error
+                    }
+                    Icon(
+                        imageVector = Icons.Filled.Circle,
+                        contentDescription = null,
+                        tint = statusColor,
+                        modifier = Modifier
+                            .size(10.dp)
+                            .testTag("topbar-connection-dot"),
+                    )
+                    Spacer(Modifier.width(8.dp))
+
+                    // Lock button
                     IconButton(
                         onClick = onLock,
                         modifier = Modifier.testTag("lock-button"),
@@ -80,7 +120,7 @@ fun DashboardScreen(
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                     }
-                    // Logout button -- clears all data
+                    // Logout button
                     IconButton(
                         onClick = onLogout,
                         modifier = Modifier.testTag("logout-button"),
@@ -100,138 +140,201 @@ fun DashboardScreen(
         },
         modifier = modifier,
     ) { paddingValues ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = {
+                viewModel.refresh()
+                notesViewModel.refresh()
+            },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(paddingValues),
         ) {
-            // Connection status card
-            Card(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("connection-card"),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    val (statusColor, statusText) = when (uiState.connectionState) {
-                        WebSocketService.ConnectionState.CONNECTED ->
-                            MaterialTheme.colorScheme.primary to stringResource(R.string.status_connected)
-
-                        WebSocketService.ConnectionState.CONNECTING ->
-                            MaterialTheme.colorScheme.tertiary to stringResource(R.string.status_connecting)
-
-                        WebSocketService.ConnectionState.RECONNECTING ->
-                            MaterialTheme.colorScheme.tertiary to stringResource(R.string.status_reconnecting)
-
-                        WebSocketService.ConnectionState.DISCONNECTED ->
-                            MaterialTheme.colorScheme.error to stringResource(R.string.status_disconnected)
-                    }
-
-                    Icon(
-                        imageVector = Icons.Filled.Circle,
-                        contentDescription = null,
-                        tint = statusColor,
-                        modifier = Modifier.size(12.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = statusText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.testTag("connection-status"),
-                    )
-                }
-            }
-
-            // Shift status card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("shift-card"),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (uiState.isOnShift) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                ),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.shift_status),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = if (uiState.isOnShift) {
-                            stringResource(R.string.on_shift)
-                        } else {
-                            stringResource(R.string.off_shift)
-                        },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (uiState.isOnShift) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.testTag("shift-status-text"),
-                    )
-                }
-            }
-
-            // Active calls card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("calls-card"),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Phone,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = stringResource(R.string.active_calls),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            text = uiState.activeCallCount.toString(),
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.testTag("active-call-count"),
-                        )
-                    }
-                }
-            }
-
-            // Identity info
-            if (uiState.npub.isNotEmpty()) {
+                // Connection status card
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("identity-card"),
+                        .testTag("connection-card"),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val (statusColor, statusText) = when (uiState.connectionState) {
+                            WebSocketService.ConnectionState.CONNECTED ->
+                                MaterialTheme.colorScheme.primary to stringResource(R.string.status_connected)
+
+                            WebSocketService.ConnectionState.CONNECTING ->
+                                MaterialTheme.colorScheme.tertiary to stringResource(R.string.status_connecting)
+
+                            WebSocketService.ConnectionState.RECONNECTING ->
+                                MaterialTheme.colorScheme.tertiary to stringResource(R.string.status_reconnecting)
+
+                            WebSocketService.ConnectionState.DISCONNECTED ->
+                                MaterialTheme.colorScheme.error to stringResource(R.string.status_disconnected)
+                        }
+
+                        Icon(
+                            imageVector = Icons.Filled.Circle,
+                            contentDescription = null,
+                            tint = statusColor,
+                            modifier = Modifier.size(12.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.testTag("connection-status"),
+                        )
+                    }
+                }
+
+                // Shift status card with clock in/out quick action
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("shift-card"),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (uiState.isOnShift) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        },
+                    ),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.shift_status),
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = if (uiState.isOnShift) {
+                                        stringResource(R.string.on_shift)
+                                    } else {
+                                        stringResource(R.string.off_shift)
+                                    },
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (uiState.isOnShift) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    modifier = Modifier.testTag("shift-status-text"),
+                                )
+                            }
+
+                            // Quick clock in/out button
+                            Button(
+                                onClick = {
+                                    if (uiState.isOnShift) {
+                                        viewModel.clockOut()
+                                    } else {
+                                        viewModel.clockIn()
+                                    }
+                                },
+                                enabled = !uiState.isClockingInOut,
+                                colors = if (uiState.isOnShift) {
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                    )
+                                } else {
+                                    ButtonDefaults.buttonColors()
+                                },
+                                modifier = Modifier.testTag("dashboard-clock-button"),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.CalendarMonth,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = if (uiState.isOnShift) {
+                                        stringResource(R.string.shift_clock_out)
+                                    } else {
+                                        stringResource(R.string.shift_clock_in)
+                                    },
+                                )
+                            }
+                        }
+
+                        // Active shift timer
+                        val startedAt = uiState.shiftStartedAt
+                        if (uiState.isOnShift && startedAt != null) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = "Active since ${formatDashboardTime(startedAt)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                modifier = Modifier.testTag("shift-timer"),
+                            )
+                        }
+                    }
+                }
+
+                // Active calls card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("calls-card"),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Phone,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = stringResource(R.string.active_calls),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                text = uiState.activeCallCount.toString(),
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.testTag("active-call-count"),
+                            )
+                        }
+                    }
+                }
+
+                // Recent notes preview
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("recent-notes-card"),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     ),
@@ -241,23 +344,132 @@ fun DashboardScreen(
                             .fillMaxWidth()
                             .padding(16.dp),
                     ) {
-                        Text(
-                            text = stringResource(R.string.your_identity),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = uiState.npub,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.testTag("dashboard-npub"),
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.dashboard_recent_notes),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            TextButton(
+                                onClick = onNavigateToNotes,
+                                modifier = Modifier.testTag("view-all-notes"),
+                            ) {
+                                Text(stringResource(R.string.dashboard_view_all_notes))
+                            }
+                        }
+
+                        val recentNotes = notesUiState.notes.take(3)
+
+                        if (recentNotes.isEmpty()) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.dashboard_no_recent_notes),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.testTag("no-recent-notes"),
+                            )
+                        } else {
+                            recentNotes.forEach { note ->
+                                RecentNoteItem(
+                                    note = note,
+                                    onClick = {
+                                        notesViewModel.selectNote(note)
+                                        onNavigateToNoteDetail(note.id)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Identity info
+                if (uiState.npub.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("identity-card"),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        ),
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.your_identity),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = uiState.npub,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.testTag("dashboard-npub"),
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Compact note preview for the dashboard recent notes section.
+ */
+@Composable
+private fun RecentNoteItem(
+    note: DecryptedNote,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable(onClick = onClick)
+            .testTag("recent-note-${note.id}"),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+        ) {
+            Text(
+                text = note.text,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = formatDashboardTime(note.createdAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            )
+        }
+    }
+}
+
+/**
+ * Format an ISO 8601 date string for dashboard display.
+ */
+private fun formatDashboardTime(isoDate: String): String {
+    return try {
+        val parts = isoDate.replace("T", " ").replace("Z", "").split(" ")
+        if (parts.size >= 2) parts[1].take(5) else isoDate
+    } catch (_: Exception) {
+        isoDate
     }
 }

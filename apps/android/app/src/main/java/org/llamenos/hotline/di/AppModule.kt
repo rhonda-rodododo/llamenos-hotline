@@ -17,6 +17,7 @@ import dagger.hilt.components.SingletonComponent
  *
  *   CryptoService       (no deps)
  *   KeystoreService     (@ApplicationContext Context)
+ *   WakeKeyService      (KeystoreService)
  *   AuthInterceptor     (CryptoService)
  *   ApiService          (AuthInterceptor, KeystoreService)
  *   WebSocketService    (CryptoService, KeystoreService)
