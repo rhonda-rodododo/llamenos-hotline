@@ -37,7 +37,9 @@
     "tauri:icon": "bunx tauri icon --project-path apps/desktop",
     "crypto:test": "cargo test --manifest-path packages/crypto/Cargo.toml",
     "crypto:clippy": "cargo clippy --manifest-path packages/crypto/Cargo.toml -- -D warnings",
-    "crypto:fmt": "cargo fmt --manifest-path packages/crypto/Cargo.toml --check"
+    "crypto:fmt": "cargo fmt --manifest-path packages/crypto/Cargo.toml --check",
+    "i18n:codegen": "bun run packages/i18n/tools/i18n-codegen.ts",
+    "i18n:validate": "bun run packages/i18n/tools/i18n-codegen.ts --validate"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.993.0",

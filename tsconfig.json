@@ -16,7 +16,9 @@
     "paths": {
       "@/*": ["./src/client/*"],
       "@worker/*": ["./apps/worker/*"],
-      "@shared/*": ["./packages/shared/*"]
+      "@shared/*": ["./packages/shared/*"],
+      "@llamenos/i18n": ["./packages/i18n/index.ts"],
+      "@llamenos/i18n/*": ["./packages/i18n/*"]
     },
     "types": ["@cloudflare/workers-types"]
   },

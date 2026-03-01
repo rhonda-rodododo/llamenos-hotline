@@ -1,0 +1,10 @@
+{
+  "name": "@llamenos/i18n",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./locales/*": "./locales/*",
+    "./languages": "./languages.ts"
+  }
+}

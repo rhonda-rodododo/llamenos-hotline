@@ -33,6 +33,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src/client'),
       '@shared': path.resolve(__dirname, './packages/shared'),
+      '@llamenos/i18n': path.resolve(__dirname, './packages/i18n/index.ts'),
       // Test builds: route Tauri IPC to JS mock implementations
       ...(isTestBuild ? {
         '@tauri-apps/api/core': path.resolve(__dirname, 'tests/mocks/tauri-core.ts'),
