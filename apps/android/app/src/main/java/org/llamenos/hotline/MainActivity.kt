@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dagger.hilt.android.AndroidEntryPoint
+import org.llamenos.hotline.api.NetworkMonitor
 import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
@@ -24,6 +25,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var keystoreService: KeystoreService
 
+    @Inject
+    lateinit var networkMonitor: NetworkMonitor
+
     private var backgroundTimestamp: Long? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,6 +40,7 @@ class MainActivity : ComponentActivity() {
                     cryptoService = cryptoService,
                     webSocketService = webSocketService,
                     keystoreService = keystoreService,
+                    networkMonitor = networkMonitor,
                 )
             }
         }

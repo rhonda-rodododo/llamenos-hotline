@@ -8,6 +8,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import org.llamenos.hotline.api.NetworkMonitor
 import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
@@ -113,6 +114,7 @@ fun LlamenosNavigation(
     cryptoService: CryptoService,
     webSocketService: WebSocketService,
     keystoreService: KeystoreService,
+    networkMonitor: NetworkMonitor,
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
@@ -192,6 +194,7 @@ fun LlamenosNavigation(
                 cryptoService = cryptoService,
                 webSocketService = webSocketService,
                 keystoreService = keystoreService,
+                networkMonitor = networkMonitor,
                 onLock = {
                     cryptoService.lock()
                     authViewModel.resetPinEntry()

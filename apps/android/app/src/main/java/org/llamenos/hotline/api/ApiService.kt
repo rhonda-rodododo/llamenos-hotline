@@ -29,14 +29,16 @@ class ApiException(val code: Int, override val message: String) : Exception("HTT
 @Singleton
 class ApiService @Inject constructor(
     authInterceptor: AuthInterceptor,
+    retryInterceptor: RetryInterceptor,
     @PublishedApi internal val keystoreService: KeyValueStore,
 ) {
 
     @PublishedApi
     internal val client: OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(retryInterceptor)
         .addInterceptor(authInterceptor)
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 

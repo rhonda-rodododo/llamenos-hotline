@@ -1,5 +1,6 @@
 package org.llamenos.hotline.ui
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -26,7 +27,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.llamenos.hotline.R
+import org.llamenos.hotline.api.NetworkMonitor
 import org.llamenos.hotline.api.WebSocketService
+import org.llamenos.hotline.ui.components.OfflineBanner
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
 import org.llamenos.hotline.ui.conversations.ConversationsScreen
@@ -84,6 +87,7 @@ fun MainScreen(
     cryptoService: CryptoService,
     webSocketService: WebSocketService,
     keystoreService: KeystoreService,
+    networkMonitor: NetworkMonitor,
     onLock: () -> Unit,
     onLogout: () -> Unit,
     onNavigateToNoteDetail: (String) -> Unit,
@@ -148,54 +152,53 @@ fun MainScreen(
         },
         modifier = modifier,
     ) { paddingValues ->
-        when (MainTab.entries[selectedTab]) {
-            MainTab.DASHBOARD -> {
-                DashboardScreen(
-                    viewModel = dashboardViewModel,
-                    notesViewModel = notesViewModel,
-                    onLock = onLock,
-                    onLogout = onLogout,
-                    onNavigateToNotes = { selectedTab = MainTab.NOTES.ordinal },
-                    onNavigateToNoteDetail = onNavigateToNoteDetail,
-                    modifier = Modifier.padding(paddingValues),
-                )
-            }
+        Column(modifier = Modifier.padding(paddingValues)) {
+            OfflineBanner(networkMonitor)
 
-            MainTab.NOTES -> {
-                NotesScreen(
-                    viewModel = notesViewModel,
-                    onNavigateToCreate = onNavigateToNoteCreate,
-                    onNavigateToDetail = onNavigateToNoteDetail,
-                    modifier = Modifier.padding(paddingValues),
-                )
-            }
+            when (MainTab.entries[selectedTab]) {
+                MainTab.DASHBOARD -> {
+                    DashboardScreen(
+                        viewModel = dashboardViewModel,
+                        notesViewModel = notesViewModel,
+                        onLock = onLock,
+                        onLogout = onLogout,
+                        onNavigateToNotes = { selectedTab = MainTab.NOTES.ordinal },
+                        onNavigateToNoteDetail = onNavigateToNoteDetail,
+                    )
+                }
 
-            MainTab.CONVERSATIONS -> {
-                ConversationsScreen(
-                    viewModel = conversationsViewModel,
-                    onNavigateToDetail = onNavigateToConversationDetail,
-                    modifier = Modifier.padding(paddingValues),
-                )
-            }
+                MainTab.NOTES -> {
+                    NotesScreen(
+                        viewModel = notesViewModel,
+                        onNavigateToCreate = onNavigateToNoteCreate,
+                        onNavigateToDetail = onNavigateToNoteDetail,
+                    )
+                }
 
-            MainTab.SHIFTS -> {
-                ShiftsScreen(
-                    viewModel = shiftsViewModel,
-                    modifier = Modifier.padding(paddingValues),
-                )
-            }
+                MainTab.CONVERSATIONS -> {
+                    ConversationsScreen(
+                        viewModel = conversationsViewModel,
+                        onNavigateToDetail = onNavigateToConversationDetail,
+                    )
+                }
 
-            MainTab.SETTINGS -> {
-                SettingsScreen(
-                    npub = cryptoService.npub ?: "",
-                    hubUrl = keystoreService.retrieve(KeystoreService.KEY_HUB_URL) ?: "",
-                    connectionState = connectionState,
-                    onLock = onLock,
-                    onLogout = onLogout,
-                    onNavigateToAdmin = onNavigateToAdmin,
-                    onNavigateToDeviceLink = onNavigateToDeviceLink,
-                    modifier = Modifier.padding(paddingValues),
-                )
+                MainTab.SHIFTS -> {
+                    ShiftsScreen(
+                        viewModel = shiftsViewModel,
+                    )
+                }
+
+                MainTab.SETTINGS -> {
+                    SettingsScreen(
+                        npub = cryptoService.npub ?: "",
+                        hubUrl = keystoreService.retrieve(KeystoreService.KEY_HUB_URL) ?: "",
+                        connectionState = connectionState,
+                        onLock = onLock,
+                        onLogout = onLogout,
+                        onNavigateToAdmin = onNavigateToAdmin,
+                        onNavigateToDeviceLink = onNavigateToDeviceLink,
+                    )
+                }
             }
         }
     }
