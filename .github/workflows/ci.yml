@@ -129,7 +129,7 @@ jobs:
         run: bun run build:node
 
       - name: Capture Worker bundle (Epic 79)
-        run: bunx wrangler deploy --dry-run --outdir dist/worker-bundle/
+        run: bunx wrangler deploy --config apps/worker/wrangler.jsonc --dry-run --outdir dist/worker-bundle/
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -495,15 +495,15 @@ jobs:
           BUILD_TIME=$(date -d "@$(git log -1 --format=%ct)" -Iseconds 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%S+00:00)
           node -e "
             const fs = require('fs');
-            let cfg = fs.readFileSync('wrangler.jsonc', 'utf-8');
+            let cfg = fs.readFileSync('apps/worker/wrangler.jsonc', 'utf-8');
             cfg = cfg.replace(/\"__BUILD_VERSION__\":\s*\"[^\"]*\"/, '\"__BUILD_VERSION__\": \"' + \"'${VERSION}'\" + '\"');
             cfg = cfg.replace(/\"__BUILD_COMMIT__\":\s*\"[^\"]*\"/, '\"__BUILD_COMMIT__\": \"' + \"'${GITHUB_SHA}'\" + '\"');
             cfg = cfg.replace(/\"__BUILD_TIME__\":\s*\"[^\"]*\"/, '\"__BUILD_TIME__\": \"' + \"'${BUILD_TIME}'\" + '\"');
-            fs.writeFileSync('wrangler.jsonc', cfg);
+            fs.writeFileSync('apps/worker/wrangler.jsonc', cfg);
           "
 
       - name: Deploy Worker (API-only)
-        run: bunx wrangler deploy
+        run: bunx wrangler deploy --config apps/worker/wrangler.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

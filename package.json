@@ -5,6 +5,7 @@
   "type": "module",
   "workspaces": [
     "packages/*",
+    "apps/worker",
     "site"
   ],
   "scripts": {
@@ -12,9 +13,9 @@
     "dev:vite": "vite",
     "build": "vite build",
     "deploy": "bun run deploy:api && bun run deploy:site",
-    "deploy:api": "bunx wrangler deploy",
+    "deploy:api": "bunx wrangler deploy --config apps/worker/wrangler.jsonc",
     "deploy:site": "cd site && bun run deploy",
-    "dev:worker": "bunx wrangler dev",
+    "dev:worker": "bunx wrangler dev --config apps/worker/wrangler.jsonc",
     "dev:tunnel": "bash scripts/dev-tunnel.sh",
     "build:node": "node esbuild.node.mjs",
     "build:docker": "bun run build:node",
