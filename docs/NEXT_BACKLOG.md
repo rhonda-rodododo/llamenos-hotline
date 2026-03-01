@@ -283,10 +283,15 @@ Desktop (Tauri v2) and mobile (React Native/Expo 55) clients. Ordered by depende
 
 ### Hardening & Crypto
 - [x] **[Epic 213: Production Hardening](epics/epic-213-production-hardening.md)** — RetryInterceptor with exponential backoff, NetworkMonitor + OfflineBanner, CrashReporter with local storage
-- [ ] **[Epic 214: Mobile Crypto Integration](epics/epic-214-mobile-crypto-integration.md)** — UniFFI linking for real Rust crypto on iOS and Android (replace stand-ins)
+- [x] **[Epic 214: Mobile Crypto Integration](epics/epic-214-mobile-crypto-integration.md)** — UniFFI linking for real Rust crypto on iOS and Android (replace stand-ins)
 
 ### Documentation
 - [x] **[Epic 215: Documentation Update](epics/epic-215-documentation-update.md)** — CLAUDE.md monorepo structure, mobile dev/test commands, working style updates
+
+## Testing Infrastructure (Epics 216+)
+
+### Playwright Restoration
+- [ ] **[Epic 216: Playwright Test Restoration](epics/epic-216-playwright-test-restoration.md)** — Restore 355+ E2E tests using Docker Compose backend (replaces Wrangler dev)
 
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)

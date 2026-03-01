@@ -223,8 +223,7 @@ class NotesViewModel @Inject constructor(
                     CreateNoteEnvelope(
                         pubkey = env.recipientPubkey,
                         wrappedKey = env.wrappedKey,
-                        // Placeholder ephemeral pubkey — production will use real ECIES
-                        ephemeralPubkey = env.recipientPubkey,
+                        ephemeralPubkey = env.ephemeralPubkey,
                     )
                 }
 

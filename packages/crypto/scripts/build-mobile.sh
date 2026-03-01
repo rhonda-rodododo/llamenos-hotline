@@ -99,7 +99,7 @@ build_android() {
     -t armeabi-v7a \
     -t x86 \
     -t x86_64 \
-    -p 24 \
+    --platform 24 \
     -o "$android_dist" \
     build --release --features mobile
 

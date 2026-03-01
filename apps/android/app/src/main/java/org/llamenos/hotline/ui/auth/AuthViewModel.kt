@@ -26,6 +26,7 @@ data class StoredKeyData(
     val salt: String,
     val nonce: String,
     val pubkeyHex: String,
+    val iterations: UInt = 600_000u,
 )
 
 data class AuthUiState(
@@ -240,6 +241,7 @@ class AuthViewModel @Inject constructor(
                     salt = encryptedData.salt,
                     nonce = encryptedData.nonce,
                     pubkeyHex = encryptedData.pubkeyHex,
+                    iterations = encryptedData.iterations,
                 )
                 keystoreService.store(
                     KeystoreService.KEY_ENCRYPTED_KEYS,
@@ -289,6 +291,7 @@ class AuthViewModel @Inject constructor(
                     salt = storedData.salt,
                     nonce = storedData.nonce,
                     pubkeyHex = storedData.pubkeyHex,
+                    iterations = storedData.iterations,
                 )
 
                 cryptoService.decryptFromStorage(encryptedData, pin)

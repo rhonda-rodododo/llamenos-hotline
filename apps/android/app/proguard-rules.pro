@@ -1,8 +1,12 @@
 # llamenos-core JNI bindings — keep all native method declarations
 -keep class org.llamenos.hotline.crypto.** { *; }
 
-# Keep UniFFI-generated Kotlin bindings (will be in this package when linked)
--keep class uniffi.llamenos_core.** { *; }
+# Keep UniFFI-generated Kotlin bindings (org.llamenos.core package per uniffi.toml)
+-keep class org.llamenos.core.** { *; }
+
+# JNA classes used by UniFFI
+-keep class com.sun.jna.** { *; }
+-dontwarn com.sun.jna.**
 
 # Keep data classes used by kotlinx.serialization
 -keepattributes *Annotation*

@@ -22,6 +22,7 @@ packages/protocol/generated/
 apps/android/app/build/
 apps/android/build/
 apps/android/local.properties
+apps/android/app/src/main/jniLibs/
 
 # iOS build
 apps/ios/.build/

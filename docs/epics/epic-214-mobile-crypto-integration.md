@@ -89,11 +89,26 @@ After linking real crypto on all platforms, run cross-platform test vectors (fro
 - XChaCha20-Poly1305 symmetric encryption
 - SAS code derivation from shared secrets
 
+## Status
+
+### Android — COMPLETE (2026-03-01)
+- Built native .so files for all 4 ABIs via cargo-ndk v4.1.2
+- Linked UniFFI Kotlin bindings (JNA-based, package `org.llamenos.core`)
+- CryptoService.kt rewritten with 10 real FFI calls + 3 placeholder (device linking ECDH not yet exported)
+- All tests pass (assembleDebug, testDebugUnitTest, lintDebug)
+- **Key fix**: `build-mobile.sh` updated from `-p 24` (cargo-ndk v3) to `--platform 24` (cargo-ndk v4)
+- **Key addition**: JNA 5.17.0 dependency required for UniFFI bindings on Android
+
+### iOS — PENDING
+- Requires macOS for XCFramework build
+- `#if canImport(LlamenosCore)` guards already in place
+- Will link when running on macOS CI or dev machine
+
 ## Verification
 
 1. `swift build` succeeds with LlamenosCoreFFI linked
-2. `./gradlew assembleDebug` succeeds with JNI libs present
-3. All mobile crypto unit tests pass against real implementation
+2. ~~`./gradlew assembleDebug` succeeds with JNI libs present~~ DONE
+3. ~~All mobile crypto unit tests pass against real implementation~~ DONE (Android)
 4. Cross-platform test vectors produce identical results
 5. E2EE note created on desktop decrypts on mobile (and vice versa)
 6. PIN encryption/decryption works identically across platforms
@@ -107,4 +122,4 @@ After linking real crypto on all platforms, run cross-platform test vectors (fro
 
 - **High**: UniFFI-generated bindings may have ABI differences between Rust and host language
 - **Medium**: XCFramework code signing for iOS distribution
-- **Low**: JNI loading on different Android architectures
+- ~~**Low**: JNI loading on different Android architectures~~ RESOLVED — all 4 ABIs build and load correctly

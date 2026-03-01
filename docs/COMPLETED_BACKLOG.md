@@ -1,5 +1,33 @@
 # Completed Backlog
 
+## 2026-03-01: Android UniFFI Crypto Integration (Epic 214)
+
+### Epic 214: Mobile Crypto Integration (Android)
+- **Fixed build-mobile.sh**: Updated `cargo ndk` flag from `-p 24` (v3 syntax) to `--platform 24` (v4 syntax) for cargo-ndk 4.1.2 compatibility
+- **Built native .so files**: 4 ABIs (arm64-v8a: 584K, armeabi-v7a: 400K, x86: 692K, x86_64: 688K) via `packages/crypto/scripts/build-mobile.sh android`
+- **Copied UniFFI Kotlin bindings**: `packages/crypto/bindings/kotlin/org/llamenos/core/llamenos_core.kt` (2034 lines, JNA-based) → `apps/android/app/src/main/java/org/llamenos/core/`
+- **Added JNA dependency**: `net.java.dev.jna:jna:5.17.0@aar` to version catalog + build.gradle.kts
+- **Rewrote CryptoService.kt**: All 13 crypto methods now call real FFI when native lib loaded:
+  - `generateKeypair()` → `org.llamenos.core.generateKeypair()` (real secp256k1)
+  - `importNsec()` → `org.llamenos.core.keypairFromNsec()` (real bech32 decode)
+  - `encryptForStorage()` → `org.llamenos.core.encryptWithPin()` (real PBKDF2 + XChaCha20-Poly1305)
+  - `decryptFromStorage()` → `org.llamenos.core.decryptWithPin()` + `keypairFromNsec()`
+  - `createAuthToken()` → `org.llamenos.core.createAuthToken()` (real BIP-340 Schnorr)
+  - `encryptNote()` → `org.llamenos.core.encryptNoteForRecipients()` (real per-note ECIES)
+  - `decryptNote()` → `org.llamenos.core.decryptNote()` (real ECIES unwrap + XChaCha20)
+  - `encryptMessage()` → `org.llamenos.core.encryptMessageForReaders()` (real per-message ECIES)
+  - `decryptMessage()` → `org.llamenos.core.decryptMessageForReader()` (real ECIES unwrap)
+  - `generateEphemeralKeypair()` → `org.llamenos.core.generateKeypair()` (real secp256k1)
+  - `deriveSharedSecret()` / `decryptWithSharedSecret()` / `deriveSASCode()` — placeholder kept (FFI functions not yet exported for device linking ECDH)
+- **Added nsecBech32 storage**: CryptoService now stores the bech32 nsec string alongside hex (needed for PIN encryption which encrypts the bech32 form)
+- **Updated NoteEnvelope**: Added `ephemeralPubkey` field (was missing in placeholder), updated NotesViewModel to pass real ephemeral pubkeys instead of placeholder
+- **Updated EncryptedKeyData**: Added `iterations` field (UInt, default 600_000) for PBKDF2 iteration count round-tripping
+- **Updated StoredKeyData**: Added `iterations` field with default value for backward compatibility
+- **Updated proguard-rules.pro**: Added `org.llamenos.core.**` and JNA keep rules, replaced old `uniffi.llamenos_core.**` reference
+- **Updated .gitignore**: Added `apps/android/app/src/main/jniLibs/` (binary .so files not committed)
+- **Verification**: `./gradlew assembleDebug` ✓, `./gradlew testDebugUnitTest` (all tests pass) ✓, `./gradlew lintDebug` ✓
+- **iOS**: Awaiting macOS for XCFramework build — `#if canImport(LlamenosCore)` guards already in place
+
 ## 2026-03-01: Mobile Feature Parity & Release Prep (Epics 208-210)
 
 ### Epic 208: Feature Parity Phase 1

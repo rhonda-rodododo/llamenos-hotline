@@ -122,6 +122,9 @@ dependencies {
     // ML Kit for barcode/QR detection
     implementation(libs.mlkit.barcode)
 
+    // JNA for UniFFI-generated Rust bindings (llamenos-core)
+    implementation(libs.jna) { artifact { type = "aar" } }
+
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
 
