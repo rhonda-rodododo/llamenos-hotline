@@ -254,6 +254,27 @@ Desktop (Tauri v2) and mobile (React Native/Expo 55) clients. Ordered by depende
 - [x] **[Epic 127: Mobile Conversation Notes](epics/epic-127-mobile-conversation-notes.md)** — Note form modal from conversation thread, custom field context filtering
 - [x] **[Epic 128: Mobile Records i18n & Detox Tests](epics/epic-128-mobile-records-tests.md)** — Translation keys for 13 locales, Detox E2E tests for all new features
 
+## Monorepo Restructuring & Native Mobile (Epics 200-210)
+
+### Foundation (Batch 1) — COMPLETE
+- [x] **[Epic 200: Monorepo Foundation](epics/epic-200-monorepo-foundation.md)** — Directory restructure, import alias migration, config updates
+- [x] **[Epic 201: Absorb llamenos-core](epics/epic-201-absorb-llamenos-core.md)** — git subtree add, path dep update, CI cleanup
+
+### Packages & CI (Batch 2) — COMPLETE
+- [x] **[Epic 202: Protocol Schema & Codegen](epics/epic-202-protocol-schema-codegen.md)** — JSON Schema definitions, quicktype-core codegen for TS/Swift/Kotlin
+- [x] **[Epic 203: Workers Restructuring](epics/epic-203-workers-restructuring.md)** — Worker package boundary, wrangler config move
+- [x] **[Epic 204: CI/CD Consolidation](epics/epic-204-cicd-consolidation.md)** — crypto-tests job, ci-status gate
+- [x] **[Epic 205: i18n Package Extraction](epics/epic-205-i18n-package-extraction.md)** — Locale package with mobile codegen
+
+### Native Mobile Foundation (Batch 3) — IN PROGRESS
+- [x] **[Epic 206: iOS Client Foundation](epics/epic-206-ios-client-foundation.md)** — SwiftUI app with crypto, keychain, auth flow
+- [x] **[Epic 207: Android Client Foundation](epics/epic-207-android-client-foundation.md)** — Kotlin/Compose app with crypto, keystore, auth flow
+
+### Feature Parity & Release (Batch 4) — PENDING
+- [ ] **[Epic 208: Feature Parity Phase 1](epics/epic-208-feature-parity-p1.md)** — Dashboard, notes (E2EE), shifts, push notifications
+- [ ] **[Epic 209: Feature Parity Phase 2](epics/epic-209-feature-parity-p2.md)** — Voice calls, conversations, admin, device linking
+- [ ] **[Epic 210: Release Prep](epics/epic-210-release-prep.md)** — Store listings, signing, CI/CD, docs update
+
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
 - [x] Marketing site + docs at llamenos-hotline.com (Astro + Cloudflare Pages)

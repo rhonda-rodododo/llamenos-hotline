@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Llamenos</string>
+
+    <!-- Login -->
+    <string name="login_subtitle">Secure crisis response hotline</string>
+    <string name="hub_url_label">Hub URL</string>
+    <string name="hub_url_placeholder">https://your-hub.example.com</string>
+    <string name="nsec_label">Private Key (nsec)</string>
+    <string name="nsec_placeholder">nsec1...</string>
+    <string name="import_key">Import Key</string>
+    <string name="create_new_identity">Create New Identity</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_title">Your Identity</string>
+    <string name="onboarding_subtitle">Your new Nostr keypair has been generated</string>
+    <string name="your_public_key">Your public key</string>
+    <string name="your_private_key">Your private key (nsec)</string>
+    <string name="nsec_warning">Write down your private key and store it safely. This is the ONLY time it will be shown. If you lose it, your identity cannot be recovered.</string>
+    <string name="confirm_backup">I have backed up my key</string>
+
+    <!-- PIN -->
+    <string name="pin_set_title">Set a PIN</string>
+    <string name="pin_set_subtitle">Choose a 4-digit PIN to protect your key</string>
+    <string name="pin_confirm_title">Confirm your PIN</string>
+    <string name="pin_confirm_subtitle">Re-enter your PIN to confirm</string>
+    <string name="pin_mismatch">PINs do not match. Try again.</string>
+    <string name="pin_backspace">Backspace</string>
+    <string name="encrypting_keys">Encrypting your key\u2026</string>
+
+    <!-- Unlock -->
+    <string name="unlock_title">Unlock</string>
+    <string name="unlock_subtitle">Enter your PIN to continue</string>
+    <string name="use_biometric">Use biometric unlock</string>
+    <string name="reset_identity">Reset identity</string>
+    <string name="decrypting_keys">Decrypting your key\u2026</string>
+
+    <!-- Biometric -->
+    <string name="biometric_title">Biometric authentication</string>
+    <string name="biometric_subtitle">Verify your identity</string>
+    <string name="biometric_use_pin">Use PIN</string>
+
+    <!-- Dashboard -->
+    <string name="shift_status">Shift Status</string>
+    <string name="on_shift">On Shift</string>
+    <string name="off_shift">Off Shift</string>
+    <string name="active_calls">Active Calls</string>
+    <string name="your_identity">Your Identity</string>
+    <string name="lock_app">Lock</string>
+    <string name="logout">Logout</string>
+
+    <!-- Connection -->
+    <string name="status_connected">Connected</string>
+    <string name="status_connecting">Connecting\u2026</string>
+    <string name="status_reconnecting">Reconnecting\u2026</string>
+    <string name="status_disconnected">Disconnected</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_calls">Incoming Calls</string>
+    <string name="notification_channel_shifts">Shift Reminders</string>
+    <string name="notification_channel_general">General</string>
+    <string name="incoming_call">Incoming Call</string>
+    <string name="incoming_call_body">A caller needs help</string>
+    <string name="shift_reminder">Shift Reminder</string>
+    <string name="shift_reminder_body">Your shift is starting soon</string>
+    <string name="announcement">Announcement</string>
+    <string name="announcement_body">New announcement from your organization</string>
+</resources>

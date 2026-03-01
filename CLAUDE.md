@@ -10,27 +10,35 @@ Llámenos is a secure crisis response hotline app. Callers dial a phone number; 
 
 ## Multi-Platform Architecture
 
-The project spans three repositories sharing a common protocol and crypto core:
+Monorepo containing all platforms, shared crypto, and protocol definitions:
 
-| Repo | Path | Purpose |
-|------|------|---------|
-| **llamenos** (this repo) | `~/projects/llamenos` | Desktop app (Tauri v2), API, protocol spec |
-| **llamenos-core** | `~/projects/llamenos-core` | Shared Rust crypto crate (native + WASM + UniFFI) |
-| **llamenos-mobile** | `~/projects/llamenos-mobile` | React Native mobile app |
+| Directory | Purpose |
+|-----------|---------|
+| `apps/desktop/` | Tauri v2 desktop shell (Rust) |
+| `apps/worker/` | Cloudflare Worker backend |
+| `apps/ios/` | Native SwiftUI iOS client |
+| `apps/android/` | Native Kotlin/Compose Android client |
+| `packages/crypto/` | Shared Rust crypto crate (native + WASM + UniFFI) |
+| `packages/shared/` | Cross-boundary TypeScript types and config |
+| `packages/protocol/` | JSON Schema definitions + codegen (TS/Swift/Kotlin) |
+| `packages/i18n/` | Localization files + iOS/Android string codegen |
 
-All three platforms implement the same protocol: `docs/protocol/PROTOCOL.md`
+All platforms implement the same protocol: `docs/protocol/PROTOCOL.md`
 
 ## Tech Stack
 
-- **Runtime/Package Manager**: Bun
+- **Runtime/Package Manager**: Bun (monorepo with `workspaces`)
 - **Desktop**: Tauri v2 + Vite + TanStack Router + shadcn/ui — native Rust backend with webview frontend
+- **iOS**: Native SwiftUI (iOS 17+, `@Observable`, SPM)
+- **Android**: Native Kotlin/Compose (minSdk 26, Material 3, Hilt DI, Gradle version catalogs)
 - **Backend**: Cloudflare Workers + Durable Objects (cloud) / Node.js + PostgreSQL (self-hosted)
-- **Shared Crypto**: `llamenos-core` Rust crate — single auditable implementation for all platforms
+- **Shared Crypto**: `packages/crypto/` Rust crate — single auditable implementation for all platforms (native, WASM, UniFFI)
+- **Protocol**: `packages/protocol/` JSON Schema → codegen (TypeScript, Swift, Kotlin via quicktype-core)
 - **Telephony**: Twilio via a `TelephonyAdapter` interface (designed for future provider swaps, e.g. SIP trunks)
 - **Auth**: Nostr keypairs (BIP-340 Schnorr signatures) + WebAuthn session tokens for multi-device support
-- **i18n**: Built-in from day one — all user-facing strings must be translatable
+- **i18n**: `packages/i18n/` — 13 locales + codegen for iOS `.strings` and Android `strings.xml`
 - **Deployment**: Cloudflare (Workers, DOs, Tunnels), billed to EU/GDPR-compatible account
-- **Testing**: E2E only via Playwright — no unit tests; Rust tests via `cargo test` in llamenos-core
+- **Testing**: E2E via Playwright (desktop), XCUITest (iOS), Compose UI tests (Android); Rust tests via `cargo test`
 - **Desktop Security**: Tauri Stronghold (encrypted vault), isolation pattern, CSP, single-instance
 
 ## Architecture Roles
@@ -54,46 +62,61 @@ These are non-negotiable architectural constraints, not guidelines:
 ## Directory Structure
 
 ```
+apps/
+  desktop/            # Tauri v2 desktop shell (Rust)
+    src/lib.rs        # Tauri setup (plugins, tray, IPC handlers)
+    src/crypto.rs     # IPC command wrappers delegating to packages/crypto
+    Cargo.toml        # Dependencies including packages/crypto path dep
+    tauri.conf.json   # Tauri config (CSP, window, bundle, plugins)
+    capabilities/     # Tauri capability permissions
+  worker/             # Cloudflare Worker backend
+    durable-objects/  # 6 DOs: IdentityDO, SettingsDO, RecordsDO, ShiftManagerDO, CallRouterDO, ConversationDO
+    telephony/        # TelephonyAdapter interface + 5 adapters
+    messaging/        # MessagingAdapter interface + SMS, WhatsApp, Signal adapters
+    lib/              # Server utilities (auth, crypto, webauthn, do-router)
+    wrangler.jsonc    # Worker + DO bindings config
+  ios/                # Native SwiftUI iOS client
+    Sources/          # Swift source (App/, Services/, Views/, ViewModels/)
+    Tests/            # XCTest + XCUITest
+    Package.swift     # SPM config
+  android/            # Native Kotlin/Compose Android client
+    app/src/main/     # Kotlin source (crypto/, api/, ui/, di/, service/)
+    gradle/           # Version catalog (libs.versions.toml)
+packages/
+  crypto/             # Shared Rust crypto crate (native + WASM + UniFFI)
+    src/              # Rust source (ECIES, Schnorr, PBKDF2, HKDF, XChaCha20-Poly1305)
+    scripts/          # Build scripts (build-mobile.sh for iOS/Android)
+    Cargo.toml        # Crate config
+  shared/             # Cross-boundary TypeScript types and config
+    types.ts          # Shared types (CustomFieldDefinition, NotePayload, etc.)
+    crypto-labels.ts  # Domain separation constants (re-exported from protocol)
+  protocol/           # JSON Schema definitions + multi-platform codegen
+    schemas/          # 8 JSON Schema files (envelope, notes, files, telephony, etc.)
+    tools/codegen.ts  # quicktype-core → TS/Swift/Kotlin type generation
+    generated/        # Auto-generated types (typescript/, swift/, kotlin/)
+    crypto-labels.json # 28 domain separation constants (source of truth)
+  i18n/               # Localization package
+    locales/          # 13 locale JSON files (en, es, zh, tl, vi, ar, fr, ht, ko, ru, hi, pt, de)
+    languages.ts      # Language config (codes, labels, Twilio voice IDs)
+    tools/            # i18n-codegen.ts → iOS .strings + Android strings.xml
 src/
-  client/           # Frontend SPA (Vite + React)
-    routes/         # TanStack file-based routes
-    components/     # App components + ui/ (shadcn primitives)
-    lib/            # Client utilities (auth, platform, ws, i18n, hooks)
-      platform.ts   # Platform abstraction — Tauri IPC to Rust CryptoState
-    locales/        # 13 locale JSON files (en, es, zh, tl, vi, ar, fr, ht, ko, ru, hi, pt, de)
-  worker/           # Cloudflare Worker backend
-    api/            # REST API handlers
-    durable-objects/ # 6 DOs: IdentityDO, SettingsDO, RecordsDO, ShiftManagerDO, CallRouterDO, ConversationDO
-    telephony/      # TelephonyAdapter interface + 5 adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk)
-    messaging/      # MessagingAdapter interface + SMS, WhatsApp, Signal adapters
-    lib/            # Server utilities (auth, crypto, webauthn, do-router)
-  shared/           # Cross-boundary types and config (@shared alias)
-    types.ts        # Shared types (CustomFieldDefinition, NotePayload, etc.)
-    languages.ts    # Centralized language config (codes, labels, Twilio voice IDs)
-    crypto-labels.ts # 25 domain separation constants for all cryptographic operations
-src-tauri/          # Tauri v2 desktop shell (Rust)
-  src/lib.rs        # Tauri setup (plugins, tray, IPC handlers)
-  src/crypto.rs     # IPC command wrappers delegating to llamenos-core
-  Cargo.toml        # Dependencies including llamenos-core path dep
-  tauri.conf.json   # Tauri config (CSP, window, bundle, plugins)
-  capabilities/     # Tauri capability permissions
+  client/             # Frontend SPA (Vite + React)
+    routes/           # TanStack file-based routes
+    components/       # App components + ui/ (shadcn primitives)
+    lib/              # Client utilities (auth, platform, ws, i18n, hooks)
+      platform.ts     # Platform abstraction — Tauri IPC to Rust CryptoState
 tests/
-  mocks/            # Tauri IPC mock layer for Playwright test builds
-    tauri-core.ts   # Mock @tauri-apps/api/core — routes invoke() to JS crypto
-    tauri-store.ts  # Mock @tauri-apps/plugin-store — uses localStorage
-    tauri-ipc-handler.ts # IPC command router with CryptoState mirror
-    crypto-impl.ts  # JS crypto implementations (moved from src/client/lib/crypto.ts)
-    key-store-impl.ts # PIN encryption/decryption for mock
+  mocks/              # Tauri IPC mock layer for Playwright test builds
 docs/
-  protocol/         # Protocol specification for cross-platform interoperability
-    PROTOCOL.md     # Complete wire format, crypto, API, permission spec
-  epics/            # Feature epic documents
+  protocol/PROTOCOL.md  # Cross-platform wire format, crypto, API, permission spec
+  epics/              # Feature epic documents
 ```
 
 **Path aliases** (tsconfig.json + vite.config.ts):
 - `@/*` → `./src/client/*`
-- `@worker/*` → `./src/worker/*`
-- `@shared/*` → `./src/shared/*`
+- `@worker/*` → `./apps/worker/*`
+- `@shared/*` → `./packages/shared/*`
+- `@llamenos/i18n` → `./packages/i18n/index.ts`
 
 ## Key Technical Patterns
 
@@ -105,15 +128,17 @@ docs/
 - **E2EE notes**: Per-note forward secrecy — unique random key per note, wrapped via ECIES for each reader. Dual-encrypted: one copy for volunteer, one for each admin (multi-admin envelopes).
 - **E2EE messaging**: Per-message envelope encryption — random symmetric key, ECIES-wrapped for assigned volunteer + each admin. Server encrypts inbound on webhook receipt, discards plaintext immediately.
 - **Platform abstraction**: `src/client/lib/platform.ts` is Tauri-only — all crypto calls route through Rust via IPC. The nsec NEVER enters the webview. Always import from `platform.ts`, never from `@tauri-apps/*` directly.
-- **llamenos-core**: Shared Rust crypto crate at `~/projects/llamenos-core`. All crypto operations (ECIES, Schnorr, PBKDF2, HKDF, XChaCha20-Poly1305) implemented once in Rust, compiled to native (Tauri), WASM (browser), and UniFFI (mobile).
-- **Key management**: PIN-encrypted keys stored in Tauri Store (`keys.json`). Rust CryptoState holds the nsec; webview only sees pubkey. `key-manager.ts` caches unlock state + pubkey locally. Device linking via ephemeral ECDH provisioning rooms.
+- **packages/crypto**: Shared Rust crypto crate (formerly separate `llamenos-core` repo). All crypto operations (ECIES, Schnorr, PBKDF2, HKDF, XChaCha20-Poly1305) implemented once in Rust, compiled to native (Tauri), WASM (browser), and UniFFI (mobile). Desktop links via `apps/desktop/Cargo.toml` path dep to `../../packages/crypto`.
+- **Protocol codegen**: `packages/protocol/tools/codegen.ts` generates TypeScript interfaces, Swift structs (Codable), and Kotlin data classes (kotlinx.serialization) from JSON Schema definitions. Also generates crypto label constants. Run `bun run codegen` after schema changes. CI validates with `bun run codegen:check`.
+- **Key management**: PIN-encrypted keys stored in Tauri Store (desktop), iOS Keychain, or Android Keystore (EncryptedSharedPreferences). Rust CryptoState holds the nsec; UI only sees pubkey. Device linking via ephemeral ECDH provisioning rooms.
 - **Tauri IPC mock for tests**: Playwright tests run in a regular browser. `PLAYWRIGHT_TEST=true` triggers Vite aliases that route `@tauri-apps/api/core` and `@tauri-apps/plugin-store` to JS mock implementations in `tests/mocks/`. The mock maintains a CryptoState that mirrors the Rust side.
+- **Mobile crypto**: iOS uses UniFFI XCFramework from `packages/crypto/`, Android uses JNI `.so` files. Both wrap CryptoService as a singleton — `nsecHex` is private and never leaves the service layer.
 - **Nostr relay real-time**: Ephemeral kind 20001 events via strfry (self-hosted) or Nosflare (CF). All event content encrypted with hub key. Generic tags (`["t", "llamenos:event"]`) — relay cannot distinguish event types.
 - **Hub key distribution**: Random 32 bytes (`crypto.getRandomValues`), ECIES-wrapped individually per member via `LABEL_HUB_KEY_WRAP`. Rotation on member departure excludes departed member.
 - **Client-side transcription**: WASM Whisper via `@huggingface/transformers` ONNX runtime. AudioWorklet ring buffer → Web Worker isolation. Audio never leaves the browser.
 - **Reproducible builds**: `Dockerfile.build` with `SOURCE_DATE_EPOCH`, content-hashed filenames. `CHECKSUMS.txt` in GitHub Releases. SLSA provenance. Verification via `scripts/verify-build.sh`.
 - **Hash-chained audit log**: SHA-256 chain with `previousEntryHash` + `entryHash` for tamper detection (Epic 77).
-- **Domain separation**: All 25 crypto context constants in `src/shared/crypto-labels.ts` — NEVER use raw string literals for crypto contexts.
+- **Domain separation**: All 28 crypto context constants defined in `packages/protocol/crypto-labels.json` (source of truth), generated to TS/Swift/Kotlin via codegen. NEVER use raw string literals for crypto contexts.
 
 ## Gotchas
 
@@ -124,32 +149,58 @@ docs/
 - Nostr relay (strfry) is a core service, not optional — always runs with Docker Compose and Helm
 - `SERVER_NOSTR_SECRET` must be exactly 64 hex chars; server derives its Nostr keypair via HKDF
 - Hub key is random bytes, NOT derived from any identity key — see `hub-key-manager.ts`
-- **Tauri-only app**: No browser/PWA fallback. `platform.ts` always routes through Tauri IPC. Use `PLAYWRIGHT_TEST=true` for test builds that mock the IPC layer.
-- **llamenos-core path dep**: `src-tauri/Cargo.toml` references `../../llamenos-core` — both repos must be siblings
+- **Tauri-only desktop**: No browser/PWA fallback. `platform.ts` always routes through Tauri IPC. Use `PLAYWRIGHT_TEST=true` for test builds that mock the IPC layer.
+- **packages/crypto path dep**: `apps/desktop/Cargo.toml` references `../../packages/crypto`. No external repo needed.
+- **Worker config**: `wrangler.jsonc` lives at `apps/worker/wrangler.jsonc`. All wrangler commands use `--config apps/worker/wrangler.jsonc`.
+- **iOS UniFFI**: Build with `packages/crypto/scripts/build-mobile.sh ios`, copy XCFramework to `apps/ios/`. Stand-in mock types enabled via `#if !canImport(LlamenosCore)`.
+- **Android JNI**: Build with `packages/crypto/scripts/build-mobile.sh android`, place `.so` files in `apps/android/app/src/main/jniLibs/`. Placeholder mock crypto active until native libs are linked.
 
 ## Development Commands
 
 ```bash
+# Desktop (primary dev workflow)
 bun install                              # Install dependencies
-bun run tauri:dev                        # Tauri desktop dev (Vite + Rust backend) — primary dev command
+bun run tauri:dev                        # Tauri desktop dev (Vite + Rust backend)
 bun run tauri:build                      # Tauri desktop release build
 bun run dev                              # Vite dev server (test builds only — no Rust backend)
+
+# Backend
 bun run dev:worker                       # Wrangler dev server (Worker + DOs)
-bun run build                            # Vite build → dist/client/ (production Tauri build)
-bun run test:build                       # Vite build with Tauri IPC mocks (for Playwright)
+
+# Build & Test
+bun run build                            # Vite build → dist/client/
+bun run typecheck                        # Type check (tsc --noEmit)
 bun run test                             # Run all Playwright E2E tests (auto-builds with mocks)
 bun run test:ui                          # Playwright UI mode
-bun run deploy                           # Deploy EVERYTHING (app + marketing site)
-bun run deploy:demo                      # Deploy app Worker only
-bun run deploy:site                      # Deploy marketing site only (cd site && ...)
-bun run typecheck                        # Type check (tsc --noEmit)
+bun run test:build                       # Vite build with Tauri IPC mocks (for Playwright)
+
+# Crypto (Rust)
+bun run crypto:test                      # cargo test on packages/crypto
+bun run crypto:clippy                    # cargo clippy on packages/crypto
+bun run crypto:fmt                       # cargo fmt --check on packages/crypto
+
+# Codegen
+bun run codegen                          # Generate TS/Swift/Kotlin types from JSON Schemas
+bun run codegen:check                    # Verify generated files are up-to-date (CI)
+bun run i18n:codegen                     # Generate iOS .strings + Android strings.xml
+bun run i18n:validate                    # Check locale completeness
+
+# Deploy
+bun run deploy                           # Deploy EVERYTHING (Worker + marketing site)
+bun run deploy:api                       # Deploy Worker only
+bun run deploy:site                      # Deploy marketing site only
+
+# Mobile (requires platform toolchains)
+# iOS:  cd apps/ios && xcodebuild build -scheme Llamenos
+# Android: cd apps/android && ./gradlew assembleDebug
+
+# Utilities
 bun run bootstrap-admin                  # Generate admin keypair
-cd ../llamenos-core && cargo test        # Run Rust crypto tests
 ```
 
-**Deployment rules — NEVER run `wrangler pages deploy` or `wrangler deploy` directly.** Always use the root `package.json` scripts (`bun run deploy`, `bun run deploy:demo`, `bun run deploy:site`). Running `wrangler pages deploy dist` from the wrong directory will deploy the Vite app build to Pages instead of the Astro site, breaking the marketing site with 404s.
+**Deployment rules — NEVER run `wrangler pages deploy` or `wrangler deploy` directly.** Always use the root `package.json` scripts (`bun run deploy`, `bun run deploy:api`, `bun run deploy:site`). Running `wrangler pages deploy dist` from the wrong directory will deploy the Vite app build to Pages instead of the Astro site, breaking the marketing site with 404s.
 
-**Key config files**: `wrangler.jsonc` (Worker + DO bindings), `playwright.config.ts`, `.dev.vars` (Twilio creds + ADMIN_PUBKEY, gitignored)
+**Key config files**: `apps/worker/wrangler.jsonc` (Worker + DO bindings), `playwright.config.ts`, `.dev.vars` (Twilio creds + ADMIN_PUBKEY, gitignored)
 
 ## Claude Code Working Style
 

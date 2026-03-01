@@ -1,0 +1,169 @@
+import SwiftUI
+
+/// Onboarding screen: displays the generated nsec for the user to back up.
+/// Shows a "copy to clipboard" button, a confirmation checkbox, and a continue
+/// button that proceeds to PIN setup. The nsec is displayed using `SecureTextField`
+/// which prevents copy/paste/selection of the text itself.
+struct OnboardingView: View {
+    @Environment(AppState.self) private var appState
+    @Environment(Router.self) private var router
+
+    let nsec: String
+    let npub: String
+
+    @State private var hasConfirmedBackup: Bool = false
+    @State private var hasCopied: Bool = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Header
+                VStack(spacing: 12) {
+                    Image(systemName: "key.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.orange)
+                        .accessibilityHidden(true)
+
+                    Text(NSLocalizedString("onboarding_title", comment: "Your Secret Key"))
+                        .font(.title)
+                        .fontWeight(.bold)
+
+                    Text(NSLocalizedString(
+                        "onboarding_subtitle",
+                        comment: "Write down your secret key and store it safely. You will need it to recover your account. This key will never be shown again."
+                    ))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                }
+                .padding(.top, 24)
+
+                // Nsec display
+                SecureTextField(
+                    nsec,
+                    label: NSLocalizedString("onboarding_nsec_label", comment: "Secret Key (nsec)")
+                )
+
+                // Copy button — copies to clipboard for one-time use
+                Button {
+                    UIPasteboard.general.string = nsec
+                    hasCopied = true
+                    // Auto-clear clipboard after 60 seconds for security
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
+                        if UIPasteboard.general.string == nsec {
+                            UIPasteboard.general.string = ""
+                        }
+                    }
+                } label: {
+                    Label(
+                        hasCopied
+                            ? NSLocalizedString("onboarding_copied", comment: "Copied!")
+                            : NSLocalizedString("onboarding_copy", comment: "Copy to Clipboard"),
+                        systemImage: hasCopied ? "checkmark" : "doc.on.doc"
+                    )
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("copy-nsec")
+
+                // Public key display (informational)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(NSLocalizedString("onboarding_npub_label", comment: "Your Public Key"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+
+                    Text(npub)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .accessibilityIdentifier("npub-display")
+                }
+
+                // Warning
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.title3)
+
+                    Text(NSLocalizedString(
+                        "onboarding_warning",
+                        comment: "If you lose this key, you will permanently lose access to your account. There is no recovery mechanism."
+                    ))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.orange.opacity(0.1))
+                )
+
+                // Confirmation checkbox
+                Button {
+                    hasConfirmedBackup.toggle()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: hasConfirmedBackup ? "checkmark.square.fill" : "square")
+                            .font(.title3)
+                            .foregroundStyle(hasConfirmedBackup ? .blue : .secondary)
+
+                        Text(NSLocalizedString(
+                            "onboarding_confirm_backup",
+                            comment: "I have saved my secret key in a safe place"
+                        ))
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.leading)
+                    }
+                }
+                .accessibilityIdentifier("confirm-backup")
+
+                // Continue button
+                Button {
+                    router.showPINSet()
+                } label: {
+                    Text(NSLocalizedString("onboarding_continue", comment: "Continue"))
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!hasConfirmedBackup)
+                .accessibilityIdentifier("continue-to-pin")
+
+                Spacer(minLength: 40)
+            }
+            .padding(.horizontal, 24)
+        }
+        .navigationBarBackButtonHidden()
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    router.goBack()
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .accessibilityIdentifier("back-button")
+                .accessibilityLabel(NSLocalizedString("navigation_back", comment: "Back"))
+            }
+        }
+    }
+}
+
+// MARK: - Preview
+
+#if DEBUG
+#Preview("Onboarding View") {
+    NavigationStack {
+        OnboardingView(
+            nsec: "nsec1qqqsyqcyq5rqwzqfhg9scnmcesgvse3s43jy5wdxkfhmyzxhldqqu69m0z",
+            npub: "npub1qqqsyqcyq5rqwzqfhg9scnmcesgvse3s43jy5wdxkfhmyzxhldqqsnefgh"
+        )
+        .environment(AppState())
+        .environment(Router())
+    }
+}
+#endif

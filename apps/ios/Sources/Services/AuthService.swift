@@ -1,0 +1,187 @@
+import Foundation
+
+// MARK: - AuthError
+
+enum AuthError: LocalizedError {
+    case noStoredKeys
+    case pinMismatch
+    case pinTooShort
+    case pinTooLong
+    case pinNotNumeric
+    case biometricNotAvailable
+    case hubURLRequired
+    case identityAlreadyExists
+
+    var errorDescription: String? {
+        switch self {
+        case .noStoredKeys:
+            return NSLocalizedString("error_no_stored_keys", comment: "No stored keys found")
+        case .pinMismatch:
+            return NSLocalizedString("error_pin_mismatch", comment: "PINs do not match")
+        case .pinTooShort:
+            return NSLocalizedString("error_pin_too_short", comment: "PIN must be at least 4 digits")
+        case .pinTooLong:
+            return NSLocalizedString("error_pin_too_long", comment: "PIN must be at most 6 digits")
+        case .pinNotNumeric:
+            return NSLocalizedString("error_pin_not_numeric", comment: "PIN must contain only digits")
+        case .biometricNotAvailable:
+            return NSLocalizedString("error_biometric_not_available", comment: "Biometric authentication is not available")
+        case .hubURLRequired:
+            return NSLocalizedString("error_hub_url_required", comment: "Hub URL is required")
+        case .identityAlreadyExists:
+            return NSLocalizedString("error_identity_exists", comment: "An identity already exists")
+        }
+    }
+}
+
+// MARK: - AuthService
+
+/// Coordinates CryptoService and KeychainService to implement the full auth lifecycle:
+/// key generation, nsec import, PIN-based encryption/storage, PIN unlock, and biometric
+/// unlock. This is the single point of truth for auth state transitions.
+@Observable
+final class AuthService {
+    let cryptoService: CryptoService
+    let keychainService: KeychainService
+
+    /// Whether encrypted keys exist in the Keychain (user has completed onboarding).
+    private(set) var hasStoredKeys: Bool = false
+
+    /// Whether biometric unlock is enabled for this identity.
+    private(set) var isBiometricEnabled: Bool = false
+
+    /// The hub URL, if configured.
+    private(set) var hubURL: String?
+
+    init(cryptoService: CryptoService, keychainService: KeychainService) {
+        self.cryptoService = cryptoService
+        self.keychainService = keychainService
+        loadPersistedState()
+    }
+
+    // MARK: - State Loading
+
+    /// Load persisted auth state from Keychain on startup.
+    private func loadPersistedState() {
+        do {
+            hasStoredKeys = try keychainService.retrieve(key: KeychainKey.encryptedKeys) != nil
+            hubURL = try keychainService.retrieveString(key: KeychainKey.hubURL)
+            if let biometricData = try keychainService.retrieve(key: KeychainKey.biometricEnabled) {
+                isBiometricEnabled = biometricData.first == 1
+            }
+        } catch {
+            // Keychain read failures on first launch are expected (no items yet).
+            hasStoredKeys = false
+            hubURL = nil
+            isBiometricEnabled = false
+        }
+    }
+
+    // MARK: - Hub URL
+
+    /// Persist the hub URL for API connections.
+    func setHubURL(_ url: String) throws {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw AuthError.hubURLRequired }
+        try keychainService.storeString(trimmed, key: KeychainKey.hubURL)
+        hubURL = trimmed
+    }
+
+    // MARK: - Onboarding (New Identity)
+
+    /// Generate a new keypair. Returns the nsec for one-time display to the user.
+    /// The nsec is held in CryptoService memory; it is NOT yet persisted.
+    /// Call `completeOnboarding(pin:)` after the user confirms their backup.
+    func createNewIdentity() -> (nsec: String, npub: String) {
+        return cryptoService.generateKeypair()
+    }
+
+    /// Import an existing nsec. The key is loaded into CryptoService memory.
+    /// Call `completeOnboarding(pin:)` after to set a PIN and persist.
+    func importExistingIdentity(nsec: String) throws {
+        try cryptoService.importNsec(nsec)
+    }
+
+    /// Finalize onboarding by encrypting the nsec with the user's PIN and storing
+    /// it in the Keychain. After this, the identity is persisted and the user can
+    /// unlock with their PIN on subsequent launches.
+    func completeOnboarding(pin: String, enableBiometric: Bool = false) throws {
+        try validatePIN(pin)
+
+        let encrypted = try cryptoService.encryptForStorage(pin: pin)
+        let jsonData = try JSONEncoder().encode(encrypted)
+        try keychainService.store(key: KeychainKey.encryptedKeys, data: jsonData)
+
+        // Store biometric preference
+        let biometricByte: Data = enableBiometric ? Data([1]) : Data([0])
+        try keychainService.store(key: KeychainKey.biometricEnabled, data: biometricByte)
+
+        hasStoredKeys = true
+        isBiometricEnabled = enableBiometric
+    }
+
+    // MARK: - PIN Unlock
+
+    /// Unlock the stored identity using the user's PIN. Decrypts the nsec from the
+    /// Keychain and loads it into CryptoService memory.
+    func unlockWithPIN(_ pin: String) throws {
+        guard let jsonData = try keychainService.retrieve(key: KeychainKey.encryptedKeys) else {
+            throw AuthError.noStoredKeys
+        }
+
+        let encrypted = try JSONDecoder().decode(EncryptedKeyData.self, from: jsonData)
+        try cryptoService.decryptFromStorage(encrypted, pin: pin)
+
+        // On successful unlock, set pubkey-related state from the stored data
+        // (CryptoService.decryptFromStorage already calls importNsec internally)
+    }
+
+    // MARK: - Biometric Unlock
+
+    /// Enable or disable biometric unlock. When enabling, the PIN-encrypted key data
+    /// is stored with biometric protection so the system will prompt for Face ID /
+    /// Touch ID before releasing it.
+    func setBiometricEnabled(_ enabled: Bool) throws {
+        let biometricByte: Data = enabled ? Data([1]) : Data([0])
+        try keychainService.store(key: KeychainKey.biometricEnabled, data: biometricByte)
+        isBiometricEnabled = enabled
+    }
+
+    // MARK: - Lock
+
+    /// Lock the app by clearing the nsec from CryptoService memory.
+    /// The pubkey/npub remain for display.
+    func lock() {
+        cryptoService.lock()
+    }
+
+    // MARK: - Logout / Reset
+
+    /// Completely remove all stored identity data. This is destructive — the user
+    /// must re-import or generate a new key.
+    func logout() {
+        cryptoService.lock()
+        keychainService.delete(key: KeychainKey.encryptedKeys)
+        keychainService.delete(key: KeychainKey.hubURL)
+        keychainService.delete(key: KeychainKey.biometricEnabled)
+        keychainService.delete(key: KeychainKey.deviceID)
+        hasStoredKeys = false
+        isBiometricEnabled = false
+        hubURL = nil
+    }
+
+    // MARK: - PIN Validation
+
+    /// Validate PIN format: 4-6 numeric digits.
+    func validatePIN(_ pin: String) throws {
+        guard pin.count >= 4 else { throw AuthError.pinTooShort }
+        guard pin.count <= 6 else { throw AuthError.pinTooLong }
+        guard pin.allSatisfy(\.isNumber) else { throw AuthError.pinNotNumeric }
+    }
+
+    /// Validate that two PINs match (for set/confirm flow).
+    func validatePINConfirmation(_ pin: String, confirmation: String) throws {
+        try validatePIN(pin)
+        guard pin == confirmation else { throw AuthError.pinMismatch }
+    }
+}

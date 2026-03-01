@@ -1,0 +1,193 @@
+import Foundation
+import Security
+
+// MARK: - KeychainError
+
+enum KeychainError: LocalizedError {
+    case storeFailed(OSStatus)
+    case updateFailed(OSStatus)
+    case retrieveFailed(OSStatus)
+    case encodingFailed
+    case decodingFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .storeFailed(let status):
+            return "Keychain store failed with status \(status)"
+        case .updateFailed(let status):
+            return "Keychain update failed with status \(status)"
+        case .retrieveFailed(let status):
+            return "Keychain retrieve failed with status \(status)"
+        case .encodingFailed:
+            return "Failed to encode data for Keychain storage"
+        case .decodingFailed:
+            return "Failed to decode data from Keychain"
+        }
+    }
+}
+
+// MARK: - Keychain Keys
+
+/// Well-known Keychain account keys for Llamenos data.
+enum KeychainKey {
+    static let encryptedKeys = "encrypted-keys"
+    static let hubURL = "hub-url"
+    static let deviceID = "device-id"
+    static let biometricEnabled = "biometric-enabled"
+    static let pinHash = "pin-verification"
+}
+
+// MARK: - KeychainService
+
+/// Secure storage backed by iOS Keychain Services. All items are scoped to the
+/// `org.llamenos.hotline` service identifier and restricted to
+/// `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` — they do not sync to iCloud
+/// Keychain or migrate to new devices.
+final class KeychainService {
+    private let service = "org.llamenos.hotline"
+
+    /// Store data in the Keychain. If an item with the same key already exists, it is updated.
+    ///
+    /// - Parameters:
+    ///   - key: The account identifier for this item.
+    ///   - data: The raw bytes to store.
+    ///   - biometric: If true, the item requires biometric authentication (Face ID / Touch ID)
+    ///     to retrieve. Uses `.biometryCurrentSet` so re-enrollment invalidates the item.
+    func store(key: String, data: Data, biometric: Bool = false) throws {
+        // Build base query
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key,
+            kSecValueData as String: data,
+        ]
+
+        if biometric {
+            var error: Unmanaged<CFError>?
+            guard let access = SecAccessControlCreateWithFlags(
+                nil,
+                kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+                .biometryCurrentSet,
+                &error
+            ) else {
+                throw KeychainError.storeFailed(errSecParam)
+            }
+            query[kSecAttrAccessControl as String] = access
+        } else {
+            query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        }
+
+        let addStatus = SecItemAdd(query as CFDictionary, nil)
+
+        if addStatus == errSecDuplicateItem {
+            // Item exists — update it. Build a lookup query without the value or access control.
+            let lookupQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: service,
+                kSecAttrAccount as String: key,
+            ]
+
+            var updateAttributes: [String: Any] = [
+                kSecValueData as String: data,
+            ]
+
+            // Re-apply access control on update if biometric is requested.
+            if biometric {
+                var error: Unmanaged<CFError>?
+                if let access = SecAccessControlCreateWithFlags(
+                    nil,
+                    kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+                    .biometryCurrentSet,
+                    &error
+                ) {
+                    updateAttributes[kSecAttrAccessControl as String] = access
+                }
+            } else {
+                updateAttributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            }
+
+            let updateStatus = SecItemUpdate(lookupQuery as CFDictionary, updateAttributes as CFDictionary)
+            guard updateStatus == errSecSuccess else {
+                throw KeychainError.updateFailed(updateStatus)
+            }
+        } else if addStatus != errSecSuccess {
+            throw KeychainError.storeFailed(addStatus)
+        }
+    }
+
+    /// Retrieve data from the Keychain. Returns nil if no item exists for the given key.
+    /// If the item was stored with biometric protection, the system will prompt for
+    /// Face ID / Touch ID automatically.
+    func retrieve(key: String) throws -> Data? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        if status == errSecItemNotFound {
+            return nil
+        }
+
+        guard status == errSecSuccess else {
+            throw KeychainError.retrieveFailed(status)
+        }
+
+        return result as? Data
+    }
+
+    /// Delete an item from the Keychain. No error if the item does not exist.
+    func delete(key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key,
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
+
+    /// Delete all items for this service. Used during account reset / logout.
+    func deleteAll() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
+
+    // MARK: - Typed Convenience Methods
+
+    /// Store a Codable value as JSON in the Keychain.
+    func storeJSON<T: Encodable>(_ value: T, key: String, biometric: Bool = false) throws {
+        let data = try JSONEncoder().encode(value)
+        try store(key: key, data: data, biometric: biometric)
+    }
+
+    /// Retrieve and decode a JSON-encoded Codable value from the Keychain.
+    func retrieveJSON<T: Decodable>(_ type: T.Type, key: String) throws -> T? {
+        guard let data = try retrieve(key: key) else { return nil }
+        return try JSONDecoder().decode(T.self, from: data)
+    }
+
+    /// Store a UTF-8 string in the Keychain.
+    func storeString(_ value: String, key: String, biometric: Bool = false) throws {
+        guard let data = value.data(using: .utf8) else {
+            throw KeychainError.encodingFailed
+        }
+        try store(key: key, data: data, biometric: biometric)
+    }
+
+    /// Retrieve a UTF-8 string from the Keychain.
+    func retrieveString(key: String) throws -> String? {
+        guard let data = try retrieve(key: key) else { return nil }
+        guard let string = String(data: data, encoding: .utf8) else {
+            throw KeychainError.decodingFailed
+        }
+        return string
+    }
+}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Base theme for the app. Compose handles theming at runtime,
+        but we still need a Theme.AppCompat or Theme.Material3 base
+        for the Activity window and splash screen.
+    -->
+    <style name="Theme.Llamenos" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

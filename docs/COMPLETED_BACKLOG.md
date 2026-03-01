@@ -1,5 +1,56 @@
 # Completed Backlog
 
+## 2026-03-01: Monorepo Foundation & Multi-Platform (Epics 200-207)
+
+### Epic 200: Monorepo Foundation
+- Moved `src-tauri/` → `apps/desktop/`, `src/worker/` → `apps/worker/`, `src/shared/` → `packages/shared/`
+- Converted worker relative imports to `@shared/` alias (65+ files)
+- Updated all configs: `tsconfig.json`, `vite.config.ts`, `tauri.conf.json`, `wrangler.jsonc`, CI workflows
+- Added `workspaces` to root `package.json`
+
+### Epic 201: Absorb llamenos-core
+- Used `git subtree add` to absorb `llamenos-core` into `packages/crypto/`
+- Updated `apps/desktop/Cargo.toml` path dep → `../../packages/crypto`
+- Removed CI workarounds and cross-repo dispatch triggers
+
+### Epic 202: Protocol Schema & Codegen
+- Created `packages/protocol/` with 8 JSON Schema files (envelope, notes, files, telephony, messaging, channels, blasts, hub)
+- Built `tools/codegen.ts` using quicktype-core → generates TypeScript interfaces, Swift structs, Kotlin data classes
+- Created `crypto-labels.json` with all 28 domain separation constants
+- Added `bun run codegen` / `bun run codegen:check` scripts
+
+### Epic 203: Workers Restructuring
+- Created `apps/worker/package.json` and `apps/worker/tsconfig.json`
+- Moved `wrangler.jsonc` → `apps/worker/wrangler.jsonc`
+- Updated root scripts to use `--config apps/worker/wrangler.jsonc`
+
+### Epic 204: CI/CD Consolidation
+- Added `crypto-tests` job to `ci.yml` (cargo test + clippy + fmt)
+- Added `ci-status` gate job aggregating all CI jobs
+- Updated version job to depend on crypto-tests
+
+### Epic 205: i18n Package Extraction
+- Created `packages/i18n/` with locale files, `languages.ts`, and `index.ts`
+- Built `tools/i18n-codegen.ts` → iOS `.lproj/Localizable.strings` + Android `values-*/strings.xml`
+- Added `bun run i18n:codegen` / `bun run i18n:validate` scripts
+- Added `@llamenos/i18n` path alias
+
+### Epic 206: iOS Client Foundation
+- Created `apps/ios/` with SwiftUI app (iOS 17+, `@Observable`, SPM)
+- Services: CryptoService (UniFFI wrapper with stand-in mock), KeychainService, APIService, AuthService
+- Views: LoginView, OnboardingView, PINSetView, PINUnlockView, DashboardView
+- Components: PINPadView, SecureTextField, LoadingOverlay
+- ViewModels: AuthViewModel, PINViewModel, DashboardViewModel
+- App lifecycle: scenePhase-based lock after 5 min background
+
+### Epic 207: Android Client Foundation
+- Created `apps/android/` with Kotlin/Compose app (minSdk 26, Material 3, Hilt DI)
+- Gradle version catalog with centralized dependencies
+- Services: CryptoService (JNI placeholder), KeystoreService (EncryptedSharedPreferences), ApiService + AuthInterceptor
+- UI: Navigation, Theme, LoginScreen, OnboardingScreen, PINSetScreen, PINUnlockScreen, DashboardScreen
+- Components: PINPad, SecureText, LoadingOverlay
+- Hilt DI module, FCM PushService stub
+
 ## 2026-02-27: Mobile Records Architecture (Epics 125-128)
 
 ### Epic 125: Mobile Note Threading
