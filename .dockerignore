@@ -10,4 +10,5 @@ docs
 .playwright
 data
 deploy
+!deploy/docker/download-page
 CHANGELOG.md

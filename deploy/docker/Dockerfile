@@ -8,17 +8,23 @@
 # Stage 1: Build Node.js server
 FROM oven/bun:1@sha256:856da45d07aeb62eb38ea3e7f9e1794c0143a4ff63efb00e6c4491b627e2a521 AS backend
 WORKDIR /app
-COPY package.json bun.lockb ./
-RUN bun install --frozen-lockfile --ignore-scripts
+COPY package.json ./
+# Strip workspace references — Docker only builds the server, not the full monorepo
+RUN sed -i '/"workspaces"/,/]/d' package.json
+RUN bun install --ignore-scripts
 COPY src/ src/
+COPY apps/worker/ apps/worker/
+COPY packages/shared/ packages/shared/
+COPY packages/i18n/ packages/i18n/
 COPY tsconfig.json esbuild.node.mjs ./
 RUN node esbuild.node.mjs
 
 # Stage 2: Install runtime deps (pure JS — no native build tools needed)
 FROM oven/bun:1@sha256:856da45d07aeb62eb38ea3e7f9e1794c0143a4ff63efb00e6c4491b627e2a521 AS deps
 WORKDIR /app
-COPY package.json bun.lockb ./
-RUN bun install --frozen-lockfile --production --ignore-scripts
+COPY package.json ./
+RUN sed -i '/"workspaces"/,/]/d' package.json
+RUN bun install --production --ignore-scripts
 
 # Stage 3: Production
 FROM node:22-slim@sha256:5373f1906319b3a1f291da5d102f4ce5c77ccbe29eb637f072b6c7b70443fc36

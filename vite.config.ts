@@ -55,5 +55,18 @@ export default defineConfig({
   server: {
     host: process.env.TAURI_DEV_HOST || '0.0.0.0',
     strictPort: true,
+    // Proxy API/WS to Docker Compose backend for test and standalone dev builds
+    ...(isTestBuild || !process.env.TAURI_ENV_PLATFORM ? {
+      proxy: {
+        '/api': {
+          target: process.env.API_URL || 'http://localhost:3000',
+          changeOrigin: true,
+        },
+        '/ws': {
+          target: process.env.API_URL?.replace('http', 'ws') || 'ws://localhost:3000',
+          ws: true,
+        },
+      },
+    } : {}),
   },
 })

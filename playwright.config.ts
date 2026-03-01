@@ -47,7 +47,8 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: "PLAYWRIGHT_TEST=true bun run build && bunx wrangler dev --config apps/worker/wrangler.jsonc --port 8788 --var ENVIRONMENT:development",
+        // Vite dev server with Tauri IPC mocks — proxies /api to Docker Compose backend
+        command: "PLAYWRIGHT_TEST=true bun run dev:vite --port 8788",
         url: "http://localhost:8788",
         reuseExistingServer: !process.env.CI,
       },
