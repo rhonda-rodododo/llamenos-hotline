@@ -1,5 +1,6 @@
 package org.llamenos.hotline.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,9 +15,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.NavigateNext
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -57,6 +61,8 @@ import org.llamenos.hotline.api.WebSocketService
  * Displays:
  * - Identity section: npub with copy button
  * - Hub connection info with status indicator
+ * - Device link card (navigates to QR scanning flow)
+ * - Admin panel card (visible to admins)
  * - Lock app button (clears key from memory, keeps stored keys)
  * - Logout button with confirmation dialog (clears all data)
  * - App version
@@ -66,6 +72,8 @@ import org.llamenos.hotline.api.WebSocketService
  * @param connectionState WebSocket connection state
  * @param onLock Callback to lock the app
  * @param onLogout Callback to fully logout
+ * @param onNavigateToAdmin Callback to navigate to admin panel
+ * @param onNavigateToDeviceLink Callback to navigate to device link screen
  */
 @Composable
 fun SettingsScreen(
@@ -74,6 +82,8 @@ fun SettingsScreen(
     connectionState: WebSocketService.ConnectionState,
     onLock: () -> Unit,
     onLogout: () -> Unit,
+    onNavigateToAdmin: () -> Unit,
+    onNavigateToDeviceLink: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -251,6 +261,94 @@ fun SettingsScreen(
                             modifier = Modifier.testTag("settings-connection-status"),
                         )
                     }
+                }
+            }
+
+            // Device link card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onNavigateToDeviceLink)
+                    .testTag("settings-device-link-card"),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Link,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_link_device),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            text = "Import identity from desktop via QR code",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Filled.NavigateNext,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            // Admin panel card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onNavigateToAdmin)
+                    .testTag("settings-admin-card"),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AdminPanelSettings,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_admin),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            text = "Manage volunteers, bans, and invites",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Filled.NavigateNext,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 

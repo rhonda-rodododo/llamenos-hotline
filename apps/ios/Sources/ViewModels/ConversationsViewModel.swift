@@ -1,0 +1,325 @@
+import Foundation
+import UIKit
+
+// MARK: - ConversationsViewModel
+
+/// View model for the Conversations tab. Fetches conversations from the API,
+/// manages status filtering, and handles real-time message updates via WebSocket.
+@Observable
+final class ConversationsViewModel {
+    private let apiService: APIService
+    private let cryptoService: CryptoService
+    private let webSocketService: WebSocketService
+
+    // MARK: - Public State
+
+    /// All conversations from the server, filtered by current status filter.
+    var filteredConversations: [Conversation] = []
+
+    /// All conversations (unfiltered), used for badge count calculations.
+    var allConversations: [Conversation] = []
+
+    /// Total unread message count across all conversations.
+    var totalUnreadCount: Int {
+        allConversations.reduce(0) { $0 + $1.unreadCount }
+    }
+
+    /// Current status filter.
+    var statusFilter: ConversationStatusFilter = .active {
+        didSet { applyFilter() }
+    }
+
+    /// Whether the initial load is in progress.
+    var isLoading: Bool = false
+
+    /// Error message from the last failed operation.
+    var errorMessage: String?
+
+    /// Messages for the currently viewed conversation.
+    var currentMessages: [DecryptedMessage] = []
+
+    /// The currently viewed conversation ID.
+    var currentConversationId: String?
+
+    /// Whether messages are loading for the current conversation.
+    var isLoadingMessages: Bool = false
+
+    /// Text input for the reply field.
+    var replyText: String = ""
+
+    /// Whether a send is in progress.
+    var isSending: Bool = false
+
+    // MARK: - Private State
+
+    private var eventTask: Task<Void, Never>?
+
+    // MARK: - Initialization
+
+    init(apiService: APIService, cryptoService: CryptoService, webSocketService: WebSocketService) {
+        self.apiService = apiService
+        self.cryptoService = cryptoService
+        self.webSocketService = webSocketService
+    }
+
+    // MARK: - Data Loading
+
+    /// Load conversations from the API.
+    func loadConversations() async {
+        guard !isLoading else { return }
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response: ConversationsListResponse = try await apiService.request(
+                method: "GET",
+                path: "/api/conversations"
+            )
+            allConversations = response.conversations.sorted { lhs, rhs in
+                // Sort by last message time, newest first
+                let lhsDate = lhs.lastMessageDate ?? lhs.createdDate ?? Date.distantPast
+                let rhsDate = rhs.lastMessageDate ?? rhs.createdDate ?? Date.distantPast
+                return lhsDate > rhsDate
+            }
+            applyFilter()
+        } catch {
+            if case APIError.noBaseURL = error {
+                // Hub not configured — show empty state
+            } else {
+                errorMessage = error.localizedDescription
+            }
+        }
+
+        isLoading = false
+    }
+
+    /// Refresh conversations (pull-to-refresh).
+    func refresh() async {
+        isLoading = false
+        await loadConversations()
+    }
+
+    // MARK: - Message Loading
+
+    /// Load messages for a specific conversation and decrypt them.
+    func loadMessages(for conversationId: String) async {
+        currentConversationId = conversationId
+        isLoadingMessages = true
+        currentMessages = []
+
+        do {
+            let response: ConversationMessagesResponse = try await apiService.request(
+                method: "GET",
+                path: "/api/conversations/\(conversationId)/messages"
+            )
+
+            currentMessages = response.messages.compactMap { decryptConversationMessage($0) }
+                .sorted { $0.createdAt < $1.createdAt }
+
+            // Mark as read
+            await markAsRead(conversationId: conversationId)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoadingMessages = false
+    }
+
+    // MARK: - Send Reply
+
+    /// Encrypt and send a reply message in the current conversation.
+    func sendReply() async {
+        guard let conversationId = currentConversationId else { return }
+        let text = replyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+
+        isSending = true
+
+        do {
+            // Find the conversation to get reader pubkeys
+            let conversation = allConversations.first { $0.id == conversationId }
+            var readerPubkeys: [String] = []
+
+            // Include our own pubkey for self-decryption
+            if let ourPubkey = cryptoService.pubkey {
+                readerPubkeys.append(ourPubkey)
+            }
+
+            // Include assigned volunteer (may be us or someone else)
+            if let assignedPubkey = conversation?.assignedVolunteerPubkey,
+               !readerPubkeys.contains(assignedPubkey) {
+                readerPubkeys.append(assignedPubkey)
+            }
+
+            let encrypted = try cryptoService.encryptMessage(
+                plaintext: text,
+                readerPubkeys: readerPubkeys
+            )
+
+            let request = SendMessageRequest(
+                encryptedContent: encrypted.encryptedContent,
+                recipientEnvelopes: encrypted.envelopes
+            )
+
+            let _: ConversationMessage = try await apiService.request(
+                method: "POST",
+                path: "/api/conversations/\(conversationId)/messages",
+                body: request
+            )
+
+            // Haptic feedback on success
+            let generator = UIImpactFeedbackGenerator(style: .light)
+            generator.impactOccurred()
+
+            // Clear input and reload messages
+            replyText = ""
+            await loadMessages(for: conversationId)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isSending = false
+    }
+
+    // MARK: - Mark as Read
+
+    /// Mark all messages in a conversation as read.
+    private func markAsRead(conversationId: String) async {
+        do {
+            let _: MarkReadResponse = try await apiService.request(
+                method: "POST",
+                path: "/api/conversations/\(conversationId)/read"
+            )
+
+            // Update the local unread count
+            if let index = allConversations.firstIndex(where: { $0.id == conversationId }) {
+                // Re-fetch to get updated count since Conversation is immutable
+                await loadConversations()
+            }
+        } catch {
+            // Non-critical — don't surface this error
+        }
+    }
+
+    // MARK: - Real-time Events
+
+    /// Start listening for WebSocket events related to conversations.
+    func startEventListener() {
+        eventTask?.cancel()
+        eventTask = Task { [weak self] in
+            guard let self else { return }
+            for await event in self.webSocketService.events {
+                guard !Task.isCancelled else { break }
+                await self.handleEvent(event)
+            }
+        }
+    }
+
+    /// Stop listening for events.
+    func stopEventListener() {
+        eventTask?.cancel()
+        eventTask = nil
+    }
+
+    @MainActor
+    private func handleEvent(_ event: NostrEvent) {
+        let eventType = WebSocketService.extractEventType(from: event)
+        switch eventType {
+        case .messageIncoming, .conversationUpdate:
+            // Message or conversation update — refresh the conversations list.
+            Task { await loadConversations() }
+
+            // If we're viewing a conversation, refresh its messages too
+            if let id = currentConversationId {
+                Task { await loadMessages(for: id) }
+            }
+
+        case .event:
+            // Generic event — could be a new message. Refresh conversations.
+            Task { await loadConversations() }
+
+            if let id = currentConversationId {
+                Task { await loadMessages(for: id) }
+            }
+
+        default:
+            break
+        }
+    }
+
+    // MARK: - Message Decryption
+
+    /// Decrypt a conversation message using the recipient envelope for our pubkey.
+    private func decryptConversationMessage(_ message: ConversationMessage) -> DecryptedMessage? {
+        guard let ourPubkey = cryptoService.pubkey else { return nil }
+
+        // Find our envelope
+        guard let ourEnvelope = message.recipientEnvelopes.first(where: { $0.pubkey == ourPubkey }) else {
+            return nil
+        }
+
+        do {
+            let decryptedText = try cryptoService.decryptMessage(
+                encryptedContent: message.encryptedContent,
+                wrappedKey: ourEnvelope.wrappedKey,
+                ephemeralPubkey: ourEnvelope.ephemeralPubkey
+            )
+
+            return DecryptedMessage(
+                id: message.id,
+                text: decryptedText,
+                direction: message.direction,
+                channelType: message.channelType,
+                createdAt: parseDate(message.createdAt) ?? Date(),
+                isRead: message.isRead
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    // MARK: - Filtering
+
+    /// Apply the current status filter to the conversations list.
+    private func applyFilter() {
+        switch statusFilter {
+        case .all:
+            filteredConversations = allConversations
+        case .active:
+            filteredConversations = allConversations.filter { $0.conversationStatus == .active }
+        case .closed:
+            filteredConversations = allConversations.filter { $0.conversationStatus == .closed }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func parseDate(_ dateString: String) -> Date? {
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = isoFormatter.date(from: dateString) { return date }
+        isoFormatter.formatOptions = [.withInternetDateTime]
+        return isoFormatter.date(from: dateString)
+    }
+
+    deinit {
+        eventTask?.cancel()
+    }
+}
+
+// MARK: - ConversationStatusFilter
+
+/// Filter options for the conversations list.
+enum ConversationStatusFilter: String, CaseIterable, Sendable {
+    case active
+    case closed
+    case all
+
+    var displayName: String {
+        switch self {
+        case .active: return NSLocalizedString("filter_active", comment: "Active")
+        case .closed: return NSLocalizedString("filter_closed", comment: "Closed")
+        case .all: return NSLocalizedString("filter_all", comment: "All")
+        }
+    }
+}

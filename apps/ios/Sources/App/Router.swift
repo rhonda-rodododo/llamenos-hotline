@@ -20,6 +20,14 @@ enum Route: Hashable {
     case noteDetail(id: String)
     /// Note creation form.
     case noteCreate
+    /// Conversations list.
+    case conversations
+    /// Conversation detail: messages in a single conversation.
+    case conversationDetail(id: String)
+    /// Admin management screens.
+    case admin
+    /// Device linking flow (QR scan + ECDH).
+    case deviceLink
 }
 
 // MARK: - Router

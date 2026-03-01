@@ -217,6 +217,16 @@ class WebSocketService @Inject constructor(
                     val noteId = obj["noteId"]?.jsonPrimitive?.content ?: return null
                     LlamenosEvent.NoteCreated(noteId)
                 }
+                "message_received" -> {
+                    val conversationId = obj["conversationId"]?.jsonPrimitive?.content ?: return null
+                    val messageId = obj["messageId"]?.jsonPrimitive?.content ?: return null
+                    LlamenosEvent.MessageReceived(conversationId, messageId)
+                }
+                "conversation_update" -> {
+                    val conversationId = obj["conversationId"]?.jsonPrimitive?.content ?: return null
+                    val status = obj["status"]?.jsonPrimitive?.content ?: return null
+                    LlamenosEvent.ConversationUpdate(conversationId, status)
+                }
                 else -> LlamenosEvent.Unknown(type)
             }
         } catch (_: Exception) {

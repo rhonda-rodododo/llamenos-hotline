@@ -3,9 +3,12 @@ package org.llamenos.hotline.ui
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -26,6 +29,8 @@ import org.llamenos.hotline.R
 import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
+import org.llamenos.hotline.ui.conversations.ConversationsScreen
+import org.llamenos.hotline.ui.conversations.ConversationsViewModel
 import org.llamenos.hotline.ui.dashboard.DashboardScreen
 import org.llamenos.hotline.ui.dashboard.DashboardViewModel
 import org.llamenos.hotline.ui.notes.NotesScreen
@@ -47,6 +52,7 @@ private enum class MainTab(
 ) {
     DASHBOARD(Icons.Filled.Home, R.string.nav_dashboard, "nav-dashboard"),
     NOTES(Icons.Filled.Description, R.string.nav_notes, "nav-notes"),
+    CONVERSATIONS(Icons.Filled.Chat, R.string.nav_conversations, "nav-conversations"),
     SHIFTS(Icons.Filled.CalendarMonth, R.string.nav_shifts, "nav-shifts"),
     SETTINGS(Icons.Filled.Settings, R.string.nav_settings, "nav-settings"),
 }
@@ -55,8 +61,8 @@ private enum class MainTab(
  * Main screen with Material 3 bottom navigation.
  *
  * This composable is shown after successful authentication and contains
- * four tabs: Dashboard, Notes, Shifts, and Settings. Each tab maintains
- * its own ViewModel and state independently.
+ * five tabs: Dashboard, Notes, Conversations, Shifts, and Settings.
+ * Each tab maintains its own ViewModel and state independently.
  *
  * The selected tab index survives configuration changes (rotation) via
  * [rememberSaveable]. The NavController for note detail/create is passed
@@ -69,6 +75,9 @@ private enum class MainTab(
  * @param onLogout Callback to fully logout (clears all data)
  * @param onNavigateToNoteDetail Callback to navigate to note detail screen
  * @param onNavigateToNoteCreate Callback to navigate to note create screen
+ * @param onNavigateToConversationDetail Callback to navigate to conversation detail screen
+ * @param onNavigateToAdmin Callback to navigate to admin panel
+ * @param onNavigateToDeviceLink Callback to navigate to device linking screen
  */
 @Composable
 fun MainScreen(
@@ -79,6 +88,9 @@ fun MainScreen(
     onLogout: () -> Unit,
     onNavigateToNoteDetail: (String) -> Unit,
     onNavigateToNoteCreate: () -> Unit,
+    onNavigateToConversationDetail: (String) -> Unit,
+    onNavigateToAdmin: () -> Unit,
+    onNavigateToDeviceLink: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -87,7 +99,12 @@ fun MainScreen(
     // ViewModels scoped to this composable's lifecycle
     val dashboardViewModel: DashboardViewModel = hiltViewModel()
     val notesViewModel: NotesViewModel = hiltViewModel()
+    val conversationsViewModel: ConversationsViewModel = hiltViewModel()
     val shiftsViewModel: ShiftsViewModel = hiltViewModel()
+
+    // Unread count for conversations badge
+    val conversationsUiState by conversationsViewModel.uiState.collectAsState()
+    val unreadCount = conversationsUiState.totalUnread
 
     Scaffold(
         bottomBar = {
@@ -99,10 +116,29 @@ fun MainScreen(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
                         icon = {
-                            Icon(
-                                imageVector = tab.icon,
-                                contentDescription = stringResource(tab.labelRes),
-                            )
+                            if (tab == MainTab.CONVERSATIONS && unreadCount > 0) {
+                                BadgedBox(
+                                    badge = {
+                                        Badge(
+                                            modifier = Modifier.testTag("conversations-badge"),
+                                        ) {
+                                            Text(
+                                                text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                                            )
+                                        }
+                                    },
+                                ) {
+                                    Icon(
+                                        imageVector = tab.icon,
+                                        contentDescription = stringResource(tab.labelRes),
+                                    )
+                                }
+                            } else {
+                                Icon(
+                                    imageVector = tab.icon,
+                                    contentDescription = stringResource(tab.labelRes),
+                                )
+                            }
                         },
                         label = { Text(stringResource(tab.labelRes)) },
                         modifier = Modifier.testTag(tab.testTagValue),
@@ -134,6 +170,14 @@ fun MainScreen(
                 )
             }
 
+            MainTab.CONVERSATIONS -> {
+                ConversationsScreen(
+                    viewModel = conversationsViewModel,
+                    onNavigateToDetail = onNavigateToConversationDetail,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
             MainTab.SHIFTS -> {
                 ShiftsScreen(
                     viewModel = shiftsViewModel,
@@ -148,6 +192,8 @@ fun MainScreen(
                     connectionState = connectionState,
                     onLock = onLock,
                     onLogout = onLogout,
+                    onNavigateToAdmin = onNavigateToAdmin,
+                    onNavigateToDeviceLink = onNavigateToDeviceLink,
                     modifier = Modifier.padding(paddingValues),
                 )
             }

@@ -118,6 +118,67 @@ private func llamenosCoreDecryptNote(encryptedContentHex: String, wrappedKeyHex:
     return simulated
 }
 
+// Stand-in: encrypt a message for multiple recipients.
+// Real implementation generates a random symmetric key, encrypts the message content
+// with XChaCha20-Poly1305, then ECIES-wraps the key for each reader.
+private func llamenosCoreEncryptMessage(plaintextJson: String, readerPubkeys: [String], senderSecretKeyHex: String) throws -> (encryptedContent: String, envelopes: [(pubkey: String, wrappedKey: String, ephemeralPubkey: String)]) {
+    let content = (0..<64).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
+    let envelopes = readerPubkeys.map { pk in
+        (
+            pubkey: pk,
+            wrappedKey: (0..<72).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined(),
+            ephemeralPubkey: (0..<33).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
+        )
+    }
+    return (content, envelopes)
+}
+
+// Stand-in: decrypt a message using our private key and the ECIES envelope.
+private func llamenosCoreDecryptMessage(encryptedContentHex: String, wrappedKeyHex: String, ephemeralPubkeyHex: String, secretKeyHex: String) throws -> String {
+    // Stand-in: return simulated decrypted message
+    return "Decrypted message content (stand-in)"
+}
+
+// Stand-in: generate an ephemeral secp256k1 keypair for ECDH.
+private func llamenosCoreGenerateEphemeralKeypair() -> (secretHex: String, publicHex: String) {
+    let secret = (0..<32).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
+    let pubkey = (0..<32).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
+    return (secret, pubkey)
+}
+
+// Stand-in: compute ECDH shared secret.
+private func llamenosCoreEcdhSharedSecret(ourSecretHex: String, theirPublicHex: String) -> String {
+    // Stand-in: XOR the first 32 bytes of each to produce a deterministic "shared secret"
+    var result = [UInt8](repeating: 0, count: 32)
+    let ourBytes = Array(ourSecretHex.utf8)
+    let theirBytes = Array(theirPublicHex.utf8)
+    for i in 0..<min(32, min(ourBytes.count, theirBytes.count)) {
+        result[i] = ourBytes[i] ^ theirBytes[i]
+    }
+    return result.map { String(format: "%02x", $0) }.joined()
+}
+
+// Stand-in: decrypt data using a shared secret (XChaCha20-Poly1305 with HKDF-derived key).
+private func llamenosCoreDecryptWithSharedSecret(encryptedHex: String, sharedSecretHex: String) throws -> String {
+    guard !encryptedHex.isEmpty else {
+        throw CryptoServiceError.decryptionFailed("Empty ciphertext")
+    }
+    return "decrypted-nsec-data-stand-in"
+}
+
+// Stand-in: derive a 6-digit SAS verification code from a shared secret.
+private func llamenosCoreDerivedSasCode(sharedSecretHex: String) -> String {
+    // Stand-in: take first 6 hex chars, convert each to a digit 0-9
+    let chars = Array(sharedSecretHex.prefix(6))
+    let digits = chars.map { c -> Character in
+        if let val = UInt8(String(c), radix: 16) {
+            return Character(String(val % 10))
+        }
+        return "0"
+    }
+    return String(digits)
+}
+
 #endif
 
 // MARK: - CryptoService
@@ -302,6 +363,133 @@ final class CryptoService: @unchecked Sendable {
             ephemeralPubkeyHex: ephemeralPubkey,
             secretKeyHex: nsecHex
         )
+        #endif
+    }
+
+    // MARK: - Message Encryption
+
+    /// Encrypt a message for multiple readers with per-message forward secrecy.
+    /// A random symmetric key is generated, the plaintext is encrypted with XChaCha20-Poly1305,
+    /// and the key is ECIES-wrapped for each reader pubkey.
+    ///
+    /// - Parameters:
+    ///   - plaintext: The message text to encrypt.
+    ///   - readerPubkeys: Public keys of all recipients (assigned volunteer + admins).
+    /// - Returns: Encrypted content and recipient envelopes.
+    func encryptMessage(plaintext: String, readerPubkeys: [String]) throws -> (encryptedContent: String, envelopes: [NoteRecipientEnvelope]) {
+        guard let nsecHex else { throw CryptoServiceError.noKeyLoaded }
+
+        #if canImport(LlamenosCore)
+        let result = try LlamenosCore.encryptMessage(
+            plaintextJson: plaintext,
+            readerPubkeys: readerPubkeys,
+            senderSecretKeyHex: nsecHex
+        )
+        let envelopes = result.envelopes.map { env in
+            NoteRecipientEnvelope(pubkey: env.pubkey, wrappedKey: env.wrappedKey, ephemeralPubkey: env.ephemeralPubkey)
+        }
+        return (result.encryptedContent, envelopes)
+        #else
+        let result = try llamenosCoreEncryptMessage(
+            plaintextJson: plaintext,
+            readerPubkeys: readerPubkeys,
+            senderSecretKeyHex: nsecHex
+        )
+        let envelopes = result.envelopes.map { env in
+            NoteRecipientEnvelope(pubkey: env.pubkey, wrappedKey: env.wrappedKey, ephemeralPubkey: env.ephemeralPubkey)
+        }
+        return (result.encryptedContent, envelopes)
+        #endif
+    }
+
+    // MARK: - Message Decryption
+
+    /// Decrypt a message using our private key and the ECIES envelope addressed to us.
+    ///
+    /// - Parameters:
+    ///   - encryptedContent: Hex-encoded encrypted message content.
+    ///   - wrappedKey: Hex-encoded ECIES-wrapped symmetric key.
+    ///   - ephemeralPubkey: Hex-encoded ephemeral public key used in ECIES.
+    /// - Returns: Decrypted plaintext string.
+    func decryptMessage(encryptedContent: String, wrappedKey: String, ephemeralPubkey: String) throws -> String {
+        guard let nsecHex else { throw CryptoServiceError.noKeyLoaded }
+
+        #if canImport(LlamenosCore)
+        return try LlamenosCore.decryptMessage(
+            encryptedContentHex: encryptedContent,
+            wrappedKeyHex: wrappedKey,
+            ephemeralPubkeyHex: ephemeralPubkey,
+            secretKeyHex: nsecHex
+        )
+        #else
+        return try llamenosCoreDecryptMessage(
+            encryptedContentHex: encryptedContent,
+            wrappedKeyHex: wrappedKey,
+            ephemeralPubkeyHex: ephemeralPubkey,
+            secretKeyHex: nsecHex
+        )
+        #endif
+    }
+
+    // MARK: - Device Linking ECDH
+
+    /// Generate an ephemeral secp256k1 keypair for the ECDH key exchange
+    /// during device linking. The secret is NOT stored internally -- the caller
+    /// must hold onto it for the duration of the linking flow.
+    ///
+    /// - Returns: Tuple of (secretKeyHex, publicKeyHex).
+    func generateEphemeralKeypair() -> (secretHex: String, publicHex: String) {
+        #if canImport(LlamenosCore)
+        let kp = LlamenosCore.generateEphemeralKeypair()
+        return (kp.secretHex, kp.publicHex)
+        #else
+        return llamenosCoreGenerateEphemeralKeypair()
+        #endif
+    }
+
+    /// Compute an ECDH shared secret from our ephemeral secret and their ephemeral public key.
+    /// Used in the device linking protocol to establish a shared encryption key.
+    ///
+    /// - Parameters:
+    ///   - ourSecret: Our ephemeral private key in hex.
+    ///   - theirPublic: Their ephemeral public key in hex.
+    /// - Returns: The shared secret in hex (32 bytes).
+    func deriveSharedSecret(ourSecret: String, theirPublic: String) -> String {
+        #if canImport(LlamenosCore)
+        return LlamenosCore.ecdhSharedSecret(ourSecretHex: ourSecret, theirPublicHex: theirPublic)
+        #else
+        return llamenosCoreEcdhSharedSecret(ourSecretHex: ourSecret, theirPublicHex: theirPublic)
+        #endif
+    }
+
+    /// Decrypt data encrypted with a shared secret (XChaCha20-Poly1305 with HKDF-derived key).
+    /// Used during device linking to decrypt the nsec sent from the desktop.
+    ///
+    /// - Parameters:
+    ///   - encrypted: Hex-encoded encrypted data (nonce + ciphertext + tag).
+    ///   - sharedSecret: Hex-encoded shared secret from ECDH.
+    /// - Returns: The decrypted plaintext string.
+    func decryptWithSharedSecret(encrypted: String, sharedSecret: String) throws -> String {
+        #if canImport(LlamenosCore)
+        return try LlamenosCore.decryptWithSharedSecret(encryptedHex: encrypted, sharedSecretHex: sharedSecret)
+        #else
+        return try llamenosCoreDecryptWithSharedSecret(encryptedHex: encrypted, sharedSecretHex: sharedSecret)
+        #endif
+    }
+
+    // MARK: - SAS Code
+
+    /// Derive a 6-digit Short Authentication String from the ECDH shared secret.
+    /// Both devices derive the same SAS code independently; the user visually confirms
+    /// the codes match to prevent MITM attacks during device linking.
+    ///
+    /// - Parameter sharedSecret: Hex-encoded shared secret from ECDH.
+    /// - Returns: A 6-digit numeric string.
+    func deriveSASCode(sharedSecret: String) -> String {
+        #if canImport(LlamenosCore)
+        return LlamenosCore.deriveSasCode(sharedSecretHex: sharedSecret)
+        #else
+        return llamenosCoreDerivedSasCode(sharedSecretHex: sharedSecret)
         #endif
     }
 

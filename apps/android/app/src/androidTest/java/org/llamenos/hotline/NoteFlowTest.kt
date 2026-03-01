@@ -80,6 +80,7 @@ class NoteFlowTest {
         // Verify bottom navigation tabs are present
         composeRule.onNodeWithTag("nav-dashboard").assertIsDisplayed()
         composeRule.onNodeWithTag("nav-notes").assertIsDisplayed()
+        composeRule.onNodeWithTag("nav-conversations").assertIsDisplayed()
         composeRule.onNodeWithTag("nav-shifts").assertIsDisplayed()
         composeRule.onNodeWithTag("nav-settings").assertIsDisplayed()
     }

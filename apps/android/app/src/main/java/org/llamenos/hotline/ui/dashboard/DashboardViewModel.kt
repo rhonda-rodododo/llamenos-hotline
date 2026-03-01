@@ -127,6 +127,12 @@ class DashboardViewModel @Inject constructor(
             is LlamenosEvent.NoteCreated -> {
                 // Notes list will refresh via its own ViewModel
             }
+            is LlamenosEvent.MessageReceived -> {
+                // Conversations list will refresh via its own ViewModel
+            }
+            is LlamenosEvent.ConversationUpdate -> {
+                // Conversations list will refresh via its own ViewModel
+            }
             is LlamenosEvent.Unknown -> {
                 // Forward compatibility — ignore unknown events
             }

@@ -1,14 +1,66 @@
 import SwiftUI
 
+// MARK: - AutoLockTimeout
+
+/// Auto-lock timeout options.
+enum AutoLockTimeout: Int, CaseIterable, Identifiable {
+    case oneMinute = 60
+    case fiveMinutes = 300
+    case fifteenMinutes = 900
+    case thirtyMinutes = 1800
+
+    var id: Int { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .oneMinute: return NSLocalizedString("settings_lock_1min", comment: "1 minute")
+        case .fiveMinutes: return NSLocalizedString("settings_lock_5min", comment: "5 minutes")
+        case .fifteenMinutes: return NSLocalizedString("settings_lock_15min", comment: "15 minutes")
+        case .thirtyMinutes: return NSLocalizedString("settings_lock_30min", comment: "30 minutes")
+        }
+    }
+}
+
+// MARK: - SupportedLanguage
+
+/// Supported languages for the app, matching the 13 locales in the project.
+struct SupportedLanguage: Identifiable, Hashable {
+    let id: String  // locale code
+    let name: String
+
+    static let all: [SupportedLanguage] = [
+        SupportedLanguage(id: "en", name: "English"),
+        SupportedLanguage(id: "es", name: "Espanol"),
+        SupportedLanguage(id: "zh", name: "Chinese"),
+        SupportedLanguage(id: "tl", name: "Tagalog"),
+        SupportedLanguage(id: "vi", name: "Tieng Viet"),
+        SupportedLanguage(id: "ar", name: "Arabic"),
+        SupportedLanguage(id: "fr", name: "Francais"),
+        SupportedLanguage(id: "ht", name: "Kreyol Ayisyen"),
+        SupportedLanguage(id: "ko", name: "Korean"),
+        SupportedLanguage(id: "ru", name: "Russian"),
+        SupportedLanguage(id: "hi", name: "Hindi"),
+        SupportedLanguage(id: "pt", name: "Portugues"),
+        SupportedLanguage(id: "de", name: "Deutsch"),
+    ]
+}
+
 // MARK: - SettingsView
 
-/// Settings tab showing identity info, hub connection details, lock/logout actions,
+/// Settings tab showing identity info, hub connection details, device linking,
+/// notification preferences, language selection, admin access, lock/logout actions,
 /// and app version.
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
 
     @State private var showLogoutConfirmation: Bool = false
     @State private var showCopyConfirmation: Bool = false
+    @State private var showDeviceLink: Bool = false
+    @State private var selectedAutoLockTimeout: AutoLockTimeout = .fiveMinutes
+    @State private var isBiometricEnabled: Bool = false
+    @State private var callSoundsEnabled: Bool = true
+    @State private var messageAlertsEnabled: Bool = true
+    @State private var selectedLanguage: String = "en"
 
     var body: some View {
         NavigationStack {
@@ -21,6 +73,23 @@ struct SettingsView: View {
 
                 // WebSocket connection section
                 connectionSection
+
+                // Device linking section
+                deviceLinkSection
+
+                // Notification preferences section
+                notificationPreferencesSection
+
+                // Language section
+                languageSection
+
+                // Security section
+                securitySection
+
+                // Admin section (visible only to admins)
+                if appState.isAdmin {
+                    adminSection
+                }
 
                 // Actions section
                 actionsSection
@@ -44,10 +113,21 @@ struct SettingsView: View {
                     comment: "This will remove your identity from this device. Make sure you have backed up your secret key."
                 ))
             }
+            .sheet(isPresented: $showDeviceLink) {
+                DeviceLinkView()
+            }
             .overlay(alignment: .bottom) {
                 if showCopyConfirmation {
                     copyConfirmationBanner
                         .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .onAppear {
+                isBiometricEnabled = appState.authService.isBiometricEnabled
+            }
+            .navigationDestination(for: String.self) { destination in
+                if destination == "admin" {
+                    AdminTabView()
                 }
             }
         }
@@ -117,6 +197,22 @@ struct SettingsView: View {
                 }
                 .accessibilityIdentifier("settings-pubkey")
             }
+
+            // Role badge
+            LabeledContent {
+                Text(appState.userRole.displayName)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(appState.isAdmin ? .purple : .blue)
+            } label: {
+                Label {
+                    Text(NSLocalizedString("settings_role", comment: "Role"))
+                } icon: {
+                    Image(systemName: appState.isAdmin ? "shield.fill" : "person.fill")
+                        .foregroundStyle(appState.isAdmin ? .purple : .blue)
+                }
+            }
+            .accessibilityIdentifier("settings-role")
         } header: {
             Text(NSLocalizedString("settings_identity_header", comment: "Identity"))
         }
@@ -199,6 +295,141 @@ struct SettingsView: View {
             }
         } header: {
             Text(NSLocalizedString("settings_connection_header", comment: "Connection"))
+        }
+    }
+
+    // MARK: - Device Link Section
+
+    private var deviceLinkSection: some View {
+        Section {
+            Button {
+                showDeviceLink = true
+            } label: {
+                Label {
+                    Text(NSLocalizedString("settings_link_device", comment: "Link Device"))
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "qrcode.viewfinder")
+                        .foregroundStyle(.tint)
+                }
+            }
+            .accessibilityIdentifier("settings-link-device")
+        } header: {
+            Text(NSLocalizedString("settings_devices_header", comment: "Devices"))
+        } footer: {
+            Text(NSLocalizedString(
+                "settings_link_device_footer",
+                comment: "Scan a QR code from your desktop app to securely transfer your identity to this device."
+            ))
+        }
+    }
+
+    // MARK: - Notification Preferences Section
+
+    private var notificationPreferencesSection: some View {
+        Section {
+            Toggle(isOn: $callSoundsEnabled) {
+                Label {
+                    Text(NSLocalizedString("settings_call_sounds", comment: "Call Sounds"))
+                } icon: {
+                    Image(systemName: "phone.arrow.down.left")
+                        .foregroundStyle(.blue)
+                }
+            }
+            .accessibilityIdentifier("settings-call-sounds")
+
+            Toggle(isOn: $messageAlertsEnabled) {
+                Label {
+                    Text(NSLocalizedString("settings_message_alerts", comment: "Message Alerts"))
+                } icon: {
+                    Image(systemName: "bell.badge")
+                        .foregroundStyle(.orange)
+                }
+            }
+            .accessibilityIdentifier("settings-message-alerts")
+        } header: {
+            Text(NSLocalizedString("settings_notifications_header", comment: "Notifications"))
+        }
+    }
+
+    // MARK: - Language Section
+
+    private var languageSection: some View {
+        Section {
+            Picker(selection: $selectedLanguage) {
+                ForEach(SupportedLanguage.all) { language in
+                    Text(language.name).tag(language.id)
+                }
+            } label: {
+                Label {
+                    Text(NSLocalizedString("settings_language", comment: "Language"))
+                } icon: {
+                    Image(systemName: "globe")
+                        .foregroundStyle(.tint)
+                }
+            }
+            .accessibilityIdentifier("settings-language-picker")
+        } header: {
+            Text(NSLocalizedString("settings_language_header", comment: "Language"))
+        }
+    }
+
+    // MARK: - Security Section
+
+    private var securitySection: some View {
+        Section {
+            Picker(selection: $selectedAutoLockTimeout) {
+                ForEach(AutoLockTimeout.allCases) { timeout in
+                    Text(timeout.displayName).tag(timeout)
+                }
+            } label: {
+                Label {
+                    Text(NSLocalizedString("settings_auto_lock", comment: "Auto-Lock Timeout"))
+                } icon: {
+                    Image(systemName: "timer")
+                        .foregroundStyle(.orange)
+                }
+            }
+            .accessibilityIdentifier("settings-auto-lock-picker")
+
+            Toggle(isOn: $isBiometricEnabled) {
+                Label {
+                    Text(NSLocalizedString("settings_biometric", comment: "Biometric Unlock"))
+                } icon: {
+                    Image(systemName: "faceid")
+                        .foregroundStyle(.green)
+                }
+            }
+            .accessibilityIdentifier("settings-biometric-toggle")
+            .onChange(of: isBiometricEnabled) { _, newValue in
+                try? appState.authService.setBiometricEnabled(newValue)
+            }
+        } header: {
+            Text(NSLocalizedString("settings_security_header", comment: "Security"))
+        }
+    }
+
+    // MARK: - Admin Section
+
+    private var adminSection: some View {
+        Section {
+            NavigationLink(value: "admin") {
+                Label {
+                    Text(NSLocalizedString("settings_admin", comment: "Admin Panel"))
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "shield.lefthalf.filled")
+                        .foregroundStyle(.purple)
+                }
+            }
+            .accessibilityIdentifier("settings-admin-panel")
+        } header: {
+            Text(NSLocalizedString("settings_admin_header", comment: "Administration"))
+        } footer: {
+            Text(NSLocalizedString(
+                "settings_admin_footer",
+                comment: "Manage volunteers, ban list, audit log, and invites."
+            ))
         }
     }
 

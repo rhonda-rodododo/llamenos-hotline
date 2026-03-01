@@ -65,6 +65,8 @@ enum HubEventType: String, Sendable {
     case callEnded = "llamenos:call-ended"
     case memberUpdate = "llamenos:member-update"
     case settingsUpdate = "llamenos:settings-update"
+    case messageIncoming = "llamenos:message-incoming"
+    case conversationUpdate = "llamenos:conversation-update"
     case unknown
 }
 

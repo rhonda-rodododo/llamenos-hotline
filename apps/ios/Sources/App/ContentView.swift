@@ -62,6 +62,14 @@ struct ContentView: View {
         case .noteDetail, .noteCreate:
             // These are handled within the Notes tab's own NavigationStack
             EmptyView()
+        case .conversations:
+            ConversationsView()
+        case .conversationDetail(let id):
+            ConversationDetailView(conversationId: id)
+        case .admin:
+            AdminTabView()
+        case .deviceLink:
+            DeviceLinkView()
         }
     }
 }

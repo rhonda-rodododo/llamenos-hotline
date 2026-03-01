@@ -6,6 +6,7 @@ import SwiftUI
 enum Tab: String, CaseIterable, Sendable {
     case dashboard
     case notes
+    case conversations
     case shifts
     case settings
 
@@ -13,6 +14,7 @@ enum Tab: String, CaseIterable, Sendable {
         switch self {
         case .dashboard: return NSLocalizedString("tab_dashboard", comment: "Dashboard")
         case .notes: return NSLocalizedString("tab_notes", comment: "Notes")
+        case .conversations: return NSLocalizedString("tab_conversations", comment: "Messages")
         case .shifts: return NSLocalizedString("tab_shifts", comment: "Shifts")
         case .settings: return NSLocalizedString("tab_settings", comment: "Settings")
         }
@@ -22,6 +24,7 @@ enum Tab: String, CaseIterable, Sendable {
         switch self {
         case .dashboard: return "house.fill"
         case .notes: return "note.text"
+        case .conversations: return "bubble.left.and.bubble.right"
         case .shifts: return "calendar"
         case .settings: return "gearshape"
         }
@@ -30,8 +33,8 @@ enum Tab: String, CaseIterable, Sendable {
 
 // MARK: - MainTabView
 
-/// The primary authenticated experience. Contains a `TabView` with four tabs:
-/// Dashboard, Notes, Shifts, and Settings. Shown when `authStatus == .unlocked`.
+/// The primary authenticated experience. Contains a `TabView` with five tabs:
+/// Dashboard, Notes, Conversations, Shifts, and Settings. Shown when `authStatus == .unlocked`.
 ///
 /// Each tab has its own `NavigationStack` so navigation state is preserved
 /// when switching between tabs.
@@ -39,6 +42,7 @@ struct MainTabView: View {
     @Environment(AppState.self) private var appState
     @Environment(Router.self) private var router
     @State private var selectedTab: Tab = .dashboard
+    @State private var conversationsViewModel: ConversationsViewModel?
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -58,6 +62,15 @@ struct MainTabView: View {
                 .tag(Tab.notes)
                 .accessibilityIdentifier("tab-notes")
 
+            // Conversations
+            ConversationsView()
+                .tabItem {
+                    Label(Tab.conversations.title, systemImage: Tab.conversations.icon)
+                }
+                .tag(Tab.conversations)
+                .badge(appState.unreadConversationCount)
+                .accessibilityIdentifier("tab-conversations")
+
             // Shifts
             ShiftsView()
                 .tabItem {
@@ -75,6 +88,27 @@ struct MainTabView: View {
                 .accessibilityIdentifier("tab-settings")
         }
         .accessibilityIdentifier("main-tab-view")
+        .task {
+            await fetchUnreadCount()
+        }
+    }
+
+    // MARK: - Unread Count
+
+    /// Fetch the total unread conversation count for the tab badge.
+    private func fetchUnreadCount() async {
+        do {
+            let response: ConversationsListResponse = try await appState.apiService.request(
+                method: "GET",
+                path: "/api/conversations"
+            )
+            let total = response.conversations.reduce(0) { $0 + $1.unreadCount }
+            await MainActor.run {
+                appState.unreadConversationCount = total
+            }
+        } catch {
+            // Non-critical — leave badge count as-is
+        }
     }
 }
 

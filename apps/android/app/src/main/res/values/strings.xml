@@ -99,6 +99,52 @@
     <string name="nav_notes">Notes</string>
     <string name="nav_shifts">Shifts</string>
     <string name="nav_settings">Settings</string>
+    <string name="nav_conversations">Messages</string>
+
+    <!-- Conversations -->
+    <string name="conversations_title">Conversations</string>
+    <string name="conversations_empty">No conversations</string>
+    <string name="conversation_reply_hint">Type a message\u2026</string>
+    <string name="conversation_send">Send</string>
+    <string name="conversation_sms">SMS</string>
+    <string name="conversation_whatsapp">WhatsApp</string>
+    <string name="conversation_signal">Signal</string>
+    <string name="filter_active">Active</string>
+    <string name="filter_closed">Closed</string>
+    <string name="filter_all">All</string>
+    <string name="unread_count">%d unread</string>
+
+    <!-- Admin -->
+    <string name="admin_title">Administration</string>
+    <string name="admin_volunteers">Volunteers</string>
+    <string name="admin_bans">Ban List</string>
+    <string name="admin_audit">Audit Log</string>
+    <string name="admin_invites">Invites</string>
+    <string name="invite_create">Create Invite</string>
+    <string name="invite_code">Invite Code</string>
+    <string name="invite_share">Share Invite</string>
+    <string name="ban_add">Add Ban</string>
+    <string name="ban_remove">Remove</string>
+    <string name="ban_reason">Reason (optional)</string>
+    <string name="volunteer_invite">Invite Volunteer</string>
+
+    <!-- Device Link -->
+    <string name="device_link_title">Link Device</string>
+    <string name="device_link_scan">Scan QR code from desktop app</string>
+    <string name="device_link_connecting">Connecting\u2026</string>
+    <string name="device_link_verify">Verify Code</string>
+    <string name="device_link_verify_subtitle">Confirm this code matches your desktop</string>
+    <string name="device_link_importing">Importing identity\u2026</string>
+    <string name="device_link_complete">Device linked successfully</string>
+    <string name="device_link_camera_permission">Camera permission needed to scan QR code</string>
+
+    <!-- Settings enhanced -->
+    <string name="settings_link_device">Link Device</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_auto_lock">Auto-Lock Timeout</string>
+    <string name="settings_biometric">Biometric Unlock</string>
+    <string name="settings_admin">Administration</string>
 
     <!-- Notifications -->
     <string name="notification_channel_calls">Incoming Calls</string>

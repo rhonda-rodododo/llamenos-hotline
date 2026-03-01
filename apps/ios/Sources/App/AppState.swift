@@ -36,6 +36,16 @@ final class AppState {
     /// Distinct from authStatus == .locked because it tracks the explicit "needs re-auth" state.
     var isLocked: Bool = false
 
+    /// The current user's role. Determines whether admin features are visible.
+    /// Loaded from the server after authentication.
+    var userRole: UserRole = .volunteer
+
+    /// Whether the current user has admin privileges.
+    var isAdmin: Bool { userRole == .admin }
+
+    /// Total unread conversation count for the tab badge.
+    var unreadConversationCount: Int = 0
+
     // MARK: - WebSocket Event Listener
 
     /// Background task that listens for WebSocket events.
@@ -97,6 +107,7 @@ final class AppState {
         isLocked = false
         authStatus = .unlocked
         connectWebSocketIfConfigured()
+        fetchUserRole()
     }
 
     /// Called after successful onboarding (new identity or import + PIN set).
@@ -110,6 +121,7 @@ final class AppState {
         }
 
         connectWebSocketIfConfigured()
+        fetchUserRole()
     }
 
     /// Called when the user logs out / resets identity.
@@ -121,9 +133,31 @@ final class AppState {
         authService.logout()
         isLocked = false
         authStatus = .unauthenticated
+        userRole = .volunteer
+        unreadConversationCount = 0
     }
 
     // MARK: - WebSocket Connection
+
+    /// Fetch the current user's role from the API after authentication.
+    func fetchUserRole() {
+        Task {
+            do {
+                let response: IdentityMeResponse = try await apiService.request(
+                    method: "GET",
+                    path: "/api/identity/me"
+                )
+                await MainActor.run {
+                    self.userRole = UserRole(rawValue: response.role) ?? .volunteer
+                }
+            } catch {
+                // Default to volunteer if role fetch fails
+                await MainActor.run {
+                    self.userRole = .volunteer
+                }
+            }
+        }
+    }
 
     /// Connect WebSocket to the relay if a hub URL is configured.
     private func connectWebSocketIfConfigured() {
@@ -148,4 +182,13 @@ final class AppState {
             await webSocketService.connect(to: relayURL)
         }
     }
+}
+
+// MARK: - API Response Types
+
+/// Response from `GET /api/identity/me`.
+struct IdentityMeResponse: Decodable {
+    let pubkey: String
+    let role: String
+    let displayName: String?
 }

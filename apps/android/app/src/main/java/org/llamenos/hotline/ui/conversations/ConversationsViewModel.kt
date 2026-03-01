@@ -1,0 +1,340 @@
+package org.llamenos.hotline.ui.conversations
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import org.llamenos.hotline.api.ApiService
+import org.llamenos.hotline.api.WebSocketService
+import org.llamenos.hotline.crypto.CryptoService
+import org.llamenos.hotline.model.Conversation
+import org.llamenos.hotline.model.ConversationMessage
+import org.llamenos.hotline.model.ConversationsListResponse
+import org.llamenos.hotline.model.CreateMessageEnvelope
+import org.llamenos.hotline.model.DecryptedMessage
+import org.llamenos.hotline.model.LlamenosEvent
+import org.llamenos.hotline.model.MessagesListResponse
+import org.llamenos.hotline.model.SendMessageRequest
+import javax.inject.Inject
+
+/**
+ * Filter options for the conversations list.
+ */
+enum class ConversationFilter(val queryParam: String) {
+    ACTIVE("active"),
+    CLOSED("closed"),
+    ALL("all"),
+}
+
+data class ConversationsUiState(
+    val conversations: List<Conversation> = emptyList(),
+    val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val error: String? = null,
+    val filter: ConversationFilter = ConversationFilter.ACTIVE,
+    val totalConversations: Int = 0,
+    val totalUnread: Int = 0,
+
+    // Detail view
+    val selectedConversation: Conversation? = null,
+    val messages: List<DecryptedMessage> = emptyList(),
+    val isLoadingMessages: Boolean = false,
+    val messagesError: String? = null,
+    val totalMessages: Int = 0,
+
+    // Sending
+    val isSending: Boolean = false,
+    val sendError: String? = null,
+)
+
+/**
+ * ViewModel for the Conversations feature.
+ *
+ * Manages fetching, decrypting, and sending E2EE messages within conversations.
+ * Each message is encrypted with per-message forward secrecy: a unique random
+ * symmetric key per message, ECIES-wrapped for the assigned volunteer and admins.
+ *
+ * Subscribes to WebSocket events for real-time message delivery and conversation
+ * status updates.
+ */
+@HiltViewModel
+class ConversationsViewModel @Inject constructor(
+    private val apiService: ApiService,
+    private val cryptoService: CryptoService,
+    private val webSocketService: WebSocketService,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ConversationsUiState())
+    val uiState: StateFlow<ConversationsUiState> = _uiState.asStateFlow()
+
+    init {
+        loadConversations()
+        subscribeToEvents()
+    }
+
+    /**
+     * Subscribe to real-time conversation and message events from the WebSocket.
+     */
+    private fun subscribeToEvents() {
+        viewModelScope.launch {
+            webSocketService.typedEvents.collect { event ->
+                when (event) {
+                    is LlamenosEvent.MessageReceived -> {
+                        // If we are viewing this conversation, reload messages
+                        val selected = _uiState.value.selectedConversation
+                        if (selected != null && selected.id == event.conversationId) {
+                            loadMessages(event.conversationId)
+                        }
+                        // Refresh conversation list for unread count update
+                        loadConversations()
+                    }
+                    is LlamenosEvent.ConversationUpdate -> {
+                        loadConversations()
+                    }
+                    else -> { /* ignore non-conversation events */ }
+                }
+            }
+        }
+    }
+
+    /**
+     * Load conversations from the API, filtered by the current status filter.
+     */
+    fun loadConversations() {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isLoading = it.conversations.isEmpty(),
+                    isRefreshing = it.conversations.isNotEmpty(),
+                    error = null,
+                )
+            }
+
+            try {
+                val filter = _uiState.value.filter
+                val response = apiService.request<ConversationsListResponse>(
+                    "GET",
+                    "/api/conversations?status=${filter.queryParam}",
+                )
+
+                val totalUnread = response.conversations.sumOf { it.unreadCount }
+
+                _uiState.update {
+                    it.copy(
+                        conversations = response.conversations,
+                        isLoading = false,
+                        isRefreshing = false,
+                        totalConversations = response.total,
+                        totalUnread = totalUnread,
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isRefreshing = false,
+                        error = e.message ?: "Failed to load conversations",
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Change the status filter and reload.
+     */
+    fun setFilter(filter: ConversationFilter) {
+        _uiState.update { it.copy(filter = filter) }
+        loadConversations()
+    }
+
+    /**
+     * Pull-to-refresh.
+     */
+    fun refresh() {
+        loadConversations()
+    }
+
+    /**
+     * Select a conversation and load its messages.
+     */
+    fun openConversation(conversation: Conversation) {
+        _uiState.update {
+            it.copy(
+                selectedConversation = conversation,
+                messages = emptyList(),
+                isLoadingMessages = true,
+                messagesError = null,
+            )
+        }
+        loadMessages(conversation.id)
+        markAsRead(conversation.id)
+    }
+
+    /**
+     * Clear the selected conversation (navigating back).
+     */
+    fun closeConversation() {
+        _uiState.update {
+            it.copy(
+                selectedConversation = null,
+                messages = emptyList(),
+                messagesError = null,
+            )
+        }
+    }
+
+    /**
+     * Load and decrypt messages for a conversation.
+     */
+    fun loadMessages(conversationId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMessages = true, messagesError = null) }
+
+            try {
+                val response = apiService.request<MessagesListResponse>(
+                    "GET",
+                    "/api/conversations/$conversationId/messages",
+                )
+
+                val decrypted = response.messages.mapNotNull { message ->
+                    decryptMessage(message)
+                }
+
+                _uiState.update {
+                    it.copy(
+                        messages = decrypted,
+                        isLoadingMessages = false,
+                        totalMessages = response.total,
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoadingMessages = false,
+                        messagesError = e.message ?: "Failed to load messages",
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Send an encrypted reply in the current conversation.
+     *
+     * @param text The plaintext message to send
+     */
+    fun sendReply(text: String) {
+        val conversation = _uiState.value.selectedConversation ?: return
+        if (text.isBlank()) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSending = true, sendError = null) }
+
+            try {
+                // Collect reader pubkeys: self + assigned volunteer (if different) + admins
+                val readerPubkeys = buildList {
+                    cryptoService.pubkey?.let { add(it) }
+                    conversation.assignedVolunteerPubkey?.let { volunteerPub ->
+                        if (volunteerPub != cryptoService.pubkey) add(volunteerPub)
+                    }
+                    // Admin pubkeys would come from the API in production
+                }
+
+                val encrypted = cryptoService.encryptMessage(text, readerPubkeys)
+
+                val envelopes = encrypted.envelopes.map { env ->
+                    CreateMessageEnvelope(
+                        pubkey = env.recipientPubkey,
+                        wrappedKey = env.wrappedKey,
+                        ephemeralPubkey = env.ephemeralPubkey,
+                    )
+                }
+
+                val request = SendMessageRequest(
+                    encryptedContent = encrypted.ciphertext,
+                    recipientEnvelopes = envelopes,
+                    channelType = conversation.channelType,
+                )
+
+                apiService.request<ConversationMessage>(
+                    "POST",
+                    "/api/conversations/${conversation.id}/messages",
+                    request,
+                )
+
+                _uiState.update { it.copy(isSending = false) }
+
+                // Reload messages to include the sent message
+                loadMessages(conversation.id)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isSending = false,
+                        sendError = e.message ?: "Failed to send message",
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Mark all messages in a conversation as read.
+     */
+    private fun markAsRead(conversationId: String) {
+        viewModelScope.launch {
+            try {
+                apiService.requestNoContent(
+                    "POST",
+                    "/api/conversations/$conversationId/read",
+                )
+            } catch (_: Exception) {
+                // Read receipts are non-critical
+            }
+        }
+    }
+
+    /**
+     * Clear the send error.
+     */
+    fun clearSendError() {
+        _uiState.update { it.copy(sendError = null) }
+    }
+
+    /**
+     * Decrypt a single message by finding our envelope and calling CryptoService.
+     */
+    private suspend fun decryptMessage(message: ConversationMessage): DecryptedMessage? {
+        val ourPubkey = cryptoService.pubkey ?: return null
+
+        val envelope = message.recipientEnvelopes.find { it.pubkey == ourPubkey }
+            ?: return null
+
+        return try {
+            val plaintext = cryptoService.decryptMessage(
+                encryptedContent = message.encryptedContent,
+                wrappedKey = envelope.wrappedKey,
+                ephemeralPubkey = envelope.ephemeralPubkey,
+            )
+
+            if (plaintext != null) {
+                DecryptedMessage(
+                    id = message.id,
+                    text = plaintext,
+                    direction = message.direction,
+                    channelType = message.channelType,
+                    createdAt = message.createdAt,
+                    isRead = message.readAt != null,
+                )
+            } else {
+                null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+}

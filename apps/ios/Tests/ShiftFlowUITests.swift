@@ -212,8 +212,8 @@ final class ShiftFlowUITests: XCTestCase {
 
         let tabBar = app.tabBars.firstMatch
         guard tabBar.waitForExistence(timeout: 5) else { return }
-        // Third tab = Shifts
-        let shiftsTabButton = tabBar.buttons.element(boundBy: 2)
+        // Fourth tab = Shifts (0: Dashboard, 1: Notes, 2: Conversations, 3: Shifts)
+        let shiftsTabButton = tabBar.buttons.element(boundBy: 3)
         if shiftsTabButton.exists {
             shiftsTabButton.tap()
         }
@@ -228,8 +228,8 @@ final class ShiftFlowUITests: XCTestCase {
 
         let tabBar = app.tabBars.firstMatch
         guard tabBar.waitForExistence(timeout: 5) else { return }
-        // Fourth tab = Settings
-        let settingsTabButton = tabBar.buttons.element(boundBy: 3)
+        // Fifth tab = Settings (0: Dashboard, 1: Notes, 2: Conversations, 3: Shifts, 4: Settings)
+        let settingsTabButton = tabBar.buttons.element(boundBy: 4)
         if settingsTabButton.exists {
             settingsTabButton.tap()
         }

@@ -1,0 +1,309 @@
+import SwiftUI
+
+// MARK: - ConversationDetailView
+
+/// Detail view for a single conversation, showing message bubbles, channel indicator,
+/// text input, and real-time updates.
+struct ConversationDetailView: View {
+    @Environment(AppState.self) private var appState
+    @State private var viewModel: ConversationsViewModel?
+
+    let conversationId: String
+
+    var body: some View {
+        let vm = resolvedViewModel
+
+        VStack(spacing: 0) {
+            // Channel indicator
+            channelHeader(vm: vm)
+
+            // Messages
+            if vm.isLoadingMessages && vm.currentMessages.isEmpty {
+                loadingState
+            } else if vm.currentMessages.isEmpty {
+                emptyMessagesState
+            } else {
+                messagesList(vm: vm)
+            }
+
+            // Reply input
+            replyBar(vm: vm)
+        }
+        .navigationTitle(conversationTitle(vm: vm))
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await vm.loadMessages(for: conversationId)
+        }
+        .accessibilityIdentifier("conversation-detail-view")
+    }
+
+    // MARK: - Channel Header
+
+    @ViewBuilder
+    private func channelHeader(vm: ConversationsViewModel) -> some View {
+        let conversation = vm.allConversations.first { $0.id == conversationId }
+
+        if let conversation {
+            HStack(spacing: 8) {
+                Image(systemName: conversation.channel.iconName)
+                    .font(.caption)
+                    .foregroundStyle(channelColor(for: conversation.channel))
+
+                Text(conversation.channel.displayName)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(channelColor(for: conversation.channel))
+
+                Spacer()
+
+                Text(conversation.conversationStatus.displayName)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color(.systemGray6))
+            .accessibilityIdentifier("conversation-channel-header")
+        }
+    }
+
+    // MARK: - Messages List
+
+    @ViewBuilder
+    private func messagesList(vm: ConversationsViewModel) -> some View {
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(vm.currentMessages) { message in
+                        MessageBubbleView(message: message)
+                            .id(message.id)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+            }
+            .onChange(of: vm.currentMessages.count) { _, _ in
+                // Auto-scroll to bottom when new messages arrive
+                if let lastMessage = vm.currentMessages.last {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        scrollProxy.scrollTo(lastMessage.id, anchor: .bottom)
+                    }
+                }
+            }
+            .onAppear {
+                // Scroll to bottom on initial load
+                if let lastMessage = vm.currentMessages.last {
+                    scrollProxy.scrollTo(lastMessage.id, anchor: .bottom)
+                }
+            }
+        }
+        .accessibilityIdentifier("messages-list")
+    }
+
+    // MARK: - Reply Bar
+
+    @ViewBuilder
+    private func replyBar(vm: ConversationsViewModel) -> some View {
+        let conversation = vm.allConversations.first { $0.id == conversationId }
+        let isClosed = conversation?.conversationStatus == .closed
+
+        Divider()
+
+        if isClosed {
+            HStack {
+                Image(systemName: "lock.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(NSLocalizedString(
+                    "conversation_closed_message",
+                    comment: "This conversation is closed"
+                ))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+            .padding(12)
+            .accessibilityIdentifier("conversation-closed-bar")
+        } else {
+            HStack(spacing: 12) {
+                TextField(
+                    NSLocalizedString("conversation_reply_placeholder", comment: "Type a message..."),
+                    text: Binding(
+                        get: { vm.replyText },
+                        set: { vm.replyText = $0 }
+                    ),
+                    axis: .vertical
+                )
+                .lineLimit(1...5)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("reply-text-field")
+
+                Button {
+                    Task { await vm.sendReply() }
+                } label: {
+                    if vm.isSending {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(
+                                vm.replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                    ? Color.secondary
+                                    : Color.accentColor
+                            )
+                    }
+                }
+                .disabled(
+                    vm.replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    || vm.isSending
+                )
+                .accessibilityIdentifier("send-message-button")
+                .accessibilityLabel(NSLocalizedString("conversation_send", comment: "Send message"))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+        }
+    }
+
+    // MARK: - Empty State
+
+    private var emptyMessagesState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "bubble.left.and.bubble.right")
+                .font(.system(size: 40))
+                .foregroundStyle(.tertiary)
+            Text(NSLocalizedString(
+                "conversation_no_messages",
+                comment: "No messages yet"
+            ))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityIdentifier("messages-empty-state")
+    }
+
+    // MARK: - Loading State
+
+    private var loadingState: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+            Text(NSLocalizedString("conversation_loading", comment: "Loading messages..."))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityIdentifier("messages-loading")
+    }
+
+    // MARK: - Helpers
+
+    private func conversationTitle(vm: ConversationsViewModel) -> String {
+        let conversation = vm.allConversations.first { $0.id == conversationId }
+        return conversation?.contactDisplayHash
+            ?? NSLocalizedString("conversation_title", comment: "Conversation")
+    }
+
+    private func channelColor(for channel: ChannelType) -> Color {
+        switch channel {
+        case .sms: return .blue
+        case .whatsapp: return .green
+        case .signal: return .indigo
+        }
+    }
+
+    // MARK: - ViewModel Resolution
+
+    private var resolvedViewModel: ConversationsViewModel {
+        if let vm = viewModel {
+            return vm
+        }
+        let vm = ConversationsViewModel(
+            apiService: appState.apiService,
+            cryptoService: appState.cryptoService,
+            webSocketService: appState.webSocketService
+        )
+        DispatchQueue.main.async {
+            self.viewModel = vm
+        }
+        return vm
+    }
+}
+
+// MARK: - MessageBubbleView
+
+/// A single message bubble. Inbound messages appear on the left with a gray background,
+/// outbound messages on the right with a tinted background.
+struct MessageBubbleView: View {
+    let message: DecryptedMessage
+
+    var body: some View {
+        HStack {
+            if message.isOutbound {
+                Spacer(minLength: 60)
+            }
+
+            VStack(alignment: message.isInbound ? .leading : .trailing, spacing: 4) {
+                // Message text
+                Text(message.text)
+                    .font(.body)
+                    .foregroundStyle(message.isOutbound ? .white : .primary)
+                    .accessibilityIdentifier("message-text-\(message.id)")
+
+                // Timestamp and read status
+                HStack(spacing: 4) {
+                    Text(message.timeDisplay)
+                        .font(.caption2)
+                        .foregroundStyle(message.isOutbound ? .white.opacity(0.7) : .tertiary)
+
+                    if message.isOutbound && message.isRead {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(bubbleBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            if message.isInbound {
+                Spacer(minLength: 60)
+            }
+        }
+        .accessibilityIdentifier("message-bubble-\(message.id)")
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    // MARK: - Background
+
+    private var bubbleBackground: some ShapeStyle {
+        if message.isOutbound {
+            return AnyShapeStyle(Color.accentColor)
+        } else {
+            return AnyShapeStyle(Color(.systemGray5))
+        }
+    }
+
+    // MARK: - Accessibility
+
+    private var accessibilityDescription: String {
+        let direction = message.isInbound
+            ? NSLocalizedString("message_inbound", comment: "Received")
+            : NSLocalizedString("message_outbound", comment: "Sent")
+        return "\(direction): \(message.text). \(message.fullDateDisplay)"
+    }
+}
+
+// MARK: - Preview
+
+#if DEBUG
+#Preview("Conversation Detail") {
+    NavigationStack {
+        ConversationDetailView(conversationId: "preview-1")
+            .environment(AppState())
+    }
+}
+#endif

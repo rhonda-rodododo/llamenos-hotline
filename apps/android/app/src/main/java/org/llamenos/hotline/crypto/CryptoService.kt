@@ -43,6 +43,23 @@ data class NoteEnvelope(
     val wrappedKey: String,
 )
 
+/**
+ * Result of encrypting a message for multiple recipients.
+ *
+ * [ciphertext] is the XChaCha20-Poly1305 encrypted content (base64).
+ * [envelopes] contain the per-recipient ECIES-wrapped symmetric keys.
+ */
+data class EncryptedMessage(
+    val ciphertext: String,
+    val envelopes: List<MessageEnvelope>,
+)
+
+data class MessageEnvelope(
+    val recipientPubkey: String,
+    val wrappedKey: String,
+    val ephemeralPubkey: String,
+)
+
 class CryptoException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
@@ -340,6 +357,198 @@ class CryptoService @Inject constructor() {
                 null
             }
         }
+    }
+
+    /**
+     * Encrypt a message for multiple recipients.
+     *
+     * Uses per-message forward secrecy: a unique random symmetric key encrypts the
+     * plaintext, then the key is ECIES-wrapped individually for each reader pubkey.
+     *
+     * @param plaintext The message text to encrypt
+     * @param readerPubkeys Public keys of all authorized readers (volunteer + admins)
+     * @return Encrypted message with per-recipient envelopes
+     */
+    suspend fun encryptMessage(
+        plaintext: String,
+        readerPubkeys: List<String>,
+    ): EncryptedMessage = withContext(Dispatchers.Default) {
+        val pub = pubkey ?: throw CryptoException("No key loaded")
+
+        if (nativeLibLoaded) {
+            // When native lib is linked:
+            // return@withContext LlamenosCore.encryptMessageForRecipients(
+            //     plaintext = plaintext,
+            //     readerPubkeys = readerPubkeys
+            // )
+            throw CryptoException("Native library integration pending (Epic 201)")
+        }
+
+        // Placeholder: mock envelope encryption
+        val random = java.security.SecureRandom()
+        val ciphertextBytes = ByteArray(plaintext.length + 16)
+        random.nextBytes(ciphertextBytes)
+
+        val allReaders = (listOf(pub) + readerPubkeys).distinct()
+        val envelopes = allReaders.map { recipientPub ->
+            val wrappedKeyBytes = ByteArray(80)
+            random.nextBytes(wrappedKeyBytes)
+            val ephemeralBytes = ByteArray(32)
+            random.nextBytes(ephemeralBytes)
+            MessageEnvelope(
+                recipientPubkey = recipientPub,
+                wrappedKey = wrappedKeyBytes.joinToString("") { "%02x".format(it) },
+                ephemeralPubkey = ephemeralBytes.joinToString("") { "%02x".format(it) },
+            )
+        }
+
+        EncryptedMessage(
+            ciphertext = java.util.Base64.getEncoder().encodeToString(ciphertextBytes),
+            envelopes = envelopes,
+        )
+    }
+
+    /**
+     * Decrypt a message using the recipient envelope matching our keypair.
+     *
+     * @param encryptedContent Base64-encoded ciphertext of the message
+     * @param wrappedKey The ECIES-wrapped symmetric key for our pubkey
+     * @param ephemeralPubkey The ephemeral public key used for ECIES
+     * @return The decrypted plaintext, or null if decryption fails
+     */
+    suspend fun decryptMessage(
+        encryptedContent: String,
+        wrappedKey: String,
+        ephemeralPubkey: String,
+    ): String? = withContext(Dispatchers.Default) {
+        val secret = nsecHex ?: throw CryptoException("No key loaded")
+
+        if (nativeLibLoaded) {
+            // When native lib is linked:
+            // return@withContext LlamenosCore.decryptMessage(
+            //     encryptedContent = encryptedContent,
+            //     wrappedKey = wrappedKey,
+            //     ephemeralPubkey = ephemeralPubkey,
+            //     secretKeyHex = secret
+            // )
+            throw CryptoException("Native library integration pending (Epic 201)")
+        }
+
+        // Placeholder: decode base64 content as if it were plaintext
+        try {
+            val decoded = java.util.Base64.getDecoder().decode(encryptedContent)
+            String(decoded, Charsets.UTF_8)
+        } catch (_: Exception) {
+            try {
+                encryptedContent
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    // ---- Device Linking (ECDH provisioning) ----
+
+    /**
+     * Generate an ephemeral secp256k1 keypair for device linking ECDH.
+     *
+     * @return Pair of (secretKeyHex, publicKeyHex)
+     */
+    fun generateEphemeralKeypair(): Pair<String, String> {
+        if (nativeLibLoaded) {
+            // When native lib is linked:
+            // val kp = LlamenosCore.generateEphemeralKeypair()
+            // return Pair(kp.secretKeyHex, kp.publicKeyHex)
+            throw CryptoException("Native library integration pending (Epic 201)")
+        }
+
+        // Placeholder: generate random keypair bytes
+        val random = java.security.SecureRandom()
+        val secretBytes = ByteArray(32)
+        random.nextBytes(secretBytes)
+        val pubBytes = ByteArray(32)
+        random.nextBytes(pubBytes)
+
+        return Pair(
+            secretBytes.joinToString("") { "%02x".format(it) },
+            pubBytes.joinToString("") { "%02x".format(it) },
+        )
+    }
+
+    /**
+     * Derive a shared secret from our ephemeral secret and their ephemeral public key.
+     * Uses ECDH on secp256k1 followed by HKDF-SHA256 for key derivation.
+     *
+     * @param ourSecret Our ephemeral secret key (hex)
+     * @param theirPublic Their ephemeral public key (hex, x-only 32 bytes)
+     * @return The derived shared secret (hex)
+     */
+    fun deriveSharedSecret(ourSecret: String, theirPublic: String): String {
+        if (nativeLibLoaded) {
+            // When native lib is linked:
+            // return LlamenosCore.deriveSharedSecret(ourSecret, theirPublic)
+            throw CryptoException("Native library integration pending (Epic 201)")
+        }
+
+        // Placeholder: XOR-based mock derivation (NOT secure, just for structure)
+        val secretBytes = ourSecret.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        val publicBytes = theirPublic.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        val sharedBytes = ByteArray(32) { i ->
+            (secretBytes.getOrElse(i) { 0 } xor publicBytes.getOrElse(i) { 0 }).toByte()
+        }
+
+        return sharedBytes.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Decrypt data that was encrypted with a shared secret (XChaCha20-Poly1305).
+     * Used during device linking to decrypt the transferred nsec.
+     *
+     * @param encrypted Base64-encoded ciphertext (nonce prepended)
+     * @param sharedSecret The ECDH-derived shared secret (hex)
+     * @return Decrypted plaintext
+     */
+    suspend fun decryptWithSharedSecret(
+        encrypted: String,
+        sharedSecret: String,
+    ): String = withContext(Dispatchers.Default) {
+        if (nativeLibLoaded) {
+            // When native lib is linked:
+            // return@withContext LlamenosCore.decryptWithSharedSecret(encrypted, sharedSecret)
+            throw CryptoException("Native library integration pending (Epic 201)")
+        }
+
+        // Placeholder: decode base64 as plaintext
+        try {
+            val decoded = java.util.Base64.getDecoder().decode(encrypted)
+            String(decoded, Charsets.UTF_8)
+        } catch (_: Exception) {
+            encrypted
+        }
+    }
+
+    /**
+     * Derive a 6-digit SAS (Short Authentication String) verification code
+     * from a shared secret. Both devices independently derive this code and
+     * the user verifies they match to prevent MITM attacks.
+     *
+     * @param sharedSecret The ECDH-derived shared secret (hex)
+     * @return 6-digit numeric SAS code
+     */
+    fun deriveSASCode(sharedSecret: String): String {
+        if (nativeLibLoaded) {
+            // When native lib is linked:
+            // return LlamenosCore.deriveSASCode(sharedSecret)
+            throw CryptoException("Native library integration pending (Epic 201)")
+        }
+
+        // Placeholder: derive 6 digits from the shared secret bytes
+        val bytes = sharedSecret.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        val numeric = ((bytes.getOrElse(0) { 0 }.toInt() and 0xFF) * 65536 +
+                (bytes.getOrElse(1) { 0 }.toInt() and 0xFF) * 256 +
+                (bytes.getOrElse(2) { 0 }.toInt() and 0xFF)) % 1_000_000
+
+        return "%06d".format(numeric)
     }
 
     /**

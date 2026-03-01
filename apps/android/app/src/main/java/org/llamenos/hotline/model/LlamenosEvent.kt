@@ -12,7 +12,7 @@ package org.llamenos.hotline.model
  */
 sealed class LlamenosEvent {
 
-    /** A new call is ringing — all on-shift volunteers receive this. */
+    /** A new call is ringing -- all on-shift volunteers receive this. */
     data class CallRing(val callId: String) : LlamenosEvent()
 
     /** A call has ended (answered by another volunteer or caller hung up). */
@@ -23,6 +23,18 @@ sealed class LlamenosEvent {
 
     /** A new note was created (by the current user or an admin). */
     data class NoteCreated(val noteId: String) : LlamenosEvent()
+
+    /** A new message arrived in a conversation. */
+    data class MessageReceived(
+        val conversationId: String,
+        val messageId: String,
+    ) : LlamenosEvent()
+
+    /** A conversation's status changed (assigned, closed, etc.). */
+    data class ConversationUpdate(
+        val conversationId: String,
+        val status: String,
+    ) : LlamenosEvent()
 
     /** An event type this client version does not recognize. */
     data class Unknown(val type: String) : LlamenosEvent()
