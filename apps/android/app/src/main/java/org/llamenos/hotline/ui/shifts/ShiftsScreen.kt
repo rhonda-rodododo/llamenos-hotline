@@ -257,7 +257,7 @@ private fun ClockInOutCard(
 
             if (isOnShift && startedAt != null) {
                 Text(
-                    text = "Since ${formatShiftTime(startedAt)}",
+                    text = stringResource(R.string.shift_since, DateFormatUtils.formatTimeOnly(startedAt)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("clock-started-at"),
@@ -473,14 +473,4 @@ private fun EmptyShiftsState(
     }
 }
 
-/**
- * Format a shift timestamp for display.
- */
-private fun formatShiftTime(isoDate: String): String {
-    return try {
-        val parts = isoDate.replace("T", " ").replace("Z", "").split(" ")
-        if (parts.size >= 2) parts[1].take(5) else isoDate
-    } catch (_: Exception) {
-        isoDate
-    }
-}
+

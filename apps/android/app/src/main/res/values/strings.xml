@@ -127,6 +127,16 @@
     <string name="ban_remove">Remove</string>
     <string name="ban_reason">Reason (optional)</string>
     <string name="volunteer_invite">Invite Volunteer</string>
+    <string name="invite_code_copied">Invite code copied</string>
+    <string name="invite_select_role">Select role for the new volunteer:</string>
+    <string name="invite_status_claimed">Claimed</string>
+    <string name="invite_status_expired">Expired</string>
+    <string name="invite_status_active">Active</string>
+    <string name="role_volunteer">Volunteer</string>
+    <string name="role_admin">Admin</string>
+    <string name="action_done">Done</string>
+    <string name="ban_identifier_label">Phone number or identifier</string>
+    <string name="shift_since">Since %s</string>
     <string name="volunteer_add">Add Volunteer</string>
     <string name="volunteer_delete">Delete Volunteer</string>
     <string name="volunteer_delete_confirm">Are you sure you want to delete this volunteer?</string>

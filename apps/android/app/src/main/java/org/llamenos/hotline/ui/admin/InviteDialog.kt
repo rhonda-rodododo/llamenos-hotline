@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.llamenos.hotline.R
 import org.llamenos.hotline.model.Invite
+import org.llamenos.hotline.util.DateFormatUtils
 
 /**
  * Invites management tab in the admin panel.
@@ -71,6 +72,7 @@ fun InvitesTab(
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val inviteCodeCopiedMsg = stringResource(R.string.invite_code_copied)
 
     // Create invite dialog
     if (uiState.showCreateInviteDialog) {
@@ -82,7 +84,7 @@ fun InvitesTab(
             onCopyCode = { code ->
                 clipboardManager.setText(AnnotatedString(code))
                 scope.launch {
-                    snackbarHostState.showSnackbar("Invite code copied")
+                    snackbarHostState.showSnackbar(inviteCodeCopiedMsg)
                 }
             },
         )
@@ -164,7 +166,7 @@ fun InvitesTab(
                                 onCopyCode = { code ->
                                     clipboardManager.setText(AnnotatedString(code))
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("Invite code copied")
+                                        snackbarHostState.showSnackbar(inviteCodeCopiedMsg)
                                     }
                                 },
                             )
@@ -272,9 +274,9 @@ private fun InviteCard(
                     // Status
                     Text(
                         text = when {
-                            isClaimed -> "Claimed"
-                            isExpired -> "Expired"
-                            else -> "Active"
+                            isClaimed -> stringResource(R.string.invite_status_claimed)
+                            isExpired -> stringResource(R.string.invite_status_expired)
+                            else -> stringResource(R.string.invite_status_active)
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = when {
@@ -288,7 +290,7 @@ private fun InviteCard(
 
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = formatInviteDate(invite.createdAt),
+                    text = DateFormatUtils.formatDate(invite.createdAt),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 )
@@ -372,7 +374,7 @@ private fun CreateInviteDialog(
                 } else {
                     // Role selection
                     Text(
-                        text = "Select role for the new volunteer:",
+                        text = stringResource(R.string.invite_select_role),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(Modifier.height(16.dp))
@@ -386,7 +388,7 @@ private fun CreateInviteDialog(
                                 .weight(1f)
                                 .testTag("create-volunteer-invite"),
                         ) {
-                            Text("Volunteer")
+                            Text(stringResource(R.string.role_volunteer))
                         }
                         TextButton(
                             onClick = onCreateAdmin,
@@ -394,7 +396,7 @@ private fun CreateInviteDialog(
                                 .weight(1f)
                                 .testTag("create-admin-invite"),
                         ) {
-                            Text("Admin")
+                            Text(stringResource(R.string.role_admin))
                         }
                     }
                 }
@@ -405,37 +407,10 @@ private fun CreateInviteDialog(
                 onClick = onDismiss,
                 modifier = Modifier.testTag("close-invite-dialog"),
             ) {
-                Text(if (createdCode != null) "Done" else stringResource(android.R.string.cancel))
+                Text(if (createdCode != null) stringResource(R.string.action_done) else stringResource(android.R.string.cancel))
             }
         },
         modifier = Modifier.testTag("create-invite-dialog"),
     )
 }
 
-/**
- * Format an ISO 8601 date string for invite display.
- */
-private fun formatInviteDate(isoDate: String): String {
-    return try {
-        val parts = isoDate.replace("T", " ").replace("Z", "").split(" ")
-        if (parts.size >= 2) {
-            val dateParts = parts[0].split("-")
-            if (dateParts.size == 3) {
-                val months = listOf(
-                    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-                )
-                val monthIndex = dateParts[1].toIntOrNull()?.minus(1) ?: 0
-                val month = months.getOrElse(monthIndex) { "???" }
-                val day = dateParts[2].toIntOrNull() ?: 0
-                "$month $day, ${dateParts[0]}"
-            } else {
-                isoDate
-            }
-        } else {
-            isoDate
-        }
-    } catch (_: Exception) {
-        isoDate
-    }
-}

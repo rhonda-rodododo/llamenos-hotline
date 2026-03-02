@@ -295,7 +295,7 @@ private fun AddBanDialog(
                 OutlinedTextField(
                     value = identifier,
                     onValueChange = { identifier = it },
-                    label = { Text("Phone number or identifier") },
+                    label = { Text(stringResource(R.string.ban_identifier_label)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
