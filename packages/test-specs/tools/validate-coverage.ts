@@ -257,16 +257,22 @@ function stepMatchesCucumberPhrase(gherkinStep: string, cucumberPhrase: string):
   const step = gherkinStep.trim();
 
   // Convert cucumber expression pattern to regex
+  // Step 1: Unescape Kotlin string escapes (source file \\\\ → JS string \\)
+  // Step 2: Unescape Cucumber expression escapes (\/ → /, \( → (, \) → ))
+  // Step 3: Build regex from the plain text pattern
   let pattern = cucumberPhrase
-    // Escape regex special chars (except those used by cucumber)
+    // Kotlin string escapes: \\\\ in source = \\ in string → single \
+    .replace(/\\\\/g, "\\")
+    // Cucumber expression escapes: \/ → /, \( → (, \) → )
+    .replace(/\\\//g, "/")
+    .replace(/\\\(/g, "(")
+    .replace(/\\\)/g, ")")
+    // Escape regex special chars (except those used by cucumber parameters)
     .replace(/[.*+?^${}()|[\]]/g, "\\$&")
     // Restore cucumber expression parameters
     .replace(/\\{string\\}/g, '"[^"]*"')
     .replace(/\\{int\\}/g, "\\d+")
     .replace(/\\{word\\}/g, "\\S+")
-    // Handle escaped parens in cucumber (e.g., \\( becomes literal paren)
-    .replace(/\\\\\\\(/g, "\\(")
-    .replace(/\\\\\\\)/g, "\\)")
     ;
 
   try {

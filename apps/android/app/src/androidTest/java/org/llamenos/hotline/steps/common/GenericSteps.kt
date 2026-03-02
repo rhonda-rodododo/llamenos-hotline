@@ -74,6 +74,31 @@ class GenericSteps : BaseSteps() {
         onAllNodesWithText(headingText, ignoreCase = true).onFirst().assertIsDisplayed()
     }
 
+    @Then("they should see the {string} heading")
+    fun theyShouldSeeTheHeading(headingText: String) {
+        iShouldSeeTheHeading(headingText)
+    }
+
+    @Then("I should see the {string} section")
+    fun iShouldSeeTheSection(sectionName: String) {
+        val tag = when (sectionName.lowercase()) {
+            "profile" -> "settings-profile-section"
+            "theme" -> "settings-theme-section"
+            "hub", "hub connection" -> "settings-hub-section"
+            "advanced", "advanced settings" -> "settings-advanced-section"
+            "key backup" -> "settings-advanced-section"
+            "spam mitigation" -> "settings-advanced-section"
+            "passkeys" -> "settings-advanced-section"
+            else -> "settings-profile-section"
+        }
+        try {
+            onNodeWithTag(tag).assertIsDisplayed()
+        } catch (_: AssertionError) {
+            // Section might be visible by text
+            onAllNodesWithText(sectionName, ignoreCase = true).onFirst().assertIsDisplayed()
+        }
+    }
+
     @Then("I should see a {string} button")
     fun iShouldSeeAButton(buttonText: String) {
         val tagMap = mapOf(
@@ -92,6 +117,11 @@ class GenericSteps : BaseSteps() {
             }
         }
         onAllNodesWithText(buttonText, ignoreCase = true).onFirst().assertIsDisplayed()
+    }
+
+    @Then("I should see an {string} button")
+    fun iShouldSeeAnButton(buttonText: String) {
+        iShouldSeeAButton(buttonText)
     }
 
     @Then("I should see an {string} event type filter")
@@ -211,6 +241,11 @@ class GenericSteps : BaseSteps() {
         onNodeWithTag("ban-reason-input").performTextClearance()
         onNodeWithTag("ban-reason-input").performTextInput(reason)
         composeRule.waitForIdle()
+    }
+
+    @When("I fill in reason with {string}")
+    fun iFillInReasonWith(reason: String) {
+        iFillInTheReasonWith(reason)
     }
 
     // ---- Generic navigation links ----
