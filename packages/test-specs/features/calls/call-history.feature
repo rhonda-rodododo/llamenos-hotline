@@ -47,6 +47,10 @@ Feature: Call History
     When I tap the view call history button
     Then the call history screen should support pull to refresh
 
+  Scenario: Call history has search input
+    When I tap the view call history button
+    Then I should see the call history search field
+
   Scenario: Navigate back from call history returns to dashboard
     When I tap the view call history button
     Then I should see the call history title

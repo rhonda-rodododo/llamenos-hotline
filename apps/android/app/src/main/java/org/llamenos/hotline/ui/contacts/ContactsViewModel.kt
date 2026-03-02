@@ -20,6 +20,7 @@ data class ContactsUiState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val error: String? = null,
+    val searchQuery: String = "",
 )
 
 /**
@@ -50,9 +51,16 @@ class ContactsViewModel @Inject constructor(
                 )
             }
             try {
+                val query = buildString {
+                    append("/api/contacts?page=$page&limit=50")
+                    val search = _uiState.value.searchQuery
+                    if (search.isNotBlank()) {
+                        append("&search=$search")
+                    }
+                }
                 val response = apiService.request<ContactsListResponse>(
                     "GET",
-                    "/api/contacts?page=$page&limit=50",
+                    query,
                 )
                 _uiState.update {
                     it.copy(
@@ -84,5 +92,10 @@ class ContactsViewModel @Inject constructor(
         if (state.contacts.size < state.total && !state.isLoading) {
             loadContacts(page = state.currentPage + 1)
         }
+    }
+
+    fun setSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+        loadContacts(page = 1)
     }
 }

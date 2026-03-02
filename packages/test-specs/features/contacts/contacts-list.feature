@@ -36,6 +36,10 @@ Feature: Contacts List
     When I tap the view contacts button
     Then I should see the contacts screen
 
+  Scenario: Contacts has search input
+    When I tap the view contacts button
+    Then I should see the contacts search field
+
   Scenario: Contacts list displays contact identifiers
     When I tap the view contacts button
     Then I should see contacts with identifiers or the empty state

@@ -60,6 +60,13 @@ class ContactsListSteps : BaseSteps() {
         onNodeWithTag("contacts-card").assertIsDisplayed()
     }
 
+    // ---- Search ----
+
+    @Then("I should see the contacts search field")
+    fun iShouldSeeTheContactsSearchField() {
+        onNodeWithTag("contacts-search").assertIsDisplayed()
+    }
+
     // ---- Contact identifiers ----
 
     @Then("I should see contacts with identifiers or the empty state")

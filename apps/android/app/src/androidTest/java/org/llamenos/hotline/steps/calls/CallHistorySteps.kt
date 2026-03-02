@@ -90,4 +90,11 @@ class CallHistorySteps : BaseSteps() {
         // Verify the screen is displayed (pull-to-refresh wraps the content)
         assertAnyTagDisplayed("call-history-list", "call-history-empty", "call-history-loading")
     }
+
+    // ---- Search ----
+
+    @Then("I should see the call history search field")
+    fun iShouldSeeTheCallHistorySearchField() {
+        onNodeWithTag("call-history-search").assertIsDisplayed()
+    }
 }
