@@ -19,6 +19,8 @@ import org.llamenos.hotline.model.DecryptedMessage
 import org.llamenos.hotline.model.LlamenosEvent
 import org.llamenos.hotline.model.MessagesListResponse
 import org.llamenos.hotline.model.SendMessageRequest
+import org.llamenos.hotline.model.Volunteer
+import org.llamenos.hotline.model.VolunteersListResponse
 import javax.inject.Inject
 
 /**
@@ -55,6 +57,8 @@ data class ConversationsUiState(
 
     // Actions
     val showAssignDialog: Boolean = false,
+    val assignableVolunteers: List<Volunteer> = emptyList(),
+    val isLoadingVolunteers: Boolean = false,
 )
 
 /**
@@ -415,10 +419,31 @@ class ConversationsViewModel @Inject constructor(
 
     fun showAssignDialog() {
         _uiState.update { it.copy(showAssignDialog = true) }
+        loadVolunteersForAssign()
     }
 
     fun dismissAssignDialog() {
         _uiState.update { it.copy(showAssignDialog = false) }
+    }
+
+    private fun loadVolunteersForAssign() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingVolunteers = true) }
+            try {
+                val response = apiService.request<VolunteersListResponse>(
+                    "GET",
+                    "/api/admin/volunteers?limit=100",
+                )
+                _uiState.update {
+                    it.copy(
+                        assignableVolunteers = response.volunteers.filter { v -> v.status == "active" },
+                        isLoadingVolunteers = false,
+                    )
+                }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isLoadingVolunteers = false) }
+            }
+        }
     }
 
     /**

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.MarkChatRead
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,6 +42,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -102,6 +104,94 @@ fun ConversationDetailScreen(
                 viewModel.clearSendError()
             }
         }
+    }
+
+    // Assign dialog
+    if (uiState.showAssignDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissAssignDialog() },
+            title = {
+                Text(
+                    stringResource(R.string.conversation_assign_title),
+                    modifier = Modifier.testTag("assign-dialog-title"),
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.testTag("assign-dialog-content"),
+                ) {
+                    Text(
+                        text = stringResource(R.string.conversation_assign_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    if (uiState.isLoadingVolunteers) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        }
+                    } else if (uiState.assignableVolunteers.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.conversation_no_volunteers),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        uiState.assignableVolunteers.forEach { volunteer ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp)
+                                    .testTag("assign-volunteer-${volunteer.pubkey}"),
+                                onClick = {
+                                    viewModel.assignConversation(volunteer.pubkey)
+                                },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (conversation?.assignedVolunteerPubkey == volunteer.pubkey) {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    },
+                                ),
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = volunteer.displayName ?: volunteer.pubkey.take(12) + "\u2026",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                        )
+                                        Text(
+                                            text = volunteer.role.replaceFirstChar { it.uppercase() },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.dismissAssignDialog() },
+                    modifier = Modifier.testTag("assign-dialog-dismiss"),
+                ) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+            modifier = Modifier.testTag("assign-dialog"),
+        )
     }
 
     Scaffold(

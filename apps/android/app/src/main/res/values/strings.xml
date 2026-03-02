@@ -310,6 +310,9 @@
 
     <!-- Conversation actions -->
     <string name="conversation_assign">Assign</string>
+    <string name="conversation_assign_title">Assign Conversation</string>
+    <string name="conversation_assign_desc">Select a volunteer to handle this conversation</string>
+    <string name="conversation_no_volunteers">No active volunteers found</string>
     <string name="conversation_reopen">Reopen</string>
     <string name="conversation_close">Close</string>
 
