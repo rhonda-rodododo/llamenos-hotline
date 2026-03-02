@@ -72,6 +72,17 @@ import org.llamenos.hotline.R
 import org.llamenos.hotline.api.WebSocketService
 
 /**
+ * Auto-lock timeout options (in minutes, 0 = never).
+ */
+private enum class AutoLockOption(val minutes: Int, val labelRes: Int) {
+    ONE(1, R.string.settings_auto_lock_1min),
+    FIVE(5, R.string.settings_auto_lock_5min),
+    FIFTEEN(15, R.string.settings_auto_lock_15min),
+    THIRTY(30, R.string.settings_auto_lock_30min),
+    NEVER(0, R.string.settings_auto_lock_never),
+}
+
+/**
  * Settings screen with collapsible sections for profile, identity, theme, and more.
  *
  * Organized into default/operational settings visible to all users,
@@ -96,6 +107,14 @@ fun SettingsScreen(
     onLock: () -> Unit,
     onLogout: () -> Unit,
     onPanicWipe: () -> Unit,
+    transcriptionEnabled: Boolean,
+    transcriptionCanOptOut: Boolean,
+    onTranscriptionChange: (Boolean) -> Unit,
+    autoLockMinutes: Int,
+    onAutoLockChange: (Int) -> Unit,
+    debugLogging: Boolean,
+    onDebugLoggingChange: (Boolean) -> Unit,
+    onClearCache: () -> Unit,
     onNavigateToAdmin: () -> Unit,
     onNavigateToDeviceLink: () -> Unit,
     modifier: Modifier = Modifier,
@@ -119,7 +138,9 @@ fun SettingsScreen(
     var keyBackupExpanded by rememberSaveable { mutableStateOf(false) }
     var notificationsExpanded by rememberSaveable { mutableStateOf(false) }
     var hubExpanded by rememberSaveable { mutableStateOf(false) }
+    var transcriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var advancedExpanded by rememberSaveable { mutableStateOf(false) }
+    var showClearCacheDialog by remember { mutableStateOf(false) }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -192,6 +213,42 @@ fun SettingsScreen(
                 }
             },
             modifier = Modifier.testTag("panic-wipe-dialog"),
+        )
+    }
+
+    val cacheMessage = stringResource(R.string.settings_cache_cleared)
+
+    if (showClearCacheDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearCacheDialog = false },
+            title = { Text(stringResource(R.string.settings_clear_cache)) },
+            text = { Text(stringResource(R.string.settings_clear_cache_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearCacheDialog = false
+                        onClearCache()
+                        scope.launch {
+                            snackbarHostState.showSnackbar(cacheMessage)
+                        }
+                    },
+                    modifier = Modifier.testTag("confirm-clear-cache-button"),
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_clear_cache),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showClearCacheDialog = false },
+                    modifier = Modifier.testTag("cancel-clear-cache-button"),
+                ) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+            modifier = Modifier.testTag("clear-cache-dialog"),
         )
     }
 
@@ -407,6 +464,55 @@ fun SettingsScreen(
                 )
             }
 
+            // ---- Transcription section (collapsible) ----
+            SettingsSection(
+                title = stringResource(R.string.settings_transcription),
+                expanded = transcriptionExpanded,
+                onToggle = { transcriptionExpanded = !transcriptionExpanded },
+                testTag = "settings-transcription-section",
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_transcription_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                if (transcriptionCanOptOut) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings-transcription-toggle"),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.settings_transcription_enable),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_transcription_enable_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = transcriptionEnabled,
+                            onCheckedChange = onTranscriptionChange,
+                        )
+                    }
+                } else {
+                    Text(
+                        text = stringResource(R.string.settings_transcription_managed),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("settings-transcription-managed"),
+                    )
+                }
+            }
+
             // ---- Identity / Hub section (collapsible) ----
             SettingsSection(
                 title = stringResource(R.string.settings_hub),
@@ -593,9 +699,103 @@ fun SettingsScreen(
                 onToggle = { advancedExpanded = !advancedExpanded },
                 testTag = "settings-advanced-section",
             ) {
+                // Auto-lock timeout
                 Text(
-                    text = stringResource(R.string.settings_advanced_desc),
+                    text = stringResource(R.string.settings_auto_lock),
                     style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = stringResource(R.string.settings_auto_lock_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("auto-lock-options"),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    AutoLockOption.entries.forEach { option ->
+                        val isSelected = autoLockMinutes == option.minutes
+                        if (isSelected) {
+                            FilledTonalButton(
+                                onClick = { onAutoLockChange(option.minutes) },
+                                modifier = Modifier.testTag("auto-lock-${option.minutes}"),
+                            ) {
+                                Text(
+                                    stringResource(option.labelRes),
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = { onAutoLockChange(option.minutes) },
+                                modifier = Modifier.testTag("auto-lock-${option.minutes}"),
+                            ) {
+                                Text(
+                                    stringResource(option.labelRes),
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                HorizontalDivider()
+
+                Spacer(Modifier.height(12.dp))
+
+                // Debug logging toggle
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("debug-logging-toggle"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_debug_logging),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_debug_logging_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = debugLogging,
+                        onCheckedChange = onDebugLoggingChange,
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                HorizontalDivider()
+
+                Spacer(Modifier.height(12.dp))
+
+                // Clear cache button
+                OutlinedButton(
+                    onClick = { showClearCacheDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("clear-cache-button"),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Text(stringResource(R.string.settings_clear_cache))
+                }
+                Text(
+                    text = stringResource(R.string.settings_clear_cache_desc),
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

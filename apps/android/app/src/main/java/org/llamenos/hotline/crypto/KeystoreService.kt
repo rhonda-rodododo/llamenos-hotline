@@ -78,6 +78,23 @@ class KeystoreService @Inject constructor(
         return prefs.contains(key)
     }
 
+    /**
+     * Clear non-essential cached data while preserving identity keys and core settings.
+     * Removes preferences like notification toggles, theme, profile info, etc.
+     * Does NOT remove encrypted keys, hub URL, device ID, pubkey, npub, or biometric config.
+     */
+    fun clearCache() {
+        val protectedKeys = setOf(
+            KEY_ENCRYPTED_KEYS, KEY_HUB_URL, KEY_DEVICE_ID,
+            KEY_PUBKEY, KEY_NPUB, KEY_BIOMETRIC_ENABLED,
+        )
+        val editor = prefs.edit()
+        prefs.all.keys.filter { it !in protectedKeys }.forEach { key ->
+            editor.remove(key)
+        }
+        editor.apply()
+    }
+
     companion object {
         private const val PREFS_FILE_NAME = "llamenos_secure_prefs"
 

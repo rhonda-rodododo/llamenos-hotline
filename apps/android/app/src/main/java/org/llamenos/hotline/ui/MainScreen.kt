@@ -220,6 +220,17 @@ fun MainScreen(
                         onNotifyCallsChange = { keystoreService.store("notify_calls", it.toString()) },
                         onNotifyShiftsChange = { keystoreService.store("notify_shifts", it.toString()) },
                         onNotifyGeneralChange = { keystoreService.store("notify_general", it.toString()) },
+                        transcriptionEnabled = (keystoreService.retrieve("transcription_enabled") ?: "true") == "true",
+                        transcriptionCanOptOut = (keystoreService.retrieve("transcription_can_optout") ?: "true") == "true",
+                        onTranscriptionChange = { keystoreService.store("transcription_enabled", it.toString()) },
+                        autoLockMinutes = (keystoreService.retrieve("auto_lock_minutes") ?: "5").toIntOrNull() ?: 5,
+                        onAutoLockChange = { keystoreService.store("auto_lock_minutes", it.toString()) },
+                        debugLogging = (keystoreService.retrieve("debug_logging") ?: "false") == "true",
+                        onDebugLoggingChange = { keystoreService.store("debug_logging", it.toString()) },
+                        onClearCache = {
+                            // Clear non-essential cached data
+                            keystoreService.clearCache()
+                        },
                         onLock = onLock,
                         onLogout = onLogout,
                         onPanicWipe = onPanicWipe,
