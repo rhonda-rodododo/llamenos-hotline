@@ -315,6 +315,10 @@ class ConversationsViewModel @Inject constructor(
         _uiState.update { it.copy(sendError = null) }
     }
 
+    fun dismissError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
     // ---- Search ----
 
     /**

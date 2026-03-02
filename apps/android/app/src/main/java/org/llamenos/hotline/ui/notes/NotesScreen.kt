@@ -214,23 +214,13 @@ fun NotesScreen(
 
             // Error message
             if (uiState.error != null) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .align(Alignment.BottomCenter)
-                        .testTag("notes-error"),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                    ),
-                ) {
-                    Text(
-                        text = uiState.error ?: "",
-                        modifier = Modifier.padding(16.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
+                org.llamenos.hotline.ui.components.ErrorCard(
+                    error = uiState.error ?: "",
+                    onDismiss = { viewModel.dismissError() },
+                    onRetry = { viewModel.loadNotes() },
+                    testTag = "notes-error",
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
             }
         }
     }

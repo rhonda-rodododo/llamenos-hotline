@@ -143,20 +143,12 @@ fun ShiftsScreen(
                         // Error card
                         if (uiState.error != null) {
                             item {
-                                Card(
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                                    ),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("shifts-error"),
-                                ) {
-                                    Text(
-                                        text = uiState.error ?: "",
-                                        modifier = Modifier.padding(16.dp),
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                    )
-                                }
+                                org.llamenos.hotline.ui.components.ErrorCard(
+                                    error = uiState.error ?: "",
+                                    onDismiss = { viewModel.clearError() },
+                                    onRetry = { viewModel.loadShifts() },
+                                    testTag = "shifts-error",
+                                )
                             }
                         }
 

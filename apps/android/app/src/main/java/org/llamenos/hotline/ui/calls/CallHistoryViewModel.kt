@@ -136,4 +136,8 @@ class CallHistoryViewModel @Inject constructor(
         _uiState.update { it.copy(dateFrom = null, dateTo = null) }
         loadCalls(page = 1)
     }
+
+    fun dismissError() {
+        _uiState.update { it.copy(error = null) }
+    }
 }

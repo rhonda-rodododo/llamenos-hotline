@@ -188,22 +188,12 @@ fun ContactsScreen(
 
                 // Error card
                 if (uiState.error != null) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                            .testTag("contacts-error"),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                        ),
-                    ) {
-                        Text(
-                            text = uiState.error ?: "",
-                            modifier = Modifier.padding(16.dp),
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
+                    org.llamenos.hotline.ui.components.ErrorCard(
+                        error = uiState.error ?: "",
+                        onDismiss = { viewModel.dismissError() },
+                        onRetry = { viewModel.loadContacts() },
+                        testTag = "contacts-error",
+                    )
                 }
             }
         }

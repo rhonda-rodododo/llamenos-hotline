@@ -269,6 +269,10 @@ class NotesViewModel @Inject constructor(
         _uiState.update { it.copy(saveError = null) }
     }
 
+    fun dismissError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
     // ---- Search ----
 
     /**

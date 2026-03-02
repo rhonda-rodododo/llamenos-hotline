@@ -253,4 +253,8 @@ class ReportsViewModel @Inject constructor(
     fun dismissActionError() {
         _uiState.update { it.copy(actionError = null) }
     }
+
+    fun dismissError() {
+        _uiState.update { it.copy(error = null) }
+    }
 }

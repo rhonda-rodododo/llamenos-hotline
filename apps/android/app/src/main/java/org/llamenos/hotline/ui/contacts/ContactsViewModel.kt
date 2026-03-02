@@ -98,4 +98,8 @@ class ContactsViewModel @Inject constructor(
         _uiState.update { it.copy(searchQuery = query) }
         loadContacts(page = 1)
     }
+
+    fun dismissError() {
+        _uiState.update { it.copy(error = null) }
+    }
 }
