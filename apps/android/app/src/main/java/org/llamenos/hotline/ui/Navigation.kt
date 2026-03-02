@@ -29,6 +29,7 @@ import org.llamenos.hotline.ui.auth.OnboardingScreen
 import org.llamenos.hotline.ui.auth.PINSetScreen
 import org.llamenos.hotline.ui.auth.PINUnlockScreen
 import org.llamenos.hotline.ui.conversations.ConversationDetailScreen
+import org.llamenos.hotline.ui.messaging.BlastsScreen
 import org.llamenos.hotline.ui.conversations.ConversationsViewModel
 import org.llamenos.hotline.ui.notes.NoteCreateScreen
 import org.llamenos.hotline.ui.notes.NoteDetailScreen
@@ -128,6 +129,11 @@ sealed interface LlamenosRoute {
     /** Admin panel. */
     data object Admin : LlamenosRoute {
         override val route = "admin"
+    }
+
+    /** Blasts (broadcast messages). */
+    data object Blasts : LlamenosRoute {
+        override val route = "blasts"
     }
 
     /** Device linking via QR code. */
@@ -272,6 +278,9 @@ fun LlamenosNavigation(
                 onNavigateToContacts = {
                     navController.navigate(LlamenosRoute.Contacts.route)
                 },
+                onNavigateToBlasts = {
+                    navController.navigate(LlamenosRoute.Blasts.route)
+                },
                 onNavigateToDeviceLink = {
                     navController.navigate(LlamenosRoute.DeviceLink.route)
                 },
@@ -354,6 +363,12 @@ fun LlamenosNavigation(
             }
             ContactTimelineScreen(
                 viewModel = timelineViewModel,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(LlamenosRoute.Blasts.route) {
+            BlastsScreen(
                 onNavigateBack = { navController.popBackStack() },
             )
         }

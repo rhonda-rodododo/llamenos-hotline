@@ -179,6 +179,15 @@
     <string name="settings_transcription">Transcription</string>
     <string name="settings_advanced">Advanced Settings</string>
     <string name="settings_advanced_desc">Configure on desktop for technical settings</string>
+    <string name="settings_collapse">Collapse</string>
+    <string name="settings_expand">Expand</string>
+    <string name="settings_key_backup_desc">Your private key (nsec) for recovery</string>
+    <string name="settings_key_backup_warning">Never share your private key. Anyone with your nsec can impersonate you.</string>
+    <string name="settings_nsec_copied">Private key copied</string>
+    <string name="settings_notifications_desc">Configure push notification channels</string>
+    <string name="settings_notify_calls">Incoming Calls</string>
+    <string name="settings_notify_shifts">Shift Reminders</string>
+    <string name="settings_notify_general">General Notifications</string>
 
     <!-- Blasts -->
     <string name="blasts_title">Blasts</string>
@@ -242,6 +251,7 @@
     <string name="contacts_empty_subtitle">Contacts will appear as calls and messages are received</string>
     <string name="contacts_search">Search contacts\u2026</string>
     <string name="dashboard_view_contacts">View Contacts</string>
+    <string name="dashboard_view_blasts">View Blasts</string>
 
     <!-- Contact Timeline -->
     <string name="timeline_title">Timeline</string>

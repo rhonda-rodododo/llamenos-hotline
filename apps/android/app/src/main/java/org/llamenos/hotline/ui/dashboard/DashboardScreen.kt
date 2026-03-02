@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.Button
@@ -78,6 +79,7 @@ fun DashboardScreen(
     onNavigateToCallHistory: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToContacts: () -> Unit,
+    onNavigateToBlasts: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -412,6 +414,43 @@ fun DashboardScreen(
                             modifier = Modifier.testTag("view-contacts"),
                         ) {
                             Text(stringResource(R.string.dashboard_view_contacts))
+                        }
+                    }
+                }
+
+                // Blasts card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onNavigateToBlasts)
+                        .testTag("blasts-card"),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Campaign,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.tertiary,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.blasts_title),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
+                        TextButton(
+                            onClick = onNavigateToBlasts,
+                            modifier = Modifier.testTag("view-blasts"),
+                        ) {
+                            Text(stringResource(R.string.dashboard_view_blasts))
                         }
                     }
                 }

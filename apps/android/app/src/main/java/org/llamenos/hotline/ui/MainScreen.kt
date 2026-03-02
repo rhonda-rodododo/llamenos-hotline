@@ -97,6 +97,7 @@ fun MainScreen(
     onNavigateToCallHistory: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToContacts: () -> Unit,
+    onNavigateToBlasts: () -> Unit,
     onNavigateToDeviceLink: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -170,6 +171,7 @@ fun MainScreen(
                         onNavigateToCallHistory = onNavigateToCallHistory,
                         onNavigateToReports = onNavigateToReports,
                         onNavigateToContacts = onNavigateToContacts,
+                        onNavigateToBlasts = onNavigateToBlasts,
                     )
                 }
 
@@ -209,6 +211,12 @@ fun MainScreen(
                         onThemeChange = { theme ->
                             keystoreService.store("theme", theme)
                         },
+                        notifyCalls = (keystoreService.retrieve("notify_calls") ?: "true") == "true",
+                        notifyShifts = (keystoreService.retrieve("notify_shifts") ?: "true") == "true",
+                        notifyGeneral = (keystoreService.retrieve("notify_general") ?: "true") == "true",
+                        onNotifyCallsChange = { keystoreService.store("notify_calls", it.toString()) },
+                        onNotifyShiftsChange = { keystoreService.store("notify_shifts", it.toString()) },
+                        onNotifyGeneralChange = { keystoreService.store("notify_general", it.toString()) },
                         onLock = onLock,
                         onLogout = onLogout,
                         onNavigateToAdmin = onNavigateToAdmin,

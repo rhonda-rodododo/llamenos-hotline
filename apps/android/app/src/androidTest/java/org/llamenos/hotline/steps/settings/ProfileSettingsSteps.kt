@@ -168,6 +168,8 @@ class ProfileSettingsSteps : BaseSteps() {
             "profile" -> "settings-profile-section-header"
             "theme" -> "settings-theme-section-header"
             "hub", "hub connection" -> "settings-hub-section-header"
+            "key backup" -> "settings-key-backup-section-header"
+            "notifications" -> "settings-notifications-section-header"
             "advanced", "advanced settings" -> "settings-advanced-section-header"
             "transcription" -> "settings-advanced-section-header" // transcription in advanced
             else -> "settings-profile-section-header"

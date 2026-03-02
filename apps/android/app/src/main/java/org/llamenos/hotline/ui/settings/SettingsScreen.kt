@@ -25,8 +25,10 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NavigateNext
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material3.AlertDialog
@@ -43,6 +45,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Switch
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -83,6 +86,12 @@ fun SettingsScreen(
     selectedTheme: String,
     onUpdateProfile: (name: String, phone: String) -> Unit,
     onThemeChange: (String) -> Unit,
+    notifyCalls: Boolean,
+    notifyShifts: Boolean,
+    notifyGeneral: Boolean,
+    onNotifyCallsChange: (Boolean) -> Unit,
+    onNotifyShiftsChange: (Boolean) -> Unit,
+    onNotifyGeneralChange: (Boolean) -> Unit,
     onLock: () -> Unit,
     onLogout: () -> Unit,
     onNavigateToAdmin: () -> Unit,
@@ -104,6 +113,8 @@ fun SettingsScreen(
     var profileExpanded by rememberSaveable { mutableStateOf(true) }
     var identityExpanded by rememberSaveable { mutableStateOf(false) }
     var themeExpanded by rememberSaveable { mutableStateOf(false) }
+    var keyBackupExpanded by rememberSaveable { mutableStateOf(false) }
+    var notificationsExpanded by rememberSaveable { mutableStateOf(false) }
     var hubExpanded by rememberSaveable { mutableStateOf(false) }
     var advancedExpanded by rememberSaveable { mutableStateOf(false) }
 
@@ -270,6 +281,86 @@ fun SettingsScreen(
                         modifier = Modifier.weight(1f),
                     )
                 }
+            }
+
+            // ---- Key Backup section (collapsible) ----
+            SettingsSection(
+                title = stringResource(R.string.settings_key_backup),
+                expanded = keyBackupExpanded,
+                onToggle = { keyBackupExpanded = !keyBackupExpanded },
+                testTag = "settings-key-backup-section",
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_key_backup_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("key-backup-warning"),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Key,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.settings_key_backup_warning),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    }
+                }
+            }
+
+            // ---- Notifications section (collapsible) ----
+            SettingsSection(
+                title = stringResource(R.string.settings_notifications),
+                expanded = notificationsExpanded,
+                onToggle = { notificationsExpanded = !notificationsExpanded },
+                testTag = "settings-notifications-section",
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_notifications_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                NotificationToggle(
+                    label = stringResource(R.string.settings_notify_calls),
+                    checked = notifyCalls,
+                    onCheckedChange = onNotifyCallsChange,
+                    testTag = "notify-calls-toggle",
+                )
+                NotificationToggle(
+                    label = stringResource(R.string.settings_notify_shifts),
+                    checked = notifyShifts,
+                    onCheckedChange = onNotifyShiftsChange,
+                    testTag = "notify-shifts-toggle",
+                )
+                NotificationToggle(
+                    label = stringResource(R.string.settings_notify_general),
+                    checked = notifyGeneral,
+                    onCheckedChange = onNotifyGeneralChange,
+                    testTag = "notify-general-toggle",
+                )
             }
 
             // ---- Identity / Hub section (collapsible) ----
@@ -548,7 +639,9 @@ private fun SettingsSection(
                 )
                 Icon(
                     imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    contentDescription = stringResource(
+                        if (expanded) R.string.settings_collapse else R.string.settings_expand,
+                    ),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -600,5 +693,35 @@ private fun ThemeButton(
             Spacer(Modifier.width(4.dp))
             Text(label, style = MaterialTheme.typography.labelSmall)
         }
+    }
+}
+
+/**
+ * Notification toggle row with label and switch.
+ */
+@Composable
+private fun NotificationToggle(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    testTag: String,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .testTag(testTag),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+        )
     }
 }
