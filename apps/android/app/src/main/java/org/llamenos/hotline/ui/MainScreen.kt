@@ -96,6 +96,7 @@ fun MainScreen(
     onNavigateToAdmin: () -> Unit,
     onNavigateToCallHistory: () -> Unit,
     onNavigateToReports: () -> Unit,
+    onNavigateToContacts: () -> Unit,
     onNavigateToDeviceLink: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -168,6 +169,7 @@ fun MainScreen(
                         onNavigateToNoteDetail = onNavigateToNoteDetail,
                         onNavigateToCallHistory = onNavigateToCallHistory,
                         onNavigateToReports = onNavigateToReports,
+                        onNavigateToContacts = onNavigateToContacts,
                     )
                 }
 

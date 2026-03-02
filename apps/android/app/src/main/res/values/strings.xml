@@ -227,6 +227,13 @@
     <string name="report_untitled">Untitled Report</string>
     <string name="dashboard_view_reports">View Reports</string>
 
+    <!-- Contacts -->
+    <string name="contacts_title">Contacts</string>
+    <string name="contacts_back">Back</string>
+    <string name="contacts_empty">No contacts</string>
+    <string name="contacts_empty_subtitle">Contacts will appear as calls and messages are received</string>
+    <string name="dashboard_view_contacts">View Contacts</string>
+
     <!-- Notifications -->
     <string name="notification_channel_calls">Incoming Calls</string>
     <string name="notification_channel_shifts">Shift Reminders</string>
