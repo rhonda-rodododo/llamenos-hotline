@@ -427,6 +427,10 @@
     <string name="dashboard_error_clock_in">Failed to clock in. Try again or use the Shifts tab.</string>
     <string name="dashboard_error_clock_out">Failed to clock out. Try again or use the Shifts tab.</string>
     <string name="dashboard_error_refresh">Failed to refresh. Check your connection.</string>
+    <string name="dashboard_error_break">Failed to update break status. Try again.</string>
+    <string name="dashboard_on_break">On Break</string>
+    <string name="dashboard_go_on_break">Go on Break</string>
+    <string name="dashboard_end_break">End Break</string>
     <string name="dismiss">Dismiss</string>
 
     <!-- Admin Settings -->

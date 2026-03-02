@@ -347,6 +347,62 @@ fun DashboardScreen(
                                 modifier = Modifier.testTag("shift-timer"),
                             )
                         }
+
+                        // Break toggle (only when on shift)
+                        if (uiState.isOnShift) {
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { viewModel.toggleBreak() },
+                                enabled = !uiState.isTogglingBreak,
+                                colors = if (uiState.isOnBreak) {
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondary,
+                                    )
+                                } else {
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    )
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("dashboard-break-button"),
+                            ) {
+                                Text(
+                                    text = if (uiState.isOnBreak) {
+                                        stringResource(R.string.dashboard_end_break)
+                                    } else {
+                                        stringResource(R.string.dashboard_go_on_break)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // On-break banner
+                if (uiState.isOnBreak && uiState.isOnShift) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("break-banner"),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        ),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.dashboard_on_break),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.testTag("break-banner-text"),
+                            )
+                        }
                     }
                 }
 

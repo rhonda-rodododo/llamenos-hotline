@@ -24,6 +24,7 @@ data class ShiftResponse(
 @Serializable
 data class ShiftStatusResponse(
     val isOnShift: Boolean,
+    val onBreak: Boolean = false,
     val shiftId: String? = null,
     val startedAt: String? = null,
     val activeCallCount: Int? = null,

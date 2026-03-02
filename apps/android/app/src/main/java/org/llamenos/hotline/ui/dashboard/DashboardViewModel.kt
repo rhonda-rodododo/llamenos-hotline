@@ -24,11 +24,13 @@ import javax.inject.Inject
 data class DashboardUiState(
     val npub: String = "",
     val isOnShift: Boolean = false,
+    val isOnBreak: Boolean = false,
     val shiftStartedAt: String? = null,
     val activeCallCount: Int = 0,
     val connectionState: WebSocketService.ConnectionState = WebSocketService.ConnectionState.DISCONNECTED,
     val isRefreshing: Boolean = false,
     val isClockingInOut: Boolean = false,
+    val isTogglingBreak: Boolean = false,
     @StringRes val errorRes: Int? = null,
 )
 
@@ -152,6 +154,7 @@ class DashboardViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     isOnShift = status.isOnShift,
+                    isOnBreak = status.onBreak,
                     shiftStartedAt = status.startedAt,
                     activeCallCount = status.activeCallCount ?: it.activeCallCount,
                     errorRes = null,
@@ -192,6 +195,33 @@ class DashboardViewModel @Inject constructor(
                 _uiState.update { it.copy(errorRes = R.string.dashboard_error_clock_out) }
             }
             _uiState.update { it.copy(isClockingInOut = false) }
+        }
+    }
+
+    /**
+     * Toggle break status.
+     */
+    fun toggleBreak() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isTogglingBreak = true, errorRes = null) }
+            val newBreakState = !_uiState.value.isOnBreak
+            try {
+                apiService.requestNoContent(
+                    "PATCH",
+                    "/api/auth/me/availability",
+                    mapOf("onBreak" to newBreakState),
+                )
+                _uiState.update {
+                    it.copy(isOnBreak = newBreakState, isTogglingBreak = false)
+                }
+            } catch (_: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isTogglingBreak = false,
+                        errorRes = R.string.dashboard_error_break,
+                    )
+                }
+            }
         }
     }
 
