@@ -209,6 +209,8 @@
     <string name="blast_send_now">Send Now</string>
     <string name="blast_schedule_later">Schedule for Later</string>
     <string name="blast_select_all">Select All Volunteers</string>
+    <string name="blast_recipient_count">%d recipients</string>
+    <string name="blast_recipient_count_one">1 recipient</string>
 
     <!-- Demo mode -->
     <string name="demo_mode">Demo Mode</string>

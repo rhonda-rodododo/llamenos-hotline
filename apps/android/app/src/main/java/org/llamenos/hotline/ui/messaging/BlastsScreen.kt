@@ -244,7 +244,11 @@ private fun BlastCard(
                         onClick = {},
                         label = {
                             Text(
-                                "${blast.recipientCount} recipient${if (blast.recipientCount != 1) "s" else ""}",
+                                if (blast.recipientCount == 1) {
+                                    stringResource(R.string.blast_recipient_count_one)
+                                } else {
+                                    stringResource(R.string.blast_recipient_count, blast.recipientCount)
+                                },
                                 style = MaterialTheme.typography.labelSmall,
                             )
                         },
