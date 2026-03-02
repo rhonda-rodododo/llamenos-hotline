@@ -6,6 +6,8 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,9 +23,12 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
@@ -37,6 +42,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -72,6 +79,34 @@ import org.llamenos.hotline.R
 import org.llamenos.hotline.api.WebSocketService
 
 /**
+ * Supported language with ISO code and native label.
+ * Matches packages/i18n/languages.ts.
+ */
+data class SupportedLanguage(
+    val code: String,
+    val label: String,
+    val flag: String,
+)
+
+/**
+ * All supported languages matching packages/i18n/languages.ts.
+ */
+val SUPPORTED_LANGUAGES = listOf(
+    SupportedLanguage("en", "English", "EN"),
+    SupportedLanguage("es", "Español", "ES"),
+    SupportedLanguage("zh", "中文", "中"),
+    SupportedLanguage("tl", "Tagalog", "TL"),
+    SupportedLanguage("vi", "Tiếng Việt", "VI"),
+    SupportedLanguage("ar", "العربية", "ع"),
+    SupportedLanguage("fr", "Français", "FR"),
+    SupportedLanguage("ht", "Kreyòl Ayisyen", "HT"),
+    SupportedLanguage("ko", "한국어", "한"),
+    SupportedLanguage("ru", "Русский", "RU"),
+    SupportedLanguage("hi", "हिन्दी", "हि"),
+    SupportedLanguage("pt", "Português", "PT"),
+)
+
+/**
  * Auto-lock timeout options (in minutes, 0 = never).
  */
 private enum class AutoLockOption(val minutes: Int, val labelRes: Int) {
@@ -98,6 +133,10 @@ fun SettingsScreen(
     selectedTheme: String,
     onUpdateProfile: (name: String, phone: String) -> Unit,
     onThemeChange: (String) -> Unit,
+    selectedLanguage: String,
+    onLanguageChange: (String) -> Unit,
+    spokenLanguages: Set<String>,
+    onSpokenLanguagesChange: (Set<String>) -> Unit,
     notifyCalls: Boolean,
     notifyShifts: Boolean,
     notifyGeneral: Boolean,
@@ -135,6 +174,7 @@ fun SettingsScreen(
     var profileExpanded by rememberSaveable { mutableStateOf(true) }
     var identityExpanded by rememberSaveable { mutableStateOf(false) }
     var themeExpanded by rememberSaveable { mutableStateOf(false) }
+    var languageExpanded by rememberSaveable { mutableStateOf(false) }
     var keyBackupExpanded by rememberSaveable { mutableStateOf(false) }
     var notificationsExpanded by rememberSaveable { mutableStateOf(false) }
     var hubExpanded by rememberSaveable { mutableStateOf(false) }
@@ -344,6 +384,84 @@ fun SettingsScreen(
                 ) {
                     Text(stringResource(R.string.profile_update))
                 }
+
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(12.dp))
+
+                // Spoken languages
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Translate,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.settings_spoken_languages),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.settings_spoken_languages_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+
+                @OptIn(ExperimentalLayoutApi::class)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("spoken-languages-chips"),
+                ) {
+                    SUPPORTED_LANGUAGES.forEach { lang ->
+                        val isSelected = lang.code in spokenLanguages
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                val updated = if (isSelected) {
+                                    spokenLanguages - lang.code
+                                } else {
+                                    spokenLanguages + lang.code
+                                }
+                                onSpokenLanguagesChange(updated)
+                            },
+                            label = {
+                                Text(
+                                    text = "${lang.flag} ${lang.label}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                            leadingIcon = if (isSelected) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(FilterChipDefaults.IconSize),
+                                    )
+                                }
+                            } else {
+                                null
+                            },
+                            modifier = Modifier.testTag("spoken-lang-${lang.code}"),
+                        )
+                    }
+                }
+
+                if (spokenLanguages.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.settings_spoken_languages_none),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.testTag("spoken-languages-empty"),
+                    )
+                }
             }
 
             // ---- Theme section (collapsible) ----
@@ -381,6 +499,57 @@ fun SettingsScreen(
                         testTag = "theme-system-button",
                         modifier = Modifier.weight(1f),
                     )
+                }
+            }
+
+            // ---- Language section (collapsible) ----
+            SettingsSection(
+                title = stringResource(R.string.settings_language),
+                expanded = languageExpanded,
+                onToggle = { languageExpanded = !languageExpanded },
+                testTag = "settings-language-section",
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_language_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                @OptIn(ExperimentalLayoutApi::class)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("language-options"),
+                ) {
+                    SUPPORTED_LANGUAGES.forEach { lang ->
+                        val isSelected = lang.code == selectedLanguage
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { onLanguageChange(lang.code) },
+                            label = {
+                                Text(
+                                    text = "${lang.flag} ${lang.label}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                            leadingIcon = if (isSelected) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(FilterChipDefaults.IconSize),
+                                    )
+                                }
+                            } else {
+                                null
+                            },
+                            modifier = Modifier.testTag("lang-${lang.code}"),
+                        )
+                    }
                 }
             }
 

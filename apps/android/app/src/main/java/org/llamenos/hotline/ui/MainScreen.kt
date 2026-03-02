@@ -214,6 +214,15 @@ fun MainScreen(
                         onThemeChange = { theme ->
                             keystoreService.store("theme", theme)
                         },
+                        selectedLanguage = keystoreService.retrieve("language") ?: "en",
+                        onLanguageChange = { lang ->
+                            keystoreService.store("language", lang)
+                        },
+                        spokenLanguages = (keystoreService.retrieve("spoken_languages") ?: "")
+                            .split(",").filter { it.isNotBlank() }.toSet(),
+                        onSpokenLanguagesChange = { langs ->
+                            keystoreService.store("spoken_languages", langs.joinToString(","))
+                        },
                         notifyCalls = (keystoreService.retrieve("notify_calls") ?: "true") == "true",
                         notifyShifts = (keystoreService.retrieve("notify_shifts") ?: "true") == "true",
                         notifyGeneral = (keystoreService.retrieve("notify_general") ?: "true") == "true",
