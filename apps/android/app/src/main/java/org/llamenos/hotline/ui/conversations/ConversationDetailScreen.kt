@@ -152,7 +152,7 @@ fun ConversationDetailScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.PersonAdd,
-                                contentDescription = "Assign",
+                                contentDescription = stringResource(R.string.conversation_assign),
                             )
                         }
 
@@ -164,7 +164,7 @@ fun ConversationDetailScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Refresh,
-                                    contentDescription = "Reopen",
+                                    contentDescription = stringResource(R.string.conversation_reopen),
                                 )
                             }
                         } else {
@@ -174,7 +174,7 @@ fun ConversationDetailScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Close,
-                                    contentDescription = "Close",
+                                    contentDescription = stringResource(R.string.conversation_close),
                                     tint = MaterialTheme.colorScheme.error,
                                 )
                             }
@@ -214,7 +214,7 @@ fun ConversationDetailScreen(
                                 CircularProgressIndicator()
                                 Spacer(Modifier.height(8.dp))
                                 Text(
-                                    text = "Decrypting messages...",
+                                    text = stringResource(R.string.conversation_decrypting),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

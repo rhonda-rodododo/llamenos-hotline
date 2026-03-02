@@ -259,7 +259,7 @@ fun LoginScreen(
                             ) {
                                 HorizontalDivider(modifier = Modifier.weight(1f))
                                 Text(
-                                    text = "or",
+                                    text = stringResource(R.string.login_or),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 16.dp),

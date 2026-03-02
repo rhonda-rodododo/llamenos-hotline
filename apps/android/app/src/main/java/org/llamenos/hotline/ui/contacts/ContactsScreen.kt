@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.llamenos.hotline.R
 import org.llamenos.hotline.model.ContactSummary
+import org.llamenos.hotline.util.DateFormatUtils
 
 /**
  * Contacts screen showing a paginated list of contact summaries with
@@ -255,13 +256,13 @@ private fun ContactCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
-                    text = stringResource(R.string.contact_first_seen, formatContactDate(contact.firstSeen)),
+                    text = stringResource(R.string.contact_first_seen, DateFormatUtils.formatDate(contact.firstSeen)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     modifier = Modifier.testTag("contact-first-seen"),
                 )
                 Text(
-                    text = stringResource(R.string.contact_last_seen, formatContactDate(contact.lastSeen)),
+                    text = stringResource(R.string.contact_last_seen, DateFormatUtils.formatDate(contact.lastSeen)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     modifier = Modifier.testTag("contact-last-seen"),
@@ -332,16 +333,5 @@ private fun EmptyContacts(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
         )
-    }
-}
-
-/**
- * Format an ISO 8601 date string for contact display.
- */
-private fun formatContactDate(isoDate: String): String {
-    return try {
-        isoDate.replace("T", " ").replace("Z", "").split(" ").firstOrNull() ?: isoDate
-    } catch (_: Exception) {
-        isoDate
     }
 }

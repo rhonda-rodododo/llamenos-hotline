@@ -58,6 +58,8 @@ fun PINPad(
         listOf("7", "8", "9"),
         listOf("", "0", "backspace"),
     )
+    val pinDotFilled = stringResource(R.string.pin_dot_filled)
+    val pinDotEmpty = stringResource(R.string.pin_dot_empty)
 
     Column(
         modifier = modifier.testTag("pin-pad"),
@@ -89,7 +91,7 @@ fun PINPad(
                             shape = CircleShape,
                         )
                         .semantics {
-                            contentDescription = if (isFilled) "PIN dot filled" else "PIN dot empty"
+                            contentDescription = if (isFilled) pinDotFilled else pinDotEmpty
                         }
                 )
             }

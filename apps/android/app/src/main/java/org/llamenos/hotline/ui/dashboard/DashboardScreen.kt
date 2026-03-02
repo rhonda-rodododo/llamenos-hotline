@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.llamenos.hotline.R
 import org.llamenos.hotline.api.WebSocketService
+import org.llamenos.hotline.util.DateFormatUtils
 import org.llamenos.hotline.ui.notes.DecryptedNote
 import org.llamenos.hotline.ui.notes.NotesViewModel
 
@@ -293,7 +294,7 @@ fun DashboardScreen(
                         if (uiState.isOnShift && startedAt != null) {
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                text = stringResource(R.string.active_since, formatDashboardTime(startedAt)),
+                                text = stringResource(R.string.active_since, DateFormatUtils.formatTimeOnly(startedAt)),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                                 modifier = Modifier.testTag("shift-timer"),
@@ -539,22 +540,10 @@ private fun RecentNoteItem(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = formatDashboardTime(note.createdAt),
+                text = DateFormatUtils.formatTimeOnly(note.createdAt),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
         }
-    }
-}
-
-/**
- * Format an ISO 8601 date string for dashboard display.
- */
-private fun formatDashboardTime(isoDate: String): String {
-    return try {
-        val parts = isoDate.replace("T", " ").replace("Z", "").split(" ")
-        if (parts.size >= 2) parts[1].take(5) else isoDate
-    } catch (_: Exception) {
-        isoDate
     }
 }

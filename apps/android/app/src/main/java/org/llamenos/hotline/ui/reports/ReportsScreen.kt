@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.llamenos.hotline.R
 import org.llamenos.hotline.model.Report
+import org.llamenos.hotline.util.DateFormatUtils
 
 /**
  * Reports screen showing a list of structured reports with status
@@ -300,7 +301,7 @@ private fun ReportCard(
 
                 // Timestamp
                 Text(
-                    text = formatReportTime(report.createdAt),
+                    text = DateFormatUtils.formatDate(report.createdAt),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     modifier = Modifier.testTag("report-timestamp"),
@@ -342,18 +343,5 @@ private fun EmptyReports(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
         )
-    }
-}
-
-/**
- * Format an ISO 8601 date string for report display.
- */
-private fun formatReportTime(isoDate: String): String {
-    return try {
-        val dateTime = isoDate.replace("T", " ").replace("Z", "")
-        val parts = dateTime.split(" ")
-        if (parts.size >= 2) parts[0] else isoDate
-    } catch (_: Exception) {
-        isoDate
     }
 }

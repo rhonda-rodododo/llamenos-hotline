@@ -258,6 +258,15 @@
     <string name="note_call_id_badge">Call: %s\u2026</string>
     <string name="note_chat_id_badge">Chat: %s\u2026</string>
 
+    <!-- Conversation actions -->
+    <string name="conversation_assign">Assign</string>
+    <string name="conversation_reopen">Reopen</string>
+    <string name="conversation_close">Close</string>
+
+    <!-- Note detail -->
+    <string name="note_not_found">Note not found</string>
+    <string name="note_updated">Updated: %s</string>
+
     <!-- Connectivity -->
     <string name="no_internet">No internet connection</string>
 
@@ -268,6 +277,34 @@
     <string name="volunteers_empty">No volunteers found</string>
     <string name="audit_empty">No audit entries</string>
     <string name="invites_empty">No invites</string>
+
+    <!-- Conversation detail -->
+    <string name="conversation_decrypting">Decrypting messages\u2026</string>
+
+    <!-- PIN -->
+    <string name="pin_dot_filled">PIN dot filled</string>
+    <string name="pin_dot_empty">PIN dot empty</string>
+
+    <!-- Login -->
+    <string name="login_or">or</string>
+
+    <!-- Custom fields dialog -->
+    <string name="field_edit">Edit Field</string>
+    <string name="field_edit_action">Edit</string>
+    <string name="field_label">Label</string>
+    <string name="field_type">Type</string>
+    <string name="field_context">Context</string>
+    <string name="field_required">Required</string>
+    <string name="field_visible_to_volunteers">Visible to volunteers</string>
+    <string name="field_editable_by_volunteers">Editable by volunteers</string>
+    <string name="field_options">Options</string>
+    <string name="field_option_new">New option</string>
+    <string name="field_option_remove">Remove option</string>
+    <string name="field_option_add">Add option</string>
+
+    <!-- Volunteers -->
+    <string name="volunteer_unnamed">Unnamed</string>
+    <string name="action_copy">Copy</string>
 
     <!-- Common actions -->
     <string name="action_save">Save</string>

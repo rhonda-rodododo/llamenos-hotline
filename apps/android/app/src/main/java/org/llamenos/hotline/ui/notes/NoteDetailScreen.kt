@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.llamenos.hotline.R
+import org.llamenos.hotline.util.DateFormatUtils
 
 /**
  * Note detail screen showing the full decrypted note content.
@@ -133,7 +134,7 @@ fun NoteDetailScreen(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    text = "Note not found",
+                    text = stringResource(R.string.note_not_found),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("note-not-found"),
@@ -233,7 +234,7 @@ fun NoteDetailScreen(
                             )
                             Spacer(Modifier.weight(1f))
                             Text(
-                                text = formatDetailDate(note.createdAt),
+                                text = DateFormatUtils.formatDateVerbose(note.createdAt),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.testTag("note-detail-date"),
@@ -278,7 +279,7 @@ fun NoteDetailScreen(
                         if (note.updatedAt != null) {
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = "Updated: ${formatDetailDate(note.updatedAt)}",
+                                text = stringResource(R.string.note_updated, DateFormatUtils.formatDateVerbose(note.updatedAt)),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 modifier = Modifier.testTag("note-detail-updated"),
@@ -288,35 +289,5 @@ fun NoteDetailScreen(
                 }
             }
         }
-    }
-}
-
-/**
- * Format date for the detail view — more verbose than the list card format.
- */
-private fun formatDetailDate(isoDate: String): String {
-    return try {
-        val parts = isoDate.replace("T", " ").replace("Z", "").split(" ")
-        if (parts.size >= 2) {
-            val dateParts = parts[0].split("-")
-            if (dateParts.size == 3) {
-                val months = listOf(
-                    "January", "February", "March", "April", "May", "June",
-                    "July", "August", "September", "October", "November", "December"
-                )
-                val monthIndex = dateParts[1].toIntOrNull()?.minus(1) ?: 0
-                val month = months.getOrElse(monthIndex) { "???" }
-                val day = dateParts[2].toIntOrNull() ?: 0
-                val year = dateParts[0]
-                val time = parts[1].take(5)
-                "$month $day, $year at $time"
-            } else {
-                isoDate
-            }
-        } else {
-            isoDate
-        }
-    } catch (_: Exception) {
-        isoDate
     }
 }

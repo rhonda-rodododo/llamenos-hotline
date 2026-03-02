@@ -272,7 +272,7 @@ private fun VolunteerCard(
             ) {
                 // Display name or "Unnamed"
                 Text(
-                    text = volunteer.displayName ?: "Unnamed",
+                    text = volunteer.displayName ?: stringResource(R.string.volunteer_unnamed),
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -434,7 +434,7 @@ private fun NsecDisplayDialog(
                             onClick = { clipboardManager.setText(AnnotatedString(nsec)) },
                             modifier = Modifier.testTag("copy-nsec-button"),
                         ) {
-                            Icon(Icons.Filled.ContentCopy, contentDescription = "Copy")
+                            Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.action_copy))
                         }
                     }
                 }

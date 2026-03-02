@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.llamenos.hotline.R
 import org.llamenos.hotline.model.CallRecord
+import org.llamenos.hotline.util.DateFormatUtils
 
 /**
  * Call history screen showing paginated list of past calls with status
@@ -301,7 +302,7 @@ private fun CallRecordCard(
                 ) {
                     // Timestamp
                     Text(
-                        text = formatCallTime(call.startedAt),
+                        text = DateFormatUtils.formatTimestamp(call.startedAt),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.testTag("call-timestamp"),
@@ -310,7 +311,7 @@ private fun CallRecordCard(
                     // Duration
                     if (call.duration != null && call.duration > 0) {
                         Text(
-                            text = formatDuration(call.duration),
+                            text = DateFormatUtils.formatDuration(call.duration),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.testTag("call-duration"),
@@ -418,28 +419,3 @@ private fun EmptyCallHistory(
     }
 }
 
-/**
- * Format an ISO 8601 date string for call history display.
- */
-private fun formatCallTime(isoDate: String): String {
-    return try {
-        val dateTime = isoDate.replace("T", " ").replace("Z", "")
-        val parts = dateTime.split(" ")
-        if (parts.size >= 2) {
-            "${parts[0]} ${parts[1].take(5)}"
-        } else {
-            isoDate
-        }
-    } catch (_: Exception) {
-        isoDate
-    }
-}
-
-/**
- * Format call duration in seconds to a human-readable string.
- */
-private fun formatDuration(seconds: Int): String {
-    val minutes = seconds / 60
-    val secs = seconds % 60
-    return if (minutes > 0) "${minutes}m ${secs}s" else "${secs}s"
-}

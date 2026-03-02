@@ -220,7 +220,7 @@ private fun CustomFieldCard(
                     if (field.required) {
                         AssistChip(
                             onClick = {},
-                            label = { Text("Required", style = MaterialTheme.typography.labelSmall) },
+                            label = { Text(stringResource(R.string.field_required), style = MaterialTheme.typography.labelSmall) },
                             modifier = Modifier.height(24.dp),
                         )
                     }
@@ -231,7 +231,7 @@ private fun CustomFieldCard(
                 onClick = onEdit,
                 modifier = Modifier.testTag("edit-field-${field.id}"),
             ) {
-                Icon(Icons.Filled.Edit, contentDescription = "Edit")
+                Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.field_edit_action))
             }
 
             IconButton(
@@ -267,13 +267,13 @@ private fun CustomFieldDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (existingField != null) "Edit Field" else stringResource(R.string.field_add)) },
+        title = { Text(if (existingField != null) stringResource(R.string.field_edit) else stringResource(R.string.field_add)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = label,
                     onValueChange = { label = it },
-                    label = { Text("Label") },
+                    label = { Text(stringResource(R.string.field_label)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -291,7 +291,7 @@ private fun CustomFieldDialog(
                         value = type,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Type") },
+                        label = { Text(stringResource(R.string.field_type)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -322,7 +322,7 @@ private fun CustomFieldDialog(
                         value = context,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Context") },
+                        label = { Text(stringResource(R.string.field_context)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = contextExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -344,7 +344,7 @@ private fun CustomFieldDialog(
                 Spacer(Modifier.height(8.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Required", modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.field_required), modifier = Modifier.weight(1f))
                     Switch(
                         checked = required,
                         onCheckedChange = { required = it },
@@ -353,19 +353,19 @@ private fun CustomFieldDialog(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Visible to volunteers", modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.field_visible_to_volunteers), modifier = Modifier.weight(1f))
                     Switch(checked = visibleToVolunteers, onCheckedChange = { visibleToVolunteers = it })
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Editable by volunteers", modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.field_editable_by_volunteers), modifier = Modifier.weight(1f))
                     Switch(checked = editableByVolunteers, onCheckedChange = { editableByVolunteers = it })
                 }
 
                 // Options for select type
                 if (type == "select") {
                     Spacer(Modifier.height(8.dp))
-                    Text("Options", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.field_options), style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(4.dp))
                     options.forEachIndexed { index, option ->
                         Row(
@@ -374,7 +374,7 @@ private fun CustomFieldDialog(
                         ) {
                             Text(option, modifier = Modifier.weight(1f))
                             IconButton(onClick = { options.removeAt(index) }) {
-                                Icon(Icons.Filled.Close, contentDescription = "Remove option")
+                                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.field_option_remove))
                             }
                         }
                     }
@@ -382,7 +382,7 @@ private fun CustomFieldDialog(
                         OutlinedTextField(
                             value = newOption,
                             onValueChange = { newOption = it },
-                            placeholder = { Text("New option") },
+                            placeholder = { Text(stringResource(R.string.field_option_new)) },
                             singleLine = true,
                             modifier = Modifier.weight(1f),
                         )
@@ -396,7 +396,7 @@ private fun CustomFieldDialog(
                             },
                             modifier = Modifier.testTag("add-field-option"),
                         ) {
-                            Icon(Icons.Filled.Add, contentDescription = "Add option")
+                            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.field_option_add))
                         }
                     }
                 }
