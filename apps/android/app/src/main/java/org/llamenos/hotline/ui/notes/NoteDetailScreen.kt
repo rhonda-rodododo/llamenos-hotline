@@ -15,15 +15,19 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Sms
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -83,6 +87,12 @@ fun NoteDetailScreen(
     val scope = rememberCoroutineScope()
     val copiedMessage = stringResource(R.string.note_copied)
     var editText by remember { mutableStateOf("") }
+    var replyText by remember { mutableStateOf("") }
+
+    // Load replies when note is selected
+    LaunchedEffect(note?.id) {
+        note?.id?.let { viewModel.loadReplies(it) }
+    }
 
     // Sync edit text when entering edit mode
     LaunchedEffect(uiState.isEditing) {
@@ -122,6 +132,7 @@ fun NoteDetailScreen(
                                 viewModel.cancelEditing()
                             } else {
                                 viewModel.clearSelectedNote()
+                                viewModel.clearReplies()
                                 onNavigateBack()
                             }
                         },
@@ -367,6 +378,136 @@ fun NoteDetailScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 modifier = Modifier.testTag("note-detail-updated"),
                             )
+                        }
+                    }
+                }
+
+                // ---- Thread Replies ----
+                HorizontalDivider()
+
+                // Thread header
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.testTag("note-thread-header"),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Reply,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.note_replies),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        text = "${uiState.replies.size}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("note-reply-count"),
+                    )
+                }
+
+                // Reply list
+                if (uiState.isLoadingReplies) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                } else if (uiState.replies.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.note_no_replies),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.testTag("note-no-replies"),
+                    )
+                } else {
+                    uiState.replies.forEach { reply ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("note-reply-${reply.id}"),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                            ) {
+                                Text(
+                                    text = reply.text,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Row {
+                                    Text(
+                                        text = reply.authorPubkey.take(8) + "...",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    Text(
+                                        text = DateFormatUtils.formatDate(reply.createdAt),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Reply input
+                if (!uiState.isEditing) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedTextField(
+                            value = replyText,
+                            onValueChange = { replyText = it },
+                            placeholder = { Text(stringResource(R.string.note_reply_hint)) },
+                            singleLine = true,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("note-reply-input"),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        IconButton(
+                            onClick = {
+                                if (replyText.isNotBlank()) {
+                                    viewModel.sendReply(note.id, replyText.trim())
+                                    replyText = ""
+                                }
+                            },
+                            enabled = replyText.isNotBlank() && !uiState.isSendingReply,
+                            modifier = Modifier.testTag("note-reply-send"),
+                        ) {
+                            if (uiState.isSendingReply) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = stringResource(R.string.note_reply_send),
+                                    tint = if (replyText.isNotBlank()) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                    },
+                                )
+                            }
                         }
                     }
                 }

@@ -30,6 +30,7 @@ data class NoteResponse(
     val recipientEnvelopes: List<RecipientEnvelope>,
     val callId: String? = null,
     val conversationId: String? = null,
+    val replyCount: Int = 0,
     val createdAt: String,
     val updatedAt: String? = null,
 )
@@ -66,6 +67,36 @@ data class CreateNoteRequest(
     val recipientEnvelopes: List<CreateNoteEnvelope>,
     val callId: String? = null,
     val conversationId: String? = null,
+)
+
+/**
+ * Response from GET /api/notes/:id/replies.
+ */
+@Serializable
+data class NoteRepliesResponse(
+    val replies: List<NoteReply>,
+)
+
+/**
+ * A reply in a note thread.
+ */
+@Serializable
+data class NoteReply(
+    val id: String,
+    val noteId: String,
+    val authorPubkey: String,
+    val encryptedContent: String,
+    val recipientEnvelopes: List<RecipientEnvelope>,
+    val createdAt: String,
+)
+
+/**
+ * Request body for creating a note reply via POST /api/notes/:id/replies.
+ */
+@Serializable
+data class CreateNoteReplyRequest(
+    val encryptedContent: String,
+    val readerEnvelopes: List<CreateNoteEnvelope>,
 )
 
 /**

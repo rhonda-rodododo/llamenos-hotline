@@ -266,13 +266,28 @@ private fun NoteCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Date
-                Text(
-                    text = DateFormatUtils.formatTimestamp(note.createdAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.testTag("note-date-${note.id}"),
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // Date
+                    Text(
+                        text = DateFormatUtils.formatTimestamp(note.createdAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.testTag("note-date-${note.id}"),
+                    )
+
+                    // Reply count badge
+                    if (note.replyCount > 0) {
+                        Text(
+                            text = "${note.replyCount} \u21A9",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.testTag("note-reply-badge-${note.id}"),
+                        )
+                    }
+                }
 
                 // Context badges
                 Row(

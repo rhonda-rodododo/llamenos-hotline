@@ -17,9 +17,12 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.llamenos.hotline.api.ApiService
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.model.CreateNoteEnvelope
+import org.llamenos.hotline.model.CreateNoteReplyRequest
 import org.llamenos.hotline.model.CreateNoteRequest
 import org.llamenos.hotline.model.CustomFieldDefinition
 import org.llamenos.hotline.model.NotePayload
+import org.llamenos.hotline.model.NoteRepliesResponse
+import org.llamenos.hotline.model.NoteReply
 import org.llamenos.hotline.model.NoteResponse
 import org.llamenos.hotline.model.NotesListResponse
 import org.llamenos.hotline.model.RecipientEnvelope
@@ -36,8 +39,19 @@ data class DecryptedNote(
     val authorPubkey: String,
     val callId: String?,
     val conversationId: String?,
+    val replyCount: Int = 0,
     val createdAt: String,
     val updatedAt: String?,
+)
+
+/**
+ * A decrypted note reply for display.
+ */
+data class DecryptedReply(
+    val id: String,
+    val authorPubkey: String,
+    val text: String,
+    val createdAt: String,
 )
 
 data class NotesUiState(
@@ -61,6 +75,11 @@ data class NotesUiState(
     // Note detail
     val selectedNote: DecryptedNote? = null,
     val isEditing: Boolean = false,
+
+    // Thread replies
+    val replies: List<DecryptedReply> = emptyList(),
+    val isLoadingReplies: Boolean = false,
+    val isSendingReply: Boolean = false,
 )
 
 /**
@@ -383,6 +402,102 @@ class NotesViewModel @Inject constructor(
         }
     }
 
+    // ---- Thread Replies ----
+
+    /**
+     * Load replies for the currently selected note.
+     */
+    fun loadReplies(noteId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingReplies = true) }
+            try {
+                val response = apiService.request<NoteRepliesResponse>(
+                    "GET", "/api/notes/$noteId/replies",
+                )
+                val decrypted = response.replies.mapNotNull { reply ->
+                    decryptReply(reply)
+                }
+                _uiState.update { it.copy(replies = decrypted, isLoadingReplies = false) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isLoadingReplies = false) }
+            }
+        }
+    }
+
+    /**
+     * Send an encrypted reply to a note thread.
+     */
+    fun sendReply(noteId: String, text: String) {
+        if (text.isBlank()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSendingReply = true) }
+            try {
+                val encrypted = cryptoService.encryptNote(text, emptyList())
+
+                val envelopes = encrypted.envelopes.map { env ->
+                    CreateNoteEnvelope(
+                        pubkey = env.recipientPubkey,
+                        wrappedKey = env.wrappedKey,
+                        ephemeralPubkey = env.ephemeralPubkey,
+                    )
+                }
+
+                val request = CreateNoteReplyRequest(
+                    encryptedContent = encrypted.ciphertext,
+                    readerEnvelopes = envelopes,
+                )
+
+                apiService.requestNoContent("POST", "/api/notes/$noteId/replies", request)
+
+                // Increment local reply count
+                val updatedNote = _uiState.value.selectedNote?.copy(
+                    replyCount = (_uiState.value.selectedNote?.replyCount ?: 0) + 1,
+                )
+                _uiState.update { it.copy(isSendingReply = false, selectedNote = updatedNote) }
+
+                // Reload replies
+                loadReplies(noteId)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isSendingReply = false,
+                        saveError = e.message ?: "Failed to send reply",
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Clear replies when leaving note detail.
+     */
+    fun clearReplies() {
+        _uiState.update { it.copy(replies = emptyList()) }
+    }
+
+    /**
+     * Decrypt a single reply by finding our envelope and calling CryptoService.
+     */
+    private suspend fun decryptReply(reply: NoteReply): DecryptedReply? {
+        val ourPubkey = cryptoService.pubkey ?: return null
+        val envelope = reply.recipientEnvelopes.find { it.pubkey == ourPubkey } ?: return null
+        return try {
+            val payload = cryptoService.decryptNote(reply.encryptedContent, envelope)
+            if (payload != null) {
+                DecryptedReply(
+                    id = reply.id,
+                    authorPubkey = reply.authorPubkey,
+                    text = payload.text,
+                    createdAt = reply.createdAt,
+                )
+            } else {
+                null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     /**
      * Decrypt a single note by finding our envelope and calling CryptoService.
      */
@@ -402,6 +517,7 @@ class NotesViewModel @Inject constructor(
                     authorPubkey = note.authorPubkey,
                     callId = note.callId,
                     conversationId = note.conversationId,
+                    replyCount = note.replyCount,
                     createdAt = note.createdAt,
                     updatedAt = note.updatedAt,
                 )

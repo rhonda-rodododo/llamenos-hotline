@@ -77,6 +77,11 @@
     <string name="notes_search">Search notes\u2026</string>
     <string name="note_edit">Edit</string>
     <string name="note_editing">Editing</string>
+    <string name="note_replies">Replies</string>
+    <string name="note_no_replies">No replies yet</string>
+    <string name="note_reply_hint">Write a reply\u2026</string>
+    <string name="note_reply_send">Send reply</string>
+    <string name="note_reply_count">%d replies</string>
 
     <!-- Shifts -->
     <string name="shifts_title">Shifts</string>
