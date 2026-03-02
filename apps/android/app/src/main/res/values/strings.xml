@@ -374,6 +374,12 @@
 
     <!-- Volunteers -->
     <string name="volunteer_unnamed">Unnamed</string>
+    <string name="volunteer_detail_title">Volunteer</string>
+    <string name="volunteer_not_found">Volunteer not found</string>
+    <string name="volunteer_joined">Joined %s</string>
+    <string name="volunteer_assigned_shifts">Assigned Shifts</string>
+    <string name="volunteer_recent_activity">Recent Activity</string>
+    <string name="volunteer_no_activity">No recent activity</string>
     <string name="action_copy">Copy</string>
 
     <!-- Common actions -->

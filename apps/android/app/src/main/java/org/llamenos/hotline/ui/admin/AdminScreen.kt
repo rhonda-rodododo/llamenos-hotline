@@ -38,6 +38,7 @@ import org.llamenos.hotline.R
 @Composable
 fun AdminScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToVolunteerDetail: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: AdminViewModel = hiltViewModel(),
 ) {
@@ -105,7 +106,10 @@ fun AdminScreen(
 
             // Tab content
             when (uiState.selectedTab) {
-                AdminTab.VOLUNTEERS -> VolunteersTab(viewModel = viewModel)
+                AdminTab.VOLUNTEERS -> VolunteersTab(
+                    viewModel = viewModel,
+                    onNavigateToVolunteerDetail = onNavigateToVolunteerDetail,
+                )
                 AdminTab.BANS -> BanListTab(viewModel = viewModel)
                 AdminTab.AUDIT -> AuditLogTab(viewModel = viewModel)
                 AdminTab.INVITES -> InvitesTab(viewModel = viewModel)

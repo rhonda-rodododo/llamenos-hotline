@@ -62,6 +62,7 @@ import org.llamenos.hotline.model.Volunteer
 @Composable
 fun VolunteersTab(
     viewModel: AdminViewModel,
+    onNavigateToVolunteerDetail: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -206,6 +207,7 @@ fun VolunteersTab(
                         ) { volunteer ->
                             VolunteerCard(
                                 volunteer = volunteer,
+                                onClick = { onNavigateToVolunteerDetail(volunteer.pubkey) },
                                 onDelete = { viewModel.showDeleteVolunteerDialog(volunteer.id) },
                             )
                         }
@@ -241,10 +243,12 @@ fun VolunteersTab(
 @Composable
 private fun VolunteerCard(
     volunteer: Volunteer,
+    onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
+        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .testTag("volunteer-card-${volunteer.id}"),

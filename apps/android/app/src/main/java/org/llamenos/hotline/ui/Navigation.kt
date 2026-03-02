@@ -16,6 +16,7 @@ import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
 import org.llamenos.hotline.ui.admin.AdminScreen
+import org.llamenos.hotline.ui.admin.VolunteerDetailScreen
 import org.llamenos.hotline.ui.auth.AuthViewModel
 import org.llamenos.hotline.ui.calls.CallHistoryScreen
 import org.llamenos.hotline.ui.calls.CallHistoryViewModel
@@ -149,6 +150,15 @@ sealed interface LlamenosRoute {
     /** Help & Reference. */
     data object Help : LlamenosRoute {
         override val route = "help"
+    }
+
+    /** Volunteer detail/profile view. */
+    data class VolunteerDetail(val pubkey: String) : LlamenosRoute {
+        override val route = "volunteer/$pubkey"
+
+        companion object {
+            const val ROUTE_PATTERN = "volunteer/{pubkey}"
+        }
     }
 
     /** Device linking via QR code. */
@@ -358,6 +368,17 @@ fun LlamenosNavigation(
 
         composable(LlamenosRoute.Admin.route) {
             AdminScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToVolunteerDetail = { pubkey ->
+                    navController.navigate("volunteer/$pubkey")
+                },
+            )
+        }
+
+        composable(LlamenosRoute.VolunteerDetail.ROUTE_PATTERN) { backStackEntry ->
+            val pubkey = backStackEntry.arguments?.getString("pubkey") ?: ""
+            VolunteerDetailScreen(
+                pubkey = pubkey,
                 onNavigateBack = { navController.popBackStack() },
             )
         }
