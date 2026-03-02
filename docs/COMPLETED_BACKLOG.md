@@ -1,5 +1,48 @@
 # Completed Backlog
 
+## 2026-03-01: Cross-Platform BDD E2E Test Suite (Epics 218-222)
+
+### Epic 218: Cross-Platform BDD Test Framework
+- Created `packages/test-specs/` workspace with `package.json`, `README.md`, Gherkin conventions
+- Created `packages/test-specs/tools/validate-coverage.ts` — CI validation script that parses `.feature` files, extracts scenario titles, converts to camelCase, and matches against Android `@Test` methods
+- Added `"test-specs:validate"` script to root `package.json`
+- Created `helpers/TestNavigationHelper.kt` — shared `navigateToMainScreen()` (create identity → confirm backup → PIN 1234 → dashboard) and `navigateToTab()` helpers
+- Created `helpers/ComposeTestExtensions.kt` — `ComposeRule` typealias, `assertTagDisplayed()`, `clickTag()`, `scrollToAndAssertTag()`, `assertAnyTagDisplayed()` (loading/empty/list pattern), `enterPin()` helper
+
+### Epic 219: Auth Flow BDD Specs (24 scenarios → 5 feature files, 5 test classes)
+- Feature files: `login.feature` (6), `onboarding.feature` (4), `pin-setup.feature` (6), `pin-unlock.feature` (5), `key-import.feature` (3)
+- Test classes: `LoginScreenTest`, `OnboardingFlowTest`, `PinSetupTest`, `PinUnlockTest` (with `@Inject CryptoService/KeystoreService`, `StoredKeyData` state setup, `@After` teardown), `KeyImportTest`
+- Deleted old `AuthFlowTest.kt`
+
+### Epic 220: Core Features BDD Specs (34 scenarios → 10 feature files, 11 test classes)
+- Dashboard: `dashboard-display.feature` (8), `shift-status.feature` (2) → `DashboardDisplayTest` (8), `DashboardShiftActionsTest` (2)
+- Notes: `note-list.feature` (3), `note-create.feature` (3), `note-detail.feature` (3) → `NoteListTest` (3), `NoteCreateTest` (3), `NoteDetailTest` (3)
+- Conversations: `conversation-list.feature` (3), `conversation-filters.feature` (4) → `ConversationListTest` (3), `ConversationFiltersTest` (4)
+- Shifts: `shift-list.feature` (3), `clock-in-out.feature` (2) → `ShiftListTest` (3), `ClockInOutTest` (2)
+- Navigation: `bottom-navigation.feature` (3) → `BottomNavigationTest` (3)
+- Deleted old `NoteFlowTest.kt`, `ShiftFlowTest.kt`, `ConversationFlowTest.kt`
+
+### Epic 221: Admin, Settings & Access Control BDD Specs (27 scenarios → 6 feature files, 6 test classes)
+- Settings: `settings-display.feature` (6), `lock-logout.feature` (4), `device-link.feature` (6) → `SettingsDisplayTest` (6), `LockLogoutTest` (4 with `@After` teardown), `DeviceLinkTest` (6)
+- Admin: `admin-navigation.feature` (2), `admin-tabs.feature` (6 with Scenario Outline), `access-control.feature` (3) → `AdminNavigationTest` (2), `AdminTabsTest` (6), `AccessControlTest` (3 with CryptoService/KeystoreService injection)
+- Deleted old `AdminFlowTest.kt`
+
+### Epic 222: Crypto Interop E2E Verification (21 scenarios → 4 feature files, 5 test classes)
+- Feature files: `keypair-generation.feature` (4), `pin-encryption.feature` (6 with Scenario Outline), `auth-tokens.feature` (3), `crypto-interop.feature` (8)
+- Created `TestVectors.kt` — data classes for `test-vectors.json` deserialization (KeyVectors, PinEncryptionVectors, AuthVectors, NoteEncryptionVectors, MessageEncryptionVectors)
+- Test classes: `KeypairGenerationTest` (4), `PinEncryptionTest` (6), `AuthTokenTest` (3), `CryptoInteropTest` (8 loading from `androidTest/assets/test-vectors.json`)
+- Added Gradle `copyTestVectors` task to sync `test-vectors.json` from `packages/crypto/tests/fixtures/` on `preBuild`
+
+### Infrastructure Changes
+- Added `hilt-android-testing` to `gradle/libs.versions.toml` (was using `hilt-android` which lacks `@HiltAndroidTest` annotation processor)
+- Updated `build.gradle.kts`: `androidTestImplementation(libs.hilt.android.testing)` replacing `androidTestImplementation(libs.hilt.android)`
+- Organized 26 test files across 9 directories: `auth/`, `dashboard/`, `notes/`, `conversations/`, `shifts/`, `navigation/`, `settings/`, `admin/`, `crypto/`
+
+### Verification
+- `assembleDebugAndroidTest`: BUILD SUCCESSFUL (106 @Test methods compile)
+- `lintDebug`: BUILD SUCCESSFUL
+- `test-specs:validate`: 102/102 scenarios covered (100%), 106 @Test methods mapped
+
 ## 2026-03-01: Playwright Test Restoration (Epic 216)
 
 ### Epic 216: Restore All Playwright E2E Tests on Desktop Branch

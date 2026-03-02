@@ -1,0 +1,7 @@
+{
+  "name": "@llamenos/test-specs",
+  "version": "0.19.2",
+  "private": true,
+  "description": "Cross-platform BDD test specifications using Gherkin feature files",
+  "type": "module"
+}

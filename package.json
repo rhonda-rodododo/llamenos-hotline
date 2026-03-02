@@ -44,7 +44,8 @@
     "i18n:codegen": "bun run packages/i18n/tools/i18n-codegen.ts",
     "i18n:validate": "bun run packages/i18n/tools/i18n-codegen.ts --validate",
     "codegen": "bun run packages/protocol/tools/codegen.ts",
-    "codegen:check": "bun run packages/protocol/tools/codegen.ts --check"
+    "codegen:check": "bun run packages/protocol/tools/codegen.ts --check",
+    "test-specs:validate": "bun packages/test-specs/tools/validate-coverage.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.993.0",

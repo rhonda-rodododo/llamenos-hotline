@@ -86,6 +86,16 @@ kapt {
     correctErrorTypes = true
 }
 
+// Copy shared test vectors from packages/crypto for E2E crypto interop tests
+val copyTestVectors by tasks.registering(Copy::class) {
+    from("${rootProject.projectDir}/../../packages/crypto/tests/fixtures/test-vectors.json")
+    into("src/androidTest/assets")
+}
+
+tasks.named("preBuild") {
+    dependsOn(copyTestVectors)
+}
+
 dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.material3)
@@ -135,6 +145,6 @@ dependencies {
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.rules)
-    androidTestImplementation(libs.hilt.android)
+    androidTestImplementation(libs.hilt.android.testing)
     kaptAndroidTest(libs.hilt.compiler)
 }
