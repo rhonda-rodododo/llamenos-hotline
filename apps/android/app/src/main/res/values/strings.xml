@@ -243,6 +243,12 @@
     <string name="contacts_search">Search contacts\u2026</string>
     <string name="dashboard_view_contacts">View Contacts</string>
 
+    <!-- Contact Timeline -->
+    <string name="timeline_title">Timeline</string>
+    <string name="timeline_contact_id">Contact: %s\u2026</string>
+    <string name="timeline_empty">No interactions</string>
+    <string name="timeline_empty_subtitle">Interactions with this contact will appear here</string>
+
     <!-- Search placeholders -->
     <string name="search_conversations">Search conversations\u2026</string>
     <string name="search_volunteers">Search volunteers\u2026</string>

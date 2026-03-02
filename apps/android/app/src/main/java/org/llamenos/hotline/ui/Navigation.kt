@@ -1,6 +1,7 @@
 package org.llamenos.hotline.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -18,6 +19,8 @@ import org.llamenos.hotline.ui.calls.CallHistoryScreen
 import org.llamenos.hotline.ui.calls.CallHistoryViewModel
 import org.llamenos.hotline.ui.contacts.ContactsScreen
 import org.llamenos.hotline.ui.contacts.ContactsViewModel
+import org.llamenos.hotline.ui.contacts.ContactTimelineScreen
+import org.llamenos.hotline.ui.contacts.ContactTimelineViewModel
 import org.llamenos.hotline.ui.reports.ReportDetailScreen
 import org.llamenos.hotline.ui.reports.ReportsScreen
 import org.llamenos.hotline.ui.reports.ReportsViewModel
@@ -110,6 +113,15 @@ sealed interface LlamenosRoute {
 
         companion object {
             const val ROUTE_PATTERN = "report/{reportId}"
+        }
+    }
+
+    /** Contact timeline view. */
+    data class ContactTimeline(val contactHash: String) : LlamenosRoute {
+        override val route = "contact/{contactHash}"
+
+        companion object {
+            const val ROUTE_PATTERN = "contact/{contactHash}"
         }
     }
 
@@ -327,6 +339,21 @@ fun LlamenosNavigation(
             val contactsViewModel: ContactsViewModel = hiltViewModel()
             ContactsScreen(
                 viewModel = contactsViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToTimeline = { contactHash ->
+                    navController.navigate("contact/$contactHash")
+                },
+            )
+        }
+
+        composable(LlamenosRoute.ContactTimeline.ROUTE_PATTERN) { backStackEntry ->
+            val contactHash = backStackEntry.arguments?.getString("contactHash") ?: ""
+            val timelineViewModel: ContactTimelineViewModel = hiltViewModel()
+            LaunchedEffect(contactHash) {
+                timelineViewModel.loadTimeline(contactHash)
+            }
+            ContactTimelineScreen(
+                viewModel = timelineViewModel,
                 onNavigateBack = { navController.popBackStack() },
             )
         }

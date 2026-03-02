@@ -29,3 +29,26 @@ data class ContactsListResponse(
     val contacts: List<ContactSummary>,
     val total: Int,
 )
+
+/**
+ * A single timeline event for a contact — represents a call, conversation,
+ * note, or report interaction.
+ */
+@Serializable
+data class ContactTimelineEvent(
+    val id: String,
+    val type: String, // "call", "conversation", "note", "report"
+    val timestamp: String,
+    val summary: String? = null,
+    val status: String? = null,
+    val duration: Int? = null,
+)
+
+/**
+ * Timeline response from GET /contacts/{hash}/timeline.
+ */
+@Serializable
+data class ContactTimelineResponse(
+    val events: List<ContactTimelineEvent>,
+    val total: Int = 0,
+)

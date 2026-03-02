@@ -63,6 +63,7 @@ import org.llamenos.hotline.util.DateFormatUtils
 fun ContactsScreen(
     viewModel: ContactsViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToTimeline: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -160,7 +161,10 @@ fun ContactsScreen(
                             items = uiState.contacts,
                             key = { it.contactHash },
                         ) { contact ->
-                            ContactCard(contact = contact)
+                            ContactCard(
+                                contact = contact,
+                                onClick = { onNavigateToTimeline(contact.contactHash) },
+                            )
                         }
 
                         // Pagination loader
@@ -213,9 +217,11 @@ fun ContactsScreen(
 @Composable
 private fun ContactCard(
     contact: ContactSummary,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Card(
+        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .testTag("contact-card-${contact.contactHash.take(8)}"),
