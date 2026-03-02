@@ -49,6 +49,12 @@ data class ConversationsUiState(
     // Sending
     val isSending: Boolean = false,
     val sendError: String? = null,
+
+    // Search
+    val searchQuery: String = "",
+
+    // Actions
+    val showAssignDialog: Boolean = false,
 )
 
 /**
@@ -303,6 +309,116 @@ class ConversationsViewModel @Inject constructor(
      */
     fun clearSendError() {
         _uiState.update { it.copy(sendError = null) }
+    }
+
+    // ---- Search ----
+
+    /**
+     * Set the search query and filter conversations.
+     */
+    fun setSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    /**
+     * Get conversations filtered by the current search query.
+     */
+    fun filteredConversations(): List<Conversation> {
+        val query = _uiState.value.searchQuery.lowercase()
+        if (query.isBlank()) return _uiState.value.conversations
+        return _uiState.value.conversations.filter { conversation ->
+            conversation.contactHash.lowercase().contains(query) ||
+                    conversation.channelType.lowercase().contains(query)
+        }
+    }
+
+    // ---- Conversation Actions ----
+
+    /**
+     * Close/resolve the currently selected conversation.
+     */
+    fun closeSelectedConversation() {
+        val conversation = _uiState.value.selectedConversation ?: return
+        viewModelScope.launch {
+            try {
+                apiService.requestNoContent(
+                    "POST",
+                    "/api/conversations/${conversation.id}/close",
+                )
+                _uiState.update {
+                    it.copy(
+                        selectedConversation = it.selectedConversation?.copy(status = "closed"),
+                    )
+                }
+                loadConversations()
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(sendError = e.message ?: "Failed to close conversation")
+                }
+            }
+        }
+    }
+
+    /**
+     * Reopen a closed conversation.
+     */
+    fun reopenSelectedConversation() {
+        val conversation = _uiState.value.selectedConversation ?: return
+        viewModelScope.launch {
+            try {
+                apiService.requestNoContent(
+                    "POST",
+                    "/api/conversations/${conversation.id}/reopen",
+                )
+                _uiState.update {
+                    it.copy(
+                        selectedConversation = it.selectedConversation?.copy(status = "active"),
+                    )
+                }
+                loadConversations()
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(sendError = e.message ?: "Failed to reopen conversation")
+                }
+            }
+        }
+    }
+
+    /**
+     * Assign the current conversation to a volunteer.
+     */
+    fun assignConversation(volunteerPubkey: String) {
+        val conversation = _uiState.value.selectedConversation ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(showAssignDialog = false) }
+            try {
+                apiService.requestNoContent(
+                    "POST",
+                    "/api/conversations/${conversation.id}/assign",
+                    mapOf("volunteerPubkey" to volunteerPubkey),
+                )
+                _uiState.update {
+                    it.copy(
+                        selectedConversation = it.selectedConversation?.copy(
+                            assignedVolunteerPubkey = volunteerPubkey,
+                        ),
+                    )
+                }
+                loadConversations()
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(sendError = e.message ?: "Failed to assign conversation")
+                }
+            }
+        }
+    }
+
+    fun showAssignDialog() {
+        _uiState.update { it.copy(showAssignDialog = true) }
+    }
+
+    fun dismissAssignDialog() {
+        _uiState.update { it.copy(showAssignDialog = false) }
     }
 
     /**

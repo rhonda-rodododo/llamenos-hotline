@@ -1,9 +1,11 @@
 package org.llamenos.hotline.steps.conversations
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import io.cucumber.java.en.Given
 import io.cucumber.java.en.Then
@@ -180,40 +182,58 @@ class ConversationSteps : BaseSteps() {
         assert(found) { "Expected conversations area to be visible" }
     }
 
-    // ---- Conversation actions (requires UI not yet built — stubs) ----
+    // ---- Conversation actions ----
 
     @When("I assign the conversation to a volunteer")
     fun iAssignTheConversationToAVolunteer() {
-        // Assign UI not yet built on Android
+        onNodeWithTag("assign-conversation-button").performClick()
+        composeRule.waitForIdle()
     }
 
     @Then("the conversation should show the assigned volunteer")
     fun theConversationShouldShowTheAssignedVolunteer() {
-        // Stub
+        // After assignment, the conversation detail should still be visible
+        onNodeWithTag("conversation-detail-title").assertIsDisplayed()
     }
 
     @When("I close the conversation")
     fun iCloseTheConversation() {
-        // Close UI not yet built on Android
+        onNodeWithTag("close-conversation-button").performClick()
+        composeRule.waitForIdle()
     }
 
     @Then("the conversation status should change to {string}")
     fun theConversationStatusShouldChangeTo(status: String) {
-        // Stub
+        // After status change, verify the appropriate button is now visible
+        when (status.lowercase()) {
+            "closed" -> {
+                // Should now show reopen button instead of close
+                onNodeWithTag("reopen-conversation-button").assertIsDisplayed()
+            }
+            "active" -> {
+                // Should now show close button instead of reopen
+                onNodeWithTag("close-conversation-button").assertIsDisplayed()
+            }
+        }
     }
 
     @When("I reopen the conversation")
     fun iReopenTheConversation() {
-        // Reopen UI not yet built on Android
+        onNodeWithTag("reopen-conversation-button").performClick()
+        composeRule.waitForIdle()
     }
 
     @When("I search for a phone number")
     fun iSearchForAPhoneNumber() {
-        // Conversation search UI not yet built on Android
+        val testHash = "5559"
+        onNodeWithTag("conversation-search-input").performTextClearance()
+        onNodeWithTag("conversation-search-input").performTextInput(testHash)
+        composeRule.waitForIdle()
     }
 
     @Then("matching conversations should be displayed")
     fun matchingConversationsShouldBeDisplayed() {
-        // Stub
+        val found = assertAnyTagDisplayed("conversations-list", "conversations-empty")
+        assert(found) { "Expected conversations area after search" }
     }
 }

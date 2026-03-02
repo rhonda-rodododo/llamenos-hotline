@@ -40,6 +40,7 @@ enum class AdminTab {
     AUDIT,
     INVITES,
     FIELDS,
+    SHIFTS,
 }
 
 data class AdminUiState(
@@ -123,6 +124,7 @@ class AdminViewModel @Inject constructor(
             AdminTab.AUDIT -> loadAuditLog(page = 1)
             AdminTab.INVITES -> loadInvites()
             AdminTab.FIELDS -> loadCustomFields()
+            AdminTab.SHIFTS -> loadAdminShifts()
         }
     }
 

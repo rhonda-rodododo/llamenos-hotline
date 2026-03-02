@@ -23,7 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MarkChatRead
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -138,6 +141,44 @@ fun ConversationDetailScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.nav_dashboard),
                         )
+                    }
+                },
+                actions = {
+                    if (conversation != null) {
+                        // Assign button
+                        IconButton(
+                            onClick = { viewModel.showAssignDialog() },
+                            modifier = Modifier.testTag("assign-conversation-button"),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PersonAdd,
+                                contentDescription = "Assign",
+                            )
+                        }
+
+                        // Close or reopen button
+                        if (conversation.status == "closed") {
+                            IconButton(
+                                onClick = { viewModel.reopenSelectedConversation() },
+                                modifier = Modifier.testTag("reopen-conversation-button"),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Refresh,
+                                    contentDescription = "Reopen",
+                                )
+                            }
+                        } else {
+                            IconButton(
+                                onClick = { viewModel.closeSelectedConversation() },
+                                modifier = Modifier.testTag("close-conversation-button"),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = "Close",
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

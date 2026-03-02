@@ -93,6 +93,7 @@ fun AdminScreen(
                                     AdminTab.AUDIT -> stringResource(R.string.admin_audit)
                                     AdminTab.INVITES -> stringResource(R.string.admin_invites)
                                     AdminTab.FIELDS -> stringResource(R.string.admin_fields)
+                                    AdminTab.SHIFTS -> stringResource(R.string.shift_schedule)
                                 },
                             )
                         },
@@ -108,6 +109,7 @@ fun AdminScreen(
                 AdminTab.AUDIT -> AuditLogTab(viewModel = viewModel)
                 AdminTab.INVITES -> InvitesTab(viewModel = viewModel)
                 AdminTab.FIELDS -> CustomFieldsTab(viewModel = viewModel)
+                AdminTab.SHIFTS -> ShiftScheduleTab(viewModel = viewModel)
             }
         }
     }

@@ -18,7 +18,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.MarkChatRead
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -101,6 +103,23 @@ fun ConversationsScreen(
                     }
                 }
 
+                // Search bar
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = { viewModel.setSearchQuery(it) },
+                    placeholder = { Text("Search conversations...") },
+                    leadingIcon = {
+                        Icon(Icons.Filled.Search, contentDescription = null)
+                    },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .testTag("conversation-search-input"),
+                )
+
+                val displayedConversations = viewModel.filteredConversations()
+
                 when {
                     uiState.isLoading && uiState.conversations.isEmpty() -> {
                         Box(
@@ -113,7 +132,7 @@ fun ConversationsScreen(
                         }
                     }
 
-                    uiState.conversations.isEmpty() && !uiState.isLoading -> {
+                    displayedConversations.isEmpty() && !uiState.isLoading -> {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -146,7 +165,7 @@ fun ConversationsScreen(
                                 .testTag("conversations-list"),
                         ) {
                             items(
-                                items = uiState.conversations,
+                                items = displayedConversations,
                                 key = { it.id },
                             ) { conversation ->
                                 ConversationCard(
