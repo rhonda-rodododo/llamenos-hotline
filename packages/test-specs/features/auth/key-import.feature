@@ -1,4 +1,4 @@
-@android @ios @regression
+@android @ios @desktop @regression
 Feature: Key Import
   As an existing user
   I want to import my nsec from another device

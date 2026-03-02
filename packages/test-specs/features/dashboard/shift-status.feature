@@ -1,4 +1,4 @@
-@android @ios @regression
+@android @ios @desktop @regression
 Feature: Dashboard Shift Actions
   As a volunteer on the dashboard
   I want to quickly clock in/out

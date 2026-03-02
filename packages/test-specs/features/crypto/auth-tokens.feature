@@ -1,4 +1,4 @@
-@android @ios @crypto
+@android @ios @desktop @crypto
 Feature: Auth Token Creation
   As the app making API requests
   I want to create Schnorr auth tokens

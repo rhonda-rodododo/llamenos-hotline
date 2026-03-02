@@ -1,4 +1,4 @@
-@android @ios @smoke
+@android @ios @desktop @smoke
 Feature: Shifts Tab
   As a volunteer
   I want to see available shifts and my clock status

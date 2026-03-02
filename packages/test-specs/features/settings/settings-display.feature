@@ -1,4 +1,4 @@
-@android @ios @smoke
+@android @ios @desktop @smoke
 Feature: Settings Screen
   As an authenticated user
   I want to access my settings

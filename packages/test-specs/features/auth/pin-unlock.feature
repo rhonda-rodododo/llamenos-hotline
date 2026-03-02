@@ -1,4 +1,4 @@
-@android @ios @smoke
+@android @ios @desktop @smoke
 Feature: PIN Unlock
   As a returning user
   I want to unlock the app with my PIN

@@ -1,4 +1,4 @@
-@android @ios @smoke
+@android @ios @desktop @smoke
 Feature: Identity Creation & Onboarding
   As a new user
   I want to create a new identity

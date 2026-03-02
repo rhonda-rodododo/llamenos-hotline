@@ -1,4 +1,4 @@
-@android @ios @regression
+@android @ios @desktop @regression
 Feature: Note Detail View
   As a volunteer
   I want to view the full details of a note

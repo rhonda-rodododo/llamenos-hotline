@@ -1,4 +1,4 @@
-@android @ios @regression
+@android @ios @desktop @regression
 Feature: Access Control
   As the system
   I want to enforce state-based access to features

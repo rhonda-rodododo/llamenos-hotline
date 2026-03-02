@@ -1,4 +1,4 @@
-@android @ios @regression
+@android @ios @desktop @regression
 Feature: Admin Tabs
   As an admin
   I want to switch between admin tabs

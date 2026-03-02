@@ -1,4 +1,4 @@
-@android @ios @smoke
+@android @ios @desktop @smoke
 Feature: Admin Panel Navigation
   As an admin
   I want to access the admin panel

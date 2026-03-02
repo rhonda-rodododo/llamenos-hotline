@@ -1,4 +1,4 @@
-@android @ios @regression
+@android @ios @desktop @regression
 Feature: Lock & Logout
   As an authenticated user
   I want to lock or log out of the app

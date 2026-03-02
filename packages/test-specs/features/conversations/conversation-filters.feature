@@ -1,4 +1,4 @@
-@android @ios @regression
+@android @ios @desktop @regression
 Feature: Conversation Filters
   As a volunteer
   I want to filter conversations by status

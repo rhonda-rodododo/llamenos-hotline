@@ -1,4 +1,4 @@
-@android @ios @smoke
+@android @ios @desktop @smoke
 Feature: Note Creation
   As a volunteer on a call
   I want to create encrypted notes

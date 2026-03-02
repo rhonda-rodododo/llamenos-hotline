@@ -1,4 +1,4 @@
-@android @ios @smoke @crypto
+@android @ios @desktop @smoke @crypto
 Feature: PIN Encryption
   As a user setting a PIN
   I want my private key to be encrypted with the PIN

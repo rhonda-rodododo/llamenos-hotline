@@ -1,4 +1,4 @@
-@android @ios @smoke
+@android @ios @desktop @smoke
 Feature: PIN Setup
   As a new user completing onboarding
   I want to set a PIN to protect my identity

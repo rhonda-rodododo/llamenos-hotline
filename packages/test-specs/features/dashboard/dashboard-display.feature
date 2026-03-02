@@ -1,4 +1,4 @@
-@android @ios @smoke
+@android @ios @desktop @smoke
 Feature: Dashboard Display
   As an authenticated volunteer
   I want to see the dashboard

@@ -1,4 +1,4 @@
-@android @ios @regression @requires-camera
+@android @ios @desktop @regression @requires-camera
 Feature: Device Linking
   As a user with an identity on another device
   I want to link this device by scanning a QR code

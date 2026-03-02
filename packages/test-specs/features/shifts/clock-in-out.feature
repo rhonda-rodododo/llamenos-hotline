@@ -1,4 +1,4 @@
-@android @ios @regression @requires-network
+@android @ios @desktop @regression @requires-network
 Feature: Clock In/Out
   As a volunteer
   I want to clock in and out

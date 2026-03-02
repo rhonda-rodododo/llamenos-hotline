@@ -1,4 +1,4 @@
-@android @ios @crypto @regression
+@android @ios @desktop @crypto @regression
 Feature: Crypto Interop with Test Vectors
   As a platform implementation
   I want to verify crypto operations against known test vectors

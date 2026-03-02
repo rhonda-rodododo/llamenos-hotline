@@ -1,4 +1,4 @@
-@android @ios @smoke
+@android @ios @desktop @smoke
 Feature: Notes List
   As a volunteer
   I want to see my encrypted notes

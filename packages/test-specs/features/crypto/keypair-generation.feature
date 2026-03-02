@@ -1,4 +1,4 @@
-@android @ios @smoke @crypto
+@android @ios @desktop @smoke @crypto
 Feature: Keypair Generation
   As a user creating an identity
   I want the app to generate a valid Nostr keypair

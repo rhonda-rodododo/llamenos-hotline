@@ -1,4 +1,4 @@
-@android @ios @smoke
+@android @ios @desktop @smoke
 Feature: Conversations List
   As a volunteer
   I want to see conversations from callers

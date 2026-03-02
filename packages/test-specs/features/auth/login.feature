@@ -1,4 +1,4 @@
-@android @ios @smoke
+@android @ios @desktop @smoke
 Feature: Login Screen
   As a new user
   I want to see the login screen
