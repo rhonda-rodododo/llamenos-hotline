@@ -99,6 +99,7 @@ fun MainScreen(
     onNavigateToReports: () -> Unit,
     onNavigateToContacts: () -> Unit,
     onNavigateToBlasts: () -> Unit,
+    onNavigateToHelp: () -> Unit,
     onNavigateToDeviceLink: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -173,6 +174,7 @@ fun MainScreen(
                         onNavigateToReports = onNavigateToReports,
                         onNavigateToContacts = onNavigateToContacts,
                         onNavigateToBlasts = onNavigateToBlasts,
+                        onNavigateToHelp = onNavigateToHelp,
                     )
                 }
 

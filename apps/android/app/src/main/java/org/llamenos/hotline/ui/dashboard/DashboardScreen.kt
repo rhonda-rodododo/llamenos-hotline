@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.Button
@@ -80,6 +81,7 @@ fun DashboardScreen(
     onNavigateToReports: () -> Unit,
     onNavigateToContacts: () -> Unit,
     onNavigateToBlasts: () -> Unit,
+    onNavigateToHelp: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -451,6 +453,43 @@ fun DashboardScreen(
                             modifier = Modifier.testTag("view-blasts"),
                         ) {
                             Text(stringResource(R.string.dashboard_view_blasts))
+                        }
+                    }
+                }
+
+                // Help card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onNavigateToHelp)
+                        .testTag("help-card"),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.HelpOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.help_title),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
+                        TextButton(
+                            onClick = onNavigateToHelp,
+                            modifier = Modifier.testTag("view-help"),
+                        ) {
+                            Text(stringResource(R.string.dashboard_view_help))
                         }
                     }
                 }
