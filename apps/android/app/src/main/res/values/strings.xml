@@ -227,6 +227,13 @@
     <string name="report_filter_waiting">Waiting</string>
     <string name="report_untitled">Untitled Report</string>
     <string name="dashboard_view_reports">View Reports</string>
+    <string name="report_detail_title">Report Detail</string>
+    <string name="report_not_found">Report not found</string>
+    <string name="report_created">Created</string>
+    <string name="report_updated">Updated</string>
+    <string name="report_messages">Messages</string>
+    <string name="report_assigned">Assigned to</string>
+    <string name="report_linked_call">Call: %s\u2026</string>
 
     <!-- Contacts -->
     <string name="contacts_title">Contacts</string>

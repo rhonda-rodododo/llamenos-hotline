@@ -18,6 +18,7 @@ import org.llamenos.hotline.ui.calls.CallHistoryScreen
 import org.llamenos.hotline.ui.calls.CallHistoryViewModel
 import org.llamenos.hotline.ui.contacts.ContactsScreen
 import org.llamenos.hotline.ui.contacts.ContactsViewModel
+import org.llamenos.hotline.ui.reports.ReportDetailScreen
 import org.llamenos.hotline.ui.reports.ReportsScreen
 import org.llamenos.hotline.ui.reports.ReportsViewModel
 import org.llamenos.hotline.ui.auth.LoginScreen
@@ -311,6 +312,14 @@ fun LlamenosNavigation(
                 onNavigateToReportDetail = { reportId ->
                     navController.navigate("report/$reportId")
                 },
+            )
+        }
+
+        composable(LlamenosRoute.ReportDetail.ROUTE_PATTERN) {
+            val reportsViewModel: ReportsViewModel = hiltViewModel()
+            ReportDetailScreen(
+                viewModel = reportsViewModel,
+                onNavigateBack = { navController.popBackStack() },
             )
         }
 

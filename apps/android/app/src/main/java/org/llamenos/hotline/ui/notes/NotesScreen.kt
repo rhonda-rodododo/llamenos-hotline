@@ -45,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.llamenos.hotline.R
+import org.llamenos.hotline.util.DateFormatUtils
 
 /**
  * Notes list screen showing all decrypted notes with pull-to-refresh.
@@ -255,7 +256,7 @@ private fun NoteCard(
             ) {
                 // Date
                 Text(
-                    text = formatNoteDate(note.createdAt),
+                    text = DateFormatUtils.formatTimestamp(note.createdAt),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     modifier = Modifier.testTag("note-date-${note.id}"),
@@ -310,37 +311,5 @@ private fun NoteCard(
                 }
             }
         }
-    }
-}
-
-/**
- * Format an ISO 8601 date string into a human-readable display format.
- * Falls back to the raw string if parsing fails.
- */
-private fun formatNoteDate(isoDate: String): String {
-    return try {
-        // Parse ISO 8601: "2024-01-15T10:30:00Z" -> "Jan 15, 2024 10:30"
-        val parts = isoDate.replace("T", " ").replace("Z", "").split(" ")
-        if (parts.size >= 2) {
-            val dateParts = parts[0].split("-")
-            if (dateParts.size == 3) {
-                val months = listOf(
-                    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-                )
-                val monthIndex = dateParts[1].toIntOrNull()?.minus(1) ?: 0
-                val month = months.getOrElse(monthIndex) { "???" }
-                val day = dateParts[2].toIntOrNull() ?: 0
-                val year = dateParts[0]
-                val time = parts[1].take(5) // "HH:MM"
-                "$month $day, $year $time"
-            } else {
-                isoDate
-            }
-        } else {
-            isoDate
-        }
-    } catch (_: Exception) {
-        isoDate
     }
 }

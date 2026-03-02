@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.llamenos.hotline.R
 import org.llamenos.hotline.model.Conversation
+import org.llamenos.hotline.util.DateFormatUtils
 
 /**
  * Conversations list screen showing all E2EE messaging conversations.
@@ -294,7 +295,7 @@ private fun ConversationCard(
                 if (lastTime != null) {
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = formatConversationTime(lastTime),
+                        text = DateFormatUtils.formatTimestamp(lastTime),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier.testTag("conversation-time-${conversation.id}"),
@@ -337,33 +338,4 @@ private fun channelLabel(channelType: String) = when (channelType) {
     "whatsapp" -> stringResource(R.string.conversation_whatsapp)
     "signal" -> stringResource(R.string.conversation_signal)
     else -> channelType.replaceFirstChar { it.uppercase() }
-}
-
-/**
- * Format an ISO 8601 date string for conversation list display.
- */
-private fun formatConversationTime(isoDate: String): String {
-    return try {
-        val parts = isoDate.replace("T", " ").replace("Z", "").split(" ")
-        if (parts.size >= 2) {
-            val dateParts = parts[0].split("-")
-            val time = parts[1].take(5)
-            if (dateParts.size == 3) {
-                val months = listOf(
-                    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-                )
-                val monthIndex = dateParts[1].toIntOrNull()?.minus(1) ?: 0
-                val month = months.getOrElse(monthIndex) { "???" }
-                val day = dateParts[2].toIntOrNull() ?: 0
-                "$month $day, $time"
-            } else {
-                time
-            }
-        } else {
-            isoDate
-        }
-    } catch (_: Exception) {
-        isoDate
-    }
 }
