@@ -402,6 +402,13 @@
     <string name="help_faq_spam_a">Use the Ban List in Administration to block phone numbers. You can add individual bans or bulk import numbers.</string>
     <string name="dashboard_view_help">Help &amp; Reference</string>
 
+    <!-- Admin Settings -->
+    <string name="admin_transcription_desc">Automatic transcription of call recordings using on-device processing</string>
+    <string name="admin_transcription_enable">Enable Transcription</string>
+    <string name="admin_transcription_enable_desc">Transcribe calls automatically for all volunteers</string>
+    <string name="admin_transcription_optout">Allow Volunteer Opt-Out</string>
+    <string name="admin_transcription_optout_desc">Let individual volunteers disable transcription for their calls</string>
+
     <!-- Notifications -->
     <string name="notification_channel_calls">Incoming Calls</string>
     <string name="notification_channel_shifts">Shift Reminders</string>

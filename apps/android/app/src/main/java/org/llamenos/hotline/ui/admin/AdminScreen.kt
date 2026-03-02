@@ -94,6 +94,7 @@ fun AdminScreen(
                                     AdminTab.INVITES -> stringResource(R.string.admin_invites)
                                     AdminTab.FIELDS -> stringResource(R.string.admin_fields)
                                     AdminTab.SHIFTS -> stringResource(R.string.shift_schedule)
+                                    AdminTab.SETTINGS -> stringResource(R.string.settings_title)
                                 },
                             )
                         },
@@ -110,6 +111,7 @@ fun AdminScreen(
                 AdminTab.INVITES -> InvitesTab(viewModel = viewModel)
                 AdminTab.FIELDS -> CustomFieldsTab(viewModel = viewModel)
                 AdminTab.SHIFTS -> ShiftScheduleTab(viewModel = viewModel)
+                AdminTab.SETTINGS -> AdminSettingsTab(viewModel = viewModel)
             }
         }
     }

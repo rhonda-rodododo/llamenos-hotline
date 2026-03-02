@@ -41,6 +41,7 @@ enum class AdminTab {
     INVITES,
     FIELDS,
     SHIFTS,
+    SETTINGS,
 }
 
 data class AdminUiState(
@@ -92,6 +93,12 @@ data class AdminUiState(
     val adminShiftsError: String? = null,
     val showCreateShiftDialog: Boolean = false,
     val editingShift: AdminShiftDetail? = null,
+
+    // Admin settings (transcription, spam)
+    val transcriptionEnabled: Boolean = false,
+    val transcriptionOptOut: Boolean = false,
+    val isLoadingSettings: Boolean = false,
+    val settingsError: String? = null,
 )
 
 /**
@@ -125,6 +132,7 @@ class AdminViewModel @Inject constructor(
             AdminTab.INVITES -> loadInvites()
             AdminTab.FIELDS -> loadCustomFields()
             AdminTab.SHIFTS -> loadAdminShifts()
+            AdminTab.SETTINGS -> loadAdminSettings()
         }
     }
 
@@ -614,6 +622,67 @@ class AdminViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(adminShiftsError = e.message ?: "Failed to set fallback group")
+                }
+            }
+        }
+    }
+
+    // ---- Admin Settings ----
+
+    private fun loadAdminSettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingSettings = true, settingsError = null) }
+            try {
+                val response = apiService.request<Map<String, Any>>(
+                    "GET",
+                    "/api/admin/settings",
+                )
+                _uiState.update {
+                    it.copy(
+                        transcriptionEnabled = response["transcriptionEnabled"] as? Boolean ?: false,
+                        transcriptionOptOut = response["allowVolunteerOptOut"] as? Boolean ?: false,
+                        isLoadingSettings = false,
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(isLoadingSettings = false, settingsError = e.message)
+                }
+            }
+        }
+    }
+
+    fun toggleTranscription(enabled: Boolean) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(settingsError = null) }
+            try {
+                apiService.requestNoContent(
+                    "PUT",
+                    "/api/admin/settings/transcription",
+                    mapOf("enabled" to enabled),
+                )
+                _uiState.update { it.copy(transcriptionEnabled = enabled) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(settingsError = e.message ?: "Failed to update transcription")
+                }
+            }
+        }
+    }
+
+    fun toggleTranscriptionOptOut(allowed: Boolean) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(settingsError = null) }
+            try {
+                apiService.requestNoContent(
+                    "PUT",
+                    "/api/admin/settings/transcription",
+                    mapOf("allowVolunteerOptOut" to allowed),
+                )
+                _uiState.update { it.copy(transcriptionOptOut = allowed) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(settingsError = e.message ?: "Failed to update opt-out setting")
                 }
             }
         }
