@@ -19,9 +19,9 @@ Feature: Reports List
     And I should see the "Waiting" report status filter
     And I should see the "Closed" report status filter
 
-  Scenario: Reports screen shows empty state
+  Scenario: Reports shows list or empty state
     When I tap the view reports button
-    Then I should see the reports empty state
+    Then I should see the reports content or empty state
 
   Scenario: Navigate back from reports
     When I tap the view reports button
@@ -37,3 +37,24 @@ Feature: Reports List
     When I tap the view reports button
     And I tap the "Waiting" report status filter
     Then the "Waiting" report status filter should be selected
+
+  Scenario: Filter reports by closed status
+    When I tap the view reports button
+    And I tap the "Closed" report status filter
+    Then the "Closed" report status filter should be selected
+
+  Scenario: Reset report filter to all
+    When I tap the view reports button
+    And I tap the "Active" report status filter
+    And I tap the "All" report status filter
+    Then the "All" report status filter should be selected
+
+  Scenario: Reports has pull to refresh
+    When I tap the view reports button
+    Then the reports screen should support pull to refresh
+
+  Scenario: Navigate back from reports returns to dashboard
+    When I tap the view reports button
+    Then I should see the reports title
+    When I tap the back button on reports
+    Then I should see the dashboard

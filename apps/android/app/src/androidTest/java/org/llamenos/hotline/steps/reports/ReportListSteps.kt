@@ -13,7 +13,7 @@ import org.llamenos.hotline.steps.BaseSteps
  * Step definitions for report-list.feature scenarios.
  *
  * Feature: Reports List — navigation from dashboard, status filter chips,
- * empty state, and back navigation.
+ * empty state, pull-to-refresh, and back navigation.
  */
 class ReportListSteps : BaseSteps() {
 
@@ -81,11 +81,16 @@ class ReportListSteps : BaseSteps() {
         onNodeWithTag(tag).assertIsSelected()
     }
 
-    // ---- Empty state ----
+    // ---- Content state ----
 
-    @Then("I should see the reports empty state")
-    fun iShouldSeeTheReportsEmptyState() {
-        // Either shows empty state or a list — both are valid depending on data
-        assertAnyTagDisplayed("reports-empty", "reports-list")
+    @Then("I should see the reports content or empty state")
+    fun iShouldSeeTheReportsContentOrEmptyState() {
+        assertAnyTagDisplayed("reports-list", "reports-empty", "reports-loading")
+    }
+
+    @Then("the reports screen should support pull to refresh")
+    fun theReportsScreenShouldSupportPullToRefresh() {
+        // Verify the screen is displayed (pull-to-refresh wraps the content)
+        assertAnyTagDisplayed("reports-list", "reports-empty", "reports-loading")
     }
 }

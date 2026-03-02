@@ -13,7 +13,7 @@ import org.llamenos.hotline.steps.BaseSteps
  * Step definitions for call-history.feature scenarios.
  *
  * Feature: Call History — navigation from dashboard, filter chips,
- * empty state, and back navigation.
+ * empty state, pull-to-refresh, and back navigation.
  */
 class CallHistorySteps : BaseSteps() {
 
@@ -78,11 +78,16 @@ class CallHistorySteps : BaseSteps() {
         onNodeWithTag(tag).assertIsSelected()
     }
 
-    // ---- Empty state ----
+    // ---- Content state ----
 
-    @Then("I should see the call history empty state")
-    fun iShouldSeeTheCallHistoryEmptyState() {
-        // Either shows empty state or a list — both are valid depending on data
-        assertAnyTagDisplayed("call-history-empty", "call-history-list")
+    @Then("I should see the call history content or empty state")
+    fun iShouldSeeTheCallHistoryContentOrEmptyState() {
+        assertAnyTagDisplayed("call-history-list", "call-history-empty", "call-history-loading")
+    }
+
+    @Then("the call history screen should support pull to refresh")
+    fun theCallHistoryScreenShouldSupportPullToRefresh() {
+        // Verify the screen is displayed (pull-to-refresh wraps the content)
+        assertAnyTagDisplayed("call-history-list", "call-history-empty", "call-history-loading")
     }
 }

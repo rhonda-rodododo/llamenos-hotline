@@ -18,9 +18,9 @@ Feature: Call History
     And I should see the "Completed" call filter chip
     And I should see the "Unanswered" call filter chip
 
-  Scenario: Call history shows empty state
+  Scenario: Call history shows list or empty state
     When I tap the view call history button
-    Then I should see the call history empty state
+    Then I should see the call history content or empty state
 
   Scenario: Navigate back from call history
     When I tap the view call history button
@@ -36,3 +36,19 @@ Feature: Call History
     When I tap the view call history button
     And I tap the "Unanswered" call filter chip
     Then the "Unanswered" call filter should be selected
+
+  Scenario: Reset call filter to all
+    When I tap the view call history button
+    And I tap the "Completed" call filter chip
+    And I tap the "All" call filter chip
+    Then the "All" call filter should be selected
+
+  Scenario: Call history has pull to refresh
+    When I tap the view call history button
+    Then the call history screen should support pull to refresh
+
+  Scenario: Navigate back from call history returns to dashboard
+    When I tap the view call history button
+    Then I should see the call history title
+    When I tap the back button on call history
+    Then I should see the dashboard
