@@ -1,5 +1,28 @@
 # Completed Backlog
 
+## 2026-03-02: Android Brand Alignment & UI Polish
+
+### Brand Alignment
+- Rewrote `Color.kt` from terracotta (#C75B39) to teal (#006A6A) Material 3 palette — now matches logo (#51AFAE), desktop, and marketing site
+- Rewrote `colors.xml` to match Kotlin palette (primary, secondary, tertiary, error, background, surface, logo brand colors)
+- Updated `ic_launcher_background.xml` from terracotta to teal
+- Created `logo_mark.xml` vector drawable — converted from `public/logo.svg` (7 paths, 4 colors, 560x660 viewport)
+
+### Theme Enhancements
+- Created `Shape.kt` with custom `LlamenosShapes` — 12dp small (buttons), 16dp medium (cards), 20dp large (FABs), 28dp extraLarge (sheets)
+- Wired shapes into `Theme.kt` for app-wide consistent rounded corners
+
+### Auth Screen Polish
+- **LoginScreen**: Full redesign — logo image, staggered entrance animations (fadeIn + slideInVertically), card-wrapped form, "or" divider, icon+text buttons, side-by-side demo buttons
+- **PINSetScreen**: Added logo, staggered entrance animations, scrollable layout
+- **PINUnlockScreen**: Added logo, staggered entrance animations, Fingerprint icon on biometric button, TextButton for reset identity
+- **OnboardingScreen**: Added logo, staggered entrance animations, card-wrapped key displays (npub in surfaceVariant card, nsec in semi-transparent errorContainer card), CheckCircle icon on confirm button
+
+### BDD Coverage Validation
+- Achieved 100% BDD coverage: 222/222 Android, 260/260 Desktop
+- Fixed `validate-coverage.ts` Cucumber escape handling (`\/`, `\(`, `\)`)
+- Added 4 step aliases in `GenericSteps.kt` for phrasing variant coverage
+
 ## 2026-03-02: Android Settings Polish & Admin Expansion (Epics 229-230)
 
 ### Epic 229: Android Admin Panel Expansion
