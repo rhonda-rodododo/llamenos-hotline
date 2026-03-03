@@ -35,3 +35,8 @@ Feature: Multi-Hub Management
     Then I should see a confirmation dialog
     When I confirm the deletion
     Then the hub should be removed
+
+  Scenario: Hub settings show all configuration tabs
+    Given I have selected a hub
+    When I open hub settings
+    Then I should see telephony, messaging, and general tabs
