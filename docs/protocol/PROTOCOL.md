@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Status:** Canonical reference for all client implementations
-**Audience:** Desktop (Tauri), Mobile (React Native), and any third-party client implementors
+**Audience:** Desktop (Tauri), Mobile (Native Swift/Kotlin), and any third-party client implementors
 
 This document is the definitive wire-format specification for interoperating with the Llamenos server. Every byte layout, algorithm, and endpoint is described with sufficient precision to build a conforming client from scratch. All cryptographic constants, key derivation functions, and wire formats are derived directly from the source-of-truth implementation.
 

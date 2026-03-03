@@ -53,7 +53,7 @@ Transform Llamenos from a "server-side encrypted" model to a **true zero-knowled
 │                              CLIENT LAYER                                    │
 │  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐       │
 │  │  Web Client       │  │  Desktop Client   │  │  Mobile Client    │       │
-│  │  (React SPA)      │  │  (Tauri)          │  │  (React Native)   │       │
+│  │  (React SPA)      │  │  (Tauri)          │  │  (Swift & Kotlin)  │       │
 │  └─────────┬─────────┘  └─────────┬─────────┘  └─────────┬─────────┘       │
 │            │                      │                      │                  │
 │            └──────────────────────┼──────────────────────┘                  │
@@ -252,7 +252,7 @@ Even with Nostr relay handling all real-time events, we still need a thin REST A
 
 8. **Epic 75: Native Clients** (Future)
    - Tauri desktop (macOS + Windows)
-   - React Native mobile (Twilio RN SDK)
+   - Native Swift (iOS) and Kotlin (Android) mobile clients
    - Two-tier push encryption (wake key + nsec)
 
 ## Key Architecture Principles (From Security Audit)

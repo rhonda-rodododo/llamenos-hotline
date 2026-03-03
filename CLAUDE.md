@@ -70,7 +70,7 @@ apps/
     tauri.conf.json   # Tauri config (CSP, window, bundle, plugins)
     capabilities/     # Tauri capability permissions
   worker/             # Cloudflare Worker backend
-    durable-objects/  # 6 DOs: IdentityDO, SettingsDO, RecordsDO, ShiftManagerDO, CallRouterDO, ConversationDO
+    durable-objects/  # 7 DOs: IdentityDO, SettingsDO, RecordsDO, ShiftManagerDO, CallRouterDO, ConversationDO, BlastDO
     telephony/        # TelephonyAdapter interface + 5 adapters
     messaging/        # MessagingAdapter interface + SMS, WhatsApp, Signal adapters
     lib/              # Server utilities (auth, crypto, webauthn, do-router)
@@ -124,7 +124,8 @@ docs/
 - **MessagingAdapter**: Abstract interface for text messaging channels (SMS, WhatsApp, Signal). Inbound webhooks route to ConversationDO.
 - **Parallel ringing**: All on-shift, non-busy volunteers ring simultaneously. First pickup terminates other calls.
 - **Shift routing**: Automated, recurring schedule with ring groups. Fallback group if no schedule is defined.
-- **Durable Objects**: Six singletons accessed via `idFromName()` — IdentityDO, SettingsDO, RecordsDO, ShiftManagerDO, CallRouterDO, ConversationDO. Routed via `DORouter` (lightweight method+path router).
+- **Durable Objects**: Seven singletons accessed via `idFromName()` — IdentityDO, SettingsDO, RecordsDO, ShiftManagerDO, CallRouterDO, ConversationDO, BlastDO. Routed via `DORouter` (lightweight method+path router).
+- **BlastDO**: Handles message broadcast queues and delivery tracking. Manages batched delivery of bulk messages (SMS/WhatsApp/Signal) with per-recipient status tracking and retry logic.
 - **E2EE notes**: Per-note forward secrecy — unique random key per note, wrapped via ECIES for each reader. Dual-encrypted: one copy for volunteer, one for each admin (multi-admin envelopes).
 - **E2EE messaging**: Per-message envelope encryption — random symmetric key, ECIES-wrapped for assigned volunteer + each admin. Server encrypts inbound on webhook receipt, discards plaintext immediately.
 - **Platform abstraction**: `src/client/lib/platform.ts` is Tauri-only — all crypto calls route through Rust via IPC. The nsec NEVER enters the webview. Always import from `platform.ts`, never from `@tauri-apps/*` directly.

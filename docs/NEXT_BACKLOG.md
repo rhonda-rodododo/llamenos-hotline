@@ -321,7 +321,7 @@ Refactor all three platforms to use real BDD runners driven by shared `.feature`
 - [x] **[Epic 226: Playwright-BDD Integration](epics/epic-226-playwright-bdd-integration.md)** — playwright-bdd v8.4.2, 26 step files, 607 step definitions, 224 BDD tests
 
 ### iOS Preparation
-- [ ] **[Epic 227: iOS BDD E2E Foundation](epics/epic-227-ios-bdd-e2e-foundation.md)** — XCUITest with BDD naming, XCTContext.runActivity for Given/When/Then, validate-coverage.ts extension *(blocked: requires macOS)*
+- [ ] **[Epic 227: iOS BDD E2E Foundation](epics/epic-227-ios-bdd-e2e-foundation.md)** — XCUITest with BDD naming, XCTContext.runActivity for Given/When/Then, validate-coverage.ts extension *(unblocked: Mac M4 available)*
 
 **Dependency order:** 223 → (224 | 225 | 226) → 227
 
@@ -350,9 +350,22 @@ DRY up the cross-platform BDD test suite: consolidate shared specs, migrate desk
 - [x] **[Epic 233: Worker Backend Test Suite](epics/epic-233-worker-backend-test-suite.md)** — Vitest unit tests (295 passing), 8 backend BDD feature files, 6 integration test stubs, CI workflow updated
 
 ### iOS
-- [ ] **[Epic 234: iOS BDD Test Expansion](epics/epic-234-ios-bdd-test-expansion.md)** — Expand from 76 to ~200 tests, XCTContext.runActivity BDD naming, fix validate-coverage.ts iOS scanning *(blocked: requires macOS)*
+- [ ] **[Epic 234: iOS BDD Test Expansion](epics/epic-234-ios-bdd-test-expansion.md)** — Expand from 76 to ~200 tests, XCTContext.runActivity BDD naming, fix validate-coverage.ts iOS scanning *(unblocked: Mac M4 available)*
 
-**Dependency order:** 231 ✓ → 232 ✓ | 233 ✓ | (234 blocked on macOS)
+**Dependency order:** 231 ✓ → 232 ✓ | 233 ✓ | 234 (unblocked)
+
+## Production Deployment & Node.js Primacy (Epics 235-237)
+
+Architecture audit (2026-03-03) identified that Node.js + PostgreSQL is the real production path, but CF Workers is still treated as primary in docs/tests. Also, the Mac M4 unblocks iOS builds.
+
+### Node.js E2E & Documentation
+- [ ] **[Epic 235: Node.js Platform E2E Test Parity](epics/epic-235-nodejs-e2e-test-parity.md)** — Playwright tests against Docker Compose, PostgreSQL integration tests, alarm polling, MinIO, WebSocket shim, CI workflow
+- [ ] **[Epic 236: Node.js Production Deployment Primacy](epics/epic-236-production-deployment-primacy.md)** — Reframe docs to treat Node.js as primary production path, CF as demo. Add `bun run dev:node`, architecture diagrams, production checklist
+
+### iOS Build Pipeline (Mac M4)
+- [ ] **[Epic 237: iOS Build Pipeline on Local Mac M4](epics/epic-237-ios-mac-m4-build-pipeline.md)** — XCFramework build, swift build/test, XCUITest on simulator, remote build scripts. Unblocks Epics 214 (iOS), 227, 234
+
+**Dependency order:** 237 → (214 iOS | 227 | 234) | (235 | 236)
 
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
