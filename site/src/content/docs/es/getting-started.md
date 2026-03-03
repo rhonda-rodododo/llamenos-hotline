@@ -1,138 +1,89 @@
 ---
 title: Primeros Pasos
-description: Despliega tu propia linea de Llamenos en menos de una hora.
+description: Despliega tu propia linea de Llamenos en minutos.
 ---
 
-Despliega tu propia linea de Llamenos en menos de una hora. Necesitaras una cuenta de Cloudflare, al menos un canal de comunicacion (voz, SMS, WhatsApp o Signal) y una maquina con Bun instalado.
+Pon en marcha una linea de Llamenos localmente o en un servidor. Solo se necesita Docker — no se requiere Node.js, Bun ni otros entornos de ejecucion.
+
+## Como funciona
+
+Cuando alguien llama a tu numero de linea, Llamenos enruta la llamada a todos los voluntarios de turno simultaneamente. El primer voluntario que contesta se conecta y los demas dejan de sonar. Despues de la llamada, el voluntario puede guardar notas cifradas sobre la conversacion.
+
+```mermaid
+flowchart TD
+    A["Llamada entrante"] --> B{"Turno activo?"}
+    B -->|Si| C["Sonar a todos los voluntarios de turno"]
+    B -->|No| D["Sonar al grupo de respaldo"]
+    C --> E{"Primer pickup"}
+    D --> E
+    E -->|"Contestada"| F["Conectar llamada"]
+    E -->|"Sin respuesta"| G["Buzon de voz"]
+    F --> H["Guardar nota cifrada"]
+```
+
+Lo mismo aplica para mensajes SMS, WhatsApp y Signal — aparecen en una vista unificada de **Conversaciones** donde los voluntarios pueden responder.
 
 ## Requisitos previos
 
-- [Bun](https://bun.sh) v1.0 o superior (entorno de ejecucion y gestor de paquetes)
-- Una cuenta de [Cloudflare](https://www.cloudflare.com) (el nivel gratuito funciona para desarrollo)
-- Al menos un canal de comunicacion:
-  - **Voz**: [Twilio](https://www.twilio.com) es el mas facil para empezar, pero tambien se soporta [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo) y [Asterisk autoalojado](/docs/setup-asterisk). Consulta la [comparativa de proveedores](/docs/telephony-providers).
-  - **SMS**: Incluido con Twilio, SignalWire, Vonage o Plivo — consulta [Configurar SMS](/docs/setup-sms).
-  - **WhatsApp**: Requiere una cuenta de [Meta Business](https://business.facebook.com) — consulta [Configurar WhatsApp](/docs/setup-whatsapp).
-  - **Signal**: Requiere un bridge [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) autoalojado — consulta [Configurar Signal](/docs/setup-signal).
+- [Docker](https://docs.docker.com/get-docker/) con Docker Compose v2
+- `openssl` (preinstalado en la mayoria de sistemas Linux y macOS)
 - Git
 
-## 1. Clonar e instalar
+## Inicio rapido
 
 ```bash
 git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
-bun install
+./scripts/docker-setup.sh
 ```
 
-## 2. Generar el par de claves del administrador
+Esto genera todos los secretos necesarios, construye la aplicacion e inicia los servicios. Una vez listo, visita **http://localhost** y el asistente de configuracion te guiara para:
 
-Genera un par de claves Nostr para la cuenta de administrador. Esto produce una clave secreta (nsec) y una clave publica (npub/hex).
+1. **Crear tu cuenta de administrador** — genera un par de claves criptograficas en tu navegador
+2. **Nombrar tu linea** — establece el nombre para mostrar
+3. **Elegir canales** — habilita Voz, SMS, WhatsApp, Signal y/o Reportes
+4. **Configurar proveedores** — ingresa las credenciales de cada canal habilitado
+5. **Revisar y finalizar**
+
+### Probar el modo demo
+
+Para explorar con datos de ejemplo y login de un clic (sin necesidad de crear cuenta):
 
 ```bash
-bun run bootstrap-admin
+./scripts/docker-setup.sh --demo
 ```
 
-Guarda el `nsec` de forma segura: es tu credencial de inicio de sesion como administrador. Necesitaras la clave publica en formato hex para el siguiente paso.
+## Despliegue en produccion
 
-## 3. Configurar secretos
-
-Crea un archivo `.dev.vars` en la raiz del proyecto para desarrollo local. Como minimo necesitas la clave publica del administrador. Las credenciales de Twilio son opcionales si planeas configurar los canales a traves del asistente de configuracion.
+Para un servidor con dominio real y TLS automatico:
 
 ```bash
-# .dev.vars
-ADMIN_PUBKEY=tu_clave_publica_hex_del_paso_2
-ENVIRONMENT=development
-
-# Proveedor de voz (opcional — se puede configurar via interfaz de admin)
-TWILIO_ACCOUNT_SID=tu_twilio_account_sid
-TWILIO_AUTH_TOKEN=tu_twilio_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
-
-# WhatsApp (opcional — se puede configurar via interfaz de admin)
-# WHATSAPP_ACCESS_TOKEN=tu_token_de_acceso_meta
-# WHATSAPP_VERIFY_TOKEN=tu_token_de_verificacion
-# WHATSAPP_PHONE_NUMBER_ID=tu_id_de_numero
+./scripts/docker-setup.sh --domain linea.tuorg.com --email admin@tuorg.com
 ```
 
-Para produccion, configura estos como secretos de Wrangler:
+Caddy provisiona automaticamente certificados TLS via Let's Encrypt. Asegurate de que los puertos 80 y 443 esten abiertos.
 
-```bash
-bunx wrangler secret put ADMIN_PUBKEY
+Consulta la [guia de despliegue con Docker Compose](/docs/deploy-docker) para detalles completos sobre hardening del servidor, backups, monitoreo y servicios opcionales.
 
-# Si usas Twilio como proveedor de voz por defecto via variables de entorno:
-bunx wrangler secret put TWILIO_ACCOUNT_SID
-bunx wrangler secret put TWILIO_AUTH_TOKEN
-bunx wrangler secret put TWILIO_PHONE_NUMBER
+## Configurar webhooks
 
-# Si usas WhatsApp via variables de entorno:
-bunx wrangler secret put WHATSAPP_ACCESS_TOKEN
-bunx wrangler secret put WHATSAPP_VERIFY_TOKEN
-bunx wrangler secret put WHATSAPP_PHONE_NUMBER_ID
-```
+Despues de desplegar, apunta los webhooks de tu proveedor de telefonia a tu URL de despliegue:
 
-> **Nota**: Puedes configurar todos los proveedores y canales a traves de la interfaz de Configuracion del administrador o el asistente de configuracion en lugar de variables de entorno. Las variables de entorno sirven como respaldo para voz (solo Twilio). Para proveedores que no sean Twilio, SMS, WhatsApp y Signal, usa la interfaz de administracion. Consulta la [guia de configuracion de tu proveedor](/docs/telephony-providers).
-
-## 4. Configurar los webhooks
-
-Configura tus proveedores para enviar webhooks a tu Worker. Las URLs dependen de los canales que habilites:
-
-**Voz** (todos los proveedores):
-- **Llamada entrante**: `https://tu-worker.tu-dominio.com/telephony/incoming` (POST)
-- **Callback de estado**: `https://tu-worker.tu-dominio.com/telephony/status` (POST)
-
-**SMS** (si esta habilitado):
-- **SMS entrante**: `https://tu-worker.tu-dominio.com/api/messaging/sms/webhook` (POST)
-
-**WhatsApp** (si esta habilitado):
-- **Webhook**: `https://tu-worker.tu-dominio.com/api/messaging/whatsapp/webhook` (GET para verificacion, POST para mensajes)
-
-**Signal** (si usas el bridge):
-- Configura el bridge signal-cli para reenviar a: `https://tu-worker.tu-dominio.com/api/messaging/signal/webhook`
+| Webhook | URL |
+|---------|-----|
+| Voz (entrante) | `https://tu-dominio/api/telephony/incoming` |
+| Voz (estado) | `https://tu-dominio/api/telephony/status` |
+| SMS | `https://tu-dominio/api/messaging/sms/webhook` |
+| WhatsApp | `https://tu-dominio/api/messaging/whatsapp/webhook` |
+| Signal | Configura el bridge para reenviar a `https://tu-dominio/api/messaging/signal/webhook` |
 
 Para configuracion especifica: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk), [SMS](/docs/setup-sms), [WhatsApp](/docs/setup-whatsapp), [Signal](/docs/setup-signal).
 
-Para desarrollo local, necesitaras un tunel (como Cloudflare Tunnel o ngrok) para exponer tu Worker local a tus proveedores.
-
-## 5. Ejecutar localmente
-
-Inicia el servidor de desarrollo del Worker (backend + frontend):
-
-```bash
-# Construir los assets del frontend primero
-bun run build
-
-# Iniciar el servidor de desarrollo del Worker
-bun run dev:worker
-```
-
-La aplicacion estara disponible en `http://localhost:8787`. Inicia sesion con el nsec de administrador del paso 2.
-
-### Asistente de configuracion del primer inicio
-
-En tu primer inicio de sesion como administrador, la aplicacion te redirigira al **asistente de configuracion**. Este flujo guiado te ayuda a:
-
-1. **Nombrar tu linea** — establece el nombre para mostrar
-2. **Elegir canales** — habilita Voz, SMS, WhatsApp, Signal y/o Reportes
-3. **Configurar proveedores** — ingresa las credenciales de cada canal habilitado
-4. **Revisar y finalizar** — el asistente marca la configuracion como completada
-
-Puedes reconfigurar todos estos ajustes despues desde **Configuracion del administrador**.
-
-## 6. Desplegar en Cloudflare
-
-```bash
-bun run deploy
-```
-
-Esto construye el frontend y despliega el Worker con Durable Objects en Cloudflare. Despues de desplegar, actualiza las URLs de webhook de tu proveedor de telefonia para que apunten a la URL del Worker en produccion.
-
 ## Siguientes pasos
 
-- [Guia de Administrador](/es/docs/admin-guide) — agrega voluntarios, crea turnos, configura canales y ajustes
-- [Guia de Voluntario](/es/docs/volunteer-guide) — comparte con tus voluntarios
-- [Guia de Reportero](/es/docs/reporter-guide) — configura el rol de reportero para envio de reportes cifrados
-- [Configurar SMS](/es/docs/setup-sms) — habilita la mensajeria SMS
-- [Configurar WhatsApp](/es/docs/setup-whatsapp) — conecta WhatsApp Business
-- [Configurar Signal](/es/docs/setup-signal) — configura el canal de Signal
-- [Proveedores de Telefonia](/es/docs/telephony-providers) — compara proveedores de voz y cambia de Twilio si lo necesitas
-- [Modelo de Seguridad](/es/security) — entiende el cifrado y el modelo de amenazas
+- [Despliegue con Docker Compose](/docs/deploy-docker) — guia completa de despliegue en produccion con backups y monitoreo
+- [Guia de Administrador](/docs/admin-guide) — agrega voluntarios, crea turnos, configura canales y ajustes
+- [Guia de Voluntario](/docs/volunteer-guide) — comparte con tus voluntarios
+- [Guia de Reportero](/docs/reporter-guide) — configura el rol de reportero para envio de reportes cifrados
+- [Proveedores de Telefonia](/docs/telephony-providers) — compara proveedores de voz
+- [Modelo de Seguridad](/security) — entiende el cifrado y el modelo de amenazas
