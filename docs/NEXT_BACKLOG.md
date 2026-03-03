@@ -360,7 +360,7 @@ Architecture audit (2026-03-03) identified that Node.js + PostgreSQL is the real
 
 ### Node.js E2E & Documentation
 - [ ] **[Epic 235: Node.js Platform E2E Test Parity](epics/epic-235-nodejs-e2e-test-parity.md)** — Playwright tests against Docker Compose, PostgreSQL integration tests, alarm polling, MinIO, WebSocket shim, CI workflow
-- [ ] **[Epic 236: Node.js Production Deployment Primacy](epics/epic-236-production-deployment-primacy.md)** — Reframe docs to treat Node.js as primary production path, CF as demo. Add `bun run dev:node`, architecture diagrams, production checklist
+- [ ] **[Epic 236: Node.js Production Deployment Primacy & Infrastructure Hardening](epics/epic-236-production-deployment-primacy.md)** — Reframe docs (Node.js primary, CF demo). Fix: health check dependency verification, Helm MinIO→StatefulSet + HPA + PDB + ServiceMonitor, Docker Compose rate limiting + logging + first-run script, Ansible MinIO backup + restore testing, OpenTofu SSH restriction, Prometheus metrics endpoint, structured JSON logging, `bun run dev:node` local dev server, production checklist
 
 ### iOS Build Pipeline (Mac M4)
 - [ ] **[Epic 237: iOS Build Pipeline on Local Mac M4](epics/epic-237-ios-mac-m4-build-pipeline.md)** — XCFramework build, swift build/test, XCUITest on simulator, remote build scripts. Unblocks Epics 214 (iOS), 227, 234
