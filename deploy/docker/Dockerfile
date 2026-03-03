@@ -10,7 +10,7 @@ FROM oven/bun:1@sha256:856da45d07aeb62eb38ea3e7f9e1794c0143a4ff63efb00e6c4491b62
 WORKDIR /app
 COPY package.json ./
 # Strip workspace references — Docker only builds the server, not the full monorepo
-RUN sed -i '/"workspaces"/,/]/d' package.json
+RUN node -e "const p=JSON.parse(require('fs').readFileSync('package.json','utf-8'));delete p.workspaces;require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))"
 RUN bun install --ignore-scripts
 COPY src/ src/
 COPY apps/worker/ apps/worker/
@@ -23,7 +23,7 @@ RUN node esbuild.node.mjs
 FROM oven/bun:1@sha256:856da45d07aeb62eb38ea3e7f9e1794c0143a4ff63efb00e6c4491b627e2a521 AS deps
 WORKDIR /app
 COPY package.json ./
-RUN sed -i '/"workspaces"/,/]/d' package.json
+RUN node -e "const p=JSON.parse(require('fs').readFileSync('package.json','utf-8'));delete p.workspaces;require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))"
 RUN bun install --production --ignore-scripts
 
 # Stage 3: Production
@@ -62,6 +62,6 @@ ENV PLATFORM=node \
 EXPOSE 3000
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+  CMD curl -f http://localhost:3000/api/health/ready || exit 1
 
 CMD ["node", "dist/server/index.js"]

@@ -35,4 +35,17 @@
 	}
 
 	encode gzip zstd
+
+	# JSON access logging for structured log aggregation (Loki, ELK, CloudWatch)
+	log {
+		output stdout
+		format json
+		level INFO
+	}
+
+	# Rate limiting: requires caddy-rate-limit plugin (not in default Caddy image).
+	# To enable, build a custom Caddy image with:
+	#   xcaddy build --with github.com/mholt/caddy-ratelimit
+	# Then add:
+	#   rate_limit {remote.ip} 100r/m
 }

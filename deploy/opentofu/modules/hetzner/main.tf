@@ -23,13 +23,13 @@ resource "hcloud_firewall" "server" {
     managed = "opentofu"
   }
 
-  # SSH — consider restricting source_ips to your admin IPs in production
+  # SSH — restricted to admin CIDRs (set via admin_ssh_cidrs variable)
   rule {
     description = "SSH"
     direction   = "in"
     protocol    = "tcp"
     port        = "22"
-    source_ips  = ["0.0.0.0/0", "::/0"]
+    source_ips  = var.admin_ssh_cidrs
   }
 
   # HTTP — required for ACME certificate challenges

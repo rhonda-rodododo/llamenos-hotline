@@ -26,7 +26,7 @@ await esbuild.build({
   platform: 'node',
   target: 'node20',
   format: 'esm',
-  sourcemap: true,
+  sourcemap: process.env.NODE_ENV !== 'production',
   minify: false,
 
   // Key alias: swap CF's DurableObject with our Node.js shim

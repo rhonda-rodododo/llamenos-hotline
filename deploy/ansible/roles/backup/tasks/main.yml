@@ -16,6 +16,18 @@
     name: age
     state: present
 
+- name: Install MinIO client (mc)
+  ansible.builtin.shell: |
+    if command -v mc &>/dev/null; then
+      echo "already installed"
+    else
+      curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+      chmod +x /usr/local/bin/mc
+      echo "installed"
+    fi
+  register: mc_install
+  changed_when: "'installed' in mc_install.stdout"
+
 - name: Install rclone
   ansible.builtin.shell: |
     if command -v rclone &>/dev/null; then
@@ -94,6 +106,22 @@
 
       DUMP_SIZE="$(stat -c%s "${TMPDIR}/dump.sql.gz")"
       log "Database dump: ${DUMP_SIZE} bytes (compressed)"
+
+      # Step 1b: Mirror MinIO bucket
+      if command -v mc &>/dev/null; then
+        log "Backing up MinIO bucket..."
+        mc alias set llamenos "http://localhost:9000" "${MINIO_ROOT_USER:-}" "${MINIO_ROOT_PASSWORD:-}" --api S3v4 2>/dev/null || true
+        if mc ls llamenos/{{ minio_bucket | default('llamenos-files') }} &>/dev/null; then
+          mc mirror --overwrite llamenos/{{ minio_bucket | default('llamenos-files') }} "${TMPDIR}/minio-files/" 2>/dev/null
+          tar -czf "${TMPDIR}/minio-files.tar.gz" -C "${TMPDIR}" minio-files/
+          MINIO_SIZE="$(stat -c%s "${TMPDIR}/minio-files.tar.gz")"
+          log "MinIO backup: ${MINIO_SIZE} bytes (compressed)"
+        else
+          log "MinIO bucket not found or empty, skipping"
+        fi
+      else
+        log "mc (MinIO client) not installed, skipping MinIO backup"
+      fi
 
       # Step 2: Encrypt with age
       if [ -n "${AGE_RECIPIENT}" ]; then

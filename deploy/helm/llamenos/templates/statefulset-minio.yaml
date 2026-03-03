@@ -1,12 +1,13 @@
 {{- if .Values.minio.enabled }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "llamenos.fullname" . }}-minio
   labels:
     {{- include "llamenos.labels" . | nindent 4 }}
     app.kubernetes.io/component: minio
 spec:
+  serviceName: {{ include "llamenos.fullname" . }}-minio
   replicas: 1
   selector:
     matchLabels:
@@ -57,27 +58,21 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
-      volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: {{ include "llamenos.fullname" . }}-minio
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "llamenos.fullname" . }}-minio
-  labels:
-    {{- include "llamenos.labels" . | nindent 4 }}
-    app.kubernetes.io/component: minio
-spec:
-  accessModes:
-    - ReadWriteOnce
-  {{- if .Values.minio.persistence.storageClass }}
-  storageClassName: {{ .Values.minio.persistence.storageClass | quote }}
-  {{- end }}
-  resources:
-    requests:
-      storage: {{ .Values.minio.persistence.size }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "llamenos.labels" . | nindent 10 }}
+          app.kubernetes.io/component: minio
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- if .Values.minio.persistence.storageClass }}
+        storageClassName: {{ .Values.minio.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.minio.persistence.size }}
 ---
 apiVersion: v1
 kind: Service

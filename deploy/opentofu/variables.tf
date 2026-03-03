@@ -60,3 +60,9 @@ variable "enable_backups" {
   type        = bool
   default     = true
 }
+
+variable "admin_ssh_cidrs" {
+  description = "CIDR ranges allowed to SSH into the server. Restrict to admin IPs in production."
+  type        = list(string)
+  default     = ["0.0.0.0/0", "::/0"]
+}

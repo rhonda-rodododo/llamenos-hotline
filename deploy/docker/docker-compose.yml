@@ -66,8 +66,14 @@ services:
         condition: service_healthy
       strfry:
         condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        tag: "llamenos-app"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health/ready"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -131,7 +137,9 @@ services:
 
   # ── Core: Nostr Relay (strfry) ────────────────────────────
   strfry:
-    image: dockurr/strfry:latest
+    # Pin to specific tag for reproducible deployments
+    # Check https://hub.docker.com/r/dockurr/strfry/tags for latest stable version
+    image: dockurr/strfry:1.0.1
     restart: unless-stopped
     ulimits:
       nofile:

@@ -28,6 +28,8 @@ import hubRoutes from './routes/hubs'
 import blastsRoutes from './routes/blasts'
 import devicesRoutes from './routes/devices'
 import contactsRoutes from './routes/contacts'
+import healthRoutes from './routes/health'
+import metricsRoutes from './routes/metrics'
 import { hubContext } from './middleware/hub'
 import { getDOs } from './lib/do-access'
 
@@ -37,7 +39,8 @@ const app = new Hono<AppEnv>()
 const api = new Hono<AppEnv>()
 
 // Health check — before CORS middleware (internal probes only, no external access needed)
-api.get('/health', (c) => c.json({ status: 'ok' }))
+api.route('/health', healthRoutes)
+api.route('/metrics', metricsRoutes)
 
 api.use('*', cors)
 

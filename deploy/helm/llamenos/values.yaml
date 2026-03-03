@@ -89,6 +89,13 @@ nostr:
   persistence:
     size: 5Gi
     storageClass: ""
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
 
 # Signal CLI messaging bridge
 signal:
@@ -98,6 +105,22 @@ signal:
     tag: "0.92@sha256:702db336aa1a87611595e66755c9ccf65b24c25589857301eabef1d46056b3c5"
   persistence:
     size: 1Gi
+
+# Autoscaling
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Monitoring (Prometheus)
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    additionalLabels: {}
 
 # Network policies (restrict pod-to-pod traffic)
 networkPolicy:

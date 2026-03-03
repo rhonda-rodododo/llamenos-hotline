@@ -49,7 +49,19 @@
     "i18n:validate": "bun run packages/i18n/tools/i18n-codegen.ts --validate",
     "codegen": "bun run packages/protocol/tools/codegen.ts",
     "codegen:check": "bun run packages/protocol/tools/codegen.ts --check",
-    "test-specs:validate": "bun packages/test-specs/tools/validate-coverage.ts"
+    "test-specs:validate": "bun packages/test-specs/tools/validate-coverage.ts",
+    "ios:status": "bash scripts/ios-build.sh status",
+    "ios:setup": "bash scripts/ios-build.sh setup",
+    "ios:sync": "bash scripts/ios-build.sh sync",
+    "ios:build": "bash scripts/ios-build.sh build",
+    "ios:test": "bash scripts/ios-build.sh test",
+    "ios:xcframework": "bash scripts/ios-build.sh xcframework",
+    "ios:uitest": "bash scripts/ios-build.sh uitest",
+    "ios:all": "bash scripts/ios-build.sh all",
+    "test:integration:node": "bunx vitest run --config vitest.integration.node.config.ts",
+    "dev:node": "bash scripts/dev-node.sh",
+    "dev:node:stop": "bash scripts/dev-node.sh stop",
+    "dev:node:logs": "bash scripts/dev-node.sh logs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.993.0",

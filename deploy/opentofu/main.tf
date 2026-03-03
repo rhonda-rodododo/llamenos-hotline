@@ -23,6 +23,7 @@ module "hetzner" {
   image               = var.image
   domain              = var.domain
   enable_backups      = var.enable_backups
+  admin_ssh_cidrs     = var.admin_ssh_cidrs
 }
 
 module "inventory" {
