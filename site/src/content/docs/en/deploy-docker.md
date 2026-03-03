@@ -3,153 +3,147 @@ title: "Deploy: Docker Compose"
 description: Deploy Llamenos on your own server with Docker Compose.
 ---
 
-This guide walks you through deploying Llamenos with Docker Compose on a single server. You'll have a fully functional hotline with automatic HTTPS, PostgreSQL database, object storage, and optional transcription — all managed by Docker Compose.
+This guide walks you through deploying Llamenos with Docker Compose on a single server. You'll have a fully functional hotline with automatic HTTPS, PostgreSQL database, object storage, real-time relay, and optional transcription — all managed by Docker Compose.
 
 ## Prerequisites
 
 - A Linux server (Ubuntu 22.04+, Debian 12+, or similar)
 - [Docker Engine](https://docs.docker.com/engine/install/) v24+ with Docker Compose v2
-- A domain name with DNS pointing to your server's IP
-- [Bun](https://bun.sh/) installed locally (for generating the admin keypair)
+- `openssl` (pre-installed on most systems)
+- A domain name with DNS pointing to your server's IP (for production)
 
-## 1. Clone the repository
+## Quick start (local)
+
+To try Llamenos locally:
 
 ```bash
 git clone https://github.com/your-org/llamenos.git
 cd llamenos
+./scripts/docker-setup.sh
 ```
 
-## 2. Generate the admin keypair
+Visit **http://localhost** and follow the setup wizard to create your admin account.
 
-You need a Nostr keypair for the admin account. Run this on your local machine (or the server if Bun is installed):
+## Production deployment
 
 ```bash
-bun install
-bun run bootstrap-admin
+git clone https://github.com/your-org/llamenos.git
+cd llamenos
+./scripts/docker-setup.sh --domain hotline.yourorg.com --email admin@yourorg.com
 ```
 
-Save the **nsec** (your admin login credential) securely. Copy the **hex public key** — you'll need it in the next step.
+The setup script:
+1. Generates strong random secrets (database password, HMAC key, MinIO credentials, Nostr relay secret)
+2. Writes them to `deploy/docker/.env`
+3. Builds and starts all services
+4. Waits for the app to become healthy
 
-## 3. Configure environment
+Visit `https://hotline.yourorg.com` and follow the setup wizard to create your admin account and configure channels.
+
+### Manual setup
+
+If you prefer to configure everything manually instead of using the script:
 
 ```bash
 cd deploy/docker
 cp .env.example .env
 ```
 
-Edit `.env` with your values:
+Edit `.env` and fill in the required secrets. Generate random values:
+
+```bash
+# For hex secrets (HMAC_SECRET, SERVER_NOSTR_SECRET):
+openssl rand -hex 32
+
+# For passwords (PG_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY):
+openssl rand -base64 24
+```
+
+Set your domain and email for TLS certificates:
 
 ```env
-# Required
-ADMIN_PUBKEY=your_hex_public_key_from_step_2
-DOMAIN=hotline.yourdomain.com
-
-# PostgreSQL password (generate a strong one)
-PG_PASSWORD=$(openssl rand -base64 24)
-
-# Hotline display name (shown in IVR prompts)
-HOTLINE_NAME=Your Hotline
-
-# Voice provider (optional — can configure via admin UI)
-TWILIO_ACCOUNT_SID=your_sid
-TWILIO_AUTH_TOKEN=your_token
-TWILIO_PHONE_NUMBER=+1234567890
-
-# MinIO credentials (change from defaults!)
-MINIO_ACCESS_KEY=your-access-key
-MINIO_SECRET_KEY=your-secret-key-min-8-chars
+DOMAIN=hotline.yourorg.com
+ACME_EMAIL=admin@yourorg.com
 ```
 
-> **Important**: Set strong, unique passwords for `PG_PASSWORD`, `MINIO_ACCESS_KEY`, and `MINIO_SECRET_KEY`.
-
-## 4. Configure your domain
-
-Edit the `Caddyfile` to set your domain:
-
-```
-hotline.yourdomain.com {
-    reverse_proxy app:3000
-    encode gzip
-    header {
-        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-        Referrer-Policy "no-referrer"
-    }
-}
-```
-
-Caddy automatically obtains and renews Let's Encrypt TLS certificates for your domain. Make sure ports 80 and 443 are open in your firewall.
-
-## 5. Start the services
+Then start the services:
 
 ```bash
 docker compose up -d
 ```
 
-This starts four core services:
+## Core services
+
+The setup starts five core services:
 
 | Service | Purpose | Port |
 |---------|---------|------|
-| **app** | Llamenos application | 3000 (internal) |
+| **app** | Llamenos application (Node.js) | 3000 (internal) |
 | **postgres** | PostgreSQL database | 5432 (internal) |
-| **caddy** | Reverse proxy + TLS | 80, 443 |
-| **minio** | File/recording storage | 9000, 9001 (internal) |
+| **caddy** | Reverse proxy + automatic TLS | 80, 443 |
+| **minio** | S3-compatible file storage | 9000, 9001 (internal) |
+| **strfry** | Nostr relay for real-time events | 7777 (internal) |
 
 Check that everything is running:
 
 ```bash
-docker compose ps
-docker compose logs app --tail 50
+docker compose -f deploy/docker/docker-compose.yml ps
+docker compose -f deploy/docker/docker-compose.yml logs app --tail 50
 ```
 
 Verify the health endpoint:
 
 ```bash
-curl https://hotline.yourdomain.com/api/health
-# → {"status":"ok"}
+curl https://hotline.yourorg.com/api/health
+# {"status":"ok"}
 ```
 
-## 6. First login
+## First login
 
-Open `https://hotline.yourdomain.com` in your browser. Log in with the admin nsec from step 2. The setup wizard will guide you through:
+Open your hotline URL in a browser. The setup wizard will guide you through:
 
-1. **Naming your hotline** — display name for the app
-2. **Choosing channels** — enable Voice, SMS, WhatsApp, Signal, and/or Reports
-3. **Configuring providers** — enter credentials for each channel
-4. **Review and finish**
+1. **Create admin account** — generates a cryptographic keypair in your browser
+2. **Name your hotline** — set the display name
+3. **Choose channels** — enable Voice, SMS, WhatsApp, Signal, and/or Reports
+4. **Configure providers** — enter credentials for each channel
+5. **Review and finish**
 
-## 7. Configure webhooks
+## Configure webhooks
 
-Point your telephony provider's webhooks to your domain. See the provider-specific guides for details:
+Point your telephony provider's webhooks to your domain:
 
-- **Voice** (all providers): `https://hotline.yourdomain.com/telephony/incoming`
-- **SMS**: `https://hotline.yourdomain.com/api/messaging/sms/webhook`
-- **WhatsApp**: `https://hotline.yourdomain.com/api/messaging/whatsapp/webhook`
-- **Signal**: Configure bridge to forward to `https://hotline.yourdomain.com/api/messaging/signal/webhook`
+- **Voice**: `https://hotline.yourorg.com/telephony/incoming`
+- **SMS**: `https://hotline.yourorg.com/api/messaging/sms/webhook`
+- **WhatsApp**: `https://hotline.yourorg.com/api/messaging/whatsapp/webhook`
+- **Signal**: Configure bridge to forward to `https://hotline.yourorg.com/api/messaging/signal/webhook`
+
+See provider-specific guides: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk).
 
 ## Optional: Enable transcription
 
-The Whisper transcription service requires additional RAM (4 GB+). Enable it with the `transcription` profile:
+The Whisper transcription service requires additional RAM (4 GB+):
 
 ```bash
-docker compose --profile transcription up -d
+docker compose -f deploy/docker/docker-compose.yml --profile transcription up -d
 ```
 
-This starts a `faster-whisper-server` container using the `base` model on CPU. For faster transcription:
+Configure the model in your `.env`:
 
-- **Use a larger model**: Edit `docker-compose.yml` and change `WHISPER__MODEL` to `Systran/faster-whisper-small` or `Systran/faster-whisper-medium`
-- **Use GPU acceleration**: Change `WHISPER__DEVICE` to `cuda` and add GPU resources to the whisper service
+```env
+WHISPER_MODEL=Systran/faster-whisper-base   # or small, medium, large
+WHISPER_DEVICE=cpu                           # or cuda for GPU
+```
 
 ## Optional: Enable Asterisk
 
 For self-hosted SIP telephony (see [Asterisk setup](/docs/setup-asterisk)):
 
 ```bash
-# Set the bridge shared secret
-echo "BRIDGE_SECRET=$(openssl rand -hex 32)" >> .env
+# Add credentials to .env first
+echo "ARI_PASSWORD=$(openssl rand -base64 24)" >> deploy/docker/.env
+echo "BRIDGE_SECRET=$(openssl rand -hex 32)" >> deploy/docker/.env
 
-docker compose --profile asterisk up -d
+docker compose -f deploy/docker/docker-compose.yml --profile asterisk up -d
 ```
 
 ## Optional: Enable Signal
@@ -157,36 +151,34 @@ docker compose --profile asterisk up -d
 For Signal messaging (see [Signal setup](/docs/setup-signal)):
 
 ```bash
-docker compose --profile signal up -d
+docker compose -f deploy/docker/docker-compose.yml --profile signal up -d
 ```
-
-You'll need to register the Signal number via the signal-cli container. See the [Signal setup guide](/docs/setup-signal) for instructions.
 
 ## Updating
 
-Pull the latest images and restart:
+Pull the latest code and rebuild:
 
 ```bash
-docker compose pull
-docker compose up -d
+cd /path/to/llamenos
+git pull
+docker compose -f deploy/docker/docker-compose.yml build
+docker compose -f deploy/docker/docker-compose.yml up -d
 ```
 
-Your data is persisted in Docker volumes (`postgres-data`, `minio-data`, etc.) and survives container restarts and image updates.
+Data is persisted in Docker volumes (`postgres-data`, `minio-data`, etc.) and survives container restarts and rebuilds.
 
 ## Backups
 
 ### PostgreSQL
 
-Use `pg_dump` for database backups:
-
 ```bash
-docker compose exec postgres pg_dump -U llamenos llamenos > backup-$(date +%Y%m%d).sql
+docker compose -f deploy/docker/docker-compose.yml exec postgres pg_dump -U llamenos llamenos > backup-$(date +%Y%m%d).sql
 ```
 
 To restore:
 
 ```bash
-docker compose exec -T postgres psql -U llamenos llamenos < backup-20250101.sql
+docker compose -f deploy/docker/docker-compose.yml exec -T postgres psql -U llamenos llamenos < backup-20250101.sql
 ```
 
 ### MinIO storage
@@ -194,10 +186,9 @@ docker compose exec -T postgres psql -U llamenos llamenos < backup-20250101.sql
 MinIO stores uploaded files, recordings, and attachments:
 
 ```bash
-# Using the MinIO client (mc)
-docker compose exec minio mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
-docker compose exec minio mc mirror local/llamenos /tmp/minio-backup
-docker compose cp minio:/tmp/minio-backup ./minio-backup-$(date +%Y%m%d)
+docker compose -f deploy/docker/docker-compose.yml exec minio mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
+docker compose -f deploy/docker/docker-compose.yml exec minio mc mirror local/llamenos /tmp/minio-backup
+docker compose -f deploy/docker/docker-compose.yml cp minio:/tmp/minio-backup ./minio-backup-$(date +%Y%m%d)
 ```
 
 ### Automated backups
@@ -213,25 +204,19 @@ For production, set up a cron job:
 
 ### Health checks
 
-The app exposes a health endpoint at `/api/health`. Docker Compose has built-in health checks. Monitor externally with any HTTP uptime checker.
+The app exposes `/api/health`. Docker Compose has built-in health checks for all services. Monitor externally with any HTTP uptime checker.
 
 ### Logs
 
 ```bash
 # All services
-docker compose logs -f
+docker compose -f deploy/docker/docker-compose.yml logs -f
 
 # Specific service
-docker compose logs -f app
+docker compose -f deploy/docker/docker-compose.yml logs -f app
 
 # Last 100 lines
-docker compose logs --tail 100 app
-```
-
-### Resource usage
-
-```bash
-docker stats
+docker compose -f deploy/docker/docker-compose.yml logs --tail 100 app
 ```
 
 ## Troubleshooting
@@ -239,36 +224,25 @@ docker stats
 ### App won't start
 
 ```bash
-# Check logs for errors
-docker compose logs app
-
-# Verify .env is loaded
-docker compose config
-
-# Check PostgreSQL is healthy
-docker compose ps postgres
-docker compose logs postgres
+docker compose -f deploy/docker/docker-compose.yml logs app
+docker compose -f deploy/docker/docker-compose.yml config  # verify .env is loaded
+docker compose -f deploy/docker/docker-compose.yml ps       # check service health
 ```
 
 ### Certificate issues
 
-Caddy needs ports 80 and 443 open for ACME challenges. Verify with:
+Caddy needs ports 80 and 443 open for ACME challenges:
 
 ```bash
-# Check Caddy logs
-docker compose logs caddy
-
-# Verify ports are accessible
-curl -I http://hotline.yourdomain.com
+docker compose -f deploy/docker/docker-compose.yml logs caddy
+curl -I http://hotline.yourorg.com
 ```
 
 ### MinIO connection errors
 
-Ensure the MinIO service is healthy before the app starts:
-
 ```bash
-docker compose ps minio
-docker compose logs minio
+docker compose -f deploy/docker/docker-compose.yml ps minio
+docker compose -f deploy/docker/docker-compose.yml logs minio
 ```
 
 ## Service architecture
@@ -277,6 +251,7 @@ docker compose logs minio
 flowchart TD
     Internet -->|":80/:443"| Caddy["Caddy<br/>(TLS, reverse proxy)"]
     Caddy -->|":3000"| App["App<br/>(Node.js)"]
+    Caddy -->|"/nostr"| Strfry["strfry<br/>(Nostr relay)"]
     App --> PostgreSQL[("PostgreSQL<br/>:5432")]
     App --> MinIO[("MinIO<br/>:9000")]
     App -.->|"optional"| Whisper["Whisper<br/>:8080"]
@@ -287,3 +262,4 @@ flowchart TD
 - [Admin Guide](/docs/admin-guide) — configure the hotline
 - [Self-Hosting Overview](/docs/self-hosting) — compare deployment options
 - [Kubernetes Deployment](/docs/deploy-kubernetes) — migrate to Helm
+- [QUICKSTART.md](https://github.com/your-org/llamenos/blob/main/docs/QUICKSTART.md) — VPS provisioning and server hardening

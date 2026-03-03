@@ -1,4 +1,4 @@
-# Llámenos
+# Llamenos
 
 A secure, self-hosted crisis response platform. Supports voice calls, SMS, WhatsApp, and Signal — all routed to on-shift volunteers. Volunteers log encrypted notes and manage conversations in a webapp. Admins manage shifts, volunteers, channels, and ban lists. Reporters can submit encrypted reports through a dedicated portal.
 
@@ -49,14 +49,14 @@ Built for organizations that need to protect the identity of callers, reporters,
 
 ```mermaid
 flowchart TD
-    A["📞 Incoming Call"] --> B{"Shift Active?"}
-    B -->|Yes| C["🔔 Ring All On-Shift Volunteers"]
-    B -->|No| D["🔔 Ring Fallback Group"]
+    A["Incoming Call"] --> B{"Shift Active?"}
+    B -->|Yes| C["Ring All On-Shift Volunteers"]
+    B -->|No| D["Ring Fallback Group"]
     C --> E{"First Pickup"}
     D --> E
-    E -->|Answered| F["✅ Connect Call"]
-    E -->|No Answer| G["📬 Voicemail"]
-    F --> H["📝 Save Encrypted Note"]
+    E -->|Answered| F["Connect Call"]
+    E -->|No Answer| G["Voicemail"]
+    F --> H["Save Encrypted Note"]
 ```
 
 ## Features
@@ -67,7 +67,7 @@ flowchart TD
 - **WebRTC browser calling** — volunteers can answer calls directly in the browser
 - **Automated shift scheduling** — recurring schedules with fallback ring groups
 - **Call spam mitigation** — real-time ban lists, voice CAPTCHA, rate limiting
-- **AI transcription** — Cloudflare Workers AI (Whisper), E2EE with dual-key encryption
+- **AI transcription** — self-hosted Whisper, E2EE with dual-key encryption
 - **Voicemail** — automatic fallback when no volunteers are available
 
 ### Multi-Channel Messaging
@@ -95,7 +95,7 @@ flowchart TD
 - **Setup wizard** — guided multi-step setup on first admin login (name, channels, providers)
 - **In-app help** — FAQ, role-specific guides, getting started checklist
 - **Custom IVR voice prompts** — record greetings per language via MediaRecorder; falls back to TTS
-- **Configurable call settings** — queue timeout and voicemail duration (30–300s each)
+- **Configurable call settings** — queue timeout and voicemail duration (30-300s each)
 - **Audit log** — every call, note, message, and admin action tracked with hashed IP metadata
 - **Encrypted data export** — GDPR-compliant notes export encrypted with user's key (.enc format)
 - **Session management** — idle timeout warnings, auto-renewal, and forced re-auth on expiry
@@ -106,167 +106,99 @@ flowchart TD
 
 ## Quick Start
 
-### Prerequisites
-
-- [Bun](https://bun.sh/) (v1.0+)
-- A [Cloudflare](https://cloudflare.com/) account (free tier works for development)
-- A telephony provider account (see [Telephony Providers](#telephony-providers))
-
-### 1. Clone and install
+Only Docker is required. No Node.js, Bun, or other runtimes needed.
 
 ```bash
 git clone https://github.com/your-org/llamenos.git
 cd llamenos
-bun install
+./scripts/docker-setup.sh
 ```
 
-### 2. Generate an admin keypair
+This generates secrets, builds the app, and starts all services. Once running, visit **http://localhost** — the setup wizard walks you through creating an admin account and configuring your hotline.
 
-Authentication uses [Nostr](https://nostr.com/) keypairs. Generate the first admin:
+### Try demo mode
+
+To explore with pre-seeded data and one-click demo login:
 
 ```bash
-bun run bootstrap-admin
-```
-
-This outputs:
-- An **nsec** (secret key) — give this to the admin, store it securely
-- A **hex public key** — you'll need this in the next step
-
-### 3. Configure environment
-
-Copy the example env file and fill in your values:
-
-```bash
-cp .dev.vars.example .dev.vars
-```
-
-Edit `.dev.vars` with your admin public key and telephony credentials:
-
-```env
-ADMIN_PUBKEY=hex_public_key_from_step_2
-ENVIRONMENT=development
-
-# Twilio (default voice provider — optional if configuring via admin UI)
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=your_auth_token_here
-TWILIO_PHONE_NUMBER=+1234567890
-```
-
-> **Note:** Twilio env vars are the default fallback for voice. You can configure any voice provider, plus SMS, WhatsApp, and Signal channels from the admin settings UI after deploying. The setup wizard will guide you through channel configuration on first login.
-
-### 4. Run locally
-
-```bash
-bun run dev          # Frontend dev server (Vite)
-bun run dev:worker   # Backend dev server (Wrangler)
-```
-
-The app runs at `http://localhost:8787`. Log in with the admin nsec from step 2.
-
-### 5. Set up webhooks
-
-Point your telephony provider's webhooks to your Worker URL:
-
-**Voice:**
-```
-https://your-domain.com/api/telephony/incoming    (incoming calls)
-https://your-domain.com/api/telephony/status       (call status updates)
-```
-
-**SMS** (if enabled):
-```
-https://your-domain.com/api/messaging/sms/webhook
-```
-
-**WhatsApp** (if enabled):
-```
-https://your-domain.com/api/messaging/whatsapp/webhook
-```
-
-**Signal** (if using signal-cli bridge):
-```
-Configure the bridge to forward to: https://your-domain.com/api/messaging/signal/webhook
-```
-
-For local development, use [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/):
-
-```bash
-cloudflared tunnel --url http://localhost:8787
+./scripts/docker-setup.sh --demo
 ```
 
 ## Deployment
 
-Llamenos supports two deployment targets. Both run the exact same application code.
+### Self-Hosted (Docker Compose) — Recommended
 
-### Option A: Cloudflare Workers (managed)
+Run Llamenos on your own infrastructure. All data stays on your server.
 
-```bash
-# Set required secrets
-bunx wrangler secret put ADMIN_PUBKEY
-
-# Set voice provider secrets (if using Twilio env vars as default)
-bunx wrangler secret put TWILIO_ACCOUNT_SID
-bunx wrangler secret put TWILIO_AUTH_TOKEN
-bunx wrangler secret put TWILIO_PHONE_NUMBER
-
-# Deploy
-bun run deploy
-```
-
-After deploying, update your telephony provider webhook URLs to point to your Workers URL. Messaging channel credentials can also be configured through the admin Settings UI.
-
-### Option B: Self-Hosted (Docker Compose)
-
-Run Llamenos on your own server with Docker Compose. Includes Caddy (automatic HTTPS), MinIO (file storage), and optional Whisper transcription.
+**Local development:**
 
 ```bash
-cd deploy/docker
-cp .env.example .env
-# Edit .env with your ADMIN_PUBKEY, DOMAIN, and provider credentials
-
-docker compose up -d
+./scripts/docker-setup.sh
 ```
 
-Core services: app + Caddy + MinIO. Optional profiles for transcription, Asterisk, and Signal:
+Runs at http://localhost with plain HTTP.
+
+**Production deployment:**
 
 ```bash
-# Enable transcription
-docker compose --profile transcription up -d
-
-# Enable self-hosted Asterisk
-docker compose --profile asterisk up -d
-
-# Enable Signal messaging
-docker compose --profile signal up -d
+./scripts/docker-setup.sh --domain hotline.yourorg.com --email admin@yourorg.com
 ```
 
-### Option C: Kubernetes (Helm)
+Caddy auto-provisions TLS certificates via Let's Encrypt.
+
+**Core services:** app, PostgreSQL, Caddy (reverse proxy), MinIO (file storage), strfry (Nostr relay).
+
+**Optional profiles:**
+
+```bash
+# Self-hosted transcription (Whisper)
+docker compose -f deploy/docker/docker-compose.yml --profile transcription up -d
+
+# Self-hosted Asterisk PBX
+docker compose -f deploy/docker/docker-compose.yml --profile asterisk up -d
+
+# Signal messaging bridge
+docker compose -f deploy/docker/docker-compose.yml --profile signal up -d
+```
+
+See the full [self-hosting guide](https://llamenos-hotline.com/docs/self-hosting) and [QUICKSTART.md](docs/QUICKSTART.md) for VPS provisioning, server hardening, and operational runbooks.
+
+### Kubernetes (Helm)
 
 ```bash
 helm install llamenos deploy/helm/llamenos/ \
-  --set secrets.adminPubkey=YOUR_HEX_PUBLIC_KEY \
   --set secrets.minioAccessKey=your-access-key \
   --set secrets.minioSecretKey=your-secret-key \
   --set ingress.hosts[0].host=hotline.yourdomain.com
 ```
 
-See the full [self-hosting documentation](https://llamenos-hotline.com/docs/self-hosting) for detailed guides.
+### Cloudflare Workers (alternative)
+
+For development or low-traffic deployments on managed infrastructure:
+
+```bash
+bun install
+bun run bootstrap-admin        # generate admin keypair
+cp .dev.vars.example .dev.vars # configure secrets
+bun run dev:worker             # local dev server
+bun run deploy                 # deploy to Cloudflare
+```
+
+Requires [Bun](https://bun.sh/) and a Cloudflare account.
 
 ## Telephony Providers
 
-Llámenos supports 5 voice telephony providers. Configure your provider in **Admin Settings > Telephony Provider** or during the setup wizard.
+Configure your provider in **Admin Settings > Telephony Provider** or during the setup wizard.
 
-| Provider | Type | Voice | SMS | Pricing | Setup | Best For |
-|----------|------|-------|-----|---------|-------|----------|
-| **Twilio** | Cloud | Yes | Yes | Per-minute/msg | Easy | Getting started quickly |
-| **SignalWire** | Cloud | Yes | Yes | Per-minute/msg | Easy | Cost-conscious orgs |
-| **Vonage** | Cloud | Yes | Yes | Per-minute/msg | Medium | International coverage |
-| **Plivo** | Cloud | Yes | Yes | Per-minute/msg | Medium | Budget cloud option |
-| **Asterisk** | Self-hosted | Yes | No | SIP trunk only | Advanced | Maximum privacy, at-scale |
+| Provider | Type | Voice | SMS | Best For |
+|----------|------|-------|-----|----------|
+| **Twilio** | Cloud | Yes | Yes | Getting started quickly |
+| **SignalWire** | Cloud | Yes | Yes | Cost-conscious orgs |
+| **Vonage** | Cloud | Yes | Yes | International coverage |
+| **Plivo** | Cloud | Yes | Yes | Budget cloud option |
+| **Asterisk** | Self-hosted | Yes | No | Maximum privacy, at-scale |
 
 ## Messaging Channels
-
-In addition to voice, Llámenos supports text-based messaging channels:
 
 | Channel | Provider | Setup |
 |---------|----------|-------|
@@ -278,17 +210,23 @@ All messaging channels flow into a unified **Conversations** view. Enable/disabl
 
 See the [setup guides](https://llamenos-hotline.com/docs) for detailed instructions per provider and channel.
 
+## Webhooks
+
+Point your telephony provider's webhooks to your deployment URL:
+
+| Webhook | URL |
+|---------|-----|
+| Voice (incoming) | `https://your-domain/api/telephony/incoming` |
+| Voice (status) | `https://your-domain/api/telephony/status` |
+| SMS | `https://your-domain/api/messaging/sms/webhook` |
+| WhatsApp | `https://your-domain/api/messaging/whatsapp/webhook` |
+| Signal | Configure bridge to forward to `https://your-domain/api/messaging/signal/webhook` |
+
 ## Customization
 
 ### Hotline name
 
-Set `HOTLINE_NAME` in `wrangler.jsonc`:
-
-```jsonc
-"vars": {
-    "HOTLINE_NAME": "Your Hotline Name"
-}
-```
+Set during the setup wizard, or via `HOTLINE_NAME` environment variable.
 
 ### Languages
 
@@ -316,7 +254,7 @@ src/
     routes/        # API route handlers
   platform/        # Platform abstraction layer
     cloudflare.ts  # Cloudflare Workers implementation
-    node/          # Node.js implementation (SQLite, MinIO, Whisper HTTP)
+    node/          # Node.js implementation (PostgreSQL, MinIO, Whisper HTTP)
   shared/          # Code shared between client and worker
     types.ts       # Shared types (roles, conversations, reports, etc.)
     languages.ts   # Centralized language config
@@ -329,7 +267,7 @@ site/              # Marketing site (Astro + Tailwind, Cloudflare Pages)
 
 ### Security model
 
-- **Durable Objects**: 6 singletons — IdentityDO, SettingsDO, RecordsDO, ShiftManagerDO, CallRouterDO, ConversationDO
+- **Self-hosted by design** — all data stays on your infrastructure
 - **Authentication**: Nostr keypairs (BIP-340 Schnorr) + WebAuthn passkeys
 - **Local key protection**: PIN-encrypted key store (PBKDF2 600K iterations + XChaCha20-Poly1305); raw nsec never in sessionStorage — in-memory closure only, zeroed on lock
 - **Note encryption**: Per-note forward secrecy — each note encrypted with a unique random key, wrapped via ECIES for each authorized reader
@@ -337,7 +275,7 @@ site/              # Marketing site (Astro + Tailwind, Cloudflare Pages)
 - **Report encryption**: ECIES encrypted body + encrypted file attachments
 - **Device linking**: Signal-style QR provisioning via ephemeral ECDH key exchange; 5-minute single-use relay rooms
 - **Recovery keys**: 128-bit Base32 recovery keys with mandatory encrypted backup download
-- **Zero-knowledge server**: the Worker never sees plaintext notes, transcriptions, report content, or per-note encryption keys
+- **Zero-knowledge server**: the server never sees plaintext notes, transcriptions, report content, or per-note encryption keys
 - **Volunteer privacy**: personal info visible only to admins
 
 ### Roles
@@ -349,6 +287,21 @@ site/              # Marketing site (Astro + Tailwind, Cloudflare Pages)
 | Reporter | Own reports only | Submit encrypted reports with file attachments |
 | Admin | All notes, reports, audit logs, conversations | Manage everything |
 
+## Development
+
+Requires [Bun](https://bun.sh/) for local development against Cloudflare Workers.
+
+```bash
+bun install
+bun run dev          # Vite dev server (frontend)
+bun run dev:worker   # Wrangler dev server (backend)
+bun run build        # Build frontend
+bun run typecheck    # TypeScript type checking
+bunx playwright test # Run E2E tests
+```
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for the full development guide.
+
 ## CI/CD
 
 Every push to `main` triggers the CI pipeline (`.github/workflows/ci.yml`):
@@ -356,18 +309,9 @@ Every push to `main` triggers the CI pipeline (`.github/workflows/ci.yml`):
 1. **Build & validate** — typecheck, Vite build, esbuild (Node.js), Astro site build
 2. **Auto-version** — determines `major`/`minor`/`patch` bump from conventional commit messages
 3. **Changelog** — generates via [git-cliff](https://git-cliff.org) from commit history
-4. **Deploy** — app Worker to Cloudflare Workers, marketing site to Cloudflare Pages (parallel)
+4. **Deploy** — parallel deploy to staging
 5. **Release** — creates GitHub Release with changelog notes
 6. **Docker** — the created tag triggers `docker.yml` to build + push images to GHCR
-
-### Required GitHub Secrets
-
-| Secret | Description |
-|--------|-------------|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Workers + Pages deploy permissions |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
-
-`GITHUB_TOKEN` is provided automatically by GitHub Actions.
 
 ### Versioning
 
@@ -377,21 +321,6 @@ Uses [conventional commits](https://www.conventionalcommits.org/) to determine t
 - `fix:`, `docs:`, `chore:`, etc. → patch bump (0.0.x)
 - `feat!:` or `BREAKING CHANGE` → major bump (x.0.0)
 
-Manual versioning: `bun run version:bump <major|minor|patch> [description]`
-
-## Development
-
-See [DEVELOPMENT.md](DEVELOPMENT.md) for the full development guide.
-
-```bash
-bun run dev          # Vite dev server
-bun run dev:worker   # Wrangler dev server
-bun run build        # Build frontend
-bun run deploy       # Build + deploy to Cloudflare
-bun run typecheck    # TypeScript type checking
-bunx playwright test # Run E2E tests
-```
-
 ## License
 
-MIT
+AGPL-3.0-or-later

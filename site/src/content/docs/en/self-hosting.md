@@ -3,15 +3,14 @@ title: Self-Hosting Overview
 description: Deploy Llamenos on your own infrastructure with Docker Compose or Kubernetes.
 ---
 
-Llamenos can run on Cloudflare Workers **or** on your own infrastructure. Self-hosting gives you full control over data residency, network isolation, and infrastructure choices — important for organizations that can't use third-party cloud platforms or need to meet strict compliance requirements.
+Llamenos is designed to run on your own infrastructure. Self-hosting gives you full control over data residency, network isolation, and infrastructure choices — critical for organizations protecting against well-funded adversaries.
 
 ## Deployment options
 
 | Option | Best for | Complexity | Scaling |
 |--------|----------|------------|---------|
-| [Cloudflare Workers](/docs/getting-started) | Easiest start, global edge | Low | Automatic |
-| [Docker Compose](/docs/deploy-docker) | Single-server self-hosting | Medium | Single node |
-| [Kubernetes (Helm)](/docs/deploy-kubernetes) | Multi-service orchestration | Higher | Horizontal (multi-replica) |
+| [Docker Compose](/docs/deploy-docker) | Single-server, recommended start | Low | Single node |
+| [Kubernetes (Helm)](/docs/deploy-kubernetes) | Multi-service orchestration | Medium | Horizontal (multi-replica) |
 
 ## Architecture differences
 
@@ -35,7 +34,7 @@ Both deployment targets run the **exact same application code**. The difference 
 - A Linux server (2 CPU cores, 2 GB RAM minimum)
 - Docker and Docker Compose v2 (or a Kubernetes cluster for Helm)
 - A domain name pointing to your server
-- An admin keypair (generated with `bun run bootstrap-admin`)
+- `openssl` (for generating secrets during setup)
 - At least one communication channel (voice provider, SMS, etc.)
 
 ### Optional components
@@ -68,6 +67,6 @@ Self-hosting gives you more control but also more responsibility:
 
 ## Next steps
 
-- [Docker Compose deployment](/docs/deploy-docker) — get running in 10 minutes
+- [Getting Started](/docs/getting-started) — quick start with Docker
+- [Docker Compose deployment](/docs/deploy-docker) — full production deployment guide
 - [Kubernetes deployment](/docs/deploy-kubernetes) — deploy with Helm
-- [Getting Started](/docs/getting-started) — Cloudflare Workers deployment

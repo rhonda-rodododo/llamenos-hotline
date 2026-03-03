@@ -3,133 +3,135 @@ title: "Desplegar: Docker Compose"
 description: Despliega Llamenos en tu propio servidor con Docker Compose.
 ---
 
-Esta guia te lleva paso a paso a traves del despliegue de Llamenos con Docker Compose en un solo servidor. Tendras una linea de ayuda completamente funcional con HTTPS automatico, almacenamiento de objetos y transcripcion opcional — todo gestionado por Docker Compose.
+Esta guia te lleva paso a paso a traves del despliegue de Llamenos con Docker Compose en un solo servidor. Tendras una linea de ayuda completamente funcional con HTTPS automatico, base de datos PostgreSQL, almacenamiento de objetos, relay de tiempo real y transcripcion opcional — todo gestionado por Docker Compose.
 
 ## Requisitos previos
 
 - Un servidor Linux (Ubuntu 22.04+, Debian 12+ o similar)
 - [Docker Engine](https://docs.docker.com/engine/install/) v24+ con Docker Compose v2
-- Un nombre de dominio con DNS apuntando a la IP de tu servidor
-- [Bun](https://bun.sh/) instalado localmente (para generar el par de claves admin)
+- `openssl` (preinstalado en la mayoria de sistemas)
+- Un nombre de dominio con DNS apuntando a la IP de tu servidor (para produccion)
 
-## 1. Clonar el repositorio
+## Inicio rapido (local)
+
+Para probar Llamenos localmente:
 
 ```bash
 git clone https://github.com/your-org/llamenos.git
 cd llamenos
+./scripts/docker-setup.sh
 ```
 
-## 2. Generar el par de claves admin
+Visita **http://localhost** y sigue el asistente de configuracion para crear tu cuenta de administrador.
 
-Necesitas un par de claves Nostr para la cuenta admin. Ejecuta esto en tu maquina local (o en el servidor si Bun esta instalado):
+## Despliegue en produccion
 
 ```bash
-bun install
-bun run bootstrap-admin
+git clone https://github.com/your-org/llamenos.git
+cd llamenos
+./scripts/docker-setup.sh --domain linea.tuorg.com --email admin@tuorg.com
 ```
 
-Guarda el **nsec** (tu credencial de inicio de sesion admin) de forma segura. Copia la **clave publica hex** — la necesitaras en el siguiente paso.
+El script de configuracion:
+1. Genera secretos aleatorios fuertes (contrasena de base de datos, clave HMAC, credenciales MinIO, secreto del relay Nostr)
+2. Los escribe en `deploy/docker/.env`
+3. Construye e inicia todos los servicios
+4. Espera a que la aplicacion este saludable
 
-## 3. Configurar el entorno
+Visita `https://linea.tuorg.com` y sigue el asistente de configuracion para crear tu cuenta de administrador y configurar los canales.
+
+### Configuracion manual
+
+Si prefieres configurar todo manualmente en lugar de usar el script:
 
 ```bash
 cd deploy/docker
 cp .env.example .env
 ```
 
-Edita `.env` con tus valores:
+Edita `.env` y llena los secretos requeridos. Genera valores aleatorios:
+
+```bash
+# Para secretos hex (HMAC_SECRET, SERVER_NOSTR_SECRET):
+openssl rand -hex 32
+
+# Para contrasenas (PG_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY):
+openssl rand -base64 24
+```
+
+Configura tu dominio y email para certificados TLS:
 
 ```env
-# Requerido
-ADMIN_PUBKEY=tu_clave_publica_hex_del_paso_2
-DOMAIN=linea.tudominio.com
-
-# Nombre mostrado de la linea (aparece en mensajes IVR)
-HOTLINE_NAME=Tu Linea de Ayuda
-
-# Proveedor de voz (opcional — puedes configurar via UI admin)
-TWILIO_ACCOUNT_SID=tu_sid
-TWILIO_AUTH_TOKEN=tu_token
-TWILIO_PHONE_NUMBER=+1234567890
-
-# Credenciales MinIO (cambia los valores por defecto!)
-MINIO_ACCESS_KEY=tu-clave-de-acceso
-MINIO_SECRET_KEY=tu-clave-secreta-min-8-caracteres
+DOMAIN=linea.tuorg.com
+ACME_EMAIL=admin@tuorg.com
 ```
 
-> **Importante**: Cambia las credenciales de MinIO de los valores por defecto. Estas controlan el acceso a archivos subidos y grabaciones.
-
-## 4. Configurar tu dominio
-
-Edita el `Caddyfile` para establecer tu dominio:
-
-```
-linea.tudominio.com {
-    reverse_proxy app:3000
-    encode gzip
-    header {
-        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-        Referrer-Policy "no-referrer"
-    }
-}
-```
-
-Caddy obtiene y renueva automaticamente los certificados TLS de Let's Encrypt para tu dominio. Asegurate de que los puertos 80 y 443 esten abiertos en tu firewall.
-
-## 5. Iniciar los servicios
+Luego inicia los servicios:
 
 ```bash
 docker compose up -d
 ```
 
-Esto inicia tres servicios principales:
+## Servicios principales
+
+La configuracion inicia cinco servicios principales:
 
 | Servicio | Proposito | Puerto |
 |----------|-----------|--------|
-| **app** | Aplicacion Llamenos | 3000 (interno) |
-| **caddy** | Proxy inverso + TLS | 80, 443 |
-| **minio** | Almacenamiento de archivos/grabaciones | 9000, 9001 (interno) |
+| **app** | Aplicacion Llamenos (Node.js) | 3000 (interno) |
+| **postgres** | Base de datos PostgreSQL | 5432 (interno) |
+| **caddy** | Proxy inverso + TLS automatico | 80, 443 |
+| **minio** | Almacenamiento de archivos compatible con S3 | 9000, 9001 (interno) |
+| **strfry** | Relay Nostr para eventos en tiempo real | 7777 (interno) |
 
 Verifica que todo este funcionando:
 
 ```bash
-docker compose ps
-docker compose logs app --tail 50
+docker compose -f deploy/docker/docker-compose.yml ps
+docker compose -f deploy/docker/docker-compose.yml logs app --tail 50
 ```
 
 Verifica el endpoint de salud:
 
 ```bash
-curl https://linea.tudominio.com/api/health
-# → {"status":"ok","platform":"node","timestamp":"...","uptime":...}
+curl https://linea.tuorg.com/api/health
+# {"status":"ok"}
 ```
 
-## 6. Primer inicio de sesion
+## Primer inicio de sesion
 
-Abre `https://linea.tudominio.com` en tu navegador. Inicia sesion con el nsec admin del paso 2. El asistente de configuracion te guiara a traves de:
+Abre la URL de tu linea en un navegador. El asistente de configuracion te guiara para:
 
-1. **Nombrar tu linea** — nombre para mostrar en la app
-2. **Elegir canales** — habilitar Voz, SMS, WhatsApp, Signal y/o Reportes
-3. **Configurar proveedores** — ingresar credenciales para cada canal
-4. **Revisar y finalizar**
+1. **Crear cuenta admin** — genera un par de claves criptograficas en tu navegador
+2. **Nombrar tu linea** — establece el nombre para mostrar
+3. **Elegir canales** — habilita Voz, SMS, WhatsApp, Signal y/o Reportes
+4. **Configurar proveedores** — ingresa credenciales para cada canal
+5. **Revisar y finalizar**
 
-## 7. Configurar webhooks
+## Configurar webhooks
 
-Apunta los webhooks de tu proveedor de telefonia a tu dominio. Consulta las guias especificas del proveedor para detalles:
+Apunta los webhooks de tu proveedor de telefonia a tu dominio:
 
-- **Voz** (todos los proveedores): `https://linea.tudominio.com/telephony/incoming`
-- **SMS**: `https://linea.tudominio.com/api/messaging/sms/webhook`
-- **WhatsApp**: `https://linea.tudominio.com/api/messaging/whatsapp/webhook`
-- **Signal**: Configura el bridge para reenviar a `https://linea.tudominio.com/api/messaging/signal/webhook`
+- **Voz**: `https://linea.tuorg.com/telephony/incoming`
+- **SMS**: `https://linea.tuorg.com/api/messaging/sms/webhook`
+- **WhatsApp**: `https://linea.tuorg.com/api/messaging/whatsapp/webhook`
+- **Signal**: Configura el bridge para reenviar a `https://linea.tuorg.com/api/messaging/signal/webhook`
+
+Consulta las guias especificas: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk).
 
 ## Opcional: Habilitar transcripcion
 
-El servicio de transcripcion Whisper requiere RAM adicional (4 GB+). Habilitalo con el perfil `transcription`:
+El servicio de transcripcion Whisper requiere RAM adicional (4 GB+):
 
 ```bash
-docker compose --profile transcription up -d
+docker compose -f deploy/docker/docker-compose.yml --profile transcription up -d
+```
+
+Configura el modelo en tu `.env`:
+
+```env
+WHISPER_MODEL=Systran/faster-whisper-base   # o small, medium, large
+WHISPER_DEVICE=cpu                           # o cuda para GPU
 ```
 
 ## Opcional: Habilitar Asterisk
@@ -137,8 +139,10 @@ docker compose --profile transcription up -d
 Para telefonia SIP autoalojada (ver [configuracion de Asterisk](/docs/setup-asterisk)):
 
 ```bash
-echo "BRIDGE_SECRET=$(openssl rand -hex 32)" >> .env
-docker compose --profile asterisk up -d
+echo "ARI_PASSWORD=$(openssl rand -base64 24)" >> deploy/docker/.env
+echo "BRIDGE_SECRET=$(openssl rand -hex 32)" >> deploy/docker/.env
+
+docker compose -f deploy/docker/docker-compose.yml --profile asterisk up -d
 ```
 
 ## Opcional: Habilitar Signal
@@ -146,44 +150,65 @@ docker compose --profile asterisk up -d
 Para mensajeria Signal (ver [configuracion de Signal](/docs/setup-signal)):
 
 ```bash
-docker compose --profile signal up -d
+docker compose -f deploy/docker/docker-compose.yml --profile signal up -d
 ```
 
 ## Actualizacion
 
-Descarga las ultimas imagenes y reinicia:
+Descarga el codigo mas reciente y reconstruye:
 
 ```bash
-docker compose pull
-docker compose up -d
+cd /path/to/llamenos
+git pull
+docker compose -f deploy/docker/docker-compose.yml build
+docker compose -f deploy/docker/docker-compose.yml up -d
 ```
 
-Tus datos se mantienen en volumenes Docker (`app-data`, `minio-data`, etc.) y sobreviven a reinicios de contenedores y actualizaciones de imagenes.
+Los datos se mantienen en volumenes Docker (`postgres-data`, `minio-data`, etc.) y sobreviven a reinicios y reconstrucciones.
 
 ## Respaldos
 
 ### PostgreSQL
 
-Usa `pg_dump` para respaldos de la base de datos:
-
 ```bash
-docker compose exec postgres pg_dump -U llamenos llamenos > backup-$(date +%Y%m%d).sql
+docker compose -f deploy/docker/docker-compose.yml exec postgres pg_dump -U llamenos llamenos > backup-$(date +%Y%m%d).sql
 ```
 
 Para restaurar:
 
 ```bash
-docker compose exec -T postgres psql -U llamenos llamenos < backup-20250101.sql
+docker compose -f deploy/docker/docker-compose.yml exec -T postgres psql -U llamenos llamenos < backup-20250101.sql
 ```
 
 ### Almacenamiento MinIO
 
-MinIO almacena archivos subidos, grabaciones y adjuntos:
+```bash
+docker compose -f deploy/docker/docker-compose.yml exec minio mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
+docker compose -f deploy/docker/docker-compose.yml exec minio mc mirror local/llamenos /tmp/minio-backup
+docker compose -f deploy/docker/docker-compose.yml cp minio:/tmp/minio-backup ./minio-backup-$(date +%Y%m%d)
+```
+
+### Respaldos automatizados
+
+Para produccion, configura un cron job:
 
 ```bash
-docker compose exec minio mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
-docker compose exec minio mc mirror local/llamenos /tmp/minio-backup
-docker compose cp minio:/tmp/minio-backup ./minio-backup-$(date +%Y%m%d)
+# /etc/cron.d/llamenos-backup
+0 3 * * * root cd /path/to/llamenos/deploy/docker && docker compose exec -T postgres pg_dump -U llamenos llamenos | gzip > /backups/llamenos-$(date +\%Y\%m\%d).sql.gz 2>&1 | logger -t llamenos-backup
+```
+
+## Monitoreo
+
+### Verificaciones de salud
+
+La app expone `/api/health`. Docker Compose tiene health checks integrados. Monitorea externamente con cualquier verificador HTTP.
+
+### Logs
+
+```bash
+docker compose -f deploy/docker/docker-compose.yml logs -f
+docker compose -f deploy/docker/docker-compose.yml logs -f app
+docker compose -f deploy/docker/docker-compose.yml logs --tail 100 app
 ```
 
 ## Solucion de problemas
@@ -191,9 +216,9 @@ docker compose cp minio:/tmp/minio-backup ./minio-backup-$(date +%Y%m%d)
 ### La app no inicia
 
 ```bash
-docker compose logs app
-docker compose config
-docker compose exec app ls -la /app/data
+docker compose -f deploy/docker/docker-compose.yml logs app
+docker compose -f deploy/docker/docker-compose.yml config
+docker compose -f deploy/docker/docker-compose.yml ps
 ```
 
 ### Problemas con certificados
@@ -201,8 +226,8 @@ docker compose exec app ls -la /app/data
 Caddy necesita los puertos 80 y 443 abiertos para los desafios ACME:
 
 ```bash
-docker compose logs caddy
-curl -I http://linea.tudominio.com
+docker compose -f deploy/docker/docker-compose.yml logs caddy
+curl -I http://linea.tuorg.com
 ```
 
 ## Arquitectura del servicio
@@ -211,6 +236,8 @@ curl -I http://linea.tudominio.com
 flowchart TD
     Internet -->|":80/:443"| Caddy["Caddy<br/>(TLS, proxy inverso)"]
     Caddy -->|":3000"| App["App<br/>(Node.js)"]
+    Caddy -->|"/nostr"| Strfry["strfry<br/>(Relay Nostr)"]
+    App --> PostgreSQL[("PostgreSQL<br/>:5432")]
     App --> MinIO[("MinIO<br/>:9000")]
     App -.->|"opcional"| Whisper["Whisper<br/>:8080"]
 ```

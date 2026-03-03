@@ -70,6 +70,7 @@ export async function createNodeEnv(): Promise<Record<string, unknown>> {
     TWILIO_ACCOUNT_SID: twilioAccountSid,
     TWILIO_AUTH_TOKEN: twilioAuthToken,
     TWILIO_PHONE_NUMBER: twilioPhoneNumber,
+    DEMO_MODE: process.env.DEMO_MODE || undefined,
     ASSETS: null, // Static files served by Hono serveStatic
     AI: createTranscriptionService(),
     R2_BUCKET: createBlobStorage(),

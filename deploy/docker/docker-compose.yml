@@ -21,8 +21,11 @@
 #   docker compose --profile signal up -d               # + Signal
 #   COMPOSE_PROFILES=transcription,signal docker compose up -d
 #
-# IMPORTANT: You MUST set PG_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
-# and BRIDGE_SECRET (if using Asterisk) in your .env file before starting.
+# Quick start:
+#   cd deploy/docker
+#   ../../scripts/docker-setup.sh      # generates .env with random secrets
+#   docker compose up -d               # start all core services
+#   open http://localhost               # setup wizard creates admin account
 
 name: llamenos
 
@@ -41,10 +44,12 @@ services:
       - PORT=3000
       - DATABASE_URL=postgresql://llamenos:${PG_PASSWORD:?PG_PASSWORD is required}@postgres:5432/llamenos
       - PG_POOL_SIZE=${PG_POOL_SIZE:-10}
-      - ADMIN_PUBKEY=${ADMIN_PUBKEY:?ADMIN_PUBKEY is required}
+      - ADMIN_PUBKEY=${ADMIN_PUBKEY:-}
+      - ADMIN_DECRYPTION_PUBKEY=${ADMIN_DECRYPTION_PUBKEY:-}
       - HOTLINE_NAME=${HOTLINE_NAME:-Hotline}
       - ENVIRONMENT=${ENVIRONMENT:-production}
-      - "HMAC_SECRET=${HMAC_SECRET:?HMAC_SECRET is required — generate with openssl rand -hex 32}"
+      - DEMO_MODE=${DEMO_MODE:-}
+      - "HMAC_SECRET=${HMAC_SECRET:?HMAC_SECRET is required — run ../../scripts/docker-setup.sh to generate}"
       - MINIO_ENDPOINT=http://minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
@@ -54,7 +59,7 @@ services:
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
       - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER:-}
       # Nostr relay — required for all real-time events (presence, calls, messages)
-      - "SERVER_NOSTR_SECRET=${SERVER_NOSTR_SECRET:?SERVER_NOSTR_SECRET is required — generate with openssl rand -hex 32}"
+      - "SERVER_NOSTR_SECRET=${SERVER_NOSTR_SECRET:?SERVER_NOSTR_SECRET is required — run ../../scripts/docker-setup.sh to generate}"
       - NOSTR_RELAY_URL=${NOSTR_RELAY_URL:-ws://strfry:7777}
     networks:
       - web
@@ -104,6 +109,7 @@ services:
       - caddy-config:/config
     environment:
       - DOMAIN=${DOMAIN:-localhost}
+      - CADDY_SITE_ADDRESS=${CADDY_SITE_ADDRESS:-}
       - ACME_EMAIL=${ACME_EMAIL:-}
     networks:
       - web
@@ -186,9 +192,9 @@ services:
     environment:
       - ARI_URL=ws://asterisk:8088/ari/events
       - ARI_USERNAME=${ARI_USERNAME:-llamenos}
-      - ARI_PASSWORD=${ARI_PASSWORD:?ARI_PASSWORD is required — do NOT use the default}
+      - ARI_PASSWORD=${ARI_PASSWORD:-}
       - WORKER_WEBHOOK_URL=http://app:3000
-      - BRIDGE_SECRET=${BRIDGE_SECRET:?BRIDGE_SECRET is required — generate a random value}
+      - BRIDGE_SECRET=${BRIDGE_SECRET:-}
     networks:
       - internal
     depends_on:
