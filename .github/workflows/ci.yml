@@ -286,9 +286,9 @@ jobs:
         working-directory: apps/android
         run: ./gradlew lintDebug
 
-      - name: Build debug APK
+      - name: Build debug APK + androidTest APK
         working-directory: apps/android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug assembleDebugAndroidTest
 
   # ─── iOS Build & Test ──────────────────────────────────────
   ios-build-test:
