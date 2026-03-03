@@ -19,6 +19,7 @@ packages/protocol/generated/
 
 # Android build
 .gradle/
+apps/android/.kotlin/
 apps/android/app/build/
 apps/android/build/
 apps/android/local.properties
