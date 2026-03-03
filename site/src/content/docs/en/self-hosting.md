@@ -12,6 +12,33 @@ Llamenos is designed to run on your own infrastructure. Self-hosting gives you f
 | [Docker Compose](/docs/deploy-docker) | Single-server, recommended start | Low | Single node |
 | [Kubernetes (Helm)](/docs/deploy-kubernetes) | Multi-service orchestration | Medium | Horizontal (multi-replica) |
 
+## Docker Compose files
+
+Docker Compose uses a layered approach:
+
+| File | Purpose |
+|------|---------|
+| `docker-compose.yml` | Base configuration — all services, networks, volumes |
+| `docker-compose.production.yml` | Production overlay — TLS via Let's Encrypt, log rotation, resource limits, strict CSP |
+| `docker-compose.test.yml` | Test overlay — exposes app port directly, development mode |
+
+For **local development**, use the base file only. For **production**, stack the production overlay:
+
+```bash
+# Local
+docker compose -f docker-compose.yml up -d
+
+# Production
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
+```
+
+Or use the setup script, which handles this automatically:
+
+```bash
+./scripts/docker-setup.sh                                     # local
+./scripts/docker-setup.sh --domain hotline.org --email a@b    # production
+```
+
 ## Architecture differences
 
 Both deployment targets run the **exact same application code**. The difference is in the infrastructure layer:

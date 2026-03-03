@@ -61,7 +61,7 @@ For a server with a real domain and automatic TLS:
 ./scripts/docker-setup.sh --domain hotline.yourorg.com --email admin@yourorg.com
 ```
 
-Caddy automatically provisions Let's Encrypt TLS certificates. Make sure ports 80 and 443 are open.
+Caddy automatically provisions Let's Encrypt TLS certificates. Make sure ports 80 and 443 are open. The `--domain` flag activates the production Docker Compose overlay, which adds TLS, log rotation, and resource limits.
 
 See the [Docker Compose deployment guide](/docs/deploy-docker) for full details on server hardening, backups, monitoring, and optional services.
 

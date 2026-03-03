@@ -10,7 +10,7 @@ Esta guia te lleva paso a paso a traves del despliegue de Llamenos con Docker Co
 - Un servidor Linux (Ubuntu 22.04+, Debian 12+ o similar)
 - [Docker Engine](https://docs.docker.com/engine/install/) v24+ con Docker Compose v2
 - `openssl` (preinstalado en la mayoria de sistemas)
-- Un nombre de dominio con DNS apuntando a la IP de tu servidor (para produccion)
+- Un nombre de dominio con DNS apuntando a la IP de tu servidor
 
 ## Inicio rapido (local)
 
@@ -35,8 +35,14 @@ cd llamenos
 El script de configuracion:
 1. Genera secretos aleatorios fuertes (contrasena de base de datos, clave HMAC, credenciales MinIO, secreto del relay Nostr)
 2. Los escribe en `deploy/docker/.env`
-3. Construye e inicia todos los servicios
+3. Construye e inicia todos los servicios usando la **capa de produccion de Docker Compose** (`docker-compose.production.yml`)
 4. Espera a que la aplicacion este saludable
+
+La capa de produccion agrega:
+- **Terminacion TLS** via Let's Encrypt (Caddy con Caddyfile de produccion)
+- **Rotacion de logs** para todos los servicios (10 MB max, 5 archivos)
+- **Limites de recursos** (1 GB de memoria para la app)
+- **CSP estricto** — solo conexiones WebSocket `wss://` (sin `ws://` plano)
 
 Visita `https://linea.tuorg.com` y sigue el asistente de configuracion para crear tu cuenta de administrador y configurar los canales.
 
@@ -66,11 +72,21 @@ DOMAIN=linea.tuorg.com
 ACME_EMAIL=admin@tuorg.com
 ```
 
-Luego inicia los servicios:
+Luego inicia los servicios con la capa de produccion:
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
 ```
+
+## Archivos de Docker Compose
+
+| Archivo | Proposito |
+|---------|-----------|
+| `docker-compose.yml` | Configuracion base — todos los servicios, redes, volumenes |
+| `docker-compose.production.yml` | Capa de produccion — Caddyfile con TLS, rotacion de logs, limites de recursos |
+| `docker-compose.test.yml` | Capa de pruebas — expone puerto de la app, modo desarrollo |
+
+**Desarrollo local** usa solo el archivo base. **Produccion** agrega la capa de produccion.
 
 ## Servicios principales
 
@@ -87,8 +103,9 @@ La configuracion inicia cinco servicios principales:
 Verifica que todo este funcionando:
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml ps
-docker compose -f deploy/docker/docker-compose.yml logs app --tail 50
+cd deploy/docker
+docker compose -f docker-compose.yml -f docker-compose.production.yml ps
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs app --tail 50
 ```
 
 Verifica el endpoint de salud:
@@ -124,7 +141,7 @@ Consulta las guias especificas: [Twilio](/docs/setup-twilio), [SignalWire](/docs
 El servicio de transcripcion Whisper requiere RAM adicional (4 GB+):
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml --profile transcription up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml --profile transcription up -d
 ```
 
 Configura el modelo en tu `.env`:
@@ -142,7 +159,7 @@ Para telefonia SIP autoalojada (ver [configuracion de Asterisk](/docs/setup-aste
 echo "ARI_PASSWORD=$(openssl rand -base64 24)" >> deploy/docker/.env
 echo "BRIDGE_SECRET=$(openssl rand -hex 32)" >> deploy/docker/.env
 
-docker compose -f deploy/docker/docker-compose.yml --profile asterisk up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml --profile asterisk up -d
 ```
 
 ## Opcional: Habilitar Signal
@@ -150,7 +167,7 @@ docker compose -f deploy/docker/docker-compose.yml --profile asterisk up -d
 Para mensajeria Signal (ver [configuracion de Signal](/docs/setup-signal)):
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml --profile signal up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml --profile signal up -d
 ```
 
 ## Actualizacion
@@ -158,10 +175,10 @@ docker compose -f deploy/docker/docker-compose.yml --profile signal up -d
 Descarga el codigo mas reciente y reconstruye:
 
 ```bash
-cd /path/to/llamenos
-git pull
-docker compose -f deploy/docker/docker-compose.yml build
-docker compose -f deploy/docker/docker-compose.yml up -d
+cd /path/to/llamenos/deploy/docker
+git -C ../.. pull
+docker compose -f docker-compose.yml -f docker-compose.production.yml build
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
 ```
 
 Los datos se mantienen en volumenes Docker (`postgres-data`, `minio-data`, etc.) y sobreviven a reinicios y reconstrucciones.
@@ -171,21 +188,20 @@ Los datos se mantienen en volumenes Docker (`postgres-data`, `minio-data`, etc.)
 ### PostgreSQL
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml exec postgres pg_dump -U llamenos llamenos > backup-$(date +%Y%m%d).sql
+docker compose -f docker-compose.yml -f docker-compose.production.yml exec postgres pg_dump -U llamenos llamenos > backup-$(date +%Y%m%d).sql
 ```
 
 Para restaurar:
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml exec -T postgres psql -U llamenos llamenos < backup-20250101.sql
+docker compose -f docker-compose.yml -f docker-compose.production.yml exec -T postgres psql -U llamenos llamenos < backup-20250101.sql
 ```
 
 ### Almacenamiento MinIO
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml exec minio mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
-docker compose -f deploy/docker/docker-compose.yml exec minio mc mirror local/llamenos /tmp/minio-backup
-docker compose -f deploy/docker/docker-compose.yml cp minio:/tmp/minio-backup ./minio-backup-$(date +%Y%m%d)
+docker compose exec minio mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
+docker compose exec minio mc mirror local/llamenos /tmp/minio-backup
 ```
 
 ### Respaldos automatizados
@@ -194,7 +210,7 @@ Para produccion, configura un cron job:
 
 ```bash
 # /etc/cron.d/llamenos-backup
-0 3 * * * root cd /path/to/llamenos/deploy/docker && docker compose exec -T postgres pg_dump -U llamenos llamenos | gzip > /backups/llamenos-$(date +\%Y\%m\%d).sql.gz 2>&1 | logger -t llamenos-backup
+0 3 * * * root cd /opt/llamenos/deploy/docker && docker compose -f docker-compose.yml -f docker-compose.production.yml exec -T postgres pg_dump -U llamenos llamenos | gzip > /backups/llamenos-$(date +\%Y\%m\%d).sql.gz 2>&1 | logger -t llamenos-backup
 ```
 
 ## Monitoreo
@@ -206,9 +222,16 @@ La app expone `/api/health`. Docker Compose tiene health checks integrados. Moni
 ### Logs
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml logs -f
-docker compose -f deploy/docker/docker-compose.yml logs -f app
-docker compose -f deploy/docker/docker-compose.yml logs --tail 100 app
+cd /opt/llamenos/deploy/docker
+
+# Todos los servicios
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f
+
+# Servicio especifico
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f app
+
+# Ultimas 100 lineas
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs --tail 100 app
 ```
 
 ## Solucion de problemas
@@ -216,9 +239,9 @@ docker compose -f deploy/docker/docker-compose.yml logs --tail 100 app
 ### La app no inicia
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml logs app
-docker compose -f deploy/docker/docker-compose.yml config
-docker compose -f deploy/docker/docker-compose.yml ps
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs app
+docker compose -f docker-compose.yml -f docker-compose.production.yml config
+docker compose -f docker-compose.yml -f docker-compose.production.yml ps
 ```
 
 ### Problemas con certificados
@@ -226,7 +249,7 @@ docker compose -f deploy/docker/docker-compose.yml ps
 Caddy necesita los puertos 80 y 443 abiertos para los desafios ACME:
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml logs caddy
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs caddy
 curl -I http://linea.tuorg.com
 ```
 

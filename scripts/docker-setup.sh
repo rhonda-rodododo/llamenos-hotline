@@ -10,7 +10,7 @@ set -euo pipefail
 # Prerequisites: Docker (with Docker Compose), openssl
 #
 # Usage:
-#   ./scripts/docker-setup.sh                                  # Local dev (HTTP)
+#   ./scripts/docker-setup.sh                                  # Local (HTTP)
 #   ./scripts/docker-setup.sh --domain hotline.org --email a@b # Production (TLS)
 #   ./scripts/docker-setup.sh --demo                           # Demo mode
 #
@@ -76,6 +76,13 @@ if [[ -f "$ENV_FILE" ]]; then
   [[ "$confirm" =~ ^[yY]$ ]] || { echo "Aborted."; exit 0; }
 fi
 
+# ── Build compose command ────────────────────────────────────────
+
+COMPOSE_FILES="-f $COMPOSE_DIR/docker-compose.yml"
+if [[ "$LOCAL_MODE" == false ]]; then
+  COMPOSE_FILES="$COMPOSE_FILES -f $COMPOSE_DIR/docker-compose.production.yml"
+fi
+
 # ── Generate .env ────────────────────────────────────────────────
 
 echo "Generating secrets..."
@@ -111,10 +118,10 @@ echo "  Written to deploy/docker/.env"
 
 echo ""
 echo "Building (first run may take a few minutes)..."
-docker compose -f "$COMPOSE_DIR/docker-compose.yml" build --quiet 2>&1 | tail -5
+docker compose $COMPOSE_FILES build --quiet 2>&1 | tail -5
 
 echo "Starting services..."
-docker compose -f "$COMPOSE_DIR/docker-compose.yml" up -d
+docker compose $COMPOSE_FILES up -d
 
 # ── Wait for health ──────────────────────────────────────────────
 
@@ -132,8 +139,10 @@ done
 
 if [[ "$LOCAL_MODE" == true ]]; then
   URL="http://localhost"
+  COMPOSE_CMD="docker compose -f deploy/docker/docker-compose.yml"
 else
   URL="https://${DOMAIN}"
+  COMPOSE_CMD="docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.production.yml"
 fi
 
 echo ""
@@ -151,7 +160,7 @@ else
 fi
 
 echo ""
-echo "  Logs:    docker compose -f deploy/docker/docker-compose.yml logs -f"
-echo "  Stop:    docker compose -f deploy/docker/docker-compose.yml down"
-echo "  Restart: docker compose -f deploy/docker/docker-compose.yml up -d"
+echo "  Logs:    ${COMPOSE_CMD} logs -f"
+echo "  Stop:    ${COMPOSE_CMD} down"
+echo "  Restart: ${COMPOSE_CMD} up -d"
 echo ""

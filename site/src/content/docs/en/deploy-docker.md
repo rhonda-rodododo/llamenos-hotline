@@ -10,7 +10,7 @@ This guide walks you through deploying Llamenos with Docker Compose on a single 
 - A Linux server (Ubuntu 22.04+, Debian 12+, or similar)
 - [Docker Engine](https://docs.docker.com/engine/install/) v24+ with Docker Compose v2
 - `openssl` (pre-installed on most systems)
-- A domain name with DNS pointing to your server's IP (for production)
+- A domain name with DNS pointing to your server's IP
 
 ## Quick start (local)
 
@@ -35,8 +35,14 @@ cd llamenos
 The setup script:
 1. Generates strong random secrets (database password, HMAC key, MinIO credentials, Nostr relay secret)
 2. Writes them to `deploy/docker/.env`
-3. Builds and starts all services
+3. Builds and starts all services using the **production Docker Compose overlay** (`docker-compose.production.yml`)
 4. Waits for the app to become healthy
+
+The production overlay adds:
+- **TLS termination** via Let's Encrypt (Caddy with production Caddyfile)
+- **Log rotation** for all services (10 MB max, 5 files)
+- **Resource limits** (1 GB memory for the app)
+- **Strict CSP** — only `wss://` WebSocket connections (no plain `ws://`)
 
 Visit `https://hotline.yourorg.com` and follow the setup wizard to create your admin account and configure channels.
 
@@ -66,11 +72,21 @@ DOMAIN=hotline.yourorg.com
 ACME_EMAIL=admin@yourorg.com
 ```
 
-Then start the services:
+Then start the services with the production overlay:
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
 ```
+
+## Docker Compose files
+
+| File | Purpose |
+|------|---------|
+| `docker-compose.yml` | Base configuration — all services, networks, volumes |
+| `docker-compose.production.yml` | Production overlay — TLS Caddyfile, log rotation, resource limits |
+| `docker-compose.test.yml` | Test overlay — exposes app port, sets development mode |
+
+**Local development** uses only the base file. **Production** stacks the production overlay on top.
 
 ## Core services
 
@@ -87,8 +103,9 @@ The setup starts five core services:
 Check that everything is running:
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml ps
-docker compose -f deploy/docker/docker-compose.yml logs app --tail 50
+cd deploy/docker
+docker compose -f docker-compose.yml -f docker-compose.production.yml ps
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs app --tail 50
 ```
 
 Verify the health endpoint:
@@ -124,7 +141,7 @@ See provider-specific guides: [Twilio](/docs/setup-twilio), [SignalWire](/docs/s
 The Whisper transcription service requires additional RAM (4 GB+):
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml --profile transcription up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml --profile transcription up -d
 ```
 
 Configure the model in your `.env`:
@@ -143,7 +160,7 @@ For self-hosted SIP telephony (see [Asterisk setup](/docs/setup-asterisk)):
 echo "ARI_PASSWORD=$(openssl rand -base64 24)" >> deploy/docker/.env
 echo "BRIDGE_SECRET=$(openssl rand -hex 32)" >> deploy/docker/.env
 
-docker compose -f deploy/docker/docker-compose.yml --profile asterisk up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml --profile asterisk up -d
 ```
 
 ## Optional: Enable Signal
@@ -151,7 +168,7 @@ docker compose -f deploy/docker/docker-compose.yml --profile asterisk up -d
 For Signal messaging (see [Signal setup](/docs/setup-signal)):
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml --profile signal up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml --profile signal up -d
 ```
 
 ## Updating
@@ -159,10 +176,10 @@ docker compose -f deploy/docker/docker-compose.yml --profile signal up -d
 Pull the latest code and rebuild:
 
 ```bash
-cd /path/to/llamenos
-git pull
-docker compose -f deploy/docker/docker-compose.yml build
-docker compose -f deploy/docker/docker-compose.yml up -d
+cd /path/to/llamenos/deploy/docker
+git -C ../.. pull
+docker compose -f docker-compose.yml -f docker-compose.production.yml build
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
 ```
 
 Data is persisted in Docker volumes (`postgres-data`, `minio-data`, etc.) and survives container restarts and rebuilds.
@@ -172,13 +189,13 @@ Data is persisted in Docker volumes (`postgres-data`, `minio-data`, etc.) and su
 ### PostgreSQL
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml exec postgres pg_dump -U llamenos llamenos > backup-$(date +%Y%m%d).sql
+docker compose -f docker-compose.yml -f docker-compose.production.yml exec postgres pg_dump -U llamenos llamenos > backup-$(date +%Y%m%d).sql
 ```
 
 To restore:
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml exec -T postgres psql -U llamenos llamenos < backup-20250101.sql
+docker compose -f docker-compose.yml -f docker-compose.production.yml exec -T postgres psql -U llamenos llamenos < backup-20250101.sql
 ```
 
 ### MinIO storage
@@ -186,9 +203,8 @@ docker compose -f deploy/docker/docker-compose.yml exec -T postgres psql -U llam
 MinIO stores uploaded files, recordings, and attachments:
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml exec minio mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
-docker compose -f deploy/docker/docker-compose.yml exec minio mc mirror local/llamenos /tmp/minio-backup
-docker compose -f deploy/docker/docker-compose.yml cp minio:/tmp/minio-backup ./minio-backup-$(date +%Y%m%d)
+docker compose exec minio mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
+docker compose exec minio mc mirror local/llamenos /tmp/minio-backup
 ```
 
 ### Automated backups
@@ -197,7 +213,7 @@ For production, set up a cron job:
 
 ```bash
 # /etc/cron.d/llamenos-backup
-0 3 * * * root cd /path/to/llamenos/deploy/docker && docker compose exec -T postgres pg_dump -U llamenos llamenos | gzip > /backups/llamenos-$(date +\%Y\%m\%d).sql.gz 2>&1 | logger -t llamenos-backup
+0 3 * * * root cd /opt/llamenos/deploy/docker && docker compose -f docker-compose.yml -f docker-compose.production.yml exec -T postgres pg_dump -U llamenos llamenos | gzip > /backups/llamenos-$(date +\%Y\%m\%d).sql.gz 2>&1 | logger -t llamenos-backup
 ```
 
 ## Monitoring
@@ -209,14 +225,16 @@ The app exposes `/api/health`. Docker Compose has built-in health checks for all
 ### Logs
 
 ```bash
+cd /opt/llamenos/deploy/docker
+
 # All services
-docker compose -f deploy/docker/docker-compose.yml logs -f
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f
 
 # Specific service
-docker compose -f deploy/docker/docker-compose.yml logs -f app
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f app
 
 # Last 100 lines
-docker compose -f deploy/docker/docker-compose.yml logs --tail 100 app
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs --tail 100 app
 ```
 
 ## Troubleshooting
@@ -224,9 +242,9 @@ docker compose -f deploy/docker/docker-compose.yml logs --tail 100 app
 ### App won't start
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml logs app
-docker compose -f deploy/docker/docker-compose.yml config  # verify .env is loaded
-docker compose -f deploy/docker/docker-compose.yml ps       # check service health
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs app
+docker compose -f docker-compose.yml -f docker-compose.production.yml config  # verify .env is loaded
+docker compose -f docker-compose.yml -f docker-compose.production.yml ps       # check service health
 ```
 
 ### Certificate issues
@@ -234,15 +252,8 @@ docker compose -f deploy/docker/docker-compose.yml ps       # check service heal
 Caddy needs ports 80 and 443 open for ACME challenges:
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml logs caddy
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs caddy
 curl -I http://hotline.yourorg.com
-```
-
-### MinIO connection errors
-
-```bash
-docker compose -f deploy/docker/docker-compose.yml ps minio
-docker compose -f deploy/docker/docker-compose.yml logs minio
 ```
 
 ## Service architecture

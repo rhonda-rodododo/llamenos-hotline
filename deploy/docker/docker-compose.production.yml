@@ -1,0 +1,53 @@
+# Production overrides for Llamenos Docker deployment
+#
+# Adds: production Caddyfile (real domain + TLS), log rotation, resource limits.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
+#
+# Or via the setup script (recommended):
+#   ../../scripts/docker-setup.sh --domain hotline.yourorg.com --email admin@yourorg.com
+
+services:
+  app:
+    environment:
+      - ENVIRONMENT=production
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  caddy:
+    volumes:
+      - ./Caddyfile.production:/etc/caddy/Caddyfile:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  postgres:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  minio:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  strfry:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
