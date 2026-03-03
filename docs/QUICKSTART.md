@@ -14,10 +14,9 @@ This guide walks you through deploying Llamenos on a self-hosted VPS from scratc
 2. [Provision a VPS](#2-provision-a-vps)
 3. [Initial Server Hardening](#3-initial-server-hardening)
 4. [Deploy the Application](#4-deploy-the-application)
-5. [Bootstrap the Admin Account](#5-bootstrap-the-admin-account)
-6. [Configure Telephony](#6-configure-telephony)
-7. [Test the Deployment](#7-test-the-deployment)
-8. [Update the Application](#8-update-the-application)
+5. [Configure Telephony](#5-configure-telephony)
+6. [Test the Deployment](#6-test-the-deployment)
+7. [Update the Application](#7-update-the-application)
 
 ---
 
@@ -31,7 +30,9 @@ Before you begin, you need:
   ssh-keygen -t ed25519 -f ~/.ssh/llamenos_deploy -C "llamenos-deploy"
   ```
 - **A VPS** meeting the minimum specifications (see Section 2).
-- **A Twilio account** (or another supported telephony provider) with a phone number, if you want voice calling. You can configure telephony later through the admin UI.
+- **Docker** with Docker Compose v2 (installed during hardening step).
+- **`openssl`** (pre-installed on most Linux systems).
+- **A telephony provider account** (e.g., Twilio) with a phone number, if you want voice calling. You can configure telephony later through the admin UI.
 
 ### Optional Tools
 
@@ -303,116 +304,81 @@ systemctl restart docker
 ```bash
 ssh deploy@203.0.113.10 -p 2222
 
-git clone https://github.com/llamenos/llamenos.git /opt/llamenos
+git clone https://github.com/your-org/llamenos.git /opt/llamenos
+cd /opt/llamenos
+```
+
+### 4.2 Run the Setup Script
+
+The setup script generates all required secrets and starts the application with production settings:
+
+```bash
+./scripts/docker-setup.sh --domain hotline.yourorg.org --email admin@yourorg.org
+```
+
+This will:
+1. Generate cryptographically random secrets (database password, HMAC key, MinIO credentials, Nostr relay key)
+2. Write them to `deploy/docker/.env`
+3. Build the Docker images
+4. Start all services using the production Docker Compose configuration (with TLS, log rotation, and resource limits)
+5. Wait for the health check to pass
+
+### 4.3 Create the Admin Account
+
+Visit `https://hotline.yourorg.org` in your browser. The setup wizard guides you through:
+
+1. **Create admin account** -- generates a cryptographic keypair in your browser. The private key (nsec) never leaves your device.
+2. **Name your hotline** -- set the display name.
+3. **Choose channels** -- enable Voice, SMS, WhatsApp, Signal, and/or Reports.
+4. **Configure providers** -- enter credentials for each enabled channel.
+5. **Review and finish**.
+
+Download the encrypted backup when prompted and store it in a password manager.
+
+**SECURITY WARNING**: The admin nsec is the master key for your hotline. If compromised, an attacker can manage all volunteers, read admin-wrapped notes, and modify all settings. Store it in a hardware security module or a high-security password manager (1Password, Bitwarden, KeePassXC). Never reuse this keypair on public Nostr relays or other services.
+
+### 4.4 Manual Setup (Alternative)
+
+If you prefer to configure everything manually instead of using the setup script:
+
+```bash
 cd /opt/llamenos/deploy/docker
-```
-
-### 4.2 Generate Secrets
-
-Generate all required secrets. Each secret must be unique and cryptographically random.
-
-```bash
-# Generate database password
-PG_PASSWORD=$(openssl rand -base64 24)
-echo "PG_PASSWORD: $PG_PASSWORD"
-
-# Generate HMAC secret (must be exactly 64 hex characters)
-HMAC_SECRET=$(openssl rand -hex 32)
-echo "HMAC_SECRET: $HMAC_SECRET"
-
-# Generate MinIO credentials
-MINIO_ACCESS_KEY=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 20)
-MINIO_SECRET_KEY=$(openssl rand -base64 24)
-echo "MINIO_ACCESS_KEY: $MINIO_ACCESS_KEY"
-echo "MINIO_SECRET_KEY: $MINIO_SECRET_KEY"
-
-# Generate server Nostr secret (for relay event signing)
-SERVER_NOSTR_SECRET=$(openssl rand -hex 32)
-echo "SERVER_NOSTR_SECRET: $SERVER_NOSTR_SECRET"
-```
-
-**SECURITY WARNING**: Record these secrets in a password manager immediately. They cannot be recovered if lost. You will need the database password for backup recovery operations.
-
-### 4.3 Configure Environment
-
-```bash
 cp .env.example .env
 chmod 600 .env
 ```
 
-Edit `.env` and fill in your values:
+Generate and fill in the required secrets:
 
 ```bash
-# Required
-ADMIN_PUBKEY=           # Set in step 5 (bootstrap)
+# For hex secrets (HMAC_SECRET, SERVER_NOSTR_SECRET):
+openssl rand -hex 32
+
+# For passwords (PG_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY):
+openssl rand -base64 24
+```
+
+Set your domain and email in `.env`:
+
+```env
 DOMAIN=hotline.yourorg.org
 ACME_EMAIL=admin@yourorg.org
-PG_PASSWORD=<generated above>
-HMAC_SECRET=<generated above>
-MINIO_ACCESS_KEY=<generated above>
-MINIO_SECRET_KEY=<generated above>
-SERVER_NOSTR_SECRET=<generated above>
-
-# Application
-HOTLINE_NAME=Hotline
-ENVIRONMENT=production
-
-# Telephony (configure later via admin UI, or set here)
-# TWILIO_ACCOUNT_SID=
-# TWILIO_AUTH_TOKEN=
-# TWILIO_PHONE_NUMBER=
 ```
 
-### 4.4 Bootstrap Admin and Start
-
-You need the admin public key before starting. There are two approaches:
-
-**Approach A -- In-browser bootstrap (recommended):**
-
-Start the application first with a temporary admin key, then bootstrap through the setup wizard:
+Start with the production compose overlay:
 
 ```bash
-# Start with a placeholder -- the setup wizard will guide you
-# You will replace this after bootstrapping
-ADMIN_PUBKEY=0000000000000000000000000000000000000000000000000000000000000000
-
-docker compose up -d
-```
-
-Visit `https://hotline.yourorg.org` -- the setup wizard will generate a keypair for you. See [Section 5](#5-bootstrap-the-admin-account) for details.
-
-**Approach B -- CLI bootstrap:**
-
-Generate the keypair locally and set it before starting:
-
-```bash
-# On your local machine (requires bun)
-cd /path/to/llamenos
-bun run bootstrap-admin
-```
-
-This outputs the public key (hex) and the secret key (nsec). Set the public key in your `.env`:
-
-```bash
-ADMIN_PUBKEY=<hex public key from bootstrap-admin output>
-```
-
-Then start the application:
-
-```bash
-cd /opt/llamenos/deploy/docker
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
 ```
 
 ### 4.5 Verify Services
 
 ```bash
 # Check all services are running
-docker compose ps
+cd /opt/llamenos/deploy/docker
+docker compose -f docker-compose.yml -f docker-compose.production.yml ps
 
-# Expected output: app, postgres, caddy, minio all "running" with healthy status
-# Wait for health checks (up to 30 seconds)
-docker compose logs -f app --since 1m
+# Expected: app, postgres, caddy, minio, strfry all "running" with healthy status
+docker compose -f docker-compose.yml -f docker-compose.production.yml logs -f app --since 1m
 ```
 
 Verify the health endpoint:
@@ -424,57 +390,7 @@ curl -s https://hotline.yourorg.org/api/health
 
 ---
 
-## 5. Bootstrap the Admin Account
-
-The admin account is the root of trust for your Llamenos instance. It uses a Nostr keypair (secp256k1 public/private key) rather than a username and password.
-
-### In-Browser Bootstrap (Recommended)
-
-1. Visit `https://hotline.yourorg.org` in your browser.
-2. The setup wizard detects that no admin exists and guides you through keypair generation.
-3. The wizard generates a keypair in your browser. The private key (nsec) never leaves your device.
-4. Download the encrypted backup when prompted. Store it securely.
-5. Set a PIN to protect the key on this device.
-6. The wizard displays the public key. Update your server's `.env` with this value:
-
-   ```bash
-   # On the server
-   cd /opt/llamenos/deploy/docker
-   # Edit .env and set ADMIN_PUBKEY to the hex public key shown in the wizard
-   docker compose up -d   # Restart to pick up the new key
-   ```
-
-### CLI Bootstrap (Headless/CI)
-
-If you cannot access the browser (e.g., headless server setup):
-
-```bash
-# On your local machine
-cd /path/to/llamenos
-bun run bootstrap-admin
-```
-
-Output:
-```
-=== Llamenos Admin Bootstrap ===
-
-PUBLIC KEY (hex):
-  a1b2c3d4...
-
-SECRET KEY (nsec) -- share this securely with the admin:
-  nsec1...
-```
-
-1. Copy the hex public key into your server's `.env` as `ADMIN_PUBKEY`.
-2. Restart the application: `docker compose up -d`.
-3. Store the nsec in a password manager. It cannot be recovered.
-4. Log in at `https://hotline.yourorg.org` using the nsec.
-
-**SECURITY WARNING**: The admin nsec is the master key for your hotline. If compromised, an attacker can manage all volunteers, read admin-wrapped notes, and modify all settings. Store it in a hardware security module or a high-security password manager (1Password, Bitwarden, KeePassXC). Never reuse this keypair on public Nostr relays or other services.
-
----
-
-## 6. Configure Telephony
+## 5. Configure Telephony
 
 Telephony is optional -- Llamenos works as a messaging and reporting platform without it. If you want voice calling, configure a provider.
 
@@ -495,12 +411,13 @@ Telephony is optional -- Llamenos works as a messaging and reporting platform wi
    - Click "Test Connection" to verify.
    - Save.
 
-   Or set environment variables in `.env`:
+   Or add to `deploy/docker/.env`:
    ```bash
    TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
    TWILIO_AUTH_TOKEN=your_auth_token
    TWILIO_PHONE_NUMBER=+15551234567
    ```
+   Then restart: `docker compose -f docker-compose.yml -f docker-compose.production.yml up -d`
 
 5. **Configure Twilio webhooks** in the Twilio Console:
    - Navigate to your phone number's configuration.
@@ -521,7 +438,7 @@ For detailed setup instructions for each provider, see the documentation site or
 
 ---
 
-## 7. Test the Deployment
+## 6. Test the Deployment
 
 Run through this checklist to verify your deployment:
 
@@ -572,7 +489,7 @@ Alert on any non-200 response.
 
 ---
 
-## 8. Update the Application
+## 7. Update the Application
 
 ### Manual Update
 
@@ -585,8 +502,8 @@ git pull
 
 # Rebuild and restart
 cd deploy/docker
-docker compose build app
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml build app
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
 ```
 
 ### Automated Update with Ansible
@@ -612,15 +529,12 @@ If an update causes issues:
 ```bash
 cd /opt/llamenos/deploy/docker
 
-# Check the previous image
-docker compose logs app | head -5
-
 # Roll back to a specific git commit
 cd /opt/llamenos
 git checkout <previous-commit>
 cd deploy/docker
-docker compose build app
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml build app
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
 ```
 
 ### Database Migrations
@@ -631,13 +545,13 @@ Storage migrations run automatically on application startup. No manual migration
 
 ## Optional: Enable Additional Services
 
-### Whisper Transcription (Legacy — Server-Side)
+### Whisper Transcription (Legacy -- Server-Side)
 
 > **Note**: As of Epic 78, transcription runs client-side in the browser via WASM Whisper. The server-side Whisper container is no longer needed for most deployments. Enable it only if you have a specific need for server-side transcription.
 
 ```bash
 cd /opt/llamenos/deploy/docker
-docker compose --profile transcription up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml --profile transcription up -d
 ```
 
 For GPU acceleration (NVIDIA), set `WHISPER_DEVICE=cuda` in `.env`.
@@ -655,7 +569,7 @@ BRIDGE_SECRET=$(openssl rand -base64 24)
 echo "ARI_PASSWORD=$ARI_PASSWORD" >> .env
 echo "BRIDGE_SECRET=$BRIDGE_SECRET" >> .env
 
-docker compose --profile asterisk up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml --profile asterisk up -d
 ```
 
 ### Signal Messaging
@@ -663,7 +577,7 @@ docker compose --profile asterisk up -d
 Enables the Signal messaging channel for text-based communication.
 
 ```bash
-docker compose --profile signal up -d
+docker compose -f docker-compose.yml -f docker-compose.production.yml --profile signal up -d
 ```
 
 ---

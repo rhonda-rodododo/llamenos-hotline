@@ -144,7 +144,7 @@ Runs at http://localhost with plain HTTP.
 ./scripts/docker-setup.sh --domain hotline.yourorg.com --email admin@yourorg.com
 ```
 
-Caddy auto-provisions TLS certificates via Let's Encrypt.
+Caddy auto-provisions TLS certificates via Let's Encrypt. The `--domain` flag activates the production Docker Compose overlay (`docker-compose.production.yml`) which adds TLS termination, log rotation, and resource limits.
 
 **Core services:** app, PostgreSQL, Caddy (reverse proxy), MinIO (file storage), strfry (Nostr relay).
 
@@ -152,13 +152,13 @@ Caddy auto-provisions TLS certificates via Let's Encrypt.
 
 ```bash
 # Self-hosted transcription (Whisper)
-docker compose -f deploy/docker/docker-compose.yml --profile transcription up -d
+docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.production.yml --profile transcription up -d
 
 # Self-hosted Asterisk PBX
-docker compose -f deploy/docker/docker-compose.yml --profile asterisk up -d
+docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.production.yml --profile asterisk up -d
 
 # Signal messaging bridge
-docker compose -f deploy/docker/docker-compose.yml --profile signal up -d
+docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.production.yml --profile signal up -d
 ```
 
 See the full [self-hosting guide](https://llamenos-hotline.com/docs/self-hosting) and [QUICKSTART.md](docs/QUICKSTART.md) for VPS provisioning, server hardening, and operational runbooks.

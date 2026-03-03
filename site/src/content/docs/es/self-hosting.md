@@ -3,15 +3,41 @@ title: Autoalojamiento
 description: Despliega Llamenos en tu propia infraestructura con Docker Compose o Kubernetes.
 ---
 
-Llamenos puede ejecutarse en Cloudflare Workers **o** en tu propia infraestructura. El autoalojamiento te da control total sobre la residencia de datos, el aislamiento de red y las decisiones de infraestructura — importante para organizaciones que no pueden usar plataformas cloud de terceros o necesitan cumplir requisitos estrictos de cumplimiento.
+Llamenos esta disenado para ejecutarse en tu propia infraestructura. El autoalojamiento te da control total sobre la residencia de datos, el aislamiento de red y las decisiones de infraestructura — critico para organizaciones que protegen contra adversarios con buenos recursos.
 
 ## Opciones de despliegue
 
 | Opcion | Ideal para | Complejidad | Escalabilidad |
 |--------|-----------|-------------|---------------|
-| [Cloudflare Workers](/docs/getting-started) | Inicio mas facil, edge global | Baja | Automatica |
-| [Docker Compose](/docs/deploy-docker) | Autoalojamiento en un servidor | Media | Nodo unico |
-| [Kubernetes (Helm)](/docs/deploy-kubernetes) | Orquestacion multi-servicio | Alta | Horizontal (multi-replica) |
+| [Docker Compose](/docs/deploy-docker) | Servidor unico, inicio recomendado | Baja | Nodo unico |
+| [Kubernetes (Helm)](/docs/deploy-kubernetes) | Orquestacion multi-servicio | Media | Horizontal (multi-replica) |
+
+## Archivos de Docker Compose
+
+Docker Compose usa un enfoque por capas:
+
+| Archivo | Proposito |
+|---------|-----------|
+| `docker-compose.yml` | Configuracion base — todos los servicios, redes, volumenes |
+| `docker-compose.production.yml` | Capa de produccion — TLS via Let's Encrypt, rotacion de logs, limites de recursos, CSP estricto |
+| `docker-compose.test.yml` | Capa de pruebas — expone puerto de la app directamente, modo desarrollo |
+
+Para **desarrollo local**, usa solo el archivo base. Para **produccion**, agrega la capa de produccion:
+
+```bash
+# Local
+docker compose -f docker-compose.yml up -d
+
+# Produccion
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
+```
+
+O usa el script de configuracion, que maneja esto automaticamente:
+
+```bash
+./scripts/docker-setup.sh                                     # local
+./scripts/docker-setup.sh --domain linea.tuorg.com --email a@b    # produccion
+```
 
 ## Diferencias de arquitectura
 
@@ -35,7 +61,7 @@ Ambos objetivos de despliegue ejecutan **exactamente el mismo codigo de aplicaci
 - Un servidor Linux (2 nucleos CPU, 2 GB RAM minimo)
 - Docker y Docker Compose v2 (o un cluster Kubernetes para Helm)
 - Un nombre de dominio apuntando a tu servidor
-- Un par de claves admin (generado con `bun run bootstrap-admin`)
+- `openssl` (para generar secretos durante la configuracion)
 - Al menos un canal de comunicacion (proveedor de voz, SMS, etc.)
 
 ### Componentes opcionales
@@ -68,6 +94,6 @@ El autoalojamiento te da mas control pero tambien mas responsabilidad:
 
 ## Siguientes pasos
 
-- [Despliegue con Docker Compose](/docs/deploy-docker) — funcionando en 10 minutos
+- [Primeros Pasos](/docs/getting-started) — inicio rapido con Docker
+- [Despliegue con Docker Compose](/docs/deploy-docker) — guia completa de despliegue en produccion
 - [Despliegue en Kubernetes](/docs/deploy-kubernetes) — despliega con Helm
-- [Primeros Pasos](/docs/getting-started) — despliegue en Cloudflare Workers

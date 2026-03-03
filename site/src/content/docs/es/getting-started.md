@@ -61,7 +61,7 @@ Para un servidor con dominio real y TLS automatico:
 ./scripts/docker-setup.sh --domain linea.tuorg.com --email admin@tuorg.com
 ```
 
-Caddy provisiona automaticamente certificados TLS via Let's Encrypt. Asegurate de que los puertos 80 y 443 esten abiertos.
+Caddy provisiona automaticamente certificados TLS via Let's Encrypt. Asegurate de que los puertos 80 y 443 esten abiertos. La opcion `--domain` activa la capa de produccion de Docker Compose, que agrega TLS, rotacion de logs y limites de recursos.
 
 Consulta la [guia de despliegue con Docker Compose](/docs/deploy-docker) para detalles completos sobre hardening del servidor, backups, monitoreo y servicios opcionales.
 
