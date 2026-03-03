@@ -67,7 +67,7 @@ function parsePlatformArg(): Platform[] {
     if (existsSync(DESKTOP_STEPS_DIR)) {
       platforms.push("desktop");
     }
-    if (existsSync(join(IOS_TEST_DIR, "E2E"))) {
+    if (existsSync(IOS_TEST_DIR) && findFiles(IOS_TEST_DIR, ".swift").length > 0) {
       platforms.push("ios");
     }
     return platforms.length > 0 ? platforms : ["android"];
@@ -532,14 +532,13 @@ function checkDesktopCoverage(scenarios: Scenario[]): { covered: number; missing
 }
 
 function checkIosCoverage(scenarios: Scenario[]): { covered: number; missing: number } {
-  const e2eDir = join(IOS_TEST_DIR, "E2E");
-  if (!existsSync(e2eDir)) {
-    console.log("  iOS E2E test directory not yet created (Tests/E2E/)");
+  if (!existsSync(IOS_TEST_DIR)) {
+    console.log("  iOS test directory not found (Tests/)");
     console.log(`  ${scenarios.length} scenarios tagged @ios pending implementation\n`);
     return { covered: 0, missing: scenarios.length };
   }
 
-  const testFiles = findFiles(e2eDir, ".swift");
+  const testFiles = findFiles(IOS_TEST_DIR, ".swift");
   const allMethods: TestMethod[] = [];
   for (const file of testFiles) {
     allMethods.push(...parseSwiftTestFile(file));
@@ -591,6 +590,82 @@ function checkIosCoverage(scenarios: Scenario[]): { covered: number; missing: nu
   return { covered, missing };
 }
 
+// ---- Tag & duplicate validation ----
+
+function reportPlatformTagCounts(scenarios: Scenario[]) {
+  const platformCounts: Record<string, number> = {
+    android: 0,
+    ios: 0,
+    desktop: 0,
+    backend: 0,
+  };
+  let untagged = 0;
+
+  for (const s of scenarios) {
+    let hasPlatformTag = false;
+    for (const tag of s.allTags) {
+      if (tag in platformCounts) {
+        platformCounts[tag]++;
+        hasPlatformTag = true;
+      }
+    }
+    if (!hasPlatformTag) {
+      untagged++;
+    }
+  }
+
+  console.log("Scenario counts by platform tag:");
+  for (const [tag, count] of Object.entries(platformCounts)) {
+    if (count > 0) {
+      console.log(`  @${tag}: ${count} scenarios`);
+    }
+  }
+  if (untagged > 0) {
+    console.log(`  WARNING: ${untagged} scenarios have NO platform tag`);
+  }
+  console.log();
+}
+
+function reportUntaggedFeatures(featureFiles: string[]) {
+  const warnings: string[] = [];
+  for (const file of featureFiles) {
+    const content = readFileSync(file, "utf-8");
+    const firstLine = content.split("\n")[0].trim();
+    if (!firstLine.startsWith("@")) {
+      warnings.push(relative(FEATURES_DIR, file));
+    }
+  }
+  if (warnings.length > 0) {
+    console.log(`WARNING: ${warnings.length} feature files missing platform tags:`);
+    for (const w of warnings) {
+      console.log(`  - ${w}`);
+    }
+    console.log();
+  }
+}
+
+function checkDuplicateFeatureNames(featureFiles: string[]) {
+  const nameMap = new Map<string, string[]>();
+  for (const file of featureFiles) {
+    const name = basename(file);
+    const paths = nameMap.get(name) ?? [];
+    paths.push(relative(FEATURES_DIR, file));
+    nameMap.set(name, paths);
+  }
+
+  const duplicates = [...nameMap.entries()].filter(([, paths]) => paths.length > 1);
+  if (duplicates.length > 0) {
+    console.log(`WARNING: ${duplicates.length} duplicate feature file names:`);
+    for (const [name, paths] of duplicates) {
+      console.log(`  ${name}:`);
+      for (const p of paths) {
+        console.log(`    - ${p}`);
+      }
+    }
+    console.log();
+  }
+}
+
 // ---- Main ----
 
 function main() {
@@ -608,6 +683,15 @@ function main() {
   console.log(
     `Found ${allScenarios.length} total scenarios across ${featureFiles.length} feature files\n`
   );
+
+  // Report per-platform scenario counts
+  reportPlatformTagCounts(allScenarios);
+
+  // Warn on features missing platform tags
+  reportUntaggedFeatures(featureFiles);
+
+  // Check for duplicate feature basenames
+  checkDuplicateFeatureNames(featureFiles);
 
   let totalMissing = 0;
   const results: { platform: string; total: number; covered: number; missing: number }[] = [];

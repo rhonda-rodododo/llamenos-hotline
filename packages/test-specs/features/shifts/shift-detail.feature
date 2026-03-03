@@ -1,3 +1,4 @@
+@android @ios @desktop
 Feature: Shift Detail
   As an admin
   I want to view shift details and manage volunteer assignments
