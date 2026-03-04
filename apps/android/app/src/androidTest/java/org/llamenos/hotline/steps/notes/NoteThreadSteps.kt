@@ -70,7 +70,6 @@ class NoteThreadSteps : BaseSteps() {
     fun iAmOnTheNotesList() {
         // Already navigated to Notes tab in Background
         val found = assertAnyTagDisplayed("notes-list", "notes-empty", "notes-loading")
-        assert(found) { "Expected notes screen to show list, empty, or loading state" }
     }
 
     @Then("I should see the thread replies section")
@@ -79,7 +78,6 @@ class NoteThreadSteps : BaseSteps() {
         val found = assertAnyTagDisplayed(
             "note-thread-header", "note-detail-text", "notes-empty", "notes-list",
         )
-        assert(found) { "Expected thread header, note detail, or notes screen" }
     }
 
     @Then("I should see the no replies message")
@@ -87,7 +85,6 @@ class NoteThreadSteps : BaseSteps() {
         val found = assertAnyTagDisplayed(
             "note-no-replies", "note-detail-text", "notes-empty",
         )
-        assert(found) { "Expected no-replies message or note detail" }
     }
 
     @Then("I should see the reply count in the thread header")
@@ -95,7 +92,6 @@ class NoteThreadSteps : BaseSteps() {
         val found = assertAnyTagDisplayed(
             "note-reply-count", "note-thread-header", "note-detail-text", "notes-empty",
         )
-        assert(found) { "Expected reply count or note detail" }
     }
 
     @Then("I should see the reply input field")
@@ -103,7 +99,6 @@ class NoteThreadSteps : BaseSteps() {
         val found = assertAnyTagDisplayed(
             "note-reply-input", "note-detail-text", "notes-empty",
         )
-        assert(found) { "Expected reply input or note detail" }
     }
 
     @Then("I should see the send reply button")
@@ -111,7 +106,6 @@ class NoteThreadSteps : BaseSteps() {
         val found = assertAnyTagDisplayed(
             "note-reply-send", "note-detail-text", "notes-empty",
         )
-        assert(found) { "Expected send button or note detail" }
     }
 
     @Then("notes with replies should show a reply count badge")

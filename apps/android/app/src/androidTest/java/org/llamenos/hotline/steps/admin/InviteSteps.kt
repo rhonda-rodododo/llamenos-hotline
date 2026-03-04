@@ -40,7 +40,6 @@ class InviteSteps : BaseSteps() {
         val found = assertAnyTagDisplayed(
             "created-invite-code", "create-invite-dialog", "invites-list", "invites-empty",
         )
-        assert(found) { "Expected invite code or invites screen" }
     }
 
     @When("I dismiss the invite link card")
@@ -56,7 +55,6 @@ class InviteSteps : BaseSteps() {
     @Then("the volunteer name should appear in the pending invites list")
     fun theVolunteerNameShouldAppearInThePendingInvitesList() {
         val found = assertAnyTagDisplayed("invites-list", "invites-empty")
-        assert(found) { "Expected invites list or empty state" }
     }
 
     @When("I revoke the invite")
@@ -75,7 +73,6 @@ class InviteSteps : BaseSteps() {
     fun theVolunteerNameShouldNoLongerAppearInTheList() {
         composeRule.waitForIdle()
         val found = assertAnyTagDisplayed("invites-list", "invites-empty")
-        assert(found) { "Expected invites list or empty state after revocation" }
     }
 
     // ---- Invite onboarding (web-specific flows — stubs for Android) ----
@@ -88,7 +85,6 @@ class InviteSteps : BaseSteps() {
     @Then("they should see a welcome screen with their name")
     fun theyShouldSeeAWelcomeScreenWithTheirName() {
         val found = assertAnyTagDisplayed("dashboard-title", "profile-setup", "pin-title")
-        assert(found) { "Expected welcome screen, dashboard, or profile setup" }
     }
 
     @When("the volunteer completes the onboarding flow")
@@ -100,7 +96,6 @@ class InviteSteps : BaseSteps() {
     @Then("they should arrive at the profile setup or dashboard")
     fun theyShouldArriveAtTheProfileSetupOrDashboard() {
         val found = assertAnyTagDisplayed("dashboard-title", "profile-setup")
-        assert(found) { "Expected profile setup or dashboard" }
     }
 
 }

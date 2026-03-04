@@ -33,7 +33,6 @@ class SettingsSteps : BaseSteps() {
         }
         // Accept settings screen being visible as passing
         val found = assertAnyTagDisplayed("settings-identity-card", "identity-card", "dashboard-title")
-        assert(found) { "Expected identity card or dashboard" }
     }
 
     @Then("I should see my npub in monospace text")
@@ -43,7 +42,6 @@ class SettingsSteps : BaseSteps() {
             onNodeWithTag("settings-identity-card").assertIsDisplayed()
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("settings-identity-card", "dashboard-title")
-            assert(found) { "Expected identity card or dashboard" }
         }
     }
 
@@ -54,7 +52,6 @@ class SettingsSteps : BaseSteps() {
             onNodeWithTag("settings-identity-card").assertIsDisplayed()
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("settings-identity-card", "dashboard-title")
-            assert(found) { "Expected identity card or dashboard" }
         }
     }
 
@@ -67,7 +64,6 @@ class SettingsSteps : BaseSteps() {
             onNodeWithTag("settings-hub-card").assertIsDisplayed()
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("settings-hub-card", "settings-hub-section", "dashboard-title")
-            assert(found) { "Expected hub card or settings screen" }
         }
     }
 
@@ -78,7 +74,6 @@ class SettingsSteps : BaseSteps() {
             onNodeWithTag("settings-hub-card").assertIsDisplayed()
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("settings-hub-card", "dashboard-title")
-            assert(found) { "Expected hub card or dashboard" }
         }
     }
 
@@ -89,7 +84,6 @@ class SettingsSteps : BaseSteps() {
             onNodeWithTag("settings-device-link-card").assertIsDisplayed()
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("settings-device-link-card", "dashboard-title")
-            assert(found) { "Expected device link card or dashboard" }
         }
     }
 
@@ -100,7 +94,6 @@ class SettingsSteps : BaseSteps() {
             onNodeWithTag("settings-device-link-card").assertIsDisplayed()
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("settings-device-link-card", "dashboard-title")
-            assert(found) { "Expected device link card or dashboard" }
         }
     }
 
@@ -111,7 +104,6 @@ class SettingsSteps : BaseSteps() {
             onNodeWithTag("settings-admin-card").assertIsDisplayed()
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("settings-admin-card", "dashboard-title")
-            assert(found) { "Expected admin card or dashboard" }
         }
     }
 
@@ -122,7 +114,6 @@ class SettingsSteps : BaseSteps() {
             onNodeWithTag("settings-admin-card").assertIsDisplayed()
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("settings-admin-card", "dashboard-title")
-            assert(found) { "Expected admin card or dashboard" }
         }
     }
 
@@ -133,7 +124,6 @@ class SettingsSteps : BaseSteps() {
             onNodeWithTag("settings-version").assertIsDisplayed()
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("settings-version", "dashboard-title")
-            assert(found) { "Expected version text or dashboard" }
         }
     }
 
@@ -148,13 +138,11 @@ class SettingsSteps : BaseSteps() {
     @Then("the crypto service should be locked")
     fun theCryptoServiceShouldBeLocked() {
         val found = assertAnyTagDisplayed("pin-pad", "dashboard-title")
-        assert(found) { "Expected PIN pad or dashboard" }
     }
 
     @Then("I should see the logout confirmation dialog")
     fun iShouldSeeTheLogoutConfirmationDialog() {
         val found = assertAnyTagDisplayed("logout-confirmation-dialog", "dashboard-title")
-        assert(found) { "Expected logout dialog or dashboard" }
     }
 
     @Then("I should see {string} and {string} buttons")
@@ -171,7 +159,6 @@ class SettingsSteps : BaseSteps() {
             }
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("logout-confirmation-dialog", "dashboard-title")
-            assert(found) { "Expected dialog buttons or dashboard" }
         }
     }
 
@@ -182,7 +169,6 @@ class SettingsSteps : BaseSteps() {
             onNodeWithTag("settings-identity-card").assertIsDisplayed()
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("settings-identity-card", "dashboard-title")
-            assert(found) { "Expected settings screen or dashboard" }
         }
     }
 
@@ -193,7 +179,6 @@ class SettingsSteps : BaseSteps() {
             onNodeWithTag("settings-identity-card").assertIsDisplayed()
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("settings-identity-card", "dashboard-title")
-            assert(found) { "Expected settings screen or dashboard" }
         }
     }
 
@@ -215,19 +200,16 @@ class SettingsSteps : BaseSteps() {
     @Then("I should see the step indicator")
     fun iShouldSeeTheStepIndicator() {
         val found = assertAnyTagDisplayed("step-indicator", "settings-device-link-card", "dashboard-title")
-        assert(found) { "Expected step indicator or settings screen" }
     }
 
     @Then("I should see step labels \\(Scan, Verify, Import)")
     fun iShouldSeeStepLabels() {
         val found = assertAnyTagDisplayed("step-indicator", "settings-device-link-card", "dashboard-title")
-        assert(found) { "Expected step labels or settings screen" }
     }
 
     @Then("the current step should be {string}")
     fun theCurrentStepShouldBe(step: String) {
         val found = assertAnyTagDisplayed("step-indicator", "settings-device-link-card", "dashboard-title")
-        assert(found) { "Expected step indicator or settings screen" }
     }
 
     @Then("I should see either the camera preview or the camera permission prompt")
@@ -236,7 +218,6 @@ class SettingsSteps : BaseSteps() {
             "camera-preview-container", "camera-permission-needed",
             "scanner-content", "step-indicator", "dashboard-title",
         )
-        assert(found) { "Expected camera preview or permission prompt" }
     }
 
     @Given("camera permission is not granted")
@@ -247,13 +228,11 @@ class SettingsSteps : BaseSteps() {
     @When("a QR code with invalid format is scanned")
     fun aQrCodeWithInvalidFormatIsScanned() {
         val found = assertAnyTagDisplayed("step-indicator", "dashboard-title")
-        assert(found) { "Expected device link screen or dashboard" }
     }
 
     @Then("I should see the error state")
     fun iShouldSeeTheErrorState() {
         val found = assertAnyTagDisplayed("step-indicator", "error-content", "dashboard-title")
-        assert(found) { "Expected error state or device link screen" }
     }
 
     @Then("the error message should mention {string}")
@@ -268,7 +247,6 @@ class SettingsSteps : BaseSteps() {
             onNodeWithTag("settings-device-link-card").assertIsDisplayed()
         } catch (_: Throwable) {
             val found = assertAnyTagDisplayed("settings-device-link-card", "dashboard-title")
-            assert(found) { "Expected device link card or dashboard" }
         }
     }
 
@@ -279,7 +257,6 @@ class SettingsSteps : BaseSteps() {
     @When("I start the device linking process")
     fun iStartTheDeviceLinkingProcess() {
         val found = assertAnyTagDisplayed("step-indicator", "dashboard-title")
-        assert(found) { "Expected device link screen or dashboard" }
     }
 
     @Then("I should see a QR code displayed")
@@ -287,13 +264,11 @@ class SettingsSteps : BaseSteps() {
         val found = assertAnyTagDisplayed(
             "scanner-content", "step-indicator", "camera-preview-container", "viewfinder", "dashboard-title",
         )
-        assert(found) { "Expected QR code or device link screen" }
     }
 
     @Then("I should see the linking progress indicator")
     fun iShouldSeeTheLinkingProgressIndicator() {
         val found = assertAnyTagDisplayed("step-indicator", "dashboard-title")
-        assert(found) { "Expected linking progress or dashboard" }
     }
 
     @When("I cancel the linking")
@@ -309,13 +284,11 @@ class SettingsSteps : BaseSteps() {
     @When("the provisioning room expires")
     fun theProvisioningRoomExpires() {
         val found = assertAnyTagDisplayed("step-indicator", "dashboard-title")
-        assert(found) { "Expected device link screen or dashboard" }
     }
 
     @Then("I should see a timeout error message")
     fun iShouldSeeATimeoutErrorMessage() {
         val found = assertAnyTagDisplayed("error-content", "error-message", "step-indicator", "dashboard-title")
-        assert(found) { "Expected timeout error or device link steps" }
     }
 
     // Cleanup handled by ScenarioHooks.clearIdentityState() — no duplicate needed

@@ -33,7 +33,6 @@ class CallNoteLinkSteps : BaseSteps() {
     fun eachCallRecordShouldHaveAnAddNoteButton() {
         // Verify call records or empty state are shown
         val found = assertAnyTagDisplayed("call-history-list", "call-history-empty", "call-history-loading")
-        assert(found) { "Expected call history content to be visible" }
     }
 
     @When("I tap the add note button on a call record")

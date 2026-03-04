@@ -36,6 +36,5 @@ class CallDateFilterSteps : BaseSteps() {
         val found = assertAnyTagDisplayed(
             "call-date-clear", "call-date-from", "call-date-to", "call-history-empty",
         )
-        assert(found) { "Expected date clear button or date filter inputs" }
     }
 }

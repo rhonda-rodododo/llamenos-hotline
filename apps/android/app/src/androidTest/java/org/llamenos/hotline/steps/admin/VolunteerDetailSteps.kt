@@ -63,37 +63,31 @@ class VolunteerDetailSteps : BaseSteps() {
             "volunteer-detail-loading",
             "volunteer-detail-not-found",
         )
-        assert(found) { "Expected volunteer detail screen" }
     }
 
     @Then("I should see the volunteer name")
     fun iShouldSeeTheVolunteerName() {
         val found = assertAnyTagDisplayed("volunteer-name", "volunteer-detail-not-found")
-        assert(found) { "Expected volunteer name or not-found state" }
     }
 
     @Then("I should see the volunteer pubkey")
     fun iShouldSeeTheVolunteerPubkey() {
         val found = assertAnyTagDisplayed("volunteer-pubkey", "volunteer-detail-not-found")
-        assert(found) { "Expected volunteer pubkey or not-found state" }
     }
 
     @Then("I should see the volunteer role badge")
     fun iShouldSeeTheVolunteerRoleBadge() {
         val found = assertAnyTagDisplayed("volunteer-role-badge", "volunteer-detail-not-found")
-        assert(found) { "Expected volunteer role badge or not-found state" }
     }
 
     @Then("I should see the volunteer status badge")
     fun iShouldSeeTheVolunteerStatusBadge() {
         val found = assertAnyTagDisplayed("volunteer-status-badge", "volunteer-detail-not-found")
-        assert(found) { "Expected volunteer status badge or not-found state" }
     }
 
     @Then("I should see the volunteer join date")
     fun iShouldSeeTheVolunteerJoinDate() {
         val found = assertAnyTagDisplayed("volunteer-joined", "volunteer-detail-not-found")
-        assert(found) { "Expected volunteer join date or not-found state" }
     }
 
     @Then("I should see the recent activity card")
@@ -102,7 +96,6 @@ class VolunteerDetailSteps : BaseSteps() {
             "volunteer-activity-card",
             "volunteer-detail-not-found",
         )
-        assert(found) { "Expected activity card or not-found state" }
     }
 
     @When("I tap the back button on the volunteer detail")

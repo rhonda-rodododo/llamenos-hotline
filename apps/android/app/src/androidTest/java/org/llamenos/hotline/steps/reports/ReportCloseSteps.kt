@@ -18,7 +18,6 @@ class ReportCloseSteps : BaseSteps() {
         val found = assertAnyTagDisplayed(
             "report-close-button", "report-detail-title", "reports-empty", "reports-list",
         )
-        assert(found) { "Expected close button or report screen" }
     }
 
     @Then("I should not see the report close button")

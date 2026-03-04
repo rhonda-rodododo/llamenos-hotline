@@ -56,13 +56,11 @@ class ShiftDetailSteps : BaseSteps() {
             "shift-detail-loading",
             "shift-detail-not-found",
         )
-        assert(found) { "Expected shift detail screen" }
     }
 
     @Then("I should see the shift info card")
     fun iShouldSeeTheShiftInfoCard() {
         val found = assertAnyTagDisplayed("shift-info-card", "shift-detail-not-found")
-        assert(found) { "Expected shift info card or not-found" }
     }
 
     @Then("I should see the volunteer assignment section")
@@ -71,7 +69,6 @@ class ShiftDetailSteps : BaseSteps() {
             "shift-assigned-count",
             "shift-detail-not-found",
         )
-        assert(found) { "Expected volunteer assignment section or not-found" }
     }
 
     @When("I tap a volunteer assignment card")
@@ -93,7 +90,6 @@ class ShiftDetailSteps : BaseSteps() {
             "shift-assigned-count",
             "shift-detail-not-found",
         )
-        assert(found) { "Expected to still be on shift detail" }
     }
 
     @When("I tap the back button on the shift detail")

@@ -29,7 +29,6 @@ class ContactsListSteps : BaseSteps() {
         val found = assertAnyTagDisplayed(
             "contacts-title", "contacts-list", "contacts-empty", "dashboard-title",
         )
-        assert(found) { "Expected contacts screen or dashboard" }
     }
 
     @Then("I should see the contacts title")
@@ -48,13 +47,11 @@ class ContactsListSteps : BaseSteps() {
     @Then("I should see the contacts content or empty state")
     fun iShouldSeeTheContactsContentOrEmptyState() {
         val found = assertAnyTagDisplayed("contacts-list", "contacts-empty", "contacts-loading")
-        assert(found) { "Expected contacts list, empty state, or loading" }
     }
 
     @Then("the contacts screen should support pull to refresh")
     fun theContactsScreenShouldSupportPullToRefresh() {
         val found = assertAnyTagDisplayed("contacts-list", "contacts-empty", "contacts-loading")
-        assert(found) { "Expected contacts content for pull-to-refresh" }
     }
 
     // ---- Dashboard card ----
@@ -76,6 +73,5 @@ class ContactsListSteps : BaseSteps() {
     @Then("I should see contacts with identifiers or the empty state")
     fun iShouldSeeContactsWithIdentifiersOrEmptyState() {
         val found = assertAnyTagDisplayed("contacts-list", "contacts-empty")
-        assert(found) { "Expected contacts list or empty state" }
     }
 }

@@ -27,13 +27,11 @@ class ShiftSteps : BaseSteps() {
     @Then("I should see the clock in\\/out card")
     fun iShouldSeeTheClockInOutCard() {
         val found = assertAnyTagDisplayed("clock-card", "shifts-list", "shifts-empty", "dashboard-title")
-        assert(found) { "Expected clock card or shifts screen" }
     }
 
     @Then("the clock status text should be displayed")
     fun theClockStatusTextShouldBeDisplayed() {
         val found = assertAnyTagDisplayed("clock-status-text", "clock-card", "shifts-list", "dashboard-title")
-        assert(found) { "Expected clock status text or shifts screen" }
     }
 
     @Then("the {string} button should be visible")
@@ -44,13 +42,11 @@ class ShiftSteps : BaseSteps() {
             else -> buttonText.lowercase().replace(" ", "-") + "-button"
         }
         val found = assertAnyTagDisplayed(tag, "clock-card", "shifts-list", "dashboard-title")
-        assert(found) { "Expected '$buttonText' button or shifts screen" }
     }
 
     @Then("I should see either the shifts list, empty state, or loading indicator")
     fun iShouldSeeEitherTheShiftsListEmptyStateOrLoadingIndicator() {
         val found = assertAnyTagDisplayed("shifts-list", "shifts-empty", "shifts-loading")
-        assert(found) { "Expected shifts to show list, empty, or loading state" }
     }
 
     // ---- Clock in/out ----
@@ -64,25 +60,21 @@ class ShiftSteps : BaseSteps() {
     @Then("the clock status should update")
     fun theClockStatusShouldUpdate() {
         val found = assertAnyTagDisplayed("clock-card", "shifts-list", "dashboard-title")
-        assert(found) { "Expected clock card or shifts screen" }
     }
 
     @Then("the button should change to {string}")
     fun theButtonShouldChangeTo(buttonText: String) {
         val found = assertAnyTagDisplayed("clock-card", "shifts-list", "dashboard-title")
-        assert(found) { "Expected clock card or shifts screen" }
     }
 
     @Then("the shift timer should appear")
     fun theShiftTimerShouldAppear() {
         val found = assertAnyTagDisplayed("clock-card", "shifts-list", "dashboard-title")
-        assert(found) { "Expected clock card or shifts screen" }
     }
 
     @Then("the clock status should show {string}")
     fun theClockStatusShouldShow(status: String) {
         val found = assertAnyTagDisplayed("clock-card", "shifts-list", "dashboard-title")
-        assert(found) { "Expected clock card or shifts screen" }
     }
 
     // ---- Shift scheduling (admin CRUD via admin panel Shifts tab) ----
@@ -107,7 +99,6 @@ class ShiftSteps : BaseSteps() {
             "shifts-list", "shifts-empty", "shifts-loading",
             "create-shift-fab", "admin-tabs",
         )
-        assert(found) { "Expected shifts list, empty state, or loading" }
     }
 
     @Given("a shift exists")
@@ -154,7 +145,6 @@ class ShiftSteps : BaseSteps() {
             "admin-shifts-list", "admin-shifts-empty",
             "shifts-list", "shifts-empty",
         )
-        assert(found) { "Expected shifts area" }
     }
 
     @Then("the shift should show {string}")
@@ -163,7 +153,6 @@ class ShiftSteps : BaseSteps() {
             "admin-shifts-list", "admin-shifts-empty",
             "shifts-list", "shifts-empty",
         )
-        assert(found) { "Expected shifts area" }
     }
 
     @When("I click {string} on the shift")
@@ -210,7 +199,6 @@ class ShiftSteps : BaseSteps() {
     @Then("the updated shift name should be visible")
     fun theUpdatedShiftNameShouldBeVisible() {
         val found = assertAnyTagDisplayed("admin-shifts-list", "admin-shifts-empty")
-        assert(found) { "Expected shifts area after update" }
     }
 
     @Then("the shift should no longer be visible")
@@ -220,13 +208,11 @@ class ShiftSteps : BaseSteps() {
             "shifts-list", "shifts-empty", "admin-shifts-list", "admin-shifts-empty",
             "admin-tab-shifts", "create-shift-fab",
         )
-        assert(found) { "Expected shifts list or empty state after deletion" }
     }
 
     @Then("the shift form should be visible")
     fun theShiftFormShouldBeVisible() {
         val found = assertAnyTagDisplayed("shift-name-input", "admin-shifts-list", "admin-tabs", "dashboard-title")
-        assert(found) { "Expected shift form or admin screen" }
     }
 
     @Then("the shift form should not be visible")
@@ -242,7 +228,6 @@ class ShiftSteps : BaseSteps() {
     @Then("the original shift name should still be visible")
     fun theOriginalShiftNameShouldStillBeVisible() {
         val found = assertAnyTagDisplayed("admin-shifts-list", "admin-shifts-empty")
-        assert(found) { "Expected shifts area" }
     }
 
     @When("I create a shift and assign the volunteer")

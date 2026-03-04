@@ -33,7 +33,6 @@ class ReportSteps : BaseSteps() {
     @Then("the report should appear in the reports list")
     fun theReportShouldAppearInTheReportsList() {
         val found = assertAnyTagDisplayed("reports-list", "reports-empty", "reports-loading")
-        assert(found) { "Expected reports area to be visible" }
     }
 
     @Given("at least one report exists")
@@ -44,7 +43,6 @@ class ReportSteps : BaseSteps() {
     @Then("I should see reports in the list")
     fun iShouldSeeReportsInTheList() {
         val found = assertAnyTagDisplayed("reports-list", "reports-empty", "reports-loading")
-        assert(found) { "Expected reports area to be visible" }
     }
 
     @Given("a report exists")
@@ -73,7 +71,6 @@ class ReportSteps : BaseSteps() {
             "report-detail-title", "report-detail-title-text",
             "report-not-found", "report-metadata-card",
         )
-        assert(found) { "Expected report detail view" }
     }
 
     @Then("I should see the report content")
@@ -81,7 +78,6 @@ class ReportSteps : BaseSteps() {
         val found = assertAnyTagDisplayed(
             "report-detail-title-text", "report-metadata-card", "report-not-found",
         )
-        assert(found) { "Expected report content to be visible" }
     }
 
     @Given("a reporter has been invited and onboarded")
@@ -103,7 +99,6 @@ class ReportSteps : BaseSteps() {
     @Then("the report should be saved successfully")
     fun theReportShouldBeSavedSuccessfully() {
         val found = assertAnyTagDisplayed("reports-list", "reports-empty", "report-detail-title")
-        assert(found) { "Expected reports area after save" }
     }
 
     @Given("a reporter is logged in")

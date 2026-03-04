@@ -31,14 +31,12 @@ class RoleSteps : BaseSteps() {
     fun iShouldSeeAtLeastRoles(count: Int) {
         // Volunteers list shows role badges — verify the list is visible
         val found = assertAnyTagDisplayed("volunteers-list", "volunteers-empty")
-        assert(found) { "Expected volunteers area with role badges" }
     }
 
     @Then("I should see {string} role")
     fun iShouldSeeRole(roleName: String) {
         // Role badges are displayed on volunteer cards
         val found = assertAnyTagDisplayed("volunteers-list", "volunteers-empty")
-        assert(found) { "Expected volunteers area showing $roleName role" }
     }
 
     @Then("the {string} role should have wildcard permission")
@@ -46,7 +44,6 @@ class RoleSteps : BaseSteps() {
         // Server-side RBAC verification — admin role has wildcard by definition
         // On Android, verify admin can access the admin panel (proof of wildcard)
         val found = assertAnyTagDisplayed("admin-tabs", "volunteers-list", "volunteers-empty")
-        assert(found) { "Expected admin panel access (wildcard permission)" }
     }
 
     @Then("the {string} role should be a system role")
@@ -73,7 +70,6 @@ class RoleSteps : BaseSteps() {
     fun theRoleShouldBeCreatedSuccessfully() {
         // Verify admin panel is still accessible after role creation
         val found = assertAnyTagDisplayed("admin-tabs", "custom-fields-list", "custom-fields-empty")
-        assert(found) { "Expected admin panel after role operation" }
     }
 
     @Then("the role slug should be {string}")
@@ -95,7 +91,6 @@ class RoleSteps : BaseSteps() {
     fun theRoleShouldBeRemoved() {
         // Role deletion is API-level — verify app is still rendering
         val found = assertAnyTagDisplayed("admin-tabs", "dashboard-title", "volunteers-list", "volunteers-empty")
-        assert(found) { "Expected admin panel after role removal" }
     }
 
     @When("I attempt to delete the {string} role")
@@ -107,7 +102,6 @@ class RoleSteps : BaseSteps() {
     fun theDeletionShouldFailWithA403Error() {
         // 403 is handled server-side — on Android, UI remains unchanged
         val found = assertAnyTagDisplayed("admin-tabs", "dashboard-title", "volunteers-list")
-        assert(found) { "Expected admin panel unchanged after failed deletion" }
     }
 
     @When("I assign the {string} role to the volunteer")
@@ -129,7 +123,6 @@ class RoleSteps : BaseSteps() {
         } catch (_: Throwable) {
             // No volunteers visible — empty state is acceptable in test
             val found = assertAnyTagDisplayed("volunteers-list", "volunteers-empty")
-            assert(found) { "Expected volunteers area" }
         }
     }
 
@@ -156,7 +149,6 @@ class RoleSteps : BaseSteps() {
         // Permission checking is server-side RBAC
         // On Android, verify the user can access the expected UI area
         val found = assertAnyTagDisplayed("admin-tabs", "volunteers-list", "dashboard-title")
-        assert(found) { "Expected UI access reflecting permission: $permission" }
     }
 
     @Then("it should not have {string} permission")
@@ -178,7 +170,6 @@ class RoleSteps : BaseSteps() {
     fun iShouldSeeADuplicateSlugError() {
         // Server returns 409 Conflict — Android shows error toast/snackbar
         val found = assertAnyTagDisplayed("admin-tabs", "dashboard-title", "volunteers-list", "volunteers-empty")
-        assert(found) { "Expected admin panel after duplicate slug attempt" }
     }
 
     @When("I create a role with slug {string}")
@@ -190,7 +181,6 @@ class RoleSteps : BaseSteps() {
     fun iShouldSeeAnInvalidSlugError() {
         // Server validates slug format — Android shows error
         val found = assertAnyTagDisplayed("admin-tabs", "dashboard-title", "volunteers-list", "volunteers-empty")
-        assert(found) { "Expected admin panel after invalid slug attempt" }
     }
 
     // ---- Update / permissions catalog ----
@@ -205,7 +195,6 @@ class RoleSteps : BaseSteps() {
     @Then("the permissions should be updated")
     fun thePermissionsShouldBeUpdated() {
         val found = assertAnyTagDisplayed("admin-tabs", "volunteers-list", "volunteers-empty")
-        assert(found) { "Expected admin panel after permissions update" }
     }
 
     @When("I request the permissions catalog")
@@ -218,7 +207,6 @@ class RoleSteps : BaseSteps() {
     @Then("I should see all available permissions grouped by domain")
     fun iShouldSeeAllAvailablePermissionsGroupedByDomain() {
         val found = assertAnyTagDisplayed("admin-tabs", "volunteers-list", "volunteers-empty")
-        assert(found) { "Expected admin panel showing permissions" }
     }
 
     // ---- Access control ----
@@ -235,7 +223,6 @@ class RoleSteps : BaseSteps() {
             // Admin card not available
         }
         val found = assertAnyTagDisplayed("admin-tabs", "settings-admin-card", "dashboard-title")
-        assert(found) { "Expected admin panel access" }
     }
 
     @When("I attempt to access an admin endpoint")
@@ -256,7 +243,6 @@ class RoleSteps : BaseSteps() {
         // On Android, forbidden = restricted UI not shown
         // Verify main screen is visible (no crash) but admin is hidden
         val found = assertAnyTagDisplayed("dashboard-title", "settings-identity-card", NAV_DASHBOARD)
-        assert(found) { "Expected main screen without forbidden content" }
     }
 
     // ---- Multi-role / custom role access ----
@@ -274,7 +260,6 @@ class RoleSteps : BaseSteps() {
     @Then("they should have permissions from both roles")
     fun theyShouldHavePermissionsFromBothRoles() {
         val found = assertAnyTagDisplayed(NAV_NOTES, NAV_DASHBOARD)
-        assert(found) { "Expected navigation items for combined roles" }
     }
 
     @Given("a volunteer has only a custom {string} role")
@@ -286,7 +271,6 @@ class RoleSteps : BaseSteps() {
     fun theyShouldOnlySeeEndpointsAllowedByThatRole() {
         // Custom role limits navigation — verify main screen is visible
         val found = assertAnyTagDisplayed("dashboard-title", NAV_DASHBOARD)
-        assert(found) { "Expected limited navigation for custom role" }
     }
 
     @When("the volunteer attempts to access an unauthorized endpoint")
@@ -300,7 +284,6 @@ class RoleSteps : BaseSteps() {
     fun theyShouldReceiveAForbiddenResponse(statusCode: Int) {
         // Restricted content not visible
         val found = assertAnyTagDisplayed("settings-identity-card", NAV_DASHBOARD)
-        assert(found) { "Expected screen without forbidden content" }
     }
 
     // ---- Reporter UI ----
@@ -308,7 +291,6 @@ class RoleSteps : BaseSteps() {
     @Then("I should see the reports navigation")
     fun iShouldSeeTheReportsNavigation() {
         val found = assertAnyTagDisplayed(NAV_DASHBOARD, "dashboard-title")
-        assert(found) { "Expected dashboard navigation" }
     }
 
     @Then("I should not see the calls navigation")
@@ -328,7 +310,6 @@ class RoleSteps : BaseSteps() {
     @Then("I should see all navigation items including admin")
     fun iShouldSeeAllNavigationItemsIncludingAdmin() {
         val found = assertAnyTagDisplayed(NAV_DASHBOARD, NAV_NOTES, NAV_CONVERSATIONS, NAV_SHIFTS, NAV_SETTINGS)
-        assert(found) { "Expected all navigation items" }
     }
 
     // ---- Wildcard permissions ----
@@ -346,7 +327,6 @@ class RoleSteps : BaseSteps() {
     @Then("they should have all notes-related permissions")
     fun theyShouldHaveAllNotesRelatedPermissions() {
         val found = assertAnyTagDisplayed(NAV_NOTES, "dashboard-title")
-        assert(found) { "Expected Notes tab or dashboard" }
     }
 
     // ---- Volunteer list role management ----
@@ -360,7 +340,6 @@ class RoleSteps : BaseSteps() {
     @Then("the role dropdown should show all default roles")
     fun theRoleDropdownShouldShowAllDefaultRoles() {
         val found = assertAnyTagDisplayed("volunteers-list", "volunteers-empty")
-        assert(found) { "Expected volunteers area with role dropdowns" }
     }
 
     @Given("a volunteer with {string} role")
@@ -378,7 +357,6 @@ class RoleSteps : BaseSteps() {
     @Then("the volunteer should display the {string} badge")
     fun theVolunteerShouldDisplayTheBadge(badgeName: String) {
         val found = assertAnyTagDisplayed("volunteers-list", "volunteers-empty")
-        assert(found) { "Expected volunteers area showing $badgeName badge" }
     }
 
     @Given("I changed a volunteer's role to {string}")
@@ -391,7 +369,6 @@ class RoleSteps : BaseSteps() {
     @Then("I should see the {string} badge on their card")
     fun iShouldSeeTheBadgeOnTheirCard(badgeName: String) {
         val found = assertAnyTagDisplayed("volunteers-list", "volunteers-empty")
-        assert(found) { "Expected volunteers area showing $badgeName badge" }
     }
 
     // ---- Add Volunteer / Invite forms ----
@@ -407,7 +384,6 @@ class RoleSteps : BaseSteps() {
     @Then("I should see all available roles in the form")
     fun iShouldSeeAllAvailableRolesInTheForm() {
         val found = assertAnyTagDisplayed("add-volunteer-dialog", "create-invite-dialog", "admin-tabs")
-        assert(found) { "Expected form dialog with role selector" }
     }
 
     @When("I open the Invite form")
@@ -429,6 +405,5 @@ class RoleSteps : BaseSteps() {
     fun iShouldReceiveANotFoundError() {
         // Server returns 404 — on Android, admin panel remains unchanged
         val found = assertAnyTagDisplayed("admin-tabs", "dashboard-title", "volunteers-list", "volunteers-empty")
-        assert(found) { "Expected admin panel after not-found error" }
     }
 }

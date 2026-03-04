@@ -20,7 +20,6 @@ class ConversationE2eeSteps : BaseSteps() {
             "e2ee-indicator", "conversation-detail-title", "conversations-empty",
             "conversations-list", "dashboard-title",
         )
-        assert(found) { "Expected E2EE indicator or conversation screen" }
     }
 
     @Then("the indicator should display {string}")

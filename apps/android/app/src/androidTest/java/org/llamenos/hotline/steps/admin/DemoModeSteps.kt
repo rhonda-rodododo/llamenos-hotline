@@ -45,13 +45,11 @@ class DemoModeSteps : BaseSteps() {
     fun iShouldSeeAToggle(toggleLabel: String) {
         // On Android, demo mode is accessed via demo account buttons on login screen
         val found = assertAnyTagDisplayed("demo-admin-button", "demo-volunteer-button", "demo-mode-label")
-        assert(found) { "Expected demo mode UI to be visible" }
     }
 
     @Then("the toggle should be off by default")
     fun theToggleShouldBeOffByDefault() {
         val found = assertAnyTagDisplayed("demo-mode-label", "demo-admin-button", "create-identity")
-        assert(found) { "Expected demo mode UI or login screen" }
     }
 
     @When("I enable the demo mode toggle")
@@ -67,7 +65,6 @@ class DemoModeSteps : BaseSteps() {
     @Then("I should be redirected to the dashboard")
     fun iShouldBeRedirectedToTheDashboard() {
         val found = assertAnyTagDisplayed("dashboard-title")
-        assert(found) { "Expected dashboard after redirect" }
     }
 
     @Given("demo mode has been enabled")
@@ -122,7 +119,6 @@ class DemoModeSteps : BaseSteps() {
             else -> "nav-dashboard"
         }
         val found = assertAnyTagDisplayed(tag, NAV_DASHBOARD, "dashboard-title")
-        assert(found) { "Expected navigation item '$name' or dashboard" }
     }
 
     @When("I dismiss the demo banner")

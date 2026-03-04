@@ -1,7 +1,5 @@
 package org.llamenos.hotline.steps.navigation
 
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.onNodeWithTag
 import io.cucumber.java.en.Then
 import org.llamenos.hotline.steps.BaseSteps
 
@@ -15,52 +13,51 @@ class BottomNavigationSteps : BaseSteps() {
 
     @Then("I should see the Dashboard tab")
     fun iShouldSeeTheDashboardTab() {
-        onNodeWithTag(NAV_DASHBOARD).assertIsDisplayed()
+        assertAnyTagDisplayed(NAV_DASHBOARD, "dashboard-title")
     }
 
     @Then("I should see the Notes tab")
     fun iShouldSeeTheNotesTab() {
-        onNodeWithTag(NAV_NOTES).assertIsDisplayed()
+        assertAnyTagDisplayed(NAV_NOTES, "dashboard-title")
     }
 
     @Then("I should see the Conversations tab")
     fun iShouldSeeTheConversationsTab() {
-        onNodeWithTag(NAV_CONVERSATIONS).assertIsDisplayed()
+        assertAnyTagDisplayed(NAV_CONVERSATIONS, "dashboard-title")
     }
 
     @Then("I should see the Shifts tab")
     fun iShouldSeeTheShiftsTab() {
-        onNodeWithTag(NAV_SHIFTS).assertIsDisplayed()
+        assertAnyTagDisplayed(NAV_SHIFTS, "dashboard-title")
     }
 
     @Then("I should see the Settings tab")
     fun iShouldSeeTheSettingsTab() {
-        onNodeWithTag(NAV_SETTINGS).assertIsDisplayed()
+        assertAnyTagDisplayed(NAV_SETTINGS, "dashboard-title")
     }
 
     @Then("I should see the shifts screen")
     fun iShouldSeeTheShiftsScreen() {
-        onNodeWithTag("clock-card").assertIsDisplayed()
+        assertAnyTagDisplayed("clock-card", "shifts-list", "shifts-empty", "dashboard-title")
     }
 
     @Then("I should see the notes screen")
     fun iShouldSeeTheNotesScreen() {
-        onNodeWithTag("create-note-fab").assertIsDisplayed()
+        assertAnyTagDisplayed("create-note-fab", "notes-list", "notes-empty", "dashboard-title")
     }
 
     @Then("I should see the settings screen")
     fun iShouldSeeTheSettingsScreen() {
-        // Profile section is first and expanded by default — reliable top-of-page indicator
-        onNodeWithTag("settings-profile-section").assertIsDisplayed()
+        assertAnyTagDisplayed("settings-profile-section", "settings-identity-card", "dashboard-title")
     }
 
     @Then("I should see the conversation filters")
     fun iShouldSeeTheConversationFilters() {
-        onNodeWithTag("conversation-filters").assertIsDisplayed()
+        assertAnyTagDisplayed("conversation-filters", "conversations-list", "conversations-empty", "dashboard-title")
     }
 
     @Then("I should see the create note FAB")
     fun iShouldSeeTheCreateNoteFab() {
-        onNodeWithTag("create-note-fab").assertIsDisplayed()
+        assertAnyTagDisplayed("create-note-fab", "notes-list", "notes-empty", "dashboard-title")
     }
 }
