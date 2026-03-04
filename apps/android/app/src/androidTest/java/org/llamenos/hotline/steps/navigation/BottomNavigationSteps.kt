@@ -50,7 +50,8 @@ class BottomNavigationSteps : BaseSteps() {
 
     @Then("I should see the settings screen")
     fun iShouldSeeTheSettingsScreen() {
-        onNodeWithTag("settings-identity-card").assertIsDisplayed()
+        // Profile section is first and expanded by default — reliable top-of-page indicator
+        onNodeWithTag("settings-profile-section").assertIsDisplayed()
     }
 
     @Then("I should see the conversation filters")

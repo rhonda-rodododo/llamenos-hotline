@@ -30,14 +30,20 @@ class GenericSteps : BaseSteps() {
     @When("I click {string}")
     fun iClick(text: String) {
         // Try testTag mappings first for common action buttons
+        // FAB tags come before dialog confirm tags so opening forms works
         val tagMap = mapOf(
             "Save" to listOf("confirm-ban-button", "confirm-shift-save", "confirm-add-volunteer"),
             "Add Ban" to listOf("confirm-ban-button"),
-            "Add Volunteer" to listOf("confirm-add-volunteer"),
+            "Add Volunteer" to listOf("add-volunteer-fab", "confirm-add-volunteer"),
+            "Ban Number" to listOf("add-ban-fab"),
+            "Import" to listOf("bulk-import-fab"),
+            "Import Ban" to listOf("bulk-import-fab"),
+            "Create Shift" to listOf("create-shift-fab"),
             "Submit" to listOf("confirm-ban-button", "confirm-shift-save", "report-submit-button"),
             "Update Profile" to listOf("settings-update-profile-button"),
             "New Report" to listOf("report-create-fab"),
             "New Blast" to listOf("create-blast-fab"),
+            "Cancel" to listOf("cancel-ban-button", "cancel-shift-button", "cancel-logout-button"),
         )
         val tags = tagMap[text]
         if (tags != null) {
@@ -216,12 +222,7 @@ class GenericSteps : BaseSteps() {
     @Then("the dialog should close")
     fun theDialogShouldClose() {
         composeRule.waitForIdle()
-        // Verify no dialog is visible (best-effort)
-        try {
-            onNode(isDialog()).assertDoesNotExist()
-        } catch (_: AssertionError) {
-            // Dialog might have animation delay
-        }
+        onNode(isDialog()).assertDoesNotExist()
     }
 
     @Then("I should see a search input")
@@ -320,10 +321,12 @@ class GenericSteps : BaseSteps() {
 
     @Then("the {string} button should not be visible")
     fun theButtonShouldNotBeVisible(buttonText: String) {
-        // Check that a button with this text is not visible
+        composeRule.waitForIdle()
         val nodes = onAllNodesWithText(buttonText, ignoreCase = true)
         val count = nodes.fetchSemanticsNodes().size
         if (count == 0) return // Not present — passes
+        // If present in tree, verify it's not displayed on screen
+        nodes.onFirst().assertIsNotDisplayed()
     }
 
     // ---- Generic input steps ----

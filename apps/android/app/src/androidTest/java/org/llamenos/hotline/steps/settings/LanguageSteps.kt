@@ -1,5 +1,6 @@
 package org.llamenos.hotline.steps.settings
 
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -64,7 +65,12 @@ class LanguageSteps : BaseSteps() {
     @Then("the language chip should be selected")
     fun theLanguageChipShouldBeSelected() {
         onNodeWithTag("lang-es").performScrollTo()
-        onNodeWithTag("lang-es").assertIsSelected()
+        // FilterChip state update may be async (ViewModel → DataStore), wait for propagation
+        composeRule.waitUntil(5000) {
+            val node = composeRule.onAllNodesWithTag("lang-es")
+                .fetchSemanticsNodes().firstOrNull()
+            node != null && node.config.getOrElse(SemanticsProperties.Selected) { false }
+        }
     }
 
     @Then("I should see the spoken languages chips")
@@ -75,6 +81,11 @@ class LanguageSteps : BaseSteps() {
     @Then("the spoken language chip should be selected")
     fun theSpokenLanguageChipShouldBeSelected() {
         onNodeWithTag("spoken-lang-es").performScrollTo()
-        onNodeWithTag("spoken-lang-es").assertIsSelected()
+        // FilterChip state update may be async (ViewModel → DataStore), wait for propagation
+        composeRule.waitUntil(5000) {
+            val node = composeRule.onAllNodesWithTag("spoken-lang-es")
+                .fetchSemanticsNodes().firstOrNull()
+            node != null && node.config.getOrElse(SemanticsProperties.Selected) { false }
+        }
     }
 }

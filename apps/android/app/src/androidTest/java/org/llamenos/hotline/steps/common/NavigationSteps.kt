@@ -74,7 +74,7 @@ class NavigationSteps : BaseSteps() {
             "Conversations" -> NAV_CONVERSATIONS
             "Shifts" -> NAV_SHIFTS
             "Settings" -> NAV_SETTINGS
-            // Admin tabs
+            // Admin tabs (in ScrollableTabRow — need scrollTo)
             "Ban List" -> "admin-tab-bans"
             "Audit Log" -> "admin-tab-audit"
             "Invites" -> "admin-tab-invites"
@@ -83,6 +83,10 @@ class NavigationSteps : BaseSteps() {
             "Admin Settings" -> "admin-tab-settings"
             "Custom Fields", "Fields" -> "admin-tab-fields"
             else -> throw IllegalArgumentException("Unknown tab: $tabName")
+        }
+        // Admin tabs are in a ScrollableTabRow and may be off-screen
+        if (tag.startsWith("admin-tab-")) {
+            onNodeWithTag(tag).performScrollTo()
         }
         onNodeWithTag(tag).performClick()
         composeRule.waitForIdle()

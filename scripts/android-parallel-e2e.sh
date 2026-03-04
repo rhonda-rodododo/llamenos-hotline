@@ -447,6 +447,7 @@ main() {
     # ── Step 6: Run tests in parallel ────────────────────────
     info ""
     info "=== Running tests ==="
+    rm -rf /tmp/android-e2e-results
     mkdir -p /tmp/android-e2e-results
 
     local test_pids=()
@@ -458,6 +459,7 @@ main() {
         local exit_file="/tmp/android-e2e-results/exit-${i}"
 
         (
+            set +e  # Disable errexit so echo runs even when tests fail
             run_tests_on_device "${ALL_SERIALS[$i]}" "$i" "${ALL_HUB_URLS[$i]}" "$shard_features"
             echo $? > "$exit_file"
         ) &

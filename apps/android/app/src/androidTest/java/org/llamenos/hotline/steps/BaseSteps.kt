@@ -159,6 +159,8 @@ abstract class BaseSteps : SemanticsNodeInteractionsProvider {
             "settings" -> "admin-tab-settings"
             else -> throw IllegalArgumentException("Unknown admin tab: $tabName")
         }
+        // Admin tabs are in a ScrollableTabRow — scroll to ensure visibility
+        onNodeWithTag(tabTag).performScrollTo()
         onNodeWithTag(tabTag).performClick()
         composeRule.waitForIdle()
     }
