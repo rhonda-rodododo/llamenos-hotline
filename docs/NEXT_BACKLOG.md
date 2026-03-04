@@ -308,7 +308,7 @@ Shared Gherkin specs in `packages/test-specs/` driving Android (Compose UI Test)
 
 **Total: 25 feature files, 102 scenarios, 106 @Test methods** (up from 31 existing tests)
 
-## Cross-Platform BDD Runner Integration (Epics 223-227)
+## Cross-Platform BDD Runner Integration (Epics 223-227) — COMPLETE
 
 Refactor all three platforms to use real BDD runners driven by shared `.feature` files. Android uses cucumber-android, Desktop uses playwright-bdd, iOS uses Gherkin-as-Specification with XCTContext.
 
@@ -321,7 +321,7 @@ Refactor all three platforms to use real BDD runners driven by shared `.feature`
 - [x] **[Epic 226: Playwright-BDD Integration](epics/epic-226-playwright-bdd-integration.md)** — playwright-bdd v8.4.2, 26 step files, 607 step definitions, 224 BDD tests
 
 ### iOS Preparation
-- [ ] **[Epic 227: iOS BDD E2E Foundation](epics/epic-227-ios-bdd-e2e-foundation.md)** — XCUITest with BDD naming, XCTContext.runActivity for Given/When/Then, validate-coverage.ts extension *(unblocked: Mac M4 available)*
+- [x] **[Epic 227: iOS BDD E2E Foundation](epics/epic-227-ios-bdd-e2e-foundation.md)** — XCUITest with BDD naming, XCTContext.runActivity for Given/When/Then, validate-coverage.ts extension
 
 **Dependency order:** 223 → (224 | 225 | 226) → 227
 
@@ -338,7 +338,7 @@ Implement Android step definitions and UI to fully cover all BDD feature file sc
 
 **Dependency order:** 228 → (229 | 230)
 
-## E2E Test Coverage Consolidation (Epics 231-234) — 3/4 COMPLETE
+## E2E Test Coverage Consolidation (Epics 231-234) — COMPLETE
 
 DRY up the cross-platform BDD test suite: consolidate shared specs, migrate desktop from .spec.ts to BDD, add Worker backend tests, expand iOS coverage.
 
@@ -350,7 +350,7 @@ DRY up the cross-platform BDD test suite: consolidate shared specs, migrate desk
 - [x] **[Epic 233: Worker Backend Test Suite](epics/epic-233-worker-backend-test-suite.md)** — Vitest unit tests (295 passing), 8 backend BDD feature files, 6 integration test stubs, CI workflow updated
 
 ### iOS
-- [ ] **[Epic 234: iOS BDD Test Expansion](epics/epic-234-ios-bdd-test-expansion.md)** — Expand from 76 to ~200 tests, XCTContext.runActivity BDD naming, fix validate-coverage.ts iOS scanning *(unblocked: Mac M4 available)*
+- [x] **[Epic 234: iOS BDD Test Expansion](epics/epic-234-ios-bdd-test-expansion.md)** — 126 test methods across 10 test files, crypto interop with test vectors, BDD-aligned UI tests
 
 **Dependency order:** 231 ✓ → 232 ✓ | 233 ✓ | 234 (unblocked)
 
@@ -362,13 +362,13 @@ Architecture audit (2026-03-03) identified that Node.js + PostgreSQL is the real
 - [x] **[Epic 235: Node.js Platform E2E Test Parity](epics/epic-235-nodejs-e2e-test-parity.md)** — 79 Node.js integration tests (PostgreSQL storage, alarm poller, WebSocket shim, MinIO, migrations), playwright.docker.config.ts, e2e-node + integration-node CI jobs
 - [x] **[Epic 236: Node.js Production Deployment Primacy & Infrastructure Hardening](epics/epic-236-production-deployment-primacy.md)** — Health endpoint with dependency checks (/health, /health/live, /health/ready), Helm MinIO→StatefulSet + HPA + PDB + ServiceMonitor (chart 0.2.0), Docker Compose rate limiting + JSON logging + first-run.sh, Ansible MinIO backup + restore test playbook, OpenTofu admin_ssh_cidrs variable, Prometheus /metrics endpoint, structured JSON logger, `bun run dev:node` local dev server, PRODUCTION_CHECKLIST.md
 
-### iOS Build Pipeline (Mac M4) — PARTIAL (Xcode blocked)
-- [x] **[Epic 237: iOS Build Pipeline on Local Mac M4](epics/epic-237-ios-mac-m4-build-pipeline.md)** — scripts/ios-build.sh (status/setup/sync/build/test/xcframework/uitest/all), npm scripts. **Xcode not yet installed on Mac M4** — XCFramework build, simulator tests blocked
-- [ ] **[Epic 214-iOS: Link UniFFI XCFramework](epics/epic-214-mobile-crypto-integration.md)** — Update Package.swift, remove stand-in crypto guards in CryptoService.swift *(blocked: requires Xcode + XCFramework build from Epic 237)*
-- [ ] **[Epic 227: iOS BDD E2E Foundation](epics/epic-227-ios-bdd-e2e-foundation.md)** — XCUITest with BDD naming *(blocked: requires Epic 214-iOS)*
-- [ ] **[Epic 234: iOS BDD Test Expansion](epics/epic-234-ios-bdd-test-expansion.md)** — Expand from 76 to ~200 tests *(blocked: requires Epic 227)*
+### iOS Build Pipeline (Mac M4) — COMPLETE
+- [x] **[Epic 237: iOS Build Pipeline on Local Mac M4](epics/epic-237-ios-mac-m4-build-pipeline.md)** — scripts/ios-build.sh (status/setup/sync/build/test/xcframework/uitest/all), npm scripts
+- [x] **[Epic 214-iOS: Link UniFFI XCFramework](epics/epic-214-mobile-crypto-integration.md)** — Package.swift binary target, CryptoService rewritten with real Rust FFI (10 functions), LlamenosCoreExtensions Codable conformance
+- [x] **[Epic 227: iOS BDD E2E Foundation](epics/epic-227-ios-bdd-e2e-foundation.md)** — BaseUITest with BDD helpers (given/when/then/and), launch modes, navigation utilities, PIN helpers
+- [x] **[Epic 234: iOS BDD Test Expansion](epics/epic-234-ios-bdd-test-expansion.md)** — 126 test methods across 10 test files (up from 76), DashboardUITests (12), SettingsUITests (16), SecurityUITests (5), 17 crypto interop tests with test vectors
 
-**Dependency order:** 237 ✓ → 214-iOS → 227 → 234 | 235 ✓ | 236 ✓
+**Dependency order:** 237 ✓ → 214-iOS ✓ → 227 ✓ → 234 ✓ | 235 ✓ | 236 ✓
 
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)

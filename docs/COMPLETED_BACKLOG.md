@@ -33,17 +33,38 @@
 - **Production checklist**: `deploy/PRODUCTION_CHECKLIST.md` — 50+ items across infrastructure, security, backups, telephony, Kubernetes
 - Commit: `99c96f2`
 
-### Epic 237: iOS Build Pipeline on Local Mac M4 — PARTIAL
+### Epic 237: iOS Build Pipeline on Local Mac M4
 - **scripts/ios-build.sh** created with 8 commands: status, setup, sync, build, test, xcframework, uitest, all
 - **npm scripts**: `ios:status`, `ios:setup`, `ios:sync`, `ios:build`, `ios:test`, `ios:xcframework`, `ios:uitest`, `ios:all`
-- **Mac M4 status**: macOS 26.3, Swift 6.2.4 (CLT), Rust not yet installed, **Xcode not installed** (blocks XCFramework, simulators)
-- **Remaining**: Install full Xcode → `ios:setup` (Rust) → `ios:xcframework` → `ios:build` → `ios:test`
-- Commit: `99c96f2`
+- **Mac M4**: macOS 26.2, Xcode 26.2, Swift 6.2.4, Rust via asdf, iOS Simulator 26.2 runtime installed
+- **ios-build.sh updates**: xcodebuild with scheme `Llamenos-Package`, `find_simulator()` dynamic detection, `REMOTE_INIT` for SSH PATH
+- Commit: `99c96f2`, updated `10b720a`
 
-### Epics 214-iOS, 227, 234 — BLOCKED on Xcode
-- **Epic 214-iOS**: Link LlamenosCoreFFI XCFramework, remove stand-in crypto. Blocked on XCFramework build.
-- **Epic 227**: iOS BDD E2E Foundation. Blocked on 214-iOS.
-- **Epic 234**: iOS BDD Test Expansion (76→200+ tests). Blocked on 227.
+### Epic 214-iOS: Link UniFFI XCFramework
+- **XCFramework built** on Mac M4 via `packages/crypto/scripts/build-mobile.sh ios` (arm64 + arm64-simulator slices)
+- **Package.swift**: Added `LlamenosCoreFFI` binary target pointing to local XCFramework
+- **CryptoService.swift**: Complete rewrite — 10 real FFI functions replacing stand-in mocks (generateKeypair, importNsec, encryptForStorage, decryptFromStorage, createAuthToken, encryptNote, decryptNoteContent, encryptMessage, decryptMessage, lock)
+- **LlamenosCoreExtensions.swift**: Codable conformance for UniFFI-generated types (EncryptedKeyData, AuthToken, EncryptedNote, etc.)
+- **Generated bindings**: 1719-line `LlamenosCore.swift` from UniFFI bindgen
+- Commit: `adce653`
+
+### Epic 227: iOS BDD E2E Foundation
+- **BaseUITest.swift**: Shared base class with BDD helpers (`given`/`when`/`then`/`and` via `XCTContext.runActivity`), launch modes (`launchClean`, `launchAuthenticated`, `launchAsAdmin`), tab navigation, PIN entry helpers
+- **Test infrastructure**: Tab bar indices (0=Dashboard...4=Settings), launch arguments (`--reset-keychain`, `--test-authenticated`, `--test-admin`), element wait helpers
+- Commit: `5f798ed`
+
+### Epic 234: iOS BDD Test Expansion
+- **126 test methods** across 10 test files (up from 76 across 7):
+  - CryptoServiceTests: 36 tests (19 existing + 17 interop tests with test vectors)
+  - DashboardUITests: 12 tests (NEW — connection status, shift card, tab navigation, lock flow)
+  - SettingsUITests: 16 tests (NEW — npub, hub URL, lock/logout, copy buttons, toggles)
+  - SecurityUITests: 5 tests (NEW — emergency wipe, PIN pad digits, wrong PIN, dots indicator)
+  - KeychainServiceTests: 14 tests (existing)
+  - AuthFlowUITests: 9, AdminFlowUITests: 11, NoteFlowUITests: 7, ConversationFlowUITests: 6, ShiftFlowUITests: 10 (existing)
+- **Crypto interop**: Cross-platform test vector verification (auth tokens, ECIES wrap/unwrap, note/message/draft encryption, PIN encrypt/decrypt)
+- **Build verified**: `xcodebuild build` + 36/36 CryptoServiceTests passing on Mac M4 (iPhone 17 simulator, Xcode 26.2)
+- **Build fixes**: Color.tertiary type mismatch, BiometricPrompt switch exhaustiveness, test-vectors.json nsec regeneration
+- Commits: `5f798ed`, `10b720a`
 
 ## 2026-03-03: E2E Test Coverage Consolidation (Epics 231-233)
 
