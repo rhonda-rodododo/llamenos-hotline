@@ -62,6 +62,12 @@ const sections = [
 ];
 
 const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/docs';
+
+// Find current page label for the mobile toggle
+const currentPageLabel = sections
+  .flatMap(s => s.items)
+  .find(item => currentPath === item.href.replace(/\/$/, ''))
+  ?.label ?? 'Documentation';
 ---
 
 <!DOCTYPE html>
@@ -81,8 +87,22 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/docs';
   <div class="flex-1 pt-20">
     <div class="mx-auto max-w-6xl px-6 py-10 lg:flex lg:gap-10">
       <!-- Sidebar -->
-      <aside class="mb-8 lg:mb-0 lg:w-56 lg:shrink-0">
-        <nav class="lg:sticky lg:top-24 space-y-6">
+      <aside class="lg:w-56 lg:shrink-0 mb-6 lg:mb-0">
+        <!-- Mobile: collapsible toggle -->
+        <button
+          id="docs-sidebar-toggle"
+          class="lg:hidden flex w-full items-center justify-between rounded-lg border border-border bg-bg-soft px-4 py-3 text-sm font-medium text-fg transition-colors hover:border-border-bright"
+          aria-expanded="false"
+        >
+          <span class="flex items-center gap-2">
+            <svg class="h-4 w-4 text-fg-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+            <span>{currentPageLabel}</span>
+          </span>
+          <svg class="docs-sidebar-chevron h-4 w-4 text-fg-muted transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+
+        <!-- Sidebar content (hidden on mobile by default, always visible on desktop) -->
+        <nav id="docs-sidebar-nav" class="docs-sidebar-nav lg:sticky lg:top-24 space-y-6">
           {sections.map(section => (
             <div>
               <h2 class="text-xs font-semibold uppercase tracking-wider text-fg-dim mb-3">{section.heading}</h2>
@@ -115,5 +135,67 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/docs';
     </div>
   </div>
   <Footer lang={lang} />
+
+  <style>
+    /* Mobile sidebar collapse */
+    .docs-sidebar-nav {
+      display: none;
+      padding-top: 0.75rem;
+    }
+    .docs-sidebar-nav.docs-sidebar-open {
+      display: block;
+    }
+    .docs-sidebar-chevron.docs-sidebar-open {
+      transform: rotate(180deg);
+    }
+    @media (min-width: 1024px) {
+      .docs-sidebar-nav {
+        display: block;
+        padding-top: 0;
+      }
+      #docs-sidebar-toggle {
+        display: none;
+      }
+    }
+  </style>
+
+  <script>
+    // Docs sidebar toggle on mobile
+    const sidebarBtn = document.getElementById('docs-sidebar-toggle');
+    const sidebarNav = document.getElementById('docs-sidebar-nav');
+    const chevron = sidebarBtn?.querySelector('.docs-sidebar-chevron');
+
+    sidebarBtn?.addEventListener('click', () => {
+      const isOpen = sidebarNav?.classList.contains('docs-sidebar-open');
+      if (isOpen) {
+        sidebarNav?.classList.remove('docs-sidebar-open');
+        chevron?.classList.remove('docs-sidebar-open');
+        sidebarBtn.setAttribute('aria-expanded', 'false');
+      } else {
+        sidebarNav?.classList.add('docs-sidebar-open');
+        chevron?.classList.add('docs-sidebar-open');
+        sidebarBtn.setAttribute('aria-expanded', 'true');
+      }
+    });
+
+    // Wrap tables in scrollable containers
+    document.querySelectorAll('.prose table').forEach(table => {
+      if (table.parentElement?.classList.contains('table-wrap')) return;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode?.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+
+      // Track scroll to hide fade hint when scrolled to end
+      wrapper.addEventListener('scroll', () => {
+        const atEnd = wrapper.scrollLeft + wrapper.clientWidth >= wrapper.scrollWidth - 2;
+        wrapper.classList.toggle('scrolled-end', atEnd);
+      });
+      // Check initial state
+      if (wrapper.scrollWidth <= wrapper.clientWidth) {
+        wrapper.classList.add('scrolled-end');
+      }
+    });
+  </script>
 </body>
 </html>
