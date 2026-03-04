@@ -6,9 +6,13 @@ let package = Package(
     platforms: [.iOS(.v17)],
     dependencies: [],
     targets: [
+        .binaryTarget(
+            name: "LlamenosCoreFFI",
+            path: "LlamenosCoreFFI.xcframework"
+        ),
         .target(
             name: "Llamenos",
-            dependencies: [],
+            dependencies: ["LlamenosCoreFFI"],
             path: "Sources"
         ),
         .testTarget(

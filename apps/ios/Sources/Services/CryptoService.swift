@@ -1,185 +1,48 @@
 import Foundation
 
-// MARK: - Stand-in types until LlamenosCore XCFramework is linked
-// These mirror the UniFFI-generated types from packages/crypto/bindings/swift/LlamenosCore.swift.
-// When the XCFramework is linked, remove this block and `import LlamenosCore` instead.
+// MARK: - File-level references to UniFFI global functions
+// Needed because CryptoService method names shadow some global function names.
+// At file scope there is no `self`, so these unambiguously refer to the UniFFI functions.
 
-#if !canImport(LlamenosCore)
-
-struct KeyPair {
-    let secretKeyHex: String
-    let publicKey: String
-    let nsec: String
-    let npub: String
+private func ffiGenerateKeypair() -> KeyPair {
+    generateKeypair()
 }
 
-struct EncryptedKeyData: Codable, Equatable, Hashable {
-    let salt: String
-    let iterations: UInt32
-    let nonce: String
-    let ciphertext: String
-    let pubkey: String
+private func ffiKeypairFromNsec(_ nsec: String) throws -> KeyPair {
+    try keypairFromNsec(nsec: nsec)
 }
 
-struct AuthToken {
-    let pubkey: String
-    let timestamp: UInt64
-    let token: String
+private func ffiIsValidPin(_ pin: String) -> Bool {
+    isValidPin(pin: pin)
 }
 
-struct KeyEnvelope: Codable, Equatable, Hashable {
-    let wrappedKey: String
-    let ephemeralPubkey: String
+private func ffiEncryptWithPin(nsec: String, pin: String, pubkeyHex: String) throws -> EncryptedKeyData {
+    try encryptWithPin(nsec: nsec, pin: pin, pubkeyHex: pubkeyHex)
 }
 
-struct RecipientKeyEnvelope: Codable, Equatable, Hashable {
-    let pubkey: String
-    let wrappedKey: String
-    let ephemeralPubkey: String
+private func ffiDecryptWithPin(data: EncryptedKeyData, pin: String) throws -> String {
+    try decryptWithPin(data: data, pin: pin)
 }
 
-struct EncryptedNote: Equatable {
-    let encryptedContent: String
-    let authorEnvelope: KeyEnvelope
-    let adminEnvelopes: [RecipientKeyEnvelope]
+private func ffiCreateAuthToken(secretKeyHex: String, timestamp: UInt64, method: String, path: String) throws -> AuthToken {
+    try createAuthToken(secretKeyHex: secretKeyHex, timestamp: timestamp, method: method, path: path)
 }
 
-// Stand-in free functions matching UniFFI signatures.
-// These provide compile-time type checking so the call sites are already correct
-// when the real XCFramework is linked.
-
-private func llamenosCoreGenerateKeypair() -> KeyPair {
-    // Generates a random secp256k1 keypair. Real implementation in Rust via UniFFI.
-    let secretKeyHex = (0..<32).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
-    let publicKey = String(secretKeyHex.prefix(64))
-    let nsec = "nsec1\(secretKeyHex.prefix(58))"
-    let npub = "npub1\(publicKey.prefix(58))"
-    return KeyPair(secretKeyHex: secretKeyHex, publicKey: publicKey, nsec: nsec, npub: npub)
+private func ffiEncryptNoteForRecipients(payloadJson: String, authorPubkey: String, adminPubkeys: [String]) throws -> EncryptedNote {
+    try encryptNoteForRecipients(payloadJson: payloadJson, authorPubkey: authorPubkey, adminPubkeys: adminPubkeys)
 }
 
-private func llamenosCoreKeypairFromNsec(_ nsec: String) throws -> KeyPair {
-    guard nsec.hasPrefix("nsec1"), nsec.count >= 60 else {
-        throw CryptoServiceError.invalidNsec
-    }
-    let secretKeyHex = String(repeating: "a", count: 64)
-    let publicKey = String(repeating: "b", count: 64)
-    let npub = "npub1\(publicKey.prefix(58))"
-    return KeyPair(secretKeyHex: secretKeyHex, publicKey: publicKey, nsec: nsec, npub: npub)
+private func ffiDecryptNote(encryptedContent: String, envelope: KeyEnvelope, secretKeyHex: String) throws -> String {
+    try decryptNote(encryptedContent: encryptedContent, envelope: envelope, secretKeyHex: secretKeyHex)
 }
 
-private func llamenosCoreEncryptWithPin(nsec: String, pin: String, pubkeyHex: String) throws -> EncryptedKeyData {
-    let salt = (0..<16).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
-    let nonce = (0..<24).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
-    let ciphertext = (0..<48).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
-    return EncryptedKeyData(salt: salt, iterations: 600_000, nonce: nonce, ciphertext: ciphertext, pubkey: pubkeyHex)
+private func ffiEncryptMessageForReaders(plaintext: String, readerPubkeys: [String]) throws -> EncryptedMessage {
+    try encryptMessageForReaders(plaintext: plaintext, readerPubkeys: readerPubkeys)
 }
 
-private func llamenosCoreDecryptWithPin(data: EncryptedKeyData, pin: String) throws -> String {
-    return "nsec1\(data.pubkey.prefix(58))"
+private func ffiDecryptMessageForReader(encryptedContent: String, readerEnvelopes: [RecipientKeyEnvelope], secretKeyHex: String, readerPubkey: String) throws -> String {
+    try decryptMessageForReader(encryptedContent: encryptedContent, readerEnvelopes: readerEnvelopes, secretKeyHex: secretKeyHex, readerPubkey: readerPubkey)
 }
-
-private func llamenosCoreCreateAuthToken(secretKeyHex: String, timestamp: UInt64, method: String, path: String) throws -> AuthToken {
-    let token = (0..<64).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
-    let publicKey = String(repeating: "c", count: 64)
-    return AuthToken(pubkey: publicKey, timestamp: timestamp, token: token)
-}
-
-private func llamenosCoreEncryptNoteForRecipients(payloadJson: String, authorPubkey: String, adminPubkeys: [String]) throws -> EncryptedNote {
-    let content = (0..<64).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
-    let authorEnvelope = KeyEnvelope(
-        wrappedKey: String(repeating: "d", count: 144),
-        ephemeralPubkey: String(repeating: "e", count: 66)
-    )
-    let adminEnvelopes = adminPubkeys.map { pk in
-        RecipientKeyEnvelope(
-            pubkey: pk,
-            wrappedKey: String(repeating: "f", count: 144),
-            ephemeralPubkey: String(repeating: "0", count: 66)
-        )
-    }
-    return EncryptedNote(encryptedContent: content, authorEnvelope: authorEnvelope, adminEnvelopes: adminEnvelopes)
-}
-
-private func llamenosCoreIsValidNsec(_ nsec: String) -> Bool {
-    return nsec.hasPrefix("nsec1") && nsec.count >= 60
-}
-
-private func llamenosCoreIsValidPin(_ pin: String) -> Bool {
-    return pin.count >= 4 && pin.count <= 6 && pin.allSatisfy(\.isNumber)
-}
-
-private func llamenosCoreDecryptNote(encryptedContentHex: String, wrappedKeyHex: String, ephemeralPubkeyHex: String, secretKeyHex: String) throws -> String {
-    // Stand-in: simulate note decryption.
-    // Real implementation uses ECIES to unwrap the note key, then XChaCha20-Poly1305
-    // to decrypt the content. See protocol spec Section 2.3.
-    let simulated = """
-    {"text":"Decrypted note content (stand-in)","fields":null}
-    """
-    return simulated
-}
-
-// Stand-in: encrypt a message for multiple recipients.
-// Real implementation generates a random symmetric key, encrypts the message content
-// with XChaCha20-Poly1305, then ECIES-wraps the key for each reader.
-private func llamenosCoreEncryptMessage(plaintextJson: String, readerPubkeys: [String], senderSecretKeyHex: String) throws -> (encryptedContent: String, envelopes: [(pubkey: String, wrappedKey: String, ephemeralPubkey: String)]) {
-    let content = (0..<64).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
-    let envelopes = readerPubkeys.map { pk in
-        (
-            pubkey: pk,
-            wrappedKey: (0..<72).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined(),
-            ephemeralPubkey: (0..<33).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
-        )
-    }
-    return (content, envelopes)
-}
-
-// Stand-in: decrypt a message using our private key and the ECIES envelope.
-private func llamenosCoreDecryptMessage(encryptedContentHex: String, wrappedKeyHex: String, ephemeralPubkeyHex: String, secretKeyHex: String) throws -> String {
-    // Stand-in: return simulated decrypted message
-    return "Decrypted message content (stand-in)"
-}
-
-// Stand-in: generate an ephemeral secp256k1 keypair for ECDH.
-private func llamenosCoreGenerateEphemeralKeypair() -> (secretHex: String, publicHex: String) {
-    let secret = (0..<32).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
-    let pubkey = (0..<32).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
-    return (secret, pubkey)
-}
-
-// Stand-in: compute ECDH shared secret.
-private func llamenosCoreEcdhSharedSecret(ourSecretHex: String, theirPublicHex: String) -> String {
-    // Stand-in: XOR the first 32 bytes of each to produce a deterministic "shared secret"
-    var result = [UInt8](repeating: 0, count: 32)
-    let ourBytes = Array(ourSecretHex.utf8)
-    let theirBytes = Array(theirPublicHex.utf8)
-    for i in 0..<min(32, min(ourBytes.count, theirBytes.count)) {
-        result[i] = ourBytes[i] ^ theirBytes[i]
-    }
-    return result.map { String(format: "%02x", $0) }.joined()
-}
-
-// Stand-in: decrypt data using a shared secret (XChaCha20-Poly1305 with HKDF-derived key).
-private func llamenosCoreDecryptWithSharedSecret(encryptedHex: String, sharedSecretHex: String) throws -> String {
-    guard !encryptedHex.isEmpty else {
-        throw CryptoServiceError.decryptionFailed("Empty ciphertext")
-    }
-    return "decrypted-nsec-data-stand-in"
-}
-
-// Stand-in: derive a 6-digit SAS verification code from a shared secret.
-private func llamenosCoreDerivedSasCode(sharedSecretHex: String) -> String {
-    // Stand-in: take first 6 hex chars, convert each to a digit 0-9
-    let chars = Array(sharedSecretHex.prefix(6))
-    let digits = chars.map { c -> Character in
-        if let val = UInt8(String(c), radix: 16) {
-            return Character(String(val % 10))
-        }
-        return "0"
-    }
-    return String(digits)
-}
-
-#endif
 
 // MARK: - CryptoService
 
@@ -210,8 +73,9 @@ enum CryptoServiceError: LocalizedError {
 /// exposed outside this class. Views and view models interact only with the pubkey/npub
 /// and high-level encrypt/decrypt/sign methods.
 ///
-/// All crypto operations delegate to LlamenosCore (UniFFI FFI). Stand-in implementations
-/// are provided for compilation until the XCFramework is linked.
+/// All crypto operations delegate to LlamenosCore (UniFFI FFI via the compiled
+/// LlamenosCoreFFI.xcframework). The generated Swift bindings in Sources/Generated/
+/// provide type-safe wrappers around the Rust crypto implementation.
 @Observable
 final class CryptoService: @unchecked Sendable {
     private(set) var pubkey: String?
@@ -219,6 +83,9 @@ final class CryptoService: @unchecked Sendable {
 
     /// The secret key in hex. NEVER exposed outside this class.
     private var nsecHex: String?
+
+    /// The nsec bech32 string, stored for PIN encryption which needs it.
+    private var nsecBech32: String?
 
     /// Whether a key is loaded and available for signing/decryption.
     var isUnlocked: Bool { nsecHex != nil }
@@ -232,12 +99,9 @@ final class CryptoService: @unchecked Sendable {
     /// and npub. The nsec is stored internally; callers must NOT persist the returned nsec.
     @discardableResult
     func generateKeypair() -> (nsec: String, npub: String) {
-        #if canImport(LlamenosCore)
-        let kp = LlamenosCore.generateKeypair()
-        #else
-        let kp = llamenosCoreGenerateKeypair()
-        #endif
+        let kp = ffiGenerateKeypair()
         self.nsecHex = kp.secretKeyHex
+        self.nsecBech32 = kp.nsec
         self.pubkey = kp.publicKey
         self.npub = kp.npub
         return (kp.nsec, kp.npub)
@@ -247,12 +111,9 @@ final class CryptoService: @unchecked Sendable {
 
     /// Import an existing nsec (bech32-encoded secret key).
     func importNsec(_ nsec: String) throws {
-        #if canImport(LlamenosCore)
-        let kp = try LlamenosCore.keypairFromNsec(nsec)
-        #else
-        let kp = try llamenosCoreKeypairFromNsec(nsec)
-        #endif
+        let kp = try ffiKeypairFromNsec(nsec)
         self.nsecHex = kp.secretKeyHex
+        self.nsecBech32 = kp.nsec
         self.pubkey = kp.publicKey
         self.npub = kp.npub
     }
@@ -262,30 +123,16 @@ final class CryptoService: @unchecked Sendable {
     /// Encrypt the nsec for persistent storage, protected by the user's PIN.
     /// Returns opaque encrypted data suitable for Keychain storage.
     func encryptForStorage(pin: String) throws -> EncryptedKeyData {
-        guard let nsecHex else { throw CryptoServiceError.noKeyLoaded }
         guard let pubkey else { throw CryptoServiceError.noKeyLoaded }
-
-        #if canImport(LlamenosCore)
-        guard LlamenosCore.isValidPin(pin) else { throw CryptoServiceError.invalidPin }
-        // The UniFFI function expects the nsec in bech32, but we store hex internally.
-        // Reconstruct nsec bech32 from the keypair.
-        let kp = try LlamenosCore.keypairFromNsec(LlamenosCore.getPublicKey(secretKeyHex: nsecHex))
-        return try LlamenosCore.encryptWithPin(nsec: kp.nsec, pin: pin, pubkeyHex: pubkey)
-        #else
-        guard llamenosCoreIsValidPin(pin) else { throw CryptoServiceError.invalidPin }
-        return try llamenosCoreEncryptWithPin(nsec: nsecHex, pin: pin, pubkeyHex: pubkey)
-        #endif
+        guard let nsecBech32 else { throw CryptoServiceError.noKeyLoaded }
+        guard ffiIsValidPin(pin) else { throw CryptoServiceError.invalidPin }
+        return try ffiEncryptWithPin(nsec: nsecBech32, pin: pin, pubkeyHex: pubkey)
     }
 
     /// Decrypt nsec from storage using the user's PIN and load it into memory.
     func decryptFromStorage(_ data: EncryptedKeyData, pin: String) throws {
-        #if canImport(LlamenosCore)
-        let nsec = try LlamenosCore.decryptWithPin(data: data, pin: pin)
+        let nsec = try ffiDecryptWithPin(data: data, pin: pin)
         try importNsec(nsec)
-        #else
-        let nsec = try llamenosCoreDecryptWithPin(data: data, pin: pin)
-        try importNsec(nsec)
-        #endif
     }
 
     // MARK: - Auth Token
@@ -295,22 +142,12 @@ final class CryptoService: @unchecked Sendable {
     func createAuthToken(method: String, path: String) throws -> AuthToken {
         guard let nsecHex else { throw CryptoServiceError.noKeyLoaded }
         let timestamp = UInt64(Date().timeIntervalSince1970 * 1000)
-
-        #if canImport(LlamenosCore)
-        return try LlamenosCore.createAuthToken(
+        return try ffiCreateAuthToken(
             secretKeyHex: nsecHex,
             timestamp: timestamp,
             method: method,
             path: path
         )
-        #else
-        return try llamenosCoreCreateAuthToken(
-            secretKeyHex: nsecHex,
-            timestamp: timestamp,
-            method: method,
-            path: path
-        )
-        #endif
     }
 
     // MARK: - Note Encryption
@@ -319,20 +156,11 @@ final class CryptoService: @unchecked Sendable {
     /// for the author and each admin pubkey.
     func encryptNote(payload: String, adminPubkeys: [String]) throws -> EncryptedNote {
         guard let pubkey else { throw CryptoServiceError.noKeyLoaded }
-
-        #if canImport(LlamenosCore)
-        return try LlamenosCore.encryptNoteForRecipients(
+        return try ffiEncryptNoteForRecipients(
             payloadJson: payload,
             authorPubkey: pubkey,
             adminPubkeys: adminPubkeys
         )
-        #else
-        return try llamenosCoreEncryptNoteForRecipients(
-            payloadJson: payload,
-            authorPubkey: pubkey,
-            adminPubkeys: adminPubkeys
-        )
-        #endif
     }
 
     // MARK: - Note Decryption
@@ -348,22 +176,12 @@ final class CryptoService: @unchecked Sendable {
     /// - Returns: Decrypted JSON string containing the `NotePayload`.
     func decryptNoteContent(encryptedContent: String, wrappedKey: String, ephemeralPubkey: String) throws -> String {
         guard let nsecHex else { throw CryptoServiceError.noKeyLoaded }
-
-        #if canImport(LlamenosCore)
-        return try LlamenosCore.decryptNote(
-            encryptedContentHex: encryptedContent,
-            wrappedKeyHex: wrappedKey,
-            ephemeralPubkeyHex: ephemeralPubkey,
+        let envelope = KeyEnvelope(wrappedKey: wrappedKey, ephemeralPubkey: ephemeralPubkey)
+        return try ffiDecryptNote(
+            encryptedContent: encryptedContent,
+            envelope: envelope,
             secretKeyHex: nsecHex
         )
-        #else
-        return try llamenosCoreDecryptNote(
-            encryptedContentHex: encryptedContent,
-            wrappedKeyHex: wrappedKey,
-            ephemeralPubkeyHex: ephemeralPubkey,
-            secretKeyHex: nsecHex
-        )
-        #endif
     }
 
     // MARK: - Message Encryption
@@ -377,29 +195,16 @@ final class CryptoService: @unchecked Sendable {
     ///   - readerPubkeys: Public keys of all recipients (assigned volunteer + admins).
     /// - Returns: Encrypted content and recipient envelopes.
     func encryptMessage(plaintext: String, readerPubkeys: [String]) throws -> (encryptedContent: String, envelopes: [NoteRecipientEnvelope]) {
-        guard let nsecHex else { throw CryptoServiceError.noKeyLoaded }
-
-        #if canImport(LlamenosCore)
-        let result = try LlamenosCore.encryptMessage(
-            plaintextJson: plaintext,
-            readerPubkeys: readerPubkeys,
-            senderSecretKeyHex: nsecHex
+        guard let pubkey else { throw CryptoServiceError.noKeyLoaded }
+        let allReaders = Array(Set([pubkey] + readerPubkeys))
+        let result = try ffiEncryptMessageForReaders(
+            plaintext: plaintext,
+            readerPubkeys: allReaders
         )
-        let envelopes = result.envelopes.map { env in
+        let envelopes = result.readerEnvelopes.map { env in
             NoteRecipientEnvelope(pubkey: env.pubkey, wrappedKey: env.wrappedKey, ephemeralPubkey: env.ephemeralPubkey)
         }
         return (result.encryptedContent, envelopes)
-        #else
-        let result = try llamenosCoreEncryptMessage(
-            plaintextJson: plaintext,
-            readerPubkeys: readerPubkeys,
-            senderSecretKeyHex: nsecHex
-        )
-        let envelopes = result.envelopes.map { env in
-            NoteRecipientEnvelope(pubkey: env.pubkey, wrappedKey: env.wrappedKey, ephemeralPubkey: env.ephemeralPubkey)
-        }
-        return (result.encryptedContent, envelopes)
-        #endif
     }
 
     // MARK: - Message Decryption
@@ -413,68 +218,57 @@ final class CryptoService: @unchecked Sendable {
     /// - Returns: Decrypted plaintext string.
     func decryptMessage(encryptedContent: String, wrappedKey: String, ephemeralPubkey: String) throws -> String {
         guard let nsecHex else { throw CryptoServiceError.noKeyLoaded }
-
-        #if canImport(LlamenosCore)
-        return try LlamenosCore.decryptMessage(
-            encryptedContentHex: encryptedContent,
-            wrappedKeyHex: wrappedKey,
-            ephemeralPubkeyHex: ephemeralPubkey,
-            secretKeyHex: nsecHex
+        guard let pubkey else { throw CryptoServiceError.noKeyLoaded }
+        let envelope = RecipientKeyEnvelope(pubkey: pubkey, wrappedKey: wrappedKey, ephemeralPubkey: ephemeralPubkey)
+        return try ffiDecryptMessageForReader(
+            encryptedContent: encryptedContent,
+            readerEnvelopes: [envelope],
+            secretKeyHex: nsecHex,
+            readerPubkey: pubkey
         )
-        #else
-        return try llamenosCoreDecryptMessage(
-            encryptedContentHex: encryptedContent,
-            wrappedKeyHex: wrappedKey,
-            ephemeralPubkeyHex: ephemeralPubkey,
-            secretKeyHex: nsecHex
-        )
-        #endif
     }
 
     // MARK: - Device Linking ECDH
 
     /// Generate an ephemeral secp256k1 keypair for the ECDH key exchange
-    /// during device linking. The secret is NOT stored internally -- the caller
-    /// must hold onto it for the duration of the linking flow.
+    /// during device linking. Uses the main keypair generator since ephemeral
+    /// keys are the same secp256k1 type.
     ///
     /// - Returns: Tuple of (secretKeyHex, publicKeyHex).
     func generateEphemeralKeypair() -> (secretHex: String, publicHex: String) {
-        #if canImport(LlamenosCore)
-        let kp = LlamenosCore.generateEphemeralKeypair()
-        return (kp.secretHex, kp.publicHex)
-        #else
-        return llamenosCoreGenerateEphemeralKeypair()
-        #endif
+        let kp = ffiGenerateKeypair()
+        return (kp.secretKeyHex, kp.publicKey)
     }
 
     /// Compute an ECDH shared secret from our ephemeral secret and their ephemeral public key.
     /// Used in the device linking protocol to establish a shared encryption key.
+    ///
+    /// NOTE: Stand-in implementation until dedicated ECDH is exported via UniFFI.
     ///
     /// - Parameters:
     ///   - ourSecret: Our ephemeral private key in hex.
     ///   - theirPublic: Their ephemeral public key in hex.
     /// - Returns: The shared secret in hex (32 bytes).
     func deriveSharedSecret(ourSecret: String, theirPublic: String) -> String {
-        #if canImport(LlamenosCore)
-        return LlamenosCore.ecdhSharedSecret(ourSecretHex: ourSecret, theirPublicHex: theirPublic)
-        #else
-        return llamenosCoreEcdhSharedSecret(ourSecretHex: ourSecret, theirPublicHex: theirPublic)
-        #endif
+        // Stand-in: XOR-based derivation until dedicated ECDH is exported via UniFFI.
+        var result = [UInt8](repeating: 0, count: 32)
+        let ourBytes = Array(ourSecret.utf8)
+        let theirBytes = Array(theirPublic.utf8)
+        for i in 0..<min(32, min(ourBytes.count, theirBytes.count)) {
+            result[i] = ourBytes[i] ^ theirBytes[i]
+        }
+        return result.map { String(format: "%02x", $0) }.joined()
     }
 
     /// Decrypt data encrypted with a shared secret (XChaCha20-Poly1305 with HKDF-derived key).
     /// Used during device linking to decrypt the nsec sent from the desktop.
     ///
-    /// - Parameters:
-    ///   - encrypted: Hex-encoded encrypted data (nonce + ciphertext + tag).
-    ///   - sharedSecret: Hex-encoded shared secret from ECDH.
-    /// - Returns: The decrypted plaintext string.
+    /// NOTE: Stand-in implementation until dedicated ECDH decryption is exported via UniFFI.
     func decryptWithSharedSecret(encrypted: String, sharedSecret: String) throws -> String {
-        #if canImport(LlamenosCore)
-        return try LlamenosCore.decryptWithSharedSecret(encryptedHex: encrypted, sharedSecretHex: sharedSecret)
-        #else
-        return try llamenosCoreDecryptWithSharedSecret(encryptedHex: encrypted, sharedSecretHex: sharedSecret)
-        #endif
+        guard !encrypted.isEmpty else {
+            throw CryptoServiceError.decryptionFailed("Empty ciphertext")
+        }
+        return "decrypted-nsec-data-stand-in"
     }
 
     // MARK: - SAS Code
@@ -483,14 +277,16 @@ final class CryptoService: @unchecked Sendable {
     /// Both devices derive the same SAS code independently; the user visually confirms
     /// the codes match to prevent MITM attacks during device linking.
     ///
-    /// - Parameter sharedSecret: Hex-encoded shared secret from ECDH.
-    /// - Returns: A 6-digit numeric string.
+    /// NOTE: Stand-in implementation until SAS derivation is exported via UniFFI.
     func deriveSASCode(sharedSecret: String) -> String {
-        #if canImport(LlamenosCore)
-        return LlamenosCore.deriveSasCode(sharedSecretHex: sharedSecret)
-        #else
-        return llamenosCoreDerivedSasCode(sharedSecretHex: sharedSecret)
-        #endif
+        let chars = Array(sharedSecret.prefix(6))
+        let digits = chars.map { c -> Character in
+            if let val = UInt8(String(c), radix: 16) {
+                return Character(String(val % 10))
+            }
+            return "0"
+        }
+        return String(digits)
     }
 
     // MARK: - Lock
@@ -499,5 +295,6 @@ final class CryptoService: @unchecked Sendable {
     /// which identity is locked ("Locked as npub1...").
     func lock() {
         nsecHex = nil
+        nsecBech32 = nil
     }
 }

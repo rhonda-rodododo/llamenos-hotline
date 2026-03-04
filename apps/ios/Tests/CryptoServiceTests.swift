@@ -202,10 +202,13 @@ final class CryptoServiceTests: XCTestCase {
         let service = CryptoService()
         _ = service.generateKeypair()
 
-        let adminPubkeys = [
-            String(repeating: "a", count: 64),
-            String(repeating: "b", count: 64),
-        ]
+        // Generate real admin keypairs for valid ECIES wrapping
+        let admin1 = CryptoService()
+        _ = admin1.generateKeypair()
+        let admin2 = CryptoService()
+        _ = admin2.generateKeypair()
+
+        let adminPubkeys = [admin1.pubkey!, admin2.pubkey!]
 
         let encrypted = try service.encryptNote(
             payload: "{\"text\":\"test note\"}",

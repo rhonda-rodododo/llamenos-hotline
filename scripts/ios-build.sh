@@ -206,8 +206,18 @@ cmd_xcframework() {
 source "\$HOME/.cargo/env" 2>/dev/null || true
 cd "$REMOTE_DIR"
 bash packages/crypto/scripts/build-mobile.sh ios
+
+# Copy XCFramework to iOS app directory
+log "Copying XCFramework to apps/ios/..."
+rm -rf apps/ios/LlamenosCoreFFI.xcframework
+cp -R packages/crypto/dist/ios/LlamenosCoreFFI.xcframework apps/ios/LlamenosCoreFFI.xcframework
+
+# Copy generated Swift bindings
+cp packages/crypto/dist/ios/LlamenosCore.swift apps/ios/Sources/Generated/LlamenosCore.swift
+
+echo "XCFramework installed at apps/ios/LlamenosCoreFFI.xcframework"
 SCRIPT
-  log "XCFramework built successfully."
+  log "XCFramework built and installed."
 }
 
 cmd_build() {
