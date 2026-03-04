@@ -112,7 +112,7 @@ final class ConversationFlowUITests: XCTestCase {
         )
 
         // Reply text field should exist
-        let replyField = app.textFields["reply-text-field"]
+        let replyField = find("reply-text-field")
         XCTAssertTrue(
             replyField.waitForExistence(timeout: 3),
             "Reply text field should exist in conversation detail"
@@ -144,7 +144,7 @@ final class ConversationFlowUITests: XCTestCase {
         XCTAssertTrue(sendButton.exists, "Send button should exist")
 
         // Type a message
-        let replyField = app.textFields["reply-text-field"]
+        let replyField = find("reply-text-field")
         if replyField.exists {
             replyField.tap()
             replyField.typeText("Test message from UI test - \(Date().timeIntervalSince1970)")

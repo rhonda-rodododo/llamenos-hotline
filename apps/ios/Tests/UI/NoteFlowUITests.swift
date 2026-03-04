@@ -76,7 +76,7 @@ final class NoteFlowUITests: XCTestCase {
         createButton.tap()
 
         // Note create sheet should appear
-        let textEditor = app.textViews["note-text-editor"].firstMatch
+        let textEditor = find("note-text-editor")
         XCTAssertTrue(
             textEditor.waitForExistence(timeout: 5),
             "Note text editor should appear in create sheet"
@@ -104,7 +104,7 @@ final class NoteFlowUITests: XCTestCase {
         createButton.tap()
 
         // Wait for sheet
-        let textEditor = app.textViews["note-text-editor"].firstMatch
+        let textEditor = find("note-text-editor")
         XCTAssertTrue(textEditor.waitForExistence(timeout: 5))
 
         // Cancel
@@ -131,7 +131,7 @@ final class NoteFlowUITests: XCTestCase {
         createButton.tap()
 
         // Enter note text
-        let textEditor = app.textViews["note-text-editor"].firstMatch
+        let textEditor = find("note-text-editor")
         XCTAssertTrue(textEditor.waitForExistence(timeout: 5))
         textEditor.tap()
         textEditor.typeText("Test note from UI test - \(Date().timeIntervalSince1970)")

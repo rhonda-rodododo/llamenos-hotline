@@ -127,6 +127,7 @@ class BaseUITest: XCTestCase {
         if hubURLInput.waitForExistence(timeout: 5) {
             hubURLInput.tap()
             hubURLInput.typeText(hubURL)
+            dismissKeyboard()
         }
 
         // Create identity
@@ -158,6 +159,12 @@ class BaseUITest: XCTestCase {
         // Wait for dashboard
         let dashboardTitle = find("dashboard-title")
         _ = dashboardTitle.waitForExistence(timeout: 10)
+    }
+
+    /// Dismiss the keyboard by tapping a neutral area of the screen.
+    func dismissKeyboard() {
+        let coordinate = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
+        coordinate.tap()
     }
 
     // MARK: - Element Helpers
