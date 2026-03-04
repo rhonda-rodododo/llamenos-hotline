@@ -74,6 +74,7 @@ struct DashboardView: View {
             .accessibilityIdentifier("lock-app")
         }
         .padding(.top, 4)
+    }
 
     // MARK: - Header Section
 
