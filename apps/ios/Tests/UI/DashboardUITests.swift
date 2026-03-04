@@ -135,7 +135,7 @@ final class DashboardUITests: BaseUITest {
             navigateToNotes()
         }
         then("I should see notes content") {
-            let found = anyElementExists(["notes-list", "notes-empty-state", "notes-loading"])
+            let found = anyElementExists(["notes-list", "notes-empty-state", "notes-loading", "notes-error"])
             XCTAssertTrue(found, "Notes view should show content after tab navigation")
         }
     }
@@ -150,6 +150,7 @@ final class DashboardUITests: BaseUITest {
         then("I should see conversations content") {
             let found = anyElementExists([
                 "conversations-list", "conversations-empty-state", "conversations-loading",
+                "conversations-error",
             ])
             XCTAssertTrue(found, "Conversations view should show content")
         }
