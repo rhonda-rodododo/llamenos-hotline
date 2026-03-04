@@ -168,11 +168,4 @@ final class SecurityUITests: BaseUITest {
         }
     }
 
-    // MARK: - Helpers
-
-    /// Dismiss the keyboard if visible.
-    private func dismissKeyboard() {
-        let coordinate = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
-        coordinate.tap()
-    }
 }
