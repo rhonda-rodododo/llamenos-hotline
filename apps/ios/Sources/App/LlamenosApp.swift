@@ -19,6 +19,10 @@ struct LlamenosApp: App {
             ContentView()
                 .environment(appState)
                 .environment(router)
+                .onAppear {
+                    // Sync router to initial auth state (onChange only fires on subsequent changes)
+                    router.resetForAuthStatus(appState.authStatus)
+                }
                 .onChange(of: scenePhase) { oldPhase, newPhase in
                     handleScenePhaseChange(from: oldPhase, to: newPhase)
                 }
