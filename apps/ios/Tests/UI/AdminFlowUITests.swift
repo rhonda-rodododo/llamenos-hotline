@@ -270,7 +270,7 @@ final class AdminFlowUITests: XCTestCase {
     private func navigateToAdminPanel() {
         navigateToSettingsTab()
 
-        let adminButton = scrollToFind("settings-admin-panel")
+        let adminButton = scrollToFind("settings-admin-panel", timeout: 10)
         guard adminButton.exists else {
             // Not visible — might not be admin. Skip gracefully.
             return

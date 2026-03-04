@@ -13,18 +13,25 @@ struct ContentView: View {
     var body: some View {
         @Bindable var router = router
 
-        NavigationStack(path: $router.path) {
-            rootView
-                .navigationDestination(for: Route.self) { route in
-                    destinationView(for: route)
-                }
+        switch router.rootRoute {
+        case .dashboard:
+            // MainTabView has its own NavigationStack per tab — no outer wrapper needed.
+            // Wrapping it in another NavigationStack suppresses inner nav bars and toolbars.
+            MainTabView()
+        default:
+            // Login, PIN unlock, and onboarding flows use a shared NavigationStack for push navigation.
+            NavigationStack(path: $router.path) {
+                rootView
+                    .navigationDestination(for: Route.self) { route in
+                        destinationView(for: route)
+                    }
+            }
         }
     }
 
     // MARK: - Root View
 
-    /// The root view is determined by the router's `rootRoute`, which is synced
-    /// to the `AppState.authStatus`.
+    /// The root view for non-dashboard states (login, PIN unlock).
     @ViewBuilder
     private var rootView: some View {
         switch router.rootRoute {
@@ -32,11 +39,7 @@ struct ContentView: View {
             LoginView()
         case .pinUnlock:
             PINUnlockView()
-        case .dashboard:
-            MainTabView()
-                .navigationBarBackButtonHidden()
         default:
-            // Fallback — should not occur in normal flow
             LoginView()
         }
     }

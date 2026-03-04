@@ -29,7 +29,7 @@ struct AdminTabView: View {
             .accessibilityIdentifier("admin-tab-picker")
 
             // Tab content
-            Group {
+            ZStack {
                 switch selectedTab {
                 case .volunteers:
                     VolunteersView(viewModel: vm)
@@ -63,6 +63,7 @@ struct AdminTabView: View {
                 comment: "Are you sure you want to delete this item? This action cannot be undone."
             ))
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("admin-tab-view")
     }
 

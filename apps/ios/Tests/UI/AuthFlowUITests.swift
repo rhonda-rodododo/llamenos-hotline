@@ -38,17 +38,17 @@ final class AuthFlowUITests: XCTestCase {
     // MARK: - Login Screen
 
     func testLoginScreenShowsRequiredElements() {
-        // Hub URL input should be visible
+        // Hub URL input should be visible (longer timeout for cold start after simulator reset)
         let hubURLInput = find("hub-url-input")
-        XCTAssertTrue(hubURLInput.waitForExistence(timeout: 5), "Hub URL input should exist")
+        XCTAssertTrue(hubURLInput.waitForExistence(timeout: 20), "Hub URL input should exist")
 
         // Create Identity button
         let createButton = find("create-identity")
-        XCTAssertTrue(createButton.exists, "Create Identity button should exist")
+        XCTAssertTrue(createButton.waitForExistence(timeout: 3), "Create Identity button should exist")
 
         // Import Key button
         let importButton = find("import-key")
-        XCTAssertTrue(importButton.exists, "Import Key button should exist")
+        XCTAssertTrue(importButton.waitForExistence(timeout: 3), "Import Key button should exist")
     }
 
     // MARK: - Onboarding Flow
@@ -151,9 +151,9 @@ final class AuthFlowUITests: XCTestCase {
     // MARK: - Import Flow
 
     func testImportKeyFlow() {
-        // Tap "Import Key"
+        // Tap "Import Key" (longer timeout for cold start after simulator reset)
         let importButton = find("import-key")
-        XCTAssertTrue(importButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(importButton.waitForExistence(timeout: 20))
         importButton.tap()
 
         // Nsec input should appear
@@ -277,7 +277,7 @@ final class AuthFlowUITests: XCTestCase {
     /// Navigate from login to the onboarding screen.
     private func navigateToOnboarding() {
         let hubURLInput = find("hub-url-input")
-        guard hubURLInput.waitForExistence(timeout: 5) else { return }
+        guard hubURLInput.waitForExistence(timeout: 20) else { return }
         hubURLInput.tap()
         hubURLInput.typeText("https://test.example.org")
         dismissKeyboard()

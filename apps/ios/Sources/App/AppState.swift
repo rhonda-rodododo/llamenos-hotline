@@ -68,6 +68,12 @@ final class AppState {
         self.webSocketService = ws
         self.wakeKeyService = wake
 
+        #if DEBUG
+        // Handle launch arguments BEFORE reading persisted state
+        // so --reset-keychain clears everything before we configure services
+        handleLaunchArguments()
+        #endif
+
         // Configure API base URL if stored
         if let hubURL = auth.hubURL {
             try? api.configure(hubURLString: hubURL)
@@ -75,10 +81,6 @@ final class AppState {
 
         // Generate wake keypair on first launch (non-blocking)
         try? wake.ensureKeypairExists()
-
-        #if DEBUG
-        handleLaunchArguments()
-        #endif
 
         // Determine initial auth state
         resolveAuthStatus()
@@ -94,6 +96,8 @@ final class AppState {
 
         if args.contains("--reset-keychain") {
             keychainService.deleteAll()
+            // AuthService cached hasStoredKeys/hubURL from init — reset stale values
+            authService.logout()
         }
 
         if args.contains("--test-authenticated") {

@@ -52,7 +52,6 @@ struct MainTabView: View {
                     Label(Tab.dashboard.title, systemImage: Tab.dashboard.icon)
                 }
                 .tag(Tab.dashboard)
-                .accessibilityIdentifier("tab-dashboard")
 
             // Notes
             NotesView()
@@ -60,7 +59,6 @@ struct MainTabView: View {
                     Label(Tab.notes.title, systemImage: Tab.notes.icon)
                 }
                 .tag(Tab.notes)
-                .accessibilityIdentifier("tab-notes")
 
             // Conversations
             ConversationsView()
@@ -69,7 +67,6 @@ struct MainTabView: View {
                 }
                 .tag(Tab.conversations)
                 .badge(appState.unreadConversationCount)
-                .accessibilityIdentifier("tab-conversations")
 
             // Shifts
             ShiftsView()
@@ -77,7 +74,6 @@ struct MainTabView: View {
                     Label(Tab.shifts.title, systemImage: Tab.shifts.icon)
                 }
                 .tag(Tab.shifts)
-                .accessibilityIdentifier("tab-shifts")
 
             // Settings
             SettingsView()
@@ -85,7 +81,6 @@ struct MainTabView: View {
                     Label(Tab.settings.title, systemImage: Tab.settings.icon)
                 }
                 .tag(Tab.settings)
-                .accessibilityIdentifier("tab-settings")
         }
         .accessibilityIdentifier("main-tab-view")
         .task {
