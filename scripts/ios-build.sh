@@ -25,6 +25,12 @@ MAC_HOST="${IOS_BUILD_HOST:-mac}"
 REMOTE_DIR="${IOS_BUILD_DIR:-~/projects/llamenos}"
 BRANCH="${IOS_BUILD_BRANCH:-desktop}"
 
+# SPM scheme name (xcodebuild generates "PackageName-Package" for SPM packages)
+XCODE_SCHEME="Llamenos-Package"
+
+# Remote shell init — SSH non-login shells miss Homebrew and asdf paths
+REMOTE_INIT='eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null; export PATH="$HOME/.asdf/shims:$HOME/.asdf/bin:$PATH"'
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -203,6 +209,7 @@ cmd_xcframework() {
   check_rust
   log "Building LlamenosCoreFFI XCFramework..."
   remote_script <<SCRIPT
+$REMOTE_INIT
 source "\$HOME/.cargo/env" 2>/dev/null || true
 cd "$REMOTE_DIR"
 bash packages/crypto/scripts/build-mobile.sh ios
@@ -222,22 +229,43 @@ SCRIPT
 
 cmd_build() {
   check_ssh
-  log "Building iOS app (swift build)..."
+  check_xcode
+  log "Building iOS app (xcodebuild)..."
+
+  # Find an available simulator for the build destination
+  local sim_device
+  sim_device=$(find_simulator)
+
   remote_script <<SCRIPT
+$REMOTE_INIT
 source "\$HOME/.cargo/env" 2>/dev/null || true
 cd "$REMOTE_DIR/apps/ios"
-swift build 2>&1
+xcodebuild build \
+  -scheme "$XCODE_SCHEME" \
+  -destination "platform=iOS Simulator,name=$sim_device" \
+  -derivedDataPath /tmp/llamenos-build \
+  2>&1 | tail -20
 SCRIPT
   log "Build succeeded."
 }
 
 cmd_test() {
   check_ssh
-  log "Running iOS tests (swift test)..."
+  check_xcode
+  log "Running iOS tests (xcodebuild test)..."
+
+  local sim_device
+  sim_device=$(find_simulator)
+
   remote_script <<SCRIPT
+$REMOTE_INIT
 source "\$HOME/.cargo/env" 2>/dev/null || true
 cd "$REMOTE_DIR/apps/ios"
-swift test 2>&1
+xcodebuild test \
+  -scheme "$XCODE_SCHEME" \
+  -destination "platform=iOS Simulator,name=$sim_device" \
+  -derivedDataPath /tmp/llamenos-build \
+  2>&1
 SCRIPT
   log "Tests passed."
 }
@@ -247,9 +275,25 @@ cmd_uitest() {
   check_xcode
   log "Running XCUITests on simulator..."
 
-  # Find an available iPhone simulator
   local sim_device
-  sim_device=$(remote_script <<'SCRIPT'
+  sim_device=$(find_simulator)
+
+  log "Using simulator: $sim_device"
+  remote_script <<SCRIPT
+$REMOTE_INIT
+cd "$REMOTE_DIR/apps/ios"
+xcodebuild test \
+  -scheme "$XCODE_SCHEME" \
+  -destination "platform=iOS Simulator,name=$sim_device" \
+  -resultBundlePath TestResults.xcresult \
+  2>&1 | xcbeautify 2>/dev/null || cat
+SCRIPT
+  log "XCUITests completed."
+}
+
+find_simulator() {
+  # Find an available iPhone simulator, with fallback
+  remote_script <<'SCRIPT'
 xcrun simctl list devices available -j 2>/dev/null | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
@@ -262,18 +306,6 @@ for runtime, devices in sorted(data.get('devices', {}).items(), reverse=True):
 print('iPhone 16')
 " 2>/dev/null || echo "iPhone 16"
 SCRIPT
-  )
-
-  log "Using simulator: $sim_device"
-  remote_script <<SCRIPT
-cd "$REMOTE_DIR/apps/ios"
-xcodebuild test \
-  -scheme Llamenos \
-  -destination "platform=iOS Simulator,name=$sim_device" \
-  -resultBundlePath TestResults.xcresult \
-  2>&1 | xcbeautify 2>/dev/null || cat
-SCRIPT
-  log "XCUITests completed."
 }
 
 cmd_all() {
