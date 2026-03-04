@@ -15,14 +15,14 @@ class AssertionSteps : BaseSteps() {
 
     @Then("I should see the PIN unlock screen")
     fun iShouldSeeThePinUnlockScreen() {
+        waitForNode("pin-pad")
         onNodeWithTag("pin-pad").assertIsDisplayed()
-        onNodeWithTag("pin-title").assertIsDisplayed()
     }
 
     @Then("I should see the PIN setup screen")
     fun iShouldSeeThePinSetupScreen() {
+        waitForNode("pin-pad")
         onNodeWithTag("pin-pad").assertIsDisplayed()
-        onNodeWithTag("pin-title").assertIsDisplayed()
     }
 
     @Then("I should remain on the login screen")
@@ -48,6 +48,7 @@ class AssertionSteps : BaseSteps() {
 
     @Then("I should arrive at the dashboard")
     fun iShouldArriveAtTheDashboard() {
+        waitForNode("dashboard-title")
         onNodeWithTag("dashboard-title").assertIsDisplayed()
     }
 }

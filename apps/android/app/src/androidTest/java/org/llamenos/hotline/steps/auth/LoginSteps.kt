@@ -3,6 +3,7 @@ package org.llamenos.hotline.steps.auth
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import io.cucumber.java.en.And
 import io.cucumber.java.en.Then
@@ -42,6 +43,10 @@ class LoginSteps : BaseSteps() {
             "Log Out" -> "settings-logout-button"
             "Request Camera Permission" -> "camera-permission-prompt"
             else -> throw IllegalArgumentException("Unknown button: $buttonText")
+        }
+        val scrollableTags = setOf("settings-lock-button", "settings-logout-button")
+        if (tag in scrollableTags) {
+            onNodeWithTag(tag).performScrollTo()
         }
         onNodeWithTag(tag).assertIsDisplayed()
     }
@@ -99,6 +104,14 @@ class LoginSteps : BaseSteps() {
             "Volunteers" -> "admin-tab-volunteers"
             "Retry" -> "retry-button"
             else -> throw IllegalArgumentException("Unknown button: $buttonText")
+        }
+        // Buttons at the bottom of scrollable screens need scrollTo first
+        val scrollableTags = setOf(
+            "settings-lock-button", "settings-logout-button", "clock-in-button",
+            "clock-out-button", "reset-identity",
+        )
+        if (tag in scrollableTags) {
+            onNodeWithTag(tag).performScrollTo()
         }
         onNodeWithTag(tag).performClick()
         composeRule.waitForIdle()

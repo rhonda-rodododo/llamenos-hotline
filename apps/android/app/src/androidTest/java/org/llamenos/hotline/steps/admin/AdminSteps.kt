@@ -8,6 +8,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.test.platform.app.InstrumentationRegistry
 import io.cucumber.datatable.DataTable
 import io.cucumber.java.After
 import io.cucumber.java.en.Given
@@ -16,7 +17,6 @@ import io.cucumber.java.en.When
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
 import org.llamenos.hotline.steps.BaseSteps
-import javax.inject.Inject
 
 /**
  * Step definitions for admin-navigation.feature, admin-tabs.feature, and access-control.feature.
@@ -27,11 +27,10 @@ import javax.inject.Inject
  */
 class AdminSteps : BaseSteps() {
 
-    @Inject
-    lateinit var cryptoService: CryptoService
-
-    @Inject
-    lateinit var keystoreService: KeystoreService
+    private val cryptoService = CryptoService()
+    private val keystoreService = KeystoreService(
+        InstrumentationRegistry.getInstrumentation().targetContext
+    )
 
     // ---- Admin navigation ----
 
@@ -81,7 +80,7 @@ class AdminSteps : BaseSteps() {
 
     @Then("I should see the following tabs:")
     fun iShouldSeeTheFollowingTabs(dataTable: DataTable) {
-        val tabs = dataTable.asList()
+        val tabs = dataTable.asList().filter { it.lowercase() != "tab" }
         for (tab in tabs) {
             val tag = when (tab) {
                 "Volunteers" -> "admin-tab-volunteers"
@@ -126,7 +125,6 @@ class AdminSteps : BaseSteps() {
 
     @Given("the crypto service is locked")
     fun theCryptoServiceIsLocked() {
-        composeRuleHolder.inject()
         cryptoService.generateKeypair()
         cryptoService.lock()
     }
@@ -143,7 +141,7 @@ class AdminSteps : BaseSteps() {
 
     @Then("I should be able to navigate to all tabs:")
     fun iShouldBeAbleToNavigateToAllTabs(dataTable: DataTable) {
-        val tabs = dataTable.asList()
+        val tabs = dataTable.asList().filter { it.lowercase() != "tab" }
         for (tab in tabs) {
             val tag = when (tab) {
                 "Dashboard" -> NAV_DASHBOARD

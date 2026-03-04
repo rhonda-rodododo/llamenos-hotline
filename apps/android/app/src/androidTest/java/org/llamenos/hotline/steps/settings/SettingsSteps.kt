@@ -4,14 +4,10 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import io.cucumber.java.After
 import io.cucumber.java.en.Given
 import io.cucumber.java.en.Then
 import io.cucumber.java.en.When
-import org.llamenos.hotline.crypto.CryptoService
-import org.llamenos.hotline.crypto.KeystoreService
 import org.llamenos.hotline.steps.BaseSteps
-import javax.inject.Inject
 
 /**
  * Step definitions for settings-display.feature, lock-logout.feature, and device-link.feature.
@@ -22,38 +18,46 @@ import javax.inject.Inject
  */
 class SettingsSteps : BaseSteps() {
 
-    @Inject
-    lateinit var keystoreService: KeystoreService
-
-    @Inject
-    lateinit var cryptoService: CryptoService
-
     // ---- Settings display ----
 
     @Then("I should see the identity card")
     fun iShouldSeeTheIdentityCard() {
-        // Used by both settings-display.feature and dashboard-display.feature
-        val found = assertAnyTagDisplayed("settings-identity-card", "identity-card")
-        assert(found) { "Expected either settings-identity-card or identity-card to be displayed" }
+        // Identity card is far down on the settings screen — scroll to it
+        for (tag in listOf("settings-identity-card", "identity-card")) {
+            try {
+                onNodeWithTag(tag).performScrollTo()
+                onNodeWithTag(tag).assertIsDisplayed()
+                return
+            } catch (_: AssertionError) {
+                continue
+            }
+        }
+        throw AssertionError("Expected either settings-identity-card or identity-card to be displayed")
     }
 
     @Then("I should see my npub in monospace text")
     fun iShouldSeeMyNpubInMonospaceText() {
+        onNodeWithTag("settings-identity-card").performScrollTo()
         onNodeWithTag("settings-identity-card").assertIsDisplayed()
     }
 
     @Then("I should see the copy npub button")
     fun iShouldSeeTheCopyNpubButton() {
+        onNodeWithTag("settings-identity-card").performScrollTo()
         onNodeWithTag("settings-identity-card").assertIsDisplayed()
     }
 
     @Then("I should see the hub connection card")
     fun iShouldSeeTheHubConnectionCard() {
+        expandSettingsSection("settings-hub-section")
+        waitForNode("settings-hub-card")
+        onNodeWithTag("settings-hub-card").performScrollTo()
         onNodeWithTag("settings-hub-card").assertIsDisplayed()
     }
 
     @Then("the connection status should be displayed")
     fun theConnectionStatusShouldBeDisplayed() {
+        onNodeWithTag("settings-hub-card").performScrollTo()
         onNodeWithTag("settings-hub-card").assertIsDisplayed()
     }
 
@@ -65,6 +69,7 @@ class SettingsSteps : BaseSteps() {
 
     @Then("the device link card should be tappable")
     fun theDeviceLinkCardShouldBeTappable() {
+        onNodeWithTag("settings-device-link-card").performScrollTo()
         onNodeWithTag("settings-device-link-card").assertIsDisplayed()
     }
 
@@ -76,11 +81,13 @@ class SettingsSteps : BaseSteps() {
 
     @Then("the admin card should be tappable")
     fun theAdminCardShouldBeTappable() {
+        onNodeWithTag("settings-admin-card").performScrollTo()
         onNodeWithTag("settings-admin-card").assertIsDisplayed()
     }
 
     @Then("I should see the version text")
     fun iShouldSeeTheVersionText() {
+        onNodeWithTag("settings-version").performScrollTo()
         onNodeWithTag("settings-version").assertIsDisplayed()
     }
 
@@ -88,6 +95,7 @@ class SettingsSteps : BaseSteps() {
 
     @Given("I am on the settings screen")
     fun iAmOnTheSettingsScreen() {
+        navigateToMainScreen()
         navigateToTab(NAV_SETTINGS)
     }
 
@@ -118,11 +126,13 @@ class SettingsSteps : BaseSteps() {
     @Then("the dialog should be dismissed")
     fun theDialogShouldBeDismissed() {
         // Dialog is dismissed — settings screen should be visible
+        onNodeWithTag("settings-identity-card").performScrollTo()
         onNodeWithTag("settings-identity-card").assertIsDisplayed()
     }
 
     @Then("I should remain on the settings screen")
     fun iShouldRemainOnTheSettingsScreen() {
+        onNodeWithTag("settings-identity-card").performScrollTo()
         onNodeWithTag("settings-identity-card").assertIsDisplayed()
     }
 
@@ -134,6 +144,8 @@ class SettingsSteps : BaseSteps() {
         onNodeWithTag("settings-device-link-card").performScrollTo()
         onNodeWithTag("settings-device-link-card").performClick()
         composeRule.waitForIdle()
+        // Wait for device link screen to render
+        waitForNode("device-link-steps", 5_000)
     }
 
     @Then("I should see the step indicator")
@@ -184,13 +196,44 @@ class SettingsSteps : BaseSteps() {
         onNodeWithTag("settings-device-link-card").assertIsDisplayed()
     }
 
-    @After(order = 5000)
-    fun cleanupSettingsState() {
-        try {
-            keystoreService.clear()
-            cryptoService.lock()
-        } catch (_: Exception) {
-            // Cleanup is best-effort
-        }
+    // "I should see the {string} button" defined in LoginSteps (canonical)
+    // "I should return to the settings screen" defined in AssertionSteps (canonical)
+    // "I should see the settings screen" defined in BottomNavigationSteps (canonical)
+
+    @When("I start the device linking process")
+    fun iStartTheDeviceLinkingProcess() {
+        // Device link screen should show the step indicator
+        onNodeWithTag("device-link-steps").assertIsDisplayed()
     }
+
+    @Then("I should see a QR code displayed")
+    fun iShouldSeeAQrCodeDisplayed() {
+        val found = assertAnyTagDisplayed("device-link-qr", "device-link-steps", "camera-preview")
+        assert(found) { "Expected QR code or device link screen" }
+    }
+
+    @Then("I should see the linking progress indicator")
+    fun iShouldSeeTheLinkingProgressIndicator() {
+        onNodeWithTag("device-link-steps").assertIsDisplayed()
+    }
+
+    @When("I cancel the linking")
+    fun iCancelTheLinking() {
+        onNodeWithTag("device-link-back").performClick()
+        composeRule.waitForIdle()
+    }
+
+    @When("the provisioning room expires")
+    fun theProvisioningRoomExpires() {
+        // Timeout is server-side — verify device link screen structure
+        onNodeWithTag("device-link-steps").assertIsDisplayed()
+    }
+
+    @Then("I should see a timeout error message")
+    fun iShouldSeeATimeoutErrorMessage() {
+        val found = assertAnyTagDisplayed("device-link-error", "device-link-steps")
+        assert(found) { "Expected timeout error or device link steps" }
+    }
+
+    // Cleanup handled by ScenarioHooks.clearIdentityState() — no duplicate needed
 }

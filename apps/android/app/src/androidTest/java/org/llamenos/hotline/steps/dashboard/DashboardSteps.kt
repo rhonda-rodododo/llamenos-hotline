@@ -3,6 +3,7 @@ package org.llamenos.hotline.steps.dashboard
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import io.cucumber.java.en.And
 import io.cucumber.java.en.Given
 import io.cucumber.java.en.Then
@@ -44,6 +45,7 @@ class DashboardSteps : BaseSteps() {
 
     @Then("the identity card should display my npub")
     fun theIdentityCardShouldDisplayMyNpub() {
+        onNodeWithTag("identity-card").performScrollTo()
         onNodeWithTag("identity-card").assertIsDisplayed()
         onNodeWithTag("identity-npub").assertIsDisplayed()
     }
@@ -96,12 +98,12 @@ class DashboardSteps : BaseSteps() {
 
     @Then("the lock button should be visible in the top bar")
     fun theLockButtonShouldBeVisibleInTheTopBar() {
-        onNodeWithTag("dashboard-lock-button").assertIsDisplayed()
+        onNodeWithTag("lock-button").assertIsDisplayed()
     }
 
     @Then("the logout button should be visible in the top bar")
     fun theLogoutButtonShouldBeVisibleInTheTopBar() {
-        onNodeWithTag("dashboard-logout-button").assertIsDisplayed()
+        onNodeWithTag("logout-button").assertIsDisplayed()
     }
 
     // ---- Dashboard shift actions ----

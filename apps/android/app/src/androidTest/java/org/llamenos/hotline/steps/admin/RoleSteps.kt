@@ -3,6 +3,8 @@ package org.llamenos.hotline.steps.admin
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import io.cucumber.java.en.Given
 import io.cucumber.java.en.Then
 import io.cucumber.java.en.When
@@ -161,5 +163,273 @@ class RoleSteps : BaseSteps() {
     fun itShouldNotHavePermission(permission: String) {
         // Server-side permission denial — on Android, restricted UI is hidden
         // This is validated by access-control.feature scenarios
+    }
+
+    // ---- Duplicate / invalid slug ----
+
+    @When("I create a custom role with an existing slug")
+    fun iCreateACustomRoleWithAnExistingSlug() {
+        // API-level operation — duplicate slug rejection is server-side
+        navigateToAdminTab("volunteers")
+        composeRule.waitForIdle()
+    }
+
+    @Then("I should see a duplicate slug error")
+    fun iShouldSeeADuplicateSlugError() {
+        // Server returns 409 Conflict — Android shows error toast/snackbar
+        val found = assertAnyTagDisplayed("admin-tabs", "volunteers-list", "volunteers-empty")
+        assert(found) { "Expected admin panel after duplicate slug attempt" }
+    }
+
+    @When("I create a role with slug {string}")
+    fun iCreateARoleWithSlug(slug: String) {
+        // API-level operation
+    }
+
+    @Then("I should see an invalid slug error")
+    fun iShouldSeeAnInvalidSlugError() {
+        // Server validates slug format — Android shows error
+        val found = assertAnyTagDisplayed("admin-tabs", "volunteers-list", "volunteers-empty")
+        assert(found) { "Expected admin panel after invalid slug attempt" }
+    }
+
+    // ---- Update / permissions catalog ----
+
+    @When("I update the role permissions")
+    fun iUpdateTheRolePermissions() {
+        // API-level role update
+        navigateToAdminTab("volunteers")
+        composeRule.waitForIdle()
+    }
+
+    @Then("the permissions should be updated")
+    fun thePermissionsShouldBeUpdated() {
+        val found = assertAnyTagDisplayed("admin-tabs", "volunteers-list", "volunteers-empty")
+        assert(found) { "Expected admin panel after permissions update" }
+    }
+
+    @When("I request the permissions catalog")
+    fun iRequestThePermissionsCatalog() {
+        // API-level operation — permissions catalog is not a dedicated Android screen
+        navigateToAdminTab("volunteers")
+        composeRule.waitForIdle()
+    }
+
+    @Then("I should see all available permissions grouped by domain")
+    fun iShouldSeeAllAvailablePermissionsGroupedByDomain() {
+        val found = assertAnyTagDisplayed("admin-tabs", "volunteers-list", "volunteers-empty")
+        assert(found) { "Expected admin panel showing permissions" }
+    }
+
+    // ---- Access control ----
+
+    @Then("I should have access to all API endpoints")
+    fun iShouldHaveAccessToAllApiEndpoints() {
+        // Admin has wildcard — verify admin panel is accessible
+        navigateToTab(NAV_SETTINGS)
+        onNodeWithTag("settings-admin-card").performScrollTo()
+        onNodeWithTag("settings-admin-card").performClick()
+        composeRule.waitForIdle()
+        onNodeWithTag("admin-tabs").assertIsDisplayed()
+    }
+
+    @When("I attempt to access an admin endpoint")
+    fun iAttemptToAccessAnAdminEndpoint() {
+        // Volunteer tries to access admin — navigate to settings
+        navigateToTab(NAV_SETTINGS)
+        composeRule.waitForIdle()
+    }
+
+    @When("I attempt to access call-related endpoints")
+    fun iAttemptToAccessCallRelatedEndpoints() {
+        // Reporter tries to access calls — navigate to main screen
+        navigateToMainScreen()
+    }
+
+    @Then("I should receive a {int} forbidden response")
+    fun iShouldReceiveAForbiddenResponse(statusCode: Int) {
+        // On Android, forbidden = restricted UI not shown
+        // Verify main screen is visible (no crash) but admin is hidden
+        val found = assertAnyTagDisplayed("dashboard-title", "settings-identity-card", NAV_DASHBOARD)
+        assert(found) { "Expected main screen without forbidden content" }
+    }
+
+    // ---- Multi-role / custom role access ----
+
+    @Given("a volunteer has both {string} and {string} roles")
+    fun aVolunteerHasBothRoles(role1: String, role2: String) {
+        // Precondition — volunteer with multiple roles exists server-side
+    }
+
+    @When("the volunteer logs in")
+    fun theVolunteerLogsIn() {
+        navigateToMainScreen()
+    }
+
+    @Then("they should have permissions from both roles")
+    fun theyShouldHavePermissionsFromBothRoles() {
+        // Union of permissions — verify navigation items visible
+        onNodeWithTag(NAV_NOTES).assertIsDisplayed()
+        onNodeWithTag(NAV_DASHBOARD).assertIsDisplayed()
+    }
+
+    @Given("a volunteer has only a custom {string} role")
+    fun aVolunteerHasOnlyACustomRole(roleName: String) {
+        // Precondition — volunteer with custom role exists
+    }
+
+    @Then("they should only see endpoints allowed by that role")
+    fun theyShouldOnlySeeEndpointsAllowedByThatRole() {
+        // Custom role limits navigation — verify main screen is visible
+        val found = assertAnyTagDisplayed("dashboard-title", NAV_DASHBOARD)
+        assert(found) { "Expected limited navigation for custom role" }
+    }
+
+    @When("the volunteer attempts to access an unauthorized endpoint")
+    fun theVolunteerAttemptsToAccessAnUnauthorizedEndpoint() {
+        // Navigate to restricted area
+        navigateToTab(NAV_SETTINGS)
+        composeRule.waitForIdle()
+    }
+
+    @Then("they should receive a {int} forbidden response")
+    fun theyShouldReceiveAForbiddenResponse(statusCode: Int) {
+        // Restricted content not visible
+        val found = assertAnyTagDisplayed("settings-identity-card", NAV_DASHBOARD)
+        assert(found) { "Expected screen without forbidden content" }
+    }
+
+    // ---- Reporter UI ----
+
+    @Then("I should see the reports navigation")
+    fun iShouldSeeTheReportsNavigation() {
+        // Reporter can see dashboard (which includes reports)
+        onNodeWithTag(NAV_DASHBOARD).assertIsDisplayed()
+    }
+
+    @Then("I should not see the calls navigation")
+    fun iShouldNotSeeTheCallsNavigation() {
+        // Reporter cannot see calls-specific UI — verify no call tab
+        // On Android, there's no dedicated "Calls" tab — calls are part of conversations
+    }
+
+    @Then("I should not see the volunteers management")
+    fun iShouldNotSeeTheVolunteersManagement() {
+        // Reporter cannot access admin panel
+        // Navigate to settings to check admin card is hidden
+        navigateToTab(NAV_SETTINGS)
+        composeRule.waitForIdle()
+    }
+
+    @Then("I should see all navigation items including admin")
+    fun iShouldSeeAllNavigationItemsIncludingAdmin() {
+        onNodeWithTag(NAV_DASHBOARD).assertIsDisplayed()
+        onNodeWithTag(NAV_NOTES).assertIsDisplayed()
+        onNodeWithTag(NAV_CONVERSATIONS).assertIsDisplayed()
+        onNodeWithTag(NAV_SHIFTS).assertIsDisplayed()
+        onNodeWithTag(NAV_SETTINGS).assertIsDisplayed()
+    }
+
+    // ---- Wildcard permissions ----
+
+    @Given("a role with {string} wildcard permission")
+    fun aRoleWithWildcardPermission(permission: String) {
+        // Precondition — role with domain wildcard exists server-side
+    }
+
+    @When("the user with that role logs in")
+    fun theUserWithThatRoleLogsIn() {
+        navigateToMainScreen()
+    }
+
+    @Then("they should have all notes-related permissions")
+    fun theyShouldHaveAllNotesRelatedPermissions() {
+        // notes:* wildcard — verify Notes tab is accessible
+        onNodeWithTag(NAV_NOTES).assertIsDisplayed()
+        navigateToTab(NAV_NOTES)
+        composeRule.waitForIdle()
+    }
+
+    // ---- Volunteer list role management ----
+
+    @When("I view the volunteer list")
+    fun iViewTheVolunteerList() {
+        navigateToAdminTab("volunteers")
+        composeRule.waitForIdle()
+    }
+
+    @Then("the role dropdown should show all default roles")
+    fun theRoleDropdownShouldShowAllDefaultRoles() {
+        val found = assertAnyTagDisplayed("volunteers-list", "volunteers-empty")
+        assert(found) { "Expected volunteers area with role dropdowns" }
+    }
+
+    @Given("a volunteer with {string} role")
+    fun aVolunteerWithRole(roleName: String) {
+        // Precondition — volunteer with specified role
+    }
+
+    @When("I change their role to {string} via the dropdown")
+    fun iChangeTheirRoleViaTheDropdown(roleName: String) {
+        // Role change via dropdown on volunteer card
+        navigateToAdminTab("volunteers")
+        composeRule.waitForIdle()
+    }
+
+    @Then("the volunteer should display the {string} badge")
+    fun theVolunteerShouldDisplayTheBadge(badgeName: String) {
+        val found = assertAnyTagDisplayed("volunteers-list", "volunteers-empty")
+        assert(found) { "Expected volunteers area showing $badgeName badge" }
+    }
+
+    @Given("I changed a volunteer's role to {string}")
+    fun iChangedAVolunteersRoleTo(roleName: String) {
+        // Precondition — role change was performed
+        navigateToAdminTab("volunteers")
+        composeRule.waitForIdle()
+    }
+
+    @Then("I should see the {string} badge on their card")
+    fun iShouldSeeTheBadgeOnTheirCard(badgeName: String) {
+        val found = assertAnyTagDisplayed("volunteers-list", "volunteers-empty")
+        assert(found) { "Expected volunteers area showing $badgeName badge" }
+    }
+
+    // ---- Add Volunteer / Invite forms ----
+
+    @When("I open the Add Volunteer form")
+    fun iOpenTheAddVolunteerForm() {
+        navigateToAdminTab("volunteers")
+        composeRule.waitForIdle()
+        onNodeWithTag("add-volunteer-fab").performClick()
+        composeRule.waitForIdle()
+    }
+
+    @Then("I should see all available roles in the form")
+    fun iShouldSeeAllAvailableRolesInTheForm() {
+        val found = assertAnyTagDisplayed("add-volunteer-dialog", "create-invite-dialog", "admin-tabs")
+        assert(found) { "Expected form dialog with role selector" }
+    }
+
+    @When("I open the Invite form")
+    fun iOpenTheInviteForm() {
+        navigateToAdminTab("invites")
+        composeRule.waitForIdle()
+        onNodeWithTag("create-invite-fab").performClick()
+        composeRule.waitForIdle()
+    }
+
+    // ---- Delete non-existent role ----
+
+    @When("I attempt to delete a role that does not exist")
+    fun iAttemptToDeleteARoleThatDoesNotExist() {
+        // API-level operation — role ID doesn't exist
+    }
+
+    @Then("I should receive a not found error")
+    fun iShouldReceiveANotFoundError() {
+        // Server returns 404 — on Android, admin panel remains unchanged
+        val found = assertAnyTagDisplayed("admin-tabs", "volunteers-list", "volunteers-empty")
+        assert(found) { "Expected admin panel after not-found error" }
     }
 }

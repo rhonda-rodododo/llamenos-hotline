@@ -20,6 +20,7 @@ class NavigationSteps : BaseSteps() {
     @Given("the app is freshly installed")
     fun theAppIsFreshlyInstalled() {
         activityScenarioHolder.launch()
+        waitForNode("create-identity")
     }
 
     @Given("no identity exists on the device")
@@ -30,12 +31,23 @@ class NavigationSteps : BaseSteps() {
     @Given("I am on the login screen")
     fun iAmOnTheLoginScreen() {
         activityScenarioHolder.launch()
-        onNodeWithTag("app-title").assertIsDisplayed()
+        waitForNode("create-identity")
+    }
+
+    @Given("the app is launched")
+    fun theAppIsLaunched() {
+        // Most features using "the app is launched" expect an authenticated state
+        navigateToMainScreen()
     }
 
     @When("the app launches")
     fun theAppLaunches() {
         // Activity already launched in background step
+    }
+
+    @Given("I am on the dashboard")
+    fun iAmOnTheDashboard() {
+        navigateToMainScreen()
     }
 
     @Given("I am authenticated and on the dashboard")
@@ -67,6 +79,9 @@ class NavigationSteps : BaseSteps() {
             "Audit Log" -> "admin-tab-audit"
             "Invites" -> "admin-tab-invites"
             "Volunteers" -> "admin-tab-volunteers"
+            "Shift Schedule" -> "admin-tab-shifts"
+            "Admin Settings" -> "admin-tab-settings"
+            "Custom Fields", "Fields" -> "admin-tab-fields"
             else -> throw IllegalArgumentException("Unknown tab: $tabName")
         }
         onNodeWithTag(tag).performClick()
@@ -75,9 +90,12 @@ class NavigationSteps : BaseSteps() {
 
     @When("I tap the back button")
     fun iTapTheBackButton() {
-        // Try known back button tags — different screens use different tags
+        // Try all known back button tags — different screens use different tags
         val backTags = listOf(
-            "note-create-back", "note-detail-back", "admin-back", "device-link-back"
+            "note-create-back", "note-detail-back", "admin-back", "device-link-back",
+            "reports-back", "call-history-back", "contacts-back", "report-create-back",
+            "help-back", "shift-detail-back", "timeline-back", "report-detail-back",
+            "conversation-detail-back", "volunteer-detail-back", "blasts-back",
         )
         for (tag in backTags) {
             try {
@@ -114,10 +132,20 @@ class NavigationSteps : BaseSteps() {
         }
     }
 
-    // ---- Admin login & page navigation ----
+    // ---- Login as specific roles ----
 
     @Given("I am logged in as an admin")
     fun iAmLoggedInAsAnAdmin() {
+        navigateToMainScreen()
+    }
+
+    @Given("I am logged in as a volunteer")
+    fun iAmLoggedInAsAVolunteer() {
+        navigateToMainScreen()
+    }
+
+    @Given("I am logged in as a reporter")
+    fun iAmLoggedInAsAReporter() {
         navigateToMainScreen()
     }
 
@@ -128,6 +156,9 @@ class NavigationSteps : BaseSteps() {
             "volunteers" -> navigateToAdminTab("volunteers")
             "audit log", "audit" -> navigateToAdminTab("audit")
             "invites" -> navigateToAdminTab("invites")
+            "reports" -> navigateToAdminTab("audit")
+            "hub settings" -> navigateToTab(NAV_SETTINGS)
+            "blasts" -> navigateToTab(NAV_CONVERSATIONS)
             "shifts", "shift schedule" -> navigateToTab(NAV_SHIFTS)
             "conversations" -> navigateToTab(NAV_CONVERSATIONS)
             "notes" -> navigateToTab(NAV_NOTES)
@@ -140,7 +171,9 @@ class NavigationSteps : BaseSteps() {
     @When("I navigate to {string}")
     fun iNavigateToPath(path: String) {
         // URL-based navigation doesn't directly apply to Android
-        // Deep link or intent-based navigation would be used in production
+        // Launch the app and navigate to the first available screen
+        activityScenarioHolder.launch()
+        composeRule.waitForIdle()
     }
 
     @When("I log out")

@@ -24,7 +24,9 @@ class NotificationSteps : BaseSteps() {
     fun iShouldSeeTheNotificationToggles() {
         onNodeWithTag("notify-calls-toggle").performScrollTo()
         onNodeWithTag("notify-calls-toggle").assertIsDisplayed()
+        onNodeWithTag("notify-shifts-toggle").performScrollTo()
         onNodeWithTag("notify-shifts-toggle").assertIsDisplayed()
+        onNodeWithTag("notify-general-toggle").performScrollTo()
         onNodeWithTag("notify-general-toggle").assertIsDisplayed()
     }
 }

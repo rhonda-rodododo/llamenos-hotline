@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import io.cucumber.java.en.Given
@@ -27,17 +28,43 @@ class GenericSteps : BaseSteps() {
 
     @When("I click {string}")
     fun iClick(text: String) {
+        // Try testTag mappings first for common action buttons
+        val tagMap = mapOf(
+            "Save" to listOf("confirm-ban-button", "confirm-shift-save", "confirm-add-volunteer"),
+            "Add Ban" to listOf("confirm-ban-button"),
+            "Add Volunteer" to listOf("confirm-add-volunteer"),
+            "Submit" to listOf("confirm-ban-button", "confirm-shift-save", "report-submit-button"),
+            "Update Profile" to listOf("settings-update-profile-button"),
+            "New Report" to listOf("report-create-fab"),
+            "New Blast" to listOf("create-blast-fab"),
+        )
+        val tags = tagMap[text]
+        if (tags != null) {
+            for (tag in tags) {
+                try {
+                    onNodeWithTag(tag).performClick()
+                    composeRule.waitForIdle()
+                    return
+                } catch (_: AssertionError) {
+                    continue
+                }
+            }
+        }
+        // Fall back to text-based search
         onAllNodesWithText(text, ignoreCase = true).onFirst().performClick()
         composeRule.waitForIdle()
     }
 
     @When("I click the {string} button")
     fun iClickTheButton(buttonText: String) {
-        // Map known button names to testTags (for icon-only buttons)
+        // Map known button names to testTags (for FABs and icon-only buttons)
         val tagMap = mapOf(
             "Ban Number" to "add-ban-fab",
-            "Import Ban" to "import-ban-button",
-            "Create Shift" to "create-shift-button",
+            "Import Ban" to "bulk-import-fab",
+            "Create Shift" to "create-shift-fab",
+            "Add Volunteer" to "add-volunteer-fab",
+            "New Report" to "report-create-fab",
+            "New Blast" to "create-blast-fab",
         )
         val tag = tagMap[buttonText]
         if (tag != null) {
@@ -86,25 +113,27 @@ class GenericSteps : BaseSteps() {
             "theme" -> "settings-theme-section"
             "hub", "hub connection" -> "settings-hub-section"
             "advanced", "advanced settings" -> "settings-advanced-section"
-            "key backup" -> "settings-advanced-section"
+            "key backup" -> "settings-key-backup-section"
+            "notifications" -> "settings-notifications-section"
+            "transcription" -> "settings-transcription-section"
+            "language", "languages" -> "settings-language-section"
             "spam mitigation" -> "settings-advanced-section"
             "passkeys" -> "settings-advanced-section"
             else -> "settings-profile-section"
         }
-        try {
-            onNodeWithTag(tag).assertIsDisplayed()
-        } catch (_: AssertionError) {
-            // Section might be visible by text
-            onAllNodesWithText(sectionName, ignoreCase = true).onFirst().assertIsDisplayed()
-        }
+        onNodeWithTag(tag).performScrollTo()
+        onNodeWithTag(tag).assertIsDisplayed()
     }
 
     @Then("I should see a {string} button")
     fun iShouldSeeAButton(buttonText: String) {
         val tagMap = mapOf(
             "Ban Number" to "add-ban-fab",
-            "Import Ban" to "import-ban-button",
-            "Create Shift" to "create-shift-button",
+            "Import Ban" to "bulk-import-fab",
+            "Create Shift" to "create-shift-fab",
+            "Add Volunteer" to "add-volunteer-fab",
+            "New Report" to "report-create-fab",
+            "New Blast" to "create-blast-fab",
             "Go to Login" to "go-to-login",
         )
         val tag = tagMap[buttonText]

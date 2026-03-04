@@ -64,11 +64,13 @@ class EmergencyWipeSteps : BaseSteps() {
 
     @Then("the confirmation dialog should close")
     fun theConfirmationDialogShouldClose() {
+        onNodeWithTag("settings-identity-card").performScrollTo()
         onNodeWithTag("settings-identity-card").assertIsDisplayed()
     }
 
     @Then("I should still be on the settings screen")
     fun iShouldStillBeOnTheSettingsScreen() {
+        onNodeWithTag("settings-identity-card").performScrollTo()
         onNodeWithTag("settings-identity-card").assertIsDisplayed()
     }
 }

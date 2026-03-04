@@ -1,8 +1,10 @@
 package org.llamenos.hotline.steps.auth
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import io.cucumber.java.en.And
 import io.cucumber.java.en.Given
 import io.cucumber.java.en.Then
@@ -11,10 +13,10 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import androidx.test.platform.app.InstrumentationRegistry
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
 import org.llamenos.hotline.steps.BaseSteps
-import javax.inject.Inject
 
 /**
  * Step definitions for pin-setup.feature and pin-unlock.feature scenarios.
@@ -24,11 +26,10 @@ import javax.inject.Inject
  */
 class PinSteps : BaseSteps() {
 
-    @Inject
-    lateinit var cryptoService: CryptoService
-
-    @Inject
-    lateinit var keystoreService: KeystoreService
+    private val cryptoService = CryptoService()
+    private val keystoreService = KeystoreService(
+        InstrumentationRegistry.getInstrumentation().targetContext
+    )
 
     @Serializable
     private data class StoredKeyData(
@@ -44,6 +45,13 @@ class PinSteps : BaseSteps() {
     @Given("I have created a new identity")
     fun iHaveCreatedANewIdentity() {
         activityScenarioHolder.launch()
+        waitForNode("create-identity", 10_000)
+        // Enter hub URL before creating identity
+        val hubUrlNodes = composeRule.onAllNodesWithTag("hub-url-input").fetchSemanticsNodes()
+        if (hubUrlNodes.isNotEmpty()) {
+            onNodeWithTag("hub-url-input").performTextInput(TEST_HUB_URL)
+            composeRule.waitForIdle()
+        }
         onNodeWithTag("create-identity").performClick()
         composeRule.waitForIdle()
     }
@@ -63,7 +71,6 @@ class PinSteps : BaseSteps() {
 
     @Given("I have a stored identity with PIN {string}")
     fun iHaveAStoredIdentityWithPin(pin: String) {
-        composeRuleHolder.inject()
         cryptoService.generateKeypair()
         runBlocking {
             val encrypted = cryptoService.encryptForStorage(pin)
@@ -86,6 +93,11 @@ class PinSteps : BaseSteps() {
     @Given("the app is restarted")
     fun theAppIsRestarted() {
         activityScenarioHolder.launch()
+        // Wait for either PIN unlock or login screen
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithTag("pin-pad").fetchSemanticsNodes().isNotEmpty() ||
+                composeRule.onAllNodesWithTag("create-identity").fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     // ---- PIN pad display ----

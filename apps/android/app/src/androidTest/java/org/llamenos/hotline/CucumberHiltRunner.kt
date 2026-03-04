@@ -1,31 +1,24 @@
 package org.llamenos.hotline
 
-import android.app.Application
-import android.content.Context
-import dagger.hilt.android.testing.HiltTestApplication
 import io.cucumber.android.runner.CucumberAndroidJUnitRunner
 import io.cucumber.junit.CucumberOptions
 
 /**
- * Cucumber test runner with Hilt integration.
+ * Cucumber test runner for BDD E2E tests.
  *
- * Replaces [HiltTestRunner] — reads .feature files from androidTest/assets/features/
- * and matches them with step definitions in the [org.llamenos.hotline.steps] package.
+ * Reads .feature files from androidTest/assets/features/ and matches them
+ * with step definitions in the [org.llamenos.hotline.steps] package.
  *
  * Feature files are copied from packages/test-specs/features/ by the Gradle
  * copyFeatureFiles task at preBuild time.
+ *
+ * Uses the production [LlamenosApp] (via manifest) so the real Hilt component
+ * is available for @AndroidEntryPoint activities. No HiltTestApplication needed
+ * since we don't replace any bindings in E2E tests.
  */
 @CucumberOptions(
     features = ["features"],
     glue = ["org.llamenos.hotline.steps"],
     tags = "@android",
 )
-class CucumberHiltRunner : CucumberAndroidJUnitRunner() {
-    override fun newApplication(
-        cl: ClassLoader,
-        className: String,
-        context: Context,
-    ): Application {
-        return super.newApplication(cl, HiltTestApplication::class.java.name, context)
-    }
-}
+class CucumberHiltRunner : CucumberAndroidJUnitRunner()

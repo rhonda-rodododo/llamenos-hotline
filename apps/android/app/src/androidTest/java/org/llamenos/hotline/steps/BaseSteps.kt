@@ -6,10 +6,12 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.SemanticsNodeInteractionCollection
 import androidx.compose.ui.test.SemanticsNodeInteractionsProvider
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import javax.inject.Inject
+import androidx.compose.ui.test.performTextInput
+import androidx.test.platform.app.InstrumentationRegistry
 
 /**
  * Base class for UI step definitions.
@@ -20,12 +22,8 @@ import javax.inject.Inject
  */
 abstract class BaseSteps : SemanticsNodeInteractionsProvider {
 
-    @Inject
-    lateinit var composeRuleHolder: ComposeRuleHolder
-
-    @Inject
-    lateinit var activityScenarioHolder: ActivityScenarioHolder
-
+    val composeRuleHolder get() = ComposeRuleHolder.current
+    val activityScenarioHolder get() = composeRuleHolder.activityScenarioHolder
     val composeRule get() = composeRuleHolder.composeRule
 
     override fun onAllNodes(
@@ -55,16 +53,44 @@ abstract class BaseSteps : SemanticsNodeInteractionsProvider {
     /**
      * Complete the full auth flow: create identity -> confirm backup -> PIN 1234 -> confirm 1234.
      * After this, the app is on the dashboard.
+     *
+     * Handles two cases:
+     * 1. Fresh install → login screen → create identity → onboarding → PIN setup → dashboard
+     * 2. Returning user → PIN unlock screen → enter PIN → dashboard
      */
     protected fun navigateToMainScreen() {
         activityScenarioHolder.launch()
-        onNodeWithTag("create-identity").performClick()
-        composeRule.waitForIdle()
-        onNodeWithTag("confirm-backup").performClick()
-        composeRule.waitForIdle()
-        enterPin("1234")
-        enterPin("1234")
-        composeRule.waitForIdle()
+        // Wait for either the login screen or PIN unlock screen (10s for Activity startup + animation)
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithTag("create-identity").fetchSemanticsNodes().isNotEmpty() ||
+                composeRule.onAllNodesWithTag("pin-pad").fetchSemanticsNodes().isNotEmpty() ||
+                composeRule.onAllNodesWithTag("dashboard-title").fetchSemanticsNodes().isNotEmpty()
+        }
+        // Check which screen appeared
+        val hasDashboard = composeRule.onAllNodesWithTag("dashboard-title").fetchSemanticsNodes().isNotEmpty()
+        if (hasDashboard) {
+            // Already on dashboard (e.g., auto-unlock)
+            return
+        }
+        val hasLogin = composeRule.onAllNodesWithTag("create-identity").fetchSemanticsNodes().isNotEmpty()
+        if (hasLogin) {
+            // Fresh install flow — enter hub URL before creating identity
+            val hubUrlNodes = composeRule.onAllNodesWithTag("hub-url-input").fetchSemanticsNodes()
+            if (hubUrlNodes.isNotEmpty()) {
+                onNodeWithTag("hub-url-input").performTextInput(TEST_HUB_URL)
+                composeRule.waitForIdle()
+            }
+            onNodeWithTag("create-identity").performClick()
+            waitForNode("confirm-backup")
+            onNodeWithTag("confirm-backup").performClick()
+            waitForNode("pin-pad")
+            enterPin("1234")
+            enterPin("1234")
+        } else {
+            // Returning user — enter PIN to unlock
+            enterPin("1234")
+        }
+        waitForNode("dashboard-title")
         onNodeWithTag("dashboard-title").assertIsDisplayed()
     }
 
@@ -74,6 +100,17 @@ abstract class BaseSteps : SemanticsNodeInteractionsProvider {
     protected fun navigateToTab(tabTag: String) {
         onNodeWithTag(tabTag).performClick()
         composeRule.waitForIdle()
+    }
+
+    /**
+     * Wait for a node with the given tag to appear in the Compose tree.
+     * Handles animation delays and Activity startup timing.
+     */
+    protected fun waitForNode(tag: String, timeoutMillis: Long = 5000) {
+        composeRule.waitUntil(timeoutMillis) {
+            composeRule.onAllNodesWithTag(tag)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     /**
@@ -93,6 +130,17 @@ abstract class BaseSteps : SemanticsNodeInteractionsProvider {
     }
 
     /**
+     * Expand a collapsible settings section if not already expanded.
+     * Scrolls to the header, clicks it, then waits for the animation.
+     */
+    protected fun expandSettingsSection(sectionTag: String) {
+        val headerTag = "$sectionTag-header"
+        onNodeWithTag(headerTag).performScrollTo()
+        onNodeWithTag(headerTag).performClick()
+        composeRule.waitForIdle()
+    }
+
+    /**
      * Navigate to a specific admin tab by name.
      * Navigates: Settings tab → Admin card → Target tab.
      */
@@ -106,6 +154,8 @@ abstract class BaseSteps : SemanticsNodeInteractionsProvider {
             "bans", "ban list" -> "admin-tab-bans"
             "audit", "audit log" -> "admin-tab-audit"
             "invites" -> "admin-tab-invites"
+            "fields", "custom fields" -> "admin-tab-fields"
+            "settings" -> "admin-tab-settings"
             else -> throw IllegalArgumentException("Unknown admin tab: $tabName")
         }
         onNodeWithTag(tabTag).performClick()
@@ -113,6 +163,20 @@ abstract class BaseSteps : SemanticsNodeInteractionsProvider {
     }
 
     companion object {
+        /**
+         * Hub URL for the test backend.
+         *
+         * Configurable via instrumentation argument `testHubUrl`:
+         *   adb shell am instrument -e testHubUrl http://10.0.2.2:3001 ...
+         *
+         * Defaults to the LAN address for the physical Pixel 6a over WiFi.
+         * Emulators use 10.0.2.2 (host loopback alias) with per-shard ports.
+         */
+        val TEST_HUB_URL: String by lazy {
+            val args = InstrumentationRegistry.getArguments()
+            args.getString("testHubUrl", "http://192.168.50.95:3000")
+        }
+
         // Well-known bottom navigation tab test tags
         const val NAV_DASHBOARD = "nav-dashboard"
         const val NAV_NOTES = "nav-notes"

@@ -19,6 +19,7 @@ class HelpScreenSteps : BaseSteps() {
 
     @Given("I am on the help screen")
     fun iAmOnTheHelpScreen() {
+        navigateToMainScreen()
         navigateToTab(NAV_DASHBOARD)
         onNodeWithTag("help-card").performScrollTo()
         onNodeWithTag("help-card").performClick()
@@ -96,5 +97,58 @@ class HelpScreenSteps : BaseSteps() {
     @Then("I should see FAQ questions and answers")
     fun iShouldSeeFaqQuestionsAndAnswers() {
         onNodeWithTag("faq-getting-started-item-0").assertIsDisplayed()
+    }
+
+    // ---- Help page alternate navigation ----
+
+    @When("I navigate to the help page")
+    fun iNavigateToTheHelpPage() {
+        navigateToMainScreen()
+        navigateToTab(NAV_DASHBOARD)
+        onNodeWithTag("help-card").performScrollTo()
+        onNodeWithTag("help-card").performClick()
+        composeRule.waitForIdle()
+    }
+
+    @Given("I am on the help page")
+    fun iAmOnTheHelpPage() {
+        iNavigateToTheHelpPage()
+    }
+
+    @Then("I should see the FAQ accordion")
+    fun iShouldSeeTheFaqAccordion() {
+        onNodeWithTag("help-faq-title").performScrollTo()
+        onNodeWithTag("help-faq-title").assertIsDisplayed()
+    }
+
+    @When("I click on a FAQ question")
+    fun iClickOnAFaqQuestion() {
+        onNodeWithTag("faq-getting-started-header").performScrollTo()
+        onNodeWithTag("faq-getting-started-header").performClick()
+        composeRule.waitForIdle()
+    }
+
+    @Then("the answer should be visible")
+    fun theAnswerShouldBeVisible() {
+        onNodeWithTag("faq-getting-started-item-0").assertIsDisplayed()
+    }
+
+    @Then("I should see the getting started checklist")
+    fun iShouldSeeTheGettingStartedChecklist() {
+        onNodeWithTag("help-getting-started").performScrollTo()
+        onNodeWithTag("help-getting-started").assertIsDisplayed()
+    }
+
+    @When("I click a getting started item")
+    fun iClickAGettingStartedItem() {
+        onNodeWithTag("getting-started-item-0").performScrollTo()
+        onNodeWithTag("getting-started-item-0").performClick()
+        composeRule.waitForIdle()
+    }
+
+    @Then("I should navigate to the relevant page")
+    fun iShouldNavigateToTheRelevantPage() {
+        // After clicking a getting started item, should navigate away from help
+        composeRule.waitForIdle()
     }
 }

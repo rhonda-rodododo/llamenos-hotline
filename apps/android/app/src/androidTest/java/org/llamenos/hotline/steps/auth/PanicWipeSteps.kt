@@ -4,7 +4,6 @@ import android.view.KeyEvent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.platform.app.InstrumentationRegistry
-import io.cucumber.java.en.Given
 import io.cucumber.java.en.Then
 import io.cucumber.java.en.When
 import org.llamenos.hotline.steps.BaseSteps
@@ -16,13 +15,10 @@ import org.llamenos.hotline.steps.BaseSteps
  * On Android: Volume-down pressed 5x in 3 seconds (hardware key event).
  * The feature file scenarios use web terminology (Escape key) but
  * map to Android-native trigger mechanisms.
+ *
+ * Note: "I am on the dashboard" is defined in NavigationSteps (canonical location).
  */
 class PanicWipeSteps : BaseSteps() {
-
-    @Given("I am on the dashboard")
-    fun iAmOnTheDashboard() {
-        onNodeWithTag("dashboard-title").assertIsDisplayed()
-    }
 
     @When("I press Escape three times quickly")
     fun iPressEscapeThreeTimesQuickly() {

@@ -12,9 +12,10 @@
         </trust-anchors>
     </base-config>
 
-    <!-- Allow cleartext to localhost for development only -->
+    <!-- Allow cleartext to localhost and LAN for development only -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="false">localhost</domain>
         <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="true">192.168.50.95</domain>
     </domain-config>
 </network-security-config>

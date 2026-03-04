@@ -1,9 +1,11 @@
 package org.llamenos.hotline.steps.admin
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import io.cucumber.java.en.Given
 import io.cucumber.java.en.Then
 import io.cucumber.java.en.When
@@ -19,8 +21,18 @@ class DemoModeSteps : BaseSteps() {
 
     @When("I navigate to the setup wizard summary step")
     fun iNavigateToTheSetupWizardSummaryStep() {
-        // Setup wizard on Android is the login screen with demo buttons
-        // Navigate to login (may already be there)
+        // Setup wizard on Android is the login screen with demo buttons.
+        // If already logged in, log out first to reach the login screen.
+        val onDashboard = composeRule.onAllNodesWithTag("dashboard-title").fetchSemanticsNodes().isNotEmpty()
+        if (onDashboard) {
+            navigateToTab(NAV_SETTINGS)
+            onNodeWithTag("settings-logout-button").performScrollTo()
+            onNodeWithTag("settings-logout-button").performClick()
+            composeRule.waitForIdle()
+            onNodeWithTag("confirm-logout-button").performClick()
+            composeRule.waitForIdle()
+        }
+        waitForNode("create-identity", 10_000)
     }
 
     @Then("I should see a {string} toggle")
@@ -56,8 +68,8 @@ class DemoModeSteps : BaseSteps() {
     @When("I visit the login page")
     fun iVisitTheLoginPage() {
         // On Android, this means going to the login screen
-        val found = assertAnyTagDisplayed("app-title", "create-identity")
-        assert(found) { "Expected login page to be visible" }
+        activityScenarioHolder.launch()
+        waitForNode("create-identity")
     }
 
     @When("I click the {string} demo account")
@@ -73,9 +85,13 @@ class DemoModeSteps : BaseSteps() {
 
     @Then("I should be redirected away from login")
     fun iShouldBeRedirectedAwayFromLogin() {
-        // After demo login, should see dashboard or PIN setup
-        val found = assertAnyTagDisplayed("dashboard-title", "pin-title", "bottom-nav")
-        assert(found) { "Expected to be redirected away from login" }
+        // After demo login, wait for navigation to complete
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithTag("dashboard-title").fetchSemanticsNodes().isNotEmpty() ||
+                composeRule.onAllNodesWithTag("pin-pad").fetchSemanticsNodes().isNotEmpty() ||
+                composeRule.onAllNodesWithTag("pin-title").fetchSemanticsNodes().isNotEmpty() ||
+                composeRule.onAllNodesWithTag("bottom-nav").fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Then("the navigation should show {string}")

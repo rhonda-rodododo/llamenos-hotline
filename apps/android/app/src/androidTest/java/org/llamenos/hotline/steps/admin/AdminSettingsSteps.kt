@@ -17,17 +17,18 @@ class AdminSettingsSteps : BaseSteps() {
 
     @Given("I navigate to the admin settings tab")
     fun iNavigateToTheAdminSettingsTab() {
-        onNodeWithTag("admin-tab-settings").performClick()
-        composeRule.waitForIdle()
+        navigateToAdminTab("settings")
     }
 
     @Then("I should see the transcription settings card")
     fun iShouldSeeTheTranscriptionSettingsCard() {
+        waitForNode("admin-transcription-card")
         onNodeWithTag("admin-transcription-card").assertIsDisplayed()
     }
 
     @Then("I should see the transcription enabled toggle")
     fun iShouldSeeTheTranscriptionEnabledToggle() {
+        waitForNode("transcription-enabled-toggle")
         onNodeWithTag("transcription-enabled-toggle").assertIsDisplayed()
     }
 

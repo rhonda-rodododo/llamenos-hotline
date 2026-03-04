@@ -2,6 +2,7 @@ package org.llamenos.hotline.steps.settings
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -25,12 +26,11 @@ class LanguageSteps : BaseSteps() {
 
     @When("I expand the profile section")
     fun iExpandTheProfileSection() {
-        // Profile section may already be expanded; toggle if collapsed
-        try {
+        // Profile section is expanded by default — only toggle if content is hidden
+        val contentNodes = composeRule.onAllNodesWithTag("settings-display-name-input").fetchSemanticsNodes()
+        if (contentNodes.isEmpty()) {
             onNodeWithTag("settings-profile-section-header").performScrollTo().performClick()
             composeRule.waitForIdle()
-        } catch (_: AssertionError) {
-            // Already expanded or section not found
         }
     }
 
@@ -48,20 +48,22 @@ class LanguageSteps : BaseSteps() {
 
     @Then("I should see the language options")
     fun iShouldSeeTheLanguageOptions() {
+        onNodeWithTag("language-options").performScrollTo()
         onNodeWithTag("language-options").assertIsDisplayed()
     }
 
     @Then("I should see language chips for all supported locales")
     fun iShouldSeeLanguageChipsForAllSupportedLocales() {
-        // Check a sample of languages are displayed
-        onNodeWithTag("lang-en").assertIsDisplayed()
-        onNodeWithTag("lang-es").assertIsDisplayed()
-        onNodeWithTag("lang-zh").assertIsDisplayed()
-        onNodeWithTag("lang-fr").assertIsDisplayed()
+        // Check a sample of languages are displayed (scroll to each)
+        onNodeWithTag("lang-en").performScrollTo().assertIsDisplayed()
+        onNodeWithTag("lang-es").performScrollTo().assertIsDisplayed()
+        onNodeWithTag("lang-zh").performScrollTo().assertIsDisplayed()
+        onNodeWithTag("lang-fr").performScrollTo().assertIsDisplayed()
     }
 
     @Then("the language chip should be selected")
     fun theLanguageChipShouldBeSelected() {
+        onNodeWithTag("lang-es").performScrollTo()
         onNodeWithTag("lang-es").assertIsSelected()
     }
 
@@ -72,6 +74,7 @@ class LanguageSteps : BaseSteps() {
 
     @Then("the spoken language chip should be selected")
     fun theSpokenLanguageChipShouldBeSelected() {
+        onNodeWithTag("spoken-lang-es").performScrollTo()
         onNodeWithTag("spoken-lang-es").assertIsSelected()
     }
 }

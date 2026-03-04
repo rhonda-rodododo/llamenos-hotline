@@ -3,14 +3,12 @@ package org.llamenos.hotline.steps
 import android.content.Intent
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
-import io.cucumber.java.After
-import io.cucumber.java.Before
 import org.llamenos.hotline.MainActivity
 
 /**
  * Manages the [ActivityScenario] lifecycle for Cucumber scenarios.
  *
- * Launched via [Before] hook before each scenario and closed via [After] hook after.
+ * Created by [ComposeRuleHolder] so it's available before any steps run.
  * Step definitions that need the activity running should call [launch] in their
  * background steps (e.g., "the app is freshly installed").
  */
@@ -28,7 +26,6 @@ class ActivityScenarioHolder {
         scenario = ActivityScenario.launch(intent)
     }
 
-    @After(order = 10000)
     fun close() {
         scenario?.close()
         scenario = null

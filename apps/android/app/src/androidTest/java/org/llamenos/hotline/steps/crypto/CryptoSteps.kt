@@ -21,19 +21,16 @@ import org.llamenos.hotline.crypto.EncryptedKeyData
 import org.llamenos.hotline.crypto.EncryptedNote
 import org.llamenos.hotline.steps.crypto.TestVectorsJson
 import org.llamenos.hotline.steps.BaseSteps
-import javax.inject.Inject
 
 /**
  * Step definitions for keypair-generation.feature, pin-encryption.feature,
  * auth-tokens.feature, and crypto-interop.feature.
  *
- * These are pure API tests — no ComposeRuleHolder needed for assertions.
- * CryptoService is injected directly via Hilt.
+ * These are pure API tests — CryptoService is instantiated directly.
  */
 class CryptoSteps : BaseSteps() {
 
-    @Inject
-    lateinit var cryptoService: CryptoService
+    private val cryptoService = CryptoService()
 
     // Shared state between When/Then steps
     private var generatedNsec: String? = null

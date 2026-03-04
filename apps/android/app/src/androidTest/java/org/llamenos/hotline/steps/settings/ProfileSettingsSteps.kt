@@ -1,10 +1,12 @@
 package org.llamenos.hotline.steps.settings
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import io.cucumber.java.en.Given
@@ -24,13 +26,7 @@ class ProfileSettingsSteps : BaseSteps() {
 
     @When("I change my display name")
     fun iChangeMyDisplayName() {
-        // Expand profile section if needed, then update name
-        try {
-            onNodeWithTag("settings-profile-section-header").performClick()
-            composeRule.waitForIdle()
-        } catch (_: AssertionError) {
-            // Section may already be expanded
-        }
+        ensureProfileExpanded()
         onNodeWithTag("settings-display-name-input").performTextClearance()
         onNodeWithTag("settings-display-name-input").performTextInput("Updated Name ${System.currentTimeMillis()}")
         composeRule.waitForIdle()
@@ -52,10 +48,7 @@ class ProfileSettingsSteps : BaseSteps() {
 
     @When("I enter an invalid phone number {string}")
     fun iEnterAnInvalidPhoneNumber(phone: String) {
-        try {
-            onNodeWithTag("settings-profile-section-header").performClick()
-            composeRule.waitForIdle()
-        } catch (_: AssertionError) { /* already expanded */ }
+        ensureProfileExpanded()
         onNodeWithTag("settings-phone-input").performTextClearance()
         onNodeWithTag("settings-phone-input").performTextInput(phone)
         composeRule.waitForIdle()
@@ -63,10 +56,7 @@ class ProfileSettingsSteps : BaseSteps() {
 
     @When("I enter a valid phone number")
     fun iEnterAValidPhoneNumber() {
-        try {
-            onNodeWithTag("settings-profile-section-header").performClick()
-            composeRule.waitForIdle()
-        } catch (_: AssertionError) { /* already expanded */ }
+        ensureProfileExpanded()
         onNodeWithTag("settings-phone-input").performTextClearance()
         onNodeWithTag("settings-phone-input").performTextInput("+15551234567")
         composeRule.waitForIdle()
@@ -104,16 +94,13 @@ class ProfileSettingsSteps : BaseSteps() {
             "advanced", "advanced settings" -> "settings-advanced-section"
             else -> "settings-profile-section"
         }
+        onNodeWithTag(tag).performScrollTo()
         onNodeWithTag(tag).assertIsDisplayed()
     }
 
     @Then("they should see a name input")
     fun theyShouldSeeANameInput() {
-        // Expand profile section to reveal inputs
-        try {
-            onNodeWithTag("settings-profile-section-header").performClick()
-            composeRule.waitForIdle()
-        } catch (_: AssertionError) { /* already expanded */ }
+        ensureProfileExpanded()
         onNodeWithTag("settings-display-name-input").assertIsDisplayed()
     }
 
@@ -124,8 +111,17 @@ class ProfileSettingsSteps : BaseSteps() {
 
     @Then("they should see their public key")
     fun theyShouldSeeTheirPublicKey() {
-        val found = assertAnyTagDisplayed("settings-npub", "settings-identity-card")
-        assert(found) { "Expected public key to be visible" }
+        // npub / identity card are deep in the settings scroll
+        for (tag in listOf("settings-npub", "settings-identity-card")) {
+            try {
+                onNodeWithTag(tag).performScrollTo()
+                onNodeWithTag(tag).assertIsDisplayed()
+                return
+            } catch (_: AssertionError) {
+                continue
+            }
+        }
+        throw AssertionError("Expected public key to be visible")
     }
 
     @Then("they should not see a {string} link")
@@ -138,10 +134,7 @@ class ProfileSettingsSteps : BaseSteps() {
 
     @When("they update their name and phone")
     fun theyUpdateTheirNameAndPhone() {
-        try {
-            onNodeWithTag("settings-profile-section-header").performClick()
-            composeRule.waitForIdle()
-        } catch (_: AssertionError) { /* already expanded */ }
+        ensureProfileExpanded()
         onNodeWithTag("settings-display-name-input").performTextClearance()
         onNodeWithTag("settings-display-name-input").performTextInput("Test User")
         onNodeWithTag("settings-phone-input").performTextClearance()
@@ -164,18 +157,26 @@ class ProfileSettingsSteps : BaseSteps() {
 
     @When("I expand the {string} section")
     fun iExpandTheSection(sectionName: String) {
-        val tag = when (sectionName.lowercase()) {
-            "profile" -> "settings-profile-section-header"
-            "theme" -> "settings-theme-section-header"
-            "hub", "hub connection" -> "settings-hub-section-header"
-            "key backup" -> "settings-key-backup-section-header"
-            "notifications" -> "settings-notifications-section-header"
-            "advanced", "advanced settings" -> "settings-advanced-section-header"
-            "transcription" -> "settings-advanced-section-header" // transcription in advanced
-            else -> "settings-profile-section-header"
+        val sectionTag = when (sectionName.lowercase()) {
+            "profile" -> "settings-profile-section"
+            "theme" -> "settings-theme-section"
+            "hub", "hub connection" -> "settings-hub-section"
+            "key backup" -> "settings-key-backup-section"
+            "notifications" -> "settings-notifications-section"
+            "advanced", "advanced settings" -> "settings-advanced-section"
+            "transcription" -> "settings-transcription-section"
+            else -> "settings-profile-section"
         }
-        onNodeWithTag(tag).performClick()
-        composeRule.waitForIdle()
+        // Profile starts expanded by default — don't toggle it
+        if (sectionName.lowercase() == "profile") {
+            // Just ensure we can see the profile content
+            val content = composeRule.onAllNodesWithTag("settings-display-name-input").fetchSemanticsNodes()
+            if (content.isEmpty()) {
+                expandSettingsSection(sectionTag)
+            }
+        } else {
+            expandSettingsSection(sectionTag)
+        }
     }
 
     @Then("the profile section should be expanded")
@@ -196,8 +197,8 @@ class ProfileSettingsSteps : BaseSteps() {
 
     @Then("the transcription section should be expanded")
     fun theTranscriptionSectionShouldBeExpanded() {
-        // Transcription is in advanced settings section
-        onNodeWithTag("settings-advanced-section").assertIsDisplayed()
+        onNodeWithTag("settings-transcription-section").performScrollTo()
+        onNodeWithTag("settings-transcription-section").assertIsDisplayed()
     }
 
     @When("I click the {string} header")
@@ -214,7 +215,9 @@ class ProfileSettingsSteps : BaseSteps() {
     fun bothSectionsShouldBeVisible(sec1: String, sec2: String) {
         val tag1 = sectionTag(sec1)
         val tag2 = sectionTag(sec2)
+        onNodeWithTag(tag1).performScrollTo()
         onNodeWithTag(tag1).assertIsDisplayed()
+        onNodeWithTag(tag2).performScrollTo()
         onNodeWithTag(tag2).assertIsDisplayed()
     }
 
@@ -234,30 +237,30 @@ class ProfileSettingsSteps : BaseSteps() {
 
     @When("I click the dark theme button")
     fun iClickTheDarkThemeButton() {
-        try {
-            onNodeWithTag("settings-theme-section-header").performClick()
-            composeRule.waitForIdle()
-        } catch (_: AssertionError) { /* already expanded */ }
+        navigateToTab(NAV_SETTINGS)
+        expandSettingsSection("settings-theme-section")
+        waitForNode("theme-dark-button")
+        onNodeWithTag("theme-dark-button").performScrollTo()
         onNodeWithTag("theme-dark-button").performClick()
         composeRule.waitForIdle()
     }
 
     @When("I click the light theme button")
     fun iClickTheLightThemeButton() {
-        try {
-            onNodeWithTag("settings-theme-section-header").performClick()
-            composeRule.waitForIdle()
-        } catch (_: AssertionError) { /* already expanded */ }
+        navigateToTab(NAV_SETTINGS)
+        expandSettingsSection("settings-theme-section")
+        waitForNode("theme-light-button")
+        onNodeWithTag("theme-light-button").performScrollTo()
         onNodeWithTag("theme-light-button").performClick()
         composeRule.waitForIdle()
     }
 
     @When("I click the system theme button")
     fun iClickTheSystemThemeButton() {
-        try {
-            onNodeWithTag("settings-theme-section-header").performClick()
-            composeRule.waitForIdle()
-        } catch (_: AssertionError) { /* already expanded */ }
+        navigateToTab(NAV_SETTINGS)
+        expandSettingsSection("settings-theme-section")
+        waitForNode("theme-system-button")
+        onNodeWithTag("theme-system-button").performScrollTo()
         onNodeWithTag("theme-system-button").performClick()
         composeRule.waitForIdle()
     }
@@ -265,12 +268,14 @@ class ProfileSettingsSteps : BaseSteps() {
     @Then("the page should have the {string} class")
     fun thePageShouldHaveTheClass(className: String) {
         // CSS class doesn't apply to Android — just verify the screen is visible
+        onNodeWithTag("settings-theme-section").performScrollTo()
         onNodeWithTag("settings-theme-section").assertIsDisplayed()
     }
 
     @Then("the page should not have the {string} class")
     fun thePageShouldNotHaveTheClass(className: String) {
         // CSS class doesn't apply to Android
+        onNodeWithTag("settings-theme-section").performScrollTo()
         onNodeWithTag("settings-theme-section").assertIsDisplayed()
     }
 
@@ -300,6 +305,14 @@ class ProfileSettingsSteps : BaseSteps() {
     fun iShouldSeeTheSystemThemeButtonOnTheLoginPage() {
         val found = assertAnyTagDisplayed("app-title", "demo-admin-button")
         assert(found) { "Expected login page to be visible" }
+    }
+
+    private fun ensureProfileExpanded() {
+        val content = composeRule.onAllNodesWithTag("settings-display-name-input").fetchSemanticsNodes()
+        if (content.isEmpty()) {
+            expandSettingsSection("settings-profile-section")
+            waitForNode("settings-display-name-input")
+        }
     }
 
     private fun sectionTag(sectionName: String): String = when (sectionName.lowercase()) {

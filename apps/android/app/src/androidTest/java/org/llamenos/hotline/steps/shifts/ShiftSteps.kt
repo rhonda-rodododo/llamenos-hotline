@@ -23,7 +23,7 @@ class ShiftSteps : BaseSteps() {
 
     // ---- Shifts list (volunteer-facing) ----
 
-    @Then("I should see the clock in/out card")
+    @Then("I should see the clock in\\/out card")
     fun iShouldSeeTheClockInOutCard() {
         onNodeWithTag("clock-card").assertIsDisplayed()
     }

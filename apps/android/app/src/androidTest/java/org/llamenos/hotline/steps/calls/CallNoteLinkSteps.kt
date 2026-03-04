@@ -32,9 +32,5 @@ class CallNoteLinkSteps : BaseSteps() {
         composeRule.waitForIdle()
     }
 
-    @Then("I should see the note creation screen")
-    fun iShouldSeeTheNoteCreationScreen() {
-        // After navigation, the note create screen should appear
-        composeRule.waitForIdle()
-    }
+    // "I should see the note creation screen" defined in NoteSteps (canonical)
 }
