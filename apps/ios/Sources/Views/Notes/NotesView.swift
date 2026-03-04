@@ -13,7 +13,7 @@ struct NotesView: View {
         let vm = resolvedViewModel
 
         NavigationStack {
-            Group {
+            ZStack {
                 if vm.isLoading && vm.notes.isEmpty {
                     loadingState
                 } else if let error = vm.errorMessage, vm.notes.isEmpty {

@@ -8,7 +8,7 @@ struct VolunteersView: View {
     @Bindable var viewModel: AdminViewModel
 
     var body: some View {
-        Group {
+        ZStack {
             if viewModel.isLoadingVolunteers && viewModel.volunteers.isEmpty {
                 loadingState
             } else if viewModel.filteredVolunteers.isEmpty {
@@ -111,6 +111,7 @@ struct VolunteersView: View {
                 ))
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("volunteers-empty-state")
     }
 

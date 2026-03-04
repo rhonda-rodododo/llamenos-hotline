@@ -8,7 +8,7 @@ struct AuditLogView: View {
     @Bindable var viewModel: AdminViewModel
 
     var body: some View {
-        Group {
+        ZStack {
             if viewModel.isLoadingAudit && viewModel.auditEntries.isEmpty {
                 loadingState
             } else if viewModel.auditEntries.isEmpty {
@@ -106,6 +106,7 @@ struct AuditLogView: View {
                 comment: "System actions will be logged here."
             ))
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("audit-empty-state")
     }
 

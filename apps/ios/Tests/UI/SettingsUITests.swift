@@ -247,10 +247,12 @@ final class SettingsUITests: BaseUITest {
             // Logout may show an alert first
             let alert = app.alerts.firstMatch
             if alert.waitForExistence(timeout: 3) {
-                // Confirm logout
-                let confirmButton = alert.buttons.element(boundBy: 1)
-                if confirmButton.exists {
-                    confirmButton.tap()
+                // Tap the destructive "Logout" button (not "Cancel")
+                // Use the last button in the alert — iOS renders Cancel first, then destructive
+                let buttons = alert.buttons
+                let lastButton = buttons.element(boundBy: buttons.count - 1)
+                if lastButton.exists {
+                    lastButton.tap()
                 }
             }
             // Should return to login screen

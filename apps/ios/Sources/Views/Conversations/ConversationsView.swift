@@ -12,7 +12,7 @@ struct ConversationsView: View {
         let vm = resolvedViewModel
 
         NavigationStack {
-            Group {
+            ZStack {
                 if vm.isLoading && vm.filteredConversations.isEmpty {
                     loadingState
                 } else if let error = vm.errorMessage, vm.filteredConversations.isEmpty {

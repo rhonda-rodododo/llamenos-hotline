@@ -78,6 +78,7 @@ struct PINPadView: View {
                 }
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("pin-pad")
     }
 

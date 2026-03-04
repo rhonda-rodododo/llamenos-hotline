@@ -8,7 +8,7 @@ struct BanListView: View {
     @Bindable var viewModel: AdminViewModel
 
     var body: some View {
-        Group {
+        ZStack {
             if viewModel.isLoadingBans && viewModel.bans.isEmpty {
                 loadingState
             } else if viewModel.bans.isEmpty {
@@ -167,6 +167,7 @@ struct BanListView: View {
             .buttonStyle(.bordered)
             .accessibilityIdentifier("add-first-ban")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("bans-empty-state")
     }
 

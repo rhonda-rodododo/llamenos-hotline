@@ -8,7 +8,7 @@ struct InviteView: View {
     @Bindable var viewModel: AdminViewModel
 
     var body: some View {
-        Group {
+        ZStack {
             if viewModel.isLoadingInvites && viewModel.invites.isEmpty {
                 loadingState
             } else if viewModel.invites.isEmpty {
@@ -174,6 +174,7 @@ struct InviteView: View {
             .buttonStyle(.bordered)
             .accessibilityIdentifier("create-first-invite")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("invites-empty-state")
     }
 
