@@ -173,6 +173,8 @@ start_emulator() {
     shard "$shard_idx" "Starting emulator ${avd_name} on port ${port}"
 
     # Launch emulator in background
+    # -read-only allows multiple emulators to share system image
+    # -no-snapshot-save prevents snapshot writes (read-only mode)
     "$ANDROID_HOME/emulator/emulator" \
         -avd "$avd_name" \
         -port "$port" \
@@ -180,14 +182,15 @@ start_emulator() {
         -no-audio \
         -no-boot-anim \
         -no-snapshot-save \
+        -read-only \
         -gpu swiftshader_indirect \
         -camera-back none \
         -camera-front none \
-        -wipe-data \
         </dev/null &>/tmp/emulator-${shard_idx}.log &
 
-    # Wait for boot
-    local elapsed=0
+    # Wait for boot — initial delay to let emulator process start
+    sleep 5
+    local elapsed=5
     while [ $elapsed -lt $BOOT_TIMEOUT ]; do
         if adb -s "$serial" shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; then
             shard "$shard_idx" "Emulator ${avd_name} booted (${elapsed}s)"
