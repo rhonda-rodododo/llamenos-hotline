@@ -303,8 +303,8 @@ for runtime, devices in sorted(data.get('devices', {}).items(), reverse=True):
             if d.get('isAvailable') and 'iPhone' in d.get('name', ''):
                 print(d['name'])
                 sys.exit(0)
-print('iPhone 16')
-" 2>/dev/null || echo "iPhone 16"
+print('iPhone 17')
+" 2>/dev/null || echo "iPhone 17"
 SCRIPT
 }
 

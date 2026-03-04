@@ -255,7 +255,7 @@ struct MessageBubbleView: View {
                 HStack(spacing: 4) {
                     Text(message.timeDisplay)
                         .font(.caption2)
-                        .foregroundStyle(message.isOutbound ? .white.opacity(0.7) : .tertiary)
+                        .foregroundStyle(message.isOutbound ? Color.white.opacity(0.7) : Color(UIColor.tertiaryLabel))
 
                     if message.isOutbound && message.isRead {
                         Image(systemName: "checkmark.circle.fill")

@@ -46,6 +46,8 @@ final class BiometricPrompt {
         }
 
         switch context.biometryType {
+        case .none:
+            return .none
         case .faceID:
             return .faceID
         case .touchID:
