@@ -8,30 +8,36 @@ import { expect } from '@playwright/test'
 import { Given, When, Then } from '../fixtures'
 import { TestIds } from '../../test-ids'
 import { Timeouts } from '../../helpers'
-import { Navigation, NotesPage } from '../../pages/index'
+import { Navigation } from '../../pages/index'
 
 // --- Custom fields in note form ---
 
 Given('a text custom field {string} exists', async ({ page }, fieldLabel: string) => {
   // Navigate to hub settings and create the custom field if needed
   await Navigation.goToHubSettings(page)
-  // Expand custom fields section
-  const section = page.locator('button:has-text("Custom Note Fields"), h3:has-text("Custom Note Fields")')
+  // Look for the custom fields section by test ID
+  const section = page.getByTestId(TestIds.SETTINGS_SECTION).filter({ hasText: /custom/i })
   if (await section.first().isVisible({ timeout: 2000 }).catch(() => false)) {
     await section.first().click()
   }
-  // Check if field already exists
-  const fieldExists = await page.locator(`text="${fieldLabel}"`).isVisible({ timeout: 2000 }).catch(() => false)
+  // Check if field already exists within a custom-field-row
+  const fieldExists = await page
+    .getByTestId(TestIds.CUSTOM_FIELD_ROW)
+    .filter({ hasText: fieldLabel })
+    .isVisible({ timeout: 2000 })
+    .catch(() => false)
   if (!fieldExists) {
-    await page.getByRole('button', { name: /add field/i }).click()
+    await page.getByTestId(TestIds.CUSTOM_FIELD_ADD_BTN).click()
     await page.getByLabel(/label/i).fill(fieldLabel)
-    await page.getByRole('button', { name: /save/i }).click()
+    await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
     await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
   }
 })
 
 Then('I should see a {string} input in the form', async ({ page }, fieldLabel: string) => {
-  await expect(page.getByLabel(fieldLabel).or(page.locator(`text="${fieldLabel}"`)).first()).toBeVisible({
+  await expect(page.getByLabel(fieldLabel).or(
+    page.getByTestId(TestIds.CUSTOM_FIELD_ROW).filter({ hasText: fieldLabel }),
+  ).first()).toBeVisible({
     timeout: Timeouts.ELEMENT,
   })
 })
@@ -48,7 +54,8 @@ When('I create a note with {string} set to {string}', async ({ page }, fieldLabe
 })
 
 Then('I should see {string} as a badge', async ({ page }, text: string) => {
-  await expect(page.locator(`text=/${text}/`).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  const noteCard = page.getByTestId(TestIds.NOTE_CARD).filter({ hasText: text })
+  await expect(noteCard.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Given('a note exists with {string} set to {string}', async ({ page }, fieldLabel: string, value: string) => {
@@ -115,7 +122,8 @@ Then('the note card header should show a truncated call ID', async ({ page }) =>
   const callId = (await page.evaluate(() => (window as Record<string, unknown>).__test_call_id)) as string
   if (callId) {
     const truncated = callId.slice(0, 8)
-    await expect(page.locator(`text=/${truncated}/`).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+    const noteCard = page.getByTestId(TestIds.NOTE_CARD).filter({ hasText: truncated })
+    await expect(noteCard.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
   }
 })
 
@@ -136,8 +144,10 @@ When('I create two notes with the same call ID', async ({ page }) => {
 })
 
 Then('both notes should appear under a single call header', async ({ page }) => {
-  await expect(page.locator('text="Note 1 same call"')).toBeVisible({ timeout: Timeouts.ELEMENT })
-  await expect(page.locator('text="Note 2 same call"')).toBeVisible({ timeout: Timeouts.ELEMENT })
+  const note1 = page.getByTestId(TestIds.NOTE_CARD).filter({ hasText: 'Note 1 same call' })
+  const note2 = page.getByTestId(TestIds.NOTE_CARD).filter({ hasText: 'Note 2 same call' })
+  await expect(note1).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(note2).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Given('a note exists', async ({ page }) => {
@@ -150,7 +160,7 @@ Given('a note exists', async ({ page }) => {
 
 // --- Custom fields admin ---
 
-// 'I expand the {string} section' → defined in common/interaction-steps.ts
+// 'I expand the {string} section' -> defined in common/interaction-steps.ts
 
 When('I fill in the field label with {string}', async ({ page }, label: string) => {
   await page.getByLabel(/label/i).fill(label)
@@ -164,22 +174,24 @@ Then('the field name should auto-generate as {string}', async ({ page }, expecte
 })
 
 Then('{string} should appear in the field list', async ({ page }, fieldLabel: string) => {
-  await expect(page.locator(`text="${fieldLabel}"`).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  const fieldRow = page.getByTestId(TestIds.CUSTOM_FIELD_ROW).filter({ hasText: fieldLabel })
+  await expect(fieldRow.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('{string} should no longer appear in the field list', async ({ page }, fieldLabel: string) => {
-  await expect(page.locator(`text="${fieldLabel}"`).first()).not.toBeVisible({ timeout: Timeouts.ELEMENT })
+  const fieldRow = page.getByTestId(TestIds.CUSTOM_FIELD_ROW).filter({ hasText: fieldLabel })
+  await expect(fieldRow.first()).not.toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I change the field type to {string}', async ({ page }, fieldType: string) => {
-  const typeSelect = page.locator('select').first()
+  const typeSelect = page.getByTestId(TestIds.CUSTOM_FIELD_TYPE_SELECT)
   if (await typeSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
     await typeSelect.selectOption({ label: fieldType })
   }
 })
 
 When('I add option {string}', async ({ page }, option: string) => {
-  const addOptionBtn = page.getByRole('button', { name: /add option/i })
+  const addOptionBtn = page.getByTestId(TestIds.CUSTOM_FIELD_ADD_OPTION_BTN)
   if (await addOptionBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
     await addOptionBtn.click()
   }
@@ -195,7 +207,6 @@ Given('a custom field {string} exists', async ({ page }, fieldLabel: string) => 
 })
 
 When('I click the delete button on {string}', async ({ page }, fieldLabel: string) => {
-  const row = page.locator(`text="${fieldLabel}"`).first().locator('..')
-  const deleteBtn = row.locator('button:has-text("Delete"), button[aria-label="Delete"]')
-  await deleteBtn.first().click()
+  const row = page.getByTestId(TestIds.CUSTOM_FIELD_ROW).filter({ hasText: fieldLabel })
+  await row.getByTestId(TestIds.CUSTOM_FIELD_DELETE_BTN).click()
 })

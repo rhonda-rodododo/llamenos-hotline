@@ -286,7 +286,7 @@ function NotesPage() {
         <div>
           <div className="flex items-center gap-2">
             <StickyNote className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold sm:text-2xl">{t('notes.title')}</h1>
+            <h1 data-testid="page-title" className="text-xl font-bold sm:text-2xl">{t('notes.title')}</h1>
           </div>
           <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
             <Lock className="h-3 w-3" />

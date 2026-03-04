@@ -12,9 +12,28 @@
  */
 
 export const TestIds = {
+  // ============ Page ============
+  PAGE_TITLE: 'page-title',
+
   // ============ Navigation ============
   NAV_SIDEBAR: 'nav-sidebar',
   NAV_ADMIN_SECTION: 'nav-admin-section',
+  NAV_DASHBOARD: 'nav-dashboard',
+  NAV_NOTES: 'nav-notes',
+  NAV_CONVERSATIONS: 'nav-conversations',
+  NAV_REPORTS: 'nav-reports',
+  NAV_BLASTS: 'nav-blasts',
+  NAV_CALLS: 'nav-calls',
+  NAV_SETTINGS: 'nav-settings',
+  NAV_SHIFTS: 'nav-shifts',
+  NAV_VOLUNTEERS: 'nav-volunteers',
+  NAV_BANS: 'nav-bans',
+  NAV_CONTACTS: 'nav-contacts',
+  NAV_AUDIT: 'nav-audit',
+  NAV_ADMIN_SETTINGS: 'nav-admin-settings',
+  NAV_ADMIN_HUBS: 'nav-admin-hubs',
+  NAV_HELP: 'nav-help',
+  LOGOUT_BTN: 'logout-btn',
 
   // ============ Volunteers ============
   VOLUNTEER_LIST: 'volunteer-list',
@@ -29,6 +48,7 @@ export const TestIds = {
   DISMISS_NSEC: 'dismiss-nsec',
   DISMISS_INVITE: 'dismiss-invite',
   TOGGLE_PHONE_VISIBILITY: 'toggle-phone-visibility',
+  REVOKE_INVITE_BTN: 'revoke-invite-btn',
 
   // ============ Shifts ============
   SHIFT_LIST: 'shift-list',
@@ -57,6 +77,9 @@ export const TestIds = {
   NOTE_CARD: 'note-card',
   NOTE_NEW_BTN: 'note-new-btn',
   NOTE_EDIT_BTN: 'note-edit-btn',
+  NOTE_EDIT_INPUT: 'note-edit-input',
+  NOTE_DETAIL_TEXT: 'note-detail-text',
+  NOTE_SEARCH: 'note-search',
   NOTE_FORM: 'note-form',
   NOTE_CALL_ID: 'note-call-id',
   NOTE_CONTENT: 'note-content',
@@ -83,6 +106,13 @@ export const TestIds = {
   REPORT_CARD: 'report-card',
   REPORT_NEW_BTN: 'report-new-btn',
   REPORT_CLOSE_BTN: 'close-report',
+  REPORT_CLAIM_BTN: 'report-claim-btn',
+  REPORT_DETAIL: 'report-detail',
+  REPORT_TITLE_INPUT: 'report-title-input',
+  REPORT_BODY_INPUT: 'report-body-input',
+  REPORT_SUBMIT_BTN: 'report-submit-btn',
+  REPORT_METADATA: 'report-metadata',
+  REPORT_STATUS_BADGE: 'report-status-badge',
   RECOVERY_KEY: 'recovery-key',
 
   // ============ Conversations ============
@@ -91,6 +121,10 @@ export const TestIds = {
   CONVERSATION_THREAD: 'conversation-thread',
   MESSAGE_COMPOSER: 'message-composer',
   CONV_ADD_NOTE_BTN: 'conv-add-note-btn',
+  CONV_ASSIGN_BTN: 'conv-assign-btn',
+  CONV_CLOSE_BTN: 'conv-close-btn',
+  CONV_REOPEN_BTN: 'conv-reopen-btn',
+  CONV_SEND_BTN: 'conv-send-btn',
 
   // ============ Contacts ============
   CONTACT_ROW: 'contact-row',
@@ -112,22 +146,61 @@ export const TestIds = {
   LINK_DEVICE_BUTTON: 'link-device-button',
   CONTINUE_TO_LOGIN: 'continue-to-login',
 
+  // ============ Auth / Login ============
+  LOGIN_SUBMIT_BTN: 'login-submit-btn',
+  GO_TO_SETUP_BTN: 'go-to-setup-btn',
+  LOCK_BTN: 'lock-btn',
+  RECOVERY_OPTIONS_BTN: 'recovery-options-btn',
+
   // ============ Security ============
   PANIC_WIPE_OVERLAY: 'panic-wipe-overlay',
+  EMERGENCY_WIPE_BTN: 'emergency-wipe-btn',
   PIN_CHALLENGE_DIALOG: 'pin-challenge-dialog',
   PIN_CHALLENGE_ERROR: 'pin-challenge-error',
   PIN_INPUT: 'pin-input',
 
   // ============ Audit ============
   AUDIT_ENTRY: 'audit-entry',
+  AUDIT_SEARCH: 'audit-search',
+  AUDIT_EVENT_FILTER: 'audit-event-filter',
+
+  // ============ Roles ============
+  ROLE_ROW: 'role-row',
+  ROLE_CREATE_BTN: 'role-create-btn',
+  ROLE_DELETE_BTN: 'role-delete-btn',
+
+  // ============ Custom Fields ============
+  CUSTOM_FIELD_ROW: 'custom-field-row',
+  CUSTOM_FIELD_ADD_BTN: 'custom-field-add-btn',
+  CUSTOM_FIELD_DELETE_BTN: 'custom-field-delete-btn',
+  CUSTOM_FIELD_SECTION: 'custom-field-section',
+  CUSTOM_FIELD_TYPE_SELECT: 'custom-field-type-select',
+  CUSTOM_FIELD_ADD_OPTION_BTN: 'custom-field-add-option-btn',
+
+  // ============ Conversation Filters ============
+  CONV_FILTER_CHIP: 'conv-filter-chip',
+  CONV_SECTION_HEADER: 'conv-section-header',
+
+  // ============ Volunteer Profile ============
+  VOLUNTEER_NAME: 'volunteer-name',
+  VOLUNTEER_PUBKEY: 'volunteer-pubkey',
+  VOLUNTEER_ROLE_BADGE: 'volunteer-role-badge',
+  VOLUNTEER_STATUS_BADGE: 'volunteer-status-badge',
+  VOLUNTEER_JOIN_DATE: 'volunteer-join-date',
+  VOLUNTEER_ACTIVITY_CARD: 'volunteer-activity-card',
 
   // ============ Dashboard ============
   DASHBOARD_ACTIVE_CALLS: 'dashboard-active-calls',
   DASHBOARD_SHIFT_STATUS: 'dashboard-shift-status',
   DASHBOARD_CALLS_TODAY: 'dashboard-calls-today',
+  BREAK_TOGGLE_BTN: 'break-toggle-btn',
 
   // ============ Settings ============
   SETTINGS_SECTION: 'settings-section',
+  SETTINGS_ADVANCED_SECTION: 'settings-advanced-section',
+  SETTINGS_AUTO_LOCK: 'settings-auto-lock',
+  SETTINGS_DEBUG_LOG: 'settings-debug-log',
+  SETTINGS_CLEAR_CACHE: 'settings-clear-cache',
   TELEPHONY_PROVIDER: 'telephony-provider',
   ACCOUNT_SID: 'account-sid',
   AUTH_TOKEN: 'auth-token',
@@ -136,6 +209,11 @@ export const TestIds = {
   RCS_AGENT_ID: 'rcs-agent-id',
   RCS_SERVICE_KEY: 'rcs-service-key',
   RCS_WEBHOOK_SECRET: 'rcs-webhook-secret',
+
+  // ============ Theme ============
+  THEME_SYSTEM: 'theme-system',
+  THEME_LIGHT: 'theme-light',
+  THEME_DARK: 'theme-dark',
 
   // ============ Admin Settings ============
   TRANSCRIPTION_SECTION: 'transcription',
@@ -164,6 +242,7 @@ export const TestIds = {
   ERROR_MESSAGE: 'error-message',
   SUCCESS_TOAST: 'success-toast',
   IMPORT_CSV: 'import-csv',
+  BACK_BTN: 'back-btn',
 } as const
 
 export type TestId = (typeof TestIds)[keyof typeof TestIds]
@@ -182,4 +261,28 @@ export function testIdSelector(id: TestId): string {
  */
 export function rowTestId(baseId: TestId, identifier: string): string {
   return `${baseId}-${identifier}`
+}
+
+/**
+ * Map from human-readable page names to their nav link test IDs.
+ * Used by step definitions like "I navigate to the {string} page".
+ */
+export const navTestIdMap: Record<string, string> = {
+  'Dashboard': 'nav-dashboard',
+  'Notes': 'nav-notes',
+  'Conversations': 'nav-conversations',
+  'Reports': 'nav-reports',
+  'Blasts': 'nav-blasts',
+  'Call History': 'nav-calls',
+  'Calls': 'nav-calls',
+  'Settings': 'nav-settings',
+  'Shifts': 'nav-shifts',
+  'Volunteers': 'nav-volunteers',
+  'Ban List': 'nav-bans',
+  'Bans': 'nav-bans',
+  'Contacts': 'nav-contacts',
+  'Audit Log': 'nav-audit',
+  'Hub Settings': 'nav-admin-settings',
+  'Admin Settings': 'nav-admin-settings',
+  'Help': 'nav-help',
 }

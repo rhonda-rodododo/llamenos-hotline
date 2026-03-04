@@ -13,7 +13,7 @@
  */
 import { expect } from '@playwright/test'
 import { Given, When, Then } from '../fixtures'
-import { Timeouts } from '../../helpers'
+import { TestIds, Timeouts } from '../../helpers'
 
 // --- Keypair generation steps ---
 
@@ -26,16 +26,16 @@ When('I generate a new keypair', async ({ page }) => {
   })
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
-  await page.getByRole('button', { name: /create new identity/i }).click()
+  await page.getByTestId(TestIds.GO_TO_SETUP_BTN).click()
 })
 
 Then('the nsec should start with {string}', async ({ page }, prefix: string) => {
-  const nsecEl = page.locator(`text=/${prefix}/`)
-  await expect(nsecEl.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying displayed text is appropriate here
+  await expect(page.getByText(new RegExp(prefix)).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('the nsec should be 63 characters long', async ({ page }) => {
-  const nsecText = await page.locator('text=/nsec1/').first().textContent()
+  const nsecText = await page.getByText(/nsec1/).first().textContent()
   // Extract the nsec from the text content
   const match = nsecText?.match(/nsec1[a-z0-9]+/)
   expect(match).toBeTruthy()
@@ -43,7 +43,7 @@ Then('the nsec should be 63 characters long', async ({ page }) => {
 })
 
 Then('the npub should be 63 characters long', async ({ page }) => {
-  const npubText = await page.locator('text=/npub1/').first().textContent()
+  const npubText = await page.getByText(/npub1/).first().textContent()
   const match = npubText?.match(/npub1[a-z0-9]+/)
   expect(match).toBeTruthy()
   expect(match![0].length).toBe(63)
@@ -58,9 +58,9 @@ When('I generate keypair A', async ({ page }) => {
   })
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
-  await page.getByRole('button', { name: /create new identity/i }).click()
+  await page.getByTestId(TestIds.GO_TO_SETUP_BTN).click()
   // Store the generated nsec
-  const nsecText = await page.locator('text=/nsec1/').first().textContent()
+  const nsecText = await page.getByText(/nsec1/).first().textContent()
   const match = nsecText?.match(/nsec1[a-z0-9]+/)
   await page.evaluate((nsec) => {
     (window as Record<string, unknown>).__test_keypairA_nsec = nsec
@@ -77,11 +77,11 @@ When('I generate keypair B', async ({ page }) => {
   })
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
-  await page.getByRole('button', { name: /create new identity/i }).click()
+  await page.getByTestId(TestIds.GO_TO_SETUP_BTN).click()
 })
 
 Then('keypair A\'s nsec should differ from keypair B\'s nsec', async ({ page }) => {
-  const nsecBText = await page.locator('text=/nsec1/').first().textContent()
+  const nsecBText = await page.getByText(/nsec1/).first().textContent()
   const matchB = nsecBText?.match(/nsec1[a-z0-9]+/)
   const nsecA = await page.evaluate(() => (window as Record<string, unknown>).__test_keypairA_nsec)
   expect(nsecA).not.toBe(matchB?.[0])
@@ -99,14 +99,14 @@ When('I generate a keypair', async ({ page }) => {
   })
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
-  await page.getByRole('button', { name: /create new identity/i }).click()
+  await page.getByTestId(TestIds.GO_TO_SETUP_BTN).click()
 })
 
 Then('the public key hex should be 64 characters', async ({ page }) => {
   // The public key hex is typically displayed as npub or in a hex field
   // In the UI, we see npub1... — the underlying hex is 64 chars
   // This is verified implicitly by the bech32 encoding of npub
-  const npubText = await page.locator('text=/npub1/').first().textContent()
+  const npubText = await page.getByText(/npub1/).first().textContent()
   expect(npubText).toContain('npub1')
 })
 
@@ -122,12 +122,12 @@ When('I generate a keypair and get the nsec', async ({ page }) => {
   })
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
-  await page.getByRole('button', { name: /create new identity/i }).click()
+  await page.getByTestId(TestIds.GO_TO_SETUP_BTN).click()
 })
 
 When('I import that nsec into a fresh CryptoService', async ({ page }) => {
   // Store the nsec, go back, import it
-  const nsecText = await page.locator('text=/nsec1/').first().textContent()
+  const nsecText = await page.getByText(/nsec1/).first().textContent()
   const match = nsecText?.match(/nsec1[a-z0-9]+/)
   const nsec = match?.[0] ?? ''
   await page.evaluate((n) => {
@@ -143,7 +143,7 @@ When('I import that nsec into a fresh CryptoService', async ({ page }) => {
   await page.waitForLoadState('domcontentloaded')
   const storedNsec = await page.evaluate(() => (window as Record<string, unknown>).__test_import_nsec) as string
   await page.locator('#nsec').fill(storedNsec)
-  await page.getByRole('button', { name: /import key|log in/i }).click()
+  await page.getByTestId(TestIds.LOGIN_SUBMIT_BTN).click()
 })
 
 Then('the imported pubkey should match the original pubkey', async ({ page }) => {
@@ -179,10 +179,10 @@ When('I encrypt the key with PIN {string}', async ({ page }, pin: string) => {
 
 When('I lock the crypto service', async ({ page }) => {
   // Click the lock button
-  const lockBtn = page.locator('button[aria-label="Lock"], button:has-text("Lock")')
-  const lockVisible = await lockBtn.first().isVisible({ timeout: 2000 }).catch(() => false)
+  const lockBtn = page.getByTestId(TestIds.LOCK_BTN)
+  const lockVisible = await lockBtn.isVisible({ timeout: 2000 }).catch(() => false)
   if (lockVisible) {
-    await lockBtn.first().click()
+    await lockBtn.click()
   }
 })
 
@@ -198,11 +198,13 @@ When('I attempt to decrypt with PIN {string}', async ({ page }, pin: string) => 
 
 Then('the pubkey should match the original', async ({ page }) => {
   // After unlocking, dashboard should be visible
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: Timeouts.AUTH })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.AUTH })
 })
 
 Then('decryption should fail with {string}', async ({ page }, errorText: string) => {
-  await expect(page.locator(`text=/${errorText}/i`).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Check for error message — use ERROR_MESSAGE test ID or fall back to text content assertion
+  const errorEl = page.getByTestId(TestIds.ERROR_MESSAGE).or(page.getByText(new RegExp(errorText, 'i')))
+  await expect(errorEl.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('the crypto service should remain locked', async ({ page }) => {

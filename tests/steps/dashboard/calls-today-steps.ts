@@ -4,19 +4,20 @@
  */
 import { expect } from '@playwright/test'
 import { Given, When, Then } from '../fixtures'
+import { TestIds } from '../../test-ids'
 import { Timeouts, loginAsAdmin } from '../../helpers'
 
 Given('the app is launched', async ({ page }) => {
   await loginAsAdmin(page)
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: Timeouts.AUTH })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.AUTH })
 })
 
 Then('I should see the calls today count on the dashboard', async ({ page }) => {
-  // The calls today count is displayed as a numeric value on the dashboard
-  const callsCard = page.locator('text=/call/i').first()
+  const callsCard = page.getByTestId(TestIds.DASHBOARD_CALLS_TODAY)
   await expect(callsCard).toBeVisible({ timeout: Timeouts.ELEMENT })
-  // Should have a numeric count
-  await expect(page.locator('text=/\\d+/').first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Should have a numeric count within the card
+  const text = await callsCard.textContent()
+  expect(text).toMatch(/\d+/)
 })
 
 When('I pull to refresh the dashboard', async ({ page }) => {

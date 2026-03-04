@@ -69,6 +69,7 @@ function ConversationCard({
   return (
     <button
       type="button"
+      data-testid="conversation-item"
       onClick={() => onSelect(conversation.id)}
       className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
         isSelected
@@ -139,10 +140,10 @@ export function ConversationList({ conversations, onSelect, selectedId }: Conver
   }
 
   return (
-    <div className="space-y-4">
+    <div data-testid="conversation-list" className="space-y-4">
       {waiting.length > 0 && (
         <section>
-          <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 data-testid="conv-section-header" className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <span className="inline-block h-2 w-2 rounded-full bg-yellow-500" />
             {t('conversations.waitingSection', 'Waiting')}
             <span className="rounded-full bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-bold text-yellow-600">
@@ -164,7 +165,7 @@ export function ConversationList({ conversations, onSelect, selectedId }: Conver
 
       {active.length > 0 && (
         <section>
-          <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 data-testid="conv-section-header" className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
             {t('conversations.activeSection', 'Active')}
             <span className="rounded-full bg-green-500/10 px-1.5 py-0.5 text-[10px] font-bold text-green-600">

@@ -82,8 +82,7 @@ Given('a volunteer exists', async ({ page }) => {
 })
 
 When('they tap the break button', async ({ page }) => {
-  const breakBtn = page.locator('button:has-text("Break"), button:has-text("On Break"), button:has-text("Take Break")')
-  await breakBtn.first().click()
+  await page.getByTestId(TestIds.BREAK_TOGGLE_BTN).click()
 })
 
 // --- Invite onboarding ---
@@ -119,7 +118,8 @@ When('the volunteer opens the invite link', async ({ page }) => {
 Then('they should see a welcome screen with their name', async ({ page }) => {
   const volName = (await page.evaluate(() => (window as Record<string, unknown>).__test_invite_vol_name)) as string
   if (volName) {
-    await expect(page.locator(`text=/${volName}/i`).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+    // Content assertion — verifying displayed volunteer name
+    await expect(page.getByText(new RegExp(volName, 'i')).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
   }
 })
 
@@ -136,24 +136,25 @@ When('the volunteer completes the onboarding flow', async ({ page }) => {
 Then('the volunteer name should appear in the pending invites list', async ({ page }) => {
   const volName = (await page.evaluate(() => (window as Record<string, unknown>).__test_invite_vol_name)) as string
   if (volName) {
-    await expect(page.locator(`text="${volName}"`).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+    // Content assertion — verifying volunteer name is displayed
+    await expect(page.getByText(volName, { exact: true }).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
   }
 })
 
 When('I revoke the invite', async ({ page }) => {
-  const revokeBtn = page.locator('button:has-text("Revoke")')
-  await revokeBtn.first().click()
+  await page.getByTestId(TestIds.REVOKE_INVITE_BTN).first().click()
   // Confirm if dialog appears
   const dialog = page.getByRole('dialog')
   if (await dialog.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await dialog.getByRole('button', { name: /confirm|revoke|yes/i }).click()
+    await page.getByTestId(TestIds.CONFIRM_DIALOG_OK).click()
   }
 })
 
 Then('the volunteer name should no longer appear in the list', async ({ page }) => {
   const volName = (await page.evaluate(() => (window as Record<string, unknown>).__test_invite_vol_name)) as string
   if (volName) {
-    await expect(page.locator(`text="${volName}"`).first()).not.toBeVisible({ timeout: Timeouts.ELEMENT })
+    // Content assertion — verifying volunteer name is not displayed
+    await expect(page.getByText(volName, { exact: true }).first()).not.toBeVisible({ timeout: Timeouts.ELEMENT })
   }
 })
 
@@ -200,7 +201,7 @@ Given('I have created and then deleted a volunteer', async ({ page }) => {
   // Delete the volunteer
   const row = page.getByTestId(TestIds.VOLUNTEER_ROW).filter({ hasText: name })
   await row.getByTestId(TestIds.VOLUNTEER_DELETE_BTN).click()
-  await page.getByRole('dialog').getByRole('button', { name: /delete/i }).click()
+  await page.getByTestId(TestIds.CONFIRM_DIALOG_OK).click()
   await expect(page.getByRole('dialog')).toBeHidden()
 })
 
@@ -256,12 +257,13 @@ When('the reporter logs in', async ({ page }) => {
 })
 
 When('they create a new report', async ({ page }) => {
-  await page.getByTestId('report-new-btn').click()
+  await page.getByTestId(TestIds.REPORT_NEW_BTN).click()
   await page.locator('textarea').first().fill('Test report content')
-  await page.getByTestId('form-submit-btn').click()
+  await page.getByTestId(TestIds.FORM_SUBMIT_BTN).click()
 })
 
 Then('the report should be saved successfully', async ({ page }) => {
-  const success = page.locator('text=/success|saved|created/i')
-  await expect(success.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(
+    page.getByTestId(TestIds.SUCCESS_TOAST).or(page.getByText(/success|saved|created/i)).first()
+  ).toBeVisible({ timeout: Timeouts.ELEMENT })
 })

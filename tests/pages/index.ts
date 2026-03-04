@@ -8,6 +8,7 @@
 
 import { type Page, type Locator, expect } from '@playwright/test'
 import { TestIds, rowTestId } from '../test-ids'
+import { Timeouts } from '../helpers'
 
 // ============ Base Page Helpers ============
 
@@ -41,68 +42,68 @@ export async function clickAndWaitForApi(
 
 export const Navigation = {
   async goToDashboard(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Dashboard' }).click()
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_DASHBOARD).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToVolunteers(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_VOLUNTEERS).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToShifts(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Shifts' }).click()
-    await expect(page.getByRole('heading', { name: /shift schedule/i })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_SHIFTS).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToBanList(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Ban List' }).click()
-    await expect(page.getByRole('heading', { name: /ban list/i })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_BANS).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToNotes(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Notes' }).click()
-    await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_NOTES).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToCallHistory(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Call History' }).click()
-    await expect(page.getByRole('heading', { name: /call history/i })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_CALLS).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToAuditLog(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Audit Log' }).click()
-    await expect(page.getByRole('heading', { name: /audit log/i })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_AUDIT).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToSettings(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_SETTINGS).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToHubSettings(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_ADMIN_SETTINGS).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToReports(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Reports' }).click()
-    await expect(page.locator('h1', { hasText: /reports/i })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_REPORTS).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToConversations(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Conversations' }).click()
-    await expect(page.locator('h1', { hasText: /conversations/i })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_CONVERSATIONS).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToBlasts(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Blasts' }).click()
-    await expect(page.getByRole('heading', { name: /blasts/i })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_BLASTS).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToContacts(page: Page): Promise<void> {
-    await page.getByRole('link', { name: 'Contacts' }).click()
-    await expect(page.getByRole('heading', { name: /contacts/i })).toBeVisible()
+    await page.getByTestId(TestIds.NAV_CONTACTS).click()
+    await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 }
 
@@ -167,7 +168,7 @@ export const VolunteerPage = {
   async deleteVolunteer(page: Page, name: string): Promise<void> {
     const row = this.getRow(page, name)
     await row.getByTestId(TestIds.VOLUNTEER_DELETE_BTN).click()
-    await page.getByRole('dialog').getByRole('button', { name: /delete/i }).click()
+    await page.getByTestId(TestIds.CONFIRM_DIALOG_OK).click()
     await expect(page.getByRole('dialog')).toBeHidden()
   },
 }
@@ -270,7 +271,7 @@ export const BanListPage = {
   async removeBan(page: Page, phone: string): Promise<void> {
     const row = this.getRow(page, phone)
     await row.getByTestId(TestIds.BAN_REMOVE_BTN).click()
-    await page.getByRole('dialog').getByRole('button', { name: /unban/i }).click()
+    await page.getByTestId(TestIds.CONFIRM_DIALOG_OK).click()
     await expect(page.getByRole('dialog')).toBeHidden()
     await expect(page.locator('main').getByText(phone)).not.toBeVisible()
   },

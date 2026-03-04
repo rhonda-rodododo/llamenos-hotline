@@ -5,7 +5,7 @@
  */
 import { expect } from '@playwright/test'
 import { Given, When, Then } from '../fixtures'
-import { Timeouts, loginAsAdmin, loginAsVolunteer } from '../../helpers'
+import { TestIds, navTestIdMap, Timeouts, loginAsAdmin, loginAsVolunteer } from '../../helpers'
 import { Navigation } from '../../pages/index'
 
 // --- Role enforcement steps ---
@@ -96,47 +96,47 @@ When('the volunteer logs in', async ({ page }) => {
 // --- Role UI steps ---
 
 Then('I should see the reports navigation', async ({ page }) => {
-  await expect(page.getByRole('link', { name: 'Reports' })).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(navTestIdMap['Reports'])).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should not see the calls navigation', async ({ page }) => {
-  await expect(page.getByRole('link', { name: 'Call History' })).not.toBeVisible({ timeout: 3000 })
+  await expect(page.getByTestId(navTestIdMap['Call History'])).not.toBeVisible({ timeout: 3000 })
 })
 
 Then('I should not see the volunteers management', async ({ page }) => {
-  await expect(page.getByRole('link', { name: 'Volunteers' })).not.toBeVisible({ timeout: 3000 })
+  await expect(page.getByTestId(navTestIdMap['Volunteers'])).not.toBeVisible({ timeout: 3000 })
 })
 
 Then('I should see all navigation items including admin', async ({ page }) => {
-  await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible({ timeout: Timeouts.ELEMENT })
-  await expect(page.getByRole('link', { name: 'Notes' })).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(navTestIdMap['Dashboard'])).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(navTestIdMap['Notes'])).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I create a custom role with an existing slug', async ({ page }) => {
-  const createBtn = page.getByRole('button', { name: /create|add/i })
+  const createBtn = page.getByTestId(TestIds.ROLE_CREATE_BTN)
   if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
     await createBtn.click()
     await page.getByLabel(/name/i).fill('Volunteer')
-    await page.getByRole('button', { name: /save|create/i }).click()
+    await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
   }
 })
 
 Then('I should see a duplicate slug error', async ({ page }) => {
-  const error = page.locator('text=/duplicate|already exists|conflict/i')
+  const error = page.getByTestId(TestIds.ERROR_MESSAGE).or(page.getByText(/duplicate|already exists|conflict/i))
   await expect(error.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I create a role with slug {string}', async ({ page }, slug: string) => {
-  const createBtn = page.getByRole('button', { name: /create|add/i })
+  const createBtn = page.getByTestId(TestIds.ROLE_CREATE_BTN)
   if (await createBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
     await createBtn.click()
     await page.getByLabel(/name/i).fill(slug)
-    await page.getByRole('button', { name: /save|create/i }).click()
+    await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
   }
 })
 
 Then('I should see an invalid slug error', async ({ page }) => {
-  const error = page.locator('text=/invalid|format|slug/i')
+  const error = page.getByTestId(TestIds.ERROR_MESSAGE).or(page.getByText(/invalid|format|slug/i))
   await expect(error.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
@@ -146,14 +146,11 @@ When('I update the role permissions', async ({ page }) => {
   if (await permCheckbox.isVisible({ timeout: 2000 }).catch(() => false)) {
     await permCheckbox.click()
   }
-  const saveBtn = page.getByRole('button', { name: /save|update/i })
-  if (await saveBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await saveBtn.click()
-  }
+  await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
 })
 
 Then('the permissions should be updated', async ({ page }) => {
-  const success = page.locator('text=/success|updated|saved/i')
+  const success = page.getByTestId(TestIds.SUCCESS_TOAST).or(page.getByText(/success|updated|saved/i))
   await expect(success.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
@@ -163,7 +160,8 @@ When('I request the permissions catalog', async ({ page }) => {
 })
 
 Then('I should see all available permissions grouped by domain', async ({ page }) => {
-  const permGroup = page.locator('text=/notes|calls|admin|shifts/i')
+  // Content assertion — verifying permission domain names are displayed
+  const permGroup = page.getByText(/notes|calls|admin|shifts/i)
   await expect(permGroup.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
@@ -204,7 +202,8 @@ When('I change their role to {string} via the dropdown', async ({ page }, newRol
 })
 
 Then('the volunteer should display the {string} badge', async ({ page }, badge: string) => {
-  await expect(page.locator(`text="${badge}"`).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying badge text
+  await expect(page.getByText(badge, { exact: true }).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Given('I changed a volunteer\'s role to {string}', async ({ page }, roleName: string) => {
@@ -214,12 +213,13 @@ Given('I changed a volunteer\'s role to {string}', async ({ page }, roleName: st
 })
 
 Then('I should see the {string} badge on their card', async ({ page }, badge: string) => {
-  await expect(page.locator(`text="${badge}"`).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying badge text
+  await expect(page.getByText(badge, { exact: true }).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I open the Add Volunteer form', async ({ page }) => {
   await Navigation.goToVolunteers(page)
-  await page.getByRole('button', { name: /add volunteer/i }).click()
+  await page.getByTestId(TestIds.VOLUNTEER_ADD_BTN).click()
 })
 
 Then('I should see all available roles in the form', async ({ page }) => {
@@ -229,7 +229,7 @@ Then('I should see all available roles in the form', async ({ page }) => {
 
 When('I open the Invite form', async ({ page }) => {
   await Navigation.goToVolunteers(page)
-  await page.getByRole('button', { name: /add volunteer|invite/i }).click()
+  await page.getByTestId(TestIds.VOLUNTEER_ADD_BTN).click()
 })
 
 When('I attempt to delete a role that does not exist', async ({ page }) => {

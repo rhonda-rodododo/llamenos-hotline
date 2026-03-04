@@ -98,7 +98,7 @@ function AuditPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <ScrollText className="h-6 w-6 text-primary" />
-        <h1 className="text-xl font-bold sm:text-2xl">{t('auditLog.title')}</h1>
+        <h1 data-testid="page-title" className="text-xl font-bold sm:text-2xl">{t('auditLog.title')}</h1>
       </div>
 
       {/* Filter bar */}
@@ -109,6 +109,7 @@ function AuditPage() {
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
+                data-testid="audit-search"
                 value={searchText}
                 onChange={e => setSearchText(e.target.value)}
                 placeholder={t('auditLog.searchPlaceholder', { defaultValue: 'Search actor or event...' })}
@@ -119,7 +120,7 @@ function AuditPage() {
           <div className="min-w-[150px]">
             <label className="mb-1 block text-xs font-medium text-muted-foreground">{t('auditLog.eventType', { defaultValue: 'Event Type' })}</label>
             <Select value={eventType} onValueChange={setEventType}>
-              <SelectTrigger className="h-8 text-sm">
+              <SelectTrigger data-testid="audit-event-filter" className="h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

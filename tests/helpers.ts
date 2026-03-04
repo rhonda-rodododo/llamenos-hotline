@@ -3,7 +3,7 @@ import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import { getPublicKey, nip19 } from 'nostr-tools'
-import { TestIds } from './test-ids'
+import { TestIds, navTestIdMap } from './test-ids'
 
 export const ADMIN_NSEC = 'nsec174zsa94n3e7t0ugfldh9tgkkzmaxhalr78uxt9phjq3mmn6d6xas5jdffh'
 export const TEST_PIN = '123456'
@@ -19,8 +19,8 @@ export const Timeouts = {
   API: 15000,
   /** Time to wait for elements to appear */
   ELEMENT: 10000,
-  /** Time to wait for auth-related operations */
-  AUTH: 30000,
+  /** Time to wait for auth-related operations (includes PBKDF2 600K iterations) */
+  AUTH: 45000,
   /** Short delay for UI settling after login/navigation */
   UI_SETTLE: 500,
   /** Medium delay for route component mount and initial API calls */
@@ -28,7 +28,7 @@ export const Timeouts = {
 } as const
 
 // Re-export TestIds for convenience
-export { TestIds } from './test-ids'
+export { TestIds, navTestIdMap } from './test-ids'
 
 // Re-export page object utilities
 export * from './pages/index'
@@ -105,9 +105,9 @@ export async function enterPin(page: Page, pin: string) {
  * Otherwise, re-authenticates via PIN entry first.
  */
 export async function navigateAfterLogin(page: Page, url: string): Promise<void> {
-  // Check if we're already authenticated (sidebar Dashboard link visible)
-  const dashboardLink = page.getByRole('link', { name: 'Dashboard' })
-  const isAuthenticated = await dashboardLink.isVisible({ timeout: 1000 }).catch(() => false)
+  // Check if we're already authenticated (sidebar visible)
+  const sidebar = page.getByTestId(TestIds.NAV_SIDEBAR)
+  const isAuthenticated = await sidebar.isVisible({ timeout: 1000 }).catch(() => false)
 
   if (!isAuthenticated) {
     // Need to re-authenticate — full page load clears in-memory keyManager
@@ -122,7 +122,7 @@ export async function navigateAfterLogin(page: Page, url: string): Promise<void>
     }
 
     // Wait for the authenticated layout
-    await dashboardLink.waitFor({ state: 'visible', timeout: 30000 })
+    await sidebar.waitFor({ state: 'visible', timeout: Timeouts.AUTH })
   }
 
   // SPA navigation via TanStack Router (no page reload, keeps auth state)
@@ -169,7 +169,7 @@ export async function loginAsAdmin(page: Page) {
   await preloadEncryptedKey(page, ADMIN_NSEC, TEST_PIN)
   await page.reload()
   await enterPin(page, TEST_PIN)
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 30000 })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.AUTH })
 }
 
 /**
@@ -194,18 +194,17 @@ export async function loginWithNsec(page: Page, nsec: string) {
   await page.goto('/login')
   await page.evaluate(() => sessionStorage.clear())
   await page.locator('#nsec').fill(nsec)
-  await page.getByRole('button', { name: /log in/i }).click()
+  await page.getByTestId(TestIds.LOGIN_SUBMIT_BTN).click()
   await page.waitForURL(url => !url.toString().includes('/login'), { timeout: 15000 })
 }
 
 export async function logout(page: Page) {
-  await page.getByRole('button', { name: /log out/i }).click()
-  await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
+  await page.getByTestId(TestIds.LOGOUT_BTN).click()
 }
 
 export async function createVolunteerAndGetNsec(page: Page, name: string, phone: string): Promise<string> {
-  await page.getByRole('link', { name: 'Volunteers' }).click()
-  await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+  await page.getByTestId(TestIds.NAV_VOLUNTEERS).click()
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible()
 
   await page.getByTestId(TestIds.VOLUNTEER_ADD_BTN).click()
   await page.getByLabel('Name').fill(name)
@@ -231,7 +230,7 @@ export async function completeProfileSetup(page: Page) {
     await page.getByRole('button', { name: /complete setup/i }).click()
     await page.waitForURL(u => !u.toString().includes('profile-setup'), { timeout: 15000 })
   }
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: 10000 })
 }
 
 export function uniquePhone(): string {

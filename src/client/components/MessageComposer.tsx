@@ -87,6 +87,7 @@ export function MessageComposer({ onSend, disabled = false, channelType }: Messa
           disabled={!canSend}
           onClick={handleSend}
           aria-label={t('common.submit')}
+          data-testid="conv-send-btn"
           className="shrink-0"
         >
           <Send className="h-4 w-4" />

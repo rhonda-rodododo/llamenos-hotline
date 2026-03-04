@@ -117,7 +117,7 @@ function BlastsPage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Megaphone className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold sm:text-2xl">{t('blasts.title')}</h1>
+          <h1 data-testid="page-title" className="text-xl font-bold sm:text-2xl">{t('blasts.title')}</h1>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowSubscribers(true)}>

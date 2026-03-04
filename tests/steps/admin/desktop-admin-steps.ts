@@ -13,32 +13,32 @@
  */
 import { expect } from '@playwright/test'
 import { Given, When, Then } from '../fixtures'
-import { TestIds } from '../../test-ids'
+import { TestIds, navTestIdMap } from '../../test-ids'
 import { Timeouts, navigateAfterLogin } from '../../helpers'
 
 // --- Telephony provider ---
 
 When('I expand the telephony provider section', async ({ page }) => {
   const section = page.getByTestId(TestIds.SETTINGS_SECTION).filter({ hasText: /telephony|provider/i })
-    .or(page.locator('button:has-text("Telephony"), h3:has-text("Telephony")'))
+    .or(page.getByTestId(TestIds.TELEPHONY_PROVIDER))
   await section.first().scrollIntoViewIfNeeded()
   await section.first().click()
 })
 
 Then('I should see the Twilio credentials form', async ({ page }) => {
-  await expect(page.getByTestId(TestIds.ACCOUNT_SID).or(page.locator('text=/account sid/i')).first()).toBeVisible({
+  await expect(page.getByTestId(TestIds.ACCOUNT_SID).or(page.getByLabel(/account sid/i)).first()).toBeVisible({
     timeout: Timeouts.ELEMENT,
   })
 })
 
 Then('I should see fields for Account SID, Auth Token, and TwiML App SID', async ({ page }) => {
-  await expect(page.getByTestId(TestIds.ACCOUNT_SID).or(page.locator('label:has-text("Account SID")')).first()).toBeVisible({
+  await expect(page.getByTestId(TestIds.ACCOUNT_SID).or(page.getByLabel(/account sid/i)).first()).toBeVisible({
     timeout: Timeouts.ELEMENT,
   })
 })
 
 When('I navigate to the telephony settings', async ({ page }) => {
-  await page.getByRole('link', { name: 'Hub Settings' }).click()
+  await page.getByTestId(navTestIdMap['Hub Settings']).click()
   await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 })
 
@@ -64,13 +64,15 @@ When('I fill in invalid Twilio credentials', async ({ page }) => {
 })
 
 Then('I should see available provider options', async ({ page }) => {
-  await expect(page.locator('text=/twilio|signalwire|vonage|plivo/i').first()).toBeVisible({
+  // Content assertion — verifying provider names are displayed
+  await expect(page.getByText(/twilio|signalwire|vonage|plivo/i).first()).toBeVisible({
     timeout: Timeouts.ELEMENT,
   })
 })
 
 Then('Twilio should be selected by default', async ({ page }) => {
-  await expect(page.locator('text=/twilio/i').first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying Twilio is shown as selected
+  await expect(page.getByText(/twilio/i).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 // --- Call recording ---
@@ -85,7 +87,7 @@ Given('a call without a recording exists', async () => {
 
 Given('I am viewing a call with a recording', async ({ page }) => {
   // Navigate to call history and open a call detail
-  await page.getByRole('link', { name: 'Call History' }).click()
+  await page.getByTestId(navTestIdMap['Call History']).click()
   await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 })
 
@@ -121,12 +123,13 @@ Then('I should see play, pause, and progress controls', async ({ page }) => {
 // --- RCS channel ---
 
 When('I navigate to the messaging channel settings', async ({ page }) => {
-  await page.getByRole('link', { name: 'Hub Settings' }).click()
+  await page.getByTestId(navTestIdMap['Hub Settings']).click()
   await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 })
 
 Then('I should see the RCS configuration section', async ({ page }) => {
-  await expect(page.locator('text=/rcs/i').first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying RCS text is displayed
+  await expect(page.getByText(/rcs/i).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I fill in valid RCS settings', async ({ page }) => {
@@ -139,17 +142,18 @@ When('I fill in valid RCS settings', async ({ page }) => {
 // --- WebRTC ---
 
 When('I expand the WebRTC section', async ({ page }) => {
-  const section = page.locator('button:has-text("WebRTC"), h3:has-text("WebRTC")')
+  const section = page.getByTestId(TestIds.SETTINGS_SECTION).filter({ hasText: /webrtc/i })
   await section.first().scrollIntoViewIfNeeded()
   await section.first().click()
 })
 
 Then('I should see the WebRTC configuration options', async ({ page }) => {
-  await expect(page.locator('text=/webrtc/i').first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying WebRTC text is displayed
+  await expect(page.getByText(/webrtc/i).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I navigate to the WebRTC settings', async ({ page }) => {
-  await page.getByRole('link', { name: 'Hub Settings' }).click()
+  await page.getByTestId(navTestIdMap['Hub Settings']).click()
   await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 })
 
@@ -164,13 +168,14 @@ Then('the setting should be saved', async ({ page }) => {
 })
 
 Then('I should see fields for STUN and TURN server configuration', async ({ page }) => {
-  await expect(page.locator('text=/stun|turn/i').first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying STUN/TURN text is displayed
+  await expect(page.getByText(/stun|turn/i).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 // --- Multi-hub ---
 
 When('I navigate to the hub management page', async ({ page }) => {
-  await page.getByRole('link', { name: /hub/i }).click()
+  await page.getByTestId(TestIds.NAV_ADMIN_HUBS).click()
   await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 })
 
@@ -179,7 +184,8 @@ When('I fill in the hub name', async ({ page }) => {
 })
 
 Then('the new hub should appear in the hub list', async ({ page }) => {
-  await expect(page.locator('text=/TestHub/').first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying hub name text
+  await expect(page.getByText(/TestHub/).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Given('multiple hubs exist', async () => {
@@ -202,12 +208,12 @@ Then('the app should switch to the selected hub context', async ({ page }) => {
 })
 
 When('I navigate to the hub settings', async ({ page }) => {
-  await page.getByRole('link', { name: 'Hub Settings' }).click()
+  await page.getByTestId(navTestIdMap['Hub Settings']).click()
   await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 })
 
 Then('I should see the hub-specific configuration', async ({ page }) => {
-  await expect(page.locator('h1, h2').first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I switch to a specific hub', async ({ page }) => {
@@ -223,13 +229,19 @@ Given('a non-default hub exists', async () => {
 })
 
 When('I click {string} on the hub', async ({ page }, text: string) => {
-  await page.getByRole('button', { name: text }).first().click()
+  // Use confirm dialog OK for known delete/confirm actions
+  const lowerText = text.toLowerCase()
+  if (lowerText === 'delete') {
+    await page.getByTestId(TestIds.CONFIRM_DIALOG_OK).click()
+  } else {
+    await page.getByRole('button', { name: text }).first().click()
+  }
 })
 
 When('I confirm the deletion', async ({ page }) => {
   const dialog = page.getByRole('dialog')
   if (await dialog.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await dialog.getByRole('button', { name: /confirm|delete|yes/i }).click()
+    await page.getByTestId(TestIds.CONFIRM_DIALOG_OK).click()
   }
 })
 
@@ -265,15 +277,16 @@ Given('I am on the channels step', async ({ page }) => {
   if (await orgInput.isVisible({ timeout: 2000 }).catch(() => false)) {
     await orgInput.fill('Test Org')
   }
-  await page.getByRole('button', { name: 'Next' }).click()
+  await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
 })
 
 When('I select the {string} channel', async ({ page }, channel: string) => {
-  await page.locator(`text="${channel}"`).first().click()
+  // Content-based click — selecting a channel by its label text
+  await page.getByText(channel, { exact: true }).first().click()
 })
 
 When('I click the {string} channel again', async ({ page }, channel: string) => {
-  await page.locator(`text="${channel}"`).first().click()
+  await page.getByText(channel, { exact: true }).first().click()
 })
 
 Then('both channels should be marked as selected', async ({ page }) => {
@@ -293,7 +306,8 @@ Then('the error message should disappear', async ({ page }) => {
 })
 
 Then('the validation error should reappear', async ({ page }) => {
-  await expect(page.locator('text=/select at least/i').first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying validation error text
+  await expect(page.getByText(/select at least/i).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Given('I am on the providers step', async ({ page }) => {
@@ -310,7 +324,7 @@ Given('I selected {string} on the channels step', async ({ page }, channel: stri
 })
 
 When('I advance to the providers step', async ({ page }) => {
-  await page.getByRole('button', { name: 'Next' }).click()
+  await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
 })
 
 Given('I selected {string} and advanced to settings step', async () => {
@@ -332,7 +346,8 @@ When('I fill in the volunteer phone', async ({ page }) => {
 })
 
 Then('the volunteer name should appear with an invite code', async ({ page }) => {
-  await expect(page.locator('text=/SetupVol/').first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying volunteer name is displayed
+  await expect(page.getByText(/SetupVol/).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Given('I have completed all wizard steps', async () => {
@@ -340,7 +355,8 @@ Given('I have completed all wizard steps', async () => {
 })
 
 Then('I should see the configured hotline name', async ({ page }) => {
-  await expect(page.locator('text=/TestHotline|hotline/i').first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying hotline name is displayed
+  await expect(page.getByText(/TestHotline|hotline/i).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the selected channels', async ({ page }) => {
@@ -389,11 +405,12 @@ When('I fill in the report details', async ({ page }) => {
 })
 
 Then('the report should appear in the reports list', async ({ page }) => {
-  await expect(page.locator('text=/test report/i').first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying report text is displayed
+  await expect(page.getByText(/test report/i).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see reports in the list', async ({ page }) => {
-  const reportList = page.getByTestId(TestIds.REPORT_LIST).or(page.locator('[data-testid="report-card"]'))
+  const reportList = page.getByTestId(TestIds.REPORT_LIST).or(page.getByTestId(TestIds.REPORT_CARD))
   await expect(reportList.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
@@ -407,7 +424,8 @@ Then('I should see the report detail view', async ({ page }) => {
 })
 
 Then('I should see the report content', async ({ page }) => {
-  await expect(page.locator('text=/report/i').first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying report text is displayed
+  await expect(page.getByText(/report/i).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 // --- Demo mode ---
@@ -418,7 +436,8 @@ When('I navigate to the setup wizard summary step', async ({ page }) => {
 })
 
 When('I enable the demo mode toggle', async ({ page }) => {
-  const toggle = page.locator('text=/sample data|demo/i').first().locator('..').locator('[role="switch"], input[type="checkbox"]')
+  const demoLabel = page.getByText(/sample data|demo/i).first()
+  const toggle = demoLabel.locator('..').locator('[role="switch"], input[type="checkbox"]')
   if (await toggle.isVisible({ timeout: 2000 }).catch(() => false)) {
     await toggle.click()
   }
@@ -428,8 +447,8 @@ Given('demo mode has been enabled', async ({ page }) => {
   // Precondition — demo mode is already enabled via API or wizard
 })
 
-// 'I visit the login page' → defined in common/navigation-steps.ts
-// 'I dismiss the demo banner' → defined in common/interaction-steps.ts
+// 'I visit the login page' -> defined in common/navigation-steps.ts
+// 'I dismiss the demo banner' -> defined in common/interaction-steps.ts
 
 // --- Blasts ---
 
@@ -444,20 +463,21 @@ When('I compose a blast message', async ({ page }) => {
 
 When('I select recipients', async ({ page }) => {
   // Select all available recipients
-  const selectAll = page.locator('text=/select all/i, input[type="checkbox"]').first()
+  const selectAll = page.getByText(/select all/i).first().or(page.locator('input[type="checkbox"]').first())
   if (await selectAll.isVisible({ timeout: 2000 }).catch(() => false)) {
     await selectAll.click()
   }
 })
 
 Then('the blast should appear in the blast list', async ({ page }) => {
-  await expect(page.getByTestId(TestIds.BLAST_CARD).or(page.locator('text=/blast/i')).first()).toBeVisible({
+  await expect(page.getByTestId(TestIds.BLAST_CARD).or(page.getByText(/blast/i)).first()).toBeVisible({
     timeout: Timeouts.ELEMENT,
   })
 })
 
 Then('I should see the recipient selection interface', async ({ page }) => {
-  const recipientUi = page.locator('text=/recipient|volunteer|select/i')
+  // Content assertion — verifying recipient UI text
+  const recipientUi = page.getByText(/recipient|volunteer|select/i)
   await expect(recipientUi.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
@@ -467,7 +487,8 @@ Then('I should be able to select individual volunteers', async ({ page }) => {
 })
 
 Then('I should be able to select all volunteers', async ({ page }) => {
-  const selectAll = page.locator('text=/select all/i')
+  // Content assertion — verifying "select all" text
+  const selectAll = page.getByText(/select all/i)
   await expect(selectAll.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
@@ -480,7 +501,8 @@ When('I set a future send time', async ({ page }) => {
 })
 
 Then('the blast should appear as {string}', async ({ page }, status: string) => {
-  await expect(page.locator(`text="${status}"`).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying blast status text
+  await expect(page.getByText(status, { exact: true }).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Given('a blast has been sent', async () => {
@@ -506,14 +528,15 @@ Given('I have selected a hub', async ({ page }) => {
 })
 
 When('I open hub settings', async ({ page }) => {
-  await page.getByRole('link', { name: 'Hub Settings' }).click()
+  await page.getByTestId(navTestIdMap['Hub Settings']).click()
   await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 })
 
 Then('I should see telephony, messaging, and general tabs', async ({ page }) => {
-  const telephony = page.locator('text=/telephony/i')
-  const messaging = page.locator('text=/messaging/i')
-  const general = page.locator('text=/general|settings/i')
+  // Content assertion — verifying tab/section names
+  const telephony = page.getByText(/telephony/i)
+  const messaging = page.getByText(/messaging/i)
+  const general = page.getByText(/general|settings/i)
   await expect(telephony.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
   await expect(messaging.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
   await expect(general.first()).toBeVisible({ timeout: Timeouts.ELEMENT })

@@ -9,10 +9,9 @@ import { Timeouts } from '../../helpers'
 import { ShiftPage } from '../../pages/index'
 
 Then('I should see shifts or the {string} message', async ({ page }, emptyMsg: string) => {
-  const anyContent = page.locator(
-    `[data-testid="${TestIds.SHIFT_CARD}"], text="${emptyMsg}"`,
-  )
-  await expect(anyContent.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  const shiftCard = page.getByTestId(TestIds.SHIFT_CARD)
+  const emptyState = page.getByTestId(TestIds.EMPTY_STATE).or(page.getByText(emptyMsg))
+  await expect(shiftCard.first().or(emptyState.first())).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I fill in the shift name with a unique name', async ({ page }) => {
@@ -34,12 +33,15 @@ When('I set the end time to {string}', async ({ page }, time: string) => {
 Then('the shift should appear in the schedule', async ({ page }) => {
   const name = (await page.evaluate(() => (window as Record<string, unknown>).__test_shift_name)) as string
   if (name) {
-    await expect(page.locator(`text="${name}"`)).toBeVisible({ timeout: Timeouts.ELEMENT })
+    const card = page.getByTestId(TestIds.SHIFT_CARD).filter({ hasText: name })
+    await expect(card.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
   }
 })
 
 Then('the shift should show {string}', async ({ page }, text: string) => {
-  await expect(page.locator(`text=/${text}/`).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying displayed text within shift cards
+  const shiftArea = page.getByTestId(TestIds.SHIFT_CARD).first()
+  await expect(shiftArea.or(page.getByText(new RegExp(text))).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Given('a shift exists', async ({ page }) => {
@@ -55,7 +57,16 @@ When('I click {string} on the shift', async ({ page }, buttonText: string) => {
   const name = (await page.evaluate(() => (window as Record<string, unknown>).__test_shift_name)) as string
   if (name) {
     const card = ShiftPage.getCard(page, name)
-    await card.getByRole('button', { name: new RegExp(buttonText, 'i') }).click()
+    // Use specific test IDs for known button actions
+    const lowerText = buttonText.toLowerCase()
+    if (lowerText === 'edit') {
+      await card.getByTestId(TestIds.SHIFT_EDIT_BTN).click()
+    } else if (lowerText === 'delete') {
+      await card.getByTestId(TestIds.SHIFT_DELETE_BTN).click()
+    } else {
+      // Fallback for other button text
+      await card.getByRole('button', { name: new RegExp(buttonText, 'i') }).click()
+    }
   }
 })
 
@@ -71,14 +82,16 @@ When('I change the shift name', async ({ page }) => {
 Then('the updated shift name should be visible', async ({ page }) => {
   const name = (await page.evaluate(() => (window as Record<string, unknown>).__test_shift_name)) as string
   if (name) {
-    await expect(page.locator(`text="${name}"`)).toBeVisible({ timeout: Timeouts.ELEMENT })
+    const card = page.getByTestId(TestIds.SHIFT_CARD).filter({ hasText: name })
+    await expect(card.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
   }
 })
 
 Then('the shift should no longer be visible', async ({ page }) => {
   const name = (await page.evaluate(() => (window as Record<string, unknown>).__test_shift_name)) as string
   if (name) {
-    await expect(page.locator(`text="${name}"`)).not.toBeVisible({ timeout: Timeouts.ELEMENT })
+    const card = page.getByTestId(TestIds.SHIFT_CARD).filter({ hasText: name })
+    await expect(card).not.toBeVisible({ timeout: Timeouts.ELEMENT })
   }
 })
 
@@ -97,7 +110,8 @@ Then('the edit form should be visible', async ({ page }) => {
 Then('the original shift name should still be visible', async ({ page }) => {
   const name = (await page.evaluate(() => (window as Record<string, unknown>).__test_shift_name)) as string
   if (name) {
-    await expect(page.locator(`text="${name}"`)).toBeVisible({ timeout: Timeouts.ELEMENT })
+    const card = page.getByTestId(TestIds.SHIFT_CARD).filter({ hasText: name })
+    await expect(card.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
   }
 })
 

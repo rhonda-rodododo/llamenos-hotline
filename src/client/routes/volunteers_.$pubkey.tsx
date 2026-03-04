@@ -126,7 +126,7 @@ function VolunteerProfilePage() {
   return (
     <div className="space-y-6">
       {/* Back link */}
-      <Link to="/volunteers" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link to="/volunteers" data-testid="back-btn" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" />
         {t('nav.volunteers')}
       </Link>
@@ -140,18 +140,18 @@ function VolunteerProfilePage() {
             </div>
             <div className="flex-1 space-y-3">
               <div>
-                <h1 className="text-xl font-bold">{volunteer.name}</h1>
-                <code className="text-xs text-muted-foreground">{volunteer.pubkey}</code>
+                <h1 data-testid="volunteer-name" className="text-xl font-bold">{volunteer.name}</h1>
+                <code data-testid="volunteer-pubkey" className="text-xs text-muted-foreground">{volunteer.pubkey}</code>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Badge variant={volunteer.roles.includes('role-super-admin') || volunteer.roles.includes('role-hub-admin') ? 'default' : 'secondary'}>
+                <Badge data-testid="volunteer-role-badge" variant={volunteer.roles.includes('role-super-admin') || volunteer.roles.includes('role-hub-admin') ? 'default' : 'secondary'}>
                   {volunteer.roles.includes('role-super-admin') || volunteer.roles.includes('role-hub-admin') ? (
                     <><ShieldCheck className="h-3 w-3" /> {t('volunteers.roleAdmin')}</>
                   ) : (
                     <><Shield className="h-3 w-3" /> {t('volunteers.roleVolunteer')}</>
                   )}
                 </Badge>
-                <Badge variant="outline" className={
+                <Badge data-testid="volunteer-status-badge" variant="outline" className={
                   volunteer.active
                     ? 'border-green-500/50 text-green-700 dark:text-green-400'
                     : 'border-red-500/50 text-red-700 dark:text-red-400'
@@ -175,7 +175,7 @@ function VolunteerProfilePage() {
                     {showPhone ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                   </button>
                 </span>
-                <span className="flex items-center gap-1.5">
+                <span data-testid="volunteer-join-date" className="flex items-center gap-1.5">
                   <User className="h-3.5 w-3.5" />
                   {t('volunteerProfile.joined')} {new Date(volunteer.createdAt).toLocaleDateString()}
                 </span>
@@ -242,7 +242,7 @@ function VolunteerProfilePage() {
       />
 
       {/* Activity / Audit Log */}
-      <Card>
+      <Card data-testid="volunteer-activity-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <ScrollText className="h-4 w-4 text-muted-foreground" />

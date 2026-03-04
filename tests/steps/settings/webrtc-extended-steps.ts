@@ -14,6 +14,7 @@
  */
 import { expect } from '@playwright/test'
 import { When, Then } from '../fixtures'
+import { TestIds } from '../../test-ids'
 
 Then('the {string} option should be selected', async ({ page }, optionText: string) => {
   const option = page.locator('button').filter({ hasText: optionText })
@@ -30,11 +31,8 @@ Then('the {string} option should be disabled', async ({ page }, optionText: stri
 })
 
 When('I enable the WebRTC toggle', async ({ page }) => {
-  const webrtcSection = page
-    .locator('div')
-    .filter({ hasText: /WebRTC Configuration/ })
-    .filter({ has: page.getByRole('switch') })
-    .last()
+  const webrtcSection = page.getByTestId(TestIds.SETTINGS_SECTION).filter({ hasText: /WebRTC/ })
+    .or(page.locator('div').filter({ hasText: /WebRTC Configuration/ }).filter({ has: page.getByRole('switch') }).last())
   const toggle = webrtcSection.getByRole('switch')
   await toggle.click()
 })
@@ -45,23 +43,20 @@ When('I switch the provider to {string}', async ({ page }, provider: string) => 
 })
 
 When('I fill in Twilio credentials with WebRTC config', async ({ page }) => {
-  await page.getByTestId('account-sid').fill('ACwebrtctest123')
-  await page.getByTestId('auth-token').fill('webrtc-auth-token')
+  await page.getByTestId(TestIds.ACCOUNT_SID).fill('ACwebrtctest123')
+  await page.getByTestId(TestIds.AUTH_TOKEN).fill('webrtc-auth-token')
 
   // Enable WebRTC
-  const webrtcSection = page
-    .locator('div')
-    .filter({ hasText: /WebRTC Configuration/ })
-    .filter({ has: page.getByRole('switch') })
-    .last()
+  const webrtcSection = page.getByTestId(TestIds.SETTINGS_SECTION).filter({ hasText: /WebRTC/ })
+    .or(page.locator('div').filter({ hasText: /WebRTC Configuration/ }).filter({ has: page.getByRole('switch') }).last())
   const toggle = webrtcSection.getByRole('switch')
   await toggle.click()
 
-  await page.getByTestId('api-key-sid').fill('SKtestkey123')
-  await page.getByTestId('twiml-app-sid').fill('APtestapp456')
+  await page.getByTestId(TestIds.API_KEY_SID).fill('SKtestkey123')
+  await page.getByTestId(TestIds.TWIML_APP_SID).fill('APtestapp456')
 })
 
 Then('the WebRTC API key fields should be populated', async ({ page }) => {
-  await expect(page.getByTestId('api-key-sid')).toHaveValue('SKtestkey123')
-  await expect(page.getByTestId('twiml-app-sid')).toHaveValue('APtestapp456')
+  await expect(page.getByTestId(TestIds.API_KEY_SID)).toHaveValue('SKtestkey123')
+  await expect(page.getByTestId(TestIds.TWIML_APP_SID)).toHaveValue('APtestapp456')
 })

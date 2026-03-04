@@ -4,7 +4,7 @@
  */
 import { expect } from '@playwright/test'
 import { When, Then } from '../fixtures'
-import { Timeouts } from '../../helpers'
+import { TestIds, Timeouts } from '../../helpers'
 
 Then('the hub URL should be stored as {string}', async ({ page }, expectedUrl: string) => {
   const hubUrl = await page.evaluate(() => {
@@ -17,7 +17,9 @@ Then('the hub URL should be stored as {string}', async ({ page }, expectedUrl: s
 })
 
 When('I see the error {string}', async ({ page }, errorText: string) => {
-  await expect(page.getByText(errorText)).toBeVisible({ timeout: Timeouts.ELEMENT })
+  const errorMessage = page.getByTestId(TestIds.ERROR_MESSAGE)
+  await expect(errorMessage).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(errorMessage).toContainText(errorText)
 })
 
 When('I start typing in the nsec field', async ({ page }) => {
@@ -28,7 +30,7 @@ Then('the error should disappear', async ({ page }) => {
   // Wait briefly for error to clear
   await page.waitForTimeout(500)
   const errorVisible = await page
-    .locator('[role="alert"], .text-destructive')
+    .getByTestId(TestIds.ERROR_MESSAGE)
     .isVisible({ timeout: 1000 })
     .catch(() => false)
   // Error may or may not be gone depending on implementation

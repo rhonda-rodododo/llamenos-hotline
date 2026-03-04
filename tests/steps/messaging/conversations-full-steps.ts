@@ -52,7 +52,7 @@ Given('an open conversation exists', async ({ page }) => {
 Given('a closed conversation exists', async ({ page }) => {
   await Navigation.goToConversations(page)
   // Navigate to closed filter if available
-  const closedFilter = page.locator('button:has-text("Closed"), [role="tab"]:has-text("Closed")')
+  const closedFilter = page.getByTestId(TestIds.CONV_FILTER_CHIP).filter({ hasText: /closed/i })
   if (await closedFilter.first().isVisible({ timeout: 2000 }).catch(() => false)) {
     await closedFilter.first().click()
     await page.waitForTimeout(Timeouts.UI_SETTLE)
@@ -84,9 +84,9 @@ When('I type a message in the reply field', async ({ page }) => {
 })
 
 When('I assign the conversation to a volunteer', async ({ page }) => {
-  const assignBtn = page.locator('button:has-text("Assign"), button[aria-label*="Assign"]')
-  if (await assignBtn.first().isVisible({ timeout: 2000 }).catch(() => false)) {
-    await assignBtn.first().click()
+  const assignBtn = page.getByTestId(TestIds.CONV_ASSIGN_BTN)
+  if (await assignBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await assignBtn.click()
     // Select first volunteer in the assignment list
     const volunteerOption = page.locator('[role="option"], [role="menuitem"]').first()
     if (await volunteerOption.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -96,18 +96,16 @@ When('I assign the conversation to a volunteer', async ({ page }) => {
 })
 
 When('I close the conversation', async ({ page }) => {
-  const closeBtn = page.locator('button:has-text("Close"), button[aria-label*="Close conversation"]')
-  await closeBtn.first().click()
+  await page.getByTestId(TestIds.CONV_CLOSE_BTN).click()
   // Confirm if dialog appears
   const dialog = page.getByRole('dialog')
   if (await dialog.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await dialog.getByRole('button', { name: /confirm|close|yes/i }).click()
+    await page.getByTestId(TestIds.CONFIRM_DIALOG_OK).click()
   }
 })
 
 When('I reopen the conversation', async ({ page }) => {
-  const reopenBtn = page.locator('button:has-text("Reopen"), button:has-text("Re-open"), button[aria-label*="Reopen"]')
-  await reopenBtn.first().click()
+  await page.getByTestId(TestIds.CONV_REOPEN_BTN).click()
 })
 
 When('I search for a phone number', async ({ page }) => {
@@ -126,36 +124,37 @@ Then('I should see the conversation thread', async ({ page }) => {
 })
 
 Then('I should see message timestamps', async ({ page }) => {
-  // Timestamps in conversation thread (e.g., "10:30 AM", "2024-01-15")
-  const timestamp = page.locator('text=/\\d{1,2}:\\d{2}|\\d{4}-\\d{2}-\\d{2}/').first()
+  // Content assertion — timestamps in conversation thread (e.g., "10:30 AM", "2024-01-15")
+  const timestamp = page.getByText(/\d{1,2}:\d{2}|\d{4}-\d{2}-\d{2}/).first()
   await expect(timestamp).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('the message should appear in the thread', async ({ page }) => {
   const thread = page.getByTestId(TestIds.CONVERSATION_THREAD)
-  await expect(thread.locator('text=/Test message/')).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying our test message appears
+  await expect(thread.getByText(/Test message/)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('each conversation should show its channel badge', async ({ page }) => {
-  // Channel badges (SMS, WhatsApp, Signal, etc.)
-  const badge = page.locator('text=/SMS|WhatsApp|Signal|RCS/i').first()
+  // Content assertion — channel badges (SMS, WhatsApp, Signal, etc.)
+  const badge = page.getByText(/SMS|WhatsApp|Signal|RCS/i).first()
   await expect(badge).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('the conversation should show the assigned volunteer', async ({ page }) => {
-  // Assigned volunteer name or badge should be visible
-  const assigned = page.locator('text=/assigned|volunteer/i')
+  // Content assertion — assigned volunteer name or badge should be visible
+  const assigned = page.getByText(/assigned|volunteer/i)
   await expect(assigned.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('the conversation status should change to {string}', async ({ page }, status: string) => {
-  await expect(page.locator(`text="${status}"`).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Content assertion — verifying status text
+  await expect(page.getByText(status, { exact: true }).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('matching conversations should be displayed', async ({ page }) => {
   // Either matching results or "no results" message
-  const results = page.locator(
-    `[data-testid="${TestIds.CONVERSATION_ITEM}"], text=/no result|no match/i`,
-  )
+  const results = page.getByTestId(TestIds.CONVERSATION_ITEM).first()
+    .or(page.getByTestId(TestIds.EMPTY_STATE))
   await expect(results.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })

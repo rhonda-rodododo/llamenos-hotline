@@ -6,7 +6,7 @@
  */
 import { expect } from '@playwright/test'
 import { Given, When, Then } from '../fixtures'
-import { enterPin, Timeouts } from '../../helpers'
+import { TestIds, enterPin, Timeouts } from '../../helpers'
 
 Given('I have created a new identity', async ({ page }) => {
   // Navigate to login and create identity
@@ -32,22 +32,20 @@ Given('I have confirmed my nsec backup', async ({ page }) => {
 })
 
 Given('I am on the PIN setup screen', async ({ page }) => {
-  const pinInput = page.locator('input[aria-label="PIN digit 1"]')
+  const pinInput = page.getByTestId(TestIds.PIN_INPUT).first()
   await expect(pinInput).toBeVisible({ timeout: Timeouts.AUTH })
 })
 
 Then('I should see the PIN pad with digits 0-9', async ({ page }) => {
   // Verify PIN input is visible
-  const pinInput = page.locator('input[aria-label="PIN digit 1"]')
+  const pinInput = page.getByTestId(TestIds.PIN_INPUT).first()
   await expect(pinInput).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the backspace button', async ({ page }) => {
   // Backspace is handled by keyboard, but there may be a UI button
-  const backspace = page.locator('button[aria-label="Backspace"], button[aria-label="Delete"]')
-  // This is optional — not all implementations have a visible backspace button
   // Just verify the PIN pad is functional
-  const pinInput = page.locator('input[aria-label="PIN digit 1"]')
+  const pinInput = page.getByTestId(TestIds.PIN_INPUT).first()
   await expect(pinInput).toBeVisible()
 })
 
@@ -67,15 +65,19 @@ When('I confirm PIN {string}', async ({ page }, pin: string) => {
 })
 
 Then('I should arrive at the dashboard', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: Timeouts.AUTH })
+  const pageTitle = page.getByTestId(TestIds.PAGE_TITLE)
+  await expect(pageTitle).toBeVisible({ timeout: Timeouts.AUTH })
+  await expect(pageTitle).toContainText('Dashboard')
 })
 
 Then('the dashboard title should be displayed', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: Timeouts.ELEMENT })
+  const pageTitle = page.getByTestId(TestIds.PAGE_TITLE)
+  await expect(pageTitle).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(pageTitle).toContainText('Dashboard')
 })
 
 Then('I should see a PIN mismatch error', async ({ page }) => {
-  await expect(page.locator('text=/mismatch|don\'t match|incorrect/i')).toBeVisible({
+  await expect(page.getByTestId(TestIds.ERROR_MESSAGE)).toBeVisible({
     timeout: Timeouts.ELEMENT,
   })
 })
@@ -107,7 +109,7 @@ Then('the PIN dots should be cleared', async ({ page }) => {
 })
 
 Then('I should see the PIN unlock screen', async ({ page }) => {
-  const pinInput = page.locator('input[aria-label="PIN digit 1"]')
+  const pinInput = page.getByTestId(TestIds.PIN_INPUT).first()
   await expect(pinInput).toBeVisible({ timeout: Timeouts.AUTH })
 })
 
@@ -116,23 +118,24 @@ Then('the title should indicate {string}', async ({ page }, text: string) => {
 })
 
 Then('the PIN pad should be displayed', async ({ page }) => {
-  const pinInput = page.locator('input[aria-label="PIN digit 1"]')
+  const pinInput = page.getByTestId(TestIds.PIN_INPUT).first()
   await expect(pinInput).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('the crypto service should be unlocked', async ({ page }) => {
   // If we're on the dashboard, the crypto service is unlocked
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: Timeouts.AUTH })
+  const pageTitle = page.getByTestId(TestIds.PAGE_TITLE)
+  await expect(pageTitle).toBeVisible({ timeout: Timeouts.AUTH })
+  await expect(pageTitle).toContainText('Dashboard')
 })
 
 Then('the crypto service should be locked', async ({ page }) => {
   // The PIN screen being visible means the crypto is locked
-  const pinInput = page.locator('input[aria-label="PIN digit 1"]')
-  const loginScreen = page.locator('h1', { hasText: /sign in|llámenos/i })
-  // Either PIN unlock screen or login screen means crypto is locked
+  const pinInput = page.getByTestId(TestIds.PIN_INPUT).first()
+  // Either PIN unlock screen or login page URL means crypto is locked
   const pinVisible = await pinInput.isVisible({ timeout: 2000 }).catch(() => false)
-  const loginVisible = await loginScreen.isVisible({ timeout: 2000 }).catch(() => false)
-  expect(pinVisible || loginVisible).toBe(true)
+  const onLoginPage = page.url().includes('/login')
+  expect(pinVisible || onLoginPage).toBe(true)
 })
 
 When('I see the error', async ({ page }) => {

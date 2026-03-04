@@ -6,13 +6,11 @@ import { expect } from '@playwright/test'
 import { Given, When, Then } from '../fixtures'
 import { TestIds } from '../../test-ids'
 import { Timeouts } from '../../helpers'
-import { BanListPage } from '../../pages/index'
 
-Then('I should see bans or the {string} message', async ({ page }, emptyMsg: string) => {
+Then('I should see bans or the {string} message', async ({ page }, _emptyMsg: string) => {
   const banRow = page.getByTestId(TestIds.BAN_ROW)
-  const emptyState = page.locator(`text="${emptyMsg}"`)
-  const anyContent = page.locator(`[data-testid="${TestIds.BAN_ROW}"], text="${emptyMsg}"`)
-  await expect(anyContent.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  const emptyState = page.getByTestId(TestIds.EMPTY_STATE)
+  await expect(banRow.first().or(emptyState)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I fill in the phone number', async ({ page }) => {
@@ -32,7 +30,9 @@ When('I fill in the phone number with {string}', async ({ page }, phone: string)
 Then('the phone number should appear in the ban list', async ({ page }) => {
   const phone = (await page.evaluate(() => (window as Record<string, unknown>).__test_ban_phone)) as string
   if (phone) {
-    await expect(page.locator(`text="${phone}"`)).toBeVisible({ timeout: Timeouts.ELEMENT })
+    await expect(
+      page.getByTestId(TestIds.BAN_LIST).getByText(phone),
+    ).toBeVisible({ timeout: Timeouts.ELEMENT })
   }
 })
 
@@ -50,7 +50,8 @@ When('I add a ban with reason {string}', async ({ page }, reason: string) => {
 
 Then('the ban entry should contain the current year', async ({ page }) => {
   const year = new Date().getFullYear().toString()
-  await expect(page.locator(`text=/${year}/`).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  const banRow = page.getByTestId(TestIds.BAN_ROW).filter({ hasText: year })
+  await expect(banRow.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Given('a ban exists', async ({ page }) => {
@@ -60,7 +61,9 @@ Given('a ban exists', async ({ page }) => {
   await page.getByLabel(/phone/i).blur()
   await page.getByLabel(/reason/i).fill('Test ban')
   await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
-  await expect(page.locator(`text="${phone}"`)).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(
+    page.getByTestId(TestIds.BAN_ROW).filter({ hasText: phone }),
+  ).toBeVisible({ timeout: Timeouts.ELEMENT })
   await page.evaluate((p) => {
     (window as Record<string, unknown>).__test_ban_phone = p
   }, phone)
@@ -69,28 +72,42 @@ Given('a ban exists', async ({ page }) => {
 When('I click {string} on the ban', async ({ page }, buttonText: string) => {
   const phone = (await page.evaluate(() => (window as Record<string, unknown>).__test_ban_phone)) as string
   const row = page.getByTestId(TestIds.BAN_ROW).filter({ hasText: phone })
-  await row.getByRole('button', { name: new RegExp(buttonText, 'i') }).click()
+  if (buttonText.toLowerCase() === 'remove' || buttonText.toLowerCase() === 'delete') {
+    await row.getByTestId(TestIds.BAN_REMOVE_BTN).click()
+  } else {
+    await row.getByRole('button', { name: new RegExp(buttonText, 'i') }).click()
+  }
 })
 
 When('I click {string} in the dialog', async ({ page }, buttonText: string) => {
-  await page.getByRole('dialog').getByRole('button', { name: new RegExp(buttonText, 'i') }).click()
+  if (buttonText.toLowerCase() === 'confirm' || buttonText.toLowerCase() === 'ok' || buttonText.toLowerCase() === 'yes') {
+    await page.getByTestId(TestIds.CONFIRM_DIALOG_OK).click()
+  } else if (buttonText.toLowerCase() === 'cancel') {
+    await page.getByTestId(TestIds.CONFIRM_DIALOG_CANCEL).click()
+  } else {
+    await page.getByTestId(TestIds.CONFIRM_DIALOG).getByRole('button', { name: new RegExp(buttonText, 'i') }).click()
+  }
 })
 
 Then('the dialog should close', async ({ page }) => {
-  await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.CONFIRM_DIALOG)).not.toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('the ban should no longer appear in the list', async ({ page }) => {
   const phone = (await page.evaluate(() => (window as Record<string, unknown>).__test_ban_phone)) as string
   if (phone) {
-    await expect(page.locator(`text="${phone}"`)).not.toBeVisible({ timeout: Timeouts.ELEMENT })
+    await expect(
+      page.getByTestId(TestIds.BAN_ROW).filter({ hasText: phone }),
+    ).not.toBeVisible({ timeout: Timeouts.ELEMENT })
   }
 })
 
 Then('the ban should still appear in the list', async ({ page }) => {
   const phone = (await page.evaluate(() => (window as Record<string, unknown>).__test_ban_phone)) as string
   if (phone) {
-    await expect(page.locator(`text="${phone}"`)).toBeVisible({ timeout: Timeouts.ELEMENT })
+    await expect(
+      page.getByTestId(TestIds.BAN_ROW).filter({ hasText: phone }),
+    ).toBeVisible({ timeout: Timeouts.ELEMENT })
   }
 })
 
@@ -111,14 +128,18 @@ When('I add two bans with different phone numbers', async ({ page }) => {
   await page.getByLabel(/phone/i).blur()
   await page.getByLabel(/reason/i).fill('Reason 1')
   await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
-  await expect(page.locator(`text="${phone1}"`)).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(
+    page.getByTestId(TestIds.BAN_ROW).filter({ hasText: phone1 }),
+  ).toBeVisible({ timeout: Timeouts.ELEMENT })
 
   await page.getByTestId(TestIds.BAN_ADD_BTN).click()
   await page.getByLabel(/phone/i).fill(phone2)
   await page.getByLabel(/phone/i).blur()
   await page.getByLabel(/reason/i).fill('Reason 2')
   await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
-  await expect(page.locator(`text="${phone2}"`)).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(
+    page.getByTestId(TestIds.BAN_ROW).filter({ hasText: phone2 }),
+  ).toBeVisible({ timeout: Timeouts.ELEMENT })
 
   await page.evaluate(
     ({ p1, p2 }) => {
@@ -132,13 +153,19 @@ Then('both phone numbers should appear in the ban list', async ({ page }) => {
   const phones = (await page.evaluate(() => (window as Record<string, unknown>).__test_ban_phones)) as string[]
   if (phones) {
     for (const phone of phones) {
-      await expect(page.locator(`text="${phone}"`)).toBeVisible({ timeout: Timeouts.ELEMENT })
+      await expect(
+        page.getByTestId(TestIds.BAN_ROW).filter({ hasText: phone }),
+      ).toBeVisible({ timeout: Timeouts.ELEMENT })
     }
   }
 })
 
 Then('both ban reasons should be visible', async ({ page }) => {
-  // Reasons are displayed alongside each ban
-  await expect(page.locator('text="Reason 1"')).toBeVisible({ timeout: Timeouts.ELEMENT })
-  await expect(page.locator('text="Reason 2"')).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Reasons are displayed within ban rows
+  await expect(
+    page.getByTestId(TestIds.BAN_ROW).filter({ hasText: 'Reason 1' }),
+  ).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(
+    page.getByTestId(TestIds.BAN_ROW).filter({ hasText: 'Reason 2' }),
+  ).toBeVisible({ timeout: Timeouts.ELEMENT })
 })

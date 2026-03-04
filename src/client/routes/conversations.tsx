@@ -117,7 +117,7 @@ function ConversationsPage() {
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <MessageSquare className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold sm:text-2xl">{t('conversations.title', { defaultValue: 'Conversations' })}</h1>
+          <h1 data-testid="page-title" className="text-xl font-bold sm:text-2xl">{t('conversations.title', { defaultValue: 'Conversations' })}</h1>
         </div>
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
@@ -136,7 +136,7 @@ function ConversationsPage() {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <MessageSquare className="h-6 w-6 text-primary" />
-        <h1 className="text-xl font-bold sm:text-2xl">{t('conversations.title', { defaultValue: 'Conversations' })}</h1>
+        <h1 data-testid="page-title" className="text-xl font-bold sm:text-2xl">{t('conversations.title', { defaultValue: 'Conversations' })}</h1>
       </div>
     <div className="flex h-[calc(100vh-12rem)] gap-4">
       {/* Conversation list sidebar */}
@@ -199,7 +199,7 @@ function ConversationsPage() {
                   {t('notes.addNote', { defaultValue: 'Add Note' })}
                 </Button>
                 {selectedConv.status === 'active' && (
-                  <Button size="sm" variant="outline" onClick={() => handleClose(selectedConv.id)}>
+                  <Button size="sm" variant="outline" data-testid="conv-close-btn" onClick={() => handleClose(selectedConv.id)}>
                     <X className="h-3.5 w-3.5 mr-1" />
                     {t('conversations.close', { defaultValue: 'Close' })}
                   </Button>

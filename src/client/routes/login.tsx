@@ -291,7 +291,7 @@ function LoginPage() {
           </CardHeader>
           <CardContent>
             <Link to="/setup">
-              <Button className="w-full" size="lg">
+              <Button className="w-full" size="lg" data-testid="go-to-setup-btn">
                 <ArrowRight className="h-4 w-4" />
                 {t('setup.bootstrap.goToSetup', { defaultValue: 'Go to Setup' })}
               </Button>
@@ -464,7 +464,7 @@ function LoginPage() {
                     autoComplete="off"
                   />
                 </div>
-                <Button type="submit" disabled={isLoading} className="w-full">
+                <Button type="submit" disabled={isLoading} className="w-full" data-testid="login-submit-btn">
                   {isLoading ? t('common.loading') : (
                     <>
                       <LogIn className="h-4 w-4" />

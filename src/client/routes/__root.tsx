@@ -328,6 +328,7 @@ function AuthenticatedLayout() {
                 <button
                   key={value}
                   onClick={() => setTheme(value)}
+                  data-testid={`theme-${value}`}
                   className={`rounded px-1.5 py-0.5 text-xs transition-colors ${theme === value ? 'bg-primary/20 text-primary font-medium' : 'text-muted-foreground hover:text-foreground'}`}
                   aria-label={t(`a11y.theme${value.charAt(0).toUpperCase() + value.slice(1)}`)}
                 >
@@ -351,6 +352,7 @@ function AuthenticatedLayout() {
               signOut()
               navigate({ to: '/login' })
             }}
+            data-testid="logout-btn"
             className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
             <LogOut className="h-4 w-4" />
@@ -435,10 +437,13 @@ function AuthenticatedLayout() {
 function NavLink({ to, children, icon }: { to: string; children: ReactNode; icon?: ReactNode }) {
   const location = useLocation()
   const isActive = location.pathname === to || (to === '/' ? false : location.pathname.startsWith(to))
+  // Generate test ID from route path: "/" → "nav-dashboard", "/notes" → "nav-notes", "/admin/settings" → "nav-admin-settings"
+  const testId = `nav-${to === '/' ? 'dashboard' : to.replace(/^\//, '').replace(/\//g, '-')}`
 
   return (
     <Link
       to={to}
+      data-testid={testId}
       className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent ${
         isActive
           ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-l-[3px] border-primary pl-[9px]'

@@ -11,6 +11,7 @@ import {
   ADMIN_NSEC,
   TEST_PIN,
   Timeouts,
+  TestIds,
 } from '../../helpers'
 
 Given('the app is freshly installed', async ({ page }) => {
@@ -100,12 +101,12 @@ Given('I am authenticated', async ({ page }) => {
 
 Given('I am authenticated and on the dashboard', async ({ page }) => {
   await loginAsAdmin(page)
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: Timeouts.AUTH })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.AUTH })
 })
 
 Given('I am authenticated and on the main screen', async ({ page }) => {
   await loginAsAdmin(page)
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: Timeouts.AUTH })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.AUTH })
 })
 
 Given('I am on the login screen', async ({ page }) => {

@@ -7,6 +7,7 @@
  */
 import { expect } from '@playwright/test'
 import { Given, Then } from '../fixtures'
+import { TestIds } from '../../test-ids'
 
 // --- Stored key setup ---
 
@@ -34,13 +35,16 @@ Given('I have a stored encrypted key', async ({ page }) => {
 
 Then('I should see the backup file upload area', async ({ page }) => {
   await expect(page.locator('input[type="file"][accept=".json"]')).toBeAttached()
+  // Keep as content assertion — this is verifying user-facing text for the upload area
   await expect(page.getByText(/select backup file/i)).toBeVisible()
 })
 
 // --- Stored key assertions ---
 
 Then('I should see the PIN digit inputs', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
+  const pageTitle = page.getByTestId(TestIds.PAGE_TITLE)
+  await expect(pageTitle).toBeVisible()
+  await expect(pageTitle).toContainText(/sign in/i)
   for (let i = 1; i <= 6; i++) {
     await expect(page.locator(`input[aria-label="PIN digit ${i}"]`)).toBeVisible()
   }
@@ -53,7 +57,7 @@ Then('I should see the language selector', async ({ page }) => {
 })
 
 Then('I should see the theme toggle buttons', async ({ page }) => {
-  await expect(page.getByRole('button', { name: /system theme/i })).toBeVisible()
-  await expect(page.getByRole('button', { name: /light theme/i })).toBeVisible()
-  await expect(page.getByRole('button', { name: /dark theme/i })).toBeVisible()
+  await expect(page.getByTestId(TestIds.THEME_SYSTEM)).toBeVisible()
+  await expect(page.getByTestId(TestIds.THEME_LIGHT)).toBeVisible()
+  await expect(page.getByTestId(TestIds.THEME_DARK)).toBeVisible()
 })

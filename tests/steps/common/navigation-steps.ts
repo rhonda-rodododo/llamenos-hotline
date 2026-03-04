@@ -1,11 +1,11 @@
 /**
  * Common navigation step definitions shared across features.
- * Uses page objects from tests/pages/index.ts.
+ * Uses page objects from tests/pages/index.ts and test IDs for robust selectors.
  */
 import { expect } from '@playwright/test'
 import { Given, When, Then } from '../fixtures'
 import { Navigation } from '../../pages/index'
-import { TestIds } from '../../test-ids'
+import { TestIds, navTestIdMap } from '../../test-ids'
 import { Timeouts, navigateAfterLogin } from '../../helpers'
 
 // --- Parameterised navigation (covers most "navigate to X page" steps) ---
@@ -31,14 +31,16 @@ Given('I navigate to the {string} page', async ({ page }, pageName: string) => {
   if (navFn) {
     await navFn(page)
   } else {
-    // Fallback: click sidebar link by name
-    await page.getByRole('link', { name: pageName }).click()
+    // Fallback: try test ID map, then text click
+    const testId = navTestIdMap[pageName]
+    if (testId) {
+      await page.getByTestId(testId).click()
+    } else {
+      await page.getByTestId(TestIds.NAV_SIDEBAR).getByText(pageName, { exact: true }).click()
+    }
     await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
   }
 })
-
-// Note: "I navigate to the {string} page" is defined as Given above.
-// playwright-bdd treats Given/When/Then as interchangeable for matching.
 
 When('I navigate to {string}', async ({ page }, path: string) => {
   await navigateAfterLogin(page, path)
@@ -71,15 +73,13 @@ Given('I am on the settings screen', async ({ page }) => {
 })
 
 Given('I am on the dashboard', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Given('I navigate to the device link screen from settings', async ({ page }) => {
   await Navigation.goToSettings(page)
-  // The "linked-devices" SettingsSection has data-testid={id} from SettingsSection component
   const linkedDevicesSection = page.locator('[data-testid="linked-devices"]')
   await linkedDevicesSection.scrollIntoViewIfNeeded()
-  // Expand the section if collapsed
   const isExpanded = await linkedDevicesSection.locator('[data-state="open"]').isVisible({ timeout: 1000 }).catch(() => false)
   if (!isExpanded) {
     await linkedDevicesSection.locator('[role="button"], header').first().click()
@@ -87,44 +87,39 @@ Given('I navigate to the device link screen from settings', async ({ page }) => 
 })
 
 Given('I have navigated to the admin panel', async ({ page }) => {
-  // Desktop has no "admin panel" card — admin pages are separate sidebar routes.
-  // Navigate to Volunteers as the default admin page.
   await Navigation.goToVolunteers(page)
 })
 
 // --- When navigation steps ---
 
 When('I tap the {string} tab', async ({ page }, tabName: string) => {
-  // Try sidebar link, then tab role, then button
-  const link = page.getByRole('link', { name: tabName })
-  if (await link.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await link.click()
-    return
+  // Try nav test ID first, then sidebar text
+  const testId = navTestIdMap[tabName]
+  if (testId) {
+    const navLink = page.getByTestId(testId)
+    if (await navLink.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await navLink.click()
+      return
+    }
   }
-  const tab = page.getByRole('tab', { name: tabName })
-  if (await tab.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await tab.click()
-    return
-  }
-  await page.getByText(tabName, { exact: true }).first().click()
+  // Fallback: look for text in sidebar
+  const sidebar = page.getByTestId(TestIds.NAV_SIDEBAR)
+  await sidebar.getByText(tabName, { exact: true }).first().click()
 })
 
 When('I navigate to the admin panel', async ({ page }) => {
-  // Desktop has no "admin panel" card — admin pages are separate sidebar routes.
-  // Navigate to Volunteers as the default admin page.
   await Navigation.goToVolunteers(page)
 })
 
 When('I scroll to and tap the admin card', async ({ page }) => {
-  // Desktop has no "admin card" — navigate to Volunteers via sidebar instead
   await Navigation.goToVolunteers(page)
 })
 
 When('I tap the back button', async ({ page }) => {
-  const backBtn = page.locator('button[aria-label="Back"], [data-testid="back-btn"]')
-  const backVisible = await backBtn.first().isVisible({ timeout: 2000 }).catch(() => false)
+  const backBtn = page.getByTestId(TestIds.BACK_BTN)
+  const backVisible = await backBtn.isVisible({ timeout: 2000 }).catch(() => false)
   if (backVisible) {
-    await backBtn.first().click()
+    await backBtn.click()
   } else {
     await page.goBack()
   }
@@ -136,7 +131,6 @@ When('I visit the app root', async ({ page }) => {
 })
 
 When('I visit {string} without authentication', async ({ page }, path: string) => {
-  // Navigate first to avoid SecurityError when clearing storage on about:blank
   await page.goto('/login')
   await page.waitForLoadState('domcontentloaded')
   await page.evaluate(() => {
@@ -179,11 +173,13 @@ Then('I should be redirected to the login page', async ({ page }) => {
 })
 
 Then('I should see the nsec input', async ({ page }) => {
-  await expect(page.locator('#nsec, input[placeholder*="nsec"]')).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.locator('#nsec')).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see a validation error', async ({ page }) => {
-  const errorEl = page.locator('[role="alert"], .text-destructive, [data-testid="error-message"], text=/invalid|error/i')
+  const errorEl = page.getByTestId(TestIds.ERROR_MESSAGE)
+    .or(page.locator('[role="alert"]'))
+    .or(page.locator('.text-destructive'))
   await expect(errorEl.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
@@ -198,35 +194,35 @@ Then('the response should contain {string}', async ({ page }, text: string) => {
 })
 
 Then('I should see the dashboard', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the notes screen', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the shifts screen', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: /shift/i })).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the conversations screen', async ({ page }) => {
-  await expect(page.locator('h1', { hasText: /conversations/i })).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the settings screen', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should return to the settings screen', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should return to the notes list', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should return to the login screen', async ({ page }) => {
-  await expect(page.locator('h1', { hasText: /sign in|llámenos/i })).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await page.waitForURL(/\/login/, { timeout: Timeouts.NAVIGATION })
 })
 
 Then('the bottom navigation should be visible', async ({ page }) => {
@@ -236,6 +232,3 @@ Then('the bottom navigation should be visible', async ({ page }) => {
 Then('the bottom navigation should not be visible', async ({ page }) => {
   await expect(page.getByTestId(TestIds.NAV_SIDEBAR)).not.toBeVisible()
 })
-
-// "I should be redirected to the dashboard" and "I should be redirected away from login"
-// are defined in interaction-steps.ts

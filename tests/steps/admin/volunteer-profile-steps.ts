@@ -17,46 +17,38 @@ When('I tap a volunteer card', async ({ page }) => {
 })
 
 Then('I should see the volunteer detail screen', async ({ page }) => {
-  const detail = page.locator('text=/volunteer|profile|detail/i')
-  await expect(detail.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.VOLUNTEER_NAME)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the volunteer name', async ({ page }) => {
-  // Volunteer name should be visible on the detail screen
-  const name = page.locator('h1, h2, [data-testid="volunteer-name"]')
-  await expect(name.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.VOLUNTEER_NAME)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the volunteer pubkey', async ({ page }) => {
-  const pubkey = page.locator('text=/npub1|[a-f0-9]{8}/i')
-  await expect(pubkey.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.VOLUNTEER_PUBKEY)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the volunteer role badge', async ({ page }) => {
-  const roleBadge = page.locator('text=/volunteer|admin|reviewer|reporter/i')
-  await expect(roleBadge.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.VOLUNTEER_ROLE_BADGE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the volunteer status badge', async ({ page }) => {
-  const statusBadge = page.locator('text=/active|inactive|online|offline/i')
-  await expect(statusBadge.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.VOLUNTEER_STATUS_BADGE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the volunteer join date', async ({ page }) => {
-  const joinDate = page.locator('text=/joined|since|\\d{4}/i')
-  await expect(joinDate.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.VOLUNTEER_JOIN_DATE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the recent activity card', async ({ page }) => {
-  const activityCard = page.locator('text=/activity|recent|history/i')
-  await expect(activityCard.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.VOLUNTEER_ACTIVITY_CARD)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I tap the back button on the volunteer detail', async ({ page }) => {
-  const backBtn = page.locator('button[aria-label="Back"], [data-testid="back-btn"]')
-  const backVisible = await backBtn.first().isVisible({ timeout: 2000 }).catch(() => false)
+  const backBtn = page.getByTestId(TestIds.BACK_BTN)
+  const backVisible = await backBtn.isVisible({ timeout: 2000 }).catch(() => false)
   if (backVisible) {
-    await backBtn.first().click()
+    await backBtn.click()
   } else {
     await page.goBack()
   }
