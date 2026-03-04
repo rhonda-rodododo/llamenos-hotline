@@ -22,9 +22,7 @@ class ReportListSteps : BaseSteps() {
 
     @When("I tap the view reports button")
     fun iTapTheViewReportsButton() {
-        onNodeWithTag("reports-card").performScrollTo()
-        onNodeWithTag("reports-card").performClick()
-        composeRule.waitForIdle()
+        navigateViaDashboardCard("reports-card")
     }
 
     @Then("I should see the reports screen")

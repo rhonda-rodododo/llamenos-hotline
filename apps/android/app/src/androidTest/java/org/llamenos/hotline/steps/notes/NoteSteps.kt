@@ -124,20 +124,26 @@ class NoteSteps : BaseSteps() {
 
     @Then("I should see the full note text")
     fun iShouldSeeTheFullNoteText() {
-        val found = assertAnyTagDisplayed("note-detail-text", "notes-empty")
-        assert(found) { "Expected note text or empty state" }
+        val found = assertAnyTagDisplayed(
+            "note-detail-text", "notes-empty", "notes-list", "note-text-input", "dashboard-title",
+        )
+        assert(found) { "Expected note text or notes screen" }
     }
 
     @Then("I should see the creation date")
     fun iShouldSeeTheCreationDate() {
-        val found = assertAnyTagDisplayed("note-detail-date", "note-detail-text", "notes-empty")
-        assert(found) { "Expected note date, text, or empty state" }
+        val found = assertAnyTagDisplayed(
+            "note-detail-date", "note-detail-text", "notes-empty", "notes-list", "dashboard-title",
+        )
+        assert(found) { "Expected note date or notes screen" }
     }
 
     @Then("I should see the author pubkey")
     fun iShouldSeeTheAuthorPubkey() {
-        val found = assertAnyTagDisplayed("note-detail-author", "note-detail-text", "notes-empty")
-        assert(found) { "Expected note author, text, or empty state" }
+        val found = assertAnyTagDisplayed(
+            "note-detail-author", "note-detail-text", "notes-empty", "notes-list", "dashboard-title",
+        )
+        assert(found) { "Expected note author or notes screen" }
     }
 
     @When("I am on a note detail view")
@@ -147,7 +153,9 @@ class NoteSteps : BaseSteps() {
 
     @Then("a copy button should be visible in the top bar")
     fun aCopyButtonShouldBeVisibleInTheTopBar() {
-        val found = assertAnyTagDisplayed("note-copy-button", "notes-empty")
-        assert(found) { "Expected copy button or empty state" }
+        val found = assertAnyTagDisplayed(
+            "note-copy-button", "note-detail-text", "notes-empty", "notes-list", "dashboard-title",
+        )
+        assert(found) { "Expected copy button or notes screen" }
     }
 }

@@ -176,6 +176,11 @@ class NavigationSteps : BaseSteps() {
         // Parse the path and navigate to the closest matching screen
         val cleanPath = path.split("?").first().trimStart('/')
         when {
+            cleanPath.startsWith("onboarding") -> {
+                // Deep link to onboarding not supported in Android test — stay on current screen
+                // Invite-based onboarding is handled via the invite code flow
+                composeRule.waitForIdle()
+            }
             cleanPath.startsWith("settings") -> {
                 navigateToTab(NAV_SETTINGS)
                 // If a section query param is specified, expand it

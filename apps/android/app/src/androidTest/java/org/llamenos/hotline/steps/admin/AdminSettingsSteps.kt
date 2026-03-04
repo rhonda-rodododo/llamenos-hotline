@@ -1,6 +1,7 @@
 package org.llamenos.hotline.steps.admin
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import io.cucumber.java.en.Given
@@ -22,13 +23,21 @@ class AdminSettingsSteps : BaseSteps() {
 
     @Then("I should see the transcription settings card")
     fun iShouldSeeTheTranscriptionSettingsCard() {
-        waitForNode("admin-transcription-card")
+        // Admin settings loads from API — wait for loading to finish first
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithTag("admin-transcription-card").fetchSemanticsNodes().isNotEmpty() ||
+                composeRule.onAllNodesWithTag("admin-settings-error").fetchSemanticsNodes().isNotEmpty()
+        }
         onNodeWithTag("admin-transcription-card").assertIsDisplayed()
     }
 
     @Then("I should see the transcription enabled toggle")
     fun iShouldSeeTheTranscriptionEnabledToggle() {
-        waitForNode("transcription-enabled-toggle")
+        // Wait for settings to load (API may fail but UI still renders)
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithTag("transcription-enabled-toggle").fetchSemanticsNodes().isNotEmpty() ||
+                composeRule.onAllNodesWithTag("admin-settings-error").fetchSemanticsNodes().isNotEmpty()
+        }
         onNodeWithTag("transcription-enabled-toggle").assertIsDisplayed()
     }
 

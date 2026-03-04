@@ -113,6 +113,12 @@ class ReportSteps : BaseSteps() {
 
     private fun createReportViaUI() {
         try {
+            // Navigate to reports screen first if not already there
+            val hasReportsFab = composeRule.onAllNodesWithTag("report-create-fab").fetchSemanticsNodes().isNotEmpty()
+            if (!hasReportsFab) {
+                navigateViaDashboardCard("reports-card")
+                waitForNode("reports-title")
+            }
             onNodeWithTag("report-create-fab").performClick()
             composeRule.waitForIdle()
             onNodeWithTag("report-title-input").performTextInput("E2E Report ${System.currentTimeMillis()}")

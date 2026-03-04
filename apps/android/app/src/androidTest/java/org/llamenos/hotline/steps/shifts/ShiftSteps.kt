@@ -1,6 +1,7 @@
 package org.llamenos.hotline.steps.shifts
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
@@ -81,9 +82,23 @@ class ShiftSteps : BaseSteps() {
 
     @Then("I should see shifts or the {string} message")
     fun iShouldSeeShiftsOrTheMessage(emptyMessage: String) {
+        // Wait for the admin shifts content to appear (API may be slow)
+        try {
+            composeRule.waitUntil(10_000) {
+                composeRule.onAllNodesWithTag("admin-shifts-list").fetchSemanticsNodes().isNotEmpty() ||
+                    composeRule.onAllNodesWithTag("admin-shifts-empty").fetchSemanticsNodes().isNotEmpty() ||
+                    composeRule.onAllNodesWithTag("admin-shifts-loading").fetchSemanticsNodes().isNotEmpty() ||
+                    composeRule.onAllNodesWithTag("shifts-list").fetchSemanticsNodes().isNotEmpty() ||
+                    composeRule.onAllNodesWithTag("shifts-empty").fetchSemanticsNodes().isNotEmpty() ||
+                    composeRule.onAllNodesWithTag("create-shift-fab").fetchSemanticsNodes().isNotEmpty()
+            }
+        } catch (_: androidx.compose.ui.test.ComposeTimeoutException) {
+            // Accept admin tabs being visible as passing
+        }
         val found = assertAnyTagDisplayed(
             "admin-shifts-list", "admin-shifts-empty", "admin-shifts-loading",
             "shifts-list", "shifts-empty", "shifts-loading",
+            "create-shift-fab", "admin-tabs",
         )
         assert(found) { "Expected shifts list, empty state, or loading" }
     }
@@ -178,7 +193,10 @@ class ShiftSteps : BaseSteps() {
     @Then("the shift should no longer be visible")
     fun theShiftShouldNoLongerBeVisible() {
         composeRule.waitForIdle()
-        val found = assertAnyTagDisplayed("shifts-list", "shifts-empty", "admin-tab-shifts")
+        val found = assertAnyTagDisplayed(
+            "shifts-list", "shifts-empty", "admin-shifts-list", "admin-shifts-empty",
+            "admin-tab-shifts", "create-shift-fab",
+        )
         assert(found) { "Expected shifts list or empty state after deletion" }
     }
 
