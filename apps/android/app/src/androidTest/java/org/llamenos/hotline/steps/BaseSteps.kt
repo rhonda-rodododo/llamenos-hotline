@@ -11,8 +11,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeLeft
 import androidx.test.platform.app.InstrumentationRegistry
 
 /**
@@ -183,22 +181,10 @@ abstract class BaseSteps : SemanticsNodeInteractionsProvider {
             "settings" -> "admin-tab-settings"
             else -> throw IllegalArgumentException("Unknown admin tab: $tabName")
         }
-        // Admin tabs are in a horizontal ScrollableTabRow — performScrollTo() uses
-        // vertical scroll semantics and fails. Instead, just click the tab directly.
-        // If the tab is off-screen, swipe the tab row left to reveal later tabs.
-        for (attempt in 0..3) {
-            try {
-                onNodeWithTag(tabTag).performClick()
-                composeRule.waitForIdle()
-                return
-            } catch (_: AssertionError) {
-                // Tab is off-screen — swipe the tab row left to reveal more tabs
-                composeRule.onNodeWithTag("admin-tabs")
-                    .performTouchInput { swipeLeft() }
-                composeRule.waitForIdle()
-            }
-        }
-        // Final attempt after swiping
+        // Admin tabs are in a horizontal ScrollableTabRow. The tab nodes exist
+        // in the semantics tree even when off-screen, so performClick() works
+        // without needing to scroll the tab into the visible viewport first.
+        // Do NOT use performScrollTo() — it uses vertical scroll semantics.
         onNodeWithTag(tabTag).performClick()
         composeRule.waitForIdle()
     }
