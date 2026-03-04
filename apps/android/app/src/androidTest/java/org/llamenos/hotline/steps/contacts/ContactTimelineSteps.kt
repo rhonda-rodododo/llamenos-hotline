@@ -32,17 +32,20 @@ class ContactTimelineSteps : BaseSteps() {
 
     @Then("I should see the timeline screen")
     fun iShouldSeeTheTimelineScreen() {
-        assertAnyTagDisplayed("timeline-title", "contacts-empty")
+        val found = assertAnyTagDisplayed("timeline-title", "contacts-empty")
+        assert(found) { "Expected timeline screen or contacts empty state" }
     }
 
     @Then("I should see the timeline contact identifier")
     fun iShouldSeeTheTimelineContactIdentifier() {
-        assertAnyTagDisplayed("timeline-contact-id", "contacts-empty")
+        val found = assertAnyTagDisplayed("timeline-contact-id", "contacts-empty")
+        assert(found) { "Expected timeline contact ID or contacts empty state" }
     }
 
     @Then("I should see timeline events or the empty state")
     fun iShouldSeeTimelineEventsOrEmptyState() {
-        assertAnyTagDisplayed("timeline-list", "timeline-empty", "timeline-loading", "contacts-empty")
+        val found = assertAnyTagDisplayed("timeline-list", "timeline-empty", "timeline-loading", "contacts-empty")
+        assert(found) { "Expected timeline events, empty state, or loading" }
     }
 
     @And("I tap the back button on timeline")

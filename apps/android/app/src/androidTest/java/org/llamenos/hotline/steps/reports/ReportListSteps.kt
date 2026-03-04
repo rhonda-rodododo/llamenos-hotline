@@ -88,12 +88,13 @@ class ReportListSteps : BaseSteps() {
 
     @Then("I should see the reports content or empty state")
     fun iShouldSeeTheReportsContentOrEmptyState() {
-        assertAnyTagDisplayed("reports-list", "reports-empty", "reports-loading")
+        val found = assertAnyTagDisplayed("reports-list", "reports-empty", "reports-loading")
+        assert(found) { "Expected reports list, empty state, or loading" }
     }
 
     @Then("the reports screen should support pull to refresh")
     fun theReportsScreenShouldSupportPullToRefresh() {
-        // Verify the screen is displayed (pull-to-refresh wraps the content)
-        assertAnyTagDisplayed("reports-list", "reports-empty", "reports-loading")
+        val found = assertAnyTagDisplayed("reports-list", "reports-empty", "reports-loading")
+        assert(found) { "Expected reports content for pull-to-refresh" }
     }
 }

@@ -116,11 +116,8 @@ class BanSteps : BaseSteps() {
 
     @Then("the phone number input should not be visible")
     fun thePhoneNumberInputShouldNotBeVisible() {
-        try {
-            onNodeWithTag("ban-identifier-input").assertDoesNotExist()
-        } catch (_: AssertionError) {
-            // Not visible — passes
-        }
+        composeRule.waitForIdle()
+        onNodeWithTag("ban-identifier-input").assertDoesNotExist()
     }
 
     // ---- Multiple bans ----

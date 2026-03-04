@@ -228,8 +228,9 @@ collect_android_features() {
     local features=()
     while IFS= read -r file; do
         if grep -q "@android" "$file"; then
-            # Convert to relative path from features/ root (what Cucumber expects)
-            local rel="${file#$FEATURE_DIR/}"
+            # Convert to asset-relative path: features/admin/foo.feature
+            # Cucumber on Android looks in the assets dir; features are under features/
+            local rel="features/${file#$FEATURE_DIR/}"
             features+=("$rel")
         fi
     done < <(find "$FEATURE_DIR" -name "*.feature" -type f | sort)
@@ -279,22 +280,36 @@ run_tests_on_device() {
 
     # Run Cucumber instrumented tests via am instrument
     # Pass testHubUrl and cucumber.features as instrumentation args
-    # Debug build uses applicationId "org.llamenos.hotline.debug" (suffix from build.gradle.kts)
+    # testApplicationId is "org.llamenos.hotline" (explicit in build.gradle.kts, no debug suffix)
+    # targetPackage is "org.llamenos.hotline.debug" (app applicationId with debug suffix)
     local exit_code=0
     adb -s "$serial" shell am instrument -w \
         -e testHubUrl "$hub_url" \
         -e cucumber.features "$cucumber_features" \
-        org.llamenos.hotline.debug.test/org.llamenos.hotline.CucumberHiltRunner \
+        org.llamenos.hotline/org.llamenos.hotline.CucumberHiltRunner \
         2>&1 | tee "$result_dir/output.txt" || exit_code=$?
 
     # Pull test results
-    adb -s "$serial" pull /storage/emulated/0/Android/data/org.llamenos.hotline.debug.test/files/ \
+    adb -s "$serial" pull /storage/emulated/0/Android/data/org.llamenos.hotline/files/ \
         "$result_dir/" 2>/dev/null || true
 
-    if [ $exit_code -ne 0 ]; then
-        error "Shard ${shard_idx} FAILED on ${serial}"
+    # Check for test failures in output (am instrument returns 0 even on test failures)
+    local failures=0
+    if grep -q "FAILURES!!!" "$result_dir/output.txt" 2>/dev/null; then
+        failures=$(grep "Tests run:" "$result_dir/output.txt" | tail -1 | sed 's/.*Failures: \([0-9]*\).*/\1/')
+        local total=$(grep "Tests run:" "$result_dir/output.txt" | tail -1 | sed 's/Tests run: \([0-9]*\).*/\1/')
+        local passed=$((total - failures))
+        error "Shard ${shard_idx} FAILED on ${serial} — ${passed}/${total} passed, ${failures} failures"
+        exit_code=1
+    elif grep -q "INSTRUMENTATION_CODE: 0" "$result_dir/output.txt" 2>/dev/null && \
+         grep -q "Process crashed" "$result_dir/output.txt" 2>/dev/null; then
+        error "Shard ${shard_idx} CRASHED on ${serial}"
+        exit_code=1
+    elif [ $exit_code -ne 0 ]; then
+        error "Shard ${shard_idx} FAILED on ${serial} (exit code: ${exit_code})"
     else
-        shard "$shard_idx" "PASSED on ${serial}"
+        local total=$(grep "Tests run:" "$result_dir/output.txt" | tail -1 | sed 's/Tests run: \([0-9]*\).*/\1/' 2>/dev/null || echo "?")
+        shard "$shard_idx" "PASSED on ${serial} — ${total} tests passed"
     fi
 
     return $exit_code

@@ -1,6 +1,7 @@
 package org.llamenos.hotline.steps.common
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.onAllNodesWithText
@@ -166,25 +167,22 @@ class GenericSteps : BaseSteps() {
 
     @Then("I should not see {string}")
     fun iShouldNotSee(text: String) {
+        composeRule.waitForIdle()
         val nodes = onAllNodesWithText(text, ignoreCase = true)
-        try {
-            nodes.onFirst().assertDoesNotExist()
-        } catch (_: AssertionError) {
-            // Node exists but may not be displayed — that's fine
-        }
+        val count = nodes.fetchSemanticsNodes().size
+        if (count == 0) return // Not present — passes
+        // If present in tree, verify it's not displayed on screen
+        nodes.onFirst().assertIsNotDisplayed()
     }
 
     @Then("{string} should not be visible")
     fun shouldNotBeVisible(text: String) {
+        composeRule.waitForIdle()
         val nodes = onAllNodesWithText(text, ignoreCase = true)
         val count = nodes.fetchSemanticsNodes().size
         if (count == 0) return // Not present at all — passes
-        // If present, verify it's not displayed
-        try {
-            nodes.onFirst().assertDoesNotExist()
-        } catch (_: AssertionError) {
-            // Element might exist but shouldn't be visible in viewport
-        }
+        // If present in tree, verify it's not displayed on screen
+        nodes.onFirst().assertIsNotDisplayed()
     }
 
     @Then("they should see {string}")
@@ -302,11 +300,8 @@ class GenericSteps : BaseSteps() {
             "Ban List" -> "admin-tab-bans"
             else -> throw IllegalArgumentException("Unknown navigation item: $tabName")
         }
-        try {
-            onNodeWithTag(tag).assertDoesNotExist()
-        } catch (_: AssertionError) {
-            // Not visible — passes
-        }
+        composeRule.waitForIdle()
+        onNodeWithTag(tag).assertDoesNotExist()
     }
 
     @When("they click the {string} link")

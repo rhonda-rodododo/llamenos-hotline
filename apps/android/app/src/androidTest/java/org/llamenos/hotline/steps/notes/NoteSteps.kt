@@ -111,18 +111,20 @@ class NoteSteps : BaseSteps() {
 
     @Then("I should see the full note text")
     fun iShouldSeeTheFullNoteText() {
-        // Conditional — only asserts if notes exist
-        assertAnyTagDisplayed("note-detail-text")
+        val found = assertAnyTagDisplayed("note-detail-text", "notes-empty")
+        assert(found) { "Expected note text or empty state" }
     }
 
     @Then("I should see the creation date")
     fun iShouldSeeTheCreationDate() {
-        // Creation date is part of note detail — conditional on note existence
+        val found = assertAnyTagDisplayed("note-detail-date", "note-detail-text", "notes-empty")
+        assert(found) { "Expected note date, text, or empty state" }
     }
 
     @Then("I should see the author pubkey")
     fun iShouldSeeTheAuthorPubkey() {
-        // Author pubkey is part of note detail — conditional on note existence
+        val found = assertAnyTagDisplayed("note-detail-author", "note-detail-text", "notes-empty")
+        assert(found) { "Expected note author, text, or empty state" }
     }
 
     @When("I am on a note detail view")
@@ -137,7 +139,7 @@ class NoteSteps : BaseSteps() {
 
     @Then("a copy button should be visible in the top bar")
     fun aCopyButtonShouldBeVisibleInTheTopBar() {
-        // Conditional on note existence
-        assertAnyTagDisplayed("note-copy-button")
+        val found = assertAnyTagDisplayed("note-copy-button", "notes-empty")
+        assert(found) { "Expected copy button or empty state" }
     }
 }

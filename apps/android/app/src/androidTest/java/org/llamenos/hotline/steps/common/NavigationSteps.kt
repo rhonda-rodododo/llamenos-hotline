@@ -125,11 +125,8 @@ class NavigationSteps : BaseSteps() {
 
     @Then("the bottom navigation should not be visible")
     fun theBottomNavigationShouldNotBeVisible() {
-        try {
-            onNodeWithTag(NAV_DASHBOARD).assertDoesNotExist()
-        } catch (_: AssertionError) {
-            // Fine — bottom nav is not visible
-        }
+        composeRule.waitForIdle()
+        onNodeWithTag(NAV_DASHBOARD).assertDoesNotExist()
     }
 
     // ---- Login as specific roles ----

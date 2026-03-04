@@ -83,13 +83,14 @@ class CallHistorySteps : BaseSteps() {
 
     @Then("I should see the call history content or empty state")
     fun iShouldSeeTheCallHistoryContentOrEmptyState() {
-        assertAnyTagDisplayed("call-history-list", "call-history-empty", "call-history-loading")
+        val found = assertAnyTagDisplayed("call-history-list", "call-history-empty", "call-history-loading")
+        assert(found) { "Expected call history list, empty state, or loading" }
     }
 
     @Then("the call history screen should support pull to refresh")
     fun theCallHistoryScreenShouldSupportPullToRefresh() {
-        // Verify the screen is displayed (pull-to-refresh wraps the content)
-        assertAnyTagDisplayed("call-history-list", "call-history-empty", "call-history-loading")
+        val found = assertAnyTagDisplayed("call-history-list", "call-history-empty", "call-history-loading")
+        assert(found) { "Expected call history content for pull-to-refresh" }
     }
 
     // ---- Search ----

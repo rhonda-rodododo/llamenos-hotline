@@ -35,10 +35,7 @@ class KeyImportSteps : BaseSteps() {
 
     @Then("the error should disappear")
     fun theErrorShouldDisappear() {
-        try {
-            onNodeWithTag("nsec-error").assertDoesNotExist()
-        } catch (_: AssertionError) {
-            // Error may still be visible briefly during transition
-        }
+        composeRule.waitForIdle()
+        onNodeWithTag("nsec-error").assertDoesNotExist()
     }
 }

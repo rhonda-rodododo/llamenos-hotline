@@ -315,10 +315,9 @@ class RoleSteps : BaseSteps() {
 
     @Then("I should not see the volunteers management")
     fun iShouldNotSeeTheVolunteersManagement() {
-        // Reporter cannot access admin panel
-        // Navigate to settings to check admin card is hidden
         navigateToTab(NAV_SETTINGS)
         composeRule.waitForIdle()
+        onNodeWithTag("settings-admin-card").assertDoesNotExist()
     }
 
     @Then("I should see all navigation items including admin")

@@ -178,6 +178,8 @@ class ShiftSteps : BaseSteps() {
     @Then("the shift should no longer be visible")
     fun theShiftShouldNoLongerBeVisible() {
         composeRule.waitForIdle()
+        val found = assertAnyTagDisplayed("shifts-list", "shifts-empty", "admin-tab-shifts")
+        assert(found) { "Expected shifts list or empty state after deletion" }
     }
 
     @Then("the shift form should be visible")
@@ -188,6 +190,7 @@ class ShiftSteps : BaseSteps() {
     @Then("the shift form should not be visible")
     fun theShiftFormShouldNotBeVisible() {
         composeRule.waitForIdle()
+        onNodeWithTag("shift-name-input").assertDoesNotExist()
     }
 
     @Then("the original shift name should still be visible")

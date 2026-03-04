@@ -56,6 +56,8 @@ class InviteSteps : BaseSteps() {
     @Then("the volunteer name should no longer appear in the list")
     fun theVolunteerNameShouldNoLongerAppearInTheList() {
         composeRule.waitForIdle()
+        val found = assertAnyTagDisplayed("invites-list", "invites-empty")
+        assert(found) { "Expected invites list or empty state after revocation" }
     }
 
     // ---- Invite onboarding (web-specific flows — stubs for Android) ----
@@ -67,17 +69,20 @@ class InviteSteps : BaseSteps() {
 
     @Then("they should see a welcome screen with their name")
     fun theyShouldSeeAWelcomeScreenWithTheirName() {
-        // Welcome screen stub — requires invite deep link handling
+        val found = assertAnyTagDisplayed("dashboard-title", "profile-setup", "pin-title")
+        assert(found) { "Expected welcome screen, dashboard, or profile setup" }
     }
 
     @When("the volunteer completes the onboarding flow")
     fun theVolunteerCompletesTheOnboardingFlow() {
-        // Onboarding flow stub
+        // Onboarding flow handled by navigateToMainScreen
+        navigateToMainScreen()
     }
 
     @Then("they should arrive at the profile setup or dashboard")
     fun theyShouldArriveAtTheProfileSetupOrDashboard() {
-        // Post-onboarding assertion stub
+        val found = assertAnyTagDisplayed("dashboard-title", "profile-setup")
+        assert(found) { "Expected profile setup or dashboard" }
     }
 
 }

@@ -1,8 +1,10 @@
 package org.llamenos.hotline.steps.admin
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -57,7 +59,8 @@ class DemoModeSteps : BaseSteps() {
 
     @Then("I should be redirected to the dashboard")
     fun iShouldBeRedirectedToTheDashboard() {
-        assertAnyTagDisplayed("dashboard-title")
+        val found = assertAnyTagDisplayed("dashboard-title")
+        assert(found) { "Expected dashboard after redirect" }
     }
 
     @Given("demo mode has been enabled")
@@ -119,8 +122,11 @@ class DemoModeSteps : BaseSteps() {
 
     @Then("{string} should no longer be visible")
     fun shouldNoLongerBeVisible(text: String) {
+        composeRule.waitForIdle()
         val nodes = onAllNodesWithText(text, ignoreCase = true)
         val count = nodes.fetchSemanticsNodes().size
         if (count == 0) return // Not present — passes
+        // If present in tree, verify it's not displayed
+        nodes.onFirst().assertIsNotDisplayed()
     }
 }
