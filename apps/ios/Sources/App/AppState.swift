@@ -76,9 +76,37 @@ final class AppState {
         // Generate wake keypair on first launch (non-blocking)
         try? wake.ensureKeypairExists()
 
+        #if DEBUG
+        handleLaunchArguments()
+        #endif
+
         // Determine initial auth state
         resolveAuthStatus()
     }
+
+    // MARK: - Launch Arguments (Test Support)
+
+    #if DEBUG
+    /// Handle launch arguments for XCUITest automation.
+    /// These flags let UI tests set up specific states without going through full flows.
+    private func handleLaunchArguments() {
+        let args = ProcessInfo.processInfo.arguments
+
+        if args.contains("--reset-keychain") {
+            keychainService.deleteAll()
+        }
+
+        if args.contains("--test-authenticated") {
+            // Generate a fresh keypair and unlock the crypto service
+            _ = cryptoService.generateKeypair()
+            isLocked = false
+        }
+
+        if args.contains("--test-admin") {
+            userRole = .admin
+        }
+    }
+    #endif
 
     // MARK: - Auth Status Resolution
 

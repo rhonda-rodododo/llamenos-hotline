@@ -6,13 +6,13 @@
 #
 # Usage:
 #   ./scripts/ios-build.sh status      # Check Xcode/toolchain status
-#   ./scripts/ios-build.sh setup       # Install Rust + iOS targets on Mac
+#   ./scripts/ios-build.sh setup       # Install Rust + iOS targets + xcodegen on Mac
 #   ./scripts/ios-build.sh sync        # Git pull on Mac
-#   ./scripts/ios-build.sh build       # swift build (SPM)
-#   ./scripts/ios-build.sh test        # swift test (SPM)
+#   ./scripts/ios-build.sh build       # Build app via xcodegen + xcodebuild
+#   ./scripts/ios-build.sh test        # Run unit tests (xcodegen project)
+#   ./scripts/ios-build.sh uitest      # Run XCUITests on simulator (xcodegen project)
 #   ./scripts/ios-build.sh xcframework # Build LlamenosCoreFFI XCFramework
-#   ./scripts/ios-build.sh uitest      # Run XCUITest on simulator
-#   ./scripts/ios-build.sh all         # sync + xcframework + build + test
+#   ./scripts/ios-build.sh all         # sync + xcframework + build + test + uitest
 #
 # Environment:
 #   IOS_BUILD_HOST  SSH host alias (default: mac)
@@ -25,8 +25,8 @@ MAC_HOST="${IOS_BUILD_HOST:-mac}"
 REMOTE_DIR="${IOS_BUILD_DIR:-~/projects/llamenos}"
 BRANCH="${IOS_BUILD_BRANCH:-desktop}"
 
-# SPM scheme name (xcodebuild generates "PackageName-Package" for SPM packages)
-XCODE_SCHEME="Llamenos-Package"
+# xcodegen project scheme name
+XCODE_SCHEME="Llamenos"
 
 # Remote shell init — SSH non-login shells miss Homebrew and asdf paths
 REMOTE_INIT='eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null; export PATH="$HOME/.asdf/shims:$HOME/.asdf/bin:$PATH"'
@@ -87,6 +87,23 @@ check_rust() {
   fi
 }
 
+# ─── xcodegen helpers ─────────────────────────────────────────
+
+ensure_xcodeproj() {
+  # Generate .xcodeproj from project.yml if it doesn't exist
+  remote_script <<SCRIPT
+$REMOTE_INIT
+cd "$REMOTE_DIR/apps/ios"
+if [ ! -d "Llamenos.xcodeproj" ]; then
+  echo "Generating Xcode project from project.yml..."
+  xcodegen generate
+  echo "Llamenos.xcodeproj generated."
+else
+  echo "Llamenos.xcodeproj already exists."
+fi
+SCRIPT
+}
+
 # ─── Commands ─────────────────────────────────────────────────
 
 cmd_status() {
@@ -115,6 +132,14 @@ else
   echo "  NOT INSTALLED"
   echo "  Only Command Line Tools are present."
   echo "  Full Xcode is needed for: xcodebuild, XCFramework creation, simulator tests"
+fi
+echo ""
+
+echo "=== xcodegen ==="
+if command -v xcodegen &>/dev/null; then
+  echo "  $(xcodegen version 2>&1 || echo 'installed')"
+else
+  echo "  NOT INSTALLED — run: brew install xcodegen"
 fi
 echo ""
 
@@ -172,6 +197,18 @@ echo "Installed iOS targets:"
 rustup target list --installed | grep ios
 SCRIPT
 
+  # Install xcodegen if missing
+  log "Ensuring xcodegen is installed..."
+  remote_script <<'SCRIPT'
+eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null
+if ! command -v xcodegen &>/dev/null; then
+  echo "Installing xcodegen via Homebrew..."
+  brew install xcodegen
+else
+  echo "xcodegen already installed: $(xcodegen version 2>&1 || echo 'ok')"
+fi
+SCRIPT
+
   # Clone repo if not present
   log "Ensuring project directory exists on $MAC_HOST..."
   remote_script <<SCRIPT
@@ -198,7 +235,7 @@ git fetch origin
 git checkout "$BRANCH"
 git pull origin "$BRANCH"
 echo ""
-echo "HEAD: $(git log --oneline -1)"
+echo "HEAD: \$(git log --oneline -1)"
 SCRIPT
   log "Sync complete."
 }
@@ -215,7 +252,7 @@ cd "$REMOTE_DIR"
 bash packages/crypto/scripts/build-mobile.sh ios
 
 # Copy XCFramework to iOS app directory
-log "Copying XCFramework to apps/ios/..."
+echo "Copying XCFramework to apps/ios/..."
 rm -rf apps/ios/LlamenosCoreFFI.xcframework
 cp -R packages/crypto/dist/ios/LlamenosCoreFFI.xcframework apps/ios/LlamenosCoreFFI.xcframework
 
@@ -230,9 +267,10 @@ SCRIPT
 cmd_build() {
   check_ssh
   check_xcode
-  log "Building iOS app (xcodebuild)..."
+  log "Building iOS app (xcodegen + xcodebuild)..."
 
-  # Find an available simulator for the build destination
+  ensure_xcodeproj
+
   local sim_device
   sim_device=$(find_simulator)
 
@@ -241,6 +279,7 @@ $REMOTE_INIT
 source "\$HOME/.cargo/env" 2>/dev/null || true
 cd "$REMOTE_DIR/apps/ios"
 xcodebuild build \
+  -project Llamenos.xcodeproj \
   -scheme "$XCODE_SCHEME" \
   -destination "platform=iOS Simulator,name=$sim_device" \
   -derivedDataPath /tmp/llamenos-build \
@@ -252,7 +291,9 @@ SCRIPT
 cmd_test() {
   check_ssh
   check_xcode
-  log "Running iOS tests (xcodebuild test)..."
+  log "Running iOS unit tests (xcodegen project)..."
+
+  ensure_xcodeproj
 
   local sim_device
   sim_device=$(find_simulator)
@@ -262,18 +303,22 @@ $REMOTE_INIT
 source "\$HOME/.cargo/env" 2>/dev/null || true
 cd "$REMOTE_DIR/apps/ios"
 xcodebuild test \
+  -project Llamenos.xcodeproj \
   -scheme "$XCODE_SCHEME" \
+  -only-testing:LlamenosTests \
   -destination "platform=iOS Simulator,name=$sim_device" \
   -derivedDataPath /tmp/llamenos-build \
   2>&1
 SCRIPT
-  log "Tests passed."
+  log "Unit tests passed."
 }
 
 cmd_uitest() {
   check_ssh
   check_xcode
   log "Running XCUITests on simulator..."
+
+  ensure_xcodeproj
 
   local sim_device
   sim_device=$(find_simulator)
@@ -283,8 +328,11 @@ cmd_uitest() {
 $REMOTE_INIT
 cd "$REMOTE_DIR/apps/ios"
 xcodebuild test \
+  -project Llamenos.xcodeproj \
   -scheme "$XCODE_SCHEME" \
+  -only-testing:LlamenosUITests \
   -destination "platform=iOS Simulator,name=$sim_device" \
+  -derivedDataPath /tmp/llamenos-build \
   -resultBundlePath TestResults.xcresult \
   2>&1 | xcbeautify 2>/dev/null || cat
 SCRIPT
@@ -313,6 +361,7 @@ cmd_all() {
   cmd_xcframework
   cmd_build
   cmd_test
+  cmd_uitest
   log "All iOS build steps completed successfully."
 }
 
@@ -320,14 +369,14 @@ cmd_help() {
   echo "Usage: $0 <command>"
   echo ""
   echo "Commands:"
-  echo "  status       Check Xcode, Rust, Swift, and simulator status on the Mac"
-  echo "  setup        Install Rust and iOS targets on the Mac (first-time setup)"
+  echo "  status       Check Xcode, Rust, Swift, xcodegen, and simulator status on the Mac"
+  echo "  setup        Install Rust, iOS targets, and xcodegen on the Mac (first-time setup)"
   echo "  sync         Git pull the current branch on the Mac"
-  echo "  build        Run 'swift build' for the iOS app"
-  echo "  test         Run 'swift test' for the iOS app"
+  echo "  build        Build the iOS app (generates .xcodeproj via xcodegen if needed)"
+  echo "  test         Run unit tests via xcodebuild (LlamenosTests target)"
+  echo "  uitest       Run XCUITests on a simulator (LlamenosUITests target)"
   echo "  xcframework  Build the LlamenosCoreFFI XCFramework (requires Xcode + Rust)"
-  echo "  uitest       Run XCUITests on a simulator (requires Xcode)"
-  echo "  all          Run sync + xcframework + build + test"
+  echo "  all          Run sync + xcframework + build + test + uitest"
   echo ""
   echo "Environment variables:"
   echo "  IOS_BUILD_HOST    SSH host alias (default: mac)"

@@ -1,0 +1,70 @@
+name: Llamenos
+
+options:
+  bundleIdPrefix: org.llamenos
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: false
+  groupSortPosition: bottom
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+
+targets:
+  # ─── Main Application ───────────────────────────────────────
+  Llamenos:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    dependencies:
+      - framework: LlamenosCoreFFI.xcframework
+        embed: false
+    info:
+      path: Sources/App/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.llamenos.hotline
+        INFOPLIST_FILE: Sources/App/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+    scheme:
+      testTargets:
+        - LlamenosTests
+        - LlamenosUITests
+      gatherCoverageData: true
+      coverageTargets:
+        - Llamenos
+
+  # ─── Unit Tests ──────────────────────────────────────────────
+  LlamenosTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/Unit
+    dependencies:
+      - target: Llamenos
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.llamenos.hotline.tests
+        GENERATE_INFOPLIST_FILE: "YES"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Llamenos.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Llamenos"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+  # ─── UI Tests ────────────────────────────────────────────────
+  LlamenosUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: Tests/UI
+    dependencies:
+      - target: Llamenos
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.llamenos.hotline.uitests
+        GENERATE_INFOPLIST_FILE: "YES"
+        TEST_TARGET_NAME: Llamenos
