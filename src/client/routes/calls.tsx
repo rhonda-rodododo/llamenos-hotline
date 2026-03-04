@@ -198,14 +198,14 @@ function CallHistoryPage() {
               ))}
             </div>
           ) : calls.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
+            <div data-testid="empty-state" className="py-8 text-center text-muted-foreground">
               <PhoneIncoming className="mx-auto mb-2 h-8 w-8 opacity-40" />
               {hasFilters ? t('callHistory.noResults') : t('callHistory.noCalls')}
             </div>
           ) : (
-            <div className="divide-y divide-border">
+            <div data-testid="call-list" className="divide-y divide-border">
               {calls.map(call => (
-                <div key={call.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+                <div key={call.id} data-testid="call-row" className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
                   <div className="min-w-0 flex-1 sm:flex-none sm:w-48">
                     {call.status === 'unanswered' ? (
                       <div className="flex items-center gap-1.5">

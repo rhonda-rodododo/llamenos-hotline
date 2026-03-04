@@ -211,24 +211,9 @@ When('the volunteer logs in and navigates to {string}', async ({ page }, path: s
   await navigateAfterLogin(page, path)
 })
 
-When('the reviewer logs in', async ({ page }) => {
-  const nsec = (await page.evaluate(() => (window as Record<string, unknown>).__test_vol_nsec)) as string
-  if (nsec) {
-    await loginAsVolunteer(page, nsec)
-  }
-})
+// "the reviewer logs in" is defined in roles-extended-steps.ts
 
-Given('a volunteer with the {string} role exists', async ({ page }) => {
-  // Create volunteer — role assignment is an admin action
-  await Navigation.goToVolunteers(page)
-  const name = `RoleVol ${Date.now()}`
-  const phone = `+1555${Date.now().toString().slice(-7)}`
-  const nsec = await createVolunteerAndGetNsec(page, name, phone)
-  await page.evaluate((n) => {
-    (window as Record<string, unknown>).__test_vol_nsec = n
-  }, nsec)
-  await dismissNsecCard(page)
-})
+// "a volunteer with the {string} role exists" is defined in roles-extended-steps.ts (API-based)
 
 Given('a reporter has been invited and onboarded', async ({ page }) => {
   // Create a reporter via volunteer creation flow

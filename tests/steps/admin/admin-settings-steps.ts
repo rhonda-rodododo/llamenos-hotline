@@ -21,7 +21,7 @@ Then('I should see the transcription settings card', async ({ page }) => {
 Then('I should see the transcription enabled toggle', async ({ page }) => {
   const section = page.getByTestId(TestIds.TRANSCRIPTION_SECTION)
   await expect(section).toBeVisible({ timeout: Timeouts.ELEMENT })
-  const toggle = section.locator('input[type="checkbox"], [role="switch"]').first()
+  const toggle = section.locator('[role="switch"], input[type="checkbox"]').first()
   await expect(toggle).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
@@ -33,7 +33,7 @@ Then('I should see the transcription opt-out toggle', async ({ page }) => {
 When('I toggle transcription on', async ({ page }) => {
   const section = page.getByTestId(TestIds.TRANSCRIPTION_SECTION)
   await expect(section).toBeVisible({ timeout: Timeouts.ELEMENT })
-  const toggle = section.locator('input[type="checkbox"], [role="switch"]').first()
+  const toggle = section.locator('[role="switch"], input[type="checkbox"]').first()
   await expect(toggle).toBeVisible({ timeout: Timeouts.ELEMENT })
   await toggle.click()
 })
@@ -42,7 +42,7 @@ Then('transcription should be enabled', async ({ page }) => {
   const section = page.getByTestId(TestIds.TRANSCRIPTION_SECTION)
   await expect(section).toBeVisible({ timeout: Timeouts.ELEMENT })
   // Verify toggle state
-  const toggle = section.locator('input[type="checkbox"], [role="switch"]').first()
+  const toggle = section.locator('[role="switch"], input[type="checkbox"]').first()
   await expect(toggle).toBeChecked()
 })
 

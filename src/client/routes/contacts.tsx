@@ -229,7 +229,7 @@ function ContactsPage() {
           </CardContent>
         </Card>
       ) : contacts.length === 0 ? (
-        <Card>
+        <Card data-testid="empty-state">
           <CardContent className="py-8 text-center text-muted-foreground">
             <Contact className="mx-auto mb-2 h-8 w-8 opacity-40" />
             {t('contacts.noContacts', { defaultValue: 'No contacts found' })}

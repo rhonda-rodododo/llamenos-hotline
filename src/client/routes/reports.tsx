@@ -186,14 +186,14 @@ function ReportsPage() {
           <FileText className="h-6 w-6 text-primary" />
           <h1 data-testid="page-title" className="text-xl font-bold sm:text-2xl">{t('reports.title', { defaultValue: 'Reports' })}</h1>
         </div>
-        <Button size="sm" onClick={() => setShowForm(true)}>
+        <Button size="sm" data-testid="report-new-btn" onClick={() => setShowForm(true)}>
           <Plus className="h-3.5 w-3.5" />
           {t('reports.new', { defaultValue: 'New' })}
         </Button>
       </div>
 
       {showEmptyState ? (
-        <Card>
+        <Card data-testid="empty-state">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <FileText className="mb-3 h-10 w-10 text-muted-foreground/40" />
             <p className="text-muted-foreground">{t('reports.noReports', { defaultValue: 'No reports' })}</p>
@@ -205,7 +205,7 @@ function ReportsPage() {
       ) : (
         <div className="flex h-[calc(100vh-12rem)] gap-4">
           {/* Report list sidebar */}
-          <div className="w-80 shrink-0 overflow-y-auto rounded-lg border border-border bg-card">
+          <div data-testid="report-list" className="w-80 shrink-0 overflow-y-auto rounded-lg border border-border bg-card">
             <div className="sticky top-0 z-10 border-b border-border bg-card p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold flex items-center gap-2">
@@ -215,7 +215,7 @@ function ReportsPage() {
               </div>
 
               {isAdmin && (
-                <div className="flex gap-2">
+                <div data-testid="report-filter-area" className="flex gap-2">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger size="sm" className="flex-1">
                       <SelectValue />
@@ -258,7 +258,7 @@ function ReportsPage() {
           </div>
 
           {/* Report detail */}
-          <div className="flex flex-1 flex-col rounded-lg border border-border bg-card overflow-hidden">
+          <div data-testid="report-detail" className="flex flex-1 flex-col rounded-lg border border-border bg-card overflow-hidden">
             {selectedReport ? (
               <ReportDetail
                 report={selectedReport}
@@ -313,6 +313,7 @@ function ReportCard({ report, isSelected, onSelect }: {
   return (
     <button
       type="button"
+      data-testid="report-card"
       onClick={() => onSelect(report.id)}
       className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
         isSelected
@@ -369,7 +370,7 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <div data-testid="report-metadata" className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">
             {report.metadata?.reportTitle || t('reports.untitled', { defaultValue: 'Untitled Report' })}
@@ -389,7 +390,7 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-3">
           {report.status === 'waiting' && (isAdmin || hasPermission('calls:answer')) && (
-            <Button size="sm" onClick={() => onAssign(report.id)}>
+            <Button size="sm" data-testid="report-claim-btn" onClick={() => onAssign(report.id)}>
               <UserCheck className="h-3.5 w-3.5" />
               {t('reports.claim', { defaultValue: 'Claim' })}
             </Button>
@@ -468,7 +469,7 @@ function ReportStatusBadge({ status }: { status: string }) {
 
   if (status === 'active') {
     return (
-      <Badge variant="secondary" className="gap-1">
+      <Badge data-testid="report-status-badge" variant="secondary" className="gap-1">
         <CheckCircle2 className="h-3 w-3 text-green-500" />
         {t('reports.statusActive', { defaultValue: 'Active' })}
       </Badge>
@@ -476,14 +477,14 @@ function ReportStatusBadge({ status }: { status: string }) {
   }
   if (status === 'waiting') {
     return (
-      <Badge variant="secondary" className="gap-1">
+      <Badge data-testid="report-status-badge" variant="secondary" className="gap-1">
         <AlertCircle className="h-3 w-3 text-yellow-500" />
         {t('reports.statusWaiting', { defaultValue: 'Waiting' })}
       </Badge>
     )
   }
   return (
-    <Badge variant="secondary" className="gap-1 text-muted-foreground">
+    <Badge data-testid="report-status-badge" variant="secondary" className="gap-1 text-muted-foreground">
       {t('reports.statusClosed', { defaultValue: 'Closed' })}
     </Badge>
   )

@@ -11,7 +11,6 @@ const bddTestDir = defineBddConfig({
 
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: ["**/live/**", "**/desktop/**", "**/integration/**"],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -35,7 +34,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: [/bootstrap\.spec\.ts/, "**/integration/**"],
+      testIgnore: [/bootstrap\.spec\.ts/, "**/live/**", "**/desktop/**", "**/integration/**"],
       dependencies: ["setup"],
     },
     {

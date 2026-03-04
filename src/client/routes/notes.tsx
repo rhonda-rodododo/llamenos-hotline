@@ -365,7 +365,7 @@ function NotesPage() {
           </CardContent>
         </Card>
       ) : Object.keys(notesByCall).length === 0 ? (
-        <Card>
+        <Card data-testid="empty-state">
           <CardContent>
             <div className="py-8 text-center text-muted-foreground">
               <StickyNote className="mx-auto mb-2 h-8 w-8 opacity-40" />
@@ -419,7 +419,7 @@ function NotesPage() {
               </CardHeader>
               <CardContent className="p-0 divide-y divide-border">
                 {callNotes.map(note => (
-                  <div key={note.id} className="px-6 py-4">
+                  <div key={note.id} data-testid="note-card" className="px-6 py-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">

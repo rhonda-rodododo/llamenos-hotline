@@ -52,7 +52,7 @@ export function MessageComposer({ onSend, disabled = false, channelType }: Messa
   const canSend = text.trim().length > 0 && !disabled
 
   return (
-    <div className="border-t border-border bg-background px-4 py-3">
+    <div data-testid="message-composer" className="border-t border-border bg-background px-4 py-3">
       <div className="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
         <Lock className="h-3 w-3" />
         <span>{t('notes.encryptionNote')}</span>

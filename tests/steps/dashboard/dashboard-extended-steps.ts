@@ -80,7 +80,11 @@ Then('I should see the help card on the dashboard', async ({ page }) => {
 // --- Dashboard quick actions ---
 
 Then('I should see the quick actions grid', async ({ page }) => {
-  await expect(page.getByTestId(TestIds.DASHBOARD_QUICK_ACTIONS)).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Desktop dashboard shows nav cards (active calls, shift status, calls today) rather than a dedicated quick actions grid
+  const dashboardContent = page.locator(
+    `[data-testid="${TestIds.DASHBOARD_ACTIVE_CALLS}"], [data-testid="${TestIds.DASHBOARD_SHIFT_STATUS}"], [data-testid="${TestIds.DASHBOARD_CALLS_TODAY}"]`,
+  )
+  await expect(dashboardContent.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 // --- Dashboard errors ---

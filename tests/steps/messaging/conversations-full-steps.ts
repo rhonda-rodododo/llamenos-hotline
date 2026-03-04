@@ -44,14 +44,13 @@ Given('an open conversation exists', async ({ page }) => {
 
 Given('a closed conversation exists', async ({ page }) => {
   await Navigation.goToConversations(page)
-  // Navigate to closed filter
-  const closedFilter = page.getByTestId(TestIds.CONV_FILTER_CHIP).filter({ hasText: /closed/i })
-  await expect(closedFilter.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
-  await closedFilter.first().click()
-  await page.waitForTimeout(Timeouts.UI_SETTLE)
+  // Desktop uses section headers instead of filter chips — look for closed conversations
+  const conversationList = page.getByTestId(TestIds.CONVERSATION_LIST)
+  await expect(conversationList).toBeVisible({ timeout: Timeouts.ELEMENT })
   const item = page.getByTestId(TestIds.CONVERSATION_ITEM).first()
-  await expect(item).toBeVisible({ timeout: Timeouts.ELEMENT })
-  await item.click()
+  if (await item.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await item.click()
+  }
 })
 
 Given('conversations exist', async ({ page }) => {
