@@ -29,6 +29,7 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
   /* Subtle noise texture for depth */
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
 }
@@ -163,14 +164,54 @@ a {
   margin: 2rem 0;
 }
 
+/* Table responsive wrapper — JS wraps each table in .table-wrap */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+}
+
+/* Scroll hint: fade edge on small screens */
+@media (max-width: 767px) {
+  .table-wrap {
+    position: relative;
+  }
+  .table-wrap::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 2rem;
+    background: linear-gradient(to right, transparent, var(--color-bg));
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.2s;
+  }
+  .table-wrap.scrolled-end::after {
+    opacity: 0;
+  }
+}
+
 .prose table {
   width: 100%;
   border-collapse: collapse;
+  margin-bottom: 0;
+}
+
+.prose .table-wrap + * {
+  /* Reset margin when table is inside wrapper (wrapper has the margin) */
+}
+
+/* When table is NOT wrapped (fallback), keep margin */
+.prose > table {
   margin-bottom: 1.5rem;
 }
 
 .prose th, .prose td {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid var(--color-border);
   text-align: left;
 }
@@ -179,10 +220,26 @@ a {
   background: var(--color-bg-soft);
   font-weight: 600;
   color: var(--color-fg);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .prose td {
   color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 767px) {
+  .prose th, .prose td {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+  .prose td:last-child {
+    white-space: normal;
+    min-width: 8rem;
+  }
 }
 
 /* Details/Summary (security page collapsibles) */
