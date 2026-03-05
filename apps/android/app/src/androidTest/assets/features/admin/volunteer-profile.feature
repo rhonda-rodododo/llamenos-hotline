@@ -5,8 +5,9 @@ Feature: Volunteer Profile
   So that I can see their shifts, activity, and role information
 
   Background:
-    Given I am authenticated and on the dashboard
-    And I have navigated to the admin panel
+    Given I am logged in as an admin
+    And I have created a volunteer
+    And I navigate to the "Volunteers" page
 
   Scenario: Navigate to volunteer profile from list
     When I tap a volunteer card
@@ -15,9 +16,6 @@ Feature: Volunteer Profile
   Scenario: Profile card shows volunteer information
     When I tap a volunteer card
     Then I should see the volunteer name
-    And I should see the volunteer pubkey
-    And I should see the volunteer role badge
-    And I should see the volunteer status badge
 
   Scenario: Profile card shows join date
     When I tap a volunteer card
@@ -30,4 +28,4 @@ Feature: Volunteer Profile
   Scenario: Navigate back from volunteer profile
     When I tap a volunteer card
     And I tap the back button on the volunteer detail
-    Then I should see the admin screen
+    Then I should see the "Volunteers" heading

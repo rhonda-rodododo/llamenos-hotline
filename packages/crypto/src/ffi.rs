@@ -6,7 +6,7 @@
 //! These are the only versions visible to Swift/Kotlin via UniFFI bindings.
 //! The original functions remain available for direct Rust consumers (Tauri, WASM).
 
-use crate::ecies::{ecies_unwrap_key, ecies_wrap_key, ecies_decrypt_content, random_bytes_32, KeyEnvelope, RecipientKeyEnvelope};
+use crate::ecies::{ecies_unwrap_key, ecies_wrap_key, ecies_decrypt_content, ecies_encrypt_content, random_bytes_32, KeyEnvelope, RecipientKeyEnvelope};
 use crate::encryption::{
     decrypt_call_record, decrypt_message, derive_kek_from_pin, encrypt_message, encrypt_note,
     EncryptedMessage, EncryptedNote,
@@ -203,10 +203,12 @@ pub fn decrypt_with_shared_key_hex(
 ///
 /// Returns a "XXX XXX" formatted 6-digit code. Both devices compute this
 /// independently — matching codes prove no MITM is present.
+///
+/// Uses the `hkdf` crate for proper HKDF (M25 — replaces manual HMAC HKDF).
 #[uniffi::export]
 pub fn compute_sas_code(shared_x_hex: &str) -> Result<String, CryptoError> {
-    use hmac::Mac;
-    type HmacSha256 = hmac::Hmac<sha2::Sha256>;
+    use hkdf::Hkdf;
+    use sha2::Sha256;
 
     let shared_x = hex::decode(shared_x_hex).map_err(CryptoError::HexError)?;
     if shared_x.len() != 32 {
@@ -214,31 +216,40 @@ pub fn compute_sas_code(shared_x_hex: &str) -> Result<String, CryptoError> {
     }
 
     // HKDF-SHA256(ikm=shared_x, salt=SAS_SALT, info=SAS_INFO, length=4)
-    let prk = {
-        let mut mac = HmacSha256::new_from_slice(SAS_SALT.as_bytes())
-            .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-        mac.update(&shared_x);
-        mac.finalize().into_bytes()
-    };
-    let mut mac = HmacSha256::new_from_slice(&prk)
-        .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    mac.update(SAS_INFO.as_bytes());
-    mac.update(&[1u8]); // HKDF counter byte
-    let okm = mac.finalize().into_bytes();
-    let sas_bytes = &okm[..4];
+    let hk = Hkdf::<Sha256>::new(Some(SAS_SALT.as_bytes()), &shared_x);
+    let mut okm = [0u8; 4];
+    hk.expand(SAS_INFO.as_bytes(), &mut okm)
+        .expect("HKDF 4-byte expand should not fail");
 
-    let num = ((sas_bytes[0] as u32) << 24
-        | (sas_bytes[1] as u32) << 16
-        | (sas_bytes[2] as u32) << 8
-        | (sas_bytes[3] as u32)) % 1_000_000;
+    let num = ((okm[0] as u32) << 24
+        | (okm[1] as u32) << 16
+        | (okm[2] as u32) << 8
+        | (okm[3] as u32)) % 1_000_000;
     let code = format!("{:06}", num);
     Ok(format!("{} {}", &code[..3], &code[3..]))
 }
 
+/// Encrypt arbitrary content via ECIES for a recipient.
+///
+/// Returns `(packed_hex, ephemeral_pubkey_hex)`.
+#[uniffi::export]
+pub fn ecies_encrypt_content_hex(
+    plaintext: &str,
+    recipient_pubkey_hex: &str,
+    label: &str,
+) -> Result<Vec<String>, CryptoError> {
+    let (packed_hex, ephemeral_hex) = ecies_encrypt_content(
+        plaintext.as_bytes(),
+        recipient_pubkey_hex,
+        label,
+    )?;
+    Ok(vec![packed_hex, ephemeral_hex])
+}
+
 /// Decrypt an ECIES-encrypted payload (arbitrary length content).
 ///
-/// Used for wake-tier push notification decryption and other ECIES content.
-/// `packed_hex`: hex(nonce_24 + ciphertext)
+/// Supports both v2 (HKDF, version byte prefix) and v1 (legacy SHA-256) formats.
+/// `packed_hex`: hex(version_byte? + nonce_24 + ciphertext)
 /// `ephemeral_pubkey_hex`: compressed SEC1 (33 bytes / 66 hex chars)
 /// `secret_key_hex`: recipient's secret key
 /// `label`: domain separation label (e.g., LABEL_PUSH_WAKE)

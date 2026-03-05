@@ -72,8 +72,11 @@ export class RecordsDO extends DurableObject<Env> {
     })
     this.router.post('/audit', async (req) => this.addAuditEntry(await req.json()))
 
-    // --- Test Reset ---
+    // --- Test Reset (demo mode only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
+      if (this.env.DEMO_MODE !== 'true') {
+        return new Response('Reset not allowed outside demo mode', { status: 403 })
+      }
       await this.ctx.storage.deleteAll()
       return Response.json({ ok: true })
     })
@@ -384,6 +387,11 @@ export class RecordsDO extends DurableObject<Env> {
   }
 
   private async addAuditEntry(data: { event: string; actorPubkey: string; details: Record<string, unknown> }): Promise<Response> {
+    // Validate actorPubkey format: must be 'system' or a 64-char hex string
+    if (data.actorPubkey !== 'system' && !/^[0-9a-f]{64}$/.test(data.actorPubkey)) {
+      return Response.json({ error: 'Invalid actorPubkey format' }, { status: 400 })
+    }
+
     // Get the last entry's hash for chain linking
     const lastHash = await this.ctx.storage.get<string>('audit:_lastHash') || ''
 

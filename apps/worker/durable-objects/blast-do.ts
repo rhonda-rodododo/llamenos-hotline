@@ -49,8 +49,11 @@ export class BlastDO extends DurableObject<Env> {
     this.router.get('/blast-settings', () => this.getBlastSettings())
     this.router.patch('/blast-settings', async (req) => this.updateBlastSettings(await req.json()))
 
-    // --- Test Reset ---
+    // --- Test Reset (demo mode only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
+      if (this.env.DEMO_MODE !== 'true') {
+        return new Response('Reset not allowed outside demo mode', { status: 403 })
+      }
       await this.ctx.storage.deleteAll()
       return Response.json({ ok: true })
     })
@@ -125,6 +128,8 @@ export class BlastDO extends DurableObject<Env> {
       }
 
       await this.ctx.storage.put(`subscribers:${data.identifierHash}`, subscriber)
+      // Write preference token index for constant-time lookup
+      await this.ctx.storage.put(`preferenceToken:${subscriber.preferenceToken}`, data.identifierHash)
       await this.addToChannelIndex(data.channel, subscriber.id)
 
       return Response.json({
@@ -191,6 +196,11 @@ export class BlastDO extends DurableObject<Env> {
     // Remove from channel indexes
     for (const ch of subscriber.channels) {
       await this.removeFromChannelIndex(ch.type, subscriber.id)
+    }
+
+    // Remove preference token index
+    if (subscriber.preferenceToken) {
+      await this.ctx.storage.delete(`preferenceToken:${subscriber.preferenceToken}`)
     }
 
     await this.ctx.storage.delete(`subscribers:${subscriber.identifierHash}`)
@@ -263,6 +273,8 @@ export class BlastDO extends DurableObject<Env> {
       }
 
       await this.ctx.storage.put(`subscribers:${identifierHash}`, subscriber)
+      // Write preference token index for constant-time lookup
+      await this.ctx.storage.put(`preferenceToken:${subscriber.preferenceToken}`, identifierHash)
       await this.addToChannelIndex(entry.channel, subscriber.id)
       imported++
     }
@@ -271,8 +283,12 @@ export class BlastDO extends DurableObject<Env> {
   }
 
   private async validatePreferenceToken(data: { token: string }): Promise<Response> {
-    const subscribers = await this.getAllSubscribers()
-    const subscriber = subscribers.find(s => s.preferenceToken === data.token)
+    // Direct storage lookup via index instead of scanning all subscribers
+    const subscriberHash = await this.ctx.storage.get<string>(`preferenceToken:${data.token}`)
+    if (!subscriberHash) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 404 })
+    }
+    const subscriber = await this.ctx.storage.get<Subscriber>(`subscribers:${subscriberHash}`)
     if (!subscriber) {
       return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 404 })
     }
@@ -291,8 +307,12 @@ export class BlastDO extends DurableObject<Env> {
     status?: 'active' | 'paused' | 'unsubscribed'
     tags?: string[]
   }): Promise<Response> {
-    const subscribers = await this.getAllSubscribers()
-    const subscriber = subscribers.find(s => s.preferenceToken === data.token)
+    // Direct storage lookup via index instead of scanning all subscribers
+    const subscriberHash = await this.ctx.storage.get<string>(`preferenceToken:${data.token}`)
+    if (!subscriberHash) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 404 })
+    }
+    const subscriber = await this.ctx.storage.get<Subscriber>(`subscribers:${subscriberHash}`)
     if (!subscriber) {
       return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 404 })
     }
@@ -389,6 +409,20 @@ export class BlastDO extends DurableObject<Env> {
     if (!blast) return new Response('Blast not found', { status: 404 })
     if (blast.status !== 'draft' && blast.status !== 'scheduled') {
       return new Response(JSON.stringify({ error: 'Blast is not in a sendable state' }), { status: 400 })
+    }
+
+    // Enforce maxBlastsPerDay limit
+    const settings = await this.getBlastSettingsData()
+    const today = new Date().toISOString().slice(0, 10)
+    const allBlasts = await this.ctx.storage.list<Blast>({ prefix: 'blasts:' })
+    let sentToday = 0
+    for (const [, b] of allBlasts) {
+      if ((b.status === 'sent' || b.status === 'sending') && b.sentAt?.startsWith(today)) {
+        sentToday++
+      }
+    }
+    if (sentToday >= (settings.maxBlastsPerDay || 10)) {
+      return new Response(JSON.stringify({ error: 'Daily blast limit reached' }), { status: 429 })
     }
 
     // Gather target subscribers

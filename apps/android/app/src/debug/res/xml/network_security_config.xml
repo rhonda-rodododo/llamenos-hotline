@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network security configuration for llamenos (debug only).
+
+    Extends the release config with cleartext exceptions for local development:
+    - localhost (Vite dev server via adb reverse)
+    - 10.0.2.2 (Android emulator host loopback)
+    - 192.168.x.x (LAN development server)
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Allow cleartext to localhost and LAN for development only -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="true">192.168.50.95</domain>
+    </domain-config>
+</network-security-config>

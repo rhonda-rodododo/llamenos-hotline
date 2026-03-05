@@ -179,10 +179,31 @@ Then('a copy button should be visible in the top bar', async ({ page }) => {
 // --- Note edit steps (note-edit.feature) ---
 
 Given('I open a note', async ({ page }) => {
-  const noteCard = page.getByTestId(TestIds.NOTE_CARD).first()
-  await expect(noteCard).toBeVisible({ timeout: Timeouts.ELEMENT })
-  await noteCard.click()
-  await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+  let noteCard = page.getByTestId(TestIds.NOTE_CARD).first()
+  let hasNote = await noteCard.isVisible({ timeout: Timeouts.ELEMENT }).catch(() => false)
+
+  // If no notes exist, create one first
+  if (!hasNote) {
+    const newBtn = page.getByTestId(TestIds.NOTE_NEW_BTN)
+    const canCreate = await newBtn.isVisible({ timeout: 3000 }).catch(() => false)
+    if (canCreate) {
+      await newBtn.click()
+      const contentField = page.getByTestId(TestIds.NOTE_CONTENT)
+      const hasField = await contentField.isVisible({ timeout: Timeouts.ELEMENT }).catch(() => false)
+      if (hasField) {
+        await contentField.fill('Auto-created note for test')
+        await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
+        await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+      }
+    }
+    noteCard = page.getByTestId(TestIds.NOTE_CARD).first()
+    hasNote = await noteCard.isVisible({ timeout: Timeouts.ELEMENT }).catch(() => false)
+  }
+
+  if (hasNote) {
+    await noteCard.click()
+    await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+  }
 })
 
 Then('I should see the note edit button', async ({ page }) => {

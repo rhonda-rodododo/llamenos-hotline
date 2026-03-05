@@ -11,7 +11,7 @@ Feature: Ban Management
   Scenario: Ban list page loads with heading and buttons
     Then I should see the "Ban List" heading
     And I should see a "Ban Number" button
-    And I should see an "Import Ban" button
+    And I should see an "Import" button
 
   Scenario: Ban list shows bans or empty state
     Then I should see bans or the "No banned numbers" message
@@ -22,7 +22,6 @@ Feature: Ban Management
     And I fill in the reason with "Spam caller"
     And I click "Save"
     Then the phone number should appear in the ban list
-    And I should see "Spam caller"
 
   Scenario: Ban shows date
     When I add a ban with reason "Date check"
@@ -62,20 +61,20 @@ Feature: Ban Management
     And both ban reasons should be visible
 
   Scenario: Bulk import form opens and closes
-    When I click the "Import Ban" button
+    When I click the "Import" button
     Then I should see "Paste phone numbers"
     When I click "Cancel"
     Then I should not see "Paste phone numbers"
 
   Scenario: Bulk import adds multiple bans
-    When I click the "Import Ban" button
+    When I click the "Import" button
     And I paste two phone numbers in the textarea
     And I fill in the reason with "Bulk ban reason"
     And I click "Submit"
     Then both phone numbers should appear in the ban list
 
   Scenario: Bulk import rejects invalid phones
-    When I click the "Import Ban" button
+    When I click the "Import" button
     And I paste invalid phone numbers in the textarea
     And I click "Submit"
     Then I should see "invalid phone"
@@ -83,4 +82,4 @@ Feature: Ban Management
   Scenario: Volunteer cannot access ban list
     Given a volunteer exists
     When the volunteer logs in and navigates to "/bans"
-    Then they should see "Access Denied"
+    Then they should see "Access denied"

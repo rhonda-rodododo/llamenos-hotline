@@ -9,6 +9,7 @@
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { sha256 } from '@noble/hashes/sha2.js'
+import { hkdf } from '@noble/hashes/hkdf.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import type { EncryptedFileMetadata, FileKeyEnvelope } from '@shared/types'
@@ -55,20 +56,19 @@ function encryptMetadataForPubkey(
   const shared = secp256k1.getSharedSecret(ephemeralSecret, recipientCompressed)
   const sharedX = shared.slice(1, 33)
 
-  const label = utf8ToBytes(LABEL_FILE_METADATA)
-  const keyInput = new Uint8Array(label.length + sharedX.length)
-  keyInput.set(label)
-  keyInput.set(sharedX, label.length)
-  const symmetricKey = sha256(keyInput)
+  // ECIES v2: HKDF-SHA256 key derivation with version byte
+  const symmetricKey = hkdf(sha256, sharedX, new Uint8Array(0), utf8ToBytes(LABEL_FILE_METADATA), 32)
 
   const nonce = randomBytes(24)
-  const cipher = xchacha20poly1305(symmetricKey, nonce)
+  const cipher = xchacha20poly1305(symmetricKey as Uint8Array, nonce)
   const plaintext = utf8ToBytes(JSON.stringify(metadata))
   const ciphertext = cipher.encrypt(plaintext)
 
-  const packed = new Uint8Array(nonce.length + ciphertext.length)
-  packed.set(nonce)
-  packed.set(ciphertext, nonce.length)
+  // Pack: version(1) + nonce(24) + ciphertext
+  const packed = new Uint8Array(1 + nonce.length + ciphertext.length)
+  packed[0] = 0x02 // ECIES_VERSION_V2
+  packed.set(nonce, 1)
+  packed.set(ciphertext, 1 + nonce.length)
 
   return {
     pubkey: recipientPubkeyHex,

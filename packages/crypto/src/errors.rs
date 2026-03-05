@@ -53,4 +53,7 @@ pub enum CryptoError {
 
     #[error("Invalid PIN: must be 4-6 digits")]
     InvalidPin,
+
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
 }

@@ -30,11 +30,19 @@ Given('I am on the note detail screen', async ({ page, request }) => {
     const canCreate = await newBtn.isVisible({ timeout: Timeouts.ELEMENT }).catch(() => false)
     if (canCreate) {
       await newBtn.click()
+      // Fill call ID if the field exists (required for save button to enable)
+      const callIdInput = page.getByTestId(TestIds.NOTE_CALL_ID)
+      if (await callIdInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await callIdInput.fill(`CALL-${Date.now()}`)
+      }
       const contentField = page.getByTestId(TestIds.NOTE_CONTENT)
       const hasField = await contentField.isVisible({ timeout: Timeouts.ELEMENT }).catch(() => false)
       if (hasField) {
         await contentField.fill('Test note for thread')
-        await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
+        const saveBtn = page.getByTestId(TestIds.FORM_SAVE_BTN)
+        // Wait for button to become enabled after filling required fields
+        await expect(saveBtn).toBeEnabled({ timeout: 5000 }).catch(() => {})
+        await saveBtn.click({ timeout: Timeouts.ELEMENT })
         await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
       }
     }

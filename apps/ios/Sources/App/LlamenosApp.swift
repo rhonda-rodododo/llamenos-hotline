@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The main entry point for the Llamenos iOS app. Manages the app lifecycle,
-/// injects the root `AppState` into the environment, and handles background
-/// lock timeout (5 minutes).
+/// injects the root `AppState` into the environment, handles background
+/// lock timeout (M26: user-configurable), and screenshot protection (M28).
 @main
 struct LlamenosApp: App {
     @Environment(\.scenePhase) private var scenePhase
@@ -10,25 +10,37 @@ struct LlamenosApp: App {
     @State private var router = Router()
     @State private var backgroundTimestamp: Date?
 
-    /// Time in seconds before the app locks after entering background.
-    /// 5 minutes — balances security with usability for volunteers mid-shift.
-    private let lockTimeout: TimeInterval = 300
+    /// M28: Whether to show the privacy overlay (app switcher / inactive state).
+    @State private var showPrivacyOverlay: Bool = false
+
+    /// M26: User-configurable auto-lock timeout. Persisted via @AppStorage (UserDefaults).
+    /// Default 300s (5 minutes) — balances security with usability for volunteers mid-shift.
+    @AppStorage("autoLockTimeout") private var lockTimeout: TimeInterval = 300
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(appState)
-                .environment(router)
-                .onAppear {
-                    // Sync router to initial auth state (onChange only fires on subsequent changes)
-                    router.resetForAuthStatus(appState.authStatus)
+            ZStack {
+                ContentView()
+                    .environment(appState)
+                    .environment(router)
+                    .onAppear {
+                        // Sync router to initial auth state (onChange only fires on subsequent changes)
+                        router.resetForAuthStatus(appState.authStatus)
+                    }
+                    .onChange(of: scenePhase) { oldPhase, newPhase in
+                        handleScenePhaseChange(from: oldPhase, to: newPhase)
+                    }
+                    .onChange(of: appState.authStatus) { _, newStatus in
+                        router.resetForAuthStatus(newStatus)
+                    }
+
+                // M28: Privacy overlay — hides sensitive content in app switcher
+                if showPrivacyOverlay {
+                    PrivacyOverlayView()
+                        .transition(.opacity)
                 }
-                .onChange(of: scenePhase) { oldPhase, newPhase in
-                    handleScenePhaseChange(from: oldPhase, to: newPhase)
-                }
-                .onChange(of: appState.authStatus) { _, newStatus in
-                    router.resetForAuthStatus(newStatus)
-                }
+            }
+            .animation(.easeInOut(duration: 0.15), value: showPrivacyOverlay)
         }
     }
 
@@ -39,6 +51,7 @@ struct LlamenosApp: App {
         case .background:
             // Record when the app entered background for lock timeout calculation
             backgroundTimestamp = Date()
+            showPrivacyOverlay = true
 
         case .active:
             // Check if the lock timeout has elapsed while in background
@@ -49,13 +62,39 @@ struct LlamenosApp: App {
                 }
             }
             backgroundTimestamp = nil
+            showPrivacyOverlay = false
 
         case .inactive:
-            // Transitional state (e.g., app switcher) — no action needed
-            break
+            // M28: Show privacy overlay when entering app switcher
+            showPrivacyOverlay = true
 
         @unknown default:
             break
         }
+    }
+}
+
+// MARK: - Privacy Overlay (M28)
+
+/// Full-screen overlay shown when the app enters the background or app switcher.
+/// Prevents screenshots of sensitive content (notes, keys) in the multitasking view.
+private struct PrivacyOverlayView: View {
+    var body: some View {
+        ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                Image(systemName: "lock.shield.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.secondary)
+
+                Text(NSLocalizedString("privacy_overlay_title", comment: "Llamenos"))
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityIdentifier("privacy-overlay")
     }
 }

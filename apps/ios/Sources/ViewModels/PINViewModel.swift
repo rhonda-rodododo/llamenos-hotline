@@ -20,13 +20,38 @@ enum PINPhase: Equatable {
     case confirm
 }
 
+// MARK: - PINLockout
+
+/// Escalating lockout policy for failed PIN attempts.
+/// Attempts 1-4: no lockout. 5-6: 30s. 7-8: 2min. 9: 10min. 10+: wipe all keys.
+enum PINLockout {
+    /// Compute the lockout duration for the given number of failed attempts.
+    /// Returns nil for no lockout, 0 for wipe (terminal).
+    static func lockoutDuration(forAttempts attempts: Int) -> TimeInterval? {
+        switch attempts {
+        case 0...4: return nil
+        case 5...6: return 30
+        case 7...8: return 120
+        case 9: return 600
+        default: return 0  // 10+ = wipe
+        }
+    }
+
+    /// Whether the given attempt count triggers a full key wipe.
+    static func shouldWipeKeys(forAttempts attempts: Int) -> Bool {
+        return attempts >= 10
+    }
+}
+
 // MARK: - PINViewModel
 
 /// View model for PIN entry, both for setting a new PIN and unlocking with an existing one.
-/// Handles the enter-then-confirm flow for new PINs, PIN validation, and error display.
+/// Handles the enter-then-confirm flow for new PINs, PIN validation, escalating lockout,
+/// and biometric unlock via Keychain-stored PIN (C5/H7).
 @Observable
 final class PINViewModel {
     private let authService: AuthService
+    private let keychainService: KeychainService
     private let onSuccess: () -> Void
 
     /// Current mode (set or unlock).
@@ -50,11 +75,11 @@ final class PINViewModel {
     /// Whether an async operation is in progress (PIN verification).
     var isLoading: Bool = false
 
-    /// Number of failed unlock attempts (for lockout / rate limiting).
+    /// Number of failed unlock attempts. Persisted in Keychain (H7).
     private(set) var failedAttempts: Int = 0
 
-    /// Maximum unlock attempts before temporary lockout.
-    private let maxAttempts: Int = 5
+    /// Lockout expiry time. Persisted in Keychain (H7).
+    private(set) var lockoutUntil: Date = .distantPast
 
     /// Whether biometric unlock is available and enabled.
     var isBiometricAvailable: Bool {
@@ -87,11 +112,17 @@ final class PINViewModel {
                 return NSLocalizedString("pin_confirm_subtitle", comment: "Enter the same PIN again to confirm")
             }
         case .unlock:
+            if isLockedOut {
+                let remaining = Int(lockoutUntil.timeIntervalSinceNow.rounded(.up))
+                return String(
+                    format: NSLocalizedString("pin_lockout_remaining", comment: "Locked out. Try again in %d seconds."),
+                    max(remaining, 0)
+                )
+            }
             if failedAttempts > 0 {
                 return String(
-                    format: NSLocalizedString("pin_unlock_attempts", comment: "%d of %d attempts used"),
-                    failedAttempts,
-                    maxAttempts
+                    format: NSLocalizedString("pin_unlock_attempts", comment: "%d failed attempts"),
+                    failedAttempts
                 )
             }
             return NSLocalizedString("pin_unlock_subtitle", comment: "Enter your PIN to unlock")
@@ -100,14 +131,47 @@ final class PINViewModel {
 
     /// Whether the user is temporarily locked out due to too many failed attempts.
     var isLockedOut: Bool {
-        failedAttempts >= maxAttempts
+        lockoutUntil > Date()
     }
 
-    init(mode: PINMode, authService: AuthService, maxLength: Int = 4, onSuccess: @escaping () -> Void) {
+    init(
+        mode: PINMode,
+        authService: AuthService,
+        keychainService: KeychainService? = nil,
+        maxLength: Int = 4,
+        onSuccess: @escaping () -> Void
+    ) {
         self.mode = mode
         self.authService = authService
+        self.keychainService = keychainService ?? authService.keychainService
         self.maxLength = maxLength
         self.onSuccess = onSuccess
+
+        // Restore lockout state from Keychain (H7)
+        if mode == .unlock {
+            loadLockoutState()
+        }
+    }
+
+    // MARK: - Lockout State Persistence (H7)
+
+    /// Load lockout state from Keychain on init.
+    private func loadLockoutState() {
+        failedAttempts = keychainService.getLockoutAttempts()
+        lockoutUntil = keychainService.getLockoutUntil()
+    }
+
+    /// Persist lockout state to Keychain after a failed attempt.
+    private func persistLockoutState() {
+        keychainService.setLockoutAttempts(failedAttempts)
+        keychainService.setLockoutUntil(lockoutUntil)
+    }
+
+    /// Clear lockout state on successful unlock.
+    private func clearLockoutState() {
+        failedAttempts = 0
+        lockoutUntil = .distantPast
+        keychainService.clearLockoutState()
     }
 
     // MARK: - PIN Completion
@@ -162,6 +226,12 @@ final class PINViewModel {
             do {
                 let enableBiometric = BiometricPrompt.isAvailable
                 try authService.completeOnboarding(pin: enteredPIN, enableBiometric: enableBiometric)
+
+                // Store PIN for biometric unlock if biometric is available (C5)
+                if enableBiometric {
+                    try? keychainService.storePINForBiometric(enteredPIN)
+                }
+
                 isLoading = false
                 onSuccess()
             } catch {
@@ -184,40 +254,79 @@ final class PINViewModel {
         do {
             try authService.unlockWithPIN(enteredPIN)
             isLoading = false
-            failedAttempts = 0
+            clearLockoutState()
             onSuccess()
         } catch {
             isLoading = false
             failedAttempts += 1
             pin = ""
 
-            if isLockedOut {
-                errorMessage = NSLocalizedString("error_pin_locked_out", comment: "Too many failed attempts. Please wait and try again.")
-            } else {
-                errorMessage = NSLocalizedString("error_pin_incorrect", comment: "Incorrect PIN. Please try again.")
-            }
+            // Apply escalating lockout (H7)
+            handleFailedAttempt()
         }
     }
 
-    // MARK: - Biometric Unlock
+    /// Apply escalating lockout policy after a failed PIN attempt (H7).
+    private func handleFailedAttempt() {
+        if PINLockout.shouldWipeKeys(forAttempts: failedAttempts) {
+            // Terminal: wipe all keys
+            errorMessage = NSLocalizedString(
+                "error_pin_wiped",
+                comment: "Too many failed attempts. All keys have been wiped for security."
+            )
+            clearLockoutState()
+            authService.logout()
+            return
+        }
 
-    /// Attempt biometric unlock. On success, loads the stored keys using the
-    /// Keychain's biometric-protected access.
+        if let duration = PINLockout.lockoutDuration(forAttempts: failedAttempts) {
+            lockoutUntil = Date().addingTimeInterval(duration)
+            errorMessage = String(
+                format: NSLocalizedString(
+                    "error_pin_lockout_duration",
+                    comment: "Too many failed attempts. Locked for %d seconds."
+                ),
+                Int(duration)
+            )
+        } else {
+            errorMessage = NSLocalizedString("error_pin_incorrect", comment: "Incorrect PIN. Please try again.")
+        }
+
+        persistLockoutState()
+    }
+
+    // MARK: - Biometric Unlock (C5)
+
+    /// Attempt biometric unlock. Retrieves the PIN from biometric-protected Keychain
+    /// and uses it to decrypt the nsec — no manual PIN entry needed.
     func attemptBiometricUnlock() {
         guard isBiometricAvailable else { return }
 
         Task { @MainActor in
-            let success = await BiometricPrompt.authenticate()
-            guard success else { return }
-
-            // After biometric auth, the Keychain item protected with .biometryCurrentSet
-            // is accessible. We still need the PIN to decrypt the nsec though.
-            // In a full implementation, the PIN would be stored in biometric-protected
-            // Keychain. For now, biometric just confirms identity for the PIN prompt.
-            // The actual unlock still requires PIN entry.
-            //
-            // Future: store a "biometric token" in biometric-protected Keychain that
-            // can be used as a PIN equivalent for decryption.
+            do {
+                if let pin = try keychainService.retrievePINWithBiometric() {
+                    // Use the biometric-retrieved PIN to unlock
+                    isLoading = true
+                    do {
+                        try authService.unlockWithPIN(pin)
+                        isLoading = false
+                        clearLockoutState()
+                        onSuccess()
+                    } catch {
+                        isLoading = false
+                        // Biometric succeeded but PIN failed (key may have been re-encrypted
+                        // with a different PIN). Fall back to manual PIN entry.
+                        errorMessage = NSLocalizedString(
+                            "error_biometric_pin_mismatch",
+                            comment: "Biometric unlock failed. Please enter your PIN."
+                        )
+                    }
+                }
+                // nil = user cancelled biometric prompt or no stored PIN — fall back to PIN pad
+            } catch {
+                // Keychain error — fall back to PIN pad silently
+                errorMessage = nil
+            }
         }
     }
 
@@ -238,5 +347,6 @@ final class PINViewModel {
         errorMessage = nil
         isLoading = false
         failedAttempts = 0
+        lockoutUntil = .distantPast
     }
 }

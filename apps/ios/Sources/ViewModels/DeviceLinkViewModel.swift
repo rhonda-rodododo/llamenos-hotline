@@ -70,6 +70,10 @@ final class DeviceLinkViewModel {
     /// The derived shared secret.
     private var sharedSecret: String?
 
+    /// Encrypted nsec received before SAS confirmation (H4).
+    /// Held pending until the user confirms SAS codes match.
+    private var pendingEncryptedNsec: String?
+
     /// WebSocket task for the provisioning relay connection.
     private var webSocketTask: URLSessionWebSocketTask?
     private var receiveTask: Task<Void, Never>?
@@ -139,6 +143,18 @@ final class DeviceLinkViewModel {
 
         let relayPart = String(fullPath[fullPath.startIndex..<lastSlash])
         let roomId = String(fullPath[fullPath.index(after: lastSlash)...])
+
+        // H5: Validate the relay host to prevent SSRF to internal networks
+        // Extract the host portion (strip port if present)
+        let hostPart = relayPart.split(separator: "/").first.map(String.init) ?? relayPart
+        let hostOnly = hostPart.split(separator: ":").first.map(String.init) ?? hostPart
+        guard Self.isValidRelayHost(hostOnly) else {
+            currentStep = .error(NSLocalizedString(
+                "device_link_private_relay",
+                comment: "The relay URL points to a private or local network address. This is not allowed for security reasons."
+            ))
+            return
+        }
 
         relayURL = "wss://\(relayPart)"
         provisioningRoomId = roomId
@@ -290,7 +306,9 @@ final class DeviceLinkViewModel {
             }
 
         case "encrypted-nsec":
-            // Received the encrypted nsec from the desktop
+            // Received the encrypted nsec from the desktop.
+            // H4: Gate import on SAS confirmation — do NOT import until the user
+            // has confirmed the SAS codes match. This prevents MITM attacks.
             guard let encryptedNsec = contentObj["data"] as? String,
                   let shared = sharedSecret else {
                 currentStep = .error(NSLocalizedString(
@@ -300,8 +318,22 @@ final class DeviceLinkViewModel {
                 return
             }
 
-            Task {
-                await importEncryptedNsec(encryptedNsec, sharedSecret: shared)
+            if sasConfirmed {
+                // SAS already confirmed — import immediately
+                Task {
+                    await importEncryptedNsec(encryptedNsec, sharedSecret: shared)
+                }
+            } else {
+                // Hold the encrypted nsec until SAS is confirmed
+                pendingEncryptedNsec = encryptedNsec
+                if case .verifying = currentStep {
+                    // Already showing SAS — user just needs to confirm
+                } else {
+                    currentStep = .error(NSLocalizedString(
+                        "device_link_sas_required",
+                        comment: "Key received but SAS verification is required first."
+                    ))
+                }
             }
 
         default:
@@ -312,6 +344,7 @@ final class DeviceLinkViewModel {
     // MARK: - SAS Confirmation
 
     /// Confirm the SAS code matches the desktop display.
+    /// If an encrypted nsec was received before confirmation, imports it now (H4).
     func confirmSASCode() {
         sasConfirmed = true
 
@@ -325,6 +358,14 @@ final class DeviceLinkViewModel {
 
         Task {
             try? await task.send(.string(confirmMessage))
+        }
+
+        // H4: Process any pending encrypted nsec that arrived before SAS confirmation
+        if let encrypted = pendingEncryptedNsec, let shared = sharedSecret {
+            pendingEncryptedNsec = nil
+            Task {
+                await importEncryptedNsec(encrypted, sharedSecret: shared)
+            }
         }
     }
 
@@ -383,6 +424,44 @@ final class DeviceLinkViewModel {
         currentStep = .scanning
     }
 
+    // MARK: - Relay URL Validation (H5)
+
+    /// Validate that a relay host is not a private/internal IP address or localhost.
+    /// Prevents SSRF attacks via malicious QR codes pointing to internal networks.
+    ///
+    /// Rejects: localhost, 127.x, ::1, 10.x, 172.16-31.x, 192.168.x, 169.254.x,
+    /// fe80: (link-local), [::1], and numeric-only hosts with private ranges.
+    static func isValidRelayHost(_ host: String) -> Bool {
+        let lowered = host.lowercased()
+
+        // Reject localhost and loopback
+        if lowered == "localhost" || lowered == "127.0.0.1" || lowered == "::1" || lowered == "[::1]" {
+            return false
+        }
+
+        // Reject loopback range 127.x.x.x
+        if lowered.hasPrefix("127.") {
+            return false
+        }
+
+        // Reject private IP ranges
+        let blockedPrefixes = ["10.", "192.168.", "169.254.", "fe80:"]
+            + (16...31).map { "172.\($0)." }
+
+        for prefix in blockedPrefixes {
+            if lowered.hasPrefix(prefix) {
+                return false
+            }
+        }
+
+        // Reject empty host
+        if lowered.isEmpty {
+            return false
+        }
+
+        return true
+    }
+
     /// Clean up WebSocket and ephemeral key material.
     private func cleanup() {
         receiveTask?.cancel()
@@ -390,11 +469,12 @@ final class DeviceLinkViewModel {
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
 
-        // Zero out ephemeral secrets
+        // Zero out ephemeral secrets and pending data
         ephemeralSecret = nil
         ephemeralPublic = nil
         theirEphemeralPublic = nil
         sharedSecret = nil
+        pendingEncryptedNsec = nil
         sasConfirmed = false
     }
 

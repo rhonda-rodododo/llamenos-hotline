@@ -51,7 +51,7 @@
           "type": "array",
           "items": { "$ref": "#/$defs/EncryptedMetadataEntry" }
         },
-        "totalSize": { "type": "number", "description": "Encrypted size in bytes" },
+        "totalSize": { "type": "number", "description": "Encrypted size in bytes", "maximum": 104857600 },
         "totalChunks": { "type": "number" },
         "status": { "type": "string", "enum": ["uploading", "complete", "failed"] },
         "completedChunks": { "type": "number" },
@@ -64,7 +64,7 @@
       "type": "object",
       "required": ["totalSize", "totalChunks", "conversationId", "recipientEnvelopes", "encryptedMetadata"],
       "properties": {
-        "totalSize": { "type": "number" },
+        "totalSize": { "type": "number", "minimum": 1, "maximum": 104857600 },
         "totalChunks": { "type": "number" },
         "conversationId": { "type": "string" },
         "recipientEnvelopes": {

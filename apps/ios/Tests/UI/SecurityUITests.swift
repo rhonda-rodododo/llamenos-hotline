@@ -1,7 +1,7 @@
 import XCTest
 
 /// BDD-aligned XCUITest suite for security-related scenarios.
-/// Maps to scenarios from: emergency-wipe.feature, panic-wipe.feature
+/// Maps to scenarios from: emergency-wipe.feature, panic-wipe.feature, Epic 260 hardening
 final class SecurityUITests: BaseUITest {
 
     // MARK: - Emergency Wipe (emergency-wipe.feature)
@@ -165,6 +165,114 @@ final class SecurityUITests: BaseUITest {
             if pinDots.waitForExistence(timeout: 5) {
                 XCTAssertTrue(true, "PIN dots indicator is displayed")
             }
+        }
+    }
+
+    // MARK: - Epic 260: Biometric Unlock (C5)
+
+    func testBiometricUnlockButtonVisibleOnLockScreen() {
+        given("I am authenticated with biometric enabled") {
+            launchAuthenticated()
+        }
+        when("I lock the app") {
+            let lockButton = find("lock-app")
+            if lockButton.waitForExistence(timeout: 10) {
+                lockButton.tap()
+            } else {
+                navigateToSettings()
+                let settingsLock = scrollToFind("settings-lock-app")
+                guard settingsLock.exists else { return }
+                settingsLock.tap()
+            }
+        }
+        then("I should see the biometric unlock button if biometrics are available") {
+            // On devices with biometrics, the button should appear.
+            // On simulators without biometrics, this is expected to not exist.
+            let biometricButton = find("biometric-unlock")
+            let pinPad = find("pin-pad")
+            // At minimum, the PIN pad should be visible as fallback
+            XCTAssertTrue(
+                pinPad.waitForExistence(timeout: 5),
+                "PIN pad should always be available as fallback"
+            )
+            // Biometric button is optional — depends on device capabilities
+            if biometricButton.waitForExistence(timeout: 2) {
+                XCTAssertTrue(true, "Biometric unlock button is displayed")
+            }
+        }
+    }
+
+    // MARK: - Epic 260: HTTP URL Rejection (H6)
+
+    func testHTTPHubURLShowsError() {
+        given("the app is on the login screen") {
+            launchClean()
+        }
+        when("I enter an HTTP hub URL and try to create identity") {
+            let hubInput = find("hub-url-input")
+            guard hubInput.waitForExistence(timeout: 5) else { return }
+            hubInput.tap()
+            hubInput.typeText("http://insecure.example.org")
+
+            dismissKeyboard()
+
+            let createButton = find("create-identity")
+            guard createButton.waitForExistence(timeout: 5) else { return }
+            createButton.tap()
+        }
+        then("I should see an error about insecure connection") {
+            // The error message should appear (either as an alert or inline error)
+            let errorElement = find("auth-error")
+            if errorElement.waitForExistence(timeout: 5) {
+                XCTAssertTrue(true, "HTTP rejection error is displayed")
+            } else {
+                // Check for any error text on screen
+                let errorText = app.staticTexts.matching(
+                    NSPredicate(format: "label CONTAINS[c] 'HTTP' OR label CONTAINS[c] 'HTTPS'")
+                ).firstMatch
+                XCTAssertTrue(
+                    errorText.waitForExistence(timeout: 3),
+                    "An error about HTTP/HTTPS should be displayed"
+                )
+            }
+        }
+    }
+
+    // MARK: - Epic 260: Privacy Overlay (M28)
+
+    func testPrivacyOverlayIdentifierExists() {
+        // This test verifies the privacy overlay view is defined with the correct
+        // accessibility identifier. The actual overlay behavior (showing on
+        // scenePhase == .inactive) cannot be tested in XCUITest because there's
+        // no way to simulate the app switcher programmatically.
+        given("I am authenticated") {
+            launchAuthenticated()
+        }
+        then("the privacy overlay should not be visible when app is active") {
+            let overlay = find("privacy-overlay")
+            // Overlay should NOT be visible in the active state
+            XCTAssertFalse(
+                overlay.waitForExistence(timeout: 2),
+                "Privacy overlay should not be visible when app is active"
+            )
+        }
+    }
+
+    // MARK: - Epic 260: Auto-Lock Timeout Setting (M26)
+
+    func testAutoLockPickerExistsInSettings() {
+        given("I am authenticated") {
+            launchAuthenticated()
+        }
+        when("I navigate to settings") {
+            navigateToSettings()
+        }
+        then("the auto-lock timeout picker should exist") {
+            let picker = scrollToFind("settings-auto-lock-picker")
+            XCTAssertTrue(
+                picker.exists,
+                "Auto-lock timeout picker should exist in settings"
+            )
         }
     }
 

@@ -100,8 +100,11 @@ export class IdentityDO extends DurableObject<Env> {
       this.cleanupDevices(pubkey, await req.json()))
     this.router.delete('/devices/:pubkey', (_req, { pubkey }) => this.deleteAllDevices(pubkey))
 
-    // --- Test Reset ---
+    // --- Test Reset (demo mode only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
+      if (this.env.DEMO_MODE !== 'true') {
+        return new Response('Reset not allowed outside demo mode', { status: 403 })
+      }
       await this.ctx.storage.deleteAll()
       this.initialized = false
       await this.ensureInit()
@@ -217,32 +220,40 @@ export class IdentityDO extends DurableObject<Env> {
   }
 
   private async bootstrapAdmin(data: { pubkey: string }): Promise<Response> {
-    const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
-    // One-shot: reject if any super-admin already exists
-    const adminExists = Object.values(volunteers).some(v =>
-      v.active && v.roles.includes('role-super-admin')
-    )
-    if (adminExists) {
-      return new Response(JSON.stringify({ error: 'Admin already exists' }), { status: 403 })
-    }
+    // Epic 258 H18: Wrap in storage transaction for atomicity to prevent race conditions
+    const result = await this.ctx.storage.transaction(async (txn) => {
+      const volunteers = await txn.get<Record<string, Volunteer>>('volunteers') || {}
+      // One-shot: reject if any super-admin already exists
+      const adminExists = Object.values(volunteers).some(v =>
+        v.active && v.roles.includes('role-super-admin')
+      )
+      if (adminExists) {
+        return { error: 'Admin already exists', status: 403 as const }
+      }
 
-    const volunteer: Volunteer = {
-      pubkey: data.pubkey,
-      name: 'Admin',
-      phone: '',
-      roles: ['role-super-admin'],
-      active: true,
-      createdAt: new Date().toISOString(),
-      encryptedSecretKey: '',
-      transcriptionEnabled: true,
-      spokenLanguages: ['en', 'es'],
-      uiLanguage: 'en',
-      profileCompleted: false,
-      onBreak: false,
-      callPreference: 'phone',
+      const volunteer: Volunteer = {
+        pubkey: data.pubkey,
+        name: 'Admin',
+        phone: '',
+        roles: ['role-super-admin'],
+        active: true,
+        createdAt: new Date().toISOString(),
+        encryptedSecretKey: '',
+        transcriptionEnabled: true,
+        spokenLanguages: ['en', 'es'],
+        uiLanguage: 'en',
+        profileCompleted: false,
+        onBreak: false,
+        callPreference: 'phone',
+      }
+      volunteers[data.pubkey] = volunteer
+      await txn.put('volunteers', volunteers)
+      return { ok: true as const }
+    })
+
+    if ('error' in result) {
+      return new Response(JSON.stringify({ error: result.error }), { status: result.status })
     }
-    volunteers[data.pubkey] = volunteer
-    await this.ctx.storage.put('volunteers', volunteers)
     return Response.json({ ok: true })
   }
 

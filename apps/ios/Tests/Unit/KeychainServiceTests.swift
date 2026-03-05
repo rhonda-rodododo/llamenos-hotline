@@ -14,6 +14,7 @@ final class KeychainServiceTests: XCTestCase {
         keychainService.delete(key: "test-string")
         keychainService.delete(key: "test-update")
         keychainService.delete(key: "test-delete")
+        keychainService.clearLockoutState()
     }
 
     override func tearDown() {
@@ -23,6 +24,7 @@ final class KeychainServiceTests: XCTestCase {
         keychainService.delete(key: "test-string")
         keychainService.delete(key: "test-update")
         keychainService.delete(key: "test-delete")
+        keychainService.clearLockoutState()
         keychainService = nil
         super.tearDown()
     }
@@ -172,6 +174,9 @@ final class KeychainServiceTests: XCTestCase {
         XCTAssertEqual(KeychainKey.deviceID, "device-id")
         XCTAssertEqual(KeychainKey.biometricEnabled, "biometric-enabled")
         XCTAssertEqual(KeychainKey.pinHash, "pin-verification")
+        XCTAssertEqual(KeychainKey.biometricPIN, "biometric-pin")
+        XCTAssertEqual(KeychainKey.pinLockoutAttempts, "pin-lockout-attempts")
+        XCTAssertEqual(KeychainKey.pinLockoutUntil, "pin-lockout-until")
     }
 
     // MARK: - Multiple Keys
@@ -194,5 +199,62 @@ final class KeychainServiceTests: XCTestCase {
         keychainService.delete(key: "test-key")
         XCTAssertNil(try keychainService.retrieve(key: "test-key"))
         XCTAssertNotNil(try keychainService.retrieve(key: "test-string"))
+    }
+
+    // MARK: - PIN Lockout Persistence (H7)
+
+    func testLockoutAttemptsDefaultsToZero() {
+        let attempts = keychainService.getLockoutAttempts()
+        XCTAssertEqual(attempts, 0, "Default lockout attempts should be 0")
+    }
+
+    func testSetAndGetLockoutAttempts() {
+        keychainService.setLockoutAttempts(5)
+        XCTAssertEqual(keychainService.getLockoutAttempts(), 5)
+
+        keychainService.setLockoutAttempts(10)
+        XCTAssertEqual(keychainService.getLockoutAttempts(), 10)
+    }
+
+    func testLockoutUntilDefaultsToDistantPast() {
+        let until = keychainService.getLockoutUntil()
+        XCTAssertEqual(until, .distantPast, "Default lockout until should be distant past")
+    }
+
+    func testSetAndGetLockoutUntil() {
+        let future = Date().addingTimeInterval(300)
+        keychainService.setLockoutUntil(future)
+
+        let retrieved = keychainService.getLockoutUntil()
+        // Compare with 1s tolerance for floating point
+        XCTAssertEqual(retrieved.timeIntervalSince1970, future.timeIntervalSince1970, accuracy: 1.0)
+    }
+
+    func testClearLockoutState() {
+        keychainService.setLockoutAttempts(7)
+        keychainService.setLockoutUntil(Date().addingTimeInterval(120))
+
+        keychainService.clearLockoutState()
+
+        XCTAssertEqual(keychainService.getLockoutAttempts(), 0, "Attempts should be cleared")
+        XCTAssertEqual(keychainService.getLockoutUntil(), .distantPast, "Lockout time should be cleared")
+    }
+
+    func testLockoutStateSurvivesServiceRecreation() {
+        // Store lockout state
+        keychainService.setLockoutAttempts(8)
+        let lockoutTime = Date().addingTimeInterval(600)
+        keychainService.setLockoutUntil(lockoutTime)
+
+        // Create a new service instance (simulates app restart)
+        let newService = KeychainService()
+
+        // State should persist
+        XCTAssertEqual(newService.getLockoutAttempts(), 8)
+        XCTAssertEqual(
+            newService.getLockoutUntil().timeIntervalSince1970,
+            lockoutTime.timeIntervalSince1970,
+            accuracy: 1.0
+        )
     }
 }

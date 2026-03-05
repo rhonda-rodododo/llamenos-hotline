@@ -132,9 +132,10 @@ final class WakeKeyService: @unchecked Sendable {
         publicKeyHex = publicKey
     }
 
-    /// Store the wake private key with afterFirstUnlock accessibility.
+    /// Store the wake private key with afterFirstUnlockThisDeviceOnly accessibility (H8).
     /// This is needed so the notification service extension can access it
-    /// even when the device is locked.
+    /// even when the device is locked, but prevents iCloud Keychain sync and
+    /// device migration — the wake key is device-specific.
     private func storeWakePrivateKey(_ privateKeyHex: String) throws {
         guard let data = privateKeyHex.data(using: .utf8) else {
             throw WakeKeyError.keyStorageFailed(errSecParam)
@@ -145,7 +146,10 @@ final class WakeKeyService: @unchecked Sendable {
             kSecAttrService as String: "org.llamenos.hotline.wake",
             kSecAttrAccount as String: Self.wakePrivateKeyAccount,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            // H8: Use ThisDeviceOnly to prevent iCloud sync
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+            // H8: Explicitly disable iCloud Keychain synchronization
+            kSecAttrSynchronizable as String: kCFBooleanFalse!,
         ]
 
         // Delete any existing key first

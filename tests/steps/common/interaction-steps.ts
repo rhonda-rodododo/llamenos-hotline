@@ -311,10 +311,17 @@ Then('I should see {string}', async ({ page }, text: string) => {
 
   // Also check toasts (validation errors shown via toast in some forms)
   // Sonner toasts render with [data-sonner-toast]; also check role=status/alert
+  // Use longer timeout — toasts may take a moment to appear after form submission
   const toastEl = page.locator('[data-sonner-toast], [data-testid="toast-message"], [role="status"], [role="alert"], .toast-message')
     .filter({ hasText: new RegExp(text, 'i') }).first()
-  const toastVisible = await toastEl.isVisible({ timeout: 2000 }).catch(() => false)
+  const toastVisible = await toastEl.isVisible({ timeout: 5000 }).catch(() => false)
   if (toastVisible) return
+
+  // Check for text in any error/destructive element (inline validation)
+  const errorEl = page.locator('.text-destructive, [data-testid="error-message"], [role="alert"]')
+    .filter({ hasText: new RegExp(text, 'i') }).first()
+  const errorVisible = await errorEl.isVisible({ timeout: 2000 }).catch(() => false)
+  if (errorVisible) return
 
   // Final assertion — will fail with a clear error
   await expect(

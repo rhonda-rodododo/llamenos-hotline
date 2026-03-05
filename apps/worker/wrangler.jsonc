@@ -110,8 +110,7 @@
   "vars": {
     "ENVIRONMENT": "production",
     "HOTLINE_NAME": "Llámenos",
-    "DEMO_MODE": "true",
-    "DEMO_RESET_CRON": "every 4 hours"
+    "DEMO_MODE": "false"
   },
 
   // Staging environment for pre-release testing

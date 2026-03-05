@@ -56,8 +56,11 @@ struct SettingsView: View {
     @State private var showLogoutConfirmation: Bool = false
     @State private var showCopyConfirmation: Bool = false
     @State private var showDeviceLink: Bool = false
-    @State private var selectedAutoLockTimeout: AutoLockTimeout = .fiveMinutes
     @State private var isBiometricEnabled: Bool = false
+
+    /// M26: Auto-lock timeout persisted via @AppStorage, shared with LlamenosApp.
+    @AppStorage("autoLockTimeout") private var autoLockTimeoutValue: TimeInterval = 300
+    @State private var selectedAutoLockTimeout: AutoLockTimeout = .fiveMinutes
     @State private var callSoundsEnabled: Bool = true
     @State private var messageAlertsEnabled: Bool = true
     @State private var selectedLanguage: String = "en"
@@ -150,6 +153,10 @@ struct SettingsView: View {
             }
             .onAppear {
                 isBiometricEnabled = appState.authService.isBiometricEnabled
+                // M26: Restore auto-lock timeout from @AppStorage
+                if let timeout = AutoLockTimeout(rawValue: Int(autoLockTimeoutValue)) {
+                    selectedAutoLockTimeout = timeout
+                }
             }
             .navigationDestination(for: String.self) { destination in
                 switch destination {
@@ -426,6 +433,10 @@ struct SettingsView: View {
                 }
             }
             .accessibilityIdentifier("settings-auto-lock-picker")
+            // M26: Persist timeout to @AppStorage so LlamenosApp reads the same value
+            .onChange(of: selectedAutoLockTimeout) { _, newValue in
+                autoLockTimeoutValue = TimeInterval(newValue.rawValue)
+            }
 
             Toggle(isOn: $isBiometricEnabled) {
                 Label {

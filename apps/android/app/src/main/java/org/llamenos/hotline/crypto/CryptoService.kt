@@ -12,9 +12,8 @@ import javax.inject.Singleton
 /**
  * Data classes for CryptoService public API.
  *
- * When native lib is loaded, these are populated from UniFFI-generated types
- * in [org.llamenos.core]. When native lib is absent, placeholder implementations
- * produce mock data with the same structure.
+ * These are populated from UniFFI-generated types in [org.llamenos.core].
+ * The native crypto library MUST be loaded — all operations hard-fail without it (C6).
  */
 data class Keypair(
     val secretKeyHex: String,
@@ -111,9 +110,8 @@ class CryptoService @Inject constructor() {
             System.loadLibrary("llamenos_core")
             nativeLibLoaded = true
         } catch (_: UnsatisfiedLinkError) {
-            // Native library not available.
-            // CryptoService will operate with placeholder implementations
-            // until the .so files are built and placed in jniLibs/.
+            // Native library not available — all crypto operations will throw
+            // IllegalStateException until the .so files are built and placed in jniLibs/.
             nativeLibLoaded = false
         }
     }
@@ -124,37 +122,19 @@ class CryptoService @Inject constructor() {
      * during onboarding for backup, then never exposed again.
      */
     fun generateKeypair(): Pair<String, String> {
-        if (nativeLibLoaded) {
-            return try {
-                val kp = org.llamenos.core.generateKeypair()
-                nsecHex = kp.secretKeyHex
-                nsecBech32 = kp.nsec
-                pubkey = kp.publicKey
-                npub = kp.npub
-                Pair(kp.nsec, kp.npub)
-            } catch (e: org.llamenos.core.CryptoException) {
-                throw CryptoException("Keypair generation failed: ${e.message}", e)
-            }
+        check(nativeLibLoaded) {
+            "Cannot generate keypair: native crypto library not loaded."
         }
-
-        // Placeholder: generate deterministic test values using platform SecureRandom
-        val random = java.security.SecureRandom()
-        val secretBytes = ByteArray(32)
-        random.nextBytes(secretBytes)
-        val secretHex = secretBytes.joinToString("") { "%02x".format(it) }
-
-        // Derive a mock pubkey (in production this comes from secp256k1 scalar multiplication)
-        val pubBytes = ByteArray(32)
-        random.nextBytes(pubBytes)
-        val pubHex = pubBytes.joinToString("") { "%02x".format(it) }
-
-        nsecHex = secretHex
-        pubkey = pubHex
-        npub = "npub1${pubHex.take(58)}"
-
-        val nsecBech32Mock = "nsec1${secretHex.take(58)}"
-        nsecBech32 = nsecBech32Mock
-        return Pair(nsecBech32Mock, npub!!)
+        return try {
+            val kp = org.llamenos.core.generateKeypair()
+            nsecHex = kp.secretKeyHex
+            nsecBech32 = kp.nsec
+            pubkey = kp.publicKey
+            npub = kp.npub
+            Pair(kp.nsec, kp.npub)
+        } catch (e: org.llamenos.core.CryptoException) {
+            throw CryptoException("Keypair generation failed: ${e.message}", e)
+        }
     }
 
     /**
@@ -165,35 +145,18 @@ class CryptoService @Inject constructor() {
             throw CryptoException("Invalid nsec format: must start with 'nsec1'")
         }
 
-        if (nativeLibLoaded) {
-            try {
-                val kp = org.llamenos.core.keypairFromNsec(nsec)
-                nsecHex = kp.secretKeyHex
-                nsecBech32 = kp.nsec
-                pubkey = kp.publicKey
-                npub = kp.npub
-                return
-            } catch (e: org.llamenos.core.CryptoException) {
-                throw CryptoException("Invalid nsec: ${e.message}", e)
-            }
+        check(nativeLibLoaded) {
+            "Cannot import key: native crypto library not loaded."
         }
-
-        // Placeholder: extract hex from the nsec bech32 encoding
-        val hexPart = nsec.removePrefix("nsec1")
-        if (hexPart.length < 58) {
-            throw CryptoException("Invalid nsec: too short")
+        try {
+            val kp = org.llamenos.core.keypairFromNsec(nsec)
+            nsecHex = kp.secretKeyHex
+            nsecBech32 = kp.nsec
+            pubkey = kp.publicKey
+            npub = kp.npub
+        } catch (e: org.llamenos.core.CryptoException) {
+            throw CryptoException("Invalid nsec: ${e.message}", e)
         }
-
-        nsecHex = hexPart.padEnd(64, '0')
-        nsecBech32 = nsec
-
-        val random = java.security.SecureRandom()
-        val pubBytes = ByteArray(32)
-        random.nextBytes(pubBytes)
-        val pubHex = pubBytes.joinToString("") { "%02x".format(it) }
-
-        pubkey = pubHex
-        npub = "npub1${pubHex.take(58)}"
     }
 
     /**
@@ -201,52 +164,33 @@ class CryptoService @Inject constructor() {
      * Uses PBKDF2 key derivation + XChaCha20-Poly1305 encryption via llamenos-core.
      */
     suspend fun encryptForStorage(pin: String): EncryptedKeyData = withContext(computeDispatcher) {
+        check(nativeLibLoaded) {
+            "Cannot store keys: native crypto library not loaded."
+        }
+
         val pub = pubkey ?: throw CryptoException("No pubkey available")
 
         if (pin.length < 4 || pin.length > 6) {
             throw CryptoException("PIN must be 4-6 digits")
         }
 
-        if (nativeLibLoaded) {
-            val nsec = nsecBech32 ?: throw CryptoException("No key loaded")
-            try {
-                val ffiResult = org.llamenos.core.encryptWithPin(
-                    nsec = nsec,
-                    pin = pin,
-                    pubkeyHex = pub,
-                )
-                return@withContext EncryptedKeyData(
-                    ciphertext = ffiResult.ciphertext,
-                    salt = ffiResult.salt,
-                    nonce = ffiResult.nonce,
-                    pubkeyHex = ffiResult.pubkey,
-                    iterations = ffiResult.iterations,
-                )
-            } catch (e: org.llamenos.core.CryptoException) {
-                throw CryptoException("PIN encryption failed: ${e.message}", e)
-            }
+        val nsec = nsecBech32 ?: throw CryptoException("No key loaded")
+        try {
+            val ffiResult = org.llamenos.core.encryptWithPin(
+                nsec = nsec,
+                pin = pin,
+                pubkeyHex = pub,
+            )
+            EncryptedKeyData(
+                ciphertext = ffiResult.ciphertext,
+                salt = ffiResult.salt,
+                nonce = ffiResult.nonce,
+                pubkeyHex = ffiResult.pubkey,
+                iterations = ffiResult.iterations,
+            )
+        } catch (e: org.llamenos.core.CryptoException) {
+            throw CryptoException("PIN encryption failed: ${e.message}", e)
         }
-
-        val secret = nsecHex ?: throw CryptoException("No key loaded")
-
-        // Placeholder: simulate PIN encryption with basic encoding
-        // In production, llamenos-core performs PBKDF2 + XChaCha20-Poly1305
-        val saltBytes = ByteArray(16)
-        java.security.SecureRandom().nextBytes(saltBytes)
-        val nonceBytes = ByteArray(24)
-        java.security.SecureRandom().nextBytes(nonceBytes)
-
-        // Embed PIN hash in salt so placeholder decryption can verify it
-        val pinHash = pin.hashCode().toString()
-
-        EncryptedKeyData(
-            ciphertext = java.util.Base64.getEncoder().encodeToString(
-                secret.toByteArray(Charsets.UTF_8)
-            ),
-            salt = pinHash + ":" + saltBytes.joinToString("") { "%02x".format(it) },
-            nonce = nonceBytes.joinToString("") { "%02x".format(it) },
-            pubkeyHex = pub,
-        )
     }
 
     /**
@@ -254,44 +198,32 @@ class CryptoService @Inject constructor() {
      */
     suspend fun decryptFromStorage(data: EncryptedKeyData, pin: String): Unit =
         withContext(computeDispatcher) {
+            check(nativeLibLoaded) {
+                "Cannot decrypt keys: native crypto library not loaded."
+            }
+
             if (pin.length < 4 || pin.length > 6) {
                 throw CryptoException("PIN must be 4-6 digits")
             }
 
-            if (nativeLibLoaded) {
-                try {
-                    val ffiData = org.llamenos.core.EncryptedKeyData(
-                        salt = data.salt,
-                        iterations = data.iterations,
-                        nonce = data.nonce,
-                        ciphertext = data.ciphertext,
-                        pubkey = data.pubkeyHex,
-                    )
-                    val nsec = org.llamenos.core.decryptWithPin(ffiData, pin)
-                    // Restore the full keypair from the decrypted nsec
-                    val kp = org.llamenos.core.keypairFromNsec(nsec)
-                    nsecHex = kp.secretKeyHex
-                    nsecBech32 = kp.nsec
-                    pubkey = kp.publicKey
-                    npub = kp.npub
-                    return@withContext
-                } catch (e: org.llamenos.core.CryptoException) {
-                    throw CryptoException("Decryption failed: incorrect PIN", e)
-                }
+            try {
+                val ffiData = org.llamenos.core.EncryptedKeyData(
+                    salt = data.salt,
+                    iterations = data.iterations,
+                    nonce = data.nonce,
+                    ciphertext = data.ciphertext,
+                    pubkey = data.pubkeyHex,
+                )
+                val nsec = org.llamenos.core.decryptWithPin(ffiData, pin)
+                // Restore the full keypair from the decrypted nsec
+                val kp = org.llamenos.core.keypairFromNsec(nsec)
+                nsecHex = kp.secretKeyHex
+                nsecBech32 = kp.nsec
+                pubkey = kp.publicKey
+                npub = kp.npub
+            } catch (e: org.llamenos.core.CryptoException) {
+                throw CryptoException("Decryption failed: incorrect PIN", e)
             }
-
-            // Placeholder: verify PIN hash embedded in salt, then decode Base64 ciphertext
-            val storedPinHash = data.salt.substringBefore(":")
-            if (storedPinHash != pin.hashCode().toString()) {
-                throw CryptoException("Decryption failed: incorrect PIN")
-            }
-
-            val decoded = java.util.Base64.getDecoder().decode(data.ciphertext)
-            val secretHex = String(decoded, Charsets.UTF_8)
-
-            nsecHex = secretHex
-            pubkey = data.pubkeyHex
-            npub = "npub1${data.pubkeyHex.take(58)}"
         }
 
     /**
@@ -313,41 +245,28 @@ class CryptoService @Inject constructor() {
     }
 
     private fun createAuthTokenInternal(method: String, path: String): AuthToken {
-        val secret = nsecHex ?: throw CryptoException("No key loaded")
-        val pub = pubkey ?: throw CryptoException("No pubkey available")
-        val timestamp = System.currentTimeMillis()
-
-        if (nativeLibLoaded) {
-            return try {
-                val ffiToken = org.llamenos.core.createAuthToken(
-                    secretKeyHex = secret,
-                    timestamp = timestamp.toULong(),
-                    method = method,
-                    path = path,
-                )
-                AuthToken(
-                    pubkey = ffiToken.pubkey,
-                    timestamp = ffiToken.timestamp.toLong(),
-                    token = ffiToken.token,
-                )
-            } catch (e: org.llamenos.core.CryptoException) {
-                throw CryptoException("Auth token creation failed: ${e.message}", e)
-            }
+        check(nativeLibLoaded) {
+            "Cannot create auth token: native crypto library not loaded."
         }
 
-        // Placeholder: create a mock token structure
-        // In production, llamenos-core performs Schnorr signing over the challenge
-        val challenge = "$method:$path:$timestamp"
-        val mockSignature = challenge.toByteArray(Charsets.UTF_8)
-            .joinToString("") { "%02x".format(it) }
-            .take(128)
-            .padEnd(128, '0')
+        val secret = nsecHex ?: throw CryptoException("No key loaded")
+        val timestamp = System.currentTimeMillis()
 
-        return AuthToken(
-            pubkey = pub,
-            timestamp = timestamp,
-            token = mockSignature,
-        )
+        return try {
+            val ffiToken = org.llamenos.core.createAuthToken(
+                secretKeyHex = secret,
+                timestamp = timestamp.toULong(),
+                method = method,
+                path = path,
+            )
+            AuthToken(
+                pubkey = ffiToken.pubkey,
+                timestamp = ffiToken.timestamp.toLong(),
+                token = ffiToken.token,
+            )
+        } catch (e: org.llamenos.core.CryptoException) {
+            throw CryptoException("Auth token creation failed: ${e.message}", e)
+        }
     }
 
     /**
@@ -356,65 +275,47 @@ class CryptoService @Inject constructor() {
      */
     suspend fun encryptNote(payload: String, adminPubkeys: List<String>): EncryptedNote =
         withContext(computeDispatcher) {
+            check(nativeLibLoaded) {
+                "Cannot encrypt note: native crypto library not loaded."
+            }
+
             val pub = pubkey ?: throw CryptoException("No key loaded")
 
-            if (nativeLibLoaded) {
-                return@withContext try {
-                    val ffiNote = org.llamenos.core.encryptNoteForRecipients(
-                        payloadJson = payload,
-                        authorPubkey = pub,
-                        adminPubkeys = adminPubkeys,
+            try {
+                val ffiNote = org.llamenos.core.encryptNoteForRecipients(
+                    payloadJson = payload,
+                    authorPubkey = pub,
+                    adminPubkeys = adminPubkeys,
+                )
+                // Map FFI EncryptedNote -> app EncryptedNote
+                // FFI has: authorEnvelope (KeyEnvelope) + adminEnvelopes (List<RecipientKeyEnvelope>)
+                // App has: flat list of NoteEnvelopes
+                val envelopes = mutableListOf<NoteEnvelope>()
+                // Author envelope
+                envelopes.add(
+                    NoteEnvelope(
+                        recipientPubkey = pub,
+                        wrappedKey = ffiNote.authorEnvelope.wrappedKey,
+                        ephemeralPubkey = ffiNote.authorEnvelope.ephemeralPubkey,
                     )
-                    // Map FFI EncryptedNote → app EncryptedNote
-                    // FFI has: authorEnvelope (KeyEnvelope) + adminEnvelopes (List<RecipientKeyEnvelope>)
-                    // App has: flat list of NoteEnvelopes
-                    val envelopes = mutableListOf<NoteEnvelope>()
-                    // Author envelope
+                )
+                // Admin envelopes
+                for (env in ffiNote.adminEnvelopes) {
                     envelopes.add(
                         NoteEnvelope(
-                            recipientPubkey = pub,
-                            wrappedKey = ffiNote.authorEnvelope.wrappedKey,
-                            ephemeralPubkey = ffiNote.authorEnvelope.ephemeralPubkey,
+                            recipientPubkey = env.pubkey,
+                            wrappedKey = env.wrappedKey,
+                            ephemeralPubkey = env.ephemeralPubkey,
                         )
                     )
-                    // Admin envelopes
-                    for (env in ffiNote.adminEnvelopes) {
-                        envelopes.add(
-                            NoteEnvelope(
-                                recipientPubkey = env.pubkey,
-                                wrappedKey = env.wrappedKey,
-                                ephemeralPubkey = env.ephemeralPubkey,
-                            )
-                        )
-                    }
-                    EncryptedNote(
-                        ciphertext = ffiNote.encryptedContent,
-                        envelopes = envelopes,
-                    )
-                } catch (e: org.llamenos.core.CryptoException) {
-                    throw CryptoException("Note encryption failed: ${e.message}", e)
                 }
-            }
-
-            // Placeholder: create mock encrypted note structure
-            val ciphertextBytes = ByteArray(payload.length + 16)
-            java.security.SecureRandom().nextBytes(ciphertextBytes)
-
-            val envelopes = (listOf(pub) + adminPubkeys).map { recipientPub ->
-                val wrappedKeyBytes = ByteArray(80)
-                java.security.SecureRandom().nextBytes(wrappedKeyBytes)
-                NoteEnvelope(
-                    recipientPubkey = recipientPub,
-                    wrappedKey = wrappedKeyBytes.joinToString("") { "%02x".format(it) },
+                EncryptedNote(
+                    ciphertext = ffiNote.encryptedContent,
+                    envelopes = envelopes,
                 )
+            } catch (e: org.llamenos.core.CryptoException) {
+                throw CryptoException("Note encryption failed: ${e.message}", e)
             }
-
-            EncryptedNote(
-                ciphertext = java.util.Base64.getEncoder().encodeToString(
-                    ciphertextBytes
-                ),
-                envelopes = envelopes,
-            )
         }
 
     /**
@@ -432,39 +333,27 @@ class CryptoService @Inject constructor() {
         encryptedContent: String,
         envelope: RecipientEnvelope,
     ): NotePayload? = withContext(computeDispatcher) {
-        val secret = nsecHex ?: throw CryptoException("No key loaded")
-
-        if (nativeLibLoaded) {
-            return@withContext try {
-                val ffiEnvelope = org.llamenos.core.KeyEnvelope(
-                    wrappedKey = envelope.wrappedKey,
-                    ephemeralPubkey = envelope.ephemeralPubkey,
-                )
-                val plaintext = org.llamenos.core.decryptNote(
-                    encryptedContent = encryptedContent,
-                    envelope = ffiEnvelope,
-                    secretKeyHex = secret,
-                )
-                json.decodeFromString<NotePayload>(plaintext)
-            } catch (e: org.llamenos.core.CryptoException) {
-                null
-            } catch (_: Exception) {
-                null
-            }
+        check(nativeLibLoaded) {
+            "Cannot decrypt note: native crypto library not loaded."
         }
 
-        // Placeholder: decode base64 content as if it were plaintext JSON
+        val secret = nsecHex ?: throw CryptoException("No key loaded")
+
         try {
-            val decoded = java.util.Base64.getDecoder().decode(encryptedContent)
-            val plaintext = String(decoded, Charsets.UTF_8)
+            val ffiEnvelope = org.llamenos.core.KeyEnvelope(
+                wrappedKey = envelope.wrappedKey,
+                ephemeralPubkey = envelope.ephemeralPubkey,
+            )
+            val plaintext = org.llamenos.core.decryptNote(
+                encryptedContent = encryptedContent,
+                envelope = ffiEnvelope,
+                secretKeyHex = secret,
+            )
             json.decodeFromString<NotePayload>(plaintext)
+        } catch (e: org.llamenos.core.CryptoException) {
+            null
         } catch (_: Exception) {
-            // If it's not valid base64 JSON, try direct parsing
-            try {
-                json.decodeFromString<NotePayload>(encryptedContent)
-            } catch (_: Exception) {
-                null
-            }
+            null
         }
     }
 
@@ -482,52 +371,31 @@ class CryptoService @Inject constructor() {
         plaintext: String,
         readerPubkeys: List<String>,
     ): EncryptedMessage = withContext(computeDispatcher) {
+        check(nativeLibLoaded) {
+            "Cannot encrypt message: native crypto library not loaded."
+        }
+
         val pub = pubkey ?: throw CryptoException("No key loaded")
 
-        if (nativeLibLoaded) {
-            return@withContext try {
-                val allReaders = (listOf(pub) + readerPubkeys).distinct()
-                val ffiMsg = org.llamenos.core.encryptMessageForReaders(
-                    plaintext = plaintext,
-                    readerPubkeys = allReaders,
-                )
-                EncryptedMessage(
-                    ciphertext = ffiMsg.encryptedContent,
-                    envelopes = ffiMsg.readerEnvelopes.map { env ->
-                        MessageEnvelope(
-                            recipientPubkey = env.pubkey,
-                            wrappedKey = env.wrappedKey,
-                            ephemeralPubkey = env.ephemeralPubkey,
-                        )
-                    },
-                )
-            } catch (e: org.llamenos.core.CryptoException) {
-                throw CryptoException("Message encryption failed: ${e.message}", e)
-            }
-        }
-
-        // Placeholder: mock envelope encryption
-        val random = java.security.SecureRandom()
-        val ciphertextBytes = ByteArray(plaintext.length + 16)
-        random.nextBytes(ciphertextBytes)
-
-        val allReaders = (listOf(pub) + readerPubkeys).distinct()
-        val envelopes = allReaders.map { recipientPub ->
-            val wrappedKeyBytes = ByteArray(80)
-            random.nextBytes(wrappedKeyBytes)
-            val ephemeralBytes = ByteArray(32)
-            random.nextBytes(ephemeralBytes)
-            MessageEnvelope(
-                recipientPubkey = recipientPub,
-                wrappedKey = wrappedKeyBytes.joinToString("") { "%02x".format(it) },
-                ephemeralPubkey = ephemeralBytes.joinToString("") { "%02x".format(it) },
+        try {
+            val allReaders = (listOf(pub) + readerPubkeys).distinct()
+            val ffiMsg = org.llamenos.core.encryptMessageForReaders(
+                plaintext = plaintext,
+                readerPubkeys = allReaders,
             )
+            EncryptedMessage(
+                ciphertext = ffiMsg.encryptedContent,
+                envelopes = ffiMsg.readerEnvelopes.map { env ->
+                    MessageEnvelope(
+                        recipientPubkey = env.pubkey,
+                        wrappedKey = env.wrappedKey,
+                        ephemeralPubkey = env.ephemeralPubkey,
+                    )
+                },
+            )
+        } catch (e: org.llamenos.core.CryptoException) {
+            throw CryptoException("Message encryption failed: ${e.message}", e)
         }
-
-        EncryptedMessage(
-            ciphertext = java.util.Base64.getEncoder().encodeToString(ciphertextBytes),
-            envelopes = envelopes,
-        )
     }
 
     /**
@@ -543,40 +411,30 @@ class CryptoService @Inject constructor() {
         wrappedKey: String,
         ephemeralPubkey: String,
     ): String? = withContext(computeDispatcher) {
+        check(nativeLibLoaded) {
+            "Cannot decrypt message: native crypto library not loaded."
+        }
+
         val secret = nsecHex ?: throw CryptoException("No key loaded")
         val pub = pubkey ?: throw CryptoException("No pubkey available")
 
-        if (nativeLibLoaded) {
-            return@withContext try {
-                // Build a single-element envelope list for the FFI call
-                val envelope = org.llamenos.core.RecipientKeyEnvelope(
-                    pubkey = pub,
-                    wrappedKey = wrappedKey,
-                    ephemeralPubkey = ephemeralPubkey,
-                )
-                org.llamenos.core.decryptMessageForReader(
-                    encryptedContent = encryptedContent,
-                    readerEnvelopes = listOf(envelope),
-                    secretKeyHex = secret,
-                    readerPubkey = pub,
-                )
-            } catch (e: org.llamenos.core.CryptoException) {
-                null
-            } catch (_: Exception) {
-                null
-            }
-        }
-
-        // Placeholder: decode base64 content as if it were plaintext
         try {
-            val decoded = java.util.Base64.getDecoder().decode(encryptedContent)
-            String(decoded, Charsets.UTF_8)
+            // Build a single-element envelope list for the FFI call
+            val envelope = org.llamenos.core.RecipientKeyEnvelope(
+                pubkey = pub,
+                wrappedKey = wrappedKey,
+                ephemeralPubkey = ephemeralPubkey,
+            )
+            org.llamenos.core.decryptMessageForReader(
+                encryptedContent = encryptedContent,
+                readerEnvelopes = listOf(envelope),
+                secretKeyHex = secret,
+                readerPubkey = pub,
+            )
+        } catch (e: org.llamenos.core.CryptoException) {
+            null
         } catch (_: Exception) {
-            try {
-                encryptedContent
-            } catch (_: Exception) {
-                null
-            }
+            null
         }
     }
 
@@ -588,27 +446,16 @@ class CryptoService @Inject constructor() {
      * @return Pair of (secretKeyHex, publicKeyHex)
      */
     fun generateEphemeralKeypair(): Pair<String, String> {
-        if (nativeLibLoaded) {
-            // Use generateKeypair from FFI — ephemeral keys are the same secp256k1 type
-            return try {
-                val kp = org.llamenos.core.generateKeypair()
-                Pair(kp.secretKeyHex, kp.publicKey)
-            } catch (e: org.llamenos.core.CryptoException) {
-                throw CryptoException("Ephemeral keypair generation failed: ${e.message}", e)
-            }
+        check(nativeLibLoaded) {
+            "Cannot generate ephemeral keypair: native crypto library not loaded."
         }
-
-        // Placeholder: generate random keypair bytes
-        val random = java.security.SecureRandom()
-        val secretBytes = ByteArray(32)
-        random.nextBytes(secretBytes)
-        val pubBytes = ByteArray(32)
-        random.nextBytes(pubBytes)
-
-        return Pair(
-            secretBytes.joinToString("") { "%02x".format(it) },
-            pubBytes.joinToString("") { "%02x".format(it) },
-        )
+        // Use generateKeypair from FFI -- ephemeral keys are the same secp256k1 type
+        return try {
+            val kp = org.llamenos.core.generateKeypair()
+            Pair(kp.secretKeyHex, kp.publicKey)
+        } catch (e: org.llamenos.core.CryptoException) {
+            throw CryptoException("Ephemeral keypair generation failed: ${e.message}", e)
+        }
     }
 
     /**
@@ -620,22 +467,14 @@ class CryptoService @Inject constructor() {
      * @return The shared x-coordinate (hex)
      */
     fun deriveSharedSecret(ourSecret: String, theirPublic: String): String {
-        if (nativeLibLoaded) {
-            return try {
-                org.llamenos.core.computeSharedXHex(ourSecret, theirPublic)
-            } catch (e: org.llamenos.core.CryptoException) {
-                throw CryptoException("ECDH shared secret derivation failed: ${e.message}", e)
-            }
+        check(nativeLibLoaded) {
+            "Cannot derive shared secret: native crypto library not loaded."
         }
-
-        // Placeholder: XOR-based mock derivation (NOT secure, just for structure)
-        val secretBytes = ourSecret.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-        val publicBytes = theirPublic.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-        val sharedBytes = ByteArray(32) { i ->
-            (secretBytes.getOrElse(i) { 0.toByte() }.toInt() xor publicBytes.getOrElse(i) { 0.toByte() }.toInt()).toByte()
+        return try {
+            org.llamenos.core.computeSharedXHex(ourSecret, theirPublic)
+        } catch (e: org.llamenos.core.CryptoException) {
+            throw CryptoException("ECDH shared secret derivation failed: ${e.message}", e)
         }
-
-        return sharedBytes.joinToString("") { "%02x".format(it) }
     }
 
     /**
@@ -654,20 +493,13 @@ class CryptoService @Inject constructor() {
         ciphertextHex: String,
         sharedSecretHex: String,
     ): String = withContext(computeDispatcher) {
-        if (nativeLibLoaded) {
-            return@withContext try {
-                org.llamenos.core.decryptWithSharedKeyHex(ciphertextHex, sharedSecretHex)
-            } catch (e: org.llamenos.core.CryptoException) {
-                throw CryptoException("Shared secret decryption failed: ${e.message}", e)
-            }
+        check(nativeLibLoaded) {
+            "Cannot decrypt with shared secret: native crypto library not loaded."
         }
-
-        // Placeholder: decode hex as plaintext
         try {
-            val bytes = ciphertextHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-            String(bytes, Charsets.UTF_8)
-        } catch (_: Exception) {
-            ciphertextHex
+            org.llamenos.core.decryptWithSharedKeyHex(ciphertextHex, sharedSecretHex)
+        } catch (e: org.llamenos.core.CryptoException) {
+            throw CryptoException("Shared secret decryption failed: ${e.message}", e)
         }
     }
 
@@ -683,21 +515,14 @@ class CryptoService @Inject constructor() {
      * @return Formatted SAS code ("XXX XXX")
      */
     fun deriveSASCode(sharedSecret: String): String {
-        if (nativeLibLoaded) {
-            return try {
-                org.llamenos.core.computeSasCode(sharedSecret)
-            } catch (e: org.llamenos.core.CryptoException) {
-                throw CryptoException("SAS code derivation failed: ${e.message}", e)
-            }
+        check(nativeLibLoaded) {
+            "Cannot derive SAS code: native crypto library not loaded."
         }
-
-        // Placeholder: derive 6 digits from the shared secret bytes
-        val bytes = sharedSecret.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-        val numeric = ((bytes.getOrElse(0) { 0 }.toInt() and 0xFF) * 65536 +
-                (bytes.getOrElse(1) { 0 }.toInt() and 0xFF) * 256 +
-                (bytes.getOrElse(2) { 0 }.toInt() and 0xFF)) % 1_000_000
-
-        return "%06d".format(numeric)
+        return try {
+            org.llamenos.core.computeSasCode(sharedSecret)
+        } catch (e: org.llamenos.core.CryptoException) {
+            throw CryptoException("SAS code derivation failed: ${e.message}", e)
+        }
     }
 
     /**
@@ -708,5 +533,24 @@ class CryptoService @Inject constructor() {
     fun lock() {
         nsecHex = null
         nsecBech32 = null
+    }
+
+    /**
+     * Set up test key state without native library calls.
+     * Only available in the same module (internal) for unit testing.
+     *
+     * This allows AuthViewModel tests to simulate crypto state transitions
+     * without requiring the native library, which is not available in JVM tests.
+     */
+    internal fun setTestKeyState(
+        secretHex: String,
+        secretBech32: String,
+        publicKey: String,
+        nostrPub: String,
+    ) {
+        nsecHex = secretHex
+        nsecBech32 = secretBech32
+        pubkey = publicKey
+        npub = nostrPub
     }
 }

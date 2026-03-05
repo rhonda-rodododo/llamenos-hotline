@@ -1,3 +1,4 @@
+import CommonCrypto
 import Foundation
 
 // MARK: - APIError
@@ -5,6 +6,7 @@ import Foundation
 enum APIError: LocalizedError {
     case invalidURL(String)
     case noBaseURL
+    case insecureConnection(String)
     case requestFailed(statusCode: Int, body: String)
     case networkError(Error)
     case decodingError(Error)
@@ -16,6 +18,8 @@ enum APIError: LocalizedError {
             return "Invalid URL: \(url)"
         case .noBaseURL:
             return NSLocalizedString("error_no_hub_url", comment: "No hub URL configured")
+        case .insecureConnection(let reason):
+            return reason
         case .requestFailed(let code, let body):
             return "HTTP \(code): \(body)"
         case .networkError(let error):
@@ -40,13 +44,17 @@ final class APIService: @unchecked Sendable {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
+    /// Certificate pinning delegate (H14). Retained by the URLSession.
+    private let pinningDelegate = CertificatePinningDelegate()
+
     init(cryptoService: CryptoService) {
         self.cryptoService = cryptoService
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 60
         config.waitsForConnectivity = true
-        self.session = URLSession(configuration: config)
+        // H14: Use certificate pinning delegate for all API requests
+        self.session = URLSession(configuration: config, delegate: pinningDelegate, delegateQueue: nil)
 
         self.encoder = JSONEncoder()
         self.encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -61,12 +69,26 @@ final class APIService: @unchecked Sendable {
     }
 
     /// Set the base URL from a string, validating it first.
+    /// H6: Rejects http:// URLs — only HTTPS is allowed for hub connections.
+    /// Auto-prepends https:// if no scheme is specified.
     func configure(hubURLString: String) throws {
-        // Normalize: ensure scheme is present
         var urlString = hubURLString.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !urlString.hasPrefix("http://") && !urlString.hasPrefix("https://") {
+
+        // H6: Reject insecure HTTP connections
+        if urlString.lowercased().hasPrefix("http://") {
+            throw APIError.insecureConnection(
+                NSLocalizedString(
+                    "error_http_not_allowed",
+                    comment: "HTTP connections are not allowed. Use HTTPS for secure communication."
+                )
+            )
+        }
+
+        // Auto-prepend https:// if no scheme
+        if !urlString.hasPrefix("https://") {
             urlString = "https://\(urlString)"
         }
+
         // Strip trailing slash
         if urlString.hasSuffix("/") {
             urlString = String(urlString.dropLast())
@@ -179,3 +201,87 @@ private struct AnyEncodable: Encodable {
 struct EmptyResponse: Decodable {
     init() {}
 }
+
+// MARK: - Certificate Pinning (H14)
+
+/// SHA-256 pin hashes for Cloudflare's intermediate CA public keys.
+/// Extract with: openssl s_client -connect app.llamenos.org:443 ... | openssl dgst -sha256 -binary | base64
+/// See also: docs/security/CERTIFICATE_PINS.md
+///
+/// These are placeholders — populate with real pin hashes once the production domain
+/// is provisioned and Cloudflare intermediate CA pins are extracted.
+enum CertificatePins {
+    // Cloudflare intermediate CA pins (SHA-256 SPKI hash, base64-encoded).
+    // Populate from docs/security/CERTIFICATE_PINS.md before production release.
+    static let cloudflareHashes: [String] = [
+        // Placeholder: replace with actual Cloudflare intermediate CA pin hashes
+        // "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",
+    ]
+
+    /// Whether certificate pinning is active (pins are configured).
+    static var isEnabled: Bool {
+        return !cloudflareHashes.isEmpty
+    }
+}
+
+/// URLSessionDelegate that enforces certificate pinning against known Cloudflare
+/// intermediate CA public key hashes. If pinning is disabled (no hashes configured),
+/// the delegate allows standard TLS validation.
+final class CertificatePinningDelegate: NSObject, URLSessionDelegate {
+    func urlSession(
+        _ session: URLSession,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        // Only handle server trust challenges
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              let serverTrust = challenge.protectionSpace.serverTrust else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+
+        // If pinning is not configured, fall through to default TLS validation
+        guard CertificatePins.isEnabled else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+
+        // Validate the certificate chain
+        guard let certificateChain = SecTrustCopyCertificateChain(serverTrust) as? [SecCertificate] else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+            return
+        }
+
+        var pinMatched = false
+        for certificate in certificateChain {
+            // Extract the public key and compute its SHA-256 hash
+            if let publicKey = SecCertificateCopyKey(certificate) {
+                var error: Unmanaged<CFError>?
+                if let publicKeyData = SecKeyCopyExternalRepresentation(publicKey, &error) as Data? {
+                    let hash = sha256Base64(publicKeyData)
+                    if CertificatePins.cloudflareHashes.contains(hash) {
+                        pinMatched = true
+                        break
+                    }
+                }
+            }
+        }
+
+        if pinMatched {
+            completionHandler(.useCredential, URLCredential(trust: serverTrust))
+        } else {
+            // Pin mismatch — reject the connection
+            completionHandler(.cancelAuthenticationChallenge, nil)
+        }
+    }
+
+    /// Compute SHA-256 hash of data, return as base64 string.
+    private func sha256Base64(_ data: Data) -> String {
+        var hash = [UInt8](repeating: 0, count: 32)
+        data.withUnsafeBytes { buffer in
+            _ = CC_SHA256(buffer.baseAddress, CC_LONG(data.count), &hash)
+        }
+        return Data(hash).base64EncodedString()
+    }
+}
+

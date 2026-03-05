@@ -70,6 +70,9 @@ class DeviceLinkViewModel @Inject constructor(
      * Process a scanned QR code containing provisioning room data.
      *
      * Expected format: "llamenos:provision:<roomId>:<relayUrl>"
+     *
+     * Validates the relay URL host to reject private/internal network addresses
+     * that could be used for SSRF or relay URL injection attacks.
      */
     fun onQRCodeScanned(rawValue: String) {
         val parts = rawValue.split(":")
@@ -86,6 +89,23 @@ class DeviceLinkViewModel @Inject constructor(
         val roomId = parts[2]
         val relayUrl = parts.drop(3).joinToString(":")
 
+        // Extract host from relay URL and validate
+        val host = try {
+            java.net.URI(relayUrl).host ?: ""
+        } catch (_: Exception) {
+            ""
+        }
+
+        if (host.isEmpty() || !isValidRelayHost(host)) {
+            _uiState.update {
+                it.copy(
+                    step = DeviceLinkStep.ERROR,
+                    error = "Invalid relay URL: private or reserved network address",
+                )
+            }
+            return
+        }
+
         _uiState.update {
             it.copy(
                 step = DeviceLinkStep.CONNECTING,
@@ -96,6 +116,29 @@ class DeviceLinkViewModel @Inject constructor(
         }
 
         connectToProvisioningRoom(roomId, relayUrl)
+    }
+
+    /**
+     * Validate that a relay host is not a private/internal network address.
+     *
+     * Rejects:
+     * - localhost, 127.0.0.1, ::1 (loopback)
+     * - 10.x.x.x (RFC 1918 Class A)
+     * - 172.16-31.x.x (RFC 1918 Class B)
+     * - 192.168.x.x (RFC 1918 Class C)
+     * - 169.254.x.x (link-local)
+     * - fe80: (IPv6 link-local)
+     *
+     * @return true if the host is a valid public relay address
+     */
+    internal fun isValidRelayHost(host: String): Boolean {
+        val lower = host.lowercase()
+        if (lower == "localhost" || lower == "127.0.0.1" || lower == "::1") return false
+        if (lower == "[::1]") return false
+
+        val blockedPrefixes = listOf("10.", "192.168.", "169.254.", "fe80:") +
+            (16..31).map { "172.$it." }
+        return blockedPrefixes.none { lower.startsWith(it) }
     }
 
     /**

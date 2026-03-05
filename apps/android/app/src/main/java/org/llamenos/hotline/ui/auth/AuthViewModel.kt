@@ -15,6 +15,7 @@ import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.EncryptedKeyData
 import org.llamenos.hotline.crypto.KeyValueStore
 import org.llamenos.hotline.crypto.KeystoreService
+import org.llamenos.hotline.crypto.PinLockoutState
 import javax.inject.Inject
 
 /**
@@ -47,6 +48,12 @@ data class AuthUiState(
     val confirmPin: String = "",
     val isConfirmingPin: Boolean = false,
     val pinMismatch: Boolean = false,
+
+    // PIN lockout
+    val isLockedOut: Boolean = false,
+    val lockoutUntil: Long = 0L,
+    val isWiped: Boolean = false,
+    val failedAttempts: Int = 0,
 
     // Auth state
     val hasStoredKeys: Boolean = false,
@@ -157,7 +164,8 @@ class AuthViewModel @Inject constructor(
 
             cryptoService.importNsec(nsec)
 
-            _uiState.update { it.copy(isLoading = false) }
+            // Clear nsec from UI state immediately after successful import
+            _uiState.update { it.copy(isLoading = false, nsecInput = "") }
         } catch (e: Exception) {
             _uiState.update {
                 it.copy(
@@ -171,8 +179,12 @@ class AuthViewModel @Inject constructor(
     /**
      * User confirmed they have backed up their nsec.
      */
+    /**
+     * User confirmed they have backed up their nsec.
+     * Clear the generated nsec from UI state — it must never be displayed again.
+     */
     fun confirmBackup() {
-        _uiState.update { it.copy(backupConfirmed = true) }
+        _uiState.update { it.copy(backupConfirmed = true, generatedNsec = null) }
     }
 
     /**
@@ -256,11 +268,14 @@ class AuthViewModel @Inject constructor(
                     keystoreService.store(KeystoreService.KEY_NPUB, npub)
                 }
 
+                // Clear PIN from UI state after successful encryption
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         isAuthenticated = true,
                         hasStoredKeys = true,
+                        pin = "",
+                        confirmPin = "",
                     )
                 }
             } catch (e: Exception) {
@@ -276,9 +291,43 @@ class AuthViewModel @Inject constructor(
 
     /**
      * Attempt to unlock stored keys with the entered PIN.
+     * Integrates with PIN brute-force protection when keystoreService
+     * is a [KeystoreService] (not in unit tests with InMemoryKeyValueStore).
      */
     fun unlockWithPin(pin: String) {
         viewModelScope.launch {
+            // Check lockout state if using real KeystoreService
+            val ks = keystoreService as? KeystoreService
+            if (ks != null) {
+                when (val lockout = ks.checkLockoutState()) {
+                    is PinLockoutState.LockedOut -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                isLockedOut = true,
+                                lockoutUntil = lockout.until,
+                                error = "Too many failed attempts. Try again later.",
+                                pin = "",
+                            )
+                        }
+                        return@launch
+                    }
+                    is PinLockoutState.Wiped -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                isWiped = true,
+                                hasStoredKeys = false,
+                                error = "Keys wiped due to too many failed PIN attempts.",
+                                pin = "",
+                            )
+                        }
+                        return@launch
+                    }
+                    is PinLockoutState.Unlocked -> { /* proceed */ }
+                }
+            }
+
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             try {
@@ -296,19 +345,39 @@ class AuthViewModel @Inject constructor(
 
                 cryptoService.decryptFromStorage(encryptedData, pin)
 
+                // Success — reset failed attempts
+                ks?.resetFailedAttempts()
+
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         isAuthenticated = true,
                         pin = "",
+                        isLockedOut = false,
+                        failedAttempts = 0,
                     )
                 }
             } catch (e: Exception) {
+                // Record failed attempt for lockout tracking
+                val lockoutState = ks?.recordFailedAttempt()
+                val failedCount = ks?.getFailedAttemptCount() ?: 0
+
+                val errorMsg = when (lockoutState) {
+                    is PinLockoutState.LockedOut -> "Incorrect PIN. Locked out."
+                    is PinLockoutState.Wiped -> "Keys wiped due to too many failed PIN attempts."
+                    else -> "Incorrect PIN"
+                }
+
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = "Incorrect PIN",
+                        error = errorMsg,
                         pin = "",
+                        isLockedOut = lockoutState is PinLockoutState.LockedOut,
+                        lockoutUntil = (lockoutState as? PinLockoutState.LockedOut)?.until ?: 0L,
+                        isWiped = lockoutState is PinLockoutState.Wiped,
+                        hasStoredKeys = lockoutState !is PinLockoutState.Wiped,
+                        failedAttempts = failedCount,
                     )
                 }
             }

@@ -53,7 +53,10 @@ cmd_start() {
   export ADMIN_PUBKEY="${ADMIN_PUBKEY:-ac4718373d30301e5c7cf55e9e6f2568efb94f3278fb88f37f4981e880505228}"
   export HOTLINE_NAME="${HOTLINE_NAME:-Llámenos (Dev)}"
   export ENVIRONMENT=development
-  export HMAC_SECRET="${HMAC_SECRET:-0000000000000000000000000000000000000000000000000000000000000000}"
+  if [ -z "$HMAC_SECRET" ]; then
+    warn "HMAC_SECRET not set. Generating random value for this session."
+    export HMAC_SECRET=$(openssl rand -hex 32)
+  fi
   export MINIO_ENDPOINT=http://localhost:9000
   export MINIO_ACCESS_KEY=minioadmin
   export MINIO_SECRET_KEY=minioadmin

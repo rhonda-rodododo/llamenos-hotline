@@ -21,7 +21,7 @@ Feature: PIN Unlock
 
   Scenario: Wrong PIN shows error
     When I enter PIN "9999"
-    Then I should see the error "Incorrect PIN"
+    Then I should see a PIN error message
     And I should remain on the unlock screen
     And the PIN dots should be cleared
 
@@ -35,9 +35,6 @@ Feature: PIN Unlock
     Then I should arrive at the dashboard
 
   @regression
-  Scenario: Reset identity from unlock screen
-    When I tap "Reset Identity"
-    Then I should see a confirmation dialog
-    When I confirm the reset
-    Then I should return to the login screen
-    And no stored keys should remain
+  Scenario: Recovery options accessible from unlock screen
+    When I tap "Recovery options"
+    Then I should see the nsec import input field

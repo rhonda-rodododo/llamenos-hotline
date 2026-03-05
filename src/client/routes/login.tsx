@@ -58,15 +58,28 @@ function LoginPage() {
   // --- PIN unlock (primary flow when key exists) ---
   async function handlePinUnlock(pin: string): Promise<boolean> {
     setValidationError('')
-    const success = await unlockWithPin(pin)
-    if (success) {
-      // Return to the page the user was on before the lock, or default to dashboard
-      const returnTo = sessionStorage.getItem('returnTo')
-      sessionStorage.removeItem('returnTo')
-      navigate({ to: returnTo || '/' })
-      return true
+    try {
+      const success = await unlockWithPin(pin)
+      if (success) {
+        // Return to the page the user was on before the lock, or default to dashboard
+        const returnTo = sessionStorage.getItem('returnTo')
+        sessionStorage.removeItem('returnTo')
+        // Validate returnTo to prevent open redirects — must be a relative path
+        const safePath = returnTo && /^\/[^/:]/.test(returnTo) ? returnTo : '/'
+        navigate({ to: safePath })
+        return true
+      }
+      return false
+    } catch (err) {
+      // Lockout or wipe error from Rust-side PIN tracking
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('Keys wiped')) {
+        handlePinWipe()
+      } else {
+        setValidationError(msg)
+      }
+      return false
     }
-    return false
   }
 
   async function handlePinWipe() {
@@ -153,7 +166,7 @@ function LoginPage() {
 
   async function handleNewPinComplete(pin: string) {
     if (newPinStep === 'create') {
-      if (!/^\d{4,6}$/.test(pin)) {
+      if (!keyManager.isValidPin(pin)) {
         setPinError(t('pin.tooShort'))
         return
       }
@@ -541,14 +554,15 @@ function LoginPage() {
   )
 }
 
-/** Inline PIN entry (not a full-screen overlay) for the login page */
+/** Inline PIN entry (not a full-screen overlay) for the login page.
+ * PIN attempt tracking is persisted server-side in the Tauri Store (Rust).
+ * The component only displays errors returned by the backend.
+ */
 function PinUnlockInline({ onUnlock, onWipe }: { onUnlock: (pin: string) => Promise<boolean>; onWipe: () => void }) {
   const { t } = useTranslation()
   const [pin, setPin] = useState('')
   const [error, setError] = useState(false)
-  const [failedAttempts, setFailedAttempts] = useState(0)
   const [checking, setChecking] = useState(false)
-  const maxAttempts = 10
 
   async function handleComplete(enteredPin: string) {
     if (checking) return
@@ -556,17 +570,10 @@ function PinUnlockInline({ onUnlock, onWipe }: { onUnlock: (pin: string) => Prom
     setError(false)
     const success = await onUnlock(enteredPin)
     if (success) return
-    const newAttempts = failedAttempts + 1
-    setFailedAttempts(newAttempts)
     setError(true)
     setPin('')
     setChecking(false)
-    if (newAttempts >= maxAttempts) {
-      onWipe()
-    }
   }
-
-  const remainingAttempts = maxAttempts - failedAttempts
 
   return (
     <div className="space-y-3">
@@ -581,11 +588,6 @@ function PinUnlockInline({ onUnlock, onWipe }: { onUnlock: (pin: string) => Prom
       />
       {error && (
         <p className="text-center text-sm text-destructive">{t('lock.wrongPin', { defaultValue: 'Wrong PIN' })}</p>
-      )}
-      {failedAttempts > 0 && remainingAttempts <= 5 && (
-        <p className="text-center text-xs text-muted-foreground">
-          {t('lock.attemptsRemaining', { count: remainingAttempts, defaultValue: '{{count}} attempts remaining' })}
-        </p>
       )}
     </div>
   )

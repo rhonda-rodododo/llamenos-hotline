@@ -138,13 +138,21 @@ final class AuthService {
 
     // MARK: - Biometric Unlock
 
-    /// Enable or disable biometric unlock. When enabling, the PIN-encrypted key data
-    /// is stored with biometric protection so the system will prompt for Face ID /
-    /// Touch ID before releasing it.
-    func setBiometricEnabled(_ enabled: Bool) throws {
+    /// Enable or disable biometric unlock. When enabling, requires the current PIN
+    /// to store it behind biometric-protected Keychain item (C5). When disabling,
+    /// removes the biometric PIN.
+    func setBiometricEnabled(_ enabled: Bool, pin: String? = nil) throws {
         let biometricByte: Data = enabled ? Data([1]) : Data([0])
         try keychainService.store(key: KeychainKey.biometricEnabled, data: biometricByte)
         isBiometricEnabled = enabled
+
+        if enabled, let pin {
+            // Store the PIN behind biometric protection so biometric unlock can
+            // retrieve it and use it to decrypt the nsec (C5).
+            try keychainService.storePINForBiometric(pin)
+        } else if !enabled {
+            keychainService.deleteBiometricPIN()
+        }
     }
 
     // MARK: - Lock
@@ -165,6 +173,8 @@ final class AuthService {
         keychainService.delete(key: KeychainKey.hubURL)
         keychainService.delete(key: KeychainKey.biometricEnabled)
         keychainService.delete(key: KeychainKey.deviceID)
+        keychainService.deleteBiometricPIN()
+        keychainService.clearLockoutState()
         hasStoredKeys = false
         isBiometricEnabled = false
         hubURL = nil

@@ -1,5 +1,88 @@
 # Completed Backlog
 
+## 2026-03-05: Security Audit Round 8 — Epics 257-264
+
+63 vulnerabilities found (8 Critical, 22 High, 33 Medium). All fixed across 8 epics.
+
+### Epic 264: CI/CD & Supply Chain Hardening
+- **ci.yml**: SHA-pinned all GitHub Actions, added `bun audit` with tiered thresholds (critical=0, high=5, moderate=20)
+- **desktop-e2e.yml**: SHA-pinned actions
+- **mobile-release.yml**: SHA-pinned actions
+- **tauri-release.yml**: SHA-pinned actions, fixed missing Rust target on Linux
+- **docker-compose.yml**: Digest-pinned base images (postgres, minio, redis)
+- **ansible/vars.example.yml**: Fixed hardcoded SSH port, added SSH key path variable
+- **dev-node.sh**: Auto-generate random HMAC_SECRET for dev if not set
+
+### Epic 263: Protocol & Schema Hardening
+- **Protocol schemas**: Added maxLength, pattern, format constraints to notes, files, hub, blasts schemas
+- **PROTOCOL.md**: Removed legacy unbound auth token documentation
+- **i18n-codegen.ts**: Added XML entity escaping for Android strings.xml output
+- **Codegen**: Regenerated TS/Swift/Kotlin types with new schema constraints
+
+### Epic 259: Rust Crypto & KDF Hardening
+- **ecies.rs**: ECIES KDF v1→v2 migration (SHA-256 → HKDF-SHA256) with version byte `0x02`, v1 fallback for existing ciphertext, `ecies_unwrap_key_versioned` returns migration flag, sk_bytes zeroization
+- **auth.rs**: `verify_auth_token_with_expiry()` with max_age_ms + 30s future clock rejection, `verify_schnorr` message length validation (must be 32 bytes)
+- **encryption.rs**: `Zeroizing<Vec<u8>>` wrapper for all decrypt plaintext, PBKDF2 salt upgraded to 32 bytes (backward compatible with 16-byte)
+- **ffi.rs**: Replaced manual HMAC HKDF with `hkdf` crate in `compute_sas_code`, added `ecies_encrypt_content_hex` FFI export
+- **errors.rs**: Added `InvalidInput(String)` variant to CryptoError
+- **Worker crypto.ts**: Mirrored ECIES HKDF v2 with version byte
+- **file-crypto.ts**: Mirrored ECIES HKDF v2 metadata encryption
+- All 55 Rust tests pass (44 unit + 11 interop)
+
+### Epic 257: Desktop Tauri & Frontend Security Hardening
+- **tauri.conf.json**: CSP hardened (form-action/frame-ancestors/base-uri/object-src blocked), Stronghold PBKDF2-SHA256 600K iterations with domain-separated salt
+- **lib.rs**: CryptoState lock on window destroy and quit, zeroize on exit
+- **crypto.rs**: One-time provisioning token (`request_provisioning_token` + `.take()` consumption), PIN lockout persisted in Tauri Store (escalating: 30s→2min→10min→wipe at 10 attempts)
+- **api.ts**: returnTo validation (regex `/^\/[^/:]`) prevents open redirects
+- **demo-accounts.ts**: Dynamic import for demo nsecs (separate chunk, not in main bundle)
+- **tauri-core.ts mock**: Production guard throws if loaded outside PLAYWRIGHT_TEST
+
+### Epic 258: Worker Critical & High Security Fixes
+- **config.ts**: Removed `serverEventKeyHex` from public `/api/config` endpoint
+- **auth.ts**: Moved `serverEventKeyHex` behind authentication (`/api/auth/me`), removed admin signing pubkey exposure (H17), IP-based rate limiting on login (10/min) and bootstrap (5/min)
+- **blast-do.ts, records-do.ts, settings-do.ts**: DEMO_MODE gating on all reset handlers (C3)
+- **settings-do.ts**: Rate limit parameter validation (key regex, maxPerMinute 1-1000)
+- **provisioning.ts**: Rate limiting on room polling (30/min per IP) + token requirement
+- **setup.ts**: All routes gated with `requirePermission('settings:manage')`
+
+### Epic 262: Worker Medium Security Fixes
+- **cors.ts**: Explicit origin allowlist (4 production origins + dev localhost only when ENVIRONMENT=development)
+- **blast-do.ts**: Daily blast rate limit enforcement (maxBlastsPerDay, default 10, 429 on exceed), constant-time preference token lookup via storage index
+- **records-do.ts**: actorPubkey format validation (64-char hex or 'system')
+- **settings-do.ts**: Hub settings allowlist (strip unknown keys)
+- **provisioning.ts**: IP-based polling rate limit (30/min)
+- **uploads.ts**: Upload size caps (100MB total, 10MB per chunk)
+- **dev.ts**: Inverted reset default — deny when no secret configured
+- **setup.ts**: Setup state endpoint gated on permission
+
+### Epic 260: iOS Security Hardening
+- **KeychainService.swift**: Biometric PIN storage (storePINForBiometric/retrievePINWithBiometric with .biometryCurrentSet), PIN lockout persistence via Keychain (setLockoutAttempts/getLockoutUntil — not UserDefaults)
+- **PINViewModel.swift**: Fixed biometric unlock (retrieves PIN from biometric Keychain, calls unlockWithPIN), escalating lockout (1-4 none, 5-6 30s, 7-8 2min, 9 10min, 10+ wipe)
+- **DeviceLinkViewModel.swift**: SAS gate (pendingEncryptedNsec held until SAS confirmed), relay URL validation (isValidRelayHost rejects private IPs/loopback/link-local)
+- **APIService.swift**: HTTP scheme rejection (throws insecureConnection), CertificatePinningDelegate (URLSessionDelegate with SHA-256 SPKI pin verification), auto-prepend https://
+- **WakeKeyService.swift**: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly + kSecAttrSynchronizable=false (prevents iCloud sync)
+- **LlamenosApp.swift**: @AppStorage("autoLockTimeout") for configurable auto-lock, privacy overlay on scenePhase .inactive/.background
+- **OnboardingView.swift, NoteDetailView.swift**: .privacySensitive() on nsec display and note content
+- **AuthViewModel.swift**: Clear nsecInput after successful import
+- **SettingsView.swift**: Persist auto-lock timeout via @AppStorage with onChange handler
+- **Tests**: SecurityHardeningTests.swift (31 unit tests: URL validation, lockout timing, HTTP rejection, cert pinning), KeychainServiceTests.swift (6 lockout persistence tests), SecurityUITests.swift (4 XCUITest stubs)
+
+### Epic 261: Android Security Hardening
+- **CryptoService.kt**: Removed ALL placeholder/fallback crypto paths (C6 hard-fail). Every crypto method now has `check(nativeLibLoaded)` — throws `IllegalStateException` without native lib. Removed Base64/String.hashCode() fallback for PIN encryption. Added `setTestKeyState()` for JVM test support.
+- **KeystoreService.kt**: PIN brute-force protection (H9) with escalating lockout: 1-4 none, 5-6 30s, 7-8 2min, 9 10min, 10+ wipe. `PinLockoutState` sealed class, `recordFailedAttempt()`, `checkLockoutState()`, `resetFailedAttempts()`. StrongBox backing (H12) with graceful fallback.
+- **AuthViewModel.kt**: Clear nsec from state after backup confirmation (H-2a), clear nsecInput after import (M29), clear PIN after encryption. Integrated PIN lockout state into UI (lockout/wipe errors, attempt tracking).
+- **DeviceLinkViewModel.kt**: `isValidRelayHost()` rejects private IPs (10.x, 192.168.x, 172.16-31.x, 169.254.x, localhost, ::1, fe80:) to prevent SSRF/relay injection (H10).
+- **ApiService.kt**: Certificate pinning via OkHttp `CertificatePinner` with placeholder pins referencing `docs/security/CERTIFICATE_PINS.md` (H14).
+- **AuthInterceptor.kt**: Returns synthetic 401 Response instead of dispatching unauthenticated requests when signing fails (M30).
+- **libs.versions.toml**: Upgraded security-crypto from 1.1.0-alpha06 to 1.1.0 stable (H11).
+- **network_security_config.xml**: Removed dev IPs (192.168.x, 10.x) from release config (H13). Created debug source set overlay with dev IPs.
+- **proguard-rules.pro**: Narrowed overly broad `-keep class org.llamenos.hotline.crypto.** { *; }` and `-keep class org.llamenos.hotline.api.** { *; }` to specific `-keepclassmembers` for API models and `@Serializable` classes (M31).
+- **Tests**: CryptoServiceTest (17 tests verifying hard-fail for each method), KeystoreServiceTest (lockout escalation schedule, constants), DeviceLinkViewModelTest (23 URL validation tests), AuthInterceptorTest (5 synthetic 401 tests), AuthViewModelTest (updated for C6).
+
+### Cross-Platform
+- **CERTIFICATE_PINS.md**: Created shared certificate pin reference document
+- All platforms use same ECIES v2 format with version byte detection and v1 fallback
+
 ## 2026-03-04: Security Audit Round 7 — Epics 252-256
 
 ### Epic 252: Nostr Hub-Key Encryption

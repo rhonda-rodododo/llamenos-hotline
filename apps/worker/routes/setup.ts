@@ -7,8 +7,8 @@ import { validateExternalUrl } from '../lib/ssrf-guard'
 
 const setup = new Hono<AppEnv>()
 
-// Get setup state (any authenticated user — used for redirect logic)
-setup.get('/state', async (c) => {
+// Get setup state (admin only — gated for defense-in-depth)
+setup.get('/state', requirePermission('settings:manage'), async (c) => {
   const dos = getDOs(c.env)
   const res = await dos.settings.fetch(new Request('http://do/settings/setup'))
   return new Response(res.body, res)

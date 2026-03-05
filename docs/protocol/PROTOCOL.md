@@ -78,8 +78,7 @@ Authorization: Bearer {"pubkey":"a1b2c3d4e5f6...","timestamp":1709318400000,"tok
 4. Reconstruct the message: `"llamenos:auth:" + pubkey + ":" + timestamp + ":" + method + ":" + path`.
 5. Compute `SHA-256(UTF-8(message))`.
 6. Verify the Schnorr signature: `schnorr.verify(hex_to_bytes(token), message_hash, hex_to_bytes(pubkey))`.
-7. If bound verification fails, fall back to legacy format (`"llamenos:auth:" + pubkey + ":" + timestamp`) during the transition period.
-8. Look up the pubkey in the identity store to resolve the user record.
+7. Look up the pubkey in the identity store to resolve the user record.
 
 ### 1.2 Session Token Authentication (WebAuthn)
 

@@ -13,7 +13,7 @@
  *   ciphertext = XChaCha20-Poly1305(event_key, nonce).encrypt(UTF-8(json))
  *   output = hex(nonce || ciphertext)
  *
- * Clients receive the server's event key via GET /api/config (serverEventKeyHex).
+ * Clients receive the server's event key via GET /api/auth/me (serverEventKeyHex).
  */
 
 import { hkdf } from '@noble/hashes/hkdf.js'

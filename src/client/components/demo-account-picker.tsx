@@ -38,9 +38,9 @@ export function DemoAccountPicker() {
 
   // Dynamic import: nsec values are only fetched when this component mounts (demo mode active)
   useEffect(() => {
-    import('@/lib/demo-accounts').then(({ getDemoAccountsWithNsec }) => {
-      setAccounts(getDemoAccountsWithNsec())
-    })
+    import('@/lib/demo-accounts').then(({ getDemoAccountsWithNsec }) =>
+      getDemoAccountsWithNsec()
+    ).then(setAccounts)
   }, [])
 
   async function handleDemoLogin(nsec: string, pubkey: string) {

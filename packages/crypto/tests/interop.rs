@@ -788,7 +788,7 @@ fn pin_encryption_format_consistency() {
     assert!(!encrypted.ciphertext.is_empty(), "ciphertext must be present");
     assert!(!encrypted.pubkey.is_empty(), "pubkey hash must be present");
 
-    assert_eq!(encrypted.salt.len(), 32, "salt must be 32 hex chars");
+    assert_eq!(encrypted.salt.len(), 64, "salt must be 64 hex chars (32 bytes)");
     assert_eq!(encrypted.nonce.len(), 48, "nonce must be 48 hex chars");
 
     let decrypted = decrypt_with_pin(&encrypted, "5678").unwrap();

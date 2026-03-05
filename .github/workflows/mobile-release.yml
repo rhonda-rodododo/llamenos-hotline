@@ -40,7 +40,7 @@ jobs:
         uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972d69a9da8bc5f6e75c # v4.4.1
 
       - name: Install Rust stable (for crypto build)
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
 
@@ -108,7 +108,7 @@ jobs:
 
       - name: Upload to Play Store (internal track)
         if: secrets.PLAY_SERVICE_ACCOUNT != ''
-        uses: r0adkll/upload-google-play@v1
+        uses: r0adkll/upload-google-play@935ef9c68bb393a8e6116b1575626a7f5be3a7fb # v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT }}
           packageName: org.llamenos.hotline
@@ -148,7 +148,7 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode.app
 
       - name: Install Rust stable (for crypto build)
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # stable
         with:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim
 

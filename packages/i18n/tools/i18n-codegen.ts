@@ -55,6 +55,11 @@ function toIOSString(value: string): string {
   })
 }
 
+// Escape special characters for iOS .strings format
+function escapeIOSString(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')
+}
+
 // Convert i18next interpolation to Android format
 function toAndroidString(value: string): string {
   let index = 0
@@ -74,7 +79,7 @@ function toAndroidString(value: string): string {
 function generateIOS(keys: Record<string, string>): string {
   const lines = Object.entries(keys)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, value]) => `"${key}" = "${toIOSString(value)}";`)
+    .map(([key, value]) => `"${escapeIOSString(key)}" = "${escapeIOSString(toIOSString(value))}";`)
   return lines.join('\n') + '\n'
 }
 

@@ -11,7 +11,12 @@ Then('I should see the {string} button', async ({ page }, buttonText: string) =>
   const buttonTestIdMap: Record<string, string> = {
     'Lock App': TestIds.LOGOUT_BTN,
     'Log Out': TestIds.LOGOUT_BTN,
+    'Log out': TestIds.LOGOUT_BTN,
     'Logout': TestIds.LOGOUT_BTN,
+    'Log In': TestIds.LOGIN_SUBMIT_BTN,
+    'Log in': TestIds.LOGIN_SUBMIT_BTN,
+    'Recovery Options': TestIds.RECOVERY_OPTIONS_BTN,
+    'Recovery options': TestIds.RECOVERY_OPTIONS_BTN,
     'Clock In': TestIds.BREAK_TOGGLE_BTN,
     'Clock Out': TestIds.BREAK_TOGGLE_BTN,
     'Save': TestIds.FORM_SAVE_BTN,

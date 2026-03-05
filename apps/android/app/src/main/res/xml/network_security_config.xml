@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Network security configuration for llamenos.
+    Network security configuration for llamenos (release).
 
-    Production: Only allows HTTPS connections (system default).
-    Debug: Allows cleartext (HTTP) to localhost for development.
+    HTTPS only — no cleartext traffic permitted.
+    Debug builds use app/src/debug/res/xml/network_security_config.xml
+    which adds localhost and LAN exceptions.
 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
@@ -11,11 +12,4 @@
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-
-    <!-- Allow cleartext to localhost and LAN for development only -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">localhost</domain>
-        <domain includeSubdomains="false">10.0.2.2</domain>
-        <domain includeSubdomains="true">192.168.50.95</domain>
-    </domain-config>
 </network-security-config>

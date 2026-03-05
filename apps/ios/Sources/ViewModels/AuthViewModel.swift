@@ -81,6 +81,8 @@ final class AuthViewModel {
     }
 
     /// Submit the imported nsec.
+    /// M27: Clears nsecInput from memory on successful import to prevent
+    /// the sensitive key material from lingering in view model state.
     func submitImport() {
         errorMessage = nil
 
@@ -95,6 +97,9 @@ final class AuthViewModel {
 
         do {
             try authService.importExistingIdentity(nsec: trimmed)
+            // M27: Clear nsecInput after successful import — don't leave sensitive
+            // key material in the view model's observable state.
+            nsecInput = ""
             currentStep = .settingPIN
         } catch {
             errorMessage = error.localizedDescription

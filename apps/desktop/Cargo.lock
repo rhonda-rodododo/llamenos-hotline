@@ -2644,6 +2644,7 @@ dependencies = [
  "hmac",
  "llamenos-core",
  "pbkdf2",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "sha2",

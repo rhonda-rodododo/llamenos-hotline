@@ -341,17 +341,16 @@ export class VonageAdapter implements TelephonyAdapter {
     // The signature is sent in the Authorization header or as a query parameter
     // We validate using the apiSecret as the signing key
     const url = new URL(request.url)
-    const sig = url.searchParams.get('sig')
-    if (!sig) {
-      // If no signature parameter, validate using body-based HMAC
-      // Vonage sends signed webhooks with timestamp + sig params
-      const timestamp = url.searchParams.get('timestamp')
-      if (!timestamp) return false
 
-      // Verify timestamp is within 5 minutes
-      const ts = parseInt(timestamp, 10)
-      if (isNaN(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false
-    }
+    // Epic 258 H16: Timestamp check applies unconditionally (before signature check)
+    // to prevent replay attacks even when a valid signature is present
+    const timestamp = url.searchParams.get('timestamp')
+    if (!timestamp) return false
+    const ts = parseInt(timestamp, 10)
+    if (isNaN(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false
+
+    const sig = url.searchParams.get('sig')
+    if (!sig) return false
 
     // Reconstruct signing input: sort all query params (excluding sig), concatenate
     const params = Array.from(url.searchParams.entries())
@@ -375,8 +374,6 @@ export class VonageAdapter implements TelephonyAdapter {
     const expected = Array.from(new Uint8Array(signed))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('')
-
-    if (!sig) return false
 
     // Constant-time comparison
     if (sig.length !== expected.length) return false

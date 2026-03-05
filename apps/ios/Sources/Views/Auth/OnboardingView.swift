@@ -38,11 +38,12 @@ struct OnboardingView: View {
                 }
                 .padding(.top, 24)
 
-                // Nsec display
+                // Nsec display — M28: marked as privacy-sensitive to redact in screenshots
                 SecureTextField(
                     nsec,
                     label: NSLocalizedString("onboarding_nsec_label", comment: "Secret Key (nsec)")
                 )
+                .privacySensitive()
 
                 // Copy button — copies to clipboard for one-time use
                 Button {

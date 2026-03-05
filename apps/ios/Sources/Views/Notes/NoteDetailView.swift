@@ -64,6 +64,7 @@ struct NoteDetailView: View {
             Text(note.payload.text)
                 .font(.body)
                 .textSelection(.enabled)
+                .privacySensitive()  // M28: Redact note content in screenshots
                 .accessibilityIdentifier("note-detail-text")
         }
     }
@@ -83,6 +84,7 @@ struct NoteDetailView: View {
                         .font(.body)
                         .foregroundStyle(.primary)
                         .multilineTextAlignment(.trailing)
+                        .privacySensitive()  // M28: Redact custom field values in screenshots
                 } label: {
                     Text(labelForField(named: field.key))
                         .font(.subheadline)

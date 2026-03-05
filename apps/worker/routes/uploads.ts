@@ -5,6 +5,9 @@ import { getDOs } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
 
+const MAX_UPLOAD_SIZE = 100 * 1024 * 1024  // 100 MB
+const MAX_CHUNK_SIZE = 10 * 1024 * 1024    // 10 MB
+
 const uploads = new Hono<AppEnv>()
 uploads.use('*', requirePermission('files:upload'))
 
@@ -16,6 +19,10 @@ uploads.post('/init', async (c) => {
 
   if (!body.totalSize || !body.totalChunks || !body.conversationId) {
     return c.json({ error: 'Missing required fields: totalSize, totalChunks, conversationId' }, 400)
+  }
+
+  if (body.totalSize > MAX_UPLOAD_SIZE) {
+    return c.json({ error: `File too large (max ${MAX_UPLOAD_SIZE / 1024 / 1024}MB)` }, 400)
   }
 
   if (body.totalChunks > 10000) {
@@ -83,6 +90,10 @@ uploads.put('/:id/chunks/:chunkIndex', async (c) => {
   const body = await c.req.arrayBuffer()
   if (!body || body.byteLength === 0) {
     return c.json({ error: 'Empty chunk' }, 400)
+  }
+
+  if (body.byteLength > MAX_CHUNK_SIZE) {
+    return c.json({ error: `Chunk too large (max ${MAX_CHUNK_SIZE / 1024 / 1024}MB)` }, 400)
   }
 
   const r2Key = `files/${uploadId}/chunk-${String(chunkIndex).padStart(6, '0')}`

@@ -372,11 +372,14 @@ export async function rewrapFileKey(
 
 /**
  * Get nsec from CryptoState for device provisioning/backup ONLY.
- * This intentionally sends the nsec back to the webview — acceptable because
- * provisioning already sends it (encrypted) to another device.
+ *
+ * Uses a one-time provisioning token to prevent concurrent provisioning races
+ * and limit nsec exposure. Calls `request_provisioning_token` first, then
+ * passes the token to `get_nsec_from_state` which consumes it.
  */
 export async function getNsecFromState(): Promise<string> {
-  return tauriInvoke<string>('get_nsec_from_state')
+  const token = await tauriInvoke<string>('request_provisioning_token')
+  return tauriInvoke<string>('get_nsec_from_state', { token })
 }
 
 // ── Nsec validation & parsing (stateless) ────────────────────────────
@@ -448,6 +451,9 @@ export async function encryptWithPin(
 /**
  * Decrypt an nsec from PIN-encrypted storage and load into CryptoState.
  * Returns ONLY the pubkey — the nsec NEVER leaves the Rust process.
+ *
+ * Throws on lockout or key wipe (Rust-side PIN attempt tracking).
+ * Returns null only for wrong PIN (no lockout).
  */
 export async function decryptWithPin(pin: string): Promise<string | null> {
   const { Store } = await import('@tauri-apps/plugin-store')
@@ -456,8 +462,13 @@ export async function decryptWithPin(pin: string): Promise<string | null> {
   if (!data) return null
   try {
     return await tauriInvoke<string>('unlock_with_pin', { data, pin })
-  } catch {
-    return null // Wrong PIN or corrupted data
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    // Lockout and wipe errors should propagate to the UI
+    if (msg.includes('Locked out') || msg.includes('Keys wiped')) {
+      throw new Error(msg)
+    }
+    return null // Wrong PIN (no lockout)
   }
 }
 

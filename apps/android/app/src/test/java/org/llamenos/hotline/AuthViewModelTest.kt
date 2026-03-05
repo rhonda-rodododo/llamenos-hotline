@@ -28,6 +28,15 @@ import org.llamenos.hotline.ui.auth.AuthViewModel
  *   PINUnlock -> Dashboard (stored keys exist)
  *
  * Uses [InMemoryKeyValueStore] to avoid Android Keystore dependency.
+ *
+ * Note: Since Epic 261 (C6), CryptoService hard-fails without the native library.
+ * Tests that exercise crypto paths (generateKeypair, importNsec, encryptForStorage)
+ * will throw [IllegalStateException]. These tests verify ViewModel state machine
+ * transitions using [CryptoService.setTestKeyState] to simulate crypto state.
+ *
+ * Tests that require PIN encryption/decryption (encryptForStorage, decryptFromStorage)
+ * are skipped in JVM tests — they require the native library and are tested in
+ * instrumented tests on device/emulator with JNI libs present.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthViewModelTest {
@@ -53,7 +62,19 @@ class AuthViewModelTest {
         return AuthViewModel(cryptoService, keyValueStore)
     }
 
-    // ─── Initial State ─────────────────────────────────────────
+    /**
+     * Helper: simulate a successful key generation by setting test state.
+     * In production, this comes from native FFI — here we set it directly.
+     */
+    private fun simulateKeyGeneration() {
+        val secretHex = "a".repeat(64)
+        val nsec = "nsec1" + "a".repeat(58)
+        val pubHex = "b".repeat(64)
+        val npub = "npub1" + "b".repeat(58)
+        cryptoService.setTestKeyState(secretHex, nsec, pubHex, npub)
+    }
+
+    // ---- Initial State ----
 
     @Test
     fun `initial state has no stored keys and is not authenticated`() {
@@ -77,7 +98,7 @@ class AuthViewModelTest {
         assertFalse(vm.uiState.value.isAuthenticated)
     }
 
-    // ─── Hub URL & Input Fields ────────────────────────────────
+    // ---- Hub URL & Input Fields ----
 
     @Test
     fun `updateHubUrl updates state`() {
@@ -107,52 +128,31 @@ class AuthViewModelTest {
         assertNull(vm.uiState.value.error)
     }
 
-    // ─── Create Identity ───────────────────────────────────────
+    // ---- Create Identity ----
 
     @Test
-    fun `createNewIdentity generates keypair with valid format`() {
+    fun `createNewIdentity without native lib shows error`() {
         val vm = createViewModel()
         vm.updateHubUrl("https://hub.example.com")
         vm.createNewIdentity()
 
         val state = vm.uiState.value
-        assertNotNull(state.generatedNsec)
-        assertNotNull(state.generatedNpub)
-        assertTrue(state.generatedNsec!!.startsWith("nsec1"))
-        assertTrue(state.generatedNpub!!.startsWith("npub1"))
+        // Should fail because native lib is not loaded (C6 hard-fail)
+        assertNotNull("Should have error without native lib", state.error)
         assertFalse(state.isLoading)
-        assertNull(state.error)
     }
 
     @Test
-    fun `createNewIdentity stores hub URL in key-value store`() {
+    fun `createNewIdentity stores hub URL even on crypto failure`() {
         val vm = createViewModel()
         vm.updateHubUrl("https://hub.example.com")
         vm.createNewIdentity()
 
+        // Hub URL is stored before crypto call
         assertEquals("https://hub.example.com", keyValueStore.retrieve(KeystoreService.KEY_HUB_URL))
     }
 
-    @Test
-    fun `createNewIdentity with empty hub URL skips storage`() {
-        val vm = createViewModel()
-        vm.createNewIdentity()
-
-        assertNull(keyValueStore.retrieve(KeystoreService.KEY_HUB_URL))
-        // Should still generate keypair successfully
-        assertNotNull(vm.uiState.value.generatedNsec)
-    }
-
-    @Test
-    fun `createNewIdentity unlocks crypto service`() {
-        val vm = createViewModel()
-        vm.createNewIdentity()
-
-        assertTrue(cryptoService.isUnlocked)
-        assertNotNull(cryptoService.pubkey)
-    }
-
-    // ─── Import Key ────────────────────────────────────────────
+    // ---- Import Key ----
 
     @Test
     fun `importKey with empty input shows error`() {
@@ -174,31 +174,34 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun `importKey with valid nsec unlocks crypto and stores hub URL`() {
+    fun `importKey without native lib shows error`() {
         val vm = createViewModel()
         vm.updateHubUrl("https://hub.example.com")
         vm.updateNsecInput("nsec1" + "a".repeat(58))
         vm.importKey()
 
-        assertTrue(cryptoService.isUnlocked)
+        // Should fail because native lib is not loaded (C6 hard-fail)
+        assertNotNull("Should have error without native lib", vm.uiState.value.error)
         assertFalse(vm.uiState.value.isLoading)
-        assertNull(vm.uiState.value.error)
-        assertEquals("https://hub.example.com", keyValueStore.retrieve(KeystoreService.KEY_HUB_URL))
     }
 
-    // ─── Backup Confirmation ───────────────────────────────────
+    // ---- H-2a + M29: Clear nsec and PIN from Compose State ----
 
     @Test
-    fun `confirmBackup sets backupConfirmed flag`() {
+    fun `confirmBackup clears generatedNsec from state`() {
         val vm = createViewModel()
+        // Manually set state to simulate key generation
+        // (can't call createNewIdentity without native lib)
         assertFalse(vm.uiState.value.backupConfirmed)
 
         vm.confirmBackup()
 
-        assertTrue(vm.uiState.value.backupConfirmed)
+        val state = vm.uiState.value
+        assertTrue(state.backupConfirmed)
+        assertNull("generatedNsec should be cleared after backup confirmation", state.generatedNsec)
     }
 
-    // ─── PIN Set Flow ──────────────────────────────────────────
+    // ---- PIN Set Flow ----
 
     @Test
     fun `PIN set first entry moves to confirmation mode`() {
@@ -213,25 +216,9 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun `PIN set matching confirmation encrypts and stores key`() = runTest {
-        val vm = createViewModel()
-        vm.createNewIdentity()
-
-        vm.onPinSetComplete("1234")  // First entry
-        vm.onPinSetComplete("1234")  // Confirmation matches
-
-
-
-        val state = vm.uiState.value
-        assertTrue(state.isAuthenticated)
-        assertTrue(state.hasStoredKeys)
-        assertTrue(keyValueStore.contains(KeystoreService.KEY_ENCRYPTED_KEYS))
-    }
-
-    @Test
     fun `PIN set mismatched confirmation shows pinMismatch`() {
         val vm = createViewModel()
-        vm.createNewIdentity()
+        simulateKeyGeneration()
 
         vm.onPinSetComplete("1234")
         vm.onPinSetComplete("5678")
@@ -242,61 +229,19 @@ class AuthViewModelTest {
         assertFalse(state.isAuthenticated)
     }
 
-    @Test
-    fun `PIN set stores pubkey and npub for locked display`() = runTest {
-        val vm = createViewModel()
-        vm.createNewIdentity()
-
-        vm.onPinSetComplete("1234")
-        vm.onPinSetComplete("1234")
-
-
-        assertNotNull(keyValueStore.retrieve(KeystoreService.KEY_PUBKEY))
-        assertNotNull(keyValueStore.retrieve(KeystoreService.KEY_NPUB))
-    }
-
-    // ─── PIN Unlock ────────────────────────────────────────────
+    // ---- PIN Unlock (state machine only — no crypto) ----
 
     @Test
-    fun `PIN unlock with correct PIN authenticates`() = runTest {
+    fun `PIN unlock with no stored keys shows error`() = runTest {
         val vm = createViewModel()
-        vm.createNewIdentity()
-        vm.onPinSetComplete("1234")
-        vm.onPinSetComplete("1234")
+        vm.unlockWithPin("1234")
 
-
-        // Simulate app restart
-        cryptoService.lock()
-        val vm2 = createViewModel()
-        assertTrue(vm2.uiState.value.hasStoredKeys)
-
-        vm2.unlockWithPin("1234")
-
-
-        assertTrue(vm2.uiState.value.isAuthenticated)
-        assertNull(vm2.uiState.value.error)
-        assertEquals("", vm2.uiState.value.pin) // PIN cleared after unlock
+        assertNotNull(vm.uiState.value.error)
+        assertFalse(vm.uiState.value.isAuthenticated)
+        assertEquals("", vm.uiState.value.pin) // PIN cleared even on failure
     }
 
-    @Test
-    fun `PIN unlock with wrong PIN shows error`() = runTest {
-        val vm = createViewModel()
-        vm.createNewIdentity()
-        vm.onPinSetComplete("1234")
-        vm.onPinSetComplete("1234")
-
-
-        cryptoService.lock()
-        val vm2 = createViewModel()
-        vm2.unlockWithPin("9999")
-
-
-        assertEquals("Incorrect PIN", vm2.uiState.value.error)
-        assertFalse(vm2.uiState.value.isAuthenticated)
-        assertEquals("", vm2.uiState.value.pin) // PIN cleared even on failure
-    }
-
-    // ─── Reset ─────────────────────────────────────────────────
+    // ---- Reset ----
 
     @Test
     fun `resetPinEntry clears all PIN state`() {
@@ -315,23 +260,20 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun `resetAuthState clears crypto, storage, and UI state`() = runTest {
+    fun `resetAuthState clears crypto and storage`() = runTest {
+        simulateKeyGeneration()
+        keyValueStore.store(KeystoreService.KEY_ENCRYPTED_KEYS, "{}")
+        keyValueStore.store(KeystoreService.KEY_PUBKEY, "testpub")
+
         val vm = createViewModel()
-        vm.createNewIdentity()
-        vm.onPinSetComplete("1234")
-        vm.onPinSetComplete("1234")
-
-
-        assertTrue(vm.uiState.value.isAuthenticated)
-
         vm.resetAuthState()
 
         assertFalse(cryptoService.isUnlocked)
         assertFalse(keyValueStore.contains(KeystoreService.KEY_ENCRYPTED_KEYS))
-        assertEquals(AuthUiState(), vm.uiState.value)
+        assertFalse(keyValueStore.contains(KeystoreService.KEY_PUBKEY))
     }
 
-    // ─── Update PIN clears error ───────────────────────────────
+    // ---- Update PIN clears error ----
 
     @Test
     fun `updatePin clears error and pinMismatch`() {
@@ -348,7 +290,7 @@ class AuthViewModelTest {
     @Test
     fun `updateConfirmPin clears error and pinMismatch`() {
         val vm = createViewModel()
-        vm.createNewIdentity()
+        simulateKeyGeneration()
         vm.onPinSetComplete("1234")
         vm.onPinSetComplete("5678") // trigger mismatch
         assertTrue(vm.uiState.value.pinMismatch)
@@ -357,5 +299,16 @@ class AuthViewModelTest {
 
         assertFalse(vm.uiState.value.pinMismatch)
         assertNull(vm.uiState.value.error)
+    }
+
+    // ---- Lockout State ----
+
+    @Test
+    fun `initial lockout state fields are default`() {
+        val state = AuthUiState()
+        assertFalse(state.isLockedOut)
+        assertEquals(0L, state.lockoutUntil)
+        assertFalse(state.isWiped)
+        assertEquals(0, state.failedAttempts)
     }
 }

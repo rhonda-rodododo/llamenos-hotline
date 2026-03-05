@@ -88,10 +88,12 @@ if (typeof document !== 'undefined') {
 /**
  * Unlock the key store by decrypting the nsec with the user's PIN.
  * Returns the hex pubkey on success, null on wrong PIN.
+ * Throws on lockout or key wipe (errors propagate from Rust-side tracking).
  *
  * The nsec is loaded into Rust CryptoState and NEVER enters the webview.
  */
 export async function unlock(pin: string): Promise<string | null> {
+  // decryptWithPin throws on lockout/wipe — let it propagate
   const pubkey = await decryptWithPin(pin)
   if (!pubkey) return null
 
@@ -205,7 +207,7 @@ export class KeyLockedError extends Error {
   }
 }
 
-/** Validate a PIN format (4-8 digits). */
+/** Validate a PIN format (6-8 digits minimum for security). */
 export function isValidPin(pin: string): boolean {
-  return /^\d{4,8}$/.test(pin)
+  return /^\d{6,8}$/.test(pin)
 }

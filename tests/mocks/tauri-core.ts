@@ -5,6 +5,12 @@
  * Aliased via vite.config.ts when PLAYWRIGHT_TEST=true.
  */
 
+// Production guard: prevent test mocks from loading in production builds.
+// The PLAYWRIGHT_TEST env var is set by Vite when building for tests.
+if (!import.meta.env.PLAYWRIGHT_TEST) {
+  throw new Error('FATAL: Tauri IPC mock loaded outside test environment.')
+}
+
 import { schnorr } from '@noble/curves/secp256k1.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { sha256 } from '@noble/hashes/sha2.js'
@@ -19,6 +25,7 @@ const AUTH_PREFIX = 'llamenos:auth:'
 
 let secretKeyHex: string | null = null
 let publicKeyHex: string | null = null
+let mockProvisioningToken: string | null = null
 
 // Store note keys for round-trip encryption/decryption in tests
 const noteKeyStore = new Map<string, string>() // encryptedContent → noteKeyHex
@@ -245,7 +252,20 @@ const commands: Record<string, (a: Args) => unknown | Promise<unknown>> = {
     ...eciesWrap(bytesToHex(randomBytes(32)), a.newRecipientPubkeyHex as string, 'llamenos:file:key'),
   }),
 
-  get_nsec_from_state: () => nsecEncode(requireUnlocked()),
+  request_provisioning_token: () => {
+    requireUnlocked()
+    const token = bytesToHex(randomBytes(16))
+    mockProvisioningToken = token
+    return token
+  },
+  get_nsec_from_state: (a) => {
+    const token = a.token as string
+    if (!mockProvisioningToken || mockProvisioningToken !== token) {
+      throw new Error('Invalid or expired provisioning token')
+    }
+    mockProvisioningToken = null // consume token
+    return nsecEncode(requireUnlocked())
+  },
   lock_crypto: () => { secretKeyHex = null },
   is_crypto_unlocked: () => secretKeyHex !== null,
 }

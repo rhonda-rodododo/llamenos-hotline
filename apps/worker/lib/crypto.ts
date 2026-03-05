@@ -30,9 +30,31 @@ export function hashIP(ip: string, secret: string): string {
 
 // --- Envelope-Pattern Message Encryption (Epic 74) ---
 
+/** ECIES version byte for HKDF-based key derivation (v2). */
+const ECIES_VERSION_V2 = 0x02
+
 /**
- * ECIES key wrapping for a single recipient (server-side).
- * Mirrors the client-side eciesWrapKey from src/client/lib/crypto.ts.
+ * Derive ECIES symmetric key using HKDF-SHA256 (v2).
+ */
+function deriveEciesKeyV2(label: string, sharedX: Uint8Array): Uint8Array {
+  return hkdf(sha256, sharedX, new Uint8Array(0), utf8ToBytes(label), 32) as Uint8Array
+}
+
+/**
+ * Legacy ECIES key derivation (v1): SHA-256(label || sharedX).
+ * Used only for decryption of existing ciphertext without version byte.
+ */
+function deriveEciesKeyV1(label: string, sharedX: Uint8Array): Uint8Array {
+  const labelBytes = utf8ToBytes(label)
+  const keyInput = new Uint8Array(labelBytes.length + sharedX.length)
+  keyInput.set(labelBytes)
+  keyInput.set(sharedX, labelBytes.length)
+  return sha256(keyInput)
+}
+
+/**
+ * ECIES key wrapping for a single recipient (server-side, v2).
+ * Uses HKDF for key derivation and prepends version byte.
  */
 function eciesWrapKeyServer(
   key: Uint8Array,
@@ -47,20 +69,18 @@ function eciesWrapKeyServer(
   const shared = secp256k1.getSharedSecret(ephemeralSecret, recipientCompressed)
   const sharedX = shared.slice(1, 33)
 
-  const labelBytes = utf8ToBytes(label)
-  const keyInput = new Uint8Array(labelBytes.length + sharedX.length)
-  keyInput.set(labelBytes)
-  keyInput.set(sharedX, labelBytes.length)
-  const symmetricKey = sha256(keyInput)
+  const symmetricKey = deriveEciesKeyV2(label, sharedX)
 
   const nonce = new Uint8Array(24)
   crypto.getRandomValues(nonce)
   const cipher = xchacha20poly1305(symmetricKey, nonce)
   const ciphertext = cipher.encrypt(key)
 
-  const packed = new Uint8Array(nonce.length + ciphertext.length)
-  packed.set(nonce)
-  packed.set(ciphertext, nonce.length)
+  // Pack: version(1) + nonce(24) + ciphertext
+  const packed = new Uint8Array(1 + nonce.length + ciphertext.length)
+  packed[0] = ECIES_VERSION_V2
+  packed.set(nonce, 1)
+  packed.set(ciphertext, 1 + nonce.length)
 
   return {
     wrappedKey: bytesToHex(packed),
@@ -173,6 +193,22 @@ export function decryptContactIdentifier(stored: string, hmacSecret: string): st
   const ct = data.slice(24)
   const cipher = xchacha20poly1305(key, nonce)
   return new TextDecoder().decode(cipher.decrypt(ct))
+}
+
+/**
+ * Check if a stored contact needs migration from legacy plaintext to encrypted.
+ * Returns the decrypted value and whether re-encryption is needed.
+ *
+ * - Legacy plaintext (no "enc:" prefix): returns as-is with needsUpdate=true
+ * - Encrypted ("enc:" prefix): decrypts and returns with needsUpdate=false
+ */
+export function migrateContactIfNeeded(stored: string, hmacSecret: string): {
+  value: string; needsUpdate: boolean
+} {
+  if (!stored.startsWith('enc:')) {
+    return { value: stored, needsUpdate: true }
+  }
+  return { value: decryptContactIdentifier(stored, hmacSecret), needsUpdate: false }
 }
 
 /**

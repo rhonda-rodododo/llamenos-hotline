@@ -23,7 +23,7 @@
           "type": "array",
           "items": { "$ref": "#/$defs/SubscriberChannel" }
         },
-        "tags": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string", "maxLength": 100 }, "maxItems": 50 },
         "language": { "type": "string", "description": "Preferred language code" },
         "subscribedAt": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "paused", "unsubscribed"] },
@@ -37,7 +37,7 @@
       "required": ["text"],
       "properties": {
         "text": { "type": "string" },
-        "mediaUrl": { "type": "string" },
+        "mediaUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
         "mediaType": { "type": "string" },
         "smsText": { "type": "string" },
         "whatsappTemplateId": { "type": "string" },
@@ -69,7 +69,7 @@
           "type": "array",
           "items": { "$ref": "channels.json#/$defs/MessagingChannelType" }
         },
-        "targetTags": { "type": "array", "items": { "type": "string" } },
+        "targetTags": { "type": "array", "items": { "type": "string", "maxLength": 100 }, "maxItems": 50 },
         "targetLanguages": { "type": "array", "items": { "type": "string" } },
         "scheduledAt": { "type": "string" },
         "sentAt": { "type": "string" },

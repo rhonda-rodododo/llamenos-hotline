@@ -163,19 +163,14 @@ pub fn run() {
             crypto::unwrap_file_key_from_state,
             crypto::unwrap_hub_key_from_state,
             crypto::rewrap_file_key_from_state,
+            crypto::request_provisioning_token,
             crypto::get_nsec_from_state,
-            // Stateless commands (original — secret key passed as argument)
+            // Stateless commands — public-key-only, validation, or sign-in flow only
             crypto::ecies_wrap_key,
-            crypto::ecies_unwrap_key,
             crypto::encrypt_note,
-            crypto::decrypt_note,
             crypto::encrypt_message,
-            crypto::decrypt_message,
-            crypto::create_auth_token,
-            crypto::encrypt_with_pin,
-            crypto::decrypt_with_pin,
+            crypto::create_auth_token, // Used during sign-in before CryptoState is loaded
             crypto::generate_keypair,
-            crypto::get_public_key,
             crypto::verify_schnorr,
             crypto::is_valid_nsec,
             crypto::key_pair_from_nsec,

@@ -47,7 +47,8 @@ telephony.use('*', async (c, next) => {
   }
 
   const isDev = env.ENVIRONMENT === 'development'
-  const isLocal = isDev && (c.req.header('CF-Connecting-IP') === '127.0.0.1' || url.hostname === 'localhost')
+  // Epic 258 C7: Only trust CF-Connecting-IP, never controllable hostname
+  const isLocal = isDev && c.req.header('CF-Connecting-IP') === '127.0.0.1'
   if (!isLocal) {
     const isValid = await adapter.validateWebhook(c.req.raw)
     if (!isValid) {

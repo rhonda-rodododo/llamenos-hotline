@@ -16,6 +16,7 @@ use std::sync::Mutex;
 use zeroize::Zeroize;
 
 use llamenos_core::{auth, ecies, encryption, keys, nostr};
+use tauri_plugin_store::StoreExt;
 
 // Re-export types for serde bridging with the frontend
 pub use llamenos_core::ecies::{KeyEnvelope, RecipientKeyEnvelope};
@@ -34,6 +35,8 @@ pub struct CryptoState {
     secret_key: Mutex<Option<String>>,
     /// The corresponding x-only public key hex.
     public_key: Mutex<Option<String>>,
+    /// One-time provisioning token — consumed on use, prevents concurrent provisioning races.
+    provisioning_token: Mutex<Option<String>>,
 }
 
 impl CryptoState {
@@ -41,6 +44,7 @@ impl CryptoState {
         Self {
             secret_key: Mutex::new(None),
             public_key: Mutex::new(None),
+            provisioning_token: Mutex::new(None),
         }
     }
 
@@ -52,6 +56,7 @@ impl CryptoState {
         }
         *sk = None;
         *self.public_key.lock().unwrap() = None;
+        *self.provisioning_token.lock().unwrap() = None;
     }
 
     fn get_secret_key(&self) -> Result<String, String> {
@@ -75,24 +80,80 @@ impl CryptoState {
 
 /// Decrypt the nsec from PIN-encrypted storage, store in CryptoState.
 /// Returns only the public key — nsec never leaves the Rust process.
+///
+/// PIN attempt tracking is persisted in the Tauri Store so it survives
+/// page refreshes. Lockout schedule:
+///   1-4 failures: no lockout
+///   5-6 failures: 30s lockout
+///   7-8 failures: 2min lockout
+///   9 failures: 10min lockout
+///   10+ failures: wipe encrypted keys
 #[tauri::command]
 pub fn unlock_with_pin(
     state: tauri::State<'_, CryptoState>,
+    app_handle: tauri::AppHandle,
     data: EncryptedKeyData,
     pin: String,
 ) -> Result<String, String> {
-    let nsec = encryption::decrypt_with_pin(&data, &pin).map_err(err_str)?;
+    let store = app_handle
+        .store("settings.json")
+        .map_err(|e: tauri_plugin_store::Error| e.to_string())?;
+    let attempts: u32 = store
+        .get("pin_failed_attempts")
+        .and_then(|v: serde_json::Value| v.as_u64())
+        .unwrap_or(0) as u32;
+    let lockout_until: u64 = store
+        .get("pin_lockout_until")
+        .and_then(|v: serde_json::Value| v.as_u64())
+        .unwrap_or(0);
 
-    // Derive pubkey from the nsec (bech32) — need to extract the raw hex
-    // llamenos-core's decrypt_with_pin returns the bech32 nsec string.
-    // We need to convert to hex to call get_public_key.
-    let sk_hex = nsec_to_hex(&nsec)?;
-    let pubkey = keys::get_public_key(&sk_hex).map_err(err_str)?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
 
-    *state.secret_key.lock().unwrap() = Some(sk_hex);
-    *state.public_key.lock().unwrap() = Some(pubkey.clone());
+    if now < lockout_until {
+        let remaining = (lockout_until - now) / 1000;
+        return Err(format!("Locked out. Try again in {remaining} seconds"));
+    }
 
-    Ok(pubkey)
+    match encryption::decrypt_with_pin(&data, &pin) {
+        Ok(nsec) => {
+            // Success — reset counters
+            store.set("pin_failed_attempts", serde_json::json!(0));
+            store.set("pin_lockout_until", serde_json::json!(0));
+
+            let sk_hex = nsec_to_hex(&nsec)?;
+            let pubkey = keys::get_public_key(&sk_hex).map_err(err_str)?;
+
+            *state.secret_key.lock().unwrap() = Some(sk_hex);
+            *state.public_key.lock().unwrap() = Some(pubkey.clone());
+
+            Ok(pubkey)
+        }
+        Err(_) => {
+            let new_attempts = attempts + 1;
+            store.set("pin_failed_attempts", serde_json::json!(new_attempts));
+
+            let lockout_ms: u64 = match new_attempts {
+                1..=4 => 0,
+                5..=6 => 30_000,
+                7..=8 => 120_000,
+                9 => 600_000,
+                _ => {
+                    // 10+ failures — wipe keys
+                    store.delete("encrypted_keys");
+                    store.set("pin_failed_attempts", serde_json::json!(0));
+                    store.set("pin_lockout_until", serde_json::json!(0));
+                    return Err("Too many failed attempts. Keys wiped.".to_string());
+                }
+            };
+            if lockout_ms > 0 {
+                store.set("pin_lockout_until", serde_json::json!(now + lockout_ms));
+            }
+            Err("Wrong PIN".to_string())
+        }
+    }
 }
 
 /// Import a key: encrypt with PIN, store encrypted data, and load into CryptoState.
@@ -335,12 +396,36 @@ pub fn rewrap_file_key_from_state(
     })
 }
 
+/// Request a one-time provisioning token. Must be called before `get_nsec_from_state`.
+///
+/// Returns a random 32-char hex token stored in CryptoState. Each call replaces
+/// any existing token — only the latest token is valid.
+#[tauri::command]
+pub fn request_provisioning_token(
+    state: tauri::State<'_, CryptoState>,
+) -> Result<String, String> {
+    let bytes: [u8; 16] = rand::random();
+    let token = hex::encode(bytes);
+    *state.provisioning_token.lock().unwrap() = Some(token.clone());
+    Ok(token)
+}
+
 /// Get the nsec from CryptoState. Used ONLY for device provisioning and backup.
 ///
-/// Security note: This is the one place the nsec intentionally crosses the IPC boundary.
-/// The Tauri capability should restrict this command to only the main window.
+/// Requires a one-time provisioning token (from `request_provisioning_token`).
+/// The token is consumed on use — calling again without a new token will fail.
+/// This prevents concurrent provisioning races and limits nsec exposure.
 #[tauri::command]
-pub fn get_nsec_from_state(state: tauri::State<'_, CryptoState>) -> Result<String, String> {
+pub fn get_nsec_from_state(
+    token: String,
+    state: tauri::State<'_, CryptoState>,
+) -> Result<String, String> {
+    // Consume the provisioning token (one-time use via .take())
+    match state.provisioning_token.lock().unwrap().take() {
+        Some(expected) if expected == token => {}
+        _ => return Err("Invalid or expired provisioning token".to_string()),
+    }
+
     let sk_hex = state.get_secret_key()?;
     let sk_bytes = hex::decode(&sk_hex).map_err(err_str)?;
     let nsec = bech32::encode::<bech32::Bech32>(bech32::Hrp::parse("nsec").unwrap(), &sk_bytes)
@@ -348,7 +433,13 @@ pub fn get_nsec_from_state(state: tauri::State<'_, CryptoState>) -> Result<Strin
     Ok(nsec)
 }
 
-// ── Stateless commands (original, kept for compatibility) ────────────
+// ── Stateless commands ───────────────────────────────────────────────
+// Commands that do NOT accept `secret_key_hex` remain registered as IPC handlers
+// (ecies_wrap_key, encrypt_note, encrypt_message, generate_keypair, verify_schnorr,
+// is_valid_nsec, key_pair_from_nsec) plus create_auth_token (sign-in flow only).
+//
+// Commands that accept `secret_key_hex` are deregistered from IPC (Epic 257 C4)
+// but kept here for unit testing. They are marked #[allow(dead_code)].
 
 #[tauri::command]
 pub fn ecies_wrap_key(
@@ -366,6 +457,7 @@ pub fn ecies_wrap_key(
 }
 
 #[tauri::command]
+#[allow(dead_code)] // Deregistered from IPC (Epic 257 C4) — kept for unit tests
 pub fn ecies_unwrap_key(
     envelope: KeyEnvelope,
     secret_key_hex: String,
@@ -385,6 +477,7 @@ pub fn encrypt_note(
 }
 
 #[tauri::command]
+#[allow(dead_code)] // Deregistered from IPC (Epic 257 C4) — kept for unit tests
 pub fn decrypt_note(
     encrypted_content: String,
     envelope: KeyEnvelope,
@@ -402,6 +495,7 @@ pub fn encrypt_message(
 }
 
 #[tauri::command]
+#[allow(dead_code)] // Deregistered from IPC (Epic 257 C4) — kept for unit tests
 pub fn decrypt_message(
     encrypted_content: String,
     reader_envelopes: Vec<RecipientKeyEnvelope>,
@@ -430,6 +524,7 @@ pub fn create_auth_token(
 }
 
 #[tauri::command]
+#[allow(dead_code)] // Deregistered from IPC (Epic 257 C4) — kept for unit tests
 pub fn encrypt_with_pin(
     nsec: String,
     pin: String,
@@ -439,6 +534,7 @@ pub fn encrypt_with_pin(
 }
 
 #[tauri::command]
+#[allow(dead_code)] // Deregistered from IPC (Epic 257 C4) — kept for unit tests
 pub fn decrypt_with_pin(data: EncryptedKeyData, pin: String) -> Result<String, String> {
     encryption::decrypt_with_pin(&data, &pin).map_err(err_str)
 }
@@ -449,6 +545,7 @@ pub fn generate_keypair() -> Result<KeyPair, String> {
 }
 
 #[tauri::command]
+#[allow(dead_code)] // Deregistered from IPC (Epic 257 C4) — kept for unit tests
 pub fn get_public_key(secret_key_hex: String) -> Result<String, String> {
     keys::get_public_key(&secret_key_hex).map_err(err_str)
 }

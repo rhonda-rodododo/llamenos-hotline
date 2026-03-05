@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
+import okhttp3.CertificatePinner
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -37,10 +38,27 @@ class ApiService @Inject constructor(
     internal val client: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(retryInterceptor)
         .addInterceptor(authInterceptor)
+        .certificatePinner(certificatePinner)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
+
+    companion object {
+        /**
+         * Certificate pinner for llamenos API domains.
+         *
+         * Pin hashes are shared with iOS — see docs/security/CERTIFICATE_PINS.md.
+         * TODO: Replace placeholder pins after first production deployment to app.llamenos.org.
+         * Run the extraction commands in CERTIFICATE_PINS.md and update these values.
+         */
+        val certificatePinner: CertificatePinner = CertificatePinner.Builder()
+            // Primary pin — Cloudflare intermediate CA (from docs/security/CERTIFICATE_PINS.md)
+            .add("*.llamenos.org", "sha256/REPLACE_AFTER_DEPLOYMENT")
+            // Backup pin — Cloudflare root CA (from docs/security/CERTIFICATE_PINS.md)
+            .add("*.llamenos.org", "sha256/REPLACE_AFTER_DEPLOYMENT")
+            .build()
+    }
 
     @PublishedApi
     internal val json: Json = Json {

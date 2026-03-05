@@ -10,7 +10,7 @@ const dev = new Hono<AppEnv>()
  */
 function checkResetSecret(c: { env: { DEV_RESET_SECRET?: string; E2E_TEST_SECRET?: string }; req: { header(name: string): string | undefined } }): boolean {
   const secret = c.env.DEV_RESET_SECRET || c.env.E2E_TEST_SECRET
-  if (!secret) return true // No secret configured — allow (local dev)
+  if (!secret) return false // No secret configured — deny by default
   return c.req.header('X-Test-Secret') === secret
 }
 

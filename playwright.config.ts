@@ -60,9 +60,13 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        // Vite dev server with Tauri IPC mocks — proxies /api to Docker Compose backend
-        command: "PLAYWRIGHT_TEST=true bun run dev:vite --port 8788",
+        // Build once, then serve static files — far more stable than Vite dev server
+        // under parallel test load (3 workers × 535 tests).
+        // Uses `vite preview` which serves the production build without HMR.
+        command:
+          "PLAYWRIGHT_TEST=true bun run build && PLAYWRIGHT_TEST=true bunx vite preview --port 8788 --strictPort",
         url: "http://localhost:8788",
         reuseExistingServer: !process.env.CI,
+        timeout: 120_000, // Allow time for the build step
       },
 });

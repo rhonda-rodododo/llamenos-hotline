@@ -46,8 +46,8 @@ if [[ -z "$NOTES" ]]; then
   NOTES="Desktop v${VERSION}"
 fi
 
-# Escape notes for JSON
-NOTES_ESCAPED=$(printf '%s' "$NOTES" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))' 2>/dev/null || printf '"%s"' "$NOTES")
+# Escape notes for JSON (jq preferred, python3 fallback, safe default)
+NOTES_ESCAPED=$(echo -n "$NOTES" | jq -Rs . 2>/dev/null || printf '%s' "$NOTES" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))' 2>/dev/null || echo '""')
 
 # Build platform entries
 PLATFORMS=""

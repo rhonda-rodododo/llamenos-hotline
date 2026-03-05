@@ -177,9 +177,7 @@ export async function loginAsAdmin(page: Page) {
   await page.waitForLoadState('domcontentloaded')
   await page.evaluate(() => sessionStorage.clear())
   await preloadEncryptedKey(page, ADMIN_NSEC, TEST_PIN)
-  await page.reload().catch(() => {
-    // Retry reload on ERR_ABORTED — page may be mid-navigation
-  })
+  await page.reload()
   await page.waitForLoadState('domcontentloaded')
   await enterPin(page, TEST_PIN)
   await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.AUTH })
@@ -194,7 +192,7 @@ export async function loginAsVolunteer(page: Page, nsec: string) {
   await page.waitForLoadState('domcontentloaded')
   await page.evaluate(() => sessionStorage.clear())
   await preloadEncryptedKey(page, nsec, TEST_PIN)
-  await page.reload().catch(() => {})
+  await page.reload()
   await page.waitForLoadState('domcontentloaded')
   await enterPin(page, TEST_PIN)
   await page.waitForURL(url => !url.toString().includes('/login'), { timeout: Timeouts.AUTH })

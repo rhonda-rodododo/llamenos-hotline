@@ -10,7 +10,7 @@
       "properties": {
         "id": { "type": "string", "description": "UUID" },
         "name": { "type": "string", "description": "Display name" },
-        "slug": { "type": "string", "description": "URL-safe identifier" },
+        "slug": { "type": "string", "description": "URL-safe identifier", "pattern": "^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$", "minLength": 2, "maxLength": 64 },
         "description": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "suspended", "archived"] },
         "phoneNumber": { "type": "string", "description": "Primary hotline number" },

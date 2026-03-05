@@ -8,7 +8,7 @@
       "type": "object",
       "required": ["text"],
       "properties": {
-        "text": { "type": "string", "description": "Note text content" },
+        "text": { "type": "string", "description": "Note text content", "maxLength": 65536 },
         "fields": {
           "type": "object",
           "additionalProperties": {
@@ -32,7 +32,7 @@
       "required": ["id", "name", "label", "type", "required", "visibleToVolunteers", "editableByVolunteers", "context", "order", "createdAt"],
       "properties": {
         "id": { "type": "string", "description": "Unique UUID" },
-        "name": { "type": "string", "description": "Internal key (machine-readable)" },
+        "name": { "type": "string", "description": "Internal key (machine-readable)", "pattern": "^[a-zA-Z0-9_]+$", "minLength": 1, "maxLength": 50 },
         "label": { "type": "string", "description": "Display label" },
         "type": { "type": "string", "enum": ["text", "number", "select", "checkbox", "textarea", "file"] },
         "required": { "type": "boolean" },

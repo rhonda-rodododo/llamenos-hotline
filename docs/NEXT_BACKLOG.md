@@ -419,6 +419,32 @@ Catch iOS up to Android feature set with native SwiftUI design. BDD-first: write
 
 **Dependency order:** 240 → (241 | 242 | 243 | 244 | 245 | 246)
 
+## Security Audit Findings (2026-03-05, Round 8)
+
+63 findings (8 Critical, 22 High, 33 Medium). All platforms audited.
+
+**Dependency order:** 264 → 263 → 259 → 258 → 257 → 262 → 260 → 261
+
+### CI/CD & Supply Chain
+- [x] **[Epic 264: CI/CD & Supply Chain Hardening](epics/epic-264.md)** — macOS keychain password, pin GitHub Actions + Docker images, bun audit threshold, Ansible SSH defaults
+
+### Protocol & Schema
+- [x] **[Epic 263: Protocol & Schema Hardening](epics/epic-263.md)** — Remove legacy auth fallback, NotePayload maxLength, hub slug pattern, blast mediaUrl HTTPS, i18n codegen escaping
+
+### Crypto
+- [x] **[Epic 259: Rust Crypto & KDF Hardening](epics/epic-259.md)** — BIP-340 interop, sk_bytes zeroization, ECIES HKDF v2 migration (breaking wire format), PBKDF2 32-byte salt, plaintext zeroization
+
+### Worker
+- [x] **[Epic 258: Worker Critical & High Security Fixes](epics/epic-258.md)** — serverEventKeyHex behind auth, DEMO_MODE=false production, webhook hostname bypass, rate limit validation, Vonage replay, bootstrap race
+- [x] **[Epic 262: Worker Medium Security Fixes](epics/epic-262.md)** — Contact migration, provisioning rate limit, debug/setup gating, CORS allowlist, blast rate enforcement, upload size caps
+
+### Desktop
+- [x] **[Epic 257: Desktop Tauri & Frontend Security Hardening](epics/epic-257.md)** — Updater pubkey, remove stateless IPC, one-time provisioning token, PIN lockout in Rust, returnTo validation
+
+### Mobile
+- [x] **[Epic 260: iOS Security Hardening](epics/epic-260.md)** — Biometric unlock, SAS gate, URL validation, persistent PIN lockout (Keychain), cert pinning, screenshot protection
+- [x] **[Epic 261: Android Security Hardening](epics/epic-261.md)** — Hard-fail crypto, PIN brute-force, deep link validation, StrongBox, cert pinning, ProGuard narrowing
+
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
 - [x] Marketing site + docs at llamenos-hotline.com (Astro + Cloudflare Pages)

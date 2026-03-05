@@ -8,6 +8,8 @@ import { auth as authMiddleware } from '../middleware/auth'
 import { checkPermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
 import { getPrimaryRole } from '@shared/permissions'
+import { deriveServerEventKey } from '../lib/hub-event-crypto'
+import { bytesToHex } from '@noble/hashes/utils.js'
 
 const auth = new Hono<AppEnv>()
 
@@ -102,6 +104,12 @@ auth.get('/me', async (c) => {
 
   const primaryRole = getPrimaryRole(volunteer.roles, allRoles)
 
+  // Derive server event key for client-side decryption of encrypted relay events (Epic 252)
+  // Moved here from /api/config to keep it behind authentication (Epic 258 C2)
+  const serverEventKeyHex = c.env.SERVER_NOSTR_SECRET
+    ? bytesToHex(deriveServerEventKey(c.env.SERVER_NOSTR_SECRET))
+    : undefined
+
   return c.json({
     pubkey: volunteer.pubkey,
     roles: volunteer.roles,
@@ -116,8 +124,9 @@ auth.get('/me', async (c) => {
     callPreference: volunteer.callPreference ?? 'phone',
     webauthnRequired,
     webauthnRegistered: webauthnCreds.length > 0,
-    adminPubkey: c.env.ADMIN_PUBKEY,
+    // H17: Removed adminPubkey (signing key identity) — only decryption pubkey needed
     adminDecryptionPubkey: c.env.ADMIN_DECRYPTION_PUBKEY || c.env.ADMIN_PUBKEY,
+    serverEventKeyHex,
   })
 })
 

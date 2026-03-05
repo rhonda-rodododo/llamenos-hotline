@@ -12,7 +12,7 @@ use hkdf::Hkdf;
 use pbkdf2::pbkdf2_hmac;
 use sha2::{Digest, Sha256};
 use serde::{Deserialize, Serialize};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::ecies::{ecies_wrap_key, ecies_unwrap_key, random_bytes_32, KeyEnvelope, RecipientKeyEnvelope};
 use crate::errors::CryptoError;
@@ -97,10 +97,8 @@ pub fn decrypt_note(
     envelope: &KeyEnvelope,
     secret_key_hex: &str,
 ) -> Result<String, CryptoError> {
-    // Unwrap the note key
     let mut note_key = ecies_unwrap_key(envelope, secret_key_hex, LABEL_NOTE_KEY)?;
 
-    // Unpack: nonce(24) + ciphertext
     let data = hex::decode(encrypted_content).map_err(CryptoError::HexError)?;
     if data.len() < 24 {
         return Err(CryptoError::InvalidCiphertext);
@@ -110,13 +108,13 @@ pub fn decrypt_note(
 
     let cipher = XChaCha20Poly1305::new_from_slice(&note_key)
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    let plaintext = cipher
+    let plaintext = Zeroizing::new(cipher
         .decrypt(nonce, ciphertext)
-        .map_err(|_| CryptoError::DecryptionFailed)?;
+        .map_err(|_| CryptoError::DecryptionFailed)?);
 
     note_key.zeroize();
 
-    String::from_utf8(plaintext).map_err(|_| CryptoError::DecryptionFailed)
+    String::from_utf8(plaintext.to_vec()).map_err(|_| CryptoError::DecryptionFailed)
 }
 
 // --- Per-Message Encryption (Epic 74) ---
@@ -204,13 +202,13 @@ pub fn decrypt_message(
 
     let cipher = XChaCha20Poly1305::new_from_slice(&message_key)
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    let plaintext = cipher
+    let plaintext = Zeroizing::new(cipher
         .decrypt(nonce, ciphertext)
-        .map_err(|_| CryptoError::DecryptionFailed)?;
+        .map_err(|_| CryptoError::DecryptionFailed)?);
 
     message_key.zeroize();
 
-    String::from_utf8(plaintext).map_err(|_| CryptoError::DecryptionFailed)
+    String::from_utf8(plaintext.to_vec()).map_err(|_| CryptoError::DecryptionFailed)
 }
 
 // --- Call Record Metadata Decryption (Epic 77) ---
@@ -243,13 +241,13 @@ pub fn decrypt_call_record(
 
     let cipher = XChaCha20Poly1305::new_from_slice(&record_key)
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    let plaintext = cipher
+    let plaintext = Zeroizing::new(cipher
         .decrypt(nonce, ciphertext)
-        .map_err(|_| CryptoError::DecryptionFailed)?;
+        .map_err(|_| CryptoError::DecryptionFailed)?);
 
     record_key.zeroize();
 
-    String::from_utf8(plaintext).map_err(|_| CryptoError::DecryptionFailed)
+    String::from_utf8(plaintext.to_vec()).map_err(|_| CryptoError::DecryptionFailed)
 }
 
 // --- Legacy V1 Note Decryption ---
@@ -281,14 +279,14 @@ pub fn decrypt_legacy_note(
 
     let cipher = XChaCha20Poly1305::new_from_slice(&key)
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    let plaintext = cipher
+    let plaintext = Zeroizing::new(cipher
         .decrypt(nonce, ciphertext)
-        .map_err(|_| CryptoError::DecryptionFailed)?;
+        .map_err(|_| CryptoError::DecryptionFailed)?);
 
     key.zeroize();
     sk.zeroize();
 
-    String::from_utf8(plaintext).map_err(|_| CryptoError::DecryptionFailed)
+    String::from_utf8(plaintext.to_vec()).map_err(|_| CryptoError::DecryptionFailed)
 }
 
 // --- HKDF-based Symmetric Encryption (legacy + drafts/export) ---
@@ -358,14 +356,14 @@ pub fn decrypt_draft(packed_hex: &str, secret_key_hex: &str) -> Result<String, C
 
     let cipher = XChaCha20Poly1305::new_from_slice(&key)
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    let plaintext = cipher
+    let plaintext = Zeroizing::new(cipher
         .decrypt(nonce, ciphertext)
-        .map_err(|_| CryptoError::DecryptionFailed)?;
+        .map_err(|_| CryptoError::DecryptionFailed)?);
 
     key.zeroize();
     sk.zeroize();
 
-    String::from_utf8(plaintext).map_err(|_| CryptoError::DecryptionFailed)
+    String::from_utf8(plaintext.to_vec()).map_err(|_| CryptoError::DecryptionFailed)
 }
 
 // --- Export Encryption ---
@@ -416,7 +414,7 @@ pub fn encrypt_export(json_string: &str, secret_key_hex: &str) -> Result<String,
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "mobile", derive(uniffi::Record))]
 pub struct EncryptedKeyData {
-    /// hex, 16 bytes
+    /// hex, 16 or 32 bytes (new encryptions use 32)
     pub salt: String,
     /// PBKDF2 iteration count (600,000)
     pub iterations: u32,
@@ -442,7 +440,7 @@ pub fn encrypt_with_pin(nsec: &str, pin: &str, pubkey_hex: &str) -> Result<Encry
         return Err(CryptoError::InvalidPin);
     }
 
-    let mut salt = [0u8; 16];
+    let mut salt = [0u8; 32]; // M22: increased from 16 to 32 bytes
     getrandom::getrandom(&mut salt).expect("getrandom failed");
 
     let mut kek = derive_kek_from_pin(pin, &salt);
@@ -496,13 +494,13 @@ pub fn decrypt_with_pin(data: &EncryptedKeyData, pin: &str) -> Result<String, Cr
 
     let cipher = XChaCha20Poly1305::new_from_slice(&kek)
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    let plaintext = cipher
+    let plaintext = Zeroizing::new(cipher
         .decrypt(nonce, ciphertext.as_ref())
-        .map_err(|_| CryptoError::WrongPin)?;
+        .map_err(|_| CryptoError::WrongPin)?);
 
     kek.zeroize();
 
-    String::from_utf8(plaintext).map_err(|_| CryptoError::WrongPin)
+    String::from_utf8(plaintext.to_vec()).map_err(|_| CryptoError::WrongPin)
 }
 
 /// Validate PIN format: 4-6 digits.
@@ -599,6 +597,51 @@ mod tests {
         let encrypted = encrypt_with_pin(nsec, pin, pubkey).unwrap();
         let result = decrypt_with_pin(&encrypted, "9999");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn pbkdf2_32_byte_salt_roundtrip() {
+        let nsec = "nsec1test32bytesalt";
+        let pin = "1234";
+        let pubkey = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
+
+        let encrypted = encrypt_with_pin(nsec, pin, pubkey).unwrap();
+        // New encryptions should use 32-byte salt (64 hex chars)
+        assert_eq!(encrypted.salt.len(), 64);
+        let decrypted = decrypt_with_pin(&encrypted, pin).unwrap();
+        assert_eq!(decrypted, nsec);
+    }
+
+    #[test]
+    fn pbkdf2_16_byte_salt_backward_compat() {
+        // Simulate a legacy 16-byte salt encryption
+        let nsec = "nsec1legacy16byte";
+        let pin = "5678";
+        let mut salt = [0u8; 16];
+        getrandom::getrandom(&mut salt).expect("getrandom failed");
+        let mut kek = derive_kek_from_pin(pin, &salt);
+
+        let nonce_bytes = {
+            let mut n = [0u8; 24];
+            getrandom::getrandom(&mut n).expect("getrandom failed");
+            n
+        };
+        let nonce = XNonce::from_slice(&nonce_bytes);
+        let cipher = XChaCha20Poly1305::new_from_slice(&kek).unwrap();
+        let ciphertext = cipher.encrypt(nonce, nsec.as_bytes()).unwrap();
+        kek.zeroize();
+
+        let legacy_data = EncryptedKeyData {
+            salt: hex::encode(salt),     // 32 hex chars = 16 bytes
+            iterations: 600_000,
+            nonce: hex::encode(nonce_bytes),
+            ciphertext: hex::encode(ciphertext),
+            pubkey: "deadbeef".to_string(),
+        };
+
+        // Should decrypt fine with 16-byte salt
+        let decrypted = decrypt_with_pin(&legacy_data, pin).unwrap();
+        assert_eq!(decrypted, nsec);
     }
 
     #[test]

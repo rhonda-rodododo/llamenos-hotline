@@ -69,6 +69,29 @@ pub fn create_auth_token(
     })
 }
 
+/// Verify a Schnorr auth token with timestamp-based expiry.
+///
+/// Rejects tokens older than `max_age_ms` or more than 30s in the future.
+/// Use `max_age_ms: 300_000` (5 minutes) for standard API authentication.
+#[cfg_attr(feature = "mobile", uniffi::export)]
+pub fn verify_auth_token_with_expiry(
+    token: &AuthToken,
+    method: &str,
+    path: &str,
+    now_ms: u64,
+    max_age_ms: u64,
+) -> Result<bool, CryptoError> {
+    let age = now_ms.saturating_sub(token.timestamp);
+    if age > max_age_ms {
+        return Ok(false);
+    }
+    // Reject tokens from the future (>30s clock skew)
+    if token.timestamp > now_ms + 30_000 {
+        return Ok(false);
+    }
+    verify_auth_token(token, method, path)
+}
+
 /// Verify a Schnorr auth token.
 ///
 /// Returns true if the signature is valid for the given method + path.
@@ -110,6 +133,8 @@ pub fn verify_auth_token(
 }
 
 /// Verify a raw Schnorr signature over a pre-hashed message.
+///
+/// The message must be exactly 32 bytes (SHA-256 hash) for BIP-340 compliance.
 #[cfg_attr(feature = "mobile", uniffi::export)]
 pub fn verify_schnorr(
     message_hex: &str,
@@ -125,6 +150,12 @@ pub fn verify_schnorr(
         .map_err(|_| CryptoError::InvalidPublicKey)?;
 
     let message = hex::decode(message_hex).map_err(CryptoError::HexError)?;
+    if message.len() != 32 {
+        return Err(CryptoError::InvalidInput(
+            "Schnorr message must be exactly 32 bytes (SHA-256 hash)".into(),
+        ));
+    }
+
     let sig_bytes = hex::decode(signature_hex).map_err(CryptoError::HexError)?;
 
     let signature = k256::schnorr::Signature::try_from(sig_bytes.as_slice())
@@ -172,6 +203,48 @@ mod tests {
 
         let valid = verify_auth_token(&token, "GET", "/api/auth/login").unwrap();
         assert!(!valid);
+    }
+
+    #[test]
+    fn verify_with_expiry_rejects_old_token() {
+        let kp = generate_keypair();
+        let old_timestamp = 1000000u64;
+        let now = 1000000u64 + 400_000; // 400 seconds later (> 5 min)
+        let token = create_auth_token(&kp.secret_key_hex, old_timestamp, "GET", "/api/test").unwrap();
+
+        let valid = verify_auth_token_with_expiry(&token, "GET", "/api/test", now, 300_000).unwrap();
+        assert!(!valid);
+    }
+
+    #[test]
+    fn verify_with_expiry_rejects_future_token() {
+        let kp = generate_keypair();
+        let future_timestamp = 2000000u64;
+        let now = 1000000u64; // way before the token
+        let token = create_auth_token(&kp.secret_key_hex, future_timestamp, "GET", "/api/test").unwrap();
+
+        let valid = verify_auth_token_with_expiry(&token, "GET", "/api/test", now, 300_000).unwrap();
+        assert!(!valid);
+    }
+
+    #[test]
+    fn verify_with_expiry_accepts_recent_token() {
+        let kp = generate_keypair();
+        let now = 1708900000000u64;
+        let token = create_auth_token(&kp.secret_key_hex, now - 60_000, "GET", "/api/test").unwrap();
+
+        let valid = verify_auth_token_with_expiry(&token, "GET", "/api/test", now, 300_000).unwrap();
+        assert!(valid);
+    }
+
+    #[test]
+    fn verify_schnorr_rejects_non_32_byte_message() {
+        let kp = generate_keypair();
+        // 16 bytes = 32 hex chars (not 32 bytes)
+        let short_message = hex::encode(&[0xABu8; 16]);
+        let sig = "ff".repeat(64);
+        let result = verify_schnorr(&short_message, &sig, &kp.public_key);
+        assert!(matches!(result, Err(CryptoError::InvalidInput(_))));
     }
 
     #[test]

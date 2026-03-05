@@ -9,10 +9,30 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
+ * PIN lockout state for brute-force protection.
+ *
+ * Escalating lockout schedule:
+ * - Attempts 1-4: No lockout
+ * - Attempts 5-6: 30 seconds
+ * - Attempts 7-8: 2 minutes
+ * - Attempt 9: 10 minutes
+ * - Attempt 10+: All keys wiped
+ */
+sealed class PinLockoutState {
+    /** PIN entry is allowed. [attemptsRemaining] until wipe (max 10). */
+    data class Unlocked(val attemptsRemaining: Int) : PinLockoutState()
+    /** PIN entry is locked. [until] is the epoch millis when lockout expires. */
+    data class LockedOut(val until: Long) : PinLockoutState()
+    /** Too many failed attempts — all keys have been wiped. */
+    data object Wiped : PinLockoutState()
+}
+
+/**
  * KeystoreService provides encrypted persistent storage backed by Android Keystore.
  *
  * Uses [EncryptedSharedPreferences] with a hardware-backed [MasterKey] (AES-256-GCM).
  * All values are encrypted at rest with key material that never leaves the Keystore.
+ * Requests StrongBox hardware backing where available (graceful fallback on unsupported devices).
  *
  * Storage layout:
  * - "encrypted-keys"  — PIN-encrypted nsec JSON (EncryptedKeyData serialized)
@@ -21,6 +41,8 @@ import javax.inject.Singleton
  * - "pubkey"          — Public key hex (for display when locked)
  * - "npub"            — Nostr npub (for display when locked)
  * - "biometric-enabled" — Whether biometric unlock is configured
+ * - "failed_attempts" — PIN brute-force attempt counter
+ * - "lockout_until"   — Epoch millis when lockout expires
  */
 @Singleton
 class KeystoreService @Inject constructor(
@@ -28,9 +50,17 @@ class KeystoreService @Inject constructor(
 ) : KeyValueStore {
 
     private val masterKey: MasterKey by lazy {
-        MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
+        try {
+            MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .setRequestStrongBoxBacked(true)
+                .build()
+        } catch (_: Exception) {
+            // StrongBox not available on this device — fall back to TEE-backed key
+            MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+        }
     }
 
     private val prefs: SharedPreferences by lazy {
@@ -95,8 +125,94 @@ class KeystoreService @Inject constructor(
         editor.apply()
     }
 
+    // ---- PIN Brute-Force Protection ----
+
+    /**
+     * Check the current lockout state before allowing a PIN attempt.
+     *
+     * @return Current [PinLockoutState]:
+     *   - [PinLockoutState.Unlocked] if PIN entry is allowed
+     *   - [PinLockoutState.LockedOut] if the user must wait
+     *   - [PinLockoutState.Wiped] if keys were wiped due to too many attempts
+     */
+    fun checkLockoutState(): PinLockoutState {
+        val attempts = prefs.getInt(KEY_FAILED_ATTEMPTS, 0)
+        if (attempts >= MAX_ATTEMPTS) {
+            return PinLockoutState.Wiped
+        }
+
+        val lockoutUntil = prefs.getLong(KEY_LOCKOUT_UNTIL, 0L)
+        if (lockoutUntil > 0 && System.currentTimeMillis() < lockoutUntil) {
+            return PinLockoutState.LockedOut(lockoutUntil)
+        }
+
+        return PinLockoutState.Unlocked(MAX_ATTEMPTS - attempts)
+    }
+
+    /**
+     * Record a failed PIN attempt and return the resulting lockout state.
+     *
+     * Escalating lockout schedule:
+     * - Attempts 1-4: no lockout
+     * - Attempts 5-6: 30 second lockout
+     * - Attempts 7-8: 2 minute lockout
+     * - Attempt 9: 10 minute lockout
+     * - Attempt 10+: wipe all keys
+     */
+    fun recordFailedAttempt(): PinLockoutState {
+        val attempts = prefs.getInt(KEY_FAILED_ATTEMPTS, 0) + 1
+        prefs.edit().putInt(KEY_FAILED_ATTEMPTS, attempts).apply()
+
+        val lockoutMs = when (attempts) {
+            in 1..4 -> 0L
+            in 5..6 -> 30_000L
+            in 7..8 -> 120_000L
+            9 -> 600_000L
+            else -> {
+                wipeAllKeys()
+                return PinLockoutState.Wiped
+            }
+        }
+
+        if (lockoutMs > 0) {
+            val lockoutUntil = System.currentTimeMillis() + lockoutMs
+            prefs.edit().putLong(KEY_LOCKOUT_UNTIL, lockoutUntil).apply()
+            return PinLockoutState.LockedOut(lockoutUntil)
+        }
+
+        return PinLockoutState.Unlocked(MAX_ATTEMPTS - attempts)
+    }
+
+    /**
+     * Reset failed attempt counter after a successful PIN unlock.
+     */
+    fun resetFailedAttempts() {
+        prefs.edit()
+            .putInt(KEY_FAILED_ATTEMPTS, 0)
+            .putLong(KEY_LOCKOUT_UNTIL, 0L)
+            .apply()
+    }
+
+    /**
+     * Get the current failed attempt count (for display purposes).
+     */
+    fun getFailedAttemptCount(): Int {
+        return prefs.getInt(KEY_FAILED_ATTEMPTS, 0)
+    }
+
+    /**
+     * Wipe all stored keys. Called when max PIN attempts are exceeded.
+     * This is a destructive, irrecoverable operation.
+     */
+    private fun wipeAllKeys() {
+        prefs.edit().clear().apply()
+    }
+
     companion object {
         private const val PREFS_FILE_NAME = "llamenos_secure_prefs"
+
+        /** Maximum PIN attempts before key wipe. */
+        const val MAX_ATTEMPTS = 10
 
         // Well-known storage keys
         const val KEY_ENCRYPTED_KEYS = "encrypted-keys"
@@ -105,5 +221,9 @@ class KeystoreService @Inject constructor(
         const val KEY_PUBKEY = "pubkey"
         const val KEY_NPUB = "npub"
         const val KEY_BIOMETRIC_ENABLED = "biometric-enabled"
+
+        // PIN lockout keys
+        const val KEY_FAILED_ATTEMPTS = "failed_attempts"
+        const val KEY_LOCKOUT_UNTIL = "lockout_until"
     }
 }

@@ -26,7 +26,7 @@ ssh_port: 2222
 # CIDR ranges allowed to connect via SSH
 # Restrict to your admin IP addresses for maximum security
 ssh_allowed_cidrs:
-  - "0.0.0.0/0"       # WARNING: Replace with your actual IP/32
+  - "REPLACE_WITH_YOUR_IP/32"  # REQUIRED — restrict to your admin IP(s)
 
 # ─── Deploy User ─────────────────────────────────────────────────
 # The non-root user that runs the application

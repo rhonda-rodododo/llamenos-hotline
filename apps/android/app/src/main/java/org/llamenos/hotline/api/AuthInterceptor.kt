@@ -1,7 +1,9 @@
 package org.llamenos.hotline.api
 
 import okhttp3.Interceptor
+import okhttp3.Protocol
 import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.llamenos.hotline.crypto.CryptoService
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,6 +23,10 @@ import javax.inject.Singleton
  * Thread safety: The interceptor synchronizes on [cryptoService] to prevent a race
  * between the `isUnlocked` check and token creation if `lock()` is called concurrently
  * (e.g., from the background timeout handler on the main thread).
+ *
+ * Security: If authentication fails (key locked or signing error), a synthetic 401
+ * response is returned immediately instead of dispatching an unauthenticated request.
+ * This prevents unauthenticated requests from reaching the server.
  */
 @Singleton
 class AuthInterceptor @Inject constructor(
@@ -54,12 +60,22 @@ class AuthInterceptor @Inject constructor(
                     .build()
             } catch (_: Exception) {
                 // Key was locked between the isUnlocked check and the signing call.
-                // Proceed without authentication — the server will return 401 and
-                // the app will redirect to the unlock screen.
                 null
             }
         }
 
-        return chain.proceed(authenticatedRequest ?: originalRequest)
+        if (authenticatedRequest == null) {
+            // Return synthetic 401 instead of dispatching an unauthenticated request.
+            // The app's error handling will redirect to the unlock screen.
+            return Response.Builder()
+                .code(401)
+                .message("Authentication failed")
+                .protocol(Protocol.HTTP_1_1)
+                .request(originalRequest)
+                .body("".toResponseBody(null))
+                .build()
+        }
+
+        return chain.proceed(authenticatedRequest)
     }
 }
