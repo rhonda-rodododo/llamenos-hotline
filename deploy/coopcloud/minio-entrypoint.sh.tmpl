@@ -1,0 +1,8 @@
+#!/bin/sh
+# Bridge Docker Swarm secrets to MinIO environment variables.
+set -eu
+
+export MINIO_ROOT_USER="$(cat /run/secrets/minio_access)"
+export MINIO_ROOT_PASSWORD="$(cat /run/secrets/minio_secret)"
+
+exec minio server /data --console-address :9001

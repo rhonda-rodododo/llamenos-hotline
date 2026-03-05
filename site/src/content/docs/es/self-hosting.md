@@ -11,6 +11,7 @@ Llamenos esta disenado para ejecutarse en tu propia infraestructura. El autoaloj
 |--------|-----------|-------------|---------------|
 | [Docker Compose](/docs/deploy-docker) | Servidor unico, inicio recomendado | Baja | Nodo unico |
 | [Kubernetes (Helm)](/docs/deploy-kubernetes) | Orquestacion multi-servicio | Media | Horizontal (multi-replica) |
+| [Co-op Cloud](/docs/deploy-coopcloud) | Colectivos de hospedaje cooperativo | Baja | Nodo unico (Swarm) |
 
 ## Archivos de Docker Compose
 
@@ -82,6 +83,12 @@ Ambos objetivos de despliegue ejecutan **exactamente el mismo codigo de aplicaci
 - Necesitas escalado horizontal (multiples replicas)
 - Quieres integrarte con herramientas K8s existentes (cert-manager, external-secrets, etc.)
 
+**Elige Co-op Cloud si:**
+- Eres parte de una cooperativa tecnologica o colectivo de hospedaje
+- Ya usas Docker Swarm + Traefik via abra
+- Quieres gestion estandarizada de recetas con el CLI `abra`
+- Necesitas respaldos integrados via backupbot
+
 ## Consideraciones de seguridad
 
 El autoalojamiento te da mas control pero tambien mas responsabilidad:
@@ -97,3 +104,4 @@ El autoalojamiento te da mas control pero tambien mas responsabilidad:
 - [Primeros Pasos](/docs/getting-started) — inicio rapido con Docker
 - [Despliegue con Docker Compose](/docs/deploy-docker) — guia completa de despliegue en produccion
 - [Despliegue en Kubernetes](/docs/deploy-kubernetes) — despliega con Helm
+- [Despliegue en Co-op Cloud](/docs/deploy-coopcloud) — despliega con abra
