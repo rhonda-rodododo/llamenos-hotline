@@ -114,7 +114,7 @@ cd llamenos
 ./scripts/docker-setup.sh
 ```
 
-This generates secrets, builds the app, and starts all services. Once running, visit **http://localhost** — the setup wizard walks you through creating an admin account and configuring your hotline.
+This generates secrets, builds the app, and starts all services. Once running, visit **http://localhost:8000** — the setup wizard walks you through creating an admin account and configuring your hotline.
 
 ### Try demo mode
 
@@ -136,7 +136,7 @@ Run Llamenos on your own infrastructure. All data stays on your server.
 ./scripts/docker-setup.sh
 ```
 
-Runs at http://localhost with plain HTTP.
+Runs at http://localhost:8000 with plain HTTP.
 
 **Production deployment:**
 

@@ -25,7 +25,7 @@
 #   cd deploy/docker
 #   ../../scripts/docker-setup.sh      # generates .env with random secrets
 #   docker compose up -d               # start all core services
-#   open http://localhost               # setup wizard creates admin account
+#   open http://localhost:8000           # setup wizard creates admin account
 
 name: llamenos
 
