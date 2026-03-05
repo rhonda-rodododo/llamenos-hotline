@@ -24,6 +24,16 @@ enum Route: Hashable {
     case conversations
     /// Conversation detail: messages in a single conversation.
     case conversationDetail(id: String)
+    /// Reports list.
+    case reports
+    /// Report detail view.
+    case reportDetail(id: String)
+    /// Contacts list (admin only).
+    case contacts
+    /// Contact timeline detail.
+    case contactTimeline(hash: String, displayIdentifier: String)
+    /// Message blasts (admin only).
+    case blasts
     /// Admin management screens.
     case admin
     /// Device linking flow (QR scan + ECDH).

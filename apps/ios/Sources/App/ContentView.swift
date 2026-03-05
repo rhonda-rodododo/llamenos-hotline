@@ -65,6 +65,17 @@ struct ContentView: View {
         case .noteDetail, .noteCreate:
             // These are handled within the Notes tab's own NavigationStack
             EmptyView()
+        case .reports:
+            ReportsView()
+        case .reportDetail:
+            // Handled within the Reports view's own NavigationStack
+            EmptyView()
+        case .contacts:
+            ContactsView()
+        case .contactTimeline(let hash, let displayIdentifier):
+            ContactTimelineView(contactHash: hash, displayIdentifier: displayIdentifier)
+        case .blasts:
+            BlastsView()
         case .conversations:
             ConversationsView()
         case .conversationDetail(let id):
