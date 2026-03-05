@@ -116,6 +116,9 @@ Given('I am on the login screen', async ({ page }) => {
 
 Given('I have a stored identity with PIN {string}', async ({ page }, pin: string) => {
   // Pre-load an encrypted key for the given PIN
+  // Normalize to 6 digits (app uses 6-digit PINs; feature files may use 4-digit for readability)
+  const normalizedPin = pin.padEnd(6, '0')
+
   await page.goto('/login')
   await page.evaluate(() => {
     localStorage.clear()
@@ -128,7 +131,7 @@ Given('I have a stored identity with PIN {string}', async ({ page }, pin: string
   const { getPublicKey, nip19 } = await import('nostr-tools')
 
   const encoder = new TextEncoder()
-  const pinBytes = encoder.encode(pin)
+  const pinBytes = encoder.encode(normalizedPin)
   const salt = crypto.getRandomValues(new Uint8Array(16))
 
   const keyMaterial = await crypto.subtle.importKey('raw', pinBytes, 'PBKDF2', false, ['deriveBits'])
@@ -183,5 +186,7 @@ When('the app launches', async ({ page }) => {
 })
 
 When('I enter PIN {string}', async ({ page }, pin: string) => {
-  await enterPin(page, pin)
+  // Normalize to 6 digits (app uses 6-digit PINs; feature files may use 4-digit for readability)
+  const normalizedPin = pin.padEnd(6, '0')
+  await enterPin(page, normalizedPin)
 })

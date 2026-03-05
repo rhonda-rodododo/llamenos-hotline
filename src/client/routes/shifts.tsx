@@ -99,7 +99,7 @@ function ShiftsPage() {
       )}
 
       {/* Shifts list */}
-      <div className="space-y-3">
+      <div data-testid="shift-list" className="space-y-3">
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -127,7 +127,7 @@ function ShiftsPage() {
           </Card>
         ) : (
           shifts.map(shift => (
-            <Card key={shift.id} data-testid={`shift-card-${shift.id}`}>
+            <Card key={shift.id} data-testid="shift-card" data-shift-id={shift.id}>
               <CardContent>
                 <div className="flex items-start justify-between">
                   <div>

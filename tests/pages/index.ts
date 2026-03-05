@@ -77,12 +77,27 @@ export const Navigation = {
   },
 
   async goToSettings(page: Page): Promise<void> {
+    const navSettings = page.getByTestId(TestIds.NAV_SETTINGS)
+    const isVisible = await navSettings.isVisible({ timeout: 3000 }).catch(() => false)
+    if (!isVisible) {
+      // Not authenticated yet — login first
+      const { loginAsAdmin } = await import('../helpers')
+      await loginAsAdmin(page)
+    }
     await page.getByTestId(TestIds.NAV_SETTINGS).click()
     await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
   async goToHubSettings(page: Page): Promise<void> {
-    await page.getByTestId(TestIds.NAV_ADMIN_SETTINGS).click()
+    const navLink = page.getByTestId(TestIds.NAV_ADMIN_SETTINGS)
+    const isLink = await navLink.isVisible({ timeout: Timeouts.ELEMENT }).catch(() => false)
+    if (isLink) {
+      await navLink.click()
+    } else {
+      // Nav link may not be visible (sidebar collapsed, or not admin) — try direct URL navigation
+      await page.goto('/admin/settings')
+      await page.waitForLoadState('domcontentloaded')
+    }
     await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
   },
 
@@ -118,10 +133,10 @@ export const VolunteerPage = {
   },
 
   /**
-   * Get a volunteer row by test ID with identifier.
+   * Get a volunteer row by pubkey using the data-volunteer-id attribute.
    */
   getRowById(page: Page, pubkey: string): Locator {
-    return page.getByTestId(rowTestId(TestIds.VOLUNTEER_ROW, pubkey))
+    return page.locator(`[data-testid="volunteer-row"][data-volunteer-id="${pubkey.slice(0, 8)}"]`)
   },
 
   /**

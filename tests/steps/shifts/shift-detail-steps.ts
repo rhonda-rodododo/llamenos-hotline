@@ -26,7 +26,7 @@ Then('I should see the shift info card', async ({ page }) => {
 })
 
 Then('I should see the volunteer assignment section', async ({ page }) => {
-  await expect(page.getByTestId(TestIds.SHIFT_VOLUNTEER_COUNT)).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId(TestIds.SHIFT_VOLUNTEER_COUNT).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I tap a volunteer assignment card', async ({ page }) => {

@@ -316,6 +316,7 @@ function NotesPage() {
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
+                  data-testid="note-search"
                   value={searchInput}
                   onChange={e => setSearchInput(e.target.value)}
                   placeholder={t('notes.searchPlaceholder')}
@@ -374,7 +375,7 @@ function NotesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4" data-testid="note-list">
           {Object.entries(notesByCall).map(([cId, callNotes]) => (
             <Card key={cId}>
               <CardHeader className="border-b py-3">

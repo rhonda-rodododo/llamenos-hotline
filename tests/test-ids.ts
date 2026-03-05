@@ -280,6 +280,7 @@ export const navTestIdMap: Record<string, string> = {
   'Calls': 'nav-calls',
   'Settings': 'nav-settings',
   'Shifts': 'nav-shifts',
+  'Shift Schedule': 'nav-shifts',
   'Volunteers': 'nav-volunteers',
   'Ban List': 'nav-bans',
   'Bans': 'nav-bans',

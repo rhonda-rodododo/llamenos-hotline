@@ -242,7 +242,7 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
   }
 
   return (
-    <Card className="w-full max-w-2xl">
+    <Card className="w-full max-w-2xl" data-testid="setup-wizard">
       {/* Header */}
       <div className="px-6 pt-6">
         <div className="flex items-center gap-2 mb-4">
@@ -280,7 +280,7 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
       </div>
 
       {/* Step content */}
-      <div className="px-6 py-6">
+      <div className="px-6 py-6" data-testid="setup-step">
         {step === 0 && <StepIdentity data={data} onChange={updateData} headingRef={stepHeadingRef} />}
         {step === 1 && <StepChannels data={data} onChange={updateData} headingRef={stepHeadingRef} />}
         {step === 2 && <StepProviders data={data} onChange={updateData} headingRef={stepHeadingRef} />}
@@ -292,18 +292,18 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
       {/* Navigation */}
       {step < TOTAL_STEPS - 1 && (
         <div className="flex items-center justify-between border-t px-6 py-4">
-          <Button variant="ghost" onClick={handleBack} disabled={step === 0}>
+          <Button variant="ghost" onClick={handleBack} disabled={step === 0} data-testid="setup-back-btn">
             <ArrowLeft className="h-4 w-4" />
             {t('common.back')}
           </Button>
           <div className="flex gap-2">
             {step >= 2 && (
-              <Button variant="ghost" size="sm" onClick={handleSkip}>
+              <Button variant="ghost" size="sm" onClick={handleSkip} data-testid="setup-skip-btn">
                 <SkipForward className="h-4 w-4" />
                 {t('setup.skip')}
               </Button>
             )}
-            <Button onClick={handleNext} disabled={!canProceed() || saving}>
+            <Button onClick={handleNext} disabled={!canProceed() || saving} data-testid="setup-next-btn">
               {saving ? t('common.loading') : t('common.next')}
               <ArrowRight className="h-4 w-4" />
             </Button>

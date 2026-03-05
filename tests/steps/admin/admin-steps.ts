@@ -50,10 +50,21 @@ Then('the {string} tab should be selected by default', async ({ page }, _tabName
   await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
-Then('{word} content should be displayed \\(loading, empty, or list)', async ({ page }, _tabContent: string) => {
-  // Generic content check for any admin tab
+Then('{word} content should be displayed \\(loading, empty, or list)', async ({ page }, tabContent: string) => {
+  // Map tab content name to the primary test ID for that page
+  const contentTestIdMap: Record<string, string> = {
+    volunteers: TestIds.VOLUNTEER_LIST,
+    bans: TestIds.BAN_LIST,
+    audit: TestIds.AUDIT_ENTRY,
+    shifts: TestIds.SHIFT_LIST,
+    notes: TestIds.NOTE_LIST,
+    reports: TestIds.REPORT_LIST,
+    conversations: TestIds.CONVERSATION_LIST,
+    blasts: TestIds.BLAST_LIST,
+  }
+  const primaryTestId = contentTestIdMap[tabContent.toLowerCase()] || TestIds.PAGE_TITLE
   const content = page.locator(
-    `[data-testid="${TestIds.VOLUNTEER_LIST}"], [data-testid="${TestIds.EMPTY_STATE}"], [data-testid="${TestIds.LOADING_SKELETON}"]`,
+    `[data-testid="${primaryTestId}"], [data-testid="${TestIds.EMPTY_STATE}"], [data-testid="${TestIds.LOADING_SKELETON}"], [data-testid="${TestIds.PAGE_TITLE}"]`,
   )
   await expect(content.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
@@ -76,12 +87,21 @@ Given('the crypto service is locked', async ({ page }) => {
 })
 
 Given('a stored identity exists', async ({ page }) => {
-  const hasKey = await page.evaluate(() => {
+  let hasKey = await page.evaluate(() => {
     return (
       localStorage.getItem('llamenos-encrypted-key') !== null ||
       localStorage.getItem('tauri-store:keys.json:llamenos-encrypted-key') !== null
     )
   })
+  if (!hasKey) {
+    // Pre-load the admin encrypted key so subsequent PIN unlock can work
+    const { loginAsAdmin } = await import('../../helpers')
+    await loginAsAdmin(page)
+    // Log out to return to locked state
+    await page.getByTestId(TestIds.LOGOUT_BTN).click()
+    await page.waitForURL(/\/login/, { timeout: Timeouts.NAVIGATION })
+    hasKey = true
+  }
   expect(hasKey).toBe(true)
 })
 

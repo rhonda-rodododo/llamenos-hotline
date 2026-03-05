@@ -357,16 +357,25 @@ export async function createRoleViaApi(
   request: APIRequestContext,
   opts: { name: string; slug: string; permissions: string[]; description?: string },
 ): Promise<RoleDefinition> {
-  const { status, data } = await apiPost<{ role: RoleDefinition }>(request, '/settings/roles', {
+  const { status, data } = await apiPost<RoleDefinition>(request, '/settings/roles', {
     name: opts.name,
     slug: opts.slug,
     permissions: opts.permissions,
-    description: opts.description ?? '',
+    description: opts.description || `Custom role: ${opts.name}`,
   })
+  if (status === 409) {
+    // Role already exists (parallel test created it) — fetch and return it
+    const roles = await listRolesViaApi(request)
+    const existing = roles.find(r => r.slug === opts.slug)
+    if (existing) return existing
+    throw new Error(`Role slug "${opts.slug}" conflicts but not found in list`)
+  }
   if (status !== 200 && status !== 201) {
     throw new Error(`Failed to create role: ${status}`)
   }
-  return data.role
+  // API returns the role directly, not wrapped in { role: ... }
+  const role = (data as unknown as { role?: RoleDefinition })?.role ?? data
+  return role
 }
 
 export async function updateRoleViaApi(
@@ -482,7 +491,9 @@ export async function listReportsViaApi(
 export interface CustomFieldDefinition {
   id: string
   name: string
+  label: string
   type: 'text' | 'select' | 'number' | 'boolean'
+  context?: 'call-notes' | 'conversation-notes' | 'reports' | 'all'
   options?: string[]
   required?: boolean
 }

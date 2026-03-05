@@ -208,6 +208,7 @@ function LoginPage() {
                   onClick={() => setTheme(value)}
                   title={t(`a11y.theme${value.charAt(0).toUpperCase() + value.slice(1)}`)}
                   aria-label={t(`a11y.theme${value.charAt(0).toUpperCase() + value.slice(1)}`)}
+                  data-testid={`theme-${value}`}
                 >
                   <Icon className="h-3 w-3" />
                 </Button>
@@ -255,6 +256,7 @@ function LoginPage() {
               size="sm"
               className="w-full"
               onClick={() => setShowRecovery(true)}
+              data-testid="recovery-options-btn"
             >
               <Key className="h-3.5 w-3.5" />
               {t('recovery.options', { defaultValue: 'Recovery options' })}

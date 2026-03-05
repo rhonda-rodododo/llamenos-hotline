@@ -13,8 +13,10 @@ import { listShiftsViaApi, createVolunteerViaApi } from '../../api-helpers'
 
 Then('I should see shifts or the {string} message', async ({ page }, emptyMsg: string) => {
   const shiftCard = page.getByTestId(TestIds.SHIFT_CARD)
-  const emptyState = page.getByTestId(TestIds.EMPTY_STATE).or(page.getByText(emptyMsg))
-  await expect(shiftCard.first().or(emptyState.first())).toBeVisible({ timeout: Timeouts.ELEMENT })
+  if (await shiftCard.first().isVisible({ timeout: Timeouts.ELEMENT }).catch(() => false)) return
+  const emptyState = page.getByTestId(TestIds.EMPTY_STATE)
+  if (await emptyState.isVisible({ timeout: 2000 }).catch(() => false)) return
+  await expect(page.getByText(emptyMsg).first()).toBeVisible({ timeout: 2000 })
 })
 
 When('I fill in the shift name with a unique name', async ({ page }) => {
