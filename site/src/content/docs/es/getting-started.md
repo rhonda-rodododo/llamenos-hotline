@@ -37,7 +37,7 @@ cd llamenos
 ./scripts/docker-setup.sh
 ```
 
-Esto genera todos los secretos necesarios, construye la aplicacion e inicia los servicios. Una vez listo, visita **http://localhost** y el asistente de configuracion te guiara para:
+Esto genera todos los secretos necesarios, construye la aplicacion e inicia los servicios. Una vez listo, visita **http://localhost:8000** y el asistente de configuracion te guiara para:
 
 1. **Crear tu cuenta de administrador** — genera un par de claves criptograficas en tu navegador
 2. **Nombrar tu linea** — establece el nombre para mostrar

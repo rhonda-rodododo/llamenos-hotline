@@ -37,7 +37,7 @@ cd llamenos
 ./scripts/docker-setup.sh
 ```
 
-This generates all required secrets, builds the application, and starts the services. Once complete, visit **http://localhost** and the setup wizard will guide you through:
+This generates all required secrets, builds the application, and starts the services. Once complete, visit **http://localhost:8000** and the setup wizard will guide you through:
 
 1. **Create your admin account** — generates a cryptographic keypair in your browser
 2. **Name your hotline** — set the display name

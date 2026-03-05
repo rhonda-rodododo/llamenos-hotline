@@ -22,7 +22,7 @@ cd llamenos
 ./scripts/docker-setup.sh
 ```
 
-Visit **http://localhost** and follow the setup wizard to create your admin account.
+Visit **http://localhost:8000** and follow the setup wizard to create your admin account.
 
 ## Production deployment
 
@@ -96,7 +96,7 @@ The setup starts five core services:
 |---------|---------|------|
 | **app** | Llamenos application (Node.js) | 3000 (internal) |
 | **postgres** | PostgreSQL database | 5432 (internal) |
-| **caddy** | Reverse proxy + automatic TLS | 80, 443 |
+| **caddy** | Reverse proxy + automatic TLS | 8000 (local), 80/443 (production) |
 | **minio** | S3-compatible file storage | 9000, 9001 (internal) |
 | **strfry** | Nostr relay for real-time events | 7777 (internal) |
 
@@ -260,7 +260,7 @@ curl -I http://hotline.yourorg.com
 
 ```mermaid
 flowchart TD
-    Internet -->|":80/:443"| Caddy["Caddy<br/>(TLS, reverse proxy)"]
+    Internet -->|":8000 or :80/:443"| Caddy["Caddy<br/>(TLS, reverse proxy)"]
     Caddy -->|":3000"| App["App<br/>(Node.js)"]
     Caddy -->|"/nostr"| Strfry["strfry<br/>(Nostr relay)"]
     App --> PostgreSQL[("PostgreSQL<br/>:5432")]

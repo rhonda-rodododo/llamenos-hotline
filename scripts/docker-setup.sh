@@ -41,8 +41,8 @@ while [[ $# -gt 0 ]]; do
       echo "  --email EMAIL       Email for Let's Encrypt certificates"
       echo ""
       echo "Examples:"
-      echo "  $0                                     # http://localhost"
-      echo "  $0 --demo                              # http://localhost with demo data"
+      echo "  $0                                     # http://localhost:8000"
+      echo "  $0 --demo                              # http://localhost:8000 with demo data"
       echo "  $0 --domain hotline.org --email a@b    # https://hotline.org"
       exit 0 ;;
     *) echo "Unknown option: $1 (try --help)"; exit 1 ;;
@@ -88,7 +88,8 @@ fi
 echo "Generating secrets..."
 
 CADDY_SITE_ADDRESS=""
-[[ "$LOCAL_MODE" == true ]] && CADDY_SITE_ADDRESS="http://localhost"
+HTTP_PORT=""
+[[ "$LOCAL_MODE" == true ]] && CADDY_SITE_ADDRESS="http://localhost" && HTTP_PORT="8000"
 
 ENVIRONMENT="production"
 [[ "$DEMO_MODE" == "true" ]] && ENVIRONMENT="development"
@@ -105,6 +106,7 @@ SERVER_NOSTR_SECRET=$(openssl rand -hex 32)
 
 DOMAIN=${DOMAIN}
 CADDY_SITE_ADDRESS=${CADDY_SITE_ADDRESS}
+${HTTP_PORT:+HTTP_PORT=${HTTP_PORT}}
 ACME_EMAIL=${ACME_EMAIL}
 
 HOTLINE_NAME=Hotline
@@ -127,7 +129,7 @@ docker compose $COMPOSE_FILES up -d
 
 echo -n "Waiting for app to start"
 for _ in $(seq 1 40); do
-  if curl -sf http://localhost:80/api/health &>/dev/null || curl -sf http://localhost:3000/api/health &>/dev/null; then
+  if curl -sf http://localhost:${HTTP_PORT:-80}/api/health &>/dev/null || curl -sf http://localhost:3000/api/health &>/dev/null; then
     echo " ready!"
     break
   fi
@@ -138,7 +140,7 @@ done
 # ── Done ─────────────────────────────────────────────────────────
 
 if [[ "$LOCAL_MODE" == true ]]; then
-  URL="http://localhost"
+  URL="http://localhost:8000"
   COMPOSE_CMD="docker compose -f deploy/docker/docker-compose.yml"
 else
   URL="https://${DOMAIN}"

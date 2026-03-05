@@ -22,7 +22,7 @@ cd llamenos
 ./scripts/docker-setup.sh
 ```
 
-Visita **http://localhost** y sigue el asistente de configuracion para crear tu cuenta de administrador.
+Visita **http://localhost:8000** y sigue el asistente de configuracion para crear tu cuenta de administrador.
 
 ## Despliegue en produccion
 
@@ -96,7 +96,7 @@ La configuracion inicia cinco servicios principales:
 |----------|-----------|--------|
 | **app** | Aplicacion Llamenos (Node.js) | 3000 (interno) |
 | **postgres** | Base de datos PostgreSQL | 5432 (interno) |
-| **caddy** | Proxy inverso + TLS automatico | 80, 443 |
+| **caddy** | Proxy inverso + TLS automatico | 8000 (local), 80/443 (produccion) |
 | **minio** | Almacenamiento de archivos compatible con S3 | 9000, 9001 (interno) |
 | **strfry** | Relay Nostr para eventos en tiempo real | 7777 (interno) |
 
@@ -257,7 +257,7 @@ curl -I http://linea.tuorg.com
 
 ```mermaid
 flowchart TD
-    Internet -->|":80/:443"| Caddy["Caddy<br/>(TLS, proxy inverso)"]
+    Internet -->|":8000 o :80/:443"| Caddy["Caddy<br/>(TLS, proxy inverso)"]
     Caddy -->|":3000"| App["App<br/>(Node.js)"]
     Caddy -->|"/nostr"| Strfry["strfry<br/>(Relay Nostr)"]
     App --> PostgreSQL[("PostgreSQL<br/>:5432")]
