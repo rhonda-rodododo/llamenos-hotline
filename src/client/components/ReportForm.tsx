@@ -129,6 +129,7 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
             </Label>
             <Input
               id="report-title"
+              data-testid="report-title-input"
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder={t('reports.titlePlaceholder', { defaultValue: 'Brief description of the report' })}
@@ -159,6 +160,7 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
             </Label>
             <Textarea
               id="report-body"
+              data-testid="report-body-input"
               value={body}
               onChange={e => setBody(e.target.value)}
               placeholder={t('reports.bodyPlaceholder', { defaultValue: 'Describe the situation in detail...' })}
@@ -179,7 +181,7 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
           />
 
           <div className="flex justify-end pt-2">
-            <Button onClick={handleSubmit} disabled={submitting || !title.trim() || !body.trim()}>
+            <Button data-testid="report-submit-btn" onClick={handleSubmit} disabled={submitting || !title.trim() || !body.trim()}>
               {submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (

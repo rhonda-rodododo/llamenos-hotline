@@ -89,7 +89,7 @@ function BansPage() {
               ))}
             </div>
           ) : bans.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
+            <div data-testid="empty-state" className="py-8 text-center text-muted-foreground">
               <ShieldBan className="mx-auto mb-2 h-8 w-8 opacity-40" />
               {t('banList.noEntries')}
             </div>
@@ -191,7 +191,7 @@ function BanRow({ ban, onRemoved }: {
   const [showConfirm, setShowConfirm] = useState(false)
 
   return (
-    <div data-testid={`ban-row-${ban.phone.replace(/\+/g, '')}`} className="flex flex-wrap items-center gap-4 px-4 py-3 sm:px-6">
+    <div data-testid="ban-row" className="flex flex-wrap items-center gap-4 px-4 py-3 sm:px-6">
       <code className="text-xs font-mono">{ban.phone}</code>
       <span className="flex-1 text-sm text-muted-foreground">{ban.reason}</span>
       <span className="text-xs text-muted-foreground">

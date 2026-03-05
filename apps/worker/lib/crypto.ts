@@ -4,7 +4,8 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { hmac } from '@noble/hashes/hmac.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
-import { LABEL_MESSAGE, LABEL_CALL_META, HMAC_PHONE_PREFIX, HMAC_IP_PREFIX } from '@shared/crypto-labels'
+import { hkdf } from '@noble/hashes/hkdf.js'
+import { LABEL_MESSAGE, LABEL_CALL_META, LABEL_CONTACT_ID, HMAC_PHONE_PREFIX, HMAC_IP_PREFIX } from '@shared/crypto-labels'
 import type { RecipientEnvelope } from '@shared/types'
 
 /**
@@ -137,6 +138,41 @@ export function encryptCallRecordForStorage(
       ...eciesWrapKeyServer(recordKey, pk, LABEL_CALL_META),
     })),
   }
+}
+
+// --- Contact Identifier Encryption (Epic 255) ---
+
+/**
+ * Encrypt a contact identifier for at-rest storage.
+ * Uses HKDF(HMAC_SECRET) → XChaCha20-Poly1305.
+ * Stored with "enc:" prefix to distinguish from legacy plaintext.
+ */
+export function encryptContactIdentifier(identifier: string, hmacSecret: string): string {
+  const key = hkdf(sha256, hexToBytes(hmacSecret), new Uint8Array(0), utf8ToBytes(LABEL_CONTACT_ID), 32)
+  const nonce = new Uint8Array(24)
+  crypto.getRandomValues(nonce)
+  const cipher = xchacha20poly1305(key, nonce)
+  const ct = cipher.encrypt(utf8ToBytes(identifier))
+  const packed = new Uint8Array(24 + ct.length)
+  packed.set(nonce)
+  packed.set(ct, 24)
+  return 'enc:' + bytesToHex(packed)
+}
+
+/**
+ * Decrypt a contact identifier from storage.
+ * Handles both encrypted ("enc:"-prefixed) and legacy plaintext values.
+ * Legacy plaintext values are returned as-is (migration is lazy on next write).
+ */
+export function decryptContactIdentifier(stored: string, hmacSecret: string): string {
+  if (!stored.startsWith('enc:')) return stored // legacy plaintext
+  const hex = stored.slice(4)
+  const data = hexToBytes(hex)
+  const key = hkdf(sha256, hexToBytes(hmacSecret), new Uint8Array(0), utf8ToBytes(LABEL_CONTACT_ID), 32)
+  const nonce = data.slice(0, 24)
+  const ct = data.slice(24)
+  const cipher = xchacha20poly1305(key, nonce)
+  return new TextDecoder().decode(cipher.decrypt(ct))
 }
 
 /**

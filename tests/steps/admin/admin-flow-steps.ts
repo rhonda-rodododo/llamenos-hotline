@@ -215,7 +215,20 @@ Then('the clear filters button should not be visible', async ({ page }) => {
 // --- Settings toggles ---
 
 Then('I should see at least one toggle switch', async ({ page }) => {
+  // Hub settings sections are collapsible — expand any collapsed sections to reveal switches
+  const sections = page.locator('[data-testid][data-settings-section]')
+  const sectionCount = await sections.count()
+  for (let i = 0; i < sectionCount; i++) {
+    const section = sections.nth(i)
+    const isExpanded = await section.locator('[data-state="open"]').isVisible({ timeout: 500 }).catch(() => false)
+    if (!isExpanded) {
+      await section.locator('.cursor-pointer').first().click().catch(() => {})
+      await page.waitForTimeout(300)
+    }
+  }
+  await page.waitForTimeout(Timeouts.UI_SETTLE)
   const switches = page.getByRole('switch')
+  await expect(switches.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
   const count = await switches.count()
   expect(count).toBeGreaterThan(0)
 })

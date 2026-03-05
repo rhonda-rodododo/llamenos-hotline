@@ -57,6 +57,15 @@
 - [x] Consider re-auth step-up for sensitive actions — PIN challenge dialog for phone unmask
 - [ ] Auth token nonce-based replay protection *(accepted trade-off: mitigated by HTTPS + Schnorr + 5-min window + method/path binding)*
 
+## Security Audit Findings (2026-03-04, Round 7)
+
+### Fixed — Epics 252-256
+- [x] **[Epic 252: Nostr Hub-Key Encryption](epics/epic-252-nostr-hub-key-encryption.md)** — Encrypt all Nostr relay events with XChaCha20-Poly1305 via HKDF(SERVER_NOSTR_SECRET), expose serverEventKeyHex to authenticated clients
+- [x] **[Epic 253: Invite Role Authorization](epics/epic-253-invite-role-authorization.md)** — Validate that invite creators have all permissions in assigned roles (prevent privilege escalation)
+- [x] **[Epic 254: Remove Auth Token Fallback](epics/epic-254-remove-auth-token-fallback.md)** — Remove unbound Schnorr token acceptance; require method+path binding
+- [x] **[Epic 255: Encrypt Contact Identifiers](epics/epic-255-encrypt-contact-identifiers.md)** — Encrypt phone/email at rest in ConversationDO with HKDF+XChaCha20-Poly1305, lazy migration for legacy plaintext
+- [x] **[Epic 256: Fix BlastDO HMAC Keys](epics/epic-256-blast-hmac-key-fix.md)** — Use HMAC_SECRET instead of public constant for preference tokens and subscriber hashing
+
 ## Security Audit Findings (2026-02-23, Round 6)
 
 Full report: [`docs/security/SECURITY_AUDIT_2026-02-R6.md`](security/SECURITY_AUDIT_2026-02-R6.md)

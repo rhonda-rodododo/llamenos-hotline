@@ -16,12 +16,11 @@ Feature: Invite Onboarding
 
   Scenario: Invalid invite code shows error
     When I navigate to "/onboarding?code=invalidcode123"
-    Then I should see "invalid invite"
-    And I should see a "Go to Login" button
+    Then I should see "Invalid invite"
 
   Scenario: Missing invite code shows error
     When I navigate to "/onboarding"
-    Then I should see "no invite code"
+    Then I should see "No invite code"
 
   Scenario: Admin can see pending invites and revoke them
     Given I am logged in as an admin

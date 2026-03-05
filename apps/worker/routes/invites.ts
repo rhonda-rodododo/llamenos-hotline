@@ -7,6 +7,8 @@ import { verifyAuthToken } from '../lib/auth'
 import { auth as authMiddleware } from '../middleware/auth'
 import { requirePermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
+import { permissionGranted, resolvePermissions } from '@shared/permissions'
+import type { Role } from '@shared/permissions'
 
 const invites = new Hono<AppEnv>()
 
@@ -63,6 +65,27 @@ invites.post('/', requirePermission('invites:create'), async (c) => {
   if (body.phone && !isValidE164(body.phone)) {
     return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
   }
+
+  // Validate that the creator can grant all requested roles (prevent privilege escalation)
+  if (body.roleIds && body.roleIds.length > 0) {
+    const creatorPermissions = c.get('permissions') as string[]
+    if (!permissionGranted(creatorPermissions, '*')) {
+      const allRoles = c.get('allRoles') as Role[]
+      for (const roleId of body.roleIds) {
+        const role = allRoles.find(r => r.id === roleId)
+        if (!role) {
+          return c.json({ error: `Unknown role: ${roleId}` }, 400)
+        }
+        // Every permission in the target role must be held by the creator
+        for (const perm of role.permissions) {
+          if (!permissionGranted(creatorPermissions, perm)) {
+            return c.json({ error: `Cannot grant role '${role.name}' — you lack permission '${perm}'` }, 403)
+          }
+        }
+      }
+    }
+  }
+
   const res = await dos.identity.fetch(new Request('http://do/invites', {
     method: 'POST',
     body: JSON.stringify({ ...body, createdBy: pubkey }),

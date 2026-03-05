@@ -137,8 +137,10 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
           </h4>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label>{t('customFields.fieldLabel')}</Label>
+              <Label htmlFor="custom-field-label">{t('customFields.fieldLabel')}</Label>
               <Input
+                id="custom-field-label"
+                data-testid="custom-field-label-input"
                 value={editing.label || ''}
                 onChange={e => {
                   const label = e.target.value
@@ -153,8 +155,10 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
               />
             </div>
             <div className="space-y-1">
-              <Label>{t('customFields.fieldName')}</Label>
+              <Label htmlFor="custom-field-name">{t('customFields.fieldName')}</Label>
               <Input
+                id="custom-field-name"
+                data-testid="custom-field-name-input"
                 value={editing.name || ''}
                 onChange={e => setEditing(prev => ({ ...prev!, name: e.target.value }))}
                 placeholder="e.g. severity"

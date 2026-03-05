@@ -102,7 +102,7 @@ export function ConversationThread({ conversationId, messages, isLoading, compac
   const bubblePadding = compact ? 'px-3 py-2' : 'px-4 py-2.5'
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-hidden">
+    <div data-testid="conversation-thread" className="relative flex flex-1 flex-col overflow-hidden">
       <div
         ref={scrollRef}
         onScroll={handleScroll}

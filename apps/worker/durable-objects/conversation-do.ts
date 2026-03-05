@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers'
 import type { Env, Conversation, EncryptedMessage, ConversationStatus } from '../types'
 import type { IncomingMessage, MessageStatusUpdate } from '../messaging/adapter'
 import type { MessagingChannelType, FileRecord, FileKeyEnvelope } from '@shared/types'
-import { encryptMessageForStorage } from '../lib/crypto'
+import { encryptMessageForStorage, encryptContactIdentifier, decryptContactIdentifier } from '../lib/crypto'
 import { DORouter } from '../lib/do-router'
 import { runMigrations } from '@shared/migrations/runner'
 import { migrations } from '@shared/migrations'
@@ -419,8 +419,8 @@ export class ConversationDO extends DurableObject<Env> {
       await this.putConversation(conv)
       await this.updateIndex(conv)
 
-      // Store the actual contact identifier for outbound sends (server-side only)
-      await this.ctx.storage.put(`contact:${conv.id}`, incoming.senderIdentifier)
+      // Store the actual contact identifier encrypted for outbound sends (server-side only)
+      await this.ctx.storage.put(`contact:${conv.id}`, encryptContactIdentifier(incoming.senderIdentifier, this.env.HMAC_SECRET))
     }
 
     // Encrypt the message content using envelope pattern
@@ -466,9 +466,14 @@ export class ConversationDO extends DurableObject<Env> {
   // --- Contact Identifier Lookup (server-side only) ---
 
   private async getContactIdentifier(conversationId: string): Promise<Response> {
-    const identifier = await this.ctx.storage.get<string>(`contact:${conversationId}`)
-    if (!identifier) {
+    const stored = await this.ctx.storage.get<string>(`contact:${conversationId}`)
+    if (!stored) {
       return new Response(JSON.stringify({ error: 'No contact identifier stored' }), { status: 404 })
+    }
+    const identifier = decryptContactIdentifier(stored, this.env.HMAC_SECRET)
+    // Lazy migration: re-encrypt legacy plaintext entries
+    if (!stored.startsWith('enc:')) {
+      await this.ctx.storage.put(`contact:${conversationId}`, encryptContactIdentifier(identifier, this.env.HMAC_SECRET))
     }
     return Response.json({ identifier })
   }

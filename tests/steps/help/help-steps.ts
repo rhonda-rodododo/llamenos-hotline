@@ -5,17 +5,33 @@
 import { expect } from '@playwright/test'
 import { Given, When, Then } from '../fixtures'
 import { TestIds } from '../../test-ids'
-import { Timeouts, navigateAfterLogin } from '../../helpers'
+import { Timeouts, navigateAfterLogin, loginAsAdmin } from '../../helpers'
 
 Given('I am on the help screen', async ({ page }) => {
+  // Ensure authenticated before navigating
+  const sidebar = page.getByTestId(TestIds.NAV_SIDEBAR)
+  const isLoggedIn = await sidebar.isVisible({ timeout: 2000 }).catch(() => false)
+  if (!isLoggedIn) {
+    await loginAsAdmin(page)
+  }
   await navigateAfterLogin(page, '/help')
 })
 
 Given('I am on the help page', async ({ page }) => {
+  const sidebar = page.getByTestId(TestIds.NAV_SIDEBAR)
+  const isLoggedIn = await sidebar.isVisible({ timeout: 2000 }).catch(() => false)
+  if (!isLoggedIn) {
+    await loginAsAdmin(page)
+  }
   await navigateAfterLogin(page, '/help')
 })
 
 When('I navigate to the help page', async ({ page }) => {
+  const sidebar = page.getByTestId(TestIds.NAV_SIDEBAR)
+  const isLoggedIn = await sidebar.isVisible({ timeout: 2000 }).catch(() => false)
+  if (!isLoggedIn) {
+    await loginAsAdmin(page)
+  }
   await navigateAfterLogin(page, '/help')
 })
 

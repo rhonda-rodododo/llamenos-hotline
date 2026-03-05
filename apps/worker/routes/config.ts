@@ -2,6 +2,8 @@ import { Hono } from 'hono'
 import type { AppEnv } from '../types'
 import { getDOs } from '../lib/do-access'
 import { deriveServerKeypair } from '../lib/nostr-publisher'
+import { deriveServerEventKey } from '../lib/hub-event-crypto'
+import { bytesToHex } from '@noble/hashes/utils.js'
 import type { EnabledChannels, Hub, SetupState } from '@shared/types'
 
 const config = new Hono<AppEnv>()
@@ -62,8 +64,12 @@ config.get('/', async (c) => {
   } catch { /* default to empty */ }
 
   // Derive server Nostr pubkey for client event verification (Epic 76.1)
+  // and server event key for client-side decryption of encrypted relay events (Epic 252)
   const serverNostrPubkey = c.env.SERVER_NOSTR_SECRET
     ? deriveServerKeypair(c.env.SERVER_NOSTR_SECRET).pubkey
+    : undefined
+  const serverEventKeyHex = c.env.SERVER_NOSTR_SECRET
+    ? bytesToHex(deriveServerEventKey(c.env.SERVER_NOSTR_SECRET))
     : undefined
 
   // Client-facing relay URL:
@@ -84,6 +90,7 @@ config.get('/', async (c) => {
     hubs,
     defaultHubId,
     serverNostrPubkey,
+    serverEventKeyHex,
     nostrRelayUrl,
   })
 })

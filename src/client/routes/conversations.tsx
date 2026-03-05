@@ -183,13 +183,13 @@ function ConversationsPage() {
               </div>
               <div className="flex items-center gap-2">
                 {selectedConv.status === 'waiting' && (
-                  <Button size="sm" onClick={() => handleClaim(selectedConv.id)}>
+                  <Button size="sm" data-testid="conv-assign-btn" onClick={() => handleClaim(selectedConv.id)}>
                     <UserCheck className="h-3.5 w-3.5 mr-1" />
                     {t('conversations.claim', { defaultValue: 'Claim' })}
                   </Button>
                 )}
                 {isAdmin && (selectedConv.status === 'active' || selectedConv.status === 'waiting') && (
-                  <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
+                  <Button size="sm" variant="outline" data-testid="conv-reassign-btn" onClick={() => setReassignOpen(true)}>
                     <UserCog className="h-3.5 w-3.5 mr-1" />
                     {t('conversations.reassign', { defaultValue: 'Reassign' })}
                   </Button>

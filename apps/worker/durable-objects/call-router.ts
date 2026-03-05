@@ -5,6 +5,7 @@ import { DORouter } from '../lib/do-router'
 import { runMigrations } from '@shared/migrations/runner'
 import { migrations } from '@shared/migrations'
 import { getNostrPublisher } from '../lib/do-access'
+import { deriveServerEventKey, encryptHubEvent } from '../lib/hub-event-crypto'
 import { createPushDispatcher } from '../lib/push-dispatch'
 import { KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_PRESENCE_UPDATE } from '@shared/nostr-events'
 
@@ -481,10 +482,25 @@ export class CallRouterDO extends DurableObject<Env> {
 
   // --- Nostr Event Publishing ---
 
+  /** Cached event encryption key — derived once per DO lifetime */
+  private eventKey: Uint8Array | null = null
+
   private publishNostrEvent(kind: number, content: Record<string, unknown>): void {
     try {
       const publisher = getNostrPublisher(this.env)
       const hubTag = 'global'
+
+      // Encrypt event content if server secret is available
+      let eventContent: string
+      if (this.env.SERVER_NOSTR_SECRET) {
+        if (!this.eventKey) {
+          this.eventKey = deriveServerEventKey(this.env.SERVER_NOSTR_SECRET)
+        }
+        eventContent = encryptHubEvent(content, this.eventKey)
+      } else {
+        eventContent = JSON.stringify(content)
+      }
+
       publisher.publish({
         kind,
         created_at: Math.floor(Date.now() / 1000),
@@ -492,7 +508,7 @@ export class CallRouterDO extends DurableObject<Env> {
           ['d', hubTag],
           ['t', 'llamenos:event'],
         ],
-        content: JSON.stringify(content),
+        content: eventContent,
       }).catch(err => {
         console.error('[nostr] Failed to publish event:', err)
       })

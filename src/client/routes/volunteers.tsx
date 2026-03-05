@@ -478,7 +478,7 @@ function VolunteerRow({ volunteer, roles, onUpdate, onDelete }: {
   }
 
   return (
-    <div data-testid={`volunteer-row-${volunteer.pubkey.slice(0, 8)}`} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
+    <div data-testid="volunteer-row" data-volunteer-id={volunteer.pubkey.slice(0, 8)} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
           {volunteer.name.charAt(0).toUpperCase()}

@@ -114,6 +114,11 @@ pub const LABEL_PUSH_WAKE: &str = "llamenos:push-wake";
 /// Full-tier ECIES push payload — decryptable only with volunteer's nsec
 pub const LABEL_PUSH_FULL: &str = "llamenos:push-full";
 
+// --- Contact Identifier Encryption (Epic 255) ---
+
+/// HKDF context for encrypting contact identifiers at rest in ConversationDO
+pub const LABEL_CONTACT_ID: &str = "llamenos:contact-identifier";
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -150,5 +155,6 @@ mod tests {
         assert_eq!(LABEL_SERVER_NOSTR_KEY_INFO, "llamenos:server-nostr-key:v1");
         assert_eq!(LABEL_PUSH_WAKE, "llamenos:push-wake");
         assert_eq!(LABEL_PUSH_FULL, "llamenos:push-full");
+        assert_eq!(LABEL_CONTACT_ID, "llamenos:contact-identifier");
     }
 }

@@ -8,13 +8,13 @@ Feature: Admin Tabs
     Given I am authenticated
     And I have navigated to the admin panel
 
-  Scenario: All four admin tabs are present
+  Scenario: All admin tabs are present
     Then I should see the following tabs:
       | tab         |
       | Volunteers  |
       | Ban List    |
       | Audit Log   |
-      | Invites     |
+      | Shifts      |
 
   Scenario: Default tab is Volunteers
     Then the "Volunteers" tab should be selected by default
@@ -28,12 +28,12 @@ Feature: Admin Tabs
       | tab        | tab_content  |
       | Ban List   | bans         |
       | Audit Log  | audit        |
-      | Invites    | invites      |
+      | Shifts     | shifts       |
 
   Scenario: Switch between all tabs without crash
     When I tap "Ban List"
     And I tap "Audit Log"
-    And I tap "Invites"
+    And I tap "Shifts"
     And I tap "Volunteers"
     Then I should be on the Volunteers tab
     And no crashes should occur

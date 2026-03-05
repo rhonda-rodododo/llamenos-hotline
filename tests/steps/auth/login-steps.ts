@@ -1,35 +1,24 @@
 /**
  * Login screen step definitions.
  * Matches steps from: packages/test-specs/features/auth/login.feature
+ *
+ * The desktop login page has three states:
+ * 1. PIN unlock (when stored key exists)
+ * 2. Bootstrap redirect (when no admin exists)
+ * 3. Recovery / first-time login (nsec entry, backup restore, device linking)
+ *
+ * There is NO "Create New Identity" button, no "Import Key" button, no #hub-url field,
+ * and no data-testid="page-title" on the login page.
+ *
+ * Note: Steps like "the app is freshly installed", "no identity exists on the device",
+ * "I am on the login screen", and "the app launches" are defined in auth-steps.ts.
  */
 import { expect } from '@playwright/test'
-import { Given, When, Then } from '../fixtures'
+import { When, Then } from '../fixtures'
 import { TestIds, Timeouts } from '../../helpers'
 
-Then('I should see the app title {string}', async ({ page }, title: string) => {
-  const pageTitle = page.getByTestId(TestIds.PAGE_TITLE)
-  await expect(pageTitle).toBeVisible({ timeout: Timeouts.ELEMENT })
-  await expect(pageTitle).toContainText(title)
-})
-
-Then('I should see the hub URL input field', async ({ page }) => {
-  await expect(page.locator('#hub-url')).toBeVisible({
-    timeout: Timeouts.ELEMENT,
-  })
-})
-
 Then('I should see the nsec import input field', async ({ page }) => {
-  await expect(page.locator('#nsec')).toBeVisible({
-    timeout: Timeouts.ELEMENT,
-  })
-})
-
-When('I enter {string} in the hub URL field', async ({ page }, url: string) => {
-  await page.locator('#hub-url').fill(url)
-})
-
-Then('the hub URL field should contain {string}', async ({ page }, expectedValue: string) => {
-  await expect(page.locator('#hub-url')).toHaveValue(expectedValue)
+  await expect(page.locator('#nsec')).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I enter {string} in the nsec field', async ({ page }, nsec: string) => {
@@ -46,15 +35,20 @@ Then('the nsec field should be a password field', async ({ page }) => {
 })
 
 When('I enter a valid 63-character nsec', async ({ page }) => {
-  // Generate a valid nsec for testing
   const { generateSecretKey, nip19 } = await import('nostr-tools')
   const sk = generateSecretKey()
   const nsec = nip19.nsecEncode(sk)
   await page.locator('#nsec').fill(nsec)
 })
 
+// 'I start typing in the nsec field' is defined in key-import-steps.ts (shared)
+// 'the error should disappear' is defined in key-import-steps.ts (shared)
+
+// NOTE: 'I see the error {string}' is defined in key-import-steps.ts — do NOT duplicate here.
+
 Then('I should see the PIN setup screen', async ({ page }) => {
-  // After importing a key, user is redirected to PIN setup
   const pinInput = page.getByTestId(TestIds.PIN_INPUT).first()
   await expect(pinInput).toBeVisible({ timeout: Timeouts.AUTH })
 })
+
+// 'I tap {string} without entering an nsec' is defined in interaction-steps.ts (shared)

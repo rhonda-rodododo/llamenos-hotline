@@ -8,6 +8,7 @@
 import { expect } from '@playwright/test'
 import { Given, Then } from '../fixtures'
 import { TestIds } from '../../test-ids'
+import { Timeouts } from '../../helpers'
 
 // --- Stored key setup ---
 
@@ -42,11 +43,9 @@ Then('I should see the backup file upload area', async ({ page }) => {
 // --- Stored key assertions ---
 
 Then('I should see the PIN digit inputs', async ({ page }) => {
-  const pageTitle = page.getByTestId(TestIds.PAGE_TITLE)
-  await expect(pageTitle).toBeVisible()
-  await expect(pageTitle).toContainText(/sign in/i)
+  // Login page does NOT have data-testid="page-title" — check for PIN inputs directly
   for (let i = 1; i <= 6; i++) {
-    await expect(page.locator(`input[aria-label="PIN digit ${i}"]`)).toBeVisible()
+    await expect(page.locator(`input[aria-label="PIN digit ${i}"]`)).toBeVisible({ timeout: Timeouts.ELEMENT })
   }
 })
 
@@ -57,7 +56,17 @@ Then('I should see the language selector', async ({ page }) => {
 })
 
 Then('I should see the theme toggle buttons', async ({ page }) => {
-  await expect(page.getByTestId(TestIds.THEME_SYSTEM)).toBeVisible()
-  await expect(page.getByTestId(TestIds.THEME_LIGHT)).toBeVisible()
-  await expect(page.getByTestId(TestIds.THEME_DARK)).toBeVisible()
+  // Fresh install has data-testid on theme buttons, stored key login does not.
+  // Check for either testid-based or aria-label-based buttons — sequentially to avoid strict mode.
+  const systemTestId = page.getByTestId(TestIds.THEME_SYSTEM)
+  if (await systemTestId.isVisible({ timeout: Timeouts.ELEMENT }).catch(() => false)) {
+    // TestId-based buttons exist — verify all three
+    await expect(page.getByTestId(TestIds.THEME_LIGHT)).toBeVisible({ timeout: 2000 })
+    await expect(page.getByTestId(TestIds.THEME_DARK)).toBeVisible({ timeout: 2000 })
+    return
+  }
+  // Fallback to aria-label-based buttons
+  await expect(page.locator('button[aria-label*="system" i], button[title*="system" i]').first()).toBeVisible({ timeout: 2000 })
+  await expect(page.locator('button[aria-label*="light" i], button[title*="light" i]').first()).toBeVisible({ timeout: 2000 })
+  await expect(page.locator('button[aria-label*="dark" i], button[title*="dark" i]').first()).toBeVisible({ timeout: 2000 })
 })

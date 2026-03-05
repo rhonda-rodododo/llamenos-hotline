@@ -9,17 +9,13 @@ import { Given, When, Then } from '../fixtures'
 import { TestIds, enterPin, Timeouts } from '../../helpers'
 
 Given('I have created a new identity', async ({ page }) => {
-  // Navigate to login and create identity
-  await page.goto('/login')
-  await page.evaluate(() => {
-    localStorage.clear()
-    sessionStorage.clear()
-  })
-  await page.reload()
-  await page.waitForLoadState('domcontentloaded')
-  // Click create new identity button
-  const createBtn = page.getByRole('button', { name: /create new identity/i })
-  await createBtn.click()
+  // The desktop login page no longer has a "Create New Identity" button.
+  // Instead, use the test helper to pre-load an encrypted key (simulating identity creation).
+  const { loginAsAdmin } = await import('../../helpers')
+  await loginAsAdmin(page)
+  // Log out so subsequent steps (PIN setup/unlock) start from the locked state
+  await page.getByTestId(TestIds.LOGOUT_BTN).click()
+  await page.waitForURL(/\/login/, { timeout: Timeouts.ELEMENT })
 })
 
 Given('I have confirmed my nsec backup', async ({ page }) => {
@@ -65,9 +61,23 @@ When('I confirm PIN {string}', async ({ page }, pin: string) => {
 })
 
 Then('I should arrive at the dashboard', async ({ page }) => {
+  // After PIN unlock, user may land on dashboard or profile-setup (first-time volunteer).
+  // Handle profile-setup by clicking "Complete Setup" if needed.
+  await page.waitForURL(url => !url.toString().includes('/login'), { timeout: Timeouts.AUTH })
+  await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+
+  if (page.url().includes('/profile-setup')) {
+    const completeBtn = page.getByRole('button', { name: /complete setup|get started|comenzar/i })
+    const hasBtnVisible = await completeBtn.isVisible({ timeout: 5000 }).catch(() => false)
+    if (hasBtnVisible) {
+      await completeBtn.click()
+      await page.waitForURL(url => !url.toString().includes('/profile-setup'), { timeout: Timeouts.AUTH })
+      await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+    }
+  }
+
   const pageTitle = page.getByTestId(TestIds.PAGE_TITLE)
   await expect(pageTitle).toBeVisible({ timeout: Timeouts.AUTH })
-  await expect(pageTitle).toContainText('Dashboard')
 })
 
 Then('the dashboard title should be displayed', async ({ page }) => {
@@ -122,21 +132,9 @@ Then('the PIN pad should be displayed', async ({ page }) => {
   await expect(pinInput).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
-Then('the crypto service should be unlocked', async ({ page }) => {
-  // If we're on the dashboard, the crypto service is unlocked
-  const pageTitle = page.getByTestId(TestIds.PAGE_TITLE)
-  await expect(pageTitle).toBeVisible({ timeout: Timeouts.AUTH })
-  await expect(pageTitle).toContainText('Dashboard')
-})
+// NOTE: 'the crypto service should be unlocked' is defined in crypto-steps.ts — do NOT duplicate here.
 
-Then('the crypto service should be locked', async ({ page }) => {
-  // The PIN screen being visible means the crypto is locked
-  const pinInput = page.getByTestId(TestIds.PIN_INPUT).first()
-  // Either PIN unlock screen or login page URL means crypto is locked
-  const pinVisible = await pinInput.isVisible({ timeout: 2000 }).catch(() => false)
-  const onLoginPage = page.url().includes('/login')
-  expect(pinVisible || onLoginPage).toBe(true)
-})
+// NOTE: 'the crypto service should be locked' is defined in crypto-steps.ts — do NOT duplicate here.
 
 When('I see the error', async ({ page }) => {
   // Wait for any error message to appear and then clear

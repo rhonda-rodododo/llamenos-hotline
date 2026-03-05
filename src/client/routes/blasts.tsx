@@ -129,7 +129,7 @@ function BlastsPage() {
             {t('common.settings')}
           </Button>
           {hasPermission('blasts:send') && (
-            <Button onClick={() => { setShowComposer(true); setSelectedBlast(null) }}>
+            <Button data-testid="blast-new-btn" onClick={() => { setShowComposer(true); setSelectedBlast(null) }}>
               <Plus className="h-4 w-4" />
               {t('blasts.newBlast')}
             </Button>
@@ -150,10 +150,11 @@ function BlastsPage() {
               ) : blasts.length === 0 ? (
                 <div className="p-6 text-center text-muted-foreground" data-testid="no-blasts">{t('blasts.noBlasts')}</div>
               ) : (
-                <div className="divide-y divide-border">
+                <div data-testid="blast-list" className="divide-y divide-border">
                   {blasts.map(blast => (
                     <button
                       key={blast.id}
+                      data-testid="blast-card"
                       onClick={() => { setSelectedBlast(blast); setShowComposer(false) }}
                       className={`w-full px-4 py-3 text-left transition-colors hover:bg-accent ${
                         selectedBlast?.id === blast.id ? 'bg-accent' : ''

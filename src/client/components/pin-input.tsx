@@ -94,7 +94,7 @@ export function PinInput({
   }
 
   return (
-    <div className="flex items-center justify-center gap-2">
+    <div className="flex items-center justify-center gap-2" data-testid="pin-input">
       {Array.from({ length }).map((_, i) => (
         <input
           key={i}

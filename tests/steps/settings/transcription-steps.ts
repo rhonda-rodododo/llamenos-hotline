@@ -26,7 +26,7 @@ Then('I should see the transcription settings section', async ({ page }) => {
 Then('I should see the transcription toggle', async ({ page }) => {
   const section = page.getByTestId(TestIds.TRANSCRIPTION_SECTION)
   await expect(section).toBeVisible({ timeout: Timeouts.ELEMENT })
-  const toggle = section.locator('input[type="checkbox"], [role="switch"]').first()
+  const toggle = section.locator('[role="switch"], input[type="checkbox"]').first()
   await expect(toggle).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
