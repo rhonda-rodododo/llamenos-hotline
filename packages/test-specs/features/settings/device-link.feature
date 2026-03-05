@@ -53,3 +53,23 @@ Feature: Device Linking
     When I start the device linking process
     And the provisioning room expires
     Then I should see a timeout error message
+
+  # --- Security: Relay URL validation (Epic 260/261) ---
+
+  @security @requires-camera
+  Scenario: QR code with localhost relay shows error
+    When a QR code with relay URL "wss://localhost:4869" is scanned
+    Then I should see the error state
+    And the error message should mention private or local network
+
+  @security @requires-camera
+  Scenario: QR code with private IP relay shows error
+    When a QR code with relay URL "wss://192.168.1.100:4869" is scanned
+    Then I should see the error state
+    And the error message should mention private or local network
+
+  @security @requires-camera
+  Scenario: QR code with valid public relay proceeds
+    When a QR code with relay URL "wss://relay.llamenos.org" is scanned
+    Then I should not see a relay URL error
+    And the step should advance to "Verify"
