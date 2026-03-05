@@ -11,6 +11,7 @@ Llamenos is designed to run on your own infrastructure. Self-hosting gives you f
 |--------|----------|------------|---------|
 | [Docker Compose](/docs/deploy-docker) | Single-server, recommended start | Low | Single node |
 | [Kubernetes (Helm)](/docs/deploy-kubernetes) | Multi-service orchestration | Medium | Horizontal (multi-replica) |
+| [Co-op Cloud](/docs/deploy-coopcloud) | Co-op hosting collectives | Low | Single node (Swarm) |
 
 ## Docker Compose files
 
@@ -82,6 +83,12 @@ Both deployment targets run the **exact same application code**. The difference 
 - You need horizontal scaling (multiple replicas)
 - You want to integrate with existing K8s tooling (cert-manager, external-secrets, etc.)
 
+**Choose Co-op Cloud if:**
+- You're part of a tech co-op or hosting collective
+- You already use Docker Swarm + Traefik via abra
+- You want standardized recipe management with `abra` CLI
+- You need integrated backup via backupbot
+
 ## Security considerations
 
 Self-hosting gives you more control but also more responsibility:
@@ -97,3 +104,4 @@ Self-hosting gives you more control but also more responsibility:
 - [Getting Started](/docs/getting-started) — quick start with Docker
 - [Docker Compose deployment](/docs/deploy-docker) — full production deployment guide
 - [Kubernetes deployment](/docs/deploy-kubernetes) — deploy with Helm
+- [Co-op Cloud deployment](/docs/deploy-coopcloud) — deploy with abra

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Bridge Docker Swarm secrets to environment variables for the Llamenos app.
+# Template variables resolved by Go template driver at deploy time.
+set -eu
+
+# Read secrets from mounted files
+export HMAC_SECRET="$(cat /run/secrets/hmac-secret)"
+export SERVER_NOSTR_SECRET="$(cat /run/secrets/server-nostr-secret)"
+
+DB_PASSWORD="$(cat /run/secrets/db-password)"
+export DATABASE_URL="postgresql://llamenos:${DB_PASSWORD}@{{ env "STACK_NAME" }}_db:5432/llamenos"
+
+export MINIO_ACCESS_KEY="$(cat /run/secrets/minio-access)"
+export MINIO_SECRET_KEY="$(cat /run/secrets/minio-secret)"
+
+exec node dist/server/index.js

@@ -15,6 +15,9 @@ guides:
   - title: "Desplegar: Kubernetes (Helm)"
     description: Despliega en Kubernetes con el chart oficial de Helm.
     href: /docs/deploy-kubernetes
+  - title: "Desplegar: Co-op Cloud"
+    description: Despliega como una receta estandarizada para colectivos de hospedaje cooperativo.
+    href: /docs/deploy-coopcloud
   - title: Guia de Administrador
     description: Gestiona voluntarios, turnos, canales, conversaciones, reportes, bloqueos y configuracion.
     href: /docs/admin-guide

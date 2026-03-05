@@ -1,0 +1,231 @@
+# Llamenos Co-op Cloud Recipe
+#
+# Deploy with abra:
+#   abra app new llamenos
+#   abra app config <app-name>
+#   abra app secret generate -a <app-name>
+#   abra app deploy <app-name>
+#
+# Services:
+#   web      - Nginx reverse proxy (Traefik integration)
+#   app      - Llamenos application (Node.js)
+#   db       - PostgreSQL database
+#   minio    - S3-compatible blob storage
+#   relay    - Nostr relay for real-time events
+
+version: "3.8"
+
+services:
+  # ── Reverse Proxy (Traefik integration) ──────────────────
+  web:
+    image: nginx:1.27-alpine
+    networks:
+      - proxy
+      - internal
+    configs:
+      - source: nginx_config
+        target: /etc/nginx/conf.d/default.conf
+    tmpfs:
+      - /tmp:size=16M
+      - /var/cache/nginx:size=64M
+      - /var/run:size=1M
+    depends_on:
+      - app
+      - relay
+    deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.${STACK_NAME}.rule=Host(`${DOMAIN}`)"
+        - "traefik.http.routers.${STACK_NAME}.entrypoints=web-secure"
+        - "traefik.http.routers.${STACK_NAME}.tls.certresolver=${LETS_ENCRYPT_ENV}"
+        - "traefik.http.routers.${STACK_NAME}.middlewares=${STACK_NAME}-redirect@docker"
+        - "traefik.http.services.${STACK_NAME}.loadbalancer.server.port=80"
+        - "traefik.http.middlewares.${STACK_NAME}-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.${STACK_NAME}-redirect.redirectscheme.permanent=true"
+        - "coop-cloud.${STACK_NAME}.version=${COOP_CLOUD_VERSION:-latest}"
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  # ── Application ──────────────────────────────────────────
+  app:
+    image: ghcr.io/your-org/llamenos:${LLAMENOS_TAG:-latest}
+    networks:
+      - internal
+    configs:
+      - source: app_entrypoint
+        target: /app/entrypoint.sh
+        mode: 0755
+    entrypoint: ["/app/entrypoint.sh"]
+    secrets:
+      - source: hmac_secret
+        target: hmac-secret
+      - source: server_nostr
+        target: server-nostr-secret
+      - source: db_password
+        target: db-password
+      - source: minio_access
+        target: minio-access
+      - source: minio_secret
+        target: minio-secret
+    environment:
+      - PLATFORM=node
+      - PORT=3000
+      - PG_POOL_SIZE=${PG_POOL_SIZE:-10}
+      - ADMIN_PUBKEY=${ADMIN_PUBKEY:-}
+      - ADMIN_DECRYPTION_PUBKEY=${ADMIN_DECRYPTION_PUBKEY:-}
+      - HOTLINE_NAME=${HOTLINE_NAME:-Hotline}
+      - ENVIRONMENT=production
+      - DEMO_MODE=${DEMO_MODE:-}
+      - MINIO_ENDPOINT=http://${STACK_NAME}_minio:9000
+      - MINIO_BUCKET=${MINIO_BUCKET:-llamenos-files}
+      - WHISPER_URL=${WHISPER_URL:-}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER:-}
+      - NOSTR_RELAY_URL=ws://${STACK_NAME}_relay:7777
+      - STACK_NAME=${STACK_NAME}
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M
+    depends_on:
+      - db
+      - minio
+      - relay
+    deploy:
+      labels:
+        - "backupbot.backup=true"
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Database ─────────────────────────────────────────────
+  db:
+    image: postgres:17-alpine
+    networks:
+      - internal
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    secrets:
+      - source: db_password
+        target: db-password
+    environment:
+      - POSTGRES_DB=llamenos
+      - POSTGRES_USER=llamenos
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+    deploy:
+      labels:
+        - "backupbot.backup=true"
+        - "backupbot.backup.command=pg_dump -U llamenos llamenos"
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U llamenos -d llamenos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Object Storage ──────────────────────────────────────
+  minio:
+    image: minio/minio:RELEASE.2025-01-20T14-49-07Z
+    networks:
+      - internal
+    volumes:
+      - minio-data:/data
+    configs:
+      - source: minio_entrypoint
+        target: /usr/local/bin/minio-entrypoint.sh
+        mode: 0755
+    entrypoint: ["/usr/local/bin/minio-entrypoint.sh"]
+    secrets:
+      - source: minio_access
+        target: minio_access
+      - source: minio_secret
+        target: minio_secret
+    deploy:
+      labels:
+        - "backupbot.backup=true"
+        - "backupbot.backup.path=/data"
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Nostr Relay ─────────────────────────────────────────
+  relay:
+    image: dockurr/strfry:latest
+    networks:
+      - internal
+    volumes:
+      - nostr-data:/app/strfry-db
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:7777"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres-data:
+  minio-data:
+  nostr-data:
+
+configs:
+  nginx_config:
+    name: ${STACK_NAME}_nginx_config_${NGINX_CONFIG_VERSION:-v1}
+    file: nginx.conf.tmpl
+    template_driver: golang
+  app_entrypoint:
+    name: ${STACK_NAME}_app_entrypoint_${APP_ENTRYPOINT_VERSION:-v1}
+    file: entrypoint.sh.tmpl
+    template_driver: golang
+  minio_entrypoint:
+    name: ${STACK_NAME}_minio_entrypoint_${MINIO_ENTRYPOINT_VERSION:-v1}
+    file: minio-entrypoint.sh.tmpl
+    template_driver: golang
+
+secrets:
+  hmac_secret:
+    external: true
+    name: ${STACK_NAME}_hmac_secret_${SECRET_HMAC_SECRET_VERSION}
+  server_nostr:
+    external: true
+    name: ${STACK_NAME}_server_nostr_${SECRET_SERVER_NOSTR_VERSION}
+  db_password:
+    external: true
+    name: ${STACK_NAME}_db_password_${SECRET_DB_PASSWORD_VERSION}
+  minio_access:
+    external: true
+    name: ${STACK_NAME}_minio_access_${SECRET_MINIO_ACCESS_VERSION}
+  minio_secret:
+    external: true
+    name: ${STACK_NAME}_minio_secret_${SECRET_MINIO_SECRET_VERSION}
+
+networks:
+  proxy:
+    external: true
+  internal:
+    driver: overlay
+    internal: true

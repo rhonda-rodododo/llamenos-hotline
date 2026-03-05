@@ -15,6 +15,9 @@ guides:
   - title: "Deploy: Kubernetes (Helm)"
     description: Deploy to Kubernetes with the official Helm chart.
     href: /docs/deploy-kubernetes
+  - title: "Deploy: Co-op Cloud"
+    description: Deploy as a standardized recipe for cooperative hosting collectives.
+    href: /docs/deploy-coopcloud
   - title: Admin Guide
     description: Manage volunteers, shifts, channels, ban lists, reports, and settings.
     href: /docs/admin-guide

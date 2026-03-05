@@ -1,0 +1,63 @@
+# Llamenos Co-op Cloud — Asterisk PBX overlay
+#
+# Enable by adding to COMPOSE_FILE in app config:
+#   COMPOSE_FILE="compose.yml:compose.asterisk.yml"
+#
+# Additional secrets required:
+#   abra app secret generate -a <app-name> ari_password bridge_secret
+
+version: "3.8"
+
+services:
+  asterisk:
+    image: andrius/asterisk:20
+    networks:
+      - internal
+    volumes:
+      - asterisk-config:/etc/asterisk
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD", "asterisk", "-rx", "core show version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  asterisk-bridge:
+    image: ghcr.io/your-org/llamenos-asterisk-bridge:${LLAMENOS_TAG:-latest}
+    networks:
+      - internal
+    secrets:
+      - source: ari_password
+        target: ari-password
+      - source: bridge_secret
+        target: bridge-secret
+    environment:
+      - ARI_URL=ws://${STACK_NAME}_asterisk:8088/ari/events
+      - ARI_USERNAME=${ARI_USERNAME:-llamenos}
+      - ARI_PASSWORD_FILE=/run/secrets/ari-password
+      - WORKER_WEBHOOK_URL=http://${STACK_NAME}_app:3000
+      - BRIDGE_SECRET_FILE=/run/secrets/bridge-secret
+    depends_on:
+      - asterisk
+      - app
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+volumes:
+  asterisk-config:
+
+secrets:
+  ari_password:
+    external: true
+    name: ${STACK_NAME}_ari_password_${SECRET_ARI_PASSWORD_VERSION}
+  bridge_secret:
+    external: true
+    name: ${STACK_NAME}_bridge_secret_${SECRET_BRIDGE_SECRET_VERSION}
