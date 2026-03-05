@@ -7,6 +7,7 @@ struct DashboardView: View {
     @Environment(AppState.self) private var appState
     @Environment(Router.self) private var router
     @State private var viewModel: DashboardViewModel?
+    @State private var quickActionDestination: QuickActionDestination?
 
     var body: some View {
         let vm = resolvedViewModel
@@ -15,6 +16,9 @@ struct DashboardView: View {
             List {
                 // Identity & connection section
                 identitySection
+
+                // Quick actions (placed early for reachability)
+                quickActionsSection
 
                 // Shift status section
                 shiftSection(vm: vm)
@@ -26,9 +30,6 @@ struct DashboardView: View {
                 if !vm.recentNotes.isEmpty {
                     recentNotesSection(vm: vm)
                 }
-
-                // Quick actions
-                quickActionsSection
 
                 // Error message
                 if let error = vm.errorMessage {
@@ -59,6 +60,16 @@ struct DashboardView: View {
                         Image(systemName: "lock.fill")
                     }
                     .accessibilityIdentifier("lock-app")
+                }
+            }
+            .navigationDestination(item: $quickActionDestination) { destination in
+                switch destination {
+                case .reports:
+                    ReportsView()
+                case .contacts:
+                    ContactsView()
+                case .blasts:
+                    BlastsView()
                 }
             }
             .task {
@@ -228,38 +239,67 @@ struct DashboardView: View {
 
     private var quickActionsSection: some View {
         Section {
-            NavigationLink {
-                ReportsView()
+            Button {
+                quickActionDestination = .reports
             } label: {
-                Label(
-                    NSLocalizedString("dashboard_reports", comment: "Reports"),
-                    systemImage: "doc.text.fill"
-                )
+                HStack {
+                    Label(
+                        NSLocalizedString("dashboard_reports", comment: "Reports"),
+                        systemImage: "doc.text.fill"
+                    )
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
+            .foregroundStyle(.primary)
             .accessibilityIdentifier("dashboard-reports-action")
 
             if appState.isAdmin {
-                NavigationLink {
-                    ContactsView()
+                Button {
+                    quickActionDestination = .contacts
                 } label: {
-                    Label(
-                        NSLocalizedString("dashboard_contacts", comment: "Contacts"),
-                        systemImage: "person.crop.circle.badge.clock"
-                    )
+                    HStack {
+                        Label(
+                            NSLocalizedString("dashboard_contacts", comment: "Contacts"),
+                            systemImage: "person.crop.circle.badge.clock"
+                        )
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
+                .foregroundStyle(.primary)
                 .accessibilityIdentifier("dashboard-contacts-action")
 
-                NavigationLink {
-                    BlastsView()
+                Button {
+                    quickActionDestination = .blasts
                 } label: {
-                    Label(
-                        NSLocalizedString("dashboard_blasts", comment: "Message Blasts"),
-                        systemImage: "megaphone.fill"
-                    )
+                    HStack {
+                        Label(
+                            NSLocalizedString("dashboard_blasts", comment: "Message Blasts"),
+                            systemImage: "megaphone.fill"
+                        )
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
+                .foregroundStyle(.primary)
                 .accessibilityIdentifier("dashboard-blasts-action")
             }
         }
+    }
+
+    // MARK: - Quick Action Destination
+
+    enum QuickActionDestination: Hashable {
+        case reports
+        case contacts
+        case blasts
     }
 
     // MARK: - Connection Color
