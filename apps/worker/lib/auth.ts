@@ -31,19 +31,11 @@ export function validateToken(auth: AuthPayload): boolean {
 
 export async function verifyAuthToken(auth: AuthPayload, method?: string, path?: string): Promise<boolean> {
   if (!validateToken(auth)) return false
+  if (!method || !path) return false // method+path binding is required
   try {
-    // Try request-bound verification first (new format: method+path in message)
-    if (method && path) {
-      const boundMessage = `${AUTH_PREFIX}${auth.pubkey}:${auth.timestamp}:${method}:${path}`
-      const boundHash = sha256(utf8ToBytes(boundMessage))
-      if (schnorr.verify(hexToBytes(auth.token), boundHash, hexToBytes(auth.pubkey))) {
-        return true
-      }
-      // Fallback: verify without method+path (transition period for old tokens)
-    }
-    const message = `${AUTH_PREFIX}${auth.pubkey}:${auth.timestamp}`
-    const messageHash = sha256(utf8ToBytes(message))
-    return schnorr.verify(hexToBytes(auth.token), messageHash, hexToBytes(auth.pubkey))
+    const boundMessage = `${AUTH_PREFIX}${auth.pubkey}:${auth.timestamp}:${method}:${path}`
+    const boundHash = sha256(utf8ToBytes(boundMessage))
+    return schnorr.verify(hexToBytes(auth.token), boundHash, hexToBytes(auth.pubkey))
   } catch {
     return false
   }

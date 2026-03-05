@@ -143,11 +143,11 @@ describe('verifyAuthToken', () => {
     return bytesToHex(schnorr.sign(messageHash, privKeyForSign))
   }
 
-  it('returns true for valid unbound token', async () => {
+  it('rejects unbound tokens without method/path', async () => {
     const timestamp = Date.now()
     const token = createSignedToken(timestamp)
     const result = await verifyAuthToken({ pubkey: pubkeyHex, timestamp, token })
-    expect(result).toBe(true)
+    expect(result).toBe(false) // method+path binding is required
   })
 
   it('returns true for valid request-bound token', async () => {
@@ -159,38 +159,44 @@ describe('verifyAuthToken', () => {
 
   it('returns false for expired token', async () => {
     const timestamp = Date.now() - 6 * 60 * 1000
-    const token = createSignedToken(timestamp)
-    const result = await verifyAuthToken({ pubkey: pubkeyHex, timestamp, token })
+    const token = createSignedToken(timestamp, 'GET', '/api/notes')
+    const result = await verifyAuthToken({ pubkey: pubkeyHex, timestamp, token }, 'GET', '/api/notes')
     expect(result).toBe(false)
   })
 
   it('returns false for wrong pubkey', async () => {
     const timestamp = Date.now()
-    const token = createSignedToken(timestamp)
+    const token = createSignedToken(timestamp, 'GET', '/api/notes')
     const wrongPubkey = '0'.repeat(64)
-    const result = await verifyAuthToken({ pubkey: wrongPubkey, timestamp, token })
+    const result = await verifyAuthToken({ pubkey: wrongPubkey, timestamp, token }, 'GET', '/api/notes')
     expect(result).toBe(false)
   })
 
   it('returns false for tampered token', async () => {
     const timestamp = Date.now()
-    const token = createSignedToken(timestamp)
+    const token = createSignedToken(timestamp, 'GET', '/api/notes')
     const tampered = '0' + token.slice(1)
-    const result = await verifyAuthToken({ pubkey: pubkeyHex, timestamp, token: tampered })
+    const result = await verifyAuthToken({ pubkey: pubkeyHex, timestamp, token: tampered }, 'GET', '/api/notes')
     expect(result).toBe(false)
   })
 
   it('returns false for missing fields', async () => {
-    const result = await verifyAuthToken({ pubkey: '', timestamp: Date.now(), token: 'abc' })
+    const result = await verifyAuthToken({ pubkey: '', timestamp: Date.now(), token: 'abc' }, 'GET', '/api/test')
     expect(result).toBe(false)
   })
 
-  it('falls back to unbound verification when method/path provided but token is unbound', async () => {
+  it('rejects unbound token even when method/path provided', async () => {
     const timestamp = Date.now()
-    const token = createSignedToken(timestamp) // unbound
-    // Should still verify via fallback
+    const token = createSignedToken(timestamp) // unbound — signed without method/path
     const result = await verifyAuthToken({ pubkey: pubkeyHex, timestamp, token }, 'GET', '/api/notes')
-    expect(result).toBe(true)
+    expect(result).toBe(false) // no fallback — unbound tokens are rejected
+  })
+
+  it('rejects bound token used against wrong endpoint', async () => {
+    const timestamp = Date.now()
+    const token = createSignedToken(timestamp, 'GET', '/api/notes')
+    const result = await verifyAuthToken({ pubkey: pubkeyHex, timestamp, token }, 'DELETE', '/api/volunteers/abc')
+    expect(result).toBe(false)
   })
 
   it('returns false for completely invalid token hex', async () => {

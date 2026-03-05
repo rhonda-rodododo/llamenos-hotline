@@ -1,5 +1,33 @@
 # Completed Backlog
 
+## 2026-03-04: Security Audit Round 7 — Epics 252-256
+
+### Epic 252: Nostr Hub-Key Encryption
+- **hub-event-crypto.ts** (CREATED): `deriveServerEventKey()` HKDF from SERVER_NOSTR_SECRET, `encryptHubEvent()` XChaCha20-Poly1305
+- **nostr-events.ts**: Updated shared `publishNostrEvent()` to encrypt content when SERVER_NOSTR_SECRET is available
+- **call-router.ts**: Updated private `publishNostrEvent()` with cached event key + encryption
+- **config.ts**: Expose `serverEventKeyHex` to authenticated clients for decryption
+
+### Epic 253: Invite Role Authorization
+- **invites.ts**: Added role permission validation — creators cannot grant roles with permissions they don't have (prevents privilege escalation via invite)
+
+### Epic 254: Remove Auth Token Fallback
+- **auth.ts**: Removed unbound Schnorr token fallback — method+path binding now required for all auth tokens
+- **auth-utils.test.ts**: Updated tests to verify unbound tokens are rejected
+
+### Epic 255: Encrypt Contact Identifiers
+- **crypto-labels.json/ts/rs**: Added `LABEL_CONTACT_ID` = `llamenos:contact-identifier` (29 labels total)
+- **crypto.ts**: Added `encryptContactIdentifier()` and `decryptContactIdentifier()` with "enc:" prefix for versioning
+- **conversation-do.ts**: Contact identifiers encrypted at rest, lazy migration for legacy plaintext values
+
+### Epic 256: Fix BlastDO HMAC Keys
+- **blast-do.ts**: Fixed `generatePreferenceToken()` and `importSubscribers()` to use `hexToBytes(this.env.HMAC_SECRET)` instead of public constant strings
+
+### Codegen & Cross-Platform
+- `bun run codegen` propagated LABEL_CONTACT_ID to TS, Swift, Kotlin generated files
+- `packages/crypto/src/labels.rs` updated with LABEL_CONTACT_ID + test assertion
+- All Rust tests pass (11/11), typecheck passes, build succeeds
+
 ## 2026-03-04: iOS Reports + Real Rust Crypto (Epic 241 + FFI stub removal)
 
 ### Epic 241: iOS Reports

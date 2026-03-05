@@ -5,7 +5,7 @@ import { DEFAULT_BLAST_SETTINGS } from '@shared/types'
 import { DORouter } from '../lib/do-router'
 import { hmac } from '@noble/hashes/hmac.js'
 import { sha256 } from '@noble/hashes/sha2.js'
-import { bytesToHex } from '@noble/hashes/utils.js'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { HMAC_PREFERENCE_TOKEN, HMAC_SUBSCRIBER } from '@shared/crypto-labels'
 
@@ -63,8 +63,8 @@ export class BlastDO extends DurableObject<Env> {
   // --- Subscriber Management ---
 
   private generatePreferenceToken(identifierHash: string): string {
-    const key = utf8ToBytes(HMAC_PREFERENCE_TOKEN)
-    const input = utf8ToBytes(identifierHash)
+    const key = hexToBytes(this.env.HMAC_SECRET)
+    const input = utf8ToBytes(`${HMAC_PREFERENCE_TOKEN}${identifierHash}`)
     return bytesToHex(hmac(sha256, key, input))
   }
 
@@ -225,9 +225,9 @@ export class BlastDO extends DurableObject<Env> {
     let skipped = 0
 
     for (const entry of data.subscribers) {
-      // Generate identifier hash using HMAC (consistent with messaging router pattern)
+      // Generate identifier hash using HMAC with server secret (consistent with hashPhone pattern)
       const identifierHash = bytesToHex(
-        hmac(sha256, utf8ToBytes(HMAC_SUBSCRIBER), utf8ToBytes(entry.identifier))
+        hmac(sha256, hexToBytes(this.env.HMAC_SECRET), utf8ToBytes(`${HMAC_SUBSCRIBER}${entry.identifier}`))
       )
 
       const existing = await this.ctx.storage.get<Subscriber>(`subscribers:${identifierHash}`)

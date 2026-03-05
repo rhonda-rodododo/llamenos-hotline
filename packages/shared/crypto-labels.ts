@@ -114,3 +114,8 @@ export const LABEL_PUSH_WAKE = 'llamenos:push-wake'
 
 /** Full-tier ECIES push payload — decryptable only with volunteer's nsec */
 export const LABEL_PUSH_FULL = 'llamenos:push-full'
+
+// --- Contact Identifier Encryption (Epic 255) ---
+
+/** HKDF context for contact identifier encryption at rest */
+export const LABEL_CONTACT_ID = 'llamenos:contact-identifier'
