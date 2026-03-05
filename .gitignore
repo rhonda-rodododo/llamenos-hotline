@@ -42,3 +42,5 @@ packages/crypto/dist/
 
 # Playwright-BDD generated test files
 .features-gen/
+.tool-versions
+apps/ios/.swiftpm/

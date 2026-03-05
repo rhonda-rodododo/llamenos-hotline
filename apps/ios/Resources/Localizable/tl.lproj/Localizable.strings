@@ -157,7 +157,7 @@
 "blasts_fillRequired" = "Please fill in name and message";
 "blasts_import" = "Import";
 "blasts_importHelp" = "One per line: phone,channel,tag1,tag2";
-"blasts_importPlaceholder" = "+15551234567,sms,vip\n+15559876543,whatsapp";
+"blasts_importPlaceholder" = "+15551234567,sms,vip\\n+15559876543,whatsapp";
 "blasts_importResult" = "Imported %@, skipped %2$@";
 "blasts_importSubscribers" = "Import Subscribers";
 "blasts_loading" = "Loading blasts...";
@@ -231,8 +231,8 @@
 "commandPalette_navigation" = "Nabigasyon";
 "commandPalette_noResults" = "Walang nakitang resulta";
 "commandPalette_placeholder" = "Mag-type ng command o maghanap...";
-"commandPalette_searchCalls" = "Maghanap ng mga tawag para sa \"%@\"";
-"commandPalette_searchNotes" = "Maghanap ng mga tala para sa \"%@\"";
+"commandPalette_searchCalls" = "Maghanap ng mga tawag para sa \\\"%@\\\"";
+"commandPalette_searchNotes" = "Maghanap ng mga tala para sa \\\"%@\\\"";
 "commandPalette_theme" = "Tema";
 "common_actions" = "Aksyon";
 "common_add" = "Idagdag";
@@ -1213,7 +1213,7 @@
 "webauthn_browserNotSupported" = "Hindi sinusuportahan ng iyong browser ang mga passkey.";
 "webauthn_deleteKey" = "Tanggalin";
 "webauthn_description" = "Gamitin ang biometrics o PIN ng iyong device para mag-sign in nang walang secret key.";
-"webauthn_label" = "Pangalan ng passkey (hal. \"Aking Telepono\")";
+"webauthn_label" = "Pangalan ng passkey (hal. \\\"Aking Telepono\\\")";
 "webauthn_lastUsed" = "Huling ginamit";
 "webauthn_noKeys" = "Wala pang nakarehistrong passkey.";
 "webauthn_policy" = "Patakaran sa Passkey";

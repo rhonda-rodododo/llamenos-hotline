@@ -157,7 +157,7 @@
 "blasts_fillRequired" = "Please fill in name and message";
 "blasts_import" = "Import";
 "blasts_importHelp" = "One per line: phone,channel,tag1,tag2";
-"blasts_importPlaceholder" = "+15551234567,sms,vip\n+15559876543,whatsapp";
+"blasts_importPlaceholder" = "+15551234567,sms,vip\\n+15559876543,whatsapp";
 "blasts_importResult" = "Imported %@, skipped %2$@";
 "blasts_importSubscribers" = "Import Subscribers";
 "blasts_loading" = "Loading blasts...";
@@ -231,8 +231,8 @@
 "commandPalette_navigation" = "탐색";
 "commandPalette_noResults" = "결과를 찾을 수 없습니다";
 "commandPalette_placeholder" = "명령을 입력하거나 검색...";
-"commandPalette_searchCalls" = "\"%@\" 통화 검색";
-"commandPalette_searchNotes" = "\"%@\" 메모 검색";
+"commandPalette_searchCalls" = "\\\"%@\\\" 통화 검색";
+"commandPalette_searchNotes" = "\\\"%@\\\" 메모 검색";
 "commandPalette_theme" = "테마";
 "common_actions" = "작업";
 "common_add" = "추가";
@@ -1213,7 +1213,7 @@
 "webauthn_browserNotSupported" = "브라우저가 패스키를 지원하지 않습니다.";
 "webauthn_deleteKey" = "삭제";
 "webauthn_description" = "비밀 키 없이 기기 생체 인식 또는 PIN으로 로그인하세요.";
-"webauthn_label" = "패스키 이름 (예: \"내 휴대폰\")";
+"webauthn_label" = "패스키 이름 (예: \\\"내 휴대폰\\\")";
 "webauthn_lastUsed" = "마지막 사용";
 "webauthn_noKeys" = "등록된 패스키가 없습니다.";
 "webauthn_policy" = "패스키 정책";

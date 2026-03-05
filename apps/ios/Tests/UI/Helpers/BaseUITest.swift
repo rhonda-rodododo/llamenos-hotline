@@ -18,10 +18,10 @@ class BaseUITest: XCTestCase {
 
     // MARK: - Hub URL
 
-    /// The test hub URL, read from environment or defaulting to the Linux dev machine on LAN.
+    /// The test hub URL, read from environment or defaulting to localhost (Docker Compose).
     var testHubURL: String {
         ProcessInfo.processInfo.environment["TEST_HUB_URL"]
-            ?? "http://192.168.50.95:3000"
+            ?? "http://localhost:3000"
     }
 
     // MARK: - Launch Helpers

@@ -157,7 +157,7 @@
 "blasts_fillRequired" = "Please fill in name and message";
 "blasts_import" = "Import";
 "blasts_importHelp" = "One per line: phone,channel,tag1,tag2";
-"blasts_importPlaceholder" = "+15551234567,sms,vip\n+15559876543,whatsapp";
+"blasts_importPlaceholder" = "+15551234567,sms,vip\\n+15559876543,whatsapp";
 "blasts_importResult" = "Imported %@, skipped %2$@";
 "blasts_importSubscribers" = "Import Subscribers";
 "blasts_loading" = "Loading blasts...";
@@ -231,8 +231,8 @@
 "commandPalette_navigation" = "Điều hướng";
 "commandPalette_noResults" = "Không tìm thấy kết quả";
 "commandPalette_placeholder" = "Nhập lệnh hoặc tìm kiếm...";
-"commandPalette_searchCalls" = "Tìm cuộc gọi cho \"%@\"";
-"commandPalette_searchNotes" = "Tìm ghi chú cho \"%@\"";
+"commandPalette_searchCalls" = "Tìm cuộc gọi cho \\\"%@\\\"";
+"commandPalette_searchNotes" = "Tìm ghi chú cho \\\"%@\\\"";
 "commandPalette_theme" = "Giao diện";
 "common_actions" = "Hành động";
 "common_add" = "Thêm";
@@ -1213,7 +1213,7 @@
 "webauthn_browserNotSupported" = "Trình duyệt của bạn không hỗ trợ khóa truy cập.";
 "webauthn_deleteKey" = "Xóa";
 "webauthn_description" = "Sử dụng sinh trắc học hoặc PIN của thiết bị để đăng nhập mà không cần khóa bí mật.";
-"webauthn_label" = "Tên khóa truy cập (vd: \"Điện thoại của tôi\")";
+"webauthn_label" = "Tên khóa truy cập (vd: \\\"Điện thoại của tôi\\\")";
 "webauthn_lastUsed" = "Sử dụng lần cuối";
 "webauthn_noKeys" = "Chưa đăng ký khóa truy cập nào.";
 "webauthn_policy" = "Chính sách khóa truy cập";

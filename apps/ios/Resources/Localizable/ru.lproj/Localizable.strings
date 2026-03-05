@@ -157,7 +157,7 @@
 "blasts_fillRequired" = "Please fill in name and message";
 "blasts_import" = "Import";
 "blasts_importHelp" = "One per line: phone,channel,tag1,tag2";
-"blasts_importPlaceholder" = "+15551234567,sms,vip\n+15559876543,whatsapp";
+"blasts_importPlaceholder" = "+15551234567,sms,vip\\n+15559876543,whatsapp";
 "blasts_importResult" = "Imported %@, skipped %2$@";
 "blasts_importSubscribers" = "Import Subscribers";
 "blasts_loading" = "Loading blasts...";
@@ -231,8 +231,8 @@
 "commandPalette_navigation" = "Навигация";
 "commandPalette_noResults" = "Результатов не найдено";
 "commandPalette_placeholder" = "Введите команду или найдите...";
-"commandPalette_searchCalls" = "Поиск звонков по \"%@\"";
-"commandPalette_searchNotes" = "Поиск заметок по \"%@\"";
+"commandPalette_searchCalls" = "Поиск звонков по \\\"%@\\\"";
+"commandPalette_searchNotes" = "Поиск заметок по \\\"%@\\\"";
 "commandPalette_theme" = "Тема";
 "common_actions" = "Действия";
 "common_add" = "Добавить";
@@ -1213,7 +1213,7 @@
 "webauthn_browserNotSupported" = "Ваш браузер не поддерживает ключи доступа.";
 "webauthn_deleteKey" = "Удалить";
 "webauthn_description" = "Используйте биометрию или PIN-код устройства для входа без секретного ключа.";
-"webauthn_label" = "Название ключа доступа (напр. \"Мой телефон\")";
+"webauthn_label" = "Название ключа доступа (напр. \\\"Мой телефон\\\")";
 "webauthn_lastUsed" = "Последнее использование";
 "webauthn_noKeys" = "Ключи доступа пока не зарегистрированы.";
 "webauthn_policy" = "Политика ключей доступа";

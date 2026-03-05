@@ -157,7 +157,7 @@
 "blasts_fillRequired" = "Please fill in name and message";
 "blasts_import" = "Import";
 "blasts_importHelp" = "One per line: phone,channel,tag1,tag2";
-"blasts_importPlaceholder" = "+15551234567,sms,vip\n+15559876543,whatsapp";
+"blasts_importPlaceholder" = "+15551234567,sms,vip\\n+15559876543,whatsapp";
 "blasts_importResult" = "Imported %@, skipped %2$@";
 "blasts_importSubscribers" = "Import Subscribers";
 "blasts_loading" = "Loading blasts...";
@@ -231,8 +231,8 @@
 "commandPalette_navigation" = "Navigasyon";
 "commandPalette_noResults" = "Pa gen rezilta";
 "commandPalette_placeholder" = "Tape yon kòmand oswa chèche...";
-"commandPalette_searchCalls" = "Chèche apèl pou \"%@\"";
-"commandPalette_searchNotes" = "Chèche nòt pou \"%@\"";
+"commandPalette_searchCalls" = "Chèche apèl pou \\\"%@\\\"";
+"commandPalette_searchNotes" = "Chèche nòt pou \\\"%@\\\"";
 "commandPalette_theme" = "Tèm";
 "common_actions" = "Aksyon";
 "common_add" = "Ajoute";
@@ -1213,7 +1213,7 @@
 "webauthn_browserNotSupported" = "Navigatè ou pa sipòte kle aksè.";
 "webauthn_deleteKey" = "Efase";
 "webauthn_description" = "Sèvi ak biyometri oswa PIN aparèy ou pou konekte san kle sekrè ou.";
-"webauthn_label" = "Non kle aksè (egz. \"Telefòn Mwen\")";
+"webauthn_label" = "Non kle aksè (egz. \\\"Telefòn Mwen\\\")";
 "webauthn_lastUsed" = "Dènye itilizasyon";
 "webauthn_noKeys" = "Pa gen kle aksè anrejistre ankò.";
 "webauthn_policy" = "Politik Kle Aksè";

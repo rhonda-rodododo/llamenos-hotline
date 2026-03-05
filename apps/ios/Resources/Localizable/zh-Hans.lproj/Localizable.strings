@@ -157,7 +157,7 @@
 "blasts_fillRequired" = "Please fill in name and message";
 "blasts_import" = "Import";
 "blasts_importHelp" = "One per line: phone,channel,tag1,tag2";
-"blasts_importPlaceholder" = "+15551234567,sms,vip\n+15559876543,whatsapp";
+"blasts_importPlaceholder" = "+15551234567,sms,vip\\n+15559876543,whatsapp";
 "blasts_importResult" = "Imported %@, skipped %2$@";
 "blasts_importSubscribers" = "Import Subscribers";
 "blasts_loading" = "Loading blasts...";
@@ -231,8 +231,8 @@
 "commandPalette_navigation" = "导航";
 "commandPalette_noResults" = "未找到结果";
 "commandPalette_placeholder" = "输入命令或搜索...";
-"commandPalette_searchCalls" = "搜索通话\"%@\"";
-"commandPalette_searchNotes" = "搜索笔记\"%@\"";
+"commandPalette_searchCalls" = "搜索通话\\\"%@\\\"";
+"commandPalette_searchNotes" = "搜索笔记\\\"%@\\\"";
 "commandPalette_theme" = "主题";
 "common_actions" = "操作";
 "common_add" = "添加";
@@ -1213,7 +1213,7 @@
 "webauthn_browserNotSupported" = "您的浏览器不支持通行密钥。";
 "webauthn_deleteKey" = "删除";
 "webauthn_description" = "使用设备生物识别或PIN码登录，无需密钥。";
-"webauthn_label" = "通行密钥名称（例如\"我的手机\"）";
+"webauthn_label" = "通行密钥名称（例如\\\"我的手机\\\"）";
 "webauthn_lastUsed" = "最后使用";
 "webauthn_noKeys" = "尚未注册通行密钥。";
 "webauthn_policy" = "通行密钥策略";

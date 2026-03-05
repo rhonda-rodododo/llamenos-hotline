@@ -157,7 +157,7 @@
 "blasts_fillRequired" = "Please fill in name and message";
 "blasts_import" = "Import";
 "blasts_importHelp" = "One per line: phone,channel,tag1,tag2";
-"blasts_importPlaceholder" = "+15551234567,sms,vip\n+15559876543,whatsapp";
+"blasts_importPlaceholder" = "+15551234567,sms,vip\\n+15559876543,whatsapp";
 "blasts_importResult" = "Imported %@, skipped %2$@";
 "blasts_importSubscribers" = "Import Subscribers";
 "blasts_loading" = "Loading blasts...";
@@ -231,8 +231,8 @@
 "commandPalette_navigation" = "Navegação";
 "commandPalette_noResults" = "Nenhum resultado encontrado";
 "commandPalette_placeholder" = "Digite um comando ou pesquise...";
-"commandPalette_searchCalls" = "Pesquisar chamadas por \"%@\"";
-"commandPalette_searchNotes" = "Pesquisar notas por \"%@\"";
+"commandPalette_searchCalls" = "Pesquisar chamadas por \\\"%@\\\"";
+"commandPalette_searchNotes" = "Pesquisar notas por \\\"%@\\\"";
 "commandPalette_theme" = "Tema";
 "common_actions" = "Ações";
 "common_add" = "Adicionar";
@@ -1213,7 +1213,7 @@
 "webauthn_browserNotSupported" = "Seu navegador não suporta chaves de acesso.";
 "webauthn_deleteKey" = "Excluir";
 "webauthn_description" = "Use a biometria ou PIN do seu dispositivo para entrar sem sua chave secreta.";
-"webauthn_label" = "Nome da chave de acesso (ex. \"Meu Celular\")";
+"webauthn_label" = "Nome da chave de acesso (ex. \\\"Meu Celular\\\")";
 "webauthn_lastUsed" = "Último uso";
 "webauthn_noKeys" = "Nenhuma chave de acesso registrada.";
 "webauthn_policy" = "Política de chaves de acesso";

@@ -157,7 +157,7 @@
 "blasts_fillRequired" = "Please fill in name and message";
 "blasts_import" = "Import";
 "blasts_importHelp" = "One per line: phone,channel,tag1,tag2";
-"blasts_importPlaceholder" = "+15551234567,sms,vip\n+15559876543,whatsapp";
+"blasts_importPlaceholder" = "+15551234567,sms,vip\\n+15559876543,whatsapp";
 "blasts_importResult" = "Imported %@, skipped %2$@";
 "blasts_importSubscribers" = "Import Subscribers";
 "blasts_loading" = "Loading blasts...";
@@ -231,8 +231,8 @@
 "commandPalette_navigation" = "التنقل";
 "commandPalette_noResults" = "لم يتم العثور على نتائج";
 "commandPalette_placeholder" = "اكتب أمراً أو ابحث...";
-"commandPalette_searchCalls" = "البحث في المكالمات عن \"%@\"";
-"commandPalette_searchNotes" = "البحث في الملاحظات عن \"%@\"";
+"commandPalette_searchCalls" = "البحث في المكالمات عن \\\"%@\\\"";
+"commandPalette_searchNotes" = "البحث في الملاحظات عن \\\"%@\\\"";
 "commandPalette_theme" = "السمة";
 "common_actions" = "إجراءات";
 "common_add" = "إضافة";
@@ -1213,7 +1213,7 @@
 "webauthn_browserNotSupported" = "متصفحك لا يدعم مفاتيح المرور.";
 "webauthn_deleteKey" = "حذف";
 "webauthn_description" = "استخدم القياسات الحيوية أو رمز PIN لجهازك لتسجيل الدخول بدون مفتاحك السري.";
-"webauthn_label" = "اسم مفتاح المرور (مثال: \"هاتفي\")";
+"webauthn_label" = "اسم مفتاح المرور (مثال: \\\"هاتفي\\\")";
 "webauthn_lastUsed" = "آخر استخدام";
 "webauthn_noKeys" = "لم يتم تسجيل أي مفاتيح مرور بعد.";
 "webauthn_policy" = "سياسة مفاتيح المرور";

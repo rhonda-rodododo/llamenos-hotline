@@ -157,7 +157,7 @@
 "blasts_fillRequired" = "Please fill in name and message";
 "blasts_import" = "Import";
 "blasts_importHelp" = "One per line: phone,channel,tag1,tag2";
-"blasts_importPlaceholder" = "+15551234567,sms,vip\n+15559876543,whatsapp";
+"blasts_importPlaceholder" = "+15551234567,sms,vip\\n+15559876543,whatsapp";
 "blasts_importResult" = "Imported %@, skipped %2$@";
 "blasts_importSubscribers" = "Import Subscribers";
 "blasts_loading" = "Loading blasts...";
@@ -231,8 +231,8 @@
 "commandPalette_navigation" = "नेविगेशन";
 "commandPalette_noResults" = "कोई परिणाम नहीं मिला";
 "commandPalette_placeholder" = "कमांड टाइप करें या खोजें...";
-"commandPalette_searchCalls" = "\"%@\" के लिए कॉल खोजें";
-"commandPalette_searchNotes" = "\"%@\" के लिए नोट्स खोजें";
+"commandPalette_searchCalls" = "\\\"%@\\\" के लिए कॉल खोजें";
+"commandPalette_searchNotes" = "\\\"%@\\\" के लिए नोट्स खोजें";
 "commandPalette_theme" = "थीम";
 "common_actions" = "कार्रवाइयाँ";
 "common_add" = "जोड़ें";
@@ -1213,7 +1213,7 @@
 "webauthn_browserNotSupported" = "आपका ब्राउज़र पासकी का समर्थन नहीं करता।";
 "webauthn_deleteKey" = "हटाएं";
 "webauthn_description" = "अपनी गुप्त कुंजी के बिना साइन इन करने के लिए अपने डिवाइस की बायोमेट्रिक्स या PIN का उपयोग करें।";
-"webauthn_label" = "पासकी का नाम (जैसे \"मेरा फ़ोन\")";
+"webauthn_label" = "पासकी का नाम (जैसे \\\"मेरा फ़ोन\\\")";
 "webauthn_lastUsed" = "अंतिम उपयोग";
 "webauthn_noKeys" = "अभी तक कोई पासकी पंजीकृत नहीं है।";
 "webauthn_policy" = "पासकी नीति";

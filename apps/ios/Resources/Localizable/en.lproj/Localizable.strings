@@ -157,7 +157,7 @@
 "blasts_fillRequired" = "Please fill in name and message";
 "blasts_import" = "Import";
 "blasts_importHelp" = "One per line: phone,channel,tag1,tag2";
-"blasts_importPlaceholder" = "+15551234567,sms,vip\n+15559876543,whatsapp";
+"blasts_importPlaceholder" = "+15551234567,sms,vip\\n+15559876543,whatsapp";
 "blasts_importResult" = "Imported %@, skipped %2$@";
 "blasts_importSubscribers" = "Import Subscribers";
 "blasts_loading" = "Loading blasts...";
@@ -231,8 +231,8 @@
 "commandPalette_navigation" = "Navigation";
 "commandPalette_noResults" = "No results found";
 "commandPalette_placeholder" = "Type a command or search...";
-"commandPalette_searchCalls" = "Search calls for \"%@\"";
-"commandPalette_searchNotes" = "Search notes for \"%@\"";
+"commandPalette_searchCalls" = "Search calls for \\\"%@\\\"";
+"commandPalette_searchNotes" = "Search notes for \\\"%@\\\"";
 "commandPalette_theme" = "Theme";
 "common_actions" = "Actions";
 "common_add" = "Add";
@@ -1213,7 +1213,7 @@
 "webauthn_browserNotSupported" = "Your browser doesn't support passkeys.";
 "webauthn_deleteKey" = "Delete";
 "webauthn_description" = "Use your device biometrics or PIN to sign in without your secret key.";
-"webauthn_label" = "Passkey name (e.g. \"My Phone\")";
+"webauthn_label" = "Passkey name (e.g. \\\"My Phone\\\")";
 "webauthn_lastUsed" = "Last used";
 "webauthn_noKeys" = "No passkeys registered yet.";
 "webauthn_policy" = "Passkey Policy";

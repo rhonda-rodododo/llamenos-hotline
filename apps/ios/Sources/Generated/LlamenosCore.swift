@@ -576,7 +576,7 @@ public func FfiConverterTypeAuthToken_lower(_ value: AuthToken) -> RustBuffer {
  */
 public struct EncryptedKeyData {
     /**
-     * hex, 16 bytes
+     * hex, 16 or 32 bytes (new encryptions use 32)
      */
     public let salt: String
     /**
@@ -600,7 +600,7 @@ public struct EncryptedKeyData {
     // declare one manually.
     public init(
         /**
-         * hex, 16 bytes
+         * hex, 16 or 32 bytes (new encryptions use 32)
          */salt: String, 
         /**
          * PBKDF2 iteration count (600,000)
@@ -1191,6 +1191,8 @@ public enum CryptoError {
     
     case InvalidPin(message: String)
     
+    case InvalidInput(message: String)
+    
 }
 
 
@@ -1271,6 +1273,10 @@ public struct FfiConverterTypeCryptoError: FfiConverterRustBuffer {
             message: try FfiConverterString.read(from: &buf)
         )
         
+        case 17: return .InvalidInput(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
 
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -1314,6 +1320,8 @@ public struct FfiConverterTypeCryptoError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(15))
         case .InvalidPin(_ /* message is ignored*/):
             writeInt(&buf, Int32(16))
+        case .InvalidInput(_ /* message is ignored*/):
+            writeInt(&buf, Int32(17))
 
         
         }
@@ -1385,6 +1393,8 @@ fileprivate struct FfiConverterSequenceTypeRecipientKeyEnvelope: FfiConverterRus
  *
  * Returns a "XXX XXX" formatted 6-digit code. Both devices compute this
  * independently — matching codes prove no MITM is present.
+ *
+ * Uses the `hkdf` crate for proper HKDF (M25 — replaces manual HMAC HKDF).
  */
 public func computeSasCode(sharedXHex: String)throws  -> String {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeCryptoError.lift) {
@@ -1519,8 +1529,8 @@ public func deriveKekHex(pin: String, saltHex: String)throws  -> String {
 /**
  * Decrypt an ECIES-encrypted payload (arbitrary length content).
  *
- * Used for wake-tier push notification decryption and other ECIES content.
- * `packed_hex`: hex(nonce_24 + ciphertext)
+ * Supports both v2 (HKDF, version byte prefix) and v1 (legacy SHA-256) formats.
+ * `packed_hex`: hex(version_byte? + nonce_24 + ciphertext)
  * `ephemeral_pubkey_hex`: compressed SEC1 (33 bytes / 66 hex chars)
  * `secret_key_hex`: recipient's secret key
  * `label`: domain separation label (e.g., LABEL_PUSH_WAKE)
@@ -1531,6 +1541,20 @@ public func eciesDecryptContentHex(packedHex: String, ephemeralPubkeyHex: String
         FfiConverterString.lower(packedHex),
         FfiConverterString.lower(ephemeralPubkeyHex),
         FfiConverterString.lower(secretKeyHex),
+        FfiConverterString.lower(label),$0
+    )
+})
+}
+/**
+ * Encrypt arbitrary content via ECIES for a recipient.
+ *
+ * Returns `(packed_hex, ephemeral_pubkey_hex)`.
+ */
+public func eciesEncryptContentHex(plaintext: String, recipientPubkeyHex: String, label: String)throws  -> [String] {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeCryptoError.lift) {
+    uniffi_llamenos_core_fn_func_ecies_encrypt_content_hex(
+        FfiConverterString.lower(plaintext),
+        FfiConverterString.lower(recipientPubkeyHex),
         FfiConverterString.lower(label),$0
     )
 })
@@ -1680,7 +1704,26 @@ public func verifyAuthToken(token: AuthToken, method: String, path: String)throw
 })
 }
 /**
+ * Verify a Schnorr auth token with timestamp-based expiry.
+ *
+ * Rejects tokens older than `max_age_ms` or more than 30s in the future.
+ * Use `max_age_ms: 300_000` (5 minutes) for standard API authentication.
+ */
+public func verifyAuthTokenWithExpiry(token: AuthToken, method: String, path: String, nowMs: UInt64, maxAgeMs: UInt64)throws  -> Bool {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeCryptoError.lift) {
+    uniffi_llamenos_core_fn_func_verify_auth_token_with_expiry(
+        FfiConverterTypeAuthToken.lower(token),
+        FfiConverterString.lower(method),
+        FfiConverterString.lower(path),
+        FfiConverterUInt64.lower(nowMs),
+        FfiConverterUInt64.lower(maxAgeMs),$0
+    )
+})
+}
+/**
  * Verify a raw Schnorr signature over a pre-hashed message.
+ *
+ * The message must be exactly 32 bytes (SHA-256 hash) for BIP-340 compliance.
  */
 public func verifySchnorr(messageHex: String, signatureHex: String, pubkeyHex: String)throws  -> Bool {
     return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeCryptoError.lift) {
@@ -1707,7 +1750,7 @@ private var initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_llamenos_core_checksum_func_compute_sas_code() != 40395) {
+    if (uniffi_llamenos_core_checksum_func_compute_sas_code() != 7313) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_llamenos_core_checksum_func_compute_shared_x_hex() != 11861) {
@@ -1737,7 +1780,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_llamenos_core_checksum_func_derive_kek_hex() != 32027) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_llamenos_core_checksum_func_ecies_decrypt_content_hex() != 56402) {
+    if (uniffi_llamenos_core_checksum_func_ecies_decrypt_content_hex() != 65481) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_llamenos_core_checksum_func_ecies_encrypt_content_hex() != 63408) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_llamenos_core_checksum_func_ecies_unwrap_key_hex() != 45205) {
@@ -1779,7 +1825,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_llamenos_core_checksum_func_verify_auth_token() != 39412) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_llamenos_core_checksum_func_verify_schnorr() != 10455) {
+    if (uniffi_llamenos_core_checksum_func_verify_auth_token_with_expiry() != 47816) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_llamenos_core_checksum_func_verify_schnorr() != 51666) {
         return InitializationResult.apiChecksumMismatch
     }
 
