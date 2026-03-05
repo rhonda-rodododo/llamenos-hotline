@@ -386,7 +386,53 @@ Then('the previously entered hotline name should still be filled', async ({ page
 })
 
 When('I complete the entire setup wizard', async ({ page }) => {
-  // Full wizard completion
+  await navigateAfterLogin(page, '/setup')
+  // Step 0 – Identity: fill hotline name
+  const nameInput = page.getByLabel(/hotline name|name/i).first()
+  await expect(nameInput).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await nameInput.fill(`TestHotline ${Date.now()}`)
+  const orgInput = page.getByLabel(/organization/i)
+  if (await orgInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await orgInput.fill('Test Org')
+  }
+  // Advance to Step 1 – Channels
+  await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
+  await page.waitForTimeout(500)
+  // Step 1 – Select Reports channel (simplest, no providers needed)
+  const reportsChannel = page.getByText('Reports', { exact: true }).first()
+  await expect(reportsChannel).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await reportsChannel.click()
+  // Advance to Step 2 – Providers
+  await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
+  await page.waitForTimeout(500)
+  // Step 2 – Skip providers (Reports doesn't need them)
+  const skipBtn = page.getByRole('button', { name: /skip/i })
+  if (await skipBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await skipBtn.click()
+  } else {
+    await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
+  }
+  await page.waitForTimeout(500)
+  // Step 3 – Settings: just advance
+  const nextBtn3 = page.getByTestId(TestIds.SETUP_NEXT_BTN)
+  if (await nextBtn3.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await nextBtn3.click()
+  } else {
+    const skip3 = page.getByRole('button', { name: /skip/i })
+    if (await skip3.isVisible({ timeout: 2000 }).catch(() => false)) await skip3.click()
+  }
+  await page.waitForTimeout(500)
+  // Step 4 – Invite: just advance
+  const nextBtn4 = page.getByTestId(TestIds.SETUP_NEXT_BTN)
+  if (await nextBtn4.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await nextBtn4.click()
+  } else {
+    const skip4 = page.getByRole('button', { name: /skip/i })
+    if (await skip4.isVisible({ timeout: 2000 }).catch(() => false)) await skip4.click()
+  }
+  await page.waitForTimeout(500)
+  // Should now be on Step 5 – Summary with "Go to Dashboard" button
+  await expect(page.getByText(/review|summary|launch/i).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 // --- Reports ---

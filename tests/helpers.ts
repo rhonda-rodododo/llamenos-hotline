@@ -95,8 +95,14 @@ export async function enterPin(page: Page, pin: string) {
   const firstDigit = page.locator('input[aria-label="PIN digit 1"]')
   await firstDigit.waitFor({ state: 'visible', timeout: 10000 })
   await firstDigit.click()
-  // Type each digit — PinInput handles focus advance automatically
-  await page.keyboard.type(pin, { delay: 50 })
+  // Type each digit with enough delay for React state updates + focus advance
+  for (const digit of pin) {
+    await page.keyboard.type(digit)
+    // Wait for React to process the input event, update state, and advance focus
+    await page.waitForTimeout(100)
+  }
+  // Wait for onComplete callback to fire and unlock to process
+  await page.waitForTimeout(500)
 }
 
 /**
@@ -165,8 +171,35 @@ export async function reenterPinAfterReload(page: Page): Promise<void> {
  */
 export async function loginAsAdmin(page: Page) {
   await page.goto('/login')
-  await page.evaluate(() => sessionStorage.clear())
-  await preloadEncryptedKey(page, ADMIN_NSEC, TEST_PIN)
+  await page.evaluate(() => {
+    sessionStorage.clear()
+    localStorage.removeItem('llamenos-encrypted-key')
+    localStorage.removeItem('tauri-store:keys.json:llamenos-encrypted-key')
+  })
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+
+  // Use the app's own encryptWithPin via the Tauri IPC mock to store the key.
+  // This avoids any Node.js-vs-browser crypto mismatch since both encrypt
+  // and decrypt happen in the same browser context.
+  await page.evaluate(async ({ nsec, pin }) => {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const { Store } = await import('@tauri-apps/plugin-store')
+
+    // Import key — this encrypts with PIN and loads into CryptoState
+    const kp = await invoke('key_pair_from_nsec', { nsec }) as { publicKey: string }
+    const encData = await invoke('import_key_to_state', { nsec, pin, pubkeyHex: kp.publicKey })
+
+    // Store encrypted data
+    const store = await Store.load('keys.json')
+    await store.set('llamenos-encrypted-key', encData)
+    await store.save()
+
+    // Lock CryptoState so PIN is needed to unlock
+    await invoke('lock_crypto')
+  }, { nsec: ADMIN_NSEC, pin: TEST_PIN })
+
+  // Reload to trigger PIN screen
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
   await enterPin(page, TEST_PIN)

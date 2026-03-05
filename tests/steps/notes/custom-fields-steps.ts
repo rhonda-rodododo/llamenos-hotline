@@ -82,7 +82,14 @@ Given('a note exists with text {string} and {string} set to {string}', async ({ 
 })
 
 When('I click edit on the note', async ({ page }) => {
-  await page.getByTestId(TestIds.NOTE_EDIT_BTN).first().click()
+  // Ensure we're on the notes page and a note card is visible
+  const noteCard = page.getByTestId(TestIds.NOTE_CARD).first()
+  await expect(noteCard).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // The edit button is within the note card — hover to reveal it (may be hidden by default)
+  await noteCard.hover()
+  const editBtn = page.getByTestId(TestIds.NOTE_EDIT_BTN).first()
+  await expect(editBtn).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await editBtn.click()
 })
 
 Then('the {string} input should have value {string}', async ({ page }, fieldLabel: string, value: string) => {

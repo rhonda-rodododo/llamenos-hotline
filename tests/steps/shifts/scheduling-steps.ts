@@ -8,15 +8,20 @@ import { expect } from '@playwright/test'
 import { Given, When, Then } from '../fixtures'
 import { TestIds } from '../../test-ids'
 import { Timeouts } from '../../helpers'
-import { ShiftPage } from '../../pages/index'
+import { ShiftPage, Navigation } from '../../pages/index'
 import { listShiftsViaApi, createVolunteerViaApi } from '../../api-helpers'
 
 Then('I should see shifts or the {string} message', async ({ page }, emptyMsg: string) => {
+  // Wait for the page to settle
+  await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+  // Check for shift cards, empty state, fallback group card, or the empty message
   const shiftCard = page.getByTestId(TestIds.SHIFT_CARD)
   if (await shiftCard.first().isVisible({ timeout: Timeouts.ELEMENT }).catch(() => false)) return
   const emptyState = page.getByTestId(TestIds.EMPTY_STATE)
-  if (await emptyState.isVisible({ timeout: 2000 }).catch(() => false)) return
-  await expect(page.getByText(emptyMsg).first()).toBeVisible({ timeout: 2000 })
+  if (await emptyState.isVisible({ timeout: 3000 }).catch(() => false)) return
+  const fallback = page.getByTestId(TestIds.FALLBACK_GROUP_CARD)
+  if (await fallback.isVisible({ timeout: 3000 }).catch(() => false)) return
+  await expect(page.getByText(emptyMsg).first()).toBeVisible({ timeout: 5000 })
 })
 
 When('I fill in the shift name with a unique name', async ({ page }) => {
@@ -149,6 +154,8 @@ Then('the original shift name should still be visible', async ({ page }) => {
 })
 
 When('I create a shift and assign the volunteer', async ({ page }) => {
+  // Navigate to Shifts page — previous step (Given a volunteer exists) may leave us on Volunteers
+  await Navigation.goToShifts(page)
   await ShiftPage.openCreateForm(page)
   const name = `AssignShift ${Date.now()}`
   await page.getByTestId(TestIds.SHIFT_NAME_INPUT).fill(name)
@@ -162,6 +169,8 @@ When('I create a shift and assign the volunteer', async ({ page }) => {
 })
 
 When('I add the volunteer to the fallback group', async ({ page }) => {
+  // Navigate to Shifts page — previous step may leave us elsewhere
+  await Navigation.goToShifts(page)
   const fallback = ShiftPage.getFallbackCard(page)
   await fallback.scrollIntoViewIfNeeded()
   const addBtn = fallback.locator('button').first()

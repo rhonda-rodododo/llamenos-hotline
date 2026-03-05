@@ -174,7 +174,7 @@ export function StepSummary({ data, onComplete, saving, headingRef }: Props) {
       </Card>
 
       {/* Launch button */}
-      <Button onClick={() => onComplete({ demoMode })} disabled={saving} className="w-full" size="lg">
+      <Button data-testid="setup-complete-btn" onClick={() => onComplete({ demoMode })} disabled={saving} className="w-full" size="lg">
         {saving ? (
           <><Loader2 className="h-4 w-4 animate-spin" /> {t('common.loading')}</>
         ) : (

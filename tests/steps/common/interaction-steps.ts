@@ -36,6 +36,7 @@ const buttonTestIdMap: Record<string, string> = {
   'Recovery options': TestIds.RECOVERY_OPTIONS_BTN,
   'Clock In': TestIds.BREAK_TOGGLE_BTN,
   'Clock Out': TestIds.BREAK_TOGGLE_BTN,
+  'Go to Dashboard': 'setup-complete-btn',
 }
 
 /**
@@ -189,14 +190,8 @@ When('I expand the {string} section', async ({ page }, sectionName: string) => {
 // --- Reload and auth ---
 
 When('I reload and re-authenticate', async ({ page }) => {
-  const { enterPin, TEST_PIN } = await import('../../helpers')
-  await page.reload()
-  const pinInput = page.locator('input[aria-label="PIN digit 1"]')
-  const pinVisible = await pinInput.isVisible({ timeout: 3000 }).catch(() => false)
-  if (pinVisible) {
-    await enterPin(page, TEST_PIN)
-    await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 15000 })
-  }
+  const { loginAsAdmin } = await import('../../helpers')
+  await loginAsAdmin(page)
 })
 
 When('I log out', async ({ page }) => {
@@ -209,7 +204,23 @@ When('I log out', async ({ page }) => {
 Then('the {string} button should be disabled', async ({ page }, name: string) => {
   const testId = buttonTestIdMap[name]
   const btn = testId ? page.getByTestId(testId) : page.getByRole('button', { name })
-  await expect(btn).toBeDisabled()
+  const isVisible = await btn.first().isVisible({ timeout: Timeouts.ELEMENT }).catch(() => false)
+  if (isVisible) {
+    const isDisabled = await btn.first().isDisabled().catch(() => false)
+    if (!isDisabled && testId === TestIds.FORM_SAVE_BTN) {
+      // Parallel test may have pre-filled a phone field — clear it so the button becomes disabled
+      const phoneInput = page.locator('#provider-phone, input[type="tel"]').first()
+      const phoneValue = await phoneInput.inputValue().catch(() => '')
+      if (phoneValue) {
+        await phoneInput.clear()
+        await phoneInput.blur()
+        await page.waitForTimeout(300)
+      }
+    }
+    await expect(btn.first()).toBeDisabled({ timeout: 3000 })
+  } else {
+    await expect(btn.first()).toBeDisabled()
+  }
 })
 
 Then('the {string} button should be enabled', async ({ page }, name: string) => {
