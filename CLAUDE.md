@@ -98,7 +98,8 @@ packages/
   i18n/               # Localization package
     locales/          # 13 locale JSON files (en, es, zh, tl, vi, ar, fr, ht, ko, ru, hi, pt, de)
     languages.ts      # Language config (codes, labels, Twilio voice IDs)
-    tools/            # i18n-codegen.ts → iOS .strings + Android strings.xml
+    tools/            # i18n-codegen.ts → iOS .strings + Android strings.xml + Kotlin I18n.kt
+                      # validate-strings.ts → cross-platform string ref validator
 src/
   client/             # Frontend SPA (Vite + React)
     routes/           # TanStack file-based routes
@@ -160,10 +161,8 @@ docs/
 
 ### Multi-Machine Workflow
 
-Development is split across two machines:
-- **Mac M4** (this machine): iOS builds, XCUITests, Rust crypto, xcodegen
-- **Linux** (192.168.50.95): Desktop (Tauri), backend (Workers), Android, Docker, Playwright E2E
-
+**Mac M4** is now fully self-contained for all platforms (iOS, Android, Desktop, Workers, Crypto).
+**Linux** (192.168.50.95) is available as a secondary build machine.
 Coordinate via git push/pull on the `desktop` branch.
 
 ```bash
@@ -202,8 +201,22 @@ bun run crypto:fmt                       # cargo fmt --check on packages/crypto
 # Codegen (runs on either machine)
 bun run codegen                          # Generate TS/Swift/Kotlin types from JSON Schemas
 bun run codegen:check                    # Verify generated files are up-to-date (CI)
-bun run i18n:codegen                     # Generate iOS .strings + Android strings.xml
+bun run i18n:codegen                     # Generate iOS .strings + Android strings.xml + Kotlin I18n.kt
 bun run i18n:validate                    # Check locale completeness
+bun run i18n:validate:android            # Validate R.string.* refs match codegen output
+bun run i18n:validate:ios                # Validate localized string refs in Swift
+bun run i18n:validate:desktop            # Validate t('key') calls match en.json
+bun run i18n:validate:all                # Run all three validators
+
+# Unified Test Orchestration (runs on either machine)
+bun run test:all                         # Codegen + build + test ALL available platforms
+bun run test:changed                     # Only test platforms affected by git changes
+bun run test:feature <name>              # Run tests matching a feature name across platforms
+bun run test:desktop                     # Desktop: codegen → typecheck → playwright
+bun run test:ios                         # iOS: codegen → xcodebuild → unit + UI tests
+bun run test:android                     # Android: codegen → gradle unit + lint + androidTest
+bun run test:worker                      # Worker: codegen → typecheck → integration tests
+bun run test:crypto                      # Crypto: cargo test + clippy
 
 # Deploy (runs on Linux machine)
 bun run deploy                           # Deploy EVERYTHING (Worker + marketing site)
@@ -227,9 +240,10 @@ bun run bootstrap-admin                  # Generate admin keypair
 
 ## Claude Code Working Style
 
-- **Always run `bun run typecheck` and `bun run build` before committing and pushing.** Never push code that doesn't build. If typecheck or build fails, fix it before committing.
-- **For Android changes**, also run `bun run test:android` (unit + lint + androidTest compilation) before committing. When a device is connected, also run `bun run test:android:e2e` for full Cucumber BDD E2E coverage. iOS (`swift build && swift test`) requires macOS — verified in CI.
-- **Full E2E verification** means running ALL platforms: `bun run test` (Playwright desktop), `bun run test:android:e2e` (Android Cucumber on device), and `bun run test:worker:integration` (DO integration). Never consider E2E complete without Android.
+- **Pre-commit: `bun run test:all` or `bun run test:changed`** — runs codegen guard + typecheck + build + test for all (or affected) platforms. Never push code that doesn't build.
+- **For quick iteration**: `bun run test:changed` detects affected platforms from git diff and only tests those.
+- **Full E2E verification** means `bun run test:all` — runs desktop Playwright, Android unit+lint+androidTest, iOS unit+UI, worker integration, and crypto tests with unified output.
+- **i18n changes**: Always run `bun run i18n:validate:all` after modifying locale files or string references.
 - Implement features completely — no stubs, no shortcuts, no TODOs left behind.
 - **Every feature or fix must include tests.** Desktop: Playwright E2E tests in `tests/`. Android: unit tests (`src/test/`) and UI tests (`src/androidTest/`). iOS: XCTest unit + UI tests in `Tests/`. A feature is not complete until its tests are written and passing.
 - Edit files in place; never create copies. Git history is the backup. Commit regularly when work is complete, don't worry about accidentally committing unrelated changes.

@@ -138,7 +138,7 @@ fun DashboardScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                            contentDescription = stringResource(R.string.logout),
+                            contentDescription = stringResource(R.string.common_logout),
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                     }

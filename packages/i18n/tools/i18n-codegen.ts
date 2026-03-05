@@ -107,7 +107,8 @@ function generateKotlinConstants(keys: Record<string, string>): string {
     .map(([key, value]) => {
       const constName = key.toUpperCase()
       // Truncate long English values in comments
-      const comment = value.length > 60 ? value.slice(0, 57) + '...' : value
+      const sanitized = value.replace(/\n/g, '\\n').replace(/"/g, '\\"')
+      const comment = sanitized.length > 60 ? sanitized.slice(0, 57) + '...' : sanitized
       return `    const val ${constName} = "${key}"  // "${comment}"`
     })
   return [

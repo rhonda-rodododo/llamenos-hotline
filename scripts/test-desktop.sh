@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Desktop test runner
+# Pipeline: codegen -> typecheck -> test:build -> playwright
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/lib/test-reporter.sh"
+
+# Parse arguments
+VERBOSE="${VERBOSE:-false}"
+NO_CODEGEN="${NO_CODEGEN:-false}"
+JSON_OUTPUT="${JSON_OUTPUT:-false}"
+REPORTER_TIMEOUT="${REPORTER_TIMEOUT:-600}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --verbose) VERBOSE=true; shift ;;
+    --no-codegen) NO_CODEGEN=true; shift ;;
+    --json) JSON_OUTPUT=true; shift ;;
+    --timeout) REPORTER_TIMEOUT="$2"; shift 2 ;;
+    *) echo "Unknown option: $1"; exit 1 ;;
+  esac
+done
+
+export VERBOSE JSON_OUTPUT REPORTER_TIMEOUT
+
+cd "$PROJECT_ROOT"
+
+reporter_init "desktop"
+
+overall_result="pass"
+
+# Step 1: Codegen guard
+if [[ "$NO_CODEGEN" != "true" ]]; then
+  if ! source "$SCRIPT_DIR/lib/codegen-guard.sh" && run_codegen_guard; then
+    overall_result="fail"
+    reporter_summary "$overall_result"
+    exit 1
+  fi
+fi
+
+# Step 2: Typecheck
+if ! reporter_run_step "typecheck" bun run typecheck; then
+  overall_result="fail"
+  reporter_record_suite "typecheck" 0 1 0
+  reporter_summary "$overall_result"
+  exit 1
+fi
+reporter_record_suite "typecheck" 1 0 0
+
+# Step 3: Test build (Vite with Tauri IPC mocks)
+if ! reporter_run_step "test:build" bun run test:build; then
+  overall_result="fail"
+  reporter_record_suite "build" 0 1 0
+  reporter_summary "$overall_result"
+  exit 1
+fi
+reporter_record_suite "build" 1 0 0
+
+# Step 4: Playwright E2E tests
+if reporter_run_step "playwright" env PLAYWRIGHT_TEST=true bunx playwright test; then
+  parse_playwright_results "$REPORTER_LOG_FILE"
+  reporter_record_suite "playwright" "$PARSED_PASSED" "$PARSED_FAILED" "$PARSED_SKIPPED"
+else
+  overall_result="fail"
+  parse_playwright_results "$REPORTER_LOG_FILE"
+  reporter_record_suite "playwright" "$PARSED_PASSED" "$PARSED_FAILED" "$PARSED_SKIPPED"
+fi
+
+reporter_summary "$overall_result"
+
+if [[ "$overall_result" == "fail" ]]; then
+  exit 1
+fi

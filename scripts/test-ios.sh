@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# iOS test runner
+# Pipeline: codegen -> xcodebuild build -> unit tests -> UI tests
+# Uses tee + grep --line-buffered pattern from MEMORY.md
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/lib/test-reporter.sh"
+
+# Parse arguments
+VERBOSE="${VERBOSE:-false}"
+NO_CODEGEN="${NO_CODEGEN:-false}"
+JSON_OUTPUT="${JSON_OUTPUT:-false}"
+REPORTER_TIMEOUT="${REPORTER_TIMEOUT:-600}"
+SIMULATOR="${SIMULATOR:-iPhone 17}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --verbose) VERBOSE=true; shift ;;
+    --no-codegen) NO_CODEGEN=true; shift ;;
+    --json) JSON_OUTPUT=true; shift ;;
+    --timeout) REPORTER_TIMEOUT="$2"; shift 2 ;;
+    --simulator) SIMULATOR="$2"; shift 2 ;;
+    *) echo "Unknown option: $1"; exit 1 ;;
+  esac
+done
+
+export VERBOSE JSON_OUTPUT REPORTER_TIMEOUT
+
+cd "$PROJECT_ROOT"
+
+# Verify we're on macOS
+if [[ "$(uname -s)" != "Darwin" ]]; then
+  echo "iOS tests can only run on macOS"
+  exit 1
+fi
+
+# Verify xcodebuild is available
+if ! command -v xcodebuild &>/dev/null; then
+  echo "xcodebuild not found. Install Xcode."
+  exit 1
+fi
+
+IOS_DIR="$PROJECT_ROOT/apps/ios"
+DESTINATION="platform=iOS Simulator,name=${SIMULATOR}"
+
+reporter_init "ios"
+
+overall_result="pass"
+
+# Step 1: Codegen guard
+if [[ "$NO_CODEGEN" != "true" ]]; then
+  if ! source "$SCRIPT_DIR/lib/codegen-guard.sh" && run_codegen_guard; then
+    overall_result="fail"
+    reporter_summary "$overall_result"
+    exit 1
+  fi
+fi
+
+# Step 2: Ensure xcodeproj exists (xcodegen)
+if [[ ! -d "$IOS_DIR/Llamenos.xcodeproj" ]]; then
+  if command -v xcodegen &>/dev/null; then
+    echo "Generating Xcode project..."
+    (cd "$IOS_DIR" && xcodegen generate)
+  else
+    echo "Llamenos.xcodeproj not found and xcodegen not installed"
+    exit 1
+  fi
+fi
+
+# Step 3: Build
+if ! reporter_run_step "xcodebuild build" \
+  xcodebuild build -project "$IOS_DIR/Llamenos.xcodeproj" -scheme Llamenos \
+    -destination "$DESTINATION" \
+    CODE_SIGNING_ALLOWED=NO; then
+  overall_result="fail"
+  reporter_record_suite "build" 0 1 0
+  reporter_summary "$overall_result"
+  exit 1
+fi
+reporter_record_suite "build" 1 0 0
+
+# Step 4: Unit tests
+# Use the tee + grep pattern from MEMORY.md for reliable output
+UNIT_LOG="/tmp/test-ios-unit-$(date +%Y%m%d-%H%M%S).log"
+
+echo -e "${CYAN:-}--- Unit Tests ---${RESET:-}"
+
+unit_exit=0
+xcodebuild test -project "$IOS_DIR/Llamenos.xcodeproj" -scheme Llamenos \
+  -destination "$DESTINATION" \
+  -only-testing:LlamenosTests \
+  CODE_SIGNING_ALLOWED=NO 2>&1 | \
+  tee "$UNIT_LOG" "$REPORTER_LOG_FILE" | \
+  grep --line-buffered -E '(Test Case|Test Suite|Executed|error:|Build Failed)' || unit_exit=$?
+
+# Check if grep produced empty output (common issue)
+if [[ ! -s "$UNIT_LOG" ]]; then
+  echo -e "${YELLOW:-}WARNING: Empty test output. Check $UNIT_LOG${RESET:-}"
+fi
+
+if [[ "$unit_exit" -ne 0 ]]; then
+  overall_result="fail"
+  echo -e "${RED:-}Unit tests failed. Last 30 lines:${RESET:-}"
+  tail -30 "$UNIT_LOG" 2>/dev/null || true
+fi
+
+parse_xcodebuild_results "$UNIT_LOG"
+reporter_record_suite "LlamenosTests" "$PARSED_PASSED" "$PARSED_FAILED" "$PARSED_SKIPPED"
+
+# Step 5: UI tests
+UI_LOG="/tmp/test-ios-ui-$(date +%Y%m%d-%H%M%S).log"
+
+echo -e "${CYAN:-}--- UI Tests ---${RESET:-}"
+
+ui_exit=0
+xcodebuild test -project "$IOS_DIR/Llamenos.xcodeproj" -scheme Llamenos \
+  -destination "$DESTINATION" \
+  -only-testing:LlamenosUITests \
+  CODE_SIGNING_ALLOWED=NO 2>&1 | \
+  tee "$UI_LOG" -a "$REPORTER_LOG_FILE" | \
+  grep --line-buffered -E '(Test Case|Test Suite|Executed|error:|Build Failed|FAILED)' || ui_exit=$?
+
+if [[ ! -s "$UI_LOG" ]]; then
+  echo -e "${YELLOW:-}WARNING: Empty test output. Check $UI_LOG${RESET:-}"
+fi
+
+if [[ "$ui_exit" -ne 0 ]]; then
+  overall_result="fail"
+  echo -e "${RED:-}UI tests failed. Last 30 lines:${RESET:-}"
+  tail -30 "$UI_LOG" 2>/dev/null || true
+fi
+
+parse_xcodebuild_results "$UI_LOG"
+reporter_record_suite "LlamenosUITests" "$PARSED_PASSED" "$PARSED_FAILED" "$PARSED_SKIPPED"
+
+reporter_summary "$overall_result"
+
+if [[ "$overall_result" == "fail" ]]; then
+  exit 1
+fi

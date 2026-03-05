@@ -1,5 +1,38 @@
 # Completed Backlog
 
+## 2026-03-05: Tooling & Test Orchestration — Epics 265-267
+
+### Epic 265: i18n Android String Alignment
+- **328 unresolved R.string references** in 35 Kotlin files — all resolved
+- 327 strings added to en.json (137 nested in existing sections, 190 as top-level flat keys)
+- 1 Kotlin ref corrected: `R.string.logout` → `R.string.common_logout` (section conflict)
+- All 13 locales propagated: 1761 keys each, all complete
+- Verified: Android unit tests pass, lint clean, androidTest compiles, iOS builds, desktop typecheck + build pass
+
+### Epic 266: i18n Codegen Validation Enhancement
+- **validate-strings.ts**: Cross-platform string reference validator (android/ios/desktop/all subcommands)
+- Android validator: scans R.string.* refs in Kotlin, compares against codegen output
+- iOS validator: scans NSLocalizedString/String(localized:) patterns in Swift
+- Desktop validator: scans t('key') calls in TS/TSX, warns on dynamic keys without failing
+- **I18n.kt**: Generated Kotlin constants object (1761 keys) with English text comments
+- Allowlist support via validate-allowlist.json for non-i18n resources
+- Fixed codegen to escape newlines/quotes in Kotlin comments
+- All validators pass on current codebase (zero false positives)
+- Added package.json scripts: i18n:validate:{android,ios,desktop,all}
+
+### Epic 267: BDD Test Orchestration Overhaul
+- **8 test scripts**: test-orchestrator, test-desktop, test-ios, test-android, test-worker, test-crypto, test-feature, test-changed
+- **3 lib scripts**: codegen-guard.sh, platform-detect.sh, test-reporter.sh
+- All scripts support --verbose, --no-codegen, --json, --timeout flags
+- Codegen guard runs before tests, prevents stale codegen false failures
+- Platform detection: auto-detects Mac vs Linux, available tools
+- test-reporter: structured summary blocks, cargo/xcodebuild/playwright parsers
+- test-orchestrator: parallel platform execution with aggregated results
+- test-changed: git-diff-based incremental testing
+- Docker Compose E2E overlay (docker-compose.e2e.yml) for per-platform hub isolation
+- Added package.json scripts: test:{all,desktop,ios,android,worker,crypto,feature,changed}
+- Verified: test:crypto and test:all (crypto) pass with correct output formatting
+
 ## 2026-03-05: Security Audit Round 8 — Epics 257-264
 
 63 vulnerabilities found (8 Critical, 22 High, 33 Medium). All fixed across 8 epics.

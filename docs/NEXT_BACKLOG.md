@@ -445,6 +445,22 @@ Catch iOS up to Android feature set with native SwiftUI design. BDD-first: write
 - [x] **[Epic 260: iOS Security Hardening](epics/epic-260.md)** — Biometric unlock, SAS gate, URL validation, persistent PIN lockout (Keychain), cert pinning, screenshot protection
 - [x] **[Epic 261: Android Security Hardening](epics/epic-261.md)** — Hard-fail crypto, PIN brute-force, deep link validation, StrongBox, cert pinning, ProGuard narrowing
 
+## Tooling & Test Orchestration Overhaul (Epics 265-268) — IN PROGRESS
+
+i18n alignment, codegen validation, BDD test orchestration, and Android tooling upgrade. Mac M4 now fully self-contained for all platforms.
+
+**Dependency order:** 265 → 266 → 267 (268 can parallel with 266/267 after 265)
+
+### i18n & Codegen
+- [x] **[Epic 265: i18n Android String Alignment](epics/epic-265-i18n-android-string-alignment.md)** — Fixed 328 missing R.string refs (327 added to en.json, 1 Kotlin ref corrected), all 13 locales at 1562 keys
+- [x] **[Epic 266: i18n Codegen Validation Enhancement](epics/epic-266-i18n-codegen-validation-enhancement.md)** — CI validators for Android/iOS/desktop string refs, generated Kotlin I18n constants (1761 keys)
+
+### Test Orchestration
+- [x] **[Epic 267: BDD Test Orchestration Overhaul](epics/epic-267-bdd-test-orchestration-overhaul.md)** — Unified codegen→build→test pipeline, cross-platform scripts, test:all/test:changed/test:feature commands
+
+### Android Tooling
+- [ ] **[Epic 268: Android Tooling Upgrade](epics/epic-268-android-tooling-upgrade.md)** — AGP 9.1, Gradle 9.x, Kotlin 2.3, Compose BOM 2026.02, kapt→KSP, compileSdk 36
+
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
 - [x] Marketing site + docs at llamenos-hotline.com (Astro + Cloudflare Pages)

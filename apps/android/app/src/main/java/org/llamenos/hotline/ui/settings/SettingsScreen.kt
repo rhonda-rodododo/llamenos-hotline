@@ -185,7 +185,7 @@ fun SettingsScreen(
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text(stringResource(R.string.logout)) },
+            title = { Text(stringResource(R.string.common_logout)) },
             text = {
                 Text(stringResource(R.string.settings_logout_confirm_message))
             },
@@ -198,7 +198,7 @@ fun SettingsScreen(
                     modifier = Modifier.testTag("confirm-logout-button"),
                 ) {
                     Text(
-                        text = stringResource(R.string.logout),
+                        text = stringResource(R.string.common_logout),
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
@@ -1000,7 +1000,7 @@ fun SettingsScreen(
             ) {
                 Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.logout))
+                Text(stringResource(R.string.common_logout))
             }
 
             // Emergency wipe
