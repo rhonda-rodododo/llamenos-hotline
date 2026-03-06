@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Main dashboard screen shown after successful authentication. Uses a native iOS
-/// grouped List layout with summary sections, connection status, shift info,
-/// activity stats, and quick action navigation links.
+/// Main dashboard screen shown after successful authentication. Uses a branded
+/// ScrollView layout with hero shift card, activity stats, quick actions grid,
+/// identity strip, and recent notes.
 struct DashboardView: View {
     @Environment(AppState.self) private var appState
     @Environment(Router.self) private var router
@@ -13,39 +13,42 @@ struct DashboardView: View {
         let vm = resolvedViewModel
 
         NavigationStack {
-            List {
-                // Identity & connection section
-                identitySection
-
-                // Quick actions (placed early for reachability)
-                quickActionsSection
-
-                // Shift status section
-                shiftSection(vm: vm)
-
-                // Activity stats section
-                activitySection(vm: vm)
-
-                // Recent notes preview
-                if !vm.recentNotes.isEmpty {
-                    recentNotesSection(vm: vm)
-                }
-
-                // Error message
-                if let error = vm.errorMessage {
-                    Section {
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                            Text(error)
-                                .font(.brand(.footnote))
-                                .foregroundStyle(.secondary)
-                        }
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Hidden npub for accessibility (BrandCard overlay blocks child identifiers)
+                    if let npub = appState.cryptoService.npub {
+                        Text(npub)
+                            .font(.brandMono(.caption))
+                            .accessibilityIdentifier("dashboard-npub")
+                            .frame(height: 0)
+                            .clipped()
                     }
-                    .accessibilityIdentifier("dashboard-error")
+
+                    // 1. Hero shift card
+                    heroShiftCard(vm: vm)
+
+                    // 2. Identity & connection strip
+                    identityConnectionStrip
+
+                    // 3. Activity stats row
+                    activityStatsRow(vm: vm)
+
+                    // 4. Quick actions grid
+                    quickActionsGrid
+
+                    // 5. Recent notes section
+                    if !vm.recentNotes.isEmpty {
+                        recentNotesSection(vm: vm)
+                    }
+
+                    // 6. Error banner
+                    if let error = vm.errorMessage {
+                        errorBanner(error)
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
             }
-            .listStyle(.insetGrouped)
             .navigationTitle(NSLocalizedString("dashboard_title", comment: "Dashboard"))
             .navigationBarTitleDisplayMode(.large)
             .accessibilityIdentifier("dashboard-title")
@@ -70,6 +73,8 @@ struct DashboardView: View {
                     ContactsView()
                 case .blasts:
                     BlastsView()
+                case .help:
+                    HelpView()
                 }
             }
             .task {
@@ -82,119 +87,184 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - Identity Section
-
-    private var identitySection: some View {
-        Section {
-            if let npub = appState.cryptoService.npub {
-                LabeledContent {
-                    Text(npub.truncatedNpub())
-                        .font(.brandMono(.caption))
-                        .accessibilityIdentifier("dashboard-npub")
-                } label: {
-                    Label(
-                        NSLocalizedString("dashboard_identity", comment: "Identity"),
-                        systemImage: "person.circle.fill"
-                    )
-                }
-            }
-
-            if let hubURL = appState.authService.hubURL {
-                LabeledContent {
-                    Text(hubURL)
-                        .font(.brand(.caption))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .accessibilityIdentifier("dashboard-hub-url")
-                } label: {
-                    Label(
-                        NSLocalizedString("dashboard_hub", comment: "Hub"),
-                        systemImage: "server.rack"
-                    )
-                }
-            }
-
-            LabeledContent {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(appState.webSocketService.connectionState.color)
-                        .frame(width: 8, height: 8)
-                    Text(appState.webSocketService.connectionState.displayText)
-                        .font(.brand(.caption))
-                }
-            } label: {
-                Label(
-                    NSLocalizedString("dashboard_connection", comment: "Connection"),
-                    systemImage: "wifi"
-                )
-            }
-            .accessibilityIdentifier("connection-status")
-        }
-    }
-
-    // MARK: - Shift Section
+    // MARK: - Hero Shift Card
 
     @ViewBuilder
-    private func shiftSection(vm: DashboardViewModel) -> some View {
-        Section(NSLocalizedString("dashboard_shift_status", comment: "Shift")) {
-            HStack {
-                Label(
-                    vm.isOnShift
-                        ? NSLocalizedString("dashboard_on_shift", comment: "On Shift")
-                        : NSLocalizedString("dashboard_off_shift", comment: "Off Shift"),
-                    systemImage: "clock.badge.checkmark"
-                )
-                .accessibilityIdentifier("shift-status-text")
+    private func heroShiftCard(vm: DashboardViewModel) -> some View {
+        BrandCard {
+            VStack(spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            StatusDot(status: vm.isOnShift ? .active : .inactive, animated: vm.isOnShift)
+                            Text(vm.isOnShift
+                                ? NSLocalizedString("dashboard_on_shift", comment: "On Shift")
+                                : NSLocalizedString("dashboard_off_shift", comment: "Off Shift"))
+                                .font(.brand(.headline))
+                                .foregroundStyle(Color.brandForeground)
+                        }
+                        .accessibilityIdentifier("shift-status-text")
 
-                Spacer()
+                        if vm.isOnShift {
+                            Text(vm.elapsedTimeDisplay)
+                                .font(.brandMono(.title2))
+                                .foregroundStyle(Color.statusActive)
+                                .contentTransition(.numericText())
+                                .accessibilityIdentifier("shift-elapsed-timer")
+                        }
+                    }
 
-                shiftStatusBadge(vm.shiftStatus)
+                    Spacer()
 
-                if vm.isOnShift {
-                    Text(vm.elapsedTimeDisplay)
-                        .font(.brandMono(.body))
-                        .foregroundStyle(.green)
-                        .contentTransition(.numericText())
-                        .accessibilityIdentifier("shift-elapsed-timer")
+                    shiftStatusBadge(vm.shiftStatus)
                 }
             }
+            .padding(16)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("shift-status-card")
     }
 
-    // MARK: - Activity Section
+    // MARK: - Activity Stats Row
 
     @ViewBuilder
-    private func activitySection(vm: DashboardViewModel) -> some View {
-        Section(NSLocalizedString("dashboard_activity", comment: "Activity")) {
-            LabeledContent {
-                Text("\(vm.activeCallCount)")
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.brandPrimary)
-                    .contentTransition(.numericText())
-                    .accessibilityIdentifier("active-call-count")
-            } label: {
-                Label(
-                    NSLocalizedString("dashboard_active_calls", comment: "Active Calls"),
-                    systemImage: "phone.arrow.down.left"
-                )
+    private func activityStatsRow(vm: DashboardViewModel) -> some View {
+        HStack(spacing: 12) {
+            BrandCard {
+                VStack(spacing: 4) {
+                    Text("\(vm.activeCallCount)")
+                        .font(.brand(.title))
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.brandPrimary)
+                        .contentTransition(.numericText())
+                        .accessibilityIdentifier("active-call-count")
+                    Text(NSLocalizedString("dashboard_calls", comment: "Calls"))
+                        .font(.brand(.caption))
+                        .foregroundStyle(Color.brandMutedForeground)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(12)
             }
             .accessibilityIdentifier("active-calls-card")
 
-            LabeledContent {
-                Text("\(vm.recentNoteCount)")
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.brandAccent)
-                    .contentTransition(.numericText())
-                    .accessibilityIdentifier("recent-note-count")
-            } label: {
-                Label(
-                    NSLocalizedString("dashboard_recent_notes", comment: "Recent Notes"),
-                    systemImage: "note.text"
-                )
+            BrandCard {
+                VStack(spacing: 4) {
+                    Text("\(vm.recentNoteCount)")
+                        .font(.brand(.title))
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.brandAccent)
+                        .contentTransition(.numericText())
+                        .accessibilityIdentifier("recent-note-count")
+                    Text(NSLocalizedString("dashboard_notes", comment: "Notes"))
+                        .font(.brand(.caption))
+                        .foregroundStyle(Color.brandMutedForeground)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(12)
             }
             .accessibilityIdentifier("recent-notes-card")
+        }
+    }
+
+    // MARK: - Quick Actions Grid
+
+    private var quickActionsGrid: some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            quickActionCard(
+                title: NSLocalizedString("dashboard_reports", comment: "Reports"),
+                icon: "doc.text.fill",
+                destination: .reports,
+                accessibilityID: "dashboard-reports-action"
+            )
+
+            if appState.isAdmin {
+                quickActionCard(
+                    title: NSLocalizedString("dashboard_contacts", comment: "Contacts"),
+                    icon: "person.crop.circle.badge.clock",
+                    destination: .contacts,
+                    accessibilityID: "dashboard-contacts-action"
+                )
+
+                quickActionCard(
+                    title: NSLocalizedString("dashboard_blasts", comment: "Message Blasts"),
+                    icon: "megaphone.fill",
+                    destination: .blasts,
+                    accessibilityID: "dashboard-blasts-action"
+                )
+            }
+
+            quickActionCard(
+                title: NSLocalizedString("dashboard_help", comment: "Help"),
+                icon: "questionmark.circle.fill",
+                destination: .help,
+                accessibilityID: "dashboard-help-action"
+            )
+        }
+    }
+
+    private func quickActionCard(title: String, icon: String, destination: QuickActionDestination, accessibilityID: String) -> some View {
+        Button {
+            quickActionDestination = destination
+        } label: {
+            BrandCard {
+                VStack(spacing: 8) {
+                    Image(systemName: icon)
+                        .font(.title2)
+                        .foregroundStyle(Color.brandPrimary)
+                    Text(title)
+                        .font(.brand(.caption))
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.brandForeground)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(accessibilityID)
+    }
+
+    // MARK: - Identity & Connection Strip
+
+    private var identityConnectionStrip: some View {
+        BrandCard(padding: 12) {
+            VStack(spacing: 8) {
+                if let npub = appState.cryptoService.npub {
+                    CopyableField(
+                        label: NSLocalizedString("dashboard_identity", comment: "Identity"),
+                        value: npub
+                    )
+                }
+
+                Divider()
+
+                HStack {
+                    StatusDot(status: connectionDotState, animated: appState.webSocketService.connectionState == .connected)
+                    Text(appState.webSocketService.connectionState.displayText)
+                        .font(.brand(.caption))
+                        .foregroundStyle(Color.brandMutedForeground)
+
+                    Spacer()
+
+                    if let hubURL = appState.authService.hubURL {
+                        Text(hubURL)
+                            .font(.brand(.caption))
+                            .foregroundStyle(Color.brandMutedForeground)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+                .accessibilityIdentifier("connection-status")
+            }
+        }
+        .accessibilityIdentifier("dashboard-connection-card")
+    }
+
+    private var connectionDotState: StatusDot.Status {
+        switch appState.webSocketService.connectionState {
+        case .connected: return .active
+        case .connecting, .reconnecting(_): return .warning
+        case .disconnected: return .inactive
         }
     }
 
@@ -202,96 +272,61 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func recentNotesSection(vm: DashboardViewModel) -> some View {
-        Section(NSLocalizedString("dashboard_recent_notes", comment: "Recent Notes")) {
-            ForEach(vm.recentNotes) { note in
-                HStack(alignment: .top, spacing: 10) {
-                    Text(note.preview)
-                        .font(.brand(.caption))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(NSLocalizedString("dashboard_recent_notes", comment: "Recent Notes"))
+                .font(.brand(.headline))
+                .foregroundStyle(Color.brandForeground)
+                .padding(.leading, 4)
 
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(note.createdAt.formatted(date: .omitted, time: .shortened))
-                            .font(.brand(.footnote))
-                            .foregroundStyle(.tertiary)
+            ForEach(vm.recentNotes.prefix(3)) { note in
+                BrandCard {
+                    HStack(alignment: .top, spacing: 10) {
+                        Text(note.preview)
+                            .font(.brand(.caption))
+                            .foregroundStyle(Color.brandForeground)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                        HStack(spacing: 4) {
-                            if note.hasCall {
-                                Image(systemName: "phone.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(Color.brandPrimary)
-                            }
-                            if note.hasConversation {
-                                Image(systemName: "message.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(.green)
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(note.createdAt.formatted(date: .omitted, time: .shortened))
+                                .font(.brand(.footnote))
+                                .foregroundStyle(Color.brandMutedForeground)
+
+                            HStack(spacing: 4) {
+                                if note.hasCall {
+                                    Image(systemName: "phone.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.brandPrimary)
+                                }
+                                if note.hasConversation {
+                                    Image(systemName: "message.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.statusActive)
+                                }
                             }
                         }
                     }
+                    .padding(12)
                 }
                 .accessibilityIdentifier("recent-note-\(note.id)")
             }
         }
     }
 
-    // MARK: - Quick Actions Section
+    // MARK: - Error Banner
 
-    private var quickActionsSection: some View {
-        Section {
-            Button {
-                quickActionDestination = .reports
-            } label: {
-                HStack {
-                    Label(
-                        NSLocalizedString("dashboard_reports", comment: "Reports"),
-                        systemImage: "doc.text.fill"
-                    )
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+    private func errorBanner(_ error: String) -> some View {
+        BrandCard {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Color.brandAccent)
+                Text(error)
+                    .font(.brand(.footnote))
+                    .foregroundStyle(Color.brandMutedForeground)
             }
-            .foregroundStyle(.primary)
-            .accessibilityIdentifier("dashboard-reports-action")
-
-            if appState.isAdmin {
-                Button {
-                    quickActionDestination = .contacts
-                } label: {
-                    HStack {
-                        Label(
-                            NSLocalizedString("dashboard_contacts", comment: "Contacts"),
-                            systemImage: "person.crop.circle.badge.clock"
-                        )
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-                .foregroundStyle(.primary)
-                .accessibilityIdentifier("dashboard-contacts-action")
-
-                Button {
-                    quickActionDestination = .blasts
-                } label: {
-                    HStack {
-                        Label(
-                            NSLocalizedString("dashboard_blasts", comment: "Message Blasts"),
-                            systemImage: "megaphone.fill"
-                        )
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-                .foregroundStyle(.primary)
-                .accessibilityIdentifier("dashboard-blasts-action")
-            }
+            .padding(12)
         }
+        .accessibilityIdentifier("dashboard-error")
     }
 
     // MARK: - Quick Action Destination
@@ -300,6 +335,7 @@ struct DashboardView: View {
         case reports
         case contacts
         case blasts
+        case help
     }
 
     // MARK: - Shift Status Badge
