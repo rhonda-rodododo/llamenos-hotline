@@ -33,19 +33,19 @@ struct HelpView: View {
         Section {
             securityRow(
                 icon: "lock.fill",
-                color: .green,
+                color: Color.statusActive,
                 title: NSLocalizedString("help_security_notes", comment: "Notes"),
                 detail: NSLocalizedString("help_security_notes_detail", comment: "End-to-end encrypted")
             )
             securityRow(
                 icon: "lock.fill",
-                color: .green,
+                color: Color.statusActive,
                 title: NSLocalizedString("help_security_reports", comment: "Reports"),
                 detail: NSLocalizedString("help_security_reports_detail", comment: "End-to-end encrypted")
             )
             securityRow(
                 icon: "key.fill",
-                color: .blue,
+                color: Color.brandPrimary,
                 title: NSLocalizedString("help_security_auth", comment: "Authentication"),
                 detail: NSLocalizedString("help_security_auth_detail", comment: "Nostr keypair + WebAuthn")
             )
@@ -56,7 +56,13 @@ struct HelpView: View {
                 detail: NSLocalizedString("help_security_sessions_detail", comment: "Encrypted device tokens")
             )
         } header: {
-            Text(NSLocalizedString("help_security_header", comment: "Security Overview"))
+            Label {
+                Text(NSLocalizedString("help_security_header", comment: "Security Overview"))
+            } icon: {
+                Image(systemName: "shield.lefthalf.filled")
+                    .foregroundStyle(Color.brandPrimary)
+            }
+            .font(.brand(.headline))
         }
         .accessibilityIdentifier("help-security-section")
     }
@@ -66,7 +72,7 @@ struct HelpView: View {
         LabeledContent {
             Text(detail)
                 .font(.brand(.subheadline))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
         } label: {
             Label {
                 Text(title)
@@ -102,7 +108,13 @@ struct HelpView: View {
                 detail: NSLocalizedString("help_vol_safety_detail", comment: "Lock the app when stepping away. Use PIN protection to prevent unauthorized access. If you're in a dangerous situation, use Emergency Wipe in Settings to permanently delete all app data from this device.")
             )
         } header: {
-            Text(NSLocalizedString("help_volunteer_guide_header", comment: "Volunteer Guide"))
+            Label {
+                Text(NSLocalizedString("help_volunteer_guide_header", comment: "Volunteer Guide"))
+            } icon: {
+                Image(systemName: "person.fill")
+                    .foregroundStyle(Color.brandPrimary)
+            }
+            .font(.brand(.headline))
         }
         .accessibilityIdentifier("help-volunteer-guide")
     }
@@ -132,7 +144,13 @@ struct HelpView: View {
                 detail: NSLocalizedString("help_admin_reports_detail", comment: "Review incident reports filed by volunteers. View contact timelines showing all interactions with a caller. Caller identifiers are HMAC-hashed for privacy.")
             )
         } header: {
-            Text(NSLocalizedString("help_admin_guide_header", comment: "Admin Guide"))
+            Label {
+                Text(NSLocalizedString("help_admin_guide_header", comment: "Admin Guide"))
+            } icon: {
+                Image(systemName: "shield.fill")
+                    .foregroundStyle(Color.brandPrimary)
+            }
+            .font(.brand(.headline))
         }
         .accessibilityIdentifier("help-admin-guide")
     }
@@ -154,7 +172,13 @@ struct HelpView: View {
                 answer: NSLocalizedString("help_faq_gs_a3", comment: "Yes. Use the Device Link feature in Settings to securely transfer your identity to another device using a QR code and encrypted key exchange.")
             )
         } header: {
-            Text(NSLocalizedString("help_faq_getting_started_header", comment: "FAQ: Getting Started"))
+            Label {
+                Text(NSLocalizedString("help_faq_getting_started_header", comment: "FAQ: Getting Started"))
+            } icon: {
+                Image(systemName: "questionmark.circle.fill")
+                    .foregroundStyle(Color.brandPrimary)
+            }
+            .font(.brand(.headline))
         }
         .accessibilityIdentifier("help-faq-section")
     }
@@ -170,7 +194,13 @@ struct HelpView: View {
                 answer: NSLocalizedString("help_faq_calls_a2", comment: "If you don't answer, the call continues ringing for other on-shift volunteers. The first volunteer to pick up handles the call. Missed calls are logged in the dashboard.")
             )
         } header: {
-            Text(NSLocalizedString("help_faq_calls_header", comment: "FAQ: Calls"))
+            Label {
+                Text(NSLocalizedString("help_faq_calls_header", comment: "FAQ: Calls"))
+            } icon: {
+                Image(systemName: "phone.fill")
+                    .foregroundStyle(Color.brandPrimary)
+            }
+            .font(.brand(.headline))
         }
     }
 
@@ -185,7 +215,13 @@ struct HelpView: View {
                 answer: NSLocalizedString("help_faq_notes_a2", comment: "Notes are append-only for security. You can add additional notes but cannot modify existing ones. This ensures a reliable audit trail.")
             )
         } header: {
-            Text(NSLocalizedString("help_faq_notes_header", comment: "FAQ: Notes"))
+            Label {
+                Text(NSLocalizedString("help_faq_notes_header", comment: "FAQ: Notes"))
+            } icon: {
+                Image(systemName: "note.text")
+                    .foregroundStyle(Color.brandPrimary)
+            }
+            .font(.brand(.headline))
         }
     }
 
@@ -204,7 +240,13 @@ struct HelpView: View {
                 answer: NSLocalizedString("help_faq_admin_a3", comment: "Yes. The Audit Log in the Admin Panel shows all actions: calls answered, notes created, shifts started/ended, and more. The log is tamper-evident with hash chaining.")
             )
         } header: {
-            Text(NSLocalizedString("help_faq_admin_header", comment: "FAQ: Admin"))
+            Label {
+                Text(NSLocalizedString("help_faq_admin_header", comment: "FAQ: Admin"))
+            } icon: {
+                Image(systemName: "gearshape.fill")
+                    .foregroundStyle(Color.brandPrimary)
+            }
+            .font(.brand(.headline))
         }
     }
 
@@ -234,11 +276,12 @@ struct HelpView: View {
         DisclosureGroup {
             Text(detail)
                 .font(.brand(.subheadline))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
                 .padding(.vertical, 4)
         } label: {
             Text(title)
                 .font(.brand(.body))
+                .foregroundStyle(Color.brandForeground)
         }
     }
 
@@ -247,11 +290,12 @@ struct HelpView: View {
         DisclosureGroup {
             Text(answer)
                 .font(.brand(.subheadline))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
                 .padding(.vertical, 4)
         } label: {
             Text(question)
                 .font(.brand(.body))
+                .foregroundStyle(Color.brandForeground)
         }
     }
 

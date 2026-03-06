@@ -80,7 +80,7 @@ struct CustomFieldEditView: View {
                                     options.remove(at: index)
                                 } label: {
                                     Image(systemName: "minus.circle.fill")
-                                        .foregroundStyle(.red)
+                                        .foregroundStyle(Color.brandDestructive)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -98,7 +98,7 @@ struct CustomFieldEditView: View {
                                 newOption = ""
                             } label: {
                                 Image(systemName: "plus.circle.fill")
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(Color.statusActive)
                             }
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("add-option-button")

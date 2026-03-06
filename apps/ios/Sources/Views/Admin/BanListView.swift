@@ -24,6 +24,7 @@ struct BanListView: View {
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.body)
+                        .foregroundStyle(Color.brandPrimary)
                 }
                 .accessibilityIdentifier("add-ban-button")
                 .accessibilityLabel(NSLocalizedString("admin_add_ban", comment: "Add Ban"))
@@ -113,7 +114,7 @@ struct BanListView: View {
                     Section {
                         Text(error)
                             .font(.brand(.footnote))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.brandDestructive)
                     }
                 }
             }
@@ -179,7 +180,7 @@ struct BanListView: View {
                 .scaleEffect(1.2)
             Text(NSLocalizedString("admin_loading_bans", comment: "Loading ban list..."))
                 .font(.brand(.subheadline))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("bans-loading")
@@ -199,11 +200,11 @@ struct BanRowView: View {
             HStack {
                 Image(systemName: "number")
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.brandDestructive)
 
                 Text(ban.truncatedHash)
                     .font(.brandMono(.body))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.brandForeground)
                     .lineLimit(1)
 
                 Spacer()
@@ -213,7 +214,7 @@ struct BanRowView: View {
                 } label: {
                     Image(systemName: "trash")
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.brandDestructive)
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("delete-ban-\(ban.id)")
@@ -224,7 +225,7 @@ struct BanRowView: View {
             if let reason = ban.reason, !reason.isEmpty {
                 Text(reason)
                     .font(.brand(.subheadline))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.brandMutedForeground)
                     .lineLimit(2)
             }
 

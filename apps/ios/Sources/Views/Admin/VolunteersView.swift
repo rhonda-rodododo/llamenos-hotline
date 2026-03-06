@@ -42,7 +42,7 @@ struct VolunteersView: View {
                         title: NSLocalizedString("admin_total_members", comment: "Total"),
                         value: "\(viewModel.volunteers.count)",
                         icon: "person.3.fill",
-                        color: .blue
+                        color: Color.brandPrimary
                     )
 
                     StatCard(
@@ -56,7 +56,7 @@ struct VolunteersView: View {
                         title: NSLocalizedString("admin_active_count", comment: "Active"),
                         value: "\(viewModel.volunteers.filter { $0.volunteerStatus == .active }.count)",
                         icon: "checkmark.circle.fill",
-                        color: .green
+                        color: Color.statusActive
                     )
                 }
                 .listRowInsets(EdgeInsets())
@@ -123,7 +123,7 @@ struct VolunteersView: View {
                 .scaleEffect(1.2)
             Text(NSLocalizedString("admin_loading_volunteers", comment: "Loading members..."))
                 .font(.brand(.subheadline))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("volunteers-loading")
@@ -157,13 +157,13 @@ struct VolunteerRowView: View {
                 Text(volunteer.displayLabel)
                     .font(.brand(.body))
                     .fontWeight(.medium)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.brandForeground)
                     .lineLimit(1)
 
                 HStack(spacing: 6) {
                     Text(volunteer.truncatedPubkey)
                         .font(.brandMono(.caption))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.brandMutedForeground)
                         .lineLimit(1)
 
                     statusBadge
@@ -226,9 +226,9 @@ struct VolunteerRowView: View {
 
     private var statusColor: Color {
         switch volunteer.volunteerStatus {
-        case .active: return .green
+        case .active: return Color.statusActive
         case .inactive: return .secondary
-        case .suspended: return .red
+        case .suspended: return Color.brandDestructive
         }
     }
 }
@@ -250,16 +250,16 @@ struct StatCard: View {
             Text(value)
                 .font(.brand(.title3))
                 .fontWeight(.bold)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.brandForeground)
             Text(title)
                 .font(.brand(.caption2))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color(.systemGray6))
+                .fill(Color.brandCard)
         )
     }
 }

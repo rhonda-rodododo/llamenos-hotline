@@ -104,7 +104,7 @@ struct CustomFieldsView: View {
                 .scaleEffect(1.2)
             Text(NSLocalizedString("fields_loading", comment: "Loading custom fields..."))
                 .font(.brand(.subheadline))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("custom-fields-loading")
@@ -133,10 +133,10 @@ struct FieldRowView: View {
                     Text(NSLocalizedString("field_required", comment: "Required"))
                         .font(.brand(.caption2))
                         .fontWeight(.medium)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.brandDestructive)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(Color.red.opacity(0.12)))
+                        .background(Capsule().fill(Color.brandDestructive.opacity(0.12)))
                 }
 
                 Spacer()
@@ -150,10 +150,10 @@ struct FieldRowView: View {
         Text(type.rawValue.capitalized)
             .font(.brand(.caption2))
             .fontWeight(.medium)
-            .foregroundStyle(.blue)
+            .foregroundStyle(Color.brandPrimary)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Capsule().fill(Color.blue.opacity(0.12)))
+            .background(Capsule().fill(Color.brandPrimary.opacity(0.12)))
     }
 
     @ViewBuilder

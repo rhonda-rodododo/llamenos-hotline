@@ -118,7 +118,7 @@ struct AuditLogView: View {
                 .scaleEffect(1.2)
             Text(NSLocalizedString("admin_loading_audit", comment: "Loading audit log..."))
                 .font(.brand(.subheadline))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("audit-loading")
@@ -146,7 +146,7 @@ struct AuditEntryRowView: View {
                     Text(entry.actionDisplay)
                         .font(.brand(.subheadline))
                         .fontWeight(.medium)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.brandForeground)
 
                     if let date = entry.timestampDate {
                         Text(date.formatted(date: .abbreviated, time: .shortened))
@@ -242,11 +242,11 @@ struct AuditEntryRowView: View {
 
     private var actionColor: Color {
         let action = entry.action.lowercased()
-        if action.contains("create") || action.contains("add") { return .green }
-        if action.contains("delete") || action.contains("remove") { return .red }
+        if action.contains("create") || action.contains("add") { return Color.statusActive }
+        if action.contains("delete") || action.contains("remove") { return Color.brandDestructive }
         if action.contains("update") || action.contains("edit") { return .orange }
-        if action.contains("login") || action.contains("auth") { return .blue }
-        if action.contains("ban") { return .red }
+        if action.contains("login") || action.contains("auth") { return Color.brandPrimary }
+        if action.contains("ban") { return Color.brandDestructive }
         return .secondary
     }
 }

@@ -24,6 +24,7 @@ struct InviteView: View {
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.body)
+                        .foregroundStyle(Color.brandPrimary)
                 }
                 .accessibilityIdentifier("create-invite-button")
                 .accessibilityLabel(NSLocalizedString("admin_create_invite", comment: "Create Invite"))
@@ -127,7 +128,7 @@ struct InviteView: View {
                     Section {
                         Text(error)
                             .font(.brand(.footnote))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.brandDestructive)
                     }
                 }
             }
@@ -186,7 +187,7 @@ struct InviteView: View {
                 .scaleEffect(1.2)
             Text(NSLocalizedString("admin_loading_invites", comment: "Loading invites..."))
                 .font(.brand(.subheadline))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("invites-loading")
@@ -208,7 +209,7 @@ struct InviteRowView: View {
                 Text(invite.code)
                     .font(.brandMono(.body))
                     .fontWeight(.medium)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.brandForeground)
                     .lineLimit(1)
 
                 Spacer()
@@ -220,7 +221,7 @@ struct InviteRowView: View {
                     } label: {
                         if showCopied {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Color.statusActive)
                         } else {
                             Image(systemName: "doc.on.doc")
                                 .foregroundStyle(Color.brandPrimary)
@@ -287,10 +288,10 @@ struct InviteRowView: View {
                         .font(.brand(.caption2))
                         .fontWeight(.medium)
                 }
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.statusActive)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Capsule().fill(Color.green.opacity(0.12)))
+                .background(Capsule().fill(Color.statusActive.opacity(0.12)))
             } else if invite.isExpired {
                 HStack(spacing: 3) {
                     Image(systemName: "clock.badge.exclamationmark")
@@ -299,10 +300,10 @@ struct InviteRowView: View {
                         .font(.brand(.caption2))
                         .fontWeight(.medium)
                 }
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.brandDestructive)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Capsule().fill(Color.red.opacity(0.12)))
+                .background(Capsule().fill(Color.brandDestructive.opacity(0.12)))
             } else {
                 HStack(spacing: 3) {
                     Image(systemName: "circle.fill")

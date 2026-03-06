@@ -84,6 +84,7 @@ struct AdminTabView: View {
                 comment: "Are you sure you want to delete this item? This action cannot be undone."
             ))
         }
+        .tint(Color.brandPrimary)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("admin-tab-view")
     }

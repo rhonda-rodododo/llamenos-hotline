@@ -83,7 +83,7 @@ struct DeviceLinkView: View {
                     comment: "Open Settings > Link Device on your desktop app and scan the QR code shown there."
                 ))
                 .font(.brand(.subheadline))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
             }
@@ -99,7 +99,7 @@ struct DeviceLinkView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.accentColor.opacity(0.3), lineWidth: 2)
+                        .stroke(Color.brandPrimary.opacity(0.3), lineWidth: 2)
                 )
                 .padding(.horizontal, 24)
                 .accessibilityIdentifier("qr-scanner")
@@ -138,7 +138,7 @@ struct DeviceLinkView: View {
         .padding(32)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemGray6))
+                .fill(Color.brandCard)
         )
         .padding(.horizontal, 24)
     }
@@ -164,7 +164,7 @@ struct DeviceLinkView: View {
                 comment: "Establishing secure connection with your desktop."
             ))
             .font(.brand(.subheadline))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.brandMutedForeground)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 32)
 
@@ -184,7 +184,7 @@ struct DeviceLinkView: View {
             VStack(spacing: 16) {
                 Image(systemName: "checkmark.shield.fill")
                     .font(.system(size: 48))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.statusActive)
                     .accessibilityHidden(true)
 
                 Text(NSLocalizedString(
@@ -199,7 +199,7 @@ struct DeviceLinkView: View {
                     comment: "Confirm this code matches the one shown on your desktop:"
                 ))
                 .font(.brand(.subheadline))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
             }
@@ -209,11 +209,11 @@ struct DeviceLinkView: View {
                 ForEach(Array(sasCode.enumerated()), id: \.offset) { _, digit in
                     Text(String(digit))
                         .font(.system(size: 36, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color.brandPrimary)
                         .frame(width: 44, height: 56)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(.systemGray6))
+                                .fill(Color.brandCard)
                         )
                 }
             }
@@ -238,7 +238,7 @@ struct DeviceLinkView: View {
                     .padding(.vertical, 14)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.green)
+                .tint(Color.statusActive)
                 .accessibilityIdentifier("confirm-sas-code")
 
                 Button(role: .destructive) {
@@ -283,7 +283,7 @@ struct DeviceLinkView: View {
                 comment: "Decrypting and importing your key to this device."
             ))
             .font(.brand(.subheadline))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.brandMutedForeground)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 32)
 
@@ -300,7 +300,7 @@ struct DeviceLinkView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 72))
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.statusActive)
                 .accessibilityHidden(true)
 
             Text(NSLocalizedString(
@@ -315,7 +315,7 @@ struct DeviceLinkView: View {
                 comment: "Your identity has been securely transferred to this device. Set a PIN to protect it."
             ))
             .font(.brand(.subheadline))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.brandMutedForeground)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 32)
 
@@ -345,7 +345,7 @@ struct DeviceLinkView: View {
 
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 56))
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.brandDestructive)
                 .accessibilityHidden(true)
 
             Text(NSLocalizedString(
@@ -357,7 +357,7 @@ struct DeviceLinkView: View {
 
             Text(message)
                 .font(.brand(.subheadline))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
 
