@@ -31,12 +31,12 @@ struct LoadingOverlay: View {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .scaleEffect(1.2)
-                    .tint(.white)
+                    .tint(.brandPrimary)
 
                 if let message {
                     Text(message)
-                        .font(.subheadline)
-                        .foregroundStyle(.white)
+                        .font(.brand(.subheadline))
+                        .foregroundStyle(Color.brandForeground)
                         .multilineTextAlignment(.center)
                 }
             }
@@ -44,6 +44,10 @@ struct LoadingOverlay: View {
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(.ultraThinMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.brandBorder, lineWidth: 1)
             )
         }
         .accessibilityIdentifier("loading-overlay")

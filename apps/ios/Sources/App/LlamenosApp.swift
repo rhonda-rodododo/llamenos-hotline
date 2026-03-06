@@ -5,6 +5,17 @@ import SwiftUI
 /// lock timeout (M26: user-configurable), and screenshot protection (M28).
 @main
 struct LlamenosApp: App {
+    init() {
+        let largeTitleAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont(name: "DMSans-Bold", size: 34) ?? UIFont.systemFont(ofSize: 34, weight: .bold)
+        ]
+        let inlineTitleAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont(name: "DMSans-SemiBold", size: 17) ?? UIFont.systemFont(ofSize: 17, weight: .semibold)
+        ]
+        UINavigationBar.appearance().largeTitleTextAttributes = largeTitleAttrs
+        UINavigationBar.appearance().titleTextAttributes = inlineTitleAttrs
+    }
+
     @Environment(\.scenePhase) private var scenePhase
     @State private var appState = AppState()
     @State private var router = Router()
