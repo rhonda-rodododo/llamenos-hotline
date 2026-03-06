@@ -27,14 +27,14 @@ struct DashboardView: View {
                     // 1. Hero shift card
                     heroShiftCard(vm: vm)
 
-                    // 2. Identity & connection strip
+                    // 2. Quick actions grid (early for reachability)
+                    quickActionsGrid
+
+                    // 3. Identity & connection strip
                     identityConnectionStrip
 
-                    // 3. Activity stats row
+                    // 4. Activity stats row
                     activityStatsRow(vm: vm)
-
-                    // 4. Quick actions grid
-                    quickActionsGrid
 
                     // 5. Recent notes section
                     if !vm.recentNotes.isEmpty {
@@ -169,36 +169,40 @@ struct DashboardView: View {
     // MARK: - Quick Actions Grid
 
     private var quickActionsGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            quickActionCard(
-                title: NSLocalizedString("dashboard_reports", comment: "Reports"),
-                icon: "doc.text.fill",
-                destination: .reports,
-                accessibilityID: "dashboard-reports-action"
-            )
-
-            if appState.isAdmin {
+        Grid(horizontalSpacing: 12, verticalSpacing: 12) {
+            GridRow {
                 quickActionCard(
-                    title: NSLocalizedString("dashboard_contacts", comment: "Contacts"),
-                    icon: "person.crop.circle.badge.clock",
-                    destination: .contacts,
-                    accessibilityID: "dashboard-contacts-action"
+                    title: NSLocalizedString("dashboard_reports", comment: "Reports"),
+                    icon: "doc.text.fill",
+                    destination: .reports,
+                    accessibilityID: "dashboard-reports-action"
                 )
 
                 quickActionCard(
-                    title: NSLocalizedString("dashboard_blasts", comment: "Message Blasts"),
-                    icon: "megaphone.fill",
-                    destination: .blasts,
-                    accessibilityID: "dashboard-blasts-action"
+                    title: NSLocalizedString("dashboard_help", comment: "Help"),
+                    icon: "questionmark.circle.fill",
+                    destination: .help,
+                    accessibilityID: "dashboard-help-action"
                 )
             }
 
-            quickActionCard(
-                title: NSLocalizedString("dashboard_help", comment: "Help"),
-                icon: "questionmark.circle.fill",
-                destination: .help,
-                accessibilityID: "dashboard-help-action"
-            )
+            if appState.isAdmin {
+                GridRow {
+                    quickActionCard(
+                        title: NSLocalizedString("dashboard_contacts", comment: "Contacts"),
+                        icon: "person.crop.circle.badge.clock",
+                        destination: .contacts,
+                        accessibilityID: "dashboard-contacts-action"
+                    )
+
+                    quickActionCard(
+                        title: NSLocalizedString("dashboard_blasts", comment: "Message Blasts"),
+                        icon: "megaphone.fill",
+                        destination: .blasts,
+                        accessibilityID: "dashboard-blasts-action"
+                    )
+                }
+            }
         }
     }
 
@@ -206,19 +210,27 @@ struct DashboardView: View {
         Button {
             quickActionDestination = destination
         } label: {
-            BrandCard {
-                VStack(spacing: 8) {
-                    Image(systemName: icon)
-                        .font(.title2)
-                        .foregroundStyle(Color.brandPrimary)
-                    Text(title)
-                        .font(.brand(.caption))
-                        .fontWeight(.medium)
-                        .foregroundStyle(Color.brandForeground)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(Color.brandPrimary)
+                Text(title)
+                    .font(.brand(.caption))
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.brandForeground)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .padding(.horizontal, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.brandCard)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.brandBorder, lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.04), radius: 2, y: 1)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(accessibilityID)

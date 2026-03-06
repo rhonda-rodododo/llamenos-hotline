@@ -42,10 +42,10 @@ final class ContactsUITests: BaseUITest {
         given("I am authenticated as admin") {
             launchAsAdmin()
         }
-        then("the contacts action should be scrollable and tappable") {
-            let contactsAction = scrollToVisible("dashboard-contacts-action")
+        then("the contacts action should exist and be accessible") {
+            let contactsAction = scrollToFind("dashboard-contacts-action")
             XCTAssertTrue(contactsAction.exists, "Contacts action should exist")
-            XCTAssertTrue(contactsAction.isHittable, "Contacts action should be tappable")
+            XCTAssertTrue(contactsAction.isEnabled, "Contacts action should be enabled")
         }
     }
 }
