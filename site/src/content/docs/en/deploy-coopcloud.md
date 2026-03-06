@@ -5,6 +5,8 @@ description: Deploy Llamenos as a Co-op Cloud recipe for cooperative hosting col
 
 This guide walks you through deploying Llamenos as a [Co-op Cloud](https://coopcloud.tech) recipe. Co-op Cloud uses Docker Swarm with Traefik for TLS termination and the `abra` CLI for standardized app management — ideal for tech co-ops and small hosting collectives.
 
+The recipe is maintained in a [standalone repository](https://github.com/rhonda-rodododo/llamenos-template), auto-published from the main Llamenos repo on each release. The source of truth lives at `deploy/coopcloud/` in the [main repo](https://github.com/rhonda-rodododo/llamenos).
+
 ## Prerequisites
 
 - A server with [Docker Swarm](https://docs.docker.com/engine/swarm/) initialized and [Traefik](https://doc.traefik.io/traefik/) running as the reverse proxy
@@ -19,6 +21,10 @@ If you're new to Co-op Cloud, follow the [Co-op Cloud setup guide](https://docs.
 ```bash
 # Add your server (if not already added)
 abra server add hotline.example.com
+
+# Clone the recipe (abra looks for recipes in ~/.abra/recipes/)
+git clone https://github.com/rhonda-rodododo/llamenos-template.git \
+  ~/.abra/recipes/llamenos
 
 # Create a new Llamenos app
 abra app new llamenos --server hotline.example.com --domain hotline.example.com
@@ -39,7 +45,7 @@ The recipe deploys five services:
 | Service | Image | Purpose |
 |---------|-------|---------|
 | **web** | `nginx:1.27-alpine` | Reverse proxy with Traefik labels |
-| **app** | `ghcr.io/your-org/llamenos` | Node.js application server |
+| **app** | `ghcr.io/rhonda-rodododo/llamenos` | Node.js application server |
 | **db** | `postgres:17-alpine` | PostgreSQL database |
 | **minio** | `minio/minio` | S3-compatible file storage |
 | **relay** | `dockurr/strfry` | Nostr relay for real-time events |
@@ -302,4 +308,5 @@ flowchart TD
 - [Admin Guide](/docs/admin-guide) — configure the hotline
 - [Self-Hosting Overview](/docs/self-hosting) — compare deployment options
 - [Docker Compose deployment](/docs/deploy-docker) — alternative single-server deployment
+- [Recipe repository](https://github.com/rhonda-rodododo/llamenos-template) — Co-op Cloud recipe source
 - [Co-op Cloud documentation](https://docs.coopcloud.tech/) — learn more about the platform

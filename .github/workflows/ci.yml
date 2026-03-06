@@ -531,6 +531,56 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+  # ─── Publish Co-op Cloud Recipe ────────────────────────────
+  publish-recipe:
+    needs: version
+    if: needs.version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: main
+
+      - name: Checkout recipe repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: rhonda-rodododo/llamenos-template
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: recipe
+
+      - name: Sync recipe files
+        run: |
+          # Copy all recipe files from main repo to recipe repo root
+          cp main/deploy/coopcloud/compose.yml recipe/
+          cp main/deploy/coopcloud/compose.*.yml recipe/
+          cp main/deploy/coopcloud/.env.sample recipe/
+          cp main/deploy/coopcloud/abra.sh recipe/
+          cp main/deploy/coopcloud/nginx.conf.tmpl recipe/
+          cp main/deploy/coopcloud/entrypoint.sh.tmpl recipe/
+          cp main/deploy/coopcloud/minio-entrypoint.sh.tmpl recipe/
+          cp main/deploy/coopcloud/pg_backup.sh recipe/
+          cp main/deploy/coopcloud/README.md recipe/
+
+      - name: Commit and tag
+        working-directory: recipe
+        run: |
+          NEW_VERSION="${{ needs.version.outputs.new_version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No recipe changes to commit"
+          else
+            git commit -m "chore: sync recipe from llamenos v${NEW_VERSION}"
+            git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
+            git push origin main --follow-tags
+          fi
+
   # ─── Create GitHub Release ──────────────────────────────────
   release:
     needs: [version, deploy-app]

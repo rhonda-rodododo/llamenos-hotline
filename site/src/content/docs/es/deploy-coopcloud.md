@@ -5,6 +5,8 @@ description: Despliega Llamenos como una receta de Co-op Cloud para colectivos d
 
 Esta guia te lleva paso a paso por el despliegue de Llamenos como una receta de [Co-op Cloud](https://coopcloud.tech). Co-op Cloud usa Docker Swarm con Traefik para terminacion TLS y el CLI `abra` para gestion estandarizada de aplicaciones — ideal para cooperativas tecnologicas y pequenos colectivos de hospedaje.
 
+La receta se mantiene en un [repositorio independiente](https://github.com/rhonda-rodododo/llamenos-template), publicado automaticamente desde el repositorio principal de Llamenos en cada version. La fuente de verdad vive en `deploy/coopcloud/` en el [repositorio principal](https://github.com/rhonda-rodododo/llamenos).
+
 ## Requisitos previos
 
 - Un servidor con [Docker Swarm](https://docs.docker.com/engine/swarm/) inicializado y [Traefik](https://doc.traefik.io/traefik/) ejecutandose como proxy inverso
@@ -19,6 +21,10 @@ Si eres nuevo en Co-op Cloud, sigue primero la [guia de configuracion de Co-op C
 ```bash
 # Agrega tu servidor (si no lo has hecho)
 abra server add hotline.ejemplo.com
+
+# Clona la receta (abra busca recetas en ~/.abra/recipes/)
+git clone https://github.com/rhonda-rodododo/llamenos-template.git \
+  ~/.abra/recipes/llamenos
 
 # Crea una nueva app de Llamenos
 abra app new llamenos --server hotline.ejemplo.com --domain hotline.ejemplo.com
@@ -39,7 +45,7 @@ La receta despliega cinco servicios:
 | Servicio | Imagen | Proposito |
 |----------|--------|-----------|
 | **web** | `nginx:1.27-alpine` | Proxy inverso con etiquetas Traefik |
-| **app** | `ghcr.io/your-org/llamenos` | Servidor de aplicacion Node.js |
+| **app** | `ghcr.io/rhonda-rodododo/llamenos` | Servidor de aplicacion Node.js |
 | **db** | `postgres:17-alpine` | Base de datos PostgreSQL |
 | **minio** | `minio/minio` | Almacenamiento de archivos compatible con S3 |
 | **relay** | `dockurr/strfry` | Relay Nostr para eventos en tiempo real |
@@ -302,4 +308,5 @@ flowchart TD
 - [Guia de Administrador](/docs/admin-guide) — configura la linea
 - [Autoalojamiento](/docs/self-hosting) — compara opciones de despliegue
 - [Despliegue con Docker Compose](/docs/deploy-docker) — despliegue alternativo en servidor unico
+- [Repositorio de la receta](https://github.com/rhonda-rodododo/llamenos-template) — fuente de la receta Co-op Cloud
 - [Documentacion de Co-op Cloud](https://docs.coopcloud.tech/) — aprende mas sobre la plataforma

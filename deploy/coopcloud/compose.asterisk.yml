@@ -28,7 +28,7 @@ services:
       start_period: 15s
 
   asterisk-bridge:
-    image: ghcr.io/your-org/llamenos-asterisk-bridge:${LLAMENOS_TAG:-latest}
+    image: ghcr.io/rhonda-rodododo/llamenos-asterisk-bridge:${LLAMENOS_TAG:-latest}
     networks:
       - internal
     secrets:
