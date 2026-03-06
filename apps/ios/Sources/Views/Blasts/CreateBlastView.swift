@@ -40,6 +40,7 @@ struct CreateBlastView: View {
                 Section(NSLocalizedString("blast_message_section", comment: "Message")) {
                     TextEditor(text: $message)
                         .frame(minHeight: 100)
+                        .font(.brand(.body))
                         .accessibilityIdentifier("blast-message-input")
                 }
 
@@ -79,6 +80,8 @@ struct CreateBlastView: View {
                         }
                     }
                     .disabled(!isFormValid || viewModel.isSending)
+                    .fontWeight(.semibold)
+                    .tint(.brandPrimary)
                     .accessibilityIdentifier("blast-submit-button")
                 }
             }

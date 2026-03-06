@@ -41,18 +41,17 @@ struct ContactTimelineView: View {
             // Summary header
             Section {
                 HStack(spacing: 16) {
-                    Image(systemName: "person.circle.fill")
-                        .font(.system(size: 36))
-                        .foregroundStyle(Color.brandPrimary)
+                    GeneratedAvatar(hash: contactHash, size: 40)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(displayIdentifier)
                             .font(.brandMono(.headline))
+                            .foregroundStyle(Color.brandForeground)
                         Text(String(
                             format: NSLocalizedString("contact_interactions_count", comment: "%d interactions"),
                             vm.total
                         ))
                         .font(.brand(.caption))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.brandMutedForeground)
                     }
                 }
                 .padding(.vertical, 4)
@@ -140,9 +139,14 @@ struct TimelineEventRow: View {
         HStack(alignment: .top, spacing: 12) {
             // Type icon
             Image(systemName: event.eventType.icon)
-                .font(.body)
+                .font(.brand(.body))
                 .foregroundStyle(event.eventType.color)
                 .frame(width: 28, height: 28)
+                .background(
+                    Circle()
+                        .fill(event.eventType.color.opacity(0.12))
+                        .frame(width: 28, height: 28)
+                )
 
             VStack(alignment: .leading, spacing: 4) {
                 // Type + status
@@ -155,11 +159,11 @@ struct TimelineEventRow: View {
                         Text(status)
                             .font(.brand(.caption2))
                             .fontWeight(.medium)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(event.eventType.color)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 1)
                             .background(
-                                Capsule().fill(Color.secondary.opacity(0.12))
+                                Capsule().fill(event.eventType.color.opacity(0.12))
                             )
                     }
                 }

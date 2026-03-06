@@ -149,11 +149,15 @@ struct ContactRowView: View {
     let contact: ContactSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        HStack(spacing: 12) {
+            GeneratedAvatar(hash: contact.contactHash, size: 36)
+
+            VStack(alignment: .leading, spacing: 8) {
             // Identifier
             Text(contact.displayIdentifier)
                 .font(.brandMono(.body))
                 .fontWeight(.medium)
+                .foregroundStyle(Color.brandForeground)
 
             // Interaction badges
             HStack(spacing: 10) {
@@ -161,7 +165,7 @@ struct ContactRowView: View {
                     interactionBadge(icon: "phone.fill", count: contact.callCount, color: Color.brandPrimary)
                 }
                 if contact.conversationCount > 0 {
-                    interactionBadge(icon: "message.fill", count: contact.conversationCount, color: .green)
+                    interactionBadge(icon: "message.fill", count: contact.conversationCount, color: .statusActive)
                 }
                 if contact.noteCount > 0 {
                     interactionBadge(icon: "doc.text.fill", count: contact.noteCount, color: Color.brandDarkTeal)
@@ -175,11 +179,12 @@ struct ContactRowView: View {
                 // Last seen
                 if let date = DateFormatting.parseISO(contact.lastSeen) {
                     Text(date.formatted(date: .abbreviated, time: .shortened))
-                        .font(.brand(.footnote))
-                        .foregroundStyle(.tertiary)
+                        .font(.brand(.caption))
+                        .foregroundStyle(Color.brandMutedForeground)
                 }
             }
-        }
+            } // VStack
+        } // HStack
         .padding(.vertical, 8)
     }
 
@@ -187,7 +192,7 @@ struct ContactRowView: View {
     private func interactionBadge(icon: String, count: Int, color: Color) -> some View {
         HStack(spacing: 3) {
             Image(systemName: icon)
-                .font(.caption)
+                .font(.brand(.caption))
             Text("\(count)")
                 .font(.brand(.caption))
                 .fontWeight(.medium)

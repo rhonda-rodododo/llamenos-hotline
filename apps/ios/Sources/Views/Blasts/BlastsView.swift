@@ -28,7 +28,7 @@ struct BlastsView: View {
                     vm.showCreateSheet = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
-                        .font(.body)
+                        .font(.brand(.body))
                 }
                 .accessibilityIdentifier("create-blast-button")
             }
@@ -59,7 +59,7 @@ struct BlastsView: View {
                         statBadge(
                             label: NSLocalizedString("blast_stat_active", comment: "Active"),
                             count: stats.active,
-                            color: .green
+                            color: .statusActive
                         )
                         statBadge(
                             label: NSLocalizedString("blast_stat_total", comment: "Total"),
@@ -249,7 +249,7 @@ struct BlastRowView: View {
     private func statusBadge(_ status: BlastStatus) -> some View {
         HStack(spacing: 4) {
             Image(systemName: status.icon)
-                .font(.caption)
+                .font(.brand(.caption))
             Text(status.displayName)
                 .font(.brand(.caption))
                 .fontWeight(.medium)

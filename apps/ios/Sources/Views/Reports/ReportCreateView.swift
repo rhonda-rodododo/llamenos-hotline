@@ -72,10 +72,10 @@ struct ReportCreateView: View {
                     Section {
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Color.brandDestructive)
                             Text(error)
                                 .font(.brand(.footnote))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.brandDestructive)
                         }
                     }
                     .accessibilityIdentifier("report-create-error")
@@ -98,6 +98,7 @@ struct ReportCreateView: View {
                     }
                     .disabled(!isFormValid || isSaving)
                     .fontWeight(.semibold)
+                    .tint(.brandPrimary)
                     .accessibilityIdentifier("report-submit-button")
                 }
             }

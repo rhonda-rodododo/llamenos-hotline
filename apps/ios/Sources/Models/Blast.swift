@@ -51,10 +51,10 @@ enum BlastStatus: String, CaseIterable, Sendable {
 
     var color: Color {
         switch self {
-        case .draft: return .secondary
-        case .sent: return .brandPrimary
+        case .draft: return .statusWarning
+        case .sent: return .statusActive
         case .scheduled: return .brandAccent
-        case .cancelled: return .red
+        case .cancelled: return .brandDestructive
         }
     }
 

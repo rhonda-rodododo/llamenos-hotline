@@ -65,10 +65,10 @@ enum ContactEventType: String, CaseIterable, Sendable {
 
     var color: Color {
         switch self {
-        case .call: return .blue
-        case .conversation: return .green
-        case .note: return .purple
-        case .report: return .orange
+        case .call: return .brandPrimary
+        case .conversation: return .statusActive
+        case .note: return .brandDarkTeal
+        case .report: return .brandAccent
         }
     }
 

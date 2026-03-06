@@ -148,7 +148,11 @@ struct ReportDetailView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray6))
+                .fill(Color.brandCard)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.brandBorder, lineWidth: 1)
         )
         .accessibilityIdentifier("report-metadata")
     }
@@ -174,6 +178,7 @@ struct ReportDetailView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(.brandPrimary)
                 .disabled(viewModel.isActionInProgress)
                 .accessibilityIdentifier("report-claim-button")
             }
@@ -191,6 +196,7 @@ struct ReportDetailView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .tint(.brandDestructive)
                 .disabled(viewModel.isActionInProgress)
                 .accessibilityIdentifier("report-close-button")
             }
