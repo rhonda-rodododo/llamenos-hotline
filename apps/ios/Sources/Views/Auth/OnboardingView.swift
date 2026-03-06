@@ -13,15 +13,24 @@ struct OnboardingView: View {
 
     @State private var hasConfirmedBackup: Bool = false
     @State private var hasCopied: Bool = false
+    @State private var keyScale: CGFloat = 0.8
 
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                StepIndicator(totalSteps: 3, currentStep: 2)
+
                 // Header
                 VStack(spacing: 12) {
                     Image(systemName: "key.fill")
                         .font(.system(size: 40))
                         .foregroundStyle(.orange)
+                        .scaleEffect(keyScale)
+                        .onAppear {
+                            withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
+                                keyScale = 1.0
+                            }
+                        }
                         .accessibilityHidden(true)
 
                     Text(NSLocalizedString("onboarding_title", comment: "Your Secret Key"))
@@ -44,6 +53,15 @@ struct OnboardingView: View {
                     label: NSLocalizedString("onboarding_nsec_label", comment: "Secret Key (nsec)")
                 )
                 .privacySensitive()
+                .padding(4)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.brandCard)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.brandAccent.opacity(0.5), lineWidth: 1)
+                )
 
                 // Copy button — copies to clipboard for one-time use
                 Button {
@@ -60,13 +78,21 @@ struct OnboardingView: View {
                         hasCopied
                             ? NSLocalizedString("onboarding_copied", comment: "Copied!")
                             : NSLocalizedString("onboarding_copy", comment: "Copy to Clipboard"),
-                        systemImage: hasCopied ? "checkmark" : "doc.on.doc"
+                        systemImage: hasCopied ? "checkmark.circle.fill" : "doc.on.doc"
                     )
                     .font(.brand(.subheadline))
+                    .fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 12)
+                    .background(hasCopied ? Color.green.opacity(0.15) : Color.brandCard)
+                    .foregroundStyle(hasCopied ? .green : Color.brandPrimary)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(hasCopied ? Color.green.opacity(0.3) : Color.brandBorder, lineWidth: 1)
+                    )
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("copy-nsec")
 
                 // Public key display (informational)
@@ -86,7 +112,7 @@ struct OnboardingView: View {
                 // Warning
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color.brandAccent)
                         .font(.title3)
 
                     Text(NSLocalizedString(
@@ -99,7 +125,7 @@ struct OnboardingView: View {
                 .padding(16)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.orange.opacity(0.1))
+                        .fill(Color.brandAccent.opacity(0.15))
                 )
 
                 // Confirmation checkbox
@@ -109,7 +135,7 @@ struct OnboardingView: View {
                     HStack(spacing: 12) {
                         Image(systemName: hasConfirmedBackup ? "checkmark.square.fill" : "square")
                             .font(.title3)
-                            .foregroundStyle(hasConfirmedBackup ? .blue : .secondary)
+                            .foregroundStyle(hasConfirmedBackup ? Color.brandPrimary : .secondary)
 
                         Text(NSLocalizedString(
                             "onboarding_confirm_backup",
@@ -128,11 +154,16 @@ struct OnboardingView: View {
                 } label: {
                     Text(NSLocalizedString("onboarding_continue", comment: "Continue"))
                         .font(.brand(.headline))
+                        .fontWeight(.semibold)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
+                        .background(Color.brandPrimary)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
                 .disabled(!hasConfirmedBackup)
+                .opacity(hasConfirmedBackup ? 1.0 : 0.5)
                 .accessibilityIdentifier("continue-to-pin")
 
                 Spacer(minLength: 40)
