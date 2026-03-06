@@ -1,11 +1,11 @@
 ---
 title: "Deploy: Co-op Cloud"
-description: Deploy Llamenos as a Co-op Cloud recipe for cooperative hosting collectives.
+description: Deploy Llámenos as a Co-op Cloud recipe for cooperative hosting collectives.
 ---
 
-This guide walks you through deploying Llamenos as a [Co-op Cloud](https://coopcloud.tech) recipe. Co-op Cloud uses Docker Swarm with Traefik for TLS termination and the `abra` CLI for standardized app management — ideal for tech co-ops and small hosting collectives.
+This guide walks you through deploying Llámenos as a [Co-op Cloud](https://coopcloud.tech) recipe. Co-op Cloud uses Docker Swarm with Traefik for TLS termination and the `abra` CLI for standardized app management — ideal for tech co-ops and small hosting collectives.
 
-The recipe is maintained in a [standalone repository](https://github.com/rhonda-rodododo/llamenos-template), auto-published from the main Llamenos repo on each release. The source of truth lives at `deploy/coopcloud/` in the [main repo](https://github.com/rhonda-rodododo/llamenos).
+The recipe is maintained in a [standalone repository](https://github.com/rhonda-rodododo/llamenos-template).
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ abra server add hotline.example.com
 git clone https://github.com/rhonda-rodododo/llamenos-template.git \
   ~/.abra/recipes/llamenos
 
-# Create a new Llamenos app
+# Create a new Llámenos app
 abra app new llamenos --server hotline.example.com --domain hotline.example.com
 
 # Generate all secrets

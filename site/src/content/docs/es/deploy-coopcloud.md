@@ -1,11 +1,11 @@
 ---
 title: "Desplegar: Co-op Cloud"
-description: Despliega Llamenos como una receta de Co-op Cloud para colectivos de hospedaje cooperativo.
+description: Despliega Llámenos como una receta de Co-op Cloud para colectivos de hospedaje cooperativo.
 ---
 
-Esta guia te lleva paso a paso por el despliegue de Llamenos como una receta de [Co-op Cloud](https://coopcloud.tech). Co-op Cloud usa Docker Swarm con Traefik para terminacion TLS y el CLI `abra` para gestion estandarizada de aplicaciones — ideal para cooperativas tecnologicas y pequenos colectivos de hospedaje.
+Esta guía te lleva paso a paso por el despliegue de Llámenos como una receta de [Co-op Cloud](https://coopcloud.tech). Co-op Cloud usa Docker Swarm con Traefik para terminación TLS y el CLI `abra` para gestión estandarizada de aplicaciones — ideal para cooperativas tecnológicas y pequeños colectivos de hospedaje.
 
-La receta se mantiene en un [repositorio independiente](https://github.com/rhonda-rodododo/llamenos-template), publicado automaticamente desde el repositorio principal de Llamenos en cada version. La fuente de verdad vive en `deploy/coopcloud/` en el [repositorio principal](https://github.com/rhonda-rodododo/llamenos).
+La receta se mantiene en un [repositorio independiente](https://github.com/rhonda-rodododo/llamenos-template).
 
 ## Requisitos previos
 
@@ -26,7 +26,7 @@ abra server add hotline.ejemplo.com
 git clone https://github.com/rhonda-rodododo/llamenos-template.git \
   ~/.abra/recipes/llamenos
 
-# Crea una nueva app de Llamenos
+# Crea una nueva app de Llámenos
 abra app new llamenos --server hotline.ejemplo.com --domain hotline.ejemplo.com
 
 # Genera todos los secretos
