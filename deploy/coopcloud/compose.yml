@@ -50,7 +50,7 @@ services:
 
   # ── Application ──────────────────────────────────────────
   app:
-    image: ghcr.io/your-org/llamenos:${LLAMENOS_TAG:-latest}
+    image: ghcr.io/rhonda-rodododo/llamenos:${LLAMENOS_TAG:-latest}
     networks:
       - internal
     configs:

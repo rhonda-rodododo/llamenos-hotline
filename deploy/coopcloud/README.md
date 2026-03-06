@@ -2,8 +2,8 @@
 
 **Category**: Communication
 **Status**: 1 (alpha)
-**Image**: [`ghcr.io/your-org/llamenos`](https://github.com/your-org/llamenos/pkgs/container/llamenos)
-**Upstream**: <https://github.com/your-org/llamenos>
+**Image**: [`ghcr.io/rhonda-rodododo/llamenos`](https://github.com/rhonda-rodododo/llamenos/pkgs/container/llamenos)
+**Upstream**: <https://github.com/rhonda-rodododo/llamenos>
 
 Secure, open-source crisis response hotline software with end-to-end encryption.
 
