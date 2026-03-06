@@ -56,30 +56,29 @@ struct ShiftsView: View {
         List {
             // Clock in/out section (prominent)
             Section {
-                VStack(spacing: 12) {
-                    HStack(spacing: 12) {
-                        Circle()
-                            .fill(vm.isOnShift ? Color.green : Color.secondary.opacity(0.3))
-                            .frame(width: 12, height: 12)
-                            .overlay(
-                                Circle()
-                                    .stroke(vm.isOnShift ? Color.green.opacity(0.3) : Color.clear, lineWidth: 4)
-                            )
+                VStack(spacing: 16) {
+                    HStack(spacing: 10) {
+                        if vm.isOnShift {
+                            StatusDot(status: .active, animated: true)
+                        } else {
+                            StatusDot(status: .inactive)
+                        }
 
                         Text(vm.isOnShift
                             ? NSLocalizedString("shifts_on_shift", comment: "On Shift")
                             : NSLocalizedString("shifts_off_shift", comment: "Off Shift")
                         )
                         .font(.brand(.headline))
+                        .foregroundStyle(vm.isOnShift ? Color.statusActive : Color.brandMutedForeground)
                         .accessibilityIdentifier("shift-status-label")
 
                         Spacer()
 
                         if vm.isOnShift {
                             Text(vm.elapsedTimeDisplay)
-                                .font(.brandMono(.title3))
+                                .font(.brandMono(.title2))
                                 .fontWeight(.medium)
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Color.statusActive)
                                 .contentTransition(.numericText())
                                 .accessibilityIdentifier("shift-elapsed-time")
                         }
@@ -95,40 +94,50 @@ struct ShiftsView: View {
                                 vm.activeCallCount
                             ))
                             .font(.brand(.subheadline))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.brandMutedForeground)
                             Spacer()
                         }
                     }
 
-                    // Clock in/out button
+                    // Circular clock in/out button
                     Button {
+                        Haptics.impact(.medium)
                         if vm.isOnShift {
                             vm.showClockOutConfirmation = true
                         } else {
                             Task { await vm.clockIn() }
                         }
                     } label: {
-                        HStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(vm.isOnShift ? Color.brandDestructive : Color.statusActive)
+                                .frame(width: 80, height: 80)
+                                .shadow(color: (vm.isOnShift ? Color.brandDestructive : Color.statusActive).opacity(0.35), radius: 8, y: 4)
+
                             if vm.isTogglingShift {
                                 ProgressView()
                                     .tint(.white)
                             } else {
-                                Image(systemName: vm.isOnShift ? "stop.circle.fill" : "play.circle.fill")
+                                Image(systemName: vm.isOnShift ? "stop.fill" : "play.fill")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.white)
                             }
-                            Text(vm.isOnShift
-                                ? NSLocalizedString("shifts_clock_out", comment: "Clock Out")
-                                : NSLocalizedString("shifts_clock_in", comment: "Clock In")
-                            )
-                            .fontWeight(.semibold)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(vm.isOnShift ? .red : .green)
+                    .buttonStyle(CircularClockButtonStyle())
                     .disabled(vm.isTogglingShift)
                     .accessibilityIdentifier(vm.isOnShift ? "clock-out-button" : "clock-in-button")
+
+                    Text(vm.isOnShift
+                        ? NSLocalizedString("shifts_clock_out", comment: "Clock Out")
+                        : NSLocalizedString("shifts_clock_in", comment: "Clock In")
+                    )
+                    .font(.brand(.caption))
+                    .fontWeight(.semibold)
+                    .foregroundStyle(vm.isOnShift ? Color.brandDestructive : Color.statusActive)
                 }
+                .frame(maxWidth: .infinity)
             }
 
             // Error/Success messages
@@ -165,16 +174,28 @@ struct ShiftsView: View {
                         if shiftDay.shifts.isEmpty {
                             Text(NSLocalizedString("shifts_none_scheduled", comment: "No shifts scheduled"))
                                 .font(.brand(.caption))
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(Color.brandMutedForeground)
                         } else {
                             ForEach(shiftDay.shifts) { shift in
                                 shiftRow(shift, vm: vm)
                             }
                         }
                     } header: {
-                        HStack {
+                        HStack(spacing: 8) {
                             Text(shiftDay.name)
-                                .foregroundStyle(shiftDay.isToday ? .primary : .secondary)
+                                .font(.brand(.subheadline))
+                                .fontWeight(shiftDay.isToday ? .bold : .medium)
+                                .foregroundStyle(shiftDay.isToday ? Color.brandForeground : Color.brandMutedForeground)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(shiftDay.isToday ? Color.brandPrimary.opacity(0.15) : Color.brandCard)
+                                        .overlay(
+                                            Capsule()
+                                                .strokeBorder(shiftDay.isToday ? Color.brandPrimary.opacity(0.3) : Color.brandBorder, lineWidth: 1)
+                                        )
+                                )
 
                             if shiftDay.isToday {
                                 Text(NSLocalizedString("shifts_today", comment: "Today"))
@@ -193,7 +214,7 @@ struct ShiftsView: View {
                                 shiftDay.shifts.count
                             ))
                             .font(.brand(.caption))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Color.brandMutedForeground)
                         }
                         .accessibilityIdentifier("weekly-schedule-header")
                     }
@@ -211,35 +232,36 @@ struct ShiftsView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(shift.timeRangeDisplay)
-                    .font(.brand(.subheadline))
+                    .font(.brand(.body))
                     .fontWeight(.medium)
+                    .foregroundStyle(Color.brandForeground)
 
                 if let name = shift.name {
                     Text(name)
                         .font(.brand(.caption))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.brandMutedForeground)
                 }
             }
 
             Spacer()
 
-            HStack(spacing: 4) {
-                Image(systemName: "person.2.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("\(shift.volunteerCount)")
-                    .font(.brand(.caption))
-                    .foregroundStyle(.secondary)
-            }
+            BadgeView(
+                text: "\(shift.volunteerCount)",
+                icon: "person.2.fill",
+                color: .brandPrimary,
+                style: .subtle
+            )
 
             Button {
+                Haptics.impact(.light)
                 Task { await vm.signUp(for: shift) }
             } label: {
                 Text(NSLocalizedString("shifts_sign_up", comment: "Sign Up"))
                     .font(.brand(.caption))
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
             }
             .buttonStyle(.bordered)
+            .tint(Color.brandPrimary)
             .controlSize(.small)
             .accessibilityIdentifier("signup-shift-\(shift.id)")
         }
@@ -272,7 +294,7 @@ struct ShiftsView: View {
                 .scaleEffect(1.2)
             Text(NSLocalizedString("shifts_loading", comment: "Loading schedule..."))
                 .font(.brand(.subheadline))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.brandMutedForeground)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
@@ -291,6 +313,17 @@ struct ShiftsView: View {
             self.viewModel = vm
         }
         return vm
+    }
+}
+
+// MARK: - Circular Clock Button Style
+
+/// Press-scale button style for the circular clock in/out button.
+private struct CircularClockButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
