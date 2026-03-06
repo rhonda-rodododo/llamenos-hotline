@@ -1,12 +1,32 @@
 import SwiftUI
 
 extension Color {
-    // Primary teal/cyan — matches web oklch(0.70 0.13 195) dark / oklch(0.45 0.12 195) light
+    // Semantic tokens (adaptive light/dark via asset catalog)
+    static let brandBackground = Color("Background")
+    static let brandForeground = Color("Foreground")
+    static let brandCard = Color("Card")
+    static let brandCardForeground = Color("CardForeground")
     static let brandPrimary = Color("BrandPrimary")
-    // Accent amber/gold — matches web oklch(0.78 0.14 70)
+    static let brandPrimaryForeground = Color("PrimaryForeground")
+    static let brandSecondary = Color("Secondary")
+    static let brandSecondaryForeground = Color("SecondaryForeground")
+    static let brandMuted = Color("Muted")
+    static let brandMutedForeground = Color("MutedForeground")
     static let brandAccent = Color("BrandAccent")
+    static let brandAccentForeground = Color("AccentForeground")
+    static let brandDestructive = Color("Destructive")
+    static let brandDestructiveForeground = Color("DestructiveForeground")
+    static let brandBorder = Color("Border")
+    static let brandInput = Color("InputBorder")
+    static let brandRing = Color("BrandPrimary")
 
-    // Direct color values for use without asset catalog
+    // Semantic convenience — status colors
+    static let statusActive = Color.green
+    static let statusWarning = Color("BrandAccent")
+    static let statusDanger = Color("Destructive")
+    static let statusInfo = Color("BrandPrimary")
+
+    // Legacy direct-value colors (used in tests, GeneratedAvatar)
     static let brandTeal = Color(red: 0x51 / 255.0, green: 0xAF / 255.0, blue: 0xAE / 255.0)
     static let brandCyan = Color(red: 0x5B / 255.0, green: 0xC5 / 255.0, blue: 0xC5 / 255.0)
     static let brandDarkTeal = Color(red: 0x2D / 255.0, green: 0x9B / 255.0, blue: 0x9B / 255.0)
