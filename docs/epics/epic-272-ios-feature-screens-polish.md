@@ -59,10 +59,7 @@ Feature screens use stock SwiftUI List styling with minimal brand presence. Note
 ### 2. Conversations — Brand Bubbles & Generated Avatars
 
 **ConversationsView:**
-- Contact identifier: generate a colored circle avatar from the hash:
-  - Take first 6 chars of hash → map to a hue (0-360)
-  - Display as a 36x36 circle with the hue at 60% saturation
-  - First 2 chars of hash displayed as "initials" inside
+- Contact identifier: use `GeneratedAvatar(hash: conversation.contactDisplayHash, size: 36)` from Epic 269 shared components
 - Channel badge: integrated into the avatar (small icon overlay in bottom-right)
 - Unread badge: `brandDestructive` background (not plain red)
 - Status badge: uses `BadgeView` with semantic colors
@@ -148,6 +145,11 @@ Feature screens use stock SwiftUI List styling with minimal brand presence. Note
 - Update tests for any changed accessibility identifiers
 - Verify note, conversation, shift, report, blast, contact flows all pass
 - Pay special attention to conversation bubble identifiers (color change shouldn't affect them)
+
+**New test scenarios to add:**
+- Test note row displays left accent border color based on type (call vs conversation vs standalone)
+- Test conversation outbound bubble uses brand color (visual regression if possible)
+- Test shifts circular clock-in button toggles appearance after clock-in
 
 ## Files Modified
 

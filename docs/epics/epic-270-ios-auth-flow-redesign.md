@@ -43,7 +43,7 @@ Current auth screens are plain ScrollViews with standard SwiftUI controls. The l
 ### 2. OnboardingView — Dramatic Key Backup
 
 **Layout overhaul:**
-- Step indicator at top: 3 dots showing progress (1. Create Key, 2. Backup, 3. Set PIN) — current step highlighted in `brandPrimary`
+- `StepIndicator(totalSteps: 3, currentStep: 2)` at top (from Epic 269 shared components)
 - Key icon: animated entrance (scale from 0.8 to 1.0 with spring, orange glow effect)
 - nsec display: dark card (`brandNavy` background in light mode, `brandCard` in dark mode) with monospaced text, subtle inner shadow. The card should feel precious/important.
 - Copy button: prominent, changes to green checkmark after copy with smooth transition
@@ -63,7 +63,7 @@ Current auth screens are plain ScrollViews with standard SwiftUI controls. The l
 - PIN dots: scale-up animation when filled (1.0 → 1.3 → 1.0 spring), color transition from `brandBorder` to `brandPrimary`
 - Wrong PIN: shake animation on the dots row (horizontal offset oscillation, 3 cycles, 0.4s) + dots flash red briefly
 - Digit buttons: `brandCard` background (not `systemGray6`), subtle press-down scale (0.95) on tap, `brandBorder` ring
-- Backspace: long-press gesture (0.5s) clears entire PIN with haptic
+- Backspace: long-press gesture (0.5s) clears entire PIN with haptic. Uses `.simultaneousGesture(LongPressGesture(...))` alongside the existing Button tap to preserve both interactions
 - Active digit area glow: subtle `brandPrimary` shadow behind the next empty dot
 
 ### 4. PINSetView — Animated Flow
@@ -72,7 +72,7 @@ Current auth screens are plain ScrollViews with standard SwiftUI controls. The l
 - Lock icon animates between `lock.open.fill` and `lock.fill` with a smooth rotation + scale transition
 - Phase transition (enter → confirm): cross-dissolve animation on title/subtitle text
 - Loading overlay during encryption: uses brand-tinted spinner (from Epic 269)
-- Progress: reuse the step indicator from OnboardingView (step 3 of 3 highlighted)
+- Progress: `StepIndicator(totalSteps: 3, currentStep: 3)` (shared component from Epic 269)
 
 ### 5. PINUnlockView — Branded Lock Screen
 
@@ -97,6 +97,11 @@ All existing auth flow tests must pass with the redesigned layouts:
 - Verify accessibility identifiers are preserved
 - Update any tests that depend on specific layout positions
 - Add haptic-related assertions if applicable (likely not testable, just verify no crashes)
+
+**New test scenarios to add:**
+- Test step indicator visibility on OnboardingView (step 2 dot is highlighted)
+- Test PIN pad shake animation does NOT leave dots in error state after recovery
+- Test long-press backspace clears full PIN (if testable via XCUITest gesture)
 
 ## Visual Reference
 

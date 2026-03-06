@@ -68,7 +68,7 @@ Settings has 11 sections in one scrollable List — cognitive overload. Emergenc
 
 **Identity Card (top of settings):**
 - `BrandCard` with prominent layout
-- Generated color avatar (80x80, from npub hash — same algorithm as conversations)
+- `GeneratedAvatar(hash: npub, size: 80)` from Epic 269 shared components
 - `CopyableField` for npub
 - Role badge using `BadgeView`
 - Hub URL (truncated)
@@ -99,7 +99,7 @@ Settings has 11 sections in one scrollable List — cognitive overload. Emergenc
 **Step 1**: Warning screen (current layout, improved):
 - Large red warning icon (keep current)
 - Bold title + clear description
-- "Type WIPE to confirm" text field
+- "Type WIPE to confirm" text field with `accessibilityIdentifier("panic-wipe-confirmation-input")`
 - The confirm button is disabled until the user types "WIPE" (case-insensitive)
 - Cancel button
 
@@ -108,6 +108,8 @@ Settings has 11 sections in one scrollable List — cognitive overload. Emergenc
 - Destructive "Yes, Wipe Everything" + Cancel
 
 **Haptic**: `.warning` on entering the screen, `.error` on final wipe
+
+**IMPORTANT — `#if DEBUG` test shortcut**: The current SettingsView has a `#if DEBUG` NavigationLink for PanicWipe at the top of the List (avoids SwiftUI List cell recycling issues in XCUITest). This shortcut MUST be preserved in the restructured SettingsView — add it at the top of the new layout, before the identity card. It navigates directly to PanicWipeConfirmationView.
 
 ### 3. AdminTabView — Card Layout with Counts
 
@@ -176,11 +178,9 @@ Apply consistent brand styling across all admin views:
 - Confirm/Reject buttons: green uses `statusActive`, destructive uses `brandDestructive`
 - All step screens: use brand typography and colors
 
-### 7. LoadingOverlay — Brand Tinted
+### 7. ~~LoadingOverlay — Brand Tinted~~ (Moved to Epic 269)
 
-- Spinner: tinted `brandPrimary` (not white)
-- Background card: `brandCard` fill with `.ultraThinMaterial`
-- Message text: `.brand(.subheadline)`, `brandForeground`
+LoadingOverlay brand-tinting was moved to Epic 269 Task 6 since it is a foundation component used by auth flow screens (Epic 270).
 
 ### 8. Update All XCUITests
 
@@ -189,11 +189,25 @@ This is the most test-impactful epic because:
 - PanicWipe now requires text input
 - Admin cards may change accessibility identifiers
 
-**Test updates required:**
-- Settings tests: update navigation flow for sub-pages
-- PanicWipe test: add "WIPE" text input step
-- Admin tests: verify card-based navigation works
-- All other tests: verify no regressions from shared component changes
+**Test updates required — affected tests and new navigation paths:**
+- `SettingsUITests.testSettingsScreenDisplaysIdentity` → Settings > Account > settings-npub
+- `SettingsUITests.testSettingsScreenDisplaysHubUrl` → Settings > Account > settings-hub-url
+- `SettingsUITests.testSettingsScreenDisplaysConnection` → Settings > Account > settings-connection
+- `SettingsUITests.testSettingsScreenDisplaysLinkDevice` → Settings > Account > settings-link-device
+- `SettingsUITests.testSettingsScreenDisplaysNotifications` → Settings > Preferences > settings-call-sounds
+- `SettingsUITests.testSettingsScreenDisplaysLanguage` → Settings > Preferences > settings-language-picker
+- `SettingsUITests.testSettingsScreenDisplaysSecurity` → Settings > Preferences > settings-auto-lock-picker
+- `SettingsUITests.testSettingsScreenDisplaysAdmin` → Settings > admin panel card
+- `SettingsUITests.testSettingsLockApp` → Settings > settings-lock-app (stays at top level)
+- `SettingsUITests.testSettingsLogout` → Settings > settings-logout (stays at top level)
+- `PanicWipeUITests.testPanicWipeReturnsToLogin` → add `panic-wipe-confirmation-input` text field, type "WIPE", then tap confirm, then confirm alert
+- `SecurityUITests.*` — verify biometric toggle is under Settings > Preferences
+- Admin tests: verify card-based navigation works with new identifiers
+
+**New test scenarios to add:**
+- Test Settings sub-page navigation: tap "Account" → verify identity section is visible
+- Test PanicWipe friction gate: confirm button disabled until "WIPE" is typed
+- Test PanicWipe friction gate: typing "wipe" (lowercase) also enables confirm button
 
 ## Files Modified
 
@@ -211,6 +225,7 @@ All files listed in the table above, plus:
 - [ ] All admin sub-views use BrandCard styling
 - [ ] HelpView has branded accordion styling
 - [ ] DeviceLinkView uses brand colors throughout
-- [ ] LoadingOverlay uses brand-tinted spinner
-- [ ] All XCUITests pass with restructured navigation
+- [ ] `#if DEBUG` test shortcut for PanicWipe preserved in restructured SettingsView
+- [ ] PanicWipe friction gate requires typing "WIPE" (accessibility ID: `panic-wipe-confirmation-input`)
+- [ ] All XCUITests pass with restructured navigation (test paths updated per Task 8)
 - [ ] Light and dark mode verified via simulator screenshots

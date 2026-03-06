@@ -65,16 +65,20 @@ Replace the current 4-color system with a full semantic token system using light
 - `Foreground.colorset` (light: #1A1D24, dark: #F0F0ED)
 - `Card.colorset` (light: #FFFFFF, dark: #0D1520)
 - `CardForeground.colorset` (light: #1A1D24, dark: #F0F0ED)
+- `PrimaryForeground.colorset` (light: #FCFCFC, dark: #020A12)
 - `Secondary.colorset` (light: #EDF5F5, dark: #2A2E36)
 - `SecondaryForeground.colorset` (light: #1A3A3D, dark: #F0F0ED)
 - `Muted.colorset` (light: #F3F3F0, dark: #2A2E36)
 - `MutedForeground.colorset` (light: #7B7F87, dark: #9A9EA6)
 - `AccentForeground.colorset` (light: #3D3520, dark: #020A12)
 - `Destructive.colorset` (light: #D93526, dark: #E85A4A)
+- `DestructiveForeground.colorset` (light: #D93526, dark: #E85A4A) — text-on-destructive-background
 - `Border.colorset` (light: #E8E8E5, dark: #363A42)
 - `InputBorder.colorset` (light: #E8E8E5, dark: #3C4048)
 - Update existing `BrandPrimary.colorset` → keep as-is (already correct)
 - Update existing `BrandAccent.colorset` → keep as-is (already correct)
+
+**Note on color source of truth:** The web app's `app.css` has three layers: `@theme` (build defaults), `:root` (light runtime), `.dark` (dark runtime). The `:root` and `.dark` values are authoritative — use those for the iOS asset catalog. The `@theme` block values are overridden at runtime and should be ignored.
 
 **Update `BrandColors.swift`:**
 ```swift
@@ -93,6 +97,7 @@ extension Color {
     static let brandAccent = Color("BrandAccent")            // existing
     static let brandAccentForeground = Color("AccentForeground")
     static let brandDestructive = Color("Destructive")
+    static let brandDestructiveForeground = Color("DestructiveForeground")
     static let brandBorder = Color("Border")
     static let brandInput = Color("InputBorder")
     static let brandRing = Color("BrandPrimary")             // same as primary
@@ -172,7 +177,7 @@ struct BadgeView: View {
 }
 ```
 
-**EmptyStateView.swift** — Branded empty state:
+**BrandEmptyState.swift** — Branded empty state:
 ```swift
 struct BrandEmptyState: View {
     let icon: String
@@ -188,6 +193,30 @@ struct BrandEmptyState: View {
 ```swift
 struct CopyConfirmationBanner: View { ... }
 // Extract duplicated banner from SettingsView + NoteDetailView
+```
+
+**GeneratedAvatar.swift** — Deterministic color avatar from hash:
+```swift
+struct GeneratedAvatar: View {
+    let hash: String       // npub, pubkey, or contact hash
+    var size: CGFloat = 40
+    // Algorithm:
+    // 1. Take first 6 hex chars of the hash
+    // 2. Parse as Int, modulo 360 → hue
+    // 3. Render circle with Color(hue: h/360, saturation: 0.55, brightness: 0.75)
+    // 4. Display first 2 chars of hash as "initials" in white, centered
+    // Used by: conversations (contact hash), settings (npub), contacts (identifier)
+}
+```
+
+**StepIndicator.swift** — Progress dots for multi-step flows:
+```swift
+struct StepIndicator: View {
+    let totalSteps: Int
+    let currentStep: Int
+    // Horizontal dots: current step filled in brandPrimary, others brandBorder
+    // Used by: OnboardingView (step 2 of 3), PINSetView (step 3 of 3)
+}
 ```
 
 ### 4. Utility Extensions
@@ -219,13 +248,53 @@ extension View {
 }
 ```
 
-### 5. Update Asset Catalog
+**ConnectionState+Color.swift** — Extract duplicated connection color logic:
+```swift
+extension WebSocketConnectionState {
+    var color: Color {
+        switch self {
+        case .connected: return .statusActive
+        case .connecting, .reconnecting: return .statusWarning
+        case .disconnected: return .brandDestructive
+        }
+    }
+}
+// Replaces duplicated connectionColor computed property in DashboardView + SettingsView
+```
+
+### 5. UINavigationBar Appearance — DM Sans in Nav Titles
+
+SwiftUI's `.navigationTitle()` does not accept `.font()` modifiers — it always uses the system font. To render DM Sans in large and inline navigation titles, configure `UINavigationBar.appearance()` in `LlamenosApp.swift`:
+
+```swift
+init() {
+    let largeTitleAttrs: [NSAttributedString.Key: Any] = [
+        .font: UIFont(name: "DMSans-Bold", size: 34)!
+    ]
+    let inlineTitleAttrs: [NSAttributedString.Key: Any] = [
+        .font: UIFont(name: "DMSans-SemiBold", size: 17)!
+    ]
+    UINavigationBar.appearance().largeTitleTextAttributes = largeTitleAttrs
+    UINavigationBar.appearance().titleTextAttributes = inlineTitleAttrs
+}
+```
+
+This is a global one-time setup that affects all navigation bars across the app.
+
+### 6. LoadingOverlay — Brand Tinting
+
+Move LoadingOverlay brand-tinting here (from Epic 273) since it is a foundation component used by auth flow screens (Epic 270):
+- Spinner: tinted `brandPrimary` (not white)
+- Background card: `brandCard` fill with `.ultraThinMaterial`
+- Message text: `.brand(.subheadline)`, `brandForeground`
+
+### 7. Update Asset Catalog
 
 Add all new color sets listed in Task 1 to `Resources/Assets.xcassets/`.
 
 Each `.colorset/Contents.json` needs light and dark appearance entries matching the sRGB hex values from the token table.
 
-### 6. Verify and Test
+### 8. Verify and Test
 
 - Build the app with `xcodebuild build` to confirm all new colors/components compile
 - Run existing XCUITests to confirm nothing is broken by the foundation changes
@@ -239,21 +308,31 @@ Each `.colorset/Contents.json` needs light and dark appearance entries matching 
 - `Sources/Views/Components/StatusDot.swift` — NEW
 - `Sources/Views/Components/CopyableField.swift` — NEW
 - `Sources/Views/Components/BadgeView.swift` — NEW
-- `Sources/Views/Components/EmptyStateView.swift` — NEW
+- `Sources/Views/Components/BrandEmptyState.swift` — NEW
 - `Sources/Views/Components/CopyConfirmationBanner.swift` — NEW
+- `Sources/Views/Components/GeneratedAvatar.swift` — NEW
+- `Sources/Views/Components/StepIndicator.swift` — NEW
 - `Sources/Utilities/StringTruncation.swift` — NEW
 - `Sources/Utilities/Haptics.swift` — NEW
-- `Resources/Assets.xcassets/` — 13 new color sets
+- `Sources/Utilities/ConnectionStateColor.swift` — NEW
+- `Sources/App/LlamenosApp.swift` — UINavigationBar.appearance() setup
+- `Sources/Views/Components/LoadingOverlay.swift` — brand tinting
+- `Resources/Assets.xcassets/` — 15 new color sets (including PrimaryForeground, DestructiveForeground)
 - ALL view files — `.font()` → `.brand()` migration
-- `project.yml` — add new source files to target
+
+**Note:** `project.yml` uses `sources: [{path: Sources}]` which auto-discovers all Swift files. New files under `Sources/` do NOT need explicit project.yml changes.
 
 ## Acceptance Criteria
 
-- [ ] All 16 semantic color tokens available as `Color.brand*` with light/dark variants
+- [ ] All 18 semantic color tokens available as `Color.brand*` with light/dark variants
 - [ ] Every `.font()` call in the app uses `.brand()` or `.brandMono()`
-- [ ] BrandCard, StatusDot, CopyableField, BadgeView, EmptyStateView components compile and render
-- [ ] `truncatedNpub()` removed from DashboardView, PINUnlockView, SettingsView — uses String extension
-- [ ] Copy feedback pattern extracted to shared component
+- [ ] DM Sans renders in navigation bar large titles via UIAppearance
+- [ ] BrandCard, StatusDot, CopyableField, BadgeView, BrandEmptyState, GeneratedAvatar, StepIndicator components compile and render
+- [ ] `truncatedNpub()` and `truncatedPubkey()` removed from DashboardView, PINUnlockView, SettingsView — uses String extension
+- [ ] `connectionColor` removed from DashboardView and SettingsView — uses WebSocketConnectionState extension
+- [ ] Copy feedback pattern extracted to shared CopyableField + CopyConfirmationBanner
+- [ ] LoadingOverlay uses brand-tinted spinner and card
 - [ ] Haptics utility used where appropriate
+- [ ] Unit tests for String+Truncation edge cases (empty, short, exact length, long)
 - [ ] XCUITests still pass
 - [ ] Dark mode renders correctly

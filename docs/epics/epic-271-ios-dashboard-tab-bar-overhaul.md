@@ -67,7 +67,9 @@ Replace the entire List-based layout with a custom `ScrollView`:
 ```
 - 2-column `LazyVGrid` of tappable `BrandCard` instances
 - Each card: SF Symbol icon (tinted `brandPrimary`) + label in `.brand(.subheadline)`
-- Admin-only cards (Contacts, Blasts) conditionally shown — grid reflows to 1 column if only 2 items
+- Volunteer sees: Reports + Help (2 items, 1 row)
+- Admin sees: Reports + Contacts + Blasts + Help (4 items, 2x2 grid)
+- Help card is NEW — add `case help` to `QuickActionDestination` and navigation destination for `HelpView`
 - Subtle press effect (scale 0.97 on tap)
 - Navigation via `.navigationDestination`
 
@@ -133,6 +135,11 @@ The dashboard layout changes significantly:
 - Verify all accessibility identifiers are preserved or remapped
 - Quick actions: update from button-in-list to card-in-grid identifiers
 - Shift status: update from LabeledContent to card-based assertions
+
+**New test scenarios to add:**
+- Test activity stats row shows correct counts (active calls, notes, unread)
+- Test quick actions grid shows admin-only cards for admin role
+- Test quick actions grid shows only Reports + Help for volunteer role
 
 ## Visual Reference
 
