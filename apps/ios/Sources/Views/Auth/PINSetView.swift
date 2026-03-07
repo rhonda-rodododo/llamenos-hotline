@@ -10,6 +10,7 @@ struct PINSetView: View {
     @State private var pinViewModel: PINViewModel?
     @State private var shakeOnError = false
     @State private var lockRotation: Double = 0
+    @State private var selectedPINLength: Int = 6
 
     var body: some View {
         let vm = resolvedPINViewModel
@@ -39,6 +40,34 @@ struct PINSetView: View {
                     .multilineTextAlignment(.center)
                     .contentTransition(.opacity)
                     .animation(.easeInOut, value: vm.phase)
+            }
+
+            // PIN length selector (only during enter phase, not confirm)
+            if vm.phase == .enter {
+                Picker(
+                    NSLocalizedString("pin_length_label", comment: "PIN Length"),
+                    selection: $selectedPINLength
+                ) {
+                    Text(String(
+                        format: NSLocalizedString("pin_length_option", comment: "%d digits"),
+                        6
+                    ))
+                    .tag(6)
+
+                    Text(String(
+                        format: NSLocalizedString("pin_length_option", comment: "%d digits"),
+                        8
+                    ))
+                    .tag(8)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 40)
+                .accessibilityIdentifier("pin-length-picker")
+                .onChange(of: selectedPINLength) { _, newLength in
+                    // Reset PIN and update maxLength when user changes selection
+                    vm.pin = ""
+                    vm.updateMaxLength(newLength)
+                }
             }
 
             // Error message
@@ -104,10 +133,9 @@ struct PINSetView: View {
         let vm = PINViewModel(
             mode: .set,
             authService: appState.authService,
-            maxLength: 4,
+            maxLength: selectedPINLength,
             onSuccess: {
                 appState.didCompleteOnboarding()
-                // Router will auto-navigate via authStatus change
             }
         )
         DispatchQueue.main.async {

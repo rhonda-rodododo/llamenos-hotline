@@ -116,6 +116,9 @@ final class AuthService {
         let biometricByte: Data = enableBiometric ? Data([1]) : Data([0])
         try keychainService.store(key: KeychainKey.biometricEnabled, data: biometricByte)
 
+        // Store PIN length for unlock screen
+        keychainService.storePINLength(pin.count)
+
         hasStoredKeys = true
         isBiometricEnabled = enableBiometric
     }
@@ -175,6 +178,7 @@ final class AuthService {
         keychainService.delete(key: KeychainKey.deviceID)
         keychainService.deleteBiometricPIN()
         keychainService.clearLockoutState()
+        keychainService.delete(key: KeychainKey.pinLength)
         hasStoredKeys = false
         isBiometricEnabled = false
         hubURL = nil

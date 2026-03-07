@@ -151,10 +151,11 @@ struct PINUnlockView: View {
         if let vm = pinViewModel {
             return vm
         }
+        let storedLength = appState.authService.keychainService.getPINLength()
         let vm = PINViewModel(
             mode: .unlock,
             authService: appState.authService,
-            maxLength: 4,
+            maxLength: storedLength,
             onSuccess: {
                 appState.didUnlock()
                 // Router will auto-navigate via authStatus change

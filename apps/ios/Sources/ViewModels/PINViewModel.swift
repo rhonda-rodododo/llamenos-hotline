@@ -60,8 +60,8 @@ final class PINViewModel {
     /// Current PIN digits entered by the user.
     var pin: String = ""
 
-    /// PIN length (6-8 digits).
-    let maxLength: Int
+    /// PIN length (6 or 8 digits).
+    private(set) var maxLength: Int
 
     /// For set mode: the phase within the set flow.
     var phase: PINPhase = .enter
@@ -172,6 +172,14 @@ final class PINViewModel {
         failedAttempts = 0
         lockoutUntil = .distantPast
         keychainService.clearLockoutState()
+    }
+
+    // MARK: - PIN Length
+
+    /// Update the max PIN length. Only valid during set mode, enter phase.
+    func updateMaxLength(_ newLength: Int) {
+        guard mode == .set, phase == .enter else { return }
+        maxLength = newLength
     }
 
     // MARK: - PIN Completion

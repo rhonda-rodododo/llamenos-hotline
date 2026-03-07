@@ -36,6 +36,7 @@ enum KeychainKey {
     static let biometricEnabled = "biometric-enabled"
     static let pinHash = "pin-verification"
     static let biometricPIN = "biometric-pin"
+    static let pinLength = "pin-length"
     static let pinLockoutAttempts = "pin-lockout-attempts"
     static let pinLockoutUntil = "pin-lockout-until"
 }
@@ -223,6 +224,22 @@ final class KeychainService: @unchecked Sendable {
     /// Remove the biometric PIN. Called when biometric unlock is disabled.
     func deleteBiometricPIN() {
         delete(key: KeychainKey.biometricPIN)
+    }
+
+    // MARK: - PIN Length Persistence
+
+    /// Store the user's chosen PIN length (6 or 8) for unlock screen.
+    func storePINLength(_ length: Int) {
+        let data = withUnsafeBytes(of: length) { Data($0) }
+        setKeychainItem(account: KeychainKey.pinLength, data: data)
+    }
+
+    /// Retrieve the stored PIN length. Returns 6 as default if not set.
+    func getPINLength() -> Int {
+        guard let data = getKeychainItem(account: KeychainKey.pinLength),
+              data.count == MemoryLayout<Int>.size else { return 6 }
+        let length = data.withUnsafeBytes { $0.load(as: Int.self) }
+        return (length == 6 || length == 8) ? length : 6
     }
 
     // MARK: - PIN Lockout Persistence (H7)

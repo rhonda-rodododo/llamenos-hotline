@@ -108,15 +108,15 @@ final class AuthFlowUITests: XCTestCase {
         navigateToOnboarding()
         navigateToPINSet()
 
-        // Enter 4-digit PIN: 1234
-        enterPIN("1234")
+        // Enter 6-digit PIN: 123456
+        enterPIN("123456")
 
         // Should transition to confirm phase
         let pinPad = find("pin-pad")
         XCTAssertTrue(pinPad.exists, "PIN pad should still be visible for confirmation")
 
-        // Confirm the same PIN: 1234
-        enterPIN("1234")
+        // Confirm the same PIN: 123456
+        enterPIN("123456")
 
         // Should reach dashboard after successful PIN set
         let dashboardTitle = find("dashboard-title")
@@ -130,11 +130,11 @@ final class AuthFlowUITests: XCTestCase {
         navigateToOnboarding()
         navigateToPINSet()
 
-        // Enter first PIN: 1234
-        enterPIN("1234")
+        // Enter first PIN: 123456
+        enterPIN("123456")
 
-        // Enter different PIN for confirmation: 5678
-        enterPIN("5678")
+        // Enter different PIN for confirmation: 567890
+        enterPIN("567890")
 
         // Error should be displayed
         let pinError = find("pin-error")
@@ -266,15 +266,14 @@ final class AuthFlowUITests: XCTestCase {
         // Backspace
         find("pin-backspace").tap()
 
-        // Enter 2 more digits to reach 3 total (1 + 2 new)
+        // Enter more digits to reach 6 total (1 remaining + 5 new)
         find("pin-3").tap()
         find("pin-4").tap()
-
-        // The PIN should now be "134" + one more needed
-        // Enter the last digit
         find("pin-5").tap()
+        find("pin-6").tap()
+        find("pin-7").tap()
 
-        // Should transition to confirm (PIN was 1345, then we need to confirm)
+        // Should transition to confirm (PIN was "13456 7", 6 digits → auto-complete)
         // The PIN pad should reset for confirmation
         XCTAssertTrue(pinPad.exists)
     }
@@ -318,11 +317,11 @@ final class AuthFlowUITests: XCTestCase {
         navigateToOnboarding()
         navigateToPINSet()
 
-        // Enter PIN: 1234
-        enterPIN("1234")
+        // Enter PIN: 123456
+        enterPIN("123456")
 
-        // Confirm PIN: 1234
-        enterPIN("1234")
+        // Confirm PIN: 123456
+        enterPIN("123456")
 
         // Wait for dashboard
         let dashboardTitle = find("dashboard-title")
