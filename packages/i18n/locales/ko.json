@@ -513,6 +513,7 @@
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
     "breakDescription": "휴식 중에는 전화를 받지 않습니다",
+    "calls": "Calls",
     "callsToday": "Calls Today",
     "connection": "Connection",
     "contacts": "Contacts",
@@ -524,6 +525,7 @@
     "errorClockOut": "Failed to clock out",
     "errorRefresh": "Failed to refresh",
     "goOnBreak": "Go On Break",
+    "help": "Help",
     "hub": "Hub",
     "identity": "Identity",
     "noActiveCalls": "No active calls",
@@ -531,6 +533,7 @@
     "noRecentNotes": "No Recent Notes",
     "noShift": "예정된 교대 없음",
     "noVolunteersOnline": "온라인 자원봉사자가 없습니다",
+    "notes": "Notes",
     "offShift": "Off Shift",
     "offline": "오프라인",
     "onBreak": "On Break",
@@ -615,6 +618,7 @@
     "biometricNotAvailable": "Biometric authentication is not available",
     "decryptionFailed": "Decryption failed: %@",
     "encryptionFailed": "Encryption failed: %@",
+    "hubUnreachable": "Could not connect to the hub. Check the URL and try again.",
     "hubUrlEmpty": "Please enter the hub URL",
     "hubUrlRequired": "Hub URL is required",
     "identityExists": "An identity already exists",
@@ -854,10 +858,12 @@
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
   },
+  "identityLabel": "Identity",
   "import": {
     "navTitle": "Import Key",
     "nsecLabel": "Secret Key (nsec)",
     "nsecPlaceholder": "nsec1...",
+    "securityNote": "Your key is encrypted with your PIN and stored securely on this device. It never leaves this device.",
     "submit": "Import Key",
     "subtitle": "Paste your nsec key to restore your identity",
     "title": "Import Your Key"
@@ -904,6 +910,7 @@
   },
   "login": {
     "createIdentity": "Create New Identity",
+    "encryptedTagline": "End-to-end encrypted",
     "hubUrlLabel": "Hub URL",
     "hubUrlPlaceholder": "https://hub.example.org",
     "importKey": "Import Existing Key",
@@ -1329,6 +1336,7 @@
   },
   "settings": {
     "aboutHeader": "About",
+    "accountTitle": "Account",
     "actionsHeader": "Actions",
     "admin": "Admin Panel",
     "adminDesc": "Admin settings",
@@ -1416,6 +1424,7 @@
     "phone": "Phone Number",
     "playRingtone": "수신 전화 시 벨소리 재생",
     "playRingtoneDescription": "전화가 올 때 알림 소리를 재생합니다",
+    "preferencesTitle": "Preferences",
     "profile": "Profile",
     "pubkey": "Hex Pubkey",
     "queue": "Queue",

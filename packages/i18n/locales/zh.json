@@ -513,6 +513,7 @@
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
     "breakDescription": "休息期间不会接到电话",
+    "calls": "Calls",
     "callsToday": "Calls Today",
     "connection": "Connection",
     "contacts": "Contacts",
@@ -524,6 +525,7 @@
     "errorClockOut": "Failed to clock out",
     "errorRefresh": "Failed to refresh",
     "goOnBreak": "Go On Break",
+    "help": "Help",
     "hub": "Hub",
     "identity": "Identity",
     "noActiveCalls": "No active calls",
@@ -531,6 +533,7 @@
     "noRecentNotes": "No Recent Notes",
     "noShift": "暂无排班",
     "noVolunteersOnline": "没有志愿者在线",
+    "notes": "Notes",
     "offShift": "Off Shift",
     "offline": "离线",
     "onBreak": "On Break",
@@ -615,6 +618,7 @@
     "biometricNotAvailable": "Biometric authentication is not available",
     "decryptionFailed": "Decryption failed: %@",
     "encryptionFailed": "Encryption failed: %@",
+    "hubUnreachable": "Could not connect to the hub. Check the URL and try again.",
     "hubUrlEmpty": "Please enter the hub URL",
     "hubUrlRequired": "Hub URL is required",
     "identityExists": "An identity already exists",
@@ -854,10 +858,12 @@
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
   },
+  "identityLabel": "Identity",
   "import": {
     "navTitle": "Import Key",
     "nsecLabel": "Secret Key (nsec)",
     "nsecPlaceholder": "nsec1...",
+    "securityNote": "Your key is encrypted with your PIN and stored securely on this device. It never leaves this device.",
     "submit": "Import Key",
     "subtitle": "Paste your nsec key to restore your identity",
     "title": "Import Your Key"
@@ -904,6 +910,7 @@
   },
   "login": {
     "createIdentity": "Create New Identity",
+    "encryptedTagline": "End-to-end encrypted",
     "hubUrlLabel": "Hub URL",
     "hubUrlPlaceholder": "https://hub.example.org",
     "importKey": "Import Existing Key",
@@ -1329,6 +1336,7 @@
   },
   "settings": {
     "aboutHeader": "About",
+    "accountTitle": "Account",
     "actionsHeader": "Actions",
     "admin": "Admin Panel",
     "adminDesc": "Admin settings",
@@ -1416,6 +1424,7 @@
     "phone": "Phone Number",
     "playRingtone": "来电时播放铃声",
     "playRingtoneDescription": "来电响铃时播放提示音",
+    "preferencesTitle": "Preferences",
     "profile": "Profile",
     "pubkey": "Hex Pubkey",
     "queue": "Queue",

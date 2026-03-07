@@ -513,6 +513,7 @@
     "blasts": "Message Blasts",
     "blastsSubtitle": "Send broadcast messages to subscribers",
     "breakDescription": "Vous ne recevrez pas d'appels pendant la pause",
+    "calls": "Calls",
     "callsToday": "Appels aujourd'hui",
     "connection": "Connection",
     "contacts": "Contacts",
@@ -524,6 +525,7 @@
     "errorClockOut": "Failed to clock out",
     "errorRefresh": "Failed to refresh",
     "goOnBreak": "Prendre une pause",
+    "help": "Help",
     "hub": "Hub",
     "identity": "Identity",
     "noActiveCalls": "Aucun appel actif",
@@ -531,6 +533,7 @@
     "noRecentNotes": "No Recent Notes",
     "noShift": "Aucun quart prévu",
     "noVolunteersOnline": "Aucun bénévole en ligne",
+    "notes": "Notes",
     "offShift": "Off Shift",
     "offline": "Hors ligne",
     "onBreak": "En pause",
@@ -615,6 +618,7 @@
     "biometricNotAvailable": "Biometric authentication is not available",
     "decryptionFailed": "Decryption failed: %@",
     "encryptionFailed": "Encryption failed: %@",
+    "hubUnreachable": "Could not connect to the hub. Check the URL and try again.",
     "hubUrlEmpty": "Please enter the hub URL",
     "hubUrlRequired": "Hub URL is required",
     "identityExists": "An identity already exists",
@@ -854,10 +858,12 @@
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
   },
+  "identityLabel": "Identity",
   "import": {
     "navTitle": "Import Key",
     "nsecLabel": "Secret Key (nsec)",
     "nsecPlaceholder": "nsec1...",
+    "securityNote": "Your key is encrypted with your PIN and stored securely on this device. It never leaves this device.",
     "submit": "Import Key",
     "subtitle": "Paste your nsec key to restore your identity",
     "title": "Import Your Key"
@@ -904,6 +910,7 @@
   },
   "login": {
     "createIdentity": "Create New Identity",
+    "encryptedTagline": "End-to-end encrypted",
     "hubUrlLabel": "Hub URL",
     "hubUrlPlaceholder": "https://hub.example.org",
     "importKey": "Import Existing Key",
@@ -1329,6 +1336,7 @@
   },
   "settings": {
     "aboutHeader": "About",
+    "accountTitle": "Account",
     "actionsHeader": "Actions",
     "admin": "Admin Panel",
     "adminDesc": "Admin settings",
@@ -1416,6 +1424,7 @@
     "phone": "Phone Number",
     "playRingtone": "Jouer une sonnerie pour les appels entrants",
     "playRingtoneDescription": "Joue un son lorsqu'un appel est en cours de sonnerie",
+    "preferencesTitle": "Preferences",
     "profile": "Profile",
     "pubkey": "Hex Pubkey",
     "queue": "Queue",
