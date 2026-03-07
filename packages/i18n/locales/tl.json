@@ -347,6 +347,7 @@
     "no": "Hindi",
     "noData": "Walang available na data",
     "none": "None",
+    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "off": "off",
     "on": "on",
     "or": "o",

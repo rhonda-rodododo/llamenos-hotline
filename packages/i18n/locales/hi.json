@@ -347,6 +347,7 @@
     "no": "नहीं",
     "noData": "कोई डेटा उपलब्ध नहीं है",
     "none": "None",
+    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "off": "off",
     "on": "on",
     "or": "या",

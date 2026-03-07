@@ -317,6 +317,7 @@
     <string name="common_no_data">데이터가 없습니다</string>
     <string name="common_none">None</string>
     <string name="common_off">off</string>
+    <string name="common_offline">You are offline. Calls and messages will not work until connectivity is restored.</string>
     <string name="common_on">on</string>
     <string name="common_or">또는</string>
     <string name="common_remove">Remove</string>

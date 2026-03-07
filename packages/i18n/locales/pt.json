@@ -347,6 +347,7 @@
     "no": "Não",
     "noData": "Nenhum dado disponível",
     "none": "None",
+    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "off": "off",
     "on": "on",
     "or": "ou",

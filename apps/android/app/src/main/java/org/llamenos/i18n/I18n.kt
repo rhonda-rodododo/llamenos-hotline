@@ -318,6 +318,7 @@ object I18n {
     const val COMMON_NO_DATA = "common_no_data"  // "No data available"
     const val COMMON_NONE = "common_none"  // "None"
     const val COMMON_OFF = "common_off"  // "off"
+    const val COMMON_OFFLINE = "common_offline"  // "You are offline. Calls and messages will not work until c..."
     const val COMMON_ON = "common_on"  // "on"
     const val COMMON_OR = "common_or"  // "or"
     const val COMMON_REMOVE = "common_remove"  // "Remove"

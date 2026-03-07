@@ -314,6 +314,7 @@
 "common_no_data" = "No hay datos disponibles";
 "common_none" = "None";
 "common_off" = "off";
+"common_offline" = "You are offline. Calls and messages will not work until connectivity is restored.";
 "common_on" = "on";
 "common_or" = "o";
 "common_remove" = "Remove";

@@ -17,6 +17,7 @@ import { NotificationPromptBanner } from '@/components/notification-prompt-banne
 import { UpdateChecker } from '@/components/UpdateChecker'
 import { PanicWipeIndicator } from '@/components/panic-wipe-indicator'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { OfflineBanner } from '@/components/offline-banner'
 import { HubSwitcher } from '@/components/hub-switcher'
 import {
   LayoutDashboard,
@@ -134,6 +135,7 @@ function RootLayout() {
   return (
     <>
       <PanicWipeIndicator />
+      <OfflineBanner />
       <ErrorBoundary scope="root">
         {content}
       </ErrorBoundary>

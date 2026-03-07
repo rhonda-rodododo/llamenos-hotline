@@ -314,6 +314,7 @@
 "common_no_data" = "데이터가 없습니다";
 "common_none" = "None";
 "common_off" = "off";
+"common_offline" = "You are offline. Calls and messages will not work until connectivity is restored.";
 "common_on" = "on";
 "common_or" = "또는";
 "common_remove" = "Remove";
