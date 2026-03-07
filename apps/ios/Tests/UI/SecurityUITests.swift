@@ -94,6 +94,7 @@ final class SecurityUITests: BaseUITest {
 
     func testPINPadHasAllDigits() {
         given("the app is on the login screen") {
+            app.launchArguments.append("--test-skip-hub-validation")
             launchClean()
         }
         when("I start the identity creation flow") {
@@ -136,6 +137,7 @@ final class SecurityUITests: BaseUITest {
 
     func testPINDotsIndicator() {
         given("the app is on the login screen") {
+            app.launchArguments.append("--test-skip-hub-validation")
             launchClean()
         }
         when("I navigate to the PIN set screen") {
@@ -264,14 +266,14 @@ final class SecurityUITests: BaseUITest {
         given("I am authenticated") {
             launchAuthenticated()
         }
-        when("I navigate to settings") {
-            navigateToSettings()
+        when("I navigate to preferences settings") {
+            navigateToPreferencesSettings()
         }
         then("the auto-lock timeout picker should exist") {
             let picker = scrollToFind("settings-auto-lock-picker")
             XCTAssertTrue(
                 picker.exists,
-                "Auto-lock timeout picker should exist in settings"
+                "Auto-lock timeout picker should exist in preferences settings"
             )
         }
     }
@@ -295,14 +297,14 @@ final class SecurityUITests: BaseUITest {
         given("I am authenticated") {
             launchAuthenticated()
         }
-        when("I navigate to Settings") {
-            navigateToSettings()
+        when("I navigate to Account Settings") {
+            navigateToAccountSettings()
         }
         then("the device link button should be accessible") {
             let linkButton = scrollToFind("settings-link-device", maxSwipes: 5, timeout: 5)
             XCTAssertTrue(
                 linkButton.exists,
-                "Device link button should exist in Settings for device pairing"
+                "Device link button should exist in Account Settings for device pairing"
             )
         }
         and("SAS verification elements should not be accessible outside the flow") {
@@ -341,7 +343,7 @@ final class SecurityUITests: BaseUITest {
             launchAuthenticated()
         }
         when("I open the Device Link view") {
-            navigateToSettings()
+            navigateToAccountSettings()
             scrollAndTap("settings-link-device")
             let deviceLinkView = find("device-link-view")
             _ = deviceLinkView.waitForExistence(timeout: 5)
@@ -377,7 +379,7 @@ final class SecurityUITests: BaseUITest {
             launchAuthenticated()
         }
         when("I open the Device Link view") {
-            navigateToSettings()
+            navigateToAccountSettings()
             scrollAndTap("settings-link-device")
             let deviceLinkView = find("device-link-view")
             _ = deviceLinkView.waitForExistence(timeout: 5)
@@ -556,11 +558,24 @@ final class SecurityUITests: BaseUITest {
 
     func testNsecInputClearedAfterSuccessfulImport() {
         given("the app is on the login screen") {
+            app.launchArguments.append("--test-skip-hub-validation")
             launchClean()
         }
         when("I navigate to the import key screen") {
+            // Enter hub URL first (required for import navigation)
+            let hubInput = find("hub-url-input")
+            guard hubInput.waitForExistence(timeout: 20) else {
+                XCTFail("Hub URL input should exist")
+                return
+            }
+            hubInput.tap()
+            hubInput.typeText("https://test.example.org")
+            // Dismiss keyboard
+            let coordinate = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
+            coordinate.tap()
+
             let importButton = find("import-key")
-            guard importButton.waitForExistence(timeout: 20) else {
+            guard importButton.waitForExistence(timeout: 5) else {
                 XCTFail("Import key button should exist")
                 return
             }

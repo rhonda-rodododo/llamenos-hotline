@@ -13,8 +13,8 @@ final class AuthFlowUITests: XCTestCase {
         super.setUp()
         continueAfterFailure = false
         app = XCUIApplication()
-        // Reset state for clean test runs
-        app.launchArguments.append("--reset-keychain")
+        // Reset state for clean test runs; skip hub validation for fake URLs
+        app.launchArguments.append(contentsOf: ["--reset-keychain", "--test-skip-hub-validation"])
         app.launch()
     }
 
@@ -151,9 +151,16 @@ final class AuthFlowUITests: XCTestCase {
     // MARK: - Import Flow
 
     func testImportKeyFlow() {
-        // Tap "Import Key" (longer timeout for cold start after simulator reset)
+        // Enter hub URL first (required for import navigation)
+        let hubInput = find("hub-url-input")
+        XCTAssertTrue(hubInput.waitForExistence(timeout: 20), "Hub URL input should exist")
+        hubInput.tap()
+        hubInput.typeText("https://test.example.org")
+        dismissKeyboard()
+
+        // Tap "Import Key"
         let importButton = find("import-key")
-        XCTAssertTrue(importButton.waitForExistence(timeout: 20))
+        XCTAssertTrue(importButton.waitForExistence(timeout: 5))
         importButton.tap()
 
         // Nsec input should appear

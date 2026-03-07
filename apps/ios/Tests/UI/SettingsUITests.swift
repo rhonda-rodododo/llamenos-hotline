@@ -122,7 +122,13 @@ final class SettingsUITests: BaseUITest {
 
     func testCopyPubkeyButton() {
         given("I am on the settings screen") {
-            // Already navigated
+            // Pubkey is now in Account Settings sub-page
+            let accountLink = find("settings-account-link")
+            guard accountLink.waitForExistence(timeout: 5) else {
+                XCTFail("Account settings link should exist")
+                return
+            }
+            accountLink.tap()
         }
         then("I should see the pubkey row") {
             // Copy button may be inside a combined List cell
@@ -151,13 +157,19 @@ final class SettingsUITests: BaseUITest {
 
     func testDeviceLinkButtonExists() {
         given("I am on the settings screen") {
-            // Already navigated
+            // Device link is now in Account Settings sub-page
+            let accountLink = find("settings-account-link")
+            guard accountLink.waitForExistence(timeout: 5) else {
+                XCTFail("Account settings link should exist")
+                return
+            }
+            accountLink.tap()
         }
         then("I should see a device link button") {
             let linkButton = scrollToFind("settings-link-device")
             XCTAssertTrue(
                 linkButton.exists,
-                "Link device button should exist in settings"
+                "Link device button should exist in account settings"
             )
         }
     }

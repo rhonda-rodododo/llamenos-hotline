@@ -157,15 +157,37 @@ class BaseUITest: XCTestCase {
     func navigateToAdminPanel() {
         navigateToSettings()
 
-        let adminButton = scrollToFind("settings-admin-panel", maxSwipes: 5, timeout: 10)
-        guard adminButton.exists else {
-            XCTFail("Admin panel button should exist for admin users")
+        let adminLink = scrollToFind("settings-admin-link", maxSwipes: 5, timeout: 10)
+        guard adminLink.exists else {
+            XCTFail("Admin panel link should exist for admin users")
             return
         }
-        adminButton.tap()
+        adminLink.tap()
 
         let adminTabView = find("admin-tab-view")
         _ = adminTabView.waitForExistence(timeout: 5)
+    }
+
+    func navigateToAccountSettings() {
+        navigateToSettings()
+
+        let accountLink = find("settings-account-link")
+        guard accountLink.waitForExistence(timeout: 5) else {
+            XCTFail("Account settings link should exist")
+            return
+        }
+        accountLink.tap()
+    }
+
+    func navigateToPreferencesSettings() {
+        navigateToSettings()
+
+        let preferencesLink = find("settings-preferences-link")
+        guard preferencesLink.waitForExistence(timeout: 5) else {
+            XCTFail("Preferences settings link should exist")
+            return
+        }
+        preferencesLink.tap()
     }
 
     // MARK: - PIN Helpers

@@ -37,10 +37,10 @@ final class AdminFlowUITests: XCTestCase {
     func testSettingsHasAdminSection() {
         navigateToSettingsTab()
 
-        // Admin panel button should be visible for admin users
-        let adminButton = find("settings-admin-panel")
-        if adminButton.waitForExistence(timeout: 10) {
-            XCTAssertTrue(true, "Admin panel button exists in settings for admin users")
+        // Admin panel link should be visible for admin users
+        let adminLink = find("settings-admin-link")
+        if adminLink.waitForExistence(timeout: 10) {
+            XCTAssertTrue(true, "Admin panel link exists in settings for admin users")
         }
         // If the admin section is not visible, the user might not have admin role
         // in the test configuration, which is acceptable
@@ -49,12 +49,12 @@ final class AdminFlowUITests: XCTestCase {
     func testAdminPanelOpens() {
         navigateToSettingsTab()
 
-        let adminButton = find("settings-admin-panel")
-        guard adminButton.waitForExistence(timeout: 10) else {
+        let adminLink = find("settings-admin-link")
+        guard adminLink.waitForExistence(timeout: 10) else {
             // Not an admin — skip test
             return
         }
-        adminButton.tap()
+        adminLink.tap()
 
         // Admin tab view should appear
         let adminTabView = find("admin-tab-view")
@@ -191,10 +191,18 @@ final class AdminFlowUITests: XCTestCase {
     func testDeviceLinkButtonExists() {
         navigateToSettingsTab()
 
+        // Device link is now in Account Settings sub-page
+        let accountLink = find("settings-account-link")
+        guard accountLink.waitForExistence(timeout: 5) else {
+            XCTFail("Account settings link should exist")
+            return
+        }
+        accountLink.tap()
+
         let linkButton = scrollToFind("settings-link-device")
         XCTAssertTrue(
             linkButton.exists,
-            "Link device button should exist in settings"
+            "Link device button should exist in account settings"
         )
     }
 
@@ -257,12 +265,12 @@ final class AdminFlowUITests: XCTestCase {
     private func navigateToAdminPanel() {
         navigateToSettingsTab()
 
-        let adminButton = scrollToFind("settings-admin-panel", timeout: 10)
-        guard adminButton.exists else {
+        let adminLink = scrollToFind("settings-admin-link", timeout: 10)
+        guard adminLink.exists else {
             // Not visible — might not be admin. Skip gracefully.
             return
         }
-        adminButton.tap()
+        adminLink.tap()
 
         // Wait for admin view to load
         let adminTabView = find("admin-tab-view")

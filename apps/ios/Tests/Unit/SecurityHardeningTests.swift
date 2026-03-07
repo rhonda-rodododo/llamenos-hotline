@@ -356,9 +356,9 @@ final class SecurityHardeningTests: XCTestCase {
             apiService: apiService
         )
 
-        // Simulate entering an nsec
+        // Simulate entering an nsec and being on the import step
         viewModel.nsecInput = "nsec1test_fake_key_data_here_not_real"
-        viewModel.startImport()
+        viewModel.currentStep = .importingKey
 
         XCTAssertEqual(viewModel.currentStep, .importingKey)
         XCTAssertFalse(viewModel.nsecInput.isEmpty, "nsecInput should have data before cancel")

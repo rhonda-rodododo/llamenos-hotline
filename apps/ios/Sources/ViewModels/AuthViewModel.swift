@@ -55,11 +55,10 @@ final class AuthViewModel {
     // MARK: - Create New Identity
 
     /// Generate a new keypair and show the nsec for backup confirmation.
-    func createNewIdentity() {
+    /// Validates hub URL format and reachability first.
+    func createNewIdentity() async {
         errorMessage = nil
-
-        // Validate hub URL first
-        guard validateAndStoreHubURL() else { return }
+        guard await validateAndStoreHubURL() else { return }
 
         let (nsec, npub) = authService.createNewIdentity()
         generatedNsec = nsec
@@ -74,10 +73,14 @@ final class AuthViewModel {
 
     // MARK: - Import Existing Key
 
-    /// Begin the nsec import flow.
-    func startImport() {
+    /// Begin the nsec import flow. Validates and persists the hub URL first
+    /// so that ImportKeyView (which creates its own AuthViewModel) can read it
+    /// back from authService.
+    func startImport() async -> Bool {
         errorMessage = nil
+        guard await validateAndStoreHubURL() else { return false }
         currentStep = .importingKey
+        return true
     }
 
     /// Submit the imported nsec.
@@ -85,9 +88,6 @@ final class AuthViewModel {
     /// the sensitive key material from lingering in view model state.
     func submitImport() {
         errorMessage = nil
-
-        // Validate hub URL
-        guard validateAndStoreHubURL() else { return }
 
         let trimmed = nsecInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -115,10 +115,10 @@ final class AuthViewModel {
 
     // MARK: - Hub URL
 
-    /// Validate and persist the hub URL.
-    /// Returns true if valid, false if invalid (sets errorMessage).
+    /// Validate hub URL format, persist it, and test connectivity.
+    /// Returns true if the hub is reachable, false otherwise (sets errorMessage).
     @discardableResult
-    private func validateAndStoreHubURL() -> Bool {
+    private func validateAndStoreHubURL() async -> Bool {
         let trimmed = hubURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             errorMessage = NSLocalizedString("error_hub_url_empty", comment: "Please enter the hub URL")
@@ -126,13 +126,32 @@ final class AuthViewModel {
         }
 
         do {
-            try authService.setHubURL(trimmed)
             try apiService.configure(hubURLString: trimmed)
-            return true
+            try authService.setHubURL(apiService.baseURL?.absoluteString ?? trimmed)
         } catch {
             errorMessage = error.localizedDescription
             return false
         }
+
+        // Skip connectivity check in test mode (XCUITests use fake hub URLs)
+        if ProcessInfo.processInfo.arguments.contains("--test-skip-hub-validation") {
+            return true
+        }
+
+        // Test actual connectivity
+        isLoading = true
+        let reachable = await apiService.validateConnection()
+        isLoading = false
+
+        if !reachable {
+            errorMessage = NSLocalizedString(
+                "error_hub_unreachable",
+                comment: "Could not connect to the hub. Check the URL and try again."
+            )
+            return false
+        }
+
+        return true
     }
 
     // MARK: - Reset
