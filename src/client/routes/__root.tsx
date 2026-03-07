@@ -16,6 +16,7 @@ import { DemoBanner } from '@/components/demo-banner'
 import { NotificationPromptBanner } from '@/components/notification-prompt-banner'
 import { UpdateChecker } from '@/components/UpdateChecker'
 import { PanicWipeIndicator } from '@/components/panic-wipe-indicator'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { HubSwitcher } from '@/components/hub-switcher'
 import {
   LayoutDashboard,
@@ -133,7 +134,9 @@ function RootLayout() {
   return (
     <>
       <PanicWipeIndicator />
-      {content}
+      <ErrorBoundary scope="root">
+        {content}
+      </ErrorBoundary>
     </>
   )
 }
@@ -379,7 +382,9 @@ function AuthenticatedLayout() {
         </header>
 
         <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto bg-background p-4 md:p-6">
-          <Outlet />
+          <ErrorBoundary scope="page">
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 

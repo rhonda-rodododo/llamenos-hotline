@@ -634,8 +634,13 @@
     "pinLockedOut": "Too many failed attempts. Please wait and try again.",
     "pinMismatch": "PINs do not match. Try again.",
     "pinNotNumeric": "PIN must contain only digits",
-    "pinTooLong": "PIN must be at most 6 digits",
-    "pinTooShort": "PIN must be at least 4 digits",
+    "pinTooLong": "PIN must be at most 8 digits",
+    "pinTooShort": "PIN must be at least 6 digits",
+    "boundary": {
+      "title": "Something went wrong",
+      "description": "An unexpected error occurred. You can try again or navigate to another page.",
+      "retry": "Try again"
+    },
     "wakeDecryptFailed": "Wake decrypt failed: %@",
     "wakeKeyGeneration": "Failed to generate wake key",
     "wakeRegisterFailed": "Device registration failed: %@"

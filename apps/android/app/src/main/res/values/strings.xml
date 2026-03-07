@@ -557,6 +557,9 @@
     <string name="duration_sec">%ds</string>
     <string name="encrypting_keys">Encrypting keys...</string>
     <string name="error_biometric_not_available">Biometric authentication is not available</string>
+    <string name="error_boundary_description">An unexpected error occurred. You can try again or navigate to another page.</string>
+    <string name="error_boundary_retry">Try again</string>
+    <string name="error_boundary_title">Something went wrong</string>
     <string name="error_decryption_failed">Decryption failed: %@</string>
     <string name="error_encryption_failed">Encryption failed: %@</string>
     <string name="error_hub_unreachable">Could not connect to the hub. Check the URL and try again.</string>
@@ -575,8 +578,8 @@
     <string name="error_pin_locked_out">Too many failed attempts. Please wait and try again.</string>
     <string name="error_pin_mismatch">PINs do not match. Try again.</string>
     <string name="error_pin_not_numeric">PIN must contain only digits</string>
-    <string name="error_pin_too_long">PIN must be at most 6 digits</string>
-    <string name="error_pin_too_short">PIN must be at least 4 digits</string>
+    <string name="error_pin_too_long">PIN must be at most 8 digits</string>
+    <string name="error_pin_too_short">PIN must be at least 6 digits</string>
     <string name="error_wake_decrypt_failed">Wake decrypt failed: %@</string>
     <string name="error_wake_key_generation">Failed to generate wake key</string>
     <string name="error_wake_register_failed">Device registration failed: %@</string>

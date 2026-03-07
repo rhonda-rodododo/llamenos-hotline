@@ -554,6 +554,9 @@
 "duration_sec" = "%ds";
 "encrypting_keys" = "Encrypting keys...";
 "error_biometric_not_available" = "Biometric authentication is not available";
+"error_boundary_description" = "An unexpected error occurred. You can try again or navigate to another page.";
+"error_boundary_retry" = "Try again";
+"error_boundary_title" = "Something went wrong";
 "error_decryption_failed" = "Decryption failed: %@";
 "error_encryption_failed" = "Encryption failed: %@";
 "error_hub_unreachable" = "Could not connect to the hub. Check the URL and try again.";
@@ -561,7 +564,7 @@
 "error_hub_url_required" = "Hub URL is required";
 "error_identity_exists" = "An identity already exists";
 "error_invalid_nsec" = "The provided nsec key is invalid";
-"error_invalid_pin" = "PIN must be 4-6 digits";
+"error_invalid_pin" = "PIN must be 6-8 digits";
 "error_no_hub_url" = "No hub URL configured";
 "error_no_key_loaded" = "No key loaded";
 "error_no_stored_keys" = "No stored keys found";
@@ -572,8 +575,8 @@
 "error_pin_locked_out" = "Too many failed attempts. Please wait and try again.";
 "error_pin_mismatch" = "PINs do not match";
 "error_pin_not_numeric" = "PIN must contain only digits";
-"error_pin_too_long" = "PIN must be at most 6 digits";
-"error_pin_too_short" = "PIN must be at least 4 digits";
+"error_pin_too_long" = "PIN must be at most 8 digits";
+"error_pin_too_short" = "PIN must be at least 6 digits";
 "error_wake_decrypt_failed" = "Wake decrypt failed: %@";
 "error_wake_key_generation" = "Failed to generate wake key";
 "error_wake_register_failed" = "Device registration failed: %@";
@@ -1005,7 +1008,7 @@
 "pin_lockout_remaining" = "Locked out. Try again in %d seconds.";
 "pin_mismatch" = "Mã PIN không khớp. Vui lòng thử lại.";
 "pin_set_encrypting" = "Encrypting your key...";
-"pin_set_subtitle" = "Choose a 4-6 digit PIN to protect your key";
+"pin_set_subtitle" = "Choose a 6-8 digit PIN to protect your key";
 "pin_set_title" = "Create a PIN";
 "pin_too_short" = "Mã PIN phải có 6 chữ số";
 "pin_unlock_attempts" = "%d of %d attempts used";
