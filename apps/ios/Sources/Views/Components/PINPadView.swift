@@ -6,7 +6,7 @@ import SwiftUI
 /// avoiding keyboard-related testing issues (Detox, XCUITest) and preventing
 /// autocorrect/paste/suggest from interfering with PIN entry.
 ///
-/// The pad supports 4-6 digit PINs and calls `onComplete` when the PIN reaches
+/// The pad supports 6-8 digit PINs and calls `onComplete` when the PIN reaches
 /// `maxLength`. Each button has an `accessibilityIdentifier` matching the project
 /// convention (e.g., "pin-1", "pin-backspace").
 struct PINPadView: View {
@@ -21,7 +21,7 @@ struct PINPadView: View {
 
     init(
         pin: Binding<String>,
-        maxLength: Int = 4,
+        maxLength: Int = 8,
         shake: Binding<Bool>? = nil,
         onComplete: @escaping (String) -> Void
     ) {

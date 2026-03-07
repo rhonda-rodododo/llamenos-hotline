@@ -71,7 +71,7 @@ data class AuthUiState(
  * 1. Check for stored keys -> PINUnlock if found, Login if not
  * 2. Login: Import existing nsec OR generate new keypair (-> Onboarding)
  * 3. Onboarding: Display generated nsec for backup
- * 4. PINSet: Set 4-6 digit PIN with confirmation
+ * 4. PINSet: Set 6-8 digit PIN with confirmation
  * 5. PINUnlock: Enter PIN to decrypt stored key
  * 6. -> Dashboard
  */

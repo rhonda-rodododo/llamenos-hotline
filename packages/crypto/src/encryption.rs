@@ -503,11 +503,11 @@ pub fn decrypt_with_pin(data: &EncryptedKeyData, pin: &str) -> Result<String, Cr
     String::from_utf8(plaintext.to_vec()).map_err(|_| CryptoError::WrongPin)
 }
 
-/// Validate PIN format: 4-6 digits.
+/// Validate PIN format: 6-8 digits.
 #[cfg_attr(feature = "mobile", uniffi::export)]
 pub fn is_valid_pin(pin: &str) -> bool {
     let len = pin.len();
-    (4..=6).contains(&len) && pin.chars().all(|c| c.is_ascii_digit())
+    (6..=8).contains(&len) && pin.chars().all(|c| c.is_ascii_digit())
 }
 
 #[cfg(test)]
@@ -580,7 +580,7 @@ mod tests {
     #[test]
     fn roundtrip_pin_encryption() {
         let nsec = "nsec1test1234567890abcdef";
-        let pin = "1234";
+        let pin = "123456";
         let pubkey = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
 
         let encrypted = encrypt_with_pin(nsec, pin, pubkey).unwrap();
@@ -591,18 +591,18 @@ mod tests {
     #[test]
     fn wrong_pin_fails() {
         let nsec = "nsec1test1234567890abcdef";
-        let pin = "1234";
+        let pin = "123456";
         let pubkey = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
 
         let encrypted = encrypt_with_pin(nsec, pin, pubkey).unwrap();
-        let result = decrypt_with_pin(&encrypted, "9999");
+        let result = decrypt_with_pin(&encrypted, "999999");
         assert!(result.is_err());
     }
 
     #[test]
     fn pbkdf2_32_byte_salt_roundtrip() {
         let nsec = "nsec1test32bytesalt";
-        let pin = "1234";
+        let pin = "123456";
         let pubkey = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
 
         let encrypted = encrypt_with_pin(nsec, pin, pubkey).unwrap();
@@ -646,11 +646,11 @@ mod tests {
 
     #[test]
     fn invalid_pin_rejected() {
-        assert!(!is_valid_pin("123"));     // too short
-        assert!(!is_valid_pin("1234567")); // too long
-        assert!(!is_valid_pin("abcd"));    // not digits
-        assert!(is_valid_pin("1234"));     // valid
-        assert!(is_valid_pin("123456"));   // valid
+        assert!(!is_valid_pin("12345"));     // too short
+        assert!(!is_valid_pin("123456789")); // too long
+        assert!(!is_valid_pin("abcdef"));    // not digits
+        assert!(is_valid_pin("123456"));     // valid (6 digits)
+        assert!(is_valid_pin("12345678"));   // valid (8 digits)
     }
 
     #[test]

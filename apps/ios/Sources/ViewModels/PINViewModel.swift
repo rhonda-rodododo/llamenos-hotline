@@ -60,7 +60,7 @@ final class PINViewModel {
     /// Current PIN digits entered by the user.
     var pin: String = ""
 
-    /// PIN length (4-6 digits).
+    /// PIN length (6-8 digits).
     let maxLength: Int
 
     /// For set mode: the phase within the set flow.
@@ -107,7 +107,7 @@ final class PINViewModel {
         case .set:
             switch phase {
             case .enter:
-                return NSLocalizedString("pin_set_subtitle", comment: "Choose a 4-6 digit PIN to protect your key")
+                return NSLocalizedString("pin_set_subtitle", comment: "Choose a 6-8 digit PIN to protect your key")
             case .confirm:
                 return NSLocalizedString("pin_confirm_subtitle", comment: "Enter the same PIN again to confirm")
             }
@@ -138,7 +138,7 @@ final class PINViewModel {
         mode: PINMode,
         authService: AuthService,
         keychainService: KeychainService? = nil,
-        maxLength: Int = 4,
+        maxLength: Int = 8,
         onSuccess: @escaping () -> Void
     ) {
         self.mode = mode

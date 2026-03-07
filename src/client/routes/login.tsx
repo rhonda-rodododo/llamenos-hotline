@@ -415,8 +415,8 @@ function LoginPage() {
                       inputMode="numeric"
                       value={recoveryPin}
                       onChange={e => setRecoveryPin(e.target.value)}
-                      placeholder="••••••"
-                      maxLength={6}
+                      placeholder="••••••••"
+                      maxLength={8}
                       autoComplete="off"
                     />
                   </div>
@@ -435,11 +435,10 @@ function LoginPage() {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {newPinStep === 'create'
-                      ? t('pin.createDescription', { defaultValue: 'Choose a 4-6 digit PIN to protect your key on this device.' })
+                      ? t('pin.createDescription', { defaultValue: 'Choose a 6-8 digit PIN to protect your key on this device.' })
                       : t('pin.confirmDescription', { defaultValue: 'Enter the same PIN again to confirm.' })}
                   </p>
                   <PinInput
-                    length={6}
                     value={newPinStep === 'create' ? newPin1 : newPin2}
                     onChange={newPinStep === 'create' ? setNewPin1 : setNewPin2}
                     onComplete={handleNewPinComplete}
@@ -578,7 +577,6 @@ function PinUnlockInline({ onUnlock, onWipe }: { onUnlock: (pin: string) => Prom
   return (
     <div className="space-y-3">
       <PinInput
-        length={6}
         value={pin}
         onChange={setPin}
         onComplete={handleComplete}

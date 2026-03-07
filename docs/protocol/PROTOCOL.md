@@ -475,7 +475,7 @@ The user's Nostr secret key (nsec, bech32-encoded) is encrypted with a user-chos
 #### Encryption Parameters
 
 ```
-PIN:          4-6 decimal digits (validated by regex /^\d{4,6}$/)
+PIN:          6-8 decimal digits (validated by regex /^\d{6,8}$/)
 Salt:         16 random bytes
 KDF:          PBKDF2 with SHA-256
 Iterations:   600,000

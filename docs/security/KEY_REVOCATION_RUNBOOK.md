@@ -239,7 +239,7 @@ The volunteer's nsec is stored encrypted under a PIN-derived key. The strength o
 | 6 digits   | Hours to days                                | Marginal |
 | 8+ digits  | Days to weeks                                | Provides meaningful time buffer |
 
-The PIN protection is a delay mechanism, not a permanent barrier. Hub key rotation must be completed before a well-funded adversary could crack the PIN. For 4-6 digit PINs, this means hub key rotation should begin within 1 hour of confirmed device seizure.
+The PIN protection is a delay mechanism, not a permanent barrier. Hub key rotation must be completed before a well-funded adversary could crack the PIN. For 6-8 digit PINs, this means hub key rotation should begin within 1 hour of confirmed device seizure.
 
 ### 3.4 Post-Seizure Volunteer Re-Onboarding
 

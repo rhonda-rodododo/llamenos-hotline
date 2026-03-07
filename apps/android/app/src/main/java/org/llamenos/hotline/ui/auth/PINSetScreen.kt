@@ -40,7 +40,7 @@ import org.llamenos.hotline.ui.components.PINPad
  * PIN set screen with enter + confirm flow.
  *
  * Two phases:
- * 1. "Enter a PIN" — user enters 4-6 digit PIN
+ * 1. "Enter a PIN" — user enters 6-8 digit PIN
  * 2. "Confirm your PIN" — user re-enters the same PIN
  *
  * On mismatch, shows error and resets to confirmation phase.

@@ -1967,7 +1967,7 @@ public object FfiConverterSequenceTypeRecipientKeyEnvelope: FfiConverterRustBuff
     
 
         /**
-         * Validate PIN format: 4-6 digits.
+         * Validate PIN format: 6-8 digits.
          */ fun `isValidPin`(`pin`: kotlin.String): kotlin.Boolean {
             return FfiConverterBoolean.lift(
     uniffiRustCall() { _status ->

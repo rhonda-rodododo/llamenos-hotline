@@ -564,7 +564,7 @@
     <string name="error_hub_url_required">Hub URL is required</string>
     <string name="error_identity_exists">An identity already exists</string>
     <string name="error_invalid_nsec">The provided nsec key is invalid</string>
-    <string name="error_invalid_pin">PIN must be 4-6 digits</string>
+    <string name="error_invalid_pin">PIN must be 6-8 digits</string>
     <string name="error_no_hub_url">No hub URL configured</string>
     <string name="error_no_key_loaded">No key loaded</string>
     <string name="error_no_stored_keys">No stored keys found</string>
@@ -1008,7 +1008,7 @@
     <string name="pin_lockout_remaining">Locked out. Try again in %d seconds.</string>
     <string name="pin_mismatch">PINs stimmen nicht überein. Versuchen Sie es erneut.</string>
     <string name="pin_set_encrypting">Encrypting your key...</string>
-    <string name="pin_set_subtitle">Choose a 4-6 digit PIN to protect your key</string>
+    <string name="pin_set_subtitle">Choose a 6-8 digit PIN to protect your key</string>
     <string name="pin_set_title">Create a PIN</string>
     <string name="pin_too_short">Die PIN muss 6 Ziffern lang sein</string>
     <string name="pin_unlock_attempts">%d of %d attempts used</string>

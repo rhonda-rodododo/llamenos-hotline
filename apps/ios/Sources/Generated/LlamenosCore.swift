@@ -1661,7 +1661,7 @@ public func isValidNsec(nsec: String) -> Bool {
 })
 }
 /**
- * Validate PIN format: 4-6 digits.
+ * Validate PIN format: 6-8 digits.
  */
 public func isValidPin(pin: String) -> Bool {
     return try!  FfiConverterBool.lift(try! rustCall() {

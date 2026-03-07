@@ -207,7 +207,7 @@ export class KeyLockedError extends Error {
   }
 }
 
-/** Validate a PIN format (4-6 digits, matching Rust crypto crate). */
+/** Validate a PIN format (6-8 digits, matching Rust crypto crate). */
 export function isValidPin(pin: string): boolean {
-  return /^\d{4,6}$/.test(pin)
+  return /^\d{6,8}$/.test(pin)
 }

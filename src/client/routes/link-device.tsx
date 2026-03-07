@@ -248,7 +248,6 @@ function LinkDevicePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <PinInput
-                length={6}
                 value={pin1}
                 onChange={setPin1}
                 onComplete={handlePinCreate}
@@ -266,7 +265,6 @@ function LinkDevicePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <PinInput
-                length={6}
                 value={pin2}
                 onChange={setPin2}
                 onComplete={handlePinConfirm}

@@ -85,7 +85,7 @@ If a hosting provider is legally compelled to provide data, they **can access**:
 
 **Without PIN:**
 - Encrypted key blob in localStorage (requires PIN brute-force)
-- 600,000 PBKDF2 iterations + 4-6 digit PIN = ~10-60 seconds per attempt on GPU
+- 600,000 PBKDF2 iterations + 6-8 digit PIN = ~10-60 seconds per attempt on GPU
 
 **With PIN:**
 - Access to that volunteer's notes only (not other volunteers')
@@ -136,7 +136,7 @@ All cryptographic code uses audited, constant-time implementations from the `@no
 - **Metadata confidentiality**: The server needs timestamps and routing data to function.
 - **SMS/WhatsApp transport E2EE**: These channels require provider-side plaintext during transit. Messages are E2EE at rest on the server, but the provider sees plaintext.
 - **Nostr relay metadata privacy**: The relay can observe event metadata (pubkeys, timestamps, sizes, frequency) — only content is encrypted.
-- **PIN brute-force resistance (offline)**: 4-6 digits is ~20 bits of entropy. With a seized encrypted blob and GPU resources, this is brute-forceable in hours.
+- **PIN brute-force resistance (offline)**: 6-8 digits is ~27 bits of entropy. With a seized encrypted blob and GPU resources, this is brute-forceable in days to weeks.
 - **Deletion verification**: We cannot cryptographically prove that Cloudflare/VPS providers deleted data when requested.
 
 ## Audit History

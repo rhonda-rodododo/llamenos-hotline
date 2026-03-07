@@ -64,7 +64,6 @@ export function PinChallengeDialog({
 
         <div className="py-4">
           <PinInput
-            length={6}
             value={pin}
             onChange={setPin}
             onComplete={handlePinComplete}

@@ -36,7 +36,7 @@ const TEST_WRONG_SECRET_KEY: &str =
     "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
 /// Test PIN for key encryption vectors.
-const TEST_PIN: &str = "1234";
+const TEST_PIN: &str = "123456";
 
 // ─── Top-Level Struct ────────────────────────────────────────
 
@@ -780,7 +780,7 @@ fn auth_token_deterministic_verification() {
 #[test]
 fn pin_encryption_format_consistency() {
     let kp = generate_keypair();
-    let encrypted = encrypt_with_pin(&kp.nsec, "5678", &kp.public_key).unwrap();
+    let encrypted = encrypt_with_pin(&kp.nsec, "567890", &kp.public_key).unwrap();
 
     assert!(!encrypted.salt.is_empty(), "salt must be present");
     assert_eq!(encrypted.iterations, 600_000, "iterations must be 600K");
@@ -791,10 +791,10 @@ fn pin_encryption_format_consistency() {
     assert_eq!(encrypted.salt.len(), 64, "salt must be 64 hex chars (32 bytes)");
     assert_eq!(encrypted.nonce.len(), 48, "nonce must be 48 hex chars");
 
-    let decrypted = decrypt_with_pin(&encrypted, "5678").unwrap();
+    let decrypted = decrypt_with_pin(&encrypted, "567890").unwrap();
     assert_eq!(decrypted, kp.nsec);
 
-    let result = decrypt_with_pin(&encrypted, "9999");
+    let result = decrypt_with_pin(&encrypted, "999999");
     assert!(result.is_err(), "Wrong PIN must fail");
 }
 

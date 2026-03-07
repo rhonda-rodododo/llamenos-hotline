@@ -37,7 +37,7 @@ import org.llamenos.hotline.R
  * direct button taps for security (prevents keyboard capture/logging).
  *
  * @param pin Current PIN string (digits entered so far)
- * @param maxLength Maximum PIN length (4-6 digits)
+ * @param maxLength Maximum PIN length (6-8 digits)
  * @param onPinChange Called when the PIN changes (digit added or removed)
  * @param onComplete Called when the PIN reaches maxLength
  * @param errorMessage Optional error text to display below the PIN dots
@@ -46,7 +46,7 @@ import org.llamenos.hotline.R
 @Composable
 fun PINPad(
     pin: String,
-    maxLength: Int = 4,
+    maxLength: Int = 8,
     onPinChange: (String) -> Unit,
     onComplete: (String) -> Unit,
     errorMessage: String? = null,

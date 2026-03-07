@@ -155,7 +155,7 @@ The identity key is stored in `localStorage` encrypted under a PIN-derived Key E
 
 **Key Derivation:**
 ```
-PIN (4-6 digits, UTF-8 encoded)
+PIN (6-8 digits, UTF-8 encoded)
   → PBKDF2-SHA256(PIN, salt, 600,000 iterations)
   → 32-byte KEK
 ```
@@ -523,7 +523,7 @@ All cryptographic operations use audited, constant-time implementations. No cust
 | XSS stealing nsec | Key Manager holds secretKey in closure, not sessionStorage. Auto-lock on tab hide. |
 | Browser extension reading storage | localStorage contains only PIN-encrypted ciphertext. PIN brute-force mitigated by 600k PBKDF2 iterations. |
 | Server compromise | Server never sees plaintext notes/messages/files. ECIES ensures server can't decrypt. |
-| Device seizure | PIN-encrypted key in localStorage. 4-6 digit PIN + 600k iterations ≈ 10-60 seconds per attempt. |
+| Device seizure | PIN-encrypted key in localStorage. 6-8 digit PIN + 600k iterations ≈ 10-60 seconds per attempt. |
 | Network MITM | HTTPS/WSS. Schnorr tokens expire in 5 minutes. |
 | Compromised identity key | Per-note/per-message ephemeral keys provide forward secrecy — compromising the identity key doesn't reveal past content without also obtaining the per-artifact envelopes. |
 | Lost device | Recovery key + backup file restores access on new device. Old device's encrypted store is useless without PIN. |

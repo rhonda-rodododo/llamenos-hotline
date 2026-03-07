@@ -288,7 +288,7 @@ These are documented design trade-offs, not actionable bugs:
 | Issue | Status | Rationale |
 |-------|--------|-----------|
 | Schnorr 5-min replay window | Accepted | HTTPS mitigates; WebAuthn sessions preferred for enrolled users |
-| 4-6 digit PIN entropy (~20 bits) | Accepted | PBKDF2 600K iterations makes offline brute-force expensive; usability trade-off |
+| 6-8 digit PIN entropy (~27 bits) | Accepted | PBKDF2 600K iterations makes offline brute-force expensive; usability trade-off |
 | WS rate limit resets on DO hibernation | Accepted | Burst window resets after hibernation; acceptable for current load |
 | Ban list bypassable via caller-ID spoofing | Accepted | Fundamental PSTN limitation |
 | `plaintextForSending` in messaging API | Accepted | SMS/WhatsApp require server-side plaintext; documented in `CHANNEL_SECURITY` |

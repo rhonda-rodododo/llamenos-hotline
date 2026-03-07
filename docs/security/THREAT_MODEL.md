@@ -173,7 +173,7 @@ This document defines the threat model for Llamenos, a secure crisis response ho
 | Traffic analysis resistance | No padding, no dummy traffic | Yes — impractical for a web app |
 | Metadata confidentiality | Server needs `callId`, `authorPubkey`, timestamps for routing | Yes — documented trade-off |
 | SMS/WhatsApp E2EE | Provider requires plaintext | Yes — documented per-channel |
-| PIN brute-force resistance (offline) | 4-6 digit PIN, ~10K-1M possibilities | Marginal — recommend 6-digit minimum |
+| PIN brute-force resistance (offline) | 6-8 digit PIN, ~1M-100M possibilities | Adequate with PBKDF2 rate-limiting |
 | Server-side key deletion verification | Cannot prove Cloudflare/operator deleted data | Yes — fundamental cloud trust limitation |
 
 ## Legal Compulsion and Subpoena Scenarios
@@ -214,7 +214,7 @@ This section documents what data can be obtained through legal process against v
 
 **Without PIN:**
 - Encrypted key blob in localStorage requires PIN brute-force
-- 600,000 PBKDF2 iterations + 4-6 digit PIN = estimated hours on GPU hardware
+- 600,000 PBKDF2 iterations + 6-8 digit PIN = estimated days on GPU hardware
 - Session tokens may still be valid if device was recently used (8-hour TTL)
 
 **With PIN (or successful brute-force):**

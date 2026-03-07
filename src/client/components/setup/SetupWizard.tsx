@@ -226,7 +226,6 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
               </p>
             </div>
             <PinInput
-              length={6}
               value={pinValue}
               onChange={setPinValue}
               onComplete={handlePinUnlock}

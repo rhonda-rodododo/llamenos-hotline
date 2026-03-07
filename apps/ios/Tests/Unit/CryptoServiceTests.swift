@@ -554,12 +554,12 @@ final class CryptoServiceTests: XCTestCase {
     }
 
     func testValidPINFormat() {
-        XCTAssertTrue(isValidPin(pin: "1234"), "4-digit PIN should be valid")
         XCTAssertTrue(isValidPin(pin: "123456"), "6-digit PIN should be valid")
-        XCTAssertFalse(isValidPin(pin: "123"), "3-digit PIN should be invalid")
-        XCTAssertFalse(isValidPin(pin: "1234567"), "7-digit PIN should be invalid")
+        XCTAssertTrue(isValidPin(pin: "12345678"), "8-digit PIN should be valid")
+        XCTAssertFalse(isValidPin(pin: "12345"), "5-digit PIN should be invalid")
+        XCTAssertFalse(isValidPin(pin: "123456789"), "9-digit PIN should be invalid")
         XCTAssertFalse(isValidPin(pin: ""), "Empty PIN should be invalid")
-        XCTAssertFalse(isValidPin(pin: "abcd"), "Non-numeric PIN should be invalid")
+        XCTAssertFalse(isValidPin(pin: "abcdef"), "Non-numeric PIN should be invalid")
     }
 
     func testValidNsecFormat() {

@@ -76,7 +76,7 @@ enum CryptoServiceError: LocalizedError {
         case .invalidNsec:
             return NSLocalizedString("error_invalid_nsec", comment: "The provided nsec key is invalid")
         case .invalidPin:
-            return NSLocalizedString("error_invalid_pin", comment: "PIN must be 4-6 digits")
+            return NSLocalizedString("error_invalid_pin", comment: "PIN must be 6-8 digits")
         case .encryptionFailed(let detail):
             return String(format: NSLocalizedString("error_encryption_failed", comment: "Encryption failed: %@"), detail)
         case .decryptionFailed(let detail):

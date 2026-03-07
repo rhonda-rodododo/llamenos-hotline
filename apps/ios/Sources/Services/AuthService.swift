@@ -19,9 +19,9 @@ enum AuthError: LocalizedError {
         case .pinMismatch:
             return NSLocalizedString("error_pin_mismatch", comment: "PINs do not match")
         case .pinTooShort:
-            return NSLocalizedString("error_pin_too_short", comment: "PIN must be at least 4 digits")
+            return NSLocalizedString("error_pin_too_short", comment: "PIN must be at least 6 digits")
         case .pinTooLong:
-            return NSLocalizedString("error_pin_too_long", comment: "PIN must be at most 6 digits")
+            return NSLocalizedString("error_pin_too_long", comment: "PIN must be at most 8 digits")
         case .pinNotNumeric:
             return NSLocalizedString("error_pin_not_numeric", comment: "PIN must contain only digits")
         case .biometricNotAvailable:
@@ -182,10 +182,10 @@ final class AuthService {
 
     // MARK: - PIN Validation
 
-    /// Validate PIN format: 4-6 numeric digits.
+    /// Validate PIN format: 6-8 numeric digits.
     func validatePIN(_ pin: String) throws {
-        guard pin.count >= 4 else { throw AuthError.pinTooShort }
-        guard pin.count <= 6 else { throw AuthError.pinTooLong }
+        guard pin.count >= 6 else { throw AuthError.pinTooShort }
+        guard pin.count <= 8 else { throw AuthError.pinTooLong }
         guard pin.allSatisfy(\.isNumber) else { throw AuthError.pinNotNumeric }
     }
 

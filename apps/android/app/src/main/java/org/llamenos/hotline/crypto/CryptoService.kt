@@ -170,8 +170,8 @@ class CryptoService @Inject constructor() {
 
         val pub = pubkey ?: throw CryptoException("No pubkey available")
 
-        if (pin.length < 4 || pin.length > 6) {
-            throw CryptoException("PIN must be 4-6 digits")
+        if (pin.length < 6 || pin.length > 8) {
+            throw CryptoException("PIN must be 6-8 digits")
         }
 
         val nsec = nsecBech32 ?: throw CryptoException("No key loaded")
@@ -202,8 +202,8 @@ class CryptoService @Inject constructor() {
                 "Cannot decrypt keys: native crypto library not loaded."
             }
 
-            if (pin.length < 4 || pin.length > 6) {
-                throw CryptoException("PIN must be 4-6 digits")
+            if (pin.length < 6 || pin.length > 8) {
+                throw CryptoException("PIN must be 6-8 digits")
             }
 
             try {

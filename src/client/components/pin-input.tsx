@@ -2,6 +2,7 @@ import { useRef, useEffect, type KeyboardEvent } from 'react'
 
 interface PinInputProps {
   length?: number
+  minLength?: number
   value: string
   onChange: (value: string) => void
   onComplete?: (value: string) => void
@@ -11,7 +12,8 @@ interface PinInputProps {
 }
 
 export function PinInput({
-  length = 4,
+  length = 8,
+  minLength = 6,
   value,
   onChange,
   onComplete,
@@ -70,6 +72,11 @@ export function PinInput({
         onChange(newValue)
         inputRefs.current[index - 1]?.focus()
       }
+    }
+    if (e.key === 'Enter' && valueRef.current.length >= minLength) {
+      e.preventDefault()
+      onComplete?.(valueRef.current)
+      return
     }
     if (e.key === 'ArrowLeft' && index > 0) {
       inputRefs.current[index - 1]?.focus()
