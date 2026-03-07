@@ -101,6 +101,9 @@ export async function enterPin(page: Page, pin: string) {
     // Wait for React to process the input event, update state, and advance focus
     await page.waitForTimeout(100)
   }
+  // PinInput has 8 fields but minLength is 6 — if PIN is shorter than 8 digits,
+  // press Enter to trigger onComplete (auto-complete only fires at exactly 8 digits)
+  await page.keyboard.press('Enter')
   // Wait for onComplete callback to fire and unlock to process
   await page.waitForTimeout(500)
 }
