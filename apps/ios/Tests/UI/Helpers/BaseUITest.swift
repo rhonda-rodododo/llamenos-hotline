@@ -202,7 +202,7 @@ class BaseUITest: XCTestCase {
     }
 
     /// Navigate through full onboarding: create identity, confirm backup, set PIN, reach dashboard.
-    func completeOnboarding(hubURL: String = "https://test.example.org", pin: String = "1234") {
+    func completeOnboarding(hubURL: String = "https://test.example.org", pin: String = "123456") {
         // Enter hub URL
         let hubURLInput = find("hub-url-input")
         if hubURLInput.waitForExistence(timeout: 5) {

@@ -30,6 +30,9 @@ targets:
         embed: false
     info:
       path: Sources/App/Info.plist
+      properties:
+        UIDesignRequiresCompatibility: true
+        UILaunchScreen: {}
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.llamenos.hotline
