@@ -1,5 +1,30 @@
 # Completed Backlog
 
+## 2026-03-07: Security & Reliability Improvements
+
+### Node.js Platform Env Fix
+- Fixed `DEV_RESET_SECRET` / `E2E_TEST_SECRET` not being passed through `createNodeEnv()` to Hono `c.env`
+- Added `X-Test-Secret` header to Playwright global-setup.ts
+- Added `DEV_RESET_SECRET=test-reset-secret` to `docker-compose.test.yml`
+- **367/367 Playwright E2E tests now pass against Docker** (was 0/367 due to 403 from test-reset)
+
+### PIN Length Hardening (4-6 → 6-8 digits)
+- Per security review: 4-digit PINs (~13 bits entropy) brute-forceable in minutes
+- Updated across ALL platforms: Rust crypto, Desktop, iOS, Android
+- Rust `is_valid_pin()` now accepts 6-8 digits, 45/45 tests pass
+- Desktop `PinInput` component: 8 boxes, `minLength=6`, Enter key submits at 6+
+- iOS: AuthService, PINViewModel, PINPadView validation updated
+- Android: CryptoService, PINPad, PINSetScreen validation updated
+- i18n: All 13 locales updated (JSON, .strings, strings.xml)
+- Protocol docs, security docs, threat model updated
+- 65/65 PIN/auth BDD tests pass
+
+### React Error Boundary
+- Added `ErrorBoundary` component with retry button and i18n support
+- Root-level boundary catches top-level crashes
+- Page-level boundary wraps Outlet (sidebar survives page crashes)
+- Error message + "Try again" button vs. blank white screen
+
 ## 2026-03-06: i18n System Overhaul (Epics 274-275)
 
 ### Epic 274: Canonicalize en.json Source of Truth
