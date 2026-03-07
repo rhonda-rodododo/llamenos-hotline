@@ -44,6 +44,10 @@
       {
         "name": "CONVERSATION_DO",
         "class_name": "ConversationDO"
+      },
+      {
+        "name": "BLAST_DO",
+        "class_name": "BlastDO"
       }
     ]
   },
@@ -62,6 +66,10 @@
     {
       "tag": "v3",
       "new_classes": ["ConversationDO"]
+    },
+    {
+      "tag": "v4",
+      "new_classes": ["BlastDO"]
     }
   ],
 
@@ -119,7 +127,8 @@
           { "name": "IDENTITY_DO", "class_name": "IdentityDO" },
           { "name": "SETTINGS_DO", "class_name": "SettingsDO" },
           { "name": "RECORDS_DO", "class_name": "RecordsDO" },
-          { "name": "CONVERSATION_DO", "class_name": "ConversationDO" }
+          { "name": "CONVERSATION_DO", "class_name": "ConversationDO" },
+          { "name": "BLAST_DO", "class_name": "BlastDO" }
         ]
       },
       "r2_buckets": [

@@ -26,6 +26,9 @@ import setupRoutes from './routes/setup'
 import provisioningRoutes from './routes/provisioning'
 import hubRoutes from './routes/hubs'
 import blastsRoutes from './routes/blasts'
+import contactsRoutes from './routes/contacts'
+import healthRoutes from './routes/health'
+import metricsRoutes from './routes/metrics'
 import { hubContext } from './middleware/hub'
 import { getDOs } from './lib/do-access'
 
@@ -35,7 +38,8 @@ const app = new Hono<AppEnv>()
 const api = new Hono<AppEnv>()
 
 // Health check — before CORS middleware (internal probes only, no external access needed)
-api.get('/health', (c) => c.json({ status: 'ok' }))
+api.route('/health', healthRoutes)
+api.route('/metrics', metricsRoutes)
 
 api.use('*', cors)
 
@@ -60,7 +64,7 @@ api.get('/messaging/preferences', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
   const dos = getDOs(c.env)
-  const res = await dos.conversations.fetch(new Request('http://do/subscribers/validate-token', {
+  const res = await dos.blasts.fetch(new Request('http://do/subscribers/validate-token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
@@ -73,7 +77,7 @@ api.patch('/messaging/preferences', async (c) => {
   if (!token) return c.json({ error: 'Token required' }, 400)
   const dos = getDOs(c.env)
   const body = await c.req.text()
-  const res = await dos.conversations.fetch(new Request('http://do/subscribers/update-preferences', {
+  const res = await dos.blasts.fetch(new Request('http://do/subscribers/update-preferences', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, ...JSON.parse(body) }),
@@ -111,6 +115,7 @@ authenticated.route('/reports', reportsRoutes)
 authenticated.route('/setup', setupRoutes)
 authenticated.route('/hubs', hubRoutes)
 authenticated.route('/blasts', blastsRoutes)
+authenticated.route('/contacts', contactsRoutes)
 
 // Hub-scoped authenticated routes
 const hubScoped = new Hono<AppEnv>()
@@ -123,6 +128,7 @@ hubScoped.route('/audit', auditRoutes)
 hubScoped.route('/conversations', conversationsRoutes)
 hubScoped.route('/reports', reportsRoutes)
 hubScoped.route('/blasts', blastsRoutes)
+hubScoped.route('/contacts', contactsRoutes)
 
 authenticated.route('/hubs/:hubId', hubScoped)
 
