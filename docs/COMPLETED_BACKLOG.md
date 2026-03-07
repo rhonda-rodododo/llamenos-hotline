@@ -13,6 +13,22 @@
   - `audit.tsx` — volunteer list loading, audit log fetching
   - `admin/settings.tsx` — WebAuthn, custom fields, telephony, messaging config loading
 
+### NewNoteForm "Enter Manually" Bug Fix
+- `new-note-form.tsx:75` had `value=""` hardcoded — when user selected "Enter Manually" and typed, input appeared frozen
+- The onChange set callId to typed text, which made `callId !== '__manual'` immediately, hiding the manual input
+- Fix: separate `manualCallId` state for the manual input, `effectiveCallId` for save
+
+### Accessibility Fixes
+- Added missing `aria-label` on delete buttons in SubscriberManager and custom-fields-section
+- Added `htmlFor` linkage on native `<select>` labels in custom-fields-section
+
+### Async Race Condition Guards
+- Added `cancelled` flag to decrypt useEffects in `calls.tsx` and `notes.tsx` to prevent stale closures
+- Added `hasUndecrypted` early-return to avoid re-running decrypt when all records are already decrypted
+
+### Additional Silent Error Handling
+- Dashboard calls-today count, volunteer detail page, settings page, note-sheet, reports list refresh
+
 ### Nostr Relay Tab Visibility Reconnection
 - Added `visibilitychange` listener to `NostrProvider` — when tab regains focus, proactively reconnects if WebSocket was killed by the browser during background
 - Previously relied only on exponential backoff which could delay reconnection by up to 30s after tab refocus
