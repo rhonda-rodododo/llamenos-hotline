@@ -1,5 +1,34 @@
 # Completed Backlog
 
+## 2026-03-07: Cross-Platform E2E Simulation & iOS API Tests
+
+### E1: Fix iOS API Bootstrap (401 Auth)
+- `CryptoService.setMockIdentity()` uses real admin keypair (f5450e...) matching Docker ADMIN_PUBKEY
+- `bootstrapTestIdentity()` calls POST /api/auth/bootstrap to create admin volunteer
+- `fetchUserRole()` uses /api/auth/me with roles array (not old /api/identity/me)
+- `AuthMeResponse` updated to match actual server response structure
+- All 10 API-connected iOS E2E tests pass serially in ~116s
+
+### E2: Shared Call/Event Simulation Service
+- 6 POST endpoints in apps/worker/routes/dev.ts: incoming-call, answer-call, end-call, voicemail, incoming-message, delivery-status
+- Guarded by ENVIRONMENT=development + X-Test-Secret header
+- Bypass TelephonyAdapter/MessagingAdapter, proxy directly to CallRouterDO/ConversationDO
+- Verified working against Docker backend via curl
+
+### E4: Desktop Playwright Simulation Migration
+- tests/simulation-helpers.ts: typed helpers for all 6 endpoints with APIRequestContext
+- tests/simulation.spec.ts: 11 tests (call lifecycle, message simulation, endpoint validation)
+- uniqueCallerNumber() helper for test isolation
+
+### E5: Android Simulation E2E
+- SimulationClient.kt: HTTP client with kotlinx.serialization response types
+- CallSimulationSteps.kt: Cucumber step definitions for 12 BDD scenarios
+- call-simulation.feature: full call/message lifecycle scenarios
+- Updated ScenarioHooks.kt and android-parallel-e2e.sh for test secret passing
+
+### Design Doc
+- docs/plans/2026-03-07-cross-platform-e2e-simulation-design.md
+
 ## 2026-03-07: iOS Feature Parity Epics 240, 243, 244, 245
 
 ### Epic 240: iOS Docker Test Infrastructure
