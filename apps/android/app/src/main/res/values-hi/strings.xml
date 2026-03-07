@@ -1019,6 +1019,8 @@
     <string name="pin_dot_filled">Filled</string>
     <string name="pin_enter_pin">Enter your PIN</string>
     <string name="pin_key_locked">Key is locked</string>
+    <string name="pin_length_label">PIN Length</string>
+    <string name="pin_length_option">%d digits</string>
     <string name="pin_lockout_remaining">Locked out. Try again in %d seconds.</string>
     <string name="pin_mismatch">PIN मेल नहीं खाते। पुनः प्रयास करें।</string>
     <string name="pin_set_encrypting">Encrypting your key...</string>
@@ -1457,6 +1459,7 @@
     <string name="shifts_edit">Edit Shift</string>
     <string name="shifts_edit_shift">शिफ्ट संपादित करें</string>
     <string name="shifts_empty">No shifts</string>
+    <string name="shifts_empty_message">No shifts have been configured yet. Contact your administrator.</string>
     <string name="shifts_empty_scheduled">No scheduled shifts</string>
     <string name="shifts_empty_subtitle">Shifts will appear here when created</string>
     <string name="shifts_empty_title">No Shifts</string>

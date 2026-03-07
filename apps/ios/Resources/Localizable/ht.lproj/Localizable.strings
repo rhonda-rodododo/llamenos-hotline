@@ -1016,6 +1016,8 @@
 "pin_dot_filled" = "Filled";
 "pin_enter_pin" = "Enter your PIN";
 "pin_key_locked" = "Key is locked";
+"pin_length_label" = "PIN Length";
+"pin_length_option" = "%d digits";
 "pin_lockout_remaining" = "Locked out. Try again in %d seconds.";
 "pin_mismatch" = "PIN yo pa menm. Eseye ankò.";
 "pin_set_encrypting" = "Encrypting your key...";
@@ -1454,6 +1456,7 @@
 "shifts_edit" = "Edit Shift";
 "shifts_edit_shift" = "Modifye Ouvèti";
 "shifts_empty" = "No shifts";
+"shifts_empty_message" = "No shifts have been configured yet. Contact your administrator.";
 "shifts_empty_scheduled" = "No scheduled shifts";
 "shifts_empty_subtitle" = "Shifts will appear here when created";
 "shifts_empty_title" = "No Shifts";
