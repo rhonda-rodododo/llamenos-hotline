@@ -115,7 +115,9 @@ export class ShiftManagerDO extends DurableObject<Env> {
             shiftId: shift.id,
             startsAt: shift.startTime,
             shiftName: shift.name,
-          }).catch(() => {})
+          }).catch((e) => {
+            console.error(`[shift-manager] Push reminder failed for volunteer ${pubkey.slice(0, 8)}:`, e)
+          })
         }
 
         sentReminders.add(reminderKey)

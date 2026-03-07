@@ -118,7 +118,9 @@ export function useCalls() {
             return polledCalls.some(c => c.id === prev.id) ? prev : null
           })
         })
-        .catch(() => {})
+        .catch(() => {
+          console.error('[calls] Background call polling failed')
+        })
     }
 
     poll() // Seed initial state on mount
@@ -253,7 +255,9 @@ export function useConversations() {
         .then(({ conversations: polled }) => {
           if (mounted) setConversations(polled)
         })
-        .catch(() => {})
+        .catch(() => {
+          console.error('[conversations] Background conversation polling failed')
+        })
     }
     poll()
     const interval = setInterval(poll, 30_000)

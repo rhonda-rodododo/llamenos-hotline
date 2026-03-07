@@ -46,7 +46,10 @@ function LinkDevicePage() {
   useEffect(() => {
     hasStoredKey().then(exists => {
       if (exists) navigate({ to: '/login' })
-    }).catch(() => {})
+    }).catch(() => {
+      // Non-critical: if stored key check fails, stay on link-device page
+      console.error('[link-device] Failed to check for stored key')
+    })
   }, [navigate])
 
   async function startLinking() {

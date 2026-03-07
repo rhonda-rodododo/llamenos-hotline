@@ -8,6 +8,9 @@ import { audit } from '../services/audit'
 import { canClaimChannel } from '@shared/permissions'
 import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '@shared/nostr-events'
 import { createPushDispatcher } from '../lib/push-dispatch'
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('messaging')
 
 const messaging = new Hono<AppEnv>()
 
@@ -114,7 +117,9 @@ messaging.post('/:channel/webhook', async (c) => {
                   status: statusUpdate.status,
                   timestamp: statusUpdate.timestamp,
                 }),
-              }).catch(() => {})
+              }).catch((e) => {
+                console.error('[messaging] Failed to publish status update to Nostr:', e)
+              })
             } catch {}
           }
         }
@@ -334,10 +339,14 @@ async function tryAutoAssign(
             assignedTo: bestCandidate,
             autoAssigned: true,
           }),
-        }).catch(() => {})
-      } catch {}
+        }).catch((e) => {
+          console.error('[messaging] Failed to publish auto-assignment to Nostr:', e)
+        })
+      } catch (e) {
+        console.error('[messaging] Nostr publisher setup failed:', e)
+      }
 
-      console.log(`[messaging] Auto-assigned conversation ${conversationId} to ${bestCandidate.slice(0, 8)}`)
+      logger.info('Auto-assigned conversation', { conversationId, assignedTo: bestCandidate.slice(0, 8) })
     }
   } catch (err) {
     console.error('[messaging] Auto-assignment failed:', err)

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useAuth } from './auth'
+import { useToast } from './toast'
 import { useNoteSheet } from './note-sheet-context'
 import { getRingingCallIds, getCurrentCallId } from './call-state'
 import { answerCall, hangupCall } from './api'
@@ -18,6 +19,7 @@ function isInputFocused(): boolean {
 export function useKeyboardShortcuts() {
   const navigate = useNavigate()
   const { isAuthenticated, onBreak, toggleBreak } = useAuth()
+  const { toast } = useToast()
   const noteSheet = useNoteSheet()
 
   useEffect(() => {
@@ -60,7 +62,9 @@ export function useKeyboardShortcuts() {
         const ringing = getRingingCallIds()
         if (ringing.length > 0) {
           e.preventDefault()
-          answerCall(ringing[0]).catch(() => {})
+          answerCall(ringing[0]).catch(() => {
+            toast('Failed to answer call', 'error')
+          })
           stopRinging()
         }
         return
@@ -71,7 +75,9 @@ export function useKeyboardShortcuts() {
         const currentId = getCurrentCallId()
         if (currentId) {
           e.preventDefault()
-          hangupCall(currentId).catch(() => {})
+          hangupCall(currentId).catch(() => {
+            toast('Failed to hang up call', 'error')
+          })
         }
         return
       }
@@ -79,12 +85,14 @@ export function useKeyboardShortcuts() {
       // Ctrl/Cmd+Shift+B — Toggle break
       if (mod && e.shiftKey && e.key === 'B') {
         e.preventDefault()
-        toggleBreak().catch(() => {})
+        toggleBreak().catch(() => {
+          toast('Failed to toggle break', 'error')
+        })
         return
       }
     }
 
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [isAuthenticated, onBreak, toggleBreak, noteSheet, navigate])
+  }, [isAuthenticated, onBreak, toggleBreak, noteSheet, navigate, toast])
 }

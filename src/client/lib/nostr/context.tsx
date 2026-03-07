@@ -77,8 +77,8 @@ export function NostrProvider({
     })
 
     relayRef.current = manager
-    manager.connect().catch(() => {
-      // Reconnection is handled internally by RelayManager
+    manager.connect().catch((err) => {
+      console.error('[nostr] Relay initial connection failed:', err)
     })
 
     // When the tab regains focus, check if the WebSocket is still alive.
@@ -88,7 +88,9 @@ export function NostrProvider({
       if (document.visibilityState === 'visible' && relayRef.current) {
         const currentState = relayRef.current.getState()
         if (currentState === 'disconnected') {
-          relayRef.current.connect().catch(() => {})
+          relayRef.current.connect().catch((err) => {
+            console.error('[nostr] Relay reconnection failed:', err)
+          })
         }
       }
     }

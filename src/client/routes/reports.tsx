@@ -70,7 +70,9 @@ function ReportsPage() {
       if (categoryFilter !== 'all') params.category = categoryFilter
       listReports(params)
         .then(({ conversations }) => setReports(conversations))
-        .catch(() => {})
+        .catch(() => {
+          console.error('[reports] Background report refresh failed')
+        })
     }, 30_000)
     return () => clearInterval(interval)
   }, [statusFilter, categoryFilter])
@@ -91,7 +93,9 @@ function ReportsPage() {
     const interval = setInterval(() => {
       getReportMessages(selectedId, { limit: 100 })
         .then(({ messages: msgs }) => setMessages(msgs))
-        .catch(() => {})
+        .catch(() => {
+          console.error('[reports] Background message refresh failed')
+        })
     }, 10_000)
     return () => clearInterval(interval)
   }, [selectedId])

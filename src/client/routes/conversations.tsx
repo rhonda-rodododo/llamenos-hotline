@@ -62,7 +62,9 @@ function ConversationsPage() {
     const interval = setInterval(() => {
       getConversationMessages(selectedId, { limit: 100 })
         .then(({ messages: msgs }) => setMessages(msgs))
-        .catch(() => {})
+        .catch(() => {
+          console.error('[conversations] Background message refresh failed')
+        })
     }, 10_000)
     return () => clearInterval(interval)
   }, [selectedId])

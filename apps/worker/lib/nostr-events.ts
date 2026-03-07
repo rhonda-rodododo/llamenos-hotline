@@ -26,7 +26,9 @@ export function publishNostrEvent(env: AppEnv['Bindings'], kind: number, content
       created_at: Math.floor(Date.now() / 1000),
       tags: [['d', 'global'], ['t', 'llamenos:event']],
       content: eventContent,
-    }).catch(() => {})
+    }).catch((e) => {
+      console.error('[nostr-events] Failed to publish event:', e)
+    })
   } catch {
     // Nostr not configured
   }

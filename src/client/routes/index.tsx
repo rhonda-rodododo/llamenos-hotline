@@ -63,10 +63,14 @@ function DashboardPage() {
     if (!isAuthenticated || !isAdmin) return
     let mounted = true
     const fetchPresence = () => {
-      getVolunteerPresence().then(r => { if (mounted) setPresence(r.volunteers) }).catch(() => {})
+      getVolunteerPresence().then(r => { if (mounted) setPresence(r.volunteers) }).catch(() => {
+        console.error('[dashboard] Failed to fetch volunteer presence')
+      })
     }
     fetchPresence()
-    listVolunteers().then(r => { if (mounted) setVolunteers(r.volunteers) }).catch(() => {})
+    listVolunteers().then(r => { if (mounted) setVolunteers(r.volunteers) }).catch(() => {
+      console.error('[dashboard] Failed to fetch volunteer list')
+    })
     // Poll presence every 15s (replaces WS-based real-time presence)
     const interval = setInterval(fetchPresence, 15_000)
     return () => { mounted = false; clearInterval(interval) }

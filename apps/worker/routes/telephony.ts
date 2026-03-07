@@ -10,6 +10,9 @@ import { detectLanguageFromPhone, languageFromDigit, DEFAULT_LANGUAGE } from '@s
 import { audit } from '../services/audit'
 import { startParallelRinging } from '../services/ringing'
 import { maybeTranscribe, transcribeVoicemail } from '../services/transcription'
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('telephony')
 
 const telephony = new Hono<AppEnv>()
 
@@ -30,7 +33,7 @@ async function getAdapter(env: Env, hubId: string | undefined, dos: DurableObjec
 // Validate telephony webhook signature on all routes
 telephony.use('*', async (c, next) => {
   const url = new URL(c.req.url)
-  console.log(`[telephony] ${c.req.method} ${url.pathname}${url.search}`)
+  logger.debug('Webhook received', { method: c.req.method, path: url.pathname, search: url.search })
   const env = c.env
 
   // For /incoming, we don't know the hub yet — use global adapter for validation
@@ -65,7 +68,7 @@ telephony.post('/incoming', async (c) => {
   const globalDos = getDOs(c.env)
   const globalAdapter = (await getTelephony(c.env, globalDos))!
   const { callSid, callerNumber, calledNumber } = await globalAdapter.parseIncomingWebhook(c.req.raw)
-  console.log(`[telephony] /incoming callSid=${callSid} caller=***${callerNumber.slice(-4)} called=${calledNumber || 'unknown'}`)
+  logger.info('Incoming call', { callSid, callerLast4: callerNumber.slice(-4), calledNumber: calledNumber || 'unknown' })
 
   // Look up which hub owns the called phone number
   let hubId: string | undefined
@@ -76,7 +79,7 @@ telephony.post('/incoming', async (c) => {
     if (hubRes.ok) {
       const { hub } = await hubRes.json() as { hub: { id: string } }
       hubId = hub.id
-      console.log(`[telephony] /incoming resolved hub=${hubId} for calledNumber=${calledNumber}`)
+      logger.info('Resolved hub for incoming call', { hubId, calledNumber })
     }
   }
 
@@ -162,7 +165,7 @@ telephony.post('/language-selected', async (c) => {
 
   if (!rateLimited && !spamSettings.voiceCaptchaEnabled) {
     const origin = new URL(c.req.url).origin
-    console.log(`[telephony] /language-selected starting parallel ringing callSid=${callSid} origin=${origin} hub=${hubId || 'global'}`)
+    logger.info('Starting parallel ringing', { callSid, origin, hubId: hubId || 'global' })
     c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, c.env, dos, hubId))
   }
 
@@ -232,7 +235,7 @@ telephony.post('/call-status', async (c) => {
   const { status: callStatus } = await adapter.parseCallStatusWebhook(c.req.raw)
   const parentCallSid = url.searchParams.get('parentCallSid') || ''
 
-  console.log(`[call-status] status=${callStatus} parentCallSid=${parentCallSid} hub=${hubId || 'global'}`)
+  logger.info('Call status update', { status: callStatus, parentCallSid, hubId: hubId || 'global' })
 
   if (callStatus === 'completed' || callStatus === 'busy' || callStatus === 'no-answer' || callStatus === 'failed') {
     const pubkey = url.searchParams.get('pubkey') || ''
@@ -240,10 +243,10 @@ telephony.post('/call-status', async (c) => {
       const preCallRes = await dos.calls.fetch(new Request('http://do/calls/active'))
       const { calls: preCalls } = await preCallRes.json() as { calls: Array<{ id: string; callerLast4?: string; startedAt: string }> }
       const preCall = preCalls.find(call => call.id === parentCallSid)
-      console.log(`[call-status] ending call ${parentCallSid}, found in active: ${!!preCall}`)
+      logger.debug('Ending call', { parentCallSid, foundInActive: !!preCall })
 
       const endRes = await dos.calls.fetch(new Request(`http://do/calls/${parentCallSid}/end`, { method: 'POST' }))
-      console.log(`[call-status] end result: ${endRes.status}`)
+      logger.debug('Call end result', { parentCallSid, status: endRes.status })
 
       // Only audit if we actually ended the call (not already ended by /call-recording)
       if (endRes.status === 200) {
@@ -339,7 +342,7 @@ telephony.post('/call-recording', async (c) => {
     // Recording completed means the bridge ended — end the call in the DO
     // (safety net in case /call-status doesn't fire)
     const endRes = await dos.calls.fetch(new Request(`http://do/calls/${parentCallSid}/end`, { method: 'POST' }))
-    console.log(`[call-recording] ended call ${parentCallSid}: ${endRes.status}`)
+    logger.info('Call recording completed', { parentCallSid, endStatus: endRes.status })
 
     if (pubkey) {
       await audit(dos.records, 'callEnded', pubkey, {

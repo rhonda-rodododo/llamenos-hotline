@@ -2,6 +2,9 @@ import type { Env } from '../types'
 import type { DurableObjects } from '../lib/do-access'
 import { getTelephony, getHubTelephony } from '../lib/do-access'
 import { dispatchVoipPush } from '../lib/voip-push'
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('ringing')
 
 export async function startParallelRinging(
   callSid: string,
@@ -23,10 +26,10 @@ export async function startParallelRinging(
       onShiftPubkeys = fallback.volunteers
     }
 
-    console.log(`[ringing] callSid=${callSid} onShift=${onShiftPubkeys.length}`)
+    logger.info('Parallel ringing started', { callSid, onShiftCount: onShiftPubkeys.length })
 
     if (onShiftPubkeys.length === 0) {
-      console.log('[ringing] no volunteers on shift or in fallback — skipping')
+      logger.info('No volunteers on shift or in fallback — skipping')
       return
     }
 
@@ -61,11 +64,11 @@ export async function startParallelRinging(
     })
 
     if (available.length === 0) {
-      console.log('[ringing] no available volunteers — skipping')
+      logger.info('No available volunteers — skipping')
       return
     }
 
-    console.log(`[ringing] callSid=${callSid} total=${available.length} phone=${toRingPhone.length} browser/voip=${browserVoip.length}`)
+    logger.info('Ringing volunteers', { callSid, total: available.length, phone: toRingPhone.length, browserVoip: browserVoip.length })
 
     // Notify CallRouter DO of the incoming call (all available volunteers for Nostr relay)
     await dos.calls.fetch(new Request('http://do/calls/incoming', {

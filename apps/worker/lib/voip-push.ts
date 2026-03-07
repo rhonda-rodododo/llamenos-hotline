@@ -60,7 +60,7 @@ export async function dispatchVoipPush(
 
   if (devices.length === 0) return
 
-  console.log(`[voip-push] Dispatching to ${devices.length} devices for call ${callId}`)
+  console.debug(`[voip-push] Dispatching to ${devices.length} devices for call ${callId}`)
 
   const promises: Promise<void>[] = []
 

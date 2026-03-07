@@ -22,7 +22,9 @@ function dispatchPushToVolunteer(
   try {
     const dos = getDOs(env)
     const dispatcher = createPushDispatcher(env, dos.identity, dos.shifts)
-    dispatcher.sendToVolunteer(volunteerPubkey, wake, full).catch(() => {})
+    dispatcher.sendToVolunteer(volunteerPubkey, wake, full).catch((e) => {
+      console.error('[conversations] Push dispatch to volunteer failed:', e)
+    })
   } catch {
     // Push not configured
   }

@@ -37,7 +37,9 @@ function LoginPage() {
 
   // Check for stored key on mount (async for Tauri Store)
   useEffect(() => {
-    hasStoredKey().then(setStoredKeyExists).catch(() => {})
+    hasStoredKey().then(setStoredKeyExists).catch(() => {
+      console.error('[login] Failed to check for stored key')
+    })
   }, [])
 
   // Recovery state

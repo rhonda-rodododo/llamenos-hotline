@@ -14,7 +14,7 @@ export const auth = createMiddleware<AppEnv>(async (c, next) => {
 
   // Load all roles from SettingsDO (cached per-request)
   const rolesRes = await dos.settings.fetch(new Request('http://do/settings/roles'))
-  const allRoles: Role[] = rolesRes.ok ? ((await rolesRes.json()) as any).roles : []
+  const allRoles: Role[] = rolesRes.ok ? ((await rolesRes.json()) as { roles: Role[] }).roles : []
 
   // Resolve effective permissions from user's role IDs
   const permissions = resolvePermissions(authResult.volunteer.roles, allRoles)
