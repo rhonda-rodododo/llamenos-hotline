@@ -1,5 +1,36 @@
 # Completed Backlog
 
+## 2026-03-07: iOS Feature Parity Epics 240, 243, 244, 245
+
+### Epic 240: iOS Docker Test Infrastructure
+- AppState already had `--test-hub-url`, `--test-register`, `--test-admin` launch arguments
+- BaseUITest already had `launchWithAPI()`, `launchAsAdminWithAPI()`, `resetServerState()`, `testHubURL`
+- Added Docker Compose lifecycle to `scripts/ios-build.sh` `cmd_uitest`: auto-starts Docker backend if not running, waits for health check, stops after tests
+
+### Epic 243: iOS Contacts & Timeline
+- Already complete: Contact.swift model (ContactSummary, ContactTimelineEvent, ContactEventType), ContactsViewModel with pagination/search, ContactTimelineViewModel, ContactsView with list/search/empty/loading/error states, ContactTimelineView with header and event rows, Route enum routes, Dashboard quick action (admin-only), ContactsUITests
+
+### Epic 244: iOS Admin Custom Fields
+- Already complete: CustomFieldDefinition model, CustomFieldsView with list/swipe-to-delete/tap-to-edit, CustomFieldEditView with label/type picker/context picker/options/toggles, AdminViewModel CRUD methods, AdminTab.customFields, AdminCustomFieldsUITests
+
+### Epic 245: iOS Blasts
+- Already had: Blast.swift model, BlastsViewModel, BlastsView, CreateBlastView, Route enum, Dashboard quick action, BlastsUITests
+- Added `scheduleBlast(id:at:)` method to BlastsViewModel with ISO 8601 date formatting
+- Added `ScheduleBlastRequest` model to Blast.swift
+- Added Signal channel toggle to CreateBlastView (was only SMS + WhatsApp)
+- Replaced single "Create" toolbar button with "Send Now" + "Schedule for Later" action buttons
+- Added date picker that toggles when Schedule button is tapped
+- Added "Confirm Schedule" button for scheduled sends
+- Updated BlastsUITests: added `testScheduleButtonTogglesDatePicker` test, expanded `testCreateBlastSheetOpens` to verify Signal toggle + Send/Schedule buttons
+
+### Files Modified
+- `scripts/ios-build.sh` — Docker Compose start/stop/health-wait in cmd_uitest
+- `apps/ios/Sources/Models/Blast.swift` — Added ScheduleBlastRequest
+- `apps/ios/Sources/ViewModels/BlastsViewModel.swift` — Added scheduleBlast method
+- `apps/ios/Sources/Views/Blasts/CreateBlastView.swift` — Signal channel, Send/Schedule actions, date picker
+- `apps/ios/Tests/UI/BlastsUITests.swift` — Schedule date picker test, expanded form element assertions
+- `docs/NEXT_BACKLOG.md` — Marked epics 240, 243, 244, 245 complete
+
 ## 2026-03-07: UX Bug Fixes — Pagination, Error Handling, Relay Reconnection
 
 ### Contacts Pagination Fix (CRITICAL)

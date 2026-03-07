@@ -402,21 +402,21 @@ Recover the ~400 behavioral tests lost in the Epic 232 BDD migration. Original .
 
 **Dependency order:** 247 (API helpers) → (248 | 249 | 250 | 251) in parallel
 
-## iOS Feature Parity (Epics 240-246) — IN PROGRESS
+## iOS Feature Parity (Epics 240-246) — COMPLETE
 
 Catch iOS up to Android feature set with native SwiftUI design. BDD-first: write XCUITest specs, then implement features to pass them. Tests hit live Docker API.
 
 ### Infrastructure
-- [ ] **[Epic 240: iOS Docker Test Infrastructure](epics/epic-240-ios-docker-test-infra.md)** — Connect XCUITests to live Docker Compose API backend (`--test-hub-url`, `resetServerState()`, identity registration)
+- [x] **[Epic 240: iOS Docker Test Infrastructure](epics/epic-240-ios-docker-test-infra.md)** — Connect XCUITests to live Docker Compose API backend (`--test-hub-url`, `resetServerState()`, identity registration)
 
 ### Core Features
 - [x] **[Epic 241: iOS Reports](epics/epic-241-ios-reports.md)** — Full reports CRUD (create, list, detail, claim, close) with E2EE envelope encryption
 - [x] **[Epic 242: iOS Help Screen](epics/epic-242-ios-help-screen.md)** — Security overview, role-based guides, FAQ with DisclosureGroup sections
 
 ### Admin Features
-- [ ] **[Epic 243: iOS Contacts & Timeline](epics/epic-243-ios-contacts-timeline.md)** — Admin-only contacts list with per-contact interaction timeline
-- [ ] **[Epic 244: iOS Admin Custom Fields](epics/epic-244-ios-admin-custom-fields.md)** — Custom fields management tab in admin panel (CRUD with field type picker)
-- [ ] **[Epic 245: iOS Blasts](epics/epic-245-ios-blasts.md)** — Admin broadcast messaging (compose, send/schedule to subscribers)
+- [x] **[Epic 243: iOS Contacts & Timeline](epics/epic-243-ios-contacts-timeline.md)** — Admin-only contacts list with per-contact interaction timeline
+- [x] **[Epic 244: iOS Admin Custom Fields](epics/epic-244-ios-admin-custom-fields.md)** — Custom fields management tab in admin panel (CRUD with field type picker)
+- [x] **[Epic 245: iOS Blasts](epics/epic-245-ios-blasts.md)** — Admin broadcast messaging (compose, send/schedule to subscribers)
 
 ### Security
 - [x] **[Epic 246: iOS Panic Wipe](epics/epic-246-ios-panic-wipe.md)** — Emergency data deletion in Settings with two-step confirmation

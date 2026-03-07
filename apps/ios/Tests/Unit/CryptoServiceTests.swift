@@ -141,7 +141,7 @@ final class CryptoServiceTests: XCTestCase {
         let originalPubkey = service.pubkey!
 
         // Encrypt with PIN
-        let encrypted = try service.encryptForStorage(pin: "1234")
+        let encrypted = try service.encryptForStorage(pin: "123456")
 
         // Verify encrypted data structure
         XCTAssertFalse(encrypted.salt.isEmpty, "Salt should not be empty")
@@ -155,7 +155,7 @@ final class CryptoServiceTests: XCTestCase {
         service.lock()
         XCTAssertFalse(service.isUnlocked)
 
-        try service.decryptFromStorage(encrypted, pin: "1234")
+        try service.decryptFromStorage(encrypted, pin: "123456")
         XCTAssertTrue(service.isUnlocked, "Should be unlocked after decrypt")
         XCTAssertEqual(service.pubkey, originalPubkey, "pubkey should match after decrypt")
     }
@@ -281,7 +281,7 @@ final class CryptoServiceTests: XCTestCase {
     private static let tvNpub = "npub1exv74j8g3r7m0yrkzlmwedstqyntu4qpzat4k2k766s49g0hznwsldlma7"
     private static let tvAdminSecretKeyHex = "0101010101010101010101010101010101010101010101010101010101010101"
     private static let tvAdminPublicKeyHex = "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f"
-    private static let tvPin = "1234"
+    private static let tvPin = "123456"
     private static let tvAuthTimestamp: UInt64 = 1708900000000
     private static let tvAuthMethod = "POST"
     private static let tvAuthPath = "/api/notes"
@@ -351,13 +351,13 @@ final class CryptoServiceTests: XCTestCase {
     func testPINDecryptionFromTestVectors() throws {
         let service = CryptoService()
 
-        // Build EncryptedKeyData from test vector values (regenerated)
+        // Build EncryptedKeyData from test vector values (regenerated with 6-digit PIN)
         let encrypted = EncryptedKeyData(
-            salt: "e269fc4916472e8b81dee65d37c73b78",
+            salt: "f87a8b911c7216570e088ba156290acb7aedfd034ea97b428c66fe377dd12c6f",
             iterations: 600_000,
-            nonce: "1210b9eff77769110343e4486f2f318373388d8c2af377e5",
-            ciphertext: "534f141224d67fc1582b6ad4d957e7904c9cd2039f32d40e6eca9ac3945bf66adcbc2c70179ecc44c094bad5787230bb696b4adafb74349a89d71a50242bd4471701af69b9dfc20fcf7a1a9de37726",
-            pubkey: "7f9985390a1e9df5"
+            nonce: "4d1fc0b819cb5d95d639a0150e4f0419910acbb5fba68692",
+            ciphertext: "f0b6fe46111f979f1998d0bc2c91f8eb052062805423372bd9af7a8f222516c8ec7aa6a1ea27092d1ec108367b9855dc608accfe68e64b7f89615578b5ea5c8a1da1d48a652f4980f597424538064a",
+            pubkey: "813fbff7c67d11ce"
         )
 
         // Decrypt with the known PIN
