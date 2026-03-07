@@ -75,15 +75,24 @@ class BaseUITest: XCTestCase {
 
     // MARK: - Server State
 
+    /// The test reset secret, matching DEV_RESET_SECRET in docker-compose.test.yml.
+    /// Override via TEST_RESET_SECRET environment variable if needed.
+    var testResetSecret: String {
+        ProcessInfo.processInfo.environment["TEST_RESET_SECRET"]
+            ?? "test-reset-secret"
+    }
+
     /// Reset the test server state by calling POST /api/test-reset.
     /// Call this in setUp() before launching the app for API-connected tests.
+    /// Uses the "no-admin" variant so iOS bootstrap can register its own admin.
     func resetServerState() {
-        guard let url = URL(string: "\(testHubURL)/api/test-reset") else {
+        guard let url = URL(string: "\(testHubURL)/api/test-reset-no-admin") else {
             XCTFail("Invalid test hub URL: \(testHubURL)")
             return
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.setValue(testResetSecret, forHTTPHeaderField: "X-Test-Secret")
         request.timeoutInterval = 15
 
         let expectation = XCTestExpectation(description: "Reset test state")

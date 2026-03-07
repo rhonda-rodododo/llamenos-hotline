@@ -304,13 +304,27 @@ final class CryptoService: @unchecked Sendable {
     // MARK: - Test Support
 
     #if DEBUG
-    /// Set a deterministic mock identity for XCUITest automation.
-    /// Avoids generating real keys during UI tests where crypto correctness isn't under test.
+    /// Set a deterministic test identity for XCUITest automation.
+    /// Uses a fixed secret key and derives the real pubkey/npub via the Rust FFI,
+    /// ensuring auth tokens, note envelope matching, and API requests all use
+    /// consistent, cryptographically valid keys.
     func setMockIdentity() {
-        self.nsecHex = String(repeating: "ab", count: 32)
-        self.nsecBech32 = "nsec1mock"
-        self.pubkey = String(repeating: "cd", count: 32)
-        self.npub = "npub1mock"
+        let secretHex = String(repeating: "ab", count: 32)
+        do {
+            let kp = try ffiKeypairFromSecretKeyHex(secretHex)
+            self.nsecHex = kp.secretKeyHex
+            self.nsecBech32 = kp.nsec
+            self.pubkey = kp.publicKey
+            self.npub = kp.npub
+        } catch {
+            // Fallback: load just the secret so signing works, derive pubkey
+            // from auth token on first use. This path should never be hit
+            // because "ab"*32 is a valid secp256k1 scalar.
+            self.nsecHex = secretHex
+            self.nsecBech32 = nil
+            self.pubkey = nil
+            self.npub = nil
+        }
     }
     #endif
 }
