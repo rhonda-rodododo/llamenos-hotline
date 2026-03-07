@@ -293,8 +293,10 @@ run_tests_on_device() {
     # testApplicationId is "org.llamenos.hotline" (explicit in build.gradle.kts, no debug suffix)
     # targetPackage is "org.llamenos.hotline.debug" (app applicationId with debug suffix)
     local exit_code=0
+    local test_secret="${E2E_TEST_SECRET:-test-reset-secret}"
     adb -s "$serial" shell am instrument -w \
         -e testHubUrl "$hub_url" \
+        -e testSecret "$test_secret" \
         -e cucumber.features "$cucumber_features" \
         org.llamenos.hotline/org.llamenos.hotline.CucumberHiltRunner \
         2>&1 | tee "$result_dir/output.txt" || exit_code=$?

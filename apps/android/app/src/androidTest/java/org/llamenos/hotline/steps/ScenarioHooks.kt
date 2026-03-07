@@ -6,6 +6,7 @@ import io.cucumber.java.After
 import io.cucumber.java.Before
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
+import org.llamenos.hotline.helpers.SimulationClient
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -54,6 +55,7 @@ class ScenarioHooks {
             conn.requestMethod = "POST"
             conn.connectTimeout = 5_000
             conn.readTimeout = 5_000
+            conn.setRequestProperty("X-Test-Secret", SimulationClient.testSecret)
             conn.doOutput = true
             conn.outputStream.close() // Send empty POST body
             val code = conn.responseCode
