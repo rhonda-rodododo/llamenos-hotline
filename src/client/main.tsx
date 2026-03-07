@@ -13,10 +13,16 @@ import '@/app.css'
 const router = createRouter({ routeTree })
 
 // Expose router and key-manager for E2E test navigation
+declare global {
+  interface Window {
+    __TEST_ROUTER: typeof router
+    __TEST_KEY_MANAGER: typeof import('./lib/key-manager')
+  }
+}
 if (typeof window !== 'undefined') {
-  ;(window as any).__TEST_ROUTER = router
+  window.__TEST_ROUTER = router
   import('./lib/key-manager').then(km => {
-    ;(window as any).__TEST_KEY_MANAGER = km
+    window.__TEST_KEY_MANAGER = km
   })
 }
 

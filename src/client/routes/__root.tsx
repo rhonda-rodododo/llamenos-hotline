@@ -17,6 +17,8 @@ import { DemoBanner } from '@/components/demo-banner'
 import { NotificationPromptBanner } from '@/components/notification-prompt-banner'
 import { PwaInstallBanner } from '@/components/pwa-install-banner'
 import { PanicWipeIndicator } from '@/components/panic-wipe-indicator'
+import { ErrorBoundary } from '@/components/error-boundary'
+import { OfflineBanner } from '@/components/offline-banner'
 import { HubSwitcher } from '@/components/hub-switcher'
 import {
   LayoutDashboard,
@@ -40,6 +42,7 @@ import {
   Search,
   HelpCircle,
   Megaphone,
+  Contact,
 } from 'lucide-react'
 
 export const Route = createRootRoute({
@@ -133,7 +136,10 @@ function RootLayout() {
   return (
     <>
       <PanicWipeIndicator />
-      {content}
+      <OfflineBanner />
+      <ErrorBoundary scope="root">
+        {content}
+      </ErrorBoundary>
     </>
   )
 }
@@ -210,7 +216,7 @@ function AuthenticatedLayout() {
       )}
 
       {/* Sidebar */}
-      <nav className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-sidebar-border bg-sidebar transition-transform md:static md:visible md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full invisible'}`}>
+      <nav data-testid="nav-sidebar" className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-sidebar-border bg-sidebar transition-transform md:static md:visible md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full invisible'}`}>
         <div className="border-b border-sidebar-border px-4 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -306,17 +312,22 @@ function AuthenticatedLayout() {
           {isAdmin && (
             <>
               <div className="my-2 border-t border-sidebar-border" />
+              <div data-testid="nav-admin-section">
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-primary">
                 {t('nav.admin', { defaultValue: 'Admin' })}
               </p>
               <NavLink to="/shifts" icon={<Clock className="h-4 w-4" />}>{t('nav.shifts')}</NavLink>
               <NavLink to="/volunteers" icon={<Users className="h-4 w-4" />}>{t('nav.volunteers')}</NavLink>
               <NavLink to="/bans" icon={<ShieldBan className="h-4 w-4" />}>{t('nav.banList')}</NavLink>
+              {hasPermission('contacts:view') && (
+                <NavLink to="/contacts" icon={<Contact className="h-4 w-4" />}>{t('nav.contacts', { defaultValue: 'Contacts' })}</NavLink>
+              )}
               <NavLink to="/audit" icon={<ScrollText className="h-4 w-4" />}>{t('nav.auditLog')}</NavLink>
               <NavLink to="/admin/settings" icon={<Settings className="h-4 w-4" />}>{t('nav.hubSettings', { defaultValue: 'Hub Settings' })}</NavLink>
               {hasPermission('system:manage-hubs') && (
                 <NavLink to="/admin/hubs" icon={<Building2 className="h-4 w-4" />}>{t('nav.hubs', { defaultValue: 'Hubs' })}</NavLink>
               )}
+              </div>
             </>
           )}
           <NavLink to="/help" icon={<HelpCircle className="h-4 w-4" />}>{t('nav.help', { defaultValue: 'Help' })}</NavLink>
@@ -331,6 +342,7 @@ function AuthenticatedLayout() {
                 <button
                   key={value}
                   onClick={() => setTheme(value)}
+                  data-testid={`theme-${value}`}
                   className={`rounded px-1.5 py-0.5 text-xs transition-colors ${theme === value ? 'bg-primary/20 text-primary font-medium' : 'text-muted-foreground hover:text-foreground'}`}
                   aria-label={t(`a11y.theme${value.charAt(0).toUpperCase() + value.slice(1)}`)}
                 >
@@ -354,6 +366,7 @@ function AuthenticatedLayout() {
               signOut()
               navigate({ to: '/login' })
             }}
+            data-testid="logout-btn"
             className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
             <LogOut className="h-4 w-4" />
@@ -380,7 +393,9 @@ function AuthenticatedLayout() {
         </header>
 
         <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto bg-background p-4 md:p-6">
-          <Outlet />
+          <ErrorBoundary scope="page">
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 
@@ -438,10 +453,13 @@ function AuthenticatedLayout() {
 function NavLink({ to, children, icon }: { to: string; children: ReactNode; icon?: ReactNode }) {
   const location = useLocation()
   const isActive = location.pathname === to || (to === '/' ? false : location.pathname.startsWith(to))
+  // Generate test ID from route path: "/" -> "nav-dashboard", "/notes" -> "nav-notes", "/admin/settings" -> "nav-admin-settings"
+  const testId = `nav-${to === '/' ? 'dashboard' : to.replace(/^\//, '').replace(/\//g, '-')}`
 
   return (
     <Link
       to={to}
+      data-testid={testId}
       className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent ${
         isActive
           ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-l-[3px] border-primary pl-[9px]'

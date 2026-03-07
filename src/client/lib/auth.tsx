@@ -110,16 +110,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setOnApiActivity(null)
   }, [markActivity])
 
-  // Session expiry warning — check every 30s if idle > 4 min
+  // Session expiry warning — check every 60s if idle > 30 min.
+  // Server uses sliding expiry (extends 8h on each validated request), so only truly
+  // idle sessions expire. The 30-min client threshold gives ample warning.
   useEffect(() => {
     if (!state.isKeyUnlocked && !sessionStorage.getItem('llamenos-session-token')) return
     const interval = setInterval(() => {
       const elapsed = Date.now() - lastApiActivity.current
-      const WARN_THRESHOLD = 4 * 60 * 1000 // 4 minutes
+      const WARN_THRESHOLD = 30 * 60 * 1000 // 30 minutes
       if (elapsed >= WARN_THRESHOLD && !state.sessionExpired) {
         setState(s => ({ ...s, sessionExpiring: true }))
       }
-    }, 30_000)
+    }, 60_000)
     return () => clearInterval(interval)
   }, [state.isKeyUnlocked, state.sessionExpired])
 
@@ -146,8 +148,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             profileCompleted: me.profileCompleted ?? true,
             onBreak: me.onBreak ?? false,
             callPreference: me.callPreference ?? 'phone',
-            adminPubkey: me.adminPubkey || '',
-            adminDecryptionPubkey: me.adminDecryptionPubkey || me.adminPubkey || '',
+            adminPubkey: me.adminDecryptionPubkey || '',
+            adminDecryptionPubkey: me.adminDecryptionPubkey || '',
             sessionExpiring: false,
             sessionExpired: false,
           })
@@ -179,8 +181,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             profileCompleted: me.profileCompleted ?? true,
             onBreak: me.onBreak ?? false,
             callPreference: me.callPreference ?? 'phone',
-            adminPubkey: me.adminPubkey || '',
-            adminDecryptionPubkey: me.adminDecryptionPubkey || me.adminPubkey || '',
+            adminPubkey: me.adminDecryptionPubkey || '',
+            adminDecryptionPubkey: me.adminDecryptionPubkey || '',
             sessionExpiring: false,
             sessionExpired: false,
           })
@@ -223,8 +225,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileCompleted: me.profileCompleted ?? true,
         onBreak: me.onBreak ?? false,
         callPreference: me.callPreference ?? 'phone',
-        adminPubkey: me.adminPubkey || '',
-        adminDecryptionPubkey: me.adminDecryptionPubkey || me.adminPubkey || '',
+        adminPubkey: me.adminDecryptionPubkey || '',
+        adminDecryptionPubkey: me.adminDecryptionPubkey || '',
         sessionExpiring: false,
         sessionExpired: false,
       })
@@ -260,8 +262,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileCompleted: me.profileCompleted ?? true,
         onBreak: me.onBreak ?? false,
         callPreference: me.callPreference ?? 'phone',
-        adminPubkey: me.adminPubkey || '',
-        adminDecryptionPubkey: me.adminDecryptionPubkey || me.adminPubkey || '',
+        adminPubkey: me.adminDecryptionPubkey || '',
+        adminDecryptionPubkey: me.adminDecryptionPubkey || '',
         sessionExpiring: false,
         sessionExpired: false,
       })
@@ -299,8 +301,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileCompleted: me.profileCompleted ?? true,
         onBreak: me.onBreak ?? false,
         callPreference: me.callPreference ?? 'phone',
-        adminPubkey: me.adminPubkey || '',
-        adminDecryptionPubkey: me.adminDecryptionPubkey || me.adminPubkey || '',
+        adminPubkey: me.adminDecryptionPubkey || '',
+        adminDecryptionPubkey: me.adminDecryptionPubkey || '',
         sessionExpiring: false,
         sessionExpired: false,
       })
@@ -330,8 +332,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileCompleted: me.profileCompleted ?? true,
         onBreak: me.onBreak ?? false,
         callPreference: me.callPreference ?? 'phone',
-        adminPubkey: me.adminPubkey || '',
-        adminDecryptionPubkey: me.adminDecryptionPubkey || me.adminPubkey || '',
+        adminPubkey: me.adminDecryptionPubkey || '',
+        adminDecryptionPubkey: me.adminDecryptionPubkey || '',
         sessionExpiring: false,
         sessionExpired: false,
       }))
@@ -357,8 +359,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileCompleted: me.profileCompleted ?? true,
         onBreak: me.onBreak ?? false,
         callPreference: me.callPreference ?? 'phone',
-        adminPubkey: me.adminPubkey || '',
-        adminDecryptionPubkey: me.adminDecryptionPubkey || me.adminPubkey || '',
+        adminPubkey: me.adminDecryptionPubkey || '',
+        adminDecryptionPubkey: me.adminDecryptionPubkey || '',
         sessionExpiring: false,
         sessionExpired: false,
       }))
