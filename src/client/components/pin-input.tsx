@@ -1,7 +1,8 @@
-import { useRef, useState, useEffect, type KeyboardEvent } from 'react'
+import { useRef, useEffect, type KeyboardEvent } from 'react'
 
 interface PinInputProps {
   length?: number
+  minLength?: number
   value: string
   onChange: (value: string) => void
   onComplete?: (value: string) => void
@@ -11,7 +12,8 @@ interface PinInputProps {
 }
 
 export function PinInput({
-  length = 4,
+  length = 8,
+  minLength = 6,
   value,
   onChange,
   onComplete,
@@ -20,6 +22,12 @@ export function PinInput({
   autoFocus = true,
 }: PinInputProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+  // Use a ref to track the latest value across rapid sequential inputs.
+  // Without this, handleInput reads stale `digits` from the render closure
+  // when multiple characters are typed before React re-renders.
+  const valueRef = useRef(value)
+  valueRef.current = value
+
   const digits = value.split('').concat(Array(length).fill('')).slice(0, length)
 
   useEffect(() => {
@@ -28,11 +36,16 @@ export function PinInput({
     }
   }, [autoFocus])
 
+  function getDigits(): string[] {
+    return valueRef.current.split('').concat(Array(length).fill('')).slice(0, length)
+  }
+
   function handleInput(index: number, char: string) {
     if (!/^\d$/.test(char)) return
-    const newDigits = [...digits]
+    const newDigits = getDigits()
     newDigits[index] = char
     const newValue = newDigits.join('').replace(/[^\d]/g, '')
+    valueRef.current = newValue
     onChange(newValue)
 
     if (index < length - 1) {
@@ -46,15 +59,24 @@ export function PinInput({
   function handleKeyDown(index: number, e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Backspace') {
       e.preventDefault()
-      const newDigits = [...digits]
+      const newDigits = getDigits()
       if (newDigits[index]) {
         newDigits[index] = ''
-        onChange(newDigits.join('').replace(/[^\d]/g, ''))
+        const newValue = newDigits.join('').replace(/[^\d]/g, '')
+        valueRef.current = newValue
+        onChange(newValue)
       } else if (index > 0) {
         newDigits[index - 1] = ''
-        onChange(newDigits.join('').replace(/[^\d]/g, ''))
+        const newValue = newDigits.join('').replace(/[^\d]/g, '')
+        valueRef.current = newValue
+        onChange(newValue)
         inputRefs.current[index - 1]?.focus()
       }
+    }
+    if (e.key === 'Enter' && valueRef.current.length >= minLength) {
+      e.preventDefault()
+      onComplete?.(valueRef.current)
+      return
     }
     if (e.key === 'ArrowLeft' && index > 0) {
       inputRefs.current[index - 1]?.focus()
@@ -68,6 +90,7 @@ export function PinInput({
     e.preventDefault()
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, length)
     if (pasted) {
+      valueRef.current = pasted
       onChange(pasted)
       const focusIndex = Math.min(pasted.length, length - 1)
       inputRefs.current[focusIndex]?.focus()
@@ -78,7 +101,7 @@ export function PinInput({
   }
 
   return (
-    <div className="flex items-center justify-center gap-2">
+    <div className="flex items-center justify-center gap-2" data-testid="pin-input">
       {Array.from({ length }).map((_, i) => (
         <input
           key={i}

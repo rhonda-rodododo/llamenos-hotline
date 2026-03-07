@@ -1,7 +1,7 @@
 /**
  * Encrypted key storage using PBKDF2 + XChaCha20-Poly1305.
  *
- * PIN (4-6 digits) → PBKDF2-SHA256 (600k iterations, 16-byte salt) → 32-byte KEK
+ * PIN (6-8 digits) → PBKDF2-SHA256 (600k iterations, 16-byte salt) → 32-byte KEK
  * → XChaCha20-Poly1305 encrypts nsec bytes → stored in localStorage as JSON.
  *
  * Decrypted keyPair is held in memory only — never written to storage unencrypted.
@@ -138,8 +138,8 @@ export function clearStoredKey(): void {
 }
 
 /**
- * Validate PIN format: 4-6 digits.
+ * Validate PIN format: 6-8 digits.
  */
 export function isValidPin(pin: string): boolean {
-  return /^\d{4,6}$/.test(pin)
+  return /^\d{6,8}$/.test(pin)
 }

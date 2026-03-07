@@ -92,8 +92,11 @@ export class IdentityDO extends DurableObject<Env> {
     this.router.post('/identity/hub-role', async (req) => this.setHubRole(await req.json()))
     this.router.delete('/identity/hub-role', async (req) => this.removeHubRole(await req.json()))
 
-    // --- Test Reset ---
+    // --- Test Reset (demo mode only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
+      if (this.env.DEMO_MODE !== 'true') {
+        return new Response('Reset not allowed outside demo mode', { status: 403 })
+      }
       await this.ctx.storage.deleteAll()
       this.initialized = false
       await this.ensureInit()
@@ -209,32 +212,40 @@ export class IdentityDO extends DurableObject<Env> {
   }
 
   private async bootstrapAdmin(data: { pubkey: string }): Promise<Response> {
-    const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
-    // One-shot: reject if any super-admin already exists
-    const adminExists = Object.values(volunteers).some(v =>
-      v.active && v.roles.includes('role-super-admin')
-    )
-    if (adminExists) {
-      return new Response(JSON.stringify({ error: 'Admin already exists' }), { status: 403 })
-    }
+    // Epic 258 H18: Wrap in storage transaction for atomicity to prevent race conditions
+    const result = await this.ctx.storage.transaction(async (txn) => {
+      const volunteers = await txn.get<Record<string, Volunteer>>('volunteers') || {}
+      // One-shot: reject if any super-admin already exists
+      const adminExists = Object.values(volunteers).some(v =>
+        v.active && v.roles.includes('role-super-admin')
+      )
+      if (adminExists) {
+        return { error: 'Admin already exists', status: 403 as const }
+      }
 
-    const volunteer: Volunteer = {
-      pubkey: data.pubkey,
-      name: 'Admin',
-      phone: '',
-      roles: ['role-super-admin'],
-      active: true,
-      createdAt: new Date().toISOString(),
-      encryptedSecretKey: '',
-      transcriptionEnabled: true,
-      spokenLanguages: ['en', 'es'],
-      uiLanguage: 'en',
-      profileCompleted: false,
-      onBreak: false,
-      callPreference: 'phone',
+      const volunteer: Volunteer = {
+        pubkey: data.pubkey,
+        name: 'Admin',
+        phone: '',
+        roles: ['role-super-admin'],
+        active: true,
+        createdAt: new Date().toISOString(),
+        encryptedSecretKey: '',
+        transcriptionEnabled: true,
+        spokenLanguages: ['en', 'es'],
+        uiLanguage: 'en',
+        profileCompleted: false,
+        onBreak: false,
+        callPreference: 'phone',
+      }
+      volunteers[data.pubkey] = volunteer
+      await txn.put('volunteers', volunteers)
+      return { ok: true as const }
+    })
+
+    if ('error' in result) {
+      return new Response(JSON.stringify({ error: result.error }), { status: result.status })
     }
-    volunteers[data.pubkey] = volunteer
-    await this.ctx.storage.put('volunteers', volunteers)
     return Response.json({ ok: true })
   }
 
@@ -498,6 +509,15 @@ export class IdentityDO extends DurableObject<Env> {
     if (new Date(session.expiresAt) < new Date()) {
       await this.ctx.storage.delete(`session:${token}`)
       return new Response('Session expired', { status: 401 })
+    }
+    // Sliding expiry: extend session if more than 1 hour until expiry has been consumed.
+    // This keeps active volunteers logged in during their shift without requiring re-auth.
+    const SESSION_DURATION_MS = 8 * 60 * 60 * 1000
+    const RENEWAL_THRESHOLD_MS = SESSION_DURATION_MS - (1 * 60 * 60 * 1000) // renew after 1h of use
+    const remaining = new Date(session.expiresAt).getTime() - Date.now()
+    if (remaining < RENEWAL_THRESHOLD_MS) {
+      session.expiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString()
+      await this.ctx.storage.put(`session:${token}`, session)
     }
     return Response.json(session)
   }

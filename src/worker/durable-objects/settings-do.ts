@@ -108,8 +108,11 @@ export class SettingsDO extends DurableObject<Env> {
     this.router.get('/settings/hub/:id/key', (_req, { id }) => this.getHubKeyEnvelopes(id))
     this.router.put('/settings/hub/:id/key', async (req, { id }) => this.setHubKeyEnvelopes(id, await req.json()))
 
-    // --- Test Reset ---
+    // --- Test Reset (demo mode only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
+      if (this.env.DEMO_MODE !== 'true') {
+        return new Response('Reset not allowed outside demo mode', { status: 403 })
+      }
       await this.ctx.storage.deleteAll()
       this.initialized = false
       await this.ensureInit()
@@ -293,6 +296,14 @@ export class SettingsDO extends DurableObject<Env> {
   // --- Rate Limit ---
 
   private async checkRateLimit(data: { key: string; maxPerMinute: number }): Promise<Response> {
+    // Epic 258 H15: Validate rate limit parameters to prevent caller-controlled abuse
+    if (!data.key || !/^[a-zA-Z0-9:_-]{1,256}$/.test(data.key)) {
+      return Response.json({ error: 'Invalid rate limit key' }, { status: 400 })
+    }
+    if (!Number.isInteger(data.maxPerMinute) || data.maxPerMinute < 1 || data.maxPerMinute > 1000) {
+      return Response.json({ error: 'maxPerMinute must be an integer between 1 and 1000' }, { status: 400 })
+    }
+
     const storageKey = `ratelimit:${data.key}`
     const now = Date.now()
     const windowMs = 60_000
@@ -343,7 +354,7 @@ export class SettingsDO extends DurableObject<Env> {
         return new Response(JSON.stringify({ error: `Duplicate field name: ${field.name}` }), { status: 400 })
       }
       names.add(field.name)
-      if (!['text', 'number', 'select', 'checkbox', 'textarea'].includes(field.type)) {
+      if (!['text', 'number', 'select', 'checkbox', 'textarea', 'file'].includes(field.type)) {
         return new Response(JSON.stringify({ error: `Invalid field type: ${field.type}` }), { status: 400 })
       }
       if (field.type === 'select') {
@@ -361,11 +372,12 @@ export class SettingsDO extends DurableObject<Env> {
       }
     }
 
-    const validContexts = ['call-notes', 'reports', 'both']
+    const validContexts = ['call-notes', 'conversation-notes', 'reports', 'all']
     const normalized = fields.map((f, i) => ({
       ...f,
       order: i,
-      context: validContexts.includes(f.context) ? f.context : 'both',
+      // Migrate legacy 'both' to 'all'
+      context: (f.context as string) === 'both' ? 'all' : (validContexts.includes(f.context) ? f.context : 'all'),
     }))
     await this.ctx.storage.put('customFields', normalized)
     return Response.json({ fields: normalized })
@@ -694,9 +706,23 @@ export class SettingsDO extends DurableObject<Env> {
     return Response.json(settings)
   }
 
+  /** Allowlist of valid hub settings keys — reject unknown keys before merging */
+  private static readonly ALLOWED_HUB_SETTINGS = new Set([
+    'hubName', 'timezone', 'language', 'welcomeMessage',
+    'emergencyMessage', 'maxConcurrentCalls', 'nostrRelayUrl',
+    'callSettings', 'spamSettings', 'transcriptionEnabled',
+  ])
+
   private async updateHubSettings(hubId: string, data: Record<string, unknown>): Promise<Response> {
+    // Strip unknown keys before merging
+    const sanitized: Record<string, unknown> = {}
+    for (const key of Object.keys(data)) {
+      if (SettingsDO.ALLOWED_HUB_SETTINGS.has(key)) {
+        sanitized[key] = data[key]
+      }
+    }
     const existing = await this.ctx.storage.get<Record<string, unknown>>(`hub:${hubId}:settings`) || {}
-    const merged = { ...existing, ...data }
+    const merged = { ...existing, ...sanitized }
     await this.ctx.storage.put(`hub:${hubId}:settings`, merged)
     return Response.json(merged)
   }
