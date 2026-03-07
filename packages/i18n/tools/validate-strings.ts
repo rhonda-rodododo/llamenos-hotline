@@ -34,11 +34,17 @@ interface Mismatch {
   kind: 'missing' | 'warning'
 }
 
-/** Flatten nested JSON to underscore-separated keys (matches i18n-codegen) */
+/** Convert camelCase to snake_case (e.g. callHistory → call_history) */
+function camelToSnake(s: string): string {
+  return s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
+}
+
+/** Flatten nested JSON to snake_case underscore-separated keys (matches i18n-codegen) */
 function flattenKeysUnderscore(obj: Record<string, unknown>, prefix = ''): Record<string, string> {
   const result: Record<string, string> = {}
   for (const [key, value] of Object.entries(obj)) {
-    const fullKey = prefix ? `${prefix}_${key}` : key
+    const snakeKey = camelToSnake(key)
+    const fullKey = prefix ? `${prefix}_${snakeKey}` : snakeKey
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       Object.assign(result, flattenKeysUnderscore(value as Record<string, unknown>, fullKey))
     } else if (typeof value === 'string') {
