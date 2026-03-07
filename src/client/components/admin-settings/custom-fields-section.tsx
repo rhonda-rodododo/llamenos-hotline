@@ -169,8 +169,9 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label>{t('customFields.fieldType')}</Label>
+              <Label htmlFor="custom-field-type">{t('customFields.fieldType')}</Label>
               <select
+                id="custom-field-type"
                 data-testid="custom-field-type-select"
                 value={editing.type || 'text'}
                 onChange={e => setEditing(prev => ({ ...prev!, type: e.target.value as CustomFieldDefinition['type'] }))}
@@ -185,8 +186,9 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
               </select>
             </div>
             <div className="space-y-1">
-              <Label>{t('customFields.context', { defaultValue: 'Appears In' })}</Label>
+              <Label htmlFor="field-context">{t('customFields.context', { defaultValue: 'Appears In' })}</Label>
               <select
+                id="field-context"
                 data-testid="field-context-select"
                 value={editing.context || 'all'}
                 onChange={e => setEditing(prev => ({ ...prev!, context: e.target.value as CustomFieldContext }))}
@@ -223,7 +225,7 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
                   />
                   <Button variant="ghost" size="sm" onClick={() => {
                     setEditing(prev => ({ ...prev!, options: prev!.options!.filter((_, j) => j !== i) }))
-                  }}>
+                  }} aria-label={t('common.delete')}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>

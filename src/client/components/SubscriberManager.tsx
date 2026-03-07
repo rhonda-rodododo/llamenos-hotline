@@ -154,7 +154,7 @@ export function SubscriberManager() {
                       <Badge variant={sub.status === 'active' ? 'default' : 'outline'} className="text-[10px]">{sub.status}</Badge>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon-xs" onClick={() => handleRemove(sub.id)} className="text-destructive">
+                  <Button variant="ghost" size="icon-xs" onClick={() => handleRemove(sub.id)} className="text-destructive" aria-label={t('common.delete')}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>

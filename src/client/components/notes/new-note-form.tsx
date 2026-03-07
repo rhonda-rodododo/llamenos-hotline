@@ -22,17 +22,21 @@ export function NewNoteForm({ recentCalls, customFieldDefs, saving, onSave, onCa
   const { t } = useTranslation()
   const { currentCall } = useCalls()
   const [callId, setCallId] = useState('')
+  const [manualCallId, setManualCallId] = useState('')
   const [text, setText] = useState('')
   const [fields, setFields] = useState<Record<string, string | number | boolean>>({})
 
   useEffect(() => {
     if (currentCall && !callId) setCallId(currentCall.id)
-  }, [currentCall])
+  }, [currentCall, callId])
+
+  const effectiveCallId = callId === '__manual' ? manualCallId : callId
 
   function handleSave() {
-    onSave(callId, text, fields)
+    onSave(effectiveCallId, text, fields)
     setText('')
     setCallId('')
+    setManualCallId('')
     setFields({})
   }
 
@@ -72,8 +76,9 @@ export function NewNoteForm({ recentCalls, customFieldDefs, saving, onSave, onCa
           )}
           {callId === '__manual' && (
             <Input
-              value=""
-              onChange={e => setCallId(e.target.value)}
+              data-testid="note-call-id"
+              value={manualCallId}
+              onChange={e => setManualCallId(e.target.value)}
               placeholder={t('notes.callIdPlaceholder')}
             />
           )}
@@ -102,7 +107,7 @@ export function NewNoteForm({ recentCalls, customFieldDefs, saving, onSave, onCa
           idPrefix="new-field"
         />
         <div className="flex gap-2">
-          <Button data-testid="form-save-btn" onClick={handleSave} disabled={saving || !text.trim() || !callId.trim() || callId === '__manual'}>
+          <Button data-testid="form-save-btn" onClick={handleSave} disabled={saving || !text.trim() || !effectiveCallId.trim()}>
             <Save className="h-4 w-4" />
             {saving ? t('common.loading') : t('common.save')}
           </Button>
