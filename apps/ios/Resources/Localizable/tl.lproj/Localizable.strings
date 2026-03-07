@@ -1249,6 +1249,7 @@
 "settings_device_link_desc" = "Link another device to your account";
 "settings_devices_header" = "Devices";
 "settings_display_name" = "Display Name";
+"settings_emergency_footer" = "Permanenteng tinatanggal ang lahat ng data mula sa device na ito kasama ang iyong mga identity key.";
 "settings_enable_transcription" = "I-enable ang transkripsyon ng tawag";
 "settings_events" = "Events Received";
 "settings_expand" = "Expand";
@@ -1310,7 +1311,7 @@
 "settings_theme_dark" = "Dark";
 "settings_theme_light" = "Light";
 "settings_theme_system" = "System";
-"settings_title" = "Mga Setting ng Account";
+"settings_title" = "Mga Setting";
 "settings_transcription" = "Transcription";
 "settings_transcription_desc" = "Call transcription settings";
 "settings_transcription_description" = "Gumagamit ng AI para ma-transcribe ang mga tawag. Puwedeng i-disable bawat boluntaryo.";

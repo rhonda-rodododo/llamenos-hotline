@@ -1249,6 +1249,7 @@
 "settings_device_link_desc" = "Link another device to your account";
 "settings_devices_header" = "Devices";
 "settings_display_name" = "Display Name";
+"settings_emergency_footer" = "Permanently deletes all data from this device including your identity keys.";
 "settings_enable_transcription" = "Enable call transcription";
 "settings_events" = "Events Received";
 "settings_expand" = "Expand";
@@ -1310,7 +1311,7 @@
 "settings_theme_dark" = "Dark";
 "settings_theme_light" = "Light";
 "settings_theme_system" = "System";
-"settings_title" = "Account Settings";
+"settings_title" = "Settings";
 "settings_transcription" = "Transcription";
 "settings_transcription_desc" = "Call transcription settings";
 "settings_transcription_description" = "Uses AI to transcribe calls. Can be disabled per-volunteer.";

@@ -1249,6 +1249,7 @@
 "settings_device_link_desc" = "Link another device to your account";
 "settings_devices_header" = "Devices";
 "settings_display_name" = "Display Name";
+"settings_emergency_footer" = "신원 키를 포함하여 이 기기의 모든 데이터를 영구적으로 삭제합니다.";
 "settings_enable_transcription" = "통화 전사 활성화";
 "settings_events" = "Events Received";
 "settings_expand" = "Expand";
@@ -1310,7 +1311,7 @@
 "settings_theme_dark" = "Dark";
 "settings_theme_light" = "Light";
 "settings_theme_system" = "System";
-"settings_title" = "계정 설정";
+"settings_title" = "설정";
 "settings_transcription" = "Transcription";
 "settings_transcription_desc" = "Call transcription settings";
 "settings_transcription_description" = "AI를 사용하여 통화를 전사합니다. 자원봉사자별로 비활성화 가능합니다.";

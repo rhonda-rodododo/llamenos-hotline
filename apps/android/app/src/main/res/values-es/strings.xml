@@ -1252,6 +1252,7 @@
     <string name="settings_device_link_desc">Link another device to your account</string>
     <string name="settings_devices_header">Devices</string>
     <string name="settings_display_name">Display Name</string>
+    <string name="settings_emergency_footer">Elimina permanentemente todos los datos de este dispositivo, incluyendo tus claves de identidad.</string>
     <string name="settings_enable_transcription">Habilitar transcripción de llamadas</string>
     <string name="settings_events">Events Received</string>
     <string name="settings_expand">Expand</string>
@@ -1313,7 +1314,7 @@
     <string name="settings_theme_dark">Dark</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_system">System</string>
-    <string name="settings_title">Configuración de Cuenta</string>
+    <string name="settings_title">Configuración</string>
     <string name="settings_transcription">Transcription</string>
     <string name="settings_transcription_desc">Call transcription settings</string>
     <string name="settings_transcription_description">Usa IA para transcribir llamadas. Puede deshabilitarse por voluntario.</string>

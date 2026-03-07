@@ -1249,6 +1249,7 @@
 "settings_device_link_desc" = "Link another device to your account";
 "settings_devices_header" = "Devices";
 "settings_display_name" = "Display Name";
+"settings_emergency_footer" = "Xóa vĩnh viễn tất cả dữ liệu khỏi thiết bị này bao gồm cả khóa danh tính của bạn.";
 "settings_enable_transcription" = "Bật phiên âm cuộc gọi";
 "settings_events" = "Events Received";
 "settings_expand" = "Expand";
@@ -1310,7 +1311,7 @@
 "settings_theme_dark" = "Dark";
 "settings_theme_light" = "Light";
 "settings_theme_system" = "System";
-"settings_title" = "Cài đặt tài khoản";
+"settings_title" = "Cài đặt";
 "settings_transcription" = "Transcription";
 "settings_transcription_desc" = "Call transcription settings";
 "settings_transcription_description" = "Sử dụng AI để phiên âm cuộc gọi. Có thể tắt theo từng tình nguyện viên.";

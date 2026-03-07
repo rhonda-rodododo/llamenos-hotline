@@ -1252,6 +1252,7 @@
     <string name="settings_device_link_desc">Link another device to your account</string>
     <string name="settings_devices_header">Devices</string>
     <string name="settings_display_name">Display Name</string>
+    <string name="settings_emergency_footer">इस डिवाइस से सभी डेटा स्थायी रूप से हटा देता है, जिसमें आपकी पहचान कुंजियाँ शामिल हैं।</string>
     <string name="settings_enable_transcription">कॉल ट्रांसक्रिप्शन सक्षम करें</string>
     <string name="settings_events">Events Received</string>
     <string name="settings_expand">Expand</string>
@@ -1313,7 +1314,7 @@
     <string name="settings_theme_dark">Dark</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_system">System</string>
-    <string name="settings_title">खाता सेटिंग्स</string>
+    <string name="settings_title">सेटिंग्स</string>
     <string name="settings_transcription">Transcription</string>
     <string name="settings_transcription_desc">Call transcription settings</string>
     <string name="settings_transcription_description">कॉल ट्रांसक्राइब करने के लिए AI का उपयोग करता है। प्रति स्वयंसेवक अक्षम किया जा सकता है।</string>

@@ -1249,6 +1249,7 @@
 "settings_device_link_desc" = "Link another device to your account";
 "settings_devices_header" = "Devices";
 "settings_display_name" = "Display Name";
+"settings_emergency_footer" = "永久删除此设备上的所有数据，包括您的身份密钥。";
 "settings_enable_transcription" = "启用通话转录";
 "settings_events" = "Events Received";
 "settings_expand" = "Expand";
@@ -1310,7 +1311,7 @@
 "settings_theme_dark" = "Dark";
 "settings_theme_light" = "Light";
 "settings_theme_system" = "System";
-"settings_title" = "账户设置";
+"settings_title" = "设置";
 "settings_transcription" = "Transcription";
 "settings_transcription_desc" = "Call transcription settings";
 "settings_transcription_description" = "使用AI转录通话。可按志愿者单独禁用。";

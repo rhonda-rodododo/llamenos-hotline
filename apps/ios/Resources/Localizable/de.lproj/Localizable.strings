@@ -1249,6 +1249,7 @@
 "settings_device_link_desc" = "Link another device to your account";
 "settings_devices_header" = "Devices";
 "settings_display_name" = "Display Name";
+"settings_emergency_footer" = "Löscht dauerhaft alle Daten von diesem Gerät, einschließlich Ihrer Identitätsschlüssel.";
 "settings_enable_transcription" = "Anruftranskription aktivieren";
 "settings_events" = "Events Received";
 "settings_expand" = "Expand";
@@ -1310,7 +1311,7 @@
 "settings_theme_dark" = "Dark";
 "settings_theme_light" = "Light";
 "settings_theme_system" = "System";
-"settings_title" = "Kontoeinstellungen";
+"settings_title" = "Einstellungen";
 "settings_transcription" = "Transcription";
 "settings_transcription_desc" = "Call transcription settings";
 "settings_transcription_description" = "Verwendet KI zur Transkription von Anrufen. Kann pro Freiwilligem deaktiviert werden.";

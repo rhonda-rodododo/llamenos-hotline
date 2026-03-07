@@ -1249,6 +1249,7 @@
 "settings_device_link_desc" = "Link another device to your account";
 "settings_devices_header" = "Devices";
 "settings_display_name" = "Display Name";
+"settings_emergency_footer" = "Elimina permanentemente todos los datos de este dispositivo, incluyendo tus claves de identidad.";
 "settings_enable_transcription" = "Habilitar transcripción de llamadas";
 "settings_events" = "Events Received";
 "settings_expand" = "Expand";
@@ -1310,7 +1311,7 @@
 "settings_theme_dark" = "Dark";
 "settings_theme_light" = "Light";
 "settings_theme_system" = "System";
-"settings_title" = "Configuración de Cuenta";
+"settings_title" = "Configuración";
 "settings_transcription" = "Transcription";
 "settings_transcription_desc" = "Call transcription settings";
 "settings_transcription_description" = "Usa IA para transcribir llamadas. Puede deshabilitarse por voluntario.";
