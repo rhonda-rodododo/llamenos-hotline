@@ -518,6 +518,15 @@ export class IdentityDO extends DurableObject<Env> {
       await this.ctx.storage.delete(`session:${token}`)
       return new Response('Session expired', { status: 401 })
     }
+    // Sliding expiry: extend session if more than 1 hour until expiry has been consumed.
+    // This keeps active volunteers logged in during their shift without requiring re-auth.
+    const SESSION_DURATION_MS = 8 * 60 * 60 * 1000
+    const RENEWAL_THRESHOLD_MS = SESSION_DURATION_MS - (1 * 60 * 60 * 1000) // renew after 1h of use
+    const remaining = new Date(session.expiresAt).getTime() - Date.now()
+    if (remaining < RENEWAL_THRESHOLD_MS) {
+      session.expiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString()
+      await this.ctx.storage.put(`session:${token}`, session)
+    }
     return Response.json(session)
   }
 
