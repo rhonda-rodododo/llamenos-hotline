@@ -1,5 +1,20 @@
 # Completed Backlog
 
+## 2026-03-06: i18n System Overhaul (Epics 274-275)
+
+### Epic 274: Canonicalize en.json Source of Truth
+- Removed 52 within-object duplicate keys (snake_case variants alongside camelCase)
+- Merged flat top-level keys into nested objects (`device_link` → `deviceLink`, `panic_wipe` → `panicWipe`, etc.)
+- Updated codegen (`i18n-codegen.ts`) to convert camelCase→snake_case for iOS .strings + Android strings.xml
+- Updated validator (`validate-strings.ts`) to match new codegen behavior
+- 1,695 keys across 13 locales, all pure snake_case after codegen
+
+### Epic 275: Align Mobile i18n References
+- iOS: Fixed 4 invalid refs (`settings_lock_1min` → `settings_lock1min`, etc.)
+- Android: Fixed 138 invalid refs — singular→plural prefixes (`shift_` → `shifts_`, `call_` → `calls_`, etc.)
+- Propagated 9 new keys to all 12 non-English locales
+- All 3 platform validators (`bun run i18n:validate:all`) pass with 0 errors
+
 ## 2026-03-06: iOS UX Overhaul — "Quiet Authority" Design System (Epics 269-273)
 
 ### Epic 269: Design System Foundation
