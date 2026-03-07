@@ -1,5 +1,9 @@
 # Next Backlog
 
+## i18n Overhaul (Epics 274-275)
+- [ ] **Epic 274**: Canonicalize en.json source of truth — remove 52 duplicates, standardize camelCase, update codegen to convert camelCase→snake_case for mobile
+- [ ] **Epic 275**: Align mobile i18n references — update iOS/Android string keys to match new codegen output, fix 4 hardcoded Android strings
+
 ## High Priority (Pre-Launch)
 - [x] Set up Cloudflare Tunnel for local dev with telephony webhooks (`scripts/dev-tunnel.sh`)
 - [x] Configure production wrangler secrets (TWILIO_*, ADMIN_PUBKEY) — deployed and running
