@@ -66,24 +66,26 @@ function CallHistoryPage() {
   }, [fetchCalls])
 
   // Decrypt encrypted call records client-side (Epic 77)
+  // Uses functional state update to avoid stale closure over calls
   useEffect(() => {
     if (!hasNsec || !publicKey || calls.length === 0) return
     if (!keyManager.isUnlocked()) return
+    // Only run if there are undecrypted records
+    const hasUndecrypted = calls.some(c => c.answeredBy === undefined && c.encryptedContent && c.adminEnvelopes?.length)
+    if (!hasUndecrypted) return
 
+    let cancelled = false
     ;(async () => {
-      let changed = false
       const decrypted = await Promise.all(calls.map(async call => {
-        if (call.answeredBy !== undefined) return call // already decrypted
+        if (call.answeredBy !== undefined) return call
         if (!call.encryptedContent || !call.adminEnvelopes?.length) return call
         const meta = await decryptCallRecord(call.encryptedContent, call.adminEnvelopes)
-        if (meta) {
-          changed = true
-          return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
-        }
+        if (meta) return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
         return call
       }))
-      if (changed) setCalls(decrypted)
+      if (!cancelled) setCalls(decrypted)
     })()
+    return () => { cancelled = true }
   }, [calls, hasNsec, publicKey])
 
   useEffect(() => {

@@ -70,24 +70,25 @@ function NotesPage() {
   }, [isAdmin, t, toast])
 
   // Decrypt encrypted call records client-side (Epic 77)
+  // Uses cancelled flag to avoid updating state after unmount or re-render
   useEffect(() => {
     if (!hasNsec || !publicKey || recentCalls.length === 0) return
     if (!keyManager.isUnlocked()) return
+    const hasUndecrypted = recentCalls.some(c => c.answeredBy === undefined && c.encryptedContent && c.adminEnvelopes?.length)
+    if (!hasUndecrypted) return
 
+    let cancelled = false
     ;(async () => {
-      let changed = false
       const decrypted = await Promise.all(recentCalls.map(async call => {
         if (call.answeredBy !== undefined) return call
         if (!call.encryptedContent || !call.adminEnvelopes?.length) return call
         const meta = await decryptCallRecord(call.encryptedContent, call.adminEnvelopes)
-        if (meta) {
-          changed = true
-          return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
-        }
+        if (meta) return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
         return call
       }))
-      if (changed) setRecentCalls(decrypted)
+      if (!cancelled) setRecentCalls(decrypted)
     })()
+    return () => { cancelled = true }
   }, [recentCalls, hasNsec, publicKey])
 
   const nameMap = useMemo(() => {
