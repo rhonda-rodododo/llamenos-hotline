@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, resetTestState } from './helpers'
+import { loginAsAdmin, resetTestState, enterPin } from './helpers'
 
 // Tests depend on each other's server-side state (bootstrap creates admin for later tests)
 test.describe.configure({ mode: 'serial' })
@@ -97,17 +97,21 @@ test.describe('In-Browser Admin Bootstrap', () => {
 
     // Step 2: PIN creation
     await expect(page.getByText('Create a PIN')).toBeVisible({ timeout: 5000 })
-    const pinDigit1 = page.locator('input[aria-label="PIN digit 1"]')
-    await pinDigit1.waitFor({ state: 'visible', timeout: 5000 })
-    await pinDigit1.click()
-    await page.keyboard.type('123456', { delay: 50 })
+    // Type digits individually — AdminBootstrap re-renders more heavily than login
+    for (let i = 0; i < 6; i++) {
+      const input = page.locator(`input[aria-label="PIN digit ${i + 1}"]`)
+      await input.click()
+      await input.pressSequentially(`${(i + 1) % 10}`)
+    }
     await page.keyboard.press('Enter')
 
     // PIN confirmation
     await expect(page.getByText('Confirm your PIN')).toBeVisible({ timeout: 5000 })
-    const confirmDigit1 = page.locator('input[aria-label="PIN digit 1"]')
-    await confirmDigit1.click()
-    await page.keyboard.type('123456', { delay: 50 })
+    for (let i = 0; i < 6; i++) {
+      const input = page.locator(`input[aria-label="PIN digit ${i + 1}"]`)
+      await input.click()
+      await input.pressSequentially(`${(i + 1) % 10}`)
+    }
     await page.keyboard.press('Enter')
 
     // Step 3: Generating + backup
@@ -146,11 +150,12 @@ test.describe('In-Browser Admin Bootstrap', () => {
     // Key is stored in localStorage but locked after reload (in-memory closure cleared)
     await expect(page.getByRole('heading', { name: 'Enter your PIN' })).toBeVisible({ timeout: 10000 })
 
-    // Enter the correct PIN
-    const unlockDigit1 = page.locator('input[aria-label="PIN digit 1"]')
-    await unlockDigit1.waitFor({ state: 'visible', timeout: 5000 })
-    await unlockDigit1.click()
-    await page.keyboard.type('123456', { delay: 50 })
+    // Enter the correct PIN (123456)
+    for (let i = 0; i < 6; i++) {
+      const input = page.locator(`input[aria-label="PIN digit ${i + 1}"]`)
+      await input.click()
+      await input.pressSequentially(`${(i + 1) % 10}`)
+    }
     await page.keyboard.press('Enter')
 
     // Should advance back to the wizard after PIN entry
