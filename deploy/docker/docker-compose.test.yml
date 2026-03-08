@@ -22,6 +22,7 @@ services:
     read_only: false
     environment:
       - ENVIRONMENT=development
+      - DEV_RESET_SECRET=${DEV_RESET_SECRET:-test-reset-secret}
     depends_on:
       postgres:
         condition: service_healthy
