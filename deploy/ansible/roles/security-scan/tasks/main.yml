@@ -1,0 +1,202 @@
+---
+# Security Scan Role
+#
+# Installs and runs OS-level and container vulnerability scanning tools:
+# - Canonical's Ubuntu Advantage (UA) CVE scanning via `apt` security updates check
+# - Docker container image vulnerability scanning via Trivy
+# - Automated security update scheduling via systemd timer
+# - SBOM generation for running containers
+#
+# This role is idempotent — safe to run on every deploy.
+
+# ─── OS-Level Security Scanning ──────────────────────────────────────
+
+- name: Check for available security updates
+  ansible.builtin.shell: |
+    apt-get update -qq 2>/dev/null
+    apt list --upgradable 2>/dev/null | grep -i security | wc -l
+  register: security_updates_count
+  changed_when: false
+  tags: [security-scan, os-scan]
+
+- name: Report pending security updates
+  ansible.builtin.debug:
+    msg: "{{ security_updates_count.stdout | trim }} security updates available"
+  tags: [security-scan, os-scan]
+
+- name: Fail if critical security updates are pending and enforcement is enabled
+  ansible.builtin.fail:
+    msg: >
+      {{ security_updates_count.stdout | trim }} security updates are pending.
+      Run 'just security-update' or 'apt-get upgrade' to apply them.
+  when:
+    - security_scan_fail_on_os_updates | default(false)
+    - (security_updates_count.stdout | trim | int) > 0
+  tags: [security-scan, os-scan]
+
+# ─── Install Trivy for Container Scanning ────────────────────────────
+
+- name: Check if Trivy is installed
+  ansible.builtin.command: trivy --version
+  register: trivy_installed
+  changed_when: false
+  ignore_errors: true
+  tags: [security-scan, container-scan]
+
+- name: Install Trivy
+  when: trivy_installed is failed
+  tags: [security-scan, container-scan]
+  block:
+    - name: Add Trivy GPG key
+      ansible.builtin.get_url:
+        url: https://aquasecurity.github.io/trivy-repo/deb/public.key
+        dest: /etc/apt/keyrings/trivy.asc
+        mode: "0644"
+        owner: root
+        group: root
+
+    - name: Add Trivy apt repository
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [signed-by=/etc/apt/keyrings/trivy.asc]
+          https://aquasecurity.github.io/trivy-repo/deb generic main
+        filename: trivy
+        state: present
+
+    - name: Install Trivy package
+      ansible.builtin.apt:
+        name: trivy
+        state: present
+        update_cache: true
+
+- name: Update Trivy vulnerability database
+  ansible.builtin.command: trivy image --download-db-only
+  changed_when: false
+  retries: 3
+  delay: 10
+  tags: [security-scan, container-scan]
+
+# ─── Scan Running Container Images ──────────────────────────────────
+
+- name: Get list of running container images
+  ansible.builtin.shell: |
+    docker ps --format '{{ '{{' }}.Image{{ '}}' }}' 2>/dev/null | sort -u
+  register: running_images
+  changed_when: false
+  tags: [security-scan, container-scan]
+
+- name: Scan each running container image with Trivy
+  ansible.builtin.shell: |
+    trivy image \
+      --severity {{ security_scan_severity | default('CRITICAL,HIGH') }} \
+      --exit-code 0 \
+      --format json \
+      --output /tmp/trivy-{{ item | regex_replace('[^a-zA-Z0-9]', '_') }}.json \
+      {{ item }} 2>&1
+  loop: "{{ running_images.stdout_lines | default([]) }}"
+  register: trivy_results
+  changed_when: false
+  when: running_images.stdout_lines | default([]) | length > 0
+  tags: [security-scan, container-scan]
+
+- name: Parse Trivy results for critical vulnerabilities
+  ansible.builtin.shell: |
+    CRITICAL=0
+    HIGH=0
+    for f in /tmp/trivy-*.json; do
+      [ -f "$f" ] || continue
+      C=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' "$f" 2>/dev/null || echo 0)
+      H=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' "$f" 2>/dev/null || echo 0)
+      CRITICAL=$((CRITICAL + C))
+      HIGH=$((HIGH + H))
+    done
+    echo "critical=$CRITICAL high=$HIGH"
+    # Clean up
+    rm -f /tmp/trivy-*.json
+  register: vuln_summary
+  changed_when: false
+  tags: [security-scan, container-scan]
+
+- name: Report container vulnerability summary
+  ansible.builtin.debug:
+    msg: "Container scan: {{ vuln_summary.stdout | default('no results') }}"
+  tags: [security-scan, container-scan]
+
+# ─── Scan Docker Compose File for Misconfigurations ─────────────────
+
+- name: Scan Docker Compose configuration
+  ansible.builtin.shell: |
+    if [ -f "{{ app_dir }}/docker-compose.yml" ]; then
+      trivy config \
+        --severity {{ security_scan_severity | default('CRITICAL,HIGH') }} \
+        --exit-code 0 \
+        "{{ app_dir }}/docker-compose.yml" 2>&1 || true
+    else
+      echo "No docker-compose.yml found at {{ app_dir }}"
+    fi
+  register: config_scan
+  changed_when: false
+  tags: [security-scan, config-scan]
+
+- name: Report Docker Compose scan results
+  ansible.builtin.debug:
+    msg: "{{ config_scan.stdout_lines | default(['No results']) }}"
+  tags: [security-scan, config-scan]
+
+# ─── Automated Security Update Timer ────────────────────────────────
+
+- name: Install security update systemd service
+  ansible.builtin.template:
+    src: security-update.service.j2
+    dest: /etc/systemd/system/llamenos-security-update.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+  when: security_auto_updates | default(true)
+  tags: [security-scan, auto-update]
+
+- name: Install security update systemd timer
+  ansible.builtin.template:
+    src: security-update.timer.j2
+    dest: /etc/systemd/system/llamenos-security-update.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+  when: security_auto_updates | default(true)
+  tags: [security-scan, auto-update]
+
+- name: Enable and start security update timer
+  ansible.builtin.systemd:
+    name: llamenos-security-update.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: security_auto_updates | default(true)
+  tags: [security-scan, auto-update]
+
+# ─── Container Image SBOM Generation ────────────────────────────────
+
+- name: Ensure SBOM output directory exists
+  ansible.builtin.file:
+    path: "{{ app_dir }}/sbom"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0750"
+  when: security_generate_sbom | default(false)
+  tags: [security-scan, sbom]
+
+- name: Generate SBOM for each running container image
+  ansible.builtin.shell: |
+    trivy image \
+      --format cyclonedx \
+      --output {{ app_dir }}/sbom/{{ item | regex_replace('[^a-zA-Z0-9]', '_') }}.cdx.json \
+      {{ item }} 2>&1
+  loop: "{{ running_images.stdout_lines | default([]) }}"
+  changed_when: true
+  when:
+    - security_generate_sbom | default(false)
+    - running_images.stdout_lines | default([]) | length > 0
+  tags: [security-scan, sbom]

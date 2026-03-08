@@ -31,3 +31,5 @@
       tags: [fail2ban, harden]
     - role: docker
       tags: [docker, harden]
+    - role: security-scan
+      tags: [security-scan, harden]

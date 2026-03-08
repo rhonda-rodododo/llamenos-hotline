@@ -1,0 +1,24 @@
+---
+# Security Scan Playbook
+#
+# Runs comprehensive security scanning on deployed servers:
+# - OS-level CVE/package vulnerability checks
+# - Container image vulnerability scanning via Trivy
+# - Docker Compose misconfiguration scanning
+# - Optional SBOM generation
+# - Optional automated security update timer setup
+#
+# Usage:
+#   ansible-playbook playbooks/security-scan.yml --ask-vault-pass
+#   ansible-playbook playbooks/security-scan.yml --ask-vault-pass --tags os-scan
+#   ansible-playbook playbooks/security-scan.yml --ask-vault-pass --tags container-scan
+#   ansible-playbook playbooks/security-scan.yml --ask-vault-pass -e security_generate_sbom=true
+
+- name: Security scan
+  hosts: all
+  become: true
+  vars_files:
+    - ../vars.yml
+  roles:
+    - role: security-scan
+      tags: [security-scan]

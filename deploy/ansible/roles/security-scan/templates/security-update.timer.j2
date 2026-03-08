@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Llamenos security updates on schedule
+
+[Timer]
+# Default: daily at 4:00 AM UTC (configurable via vars)
+OnCalendar=*-*-* {{ security_update_hour | default('4') }}:{{ security_update_minute | default('0') }}:00
+# Randomize start within 30 minutes to avoid thundering herd
+RandomizedDelaySec=1800
+Persistent=true
+
+[Install]
+WantedBy=timers.target

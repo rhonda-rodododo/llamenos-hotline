@@ -306,6 +306,23 @@ llamenos_postgres_enabled: true
 # Enable/disable Caddy certificate monitoring
 llamenos_caddy_enabled: true
 
+# ─── Security Scanning ─────────────────────────────────────────────
+# Enable automated security updates (OS packages + container images)
+security_auto_updates: true
+
+# Hour and minute (UTC) for automated security update timer
+security_update_hour: "4"
+security_update_minute: "0"
+
+# Trivy scan severity threshold (comma-separated)
+security_scan_severity: "CRITICAL,HIGH"
+
+# Fail playbook run if OS security updates are pending
+security_scan_fail_on_os_updates: false
+
+# Generate CycloneDX SBOM for running container images
+security_generate_sbom: false
+
 # ─── System ─────────────────────────────────────────────────────
 # Timezone for the server
 timezone: UTC

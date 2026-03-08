@@ -154,6 +154,20 @@ logs *ARGS:
 alertmanager *ARGS:
     ansible-playbook playbooks/observability.yml --ask-vault-pass --tags alertmanager {{ARGS}}
 
+# ── Security Scanning ─────────────────────────────────────────────
+
+# Run security scan on deployed servers (OS + container vulnerabilities)
+security-scan *ARGS:
+    ansible-playbook playbooks/security-scan.yml --ask-vault-pass {{ARGS}}
+
+# Apply security updates (OS packages + container images) with rollback
+security-update *ARGS:
+    ansible-playbook playbooks/security-update.yml --ask-vault-pass {{ARGS}}
+
+# Generate SBOMs for all running container images
+security-sbom *ARGS:
+    ansible-playbook playbooks/security-scan.yml --ask-vault-pass -e security_generate_sbom=true --tags sbom {{ARGS}}
+
 # ── Verification & Diagnostics ─────────────────────────────────
 
 # Check configuration without making changes

@@ -1,0 +1,36 @@
+[Unit]
+Description=Llamenos Security Update — OS packages + container images
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStartPre=/usr/bin/apt-get update -qq
+ExecStart=/bin/bash -c '\
+  # Apply OS security updates (non-interactive) \
+  DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+    -o Dpkg::Options::="--force-confdef" \
+    -o Dpkg::Options::="--force-confold" \
+    --only-upgrade \
+    $(apt list --upgradable 2>/dev/null | grep -i security | cut -d/ -f1 | tail -n +2) 2>/dev/null || true; \
+  \
+  # Pull latest container images and recreate if changed \
+  cd {{ app_dir }} && \
+  docker compose pull --quiet 2>/dev/null && \
+  docker compose up -d --remove-orphans 2>/dev/null && \
+  \
+  # Wait for health check \
+  sleep 10 && \
+  curl -sf http://localhost:3000/api/health/ready >/dev/null 2>&1 && \
+  echo "Security update completed successfully" || \
+  echo "Warning: health check failed after security update" \
+'
+ExecStartPost=/usr/bin/docker image prune -f
+User=root
+Group=root
+
+# Hardened service settings
+ProtectSystem=full
+NoNewPrivileges=false
+PrivateTmp=true
