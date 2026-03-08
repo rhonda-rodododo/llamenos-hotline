@@ -19,6 +19,7 @@ const RECORDS_ID = 'global-records'
 const SHIFT_ID = 'global-shifts'
 const CALL_ID = 'global-calls'
 const CONVERSATION_ID = 'global-conversations'
+const BLAST_ID = 'global-blasts'
 
 export interface DurableObjects {
   identity: DOStub
@@ -27,6 +28,7 @@ export interface DurableObjects {
   shifts: DOStub
   calls: DOStub
   conversations: DOStub
+  blasts: DOStub
 }
 
 export function getDOs(env: Env): DurableObjects {
@@ -37,6 +39,7 @@ export function getDOs(env: Env): DurableObjects {
     shifts: env.SHIFT_MANAGER.get(env.SHIFT_MANAGER.idFromName(SHIFT_ID)),
     calls: env.CALL_ROUTER.get(env.CALL_ROUTER.idFromName(CALL_ID)),
     conversations: env.CONVERSATION_DO.get(env.CONVERSATION_DO.idFromName(CONVERSATION_ID)),
+    blasts: env.BLAST_DO.get(env.BLAST_DO.idFromName(BLAST_ID)),
   }
 }
 
@@ -45,6 +48,7 @@ export interface HubDurableObjects {
   shifts: DOStub
   calls: DOStub
   conversations: DOStub
+  blasts: DOStub
 }
 
 /**
@@ -67,6 +71,7 @@ export function getHubDOs(env: Env, hubId: string): HubDurableObjects {
     shifts: env.SHIFT_MANAGER.get(env.SHIFT_MANAGER.idFromName(hubId)),
     calls: env.CALL_ROUTER.get(env.CALL_ROUTER.idFromName(hubId)),
     conversations: env.CONVERSATION_DO.get(env.CONVERSATION_DO.idFromName(hubId)),
+    blasts: env.BLAST_DO.get(env.BLAST_DO.idFromName(hubId)),
   }
 }
 

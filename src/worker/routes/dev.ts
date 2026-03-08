@@ -10,7 +10,7 @@ const dev = new Hono<AppEnv>()
  */
 function checkResetSecret(c: { env: { DEV_RESET_SECRET?: string; E2E_TEST_SECRET?: string }; req: { header(name: string): string | undefined } }): boolean {
   const secret = c.env.DEV_RESET_SECRET || c.env.E2E_TEST_SECRET
-  if (!secret) return true // No secret configured — allow (local dev)
+  if (!secret) return false // No secret configured — deny by default
   return c.req.header('X-Test-Secret') === secret
 }
 
@@ -43,14 +43,16 @@ dev.post('/test-reset-no-admin', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
   const dos = getDOs(c.env)
-  // Reset all DOs
+  // Reset all DOs (ensureInit re-creates admin from ADMIN_PUBKEY)
   await dos.identity.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.settings.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.records.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.shifts.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.calls.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' }))
-  // Now delete the admin volunteer that ensureInit() created from ADMIN_PUBKEY
+  // Set _skipAdminSeed flag and delete admin so bootstrap tests see needsBootstrap=true
+  // This persists across DO eviction/restart, unlike in-memory flags
+  await dos.identity.fetch(new Request('http://do/test-skip-admin-seed', { method: 'POST' }))
   if (c.env.ADMIN_PUBKEY) {
     await dos.identity.fetch(new Request(`http://do/volunteers/${c.env.ADMIN_PUBKEY}`, { method: 'DELETE' }))
   }

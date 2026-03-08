@@ -109,7 +109,7 @@ test.describe('Audit log', () => {
     await expect(page.getByRole('heading', { name: /audit log/i })).toBeVisible()
 
     // Search input
-    await expect(page.getByPlaceholder(/search actor or event/i)).toBeVisible()
+    await expect(page.getByPlaceholder(/search audit log/i)).toBeVisible()
     // Event type dropdown
     await expect(page.getByText('All Events')).toBeVisible()
     // Date inputs
@@ -155,7 +155,7 @@ test.describe('Audit log', () => {
     await expect(page.getByText('Volunteer Added').first()).toBeVisible({ timeout: 10000 })
 
     // Type a search that matches nothing
-    await page.getByPlaceholder(/search actor or event/i).fill('xyznonexistent999')
+    await page.getByPlaceholder(/search audit log/i).fill('xyznonexistent999')
     // Wait for API to respond with filtered results
     await page.waitForTimeout(2000)
 
@@ -173,7 +173,7 @@ test.describe('Audit log', () => {
     await expect(page.getByRole('heading', { name: /audit log/i })).toBeVisible()
 
     // Apply a filter
-    await page.getByPlaceholder(/search actor or event/i).fill('something')
+    await page.getByPlaceholder(/search audit log/i).fill('something')
 
     // Clear button should appear
     await expect(page.getByRole('button', { name: /clear/i })).toBeVisible()
@@ -182,7 +182,7 @@ test.describe('Audit log', () => {
     await page.getByRole('button', { name: /clear/i }).click()
 
     // Search should be empty again
-    await expect(page.getByPlaceholder(/search actor or event/i)).toHaveValue('')
+    await expect(page.getByPlaceholder(/search audit log/i)).toHaveValue('')
 
     // Clear button should be gone
     await expect(page.getByRole('button', { name: /clear/i })).toBeHidden()

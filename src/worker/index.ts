@@ -5,6 +5,7 @@ export { RecordsDO } from './durable-objects/records-do'
 export { ShiftManagerDO } from './durable-objects/shift-manager'
 export { CallRouterDO } from './durable-objects/call-router'
 export { ConversationDO } from './durable-objects/conversation-do'
+export { BlastDO } from './durable-objects/blast-do'
 
 import app from './app'
 import type { Env } from './types'
@@ -28,6 +29,7 @@ export default {
       dos.shifts.fetch(new Request('http://do/reset', { method: 'POST' })),
       dos.calls.fetch(new Request('http://do/reset', { method: 'POST' })),
       dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' })),
+      dos.blasts.fetch(new Request('http://do/reset', { method: 'POST' })),
     ])
   },
 }

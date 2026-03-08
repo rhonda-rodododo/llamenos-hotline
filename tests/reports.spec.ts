@@ -19,13 +19,14 @@ async function completeOnboarding(page: Page): Promise<string> {
   // Click Get Started
   await page.getByRole('button', { name: /get started/i }).click()
 
-  // Create PIN (6 digits: 1,2,3,4,5,0)
+  // Create PIN (6 digits: 1,2,3,4,5,0, then Enter for 8-box input)
   await expect(page.getByText(/create a pin/i)).toBeVisible({ timeout: 5000 })
   for (let i = 0; i < 6; i++) {
     const input = page.locator(`input[aria-label="PIN digit ${i + 1}"]`)
     await input.click()
     await input.pressSequentially(`${(i + 1) % 10}`)
   }
+  await page.keyboard.press('Enter')
 
   // Confirm PIN
   await expect(page.getByText(/confirm your pin/i)).toBeVisible({ timeout: 5000 })
@@ -34,6 +35,7 @@ async function completeOnboarding(page: Page): Promise<string> {
     await input.click()
     await input.pressSequentially(`${(i + 1) % 10}`)
   }
+  await page.keyboard.press('Enter')
 
   // Recovery key page (nsec is NOT shown)
   await expect(page.getByText(/save your recovery key/i)).toBeVisible({ timeout: 15000 })
@@ -109,7 +111,7 @@ test.describe('Reports feature', () => {
     test('empty reports list shows no reports message', async ({ page }) => {
       await loginAsAdmin(page)
       await navigateToReports(page)
-      await expect(page.getByText('No reports')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByText('No reports', { exact: true })).toBeVisible({ timeout: 10000 })
     })
 
     test('admin can create a report', async ({ page }) => {

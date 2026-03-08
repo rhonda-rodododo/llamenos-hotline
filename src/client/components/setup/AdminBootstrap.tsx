@@ -252,7 +252,6 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
           )}
 
           <PinInput
-            length={6}
             value={pinStep === 'create' ? pin1 : pin2}
             onChange={pinStep === 'create' ? setPin1 : setPin2}
             onComplete={handlePinComplete}

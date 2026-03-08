@@ -62,6 +62,7 @@ config.get('/', async (c) => {
   } catch { /* default to empty */ }
 
   // Derive server Nostr pubkey for client event verification (Epic 76.1)
+  // NOTE: serverEventKeyHex moved to authenticated /api/auth/me endpoint (Epic 258 C2)
   const serverNostrPubkey = c.env.SERVER_NOSTR_SECRET
     ? deriveServerKeypair(c.env.SERVER_NOSTR_SECRET).pubkey
     : undefined

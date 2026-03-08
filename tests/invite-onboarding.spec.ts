@@ -42,13 +42,14 @@ test.describe('Invite-based onboarding', () => {
     // --- Step 4: Click Get Started ---
     await page.getByRole('button', { name: /get started/i }).click()
 
-    // --- Step 5: Create PIN (6 digits via PIN input) ---
+    // --- Step 5: Create PIN (6 digits via PIN input, then Enter for 8-box input) ---
     await expect(page.getByText(/create a pin/i)).toBeVisible({ timeout: 5000 })
     for (let i = 0; i < 6; i++) {
       const input = page.locator(`input[aria-label="PIN digit ${i + 1}"]`)
       await input.click()
       await input.pressSequentially(`${(i + 1) % 10}`)
     }
+    await page.keyboard.press('Enter')
 
     // --- Step 6: Confirm PIN ---
     await expect(page.getByText(/confirm your pin/i)).toBeVisible({ timeout: 5000 })
@@ -57,6 +58,7 @@ test.describe('Invite-based onboarding', () => {
       await input.click()
       await input.pressSequentially(`${(i + 1) % 10}`)
     }
+    await page.keyboard.press('Enter')
 
     // --- Step 7: Recovery key page (nsec is NOT shown) ---
     await expect(page.getByText(/save your recovery key/i)).toBeVisible({ timeout: 15000 })

@@ -231,3 +231,8 @@ export function getNsec(): string | null {
   if (!secretKey) return null
   return nip19.nsecEncode(secretKey)
 }
+
+/** Validate a PIN format (6-8 digits). */
+export function isValidPin(pin: string): boolean {
+  return /^\d{6,8}$/.test(pin)
+}
