@@ -1,0 +1,63 @@
+---
+# llamenos-version-tracker role
+#
+# Tracks deployed versions and maintains a history log.
+# Provides facts: current_versions, previous_versions, version_history.
+#
+# Include this role before updates to snapshot state, and after to record new state.
+
+- name: Create version history directory
+  ansible.builtin.file:
+    path: "{{ version_tracker_dir }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0750"
+
+- name: Template version capture script
+  ansible.builtin.template:
+    src: capture-versions.sh.j2
+    dest: "{{ version_tracker_dir }}/capture-versions.sh"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0750"
+
+- name: Capture current running image versions
+  ansible.builtin.shell: bash "{{ version_tracker_dir }}/capture-versions.sh"
+  register: _captured_versions_raw
+  changed_when: false
+  failed_when: false
+
+- name: Parse captured versions
+  ansible.builtin.set_fact:
+    _captured_versions: "{{ _captured_versions_raw.stdout | default('{}') | from_json }}"
+
+- name: Load existing current version file
+  ansible.builtin.slurp:
+    src: "{{ version_current_file }}"
+  register: _current_version_file
+  failed_when: false
+
+- name: Parse existing current version
+  ansible.builtin.set_fact:
+    previous_versions: >-
+      {{ (_current_version_file.content | default('e30=') | b64decode | from_json)
+         if (_current_version_file is not failed)
+         else {} }}
+
+- name: Set current versions fact
+  ansible.builtin.set_fact:
+    current_versions: "{{ _captured_versions }}"
+
+- name: Load version history
+  ansible.builtin.slurp:
+    src: "{{ version_history_file }}"
+  register: _history_file
+  failed_when: false
+
+- name: Parse version history
+  ansible.builtin.set_fact:
+    version_history: >-
+      {{ (_history_file.content | default('W10=') | b64decode | from_json)
+         if (_history_file is not failed)
+         else [] }}

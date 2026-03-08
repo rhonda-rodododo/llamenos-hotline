@@ -1,0 +1,50 @@
+---
+# Record the current deployment state to the version tracker.
+# Call this AFTER a successful update to persist the new version info.
+#
+# Required facts (set by main.yml): current_versions, version_history
+
+- name: Capture post-update versions
+  ansible.builtin.shell: bash "{{ version_tracker_dir }}/capture-versions.sh"
+  register: _post_update_versions_raw
+  changed_when: false
+
+- name: Parse post-update versions
+  ansible.builtin.set_fact:
+    current_versions: "{{ _post_update_versions_raw.stdout | from_json }}"
+
+- name: Build version history entry
+  ansible.builtin.set_fact:
+    _new_history_entry:
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      versions: "{{ current_versions }}"
+      action: "{{ version_action | default('update') }}"
+      result: "{{ version_result | default('success') }}"
+
+- name: Prepend entry to version history
+  ansible.builtin.set_fact:
+    version_history: "{{ [_new_history_entry] + version_history }}"
+
+- name: Trim version history to max entries
+  ansible.builtin.set_fact:
+    version_history: "{{ version_history[:version_history_max_entries] }}"
+
+- name: Write current version file
+  ansible.builtin.copy:
+    content: "{{ current_versions | to_nice_json }}\n"
+    dest: "{{ version_current_file }}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0640"
+
+- name: Write version history file
+  ansible.builtin.copy:
+    content: "{{ version_history | to_nice_json }}\n"
+    dest: "{{ version_history_file }}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0640"
+
+- name: Display recorded version
+  ansible.builtin.debug:
+    msg: "Recorded deployment: {{ version_action | default('update') }} = {{ version_result | default('success') }}"

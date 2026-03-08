@@ -1,0 +1,14 @@
+---
+# Version tracker defaults
+
+# Directory to store version history on the target host
+version_tracker_dir: "{{ app_dir }}/.version-history"
+
+# Maximum number of version history entries to retain
+version_history_max_entries: 20
+
+# File that records the current deployed version
+version_current_file: "{{ version_tracker_dir }}/current.json"
+
+# File that records the full deployment history
+version_history_file: "{{ version_tracker_dir }}/history.json"

@@ -32,9 +32,39 @@ harden *ARGS:
 deploy *ARGS:
     ansible-playbook playbooks/deploy.yml --ask-vault-pass {{ARGS}}
 
-# Pull latest images and restart with health check and rollback
+# ── Rolling Updates ──────────────────────────────────────────────
+
+# Pull new images and perform a health-check-gated rolling update with automatic rollback
 update *ARGS:
     ansible-playbook playbooks/update.yml --ask-vault-pass {{ARGS}}
+
+# Update only the app service (skip infrastructure)
+update-app *ARGS:
+    ansible-playbook playbooks/update.yml --ask-vault-pass -e update_services=app {{ARGS}}
+
+# Quick update: skip pre-update backup for faster deploys
+update-quick *ARGS:
+    ansible-playbook playbooks/update.yml --ask-vault-pass -e update_skip_backup=true {{ARGS}}
+
+# ── Rollback ─────────────────────────────────────────────────────
+
+# Roll back to the previous known-good version
+rollback *ARGS:
+    ansible-playbook playbooks/rollback.yml --ask-vault-pass {{ARGS}}
+
+# Quick rollback: skip pre-rollback backup
+rollback-quick *ARGS:
+    ansible-playbook playbooks/rollback.yml --ask-vault-pass -e rollback_skip_backup=true {{ARGS}}
+
+# ── Version Management ───────────────────────────────────────────
+
+# Show currently deployed versions on all hosts
+version-status *ARGS:
+    ansible all --ask-vault-pass -m command -a "cat /opt/llamenos/.version-history/current.json" {{ARGS}}
+
+# Show deployment history on all hosts
+version-history *ARGS:
+    ansible all --ask-vault-pass -m command -a "cat /opt/llamenos/.version-history/history.json" {{ARGS}}
 
 # ── Per-Service Deployment ──────────────────────────────────────
 
@@ -124,7 +154,7 @@ logs *ARGS:
 alertmanager *ARGS:
     ansible-playbook playbooks/observability.yml --ask-vault-pass --tags alertmanager {{ARGS}}
 
-# ── Verification ────────────────────────────────────────────────
+# ── Verification & Diagnostics ─────────────────────────────────
 
 # Check configuration without making changes
 check *ARGS:
@@ -137,6 +167,14 @@ ping:
 # Show gathered facts for debugging
 facts:
     ansible all -m setup --ask-vault-pass
+
+# Show service status on all hosts
+status *ARGS:
+    ansible all --ask-vault-pass -m command -a "docker compose -f /opt/llamenos/docker-compose.yml ps" {{ARGS}}
+
+# Show app logs (last 100 lines)
+app-logs *ARGS:
+    ansible all --ask-vault-pass -m command -a "docker compose -f /opt/llamenos/docker-compose.yml logs --tail=100 app" {{ARGS}}
 
 # ── Vault Management ───────────────────────────────────────────
 
@@ -185,6 +223,7 @@ watchdog-logs *ARGS:
 # Deploy only auto-healing components
 deploy-auto-healing *ARGS:
     ansible-playbook playbooks/deploy.yml --tags auto-healing --ask-vault-pass {{ARGS}}
+
 
 # Generate secrets for a new deployment
 generate-secrets:
