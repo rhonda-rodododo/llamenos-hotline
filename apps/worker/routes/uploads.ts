@@ -1,8 +1,11 @@
 import { Hono } from 'hono'
+import type { z } from 'zod'
 import type { AppEnv } from '../types'
 import type { FileRecord, UploadInit } from '@shared/types'
 import { getDOs } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
+import { validateBody } from '../middleware/validate'
+import { uploadInitBodySchema } from '../schemas/uploads'
 import { audit } from '../services/audit'
 
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024  // 100 MB
@@ -12,21 +15,13 @@ const uploads = new Hono<AppEnv>()
 uploads.use('*', requirePermission('files:upload'))
 
 // Initialize an upload — returns uploadId and chunk upload URLs
-uploads.post('/init', async (c) => {
+uploads.post('/init', validateBody(uploadInitBodySchema), async (c) => {
   const pubkey = c.get('pubkey')
-  const body = await c.req.json() as UploadInit
+  const body = c.get('validatedBody') as UploadInit
   const dos = getDOs(c.env)
-
-  if (!body.totalSize || !body.totalChunks || !body.conversationId) {
-    return c.json({ error: 'Missing required fields: totalSize, totalChunks, conversationId' }, 400)
-  }
 
   if (body.totalSize > MAX_UPLOAD_SIZE) {
     return c.json({ error: `File too large (max ${MAX_UPLOAD_SIZE / 1024 / 1024}MB)` }, 400)
-  }
-
-  if (body.totalChunks > 10000) {
-    return c.json({ error: 'Too many chunks (max 10000)' }, 400)
   }
 
   const uploadId = crypto.randomUUID()

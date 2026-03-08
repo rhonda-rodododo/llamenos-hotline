@@ -1,6 +1,9 @@
 import { Hono } from 'hono'
+import type { z } from 'zod'
 import type { AppEnv } from '../types'
 import { getScopedDOs } from '../lib/do-access'
+import { validateBody, validateQuery } from '../middleware/validate'
+import { listBlastsQuerySchema, createBlastBodySchema, updateBlastBodySchema, scheduleBlastBodySchema } from '../schemas/blasts'
 
 const blasts = new Hono<AppEnv>()
 
@@ -40,19 +43,24 @@ blasts.post('/subscribers/import', async (c) => {
 })
 
 // --- Blasts ---
-blasts.get('/', async (c) => {
+blasts.get('/', validateQuery(listBlastsQuerySchema), async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
-  const res = await dos.blasts.fetch(new Request('http://do/blasts'))
+  const query = c.get('validatedQuery') as z.infer<typeof listBlastsQuerySchema>
+  const params = new URLSearchParams()
+  params.set('page', String(query.page))
+  params.set('limit', String(query.limit))
+  if (query.status) params.set('status', query.status)
+  const res = await dos.blasts.fetch(new Request(`http://do/blasts?${params}`))
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
 
-blasts.post('/', async (c) => {
+blasts.post('/', validateBody(createBlastBodySchema), async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
-  const body = await c.req.text()
+  const body = c.get('validatedBody') as z.infer<typeof createBlastBodySchema>
   const res = await dos.blasts.fetch(new Request('http://do/blasts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body,
+    body: JSON.stringify(body),
   }))
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
@@ -64,14 +72,14 @@ blasts.get('/:id', async (c) => {
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
 
-blasts.patch('/:id', async (c) => {
+blasts.patch('/:id', validateBody(updateBlastBodySchema), async (c) => {
   const id = c.req.param('id')
   const dos = getScopedDOs(c.env, c.get('hubId'))
-  const body = await c.req.text()
+  const body = c.get('validatedBody') as z.infer<typeof updateBlastBodySchema>
   const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body,
+    body: JSON.stringify(body),
   }))
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
@@ -90,14 +98,14 @@ blasts.post('/:id/send', async (c) => {
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
 
-blasts.post('/:id/schedule', async (c) => {
+blasts.post('/:id/schedule', validateBody(scheduleBlastBodySchema), async (c) => {
   const id = c.req.param('id')
   const dos = getScopedDOs(c.env, c.get('hubId'))
-  const body = await c.req.text()
+  const body = c.get('validatedBody') as z.infer<typeof scheduleBlastBodySchema>
   const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}/schedule`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body,
+    body: JSON.stringify(body),
   }))
   return new Response(res.body, { status: res.status, headers: res.headers })
 })

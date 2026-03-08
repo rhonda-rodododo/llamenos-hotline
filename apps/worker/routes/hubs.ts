@@ -1,6 +1,9 @@
 import { Hono } from 'hono'
+import type { z } from 'zod'
 import type { AppEnv } from '../types'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
+import { validateBody } from '../middleware/validate'
+import { createHubBodySchema, updateHubBodySchema, addHubMemberBodySchema, hubKeyEnvelopesBodySchema } from '../schemas/hubs'
 import { getDOs } from '../lib/do-access'
 import type { Hub } from '@shared/types'
 
@@ -27,12 +30,10 @@ routes.get('/', async (c) => {
 })
 
 // Create hub (super admin only)
-routes.post('/', requirePermission('system:manage-hubs'), async (c) => {
+routes.post('/', requirePermission('system:manage-hubs'), validateBody(createHubBodySchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json() as { name: string; slug?: string; description?: string; phoneNumber?: string }
-
-  if (!body.name?.trim()) return c.json({ error: 'Name required' }, 400)
+  const body = c.get('validatedBody') as z.infer<typeof createHubBodySchema>
 
   const hub: Hub = {
     id: crypto.randomUUID(),
@@ -82,10 +83,10 @@ routes.get('/:hubId', async (c) => {
 })
 
 // Update hub
-routes.patch('/:hubId', requirePermission('system:manage-hubs'), async (c) => {
+routes.patch('/:hubId', requirePermission('system:manage-hubs'), validateBody(updateHubBodySchema), async (c) => {
   const hubId = c.req.param('hubId')
   const dos = getDOs(c.env)
-  const body = await c.req.json() as Partial<Hub>
+  const body = c.get('validatedBody') as z.infer<typeof updateHubBodySchema>
 
   const res = await dos.settings.fetch(new Request(`http://do/settings/hub/${hubId}`, {
     method: 'PATCH',
@@ -98,14 +99,10 @@ routes.patch('/:hubId', requirePermission('system:manage-hubs'), async (c) => {
 })
 
 // Add member to hub
-routes.post('/:hubId/members', requirePermission('volunteers:manage-roles'), async (c) => {
+routes.post('/:hubId/members', requirePermission('volunteers:manage-roles'), validateBody(addHubMemberBodySchema), async (c) => {
   const hubId = c.req.param('hubId')
   const dos = getDOs(c.env)
-  const body = await c.req.json() as { pubkey: string; roleIds: string[] }
-
-  if (!body.pubkey || !body.roleIds?.length) {
-    return c.json({ error: 'pubkey and roleIds required' }, 400)
-  }
+  const body = c.get('validatedBody') as z.infer<typeof addHubMemberBodySchema>
 
   const res = await dos.identity.fetch(new Request('http://do/identity/hub-role', {
     method: 'POST',
@@ -154,16 +151,10 @@ routes.get('/:hubId/key', async (c) => {
 })
 
 // Set hub key envelopes (admin only — distributes wrapped hub key to all members)
-routes.put('/:hubId/key', requirePermission('system:manage-hubs'), async (c) => {
+routes.put('/:hubId/key', requirePermission('system:manage-hubs'), validateBody(hubKeyEnvelopesBodySchema), async (c) => {
   const hubId = c.req.param('hubId')
   const dos = getDOs(c.env)
-  const body = await c.req.json() as {
-    envelopes: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
-  }
-
-  if (!Array.isArray(body.envelopes) || body.envelopes.length === 0) {
-    return c.json({ error: 'At least one envelope required' }, 400)
-  }
+  const body = c.get('validatedBody') as z.infer<typeof hubKeyEnvelopesBodySchema>
 
   const res = await dos.settings.fetch(new Request(`http://do/settings/hub/${hubId}/key`, {
     method: 'PUT',

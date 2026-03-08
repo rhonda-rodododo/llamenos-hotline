@@ -1,8 +1,10 @@
 import { Hono } from 'hono'
+import type { z } from 'zod'
 import type { AppEnv } from '../types'
 import { getDOs } from '../lib/do-access'
-import { isValidE164 } from '../lib/helpers'
 import { requirePermission } from '../middleware/permission-guard'
+import { validateBody } from '../middleware/validate'
+import { createVolunteerBodySchema, adminUpdateVolunteerBodySchema } from '../schemas/volunteers'
 import { audit } from '../services/audit'
 
 const volunteers = new Hono<AppEnv>()
@@ -13,52 +15,43 @@ volunteers.get('/', async (c) => {
   return dos.identity.fetch(new Request('http://do/volunteers'))
 })
 
-volunteers.post('/', requirePermission('volunteers:create'), async (c) => {
+volunteers.post('/', requirePermission('volunteers:create'), validateBody(createVolunteerBodySchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json() as { name: string; phone: string; roleIds: string[]; pubkey?: string }
-
-  if (body.phone && !isValidE164(body.phone)) {
-    return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
-  }
-
-  const newPubkey = body.pubkey
-  if (!newPubkey) {
-    return c.json({ error: 'pubkey is required — generate keypair client-side' }, 400)
-  }
+  const body = c.get('validatedBody') as z.infer<typeof createVolunteerBodySchema>
 
   const res = await dos.identity.fetch(new Request('http://do/volunteers', {
     method: 'POST',
     body: JSON.stringify({
-      pubkey: newPubkey,
+      pubkey: body.pubkey,
       name: body.name,
       phone: body.phone,
-      roles: body.roleIds || ['role-volunteer'],
-      encryptedSecretKey: '',
+      roles: body.roleIds || body.roles || ['role-volunteer'],
+      encryptedSecretKey: body.encryptedSecretKey || '',
     }),
   }))
 
   if (res.ok) {
-    await audit(dos.records, 'volunteerAdded', pubkey, { target: newPubkey, roles: body.roleIds })
+    await audit(dos.records, 'volunteerAdded', pubkey, { target: body.pubkey, roles: body.roleIds || body.roles })
   }
 
   return res
 })
 
-volunteers.patch('/:targetPubkey', requirePermission('volunteers:update'), async (c) => {
+volunteers.patch('/:targetPubkey', requirePermission('volunteers:update'), validateBody(adminUpdateVolunteerBodySchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
   const targetPubkey = c.req.param('targetPubkey')
-  const body = await c.req.json()
+  const body = c.get('validatedBody') as z.infer<typeof adminUpdateVolunteerBodySchema>
+
   const res = await dos.identity.fetch(new Request(`http://do/admin/volunteers/${targetPubkey}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   }))
   if (res.ok) {
-    const data = body as Record<string, unknown>
-    if (data.roles) await audit(dos.records, 'rolesChanged', pubkey, { target: targetPubkey, roles: data.roles })
+    if (body.roles) await audit(dos.records, 'rolesChanged', pubkey, { target: targetPubkey, roles: body.roles })
     // Revoke all sessions when deactivating or changing roles
-    if (data.active === false || data.roles) {
+    if (body.active === false || body.roles) {
       await dos.identity.fetch(new Request(`http://do/sessions/revoke-all/${targetPubkey}`, { method: 'DELETE' }))
     }
   }

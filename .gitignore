@@ -8,6 +8,7 @@ dist/
 !.env.example
 !.env.live.example
 test-results/
+
 playwright-report/
 .playwright-mcp/
 audit/
@@ -49,3 +50,4 @@ apps/android/app/src/androidTest/assets/test-vectors.json
 
 .tool-versions
 apps/ios/.swiftpm/
+.claude/worktrees/

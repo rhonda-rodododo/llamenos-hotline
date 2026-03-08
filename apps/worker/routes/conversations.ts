@@ -1,8 +1,12 @@
 import { Hono } from 'hono'
+import type { z } from 'zod'
 import type { AppEnv, EncryptedMessage } from '../types'
 import type { MessagingChannelType } from '@shared/types'
 import { getScopedDOs, getMessagingAdapter, getDOs } from '../lib/do-access'
 import { checkPermission } from '../middleware/permission-guard'
+import { validateBody, validateQuery } from '../middleware/validate'
+import { listConversationsQuerySchema, sendMessageBodySchema, updateConversationBodySchema } from '../schemas/conversations'
+import { paginationSchema } from '../schemas/common'
 import { audit } from '../services/audit'
 import { canClaimChannel, getClaimableChannels } from '@shared/permissions'
 import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '@shared/nostr-events'
@@ -35,22 +39,19 @@ function dispatchPushToVolunteer(
  * Users with conversations:read-all see everything.
  * Others see only their assigned + waiting conversations (filtered by claimable channels).
  */
-conversations.get('/', async (c) => {
+conversations.get('/', validateQuery(listConversationsQuerySchema), async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const volunteer = c.get('volunteer')
   const canReadAll = checkPermission(permissions, 'conversations:read-all')
-  const status = c.req.query('status')
-  const channel = c.req.query('channel')
-  const page = c.req.query('page') || '1'
-  const limit = c.req.query('limit') || '50'
+  const query = c.get('validatedQuery') as z.infer<typeof listConversationsQuerySchema>
 
   const params = new URLSearchParams()
-  if (status) params.set('status', status)
-  if (channel) params.set('channel', channel)
-  params.set('page', page)
-  params.set('limit', limit)
+  if (query.status) params.set('status', query.status)
+  if (query.channel) params.set('channel', query.channel)
+  params.set('page', String(query.page))
+  params.set('limit', String(query.limit))
 
   // Users without read-all only see their assigned conversations + waiting queue
   if (!canReadAll) {
@@ -154,14 +155,13 @@ conversations.get('/:id', async (c) => {
 /**
  * GET /conversations/:id/messages — paginated messages
  */
-conversations.get('/:id/messages', async (c) => {
+conversations.get('/:id/messages', validateQuery(paginationSchema), async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
   const id = c.req.param('id')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const canReadAll = checkPermission(permissions, 'conversations:read-all')
-  const page = c.req.query('page') || '1'
-  const limit = c.req.query('limit') || '50'
+  const query = c.get('validatedQuery') as z.infer<typeof paginationSchema>
 
   // Verify access
   const convRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`))
@@ -172,7 +172,7 @@ conversations.get('/:id/messages', async (c) => {
   }
 
   const res = await dos.conversations.fetch(
-    new Request(`http://do/conversations/${id}/messages?page=${page}&limit=${limit}`)
+    new Request(`http://do/conversations/${id}/messages?page=${query.page}&limit=${query.limit}`)
   )
   return c.json(await res.json())
 })
@@ -182,9 +182,9 @@ conversations.get('/:id/messages', async (c) => {
  * Body: { encryptedContent, readerEnvelopes, plaintextForSending? }
  * If plaintext is provided, it's sent via the messaging adapter then discarded.
  */
-conversations.post('/:id/messages', async (c) => {
+conversations.post('/:id/messages', validateBody(sendMessageBodySchema), async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
-  const id = c.req.param('id')
+  const id = c.req.param('id')!
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const canSendAny = checkPermission(permissions, 'conversations:send-any')
@@ -202,7 +202,7 @@ conversations.post('/:id/messages', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  const body = await c.req.json() as {
+  const body = c.get('validatedBody') as {
     encryptedContent: string
     readerEnvelopes: import('@shared/types').RecipientEnvelope[]
     plaintextForSending?: string
@@ -232,7 +232,7 @@ conversations.post('/:id/messages', async (c) => {
       const { identifier } = await contactRes.json() as { identifier: string }
       const result = await adapter.sendMessage({
         recipientIdentifier: identifier,
-        body: body.plaintextForSending,
+        body: body.plaintextForSending!,
         conversationId: id,
       })
 
@@ -286,13 +286,13 @@ conversations.post('/:id/messages', async (c) => {
 /**
  * PATCH /conversations/:id — update conversation (assign, close, reopen)
  */
-conversations.patch('/:id', async (c) => {
+conversations.patch('/:id', validateBody(updateConversationBodySchema), async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
   const id = c.req.param('id')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const canUpdate = checkPermission(permissions, 'conversations:update')
-  const body = await c.req.json() as { status?: string; assignedTo?: string }
+  const body = c.get('validatedBody') as z.infer<typeof updateConversationBodySchema>
 
   // Only users with update permission or assigned volunteer can update
   const convRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`))

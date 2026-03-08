@@ -1,7 +1,10 @@
 import { Hono } from 'hono'
+import type { z } from 'zod'
 import type { AppEnv, CallRecord } from '../types'
 import { getScopedDOs, getTelephony } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
+import { validateQuery } from '../middleware/validate'
+import { callHistoryQuerySchema } from '../schemas/calls'
 
 const calls = new Hono<AppEnv>()
 
@@ -28,14 +31,16 @@ calls.get('/presence', requirePermission('calls:read-presence'), async (c) => {
   return dos.calls.fetch(new Request('http://do/calls/presence'))
 })
 
-calls.get('/history', requirePermission('calls:read-history'), async (c) => {
+calls.get('/history', requirePermission('calls:read-history'), validateQuery(callHistoryQuerySchema), async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
+  const query = c.get('validatedQuery') as z.infer<typeof callHistoryQuerySchema>
+
   const params = new URLSearchParams()
-  params.set('page', c.req.query('page') || '1')
-  params.set('limit', c.req.query('limit') || '50')
-  if (c.req.query('search')) params.set('search', c.req.query('search')!)
-  if (c.req.query('dateFrom')) params.set('dateFrom', c.req.query('dateFrom')!)
-  if (c.req.query('dateTo')) params.set('dateTo', c.req.query('dateTo')!)
+  params.set('page', String(query.page))
+  params.set('limit', String(query.limit))
+  if (query.search) params.set('search', query.search)
+  if (query.dateFrom) params.set('dateFrom', query.dateFrom)
+  if (query.dateTo) params.set('dateTo', query.dateTo)
   return dos.calls.fetch(new Request(`http://do/calls/history?${params}`))
 })
 

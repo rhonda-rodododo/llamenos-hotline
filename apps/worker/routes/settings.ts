@@ -1,7 +1,21 @@
 import { Hono } from 'hono'
+import type { z } from 'zod'
 import type { AppEnv } from '../types'
 import { getDOs } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
+import { validateBody } from '../middleware/validate'
+import {
+  spamSettingsSchema,
+  callSettingsSchema,
+  messagingConfigSchema,
+  telephonyProviderSchema,
+  createRoleSchema,
+  updateRoleSchema,
+  webauthnSettingsSchema,
+  transcriptionSettingsSchema,
+  ivrLanguagesSchema,
+  setupStateSchema,
+} from '../schemas/settings'
 import { audit } from '../services/audit'
 import { validateExternalUrl } from '../lib/ssrf-guard'
 
@@ -13,10 +27,10 @@ settings.get('/transcription', async (c) => {
   return dos.settings.fetch(new Request('http://do/settings/transcription'))
 })
 
-settings.patch('/transcription', requirePermission('settings:manage-transcription'), async (c) => {
+settings.patch('/transcription', requirePermission('settings:manage-transcription'), validateBody(transcriptionSettingsSchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json()
+  const body = c.get('validatedBody') as z.infer<typeof transcriptionSettingsSchema>
   const res = await dos.settings.fetch(new Request('http://do/settings/transcription', {
     method: 'PATCH',
     body: JSON.stringify(body),
@@ -51,10 +65,10 @@ settings.get('/spam', requirePermission('settings:manage-spam'), async (c) => {
   return dos.settings.fetch(new Request('http://do/settings/spam'))
 })
 
-settings.patch('/spam', requirePermission('settings:manage-spam'), async (c) => {
+settings.patch('/spam', requirePermission('settings:manage-spam'), validateBody(spamSettingsSchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json()
+  const body = c.get('validatedBody') as z.infer<typeof spamSettingsSchema>
   const res = await dos.settings.fetch(new Request('http://do/settings/spam', {
     method: 'PATCH',
     body: JSON.stringify(body),
@@ -68,10 +82,10 @@ settings.get('/call', requirePermission('settings:manage'), async (c) => {
   return dos.settings.fetch(new Request('http://do/settings/call'))
 })
 
-settings.patch('/call', requirePermission('settings:manage'), async (c) => {
+settings.patch('/call', requirePermission('settings:manage'), validateBody(callSettingsSchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json()
+  const body = c.get('validatedBody') as z.infer<typeof callSettingsSchema>
   const res = await dos.settings.fetch(new Request('http://do/settings/call', {
     method: 'PATCH',
     body: JSON.stringify(body),
@@ -85,10 +99,10 @@ settings.get('/ivr-languages', requirePermission('settings:manage-ivr'), async (
   return dos.settings.fetch(new Request('http://do/settings/ivr-languages'))
 })
 
-settings.patch('/ivr-languages', requirePermission('settings:manage-ivr'), async (c) => {
+settings.patch('/ivr-languages', requirePermission('settings:manage-ivr'), validateBody(ivrLanguagesSchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json()
+  const body = c.get('validatedBody') as z.infer<typeof ivrLanguagesSchema>
   const res = await dos.settings.fetch(new Request('http://do/settings/ivr-languages', {
     method: 'PATCH',
     body: JSON.stringify(body),
@@ -102,10 +116,10 @@ settings.get('/webauthn', requirePermission('settings:manage'), async (c) => {
   return dos.identity.fetch(new Request('http://do/settings/webauthn'))
 })
 
-settings.patch('/webauthn', requirePermission('settings:manage'), async (c) => {
+settings.patch('/webauthn', requirePermission('settings:manage'), validateBody(webauthnSettingsSchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json()
+  const body = c.get('validatedBody') as z.infer<typeof webauthnSettingsSchema>
   const res = await dos.identity.fetch(new Request('http://do/settings/webauthn', {
     method: 'PATCH',
     body: JSON.stringify(body),
@@ -120,20 +134,20 @@ settings.get('/telephony-provider', requirePermission('settings:manage-telephony
   return dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
 })
 
-settings.patch('/telephony-provider', requirePermission('settings:manage-telephony'), async (c) => {
+settings.patch('/telephony-provider', requirePermission('settings:manage-telephony'), validateBody(telephonyProviderSchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json()
+  const body = c.get('validatedBody') as z.infer<typeof telephonyProviderSchema>
   const res = await dos.settings.fetch(new Request('http://do/settings/telephony-provider', {
     method: 'PATCH',
     body: JSON.stringify(body),
   }))
-  if (res.ok) await audit(dos.records, 'telephonyProviderChanged', pubkey, { type: (body as { type?: string }).type })
+  if (res.ok) await audit(dos.records, 'telephonyProviderChanged', pubkey, { type: body.type })
   return res
 })
 
-settings.post('/telephony-provider/test', requirePermission('settings:manage-telephony'), async (c) => {
-  const body = await c.req.json() as { type: string; accountSid?: string; authToken?: string; phoneNumber?: string; signalwireSpace?: string; apiKey?: string; apiSecret?: string; applicationId?: string; authId?: string; ariUrl?: string; ariUsername?: string; ariPassword?: string }
+settings.post('/telephony-provider/test', requirePermission('settings:manage-telephony'), validateBody(telephonyProviderSchema), async (c) => {
+  const body = c.get('validatedBody') as z.infer<typeof telephonyProviderSchema>
   try {
     let testUrl: string
     let testHeaders: Record<string, string> = {}
@@ -198,10 +212,10 @@ settings.get('/messaging', requirePermission('settings:manage-messaging'), async
   return dos.settings.fetch(new Request('http://do/settings/messaging'))
 })
 
-settings.patch('/messaging', requirePermission('settings:manage-messaging'), async (c) => {
+settings.patch('/messaging', requirePermission('settings:manage-messaging'), validateBody(messagingConfigSchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json()
+  const body = c.get('validatedBody') as z.infer<typeof messagingConfigSchema>
   const res = await dos.settings.fetch(new Request('http://do/settings/messaging', {
     method: 'PATCH',
     body: JSON.stringify(body),
@@ -216,10 +230,10 @@ settings.get('/setup', requirePermission('settings:manage'), async (c) => {
   return dos.settings.fetch(new Request('http://do/settings/setup'))
 })
 
-settings.patch('/setup', requirePermission('settings:manage'), async (c) => {
+settings.patch('/setup', requirePermission('settings:manage'), validateBody(setupStateSchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json()
+  const body = c.get('validatedBody') as z.infer<typeof setupStateSchema>
   const res = await dos.settings.fetch(new Request('http://do/settings/setup', {
     method: 'PATCH',
     body: JSON.stringify(body),
@@ -265,23 +279,23 @@ settings.get('/roles', async (c) => {
   return dos.settings.fetch(new Request('http://do/settings/roles'))
 })
 
-settings.post('/roles', requirePermission('system:manage-roles'), async (c) => {
+settings.post('/roles', requirePermission('system:manage-roles'), validateBody(createRoleSchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json()
+  const body = c.get('validatedBody') as z.infer<typeof createRoleSchema>
   const res = await dos.settings.fetch(new Request('http://do/settings/roles', {
     method: 'POST',
     body: JSON.stringify(body),
   }))
-  if (res.ok) await audit(dos.records, 'roleCreated', pubkey, { name: (body as { name?: string }).name })
+  if (res.ok) await audit(dos.records, 'roleCreated', pubkey, { name: body.name })
   return res
 })
 
-settings.patch('/roles/:id', requirePermission('system:manage-roles'), async (c) => {
+settings.patch('/roles/:id', requirePermission('system:manage-roles'), validateBody(updateRoleSchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
   const id = c.req.param('id')
-  const body = await c.req.json()
+  const body = c.get('validatedBody') as z.infer<typeof updateRoleSchema>
   const res = await dos.settings.fetch(new Request(`http://do/settings/roles/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(body),

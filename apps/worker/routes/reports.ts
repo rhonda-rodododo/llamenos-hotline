@@ -1,7 +1,11 @@
 import { Hono } from 'hono'
+import type { z } from 'zod'
 import type { AppEnv } from '../types'
 import { getScopedDOs } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
+import { validateBody, validateQuery } from '../middleware/validate'
+import { listReportsQuerySchema, createReportBodySchema, reportMessageBodySchema, assignReportBodySchema, updateReportBodySchema } from '../schemas/reports'
+import { paginationSchema } from '../schemas/common'
 import { audit } from '../services/audit'
 import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '@shared/nostr-events'
 import { publishNostrEvent } from '../lib/nostr-events'
@@ -10,23 +14,21 @@ import { verifyReportAccess, isReport } from '../lib/report-access'
 const reports = new Hono<AppEnv>()
 
 // List reports — reporters see only their own, users with reports:read-all see everything
-reports.get('/', async (c) => {
+reports.get('/', validateQuery(listReportsQuerySchema), async (c) => {
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const dos = getScopedDOs(c.env, c.get('hubId'))
+  const query = c.get('validatedQuery') as z.infer<typeof listReportsQuerySchema>
 
-  const status = c.req.query('status') || ''
-  const category = c.req.query('category') || ''
-  const page = parseInt(c.req.query('page') || '1', 10)
-  const limit = Math.min(parseInt(c.req.query('limit') || '50', 10), 100)
+  const limit = Math.min(query.limit, 100)
 
   const qs = new URLSearchParams({
     type: 'report',
-    page: String(page),
+    page: String(query.page),
     limit: String(limit),
   })
-  if (status) qs.set('status', status)
-  if (category) qs.set('category', category)
+  if (query.status) qs.set('status', query.status)
+  if (query.category) qs.set('category', query.category)
 
   const canReadAll = checkPermission(permissions, 'reports:read-all')
   const canReadAssigned = checkPermission(permissions, 'reports:read-assigned')
@@ -46,21 +48,10 @@ reports.get('/', async (c) => {
 })
 
 // Create a new report (requires reports:create)
-reports.post('/', requirePermission('reports:create'), async (c) => {
+reports.post('/', requirePermission('reports:create'), validateBody(createReportBodySchema), async (c) => {
   const pubkey = c.get('pubkey')
   const dos = getScopedDOs(c.env, c.get('hubId'))
-
-  const body = await c.req.json() as {
-    title: string
-    category?: string
-    // First message content (envelope-encrypted)
-    encryptedContent: string
-    readerEnvelopes: import('@shared/types').RecipientEnvelope[]
-  }
-
-  if (!body.encryptedContent || !body.readerEnvelopes?.length) {
-    return c.json({ error: 'Report content is required' }, 400)
-  }
+  const body = c.get('validatedBody') as z.infer<typeof createReportBodySchema>
 
   // Create the conversation with report metadata
   const conversationData = {
@@ -141,7 +132,7 @@ reports.get('/:id', async (c) => {
 })
 
 // Get report messages
-reports.get('/:id/messages', async (c) => {
+reports.get('/:id/messages', validateQuery(paginationSchema), async (c) => {
   const id = c.req.param('id')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
@@ -163,15 +154,15 @@ reports.get('/:id/messages', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  const limit = Math.min(parseInt(c.req.query('limit') || '100', 10), 200)
-  const page = parseInt(c.req.query('page') || '1', 10)
+  const query = c.get('validatedQuery') as z.infer<typeof paginationSchema>
+  const limit = Math.min(query.limit, 200)
 
-  const msgRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}/messages?limit=${limit}&page=${page}`))
+  const msgRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}/messages?limit=${limit}&page=${query.page}`))
   return new Response(msgRes.body, msgRes)
 })
 
 // Send a message in a report thread
-reports.post('/:id/messages', async (c) => {
+reports.post('/:id/messages', validateBody(reportMessageBodySchema), async (c) => {
   const id = c.req.param('id')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
@@ -203,11 +194,7 @@ reports.post('/:id/messages', async (c) => {
     }
   }
 
-  const body = await c.req.json() as {
-    encryptedContent: string
-    readerEnvelopes: import('@shared/types').RecipientEnvelope[]
-    attachmentIds?: string[]
-  }
+  const body = c.get('validatedBody') as z.infer<typeof reportMessageBodySchema>
 
   const isReporter = report.contactIdentifierHash === pubkey
   const direction = isReporter ? 'inbound' : 'outbound'
@@ -240,11 +227,10 @@ reports.post('/:id/messages', async (c) => {
 })
 
 // Assign a volunteer to a report (requires reports:assign)
-reports.post('/:id/assign', requirePermission('reports:assign'), async (c) => {
+reports.post('/:id/assign', requirePermission('reports:assign'), validateBody(assignReportBodySchema), async (c) => {
   const id = c.req.param('id')
   const pubkey = c.get('pubkey')
-
-  const body = await c.req.json() as { assignedTo: string }
+  const body = c.get('validatedBody') as z.infer<typeof assignReportBodySchema>
   const dos = getScopedDOs(c.env, c.get('hubId'))
 
   const res = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`, {
@@ -269,12 +255,11 @@ reports.post('/:id/assign', requirePermission('reports:assign'), async (c) => {
 })
 
 // Update report status (requires reports:update)
-reports.patch('/:id', requirePermission('reports:update'), async (c) => {
+reports.patch('/:id', requirePermission('reports:update'), validateBody(updateReportBodySchema), async (c) => {
   const id = c.req.param('id')
   const pubkey = c.get('pubkey')
   const dos = getScopedDOs(c.env, c.get('hubId'))
-
-  const body = await c.req.json() as { status?: string }
+  const body = c.get('validatedBody') as z.infer<typeof updateReportBodySchema>
 
   const res = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`, {
     method: 'PATCH',

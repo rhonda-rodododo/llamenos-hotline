@@ -1,11 +1,14 @@
 import { Hono } from 'hono'
+import type { z } from 'zod'
 import type { AppEnv } from '../types'
 import { getDOs } from '../lib/do-access'
-import { isValidE164, checkRateLimit } from '../lib/helpers'
+import { checkRateLimit } from '../lib/helpers'
 import { hashIP } from '../lib/crypto'
 import { verifyAuthToken } from '../lib/auth'
 import { auth as authMiddleware } from '../middleware/auth'
 import { requirePermission } from '../middleware/permission-guard'
+import { validateBody } from '../middleware/validate'
+import { redeemInviteBodySchema, createInviteBodySchema } from '../schemas/invites'
 import { audit } from '../services/audit'
 import { permissionGranted, resolvePermissions } from '@shared/permissions'
 import type { Role } from '@shared/permissions'
@@ -24,14 +27,11 @@ invites.get('/validate/:code', async (c) => {
   return dos.identity.fetch(new Request(`http://do/invites/validate/${code}`))
 })
 
-invites.post('/redeem', async (c) => {
+invites.post('/redeem', validateBody(redeemInviteBodySchema), async (c) => {
   const dos = getDOs(c.env)
-  const body = await c.req.json() as { code: string; pubkey: string; timestamp: number; token: string }
+  const body = c.get('validatedBody') as z.infer<typeof redeemInviteBodySchema>
 
-  // Require proof of private key possession via Schnorr signature
-  if (!body.pubkey || !body.timestamp || !body.token) {
-    return c.json({ error: 'Signature proof required' }, 400)
-  }
+  // Verify Schnorr signature
   const inviteUrl = new URL(c.req.url)
   const isValid = await verifyAuthToken({ pubkey: body.pubkey, timestamp: body.timestamp, token: body.token }, c.req.method, inviteUrl.pathname)
   if (!isValid) {
@@ -58,13 +58,10 @@ invites.get('/', async (c) => {
   return dos.identity.fetch(new Request('http://do/invites'))
 })
 
-invites.post('/', requirePermission('invites:create'), async (c) => {
+invites.post('/', requirePermission('invites:create'), validateBody(createInviteBodySchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json() as { name: string; phone: string; roleIds: string[] }
-  if (body.phone && !isValidE164(body.phone)) {
-    return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
-  }
+  const body = c.get('validatedBody') as z.infer<typeof createInviteBodySchema>
 
   // Validate that the creator can grant all requested roles (prevent privilege escalation)
   if (body.roleIds && body.roleIds.length > 0) {
@@ -76,7 +73,6 @@ invites.post('/', requirePermission('invites:create'), async (c) => {
         if (!role) {
           return c.json({ error: `Unknown role: ${roleId}` }, 400)
         }
-        // Every permission in the target role must be held by the creator
         for (const perm of role.permissions) {
           if (!permissionGranted(creatorPermissions, perm)) {
             return c.json({ error: `Cannot grant role '${role.name}' — you lack permission '${perm}'` }, 403)

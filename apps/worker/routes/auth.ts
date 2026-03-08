@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import type { z } from 'zod'
 import type { AppEnv, WebAuthnCredential } from '../types'
 import { getDOs } from '../lib/do-access'
 import { hashIP } from '../lib/crypto'
@@ -6,6 +7,8 @@ import { isValidE164, checkRateLimit } from '../lib/helpers'
 import { verifyAuthToken } from '../lib/auth'
 import { auth as authMiddleware } from '../middleware/auth'
 import { checkPermission } from '../middleware/permission-guard'
+import { validateBody } from '../middleware/validate'
+import { loginBodySchema, bootstrapBodySchema, profileUpdateBodySchema, availabilityBodySchema, transcriptionToggleBodySchema } from '../schemas/auth'
 import { audit } from '../services/audit'
 import { getPrimaryRole } from '@shared/permissions'
 import { deriveServerEventKey } from '../lib/hub-event-crypto'
@@ -14,7 +17,7 @@ import { bytesToHex } from '@noble/hashes/utils.js'
 const auth = new Hono<AppEnv>()
 
 // --- Login (no auth) ---
-auth.post('/login', async (c) => {
+auth.post('/login', validateBody(loginBodySchema), async (c) => {
   const dos = getDOs(c.env)
 
   // Rate limit login attempts by IP (skip in development for testing)
@@ -26,11 +29,9 @@ auth.post('/login', async (c) => {
     }
   }
 
-  const body = await c.req.json() as { pubkey: string; timestamp: number; token: string }
+  const body = c.get('validatedBody') as z.infer<typeof loginBodySchema>
+
   // Verify Schnorr signature before returning any user information
-  if (!body.pubkey || !body.timestamp || !body.token) {
-    return c.json({ error: 'Invalid credentials' }, 401)
-  }
   const url = new URL(c.req.url)
   const isValid = await verifyAuthToken({ pubkey: body.pubkey, timestamp: body.timestamp, token: body.token }, c.req.method, url.pathname)
   if (!isValid) return c.json({ error: 'Invalid credentials' }, 401)
@@ -42,7 +43,7 @@ auth.post('/login', async (c) => {
 })
 
 // --- Bootstrap (no auth — one-shot admin registration) ---
-auth.post('/bootstrap', async (c) => {
+auth.post('/bootstrap', validateBody(bootstrapBodySchema), async (c) => {
   const dos = getDOs(c.env)
 
   // Rate limit by IP
@@ -54,10 +55,7 @@ auth.post('/bootstrap', async (c) => {
     }
   }
 
-  const body = await c.req.json() as { pubkey: string; timestamp: number; token: string }
-  if (!body.pubkey || !body.timestamp || !body.token) {
-    return c.json({ error: 'Invalid request' }, 400)
-  }
+  const body = c.get('validatedBody') as z.infer<typeof bootstrapBodySchema>
 
   // Verify Schnorr signature — proves caller owns the private key
   const bootstrapUrl = new URL(c.req.url)
@@ -143,10 +141,10 @@ auth.post('/me/logout', async (c) => {
   return c.json({ ok: true })
 })
 
-auth.patch('/me/profile', async (c) => {
+auth.patch('/me/profile', validateBody(profileUpdateBodySchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json() as { name?: string; phone?: string; spokenLanguages?: string[]; uiLanguage?: string; profileCompleted?: boolean; callPreference?: 'phone' | 'browser' | 'both' }
+  const body = c.get('validatedBody') as z.infer<typeof profileUpdateBodySchema>
   if (body.phone && !isValidE164(body.phone)) {
     return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
   }
@@ -157,10 +155,10 @@ auth.patch('/me/profile', async (c) => {
   return c.json({ ok: true })
 })
 
-auth.patch('/me/availability', async (c) => {
+auth.patch('/me/availability', validateBody(availabilityBodySchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json() as { onBreak: boolean }
+  const body = c.get('validatedBody') as z.infer<typeof availabilityBodySchema>
   await dos.identity.fetch(new Request(`http://do/volunteers/${pubkey}`, {
     method: 'PATCH',
     body: JSON.stringify({ onBreak: body.onBreak }),
@@ -169,11 +167,11 @@ auth.patch('/me/availability', async (c) => {
   return c.json({ ok: true })
 })
 
-auth.patch('/me/transcription', async (c) => {
+auth.patch('/me/transcription', validateBody(transcriptionToggleBodySchema), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
-  const body = await c.req.json() as { enabled: boolean }
+  const body = c.get('validatedBody') as z.infer<typeof transcriptionToggleBodySchema>
   // If volunteer is trying to disable, check if admin allows opt-out
   if (!body.enabled && !checkPermission(permissions, 'settings:manage-transcription')) {
     const transRes = await dos.settings.fetch(new Request('http://do/settings/transcription'))
