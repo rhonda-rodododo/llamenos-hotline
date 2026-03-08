@@ -16,6 +16,7 @@ export interface StorageApi {
   setAlarm(scheduledTime: number | Date): Promise<void>
   getAlarm(): Promise<number | null>
   deleteAlarm(): Promise<void>
+  transaction<T>(closure: (txn: StorageApi) => Promise<T>): Promise<T>
 }
 
 /**
