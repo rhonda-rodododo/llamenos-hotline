@@ -1,5 +1,7 @@
 # Quick Start Guide
 
+> **See also**: The [Operator Handbook](OPERATOR_HANDBOOK.md) is the consolidated operator reference covering daily operations, maintenance schedules, troubleshooting decision trees, emergency procedures, and the full command reference. The [Quick Reference Card](QUICK_REFERENCE.md) provides a one-page cheat sheet.
+
 This guide walks you through deploying Llamenos on a self-hosted VPS from scratch. By the end, you will have a running crisis hotline with TLS, database backups, and an admin account.
 
 **Time estimate**: 30-60 minutes (manual), or 15 minutes with Ansible.

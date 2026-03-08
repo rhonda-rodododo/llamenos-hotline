@@ -1,5 +1,7 @@
 # Deployment Hardening Guide
 
+> **See also**: The [Operator Handbook](../OPERATOR_HANDBOOK.md) is the consolidated operator reference covering getting started, maintenance schedules, troubleshooting, emergency procedures, and the full command reference. The [Quick Reference Card](../QUICK_REFERENCE.md) provides a one-page cheat sheet.
+
 This guide provides security-focused deployment recommendations for Llamenos operators. Since Llamenos is self-hosted open-source software, the operator is responsible for infrastructure security. This document covers three deployment architectures in order of complexity.
 
 **Related documents**:

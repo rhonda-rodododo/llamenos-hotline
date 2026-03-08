@@ -1,5 +1,7 @@
 # Operator Runbook
 
+> **See also**: The [Operator Handbook](OPERATOR_HANDBOOK.md) is the consolidated operator reference that organizes procedures by task frequency (daily, weekly, monthly, quarterly) with troubleshooting decision trees and a full command reference. The [Quick Reference Card](QUICK_REFERENCE.md) provides a one-page cheat sheet.
+
 This runbook provides procedures for common operational tasks, incident response, and troubleshooting for Llamenos self-hosted deployments.
 
 **Audience**: System administrators and operators responsible for maintaining a Llamenos instance.
