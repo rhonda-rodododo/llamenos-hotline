@@ -205,7 +205,7 @@ jobs:
 
       - name: Create .dev.vars for tests
         run: |
-          printf 'ADMIN_PUBKEY=%s\nENVIRONMENT=development\nHMAC_SECRET=%s\n' "${{ env.TEST_ADMIN_PUBKEY }}" "$(openssl rand -hex 32)" > .dev.vars
+          printf 'ADMIN_PUBKEY=%s\nENVIRONMENT=development\nHMAC_SECRET=%s\nDEV_RESET_SECRET=test-reset-secret\nDEMO_MODE=true\n' "${{ env.TEST_ADMIN_PUBKEY }}" "$(openssl rand -hex 32)" > .dev.vars
 
       - name: Cache Playwright browsers
         id: playwright-cache
@@ -286,6 +286,8 @@ jobs:
             "BRIDGE_SECRET=ci-test-bridge-secret" \
             "ARI_PASSWORD=ci-test-ari-password" \
             "SERVER_NOSTR_SECRET=$(openssl rand -hex 32)" \
+            "DEV_RESET_SECRET=test-reset-secret" \
+            "DEMO_MODE=true" \
             > deploy/docker/.env
 
       - name: Build and start Docker Compose
