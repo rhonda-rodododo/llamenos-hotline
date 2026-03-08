@@ -126,4 +126,74 @@ export class PostgresStorage implements StorageApi {
       DELETE FROM alarms WHERE namespace = ${this.namespace}
     `
   }
+
+  async transaction<T>(closure: (txn: StorageApi) => Promise<T>): Promise<T> {
+    const sql = getPool()
+    const namespace = this.namespace
+    return (sql as any).begin(async (tx: any) => {
+      await tx`SELECT pg_advisory_xact_lock(hashtext(${namespace}))`
+      const txnStorage: StorageApi = {
+        async get<V = unknown>(key: string): Promise<V | undefined> {
+          const rows = await tx`
+            SELECT value FROM kv_store
+            WHERE namespace = ${namespace} AND key = ${key}
+          `
+          if (rows.length === 0) return undefined
+          return rows[0].value as V
+        },
+        async put(key: string, value: unknown): Promise<void> {
+          await tx`
+            INSERT INTO kv_store (namespace, key, value)
+            VALUES (${namespace}, ${key}, ${sql.json(value as JSONValue)})
+            ON CONFLICT (namespace, key)
+            DO UPDATE SET value = EXCLUDED.value
+          `
+        },
+        async delete(key: string): Promise<void> {
+          await tx`DELETE FROM kv_store WHERE namespace = ${namespace} AND key = ${key}`
+        },
+        async deleteAll(): Promise<void> {
+          await tx`DELETE FROM kv_store WHERE namespace = ${namespace}`
+          await tx`DELETE FROM alarms WHERE namespace = ${namespace}`
+        },
+        async list(options?: { prefix?: string }): Promise<Map<string, unknown>> {
+          const result = new Map<string, unknown>()
+          let rows
+          if (options?.prefix) {
+            const escaped = options.prefix.replace(/[%_\\]/g, '\\$&')
+            rows = await tx`
+              SELECT key, value FROM kv_store
+              WHERE namespace = ${namespace} AND key LIKE ${escaped + '%'}
+            `
+          } else {
+            rows = await tx`
+              SELECT key, value FROM kv_store WHERE namespace = ${namespace}
+            `
+          }
+          for (const row of rows) result.set(row.key, row.value)
+          return result
+        },
+        async setAlarm(scheduledTime: number | Date): Promise<void> {
+          const ms = typeof scheduledTime === 'number' ? scheduledTime : scheduledTime.getTime()
+          await tx`
+            INSERT INTO alarms (namespace, scheduled_at) VALUES (${namespace}, ${ms})
+            ON CONFLICT (namespace) DO UPDATE SET scheduled_at = EXCLUDED.scheduled_at
+          `
+        },
+        async getAlarm(): Promise<number | null> {
+          const rows = await tx`SELECT scheduled_at FROM alarms WHERE namespace = ${namespace}`
+          if (rows.length === 0) return null
+          return Number(rows[0].scheduled_at)
+        },
+        async deleteAlarm(): Promise<void> {
+          await tx`DELETE FROM alarms WHERE namespace = ${namespace}`
+        },
+        transaction<U>(innerClosure: (txn: StorageApi) => Promise<U>): Promise<U> {
+          // Nested transactions use the same PG transaction (savepoints handled by postgres.js)
+          return innerClosure(txnStorage)
+        },
+      }
+      return closure(txnStorage)
+    })
+  }
 }

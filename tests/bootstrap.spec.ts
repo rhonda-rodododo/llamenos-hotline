@@ -114,8 +114,8 @@ test.describe('In-Browser Admin Bootstrap', () => {
     }
     await page.keyboard.press('Enter')
 
-    // Step 3: Generating + backup
-    await expect(page.getByText('Save Your Recovery Key')).toBeVisible({ timeout: 15000 })
+    // Step 3: Generating + backup (PBKDF2 600K iterations + keygen can be slow on CI)
+    await expect(page.getByText('Save Your Recovery Key')).toBeVisible({ timeout: 30000 })
 
     // Recovery key should be shown
     const recoveryKey = await page.locator('[data-testid="recovery-key"]').textContent()
