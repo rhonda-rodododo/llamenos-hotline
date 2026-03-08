@@ -26,6 +26,23 @@
 - call-simulation.feature: full call/message lifecycle scenarios
 - Updated ScenarioHooks.kt and android-parallel-e2e.sh for test secret passing
 
+### E3: iOS Test Migration to API-Connected (50 tests)
+- Expanded APIConnectedUITests.swift from 10 to 50 test methods
+- Added simulation helpers to BaseUITest.swift (simulateIncomingCall, simulateAnswerCall, simulateEndCall, simulateVoicemail, simulateIncomingMessage)
+- Covers: bootstrap, dashboard, notes CRUD, shifts, settings, conversations, admin panel (volunteers/bans/audit/invites/custom-fields), reports, contacts, blasts, help, device link, call/message simulation
+- All tests use BDD Given/When/Then style with serial execution
+
+### E6: iOS Visual Audit & Bug Fixes
+- 25 screenshot audit tests in ScreenshotAuditTests.swift covering every screen
+- Fixed 6 hardcoded strings in PanicWipeConfirmationView → NSLocalizedString
+- Fixed language names in SettingsView to use native script (Español, 中文, العربية, etc.)
+- Added accessibility identifiers to BrandEmptyState, CopyableField, ContactTimelineView
+- Added 6 panicWipe i18n keys to all 13 locales with codegen
+- Visual audit report: docs/ios-visual-audit-2026-03-07.md
+
+### Desktop Simulation URL Fix
+- Fixed simulation-helpers.ts to use absolute backend URL (localhost:3000) instead of relative paths that would hit Vite frontend
+
 ### Design Doc
 - docs/plans/2026-03-07-cross-platform-e2e-simulation-design.md
 
