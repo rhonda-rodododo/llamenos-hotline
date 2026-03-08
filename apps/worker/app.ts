@@ -32,12 +32,16 @@ import contactsRoutes from './routes/contacts'
 import healthRoutes from './routes/health'
 import metricsRoutes from './routes/metrics'
 import { hubContext } from './middleware/hub'
+import { requestId } from './middleware/request-id'
 import { getDOs } from './lib/do-access'
 
 const app = new Hono<AppEnv>()
 
 // --- API routes: CORS on all /api/* ---
 const api = new Hono<AppEnv>()
+
+// Request ID middleware — first in chain for full correlation coverage
+api.use('*', requestId)
 
 // Health check — before CORS middleware (internal probes only, no external access needed)
 api.route('/health', healthRoutes)

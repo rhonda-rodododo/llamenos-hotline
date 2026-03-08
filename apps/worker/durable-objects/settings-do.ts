@@ -9,6 +9,8 @@ import { migrations } from '@shared/migrations'
 import { registerMigrationRoutes } from '@shared/migrations/do-routes'
 import type { Role } from '@shared/permissions'
 import { DEFAULT_ROLES } from '@shared/permissions'
+import { createLogger } from '../lib/logger'
+import { incError } from '../lib/error-counter'
 
 /**
  * SettingsDO — manages system configuration:
@@ -193,18 +195,29 @@ export class SettingsDO extends DurableObject<Env> {
   }
 
   override async alarm() {
-    const now = Date.now()
+    const log = createLogger('settings-do:alarm')
+    try {
+      const now = Date.now()
 
-    // Clean up expired rate limit entries
-    const rlKeys = await this.ctx.storage.list({ prefix: 'ratelimit:' })
-    for (const [key, value] of rlKeys) {
-      const timestamps = value as number[]
-      const recent = timestamps.filter(t => now - t < 60_000)
-      if (recent.length === 0) {
-        await this.ctx.storage.delete(key)
-      } else {
-        await this.ctx.storage.put(key, recent)
+      // Clean up expired rate limit entries
+      const rlKeys = await this.ctx.storage.list({ prefix: 'ratelimit:' })
+      for (const [key, value] of rlKeys) {
+        const timestamps = value as number[]
+        const recent = timestamps.filter(t => now - t < 60_000)
+        if (recent.length === 0) {
+          await this.ctx.storage.delete(key)
+        } else {
+          await this.ctx.storage.put(key, recent)
+        }
       }
+
+      log.debug('Alarm completed', { rateLimitKeysCleaned: rlKeys.size })
+    } catch (err) {
+      incError('alarm')
+      log.error('Alarm failed', {
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      })
     }
   }
 

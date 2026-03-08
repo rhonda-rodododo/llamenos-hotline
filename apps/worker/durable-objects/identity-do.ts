@@ -5,6 +5,8 @@ import { runMigrations } from '@shared/migrations/runner'
 import { migrations } from '@shared/migrations'
 import { registerMigrationRoutes } from '@shared/migrations/do-routes'
 import { DEMO_ACCOUNTS } from '@shared/demo-accounts'
+import { createLogger } from '../lib/logger'
+import { incError } from '../lib/error-counter'
 
 /**
  * IdentityDO — manages people and auth:
@@ -189,33 +191,48 @@ export class IdentityDO extends DurableObject<Env> {
   }
 
   override async alarm() {
-    const now = Date.now()
+    const log = createLogger('identity-do:alarm')
+    try {
+      const now = Date.now()
 
-    // Clean up expired WebAuthn challenges
-    const challengeKeys = await this.ctx.storage.list({ prefix: 'webauthn:challenge:' })
-    for (const [key, value] of challengeKeys) {
-      const data = value as { challenge: string; createdAt: number }
-      if (now - data.createdAt > 5 * 60 * 1000) {
-        await this.ctx.storage.delete(key)
+      // Clean up expired WebAuthn challenges
+      const challengeKeys = await this.ctx.storage.list({ prefix: 'webauthn:challenge:' })
+      for (const [key, value] of challengeKeys) {
+        const data = value as { challenge: string; createdAt: number }
+        if (now - data.createdAt > 5 * 60 * 1000) {
+          await this.ctx.storage.delete(key)
+        }
       }
-    }
 
-    // Clean up expired sessions
-    const sessionKeys = await this.ctx.storage.list({ prefix: 'session:' })
-    for (const [key, value] of sessionKeys) {
-      const session = value as ServerSession
-      if (new Date(session.expiresAt) < new Date()) {
-        await this.ctx.storage.delete(key)
+      // Clean up expired sessions
+      const sessionKeys = await this.ctx.storage.list({ prefix: 'session:' })
+      for (const [key, value] of sessionKeys) {
+        const session = value as ServerSession
+        if (new Date(session.expiresAt) < new Date()) {
+          await this.ctx.storage.delete(key)
+        }
       }
-    }
 
-    // Clean up expired provisioning rooms (5-minute TTL)
-    const provisionKeys = await this.ctx.storage.list({ prefix: 'provision:' })
-    for (const [key, value] of provisionKeys) {
-      const room = value as ProvisionRoom
-      if (now - room.createdAt > 5 * 60 * 1000) {
-        await this.ctx.storage.delete(key)
+      // Clean up expired provisioning rooms (5-minute TTL)
+      const provisionKeys = await this.ctx.storage.list({ prefix: 'provision:' })
+      for (const [key, value] of provisionKeys) {
+        const room = value as ProvisionRoom
+        if (now - room.createdAt > 5 * 60 * 1000) {
+          await this.ctx.storage.delete(key)
+        }
       }
+
+      log.debug('Alarm completed', {
+        challengesCleaned: challengeKeys.size,
+        sessionsCleaned: sessionKeys.size,
+        provisionsCleaned: provisionKeys.size,
+      })
+    } catch (err) {
+      incError('alarm')
+      log.error('Alarm failed', {
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      })
     }
   }
 

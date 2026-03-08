@@ -11,6 +11,8 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { HMAC_PREFERENCE_TOKEN, HMAC_SUBSCRIBER } from '@shared/crypto-labels'
+import { createLogger } from '../lib/logger'
+import { incError } from '../lib/error-counter'
 
 /**
  * BlastDO — manages subscriber lists and broadcast messaging.
@@ -575,27 +577,42 @@ export class BlastDO extends DurableObject<Env> {
   // --- Alarm: process blast delivery + check scheduled blasts ---
 
   override async alarm() {
-    // --- Process active blast deliveries ---
-    await this.processActiveBlasts()
+    const log = createLogger('blast-do:alarm')
+    try {
+      // --- Process active blast deliveries ---
+      await this.processActiveBlasts()
 
-    // --- Check for scheduled blasts that are now due ---
-    const allBlasts = await this.ctx.storage.list<Blast>({ prefix: 'blasts:' })
-    for (const [, blast] of allBlasts) {
-      if (blast.status === 'scheduled' && blast.scheduledAt) {
-        const scheduledTime = new Date(blast.scheduledAt).getTime()
-        if (scheduledTime <= Date.now()) {
-          await this.sendBlast(blast.id)
+      // --- Check for scheduled blasts that are now due ---
+      const allBlasts = await this.ctx.storage.list<Blast>({ prefix: 'blasts:' })
+      for (const [, blast] of allBlasts) {
+        if (blast.status === 'scheduled' && blast.scheduledAt) {
+          const scheduledTime = new Date(blast.scheduledAt).getTime()
+          if (scheduledTime <= Date.now()) {
+            await this.sendBlast(blast.id)
+          }
         }
       }
-    }
 
-    // Re-schedule alarm if there are active or scheduled blasts
-    const hasActive = (await this.ctx.storage.list<boolean>({ prefix: 'blast-active:' })).size > 0
-    const hasScheduled = [...allBlasts.values()].some(b => b.status === 'scheduled')
-    if (hasActive || hasScheduled) {
-      try {
-        await this.ctx.storage.setAlarm(Date.now() + 5 * 60 * 1000)
-      } catch { /* alarm already set */ }
+      // Re-schedule alarm if there are active or scheduled blasts
+      const hasActive = (await this.ctx.storage.list<boolean>({ prefix: 'blast-active:' })).size > 0
+      const hasScheduled = [...allBlasts.values()].some(b => b.status === 'scheduled')
+      if (hasActive || hasScheduled) {
+        try {
+          await this.ctx.storage.setAlarm(Date.now() + 5 * 60 * 1000)
+        } catch { /* alarm already set */ }
+      }
+
+      log.debug('Alarm completed', {
+        totalBlasts: allBlasts.size,
+        hasActive,
+        hasScheduled,
+      })
+    } catch (err) {
+      incError('alarm')
+      log.error('Alarm failed', {
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      })
     }
   }
 }

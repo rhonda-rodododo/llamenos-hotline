@@ -372,5 +372,7 @@ export type AppEnv = {
     validatedBody: unknown
     /** Parsed and validated query parameters (set by validateQuery middleware) */
     validatedQuery: unknown
+    /** Unique request ID for correlation (set by request-id middleware) */
+    requestId: string
   }
 }

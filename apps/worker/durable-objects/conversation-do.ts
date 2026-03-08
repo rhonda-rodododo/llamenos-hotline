@@ -7,6 +7,8 @@ import { DORouter } from '../lib/do-router'
 import { runMigrations } from '@shared/migrations/runner'
 import { migrations } from '@shared/migrations'
 import { registerMigrationRoutes } from '@shared/migrations/do-routes'
+import { createLogger } from '../lib/logger'
+import { incError } from '../lib/error-counter'
 
 const PAGE_SIZE = 50
 
@@ -706,43 +708,57 @@ export class ConversationDO extends DurableObject<Env> {
   // --- Alarm: auto-close inactive conversations ---
 
   override async alarm() {
-    const index = await this.getIndex()
-    const now = Date.now()
-    const timeout = 60 * 60 * 1000 // 60 minutes default
+    const log = createLogger('conversation-do:alarm')
+    try {
+      const index = await this.getIndex()
+      const now = Date.now()
+      const timeout = 60 * 60 * 1000 // 60 minutes default
 
-    let changed = false
-    const closedAssignees: Array<{ pubkey: string; conversationId: string }> = []
+      let changed = false
+      const closedAssignees: Array<{ pubkey: string; conversationId: string }> = []
 
-    for (const entry of index) {
-      if (entry.status === 'active' || entry.status === 'waiting') {
-        const lastActivity = new Date(entry.lastMessageAt).getTime()
-        if (now - lastActivity > timeout) {
-          const conv = await this.getConv(entry.id)
-          if (conv) {
-            if (conv.assignedTo) {
-              closedAssignees.push({ pubkey: conv.assignedTo, conversationId: conv.id })
+      for (const entry of index) {
+        if (entry.status === 'active' || entry.status === 'waiting') {
+          const lastActivity = new Date(entry.lastMessageAt).getTime()
+          if (now - lastActivity > timeout) {
+            const conv = await this.getConv(entry.id)
+            if (conv) {
+              if (conv.assignedTo) {
+                closedAssignees.push({ pubkey: conv.assignedTo, conversationId: conv.id })
+              }
+              conv.status = 'closed'
+              conv.updatedAt = new Date().toISOString()
+              await this.putConversation(conv)
+              entry.status = 'closed'
+              changed = true
             }
-            conv.status = 'closed'
-            conv.updatedAt = new Date().toISOString()
-            await this.putConversation(conv)
-            entry.status = 'closed'
-            changed = true
           }
         }
       }
-    }
 
-    if (changed) {
-      await this.putIndex(index)
-      for (const { pubkey, conversationId } of closedAssignees) {
-        await this.decrementLoad({ pubkey, conversationId })
+      if (changed) {
+        await this.putIndex(index)
+        for (const { pubkey, conversationId } of closedAssignees) {
+          await this.decrementLoad({ pubkey, conversationId })
+        }
       }
-    }
 
-    // Schedule next alarm in 5 minutes
-    try {
-      await this.ctx.storage.setAlarm(now + 5 * 60 * 1000)
-    } catch { /* alarm already set */ }
+      // Schedule next alarm in 5 minutes
+      try {
+        await this.ctx.storage.setAlarm(now + 5 * 60 * 1000)
+      } catch { /* alarm already set */ }
+
+      log.debug('Alarm completed', {
+        totalConversations: index.length,
+        closedCount: closedAssignees.length,
+      })
+    } catch (err) {
+      incError('alarm')
+      log.error('Alarm failed', {
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      })
+    }
   }
 
   // --- Contact Methods (Epic 123) ---

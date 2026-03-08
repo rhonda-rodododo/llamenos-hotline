@@ -6,9 +6,14 @@
  *
  * On Cloudflare Workers, falls back to console.log (CF handles structured logging).
  * On Node.js, emits structured JSON with timestamps, levels, and component tags.
+ *
+ * Supports context binding for request correlation:
+ *   const reqLog = log.child({ requestId: 'abc-123', correlationId: 'xyz' })
+ *   reqLog.info('Processing request')
+ *   // → { ..., requestId: "abc-123", correlationId: "xyz", msg: "Processing request" }
  */
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
 const LEVEL_PRIORITY: Record<LogLevel, number> = {
   debug: 0,
@@ -29,7 +34,18 @@ interface LogEntry {
   ts: string
   component: string
   msg: string
+  requestId?: string
+  correlationId?: string
   [key: string]: unknown
+}
+
+export interface Logger {
+  debug: (msg: string, extra?: Record<string, unknown>) => void
+  info: (msg: string, extra?: Record<string, unknown>) => void
+  warn: (msg: string, extra?: Record<string, unknown>) => void
+  error: (msg: string, extra?: Record<string, unknown>) => void
+  /** Create a child logger with additional bound context fields */
+  child: (context: Record<string, unknown>) => Logger
 }
 
 function shouldLog(level: LogLevel): boolean {
@@ -62,20 +78,16 @@ function emit(entry: LogEntry): void {
 }
 
 /**
- * Create a component-scoped logger.
- *
- * @example
- * const log = createLogger('auth')
- * log.info('Token verified', { pubkey: '...' })
- * // → {"level":"info","ts":"...","component":"auth","msg":"Token verified","pubkey":"..."}
+ * Build a Logger for a given component + bound context.
  */
-export function createLogger(component: string) {
+function buildLogger(component: string, boundContext: Record<string, unknown>): Logger {
   function log(level: LogLevel, msg: string, extra?: Record<string, unknown>) {
     emit({
       level,
       ts: new Date().toISOString(),
       component,
       msg,
+      ...boundContext,
       ...extra,
     })
   }
@@ -85,5 +97,24 @@ export function createLogger(component: string) {
     info: (msg: string, extra?: Record<string, unknown>) => log('info', msg, extra),
     warn: (msg: string, extra?: Record<string, unknown>) => log('warn', msg, extra),
     error: (msg: string, extra?: Record<string, unknown>) => log('error', msg, extra),
+    child: (context: Record<string, unknown>) =>
+      buildLogger(component, { ...boundContext, ...context }),
   }
+}
+
+/**
+ * Create a component-scoped logger.
+ *
+ * @example
+ * const log = createLogger('auth')
+ * log.info('Token verified', { pubkey: '...' })
+ * // -> {"level":"info","ts":"...","component":"auth","msg":"Token verified","pubkey":"..."}
+ *
+ * // With request context binding:
+ * const reqLog = log.child({ requestId: 'abc-123' })
+ * reqLog.info('Processing')
+ * // -> {"level":"info","ts":"...","component":"auth","msg":"Processing","requestId":"abc-123"}
+ */
+export function createLogger(component: string): Logger {
+  return buildLogger(component, {})
 }

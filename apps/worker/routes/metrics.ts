@@ -1,8 +1,9 @@
 /**
- * Prometheus-compatible metrics endpoint.
+ * Metrics endpoints.
  *
- * Exposes key operational metrics at /api/metrics for scraping by
- * Prometheus, Grafana Agent, or similar collectors.
+ * Two formats:
+ * - GET /api/metrics         — JSON summary (admin-only, for dashboards)
+ * - GET /api/metrics/prometheus — Prometheus text exposition (for scrapers)
  *
  * Metrics are collected in-memory and reset on process restart.
  * On CF Workers, this endpoint returns minimal metrics (uptime only)
@@ -10,10 +11,13 @@
  */
 import { Hono } from 'hono'
 import type { AppEnv } from '../types'
+import { getErrorSummary } from '../lib/error-counter'
+import { auth } from '../middleware/auth'
+import { requirePermission } from '../middleware/permission-guard'
 
 const metrics = new Hono<AppEnv>()
 
-// In-memory counters and histograms
+// In-memory counters and histograms (Prometheus format)
 const counters: Record<string, number> = {}
 const histograms: Record<string, number[]> = {}
 
@@ -37,7 +41,7 @@ export function observeHistogram(name: string, value: number, labels?: Record<st
 }
 
 /** Format metrics as Prometheus text exposition */
-function formatMetrics(): string {
+function formatPrometheusMetrics(): string {
   const lines: string[] = []
 
   // Process uptime
@@ -46,7 +50,19 @@ function formatMetrics(): string {
   lines.push('# TYPE llamenos_uptime_seconds gauge')
   lines.push(`llamenos_uptime_seconds ${uptimeSeconds.toFixed(1)}`)
 
-  // Counters
+  // Error counters from error-counter module
+  const summary = getErrorSummary()
+  lines.push('# HELP llamenos_errors_total Total errors by category')
+  lines.push('# TYPE llamenos_errors_total counter')
+  for (const [category, count] of Object.entries(summary.errors)) {
+    lines.push(`llamenos_errors_total{category="${category}"} ${count}`)
+  }
+
+  lines.push('# HELP llamenos_requests_total Total requests processed')
+  lines.push('# TYPE llamenos_requests_total counter')
+  lines.push(`llamenos_requests_total ${summary.totalRequests}`)
+
+  // Custom counters
   for (const [key, value] of Object.entries(counters)) {
     const name = key.split('{')[0]
     if (!lines.some(l => l.includes(`# TYPE ${name}`))) {
@@ -73,10 +89,43 @@ function formatMetrics(): string {
   return lines.join('\n') + '\n'
 }
 
-metrics.get('/', (c) => {
-  return new Response(formatMetrics(), {
+// Prometheus text format — no auth (for scrapers behind network policy)
+metrics.get('/prometheus', (c) => {
+  return new Response(formatPrometheusMetrics(), {
     headers: { 'Content-Type': 'text/plain; version=0.0.4; charset=utf-8' },
   })
 })
+
+// JSON summary — admin-only
+metrics.get('/', auth, requirePermission('audit:read'), (c) => {
+  const summary = getErrorSummary()
+  const uptimeSeconds = (Date.now() - startTime) / 1000
+
+  return c.json({
+    uptime: {
+      seconds: Math.floor(uptimeSeconds),
+      formatted: formatUptime(uptimeSeconds),
+    },
+    requests: {
+      total: summary.totalRequests,
+    },
+    errors: {
+      total: summary.totalErrors,
+      byCategory: summary.errors,
+    },
+    counters: { ...counters },
+  })
+})
+
+function formatUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400)
+  const h = Math.floor((seconds % 86400) / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const parts: string[] = []
+  if (d > 0) parts.push(`${d}d`)
+  if (h > 0) parts.push(`${h}h`)
+  parts.push(`${m}m`)
+  return parts.join(' ')
+}
 
 export default metrics
