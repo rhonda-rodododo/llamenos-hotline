@@ -1800,12 +1800,26 @@
     "title": "Unlock",
     "withBiometric": "Unlock with %@"
   },
+  "updateRequired": {
+    "button": "Reload Application",
+    "message": "A newer version of this application is required. Please update to continue.",
+    "title": "Update Required"
+  },
   "updates": {
-    "available": "Update available",
+    "available": "Version {{version}} is available",
+    "details": "Details",
+    "dialogTitle": "Software Update",
     "download": "Download",
     "downloading": "Downloading update...",
-    "ready": "Update ready to install",
-    "restart": "Restart to update"
+    "later": "Later",
+    "publishedOn": "Published on {{date}}",
+    "ready": "Update ready. Restart to apply.",
+    "readyDescription": "The update has been downloaded and is ready to install. Restart the application to apply it.",
+    "releaseNotes": "Release Notes",
+    "restart": "Restart Now",
+    "skipVersion": "Skip This Version",
+    "updateNow": "Update Now",
+    "versionChange": "{{current}} → {{new}}"
   },
   "useBiometric": "Use Biometric",
   "volunteerProfile": {

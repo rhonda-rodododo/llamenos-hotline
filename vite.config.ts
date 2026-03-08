@@ -38,6 +38,7 @@ export default defineConfig({
       ...(isTestBuild ? {
         '@tauri-apps/api/core': path.resolve(__dirname, 'tests/mocks/tauri-core.ts'),
         '@tauri-apps/plugin-store': path.resolve(__dirname, 'tests/mocks/tauri-store.ts'),
+        '@tauri-apps/plugin-updater': path.resolve(__dirname, 'tests/mocks/tauri-updater.ts'),
       } : {}),
     },
     conditions: ['import', 'module', 'default'],

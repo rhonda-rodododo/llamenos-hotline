@@ -36,6 +36,7 @@
 
     "log:default",
 
-    "process:allow-exit"
+    "process:allow-exit",
+    "process:allow-restart"
   ]
 }

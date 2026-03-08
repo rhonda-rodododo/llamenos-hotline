@@ -81,7 +81,8 @@
     "dev:node:logs": "bash scripts/dev-node.sh logs",
     "migrate:status": "bun run scripts/migrate.ts status",
     "migrate:up": "bun run scripts/migrate.ts up",
-    "migrate:rollback": "bun run scripts/migrate.ts rollback"
+    "migrate:rollback": "bun run scripts/migrate.ts rollback",
+    "tauri:manifest": "bun run scripts/generate-update-manifest.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1000.0",
