@@ -1,0 +1,14 @@
+---
+- name: Test alerting
+  ansible.builtin.command: "{{ app_dir }}/alerting/test-alerts.sh"
+  become_user: "{{ deploy_user }}"
+  register: test_alert_result
+  changed_when: false
+  failed_when: false
+  listen: Test alerting
+
+- name: Display test alert result
+  ansible.builtin.debug:
+    msg: "{{ test_alert_result.stdout_lines | default(['No output']) }}"
+  when: test_alert_result is defined
+  listen: Test alerting

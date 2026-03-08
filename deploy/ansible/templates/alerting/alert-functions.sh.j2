@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+#
+# Llamenos Alert Functions — managed by Ansible
+# Do not edit manually; changes will be overwritten on next deploy.
+#
+# Shared alert dispatch functions for check-alerts.sh and test-alerts.sh.
+# Sourced (not executed) by other scripts.
+
+ALERT_PROVIDER="{{ llamenos_alerting_provider | default('ntfy') }}"
+ALERT_LOG="{{ app_dir }}/alerting/alerts.log"
+HOSTNAME_LABEL="{{ inventory_hostname | default(ansible_hostname) | default('llamenos') }}"
+
+# ── ntfy ────────────────────────────────────────────────────────────
+NTFY_URL="{{ llamenos_ntfy_url | default('https://ntfy.sh') }}"
+NTFY_TOPIC="{{ llamenos_ntfy_topic | default('llamenos-alerts') }}"
+NTFY_TOKEN="{{ llamenos_ntfy_token | default('') }}"
+
+# ── Gotify ──────────────────────────────────────────────────────────
+GOTIFY_URL="{{ llamenos_gotify_url | default('') }}"
+GOTIFY_TOKEN="{{ llamenos_gotify_token | default('') }}"
+
+# ── Email (msmtp) ──────────────────────────────────────────────────
+EMAIL_TO="{{ llamenos_alerting_email_to | default('') }}"
+EMAIL_FROM="{{ llamenos_alerting_email_from | default('alerts@llamenos.local') }}"
+
+# ── Webhook ─────────────────────────────────────────────────────────
+WEBHOOK_URL="{{ llamenos_alerting_webhook_url | default('') }}"
+
+# ── Tags ────────────────────────────────────────────────────────────
+ALERTING_TAGS="{{ llamenos_alerting_tags | default('llamenos') }}"
+
+
+log_alert() {
+  local level="$1"
+  local check="$2"
+  local message="$3"
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] [${level}] [${check}] ${message}" >> "${ALERT_LOG}"
+}
+
+send_alert() {
+  local title="$1"
+  local message="$2"
+  local priority="${3:-high}"
+  local tags="${4:-warning}"
+
+  log_alert "ALERT" "${tags}" "${title}: ${message}"
+
+  case "${ALERT_PROVIDER}" in
+    ntfy)
+      local auth_header=""
+      if [ -n "${NTFY_TOKEN}" ]; then
+        auth_header="-H \"Authorization: Bearer ${NTFY_TOKEN}\""
+      fi
+      eval curl -sf --max-time 10 \
+        -H "\"Title: ${title}\"" \
+        -H "\"Priority: ${priority}\"" \
+        -H "\"Tags: ${tags}\"" \
+        ${auth_header} \
+        -d "\"${message}\"" \
+        "\"${NTFY_URL}/${NTFY_TOPIC}\"" >/dev/null 2>&1 || true
+      ;;
+
+    gotify)
+      if [ -n "${GOTIFY_URL}" ] && [ -n "${GOTIFY_TOKEN}" ]; then
+        local gotify_priority=5
+        [ "${priority}" = "urgent" ] && gotify_priority=8
+        [ "${priority}" = "default" ] && gotify_priority=3
+        [ "${priority}" = "low" ] && gotify_priority=1
+        curl -sf --max-time 10 \
+          -X POST "${GOTIFY_URL}/message?token=${GOTIFY_TOKEN}" \
+          -H "Content-Type: application/json" \
+          -d "{\"title\": \"${title}\", \"message\": \"${message}\", \"priority\": ${gotify_priority}}" \
+          >/dev/null 2>&1 || true
+      fi
+      ;;
+
+    email)
+      if [ -n "${EMAIL_TO}" ] && command -v msmtp >/dev/null 2>&1; then
+        printf "From: %s\nTo: %s\nSubject: %s\n\n%s\n" \
+          "${EMAIL_FROM}" "${EMAIL_TO}" "${title}" "${message}" \
+          | msmtp "${EMAIL_TO}" 2>/dev/null || true
+      fi
+      ;;
+
+    webhook)
+      if [ -n "${WEBHOOK_URL}" ]; then
+        curl -sf --max-time 10 \
+          -X POST "${WEBHOOK_URL}" \
+          -H "Content-Type: application/json" \
+          -d "{\"hostname\": \"${HOSTNAME_LABEL}\", \"title\": \"${title}\", \"message\": \"${message}\", \"priority\": \"${priority}\", \"tags\": \"${tags}\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" \
+          >/dev/null 2>&1 || true
+      fi
+      ;;
+  esac
+}
+
+send_recovery() {
+  local title="$1"
+  local message="$2"
+
+  log_alert "RECOVERY" "recovery" "${title}: ${message}"
+  send_alert "${title}" "${message}" "default" "white_check_mark"
+}

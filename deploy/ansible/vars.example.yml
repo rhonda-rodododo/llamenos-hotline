@@ -306,6 +306,40 @@ llamenos_postgres_enabled: true
 # Enable/disable Caddy certificate monitoring
 llamenos_caddy_enabled: true
 
+# ─── Alerting ─────────────────────────────────────────────────────────
+# Opt-in operator alerting: cron-based health checks every 5 minutes.
+# Checks app health, disk, backups, TLS, NTP, containers, PostgreSQL.
+# State-based deduplication prevents alert spam.
+llamenos_alerting_enabled: false
+
+# Alert provider: ntfy, gotify, email, or webhook
+llamenos_alerting_provider: ntfy
+
+# ntfy settings (default provider)
+llamenos_ntfy_url: "https://ntfy.sh"
+llamenos_ntfy_topic: "llamenos-alerts"
+# llamenos_ntfy_token: ""  # Optional auth token for self-hosted ntfy
+
+# Tags included in alert metadata
+llamenos_alerting_tags: "llamenos"
+
+# Gotify settings (uncomment if using gotify provider)
+# llamenos_gotify_url: "https://gotify.yourdomain.org"
+# llamenos_gotify_token: ""
+
+# Email settings (uncomment if using email provider — requires msmtp)
+# llamenos_alerting_email_to: "oncall@yourdomain.org"
+# llamenos_alerting_email_from: "alerts@yourdomain.org"
+
+# Webhook settings (uncomment if using webhook provider)
+# llamenos_alerting_webhook_url: "https://hooks.example.com/alerting"
+
+# Health check thresholds (override defaults)
+# llamenos_alerting_app_health_url: "http://localhost:3000/api/health"
+# llamenos_alerting_tls_port: 443
+# llamenos_alerting_pg_container: "llamenos-postgres-1"
+# llamenos_alerting_pg_max_size_gb: 50
+
 # ─── Security Scanning ─────────────────────────────────────────────
 # Enable automated security updates (OS packages + container images)
 security_auto_updates: true

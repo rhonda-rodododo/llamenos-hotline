@@ -1,0 +1,467 @@
+#!/usr/bin/env bash
+#
+# Llamenos Alert Check Script — managed by Ansible
+# Do not edit manually; changes will be overwritten on next deploy.
+#
+# Runs via cron every 5 minutes. Checks 7 health signals:
+#   1. App health (HTTP /api/health)
+#   2. Disk usage
+#   3. Backup staleness
+#   4. TLS certificate expiry
+#   5. NTP drift
+#   6. Docker container health
+#   7. PostgreSQL storage size
+#
+# State-based deduplication: alerts fire on healthy->failing transitions only,
+# with 24-hour reminders for persistent failures. Recovery notifications
+# when checks return to healthy.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+STATE_FILE="${SCRIPT_DIR}/state.json"
+ALERT_LOG="${SCRIPT_DIR}/alerts.log"
+
+# Source shared alert dispatch functions
+# shellcheck source=alert-functions.sh
+source "${SCRIPT_DIR}/alert-functions.sh"
+
+# ── Configuration ────────────────────────────────────────────────────
+APP_HEALTH_URL="{{ llamenos_alerting_app_health_url | default('http://localhost:3000/api/health') }}"
+DISK_THRESHOLD="{{ llamenos_alert_disk_percent | default(85) }}"
+BACKUP_DIR="{{ app_dir }}/backups"
+BACKUP_MAX_AGE_HOURS="{{ backup_monitor_max_age_hours | default(26) }}"
+TLS_DOMAIN="{{ domain | default('') }}"
+TLS_PORT="{{ llamenos_alerting_tls_port | default(443) }}"
+CERT_EXPIRY_DAYS="{{ llamenos_alert_cert_expiry_days | default(7) }}"
+PG_CONTAINER="{{ llamenos_alerting_pg_container | default('llamenos-postgres-1') }}"
+PG_MAX_SIZE_GB="{{ llamenos_alerting_pg_max_size_gb | default(50) }}"
+COMPOSE_FILE="{{ app_dir }}/docker-compose.yml"
+REMINDER_SECONDS=86400  # 24 hours
+
+NOW="$(date +%s)"
+
+# ── State Management ─────────────────────────────────────────────────
+
+init_state() {
+  if [ ! -f "${STATE_FILE}" ]; then
+    echo '{}' > "${STATE_FILE}"
+  fi
+}
+
+get_state() {
+  local check="$1"
+  local field="$2"
+  jq -r ".\"${check}\".\"${field}\" // \"\"" "${STATE_FILE}" 2>/dev/null || echo ""
+}
+
+set_state() {
+  local check="$1"
+  local status="$2"
+  local last_alert="$3"
+  local tmp
+  tmp="$(mktemp)"
+  jq --arg c "${check}" --arg s "${status}" --arg t "${last_alert}" \
+    '.[$c] = {"status": $s, "last_alert": ($t | tonumber), "updated": (now | floor)}' \
+    "${STATE_FILE}" > "${tmp}" && mv "${tmp}" "${STATE_FILE}"
+}
+
+# Determine if we should alert:
+# - New failure (was healthy or unknown) -> alert
+# - Persistent failure past reminder window -> alert
+# - Recovery (was failing) -> recovery alert
+# Returns: "alert", "remind", "recover", or "none"
+check_transition() {
+  local check="$1"
+  local current_ok="$2"  # "true" or "false"
+
+  local prev_status
+  prev_status="$(get_state "${check}" "status")"
+  local last_alert
+  last_alert="$(get_state "${check}" "last_alert")"
+  [ -z "${last_alert}" ] && last_alert=0
+
+  if [ "${current_ok}" = "true" ]; then
+    if [ "${prev_status}" = "failing" ]; then
+      set_state "${check}" "healthy" "${NOW}"
+      echo "recover"
+    else
+      set_state "${check}" "healthy" "${last_alert}"
+      echo "none"
+    fi
+  else
+    if [ "${prev_status}" != "failing" ]; then
+      # New failure
+      set_state "${check}" "failing" "${NOW}"
+      echo "alert"
+    else
+      # Persistent failure — check reminder window
+      local elapsed=$(( NOW - last_alert ))
+      if [ "${elapsed}" -ge "${REMINDER_SECONDS}" ]; then
+        set_state "${check}" "failing" "${NOW}"
+        echo "remind"
+      else
+        echo "none"
+      fi
+    fi
+  fi
+}
+
+# ── Health Checks ────────────────────────────────────────────────────
+
+check_app_health() {
+  local check_name="app_health"
+  local ok="false"
+  local detail=""
+
+  local http_code
+  http_code="$(curl -sf -o /dev/null -w "%{http_code}" --max-time 10 "${APP_HEALTH_URL}" 2>/dev/null || echo "000")"
+
+  if [ "${http_code}" = "200" ]; then
+    ok="true"
+    detail="HTTP 200"
+  else
+    detail="HTTP ${http_code}"
+  fi
+
+  local action
+  action="$(check_transition "${check_name}" "${ok}")"
+  case "${action}" in
+    alert)
+      send_alert "[ALERT] App health check failed on ${HOSTNAME_LABEL}" \
+        "${APP_HEALTH_URL} returned ${detail}" "urgent" "rotating_light"
+      ;;
+    remind)
+      send_alert "[REMINDER] App still unhealthy on ${HOSTNAME_LABEL}" \
+        "${APP_HEALTH_URL} returned ${detail} (persistent >24h)" "high" "warning"
+      ;;
+    recover)
+      send_recovery "[RECOVERED] App health on ${HOSTNAME_LABEL}" \
+        "${APP_HEALTH_URL} is healthy again (${detail})"
+      ;;
+  esac
+}
+
+check_disk_usage() {
+  local check_name="disk_usage"
+  local ok="true"
+  local detail=""
+
+  # Check each mounted filesystem
+  while IFS= read -r line; do
+    local mount pct_str pct
+    mount="$(echo "${line}" | awk '{print $6}')"
+    pct_str="$(echo "${line}" | awk '{print $5}')"
+    pct="${pct_str%\%}"
+
+    if [ "${pct}" -ge "${DISK_THRESHOLD}" ]; then
+      ok="false"
+      detail="${detail}${mount} at ${pct}%; "
+    fi
+  done < <(df -P | tail -n +2 | grep -v -E '^(tmpfs|devtmpfs|overlay)')
+
+  if [ -z "${detail}" ]; then
+    detail="All filesystems below ${DISK_THRESHOLD}%"
+  fi
+
+  local action
+  action="$(check_transition "${check_name}" "${ok}")"
+  case "${action}" in
+    alert)
+      send_alert "[ALERT] Disk usage high on ${HOSTNAME_LABEL}" \
+        "${detail}" "urgent" "rotating_light"
+      ;;
+    remind)
+      send_alert "[REMINDER] Disk usage still high on ${HOSTNAME_LABEL}" \
+        "${detail} (persistent >24h)" "high" "warning"
+      ;;
+    recover)
+      send_recovery "[RECOVERED] Disk usage on ${HOSTNAME_LABEL}" \
+        "All filesystems back below ${DISK_THRESHOLD}%"
+      ;;
+  esac
+}
+
+check_backup_staleness() {
+  local check_name="backup_staleness"
+  local ok="true"
+  local detail=""
+  local max_age_seconds=$(( BACKUP_MAX_AGE_HOURS * 3600 ))
+
+  if [ ! -d "${BACKUP_DIR}" ]; then
+    ok="false"
+    detail="Backup directory ${BACKUP_DIR} does not exist"
+  else
+    local latest_file
+    latest_file="$(find "${BACKUP_DIR}" -maxdepth 2 -type f \( -name "*.sql.gz.age" -o -name "*.tar.gz.age" -o -name "*.jsonl.gz.age" \) -printf '%T@ %p\n' 2>/dev/null \
+      | sort -rn \
+      | head -1 \
+      | cut -d' ' -f2-)"
+
+    if [ -z "${latest_file}" ]; then
+      ok="false"
+      detail="No backup files found in ${BACKUP_DIR}"
+    else
+      local file_mtime
+      file_mtime="$(stat -c%Y "${latest_file}" 2>/dev/null || stat -f%m "${latest_file}" 2>/dev/null || echo 0)"
+      local age=$(( NOW - file_mtime ))
+      local age_hours=$(( age / 3600 ))
+
+      if [ "${age}" -gt "${max_age_seconds}" ]; then
+        ok="false"
+        detail="Latest backup is ${age_hours}h old (max: ${BACKUP_MAX_AGE_HOURS}h): $(basename "${latest_file}")"
+      else
+        detail="Latest backup is ${age_hours}h old: $(basename "${latest_file}")"
+      fi
+    fi
+  fi
+
+  local action
+  action="$(check_transition "${check_name}" "${ok}")"
+  case "${action}" in
+    alert)
+      send_alert "[ALERT] Backup stale on ${HOSTNAME_LABEL}" \
+        "${detail}" "high" "warning"
+      ;;
+    remind)
+      send_alert "[REMINDER] Backup still stale on ${HOSTNAME_LABEL}" \
+        "${detail} (persistent >24h)" "high" "warning"
+      ;;
+    recover)
+      send_recovery "[RECOVERED] Backups fresh on ${HOSTNAME_LABEL}" \
+        "${detail}"
+      ;;
+  esac
+}
+
+check_tls_expiry() {
+  local check_name="tls_expiry"
+
+  # Skip if no domain configured
+  if [ -z "${TLS_DOMAIN}" ]; then
+    return
+  fi
+
+  local ok="true"
+  local detail=""
+
+  local expiry_date
+  expiry_date="$(echo | timeout 10 openssl s_client -servername "${TLS_DOMAIN}" -connect "${TLS_DOMAIN}:${TLS_PORT}" 2>/dev/null \
+    | openssl x509 -noout -enddate 2>/dev/null \
+    | sed 's/notAfter=//')" || true
+
+  if [ -z "${expiry_date}" ]; then
+    ok="false"
+    detail="Could not retrieve TLS certificate for ${TLS_DOMAIN}:${TLS_PORT}"
+  else
+    local expiry_epoch
+    expiry_epoch="$(date -d "${expiry_date}" +%s 2>/dev/null || date -jf "%b %d %H:%M:%S %Y %Z" "${expiry_date}" +%s 2>/dev/null || echo 0)"
+    local days_left=$(( (expiry_epoch - NOW) / 86400 ))
+
+    if [ "${days_left}" -le "${CERT_EXPIRY_DAYS}" ]; then
+      ok="false"
+      detail="TLS certificate for ${TLS_DOMAIN} expires in ${days_left} days (threshold: ${CERT_EXPIRY_DAYS}d)"
+    else
+      detail="TLS certificate for ${TLS_DOMAIN} expires in ${days_left} days"
+    fi
+  fi
+
+  local action
+  action="$(check_transition "${check_name}" "${ok}")"
+  case "${action}" in
+    alert)
+      send_alert "[ALERT] TLS certificate expiring on ${HOSTNAME_LABEL}" \
+        "${detail}" "urgent" "rotating_light"
+      ;;
+    remind)
+      send_alert "[REMINDER] TLS certificate still expiring on ${HOSTNAME_LABEL}" \
+        "${detail} (persistent >24h)" "high" "warning"
+      ;;
+    recover)
+      send_recovery "[RECOVERED] TLS certificate renewed on ${HOSTNAME_LABEL}" \
+        "${detail}"
+      ;;
+  esac
+}
+
+check_ntp_drift() {
+  local check_name="ntp_drift"
+  local ok="true"
+  local detail=""
+  local max_drift_ms=500  # 500ms threshold
+
+  if command -v chronyc >/dev/null 2>&1; then
+    local offset
+    offset="$(chronyc tracking 2>/dev/null | grep 'Last offset' | awk '{print $4}' | tr -d '+-')" || true
+
+    if [ -n "${offset}" ]; then
+      # Convert seconds to milliseconds (offset is in seconds with decimals)
+      local drift_ms
+      drift_ms="$(echo "${offset}" | awk '{printf "%d", $1 * 1000}')"
+
+      if [ "${drift_ms}" -gt "${max_drift_ms}" ]; then
+        ok="false"
+        detail="NTP drift is ${drift_ms}ms (max: ${max_drift_ms}ms)"
+      else
+        detail="NTP drift is ${drift_ms}ms"
+      fi
+    else
+      detail="Could not read chrony offset"
+    fi
+  elif command -v timedatectl >/dev/null 2>&1; then
+    local synced
+    synced="$(timedatectl show -p NTPSynchronized --value 2>/dev/null || echo "unknown")"
+
+    if [ "${synced}" = "yes" ]; then
+      detail="NTP synchronized (timedatectl)"
+    elif [ "${synced}" = "no" ]; then
+      ok="false"
+      detail="NTP NOT synchronized (timedatectl)"
+    else
+      detail="NTP status unknown (timedatectl)"
+    fi
+  else
+    detail="No NTP tool available (chronyc/timedatectl)"
+    return
+  fi
+
+  local action
+  action="$(check_transition "${check_name}" "${ok}")"
+  case "${action}" in
+    alert)
+      send_alert "[ALERT] NTP drift on ${HOSTNAME_LABEL}" \
+        "${detail}" "high" "warning"
+      ;;
+    remind)
+      send_alert "[REMINDER] NTP drift persists on ${HOSTNAME_LABEL}" \
+        "${detail} (persistent >24h)" "high" "warning"
+      ;;
+    recover)
+      send_recovery "[RECOVERED] NTP drift on ${HOSTNAME_LABEL}" \
+        "${detail}"
+      ;;
+  esac
+}
+
+check_docker_containers() {
+  local check_name="docker_containers"
+  local ok="true"
+  local detail=""
+  local unhealthy_list=""
+
+  if ! command -v docker >/dev/null 2>&1; then
+    detail="Docker not available"
+    return
+  fi
+
+  # Check containers defined in the compose file
+  if [ -f "${COMPOSE_FILE}" ]; then
+    local containers
+    containers="$(docker compose -f "${COMPOSE_FILE}" ps --format json 2>/dev/null)" || true
+
+    if [ -n "${containers}" ]; then
+      while IFS= read -r container_json; do
+        local name state health
+        name="$(echo "${container_json}" | jq -r '.Name // .Service // "unknown"' 2>/dev/null)"
+        state="$(echo "${container_json}" | jq -r '.State // "unknown"' 2>/dev/null)"
+        health="$(echo "${container_json}" | jq -r '.Health // "none"' 2>/dev/null)"
+
+        if [ "${state}" != "running" ]; then
+          ok="false"
+          unhealthy_list="${unhealthy_list}${name} (${state}); "
+        elif [ "${health}" = "unhealthy" ]; then
+          ok="false"
+          unhealthy_list="${unhealthy_list}${name} (unhealthy); "
+        fi
+      done <<< "${containers}"
+    fi
+  fi
+
+  if [ "${ok}" = "true" ]; then
+    detail="All containers running"
+  else
+    detail="Unhealthy containers: ${unhealthy_list}"
+  fi
+
+  local action
+  action="$(check_transition "${check_name}" "${ok}")"
+  case "${action}" in
+    alert)
+      send_alert "[ALERT] Docker containers unhealthy on ${HOSTNAME_LABEL}" \
+        "${detail}" "urgent" "rotating_light"
+      ;;
+    remind)
+      send_alert "[REMINDER] Docker containers still unhealthy on ${HOSTNAME_LABEL}" \
+        "${detail} (persistent >24h)" "high" "warning"
+      ;;
+    recover)
+      send_recovery "[RECOVERED] Docker containers healthy on ${HOSTNAME_LABEL}" \
+        "All containers running and healthy"
+      ;;
+  esac
+}
+
+check_postgres_size() {
+  local check_name="postgres_size"
+  local ok="true"
+  local detail=""
+  local max_size_bytes=$(( PG_MAX_SIZE_GB * 1073741824 ))
+
+  if ! command -v docker >/dev/null 2>&1; then
+    return
+  fi
+
+  # Query database size inside the running PostgreSQL container
+  local db_size_bytes
+  db_size_bytes="$(timeout 10 docker exec "${PG_CONTAINER}" \
+    psql -U postgres -t -A -c "SELECT pg_database_size('llamenos');" 2>/dev/null)" || true
+
+  if [ -z "${db_size_bytes}" ]; then
+    detail="Could not query PostgreSQL size (container ${PG_CONTAINER} may not be running)"
+    # Don't alert on query failure — container health check handles that
+    return
+  fi
+
+  local db_size_mb=$(( db_size_bytes / 1048576 ))
+  local db_size_gb=$(( db_size_bytes / 1073741824 ))
+
+  if [ "${db_size_bytes}" -gt "${max_size_bytes}" ]; then
+    ok="false"
+    detail="PostgreSQL database is ${db_size_gb}GB (max: ${PG_MAX_SIZE_GB}GB)"
+  else
+    detail="PostgreSQL database is ${db_size_mb}MB"
+  fi
+
+  local action
+  action="$(check_transition "${check_name}" "${ok}")"
+  case "${action}" in
+    alert)
+      send_alert "[ALERT] PostgreSQL storage high on ${HOSTNAME_LABEL}" \
+        "${detail}" "high" "warning"
+      ;;
+    remind)
+      send_alert "[REMINDER] PostgreSQL storage still high on ${HOSTNAME_LABEL}" \
+        "${detail} (persistent >24h)" "high" "warning"
+      ;;
+    recover)
+      send_recovery "[RECOVERED] PostgreSQL storage on ${HOSTNAME_LABEL}" \
+        "${detail}"
+      ;;
+  esac
+}
+
+# ── Main ─────────────────────────────────────────────────────────────
+
+init_state
+
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Running health checks..."
+
+check_app_health
+check_disk_usage
+check_backup_staleness
+check_tls_expiry
+check_ntp_drift
+check_docker_containers
+check_postgres_size
+
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Health checks complete."

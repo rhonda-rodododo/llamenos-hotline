@@ -239,6 +239,21 @@ deploy-auto-healing *ARGS:
     ansible-playbook playbooks/deploy.yml --tags auto-healing --ask-vault-pass {{ARGS}}
 
 
+# ── Alerting ──────────────────────────────────────────────────────────
+
+# Test alert delivery
+test-alerts *ARGS:
+    ansible-playbook playbooks/deploy.yml --ask-vault-pass --tags alerting {{ARGS}}
+    ssh -t {{ ansible_host }} "{{ app_dir | default('/opt/llamenos') }}/alerting/test-alerts.sh"
+
+# View recent alerts
+alert-log *ARGS:
+    ssh {{ ansible_host }} "tail -50 {{ app_dir | default('/opt/llamenos') }}/alerting/alerts.log"
+
+# View current alert state
+alert-state *ARGS:
+    ssh {{ ansible_host }} "cat {{ app_dir | default('/opt/llamenos') }}/alerting/state.json | jq ."
+
 # Generate secrets for a new deployment
 generate-secrets:
     #!/usr/bin/env bash

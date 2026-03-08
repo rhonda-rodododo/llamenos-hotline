@@ -1,0 +1,113 @@
+---
+# Alerting role — operator alerting and notification
+#
+# Deploys a cron-based health monitoring script that checks 7 signals
+# every 5 minutes and sends alerts via ntfy, gotify, email, or webhook.
+# State-based deduplication prevents alert spam.
+#
+# Opt-in: skip entirely if llamenos_alerting_enabled is false.
+
+- name: Skip alerting if disabled
+  ansible.builtin.meta: end_role
+  when: not (llamenos_alerting_enabled | default(false) | bool)
+
+- name: Install alerting dependencies
+  ansible.builtin.apt:
+    name:
+      - jq
+      - curl
+    state: present
+    update_cache: true
+  when: ansible_os_family == 'Debian'
+
+- name: Install msmtp for email alerting
+  ansible.builtin.apt:
+    name:
+      - msmtp
+      - msmtp-mta
+    state: present
+  when:
+    - ansible_os_family == 'Debian'
+    - (llamenos_alerting_provider | default('ntfy')) == 'email'
+
+- name: Create alerting directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}/alerting"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0750"
+
+- name: Initialize state file
+  ansible.builtin.copy:
+    dest: "{{ app_dir }}/alerting/state.json"
+    content: "{}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0640"
+    force: false
+
+- name: Template alert functions
+  ansible.builtin.template:
+    src: ../../templates/alerting/alert-functions.sh.j2
+    dest: "{{ app_dir }}/alerting/alert-functions.sh"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0750"
+  notify: Test alerting
+
+- name: Template check-alerts script
+  ansible.builtin.template:
+    src: ../../templates/alerting/check-alerts.sh.j2
+    dest: "{{ app_dir }}/alerting/check-alerts.sh"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0750"
+  notify: Test alerting
+
+- name: Create test-alerts script
+  ansible.builtin.copy:
+    dest: "{{ app_dir }}/alerting/test-alerts.sh"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0750"
+    content: |
+      #!/usr/bin/env bash
+      #
+      # Llamenos Alert Test — sends a test notification via the configured provider.
+      # Usage: ./test-alerts.sh
+      set -euo pipefail
+
+      SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+      source "${SCRIPT_DIR}/alert-functions.sh"
+
+      echo "Testing alert delivery via: ${ALERT_PROVIDER}"
+      send_alert "[TEST] Alerting works on ${HOSTNAME_LABEL}" \
+        "This is a test alert from Llamenos operator alerting. If you see this, delivery is working." \
+        "default" "white_check_mark"
+      echo "Test alert sent. Check your ${ALERT_PROVIDER} client for the notification."
+
+- name: Configure cron job (every 5 minutes)
+  ansible.builtin.cron:
+    name: "Llamenos operator alerting"
+    user: "{{ deploy_user }}"
+    minute: "*/5"
+    job: "{{ app_dir }}/alerting/check-alerts.sh >> {{ app_dir }}/alerting/alerts.log 2>&1"
+    state: present
+
+- name: Configure logrotate for alert log
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/llamenos-alerting
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {{ app_dir }}/alerting/alerts.log {
+          weekly
+          rotate 8
+          compress
+          delaycompress
+          missingok
+          notifempty
+          create 0640 {{ deploy_user }} {{ deploy_group }}
+      }

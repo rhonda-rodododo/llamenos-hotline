@@ -94,3 +94,6 @@
       tags: [ntp, deploy, auto-healing]
     - role: llamenos-maintenance
       tags: [maintenance, deploy, auto-healing]
+    - role: alerting
+      tags: [alerting, deploy]
+      when: llamenos_alerting_enabled | default(false) | bool
