@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2026-03-08
+
+### Bug Fixes
+
+- seed demo accounts and setup state on DO init when DEMO_MODE enabled
+- stop false Nostr WebSocket errors and auto-lock in demo mode
+- enable SMS + Signal channels in demo mode so Conversations appears
+- improve mobile experience for marketing site
+- use port 8000 for local Docker setup instead of port 80
+- add DEV_RESET_SECRET and DEMO_MODE to E2E test environments
+- allow DO resets in development mode and fix bootstrap tests
+- pass DEV_RESET_SECRET through Node.js env shim
+- implement storage.transaction() for PostgreSQL DO shim
+
+### Features
+
+- add Signal channel to admin settings and message blasts
+- Docker-first setup with one-command script
+- add production Docker Compose overlay with TLS Caddyfile
+- add Co-op Cloud deployment method (Docker Swarm recipe)
+- add llamenos-template recipe repo with CI auto-publish
+
+### Miscellaneous
+
+- update .gitignore with monorepo build artifact patterns
+- v0.20.0 [skip ci]
+
+### Refactoring
+
+- remove deploy/coopcloud/ — recipe lives in template repo
+
 ## [0.19.2] - 2026-02-27
 
 ### Miscellaneous
