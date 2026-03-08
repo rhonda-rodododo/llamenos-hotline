@@ -62,6 +62,80 @@ struct AdminTabView: View {
                 )
             }
             .accessibilityIdentifier("admin-custom-fields")
+
+            // MARK: - Settings Section
+
+            Section(header: Text(NSLocalizedString("admin_settings_section", comment: "Settings"))) {
+                NavigationLink {
+                    ReportCategoriesView(viewModel: vm)
+                } label: {
+                    Label(
+                        NSLocalizedString("admin_report_categories", comment: "Report Categories"),
+                        systemImage: "tag.fill"
+                    )
+                }
+                .accessibilityIdentifier("admin-report-categories")
+
+                NavigationLink {
+                    TelephonySettingsView(viewModel: vm)
+                } label: {
+                    Label(
+                        NSLocalizedString("admin_telephony_settings", comment: "Telephony"),
+                        systemImage: "phone.connection.fill"
+                    )
+                }
+                .accessibilityIdentifier("admin-telephony-settings")
+
+                NavigationLink {
+                    CallSettingsView(viewModel: vm)
+                } label: {
+                    Label(
+                        NSLocalizedString("admin_call_settings", comment: "Call Settings"),
+                        systemImage: "slider.horizontal.3"
+                    )
+                }
+                .accessibilityIdentifier("admin-call-settings")
+
+                NavigationLink {
+                    IvrSettingsView(viewModel: vm)
+                } label: {
+                    Label(
+                        NSLocalizedString("admin_ivr_settings", comment: "IVR Languages"),
+                        systemImage: "globe"
+                    )
+                }
+                .accessibilityIdentifier("admin-ivr-settings")
+
+                NavigationLink {
+                    TranscriptionSettingsView(viewModel: vm)
+                } label: {
+                    Label(
+                        NSLocalizedString("admin_transcription_settings", comment: "Transcription"),
+                        systemImage: "text.word.spacing"
+                    )
+                }
+                .accessibilityIdentifier("admin-transcription-settings")
+
+                NavigationLink {
+                    SpamSettingsView(viewModel: vm)
+                } label: {
+                    Label(
+                        NSLocalizedString("admin_spam_settings", comment: "Spam Settings"),
+                        systemImage: "shield.lefthalf.filled"
+                    )
+                }
+                .accessibilityIdentifier("admin-spam-settings")
+
+                NavigationLink {
+                    SystemHealthView(viewModel: vm)
+                } label: {
+                    Label(
+                        NSLocalizedString("admin_system_health", comment: "System Health"),
+                        systemImage: "heart.text.square.fill"
+                    )
+                }
+                .accessibilityIdentifier("admin-system-health")
+            }
         }
         .navigationTitle(NSLocalizedString("admin_title", comment: "Admin"))
         .navigationBarTitleDisplayMode(.large)

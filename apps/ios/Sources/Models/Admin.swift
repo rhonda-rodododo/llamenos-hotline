@@ -249,3 +249,151 @@ struct CreateBanRequest: Encodable, Sendable {
 struct UpdateRoleRequest: Encodable, Sendable {
     let role: String
 }
+
+// MARK: - Report Category
+
+/// A report category from the API.
+struct ReportCategory: Codable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let createdAt: String?
+
+    /// Parsed creation date.
+    var createdDate: Date? {
+        guard let createdAt else { return nil }
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = isoFormatter.date(from: createdAt) { return date }
+        isoFormatter.formatOptions = [.withInternetDateTime]
+        return isoFormatter.date(from: createdAt)
+    }
+}
+
+/// API response from `GET /api/settings/report-types`.
+struct ReportCategoriesResponse: Codable, Sendable {
+    let reportTypes: [ReportCategory]
+}
+
+/// Request body for `POST /api/settings/report-types`.
+struct CreateReportCategoryRequest: Encodable, Sendable {
+    let name: String
+}
+
+// MARK: - Telephony Provider
+
+/// Supported telephony providers.
+enum TelephonyProvider: String, Codable, Sendable, CaseIterable {
+    case twilio
+    case signalwire
+    case vonage
+    case plivo
+    case asterisk
+
+    var displayName: String {
+        switch self {
+        case .twilio: return "Twilio"
+        case .signalwire: return "SignalWire"
+        case .vonage: return "Vonage"
+        case .plivo: return "Plivo"
+        case .asterisk: return "Asterisk"
+        }
+    }
+}
+
+/// Telephony provider configuration from the API.
+struct TelephonySettings: Codable, Sendable {
+    var provider: String
+    var accountSid: String
+    var authToken: String
+    var phoneNumber: String
+
+    /// Parsed provider enum.
+    var telephonyProvider: TelephonyProvider {
+        get { TelephonyProvider(rawValue: provider) ?? .twilio }
+        set { provider = newValue.rawValue }
+    }
+}
+
+// MARK: - Call Settings
+
+/// Call routing configuration from the API.
+struct CallSettings: Codable, Sendable {
+    var ringTimeout: Int
+    var maxDuration: Int
+    var parallelRingCount: Int
+}
+
+// MARK: - IVR Languages
+
+/// IVR language configuration from the API.
+struct IvrLanguages: Codable, Sendable {
+    var languages: [String: Bool]
+}
+
+// MARK: - Transcription Settings
+
+/// Transcription configuration from the API.
+struct TranscriptionSettings: Codable, Sendable {
+    var enabled: Bool
+    var allowVolunteerOptOut: Bool
+}
+
+// MARK: - Spam Settings
+
+/// Spam mitigation configuration from the API.
+struct SpamSettings: Codable, Sendable {
+    var maxCallsPerHour: Int
+    var voiceCaptchaEnabled: Bool
+    var knownNumberBypass: Bool
+}
+
+// MARK: - System Health
+
+/// System health dashboard data from the API.
+struct SystemHealth: Codable, Sendable {
+    let server: ServiceStatus
+    let services: ServiceStatus
+    let calls: ServiceStatus
+    let storage: ServiceStatus
+    let backup: ServiceStatus
+    let volunteers: ServiceStatus
+}
+
+/// Status of an individual service or subsystem.
+struct ServiceStatus: Codable, Sendable {
+    let name: String
+    let status: String
+    let details: String?
+
+    /// Parsed status for display.
+    var healthLevel: HealthLevel {
+        switch status.lowercased() {
+        case "healthy", "ok", "up": return .healthy
+        case "degraded", "warning", "slow": return .degraded
+        default: return .critical
+        }
+    }
+}
+
+/// Health level for status indicators.
+enum HealthLevel: Sendable {
+    case healthy
+    case degraded
+    case critical
+
+    var color: String {
+        switch self {
+        case .healthy: return "green"
+        case .degraded: return "yellow"
+        case .critical: return "red"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .healthy: return "checkmark.circle.fill"
+        case .degraded: return "exclamationmark.triangle.fill"
+        case .critical: return "xmark.circle.fill"
+        }
+    }
+}

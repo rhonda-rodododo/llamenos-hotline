@@ -10,6 +10,13 @@ enum AdminTab: String, CaseIterable, Sendable {
     case auditLog
     case invites
     case customFields
+    case reportCategories
+    case telephonySettings
+    case callSettings
+    case ivrSettings
+    case transcriptionSettings
+    case spamSettings
+    case systemHealth
 
     var title: String {
         switch self {
@@ -18,6 +25,13 @@ enum AdminTab: String, CaseIterable, Sendable {
         case .auditLog: return NSLocalizedString("admin_tab_audit", comment: "Audit Log")
         case .invites: return NSLocalizedString("admin_tab_invites", comment: "Invites")
         case .customFields: return NSLocalizedString("admin_tab_fields", comment: "Fields")
+        case .reportCategories: return NSLocalizedString("admin_report_categories", comment: "Report Categories")
+        case .telephonySettings: return NSLocalizedString("admin_telephony_settings", comment: "Telephony")
+        case .callSettings: return NSLocalizedString("admin_call_settings", comment: "Call Settings")
+        case .ivrSettings: return NSLocalizedString("admin_ivr_settings", comment: "IVR Languages")
+        case .transcriptionSettings: return NSLocalizedString("admin_transcription_settings", comment: "Transcription")
+        case .spamSettings: return NSLocalizedString("admin_spam_settings", comment: "Spam Settings")
+        case .systemHealth: return NSLocalizedString("admin_system_health", comment: "System Health")
         }
     }
 
@@ -28,6 +42,13 @@ enum AdminTab: String, CaseIterable, Sendable {
         case .auditLog: return "list.clipboard.fill"
         case .invites: return "envelope.open.fill"
         case .customFields: return "list.bullet.rectangle.fill"
+        case .reportCategories: return "tag.fill"
+        case .telephonySettings: return "phone.connection.fill"
+        case .callSettings: return "slider.horizontal.3"
+        case .ivrSettings: return "globe"
+        case .transcriptionSettings: return "text.word.spacing"
+        case .spamSettings: return "shield.lefthalf.filled"
+        case .systemHealth: return "heart.text.square.fill"
         }
     }
 }
@@ -130,6 +151,91 @@ final class AdminViewModel {
 
     /// The field being edited (nil for create).
     var editingField: CustomFieldDefinition?
+
+    // MARK: - Report Categories State
+
+    /// All report categories from the server.
+    var reportCategories: [ReportCategory] = []
+
+    /// Whether report categories are loading.
+    var isLoadingReportCategories: Bool = false
+
+    /// Whether the new category alert is showing.
+    var showNewCategoryAlert: Bool = false
+
+    /// Input for new category name.
+    var newCategoryName: String = ""
+
+    // MARK: - Telephony Settings State
+
+    /// Current telephony configuration.
+    var telephonySettings: TelephonySettings = TelephonySettings(
+        provider: "twilio", accountSid: "", authToken: "", phoneNumber: ""
+    )
+
+    /// Whether telephony settings are loading.
+    var isLoadingTelephony: Bool = false
+
+    /// Whether telephony settings are being saved.
+    var isSavingTelephony: Bool = false
+
+    // MARK: - Call Settings State
+
+    /// Current call routing configuration.
+    var callSettings: CallSettings = CallSettings(
+        ringTimeout: 30, maxDuration: 60, parallelRingCount: 5
+    )
+
+    /// Whether call settings are loading.
+    var isLoadingCallSettings: Bool = false
+
+    /// Whether call settings are being saved.
+    var isSavingCallSettings: Bool = false
+
+    // MARK: - IVR Languages State
+
+    /// Current IVR language configuration (language code → enabled).
+    var ivrLanguages: [String: Bool] = [:]
+
+    /// Whether IVR languages are loading.
+    var isLoadingIvrLanguages: Bool = false
+
+    /// Whether IVR languages are being saved.
+    var isSavingIvrLanguages: Bool = false
+
+    // MARK: - Transcription Settings State
+
+    /// Current transcription configuration.
+    var transcriptionSettings: TranscriptionSettings = TranscriptionSettings(
+        enabled: false, allowVolunteerOptOut: false
+    )
+
+    /// Whether transcription settings are loading.
+    var isLoadingTranscription: Bool = false
+
+    /// Whether transcription settings are being saved.
+    var isSavingTranscription: Bool = false
+
+    // MARK: - Spam Settings State
+
+    /// Current spam mitigation configuration.
+    var spamSettings: SpamSettings = SpamSettings(
+        maxCallsPerHour: 10, voiceCaptchaEnabled: false, knownNumberBypass: false
+    )
+
+    /// Whether spam settings are loading.
+    var isLoadingSpamSettings: Bool = false
+
+    /// Whether spam settings are being saved.
+    var isSavingSpamSettings: Bool = false
+
+    // MARK: - System Health State
+
+    /// Current system health data.
+    var systemHealth: SystemHealth?
+
+    /// Whether system health is loading.
+    var isLoadingHealth: Bool = false
 
     // MARK: - Shared State
 
@@ -440,6 +546,382 @@ final class AdminViewModel {
         await saveCustomFields()
     }
 
+    // MARK: - Report Categories
+
+    /// Load all report categories from the API.
+    func loadReportCategories() async {
+        guard !isLoadingReportCategories else { return }
+        isLoadingReportCategories = true
+        errorMessage = nil
+
+        do {
+            let response: ReportCategoriesResponse = try await apiService.request(
+                method: "GET",
+                path: "/api/settings/report-types"
+            )
+            reportCategories = response.reportTypes.sorted { lhs, rhs in
+                lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoadingReportCategories = false
+    }
+
+    /// Create a new report category.
+    func createReportCategory(name: String) async {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            errorMessage = NSLocalizedString(
+                "admin_category_name_required",
+                comment: "Category name is required"
+            )
+            return
+        }
+
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            let request = CreateReportCategoryRequest(name: trimmed)
+            try await apiService.request(
+                method: "POST",
+                path: "/api/settings/report-types",
+                body: request
+            )
+
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+
+            newCategoryName = ""
+            successMessage = NSLocalizedString(
+                "admin_category_created",
+                comment: "Report category created"
+            )
+            await loadReportCategories()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Delete a report category by ID.
+    func deleteReportCategory(id: String) async {
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            try await apiService.request(
+                method: "DELETE",
+                path: "/api/settings/report-types/\(id)"
+            )
+
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+
+            successMessage = NSLocalizedString(
+                "admin_category_deleted",
+                comment: "Report category deleted"
+            )
+            await loadReportCategories()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Telephony Settings
+
+    /// Load telephony settings from the API.
+    func loadTelephonySettings() async {
+        guard !isLoadingTelephony else { return }
+        isLoadingTelephony = true
+        errorMessage = nil
+
+        do {
+            let settings: TelephonySettings = try await apiService.request(
+                method: "GET",
+                path: "/api/settings/telephony"
+            )
+            telephonySettings = settings
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoadingTelephony = false
+    }
+
+    /// Save telephony settings to the API.
+    func saveTelephonySettings() async {
+        isSavingTelephony = true
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            try await apiService.request(
+                method: "PUT",
+                path: "/api/settings/telephony",
+                body: telephonySettings
+            )
+
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+
+            successMessage = NSLocalizedString(
+                "admin_telephony_saved",
+                comment: "Telephony settings saved"
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isSavingTelephony = false
+    }
+
+    // MARK: - Call Settings
+
+    /// Load call settings from the API.
+    func loadCallSettings() async {
+        guard !isLoadingCallSettings else { return }
+        isLoadingCallSettings = true
+        errorMessage = nil
+
+        do {
+            let settings: CallSettings = try await apiService.request(
+                method: "GET",
+                path: "/api/settings/call"
+            )
+            callSettings = settings
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoadingCallSettings = false
+    }
+
+    /// Save call settings to the API.
+    func saveCallSettings() async {
+        isSavingCallSettings = true
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            try await apiService.request(
+                method: "PUT",
+                path: "/api/settings/call",
+                body: callSettings
+            )
+
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+
+            successMessage = NSLocalizedString(
+                "admin_call_settings_saved",
+                comment: "Call settings saved"
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isSavingCallSettings = false
+    }
+
+    // MARK: - IVR Languages
+
+    /// Load IVR language settings from the API.
+    func loadIvrLanguages() async {
+        guard !isLoadingIvrLanguages else { return }
+        isLoadingIvrLanguages = true
+        errorMessage = nil
+
+        do {
+            let response: IvrLanguages = try await apiService.request(
+                method: "GET",
+                path: "/api/settings/ivr-languages"
+            )
+            ivrLanguages = response.languages
+        } catch {
+            // Initialize with defaults if endpoint returns no data
+            if ivrLanguages.isEmpty {
+                for code in Self.supportedLanguages.map(\.code) {
+                    ivrLanguages[code] = code == "en" || code == "es"
+                }
+            }
+            errorMessage = error.localizedDescription
+        }
+
+        isLoadingIvrLanguages = false
+    }
+
+    /// Save IVR language settings to the API.
+    func saveIvrLanguages() async {
+        isSavingIvrLanguages = true
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            let body = IvrLanguages(languages: ivrLanguages)
+            try await apiService.request(
+                method: "PUT",
+                path: "/api/settings/ivr-languages",
+                body: body
+            )
+
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+
+            successMessage = NSLocalizedString(
+                "admin_ivr_saved",
+                comment: "IVR language settings saved"
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isSavingIvrLanguages = false
+    }
+
+    /// Supported IVR languages with display names.
+    static let supportedLanguages: [(code: String, name: String)] = [
+        ("en", "English"),
+        ("es", "Spanish"),
+        ("zh", "Chinese"),
+        ("tl", "Tagalog"),
+        ("vi", "Vietnamese"),
+        ("ar", "Arabic"),
+        ("fr", "French"),
+        ("ht", "Haitian Creole"),
+        ("ko", "Korean"),
+        ("ru", "Russian"),
+        ("hi", "Hindi"),
+        ("pt", "Portuguese"),
+        ("de", "German"),
+    ]
+
+    // MARK: - Transcription Settings
+
+    /// Load transcription settings from the API.
+    func loadTranscriptionSettings() async {
+        guard !isLoadingTranscription else { return }
+        isLoadingTranscription = true
+        errorMessage = nil
+
+        do {
+            let settings: TranscriptionSettings = try await apiService.request(
+                method: "GET",
+                path: "/api/settings/transcription"
+            )
+            transcriptionSettings = settings
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoadingTranscription = false
+    }
+
+    /// Save transcription settings to the API.
+    func saveTranscriptionSettings() async {
+        isSavingTranscription = true
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            try await apiService.request(
+                method: "PUT",
+                path: "/api/settings/transcription",
+                body: transcriptionSettings
+            )
+
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+
+            successMessage = NSLocalizedString(
+                "admin_transcription_saved",
+                comment: "Transcription settings saved"
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isSavingTranscription = false
+    }
+
+    // MARK: - Spam Settings
+
+    /// Load spam settings from the API.
+    func loadSpamSettings() async {
+        guard !isLoadingSpamSettings else { return }
+        isLoadingSpamSettings = true
+        errorMessage = nil
+
+        do {
+            let settings: SpamSettings = try await apiService.request(
+                method: "GET",
+                path: "/api/settings/spam"
+            )
+            spamSettings = settings
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoadingSpamSettings = false
+    }
+
+    /// Save spam settings to the API.
+    func saveSpamSettings() async {
+        isSavingSpamSettings = true
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            try await apiService.request(
+                method: "PUT",
+                path: "/api/settings/spam",
+                body: spamSettings
+            )
+
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+
+            successMessage = NSLocalizedString(
+                "admin_spam_saved",
+                comment: "Spam settings saved"
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isSavingSpamSettings = false
+    }
+
+    // MARK: - System Health
+
+    /// Load system health data from the API.
+    func loadSystemHealth() async {
+        guard !isLoadingHealth else { return }
+        isLoadingHealth = true
+        errorMessage = nil
+
+        do {
+            let health: SystemHealth = try await apiService.request(
+                method: "GET",
+                path: "/api/system/health"
+            )
+            systemHealth = health
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoadingHealth = false
+    }
+
+    // MARK: - Recording URL
+
+    /// Build a streaming URL for a recording.
+    func recordingStreamURL(recordingId: String) -> URL? {
+        guard let baseURL = apiService.baseURL else { return nil }
+        return baseURL.appendingPathComponent("/api/recordings/\(recordingId)/stream")
+    }
+
     // MARK: - Deletion Confirmation
 
     /// Request confirmation for a destructive action.
@@ -456,6 +938,8 @@ final class AdminViewModel {
         switch type {
         case .ban:
             await removeBan(id: id)
+        case .reportCategory:
+            await deleteReportCategory(id: id)
         }
 
         pendingDeleteId = nil
@@ -476,4 +960,5 @@ final class AdminViewModel {
 /// Types of items that can be deleted in the admin section.
 enum DeleteType: Sendable {
     case ban
+    case reportCategory
 }

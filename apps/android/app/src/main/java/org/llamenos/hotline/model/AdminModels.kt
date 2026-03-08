@@ -214,3 +214,194 @@ data class CustomFieldsResponse(
 data class UpdateCustomFieldsRequest(
     val fields: List<org.llamenos.hotline.model.CustomFieldDefinition>,
 )
+
+// ---- Report Categories (Settings) ----
+
+/**
+ * A report category with an ID and name, managed via admin settings.
+ */
+@Serializable
+data class ReportCategory(
+    val id: String,
+    val name: String,
+    val createdAt: String? = null,
+)
+
+/**
+ * Response from GET /api/settings/report-types.
+ */
+@Serializable
+data class ReportTypesResponse(
+    val categories: List<ReportCategory>,
+)
+
+/**
+ * Request body for POST /api/settings/report-types.
+ */
+@Serializable
+data class CreateReportCategoryRequest(
+    val name: String,
+)
+
+// ---- Telephony Settings ----
+
+/**
+ * Request body for PUT /api/settings/telephony.
+ */
+@Serializable
+data class TelephonySettingsRequest(
+    val provider: String,
+    val accountSid: String,
+    val authToken: String,
+    val phoneNumber: String,
+)
+
+/**
+ * Response from GET /api/settings/telephony.
+ */
+@Serializable
+data class TelephonySettingsResponse(
+    val provider: String = "twilio",
+    val accountSid: String = "",
+    val authToken: String = "",
+    val phoneNumber: String = "",
+)
+
+// ---- Call Settings ----
+
+/**
+ * Request body for PUT /api/settings/call.
+ */
+@Serializable
+data class CallSettingsRequest(
+    val ringTimeout: Int,
+    val maxCallDuration: Int,
+    val parallelRingCount: Int,
+)
+
+/**
+ * Response from GET /api/settings/call.
+ */
+@Serializable
+data class CallSettingsResponse(
+    val ringTimeout: Int = 30,
+    val maxCallDuration: Int = 60,
+    val parallelRingCount: Int = 3,
+)
+
+// ---- IVR Language Settings ----
+
+/**
+ * Request body for PUT /api/settings/ivr-languages.
+ */
+@Serializable
+data class IvrLanguagesRequest(
+    val languages: Map<String, Boolean>,
+)
+
+/**
+ * Response from GET /api/settings/ivr-languages.
+ */
+@Serializable
+data class IvrLanguagesResponse(
+    val languages: Map<String, Boolean> = emptyMap(),
+)
+
+// ---- Spam Settings ----
+
+/**
+ * Request body for PUT /api/settings/spam.
+ */
+@Serializable
+data class SpamSettingsRequest(
+    val maxCallsPerHour: Int,
+    val voiceCaptchaEnabled: Boolean,
+    val knownNumberBypass: Boolean,
+)
+
+/**
+ * Response from GET /api/settings/spam.
+ */
+@Serializable
+data class SpamSettingsResponse(
+    val maxCallsPerHour: Int = 10,
+    val voiceCaptchaEnabled: Boolean = false,
+    val knownNumberBypass: Boolean = true,
+)
+
+// ---- System Health ----
+
+/**
+ * Aggregate system health response from GET /api/system/health.
+ */
+@Serializable
+data class SystemHealth(
+    val server: ServerHealth,
+    val services: List<ServiceStatus>,
+    val calls: CallMetrics,
+    val storage: StorageInfo,
+    val backup: BackupInfo,
+    val volunteers: VolunteerInfo,
+    val timestamp: String,
+)
+
+/**
+ * Server-level health information.
+ */
+@Serializable
+data class ServerHealth(
+    val status: String,
+    val uptime: Int,
+    val version: String,
+)
+
+/**
+ * Status of an individual service (e.g., database, relay, telephony).
+ */
+@Serializable
+data class ServiceStatus(
+    val name: String,
+    val status: String,
+    val details: String? = null,
+)
+
+/**
+ * Call metrics for the current day.
+ */
+@Serializable
+data class CallMetrics(
+    val today: Int,
+    val active: Int,
+    val avgResponseSeconds: Int,
+    val missed: Int,
+)
+
+/**
+ * Storage usage information.
+ */
+@Serializable
+data class StorageInfo(
+    val dbSize: String,
+    val blobStorage: String,
+)
+
+/**
+ * Backup status information.
+ */
+@Serializable
+data class BackupInfo(
+    val lastBackup: String?,
+    val backupSize: String,
+    val lastVerify: String?,
+)
+
+/**
+ * Volunteer activity summary.
+ */
+@Serializable
+data class VolunteerInfo(
+    val totalActive: Int,
+    val onlineNow: Int,
+    val onShift: Int,
+    val shiftCoverage: Int,
+)

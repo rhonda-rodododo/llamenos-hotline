@@ -98,6 +98,7 @@ fun AdminScreen(
                                     AdminTab.FIELDS -> stringResource(R.string.admin_fields)
                                     AdminTab.SHIFTS -> stringResource(R.string.shifts_schedule)
                                     AdminTab.SETTINGS -> stringResource(R.string.settings_title)
+                                    AdminTab.SYSTEM_HEALTH -> stringResource(R.string.admin_system_health)
                                 },
                             )
                         },
@@ -121,6 +122,7 @@ fun AdminScreen(
                     onNavigateToShiftDetail = onNavigateToShiftDetail,
                 )
                 AdminTab.SETTINGS -> AdminSettingsTab(viewModel = viewModel)
+                AdminTab.SYSTEM_HEALTH -> SystemHealthTab(viewModel = viewModel)
             }
         }
     }

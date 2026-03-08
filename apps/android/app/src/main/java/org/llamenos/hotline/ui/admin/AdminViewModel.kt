@@ -15,7 +15,10 @@ import org.llamenos.hotline.model.AuditLogResponse
 import org.llamenos.hotline.model.BanEntry
 import org.llamenos.hotline.model.BanListResponse
 import org.llamenos.hotline.model.BulkBanRequest
+import org.llamenos.hotline.model.CallSettingsRequest
+import org.llamenos.hotline.model.CallSettingsResponse
 import org.llamenos.hotline.model.CreateInviteRequest
+import org.llamenos.hotline.model.CreateReportCategoryRequest
 import org.llamenos.hotline.model.CreateShiftRequest
 import org.llamenos.hotline.model.CreateVolunteerRequest
 import org.llamenos.hotline.model.CreateVolunteerResponse
@@ -24,8 +27,17 @@ import org.llamenos.hotline.model.CustomFieldsResponse
 import org.llamenos.hotline.model.FallbackGroupRequest
 import org.llamenos.hotline.model.Invite
 import org.llamenos.hotline.model.InvitesListResponse
+import org.llamenos.hotline.model.IvrLanguagesRequest
+import org.llamenos.hotline.model.IvrLanguagesResponse
 import org.llamenos.hotline.model.AdminShiftDetail
 import org.llamenos.hotline.model.AdminShiftsListResponse
+import org.llamenos.hotline.model.ReportCategory
+import org.llamenos.hotline.model.ReportTypesResponse
+import org.llamenos.hotline.model.SpamSettingsRequest
+import org.llamenos.hotline.model.SpamSettingsResponse
+import org.llamenos.hotline.model.SystemHealth
+import org.llamenos.hotline.model.TelephonySettingsRequest
+import org.llamenos.hotline.model.TelephonySettingsResponse
 import org.llamenos.hotline.model.UpdateCustomFieldsRequest
 import org.llamenos.hotline.model.Volunteer
 import org.llamenos.hotline.model.VolunteersListResponse
@@ -42,6 +54,7 @@ enum class AdminTab {
     FIELDS,
     SHIFTS,
     SETTINGS,
+    SYSTEM_HEALTH,
 }
 
 data class AdminUiState(
@@ -94,11 +107,49 @@ data class AdminUiState(
     val showCreateShiftDialog: Boolean = false,
     val editingShift: AdminShiftDetail? = null,
 
-    // Admin settings (transcription, spam)
+    // Admin settings (transcription)
     val transcriptionEnabled: Boolean = false,
     val transcriptionOptOut: Boolean = false,
     val isLoadingSettings: Boolean = false,
     val settingsError: String? = null,
+
+    // Report categories
+    val reportCategories: List<ReportCategory> = emptyList(),
+    val isLoadingCategories: Boolean = false,
+    val categoriesError: String? = null,
+    val showAddCategoryDialog: Boolean = false,
+
+    // Telephony settings
+    val telephonyProvider: String = "twilio",
+    val telephonyAccountSid: String = "",
+    val telephonyAuthToken: String = "",
+    val telephonyPhoneNumber: String = "",
+    val isLoadingTelephony: Boolean = false,
+    val telephonyError: String? = null,
+
+    // Call settings
+    val ringTimeout: Int = 30,
+    val maxCallDuration: Int = 60,
+    val parallelRingCount: Int = 3,
+    val isLoadingCallSettings: Boolean = false,
+    val callSettingsError: String? = null,
+
+    // IVR languages
+    val ivrLanguages: Map<String, Boolean> = emptyMap(),
+    val isLoadingIvrLanguages: Boolean = false,
+    val ivrLanguagesError: String? = null,
+
+    // Spam settings
+    val maxCallsPerHour: Int = 10,
+    val voiceCaptchaEnabled: Boolean = false,
+    val knownNumberBypass: Boolean = true,
+    val isLoadingSpamSettings: Boolean = false,
+    val spamSettingsError: String? = null,
+
+    // System health
+    val systemHealth: SystemHealth? = null,
+    val isLoadingHealth: Boolean = false,
+    val healthError: String? = null,
 )
 
 /**
@@ -133,6 +184,7 @@ class AdminViewModel @Inject constructor(
             AdminTab.FIELDS -> loadCustomFields()
             AdminTab.SHIFTS -> loadAdminShifts()
             AdminTab.SETTINGS -> loadAdminSettings()
+            AdminTab.SYSTEM_HEALTH -> loadSystemHealth()
         }
     }
 
@@ -650,6 +702,12 @@ class AdminViewModel @Inject constructor(
                 }
             }
         }
+        // Load all settings sub-sections in parallel
+        loadReportCategories()
+        loadTelephonySettings()
+        loadCallSettings()
+        loadIvrLanguages()
+        loadSpamSettings()
     }
 
     fun toggleTranscription(enabled: Boolean) {
@@ -683,6 +741,315 @@ class AdminViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(settingsError = e.message ?: "Failed to update opt-out setting")
+                }
+            }
+        }
+    }
+
+    // ---- Report Categories ----
+
+    fun loadReportCategories() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingCategories = true, categoriesError = null) }
+            try {
+                val response = apiService.request<ReportTypesResponse>(
+                    "GET", "/api/settings/report-types",
+                )
+                _uiState.update {
+                    it.copy(reportCategories = response.categories, isLoadingCategories = false)
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoadingCategories = false,
+                        categoriesError = e.message ?: "Failed to load report categories",
+                    )
+                }
+            }
+        }
+    }
+
+    fun showAddCategoryDialog() {
+        _uiState.update { it.copy(showAddCategoryDialog = true) }
+    }
+
+    fun dismissAddCategoryDialog() {
+        _uiState.update { it.copy(showAddCategoryDialog = false) }
+    }
+
+    fun addReportCategory(name: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(showAddCategoryDialog = false, categoriesError = null) }
+            try {
+                val request = CreateReportCategoryRequest(name = name)
+                apiService.requestNoContent("POST", "/api/settings/report-types", request)
+                loadReportCategories()
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(categoriesError = e.message ?: "Failed to add category")
+                }
+            }
+        }
+    }
+
+    fun deleteReportCategory(categoryId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(categoriesError = null) }
+            try {
+                apiService.requestNoContent("DELETE", "/api/settings/report-types/$categoryId")
+                loadReportCategories()
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(categoriesError = e.message ?: "Failed to delete category")
+                }
+            }
+        }
+    }
+
+    // ---- Telephony Settings ----
+
+    fun loadTelephonySettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingTelephony = true, telephonyError = null) }
+            try {
+                val response = apiService.request<TelephonySettingsResponse>(
+                    "GET", "/api/settings/telephony",
+                )
+                _uiState.update {
+                    it.copy(
+                        telephonyProvider = response.provider,
+                        telephonyAccountSid = response.accountSid,
+                        telephonyAuthToken = response.authToken,
+                        telephonyPhoneNumber = response.phoneNumber,
+                        isLoadingTelephony = false,
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoadingTelephony = false,
+                        telephonyError = e.message ?: "Failed to load telephony settings",
+                    )
+                }
+            }
+        }
+    }
+
+    fun updateTelephonyProvider(provider: String) {
+        _uiState.update { it.copy(telephonyProvider = provider) }
+    }
+
+    fun updateTelephonyAccountSid(value: String) {
+        _uiState.update { it.copy(telephonyAccountSid = value) }
+    }
+
+    fun updateTelephonyAuthToken(value: String) {
+        _uiState.update { it.copy(telephonyAuthToken = value) }
+    }
+
+    fun updateTelephonyPhoneNumber(value: String) {
+        _uiState.update { it.copy(telephonyPhoneNumber = value) }
+    }
+
+    fun saveTelephonySettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(telephonyError = null) }
+            try {
+                val state = _uiState.value
+                val request = TelephonySettingsRequest(
+                    provider = state.telephonyProvider,
+                    accountSid = state.telephonyAccountSid,
+                    authToken = state.telephonyAuthToken,
+                    phoneNumber = state.telephonyPhoneNumber,
+                )
+                apiService.requestNoContent("PUT", "/api/settings/telephony", request)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(telephonyError = e.message ?: "Failed to save telephony settings")
+                }
+            }
+        }
+    }
+
+    // ---- Call Settings ----
+
+    fun loadCallSettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingCallSettings = true, callSettingsError = null) }
+            try {
+                val response = apiService.request<CallSettingsResponse>(
+                    "GET", "/api/settings/call",
+                )
+                _uiState.update {
+                    it.copy(
+                        ringTimeout = response.ringTimeout,
+                        maxCallDuration = response.maxCallDuration,
+                        parallelRingCount = response.parallelRingCount,
+                        isLoadingCallSettings = false,
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoadingCallSettings = false,
+                        callSettingsError = e.message ?: "Failed to load call settings",
+                    )
+                }
+            }
+        }
+    }
+
+    fun updateRingTimeout(value: Int) {
+        _uiState.update { it.copy(ringTimeout = value) }
+    }
+
+    fun updateMaxCallDuration(value: Int) {
+        _uiState.update { it.copy(maxCallDuration = value) }
+    }
+
+    fun updateParallelRingCount(value: Int) {
+        _uiState.update { it.copy(parallelRingCount = value) }
+    }
+
+    fun saveCallSettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(callSettingsError = null) }
+            try {
+                val state = _uiState.value
+                val request = CallSettingsRequest(
+                    ringTimeout = state.ringTimeout,
+                    maxCallDuration = state.maxCallDuration,
+                    parallelRingCount = state.parallelRingCount,
+                )
+                apiService.requestNoContent("PUT", "/api/settings/call", request)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(callSettingsError = e.message ?: "Failed to save call settings")
+                }
+            }
+        }
+    }
+
+    // ---- IVR Languages ----
+
+    fun loadIvrLanguages() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingIvrLanguages = true, ivrLanguagesError = null) }
+            try {
+                val response = apiService.request<IvrLanguagesResponse>(
+                    "GET", "/api/settings/ivr-languages",
+                )
+                _uiState.update {
+                    it.copy(ivrLanguages = response.languages, isLoadingIvrLanguages = false)
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoadingIvrLanguages = false,
+                        ivrLanguagesError = e.message ?: "Failed to load IVR languages",
+                    )
+                }
+            }
+        }
+    }
+
+    fun toggleIvrLanguage(code: String, enabled: Boolean) {
+        _uiState.update {
+            it.copy(ivrLanguages = it.ivrLanguages + (code to enabled))
+        }
+    }
+
+    fun saveIvrLanguages() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(ivrLanguagesError = null) }
+            try {
+                val request = IvrLanguagesRequest(languages = _uiState.value.ivrLanguages)
+                apiService.requestNoContent("PUT", "/api/settings/ivr-languages", request)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(ivrLanguagesError = e.message ?: "Failed to save IVR languages")
+                }
+            }
+        }
+    }
+
+    // ---- Spam Settings ----
+
+    fun loadSpamSettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingSpamSettings = true, spamSettingsError = null) }
+            try {
+                val response = apiService.request<SpamSettingsResponse>(
+                    "GET", "/api/settings/spam",
+                )
+                _uiState.update {
+                    it.copy(
+                        maxCallsPerHour = response.maxCallsPerHour,
+                        voiceCaptchaEnabled = response.voiceCaptchaEnabled,
+                        knownNumberBypass = response.knownNumberBypass,
+                        isLoadingSpamSettings = false,
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoadingSpamSettings = false,
+                        spamSettingsError = e.message ?: "Failed to load spam settings",
+                    )
+                }
+            }
+        }
+    }
+
+    fun updateMaxCallsPerHour(value: Int) {
+        _uiState.update { it.copy(maxCallsPerHour = value) }
+    }
+
+    fun toggleVoiceCaptcha(enabled: Boolean) {
+        _uiState.update { it.copy(voiceCaptchaEnabled = enabled) }
+    }
+
+    fun toggleKnownNumberBypass(enabled: Boolean) {
+        _uiState.update { it.copy(knownNumberBypass = enabled) }
+    }
+
+    fun saveSpamSettings() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(spamSettingsError = null) }
+            try {
+                val state = _uiState.value
+                val request = SpamSettingsRequest(
+                    maxCallsPerHour = state.maxCallsPerHour,
+                    voiceCaptchaEnabled = state.voiceCaptchaEnabled,
+                    knownNumberBypass = state.knownNumberBypass,
+                )
+                apiService.requestNoContent("PUT", "/api/settings/spam", request)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(spamSettingsError = e.message ?: "Failed to save spam settings")
+                }
+            }
+        }
+    }
+
+    // ---- System Health ----
+
+    fun loadSystemHealth() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingHealth = true, healthError = null) }
+            try {
+                val response = apiService.request<SystemHealth>(
+                    "GET", "/api/system/health",
+                )
+                _uiState.update {
+                    it.copy(systemHealth = response, isLoadingHealth = false)
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoadingHealth = false,
+                        healthError = e.message ?: "Failed to load system health",
+                    )
                 }
             }
         }
