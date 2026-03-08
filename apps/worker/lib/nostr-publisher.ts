@@ -16,6 +16,8 @@ import { hkdf } from '@noble/hashes/hkdf.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { LABEL_SERVER_NOSTR_KEY, LABEL_SERVER_NOSTR_KEY_INFO } from '@shared/crypto-labels'
+import { withRetry, isRetryableError, RetryableError } from './retry'
+import { getCircuitBreaker } from './circuit-breaker'
 
 /**
  * NostrPublisher interface — all platform implementations must satisfy this.
@@ -84,16 +86,41 @@ export class CFNostrPublisher implements NostrPublisher {
   async publish(template: EventTemplate): Promise<void> {
     const event = signServerEvent(template, this.secretKey)
 
-    const res = await this.relayBinding.fetch(new Request('http://relay/publish', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(event),
-    }))
+    const breaker = getCircuitBreaker({
+      name: 'nostr:relay',
+      failureThreshold: 5,
+      resetTimeoutMs: 30_000,
+    })
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => 'unknown error')
-      throw new Error(`Relay rejected event (kind=${template.kind}): ${text}`)
-    }
+    await breaker.execute(() =>
+      withRetry(
+        async () => {
+          const res = await this.relayBinding.fetch(new Request('http://relay/publish', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(event),
+          }))
+
+          if (!res.ok) {
+            const text = await res.text().catch(() => 'unknown error')
+            const status = res.status
+            if (status === 429 || status >= 500) {
+              throw new RetryableError(`Relay rejected event (kind=${template.kind}): ${text}`, status)
+            }
+            throw new Error(`Relay rejected event (kind=${template.kind}): ${text}`)
+          }
+        },
+        {
+          maxAttempts: 3,
+          baseDelayMs: 200,
+          maxDelayMs: 2000,
+          isRetryable: isRetryableError,
+          onRetry: (attempt, error) => {
+            console.warn(`[nostr-publisher] Relay publish retry ${attempt} (kind=${template.kind}):`, error)
+          },
+        },
+      )
+    )
   }
 
   close(): void {

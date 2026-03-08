@@ -7,6 +7,9 @@ import { requirePermission, checkPermission } from '../middleware/permission-gua
 import { validateBody } from '../middleware/validate'
 import { uploadInitBodySchema } from '../schemas/uploads'
 import { audit } from '../services/audit'
+import { withRetry, isRetryableError } from '../lib/retry'
+import { getCircuitBreaker } from '../lib/circuit-breaker'
+import { incCounter } from './metrics'
 
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024  // 100 MB
 const MAX_CHUNK_SIZE = 10 * 1024 * 1024    // 10 MB
@@ -92,7 +95,26 @@ uploads.put('/:id/chunks/:chunkIndex', async (c) => {
   }
 
   const r2Key = `files/${uploadId}/chunk-${String(chunkIndex).padStart(6, '0')}`
-  await c.env.R2_BUCKET.put(r2Key, body)
+  const storageBreaker = getCircuitBreaker({
+    name: 'blob:r2',
+    failureThreshold: 5,
+    resetTimeoutMs: 30_000,
+  })
+  await storageBreaker.execute(() =>
+    withRetry(
+      () => c.env.R2_BUCKET.put(r2Key, body),
+      {
+        maxAttempts: 3,
+        baseDelayMs: 200,
+        maxDelayMs: 2000,
+        isRetryable: isRetryableError,
+        onRetry: (attempt, error) => {
+          console.warn(`[uploads] R2 put retry ${attempt} for ${r2Key}:`, error)
+          incCounter('llamenos_retry_attempts_total', { service: 'blob', operation: 'put' })
+        },
+      },
+    )
+  )
 
   // Update completion count in ConversationDO
   const res = await dos.conversations.fetch(new Request(`http://do/files/${uploadId}/chunk-complete`, {
@@ -155,11 +177,45 @@ uploads.post('/:id/complete', async (c) => {
     offset += chunk.length
   }
 
-  await c.env.R2_BUCKET.put(`files/${uploadId}/content`, assembled)
+  const completeStorageBreaker = getCircuitBreaker({
+    name: 'blob:r2',
+    failureThreshold: 5,
+    resetTimeoutMs: 30_000,
+  })
+
+  await completeStorageBreaker.execute(() =>
+    withRetry(
+      () => c.env.R2_BUCKET.put(`files/${uploadId}/content`, assembled),
+      {
+        maxAttempts: 3,
+        baseDelayMs: 300,
+        maxDelayMs: 3000,
+        isRetryable: isRetryableError,
+        onRetry: (attempt, error) => {
+          console.warn(`[uploads] R2 put content retry ${attempt}:`, error)
+          incCounter('llamenos_retry_attempts_total', { service: 'blob', operation: 'put' })
+        },
+      },
+    )
+  )
 
   // Store envelopes and metadata in R2
-  await c.env.R2_BUCKET.put(`files/${uploadId}/envelopes`, JSON.stringify(fileRecord.recipientEnvelopes))
-  await c.env.R2_BUCKET.put(`files/${uploadId}/metadata`, JSON.stringify(fileRecord.encryptedMetadata))
+  await withRetry(
+    async () => {
+      await c.env.R2_BUCKET.put(`files/${uploadId}/envelopes`, JSON.stringify(fileRecord.recipientEnvelopes))
+      await c.env.R2_BUCKET.put(`files/${uploadId}/metadata`, JSON.stringify(fileRecord.encryptedMetadata))
+    },
+    {
+      maxAttempts: 3,
+      baseDelayMs: 200,
+      maxDelayMs: 2000,
+      isRetryable: isRetryableError,
+      onRetry: (attempt) => {
+        console.warn(`[uploads] R2 put envelopes/metadata retry ${attempt}`)
+        incCounter('llamenos_retry_attempts_total', { service: 'blob', operation: 'put' })
+      },
+    },
+  )
 
   // Clean up individual chunks
   for (let i = 0; i < fileRecord.totalChunks; i++) {

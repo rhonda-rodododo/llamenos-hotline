@@ -10,6 +10,7 @@ import { deriveServerEventKey, encryptHubEvent } from '../lib/hub-event-crypto'
 import { createPushDispatcher } from '../lib/push-dispatch'
 import { KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_PRESENCE_UPDATE } from '@shared/nostr-events'
 import { fetchPage } from '../lib/pagination'
+import { withRetry, isRetryableError } from '../lib/retry'
 
 /**
  * CallRouterDO — manages real-time call state.
@@ -528,16 +529,27 @@ export class CallRouterDO extends DurableObject<Env> {
         eventContent = JSON.stringify(content)
       }
 
-      publisher.publish({
-        kind,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [
-          ['d', hubTag],
-          ['t', 'llamenos:event'],
-        ],
-        content: eventContent,
-      }).catch(err => {
-        console.error('[nostr] Failed to publish event:', err)
+      withRetry(
+        () => publisher.publish({
+          kind,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [
+            ['d', hubTag],
+            ['t', 'llamenos:event'],
+          ],
+          content: eventContent,
+        }),
+        {
+          maxAttempts: 2,
+          baseDelayMs: 100,
+          maxDelayMs: 1000,
+          isRetryable: isRetryableError,
+          onRetry: (attempt) => {
+            console.warn(`[nostr] Publish retry ${attempt} (kind=${kind})`)
+          },
+        },
+      ).catch(err => {
+        console.error('[nostr] Failed to publish event after retries:', err)
       })
     } catch {
       // Nostr not configured — silently skip

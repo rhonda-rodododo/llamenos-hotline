@@ -13,6 +13,9 @@ import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '@shared/nostr-even
 import { createPushDispatcher } from '../lib/push-dispatch'
 import type { WakePayload, FullPushPayload } from '../types'
 import { publishNostrEvent } from '../lib/nostr-events'
+import { withRetry, isRetryableError } from '../lib/retry'
+import { getCircuitBreaker } from '../lib/circuit-breaker'
+import { incCounter } from './metrics'
 
 const conversations = new Hono<AppEnv>()
 
@@ -230,11 +233,36 @@ conversations.post('/:id/messages', validateBody(sendMessageBodySchema), async (
       const contactRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}/contact`))
       if (!contactRes.ok) throw new Error('Contact identifier not available for outbound')
       const { identifier } = await contactRes.json() as { identifier: string }
-      const result = await adapter.sendMessage({
-        recipientIdentifier: identifier,
-        body: body.plaintextForSending!,
-        conversationId: id,
+
+      const messagingBreaker = getCircuitBreaker({
+        name: `messaging:${conv.channelType}`,
+        failureThreshold: 5,
+        resetTimeoutMs: 30_000,
       })
+
+      const result = await messagingBreaker.execute(() =>
+        withRetry(
+          () => adapter.sendMessage({
+            recipientIdentifier: identifier,
+            body: body.plaintextForSending!,
+            conversationId: id,
+          }),
+          {
+            maxAttempts: 3,
+            baseDelayMs: 300,
+            maxDelayMs: 3000,
+            isRetryable: (error) => {
+              // Don't retry if the adapter itself returned a non-retryable failure
+              if (typeof error === 'object' && error !== null && 'success' in error) return false
+              return isRetryableError(error)
+            },
+            onRetry: (attempt, error) => {
+              console.warn(`[conversations] sendMessage retry ${attempt} via ${conv.channelType}:`, error)
+              incCounter('llamenos_retry_attempts_total', { service: 'messaging', operation: 'sendMessage' })
+            },
+          },
+        )
+      )
 
       if (result.success && result.externalId) {
         message.externalId = result.externalId

@@ -3,6 +3,9 @@ import type { DurableObjects } from '../lib/do-access'
 import { getTelephony, getHubTelephony } from '../lib/do-access'
 import { dispatchVoipPush } from '../lib/voip-push'
 import { createLogger } from '../lib/logger'
+import { withRetry, isRetryableError } from '../lib/retry'
+import { getCircuitBreaker } from '../lib/circuit-breaker'
+import { incCounter } from '../routes/metrics'
 
 const logger = createLogger('ringing')
 
@@ -101,13 +104,34 @@ export async function startParallelRinging(
         ? await getHubTelephony(env, hubId)
         : await getTelephony(env, dos)
       if (!adapter) return
-      await adapter.ringVolunteers({
-        callSid,
-        callerNumber,
-        volunteers: toRingPhone,
-        callbackUrl: origin,
-        hubId,
+
+      const breaker = getCircuitBreaker({
+        name: 'telephony:ringVolunteers',
+        failureThreshold: 5,
+        resetTimeoutMs: 30_000,
       })
+
+      await breaker.execute(() =>
+        withRetry(
+          () => adapter.ringVolunteers({
+            callSid,
+            callerNumber,
+            volunteers: toRingPhone,
+            callbackUrl: origin,
+            hubId,
+          }),
+          {
+            maxAttempts: 3,
+            baseDelayMs: 500,
+            maxDelayMs: 3000,
+            isRetryable: isRetryableError,
+            onRetry: (attempt, error) => {
+              console.warn(`[ringing] ringVolunteers retry ${attempt} for callSid=${callSid}:`, error)
+              incCounter('llamenos_retry_attempts_total', { service: 'telephony', operation: 'ringVolunteers' })
+            },
+          },
+        )
+      )
     }
   } catch (err) {
     console.error('[ringing] startParallelRinging failed:', err)

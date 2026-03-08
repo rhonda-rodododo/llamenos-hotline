@@ -14,6 +14,7 @@ import type { AppEnv } from '../types'
 import { getErrorSummary } from '../lib/error-counter'
 import { auth } from '../middleware/auth'
 import { requirePermission } from '../middleware/permission-guard'
+import { getAllCircuitBreakerMetrics } from '../lib/circuit-breaker'
 
 const metrics = new Hono<AppEnv>()
 
@@ -84,6 +85,29 @@ function formatPrometheusMetrics(): string {
     const labelPart = key.includes('{') ? key.slice(key.indexOf('{')) : ''
     lines.push(`${name}_count${labelPart} ${count}`)
     lines.push(`${name}_sum${labelPart} ${sum.toFixed(6)}`)
+  }
+
+  // Circuit breaker metrics
+  const cbMetrics = getAllCircuitBreakerMetrics()
+  if (cbMetrics.length > 0) {
+    lines.push('# HELP llamenos_circuit_breaker_state Circuit breaker state (0=closed, 1=open, 2=half_open)')
+    lines.push('# TYPE llamenos_circuit_breaker_state gauge')
+    lines.push('# HELP llamenos_circuit_breaker_requests_total Total requests through circuit breaker')
+    lines.push('# TYPE llamenos_circuit_breaker_requests_total counter')
+    lines.push('# HELP llamenos_circuit_breaker_failures_total Total failures recorded by circuit breaker')
+    lines.push('# TYPE llamenos_circuit_breaker_failures_total counter')
+    lines.push('# HELP llamenos_circuit_breaker_rejections_total Requests rejected by open circuit')
+    lines.push('# TYPE llamenos_circuit_breaker_rejections_total counter')
+
+    const stateValue = (state: string) => state === 'closed' ? 0 : state === 'open' ? 1 : 2
+
+    for (const cb of cbMetrics) {
+      const labels = `name="${cb.name}"`
+      lines.push(`llamenos_circuit_breaker_state{${labels}} ${stateValue(cb.state)}`)
+      lines.push(`llamenos_circuit_breaker_requests_total{${labels}} ${cb.totalRequests}`)
+      lines.push(`llamenos_circuit_breaker_failures_total{${labels}} ${cb.totalFailures}`)
+      lines.push(`llamenos_circuit_breaker_rejections_total{${labels}} ${cb.totalRejections}`)
+    }
   }
 
   return lines.join('\n') + '\n'

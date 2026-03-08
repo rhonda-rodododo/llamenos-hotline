@@ -4,6 +4,9 @@ import type { FileRecord, FileKeyEnvelope } from '@shared/types'
 import { getDOs } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
+import { withRetry, isRetryableError } from '../lib/retry'
+import { getCircuitBreaker } from '../lib/circuit-breaker'
+import { incCounter } from './metrics'
 
 const files = new Hono<AppEnv>()
 
@@ -34,7 +37,26 @@ files.get('/:id/content', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  const obj = await c.env.R2_BUCKET.get(`files/${fileId}/content`)
+  const storageBreaker = getCircuitBreaker({
+    name: 'blob:r2',
+    failureThreshold: 5,
+    resetTimeoutMs: 30_000,
+  })
+  const obj = await storageBreaker.execute(() =>
+    withRetry(
+      () => c.env.R2_BUCKET.get(`files/${fileId}/content`),
+      {
+        maxAttempts: 3,
+        baseDelayMs: 200,
+        maxDelayMs: 2000,
+        isRetryable: isRetryableError,
+        onRetry: (attempt, error) => {
+          console.warn(`[files] R2 get retry ${attempt} for ${fileId}:`, error)
+          incCounter('llamenos_retry_attempts_total', { service: 'blob', operation: 'get' })
+        },
+      },
+    )
+  )
   if (!obj) {
     return c.json({ error: 'File content not found' }, 404)
   }
