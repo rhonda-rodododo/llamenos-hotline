@@ -93,15 +93,17 @@ export class IdentityDO extends DurableObject<Env> {
     this.router.delete('/identity/hub-role', async (req) => this.removeHubRole(await req.json()))
 
     // --- Test: skip admin seed on next ensureInit (for bootstrap tests) ---
+    // Also clears all volunteers so hasAdmin() returns false
     this.router.post('/test-skip-admin-seed', async () => {
       await this.ctx.storage.put('_skipAdminSeed', true)
+      await this.ctx.storage.put('volunteers', {})
       return Response.json({ ok: true })
     })
 
     // --- Test Reset (demo mode only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
-      if (this.env.DEMO_MODE !== 'true') {
-        return new Response('Reset not allowed outside demo mode', { status: 403 })
+      if (this.env.DEMO_MODE !== 'true' && this.env.ENVIRONMENT !== 'development') {
+        return new Response('Reset not allowed outside demo/dev mode', { status: 403 })
       }
       await this.ctx.storage.deleteAll()
       this.initialized = false
@@ -136,7 +138,8 @@ export class IdentityDO extends DurableObject<Env> {
     }
 
     // Seed demo volunteer accounts when DEMO_MODE is enabled
-    if (this.env.DEMO_MODE === 'true') {
+    // Skip when _skipAdminSeed is set (bootstrap tests need a truly empty state)
+    if (this.env.DEMO_MODE === 'true' && !skipAdminSeed) {
       for (const account of DEMO_ACCOUNTS) {
         if (!volunteers[account.pubkey]) {
           volunteers[account.pubkey] = {
