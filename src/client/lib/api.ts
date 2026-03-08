@@ -1568,3 +1568,46 @@ export async function addHubMember(hubId: string, pubkey: string, roleIds: strin
 export async function removeHubMember(hubId: string, pubkey: string) {
   return request<{ ok: true }>(`/hubs/${hubId}/members/${pubkey}`, { method: 'DELETE' })
 }
+
+// --- System Health (admin only) ---
+
+export interface ServiceStatus {
+  name: string
+  status: 'ok' | 'degraded' | 'down'
+  details?: string
+}
+
+export interface SystemHealth {
+  server: {
+    status: 'ok' | 'degraded' | 'down'
+    uptime: number
+    version: string
+  }
+  services: ServiceStatus[]
+  calls: {
+    today: number
+    active: number
+    avgResponseSeconds: number
+    missed: number
+  }
+  storage: {
+    dbSize: string
+    blobStorage: string
+  }
+  backup: {
+    lastBackup: string | null
+    backupSize: string
+    lastVerify: string | null
+  }
+  volunteers: {
+    totalActive: number
+    onlineNow: number
+    onShift: number
+    shiftCoverage: number
+  }
+  timestamp: string
+}
+
+export async function fetchSystemHealth() {
+  return request<SystemHealth>('/system/health')
+}

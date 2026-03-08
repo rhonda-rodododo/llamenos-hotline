@@ -320,6 +320,7 @@ function AuthenticatedLayout() {
               {hasPermission('system:manage-hubs') && (
                 <NavLink to="/admin/hubs" icon={<Building2 className="h-4 w-4" />}>{t('nav.hubs', { defaultValue: 'Hubs' })}</NavLink>
               )}
+              <NavLink to="/admin/system" icon={<Monitor className="h-4 w-4" />}>{t('admin.system.nav', { defaultValue: 'System Health' })}</NavLink>
               </div>
             </>
           )}
