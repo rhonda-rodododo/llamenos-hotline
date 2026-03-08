@@ -10,7 +10,9 @@ test.describe('In-Browser Admin Bootstrap', () => {
   // =====================================================================
   test('fresh deploy redirects unauthenticated user to /setup', async ({ page, request }) => {
     // Reset to a fresh state with no admin
-    await request.post('/api/test-reset-no-admin')
+    await request.post('/api/test-reset-no-admin', {
+      headers: { 'X-Test-Secret': process.env.DEV_RESET_SECRET || 'test-reset-secret' },
+    })
 
     // Verify server state: config should show needsBootstrap
     const configRes = await request.get('/api/config')
@@ -54,7 +56,9 @@ test.describe('In-Browser Admin Bootstrap', () => {
   // =====================================================================
   test('login page shows "go to setup" when no admin exists', async ({ page, request }) => {
     // Ensure fresh state
-    await request.post('/api/test-reset-no-admin')
+    await request.post('/api/test-reset-no-admin', {
+      headers: { 'X-Test-Secret': process.env.DEV_RESET_SECRET || 'test-reset-secret' },
+    })
 
     await page.goto('/login')
     await page.evaluate(() => {
@@ -73,7 +77,9 @@ test.describe('In-Browser Admin Bootstrap', () => {
   // =====================================================================
   test('complete bootstrap flow creates admin and advances to wizard', async ({ page, request }) => {
     // Fresh state
-    await request.post('/api/test-reset-no-admin')
+    await request.post('/api/test-reset-no-admin', {
+      headers: { 'X-Test-Secret': process.env.DEV_RESET_SECRET || 'test-reset-secret' },
+    })
 
     await page.goto('/setup')
     await page.evaluate(() => {
@@ -95,12 +101,14 @@ test.describe('In-Browser Admin Bootstrap', () => {
     await pinDigit1.waitFor({ state: 'visible', timeout: 5000 })
     await pinDigit1.click()
     await page.keyboard.type('123456', { delay: 50 })
+    await page.keyboard.press('Enter')
 
     // PIN confirmation
     await expect(page.getByText('Confirm your PIN')).toBeVisible({ timeout: 5000 })
     const confirmDigit1 = page.locator('input[aria-label="PIN digit 1"]')
     await confirmDigit1.click()
     await page.keyboard.type('123456', { delay: 50 })
+    await page.keyboard.press('Enter')
 
     // Step 3: Generating + backup
     await expect(page.getByText('Save Your Recovery Key')).toBeVisible({ timeout: 15000 })
@@ -143,6 +151,7 @@ test.describe('In-Browser Admin Bootstrap', () => {
     await unlockDigit1.waitFor({ state: 'visible', timeout: 5000 })
     await unlockDigit1.click()
     await page.keyboard.type('123456', { delay: 50 })
+    await page.keyboard.press('Enter')
 
     // Should advance back to the wizard after PIN entry
     await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 10000 })

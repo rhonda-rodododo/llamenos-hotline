@@ -92,6 +92,12 @@ export class IdentityDO extends DurableObject<Env> {
     this.router.post('/identity/hub-role', async (req) => this.setHubRole(await req.json()))
     this.router.delete('/identity/hub-role', async (req) => this.removeHubRole(await req.json()))
 
+    // --- Test: skip admin seed on next ensureInit (for bootstrap tests) ---
+    this.router.post('/test-skip-admin-seed', async () => {
+      await this.ctx.storage.put('_skipAdminSeed', true)
+      return Response.json({ ok: true })
+    })
+
     // --- Test Reset (demo mode only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
       if (this.env.DEMO_MODE !== 'true') {
@@ -109,8 +115,9 @@ export class IdentityDO extends DurableObject<Env> {
     this.initialized = true
 
     const adminPubkey = this.env.ADMIN_PUBKEY
+    const skipAdminSeed = await this.ctx.storage.get<boolean>('_skipAdminSeed')
     const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
-    if (adminPubkey && !volunteers[adminPubkey]) {
+    if (adminPubkey && !skipAdminSeed && !volunteers[adminPubkey]) {
       volunteers[adminPubkey] = {
         pubkey: adminPubkey,
         name: 'Admin',

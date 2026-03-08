@@ -43,14 +43,16 @@ dev.post('/test-reset-no-admin', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
   const dos = getDOs(c.env)
-  // Reset all DOs
+  // Reset all DOs (ensureInit re-creates admin from ADMIN_PUBKEY)
   await dos.identity.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.settings.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.records.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.shifts.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.calls.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' }))
-  // Now delete the admin volunteer that ensureInit() created from ADMIN_PUBKEY
+  // Set _skipAdminSeed flag and delete admin so bootstrap tests see needsBootstrap=true
+  // This persists across DO eviction/restart, unlike in-memory flags
+  await dos.identity.fetch(new Request('http://do/test-skip-admin-seed', { method: 'POST' }))
   if (c.env.ADMIN_PUBKEY) {
     await dos.identity.fetch(new Request(`http://do/volunteers/${c.env.ADMIN_PUBKEY}`, { method: 'DELETE' }))
   }

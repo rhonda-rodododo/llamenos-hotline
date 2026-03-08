@@ -89,6 +89,9 @@ async function enterPin(page: Page, pin: string): Promise<void> {
   await firstDigit.waitFor({ state: 'visible', timeout: 10000 })
   await firstDigit.click()
   await page.keyboard.type(pin, { delay: 50 })
+  // If PIN is shorter than the input length (e.g., 6 digits in 8-box input),
+  // press Enter to submit early (supported when >= minLength)
+  await page.keyboard.press('Enter')
 }
 
 /**
