@@ -519,14 +519,14 @@ Design doc: [`docs/plans/2026-03-08-production-readiness-design.md`](plans/2026-
 - [x] **[Epic 292: Offline Resilience & Sync](epics/epic-292-offline-resilience.md)** — Offline operation queue, replay on reconnect, Nostr event replay
 - [x] **[Epic 293: Client Crash Reporting & Diagnostics](epics/epic-293-crash-reporting.md)** — GlitchTip (self-hosted Sentry), all 3 platforms, PII stripping, source maps
 
-### Track 5: Operational Sustainability — IN PROGRESS
-- [ ] **[Epic 294: Operator Alerting & Notification](epics/epic-294-operator-alerting-notification.md)** — ntfy/Gotify/email/webhook, state-based deduplication, 7 health checks
-- [ ] **[Epic 295: Admin System Health Dashboard](epics/epic-295-admin-system-health-dashboard.md)** — In-app system tab, real-time health, call metrics, storage, backup status
-- [ ] **[Epic 296: Load Testing & Capacity Planning](epics/epic-296-load-testing-capacity-planning.md)** — k6 scripts, 4 scenarios, capacity planning doc
+### Track 5: Operational Sustainability — COMPLETE
+- [x] **[Epic 294: Operator Alerting & Notification](epics/epic-294-operator-alerting-notification.md)** — ntfy/Gotify/email/webhook, state-based deduplication, 7 health checks
+- [x] **[Epic 295: Admin System Health Dashboard](epics/epic-295-admin-system-health-dashboard.md)** — In-app system tab, real-time health, call metrics, storage, backup status
+- [x] **[Epic 296: Load Testing & Capacity Planning](epics/epic-296-load-testing-capacity-planning.md)** — k6 scripts, 4 scenarios, capacity planning doc
 - [x] **[Epic 297: Security Update Automation](epics/epic-297-security-update-automation.md)** — Trivy scanning, bun/cargo audit CI, automated OS updates
-- [ ] **[Epic 298: Disaster Recovery Runbook & Drills](epics/epic-298-disaster-recovery-drills.md)** — Automated DR test playbook, 5 scenarios, quarterly drills
+- [x] **[Epic 298: Disaster Recovery Runbook & Drills](epics/epic-298-disaster-recovery-drills.md)** — Automated DR test playbook, 5 scenarios, quarterly drills
 - [x] **[Epic 299: Operator Handbook & Onboarding](epics/epic-299-operator-handbook-onboarding.md)** — Consolidated handbook, troubleshooting trees, quick reference card
-- [ ] **[Epic 300: Mobile Admin Feature Parity](epics/epic-300-mobile-admin-feature-parity.md)** — 4-phase mobile admin features (custom fields, report categories, recording playback, settings)
+- [x] **[Epic 300: Mobile Admin Feature Parity](epics/epic-300-mobile-admin-feature-parity.md)** — 4-phase mobile admin features (custom fields, report categories, recording playback, settings)
 
 **Dependency order:**
 - Track 1: 276 → 277 → 278 → 279 → 280

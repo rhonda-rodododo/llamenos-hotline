@@ -2298,3 +2298,40 @@ Added ~15 new stateful IPC commands to `src-tauri/src/crypto.rs` delegating to `
 - [x] bddgen generates 47 spec files (224 BDD tests) with zero missing steps
 - [x] tests/steps/fixtures.ts: createBdd() for type-safe Given/When/Then exports
 - [x] Committed: `00f37cd`
+
+## Production Readiness Epics 276-300 (5 Tracks)
+
+### Track 1: Infrastructure & Self-Hosting (E276-E280)
+- [x] Ansible deployment playbook with Docker Compose, PostgreSQL, MinIO, nginx, Certbot
+- [x] Kubernetes/Helm chart with StatefulSet, PV claims, Ingress, HPA
+- [x] Node.js platform adapter with PostgreSQL shim for all 7 DOs
+- [x] Monitoring stack: Prometheus, Grafana, Loki, 3 dashboards, 12 alert rules
+- [x] Auto-backup with S3/MinIO, point-in-time recovery, integrity verification
+
+### Track 2: Data Safety (E281-E285)
+- [x] Storage sharding: per-entry keys with prefix scans (DO storage)
+- [x] Soft-delete lifecycle: 30-day retention with `state` field
+- [x] Conflict resolution: vector clocks for concurrent DO edits
+- [x] Data export: admin + volunteer encrypted ZIP exports with NaCl box
+- [x] Storage optimization: LRU cache, 100-item batch writes, alarm-based cleanup
+
+### Track 3: Compliance & Legal (E286-E287)
+- [x] GDPR pipeline: automated data subject access requests, anonymization, audit trail
+- [x] Legal framework docs: ToS, privacy policy, DPA, cookie policy (13 locales)
+
+### Track 4: Client Hardening (E288-E293)
+- [x] Input validation: Zod schemas for all API routes, OWASP sanitization
+- [x] Rate limiting: token bucket per-IP, per-user, per-endpoint
+- [x] API versioning: `X-Api-Version` header, min/current version enforcement
+- [x] Offline mode: IndexedDB queue, CRDT merge, optimistic UI, relay reconnect
+- [x] Accessibility audit: WCAG 2.1 AA, ARIA roles, keyboard navigation, screen reader
+- [x] Crash reporting: GlitchTip (self-hosted Sentry), 3 platforms, PII stripping
+
+### Track 5: Operational Sustainability (E294-E300)
+- [x] E294: Operator alerting — cron health checks (7 signals), ntfy/gotify/email/webhook
+- [x] E295: System health dashboard — Worker route + desktop admin page + 25 i18n keys
+- [x] E296: Load testing — k6 scripts (4 scenarios), capacity planning doc, CI workflow
+- [x] E297: Security update automation — Trivy, bun/cargo audit, automated OS updates
+- [x] E298: DR drills — Ansible playbook for full-stack restore validation, 5 scenarios
+- [x] E299: Operator handbook — consolidated handbook, troubleshooting trees
+- [x] E300: Mobile admin feature parity — report categories, telephony, call/IVR/spam settings, system health, recording playback on iOS + Android
