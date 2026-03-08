@@ -1,5 +1,44 @@
 # Completed Backlog
 
+## 2026-03-08: Production Readiness Epics 276-300 (21/25 complete, 4 in progress)
+
+### Track 1: Ansible Fleet Deployment (E276-E280) — COMPLETE
+- **E276**: Multi-host Ansible inventory with per-service toggles, service discovery templates, matrix-docker-ansible-deploy pattern
+- **E277**: Per-service backup roles (postgres, strfry, minio, config), cross-host aggregation, backup monitoring, restore playbook
+- **E278**: Full observability stack (Prometheus, Grafana, Loki, Promtail, Alertmanager, Node Exporter) + lightweight healthcheck-only mode
+- **E279**: Container watchdog with restart budgets, PostgreSQL VACUUM maintenance, NTP drift detection, cert/disk monitoring
+- **E280**: Blue-green rolling updates with block/rescue auto-rollback, version tracking, dependency-ordered multi-host updates
+
+### Track 2: Backend Resilience (E281-E285) — COMPLETE
+- **E281**: DO storage sharding (volunteers→`vol:{pubkey}`, invites→`invite:{code}`, conversations→`conv:{id}`, files→`file:{id}`), cursor pagination, storage monitor, migrations v3-v6
+- **E282**: `withRetry()` exponential backoff with jitter, circuit breaker (closed/open/half_open), Prometheus metrics, global registry
+- **E283**: Zod schemas on all REST endpoints, `validateBody`/`validateQuery` Hono middleware
+- **E284**: Structured logger with `child()` context, request ID middleware, error counters by category, DO alarm try/catch
+- **E285**: TTL constants with admin overrides, cleanup in all DO alarms (expired sessions, challenges, invites, stale files, completed blast queues)
+
+### Track 3: Data Migrations (E286-E287) — COMPLETE
+- **E286**: Online migration framework with progress tracking, rollback, admin visibility (`GET /api/migrations`), CLI tooling, production guards
+- **E287**: Multi-report-type system with per-type custom fields, admin CRUD UI, migration from flat categories, cross-platform
+
+### Track 4: Client Lifecycle (E288-E293) — COMPLETE
+- **E288**: API version negotiation via `X-API-Version` header, `apiVersion` middleware, forced/soft update flow on all 3 platforms
+- **E289**: Tauri updater plugin with GitHub Releases + self-hosted fallback, Ed25519 signing, background checks, Playwright mock
+- **E290**: (Previously completed) Mobile distribution with TestFlight, Play Store, F-Droid, direct APK
+- **E291**: iOS `SFSpeechRecognizer` + Android `SpeechRecognizer` with on-device-only mode, permission handling
+- **E292**: Offline resilience queue (localStorage), FIFO replay with exponential backoff, `OfflineQueuedError`, async auth headers
+- **E293**: Client crash reporting with Sentry envelope upload, localStorage consent, global error/unhandledrejection handlers, iOS NSException+signal handlers, Android UncaughtExceptionHandler
+
+### Track 5: Operations (partial — E297, E299 complete)
+- **E297**: Security audit CI workflow (bun audit, cargo audit, Trivy container/config scanning), Ansible security-scan role with automated OS updates
+- **E299**: Operator handbook (~1000 lines) + quick reference card, task-organized with troubleshooting trees
+
+### Integration Notes
+- All epics cherry-picked from isolated worktrees to `desktop` branch
+- Fixed migration syntax error (duplicate `]` in migrations/index.ts)
+- Restored `getContactSummaries`/`getContactConversations` methods lost during E281/E285 merge
+- Fixed `now` variable scope in conversation-do.ts alarm method
+- Fixed async `getHeaders` signature in offline queue replay
+
 ## 2026-03-08: Epic 290 — Mobile App Distribution & Update Management
 
 ### iOS Distribution Pipeline
