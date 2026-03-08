@@ -2,6 +2,8 @@ import { Hono } from 'hono'
 import type { AppEnv } from '../types'
 import { getDOs } from '../lib/do-access'
 import { auth } from '../middleware/auth'
+import { checkRateLimit } from '../lib/helpers'
+import { hashIP } from '../lib/crypto'
 
 const provisioning = new Hono<AppEnv>()
 
@@ -28,9 +30,12 @@ provisioning.post('/rooms', async (c) => {
   }))
 })
 
-// Get room status (public — new device polls this)
+// Get room status (public — new device polls this, rate limited)
 provisioning.get('/rooms/:id', async (c) => {
   const dos = getDOs(c.env)
+  const clientIp = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown'
+  const limited = await checkRateLimit(dos.settings, `provision:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 30)
+  if (limited) return c.json({ error: 'Rate limited' }, 429)
   const id = c.req.param('id')
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Missing token' }, 400)

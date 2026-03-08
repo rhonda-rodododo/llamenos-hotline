@@ -1,0 +1,120 @@
+---
+# Test Restore Playbook
+#
+# Verifies that backups can be restored successfully.
+# Spins up a temporary PostgreSQL container, restores the latest backup,
+# and validates table existence and row counts.
+#
+# Usage:
+#   just test-restore --ask-vault-pass
+#   ansible-playbook playbooks/test-restore.yml -i inventory.yml --ask-vault-pass
+#
+# This playbook is non-destructive — it does NOT touch the production database.
+
+- name: Test backup restoration
+  hosts: llamenos
+  become: true
+  become_user: "{{ deploy_user }}"
+
+  tasks:
+    - name: Find latest backup
+      ansible.builtin.find:
+        paths: "{{ app_dir }}/backups/daily"
+        patterns: "llamenos-*.sql.gz.age"
+        file_type: file
+      register: backup_files
+
+    - name: Check backup exists
+      ansible.builtin.assert:
+        that: backup_files.matched > 0
+        fail_msg: "No backups found in {{ app_dir }}/backups/daily/"
+        success_msg: "Found {{ backup_files.matched }} backup(s)"
+
+    - name: Select most recent backup
+      ansible.builtin.set_fact:
+        latest_backup: "{{ (backup_files.files | sort(attribute='mtime') | last).path }}"
+
+    - name: Display backup being tested
+      ansible.builtin.debug:
+        msg: "Testing restore of: {{ latest_backup }}"
+
+    - name: Create temp directory for restore test
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: llamenos-restore-test-
+      register: restore_tmpdir
+
+    - name: Decrypt backup
+      ansible.builtin.command:
+        cmd: "age -d -i {{ backup_age_private_key_path }} -o {{ restore_tmpdir.path }}/dump.sql.gz {{ latest_backup }}"
+      when: backup_age_public_key | default('') | length > 0
+
+    - name: Copy unencrypted backup (if no age key)
+      ansible.builtin.copy:
+        src: "{{ latest_backup }}"
+        dest: "{{ restore_tmpdir.path }}/dump.sql.gz"
+        remote_src: true
+      when: backup_age_public_key | default('') | length == 0
+
+    - name: Start temporary PostgreSQL container
+      ansible.builtin.command:
+        cmd: >
+          docker run -d --name llamenos-restore-test
+          -e POSTGRES_DB=llamenos
+          -e POSTGRES_USER=llamenos
+          -e POSTGRES_PASSWORD=restore-test-password
+          -v {{ restore_tmpdir.path }}:/restore:ro
+          postgres:17-alpine
+      register: restore_container
+
+    - name: Wait for PostgreSQL to be ready
+      ansible.builtin.command:
+        cmd: docker exec llamenos-restore-test pg_isready -U llamenos -d llamenos
+      register: pg_ready
+      retries: 10
+      delay: 2
+      until: pg_ready.rc == 0
+
+    - name: Restore backup into test container
+      ansible.builtin.shell: |
+        gunzip -c {{ restore_tmpdir.path }}/dump.sql.gz | \
+          docker exec -i llamenos-restore-test psql -U llamenos -d llamenos
+      register: restore_result
+
+    - name: Validate kv_store table exists
+      ansible.builtin.command:
+        cmd: >
+          docker exec llamenos-restore-test
+          psql -U llamenos -d llamenos -t -c
+          "SELECT COUNT(*) FROM kv_store"
+      register: kv_count
+      failed_when: kv_count.rc != 0
+
+    - name: Validate alarms table exists
+      ansible.builtin.command:
+        cmd: >
+          docker exec llamenos-restore-test
+          psql -U llamenos -d llamenos -t -c
+          "SELECT COUNT(*) FROM alarms"
+      register: alarms_count
+      failed_when: alarms_count.rc != 0
+
+    - name: Display restore results
+      ansible.builtin.debug:
+        msg: |
+          Restore test PASSED
+          - kv_store rows: {{ kv_count.stdout | trim }}
+          - alarms rows: {{ alarms_count.stdout | trim }}
+          - Backup file: {{ latest_backup }}
+
+  always:
+    - name: Remove test container
+      ansible.builtin.command:
+        cmd: docker rm -f llamenos-restore-test
+      ignore_errors: true
+
+    - name: Clean up temp directory
+      ansible.builtin.file:
+        path: "{{ restore_tmpdir.path }}"
+        state: absent
+      when: restore_tmpdir is defined

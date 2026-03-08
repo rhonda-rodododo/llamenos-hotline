@@ -3,7 +3,7 @@ import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
-import type { EncryptedFileMetadata, RecipientEnvelope } from '@shared/types'
+import type { EncryptedFileMetadata, FileKeyEnvelope } from '@shared/types'
 import { LABEL_FILE_KEY, LABEL_FILE_METADATA } from '@shared/crypto-labels'
 import { eciesWrapKey, eciesUnwrapKey } from './crypto'
 
@@ -97,7 +97,7 @@ export function decryptFileMetadata(
 
 export interface EncryptedFileUpload {
   encryptedContent: Uint8Array
-  recipientEnvelopes: RecipientEnvelope[]
+  recipientEnvelopes: FileKeyEnvelope[]
   encryptedMetadata: Array<{
     pubkey: string
     encryptedContent: string
@@ -139,7 +139,7 @@ export async function encryptFile(
   packed.set(encryptedContent, fileNonce.length)
 
   // Wrap the file key for each recipient using shared ECIES
-  const recipientEnvelopes: RecipientEnvelope[] = recipientPubkeys.map(pubkey => {
+  const recipientEnvelopes: FileKeyEnvelope[] = recipientPubkeys.map(pubkey => {
     const { wrappedKey, ephemeralPubkey } = eciesWrapKey(fileKey, pubkey, LABEL_FILE_KEY)
     return { pubkey, encryptedFileKey: wrappedKey, ephemeralPubkey }
   })
@@ -161,7 +161,7 @@ export async function encryptFile(
  */
 export async function decryptFile(
   encryptedContent: ArrayBuffer,
-  envelope: RecipientEnvelope,
+  envelope: FileKeyEnvelope,
   secretKey: Uint8Array,
 ): Promise<{ blob: Blob; checksum: string }> {
   // Unwrap the file key
@@ -193,7 +193,7 @@ export function rewrapFileKey(
   ephemeralPubkeyHex: string,
   adminSecretKey: Uint8Array,
   newRecipientPubkeyHex: string,
-): RecipientEnvelope {
+): FileKeyEnvelope {
   // Decrypt with admin key
   const fileKey = unwrapFileKey(encryptedFileKeyHex, ephemeralPubkeyHex, adminSecretKey)
 

@@ -1,5 +1,5 @@
 import type { BlobStorage, TranscriptionService } from '../platform/types'
-import type { MessagingChannelType } from '../shared/types'
+import type { MessagingChannelType, RecipientEnvelope, KeyEnvelope } from '../shared/types'
 
 /**
  * Environment bindings.
@@ -29,6 +29,7 @@ export interface Env {
   SETTINGS_DO: DONamespace
   RECORDS_DO: DONamespace
   CONVERSATION_DO: DONamespace
+  BLAST_DO: DONamespace
 
   // Transcription (CF: Ai binding, Node: Whisper HTTP client)
   AI: TranscriptionService
@@ -65,6 +66,14 @@ export interface Env {
   // Public-facing relay URL for client browser connections (e.g., wss://relay.example.com)
   // Falls back to /nostr (reverse-proxied via Caddy) if not set but relay is configured
   NOSTR_RELAY_PUBLIC_URL?: string
+
+  // Push notifications (Epic 86) — APNs (iOS)
+  APNS_KEY_P8?: string       // Apple Push Notification auth key (PEM format)
+  APNS_KEY_ID?: string       // Key ID from Apple Developer Portal
+  APNS_TEAM_ID?: string      // Apple Developer Team ID
+
+  // Push notifications (Epic 86) — FCM (Android)
+  FCM_SERVICE_ACCOUNT_KEY?: string  // Google Cloud service account JSON
 }
 
 /** @deprecated Use roles array + permission system instead */
@@ -146,7 +155,7 @@ export interface EncryptedCallRecord {
 
   // Envelope-pattern encryption for admin(s)
   encryptedContent: string       // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
-  adminEnvelopes: MessageKeyEnvelope[]  // Per-record key wrapped for each admin
+  adminEnvelopes: RecipientEnvelope[]  // Per-record key wrapped for each admin
 }
 
 /**
@@ -160,15 +169,18 @@ export interface CallRecordMetadata {
 
 export interface EncryptedNote {
   id: string
-  callId: string
+  callId?: string              // links to a voice call
+  conversationId?: string      // links to a conversation (Epic 123)
+  contactHash?: string         // links to a contact for contact-level view (Epic 123)
   authorPubkey: string
   encryptedContent: string
   createdAt: string
   updatedAt: string
   ephemeralPubkey?: string // hex-encoded, present for server-encrypted transcriptions (ECIES)
   // V2 per-note ECIES envelopes (forward secrecy)
-  authorEnvelope?: { wrappedKey: string; ephemeralPubkey: string }
-  adminEnvelopes?: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
+  authorEnvelope?: KeyEnvelope
+  adminEnvelopes?: RecipientEnvelope[]
+  replyCount?: number          // cached count of replies (Epic 123)
 }
 
 export interface AuditLogEntry {
@@ -276,7 +288,7 @@ export interface EncryptedMessage {
   authorPubkey: string             // volunteer pubkey or 'system:inbound'
   encryptedContent: string         // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
   // Per-reader key envelopes (ECIES-wrapped message key)
-  readerEnvelopes: MessageKeyEnvelope[]
+  readerEnvelopes: RecipientEnvelope[]
   hasAttachments: boolean
   attachmentIds?: string[]         // references to R2 encrypted blobs
   createdAt: string
@@ -289,12 +301,8 @@ export interface EncryptedMessage {
   retryCount?: number              // number of retry attempts
 }
 
-/** ECIES-wrapped message key for a specific reader. */
-export interface MessageKeyEnvelope {
-  pubkey: string           // reader's x-only pubkey (hex)
-  wrappedKey: string       // hex: nonce(24) + ciphertext(48 = 32 key + 16 tag)
-  ephemeralPubkey: string  // hex: compressed 33-byte ephemeral pubkey
-}
+/** @deprecated Use RecipientEnvelope from @shared/types instead. */
+export type MessageKeyEnvelope = RecipientEnvelope
 
 // --- Blast Queue ---
 
@@ -312,6 +320,38 @@ export interface BlastDeliveryQueue {
   items: BlastQueueItem[]
   processedCount: number
   totalCount: number
+}
+
+// --- Push Notification Types (Epic 86) ---
+
+export interface DeviceRecord {
+  platform: 'ios' | 'android'
+  pushToken: string
+  wakeKeyPublic: string      // secp256k1 compressed pubkey (hex) for wake-tier ECIES
+  registeredAt: string
+  lastSeenAt: string
+}
+
+export type PushNotificationType = 'message' | 'voicemail' | 'shift_reminder' | 'assignment'
+
+/** Wake-tier payload — decryptable without PIN (minimal metadata) */
+export interface WakePayload {
+  type: PushNotificationType
+  conversationId?: string
+  channelType?: string
+  callId?: string
+  shiftId?: string
+  startsAt?: string
+}
+
+/** Full-tier payload — decryptable only with volunteer's nsec */
+export interface FullPushPayload extends WakePayload {
+  senderLast4?: string
+  previewText?: string
+  duration?: number
+  callerLast4?: string
+  shiftName?: string
+  role?: string
 }
 
 // Hono typed context

@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers'
 import type { Env, Conversation, EncryptedMessage, ConversationStatus } from '../types'
 import type { IncomingMessage, MessageStatusUpdate } from '../messaging/adapter'
-import type { MessagingChannelType, FileRecord, RecipientEnvelope, Subscriber, Blast, BlastSettings, BlastContent } from '../../shared/types'
+import type { MessagingChannelType, FileRecord, FileKeyEnvelope, Subscriber, Blast, BlastSettings, BlastContent } from '../../shared/types'
 import { DEFAULT_BLAST_SETTINGS } from '../../shared/types'
 import { encryptMessageForStorage, hashPhone } from '../lib/crypto'
 import { DORouter } from '../lib/do-router'
@@ -101,8 +101,11 @@ export class ConversationDO extends DurableObject<Env> {
     this.router.post('/conversations/:id/auto-assign', async (req, { id }) =>
       this.autoAssignConversation(id, await req.json()))
 
-    // --- Test Reset ---
+    // --- Test Reset (demo mode only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
+      if (this.env.DEMO_MODE !== 'true') {
+        return new Response('Reset not allowed outside demo mode', { status: 403 })
+      }
       await this.ctx.storage.deleteAll()
       this.initialized = false
       return Response.json({ ok: true })
@@ -502,7 +505,7 @@ export class ConversationDO extends DurableObject<Env> {
     return Response.json(file)
   }
 
-  private async addFileRecipient(id: string, data: { envelope: RecipientEnvelope; encryptedMetadata: { pubkey: string; encryptedContent: string; ephemeralPubkey: string } }): Promise<Response> {
+  private async addFileRecipient(id: string, data: { envelope: FileKeyEnvelope; encryptedMetadata: { pubkey: string; encryptedContent: string; ephemeralPubkey: string } }): Promise<Response> {
     const files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
     const file = files.find(f => f.id === id)
     if (!file) return new Response('File not found', { status: 404 })

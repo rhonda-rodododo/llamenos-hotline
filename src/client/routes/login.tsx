@@ -54,15 +54,28 @@ function LoginPage() {
   // --- PIN unlock (primary flow when key exists) ---
   async function handlePinUnlock(pin: string): Promise<boolean> {
     setValidationError('')
-    const success = await unlockWithPin(pin)
-    if (success) {
-      // Return to the page the user was on before the lock, or default to dashboard
-      const returnTo = sessionStorage.getItem('returnTo')
-      sessionStorage.removeItem('returnTo')
-      navigate({ to: returnTo || '/' })
-      return true
+    try {
+      const success = await unlockWithPin(pin)
+      if (success) {
+        // Return to the page the user was on before the lock, or default to dashboard
+        const returnTo = sessionStorage.getItem('returnTo')
+        sessionStorage.removeItem('returnTo')
+        // Validate returnTo to prevent open redirects — must be a relative path
+        const safePath = returnTo && /^\/[^/:]/.test(returnTo) ? returnTo : '/'
+        navigate({ to: safePath })
+        return true
+      }
+      return false
+    } catch (err) {
+      // Lockout or wipe error from PIN tracking
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('Keys wiped')) {
+        handlePinWipe()
+      } else {
+        setValidationError(msg)
+      }
+      return false
     }
-    return false
   }
 
   function handlePinWipe() {
@@ -149,7 +162,7 @@ function LoginPage() {
 
   async function handleNewPinComplete(pin: string) {
     if (newPinStep === 'create') {
-      if (!/^\d{4,6}$/.test(pin)) {
+      if (!keyManager.isValidPin(pin)) {
         setPinError(t('pin.tooShort'))
         return
       }
@@ -396,8 +409,8 @@ function LoginPage() {
                       inputMode="numeric"
                       value={recoveryPin}
                       onChange={e => setRecoveryPin(e.target.value)}
-                      placeholder="••••••"
-                      maxLength={6}
+                      placeholder="••••••••"
+                      maxLength={8}
                       autoComplete="off"
                     />
                   </div>
@@ -416,11 +429,10 @@ function LoginPage() {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {newPinStep === 'create'
-                      ? t('pin.createDescription', { defaultValue: 'Choose a 4-6 digit PIN to protect your key on this device.' })
+                      ? t('pin.createDescription', { defaultValue: 'Choose a 6-8 digit PIN to protect your key on this device.' })
                       : t('pin.confirmDescription', { defaultValue: 'Enter the same PIN again to confirm.' })}
                   </p>
                   <PinInput
-                    length={6}
                     value={newPinStep === 'create' ? newPin1 : newPin2}
                     onChange={newPinStep === 'create' ? setNewPin1 : setNewPin2}
                     onComplete={handleNewPinComplete}
@@ -565,7 +577,6 @@ function PinUnlockInline({ onUnlock, onWipe }: { onUnlock: (pin: string) => Prom
   return (
     <div className="space-y-3">
       <PinInput
-        length={6}
         value={pin}
         onChange={setPin}
         onComplete={handleComplete}

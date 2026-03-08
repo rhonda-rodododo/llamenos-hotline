@@ -66,7 +66,7 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
           validation: editing.validation,
           visibleToVolunteers: editing.visibleToVolunteers ?? true,
           editableByVolunteers: editing.editableByVolunteers ?? true,
-          context: editing.context ?? 'both',
+          context: editing.context ?? 'all',
           order: fields.length,
           createdAt: new Date().toISOString(),
         }
@@ -99,7 +99,7 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
       ) : (
         <div className="space-y-2">
           {fields.map((field, index) => (
-            <div key={field.id} className="flex items-center gap-2 rounded-lg border border-border px-4 py-3">
+            <div key={field.id} data-testid="custom-field-row" className="flex items-center gap-2 rounded-lg border border-border px-4 py-3">
               <div className="flex flex-col gap-0.5">
                 <Button variant="ghost" size="icon-xs" disabled={index === 0} onClick={() => handleReorder(index, -1)}>
                   <ChevronUp className="h-3 w-3" />
@@ -119,7 +119,7 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
               <Button variant="ghost" size="sm" onClick={() => setEditing({ ...field })}>
                 {t('common.edit')}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleDelete(field.id)}>
+              <Button data-testid="custom-field-delete-btn" variant="ghost" size="sm" onClick={() => handleDelete(field.id)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
@@ -135,8 +135,10 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
           </h4>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label>{t('customFields.fieldLabel')}</Label>
+              <Label htmlFor="custom-field-label">{t('customFields.fieldLabel')}</Label>
               <Input
+                id="custom-field-label"
+                data-testid="custom-field-label-input"
                 value={editing.label || ''}
                 onChange={e => {
                   const label = e.target.value
@@ -151,8 +153,10 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
               />
             </div>
             <div className="space-y-1">
-              <Label>{t('customFields.fieldName')}</Label>
+              <Label htmlFor="custom-field-name">{t('customFields.fieldName')}</Label>
               <Input
+                id="custom-field-name"
+                data-testid="custom-field-name-input"
                 value={editing.name || ''}
                 onChange={e => setEditing(prev => ({ ...prev!, name: e.target.value }))}
                 placeholder="e.g. severity"
@@ -165,6 +169,7 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
             <div className="space-y-1">
               <Label>{t('customFields.fieldType')}</Label>
               <select
+                data-testid="custom-field-type-select"
                 value={editing.type || 'text'}
                 onChange={e => setEditing(prev => ({ ...prev!, type: e.target.value as CustomFieldDefinition['type'] }))}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -176,15 +181,14 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
                 <option value="textarea">{t('customFields.types.textarea')}</option>
               </select>
             </div>
-            <div className="flex items-end gap-4">
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={editing.required ?? false}
-                  onCheckedChange={checked => setEditing(prev => ({ ...prev!, required: checked }))}
-                />
-                <Label className="text-sm">{t('customFields.required')}</Label>
-              </div>
-            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={editing.required ?? false}
+              onCheckedChange={checked => setEditing(prev => ({ ...prev!, required: checked }))}
+            />
+            <Label className="text-sm">{t('customFields.required')}</Label>
           </div>
 
           {/* Select options */}
@@ -208,7 +212,7 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
                   </Button>
                 </div>
               ))}
-              <Button variant="outline" size="sm" onClick={() => {
+              <Button data-testid="custom-field-add-option-btn" variant="outline" size="sm" onClick={() => {
                 setEditing(prev => ({ ...prev!, options: [...(prev!.options || []), ''] }))
               }}>
                 <Plus className="h-3 w-3" />
@@ -292,7 +296,7 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
           </div>
 
           <div className="flex gap-2">
-            <Button disabled={saving || !editing.label?.trim() || !editing.name?.trim()} onClick={handleSave}>
+            <Button data-testid="form-save-btn" disabled={saving || !editing.label?.trim() || !editing.name?.trim()} onClick={handleSave}>
               <Save className="h-4 w-4" />
               {saving ? t('common.loading') : t('common.save')}
             </Button>
@@ -304,6 +308,7 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
       ) : (
         fields.length < MAX_CUSTOM_FIELDS && (
           <Button
+            data-testid="custom-field-add-btn"
             variant="outline"
             onClick={() => setEditing({
               type: 'text',

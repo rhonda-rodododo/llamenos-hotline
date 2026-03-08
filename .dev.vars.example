@@ -11,3 +11,6 @@ ADMIN_PUBKEY=hex_public_key_here
 
 # Server Nostr secret (for signing relay events). Generate with: openssl rand -hex 32
 # SERVER_NOSTR_SECRET=hex_secret_here
+
+# HMAC secret for hashing phone numbers and IPs (64 hex chars). Generate with: openssl rand -hex 32
+HMAC_SECRET=generate_with_openssl_rand_hex_32

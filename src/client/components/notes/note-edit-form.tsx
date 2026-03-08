@@ -22,6 +22,7 @@ export function NoteEditForm({ text: initialText, fields: initialFields, customF
   return (
     <div className="mt-2 space-y-3">
       <textarea
+        data-testid="note-edit-input"
         value={text}
         onChange={e => setText(e.target.value)}
         rows={6}
@@ -34,11 +35,11 @@ export function NoteEditForm({ text: initialText, fields: initialFields, customF
         idPrefix="edit-field"
       />
       <div className="flex gap-2">
-        <Button size="sm" onClick={() => onSave(text, fields)} disabled={saving}>
+        <Button size="sm" data-testid="form-save-btn" onClick={() => onSave(text, fields)} disabled={saving}>
           <Save className="h-3.5 w-3.5" />
           {saving ? t('common.loading') : t('common.save')}
         </Button>
-        <Button size="sm" variant="outline" onClick={onCancel}>
+        <Button size="sm" variant="outline" data-testid="form-cancel-btn" onClick={onCancel}>
           <X className="h-3.5 w-3.5" />
           {t('common.cancel')}
         </Button>

@@ -49,8 +49,7 @@ test.describe('Custom Fields in Notes', () => {
     await page.getByRole('button', { name: /new note/i }).click()
 
     // Custom field label should appear in the form
-    const fieldInput = page.locator('#new-field-priority_level')
-    await expect(fieldInput).toBeVisible()
+    await expect(page.getByLabel('Priority Level')).toBeVisible()
   })
 
   test('create note with custom field value shows badge', async ({ page }) => {
@@ -66,7 +65,7 @@ test.describe('Custom Fields in Notes', () => {
     await page.locator('textarea').first().fill('Note with priority field')
 
     // Fill the custom field
-    await page.locator('#new-field-priority_level').fill('High')
+    await page.getByLabel('Priority Level').fill('High')
 
     // Save
     await page.getByRole('button', { name: /save/i }).click()
@@ -90,7 +89,7 @@ test.describe('Custom Fields in Notes', () => {
     await noteCard.locator('button[aria-label="Edit"]').click()
 
     // The custom field input should be pre-filled
-    const fieldInput = page.locator('#edit-field-priority_level')
+    const fieldInput = page.getByLabel('Priority Level')
     await expect(fieldInput).toBeVisible()
     await expect(fieldInput).toHaveValue('High', { timeout: 10000 })
   })
@@ -104,7 +103,7 @@ test.describe('Custom Fields in Notes', () => {
     await noteCard.locator('button[aria-label="Edit"]').click()
 
     // Change the field value
-    const fieldInput = page.locator('#edit-field-priority_level')
+    const fieldInput = page.getByLabel('Priority Level')
     await fieldInput.clear()
     await fieldInput.fill('Critical')
 
@@ -129,7 +128,7 @@ test.describe('Custom Fields in Notes', () => {
     await expect(textarea).toHaveValue('Note with priority field')
 
     // Change field value without changing text
-    const fieldInput = page.locator('#edit-field-priority_level')
+    const fieldInput = page.getByLabel('Priority Level')
     await fieldInput.clear()
     await fieldInput.fill('Low')
     await page.getByRole('button', { name: /save/i }).click()

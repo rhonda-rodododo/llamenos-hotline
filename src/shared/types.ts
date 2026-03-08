@@ -1,3 +1,26 @@
+// --- ECIES Key Envelopes ---
+// Used across notes, messages, files, and hub key wrapping.
+
+/**
+ * Unified ECIES-wrapped symmetric key for one recipient.
+ * Used everywhere: notes, messages, call records, hub keys.
+ * The same ECIES construction with different domain separation labels.
+ */
+export interface RecipientEnvelope {
+  /** Recipient's x-only public key (hex). */
+  pubkey: string
+  /** Nonce (24 bytes) + ciphertext: ECIES-wrapped symmetric key (hex). */
+  wrappedKey: string
+  /** Ephemeral secp256k1 compressed public key used for ECDH (hex). */
+  ephemeralPubkey: string
+}
+
+/** @deprecated Use RecipientEnvelope instead. Kept for gradual migration. */
+export type KeyEnvelope = Omit<RecipientEnvelope, 'pubkey'>
+
+/** @deprecated Use RecipientEnvelope instead. */
+export type RecipientKeyEnvelope = RecipientEnvelope
+
 // --- Telephony Provider Config ---
 
 export type TelephonyProviderType = 'twilio' | 'signalwire' | 'vonage' | 'plivo' | 'asterisk'
@@ -40,6 +63,17 @@ export interface TelephonyProviderConfig {
   apiKeySid?: string        // Twilio/SignalWire API Key SID for Access Token generation
   apiKeySecret?: string     // Twilio/SignalWire API Key Secret
   twimlAppSid?: string      // Twilio/SignalWire TwiML App SID for browser calls
+
+  // SIP VoIP (mobile native clients — Linphone SDK, Epic 91)
+  sipDomain?: string            // SIP REGISTER domain
+  sipUsername?: string          // SIP REGISTER username
+  sipPassword?: string          // SIP REGISTER password
+  sipEndpointUsername?: string  // Plivo SIP endpoint username
+  sipEndpointPassword?: string  // Plivo SIP endpoint password
+  spaceUrl?: string             // SignalWire space URL
+  asteriskGateway?: string      // Vonage→Asterisk SIP gateway host
+  asteriskSipUsername?: string  // Vonage→Asterisk SIP credentials
+  asteriskSipPassword?: string  // Vonage→Asterisk SIP credentials
 }
 
 // --- Call Preference ---
@@ -57,12 +91,14 @@ export const PROVIDER_REQUIRED_FIELDS: Record<TelephonyProviderType, (keyof Tele
 
 // --- Custom Fields ---
 
+export type CustomFieldContext = 'call-notes' | 'conversation-notes' | 'reports' | 'all'
+
 /** Custom field definition — stored as config in SessionManager DO */
 export interface CustomFieldDefinition {
   id: string               // unique UUID
   name: string             // internal key (machine-readable, e.g. "severity")
   label: string            // display label (e.g. "Severity Rating")
-  type: 'text' | 'number' | 'select' | 'checkbox' | 'textarea'
+  type: 'text' | 'number' | 'select' | 'checkbox' | 'textarea' | 'file'
   required: boolean
   options?: string[]        // for 'select' type only
   validation?: {
@@ -73,9 +109,11 @@ export interface CustomFieldDefinition {
   }
   visibleToVolunteers: boolean
   editableByVolunteers: boolean
-  context: 'call-notes' | 'reports' | 'both'  // where this field appears
-  allowFileUpload?: boolean  // this field accepts file attachments
-  acceptedFileTypes?: string[] // e.g., ['image/*', 'video/*', 'application/pdf']
+  context: CustomFieldContext  // where this field appears
+  // File field type options
+  maxFileSize?: number        // bytes, for file type
+  allowedMimeTypes?: string[] // e.g., ['image/*', 'application/pdf']
+  maxFiles?: number           // for multi-file fields (default: 1)
   order: number
   createdAt: string
 }
@@ -91,7 +129,8 @@ export interface EncryptedFileMetadata {
   checksum: string   // SHA-256 of plaintext for integrity verification
 }
 
-export interface RecipientEnvelope {
+/** ECIES-wrapped file encryption key for one recipient. */
+export interface FileKeyEnvelope {
   pubkey: string
   encryptedFileKey: string
   ephemeralPubkey: string
@@ -102,7 +141,7 @@ export interface FileRecord {
   conversationId: string
   messageId?: string
   uploadedBy: string         // pubkey of uploader
-  recipientEnvelopes: RecipientEnvelope[]
+  recipientEnvelopes: FileKeyEnvelope[]
   encryptedMetadata: Array<{
     pubkey: string
     encryptedContent: string
@@ -120,7 +159,7 @@ export interface UploadInit {
   totalSize: number
   totalChunks: number
   conversationId: string
-  recipientEnvelopes: RecipientEnvelope[]
+  recipientEnvelopes: FileKeyEnvelope[]
   encryptedMetadata: Array<{
     pubkey: string
     encryptedContent: string
@@ -140,6 +179,18 @@ export const MAX_FIELD_NAME_LENGTH = 50
 export const MAX_FIELD_LABEL_LENGTH = 200
 export const MAX_OPTION_LENGTH = 200
 export const FIELD_NAME_REGEX = /^[a-zA-Z0-9_]+$/
+
+/** Check if a custom field should appear in a given context */
+export function fieldMatchesContext(field: CustomFieldDefinition, context: CustomFieldContext): boolean {
+  return field.context === context || field.context === 'all'
+}
+
+export const CUSTOM_FIELD_CONTEXT_LABELS: Record<CustomFieldContext, string> = {
+  'call-notes': 'Call Notes',
+  'conversation-notes': 'Conversation Notes',
+  'reports': 'Reports',
+  'all': 'All Record Types',
+}
 
 // --- Messaging Channel Types ---
 
