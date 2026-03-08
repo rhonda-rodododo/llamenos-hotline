@@ -51,3 +51,6 @@ apps/android/app/src/androidTest/assets/test-vectors.json
 .tool-versions
 apps/ios/.swiftpm/
 .claude/worktrees/
+
+# Load test results
+tests/load/*.json
