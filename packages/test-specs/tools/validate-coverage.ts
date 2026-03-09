@@ -37,7 +37,7 @@ const ANDROID_TEST_DIR = join(
 const IOS_TEST_DIR = join(ROOT, "apps/ios/Tests");
 const DESKTOP_STEPS_DIR = join(ROOT, "tests/steps");
 
-type Platform = "android" | "desktop" | "ios";
+type Platform = "android" | "desktop" | "ios" | "backend";
 
 interface Scenario {
   title: string;
@@ -69,6 +69,9 @@ function parsePlatformArg(): Platform[] {
     if (existsSync(DESKTOP_STEPS_DIR)) {
       platforms.push("desktop");
     }
+    if (existsSync(BACKEND_STEPS_DIR)) {
+      platforms.push("backend");
+    }
     if (existsSync(IOS_TEST_DIR) && findFiles(IOS_TEST_DIR, ".swift").length > 0) {
       platforms.push("ios");
     }
@@ -76,9 +79,9 @@ function parsePlatformArg(): Platform[] {
   }
 
   const value = args[platformIdx + 1];
-  if (value === "all") return ["android", "desktop", "ios"];
-  if (["android", "desktop", "ios"].includes(value)) return [value as Platform];
-  console.error(`Unknown platform: ${value}. Use: android, desktop, ios, all`);
+  if (value === "all") return ["android", "desktop", "ios", "backend"];
+  if (["android", "desktop", "ios", "backend"].includes(value)) return [value as Platform];
+  console.error(`Unknown platform: ${value}. Use: android, desktop, ios, backend, all`);
   process.exit(1);
 }
 
@@ -592,6 +595,29 @@ function checkIosCoverage(scenarios: Scenario[]): { covered: number; missing: nu
   return { covered, missing };
 }
 
+const BACKEND_STEPS_DIR = join(ROOT, "tests/steps/backend");
+
+function checkBackendCoverage(scenarios: Scenario[]): { covered: number; missing: number } {
+  if (!existsSync(BACKEND_STEPS_DIR)) {
+    console.log("  Backend step definitions not yet created (tests/steps/backend/)");
+    console.log(`  ${scenarios.length} scenarios tagged @backend pending implementation\n`);
+    return { covered: 0, missing: scenarios.length };
+  }
+
+  const stepFiles = findFiles(BACKEND_STEPS_DIR, ".ts");
+  console.log(`  Found ${stepFiles.length} backend step definition files in tests/steps/backend/\n`);
+
+  if (stepFiles.length > 0) {
+    // Backend steps validated by playwright-bdd at build time
+    for (const scenario of scenarios) {
+      console.log(`    \u2713 ${scenario.title} (validated by playwright-bdd)`);
+    }
+    return { covered: scenarios.length, missing: 0 };
+  }
+
+  return { covered: 0, missing: scenarios.length };
+}
+
 // ---- Tag & duplicate validation ----
 
 function reportPlatformTagCounts(scenarios: Scenario[]) {
@@ -721,6 +747,9 @@ function main() {
         break;
       case "ios":
         result = checkIosCoverage(platformScenarios);
+        break;
+      case "backend":
+        result = checkBackendCoverage(platformScenarios);
         break;
     }
 

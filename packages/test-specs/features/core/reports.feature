@@ -1,0 +1,215 @@
+@desktop @ios @android
+Feature: Reports
+  As a volunteer, reporter, or admin
+  I want to create, view, claim, and close reports
+  So that community incidents are documented and tracked
+
+  # ── Reports List ──────────────────────────────────────────────────
+
+  @desktop @android @regression
+  Scenario: Navigate to reports from dashboard
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    Then I should see the reports screen
+    And I should see the reports title
+
+  @desktop @android @regression
+  Scenario: Reports screen displays status filter chips
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    Then I should see the "All" report status filter
+    And I should see the "Active" report status filter
+    And I should see the "Waiting" report status filter
+    And I should see the "Closed" report status filter
+
+  @desktop @android @regression
+  Scenario: Reports shows list or empty state
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    Then I should see the reports content or empty state
+
+  @desktop @android @regression
+  Scenario: Navigate back from reports
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    And I tap the back button on reports
+    Then I should see the dashboard
+
+  @desktop @android @regression
+  Scenario: Filter reports by active status
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    And I tap the "Active" report status filter
+    Then the "Active" report status filter should be selected
+
+  @desktop @android @regression
+  Scenario: Filter reports by waiting status
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    And I tap the "Waiting" report status filter
+    Then the "Waiting" report status filter should be selected
+
+  @desktop @android @regression
+  Scenario: Filter reports by closed status
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    And I tap the "Closed" report status filter
+    Then the "Closed" report status filter should be selected
+
+  @desktop @android @regression
+  Scenario: Reset report filter to all
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    And I tap the "Active" report status filter
+    And I tap the "All" report status filter
+    Then the "All" report status filter should be selected
+
+  @desktop @android @regression
+  Scenario: Reports has pull to refresh
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    Then the reports screen should support pull to refresh
+
+  @desktop @android @regression
+  Scenario: Navigate back from reports returns to dashboard
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    Then I should see the reports title
+    When I tap the back button on reports
+    Then I should see the dashboard
+
+  # ── Report Detail ─────────────────────────────────────────────────
+
+  @desktop @android @regression
+  Scenario: Report detail screen has title
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    And I tap the first report card
+    Then I should see the report detail screen
+
+  @desktop @android @regression
+  Scenario: Report detail shows metadata card
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    And I tap the first report card
+    Then I should see the report metadata card
+
+  @desktop @android @regression
+  Scenario: Report detail shows status badge
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    And I tap the first report card
+    Then I should see the report status badge
+
+  @desktop @android @regression
+  Scenario: Navigate back from report detail
+    Given I am authenticated and on the dashboard
+    When I tap the view reports button
+    And I tap the first report card
+    Then I should see the report detail screen
+    When I tap the back button on report detail
+    Then I should see the reports screen
+
+  # ── Report Creation ───────────────────────────────────────────────
+
+  @desktop @ios @android @regression
+  Scenario: Create report FAB is visible
+    Given I am authenticated and on the main screen
+    And I navigate to the reports list
+    Then I should see the create report button
+
+  @desktop @ios @android @regression
+  Scenario: Report creation form has required fields
+    Given I am authenticated and on the main screen
+    And I navigate to the report creation form
+    Then I should see the report title input
+    And I should see the report body input
+    And I should see the report submit button
+
+  @desktop @ios @android @regression
+  Scenario: Submit button is disabled without title and body
+    Given I am authenticated and on the main screen
+    And I navigate to the report creation form
+    Then the report submit button should be disabled
+
+  # ── Report Claiming ───────────────────────────────────────────────
+
+  @desktop @ios @android @regression
+  Scenario: Claim button is visible on waiting report
+    Given I am authenticated and on the main screen
+    And I am viewing a report with status "waiting"
+    Then I should see the report claim button
+
+  @desktop @ios @android @regression
+  Scenario: Claim button is not visible on closed report
+    Given I am authenticated and on the main screen
+    And I am viewing a report with status "closed"
+    Then I should not see the report claim button
+
+  # ── Report Closing ────────────────────────────────────────────────
+
+  @desktop @ios @android @regression
+  Scenario: Close button is visible on active report
+    Given I am authenticated and on the main screen
+    And I am viewing a report with status "active"
+    Then I should see the report close button
+
+  @desktop @ios @android @regression
+  Scenario: Close button is not visible on waiting report
+    Given I am authenticated and on the main screen
+    And I am viewing a report with status "waiting"
+    Then I should not see the report close button
+
+  @desktop @ios @android @regression
+  Scenario: Close button is not visible on already closed report
+    Given I am authenticated and on the main screen
+    And I am viewing a report with status "closed"
+    Then I should not see the report close button
+
+  # ── Admin: Reports Page ───────────────────────────────────────────
+
+  @desktop @ios @android
+  Scenario: Reports page loads with heading
+    Given I am logged in as an admin
+    When I navigate to the "Reports" page
+    Then I should see the "Reports" heading
+
+  @desktop @ios @android
+  Scenario: Create a report via admin
+    Given I am logged in as an admin
+    When I navigate to the "Reports" page
+    And I click "New Report"
+    And I fill in the report details
+    And I click "Submit"
+    Then the report should appear in the reports list
+
+  @desktop @ios @android
+  Scenario: Report list displays
+    Given I am logged in as an admin
+    And at least one report exists
+    When I navigate to the "Reports" page
+    Then I should see reports in the list
+
+  @desktop @ios @android
+  Scenario: Report detail view
+    Given I am logged in as an admin
+    And a report exists
+    When I click on the report
+    Then I should see the report detail view
+    And I should see the report content
+
+  @desktop @ios @android
+  Scenario: Reporter can create reports
+    Given I am logged in as an admin
+    And a reporter has been invited and onboarded
+    When the reporter logs in
+    And they navigate to the "Reports" page
+    And they create a new report
+    Then the report should be saved successfully
+
+  @desktop @ios @android
+  Scenario: Reporter cannot access admin pages
+    Given I am logged in as an admin
+    And a reporter is logged in
+    When they navigate to "/volunteers" via SPA
+    Then they should see "Access Denied"
