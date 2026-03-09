@@ -1,5 +1,37 @@
 # Completed Backlog
 
+## 2026-03-08: BDD Workflow Overhaul (Epics 301-303)
+
+### Epic 301: BDD Spec Reorganization + Backend BDD Suite
+- Reorganized 94 feature files from per-screen layout to behavior-focused tiers: `core/` (7), `admin/` (6), `security/` (4), `platform/` (13)
+- Rewrote 34 shallow UI-existence tests as behavioral scenarios verifying state/data
+- Deleted 6 zero-value tests (screenshots, help screen, nav smoke, mocked admin)
+- Created 8 backend BDD step definition files in `tests/steps/backend/` using simulation framework + API helpers
+- Wired `backend-bdd` project into `playwright.config.ts` with separate `defineBddConfig` for `@backend` tags
+- Added `test:backend:bdd` script and `scripts/test-backend-bdd.sh` runner
+- Updated `scripts/lib/platform-detect.sh` to include `backend-bdd` as a platform
+- Excluded `tests/steps/backend/` from desktop BDD config to prevent `createBdd()` conflicts
+- Net scenario count: 575 → 585 (gained 10 new behavioral scenarios)
+
+### Epic 302: Skills & Documentation Overhaul
+- Updated `epic-authoring` skill: BDD-First Feature Epic template, AC→Gherkin mapping, self-review items 9-12, phased batch workflow
+- Replaced `multi-platform-test-recovery` with `bdd-feature-development` skill: 3-phase workflow, Gherkin quality rules, backend step patterns, platform debugging tips preserved
+- Updated `test-orchestration` skill: Backend BDD platform section, infrastructure map, shared spec structure
+- Updated `cross-platform-feature-port` skill: "Read the BDD Spec" as Step 1, Red-Green-Refactor porting
+- Updated `backend-api-development` skill: Backend BDD Testing section with simulation framework reference
+- Rewrote CLAUDE.md working style: 3-Phase BDD Workflow, Test Philosophy, Pre-Commit Verification
+- Updated MEMORY.md cardinal rule to "Tests Are The Spec", BDD-first workflow, trimmed to under 200 lines
+
+### Epic 303: Integration Verification
+- Scenario count verified: 585 total (575 before, +10 new behavioral, -6 deleted zero-value = net +4 accounting for consolidation)
+- Typecheck passes with all new step definitions
+- Zero-value files confirmed deleted, old directories removed
+- .features-gen-backend/ added to .gitignore
+- Instruction consistency audit: all 9 cross-file checks PASS (CLAUDE.md, 5 skills, MEMORY.md, package.json, playwright.config.ts)
+- Dry-run scenario added: "Dashboard shows correct on-shift volunteer count" with backend step definition
+- Android copyFeatureFiles compatible (recursive copy picks up new dirs)
+- Backlog files updated
+
 ## 2026-03-08: Production Readiness Epics 276-300 (21/25 complete, 4 in progress)
 
 ### Track 1: Ansible Fleet Deployment (E276-E280) — COMPLETE

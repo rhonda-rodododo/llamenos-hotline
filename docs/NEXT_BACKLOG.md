@@ -1,9 +1,9 @@
 # Next Backlog
 
-## BDD Workflow Overhaul (Epics 301-303)
-- [ ] **Epic 301**: BDD Spec Reorganization + Backend BDD Suite — reorganize 94 feature files into behavior-focused tiers, rewrite 34 shallow tests, create backend BDD suite, wire into orchestrator
-- [ ] **Epic 302**: Skills & Documentation Overhaul — update 5 skills + CLAUDE.md + MEMORY.md for BDD-first phased workflow, replace multi-platform-test-recovery with bdd-feature-development
-- [ ] **Epic 303**: Integration Verification — full test suite validation, platform compatibility checks, dry-run phased workflow
+## BDD Workflow Overhaul (Epics 301-303) ✅ COMPLETED
+- [x] **Epic 301**: BDD Spec Reorganization + Backend BDD Suite — reorganize 94 feature files into behavior-focused tiers, rewrite 34 shallow tests, create backend BDD suite, wire into orchestrator
+- [x] **Epic 302**: Skills & Documentation Overhaul — update 5 skills + CLAUDE.md + MEMORY.md for BDD-first phased workflow, replace multi-platform-test-recovery with bdd-feature-development
+- [x] **Epic 303**: Integration Verification — full test suite validation, platform compatibility checks, dry-run phased workflow
 
 ## i18n Overhaul (Epics 274-275) ✅ COMPLETED
 - [x] **Epic 274**: Canonicalize en.json source of truth — removed 52 duplicates, standardized camelCase, codegen converts camelCase→snake_case

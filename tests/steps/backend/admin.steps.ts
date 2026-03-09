@@ -188,3 +188,24 @@ When('the chain is verified', async ({}) => {
 Then('all entries should pass integrity checks', async ({}) => {
   expect(adminState.chainValid).toBeTruthy()
 })
+
+// ── Shift Status Query ─────────────────────────────────────────
+
+When('I query the shift status', async ({ request }) => {
+  const { status, data } = await apiGet<{ shifts: Array<{ volunteerPubkeys: string[] }> }>(request, '/shifts')
+  expect(status).toBe(200)
+  state.lastApiResponse = { status, data }
+})
+
+Then('{int} volunteers are reported as on-shift', async ({}, count: number) => {
+  const data = state.lastApiResponse?.data as { shifts: Array<{ volunteerPubkeys: string[] }> }
+  expect(data).toBeTruthy()
+  // Count unique volunteer pubkeys across all current shifts
+  const uniqueVolunteers = new Set<string>()
+  for (const shift of data.shifts) {
+    for (const pk of shift.volunteerPubkeys) {
+      uniqueVolunteers.add(pk)
+    }
+  }
+  expect(uniqueVolunteers.size).toBe(count)
+})

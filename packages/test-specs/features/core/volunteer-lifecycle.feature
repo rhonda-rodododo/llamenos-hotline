@@ -297,3 +297,12 @@ Feature: Volunteer Lifecycle
     Given I am logged in as an admin
     When I attempt to delete a role that does not exist
     Then I should receive a not found error
+
+  # ── Backend: Shift Status Query ─────────────────────────────────
+
+  @backend @desktop
+  Scenario: Dashboard shows correct on-shift volunteer count
+    Given the server is reset
+    And 3 volunteers are on shift
+    When I query the shift status
+    Then 3 volunteers are reported as on-shift

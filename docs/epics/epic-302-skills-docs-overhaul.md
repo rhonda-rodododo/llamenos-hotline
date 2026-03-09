@@ -1,6 +1,6 @@
 # Epic 302: Skills & Documentation Overhaul for BDD-First Workflow
 
-**Status**: PENDING
+**Status**: COMPLETE
 **Priority**: High
 **Depends on**: None (can run parallel with Epic 301)
 **Blocks**: Epic 303
