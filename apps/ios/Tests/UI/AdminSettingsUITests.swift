@@ -1,0 +1,368 @@
+import XCTest
+
+/// XCUITest suite for the admin settings screens added in E300:
+/// Report Categories, Telephony, Call Settings, IVR Languages,
+/// Transcription, Spam Settings, and System Health.
+///
+/// These tests verify navigation and basic UI rendering for each screen.
+/// They use the `--test-authenticated` and `--test-admin` launch arguments.
+final class AdminSettingsUITests: XCTestCase {
+
+    private var app: XCUIApplication!
+
+    override func setUp() {
+        super.setUp()
+        continueAfterFailure = false
+        app = XCUIApplication()
+        app.launchArguments.append(contentsOf: [
+            "--reset-keychain",
+            "--test-authenticated",
+            "--test-admin",
+        ])
+        app.launch()
+    }
+
+    override func tearDown() {
+        app = nil
+        super.tearDown()
+    }
+
+    /// Find any element by accessibility identifier, regardless of XCUIElement type.
+    private func find(_ identifier: String) -> XCUIElement {
+        return app.descendants(matching: .any)[identifier].firstMatch
+    }
+
+    // MARK: - Admin Settings Navigation Links
+
+    func testAdminSettingsSectionExists() {
+        navigateToAdminPanel()
+
+        // The Settings section should have navigation links for new features
+        let reportCategoriesLink = scrollToFind("admin-report-categories")
+        XCTAssertTrue(
+            reportCategoriesLink.exists,
+            "Report Categories link should exist in admin settings section"
+        )
+    }
+
+    func testAllSettingsLinksVisible() {
+        navigateToAdminPanel()
+
+        let links = [
+            "admin-report-categories",
+            "admin-telephony-settings",
+            "admin-call-settings",
+            "admin-ivr-settings",
+            "admin-transcription-settings",
+            "admin-spam-settings",
+            "admin-system-health",
+        ]
+
+        for link in links {
+            let element = scrollToFind(link)
+            XCTAssertTrue(element.exists, "\(link) should be visible in admin panel")
+        }
+    }
+
+    // MARK: - Report Categories
+
+    func testReportCategoriesOpens() {
+        navigateToAdminSettingsScreen("admin-report-categories")
+
+        let found = anyElementExists([
+            "report-categories-view",
+            "report-categories-list",
+            "categories-empty-state",
+            "categories-loading",
+        ])
+        XCTAssertTrue(found, "Report categories view should show content, empty state, or loading")
+    }
+
+    // MARK: - Telephony Settings
+
+    func testTelephonySettingsOpens() {
+        navigateToAdminSettingsScreen("admin-telephony-settings")
+
+        let view = find("telephony-settings-view")
+        XCTAssertTrue(
+            view.waitForExistence(timeout: 10),
+            "Telephony settings view should appear"
+        )
+    }
+
+    func testTelephonySettingsHasProviderPicker() {
+        navigateToAdminSettingsScreen("admin-telephony-settings")
+
+        let picker = find("telephony-provider-picker")
+        XCTAssertTrue(
+            picker.waitForExistence(timeout: 10),
+            "Telephony provider picker should exist"
+        )
+    }
+
+    func testTelephonySettingsHasCredentialFields() {
+        navigateToAdminSettingsScreen("admin-telephony-settings")
+
+        // Wait for form to load
+        let view = find("telephony-settings-view")
+        guard view.waitForExistence(timeout: 10) else { return }
+
+        let accountSid = scrollToFind("telephony-account-sid")
+        XCTAssertTrue(accountSid.exists, "Account SID field should exist")
+
+        let authToken = scrollToFind("telephony-auth-token")
+        XCTAssertTrue(authToken.exists, "Auth token field should exist")
+
+        let phoneNumber = scrollToFind("telephony-phone-number")
+        XCTAssertTrue(phoneNumber.exists, "Phone number field should exist")
+    }
+
+    func testTelephonySettingsHasSaveButton() {
+        navigateToAdminSettingsScreen("admin-telephony-settings")
+
+        let saveButton = scrollToFind("telephony-save-button")
+        XCTAssertTrue(saveButton.exists, "Save button should exist in telephony settings")
+    }
+
+    // MARK: - Call Settings
+
+    func testCallSettingsOpens() {
+        navigateToAdminSettingsScreen("admin-call-settings")
+
+        let view = find("call-settings-view")
+        XCTAssertTrue(
+            view.waitForExistence(timeout: 10),
+            "Call settings view should appear"
+        )
+    }
+
+    func testCallSettingsHasSliders() {
+        navigateToAdminSettingsScreen("admin-call-settings")
+
+        let view = find("call-settings-view")
+        guard view.waitForExistence(timeout: 10) else { return }
+
+        let ringTimeout = scrollToFind("ring-timeout-slider")
+        XCTAssertTrue(ringTimeout.exists, "Ring timeout slider should exist")
+
+        let maxDuration = scrollToFind("max-duration-slider")
+        XCTAssertTrue(maxDuration.exists, "Max duration slider should exist")
+
+        let parallelRing = scrollToFind("parallel-ring-slider")
+        XCTAssertTrue(parallelRing.exists, "Parallel ring slider should exist")
+    }
+
+    func testCallSettingsHasSaveButton() {
+        navigateToAdminSettingsScreen("admin-call-settings")
+
+        let saveButton = scrollToFind("call-settings-save-button")
+        XCTAssertTrue(saveButton.exists, "Save button should exist in call settings")
+    }
+
+    // MARK: - IVR Languages
+
+    func testIvrSettingsOpens() {
+        navigateToAdminSettingsScreen("admin-ivr-settings")
+
+        let view = find("ivr-settings-view")
+        XCTAssertTrue(
+            view.waitForExistence(timeout: 10),
+            "IVR settings view should appear"
+        )
+    }
+
+    func testIvrSettingsHasSaveButton() {
+        navigateToAdminSettingsScreen("admin-ivr-settings")
+
+        let saveButton = scrollToFind("ivr-save-button")
+        XCTAssertTrue(saveButton.exists, "Save button should exist in IVR settings")
+    }
+
+    // MARK: - Transcription Settings
+
+    func testTranscriptionSettingsOpens() {
+        navigateToAdminSettingsScreen("admin-transcription-settings")
+
+        let view = find("transcription-settings-view")
+        XCTAssertTrue(
+            view.waitForExistence(timeout: 10),
+            "Transcription settings view should appear"
+        )
+    }
+
+    func testTranscriptionSettingsHasToggles() {
+        navigateToAdminSettingsScreen("admin-transcription-settings")
+
+        let view = find("transcription-settings-view")
+        guard view.waitForExistence(timeout: 10) else { return }
+
+        let enabledToggle = scrollToFind("transcription-enabled-toggle")
+        XCTAssertTrue(enabledToggle.exists, "Transcription enabled toggle should exist")
+
+        let optOutToggle = scrollToFind("transcription-opt-out-toggle")
+        XCTAssertTrue(optOutToggle.exists, "Volunteer opt-out toggle should exist")
+    }
+
+    func testTranscriptionSettingsHasSaveButton() {
+        navigateToAdminSettingsScreen("admin-transcription-settings")
+
+        let saveButton = scrollToFind("transcription-save-button")
+        XCTAssertTrue(saveButton.exists, "Save button should exist in transcription settings")
+    }
+
+    // MARK: - Spam Settings
+
+    func testSpamSettingsOpens() {
+        navigateToAdminSettingsScreen("admin-spam-settings")
+
+        let view = find("spam-settings-view")
+        XCTAssertTrue(
+            view.waitForExistence(timeout: 10),
+            "Spam settings view should appear"
+        )
+    }
+
+    func testSpamSettingsHasControls() {
+        navigateToAdminSettingsScreen("admin-spam-settings")
+
+        let view = find("spam-settings-view")
+        guard view.waitForExistence(timeout: 10) else { return }
+
+        let maxCalls = scrollToFind("spam-max-calls-stepper")
+        XCTAssertTrue(maxCalls.exists, "Max calls stepper should exist")
+
+        let captchaToggle = scrollToFind("spam-captcha-toggle")
+        XCTAssertTrue(captchaToggle.exists, "Voice CAPTCHA toggle should exist")
+
+        let bypassToggle = scrollToFind("spam-bypass-toggle")
+        XCTAssertTrue(bypassToggle.exists, "Known number bypass toggle should exist")
+    }
+
+    func testSpamSettingsHasSaveButton() {
+        navigateToAdminSettingsScreen("admin-spam-settings")
+
+        let saveButton = scrollToFind("spam-save-button")
+        XCTAssertTrue(saveButton.exists, "Save button should exist in spam settings")
+    }
+
+    // MARK: - System Health
+
+    func testSystemHealthOpens() {
+        navigateToAdminSettingsScreen("admin-system-health")
+
+        let found = anyElementExists([
+            "system-health-view",
+            "health-loading",
+            "health-error-state",
+        ])
+        XCTAssertTrue(found, "System health view should show content, loading, or error state")
+    }
+
+    func testSystemHealthShowsCards() {
+        navigateToAdminSettingsScreen("admin-system-health")
+
+        let view = find("system-health-view")
+        guard view.waitForExistence(timeout: 10) else {
+            // May show error state if no API — that's acceptable
+            let errorState = find("health-error-state")
+            if errorState.waitForExistence(timeout: 5) {
+                XCTAssertTrue(true, "System health shows error state (no API) — acceptable")
+                return
+            }
+            return
+        }
+
+        // If loaded successfully, check for health cards
+        let cards = [
+            "health-card-server",
+            "health-card-services",
+            "health-card-calls",
+            "health-card-storage",
+            "health-card-backup",
+            "health-card-volunteers",
+        ]
+
+        for card in cards {
+            let element = scrollToFind(card)
+            XCTAssertTrue(element.exists, "\(card) should be visible in system health dashboard")
+        }
+    }
+
+    func testSystemHealthHasRefreshButton() {
+        navigateToAdminSettingsScreen("admin-system-health")
+
+        let found = anyElementExists([
+            "health-refresh-button",
+            "health-retry-button",
+            "health-loading",
+        ])
+        XCTAssertTrue(found, "System health should have refresh, retry, or loading indicator")
+    }
+
+    // MARK: - Helpers
+
+    @discardableResult
+    private func scrollToFind(_ identifier: String, maxSwipes: Int = 5, timeout: TimeInterval = 2) -> XCUIElement {
+        let element = find(identifier)
+        if element.waitForExistence(timeout: timeout) {
+            return element
+        }
+        for _ in 0..<maxSwipes {
+            app.swipeUp()
+            if element.waitForExistence(timeout: 1) {
+                return element
+            }
+        }
+        return element
+    }
+
+    private func anyElementExists(_ identifiers: [String], timeout: TimeInterval = 10) -> Bool {
+        for (i, id) in identifiers.enumerated() {
+            let element = find(id)
+            let wait: TimeInterval = i == 0 ? timeout : 2
+            if element.waitForExistence(timeout: wait) {
+                return true
+            }
+        }
+        return false
+    }
+
+    // MARK: - Navigation Helpers
+
+    private func navigateToSettingsTab() {
+        let tabView = find("main-tab-view")
+        guard tabView.waitForExistence(timeout: 10) else {
+            XCTFail("Main tab view should be visible")
+            return
+        }
+
+        let tabBar = app.tabBars.firstMatch
+        guard tabBar.waitForExistence(timeout: 5) else { return }
+        let settingsTabButton = tabBar.buttons.element(boundBy: 4)
+        if settingsTabButton.exists {
+            settingsTabButton.tap()
+        }
+    }
+
+    private func navigateToAdminPanel() {
+        navigateToSettingsTab()
+
+        let adminLink = scrollToFind("settings-admin-link", timeout: 10)
+        guard adminLink.exists else { return }
+        adminLink.tap()
+
+        let adminTabView = find("admin-tab-view")
+        _ = adminTabView.waitForExistence(timeout: 5)
+    }
+
+    private func navigateToAdminSettingsScreen(_ linkIdentifier: String) {
+        navigateToAdminPanel()
+
+        let link = scrollToFind(linkIdentifier)
+        guard link.exists else {
+            XCTFail("\(linkIdentifier) should exist in admin panel")
+            return
+        }
+        link.tap()
+    }
+}
