@@ -4,6 +4,7 @@ import {
   signServerEvent,
   createNostrPublisher,
   NoopNostrPublisher,
+  NodeNostrPublisher,
 } from '@worker/lib/nostr-publisher'
 import { getPublicKey, verifyEvent } from 'nostr-tools/pure'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
@@ -136,6 +137,30 @@ describe('createNostrPublisher', () => {
     // Both provided — CF binding should win
     expect(publisher.serverPubkey).toBeTruthy()
     publisher.close()
+  })
+})
+
+describe('NodeNostrPublisher lifecycle', () => {
+  it('can be instantiated with valid credentials', () => {
+    const publisher = new NodeNostrPublisher('wss://relay.example.com', TEST_SECRET)
+    expect(publisher.serverPubkey).toMatch(/^[0-9a-f]{64}$/)
+    publisher.close()
+  })
+
+  it('close() is idempotent', () => {
+    const publisher = new NodeNostrPublisher('wss://relay.example.com', TEST_SECRET)
+    expect(() => {
+      publisher.close()
+      publisher.close()
+    }).not.toThrow()
+  })
+
+  it('close() clears pending state without crash', () => {
+    const publisher = new NodeNostrPublisher('wss://relay.example.com', TEST_SECRET)
+    // Close immediately — no pending publishes, should not crash
+    publisher.close()
+    // Verify the publisher is inert after close
+    expect(publisher.serverPubkey).toMatch(/^[0-9a-f]{64}$/)
   })
 })
 

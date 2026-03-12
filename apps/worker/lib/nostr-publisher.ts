@@ -147,6 +147,8 @@ export class NodeNostrPublisher implements NostrPublisher {
   private reconnectAttempts = 0
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private pendingEvents: VerifiedEvent[] = []
+  private pendingPublishes = new Map<string, { resolve: () => void; reject: (err: Error) => void }>()
+  private publishTimeout = 10_000
   private closed = false
 
   constructor(
@@ -201,20 +203,34 @@ export class NodeNostrPublisher implements NostrPublisher {
   async publish(template: EventTemplate): Promise<void> {
     const event = signServerEvent(template, this.secretKey)
 
-    // If connected and authenticated, send immediately
+    // If connected and authenticated, send and await relay acknowledgment
     if (this.ws?.readyState === WebSocket.OPEN && this.authenticated) {
-      this.ws.send(JSON.stringify(['EVENT', event]))
-      return
+      return this.sendAndAwaitOk(event)
     }
 
     // Queue and ensure connection
     this.pendingEvents.push(event)
     if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
-      // Fire and forget — event is queued and will be sent on connect
       this.connect().catch((err) => {
         console.error('[nostr-publisher] Failed to connect:', err)
       })
     }
+  }
+
+  private sendAndAwaitOk(event: VerifiedEvent): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingPublishes.delete(event.id)
+        reject(new Error(`Relay did not acknowledge event ${event.id} within ${this.publishTimeout}ms`))
+      }, this.publishTimeout)
+
+      this.pendingPublishes.set(event.id, {
+        resolve: () => { clearTimeout(timer); resolve() },
+        reject: (err) => { clearTimeout(timer); reject(err) },
+      })
+
+      this.ws!.send(JSON.stringify(['EVENT', event]))
+    })
   }
 
   close(): void {
@@ -227,6 +243,10 @@ export class NodeNostrPublisher implements NostrPublisher {
       this.ws.close()
       this.ws = null
     }
+    for (const pending of this.pendingPublishes.values()) {
+      pending.reject(new Error('Publisher closed'))
+    }
+    this.pendingPublishes.clear()
     this.pendingEvents = []
   }
 
@@ -238,9 +258,19 @@ export class NodeNostrPublisher implements NostrPublisher {
           if (data[0] === 'AUTH') {
             this.handleNIP42Auth(data[1] as string)
           } else if (data[0] === 'OK') {
-            // Event accepted — data[1] is event ID, data[2] is boolean, data[3] is message
-            if (!data[2]) {
-              console.warn(`[nostr-publisher] Event ${data[1]} rejected: ${data[3]}`)
+            const eventId = data[1] as string
+            const accepted = data[2] as boolean
+            const message = data[3] as string
+            const pending = this.pendingPublishes.get(eventId)
+            if (pending) {
+              this.pendingPublishes.delete(eventId)
+              if (accepted) {
+                pending.resolve()
+              } else {
+                pending.reject(new Error(`Relay rejected event ${eventId}: ${message}`))
+              }
+            } else if (!accepted) {
+              console.warn(`[nostr-publisher] Event ${eventId} rejected: ${message}`)
             }
           } else if (data[0] === 'NOTICE') {
             console.warn(`[nostr-publisher] Relay notice: ${data[1]}`)
@@ -254,6 +284,10 @@ export class NodeNostrPublisher implements NostrPublisher {
     ws.addEventListener('close', () => {
       this.authenticated = false
       this.ws = null
+      for (const pending of this.pendingPublishes.values()) {
+        pending.reject(new Error('WebSocket closed'))
+      }
+      this.pendingPublishes.clear()
       if (!this.closed) {
         this.scheduleReconnect()
       }
