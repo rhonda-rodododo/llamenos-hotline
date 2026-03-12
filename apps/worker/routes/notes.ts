@@ -4,10 +4,9 @@ import { describeRoute, resolver, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
 import { getScopedDOs } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
-import { listNotesQuerySchema, createNoteBodySchema, updateNoteBodySchema, createReplyBodySchema } from '../schemas/notes'
-import { noteResponseSchema, okResponseSchema } from '../schemas/responses'
+import { listNotesQuerySchema, createNoteBodySchema, updateNoteBodySchema, createReplyBodySchema, noteResponseSchema } from '../schemas/notes'
+import { okResponseSchema, paginatedMeta } from '../schemas/common'
 import { authErrors, notFoundError } from '../openapi/helpers'
-import { paginatedMeta } from '../schemas/responses'
 import { audit } from '../services/audit'
 
 const notes = new Hono<AppEnv>()

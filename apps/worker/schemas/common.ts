@@ -4,7 +4,7 @@ import { z } from 'zod'
 export const pubkeySchema = z.string().regex(/^[0-9a-f]{64}$/, 'Must be a 64-character hex string')
 
 /** UUID v4 */
-export const uuidSchema = z.string().uuid()
+export const uuidSchema = z.uuid()
 
 /** E.164 phone number */
 export const e164PhoneSchema = z.string().regex(/^\+\d{7,15}$/, 'Must be E.164 format (+XXXXXXXXXXX)')
@@ -22,7 +22,7 @@ export const cursorPaginationSchema = z.object({
 })
 
 /** ISO 8601 date string */
-export const isoDateSchema = z.string().datetime({ offset: true }).or(
+export const isoDateSchema = z.iso.datetime().or(
   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD format')
 )
 
@@ -39,29 +39,39 @@ export const errorResponseSchema = z.object({
 
 export type ErrorResponse = z.infer<typeof errorResponseSchema>
 
+/** Paginated response metadata — used across domains */
+export const paginatedMeta = {
+  total: z.number(),
+  page: z.number(),
+  limit: z.number(),
+}
+
+/** Generic success response */
+export const okResponseSchema = z.object({ ok: z.boolean() })
+
 /** ECIES recipient envelope — used across notes, messages, files */
-export const recipientEnvelopeSchema = z.object({
+export const recipientEnvelopeSchema = z.looseObject({
   pubkey: pubkeySchema,
   wrappedKey: z.string().min(1),
   ephemeralPubkey: pubkeySchema,
-}).passthrough()
+})
 
 /** Key envelope — used for note author copies (no pubkey) */
-export const keyEnvelopeSchema = z.object({
+export const keyEnvelopeSchema = z.looseObject({
   wrappedKey: z.string().min(1),
   ephemeralPubkey: pubkeySchema,
-}).passthrough()
+})
 
 /** File key envelope — used for file uploads */
-export const fileKeyEnvelopeSchema = z.object({
+export const fileKeyEnvelopeSchema = z.looseObject({
   pubkey: pubkeySchema,
   encryptedFileKey: z.string().min(1),
   ephemeralPubkey: pubkeySchema,
-}).passthrough()
+})
 
 /** Encrypted metadata entry — used for file uploads */
-export const encryptedMetadataEntrySchema = z.object({
+export const encryptedMetadataEntrySchema = z.looseObject({
   pubkey: z.string().min(1),
   encryptedContent: z.string().min(1),
   ephemeralPubkey: pubkeySchema,
-}).passthrough()
+})

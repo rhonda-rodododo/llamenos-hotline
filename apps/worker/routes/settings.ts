@@ -15,7 +15,7 @@ import {
   ivrLanguagesSchema,
   setupStateSchema,
 } from '../schemas/settings'
-import { okResponseSchema } from '../schemas/responses'
+import { okResponseSchema } from '../schemas/common'
 import { authErrors } from '../openapi/helpers'
 import { audit } from '../services/audit'
 import { validateExternalUrl } from '../lib/ssrf-guard'

@@ -1,27 +1,66 @@
 import { z } from 'zod'
 
-export const spamSettingsSchema = z.object({
+// --- Response schemas ---
+
+export const roleResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  permissions: z.array(z.string()),
+  isDefault: z.boolean().optional(),
+  isSystem: z.boolean().optional(),
+  description: z.string(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+})
+
+export const customFieldResponseSchema = z.object({
+  name: z.string(),
+  label: z.string(),
+  type: z.enum(['text', 'number', 'select', 'checkbox', 'textarea', 'file']),
+  required: z.boolean().optional(),
+  options: z.array(z.string()).optional(),
+  order: z.number().optional(),
+  context: z.string().optional(),
+  visibleToVolunteers: z.boolean().optional(),
+})
+
+export const reportTypeResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  icon: z.string().optional(),
+  fields: z.array(z.string()).optional(),
+  isDefault: z.boolean().optional(),
+  isArchived: z.boolean().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+})
+
+// --- Input schemas ---
+
+export const spamSettingsSchema = z.looseObject({
   voiceCaptchaEnabled: z.boolean().optional(),
   rateLimitEnabled: z.boolean().optional(),
   maxCallsPerMinute: z.number().int().min(1).max(100).optional(),
   blockDurationMinutes: z.number().int().min(1).max(1440).optional(),
-}).passthrough()
+})
 
-export const callSettingsSchema = z.object({
+export const callSettingsSchema = z.looseObject({
   queueTimeoutSeconds: z.number().int().min(30).max(300).optional(),
   voicemailMaxSeconds: z.number().int().min(30).max(300).optional(),
-}).passthrough()
+})
 
-export const messagingConfigSchema = z.object({
+export const messagingConfigSchema = z.looseObject({
   enabledChannels: z.array(z.enum(['sms', 'whatsapp', 'signal', 'rcs'])).optional(),
   autoAssignEnabled: z.boolean().optional(),
   maxConcurrentPerVolunteer: z.number().int().min(1).max(20).optional(),
   inactivityTimeout: z.number().int().min(5).max(1440).optional(),
   welcomeMessage: z.string().max(500).optional(),
   awayMessage: z.string().max(500).optional(),
-}).passthrough()
+})
 
-export const telephonyProviderSchema = z.object({
+export const telephonyProviderSchema = z.looseObject({
   type: z.enum(['twilio', 'signalwire', 'vonage', 'plivo', 'asterisk']),
   accountSid: z.string().optional(),
   authToken: z.string().optional(),
@@ -30,9 +69,9 @@ export const telephonyProviderSchema = z.object({
   phoneNumber: z.string().regex(/^\+\d{7,15}$/).optional(),
   twimlAppSid: z.string().optional(),
   projectId: z.string().optional(),
-  spaceUrl: z.string().url().optional(),
+  spaceUrl: z.url().optional(),
   applicationId: z.string().optional(),
-  ariUrl: z.string().url().optional(),
+  ariUrl: z.url().optional(),
   ariUsername: z.string().optional(),
   ariPassword: z.string().optional(),
   // Allow extra provider-specific fields
@@ -40,36 +79,36 @@ export const telephonyProviderSchema = z.object({
   apiKey: z.string().optional(),
   apiSecret: z.string().optional(),
   authId: z.string().optional(),
-}).passthrough()
+})
 
-export const createRoleSchema = z.object({
+export const createRoleSchema = z.looseObject({
   name: z.string().min(1).max(100),
   slug: z.string().regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric with hyphens'),
   permissions: z.array(z.string()),
   description: z.string().min(1).max(500),
-}).passthrough()
+})
 
-export const updateRoleSchema = z.object({
+export const updateRoleSchema = z.looseObject({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(500).optional(),
   permissions: z.array(z.string()).optional(),
-}).passthrough()
+})
 
-export const webauthnSettingsSchema = z.object({
+export const webauthnSettingsSchema = z.looseObject({
   requireForAdmins: z.boolean().optional(),
   requireForVolunteers: z.boolean().optional(),
-}).passthrough()
+})
 
-export const transcriptionSettingsSchema = z.object({
+export const transcriptionSettingsSchema = z.looseObject({
   globalEnabled: z.boolean().optional(),
   allowVolunteerOptOut: z.boolean().optional(),
-}).passthrough()
+})
 
-export const ivrLanguagesSchema = z.object({
+export const ivrLanguagesSchema = z.looseObject({
   languages: z.array(z.string()).optional(),
-}).passthrough()
+})
 
-export const setupStateSchema = z.object({
+export const setupStateSchema = z.looseObject({
   completed: z.boolean().optional(),
   step: z.string().optional(),
-}).passthrough()
+})

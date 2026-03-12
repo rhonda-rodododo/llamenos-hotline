@@ -1,6 +1,34 @@
 import { z } from 'zod'
 import { pubkeySchema, paginationSchema, recipientEnvelopeSchema } from './common'
 
+// --- Response schemas ---
+
+export const conversationResponseSchema = z.object({
+  id: z.string(),
+  channelType: z.string(),
+  contactIdentifierHash: z.string(),
+  contactLast4: z.string().optional(),
+  assignedTo: z.string().optional(),
+  status: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  lastMessageAt: z.string().optional(),
+  messageCount: z.number(),
+})
+
+export const messageResponseSchema = z.object({
+  id: z.string(),
+  conversationId: z.string(),
+  direction: z.string(),
+  authorPubkey: z.string().optional(),
+  encryptedContent: z.string(),
+  readerEnvelopes: z.array(recipientEnvelopeSchema),
+  createdAt: z.string(),
+  status: z.string().optional(),
+})
+
+// --- Input schemas ---
+
 export const listConversationsQuerySchema = paginationSchema.extend({
   status: z.enum(['waiting', 'active', 'closed']).optional(),
   assignedTo: pubkeySchema.optional(),
@@ -9,27 +37,27 @@ export const listConversationsQuerySchema = paginationSchema.extend({
   contactHash: z.string().optional(),
 })
 
-export const sendMessageBodySchema = z.object({
+export const sendMessageBodySchema = z.looseObject({
   encryptedContent: z.string().min(1, 'encryptedContent is required'),
   readerEnvelopes: z.array(recipientEnvelopeSchema).min(1, 'At least one reader envelope required'),
   plaintextForSending: z.string().optional(),
-}).passthrough()
+})
 
-export const updateConversationBodySchema = z.object({
+export const updateConversationBodySchema = z.looseObject({
   status: z.enum(['waiting', 'active', 'closed']).optional(),
   assignedTo: pubkeySchema.optional().nullable(),
   metadata: z.record(z.string(), z.unknown()).optional(),
-}).passthrough()
+})
 
-export const claimConversationBodySchema = z.object({
+export const claimConversationBodySchema = z.looseObject({
   pubkey: pubkeySchema,
-}).passthrough()
+})
 
-export const createConversationBodySchema = z.object({
+export const createConversationBodySchema = z.looseObject({
   channelType: z.enum(['sms', 'whatsapp', 'signal', 'rcs', 'web']).default('web'),
   contactIdentifierHash: z.string().default(''),
   contactLast4: z.string().max(4).optional(),
   assignedTo: pubkeySchema.optional(),
   status: z.enum(['waiting', 'active', 'closed']).default('waiting'),
   metadata: z.record(z.string(), z.unknown()).optional(),
-}).passthrough()
+})

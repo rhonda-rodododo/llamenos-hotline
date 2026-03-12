@@ -4,7 +4,7 @@ import type { AppEnv } from '../types'
 import { getScopedDOs } from '../lib/do-access'
 import { isValidE164 } from '../lib/helpers'
 import { requirePermission } from '../middleware/permission-guard'
-import { okResponseSchema } from '../schemas/responses'
+import { okResponseSchema } from '../schemas/common'
 import { authErrors } from '../openapi/helpers'
 import { audit } from '../services/audit'
 
