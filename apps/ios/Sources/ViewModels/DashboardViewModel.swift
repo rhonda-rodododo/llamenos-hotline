@@ -114,14 +114,14 @@ final class DashboardViewModel {
 
     // MARK: - WebSocket Events
 
-    /// Start listening for real-time WebSocket events.
+    /// Start listening for real-time typed WebSocket events.
     func startEventListener() {
         eventTask?.cancel()
         eventTask = Task { [weak self] in
             guard let self else { return }
-            for await event in self.webSocketService.events {
+            for await eventType in self.webSocketService.typedEvents {
                 guard !Task.isCancelled else { break }
-                await self.handleEvent(event)
+                await self.handleTypedEvent(eventType)
             }
         }
     }
@@ -133,18 +133,19 @@ final class DashboardViewModel {
         stopTimer()
     }
 
-    /// Handle an incoming Nostr event and update dashboard state.
-    /// Content-based type parsing (HubEventType) happens after hub-key decryption.
-    /// For now, any llamenos event triggers a full dashboard refresh.
+    /// Handle a decrypted, typed hub event and refresh only relevant data.
     @MainActor
-    private func handleEvent(_ event: NostrEvent) {
-        guard WebSocketService.isLlamenosEvent(event) else { return }
-
-        // TODO: After decryption, parse content.type into HubEventType and
-        // dispatch granularly (e.g., callRing increments active call count,
-        // callUpdate with status "completed" decrements it, etc.)
-        Task { await fetchRecentNotes() }
-        Task { await fetchShiftStatus() }
+    private func handleTypedEvent(_ eventType: HubEventType) {
+        switch eventType {
+        case .callRing, .callUpdate, .voicemailNew, .presenceSummary:
+            // Call/presence events affect shift status (active calls, availability)
+            Task { await fetchShiftStatus() }
+        case .messageNew, .conversationAssigned, .conversationClosed:
+            // Message events don't affect dashboard — handled by ConversationsViewModel
+            break
+        case .unknown:
+            break
+        }
     }
 
     // MARK: - Timer

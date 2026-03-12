@@ -203,14 +203,14 @@ final class ConversationsViewModel {
 
     // MARK: - Real-time Events
 
-    /// Start listening for WebSocket events related to conversations.
+    /// Start listening for typed WebSocket events related to conversations.
     func startEventListener() {
         eventTask?.cancel()
         eventTask = Task { [weak self] in
             guard let self else { return }
-            for await event in self.webSocketService.events {
+            for await eventType in self.webSocketService.typedEvents {
                 guard !Task.isCancelled else { break }
-                await self.handleEvent(event)
+                await self.handleTypedEvent(eventType)
             }
         }
     }
@@ -221,18 +221,18 @@ final class ConversationsViewModel {
         eventTask = nil
     }
 
-    /// Content-based type parsing (HubEventType) happens after hub-key decryption.
-    /// For now, any llamenos event triggers a conversations refresh.
+    /// Handle a decrypted, typed hub event — only react to conversation-related events.
     @MainActor
-    private func handleEvent(_ event: NostrEvent) {
-        guard WebSocketService.isLlamenosEvent(event) else { return }
-
-        // TODO: After decryption, parse content.type into HubEventType and
-        // dispatch only for messageNew, conversationAssigned, conversationClosed.
-        Task { await loadConversations() }
-
-        if let id = currentConversationId {
-            Task { await loadMessages(for: id) }
+    private func handleTypedEvent(_ eventType: HubEventType) {
+        switch eventType {
+        case .messageNew, .conversationAssigned, .conversationClosed:
+            Task { await loadConversations() }
+            if let id = currentConversationId {
+                Task { await loadMessages(for: id) }
+            }
+        case .callRing, .callUpdate, .voicemailNew, .presenceSummary, .unknown:
+            // Not conversation-related — ignore
+            break
         }
     }
 

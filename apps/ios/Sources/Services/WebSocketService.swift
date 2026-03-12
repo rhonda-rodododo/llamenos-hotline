@@ -98,10 +98,9 @@ final class WebSocketService: @unchecked Sendable {
     /// Used to decrypt XChaCha20-Poly1305-encrypted event content from the relay.
     var serverEventKeyHex: String?
 
-    // MARK: - Event Stream
+    // MARK: - Event Streams
 
-    /// Public async stream of parsed Nostr events. Multiple consumers can iterate this
-    /// by storing the stream; each gets their own copy of events from when they start reading.
+    /// Public async stream of raw Nostr events.
     var events: AsyncStream<NostrEvent> {
         AsyncStream { continuation in
             let id = UUID()
@@ -112,6 +111,22 @@ final class WebSocketService: @unchecked Sendable {
                 self?.continuationsLock.lock()
                 self?.continuations.removeValue(forKey: id)
                 self?.continuationsLock.unlock()
+            }
+        }
+    }
+
+    /// Public async stream of decrypted, typed hub events.
+    /// Only emits events that were successfully decrypted and parsed.
+    var typedEvents: AsyncStream<HubEventType> {
+        AsyncStream { continuation in
+            let id = UUID()
+            typedContinuationsLock.lock()
+            typedContinuations[id] = continuation
+            typedContinuationsLock.unlock()
+            continuation.onTermination = { [weak self] _ in
+                self?.typedContinuationsLock.lock()
+                self?.typedContinuations.removeValue(forKey: id)
+                self?.typedContinuationsLock.unlock()
             }
         }
     }
@@ -127,9 +142,13 @@ final class WebSocketService: @unchecked Sendable {
     private var receiveTask: Task<Void, Never>?
     private var reconnectTask: Task<Void, Never>?
 
-    /// Thread-safe storage for event stream continuations.
+    /// Thread-safe storage for raw event stream continuations.
     private var continuations: [UUID: AsyncStream<NostrEvent>.Continuation] = [:]
     private let continuationsLock = NSLock()
+
+    /// Thread-safe storage for typed event stream continuations.
+    private var typedContinuations: [UUID: AsyncStream<HubEventType>.Continuation] = [:]
+    private let typedContinuationsLock = NSLock()
 
     /// Maximum reconnection attempts before giving up.
     private let maxReconnectAttempts = 10
@@ -283,24 +302,27 @@ final class WebSocketService: @unchecked Sendable {
         }
     }
 
-    /// Broadcast an event to all active continuations.
+    /// Broadcast an event to all active continuations (raw + typed).
     private func emitEvent(_ event: NostrEvent) {
         eventCount += 1
 
-        // Attempt decryption for future typed event routing
-        if serverEventKeyHex != nil {
-            if let json = decryptEventContent(event.content),
-               let _ = parseTypedContent(json) {
-                // Successfully decrypted — typed event routing will be added when
-                // the typed event stream is implemented
-            }
-        }
-
+        // Emit raw event
         continuationsLock.lock()
         let activeContinuations = continuations.values
         continuationsLock.unlock()
         for continuation in activeContinuations {
             continuation.yield(event)
+        }
+
+        // Decrypt and emit typed event
+        if let json = decryptEventContent(event.content),
+           let eventType = parseTypedContent(json) {
+            typedContinuationsLock.lock()
+            let activeTyped = typedContinuations.values
+            typedContinuationsLock.unlock()
+            for continuation in activeTyped {
+                continuation.yield(eventType)
+            }
         }
     }
 
