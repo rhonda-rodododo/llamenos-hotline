@@ -3,11 +3,11 @@
  * Protocol codegen tool.
  *
  * Generates TypeScript interfaces, Swift structs, and Kotlin data classes
- * from JSON Schema definitions. Also generates crypto label constants.
+ * from Zod schemas (via toJSONSchema()) defined in apps/worker/schemas/.
+ * Also generates crypto label constants.
  *
  * Usage:
  *   bun run codegen           # Generate all platform types
- *   bun run codegen --check   # Verify generated files are up-to-date (CI)
  */
 
 import {
@@ -15,57 +15,24 @@ import {
   InputData,
   JSONSchemaInput,
   JSONSchemaStore,
-  type JSONSchema,
   type LanguageName,
 } from 'quicktype-core'
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join, resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { getSchemaRegistry } from './schema-registry'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const SCHEMAS_DIR = resolve(__dirname, '../schemas')
 const GENERATED_DIR = resolve(__dirname, '../generated')
 const CRYPTO_LABELS_FILE = resolve(__dirname, '../crypto-labels.json')
 
-// Local file-based JSON Schema store for resolving $ref across schema files
-class LocalSchemaStore extends JSONSchemaStore {
-  private _localSchemas = new Map<string, string>()
-
-  constructor(schemasDir: string) {
-    super()
-    const files = readdirSync(schemasDir).filter(f => f.endsWith('.json'))
-    for (const file of files) {
-      const content = readFileSync(join(schemasDir, file), 'utf-8')
-      const schema = JSON.parse(content)
-      const id = schema.$id as string
-      if (id) {
-        this._localSchemas.set(id, content)
-      }
-      // Also register by filename for relative refs
-      this._localSchemas.set(file, content)
-    }
-  }
-
-  async fetch(address: string): Promise<JSONSchema | undefined> {
-    const content = this._localSchemas.get(address)
-    if (content) return JSON.parse(content)
-    // Try matching by filename at end of URL
-    for (const [key, value] of this._localSchemas) {
-      if (address.endsWith(key) || key.endsWith(address)) {
-        return JSON.parse(value)
-      }
-    }
+// No-op schema store — all schemas are self-contained (no $ref across files)
+class InlineSchemaStore extends JSONSchemaStore {
+  async fetch(_address: string) {
     return undefined
   }
-}
-
-// Extract all type names from $defs in a schema
-function extractTypeNames(schema: Record<string, unknown>): string[] {
-  const defs = schema.$defs as Record<string, unknown> | undefined
-  if (!defs) return []
-  return Object.keys(defs)
 }
 
 // Generate types for a target language from all schemas
@@ -74,7 +41,7 @@ async function generateForLanguage(
   schemas: Array<{ name: string; schema: string }>,
   rendererOptions: Record<string, string> = {},
 ): Promise<string[]> {
-  const store = new LocalSchemaStore(SCHEMAS_DIR)
+  const store = new InlineSchemaStore()
   const schemaInput = new JSONSchemaInput(store)
 
   for (const { name, schema } of schemas) {
@@ -150,27 +117,15 @@ function generateTSCryptoLabels(labels: Record<string, string>): string {
 }
 
 async function main() {
-  const check = process.argv.includes('--check')
+  // Build schema registry from Zod schemas
+  const registry = getSchemaRegistry()
+  console.log(`Found ${registry.length} schemas from Zod registry`)
 
-  // Collect all schemas with their type names
-  const schemaFiles = readdirSync(SCHEMAS_DIR).filter(f => f.endsWith('.json'))
-  const allSchemas: Array<{ name: string; schema: string }> = []
-
-  for (const file of schemaFiles) {
-    const content = readFileSync(join(SCHEMAS_DIR, file), 'utf-8')
-    const parsed = JSON.parse(content)
-    const typeNames = extractTypeNames(parsed)
-
-    // Add each $defs type as a separate source referencing into the schema
-    for (const typeName of typeNames) {
-      const wrappedSchema = JSON.stringify({
-        $ref: `${parsed.$id}#/$defs/${typeName}`,
-      })
-      allSchemas.push({ name: typeName, schema: wrappedSchema })
-    }
-  }
-
-  console.log(`Found ${allSchemas.length} types across ${schemaFiles.length} schema files`)
+  // Convert registry entries to JSON strings for quicktype
+  const allSchemas = registry.map(({ name, jsonSchema }) => ({
+    name,
+    schema: JSON.stringify(jsonSchema),
+  }))
 
   // Read crypto labels
   const cryptoLabelsData = JSON.parse(readFileSync(CRYPTO_LABELS_FILE, 'utf-8'))
@@ -202,41 +157,6 @@ async function main() {
   const tsCryptoContent = generateTSCryptoLabels(cryptoLabels)
   const swiftCryptoContent = generateSwiftCryptoLabels(cryptoLabels)
   const kotlinCryptoContent = generateKotlinCryptoLabels(cryptoLabels)
-
-  if (check) {
-    // CI mode: verify files are up-to-date
-    let dirty = false
-
-    const filesToCheck: Array<[string, string]> = [
-      [join(GENERATED_DIR, 'typescript', 'types.ts'), tsContent],
-      [join(GENERATED_DIR, 'typescript', 'crypto-labels.ts'), tsCryptoContent],
-      [join(GENERATED_DIR, 'swift', 'Types.swift'), swiftContent],
-      [join(GENERATED_DIR, 'swift', 'CryptoLabels.swift'), swiftCryptoContent],
-      [join(GENERATED_DIR, 'kotlin', 'Types.kt'), kotlinContent],
-      [join(GENERATED_DIR, 'kotlin', 'CryptoLabels.kt'), kotlinCryptoContent],
-    ]
-
-    for (const [path, expected] of filesToCheck) {
-      if (!existsSync(path)) {
-        console.error(`Missing: ${path}`)
-        dirty = true
-      } else {
-        const actual = readFileSync(path, 'utf-8')
-        if (actual !== expected) {
-          console.error(`Out of date: ${path}`)
-          dirty = true
-        }
-      }
-    }
-
-    if (dirty) {
-      console.error('\nGenerated files are out of date. Run: bun run codegen')
-      process.exit(1)
-    }
-
-    console.log('All generated files are up to date.')
-    return
-  }
 
   // Write generated files
   for (const dir of ['typescript', 'swift', 'kotlin']) {
