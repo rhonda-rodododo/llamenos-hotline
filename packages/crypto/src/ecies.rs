@@ -17,9 +17,7 @@ use chacha20poly1305::{
 use elliptic_curve::ecdh::SharedSecret;
 use hkdf::Hkdf;
 use k256::{
-    ecdh::EphemeralSecret,
-    elliptic_curve::sec1::ToEncodedPoint,
-    PublicKey, Secp256k1, SecretKey,
+    ecdh::EphemeralSecret, elliptic_curve::sec1::ToEncodedPoint, PublicKey, Secp256k1, SecretKey,
 };
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
@@ -111,10 +109,8 @@ fn xonly_to_compressed(xonly_hex: &str) -> Result<Vec<u8>, CryptoError> {
 ///
 /// Returns the 32-byte x-coordinate of the shared point.
 fn ecdh_shared_x(secret_key: &SecretKey, public_key: &PublicKey) -> Result<[u8; 32], CryptoError> {
-    let shared_point: SharedSecret<Secp256k1> = k256::ecdh::diffie_hellman(
-        secret_key.to_nonzero_scalar(),
-        public_key.as_affine(),
-    );
+    let shared_point: SharedSecret<Secp256k1> =
+        k256::ecdh::diffie_hellman(secret_key.to_nonzero_scalar(), public_key.as_affine());
     let shared_bytes = shared_point.raw_secret_bytes();
     let mut x = [0u8; 32];
     x.copy_from_slice(shared_bytes);
@@ -202,13 +198,14 @@ pub fn ecies_unwrap_key_versioned(
         sk_bytes.zeroize();
         return Err(CryptoError::InvalidSecretKey);
     }
-    let secret_key = SecretKey::from_slice(&sk_bytes)
-        .map_err(|_| { sk_bytes.zeroize(); CryptoError::InvalidSecretKey })?;
+    let secret_key = SecretKey::from_slice(&sk_bytes).map_err(|_| {
+        sk_bytes.zeroize();
+        CryptoError::InvalidSecretKey
+    })?;
     sk_bytes.zeroize();
 
     // Parse ephemeral public key (compressed SEC1, 33 bytes)
-    let ephemeral_bytes = hex::decode(&envelope.ephemeral_pubkey)
-        .map_err(CryptoError::HexError)?;
+    let ephemeral_bytes = hex::decode(&envelope.ephemeral_pubkey).map_err(CryptoError::HexError)?;
     let ephemeral_pubkey = PublicKey::from_sec1_bytes(&ephemeral_bytes)
         .map_err(|_| CryptoError::InvalidEphemeralKey)?;
 
@@ -302,7 +299,10 @@ pub fn ecies_encrypt_content(
     packed.extend_from_slice(&ciphertext);
 
     let ephemeral_encoded = ephemeral_public.to_encoded_point(true);
-    Ok((hex::encode(&packed), hex::encode(ephemeral_encoded.as_bytes())))
+    Ok((
+        hex::encode(&packed),
+        hex::encode(ephemeral_encoded.as_bytes()),
+    ))
 }
 
 /// Decrypt arbitrary-length ECIES-encrypted content.
@@ -325,13 +325,14 @@ pub fn ecies_decrypt_content(
         sk_bytes.zeroize();
         return Err(CryptoError::InvalidSecretKey);
     }
-    let secret_key = SecretKey::from_slice(&sk_bytes)
-        .map_err(|_| { sk_bytes.zeroize(); CryptoError::InvalidSecretKey })?;
+    let secret_key = SecretKey::from_slice(&sk_bytes).map_err(|_| {
+        sk_bytes.zeroize();
+        CryptoError::InvalidSecretKey
+    })?;
     sk_bytes.zeroize();
 
     // Parse ephemeral public key (compressed SEC1, 33 bytes)
-    let ephemeral_bytes = hex::decode(ephemeral_pubkey_hex)
-        .map_err(CryptoError::HexError)?;
+    let ephemeral_bytes = hex::decode(ephemeral_pubkey_hex).map_err(CryptoError::HexError)?;
     let ephemeral_pubkey = PublicKey::from_sec1_bytes(&ephemeral_bytes)
         .map_err(|_| CryptoError::InvalidEphemeralKey)?;
 
@@ -445,7 +446,8 @@ mod tests {
         };
 
         // Should decrypt with v1 fallback
-        let (recovered, needs_migration) = ecies_unwrap_key_versioned(&v1_envelope, &sk_hex, LABEL_NOTE_KEY).unwrap();
+        let (recovered, needs_migration) =
+            ecies_unwrap_key_versioned(&v1_envelope, &sk_hex, LABEL_NOTE_KEY).unwrap();
         assert_eq!(original_key, recovered);
         assert!(needs_migration);
     }
@@ -461,7 +463,8 @@ mod tests {
         let original_key = random_bytes_32();
         let envelope = ecies_wrap_key(&original_key, &xonly_hex, LABEL_NOTE_KEY).unwrap();
 
-        let (recovered, needs_migration) = ecies_unwrap_key_versioned(&envelope, &sk_hex, LABEL_NOTE_KEY).unwrap();
+        let (recovered, needs_migration) =
+            ecies_unwrap_key_versioned(&envelope, &sk_hex, LABEL_NOTE_KEY).unwrap();
         assert_eq!(original_key, recovered);
         assert!(!needs_migration);
     }
@@ -562,23 +565,16 @@ mod tests {
         let label = "llamenos:transcription";
 
         // Encrypt with v2
-        let (packed_hex, ephemeral_hex) = ecies_encrypt_content(
-            content.as_bytes(),
-            &recipient_xonly_hex,
-            label,
-        ).unwrap();
+        let (packed_hex, ephemeral_hex) =
+            ecies_encrypt_content(content.as_bytes(), &recipient_xonly_hex, label).unwrap();
 
         // Should have version byte
         let packed_bytes = hex::decode(&packed_hex).unwrap();
         assert_eq!(packed_bytes[0], ECIES_VERSION_V2);
 
         // Decrypt
-        let decrypted = ecies_decrypt_content(
-            &packed_hex,
-            &ephemeral_hex,
-            &recipient_sk_hex,
-            label,
-        ).unwrap();
+        let decrypted =
+            ecies_decrypt_content(&packed_hex, &ephemeral_hex, &recipient_sk_hex, label).unwrap();
         assert_eq!(decrypted, content);
     }
 
@@ -618,12 +614,8 @@ mod tests {
         let ephemeral_encoded = ephemeral_public.to_encoded_point(true);
         let ephemeral_hex = hex::encode(ephemeral_encoded.as_bytes());
 
-        let decrypted = ecies_decrypt_content(
-            &packed_hex,
-            &ephemeral_hex,
-            &recipient_sk_hex,
-            label,
-        ).unwrap();
+        let decrypted =
+            ecies_decrypt_content(&packed_hex, &ephemeral_hex, &recipient_sk_hex, label).unwrap();
         assert_eq!(decrypted, content);
     }
 }

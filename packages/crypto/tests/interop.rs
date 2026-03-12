@@ -7,7 +7,7 @@
 //!
 //! Run with: cargo test --test interop
 
-use base64::{Engine, engine::general_purpose::STANDARD};
+use base64::{engine::general_purpose::STANDARD, Engine};
 use llamenos_core::auth::{create_auth_token, verify_auth_token, AuthToken};
 use llamenos_core::ecies::{ecies_unwrap_key, ecies_wrap_key, KeyEnvelope, RecipientKeyEnvelope};
 use llamenos_core::encryption::{
@@ -24,8 +24,7 @@ use std::fs;
 
 /// Well-known test keypair (NEVER use in production).
 /// Generated deterministically for reproducible test vectors.
-const TEST_SECRET_KEY: &str =
-    "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f";
+const TEST_SECRET_KEY: &str = "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f";
 
 /// Second test keypair for multi-recipient tests.
 const TEST_ADMIN_SECRET_KEY: &str =
@@ -69,7 +68,6 @@ struct TestVectors {
     labels: LabelVectors,
 
     // ─── New in v2 ───
-
     /// Message encryption vectors (Epic 74 — E2EE messaging)
     message_encryption: MessageEncryptionVectors,
 
@@ -355,14 +353,12 @@ fn generate_and_verify_test_vectors() {
     let timestamp = 1708900000000u64;
     let method = "POST";
     let path = "/api/notes";
-    let auth_token =
-        create_auth_token(TEST_SECRET_KEY, timestamp, method, path).unwrap();
+    let auth_token = create_auth_token(TEST_SECRET_KEY, timestamp, method, path).unwrap();
     let valid = verify_auth_token(&auth_token, method, path).unwrap();
     assert!(valid);
 
     // --- PIN encryption roundtrip ---
-    let pin_encrypted =
-        encrypt_with_pin(&test_kp.nsec, TEST_PIN, &test_kp.public_key).unwrap();
+    let pin_encrypted = encrypt_with_pin(&test_kp.nsec, TEST_PIN, &test_kp.public_key).unwrap();
     let pin_decrypted = decrypt_with_pin(&pin_encrypted, TEST_PIN).unwrap();
     assert_eq!(pin_decrypted, test_kp.nsec);
 
@@ -410,8 +406,12 @@ fn generate_and_verify_test_vectors() {
     // Both can unwrap
     let vol_hub = ecies_unwrap_key(&hub_envelope_vol, TEST_SECRET_KEY, LABEL_HUB_KEY_WRAP).unwrap();
     assert_eq!(hex::encode(&vol_hub), hub_key_hex);
-    let admin_hub =
-        ecies_unwrap_key(&hub_envelope_admin, TEST_ADMIN_SECRET_KEY, LABEL_HUB_KEY_WRAP).unwrap();
+    let admin_hub = ecies_unwrap_key(
+        &hub_envelope_admin,
+        TEST_ADMIN_SECRET_KEY,
+        LABEL_HUB_KEY_WRAP,
+    )
+    .unwrap();
     assert_eq!(hex::encode(&admin_hub), hub_key_hex);
 
     // ─── NEW v2: Nostr event signing ─────────────────────────
@@ -443,17 +443,22 @@ fn generate_and_verify_test_vectors() {
     assert_eq!(nostr_event.id, expected_id);
 
     // ─── NEW v2: Export encryption ───────────────────────────
-    let export_json = r#"{"notes":[{"id":"abc","text":"test"}],"exportedAt":"2024-01-01T00:00:00Z"}"#;
+    let export_json =
+        r#"{"notes":[{"id":"abc","text":"test"}],"exportedAt":"2024-01-01T00:00:00Z"}"#;
     let export_encrypted = encrypt_export(export_json, TEST_SECRET_KEY).unwrap();
     // Verify it's valid base64
     let export_decoded = STANDARD.decode(&export_encrypted).unwrap();
-    assert!(export_decoded.len() >= 24, "export must have nonce + ciphertext");
+    assert!(
+        export_decoded.len() >= 24,
+        "export must have nonce + ciphertext"
+    );
 
     // ─── NEW v2: Call record metadata (reuse message pattern with LABEL_CALL_META) ─
     // Call records are encrypted using the same pattern as messages but with LABEL_CALL_META.
     // Since there's no encrypt_call_record in Rust (server encrypts in JS), we manually
     // construct one using the low-level ECIES + XChaCha20 primitives.
-    let call_record_json = r#"{"answeredBy":"vol-pubkey-here","callerNumber":"+15551234567","duration":120}"#;
+    let call_record_json =
+        r#"{"answeredBy":"vol-pubkey-here","callerNumber":"+15551234567","duration":120}"#;
 
     // Encrypt call record for admin only (volunteer can NOT decrypt call records)
     let call_record_msg = encrypt_call_record_for_test(call_record_json, &[admin_pubkey.clone()]);
@@ -675,7 +680,10 @@ fn generate_and_verify_test_vectors() {
 
     // Write test vectors to fixture file
     let json = serde_json::to_string_pretty(&vectors).unwrap();
-    let fixture_path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/test-vectors.json");
+    let fixture_path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/test-vectors.json"
+    );
     fs::write(fixture_path, &json).unwrap();
 
     println!("Test vectors v2 written to {fixture_path}");
@@ -686,7 +694,10 @@ fn generate_and_verify_test_vectors() {
 /// Manually encrypt call record metadata using ECIES + XChaCha20-Poly1305.
 /// This mirrors what the server (Worker) does in JS.
 fn encrypt_call_record_for_test(plaintext: &str, admin_pubkeys: &[String]) -> EncryptedMessage {
-    use chacha20poly1305::{aead::{Aead, KeyInit}, XChaCha20Poly1305, XNonce};
+    use chacha20poly1305::{
+        aead::{Aead, KeyInit},
+        XChaCha20Poly1305, XNonce,
+    };
     use zeroize::Zeroize;
 
     // Generate random per-record key
@@ -747,12 +758,11 @@ fn truncate_hex(hex_str: &str) -> String {
 #[test]
 fn ecies_cross_label_rejection() {
     let admin_pubkey = get_public_key(TEST_ADMIN_SECRET_KEY).unwrap();
-    let key_bytes: [u8; 32] = hex::decode(
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    )
-    .unwrap()
-    .try_into()
-    .unwrap();
+    let key_bytes: [u8; 32] =
+        hex::decode("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+            .unwrap()
+            .try_into()
+            .unwrap();
 
     let envelope = ecies_wrap_key(&key_bytes, &admin_pubkey, LABEL_NOTE_KEY).unwrap();
 
@@ -785,10 +795,17 @@ fn pin_encryption_format_consistency() {
     assert!(!encrypted.salt.is_empty(), "salt must be present");
     assert_eq!(encrypted.iterations, 600_000, "iterations must be 600K");
     assert!(!encrypted.nonce.is_empty(), "nonce must be present");
-    assert!(!encrypted.ciphertext.is_empty(), "ciphertext must be present");
+    assert!(
+        !encrypted.ciphertext.is_empty(),
+        "ciphertext must be present"
+    );
     assert!(!encrypted.pubkey.is_empty(), "pubkey hash must be present");
 
-    assert_eq!(encrypted.salt.len(), 64, "salt must be 64 hex chars (32 bytes)");
+    assert_eq!(
+        encrypted.salt.len(),
+        64,
+        "salt must be 64 hex chars (32 bytes)"
+    );
     assert_eq!(encrypted.nonce.len(), 48, "nonce must be 48 hex chars");
 
     let decrypted = decrypt_with_pin(&encrypted, "567890").unwrap();
@@ -891,8 +908,7 @@ fn hub_key_multi_recipient_wrap() {
     let admin_env = ecies_wrap_key(&hub_key, &admin_pubkey, LABEL_HUB_KEY_WRAP).unwrap();
 
     // Both unwrap to same hub key
-    let vol_unwrapped =
-        ecies_unwrap_key(&vol_env, TEST_SECRET_KEY, LABEL_HUB_KEY_WRAP).unwrap();
+    let vol_unwrapped = ecies_unwrap_key(&vol_env, TEST_SECRET_KEY, LABEL_HUB_KEY_WRAP).unwrap();
     let admin_unwrapped =
         ecies_unwrap_key(&admin_env, TEST_ADMIN_SECRET_KEY, LABEL_HUB_KEY_WRAP).unwrap();
 
@@ -935,8 +951,8 @@ fn nostr_event_signing_interop() {
     assert_eq!(event.pubkey, expected_pubkey);
 
     // Signature is valid (verify pre-hashed with k256)
-    use k256::schnorr::VerifyingKey;
     use k256::ecdsa::signature::hazmat::PrehashVerifier;
+    use k256::schnorr::VerifyingKey;
     let pk_bytes = hex::decode(&event.pubkey).unwrap();
     let vk = VerifyingKey::from_bytes(pk_bytes.as_slice().try_into().unwrap()).unwrap();
     let sig_bytes = hex::decode(&event.sig).unwrap();
@@ -994,7 +1010,12 @@ fn domain_separation_all_labels() {
     let key = [0x42; 32];
 
     // Wrap same key with different labels
-    let labels = [LABEL_NOTE_KEY, LABEL_MESSAGE, LABEL_HUB_KEY_WRAP, LABEL_CALL_META];
+    let labels = [
+        LABEL_NOTE_KEY,
+        LABEL_MESSAGE,
+        LABEL_HUB_KEY_WRAP,
+        LABEL_CALL_META,
+    ];
     let envelopes: Vec<_> = labels
         .iter()
         .map(|l| ecies_wrap_key(&key, &admin_pubkey, l).unwrap())
@@ -1008,7 +1029,12 @@ fn domain_separation_all_labels() {
                 assert!(result.is_ok(), "Same label must succeed: {label}");
                 assert_eq!(result.unwrap(), key);
             } else {
-                assert!(result.is_err(), "Cross-label {}/{} must fail", labels[i], label);
+                assert!(
+                    result.is_err(),
+                    "Cross-label {}/{} must fail",
+                    labels[i],
+                    label
+                );
             }
         }
     }

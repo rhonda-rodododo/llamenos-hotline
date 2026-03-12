@@ -4,8 +4,8 @@
 //! Message format: `llamenos:auth:{pubkey}:{timestamp}:{method}:{path}`
 //! Signature: BIP-340 Schnorr over SHA-256(message)
 
-use k256::schnorr::{SigningKey, VerifyingKey};
 use k256::ecdsa::signature::hazmat::{PrehashSigner, PrehashVerifier};
+use k256::schnorr::{SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroize;
@@ -38,8 +38,8 @@ pub fn create_auth_token(
         return Err(CryptoError::InvalidSecretKey);
     }
 
-    let signing_key = SigningKey::from_bytes(sk_bytes.as_slice())
-        .map_err(|_| CryptoError::InvalidSecretKey)?;
+    let signing_key =
+        SigningKey::from_bytes(sk_bytes.as_slice()).map_err(|_| CryptoError::InvalidSecretKey)?;
     let verifying_key = signing_key.verifying_key();
     let pubkey_hex = hex::encode(verifying_key.to_bytes());
 
@@ -96,11 +96,7 @@ pub fn verify_auth_token_with_expiry(
 ///
 /// Returns true if the signature is valid for the given method + path.
 #[cfg_attr(feature = "mobile", uniffi::export)]
-pub fn verify_auth_token(
-    token: &AuthToken,
-    method: &str,
-    path: &str,
-) -> Result<bool, CryptoError> {
+pub fn verify_auth_token(token: &AuthToken, method: &str, path: &str) -> Result<bool, CryptoError> {
     let pubkey_bytes = hex::decode(&token.pubkey).map_err(CryptoError::HexError)?;
     if pubkey_bytes.len() != 32 {
         return Err(CryptoError::InvalidPublicKey);
@@ -109,7 +105,10 @@ pub fn verify_auth_token(
     let verifying_key = VerifyingKey::from_bytes(pubkey_bytes.as_slice())
         .map_err(|_| CryptoError::InvalidPublicKey)?;
 
-    let message = format!("{AUTH_PREFIX}{}:{}:{}:{}", token.pubkey, token.timestamp, method, path);
+    let message = format!(
+        "{AUTH_PREFIX}{}:{}:{}:{}",
+        token.pubkey, token.timestamp, method, path
+    );
     let message_hash = {
         let mut hasher = Sha256::new();
         hasher.update(message.as_bytes());
@@ -190,7 +189,8 @@ mod tests {
     #[test]
     fn wrong_path_fails() {
         let kp = generate_keypair();
-        let token = create_auth_token(&kp.secret_key_hex, 1708900000000, "POST", "/api/auth/login").unwrap();
+        let token = create_auth_token(&kp.secret_key_hex, 1708900000000, "POST", "/api/auth/login")
+            .unwrap();
 
         let valid = verify_auth_token(&token, "POST", "/api/notes").unwrap();
         assert!(!valid);
@@ -199,7 +199,8 @@ mod tests {
     #[test]
     fn wrong_method_fails() {
         let kp = generate_keypair();
-        let token = create_auth_token(&kp.secret_key_hex, 1708900000000, "POST", "/api/auth/login").unwrap();
+        let token = create_auth_token(&kp.secret_key_hex, 1708900000000, "POST", "/api/auth/login")
+            .unwrap();
 
         let valid = verify_auth_token(&token, "GET", "/api/auth/login").unwrap();
         assert!(!valid);
@@ -210,9 +211,11 @@ mod tests {
         let kp = generate_keypair();
         let old_timestamp = 1000000u64;
         let now = 1000000u64 + 400_000; // 400 seconds later (> 5 min)
-        let token = create_auth_token(&kp.secret_key_hex, old_timestamp, "GET", "/api/test").unwrap();
+        let token =
+            create_auth_token(&kp.secret_key_hex, old_timestamp, "GET", "/api/test").unwrap();
 
-        let valid = verify_auth_token_with_expiry(&token, "GET", "/api/test", now, 300_000).unwrap();
+        let valid =
+            verify_auth_token_with_expiry(&token, "GET", "/api/test", now, 300_000).unwrap();
         assert!(!valid);
     }
 
@@ -221,9 +224,11 @@ mod tests {
         let kp = generate_keypair();
         let future_timestamp = 2000000u64;
         let now = 1000000u64; // way before the token
-        let token = create_auth_token(&kp.secret_key_hex, future_timestamp, "GET", "/api/test").unwrap();
+        let token =
+            create_auth_token(&kp.secret_key_hex, future_timestamp, "GET", "/api/test").unwrap();
 
-        let valid = verify_auth_token_with_expiry(&token, "GET", "/api/test", now, 300_000).unwrap();
+        let valid =
+            verify_auth_token_with_expiry(&token, "GET", "/api/test", now, 300_000).unwrap();
         assert!(!valid);
     }
 
@@ -231,9 +236,11 @@ mod tests {
     fn verify_with_expiry_accepts_recent_token() {
         let kp = generate_keypair();
         let now = 1708900000000u64;
-        let token = create_auth_token(&kp.secret_key_hex, now - 60_000, "GET", "/api/test").unwrap();
+        let token =
+            create_auth_token(&kp.secret_key_hex, now - 60_000, "GET", "/api/test").unwrap();
 
-        let valid = verify_auth_token_with_expiry(&token, "GET", "/api/test", now, 300_000).unwrap();
+        let valid =
+            verify_auth_token_with_expiry(&token, "GET", "/api/test", now, 300_000).unwrap();
         assert!(valid);
     }
 

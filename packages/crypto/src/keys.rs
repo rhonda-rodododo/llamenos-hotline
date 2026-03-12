@@ -3,10 +3,7 @@
 //! Provides secp256k1 keypair generation with Nostr bech32 encoding (nsec/npub).
 
 use bech32::{Bech32, Hrp};
-use k256::{
-    elliptic_curve::sec1::ToEncodedPoint,
-    SecretKey,
-};
+use k256::{elliptic_curve::sec1::ToEncodedPoint, SecretKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 

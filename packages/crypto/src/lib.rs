@@ -17,22 +17,22 @@
 #[cfg(feature = "mobile")]
 uniffi::setup_scaffolding!();
 
-pub mod labels;
+pub mod auth;
 pub mod ecies;
 pub mod encryption;
-pub mod auth;
-pub mod keys;
 pub mod errors;
+pub mod keys;
+pub mod labels;
 pub mod nostr;
 
 #[cfg(feature = "mobile")]
 mod ffi;
 
 // Re-export core types
-pub use labels::*;
-pub use ecies::{KeyEnvelope, RecipientKeyEnvelope};
-pub use encryption::{EncryptedNote, EncryptedMessage, EncryptedKeyData};
 pub use auth::AuthToken;
-pub use keys::KeyPair;
+pub use ecies::{KeyEnvelope, RecipientKeyEnvelope};
+pub use encryption::{EncryptedKeyData, EncryptedMessage, EncryptedNote};
 pub use errors::CryptoError;
+pub use keys::KeyPair;
+pub use labels::*;
 pub use nostr::SignedNostrEvent;

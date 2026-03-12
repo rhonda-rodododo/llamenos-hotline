@@ -10,11 +10,13 @@ use chacha20poly1305::{
 };
 use hkdf::Hkdf;
 use pbkdf2::pbkdf2_hmac;
-use sha2::{Digest, Sha256};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::ecies::{ecies_wrap_key, ecies_unwrap_key, random_bytes_32, KeyEnvelope, RecipientKeyEnvelope};
+use crate::ecies::{
+    ecies_unwrap_key, ecies_wrap_key, random_bytes_32, KeyEnvelope, RecipientKeyEnvelope,
+};
 use crate::errors::CryptoError;
 use crate::labels::*;
 
@@ -108,9 +110,11 @@ pub fn decrypt_note(
 
     let cipher = XChaCha20Poly1305::new_from_slice(&note_key)
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    let plaintext = Zeroizing::new(cipher
-        .decrypt(nonce, ciphertext)
-        .map_err(|_| CryptoError::DecryptionFailed)?);
+    let plaintext = Zeroizing::new(
+        cipher
+            .decrypt(nonce, ciphertext)
+            .map_err(|_| CryptoError::DecryptionFailed)?,
+    );
 
     note_key.zeroize();
 
@@ -202,9 +206,11 @@ pub fn decrypt_message(
 
     let cipher = XChaCha20Poly1305::new_from_slice(&message_key)
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    let plaintext = Zeroizing::new(cipher
-        .decrypt(nonce, ciphertext)
-        .map_err(|_| CryptoError::DecryptionFailed)?);
+    let plaintext = Zeroizing::new(
+        cipher
+            .decrypt(nonce, ciphertext)
+            .map_err(|_| CryptoError::DecryptionFailed)?,
+    );
 
     message_key.zeroize();
 
@@ -241,9 +247,11 @@ pub fn decrypt_call_record(
 
     let cipher = XChaCha20Poly1305::new_from_slice(&record_key)
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    let plaintext = Zeroizing::new(cipher
-        .decrypt(nonce, ciphertext)
-        .map_err(|_| CryptoError::DecryptionFailed)?);
+    let plaintext = Zeroizing::new(
+        cipher
+            .decrypt(nonce, ciphertext)
+            .map_err(|_| CryptoError::DecryptionFailed)?,
+    );
 
     record_key.zeroize();
 
@@ -257,10 +265,7 @@ pub fn decrypt_call_record(
 /// Decrypt a V1 legacy note (HKDF-derived key, not per-note forward secrecy).
 ///
 /// packed_hex = hex(nonce(24) + ciphertext)
-pub fn decrypt_legacy_note(
-    packed_hex: &str,
-    secret_key_hex: &str,
-) -> Result<String, CryptoError> {
+pub fn decrypt_legacy_note(packed_hex: &str, secret_key_hex: &str) -> Result<String, CryptoError> {
     let sk_bytes = hex::decode(secret_key_hex).map_err(CryptoError::HexError)?;
     if sk_bytes.len() != 32 {
         return Err(CryptoError::InvalidSecretKey);
@@ -279,9 +284,11 @@ pub fn decrypt_legacy_note(
 
     let cipher = XChaCha20Poly1305::new_from_slice(&key)
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    let plaintext = Zeroizing::new(cipher
-        .decrypt(nonce, ciphertext)
-        .map_err(|_| CryptoError::DecryptionFailed)?);
+    let plaintext = Zeroizing::new(
+        cipher
+            .decrypt(nonce, ciphertext)
+            .map_err(|_| CryptoError::DecryptionFailed)?,
+    );
 
     key.zeroize();
     sk.zeroize();
@@ -356,9 +363,11 @@ pub fn decrypt_draft(packed_hex: &str, secret_key_hex: &str) -> Result<String, C
 
     let cipher = XChaCha20Poly1305::new_from_slice(&key)
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    let plaintext = Zeroizing::new(cipher
-        .decrypt(nonce, ciphertext)
-        .map_err(|_| CryptoError::DecryptionFailed)?);
+    let plaintext = Zeroizing::new(
+        cipher
+            .decrypt(nonce, ciphertext)
+            .map_err(|_| CryptoError::DecryptionFailed)?,
+    );
 
     key.zeroize();
     sk.zeroize();
@@ -403,7 +412,7 @@ pub fn encrypt_export(json_string: &str, secret_key_hex: &str) -> Result<String,
     packed.extend_from_slice(&nonce_bytes);
     packed.extend_from_slice(&ciphertext);
 
-    use base64::{Engine, engine::general_purpose::STANDARD};
+    use base64::{engine::general_purpose::STANDARD, Engine};
     Ok(STANDARD.encode(&packed))
 }
 
@@ -435,7 +444,11 @@ pub fn derive_kek_from_pin(pin: &str, salt: &[u8]) -> [u8; 32] {
 
 /// Encrypt an nsec bech32 string with a PIN.
 #[cfg_attr(feature = "mobile", uniffi::export)]
-pub fn encrypt_with_pin(nsec: &str, pin: &str, pubkey_hex: &str) -> Result<EncryptedKeyData, CryptoError> {
+pub fn encrypt_with_pin(
+    nsec: &str,
+    pin: &str,
+    pubkey_hex: &str,
+) -> Result<EncryptedKeyData, CryptoError> {
     if !is_valid_pin(pin) {
         return Err(CryptoError::InvalidPin);
     }
@@ -494,9 +507,11 @@ pub fn decrypt_with_pin(data: &EncryptedKeyData, pin: &str) -> Result<String, Cr
 
     let cipher = XChaCha20Poly1305::new_from_slice(&kek)
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
-    let plaintext = Zeroizing::new(cipher
-        .decrypt(nonce, ciphertext.as_ref())
-        .map_err(|_| CryptoError::WrongPin)?);
+    let plaintext = Zeroizing::new(
+        cipher
+            .decrypt(nonce, ciphertext.as_ref())
+            .map_err(|_| CryptoError::WrongPin)?,
+    );
 
     kek.zeroize();
 
@@ -531,7 +546,8 @@ mod tests {
             &encrypted.encrypted_content,
             &encrypted.author_envelope,
             &author.secret_key_hex,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(decrypted, payload);
 
         // Admin1 can decrypt
@@ -544,7 +560,8 @@ mod tests {
             &encrypted.encrypted_content,
             &admin1_envelope,
             &admin1.secret_key_hex,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(decrypted, payload);
     }
 
@@ -563,7 +580,8 @@ mod tests {
             &encrypted.reader_envelopes,
             &reader1.secret_key_hex,
             &reader1.public_key,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -632,7 +650,7 @@ mod tests {
         kek.zeroize();
 
         let legacy_data = EncryptedKeyData {
-            salt: hex::encode(salt),     // 32 hex chars = 16 bytes
+            salt: hex::encode(salt), // 32 hex chars = 16 bytes
             iterations: 600_000,
             nonce: hex::encode(nonce_bytes),
             ciphertext: hex::encode(ciphertext),
@@ -646,11 +664,11 @@ mod tests {
 
     #[test]
     fn invalid_pin_rejected() {
-        assert!(!is_valid_pin("12345"));     // too short
+        assert!(!is_valid_pin("12345")); // too short
         assert!(!is_valid_pin("123456789")); // too long
-        assert!(!is_valid_pin("abcdef"));    // not digits
-        assert!(is_valid_pin("123456"));     // valid (6 digits)
-        assert!(is_valid_pin("12345678"));   // valid (8 digits)
+        assert!(!is_valid_pin("abcdef")); // not digits
+        assert!(is_valid_pin("123456")); // valid (6 digits)
+        assert!(is_valid_pin("12345678")); // valid (8 digits)
     }
 
     #[test]
@@ -660,7 +678,8 @@ mod tests {
         let wrong_admin = generate_keypair();
 
         let payload = r#"{"text":"Secret note"}"#;
-        let encrypted = encrypt_note(payload, &author.public_key, &[admin.public_key.clone()]).unwrap();
+        let encrypted =
+            encrypt_note(payload, &author.public_key, &[admin.public_key.clone()]).unwrap();
 
         // Use admin's envelope but wrong admin's secret key
         let admin_envelope = KeyEnvelope {
@@ -681,7 +700,8 @@ mod tests {
         let admin = generate_keypair();
 
         let payload = r#"{"text":"Tamper test"}"#;
-        let encrypted = encrypt_note(payload, &author.public_key, &[admin.public_key.clone()]).unwrap();
+        let encrypted =
+            encrypt_note(payload, &author.public_key, &[admin.public_key.clone()]).unwrap();
 
         // Flip a bit in the encrypted content (after nonce)
         let mut content_bytes = hex::decode(&encrypted.encrypted_content).unwrap();
@@ -707,7 +727,8 @@ mod tests {
         let encrypted = encrypt_message(
             "Secret message",
             &[reader1.public_key.clone(), reader2.public_key.clone()],
-        ).unwrap();
+        )
+        .unwrap();
 
         // Wrong reader's key won't match any envelope
         let result = decrypt_message(
@@ -765,7 +786,7 @@ mod tests {
         let encrypted = encrypt_export(json, &kp.secret_key_hex).unwrap();
 
         // Verify it's valid base64
-        use base64::{Engine, engine::general_purpose::STANDARD};
+        use base64::{engine::general_purpose::STANDARD, Engine};
         let decoded = STANDARD.decode(&encrypted).unwrap();
         assert!(decoded.len() > 24); // nonce + ciphertext
 

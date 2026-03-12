@@ -6,8 +6,8 @@
 //! Event ID: SHA-256 of the canonical JSON string (UTF-8 encoded)
 //! Signature: BIP-340 Schnorr over the 32-byte event ID hash
 
-use k256::schnorr::SigningKey;
 use k256::ecdsa::signature::hazmat::PrehashSigner;
+use k256::schnorr::SigningKey;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroize;
@@ -47,19 +47,14 @@ pub fn finalize_nostr_event(
         return Err(CryptoError::InvalidSecretKey);
     }
 
-    let signing_key = SigningKey::from_bytes(sk_bytes.as_slice())
-        .map_err(|_| CryptoError::InvalidSecretKey)?;
+    let signing_key =
+        SigningKey::from_bytes(sk_bytes.as_slice()).map_err(|_| CryptoError::InvalidSecretKey)?;
     let pubkey = hex::encode(signing_key.verifying_key().to_bytes());
 
     // Canonical serialization per NIP-01:
     // [0, <pubkey>, <created_at>, <kind>, <tags>, <content>]
     let canonical = serde_json::to_string(&serde_json::json!([
-        0,
-        &pubkey,
-        created_at,
-        kind,
-        &tags,
-        content,
+        0, &pubkey, created_at, kind, &tags, content,
     ]))?;
 
     // Event ID = SHA-256(canonical JSON UTF-8)
@@ -90,8 +85,8 @@ pub fn finalize_nostr_event(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use k256::schnorr::VerifyingKey;
     use k256::ecdsa::signature::hazmat::PrehashVerifier;
+    use k256::schnorr::VerifyingKey;
 
     #[test]
     fn test_nostr_event_signing_nip01() {
@@ -178,7 +173,8 @@ mod tests {
     #[test]
     fn tampered_content_invalidates_id() {
         let sk = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-        let event = finalize_nostr_event(20001, 1700000000, vec![], "original content", sk).unwrap();
+        let event =
+            finalize_nostr_event(20001, 1700000000, vec![], "original content", sk).unwrap();
 
         // Tamper the content and recompute canonical JSON
         let tampered_canonical = serde_json::to_string(&serde_json::json!([
@@ -188,7 +184,8 @@ mod tests {
             event.kind,
             &event.tags,
             "tampered content",
-        ])).unwrap();
+        ]))
+        .unwrap();
         let tampered_id = hex::encode(Sha256::digest(tampered_canonical.as_bytes()));
 
         // Tampered ID must differ from original

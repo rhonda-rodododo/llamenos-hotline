@@ -6,13 +6,16 @@
 //! These are the only versions visible to Swift/Kotlin via UniFFI bindings.
 //! The original functions remain available for direct Rust consumers (Tauri, WASM).
 
-use crate::ecies::{ecies_unwrap_key, ecies_wrap_key, ecies_decrypt_content, ecies_encrypt_content, random_bytes_32, KeyEnvelope, RecipientKeyEnvelope};
+use crate::ecies::{
+    ecies_decrypt_content, ecies_encrypt_content, ecies_unwrap_key, ecies_wrap_key,
+    random_bytes_32, KeyEnvelope, RecipientKeyEnvelope,
+};
 use crate::encryption::{
     decrypt_call_record, decrypt_message, derive_kek_from_pin, encrypt_message, encrypt_note,
     EncryptedMessage, EncryptedNote,
 };
 use crate::errors::CryptoError;
-use crate::labels::{LABEL_DEVICE_PROVISION, SAS_SALT, SAS_INFO};
+use crate::labels::{LABEL_DEVICE_PROVISION, SAS_INFO, SAS_SALT};
 use zeroize::Zeroize;
 
 /// Generate 32 random bytes, returned as a hex string.
@@ -81,7 +84,12 @@ pub fn decrypt_message_for_reader(
     secret_key_hex: &str,
     reader_pubkey: &str,
 ) -> Result<String, CryptoError> {
-    decrypt_message(encrypted_content, &reader_envelopes, secret_key_hex, reader_pubkey)
+    decrypt_message(
+        encrypted_content,
+        &reader_envelopes,
+        secret_key_hex,
+        reader_pubkey,
+    )
 }
 
 /// Decrypt a call record's encrypted metadata using the admin's envelope.
@@ -92,7 +100,12 @@ pub fn decrypt_call_record_for_reader(
     secret_key_hex: &str,
     reader_pubkey: &str,
 ) -> Result<String, CryptoError> {
-    decrypt_call_record(encrypted_content, &admin_envelopes, secret_key_hex, reader_pubkey)
+    decrypt_call_record(
+        encrypted_content,
+        &admin_envelopes,
+        secret_key_hex,
+        reader_pubkey,
+    )
 }
 
 /// Derive a 32-byte KEK from a PIN using PBKDF2-SHA256, returned as hex.
@@ -125,8 +138,7 @@ pub fn compute_shared_x_hex(
     if sk_bytes.len() != 32 {
         return Err(CryptoError::InvalidSecretKey);
     }
-    let secret_key = SecretKey::from_slice(&sk_bytes)
-        .map_err(|_| CryptoError::InvalidSecretKey)?;
+    let secret_key = SecretKey::from_slice(&sk_bytes).map_err(|_| CryptoError::InvalidSecretKey)?;
 
     // Accept x-only (32 bytes / 64 hex) or compressed (33 bytes / 66 hex)
     let compressed = if their_pubkey_hex.len() == 64 {
@@ -138,14 +150,11 @@ pub fn compute_shared_x_hex(
         hex::decode(their_pubkey_hex).map_err(CryptoError::HexError)?
     };
 
-    let public_key = PublicKey::from_sec1_bytes(&compressed)
-        .map_err(|_| CryptoError::InvalidPublicKey)?;
+    let public_key =
+        PublicKey::from_sec1_bytes(&compressed).map_err(|_| CryptoError::InvalidPublicKey)?;
 
     let shared_point: elliptic_curve::ecdh::SharedSecret<k256::Secp256k1> =
-        k256::ecdh::diffie_hellman(
-            secret_key.to_nonzero_scalar(),
-            public_key.as_affine(),
-        );
+        k256::ecdh::diffie_hellman(secret_key.to_nonzero_scalar(), public_key.as_affine());
     let mut shared_x = [0u8; 32];
     shared_x.copy_from_slice(shared_point.raw_secret_bytes());
     let hex_out = hex::encode(shared_x);
@@ -165,7 +174,10 @@ pub fn decrypt_with_shared_key_hex(
     ciphertext_hex: &str,
     shared_x_hex: &str,
 ) -> Result<String, CryptoError> {
-    use chacha20poly1305::{aead::{Aead, KeyInit}, XChaCha20Poly1305, XNonce};
+    use chacha20poly1305::{
+        aead::{Aead, KeyInit},
+        XChaCha20Poly1305, XNonce,
+    };
     use sha2::{Digest, Sha256};
 
     let shared_x = hex::decode(shared_x_hex).map_err(CryptoError::HexError)?;
@@ -221,10 +233,9 @@ pub fn compute_sas_code(shared_x_hex: &str) -> Result<String, CryptoError> {
     hk.expand(SAS_INFO.as_bytes(), &mut okm)
         .expect("HKDF 4-byte expand should not fail");
 
-    let num = ((okm[0] as u32) << 24
-        | (okm[1] as u32) << 16
-        | (okm[2] as u32) << 8
-        | (okm[3] as u32)) % 1_000_000;
+    let num =
+        ((okm[0] as u32) << 24 | (okm[1] as u32) << 16 | (okm[2] as u32) << 8 | (okm[3] as u32))
+            % 1_000_000;
     let code = format!("{:06}", num);
     Ok(format!("{} {}", &code[..3], &code[3..]))
 }
@@ -238,11 +249,8 @@ pub fn ecies_encrypt_content_hex(
     recipient_pubkey_hex: &str,
     label: &str,
 ) -> Result<Vec<String>, CryptoError> {
-    let (packed_hex, ephemeral_hex) = ecies_encrypt_content(
-        plaintext.as_bytes(),
-        recipient_pubkey_hex,
-        label,
-    )?;
+    let (packed_hex, ephemeral_hex) =
+        ecies_encrypt_content(plaintext.as_bytes(), recipient_pubkey_hex, label)?;
     Ok(vec![packed_hex, ephemeral_hex])
 }
 
@@ -272,7 +280,10 @@ pub fn ecies_decrypt_content_hex(
 /// with the server event key (from GET /api/auth/me serverEventKeyHex).
 #[uniffi::export]
 pub fn decrypt_server_event_hex(encrypted_hex: &str, key_hex: &str) -> Result<String, CryptoError> {
-    use chacha20poly1305::{aead::{Aead, KeyInit}, XChaCha20Poly1305, XNonce};
+    use chacha20poly1305::{
+        aead::{Aead, KeyInit},
+        XChaCha20Poly1305, XNonce,
+    };
 
     let data = hex::decode(encrypted_hex).map_err(CryptoError::HexError)?;
     let key_bytes = hex::decode(key_hex).map_err(CryptoError::HexError)?;
@@ -307,7 +318,8 @@ mod tests {
         assert_eq!(key_hex.len(), 64);
 
         let envelope = ecies_wrap_key_hex(&key_hex, &kp.public_key, LABEL_NOTE_KEY).unwrap();
-        let recovered = ecies_unwrap_key_hex(&envelope, &kp.secret_key_hex, LABEL_NOTE_KEY).unwrap();
+        let recovered =
+            ecies_unwrap_key_hex(&envelope, &kp.secret_key_hex, LABEL_NOTE_KEY).unwrap();
         assert_eq!(key_hex, recovered);
     }
 
@@ -392,7 +404,10 @@ mod tests {
 
     #[test]
     fn provisioning_encrypt_decrypt_roundtrip() {
-        use chacha20poly1305::{aead::{Aead, KeyInit}, XChaCha20Poly1305, XNonce};
+        use chacha20poly1305::{
+            aead::{Aead, KeyInit},
+            XChaCha20Poly1305, XNonce,
+        };
         use sha2::{Digest, Sha256};
 
         let alice = generate_keypair();
@@ -451,10 +466,13 @@ mod tests {
 
     #[test]
     fn ecies_decrypt_content_via_ffi() {
+        use chacha20poly1305::{
+            aead::{Aead, KeyInit},
+            XChaCha20Poly1305, XNonce,
+        };
         use k256::{ecdh::EphemeralSecret, elliptic_curve::sec1::ToEncodedPoint};
-        use chacha20poly1305::{aead::{Aead, KeyInit}, XChaCha20Poly1305, XNonce};
-        use sha2::{Digest, Sha256};
         use rand::rngs::OsRng;
+        use sha2::{Digest, Sha256};
 
         let recipient = generate_keypair();
         let label = crate::labels::LABEL_PUSH_WAKE;
@@ -495,18 +513,18 @@ mod tests {
         let eph_hex = hex::encode(eph_encoded.as_bytes());
 
         // Decrypt via FFI
-        let decrypted = ecies_decrypt_content_hex(
-            &packed_hex,
-            &eph_hex,
-            &recipient.secret_key_hex,
-            label,
-        ).unwrap();
+        let decrypted =
+            ecies_decrypt_content_hex(&packed_hex, &eph_hex, &recipient.secret_key_hex, label)
+                .unwrap();
         assert_eq!(decrypted, content);
     }
 
     #[test]
     fn roundtrip_server_event_decrypt() {
-        use chacha20poly1305::{aead::{Aead, KeyInit}, XChaCha20Poly1305, XNonce};
+        use chacha20poly1305::{
+            aead::{Aead, KeyInit},
+            XChaCha20Poly1305, XNonce,
+        };
 
         let key = random_bytes_32();
         let key_hex = hex::encode(&key);
@@ -529,7 +547,10 @@ mod tests {
 
     #[test]
     fn server_event_decrypt_wrong_key_fails() {
-        use chacha20poly1305::{aead::{Aead, KeyInit}, XChaCha20Poly1305, XNonce};
+        use chacha20poly1305::{
+            aead::{Aead, KeyInit},
+            XChaCha20Poly1305, XNonce,
+        };
 
         let key = random_bytes_32();
         let wrong_key = random_bytes_32();
