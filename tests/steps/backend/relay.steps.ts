@@ -67,21 +67,12 @@ When('the first volunteer answers the call', async ({ request }) => {
   await simulateAnswerCall(request, state.callId!, state.volunteers[0].pubkey)
 })
 
-Given('the first volunteer answers the call', async ({ request }) => {
-  expect(state.callId).toBeTruthy()
-  expect(state.volunteers.length).toBeGreaterThan(0)
-  await simulateAnswerCall(request, state.callId!, state.volunteers[0].pubkey)
-})
-
 When('the active call is ended', async ({ request }) => {
   expect(state.callId).toBeTruthy()
   await simulateEndCall(request, state.callId!)
 })
 
-When('the call goes to voicemail', async ({ request }) => {
-  expect(state.callId).toBeTruthy()
-  await simulateVoicemail(request, state.callId!)
-})
+// 'the call goes to voicemail' defined in call-routing.steps.ts
 
 // --- Messaging Triggers ---
 

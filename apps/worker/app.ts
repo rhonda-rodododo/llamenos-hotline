@@ -144,11 +144,11 @@ hubScoped.route('/contacts', contactsRoutes)
 
 authenticated.route('/hubs/:hubId', hubScoped)
 
-api.route('/', authenticated)
-
-// OpenAPI spec + Scalar interactive docs
+// OpenAPI spec + Scalar interactive docs (public, before auth)
 api.get('/openapi.json', openAPIRouteHandler(api, openAPIConfig))
 api.get('/docs', Scalar({ url: '/api/openapi.json' }))
+
+api.route('/', authenticated)
 
 // Mount API under /api
 app.route('/api', api)

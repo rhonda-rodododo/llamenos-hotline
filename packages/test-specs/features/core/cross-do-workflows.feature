@@ -25,7 +25,7 @@ Feature: Cross-DO Integration Workflows
     Given 1 volunteers are on shift
     When an admin bans "+15550000001"
     And an incoming call arrives from "+15550000001"
-    Then the call should be rejected
+    Then the banned call should be rejected
     When the admin removes the ban for "+15550000001"
     And an incoming call arrives from "+15550000001"
     Then the call should be ringing

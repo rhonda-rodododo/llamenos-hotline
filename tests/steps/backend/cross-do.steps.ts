@@ -139,7 +139,7 @@ When('an incoming call arrives from {string}', async ({ request }, phone: string
   xdo.callStatus = result.status
 })
 
-Then('the call should be rejected', async ({ request }) => {
+Then('the banned call should be rejected', async ({ request }) => {
   // After a banned call, check status
   const { data } = await apiGet<{ calls: Array<{ callId: string; status: string }> }>(request, '/calls/active')
   // Banned calls may not appear in active list, or have 'rejected' status
