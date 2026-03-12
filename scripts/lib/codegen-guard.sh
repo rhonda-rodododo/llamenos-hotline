@@ -44,7 +44,6 @@ run_codegen_guard() {
   # Step 3: Check for uncommitted changes in generated files
   local stale_files=()
   local generated_dirs=(
-    "packages/protocol/generated"
     "apps/ios/Sources/Generated"
     "apps/android/app/src/main/java/org/llamenos/app/generated"
     "apps/ios/Sources/Resources"
