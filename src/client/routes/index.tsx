@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
 import { useEffect, useState } from 'react'
 import { useCalls, useCallTimer, useShiftStatus } from '@/lib/hooks'
-import { createNote, addBan, getCallsTodayCount, getVolunteerPresence, listVolunteers, type ActiveCall, type VolunteerPresence, type Volunteer } from '@/lib/api'
+import { createNote, banAndHangup, getCallsTodayCount, getVolunteerPresence, listVolunteers, type ActiveCall, type VolunteerPresence, type Volunteer } from '@/lib/api'
 import { encryptNote } from '@/lib/platform'
 import { useTranscription } from '@/lib/transcription'
 
@@ -179,9 +179,8 @@ function DashboardPage() {
           onHangup={() => hangupCall(currentCall.id)}
           onReportSpam={() => reportSpam(currentCall.id)}
           onBanNumber={async () => {
-            if (!currentCall.callerNumber || currentCall.callerNumber === '[redacted]') return
             try {
-              await addBan({ phone: currentCall.callerNumber, reason: 'Banned during active call' })
+              await banAndHangup(currentCall.id)
               toast(t('common.success'), 'success')
             } catch {
               toast(t('common.error'), 'error')

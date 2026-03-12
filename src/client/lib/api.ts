@@ -371,6 +371,13 @@ export async function addBan(data: { phone: string; reason: string }) {
   })
 }
 
+export async function banAndHangup(callId: string, reason?: string) {
+  return request<{ banned: boolean; hungUp: boolean }>(
+    hp(`/calls/${callId}/ban`),
+    { method: 'POST', body: JSON.stringify({ reason }) },
+  )
+}
+
 export async function removeBan(phone: string) {
   return request<{ ok: true }>(hp(`/bans/${encodeURIComponent(phone)}`), { method: 'DELETE' })
 }
