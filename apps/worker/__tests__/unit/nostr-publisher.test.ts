@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { WebSocketServer } from 'ws'
 import {
   deriveServerKeypair,
   signServerEvent,
@@ -184,4 +185,141 @@ describe('NoopNostrPublisher', () => {
     const publisher = new NoopNostrPublisher()
     expect(() => publisher.close()).not.toThrow()
   })
+})
+
+describe('NodeNostrPublisher OK handling', () => {
+  let wss: WebSocketServer
+  let port: number
+  let publisher: NodeNostrPublisher
+
+  beforeEach(async () => {
+    // Start a local WebSocket server that acts as a mock relay
+    wss = new WebSocketServer({ port: 0 })
+    port = (wss.address() as { port: number }).port
+  })
+
+  afterEach(() => {
+    publisher?.close()
+    wss?.close()
+  })
+
+  it('resolves when relay accepts event', async () => {
+    // Mock relay that sends OK true for every event
+    wss.on('connection', (ws) => {
+      ws.on('message', (raw) => {
+        const msg = JSON.parse(raw.toString())
+        if (msg[0] === 'EVENT') {
+          const eventId = msg[1].id
+          ws.send(JSON.stringify(['OK', eventId, true, '']))
+        }
+      })
+    })
+
+    publisher = new NodeNostrPublisher(`ws://localhost:${port}`, TEST_SECRET)
+    await publisher.connect()
+    // Wait for the 2s auth timeout (open relay assumption)
+    await new Promise(r => setTimeout(r, 2100))
+
+    await expect(publisher.publish({
+      kind: 1000,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['t', 'llamenos:event']],
+      content: '{"type":"test"}',
+    })).resolves.toBeUndefined()
+  })
+
+  it('rejects when relay returns OK false', async () => {
+    wss.on('connection', (ws) => {
+      ws.on('message', (raw) => {
+        const msg = JSON.parse(raw.toString())
+        if (msg[0] === 'EVENT') {
+          const eventId = msg[1].id
+          ws.send(JSON.stringify(['OK', eventId, false, 'blocked: not on whitelist']))
+        }
+      })
+    })
+
+    publisher = new NodeNostrPublisher(`ws://localhost:${port}`, TEST_SECRET)
+    await publisher.connect()
+    await new Promise(r => setTimeout(r, 2100))
+
+    await expect(publisher.publish({
+      kind: 1000,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['t', 'llamenos:event']],
+      content: '{"type":"test"}',
+    })).rejects.toThrow('Relay rejected event')
+  })
+
+  it('rejects on OK acknowledgment timeout', async () => {
+    // Mock relay that never sends OK
+    wss.on('connection', (ws) => {
+      ws.on('message', () => {
+        // Intentionally do nothing — no OK response
+      })
+    })
+
+    publisher = new NodeNostrPublisher(`ws://localhost:${port}`, TEST_SECRET)
+    // Override the timeout to be short for testing
+    ;(publisher as any).publishTimeout = 500
+    await publisher.connect()
+    await new Promise(r => setTimeout(r, 2100))
+
+    await expect(publisher.publish({
+      kind: 1000,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['t', 'llamenos:event']],
+      content: '{"type":"test"}',
+    })).rejects.toThrow('did not acknowledge')
+  }, 10_000)
+
+  it('rejects pending publishes on WebSocket close', async () => {
+    // Mock relay that accepts connection but closes after receiving an event
+    wss.on('connection', (ws) => {
+      ws.on('message', (raw) => {
+        const msg = JSON.parse(raw.toString())
+        if (msg[0] === 'EVENT') {
+          // Close connection without sending OK
+          setTimeout(() => ws.close(), 50)
+        }
+      })
+    })
+
+    publisher = new NodeNostrPublisher(`ws://localhost:${port}`, TEST_SECRET)
+    // Prevent reconnect from interfering
+    ;(publisher as any).closed = false
+    await publisher.connect()
+    await new Promise(r => setTimeout(r, 2100))
+
+    await expect(publisher.publish({
+      kind: 1000,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['t', 'llamenos:event']],
+      content: '{"type":"test"}',
+    })).rejects.toThrow('WebSocket closed')
+  }, 10_000)
+
+  it('rejects pending publishes on close() call', async () => {
+    // Mock relay that never sends OK
+    wss.on('connection', () => {
+      // Do nothing
+    })
+
+    publisher = new NodeNostrPublisher(`ws://localhost:${port}`, TEST_SECRET)
+    await publisher.connect()
+    await new Promise(r => setTimeout(r, 2100))
+
+    // Start a publish that will pend
+    const publishPromise = publisher.publish({
+      kind: 1000,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['t', 'llamenos:event']],
+      content: '{"type":"test"}',
+    })
+
+    // Close the publisher while publish is pending
+    publisher.close()
+
+    await expect(publishPromise).rejects.toThrow('Publisher closed')
+  }, 10_000)
 })
