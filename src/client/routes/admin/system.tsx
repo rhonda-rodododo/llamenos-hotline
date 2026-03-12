@@ -114,7 +114,7 @@ function SystemHealthPage() {
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           {lastRefresh && (
             <span data-testid="last-refresh">
-              {t('admin.system.last_refresh')}: {lastRefresh.toLocaleTimeString()}
+              {t('admin.system.lastRefresh')}: {lastRefresh.toLocaleTimeString()}
             </span>
           )}
           <button
@@ -175,19 +175,19 @@ function SystemHealthPage() {
           testId="system-card-calls"
         >
           <StatusRow
-            label={t('admin.system.calls_today')}
+            label={t('admin.system.callsToday')}
             value={String(health?.calls.today ?? 0)}
           />
           <StatusRow
-            label={t('admin.system.active_calls')}
+            label={t('admin.system.activeCalls')}
             value={String(health?.calls.active ?? 0)}
           />
           <StatusRow
-            label={t('admin.system.avg_response')}
+            label={t('admin.system.avgResponse')}
             value={health ? `${health.calls.avgResponseSeconds}s` : '-'}
           />
           <StatusRow
-            label={t('admin.system.missed_calls')}
+            label={t('admin.system.missedCalls')}
             value={String(health?.calls.missed ?? 0)}
           />
         </StatusCard>
@@ -199,11 +199,11 @@ function SystemHealthPage() {
           testId="system-card-storage"
         >
           <StatusRow
-            label={t('admin.system.db_size')}
+            label={t('admin.system.dbSize')}
             value={health?.storage.dbSize ?? '-'}
           />
           <StatusRow
-            label={t('admin.system.blob_storage')}
+            label={t('admin.system.blobStorage')}
             value={health?.storage.blobStorage ?? '-'}
           />
         </StatusCard>
@@ -215,15 +215,15 @@ function SystemHealthPage() {
           testId="system-card-backup"
         >
           <StatusRow
-            label={t('admin.system.last_backup')}
+            label={t('admin.system.lastBackup')}
             value={health?.backup.lastBackup ?? t('common.none')}
           />
           <StatusRow
-            label={t('admin.system.backup_size')}
+            label={t('admin.system.backupSize')}
             value={health?.backup.backupSize ?? '-'}
           />
           <StatusRow
-            label={t('admin.system.last_verify')}
+            label={t('admin.system.lastVerify')}
             value={health?.backup.lastVerify ?? t('common.none')}
           />
         </StatusCard>
@@ -235,19 +235,19 @@ function SystemHealthPage() {
           testId="system-card-volunteers"
         >
           <StatusRow
-            label={t('admin.system.total_active')}
+            label={t('admin.system.totalActive')}
             value={String(health?.volunteers.totalActive ?? 0)}
           />
           <StatusRow
-            label={t('admin.system.online_now')}
+            label={t('admin.system.onlineNow')}
             value={String(health?.volunteers.onlineNow ?? 0)}
           />
           <StatusRow
-            label={t('admin.system.on_shift')}
+            label={t('admin.system.onShift')}
             value={String(health?.volunteers.onShift ?? 0)}
           />
           <StatusRow
-            label={t('admin.system.shift_coverage')}
+            label={t('admin.system.shiftCoverage')}
             value={`${health?.volunteers.shiftCoverage ?? 0}%`}
           />
         </StatusCard>
