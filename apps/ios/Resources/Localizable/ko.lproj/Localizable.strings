@@ -406,6 +406,7 @@
 "command_palette_search_calls" = "\\\"%@\\\" 통화 검색";
 "command_palette_search_notes" = "\\\"%@\\\" 메모 검색";
 "command_palette_theme" = "테마";
+"common_access_denied" = "Access denied";
 "common_actions" = "작업";
 "common_add" = "추가";
 "common_app_name" = "Llámenos";

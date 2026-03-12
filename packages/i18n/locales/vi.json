@@ -444,6 +444,7 @@
     "theme": "Giao diện"
   },
   "common": {
+    "accessDenied": "Access denied",
     "actions": "Hành động",
     "add": "Thêm",
     "appName": "Llámenos",
@@ -468,8 +469,8 @@
     "no": "Không",
     "noData": "Không có dữ liệu",
     "none": "None",
-    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "off": "off",
+    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "on": "on",
     "or": "hoặc",
     "remove": "Remove",

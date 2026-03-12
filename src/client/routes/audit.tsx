@@ -93,7 +93,7 @@ function AuditPage() {
   }, [volunteers])
 
   if (!isAdmin) {
-    return <div className="text-muted-foreground">Access denied</div>
+    return <div className="text-muted-foreground">{t('common.accessDenied')}</div>
   }
 
   const totalPages = Math.ceil(total / limit)

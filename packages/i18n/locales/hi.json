@@ -444,6 +444,7 @@
     "theme": "थीम"
   },
   "common": {
+    "accessDenied": "Access denied",
     "actions": "कार्रवाइयाँ",
     "add": "जोड़ें",
     "appName": "Llámenos",
@@ -468,8 +469,8 @@
     "no": "नहीं",
     "noData": "कोई डेटा उपलब्ध नहीं है",
     "none": "None",
-    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "off": "off",
+    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "on": "on",
     "or": "या",
     "remove": "Remove",

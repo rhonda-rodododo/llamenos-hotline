@@ -410,6 +410,7 @@ object I18n {
     const val COMMAND_PALETTE_SEARCH_CALLS = "command_palette_search_calls"  // "Search calls for \"{{query}}\""
     const val COMMAND_PALETTE_SEARCH_NOTES = "command_palette_search_notes"  // "Search notes for \"{{query}}\""
     const val COMMAND_PALETTE_THEME = "command_palette_theme"  // "Theme"
+    const val COMMON_ACCESS_DENIED = "common_access_denied"  // "Access denied"
     const val COMMON_ACTIONS = "common_actions"  // "Actions"
     const val COMMON_ADD = "common_add"  // "Add"
     const val COMMON_APP_NAME = "common_app_name"  // "Llámenos"

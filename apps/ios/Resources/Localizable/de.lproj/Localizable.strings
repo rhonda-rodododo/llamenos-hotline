@@ -406,6 +406,7 @@
 "command_palette_search_calls" = "Anrufe suchen nach \\\"%@\\\"";
 "command_palette_search_notes" = "Notizen suchen nach \\\"%@\\\"";
 "command_palette_theme" = "Thema";
+"common_access_denied" = "Access denied";
 "common_actions" = "Aktionen";
 "common_add" = "Hinzufügen";
 "common_app_name" = "Llámenos";

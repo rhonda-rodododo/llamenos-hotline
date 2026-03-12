@@ -444,6 +444,7 @@
     "theme": "Tèm"
   },
   "common": {
+    "accessDenied": "Access denied",
     "actions": "Aksyon",
     "add": "Ajoute",
     "appName": "Llámenos",
@@ -468,8 +469,8 @@
     "no": "Non",
     "noData": "Pa gen done disponib",
     "none": "None",
-    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "off": "off",
+    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "on": "on",
     "or": "oswa",
     "remove": "Remove",

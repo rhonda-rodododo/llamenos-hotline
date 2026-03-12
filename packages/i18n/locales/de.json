@@ -444,6 +444,7 @@
     "theme": "Thema"
   },
   "common": {
+    "accessDenied": "Access denied",
     "actions": "Aktionen",
     "add": "Hinzufügen",
     "appName": "Llámenos",
@@ -468,8 +469,8 @@
     "no": "Nein",
     "noData": "Keine Daten verfügbar",
     "none": "None",
-    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "off": "off",
+    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "on": "on",
     "or": "oder",
     "remove": "Remove",

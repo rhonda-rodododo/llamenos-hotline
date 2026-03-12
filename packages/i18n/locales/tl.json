@@ -444,6 +444,7 @@
     "theme": "Tema"
   },
   "common": {
+    "accessDenied": "Access denied",
     "actions": "Aksyon",
     "add": "Idagdag",
     "appName": "Llámenos",
@@ -468,8 +469,8 @@
     "no": "Hindi",
     "noData": "Walang available na data",
     "none": "None",
-    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "off": "off",
+    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "on": "on",
     "or": "o",
     "remove": "Remove",

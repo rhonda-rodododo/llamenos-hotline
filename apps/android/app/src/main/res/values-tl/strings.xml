@@ -409,6 +409,7 @@
     <string name="command_palette_search_calls">Maghanap ng mga tawag para sa \"%s\"</string>
     <string name="command_palette_search_notes">Maghanap ng mga tala para sa \"%s\"</string>
     <string name="command_palette_theme">Tema</string>
+    <string name="common_access_denied">Access denied</string>
     <string name="common_actions">Aksyon</string>
     <string name="common_add">Idagdag</string>
     <string name="common_app_name">Llámenos</string>

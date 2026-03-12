@@ -49,7 +49,7 @@ function ShiftsPage() {
   }, [])
 
   if (!isAdmin) {
-    return <div className="text-muted-foreground">Access denied</div>
+    return <div className="text-muted-foreground">{t('common.accessDenied')}</div>
   }
 
   async function handleSaveFallback(selected: string[]) {

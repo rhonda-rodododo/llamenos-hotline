@@ -409,6 +409,7 @@
     <string name="command_palette_search_calls">البحث في المكالمات عن \"%s\"</string>
     <string name="command_palette_search_notes">البحث في الملاحظات عن \"%s\"</string>
     <string name="command_palette_theme">السمة</string>
+    <string name="common_access_denied">Access denied</string>
     <string name="common_actions">إجراءات</string>
     <string name="common_add">إضافة</string>
     <string name="common_app_name">Llámenos</string>

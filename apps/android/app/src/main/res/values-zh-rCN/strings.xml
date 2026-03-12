@@ -409,6 +409,7 @@
     <string name="command_palette_search_calls">搜索通话\"%s\"</string>
     <string name="command_palette_search_notes">搜索笔记\"%s\"</string>
     <string name="command_palette_theme">主题</string>
+    <string name="common_access_denied">Access denied</string>
     <string name="common_actions">操作</string>
     <string name="common_add">添加</string>
     <string name="common_app_name">Llámenos</string>

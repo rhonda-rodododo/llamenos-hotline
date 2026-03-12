@@ -409,6 +409,7 @@
     <string name="command_palette_search_calls">Поиск звонков по \"%s\"</string>
     <string name="command_palette_search_notes">Поиск заметок по \"%s\"</string>
     <string name="command_palette_theme">Тема</string>
+    <string name="common_access_denied">Access denied</string>
     <string name="common_actions">Действия</string>
     <string name="common_add">Добавить</string>
     <string name="common_app_name">Llámenos</string>

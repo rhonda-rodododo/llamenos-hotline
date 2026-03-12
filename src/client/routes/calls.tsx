@@ -119,7 +119,7 @@ function CallHistoryPage() {
   const hasFilters = q || dateFrom || dateTo
 
   if (!isAdmin) {
-    return <div className="text-muted-foreground">Access denied</div>
+    return <div className="text-muted-foreground">{t('common.accessDenied')}</div>
   }
 
   const totalPages = Math.ceil(total / limit)

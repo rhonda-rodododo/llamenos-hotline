@@ -409,6 +409,7 @@
     <string name="command_palette_search_calls">Chèche apèl pou \"%s\"</string>
     <string name="command_palette_search_notes">Chèche nòt pou \"%s\"</string>
     <string name="command_palette_theme">Tèm</string>
+    <string name="common_access_denied">Access denied</string>
     <string name="common_actions">Aksyon</string>
     <string name="common_add">Ajoute</string>
     <string name="common_app_name">Llámenos</string>

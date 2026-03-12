@@ -444,6 +444,7 @@
     "theme": "主题"
   },
   "common": {
+    "accessDenied": "Access denied",
     "actions": "操作",
     "add": "添加",
     "appName": "Llámenos",
@@ -468,8 +469,8 @@
     "no": "否",
     "noData": "暂无数据",
     "none": "None",
-    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "off": "off",
+    "offline": "You are offline. Calls and messages will not work until connectivity is restored.",
     "on": "on",
     "or": "或",
     "remove": "Remove",

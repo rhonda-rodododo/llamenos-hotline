@@ -406,6 +406,7 @@
 "command_palette_search_calls" = "Поиск звонков по \\\"%@\\\"";
 "command_palette_search_notes" = "Поиск заметок по \\\"%@\\\"";
 "command_palette_theme" = "Тема";
+"common_access_denied" = "Access denied";
 "common_actions" = "Действия";
 "common_add" = "Добавить";
 "common_app_name" = "Llámenos";

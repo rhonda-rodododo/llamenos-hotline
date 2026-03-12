@@ -444,6 +444,7 @@
     "theme": "Theme"
   },
   "common": {
+    "accessDenied": "Access denied",
     "actions": "Actions",
     "add": "Add",
     "appName": "Llámenos",

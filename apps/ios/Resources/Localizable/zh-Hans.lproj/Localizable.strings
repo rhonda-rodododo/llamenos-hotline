@@ -406,6 +406,7 @@
 "command_palette_search_calls" = "搜索通话\\\"%@\\\"";
 "command_palette_search_notes" = "搜索笔记\\\"%@\\\"";
 "command_palette_theme" = "主题";
+"common_access_denied" = "Access denied";
 "common_actions" = "操作";
 "common_add" = "添加";
 "common_app_name" = "Llámenos";

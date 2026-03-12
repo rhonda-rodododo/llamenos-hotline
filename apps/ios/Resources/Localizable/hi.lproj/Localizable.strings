@@ -406,6 +406,7 @@
 "command_palette_search_calls" = "\\\"%@\\\" के लिए कॉल खोजें";
 "command_palette_search_notes" = "\\\"%@\\\" के लिए नोट्स खोजें";
 "command_palette_theme" = "थीम";
+"common_access_denied" = "Access denied";
 "common_actions" = "कार्रवाइयाँ";
 "common_add" = "जोड़ें";
 "common_app_name" = "Llámenos";

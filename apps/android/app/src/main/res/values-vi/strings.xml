@@ -409,6 +409,7 @@
     <string name="command_palette_search_calls">Tìm cuộc gọi cho \"%s\"</string>
     <string name="command_palette_search_notes">Tìm ghi chú cho \"%s\"</string>
     <string name="command_palette_theme">Giao diện</string>
+    <string name="common_access_denied">Access denied</string>
     <string name="common_actions">Hành động</string>
     <string name="common_add">Thêm</string>
     <string name="common_app_name">Llámenos</string>

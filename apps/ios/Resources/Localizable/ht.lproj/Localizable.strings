@@ -406,6 +406,7 @@
 "command_palette_search_calls" = "Chèche apèl pou \\\"%@\\\"";
 "command_palette_search_notes" = "Chèche nòt pou \\\"%@\\\"";
 "command_palette_theme" = "Tèm";
+"common_access_denied" = "Access denied";
 "common_actions" = "Aksyon";
 "common_add" = "Ajoute";
 "common_app_name" = "Llámenos";

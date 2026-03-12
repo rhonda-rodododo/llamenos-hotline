@@ -80,7 +80,7 @@ export async function initWebRtc(): Promise<void> {
         // calls via the WebSocket notification path (answer triggers
         // server-side bridging). Full browser audio will be added
         // when provider SDKs are available.
-        console.log(`[webrtc] ${provider} WebRTC: using WebSocket notification mode`)
+        console.debug(`[webrtc] ${provider} WebRTC: using WebSocket notification mode`)
         setState('ready')
         break
       default:
@@ -110,7 +110,7 @@ async function initTwilioWebRtc(token: string): Promise<void> {
     })
 
     device.on('registered', () => {
-      console.log('[webrtc] Twilio Device registered')
+      console.debug('[webrtc] Twilio Device registered')
       setState('ready')
     })
 
@@ -122,7 +122,7 @@ async function initTwilioWebRtc(token: string): Promise<void> {
 
     device.on('incoming', (...args: unknown[]) => {
       const conn = args[0] as TwilioConnection
-      console.log('[webrtc] Incoming call via WebRTC')
+      console.debug('[webrtc] Incoming call via WebRTC')
       activeConnection = conn
       setState('ringing')
 
@@ -142,7 +142,7 @@ async function initTwilioWebRtc(token: string): Promise<void> {
     })
 
     device.on('unregistered', () => {
-      console.log('[webrtc] Twilio Device unregistered')
+      console.debug('[webrtc] Twilio Device unregistered')
       setState('idle')
     })
 

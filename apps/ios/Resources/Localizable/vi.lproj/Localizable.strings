@@ -406,6 +406,7 @@
 "command_palette_search_calls" = "Tìm cuộc gọi cho \\\"%@\\\"";
 "command_palette_search_notes" = "Tìm ghi chú cho \\\"%@\\\"";
 "command_palette_theme" = "Giao diện";
+"common_access_denied" = "Access denied";
 "common_actions" = "Hành động";
 "common_add" = "Thêm";
 "common_app_name" = "Llámenos";

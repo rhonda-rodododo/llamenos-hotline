@@ -409,6 +409,7 @@
     <string name="command_palette_search_calls">\"%s\" के लिए कॉल खोजें</string>
     <string name="command_palette_search_notes">\"%s\" के लिए नोट्स खोजें</string>
     <string name="command_palette_theme">थीम</string>
+    <string name="common_access_denied">Access denied</string>
     <string name="common_actions">कार्रवाइयाँ</string>
     <string name="common_add">जोड़ें</string>
     <string name="common_app_name">Llámenos</string>

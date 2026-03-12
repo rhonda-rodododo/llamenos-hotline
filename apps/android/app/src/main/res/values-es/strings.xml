@@ -409,6 +409,7 @@
     <string name="command_palette_search_calls">Buscar llamadas de \"%s\"</string>
     <string name="command_palette_search_notes">Buscar notas de \"%s\"</string>
     <string name="command_palette_theme">Tema</string>
+    <string name="common_access_denied">Access denied</string>
     <string name="common_actions">Acciones</string>
     <string name="common_add">Agregar</string>
     <string name="common_app_name">Llámenos</string>
