@@ -540,6 +540,12 @@ Design doc: [`docs/plans/2026-03-08-production-readiness-design.md`](plans/2026-
 - Track 4: 288 → (289 | 290) → 291 → 292 → 293
 - Track 5: 278 → 294 → 295 → 296 → 297 → 298 → 299 → 300
 
+## Nostr Relay & Call Actions (Epics 305-308) — IN PROGRESS
+- [ ] **[Epic 305: OpenAPI Spec + Scalar Docs](epics/epic-305-openapi-spec-scalar-docs.md)** — hono-openapi + Scalar docs UI *(in progress — separate session)*
+- [x] **[Epic 306: Nostr Relay Event Delivery Fixes](epics/epic-306-nostr-relay-event-delivery-fixes.md)** — NodeNostrPublisher rejection handling, mobile kind filters, Android/iOS event type string alignment
+- [x] **[Epic 307: Real-Time Event Delivery BDD Coverage](epics/epic-307-realtime-event-delivery-bdd-coverage.md)** — RelayCapture test helper, 9 BDD scenarios for all event kinds + encryption + tags + signatures
+- [x] **[Epic 308: In-Call Quick Actions — Ban & Notes](epics/epic-308-call-action-buttons-ban-notes.md)** — POST /api/calls/:callId/ban server-side endpoint, client API fix, i18n strings, 5 BDD scenarios
+
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
 - [x] Marketing site + docs at llamenos-hotline.com (Astro + Cloudflare Pages)
