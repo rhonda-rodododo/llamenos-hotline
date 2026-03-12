@@ -221,29 +221,18 @@ final class ConversationsViewModel {
         eventTask = nil
     }
 
+    /// Content-based type parsing (HubEventType) happens after hub-key decryption.
+    /// For now, any llamenos event triggers a conversations refresh.
     @MainActor
     private func handleEvent(_ event: NostrEvent) {
-        let eventType = WebSocketService.extractEventType(from: event)
-        switch eventType {
-        case .messageIncoming, .conversationUpdate:
-            // Message or conversation update — refresh the conversations list.
-            Task { await loadConversations() }
+        guard WebSocketService.isLlamenosEvent(event) else { return }
 
-            // If we're viewing a conversation, refresh its messages too
-            if let id = currentConversationId {
-                Task { await loadMessages(for: id) }
-            }
+        // TODO: After decryption, parse content.type into HubEventType and
+        // dispatch only for messageNew, conversationAssigned, conversationClosed.
+        Task { await loadConversations() }
 
-        case .event:
-            // Generic event — could be a new message. Refresh conversations.
-            Task { await loadConversations() }
-
-            if let id = currentConversationId {
-                Task { await loadMessages(for: id) }
-            }
-
-        default:
-            break
+        if let id = currentConversationId {
+            Task { await loadMessages(for: id) }
         }
     }
 

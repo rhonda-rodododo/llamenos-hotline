@@ -54,19 +54,18 @@ struct NostrEvent: Codable, Sendable, Identifiable {
 
 // MARK: - HubEventType
 
-/// Known hub event types extracted from the `["t", "llamenos:*"]` tag.
+/// Known hub event types parsed from decrypted event content's `type` field.
+/// All events use the generic `["t", "llamenos:event"]` tag — the relay cannot
+/// distinguish event types. Actual type differentiation happens after decryption
+/// by reading the `content.type` JSON field.
 enum HubEventType: String, Sendable {
-    case event = "llamenos:event"
-    case noteCreated = "llamenos:note-created"
-    case noteUpdated = "llamenos:note-updated"
-    case shiftUpdate = "llamenos:shift-update"
-    case callIncoming = "llamenos:call-incoming"
-    case callAnswered = "llamenos:call-answered"
-    case callEnded = "llamenos:call-ended"
-    case memberUpdate = "llamenos:member-update"
-    case settingsUpdate = "llamenos:settings-update"
-    case messageIncoming = "llamenos:message-incoming"
-    case conversationUpdate = "llamenos:conversation-update"
+    case callRing = "call:ring"
+    case callUpdate = "call:update"
+    case voicemailNew = "voicemail:new"
+    case presenceSummary = "presence:summary"
+    case messageNew = "message:new"
+    case conversationAssigned = "conversation:assigned"
+    case conversationClosed = "conversation:closed"
     case unknown
 }
 
@@ -178,7 +177,7 @@ final class WebSocketService: @unchecked Sendable {
 
         // Send Nostr REQ subscription
         let reqMessage = """
-        ["REQ","\(subscriptionId)",{"kinds":[20001],"#t":["llamenos:event"]}]
+        ["REQ","\(subscriptionId)",{"kinds":[1000,1001,1002,1010,1011,20000,20001],"#t":["llamenos:event"]}]
         """
         do {
             try await task.send(.string(reqMessage))
@@ -325,13 +324,16 @@ final class WebSocketService: @unchecked Sendable {
 
     // MARK: - Event Type Extraction
 
-    /// Extract the hub event type from a Nostr event's tags.
-    static func extractEventType(from event: NostrEvent) -> HubEventType {
+    /// Check if a Nostr event has the llamenos event tag.
+    /// All llamenos events use the generic `["t", "llamenos:event"]` tag.
+    /// Content-based type parsing (into HubEventType) happens after decryption,
+    /// not from tags — the tag only serves as a relay filter marker.
+    static func isLlamenosEvent(_ event: NostrEvent) -> Bool {
         for tag in event.tags {
-            if tag.count >= 2, tag[0] == "t" {
-                return HubEventType(rawValue: tag[1]) ?? .unknown
+            if tag.count >= 2, tag[0] == "t", tag[1] == "llamenos:event" {
+                return true
             }
         }
-        return .unknown
+        return false
     }
 }

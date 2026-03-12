@@ -134,29 +134,17 @@ final class DashboardViewModel {
     }
 
     /// Handle an incoming Nostr event and update dashboard state.
+    /// Content-based type parsing (HubEventType) happens after hub-key decryption.
+    /// For now, any llamenos event triggers a full dashboard refresh.
     @MainActor
     private func handleEvent(_ event: NostrEvent) {
-        let eventType = WebSocketService.extractEventType(from: event)
-        switch eventType {
-        case .noteCreated, .noteUpdated:
-            // Refresh notes on note events
-            Task { await fetchRecentNotes() }
+        guard WebSocketService.isLlamenosEvent(event) else { return }
 
-        case .shiftUpdate:
-            // Refresh shift status
-            Task { await fetchShiftStatus() }
-
-        case .callIncoming:
-            // Increment active call count
-            activeCallCount += 1
-
-        case .callEnded:
-            // Decrement active call count
-            activeCallCount = max(0, activeCallCount - 1)
-
-        default:
-            break
-        }
+        // TODO: After decryption, parse content.type into HubEventType and
+        // dispatch granularly (e.g., callRing increments active call count,
+        // callUpdate with status "completed" decrements it, etc.)
+        Task { await fetchRecentNotes() }
+        Task { await fetchShiftStatus() }
     }
 
     // MARK: - Timer

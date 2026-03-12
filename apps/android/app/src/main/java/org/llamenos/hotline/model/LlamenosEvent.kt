@@ -15,8 +15,17 @@ sealed class LlamenosEvent {
     /** A new call is ringing -- all on-shift volunteers receive this. */
     data class CallRing(val callId: String) : LlamenosEvent()
 
+    /** A call status update (ringing, in-progress, etc.). */
+    data class CallUpdate(val callId: String, val status: String) : LlamenosEvent()
+
     /** A call has ended (answered by another volunteer or caller hung up). */
     data class CallEnded(val callId: String) : LlamenosEvent()
+
+    /** A new voicemail was left by a caller. */
+    data class VoicemailNew(val callId: String) : LlamenosEvent()
+
+    /** Summary of volunteer presence/availability. */
+    data class PresenceSummary(val hasAvailable: Boolean) : LlamenosEvent()
 
     /** A shift's status has changed (assignment, clock in/out by another volunteer). */
     data class ShiftUpdate(val shiftId: String, val status: String) : LlamenosEvent()
@@ -25,16 +34,16 @@ sealed class LlamenosEvent {
     data class NoteCreated(val noteId: String) : LlamenosEvent()
 
     /** A new message arrived in a conversation. */
-    data class MessageReceived(
+    data class MessageNew(val conversationId: String) : LlamenosEvent()
+
+    /** A conversation was assigned to a volunteer. */
+    data class ConversationAssigned(
         val conversationId: String,
-        val messageId: String,
+        val assignedTo: String?,
     ) : LlamenosEvent()
 
-    /** A conversation's status changed (assigned, closed, etc.). */
-    data class ConversationUpdate(
-        val conversationId: String,
-        val status: String,
-    ) : LlamenosEvent()
+    /** A conversation was closed. */
+    data class ConversationClosed(val conversationId: String) : LlamenosEvent()
 
     /** An event type this client version does not recognize. */
     data class Unknown(val type: String) : LlamenosEvent()

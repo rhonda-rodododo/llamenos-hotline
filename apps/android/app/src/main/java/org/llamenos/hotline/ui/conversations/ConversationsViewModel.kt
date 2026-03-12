@@ -93,7 +93,7 @@ class ConversationsViewModel @Inject constructor(
         viewModelScope.launch {
             webSocketService.typedEvents.collect { event ->
                 when (event) {
-                    is LlamenosEvent.MessageReceived -> {
+                    is LlamenosEvent.MessageNew -> {
                         // If we are viewing this conversation, reload messages
                         val selected = _uiState.value.selectedConversation
                         if (selected != null && selected.id == event.conversationId) {
@@ -102,7 +102,8 @@ class ConversationsViewModel @Inject constructor(
                         // Refresh conversation list for unread count update
                         loadConversations()
                     }
-                    is LlamenosEvent.ConversationUpdate -> {
+                    is LlamenosEvent.ConversationAssigned,
+                    is LlamenosEvent.ConversationClosed -> {
                         loadConversations()
                     }
                     else -> { /* ignore non-conversation events */ }

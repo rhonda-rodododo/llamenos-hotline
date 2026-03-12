@@ -159,7 +159,7 @@ class WebSocketService @Inject constructor(
     private fun subscribe(ws: WebSocket) {
         // Subscribe to ephemeral kind 20001 events tagged for llamenos
         val subscriptionId = "llamenos-${System.currentTimeMillis()}"
-        val filter = """{"kinds":[20001],"#t":["llamenos:event"]}"""
+        val filter = """{"kinds":[1000,1001,1002,1010,1011,20000,20001],"#t":["llamenos:event"]}"""
         val message = """["REQ","$subscriptionId",$filter]"""
         ws.send(message)
     }
@@ -201,33 +201,31 @@ class WebSocketService @Inject constructor(
             val type = obj["type"]?.jsonPrimitive?.content ?: return null
 
             when (type) {
-                "call_ring" -> {
+                "call:ring" -> LlamenosEvent.CallRing(
+                    obj["callId"]?.jsonPrimitive?.content ?: return null
+                )
+                "call:update" -> {
                     val callId = obj["callId"]?.jsonPrimitive?.content ?: return null
-                    LlamenosEvent.CallRing(callId)
-                }
-                "call_ended" -> {
-                    val callId = obj["callId"]?.jsonPrimitive?.content ?: return null
-                    LlamenosEvent.CallEnded(callId)
-                }
-                "shift_update" -> {
-                    val shiftId = obj["shiftId"]?.jsonPrimitive?.content ?: return null
                     val status = obj["status"]?.jsonPrimitive?.content ?: return null
-                    LlamenosEvent.ShiftUpdate(shiftId, status)
+                    if (status == "completed") LlamenosEvent.CallEnded(callId)
+                    else LlamenosEvent.CallUpdate(callId, status)
                 }
-                "note_created" -> {
-                    val noteId = obj["noteId"]?.jsonPrimitive?.content ?: return null
-                    LlamenosEvent.NoteCreated(noteId)
-                }
-                "message_received" -> {
-                    val conversationId = obj["conversationId"]?.jsonPrimitive?.content ?: return null
-                    val messageId = obj["messageId"]?.jsonPrimitive?.content ?: return null
-                    LlamenosEvent.MessageReceived(conversationId, messageId)
-                }
-                "conversation_update" -> {
-                    val conversationId = obj["conversationId"]?.jsonPrimitive?.content ?: return null
-                    val status = obj["status"]?.jsonPrimitive?.content ?: return null
-                    LlamenosEvent.ConversationUpdate(conversationId, status)
-                }
+                "voicemail:new" -> LlamenosEvent.VoicemailNew(
+                    obj["callId"]?.jsonPrimitive?.content ?: return null
+                )
+                "presence:summary" -> LlamenosEvent.PresenceSummary(
+                    obj["hasAvailable"]?.jsonPrimitive?.boolean ?: false
+                )
+                "message:new" -> LlamenosEvent.MessageNew(
+                    obj["conversationId"]?.jsonPrimitive?.content ?: return null
+                )
+                "conversation:assigned" -> LlamenosEvent.ConversationAssigned(
+                    obj["conversationId"]?.jsonPrimitive?.content ?: return null,
+                    obj["assignedTo"]?.jsonPrimitive?.content
+                )
+                "conversation:closed" -> LlamenosEvent.ConversationClosed(
+                    obj["conversationId"]?.jsonPrimitive?.content ?: return null
+                )
                 else -> LlamenosEvent.Unknown(type)
             }
         } catch (_: Exception) {
