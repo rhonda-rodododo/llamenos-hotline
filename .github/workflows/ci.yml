@@ -10,6 +10,9 @@
 #   8. Create GitHub Release with changelog
 #   (Desktop app releases are handled by tauri-release.yml)
 #
+# On pull requests (any target branch):
+#   Runs build, test, and validation jobs only (no version bump, deploy, or release).
+#
 # Docs-only changes (*.md and site/ files) skip E2E tests, versioning, and app deploy.
 # Site changes still deploy to Pages even without a version bump.
 # Everything else (app code, CI, config, etc.) triggers the full E2E → deploy chain.
@@ -21,12 +24,11 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
-# Only one CI run at a time on main
+# Cancel in-progress PR runs when new commits are pushed; never cancel main
 concurrency:
-  group: ci-main
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   BUN_VERSION: "1.3.5"

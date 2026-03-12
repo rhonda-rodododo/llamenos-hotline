@@ -27,6 +27,14 @@ on:
       - '**/Dockerfile*'
       - 'deploy/docker/**'
       - '.github/workflows/security-audit.yml'
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'bun.lockb'
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '**/Dockerfile*'
+      - 'deploy/docker/**'
   workflow_dispatch:
 
 concurrency:
