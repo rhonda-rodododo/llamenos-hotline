@@ -2,13 +2,16 @@
 #
 # On every push to main:
 #   1. Detect changed files — skip E2E/version/deploy for docs-only changes
-#   2. Build & validate (typecheck, vite build, esbuild, site build)
-#   3. E2E tests against Cloudflare Workers (wrangler dev / miniflare)
-#   4. E2E tests against Docker Compose (Node.js self-hosted platform)
+#   2. Build & validate (typecheck, vite build with Tauri IPC mocks, esbuild, site build)
+#   3. E2E tests against Docker Compose backend + Vite dev server
 #   5. Auto-determine version bump from conventional commits
 #   6. Bump version, generate changelog, commit + tag
-#   7. Deploy app to Cloudflare Workers + marketing site to Cloudflare Pages
+#   7. Deploy API to Cloudflare Workers + marketing site to Cloudflare Pages
 #   8. Create GitHub Release with changelog
+#   (Desktop app releases are handled by tauri-release.yml)
+#
+# On pull requests (any target branch):
+#   Runs build, test, and validation jobs only (no version bump, deploy, or release).
 #
 # Docs-only changes (*.md and site/ files) skip E2E tests, versioning, and app deploy.
 # Site changes still deploy to Pages even without a version bump.
@@ -76,9 +79,11 @@ jobs:
             fi
           done <<< "$CHANGED"
 
-          echo "app=$([ "$DOCS_ONLY" = "false" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "site=$SITE_CHANGED" >> "$GITHUB_OUTPUT"
-          echo "docs_only=$DOCS_ONLY" >> "$GITHUB_OUTPUT"
+          {
+            echo "app=$([ "$DOCS_ONLY" = "false" ] && echo true || echo false)"
+            echo "site=$SITE_CHANGED"
+            echo "docs_only=$DOCS_ONLY"
+          } >> "$GITHUB_OUTPUT"
 
           if [[ "$DOCS_ONLY" == "true" ]]; then
             echo "Only docs/site files changed — E2E tests will be skipped"
@@ -108,19 +113,19 @@ jobs:
 
       - name: Set build-time constants (Epic 79)
         run: |
-          echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> $GITHUB_ENV
+          echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
 
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Build frontend
-        run: bun run build
+      - name: Build frontend (with Tauri IPC mocks for test builds)
+        run: PLAYWRIGHT_TEST=true bun run build
 
       - name: Build Node.js server
         run: bun run build:node
 
       - name: Capture Worker bundle (Epic 79)
-        run: bunx wrangler deploy --dry-run --outdir dist/worker-bundle/
+        run: bunx wrangler deploy --config apps/worker/wrangler.jsonc --dry-run --outdir dist/worker-bundle/
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -161,6 +166,34 @@ jobs:
           path: site/dist/
           retention-days: 1
 
+  # ─── Crypto Tests (Rust) ────────────────────────────────────
+  crypto-tests:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # v2.7.5
+        with:
+          workspaces: packages/crypto
+
+      - name: Run tests
+        run: cargo test --manifest-path packages/crypto/Cargo.toml
+
+      - name: Clippy
+        run: cargo clippy --manifest-path packages/crypto/Cargo.toml -- -D warnings
+
+      - name: Format check
+        run: cargo fmt --manifest-path packages/crypto/Cargo.toml --check
+
   # ─── Dependency Vulnerability Scan ───────────────────────────
   audit:
     needs: changes
@@ -174,23 +207,27 @@ jobs:
         uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
         with:
           # bun audit requires >= 1.3
-          bun-version: "1.3"
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Audit dependencies
-        # Only block on critical vulnerabilities — high-severity transitive deps
-        # (e.g. minimatch in vite-plugin-pwa/shadcn) can't be fixed without upstream updates
-        run: bun audit --audit-level=critical
+        # Tiered approach: warn on high-severity, fail on critical.
+        # Known high-severity vulns in transitive dev deps (reviewed 2026-03-05)
+        # Next review: 2026-04-05
+        run: |
+          bun audit --audit-level=high || {
+            echo "::warning::High-severity vulns found — checking for critical"
+            bun audit --audit-level=critical
+          }
 
-  # ─── E2E Tests: Cloudflare Workers (wrangler dev) ──────────
-  e2e-cf:
+  # ─── Worker Unit Tests (Vitest) ────────────────────────────
+  worker-tests:
     needs: [changes, build]
-    # Skip E2E when only docs/site files changed
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.build.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -204,43 +241,234 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Create .dev.vars for tests
-        run: |
-          printf 'ADMIN_PUBKEY=%s\nENVIRONMENT=development\nHMAC_SECRET=%s\nDEV_RESET_SECRET=test-reset-secret\n' "${{ env.TEST_ADMIN_PUBKEY }}" "$(openssl rand -hex 32)" > .dev.vars
+      - name: Run worker unit tests
+        run: bun run test:worker:unit
 
-      - name: Cache Playwright browsers
-        id: playwright-cache
+  # ─── Worker Integration Tests (Vitest + Miniflare) ──────────
+  worker-tests-integration:
+    needs: [changes, build]
+    if: needs.changes.outputs.docs_only != 'true' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run worker integration tests
+        run: bun run test:worker:integration
+
+  # ─── Android Build & Test ───────────────────────────────────
+  android-build-test:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Java 17
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972fe187c82e2fd2858a # v4.4.1
+
+      - name: Run unit tests
+        working-directory: apps/android
+        run: ./gradlew testDebugUnitTest
+
+      - name: Lint
+        working-directory: apps/android
+        run: ./gradlew lintDebug
+
+      - name: Build debug APK + androidTest APK
+        working-directory: apps/android
+        run: ./gradlew assembleDebug assembleDebugAndroidTest
+
+  # ─── Android Instrumented Tests (Cucumber BDD on emulator, 2-shard parallel) ──
+  android-e2e:
+    needs: [changes, android-build-test]
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Enable KVM hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Setup Java 17
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972fe187c82e2fd2858a # v4.4.1
+
+      - name: Cache AVD snapshot
+        id: avd-cache
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lockb') }}
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-34-default-x86_64-${{ runner.os }}
 
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: bunx playwright install --with-deps chromium
+      - name: Create AVD snapshot (cache miss only)
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@f085ef0a201e8d974d0356a2d9de5447d10af42d # v2
+        with:
+          api-level: 34
+          target: default
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-boot-timeout: 600
+          script: echo "AVD snapshot created and cached."
 
-      - name: Install Playwright deps (cached browsers)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: bunx playwright install-deps chromium
+      - name: Collect @android feature files for this shard
+        id: shard-features
+        run: |
+          # Find all @android feature files, sorted for deterministic sharding
+          FEATURES=$(find packages/test-specs/features -name "*.feature" -exec grep -l "@android" {} \; | sort)
+          TOTAL=$(echo "$FEATURES" | wc -l)
+          echo "Total @android features: $TOTAL"
 
-      - name: Run E2E tests (Cloudflare Workers)
-        run: bunx playwright test
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Round-robin shard assignment: shard 0 gets files 0,2,4,...; shard 1 gets 1,3,5,...
+          SHARD_FEATURES=""
+          SHARD_ID=${{ matrix.shard }}
+          IDX=0
+          while IFS= read -r file; do
+            if [ $((IDX % 2)) -eq "$SHARD_ID" ]; then
+              # Convert to relative path from features/ root
+              REL="${file#packages/test-specs/features/}"
+              if [ -n "$SHARD_FEATURES" ]; then
+                SHARD_FEATURES="${SHARD_FEATURES},${REL}"
+              else
+                SHARD_FEATURES="${REL}"
+              fi
+            fi
+            IDX=$((IDX + 1))
+          done <<< "$FEATURES"
+
+          echo "Shard ${{ matrix.shard }} features: $SHARD_FEATURES"
+          echo "features=$SHARD_FEATURES" >> "$GITHUB_OUTPUT"
+
+      - name: Run Cucumber instrumented tests (shard ${{ matrix.shard }})
+        uses: reactivecircus/android-emulator-runner@f085ef0a201e8d974d0356a2d9de5447d10af42d # v2
+        with:
+          api-level: 34
+          target: default
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          emulator-boot-timeout: 600
+          script: |
+            cd apps/android && ./gradlew connectedDebugAndroidTest \
+              -Pandroid.testInstrumentationRunnerArguments.cucumber.features="${{ steps.shard-features.outputs.features }}"
 
       - name: Upload test results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
-          name: e2e-cf-results
+          name: android-e2e-results-shard-${{ matrix.shard }}
           path: |
-            playwright-report/
-            test-results/
-          retention-days: 1
+            apps/android/app/build/outputs/androidTest-results/
+            apps/android/app/build/reports/androidTests/
+          retention-days: 7
 
-  # ─── E2E Tests: Docker Compose (Node.js platform) ─────────
-  e2e-docker:
+  # ─── iOS Build & Test ──────────────────────────────────────
+  ios-build-test:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: apps/ios
+        run: xcodegen generate
+
+      - name: Detect simulator
+        id: sim
+        run: |
+          SIM=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for runtime, devices in sorted(data.get('devices', {}).items(), reverse=True):
+              if 'iOS' in runtime:
+                  for d in devices:
+                      if d.get('isAvailable') and 'iPhone' in d.get('name', ''):
+                          print(d['name'])
+                          sys.exit(0)
+          print('iPhone 16')
+          ")
+          echo "device=$SIM" >> "$GITHUB_OUTPUT"
+          echo "Using simulator: $SIM"
+
+      - name: Build app
+        working-directory: apps/ios
+        run: |
+          xcodebuild build \
+            -project Llamenos.xcodeproj \
+            -scheme Llamenos \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            -derivedDataPath /tmp/llamenos-build
+
+      - name: Run unit tests
+        working-directory: apps/ios
+        run: |
+          xcodebuild test \
+            -project Llamenos.xcodeproj \
+            -scheme Llamenos \
+            -only-testing:LlamenosTests \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            -derivedDataPath /tmp/llamenos-build
+
+      - name: Run UI tests
+        working-directory: apps/ios
+        run: |
+          xcodebuild test \
+            -project Llamenos.xcodeproj \
+            -scheme Llamenos \
+            -only-testing:LlamenosUITests \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            -derivedDataPath /tmp/llamenos-build
+
+  # ─── E2E Tests: Cloudflare Workers (wrangler dev) ──────────
+  # ─── E2E Tests: Docker Compose + Vite ──────────────────────
+  e2e:
     needs: [changes, build]
     # Skip E2E when only docs/site files changed
     if: needs.changes.outputs.docs_only != 'true'
@@ -287,7 +515,6 @@ jobs:
             "BRIDGE_SECRET=ci-test-bridge-secret" \
             "ARI_PASSWORD=ci-test-ari-password" \
             "SERVER_NOSTR_SECRET=$(openssl rand -hex 32)" \
-            "DEV_RESET_SECRET=test-reset-secret" \
             > deploy/docker/.env
 
       - name: Build and start Docker Compose
@@ -303,14 +530,14 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.test.yml ps
           docker compose -f docker-compose.yml -f docker-compose.test.yml logs --tail=50
 
-      - name: Run E2E tests (Docker / Node.js)
-        run: bunx playwright test --config playwright.docker.config.ts
+      - name: Run E2E tests
+        run: bunx playwright test
 
       - name: Upload test results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
-          name: e2e-docker-results
+          name: e2e-results
           path: |
             playwright-report/
             test-results/
@@ -321,9 +548,144 @@ jobs:
         working-directory: deploy/docker
         run: docker compose -f docker-compose.yml -f docker-compose.test.yml down -v
 
+  # ─── E2E Tests: Node.js Server Direct (no Vite) ────────────
+  # Validates Node.js platform parity — Playwright hits the Node.js server directly
+  e2e-node:
+    needs: [changes, build]
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lockb') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium
+
+      - name: Install Playwright deps (cached browsers)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps chromium
+
+      - name: Create .env for Docker Compose
+        run: |
+          printf '%s\n' \
+            "ADMIN_PUBKEY=${{ env.TEST_ADMIN_PUBKEY }}" \
+            "DOMAIN=localhost" \
+            "PG_PASSWORD=ci-test-password" \
+            "HMAC_SECRET=$(openssl rand -hex 32)" \
+            "MINIO_ACCESS_KEY=testaccess" \
+            "MINIO_SECRET_KEY=testsecret123456" \
+            "HOTLINE_NAME=Llámenos" \
+            "BRIDGE_SECRET=ci-test-bridge-secret" \
+            "ARI_PASSWORD=ci-test-ari-password" \
+            "SERVER_NOSTR_SECRET=$(openssl rand -hex 32)" \
+            > deploy/docker/.env
+
+      - name: Build and start Docker Compose
+        working-directory: deploy/docker
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --build --wait app
+        timeout-minutes: 10
+
+      - name: Show container status
+        if: ${{ !cancelled() }}
+        working-directory: deploy/docker
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.test.yml ps
+          docker compose -f docker-compose.yml -f docker-compose.test.yml logs --tail=50
+
+      - name: Run E2E tests against Node.js server
+        run: bunx playwright test --config playwright.docker.config.ts
+
+      - name: Upload test results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: e2e-node-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 1
+
+      - name: Tear down Docker Compose
+        if: always()
+        working-directory: deploy/docker
+        run: docker compose -f docker-compose.yml -f docker-compose.test.yml down -v
+
+  # ─── Node.js Integration Tests ──────────────────────────────
+  integration-node:
+    needs: [changes, build]
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: llamenos_test
+          POSTGRES_USER: llamenos
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd "pg_isready -U llamenos -d llamenos_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      minio:
+        image: minio/minio:RELEASE.2025-01-20T14-49-07Z
+        env:
+          MINIO_ROOT_USER: testaccess
+          MINIO_ROOT_PASSWORD: testsecret123456
+        options: >-
+          --health-cmd "mc ready local"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 9000:9000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run Node.js integration tests
+        env:
+          DATABASE_URL: postgresql://llamenos:test@localhost:5432/llamenos_test
+          MINIO_ENDPOINT: http://localhost:9000
+          MINIO_ACCESS_KEY: testaccess
+          MINIO_SECRET_KEY: testsecret123456
+        run: bun run test:integration:node
+
   # ─── Version Bump & Changelog ──────────────────────────────
   version:
-    needs: [changes, build, audit, e2e-cf, e2e-docker]
+    needs: [changes, build, audit, worker-tests, worker-tests-integration, crypto-tests, e2e, e2e-node, integration-node, android-build-test, android-e2e, ios-build-test]
     # Skip version bump for docs-only changes and PRs; require E2E success for app changes
     if: |
       always() &&
@@ -331,8 +693,14 @@ jobs:
       needs.changes.outputs.docs_only != 'true' &&
       needs.build.result == 'success' &&
       needs.audit.result == 'success' &&
-      needs.e2e-cf.result == 'success' &&
-      needs.e2e-docker.result == 'success'
+      (needs.worker-tests.result == 'success' || needs.worker-tests.result == 'skipped') &&
+      (needs.worker-tests-integration.result == 'success' || needs.worker-tests-integration.result == 'skipped') &&
+      (needs.crypto-tests.result == 'success' || needs.crypto-tests.result == 'skipped') &&
+      needs.e2e.result == 'success' &&
+      (needs.e2e-node.result == 'success' || needs.e2e-node.result == 'skipped') &&
+      (needs.integration-node.result == 'success' || needs.integration-node.result == 'skipped') &&
+      (needs.android-build-test.result == 'success' || needs.android-build-test.result == 'skipped') &&
+      (needs.ios-build-test.result == 'success' || needs.ios-build-test.result == 'skipped')
     runs-on: ubuntu-latest
 
     permissions:
@@ -392,10 +760,12 @@ jobs:
             patch) NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
           esac
 
-          echo "bump_type=$BUMP" >> "$GITHUB_OUTPUT"
-          echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
-          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-          echo "should_release=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "bump_type=$BUMP"
+            echo "old_version=$OLD_VERSION"
+            echo "new_version=$NEW_VERSION"
+            echo "should_release=true"
+          } >> "$GITHUB_OUTPUT"
           echo "Version: $OLD_VERSION → $NEW_VERSION ($BUMP)"
 
       - name: Install git-cliff
@@ -422,6 +792,45 @@ jobs:
           NEW_VERSION="${{ steps.version.outputs.new_version }}"
           sed -i "s/^appVersion:.*/appVersion: \"$NEW_VERSION\"/" deploy/helm/llamenos/Chart.yaml
 
+      - name: Bump Android version
+        if: steps.version.outputs.should_release == 'true'
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          sed -i "s/versionName = \"[^\"]*\"/versionName = \"$NEW_VERSION\"/" apps/android/app/build.gradle.kts
+          # Increment versionCode
+          CURRENT_CODE=$(grep -oP 'versionCode = \K\d+' apps/android/app/build.gradle.kts)
+          NEW_CODE=$((CURRENT_CODE + 1))
+          sed -i "s/versionCode = $CURRENT_CODE/versionCode = $NEW_CODE/" apps/android/app/build.gradle.kts
+
+      - name: Bump iOS version
+        if: steps.version.outputs.should_release == 'true'
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          # Update CFBundleShortVersionString
+          sed -i "s|<key>CFBundleShortVersionString</key>|<key>CFBundleShortVersionString</key>|" apps/ios/Sources/App/Info.plist
+          python3 -c "
+          import re
+          with open('apps/ios/Sources/App/Info.plist', 'r') as f:
+              content = f.read()
+          content = re.sub(
+              r'(<key>CFBundleShortVersionString</key>\s*<string>)[^<]*(</string>)',
+              r'\g<1>${NEW_VERSION}\g<2>',
+              content
+          )
+          # Increment build number
+          import re as re2
+          m = re2.search(r'<key>CFBundleVersion</key>\s*<string>(\d+)</string>', content)
+          if m:
+              new_build = int(m.group(1)) + 1
+              content = re2.sub(
+                  r'(<key>CFBundleVersion</key>\s*<string>)\d+(</string>)',
+                  rf'\g<1>{new_build}\g<2>',
+                  content
+              )
+          with open('apps/ios/Sources/App/Info.plist', 'w') as f:
+              f.write(content)
+          "
+
       - name: Generate changelog and commit release
         if: steps.version.outputs.should_release == 'true'
         run: |
@@ -431,7 +840,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           # Stage version files
-          git add package.json deploy/helm/llamenos/Chart.yaml
+          git add package.json deploy/helm/llamenos/Chart.yaml apps/android/app/build.gradle.kts apps/ios/Sources/App/Info.plist
 
           # Create tag so git-cliff can generate notes for this version
           git commit -m "chore(release): v${NEW_VERSION} [skip ci]"
@@ -454,8 +863,9 @@ jobs:
           git pull --rebase origin main
           git push origin main --follow-tags
 
-  # ─── Deploy App to Cloudflare Workers ───────────────────────
-  deploy-app:
+  # ─── Deploy API to Cloudflare Workers ────────────────────────
+  # API-only — desktop clients connect to this Worker. No SPA served.
+  deploy-api:
     needs: version
     if: github.event_name == 'push' && needs.version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
@@ -475,27 +885,21 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Download app build
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: app-build
-          path: dist/
-
       - name: Inject build-time constants into Worker config (Epic 79)
         run: |
           VERSION="${{ needs.version.outputs.new_version }}"
           BUILD_TIME=$(date -d "@$(git log -1 --format=%ct)" -Iseconds 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%S+00:00)
           node -e "
             const fs = require('fs');
-            let cfg = fs.readFileSync('wrangler.jsonc', 'utf-8');
+            let cfg = fs.readFileSync('apps/worker/wrangler.jsonc', 'utf-8');
             cfg = cfg.replace(/\"__BUILD_VERSION__\":\s*\"[^\"]*\"/, '\"__BUILD_VERSION__\": \"' + \"'${VERSION}'\" + '\"');
             cfg = cfg.replace(/\"__BUILD_COMMIT__\":\s*\"[^\"]*\"/, '\"__BUILD_COMMIT__\": \"' + \"'${GITHUB_SHA}'\" + '\"');
             cfg = cfg.replace(/\"__BUILD_TIME__\":\s*\"[^\"]*\"/, '\"__BUILD_TIME__\": \"' + \"'${BUILD_TIME}'\" + '\"');
-            fs.writeFileSync('wrangler.jsonc', cfg);
+            fs.writeFileSync('apps/worker/wrangler.jsonc', cfg);
           "
 
-      - name: Deploy Worker
-        run: bunx wrangler deploy
+      - name: Deploy Worker (API-only)
+        run: bunx wrangler deploy --config apps/worker/wrangler.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -537,7 +941,7 @@ jobs:
 
   # ─── Create GitHub Release ──────────────────────────────────
   release:
-    needs: [version, deploy-app]
+    needs: [version, deploy-api]
     if: github.event_name == 'push' && needs.version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
 
@@ -594,3 +998,60 @@ jobs:
           prerelease: false
           files: |
             CHECKSUMS.txt
+
+  # ─── CI Status Gate ─────────────────────────────────────────
+  # Single status check for branch protection rules.
+  # All required jobs must pass for PRs to be mergeable.
+  ci-status:
+    needs: [build, audit, worker-tests, worker-tests-integration, crypto-tests, e2e, e2e-node, integration-node, android-build-test, android-e2e, ios-build-test]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check all required jobs
+        run: |
+          if [[ "${{ needs.build.result }}" != "success" ]]; then
+            echo "build failed"
+            exit 1
+          fi
+          if [[ "${{ needs.audit.result }}" != "success" ]]; then
+            echo "audit failed"
+            exit 1
+          fi
+          if [[ "${{ needs.worker-tests.result }}" != "success" && "${{ needs.worker-tests.result }}" != "skipped" ]]; then
+            echo "worker-tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.worker-tests-integration.result }}" != "success" && "${{ needs.worker-tests-integration.result }}" != "skipped" ]]; then
+            echo "worker-tests-integration failed"
+            exit 1
+          fi
+          if [[ "${{ needs.crypto-tests.result }}" != "success" && "${{ needs.crypto-tests.result }}" != "skipped" ]]; then
+            echo "crypto-tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.e2e.result }}" != "success" && "${{ needs.e2e.result }}" != "skipped" ]]; then
+            echo "e2e failed"
+            exit 1
+          fi
+          if [[ "${{ needs.e2e-node.result }}" != "success" && "${{ needs.e2e-node.result }}" != "skipped" ]]; then
+            echo "e2e-node failed"
+            exit 1
+          fi
+          if [[ "${{ needs.integration-node.result }}" != "success" && "${{ needs.integration-node.result }}" != "skipped" ]]; then
+            echo "integration-node failed"
+            exit 1
+          fi
+          if [[ "${{ needs.android-build-test.result }}" != "success" && "${{ needs.android-build-test.result }}" != "skipped" ]]; then
+            echo "android-build-test failed"
+            exit 1
+          fi
+          if [[ "${{ needs.android-e2e.result }}" != "success" && "${{ needs.android-e2e.result }}" != "skipped" ]]; then
+            echo "android-e2e failed"
+            exit 1
+          fi
+          if [[ "${{ needs.ios-build-test.result }}" != "success" && "${{ needs.ios-build-test.result }}" != "skipped" ]]; then
+            echo "ios-build-test failed"
+            exit 1
+          fi
+          echo "All required checks passed!"
