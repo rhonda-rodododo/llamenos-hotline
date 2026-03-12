@@ -2,15 +2,14 @@ import { Hono } from 'hono'
 import type { AppEnv, Env, Volunteer } from '../types'
 import type { MessagingChannelType, MessagingConfig, WhatsAppConfig } from '@shared/types'
 import type { MessagingAdapter, IncomingMessage, MessageStatusUpdate } from './adapter'
-import { getDOs, getScopedDOs, getNostrPublisher } from '../lib/do-access'
+import { getDOs, getScopedDOs } from '../lib/do-access'
 import { getMessagingAdapter } from '../lib/do-access'
 import { audit } from '../services/audit'
 import { canClaimChannel } from '@shared/permissions'
 import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '@shared/nostr-events'
+import { publishNostrEvent } from '../lib/nostr-events'
 import { createPushDispatcher } from '../lib/push-dispatch'
 import { createLogger } from '../lib/logger'
-import { withRetry, isRetryableError } from '../lib/retry'
-import { incCounter } from '../routes/metrics'
 
 const logger = createLogger('messaging')
 
@@ -106,34 +105,15 @@ messaging.post('/:channel/webhook', async (c) => {
           // Publish status update to Nostr relay
           const result = await statusRes.json() as { conversationId?: string; messageId?: string }
           if (result.conversationId && result.messageId) {
-            try {
-              const publisher = getNostrPublisher(c.env)
-              withRetry(
-                () => publisher.publish({
-                  kind: KIND_MESSAGE_NEW,
-                  created_at: Math.floor(Date.now() / 1000),
-                  tags: [['d', 'global'], ['t', 'llamenos:event']],
-                  content: JSON.stringify({
-                    type: 'message:status',
-                    conversationId: result.conversationId,
-                    messageId: result.messageId,
-                    status: statusUpdate.status,
-                    timestamp: statusUpdate.timestamp,
-                  }),
-                }),
-                {
-                  maxAttempts: 2,
-                  baseDelayMs: 100,
-                  maxDelayMs: 1000,
-                  isRetryable: isRetryableError,
-                  onRetry: () => {
-                    incCounter('llamenos_retry_attempts_total', { service: 'nostr', operation: 'publish' })
-                  },
-                },
-              ).catch((e) => {
-                console.error('[messaging] Failed to publish status update to Nostr:', e)
-              })
-            } catch {}
+            publishNostrEvent(c.env, KIND_MESSAGE_NEW, {
+              type: 'message:status',
+              conversationId: result.conversationId,
+              messageId: result.messageId,
+              status: statusUpdate.status,
+              timestamp: statusUpdate.timestamp,
+            }).catch((e) => {
+              console.error('[messaging] Failed to publish status update:', e)
+            })
           }
         }
 
@@ -340,35 +320,14 @@ async function tryAutoAssign(
 
     if (assignRes.ok) {
       // Publish assignment to Nostr relay
-      try {
-        const publisher = getNostrPublisher(env)
-        withRetry(
-          () => publisher.publish({
-            kind: KIND_CONVERSATION_ASSIGNED,
-            created_at: Math.floor(Date.now() / 1000),
-            tags: [['d', 'global'], ['t', 'llamenos:event']],
-            content: JSON.stringify({
-              type: 'conversation:assigned',
-              conversationId,
-              assignedTo: bestCandidate,
-              autoAssigned: true,
-            }),
-          }),
-          {
-            maxAttempts: 2,
-            baseDelayMs: 100,
-            maxDelayMs: 1000,
-            isRetryable: isRetryableError,
-            onRetry: () => {
-              incCounter('llamenos_retry_attempts_total', { service: 'nostr', operation: 'publish' })
-            },
-          },
-        ).catch((e) => {
-          console.error('[messaging] Failed to publish auto-assignment to Nostr:', e)
-        })
-      } catch (e) {
-        console.error('[messaging] Nostr publisher setup failed:', e)
-      }
+      publishNostrEvent(env, KIND_CONVERSATION_ASSIGNED, {
+        type: 'conversation:assigned',
+        conversationId,
+        assignedTo: bestCandidate,
+        autoAssigned: true,
+      }).catch((e) => {
+        console.error('[messaging] Failed to publish auto-assignment:', e)
+      })
 
       logger.info('Auto-assigned conversation', { conversationId, assignedTo: bestCandidate.slice(0, 8) })
     }
