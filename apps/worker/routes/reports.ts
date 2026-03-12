@@ -399,6 +399,7 @@ reports.get('/categories',
       ...authErrors,
     },
   }),
+  requirePermission('reports:create'),
   async (c) => {
     const dos = getScopedDOs(c.env, c.get('hubId'))
     const res = await dos.settings.fetch(new Request('http://do/settings/report-categories'))

@@ -4,7 +4,7 @@ import { z } from 'zod'
 import type { AppEnv, EncryptedMessage } from '../types'
 import type { MessagingChannelType } from '@shared/types'
 import { getScopedDOs, getMessagingAdapter, getDOs } from '../lib/do-access'
-import { checkPermission } from '../middleware/permission-guard'
+import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { listConversationsQuerySchema, sendMessageBodySchema, updateConversationBodySchema, conversationResponseSchema, messageResponseSchema } from '../schemas/conversations'
 import { paginationSchema, okResponseSchema, paginatedMeta } from '../schemas/common'
 import { authErrors, notFoundError } from '../openapi/helpers'
@@ -142,6 +142,7 @@ conversations.get('/stats',
       ...authErrors,
     },
   }),
+  requirePermission('conversations:read-assigned'),
   async (c) => {
     const dos = getScopedDOs(c.env, c.get('hubId'))
     const res = await dos.conversations.fetch(new Request('http://do/conversations/stats'))

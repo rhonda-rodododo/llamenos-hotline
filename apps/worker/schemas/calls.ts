@@ -25,6 +25,10 @@ export const callPresenceResponseSchema = z.object({
 
 // --- Input schemas ---
 
+export const banCallerBodySchema = z.looseObject({
+  reason: z.string().max(500).optional(),
+})
+
 export const callHistoryQuerySchema = paginationSchema.extend({
   cursor: z.string().optional(),
   search: z.string().max(100).optional(),

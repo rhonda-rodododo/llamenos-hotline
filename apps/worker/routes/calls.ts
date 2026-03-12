@@ -5,7 +5,7 @@ import type { AppEnv, CallRecord } from '../types'
 import { getScopedDOs, getTelephony } from '../lib/do-access'
 import { audit } from '../services/audit'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
-import { callHistoryQuerySchema, callRecordResponseSchema } from '../schemas/calls'
+import { callHistoryQuerySchema, callRecordResponseSchema, banCallerBodySchema } from '../schemas/calls'
 import { okResponseSchema, paginatedMeta } from '../schemas/common'
 import { authErrors, notFoundError } from '../openapi/helpers'
 
@@ -210,6 +210,7 @@ calls.post('/:callId/ban',
     },
   }),
   requirePermission('bans:report'),
+  validator('json', banCallerBodySchema),
   async (c) => {
     const callId = c.req.param('callId')
     const pubkey = c.get('pubkey')
@@ -224,7 +225,7 @@ calls.post('/:callId/ban',
       return c.json({ error: 'Not your call' }, 403)
     }
 
-    const body = await c.req.json<{ reason?: string }>().catch(() => ({ reason: undefined }))
+    const body = c.req.valid('json')
 
     // Ban the caller (server resolves phone number — volunteer never sees it)
     const banRes = await dos.records.fetch(new Request('http://do/bans', {
