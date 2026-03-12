@@ -16,6 +16,7 @@ import { hkdf } from '@noble/hashes/hkdf.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { LABEL_SERVER_NOSTR_KEY, LABEL_SERVER_NOSTR_KEY_INFO } from '@shared/crypto-labels'
+import { KIND_NIP42_AUTH } from '@shared/nostr-events'
 import { withRetry, isRetryableError, RetryableError } from './retry'
 import { getCircuitBreaker } from './circuit-breaker'
 
@@ -310,7 +311,7 @@ export class NodeNostrPublisher implements NostrPublisher {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
 
     const authEvent = finalizeEvent({
-      kind: 22242,
+      kind: KIND_NIP42_AUTH,
       created_at: Math.floor(Date.now() / 1000),
       tags: [
         ['relay', this.relayUrl],
@@ -329,14 +330,23 @@ export class NodeNostrPublisher implements NostrPublisher {
 
     while (this.pendingEvents.length > 0) {
       const event = this.pendingEvents.shift()!
-      this.ws.send(JSON.stringify(['EVENT', event]))
+      this.sendAndAwaitOk(event).catch((err) => {
+        console.error(`[nostr-publisher] Flushed event ${event.id} rejected:`, err)
+      })
     }
   }
+
+  private static readonly MAX_RECONNECT_ATTEMPTS = 10
 
   private scheduleReconnect(): void {
     if (this.closed || this.reconnectTimer) return
 
     this.reconnectAttempts++
+    if (this.reconnectAttempts > NodeNostrPublisher.MAX_RECONNECT_ATTEMPTS) {
+      console.error(`[nostr-publisher] Max reconnect attempts (${NodeNostrPublisher.MAX_RECONNECT_ATTEMPTS}) reached, giving up`)
+      return
+    }
+
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30_000)
 
     this.reconnectTimer = setTimeout(() => {

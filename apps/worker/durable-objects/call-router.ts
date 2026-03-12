@@ -5,8 +5,7 @@ import { DORouter } from '../lib/do-router'
 import { runMigrations } from '@shared/migrations/runner'
 import { migrations } from '@shared/migrations'
 import { registerMigrationRoutes } from '@shared/migrations/do-routes'
-import { getNostrPublisher } from '../lib/do-access'
-import { deriveServerEventKey, encryptHubEvent } from '../lib/hub-event-crypto'
+import { publishNostrEvent } from '../lib/nostr-events'
 import { createPushDispatcher } from '../lib/push-dispatch'
 import { KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_PRESENCE_UPDATE } from '@shared/nostr-events'
 import { fetchPage } from '../lib/pagination'
@@ -82,14 +81,14 @@ export class CallRouterDO extends DurableObject<Env> {
     // Broadcast endpoint — publishes to Nostr relay.
     this.router.post('/broadcast', async (req) => {
       const message = await req.json() as Record<string, unknown>
-      this.publishNostrEvent(KIND_CALL_UPDATE, message)
+      this.publishEvent(KIND_CALL_UPDATE, message)
       return Response.json({ ok: true })
     })
 
     // Targeted broadcast — publishes to Nostr (target filtering is client-side)
     this.router.post('/broadcast/targeted', async (req) => {
       const { message } = await req.json() as { pubkeys: string[]; message: Record<string, unknown> }
-      this.publishNostrEvent(KIND_CALL_UPDATE, message)
+      this.publishEvent(KIND_CALL_UPDATE, message)
       return Response.json({ ok: true })
     })
 
@@ -206,7 +205,7 @@ export class CallRouterDO extends DurableObject<Env> {
     activeCalls.push(call)
     await this.ctx.storage.put('activeCalls', activeCalls)
 
-    this.publishNostrEvent(KIND_CALL_RING, {
+    this.publishEvent(KIND_CALL_RING, {
       type: 'call:ring',
       callId: call.id,
       callerLast4: call.callerLast4,
@@ -225,7 +224,7 @@ export class CallRouterDO extends DurableObject<Env> {
     call.status = 'in-progress'
     await this.ctx.storage.put('activeCalls', activeCalls)
 
-    this.publishNostrEvent(KIND_CALL_UPDATE, {
+    this.publishEvent(KIND_CALL_UPDATE, {
       type: 'call:update',
       callId: call.id,
       status: call.status,
@@ -253,7 +252,7 @@ export class CallRouterDO extends DurableObject<Env> {
     await this.ctx.storage.put('activeCalls', activeCalls)
     const encrypted = await this.storeEncryptedCallRecord(call)
 
-    this.publishNostrEvent(KIND_CALL_UPDATE, {
+    this.publishEvent(KIND_CALL_UPDATE, {
       type: 'call:update',
       callId: call.id,
       status: 'completed',
@@ -295,7 +294,7 @@ export class CallRouterDO extends DurableObject<Env> {
 
     const encrypted = await this.storeEncryptedCallRecord(call)
 
-    this.publishNostrEvent(KIND_CALL_VOICEMAIL, {
+    this.publishEvent(KIND_CALL_VOICEMAIL, {
       type: 'voicemail:new',
       callId: call.id,
       startedAt: call.startedAt,
@@ -511,49 +510,21 @@ export class CallRouterDO extends DurableObject<Env> {
 
   // --- Nostr Event Publishing ---
 
-  /** Cached event encryption key — derived once per DO lifetime */
-  private eventKey: Uint8Array | null = null
-
-  private publishNostrEvent(kind: number, content: Record<string, unknown>): void {
-    try {
-      const publisher = getNostrPublisher(this.env)
-      const hubTag = 'global'
-
-      let eventContent: string
-      if (this.env.SERVER_NOSTR_SECRET) {
-        if (!this.eventKey) {
-          this.eventKey = deriveServerEventKey(this.env.SERVER_NOSTR_SECRET)
-        }
-        eventContent = encryptHubEvent(content, this.eventKey)
-      } else {
-        eventContent = JSON.stringify(content)
-      }
-
-      withRetry(
-        () => publisher.publish({
-          kind,
-          created_at: Math.floor(Date.now() / 1000),
-          tags: [
-            ['d', hubTag],
-            ['t', 'llamenos:event'],
-          ],
-          content: eventContent,
-        }),
-        {
-          maxAttempts: 2,
-          baseDelayMs: 100,
-          maxDelayMs: 1000,
-          isRetryable: isRetryableError,
-          onRetry: (attempt) => {
-            console.warn(`[nostr] Publish retry ${attempt} (kind=${kind})`)
-          },
+  private publishEvent(kind: number, content: Record<string, unknown>): void {
+    withRetry(
+      () => publishNostrEvent(this.env, kind, content),
+      {
+        maxAttempts: 2,
+        baseDelayMs: 100,
+        maxDelayMs: 1000,
+        isRetryable: isRetryableError,
+        onRetry: (attempt) => {
+          console.warn(`[call-router] Publish retry ${attempt} (kind=${kind})`)
         },
-      ).catch(err => {
-        console.error('[nostr] Failed to publish event after retries:', err)
-      })
-    } catch {
-      // Nostr not configured — silently skip
-    }
+      },
+    ).catch((err) => {
+      console.error('[call-router] Failed to publish event after retries:', err)
+    })
   }
 
   private dispatchPush(
@@ -586,7 +557,7 @@ export class CallRouterDO extends DurableObject<Env> {
     } catch {}
 
     const available = Math.max(0, onShiftCount - onCallPubkeys.size)
-    this.publishNostrEvent(KIND_PRESENCE_UPDATE, {
+    this.publishEvent(KIND_PRESENCE_UPDATE, {
       type: 'presence:summary',
       hasAvailable: available > 0,
     })

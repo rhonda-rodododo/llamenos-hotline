@@ -322,4 +322,14 @@ describe('NodeNostrPublisher OK handling', () => {
 
     await expect(publishPromise).rejects.toThrow('Publisher closed')
   }, 10_000)
+
+  it('stops reconnecting after MAX_RECONNECT_ATTEMPTS', () => {
+    publisher = new NodeNostrPublisher(`ws://localhost:${port}`, TEST_SECRET)
+    // Force reconnectAttempts past the cap
+    ;(publisher as any).reconnectAttempts = 10
+    ;(publisher as any).closed = false
+    ;(publisher as any).scheduleReconnect()
+    // Should NOT have scheduled a timer
+    expect((publisher as any).reconnectTimer).toBeNull()
+  })
 })
