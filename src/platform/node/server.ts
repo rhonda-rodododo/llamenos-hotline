@@ -41,8 +41,30 @@ async function main() {
   const server = serve({
     fetch: app.fetch,
     port,
-  }, (info) => {
+  }, async (info) => {
     console.log(`[llamenos] Server running at http://localhost:${info.port}`)
+
+    // Write OpenAPI snapshot in development mode for codegen pipeline
+    if (process.env.ENVIRONMENT === 'development') {
+      try {
+        const { writeFile } = await import('fs/promises')
+        const { resolve, dirname } = await import('path')
+        const { fileURLToPath } = await import('url')
+
+        const __filename = fileURLToPath(import.meta.url)
+        const __dirname = dirname(__filename)
+        const snapshotPath = resolve(__dirname, '../../../packages/protocol/openapi-snapshot.json')
+
+        const response = await app.fetch(
+          new Request(`http://localhost:${info.port}/api/openapi.json`)
+        )
+        const spec = await response.json()
+        await writeFile(snapshotPath, JSON.stringify(spec, null, 2) + '\n')
+        console.log('[llamenos] OpenAPI snapshot written to packages/protocol/openapi-snapshot.json')
+      } catch (err) {
+        console.warn(`[llamenos] Failed to write OpenAPI snapshot: ${err}`)
+      }
+    }
   })
 
   // Graceful shutdown
