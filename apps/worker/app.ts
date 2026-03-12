@@ -34,6 +34,9 @@ import systemRoutes from './routes/system'
 import { hubContext } from './middleware/hub'
 import { requestId } from './middleware/request-id'
 import { getDOs } from './lib/do-access'
+import { openAPIRouteHandler } from 'hono-openapi'
+import { Scalar } from '@scalar/hono-api-reference'
+import { openAPIConfig } from './openapi/config'
 
 const app = new Hono<AppEnv>()
 
@@ -142,6 +145,10 @@ hubScoped.route('/contacts', contactsRoutes)
 authenticated.route('/hubs/:hubId', hubScoped)
 
 api.route('/', authenticated)
+
+// OpenAPI spec + Scalar interactive docs
+api.get('/openapi.json', openAPIRouteHandler(api, openAPIConfig))
+api.get('/docs', Scalar({ url: '/api/openapi.json' }))
 
 // Mount API under /api
 app.route('/api', api)
