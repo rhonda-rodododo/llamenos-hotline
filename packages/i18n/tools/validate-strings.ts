@@ -331,6 +331,40 @@ function validateDesktop(): number {
 }
 
 // ---------------------------------------------------------------------------
+// Key casing validator — en.json keys must be camelCase, never snake_case
+// ---------------------------------------------------------------------------
+
+function validateKeyCasing(): number {
+  const data = JSON.parse(readFileSync(join(LOCALES_DIR, 'en.json'), 'utf-8'))
+  const violations: string[] = []
+
+  function check(obj: Record<string, unknown>, path: string) {
+    for (const key of Object.keys(obj)) {
+      const fullPath = path ? `${path}.${key}` : key
+      // snake_case = contains underscore between lowercase letters/digits
+      if (/_[a-z0-9]/.test(key)) {
+        const camelSuggestion = key.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())
+        violations.push(`  ${fullPath} → ${path ? path + '.' : ''}${camelSuggestion}`)
+      }
+      if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+        check(obj[key] as Record<string, unknown>, fullPath)
+      }
+    }
+  }
+
+  check(data, '')
+
+  if (violations.length > 0) {
+    console.error(`  en.json: ${violations.length} snake_case key(s) (must be camelCase):`)
+    for (const v of violations) {
+      console.error(v)
+    }
+  }
+
+  return violations.length
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -345,6 +379,9 @@ function main() {
   console.log('Validating string references...')
 
   let totalErrors = 0
+
+  // Always check key casing convention first
+  totalErrors += validateKeyCasing()
 
   if (command === 'android' || command === 'all') {
     totalErrors += validateAndroid()
