@@ -3,10 +3,10 @@ import { describeRoute, resolver, validator } from 'hono-openapi'
 import { z } from 'zod'
 import type { AppEnv, CallRecord } from '../types'
 import { getScopedDOs, getTelephony } from '../lib/do-access'
+import { audit } from '../services/audit'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
-import { callHistoryQuerySchema } from '../schemas/calls'
-import { callRecordResponseSchema, okResponseSchema } from '../schemas/responses'
-import { paginatedMeta } from '../schemas/responses'
+import { callHistoryQuerySchema, callRecordResponseSchema } from '../schemas/calls'
+import { okResponseSchema, paginatedMeta } from '../schemas/common'
 import { authErrors, notFoundError } from '../openapi/helpers'
 
 const calls = new Hono<AppEnv>()
@@ -195,6 +195,57 @@ calls.post('/:callId/spam',
 
     if (!res.ok) return c.json({ error: 'Failed to report spam' }, 500)
     return res
+  },
+)
+
+// Ban caller and hang up — server resolves phone number (volunteer never sees it)
+calls.post('/:callId/ban',
+  describeRoute({
+    tags: ['Calls'],
+    summary: 'Ban the caller and hang up',
+    responses: {
+      200: { description: 'Caller banned and call ended' },
+      ...authErrors,
+      ...notFoundError,
+    },
+  }),
+  requirePermission('bans:report'),
+  async (c) => {
+    const callId = c.req.param('callId')
+    const pubkey = c.get('pubkey')
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+
+    // Get call record to verify ownership and extract caller phone
+    const callRes = await dos.calls.fetch(new Request(`http://do/calls/${callId}`))
+    if (!callRes.ok) return c.json({ error: 'Call not found' }, 404)
+    const { call } = await callRes.json() as { call: CallRecord }
+
+    if (call.answeredBy !== pubkey) {
+      return c.json({ error: 'Not your call' }, 403)
+    }
+
+    const body = await c.req.json<{ reason?: string }>().catch(() => ({ reason: undefined }))
+
+    // Ban the caller (server resolves phone number — volunteer never sees it)
+    const banRes = await dos.records.fetch(new Request('http://do/bans', {
+      method: 'POST',
+      body: JSON.stringify({
+        phone: call.callerNumber,
+        reason: body.reason || 'Banned during active call',
+        bannedBy: pubkey,
+      }),
+    }))
+
+    // Hang up the call
+    await dos.calls.fetch(new Request(`http://do/calls/${callId}/end`, {
+      method: 'POST',
+    }))
+
+    if (banRes.ok) {
+      await audit(dos.records, 'numberBanned', pubkey, { phone: call.callerNumber, callId })
+    }
+
+    return c.json({ banned: banRes.ok, hungUp: true })
   },
 )
 
