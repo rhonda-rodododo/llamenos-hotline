@@ -9,15 +9,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.llamenos.hotline.R
 import org.llamenos.hotline.api.ApiService
 import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.model.ClockResponse
 import org.llamenos.hotline.model.LlamenosEvent
+import org.llamenos.hotline.model.MeResponse
 import org.llamenos.hotline.model.ShiftStatusResponse
 import javax.inject.Inject
 
@@ -49,8 +47,6 @@ class DashboardViewModel @Inject constructor(
     private val apiService: ApiService,
 ) : ViewModel() {
 
-    private val json = Json { ignoreUnknownKeys = true }
-
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
@@ -58,8 +54,11 @@ class DashboardViewModel @Inject constructor(
         val npub = cryptoService.npub ?: ""
         _uiState.value = DashboardUiState(npub = npub)
 
-        // Connect to the Nostr relay for real-time events
-        webSocketService.connect()
+        // Fetch auth info (including server event key) before connecting WebSocket
+        viewModelScope.launch {
+            fetchServerEventKey()
+            webSocketService.connect()
+        }
 
         // Subscribe to connection state changes
         viewModelScope.launch {
@@ -68,50 +67,15 @@ class DashboardViewModel @Inject constructor(
             }
         }
 
-        // Subscribe to real-time events from the relay
+        // Subscribe to typed (decrypted + parsed) events from the relay
         viewModelScope.launch {
-            webSocketService.events.collect { nostrEvent ->
-                processEvent(nostrEvent)
+            webSocketService.typedEvents.collect { event ->
+                handleEvent(event)
             }
         }
 
         // Load initial shift status
         viewModelScope.launch { loadShiftStatus() }
-    }
-
-    /**
-     * Process a raw Nostr event into a typed application event and update UI state.
-     */
-    private fun processEvent(nostrEvent: WebSocketService.NostrEvent) {
-        try {
-            val eventData = json.parseToJsonElement(nostrEvent.content).jsonObject
-            val type = eventData["type"]?.jsonPrimitive?.content ?: return
-
-            val event = when (type) {
-                "call_ring" -> {
-                    val callId = eventData["callId"]?.jsonPrimitive?.content ?: return
-                    LlamenosEvent.CallRing(callId)
-                }
-                "call_ended" -> {
-                    val callId = eventData["callId"]?.jsonPrimitive?.content ?: return
-                    LlamenosEvent.CallEnded(callId)
-                }
-                "shift_update" -> {
-                    val shiftId = eventData["shiftId"]?.jsonPrimitive?.content ?: return
-                    val status = eventData["status"]?.jsonPrimitive?.content ?: return
-                    LlamenosEvent.ShiftUpdate(shiftId, status)
-                }
-                "note_created" -> {
-                    val noteId = eventData["noteId"]?.jsonPrimitive?.content ?: return
-                    LlamenosEvent.NoteCreated(noteId)
-                }
-                else -> LlamenosEvent.Unknown(type)
-            }
-
-            handleEvent(event)
-        } catch (_: Exception) {
-            // Malformed event content — silently ignore
-        }
     }
 
     /**
@@ -152,6 +116,20 @@ class DashboardViewModel @Inject constructor(
             is LlamenosEvent.Unknown -> {
                 // Forward compatibility — ignore unknown events
             }
+        }
+    }
+
+    /**
+     * Fetch the server event encryption key from GET /api/auth/me.
+     * Sets it on WebSocketService so relay events can be decrypted.
+     */
+    private suspend fun fetchServerEventKey() {
+        try {
+            val me = apiService.request<MeResponse>("GET", "/api/auth/me")
+            webSocketService.serverEventKeyHex = me.serverEventKeyHex
+        } catch (_: Exception) {
+            // Non-fatal — WebSocket will still connect but events won't decrypt.
+            // The key will be retried on next refresh.
         }
     }
 
@@ -260,6 +238,7 @@ class DashboardViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        webSocketService.serverEventKeyHex = null
         webSocketService.disconnect()
     }
 }

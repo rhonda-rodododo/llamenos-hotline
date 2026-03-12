@@ -301,6 +301,7 @@ final class AppState {
     /// Called when the user logs out / resets identity.
     func didLogout() {
         webSocketService.disconnect()
+        webSocketService.serverEventKeyHex = nil
         eventListenerTask?.cancel()
         eventListenerTask = nil
         wakeKeyService.cleanup()
@@ -347,6 +348,9 @@ final class AppState {
                     // Check if any role contains "admin" (e.g. "role-super-admin", "role-admin")
                     let isAdmin = response.roles.contains { $0.contains("admin") }
                     self.userRole = isAdmin ? .admin : .volunteer
+
+                    // Pass server event encryption key to WebSocket for relay event decryption
+                    self.webSocketService.serverEventKeyHex = response.serverEventKeyHex
                 }
             } catch {
                 // Default to volunteer if role fetch fails

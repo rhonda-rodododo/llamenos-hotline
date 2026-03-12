@@ -81,6 +81,9 @@ class WebSocketService @Inject constructor(
     /** Typed application events parsed from Nostr relay messages. */
     val typedEvents: SharedFlow<LlamenosEvent> = _typedEvents.asSharedFlow()
 
+    /** Server event encryption key, set after authentication via GET /api/auth/me. */
+    var serverEventKeyHex: String? = null
+
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS) // No read timeout for WebSocket
         .pingInterval(30, TimeUnit.SECONDS)
@@ -142,6 +145,7 @@ class WebSocketService @Inject constructor(
         }
         webSocket?.close(1000, "Client disconnect")
         webSocket = null
+        serverEventKeyHex = null
         _connectionState.value = ConnectionState.DISCONNECTED
         reconnectAttempt = 0
     }
@@ -180,8 +184,14 @@ class WebSocketService @Inject constructor(
 
             scope.launch {
                 _events.emit(event)
-                // Parse into typed event and emit on the typed flow
-                parseTypedEvent(event.content)?.let { typed ->
+                // Decrypt server-encrypted content if we have the key, then parse
+                val keyHex = serverEventKeyHex
+                val content = if (keyHex != null) {
+                    cryptoService.decryptServerEvent(event.content, keyHex) ?: return@launch
+                } else {
+                    event.content
+                }
+                parseTypedEvent(content)?.let { typed ->
                     _typedEvents.emit(typed)
                 }
             }

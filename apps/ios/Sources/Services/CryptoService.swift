@@ -60,6 +60,10 @@ private func ffiComputeSasCode(sharedXHex: String) throws -> String {
     try computeSasCode(sharedXHex: sharedXHex)
 }
 
+private func ffiDecryptServerEventHex(encryptedHex: String, keyHex: String) throws -> String {
+    try decryptServerEventHex(encryptedHex: encryptedHex, keyHex: keyHex)
+}
+
 // MARK: - CryptoService
 
 enum CryptoServiceError: LocalizedError {
@@ -296,6 +300,20 @@ final class CryptoService: @unchecked Sendable {
     /// the codes match to prevent MITM attacks during device linking.
     func deriveSASCode(sharedSecret: String) throws -> String {
         try ffiComputeSasCode(sharedXHex: sharedSecret)
+    }
+
+    // MARK: - Server Event Decryption
+
+    /// Decrypt a server-encrypted event payload (XChaCha20-Poly1305).
+    /// The server encrypts all Nostr relay event content with a symmetric key
+    /// returned as `serverEventKeyHex` in `GET /api/auth/me`.
+    ///
+    /// - Parameters:
+    ///   - encryptedHex: Hex-encoded ciphertext (nonce || ciphertext || tag).
+    ///   - keyHex: 64-char hex server event encryption key.
+    /// - Returns: Decrypted plaintext JSON string, or nil on failure.
+    static func decryptServerEvent(encryptedHex: String, keyHex: String) -> String? {
+        return try? ffiDecryptServerEventHex(encryptedHex: encryptedHex, keyHex: keyHex)
     }
 
     // MARK: - Lock

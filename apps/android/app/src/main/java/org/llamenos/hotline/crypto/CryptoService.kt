@@ -438,6 +438,25 @@ class CryptoService @Inject constructor() {
         }
     }
 
+    /**
+     * Decrypt a server-encrypted event payload (XChaCha20-Poly1305).
+     *
+     * The server encrypts all Nostr relay event content with a derived key.
+     * Clients receive this key as `serverEventKeyHex` from GET /api/auth/me.
+     *
+     * @param encryptedHex Hex-encoded ciphertext (24-byte nonce || ciphertext || 16-byte tag)
+     * @param keyHex The 32-byte server event key (hex)
+     * @return Decrypted plaintext JSON, or null on decryption failure
+     */
+    fun decryptServerEvent(encryptedHex: String, keyHex: String): String? {
+        if (!nativeLibLoaded) return null
+        return try {
+            org.llamenos.core.decryptServerEventHex(encryptedHex, keyHex)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     // ---- Device Linking (ECDH provisioning) ----
 
     /**

@@ -94,6 +94,10 @@ final class WebSocketService: @unchecked Sendable {
     /// Count of events received since last connect (for diagnostics).
     private(set) var eventCount: Int = 0
 
+    /// Server event encryption key (hex), set after authentication.
+    /// Used to decrypt XChaCha20-Poly1305-encrypted event content from the relay.
+    var serverEventKeyHex: String?
+
     // MARK: - Event Stream
 
     /// Public async stream of parsed Nostr events. Multiple consumers can iterate this
@@ -282,12 +286,38 @@ final class WebSocketService: @unchecked Sendable {
     /// Broadcast an event to all active continuations.
     private func emitEvent(_ event: NostrEvent) {
         eventCount += 1
+
+        // Attempt decryption for future typed event routing
+        if serverEventKeyHex != nil {
+            if let json = decryptEventContent(event.content),
+               let _ = parseTypedContent(json) {
+                // Successfully decrypted — typed event routing will be added when
+                // the typed event stream is implemented
+            }
+        }
+
         continuationsLock.lock()
         let activeContinuations = continuations.values
         continuationsLock.unlock()
         for continuation in activeContinuations {
             continuation.yield(event)
         }
+    }
+
+    // MARK: - Event Decryption & Parsing
+
+    /// Decrypt event content using the server event key.
+    private func decryptEventContent(_ encryptedHex: String) -> String? {
+        guard let keyHex = serverEventKeyHex else { return nil }
+        return CryptoService.decryptServerEvent(encryptedHex: encryptedHex, keyHex: keyHex)
+    }
+
+    /// Parse decrypted JSON content into a HubEventType.
+    private func parseTypedContent(_ json: String) -> HubEventType? {
+        guard let data = json.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let type = obj["type"] as? String else { return nil }
+        return HubEventType(rawValue: type) ?? .unknown
     }
 
     // MARK: - Reconnection
