@@ -548,8 +548,9 @@ Design doc: [`docs/plans/2026-03-08-production-readiness-design.md`](plans/2026-
 - [x] **[Epic 309: Relay Event Decryption — All Platforms](epics/epic-309-relay-event-decryption.md)** — Wire serverEventKeyHex into desktop/iOS/Android relay decryption, add decrypt_server_event_hex Rust FFI
 - [x] **[Epic 310: Nostr Publisher Reliability & Cleanup](epics/epic-310-nostr-publisher-reliability-cleanup.md)** — Async publishNostrEvent, messaging router encryption fix, flush OK tracking, reconnect cap, orphaned constants, skill docs, strfry hardening
 
-## Cross-Platform Security & Quality (Epics 311+) — IN PROGRESS
-- [ ] **[Epic 311: Mobile Admin Envelope Encryption & Blasts Authorization](epics/epic-311-mobile-admin-envelope-encryption-blasts-auth.md)** — Wire adminDecryptionPubkey into iOS/Android encryption, add requirePermission to 14 blast endpoints, Zod validation for 10 endpoints
+## Cross-Platform Security & Quality (Epics 311+) ✅ COMPLETED
+- [x] **[Epic 311: Mobile Admin Envelope Encryption & Blasts Authorization](epics/epic-311-mobile-admin-envelope-encryption-blasts-auth.md)** — Wire adminDecryptionPubkey into iOS/Android encryption, add requirePermission to 14 blast endpoints, Zod validation for 10 endpoints
+- [x] **Follow-up fixes**: Add requirePermission to GET /conversations/stats and GET /reports/categories, Zod validator for POST /calls/:callId/ban
 
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
