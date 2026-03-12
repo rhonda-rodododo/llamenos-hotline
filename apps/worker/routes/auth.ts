@@ -147,9 +147,13 @@ auth.get('/me',
     const allRoles = c.get('allRoles')
 
     const credsRes = await dos.identity.fetch(new Request(`http://do/webauthn/credentials?pubkey=${pubkey}`))
-    const { credentials: webauthnCreds } = await credsRes.json() as { credentials: WebAuthnCredential[] }
+    const { credentials: webauthnCreds } = credsRes.ok
+      ? await credsRes.json() as { credentials: WebAuthnCredential[] }
+      : { credentials: [] as WebAuthnCredential[] }
     const settingsRes = await dos.identity.fetch(new Request('http://do/settings/webauthn'))
-    const webauthnSettings = await settingsRes.json() as { requireForAdmins: boolean; requireForVolunteers: boolean }
+    const webauthnSettings = settingsRes.ok
+      ? await settingsRes.json() as { requireForAdmins: boolean; requireForVolunteers: boolean }
+      : { requireForAdmins: false, requireForVolunteers: false }
 
     const isAdmin = checkPermission(permissions, 'settings:manage')
     const webauthnRequired = isAdmin ? webauthnSettings.requireForAdmins : webauthnSettings.requireForVolunteers

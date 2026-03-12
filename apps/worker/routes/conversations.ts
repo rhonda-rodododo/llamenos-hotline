@@ -84,6 +84,7 @@ conversations.get('/',
       const assignedRes = await dos.conversations.fetch(
         new Request(`http://do/conversations?${params}`)
       )
+      if (!assignedRes.ok) return c.json({ error: 'Failed to fetch conversations' }, 500)
       const assigned = await assignedRes.json() as { conversations: Array<{ channelType: string }>; total: number }
 
       // Also fetch waiting conversations (available to claim)
@@ -93,6 +94,7 @@ conversations.get('/',
       const waitingRes = await dos.conversations.fetch(
         new Request(`http://do/conversations?${waitingParams}`)
       )
+      if (!waitingRes.ok) return c.json({ error: 'Failed to fetch waiting conversations' }, 500)
       const waiting = await waitingRes.json() as { conversations: Array<{ channelType: string }>; total: number }
 
       // Filter waiting conversations by channels the volunteer can claim
@@ -451,6 +453,11 @@ conversations.patch('/:id',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }))
+
+    if (!res.ok) {
+      const err = await res.text()
+      return c.json({ error: err }, res.status as 400 | 404 | 500)
+    }
 
     // Publish status change to Nostr relay
     const updated = await res.json()

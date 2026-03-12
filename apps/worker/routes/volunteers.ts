@@ -137,8 +137,9 @@ volunteers.delete('/:targetPubkey',
     const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const targetPubkey = c.req.param('targetPubkey')
-    // Revoke all sessions before deletion
-    await dos.identity.fetch(new Request(`http://do/sessions/revoke-all/${targetPubkey}`, { method: 'DELETE' }))
+    // Revoke all sessions before deletion — proceed even if this fails
+    // (orphaned sessions will expire naturally via TTL)
+    await dos.identity.fetch(new Request(`http://do/sessions/revoke-all/${targetPubkey}`, { method: 'DELETE' })).catch(() => {})
     const res = await dos.identity.fetch(new Request(`http://do/volunteers/${targetPubkey}`, { method: 'DELETE' }))
     if (res.ok) await audit(dos.records, 'volunteerRemoved', pubkey, { target: targetPubkey })
     return res
