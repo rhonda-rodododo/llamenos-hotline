@@ -9,6 +9,7 @@ import UIKit
 final class ReportsViewModel {
     private let apiService: APIService
     private let cryptoService: CryptoService
+    private let adminPubkeys: [String]
 
     // MARK: - Public State
 
@@ -44,9 +45,10 @@ final class ReportsViewModel {
 
     // MARK: - Initialization
 
-    init(apiService: APIService, cryptoService: CryptoService) {
+    init(apiService: APIService, cryptoService: CryptoService, adminPubkeys: [String] = []) {
         self.apiService = apiService
         self.cryptoService = cryptoService
+        self.adminPubkeys = adminPubkeys
     }
 
     // MARK: - Data Loading
@@ -88,7 +90,7 @@ final class ReportsViewModel {
 
         do {
             // Encrypt the body with E2EE envelope (same as notes)
-            let encryptedNote = try cryptoService.encryptNote(payload: body, adminPubkeys: [])
+            let encryptedNote = try cryptoService.encryptNote(payload: body, adminPubkeys: adminPubkeys)
 
             let request = CreateReportRequest(
                 title: title,

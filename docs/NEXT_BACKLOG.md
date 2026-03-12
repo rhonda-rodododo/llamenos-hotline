@@ -540,13 +540,16 @@ Design doc: [`docs/plans/2026-03-08-production-readiness-design.md`](plans/2026-
 - Track 4: 288 → (289 | 290) → 291 → 292 → 293
 - Track 5: 278 → 294 → 295 → 296 → 297 → 298 → 299 → 300
 
-## Nostr Relay & Call Actions (Epics 305-310) — IN PROGRESS
+## Nostr Relay & Call Actions (Epics 305-310) ✅ COMPLETED
 - [x] **[Epic 305: OpenAPI Spec + Scalar Docs](epics/epic-305-openapi-spec-scalar-docs.md)** — hono-openapi + Scalar UI at /api/docs, 158 documented paths, 25 tags, Zod v4 domain schemas, 5 BDD scenarios
 - [x] **[Epic 306: Nostr Relay Event Delivery Fixes](epics/epic-306-nostr-relay-event-delivery-fixes.md)** — NodeNostrPublisher rejection handling, mobile kind filters, Android/iOS event type string alignment
 - [x] **[Epic 307: Real-Time Event Delivery BDD Coverage](epics/epic-307-realtime-event-delivery-bdd-coverage.md)** — RelayCapture test helper, 9 BDD scenarios for all event kinds + encryption + tags + signatures
 - [x] **[Epic 308: In-Call Quick Actions — Ban & Notes](epics/epic-308-call-action-buttons-ban-notes.md)** — POST /api/calls/:callId/ban server-side endpoint, client API fix, i18n strings, 5 BDD scenarios
 - [x] **[Epic 309: Relay Event Decryption — All Platforms](epics/epic-309-relay-event-decryption.md)** — Wire serverEventKeyHex into desktop/iOS/Android relay decryption, add decrypt_server_event_hex Rust FFI
-- [ ] **[Epic 310: Nostr Publisher Reliability & Cleanup](epics/epic-310-nostr-publisher-reliability-cleanup.md)** — Async publishNostrEvent, messaging router encryption fix, flush OK tracking, reconnect cap, orphaned constants, skill docs, strfry hardening
+- [x] **[Epic 310: Nostr Publisher Reliability & Cleanup](epics/epic-310-nostr-publisher-reliability-cleanup.md)** — Async publishNostrEvent, messaging router encryption fix, flush OK tracking, reconnect cap, orphaned constants, skill docs, strfry hardening
+
+## Cross-Platform Security & Quality (Epics 311+) — IN PROGRESS
+- [ ] **[Epic 311: Mobile Admin Envelope Encryption & Blasts Authorization](epics/epic-311-mobile-admin-envelope-encryption-blasts-auth.md)** — Wire adminDecryptionPubkey into iOS/Android encryption, add requirePermission to 14 blast endpoints, Zod validation for 10 endpoints
 
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)

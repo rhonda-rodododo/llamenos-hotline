@@ -201,7 +201,7 @@ struct ReportsView: View {
         if let vm = viewModel {
             return vm
         }
-        let vm = ReportsViewModel(apiService: appState.apiService, cryptoService: appState.cryptoService)
+        let vm = ReportsViewModel(apiService: appState.apiService, cryptoService: appState.cryptoService, adminPubkeys: [appState.adminDecryptionPubkey].compactMap { $0 })
         DispatchQueue.main.async {
             self.viewModel = vm
         }

@@ -1,10 +1,11 @@
 import { Hono } from 'hono'
-import { describeRoute, resolver } from 'hono-openapi'
+import { describeRoute, resolver, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
 import { getScopedDOs } from '../lib/do-access'
 import { isValidE164 } from '../lib/helpers'
 import { requirePermission } from '../middleware/permission-guard'
 import { okResponseSchema } from '../schemas/common'
+import { createBanBodySchema, bulkBanBodySchema } from '../schemas/bans'
 import { authErrors } from '../openapi/helpers'
 import { audit } from '../services/audit'
 
@@ -28,10 +29,11 @@ bans.post('/',
     },
   }),
   requirePermission('bans:report'),
+  validator('json', createBanBodySchema),
   async (c) => {
     const dos = getScopedDOs(c.env, c.get('hubId'))
     const pubkey = c.get('pubkey')
-    const body = await c.req.json() as { phone: string; reason: string }
+    const body = c.req.valid('json')
     if (!isValidE164(body.phone)) {
       return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
     }
@@ -77,10 +79,11 @@ bans.post('/bulk',
     },
   }),
   requirePermission('bans:bulk-create'),
+  validator('json', bulkBanBodySchema),
   async (c) => {
     const dos = getScopedDOs(c.env, c.get('hubId'))
     const pubkey = c.get('pubkey')
-    const body = await c.req.json() as { phones: string[]; reason: string }
+    const body = c.req.valid('json')
     const invalidPhones = body.phones.filter(p => !isValidE164(p))
     if (invalidPhones.length > 0) {
       return c.json({ error: `Invalid phone number(s): ${invalidPhones[0]}. Use E.164 format (e.g. +12125551234)` }, 400)

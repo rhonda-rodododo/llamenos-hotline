@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { describeRoute } from 'hono-openapi'
+import { describeRoute, validator } from 'hono-openapi'
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server'
 import type { AppEnv, WebAuthnCredential } from '../types'
 import { getDOs } from '../lib/do-access'
@@ -8,6 +8,7 @@ import { hashIP } from '../lib/crypto'
 import { generateRegOptions, verifyRegResponse, generateAuthOptions, verifyAuthResponse } from '../lib/webauthn'
 import { auth as authMiddleware } from '../middleware/auth'
 import { audit } from '../services/audit'
+import { authenticateBodySchema, addCredentialBodySchema, registerCredentialBodySchema } from '../schemas/webauthn'
 import { publicErrors, authErrors } from '../openapi/helpers'
 
 const webauthn = new Hono<AppEnv>()
@@ -54,13 +55,15 @@ webauthn.post('/login/verify',
       429: { description: 'Rate limited' },
     },
   }),
+  validator('json', authenticateBodySchema),
   async (c) => {
     const dos = getDOs(c.env)
     // Rate limit verification attempts
     const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
     const verifyLimited = await checkRateLimit(dos.settings, `webauthn-verify:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 10)
     if (verifyLimited) return c.json({ error: 'Too many requests. Try again later.' }, 429)
-    const body = await c.req.json() as { assertion: AuthenticationResponseJSON; challengeId: string }
+    const body = c.req.valid('json')
+    const assertion = body.assertion as unknown as AuthenticationResponseJSON
     const origin = new URL(c.req.url).origin
     const rpID = new URL(c.req.url).hostname
     const challengeRes = await dos.identity.fetch(new Request(`http://do/webauthn/challenge/${body.challengeId}`))
@@ -68,10 +71,10 @@ webauthn.post('/login/verify',
     const { challenge } = await challengeRes.json() as { challenge: string }
     const allCredsRes = await dos.identity.fetch(new Request('http://do/webauthn/all-credentials'))
     const { credentials } = await allCredsRes.json() as { credentials: Array<WebAuthnCredential & { ownerPubkey: string }> }
-    const matched = credentials.find(cr => cr.id === body.assertion.id)
+    const matched = credentials.find(cr => cr.id === assertion.id)
     if (!matched) return c.json({ error: 'Unknown credential' }, 401)
     try {
-      const verification = await verifyAuthResponse(body.assertion, matched, challenge, origin, rpID)
+      const verification = await verifyAuthResponse(assertion, matched, challenge, origin, rpID)
       if (!verification.verified) return c.json({ error: 'Verification failed' }, 401)
       await dos.identity.fetch(new Request('http://do/webauthn/credentials/update-counter', {
         method: 'POST',
@@ -108,11 +111,12 @@ webauthn.post('/register/options',
       ...authErrors,
     },
   }),
+  validator('json', addCredentialBodySchema),
   async (c) => {
     const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const volunteer = c.get('volunteer')
-    const body = await c.req.json() as { label: string }
+    const body = c.req.valid('json')
     const rpID = new URL(c.req.url).hostname
     const rpName = c.env.HOTLINE_NAME || 'Hotline'
     const credsRes = await dos.identity.fetch(new Request(`http://do/webauthn/credentials?pubkey=${pubkey}`))
@@ -136,24 +140,26 @@ webauthn.post('/register/verify',
       400: { description: 'Invalid challenge or verification failed' },
     },
   }),
+  validator('json', registerCredentialBodySchema),
   async (c) => {
     const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
-    const body = await c.req.json() as { attestation: RegistrationResponseJSON; label: string; challengeId: string }
+    const body = c.req.valid('json')
+    const attestation = body.attestation as unknown as RegistrationResponseJSON
     const origin = new URL(c.req.url).origin
     const rpID = new URL(c.req.url).hostname
     const challengeRes = await dos.identity.fetch(new Request(`http://do/webauthn/challenge/${body.challengeId}`))
     if (!challengeRes.ok) return c.json({ error: 'Invalid or expired challenge' }, 400)
     const { challenge } = await challengeRes.json() as { challenge: string }
     try {
-      const verification = await verifyRegResponse(body.attestation, challenge, origin, rpID)
+      const verification = await verifyRegResponse(attestation, challenge, origin, rpID)
       if (!verification.verified || !verification.registrationInfo) return c.json({ error: 'Verification failed' }, 400)
       const { credential: regCred, credentialBackedUp } = verification.registrationInfo
       const newCred: WebAuthnCredential = {
         id: regCred.id,
         publicKey: uint8ArrayToBase64URL(regCred.publicKey),
         counter: regCred.counter,
-        transports: body.attestation.response?.transports || [],
+        transports: attestation.response?.transports || [],
         backedUp: credentialBackedUp,
         label: body.label || 'Passkey',
         createdAt: new Date().toISOString(),

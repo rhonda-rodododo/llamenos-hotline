@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
 import { getScopedDOs } from '../lib/do-access'
+import { requirePermission } from '../middleware/permission-guard'
 import { listBlastsQuerySchema, createBlastBodySchema, updateBlastBodySchema, scheduleBlastBodySchema } from '../schemas/blasts'
 import { authErrors } from '../openapi/helpers'
 
@@ -9,6 +10,7 @@ const blasts = new Hono<AppEnv>()
 
 // Forward all blast routes to BlastDO
 // These are hub-scoped and require authentication (handled by middleware in app.ts)
+// Each endpoint also requires specific blast permissions
 
 // --- Subscribers ---
 blasts.get('/subscribers',
@@ -20,6 +22,7 @@ blasts.get('/subscribers',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:manage'),
   async (c) => {
     const dos = getScopedDOs(c.env, c.get('hubId'))
     const url = new URL(c.req.url)
@@ -37,6 +40,7 @@ blasts.delete('/subscribers/:id',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:manage'),
   async (c) => {
     const id = c.req.param('id')
     const dos = getScopedDOs(c.env, c.get('hubId'))
@@ -54,6 +58,7 @@ blasts.get('/subscribers/stats',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:read'),
   async (c) => {
     const dos = getScopedDOs(c.env, c.get('hubId'))
     const res = await dos.blasts.fetch(new Request('http://do/subscribers/stats'))
@@ -70,6 +75,7 @@ blasts.post('/subscribers/import',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:manage'),
   async (c) => {
     const dos = getScopedDOs(c.env, c.get('hubId'))
     const body = await c.req.text()
@@ -92,6 +98,7 @@ blasts.get('/',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:read'),
   validator('query', listBlastsQuerySchema),
   async (c) => {
     const dos = getScopedDOs(c.env, c.get('hubId'))
@@ -114,6 +121,7 @@ blasts.post('/',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:send'),
   validator('json', createBlastBodySchema),
   async (c) => {
     const dos = getScopedDOs(c.env, c.get('hubId'))
@@ -136,6 +144,7 @@ blasts.get('/:id',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:read'),
   async (c) => {
     const id = c.req.param('id')
     const dos = getScopedDOs(c.env, c.get('hubId'))
@@ -153,6 +162,7 @@ blasts.patch('/:id',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:send'),
   validator('json', updateBlastBodySchema),
   async (c) => {
     const id = c.req.param('id')
@@ -176,6 +186,7 @@ blasts.delete('/:id',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:manage'),
   async (c) => {
     const id = c.req.param('id')
     const dos = getScopedDOs(c.env, c.get('hubId'))
@@ -193,6 +204,7 @@ blasts.post('/:id/send',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:send'),
   async (c) => {
     const id = c.req.param('id')
     const dos = getScopedDOs(c.env, c.get('hubId'))
@@ -210,6 +222,7 @@ blasts.post('/:id/schedule',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:schedule'),
   validator('json', scheduleBlastBodySchema),
   async (c) => {
     const id = c.req.param('id')
@@ -233,6 +246,7 @@ blasts.post('/:id/cancel',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:schedule'),
   async (c) => {
     const id = c.req.param('id')
     const dos = getScopedDOs(c.env, c.get('hubId'))
@@ -251,6 +265,7 @@ blasts.get('/settings',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:read'),
   async (c) => {
     const dos = getScopedDOs(c.env, c.get('hubId'))
     const res = await dos.blasts.fetch(new Request('http://do/blast-settings'))
@@ -267,6 +282,7 @@ blasts.patch('/settings',
       ...authErrors,
     },
   }),
+  requirePermission('blasts:manage'),
   async (c) => {
     const dos = getScopedDOs(c.env, c.get('hubId'))
     const body = await c.req.text()

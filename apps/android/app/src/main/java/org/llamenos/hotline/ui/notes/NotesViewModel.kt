@@ -15,6 +15,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import org.llamenos.hotline.api.ApiService
+import org.llamenos.hotline.api.SessionState
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.model.CreateNoteEnvelope
 import org.llamenos.hotline.model.CreateNoteReplyRequest
@@ -96,6 +97,7 @@ data class NotesUiState(
 class NotesViewModel @Inject constructor(
     private val apiService: ApiService,
     private val cryptoService: CryptoService,
+    private val sessionState: SessionState,
 ) : ViewModel() {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -244,9 +246,7 @@ class NotesViewModel @Inject constructor(
                 val payload = NotePayload(text = noteText, fields = fields)
                 val payloadJson = json.encodeToString(NotePayload.serializer(), payload)
 
-                // Encrypt the note — in production, CryptoService will fetch admin pubkeys
-                // and create ECIES envelopes for each. For now, encrypt for self only.
-                val encrypted = cryptoService.encryptNote(payloadJson, emptyList())
+                val encrypted = cryptoService.encryptNote(payloadJson, sessionState.adminPubkeys)
 
                 val envelopes = encrypted.envelopes.map { env ->
                     CreateNoteEnvelope(
@@ -365,7 +365,7 @@ class NotesViewModel @Inject constructor(
                 val payload = NotePayload(text = text, fields = fields)
                 val payloadJson = json.encodeToString(NotePayload.serializer(), payload)
 
-                val encrypted = cryptoService.encryptNote(payloadJson, emptyList())
+                val encrypted = cryptoService.encryptNote(payloadJson, sessionState.adminPubkeys)
 
                 val envelopes = encrypted.envelopes.map { env ->
                     CreateNoteEnvelope(
@@ -438,7 +438,7 @@ class NotesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSendingReply = true) }
             try {
-                val encrypted = cryptoService.encryptNote(text, emptyList())
+                val encrypted = cryptoService.encryptNote(text, sessionState.adminPubkeys)
 
                 val envelopes = encrypted.envelopes.map { env ->
                     CreateNoteEnvelope(

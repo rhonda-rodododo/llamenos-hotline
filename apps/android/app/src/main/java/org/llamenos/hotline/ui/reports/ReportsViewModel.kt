@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.llamenos.hotline.api.ApiService
+import org.llamenos.hotline.api.SessionState
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.model.AssignReportRequest
 import org.llamenos.hotline.model.CreateReportRequest
@@ -55,6 +56,7 @@ enum class ReportStatusFilter(val queryParam: String?) {
 class ReportsViewModel @Inject constructor(
     private val apiService: ApiService,
     private val cryptoService: CryptoService,
+    private val sessionState: SessionState,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReportsUiState())
@@ -146,7 +148,7 @@ class ReportsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isCreating = true, actionError = null, createSuccess = false) }
             try {
-                val encrypted = cryptoService.encryptNote(body, emptyList())
+                val encrypted = cryptoService.encryptNote(body, sessionState.adminPubkeys)
                 val envelopes = encrypted.envelopes.map { env ->
                     ReportEnvelope(
                         pubkey = env.recipientPubkey,

@@ -14,6 +14,10 @@ import {
   transcriptionSettingsSchema,
   ivrLanguagesSchema,
   setupStateSchema,
+  customFieldsBodySchema,
+  createReportTypeBodySchema,
+  updateReportTypeBodySchema,
+  ttlOverridesBodySchema,
 } from '../schemas/settings'
 import { okResponseSchema } from '../schemas/common'
 import { authErrors } from '../openapi/helpers'
@@ -90,10 +94,11 @@ settings.put('/custom-fields',
     },
   }),
   requirePermission('settings:manage-fields'),
+  validator('json', customFieldsBodySchema),
   async (c) => {
     const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
-    const body = await c.req.json()
+    const body = c.req.valid('json')
     const res = await dos.settings.fetch(new Request('http://do/settings/custom-fields', {
       method: 'PUT',
       body: JSON.stringify(body),
@@ -556,15 +561,16 @@ settings.post('/report-types',
     },
   }),
   requirePermission('settings:manage-fields'),
+  validator('json', createReportTypeBodySchema),
   async (c) => {
     const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
-    const body = await c.req.json()
+    const body = c.req.valid('json')
     const res = await dos.settings.fetch(new Request('http://do/settings/report-types', {
       method: 'POST',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'reportTypeCreated', pubkey, { name: (body as { name?: string }).name })
+    if (res.ok) await audit(dos.records, 'reportTypeCreated', pubkey, { name: body.name })
     return res
   },
 )
@@ -579,11 +585,12 @@ settings.patch('/report-types/:id',
     },
   }),
   requirePermission('settings:manage-fields'),
+  validator('json', updateReportTypeBodySchema),
   async (c) => {
     const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const id = c.req.param('id')
-    const body = await c.req.json()
+    const body = c.req.valid('json')
     const res = await dos.settings.fetch(new Request(`http://do/settings/report-types/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
@@ -789,10 +796,11 @@ settings.patch('/ttl',
     },
   }),
   requirePermission('settings:manage'),
+  validator('json', ttlOverridesBodySchema),
   async (c) => {
     const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
-    const body = await c.req.json()
+    const body = c.req.valid('json')
     const res = await dos.settings.fetch(new Request('http://do/settings/ttl', {
       method: 'PATCH',
       body: JSON.stringify(body),

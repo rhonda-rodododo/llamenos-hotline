@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.llamenos.hotline.api.ApiService
+import org.llamenos.hotline.api.SessionState
 import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.model.Conversation
@@ -76,6 +77,7 @@ class ConversationsViewModel @Inject constructor(
     private val apiService: ApiService,
     private val cryptoService: CryptoService,
     private val webSocketService: WebSocketService,
+    private val sessionState: SessionState,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConversationsUiState())
@@ -253,7 +255,10 @@ class ConversationsViewModel @Inject constructor(
                     conversation.assignedVolunteerPubkey?.let { volunteerPub ->
                         if (volunteerPub != cryptoService.pubkey) add(volunteerPub)
                     }
-                    // Admin pubkeys would come from the API in production
+                    // Include admin pubkeys so admins can decrypt messages
+                    sessionState.adminPubkeys.forEach { adminPub ->
+                        if (adminPub !in this) add(adminPub)
+                    }
                 }
 
                 val encrypted = cryptoService.encryptMessage(text, readerPubkeys)

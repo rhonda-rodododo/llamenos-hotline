@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.llamenos.hotline.R
 import org.llamenos.hotline.api.ApiService
+import org.llamenos.hotline.api.SessionState
 import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.model.ClockResponse
@@ -45,6 +46,7 @@ class DashboardViewModel @Inject constructor(
     private val cryptoService: CryptoService,
     private val webSocketService: WebSocketService,
     private val apiService: ApiService,
+    private val sessionState: SessionState,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -127,6 +129,7 @@ class DashboardViewModel @Inject constructor(
         try {
             val me = apiService.request<MeResponse>("GET", "/api/auth/me")
             webSocketService.serverEventKeyHex = me.serverEventKeyHex
+            sessionState.adminDecryptionPubkey = me.adminDecryptionPubkey
         } catch (_: Exception) {
             // Non-fatal — WebSocket will still connect but events won't decrypt.
             // The key will be retried on next refresh.

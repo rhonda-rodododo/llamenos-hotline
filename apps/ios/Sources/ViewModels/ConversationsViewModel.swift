@@ -10,6 +10,7 @@ final class ConversationsViewModel {
     private let apiService: APIService
     private let cryptoService: CryptoService
     private let webSocketService: WebSocketService
+    private let adminPubkeys: [String]
 
     // MARK: - Public State
 
@@ -56,10 +57,11 @@ final class ConversationsViewModel {
 
     // MARK: - Initialization
 
-    init(apiService: APIService, cryptoService: CryptoService, webSocketService: WebSocketService) {
+    init(apiService: APIService, cryptoService: CryptoService, webSocketService: WebSocketService, adminPubkeys: [String] = []) {
         self.apiService = apiService
         self.cryptoService = cryptoService
         self.webSocketService = webSocketService
+        self.adminPubkeys = adminPubkeys
     }
 
     // MARK: - Data Loading
@@ -149,6 +151,11 @@ final class ConversationsViewModel {
             if let assignedPubkey = conversation?.assignedVolunteerPubkey,
                !readerPubkeys.contains(assignedPubkey) {
                 readerPubkeys.append(assignedPubkey)
+            }
+
+            // Include admin pubkeys so admins can decrypt messages
+            for adminPubkey in adminPubkeys where !readerPubkeys.contains(adminPubkey) {
+                readerPubkeys.append(adminPubkey)
             }
 
             let encrypted = try cryptoService.encryptMessage(

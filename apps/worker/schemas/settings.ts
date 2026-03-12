@@ -39,6 +39,38 @@ export const reportTypeResponseSchema = z.object({
 
 // --- Input schemas ---
 
+export const customFieldsBodySchema = z.array(z.looseObject({
+  name: z.string().min(1).max(200),
+  label: z.string().min(1).max(200),
+  type: z.enum(['text', 'number', 'select', 'checkbox', 'textarea', 'file']),
+  required: z.boolean().optional(),
+  options: z.array(z.string().max(200)).optional(),
+  order: z.number().int().optional(),
+  context: z.string().optional(),
+  visibleToVolunteers: z.boolean().optional(),
+}))
+
+export const createReportTypeBodySchema = z.looseObject({
+  name: z.string().min(1).max(200),
+  description: z.string().max(500).optional(),
+  icon: z.string().max(50).optional(),
+  fields: z.array(z.string()).optional(),
+})
+
+export const updateReportTypeBodySchema = z.looseObject({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(500).optional(),
+  icon: z.string().max(50).optional(),
+  fields: z.array(z.string()).optional(),
+  isArchived: z.boolean().optional(),
+})
+
+export const ttlOverridesBodySchema = z.record(z.string(), z.number().int().min(0))
+
+export const setupCompleteBodySchema = z.looseObject({
+  demoMode: z.boolean().optional(),
+})
+
 export const spamSettingsSchema = z.looseObject({
   voiceCaptchaEnabled: z.boolean().optional(),
   rateLimitEnabled: z.boolean().optional(),

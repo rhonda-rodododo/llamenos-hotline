@@ -6,7 +6,7 @@ import { getDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
 import { validateExternalUrl } from '../lib/ssrf-guard'
-import { setupStateSchema } from '../schemas/settings'
+import { setupStateSchema, setupCompleteBodySchema } from '../schemas/settings'
 import { authErrors } from '../openapi/helpers'
 
 const testSignalBodySchema = z.object({
@@ -70,10 +70,11 @@ setup.post('/complete', requirePermission('settings:manage'),
       ...authErrors,
     },
   }),
+  validator('json', setupCompleteBodySchema),
   async (c) => {
     const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
-    const body = await c.req.json().catch(() => ({})) as { demoMode?: boolean }
+    const body = c.req.valid('json')
 
     // Create default hub if none exists
     try {

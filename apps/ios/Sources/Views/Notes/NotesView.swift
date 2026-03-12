@@ -50,7 +50,7 @@ struct NotesView: View {
                             fields: fields,
                             callId: callId,
                             conversationId: conversationId,
-                            adminPubkeys: []  // Fetched from server during encryption
+                            adminPubkeys: [appState.adminDecryptionPubkey].compactMap { $0 }
                         )
                         vm.showCreateSheet = false
                     }

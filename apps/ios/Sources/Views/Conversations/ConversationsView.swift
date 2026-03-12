@@ -157,7 +157,8 @@ struct ConversationsView: View {
         let vm = ConversationsViewModel(
             apiService: appState.apiService,
             cryptoService: appState.cryptoService,
-            webSocketService: appState.webSocketService
+            webSocketService: appState.webSocketService,
+            adminPubkeys: [appState.adminDecryptionPubkey].compactMap { $0 }
         )
         DispatchQueue.main.async {
             self.viewModel = vm

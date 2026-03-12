@@ -38,6 +38,10 @@ final class AppState {
     /// Distinct from authStatus == .locked because it tracks the explicit "needs re-auth" state.
     var isLocked: Bool = false
 
+    /// Admin decryption pubkey from the server — used for E2EE envelope encryption
+    /// so admins can decrypt notes, reports, and messages created by this client.
+    var adminDecryptionPubkey: String?
+
     /// The current user's role. Determines whether admin features are visible.
     /// Loaded from the server after authentication.
     var userRole: UserRole = .volunteer
@@ -348,6 +352,9 @@ final class AppState {
                     // Check if any role contains "admin" (e.g. "role-super-admin", "role-admin")
                     let isAdmin = response.roles.contains { $0.contains("admin") }
                     self.userRole = isAdmin ? .admin : .volunteer
+
+                    // Store admin decryption pubkey for E2EE envelope encryption
+                    self.adminDecryptionPubkey = response.adminDecryptionPubkey
 
                     // Pass server event encryption key to WebSocket for relay event decryption
                     self.webSocketService.serverEventKeyHex = response.serverEventKeyHex
