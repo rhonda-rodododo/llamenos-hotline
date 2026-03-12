@@ -58,7 +58,7 @@ struct TelephonySettingsView: View {
                     set: { viewModel.telephonySettings.telephonyProvider = $0 }
                 )
             ) {
-                ForEach(TelephonyProvider.allCases, id: \.self) { provider in
+                ForEach(ClientTelephonyProvider.allCases, id: \.self) { provider in
                     Text(provider.displayName)
                         .tag(provider)
                 }

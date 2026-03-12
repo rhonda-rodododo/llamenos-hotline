@@ -113,14 +113,14 @@ final class NotesViewModel {
             conversationId: conversationId,
             encryptedContent: encryptedNote.encryptedContent,
             authorEnvelope: NoteKeyEnvelope(
-                wrappedKey: encryptedNote.authorEnvelope.wrappedKey,
-                ephemeralPubkey: encryptedNote.authorEnvelope.ephemeralPubkey
+                ephemeralPubkey: encryptedNote.authorEnvelope.ephemeralPubkey,
+                wrappedKey: encryptedNote.authorEnvelope.wrappedKey
             ),
             adminEnvelopes: encryptedNote.adminEnvelopes.map { env in
                 NoteRecipientEnvelope(
+                    ephemeralPubkey: env.ephemeralPubkey,
                     pubkey: env.pubkey,
-                    wrappedKey: env.wrappedKey,
-                    ephemeralPubkey: env.ephemeralPubkey
+                    wrappedKey: env.wrappedKey
                 )
             }
         )
@@ -182,10 +182,10 @@ final class NotesViewModel {
                 id: encrypted.id,
                 payload: payload,
                 authorPubkey: encrypted.authorPubkey,
-                callId: encrypted.callId,
-                conversationId: encrypted.conversationId,
+                callId: encrypted.callID,
+                conversationId: encrypted.conversationID,
                 createdAt: DateFormatting.parseISO(encrypted.createdAt) ?? Date(),
-                updatedAt: encrypted.updatedAt.flatMap(DateFormatting.parseISO)
+                updatedAt: DateFormatting.parseISO(encrypted.updatedAt)
             )
         } catch {
             // Decryption failed — return nil (note won't appear in list)

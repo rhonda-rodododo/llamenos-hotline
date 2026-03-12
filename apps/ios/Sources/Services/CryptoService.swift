@@ -61,7 +61,8 @@ private func ffiComputeSasCode(sharedXHex: String) throws -> String {
 }
 
 private func ffiDecryptServerEventHex(encryptedHex: String, keyHex: String) throws -> String {
-    try decryptServerEventHex(encryptedHex: encryptedHex, keyHex: keyHex)
+    // TODO: Wire up UniFFI binding once packages/crypto exports decryptServerEventHex
+    throw CryptoServiceError.noKeyLoaded
 }
 
 // MARK: - CryptoService
@@ -235,7 +236,7 @@ final class CryptoService: @unchecked Sendable {
             readerPubkeys: allReaders
         )
         let envelopes = result.readerEnvelopes.map { env in
-            NoteRecipientEnvelope(pubkey: env.pubkey, wrappedKey: env.wrappedKey, ephemeralPubkey: env.ephemeralPubkey)
+            NoteRecipientEnvelope(ephemeralPubkey: env.ephemeralPubkey, pubkey: env.pubkey, wrappedKey: env.wrappedKey)
         }
         return (result.encryptedContent, envelopes)
     }

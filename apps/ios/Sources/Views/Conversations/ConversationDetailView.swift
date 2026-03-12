@@ -210,7 +210,7 @@ struct ConversationDetailView: View {
             ?? NSLocalizedString("conversation_title", comment: "Conversation")
     }
 
-    private func channelColor(for channel: ChannelType) -> Color {
+    private func channelColor(for channel: ClientChannelType) -> Color {
         switch channel {
         case .sms: return .brandPrimary
         case .whatsapp: return .green

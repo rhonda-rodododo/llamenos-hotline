@@ -244,8 +244,8 @@ final class DashboardViewModel {
                         id: encrypted.id,
                         preview: previewText,
                         createdAt: DateFormatting.parseISO(encrypted.createdAt) ?? Date(),
-                        hasCall: encrypted.callId != nil,
-                        hasConversation: encrypted.conversationId != nil
+                        hasCall: encrypted.callID != nil,
+                        hasConversation: encrypted.conversationID != nil
                     )
                 } catch {
                     return nil

@@ -14,7 +14,7 @@ final class ReportsViewModel {
     // MARK: - Public State
 
     /// Reports from the server.
-    var reports: [ReportResponse] = []
+    var reports: [ClientReportResponse] = []
 
     /// Available report categories from the server.
     var categories: [String] = []
@@ -38,7 +38,7 @@ final class ReportsViewModel {
     var totalCount: Int = 0
 
     /// Reports filtered by the selected status filter.
-    var filteredReports: [ReportResponse] {
+    var filteredReports: [ClientReportResponse] {
         guard selectedFilter != .all else { return reports }
         return reports.filter { $0.status == selectedFilter.rawValue }
     }
@@ -97,19 +97,19 @@ final class ReportsViewModel {
                 category: category,
                 encryptedContent: encryptedNote.encryptedContent,
                 authorEnvelope: NoteKeyEnvelope(
-                    wrappedKey: encryptedNote.authorEnvelope.wrappedKey,
-                    ephemeralPubkey: encryptedNote.authorEnvelope.ephemeralPubkey
+                    ephemeralPubkey: encryptedNote.authorEnvelope.ephemeralPubkey,
+                    wrappedKey: encryptedNote.authorEnvelope.wrappedKey
                 ),
                 adminEnvelopes: encryptedNote.adminEnvelopes.map { env in
                     NoteRecipientEnvelope(
+                        ephemeralPubkey: env.ephemeralPubkey,
                         pubkey: env.pubkey,
-                        wrappedKey: env.wrappedKey,
-                        ephemeralPubkey: env.ephemeralPubkey
+                        wrappedKey: env.wrappedKey
                     )
                 }
             )
 
-            let _: ReportResponse = try await apiService.request(
+            let _: ClientReportResponse = try await apiService.request(
                 method: "POST",
                 path: "/api/reports",
                 body: request
@@ -140,7 +140,7 @@ final class ReportsViewModel {
 
         do {
             let request = ReportAssignRequest(assignTo: pubkey)
-            let _: ReportResponse = try await apiService.request(
+            let _: ClientReportResponse = try await apiService.request(
                 method: "POST",
                 path: "/api/reports/\(id)/assign",
                 body: request
@@ -164,7 +164,7 @@ final class ReportsViewModel {
 
         do {
             let request = ReportUpdateRequest(status: "closed")
-            let _: ReportResponse = try await apiService.request(
+            let _: ClientReportResponse = try await apiService.request(
                 method: "PATCH",
                 path: "/api/reports/\(id)",
                 body: request

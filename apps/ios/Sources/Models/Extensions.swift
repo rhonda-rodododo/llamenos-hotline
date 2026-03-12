@@ -1,4 +1,22 @@
 import Foundation
+import SwiftUI
+
+// MARK: - UI-Only Types & Client Models
+// Types with computed properties, custom Codable, or client-specific logic
+// that don't exist in the generated protocol types.
+
+// MARK: - Type Aliases (backward compatibility)
+// Map old hand-written names to generated protocol types.
+
+/// Previously `NoteKeyEnvelope` — now uses generated `ProtocolKeyEnvelope`.
+/// (Named ProtocolKeyEnvelope to avoid conflict with UniFFI's KeyEnvelope.)
+typealias NoteKeyEnvelope = ProtocolKeyEnvelope
+
+/// Previously `NoteRecipientEnvelope` — now uses generated `RecipientEnvelope`.
+typealias NoteRecipientEnvelope = RecipientEnvelope
+
+/// Previously `EncryptedNoteResponse` — now uses generated `NoteResponse`.
+typealias EncryptedNoteResponse = NoteResponse
 
 // MARK: - NotePayload
 
@@ -11,40 +29,6 @@ struct NotePayload: Codable, Equatable, Sendable {
     /// Optional custom field values keyed by field `name`.
     /// Values may be String, Int, Double, or Bool depending on the field type.
     let fields: [String: AnyCodableValue]?
-}
-
-// MARK: - EncryptedNoteResponse
-
-/// Server response for a single encrypted note from `GET /api/notes` or `POST /api/notes`.
-/// Matches the protocol wire format (Section 4.7).
-struct EncryptedNoteResponse: Codable, Identifiable, Sendable {
-    let id: String
-    let encryptedContent: String
-    let authorPubkey: String
-    let authorEnvelope: NoteKeyEnvelope?
-    let adminEnvelopes: [NoteRecipientEnvelope]?
-    let callId: String?
-    let conversationId: String?
-    let createdAt: String
-    let updatedAt: String?
-}
-
-// MARK: - NoteKeyEnvelope
-
-/// Envelope containing the ECIES-wrapped note key for a single recipient.
-struct NoteKeyEnvelope: Codable, Equatable, Sendable {
-    let wrappedKey: String
-    let ephemeralPubkey: String
-}
-
-// MARK: - NoteRecipientEnvelope
-
-/// Envelope containing the ECIES-wrapped note key for an admin recipient,
-/// including the recipient's pubkey for routing.
-struct NoteRecipientEnvelope: Codable, Equatable, Sendable {
-    let pubkey: String
-    let wrappedKey: String
-    let ephemeralPubkey: String
 }
 
 // MARK: - DecryptedNote
@@ -79,7 +63,7 @@ struct DecryptedNote: Identifiable, Sendable {
 
 /// API response wrapper for the paginated notes list.
 struct NotesListResponse: Codable, Sendable {
-    let notes: [EncryptedNoteResponse]
+    let notes: [NoteResponse]
     let total: Int
 }
 
@@ -90,8 +74,8 @@ struct CreateNoteRequest: Encodable, Sendable {
     let callId: String?
     let conversationId: String?
     let encryptedContent: String
-    let authorEnvelope: NoteKeyEnvelope?
-    let adminEnvelopes: [NoteRecipientEnvelope]?
+    let authorEnvelope: ProtocolKeyEnvelope?
+    let adminEnvelopes: [RecipientEnvelope]?
 }
 
 // MARK: - AnyCodableValue
@@ -144,5 +128,42 @@ enum AnyCodableValue: Codable, Equatable, Sendable {
         case .double(let val): return String(format: "%.2f", val)
         case .bool(let val): return val ? NSLocalizedString("yes", comment: "Yes") : NSLocalizedString("no", comment: "No")
         }
+    }
+}
+
+// MARK: - NoteResponse Extensions
+
+extension NoteResponse: Identifiable {}
+
+// MARK: - DecryptedMessage
+
+/// A fully decrypted message ready for display in the conversation detail view.
+struct DecryptedMessage: Identifiable, Sendable {
+    let id: String
+    let text: String
+    let direction: String
+    let channelType: String
+    let createdAt: Date
+    let isRead: Bool
+
+    /// Whether this is an inbound message (from the contact).
+    var isInbound: Bool { direction == "inbound" }
+
+    /// Whether this is an outbound message (from the volunteer).
+    var isOutbound: Bool { direction == "outbound" }
+
+    /// Parsed channel type.
+    var channel: ClientChannelType {
+        ClientChannelType(rawValue: channelType) ?? .sms
+    }
+
+    /// Formatted time string for display alongside the message bubble.
+    var timeDisplay: String {
+        createdAt.formatted(date: .omitted, time: .shortened)
+    }
+
+    /// Full date+time for accessibility and long-press display.
+    var fullDateDisplay: String {
+        createdAt.formatted(date: .abbreviated, time: .shortened)
     }
 }

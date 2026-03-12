@@ -65,10 +65,10 @@ final class AdminViewModel {
     // MARK: - Volunteers State
 
     /// All volunteers/members from the server.
-    var volunteers: [Volunteer] = []
+    var volunteers: [ClientVolunteer] = []
 
     /// Filtered volunteers based on search text.
-    var filteredVolunteers: [Volunteer] {
+    var filteredVolunteers: [ClientVolunteer] {
         if volunteerSearchText.isEmpty {
             return volunteers
         }
@@ -182,7 +182,7 @@ final class AdminViewModel {
     // MARK: - Call Settings State
 
     /// Current call routing configuration.
-    var callSettings: CallSettings = CallSettings(
+    var callSettings: ClientCallSettings = ClientCallSettings(
         ringTimeout: 30, maxDuration: 60, parallelRingCount: 5
     )
 
@@ -206,7 +206,7 @@ final class AdminViewModel {
     // MARK: - Transcription Settings State
 
     /// Current transcription configuration.
-    var transcriptionSettings: TranscriptionSettings = TranscriptionSettings(
+    var transcriptionSettings: ClientTranscriptionSettings = ClientTranscriptionSettings(
         enabled: false, allowVolunteerOptOut: false
     )
 
@@ -219,7 +219,7 @@ final class AdminViewModel {
     // MARK: - Spam Settings State
 
     /// Current spam mitigation configuration.
-    var spamSettings: SpamSettings = SpamSettings(
+    var spamSettings: ClientSpamSettings = ClientSpamSettings(
         maxCallsPerHour: 10, voiceCaptchaEnabled: false, knownNumberBypass: false
     )
 
@@ -686,7 +686,7 @@ final class AdminViewModel {
         errorMessage = nil
 
         do {
-            let settings: CallSettings = try await apiService.request(
+            let settings: ClientCallSettings = try await apiService.request(
                 method: "GET",
                 path: "/api/settings/call"
             )
@@ -734,7 +734,7 @@ final class AdminViewModel {
         errorMessage = nil
 
         do {
-            let response: IvrLanguages = try await apiService.request(
+            let response: ClientIvrLanguages = try await apiService.request(
                 method: "GET",
                 path: "/api/settings/ivr-languages"
             )
@@ -759,7 +759,7 @@ final class AdminViewModel {
         successMessage = nil
 
         do {
-            let body = IvrLanguages(languages: ivrLanguages)
+            let body = ClientIvrLanguages(languages: ivrLanguages)
             try await apiService.request(
                 method: "PUT",
                 path: "/api/settings/ivr-languages",
@@ -806,7 +806,7 @@ final class AdminViewModel {
         errorMessage = nil
 
         do {
-            let settings: TranscriptionSettings = try await apiService.request(
+            let settings: ClientTranscriptionSettings = try await apiService.request(
                 method: "GET",
                 path: "/api/settings/transcription"
             )
@@ -854,7 +854,7 @@ final class AdminViewModel {
         errorMessage = nil
 
         do {
-            let settings: SpamSettings = try await apiService.request(
+            let settings: ClientSpamSettings = try await apiService.request(
                 method: "GET",
                 path: "/api/settings/spam"
             )

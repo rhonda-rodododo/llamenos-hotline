@@ -64,10 +64,11 @@ struct ReportMetadata: Codable, Sendable {
     let reportId: String?
 }
 
-// MARK: - ReportResponse
+// MARK: - ClientReportResponse
 
 /// Server response for a single report from `GET /api/reports`.
-struct ReportResponse: Codable, Identifiable, Sendable {
+/// Named `ClientReportResponse` to avoid conflict with generated `ReportResponse`.
+struct ClientReportResponse: Codable, Identifiable, Sendable {
     let id: String
     let channelType: String
     let contactIdentifierHash: String?
@@ -92,7 +93,7 @@ struct ReportResponse: Codable, Identifiable, Sendable {
 
 /// API response wrapper for the reports list.
 struct ReportsListResponse: Codable, Sendable {
-    let conversations: [ReportResponse]
+    let conversations: [ClientReportResponse]
     let total: Int
 }
 
@@ -103,8 +104,8 @@ struct CreateReportRequest: Encodable, Sendable {
     let title: String
     let category: String?
     let encryptedContent: String
-    let authorEnvelope: NoteKeyEnvelope
-    let adminEnvelopes: [NoteRecipientEnvelope]
+    let authorEnvelope: ProtocolKeyEnvelope
+    let adminEnvelopes: [RecipientEnvelope]
 }
 
 // MARK: - ReportCategoriesResponse

@@ -22,10 +22,11 @@ enum UserRole: String, Codable, Sendable, CaseIterable {
     }
 }
 
-// MARK: - VolunteerStatus
+// MARK: - ClientVolunteerStatus
 
-/// Volunteer account status.
-enum VolunteerStatus: String, Codable, Sendable, CaseIterable {
+/// Volunteer account status (client-side enum with UI properties).
+/// Named `ClientVolunteerStatus` to avoid conflict with generated `VolunteerStatus`.
+enum ClientVolunteerStatus: String, Codable, Sendable, CaseIterable {
     case active
     case inactive
     case suspended
@@ -39,10 +40,11 @@ enum VolunteerStatus: String, Codable, Sendable, CaseIterable {
     }
 }
 
-// MARK: - Volunteer
+// MARK: - ClientVolunteer
 
-/// A volunteer/admin member from the API.
-struct Volunteer: Codable, Identifiable, Sendable {
+/// A volunteer/admin member from the API (client-side model with UI properties).
+/// Named `ClientVolunteer` to avoid conflict with generated `Volunteer`.
+struct ClientVolunteer: Codable, Identifiable, Sendable {
     let id: String
     let pubkey: String
     let displayName: String?
@@ -56,8 +58,8 @@ struct Volunteer: Codable, Identifiable, Sendable {
     }
 
     /// Parsed status enum.
-    var volunteerStatus: VolunteerStatus {
-        VolunteerStatus(rawValue: status) ?? .active
+    var volunteerStatus: ClientVolunteerStatus {
+        ClientVolunteerStatus(rawValue: status) ?? .active
     }
 
     /// Display name or truncated pubkey.
@@ -213,7 +215,7 @@ struct Invite: Codable, Identifiable, Sendable {
 
 /// API response for the volunteers list.
 struct VolunteersListResponse: Codable, Sendable {
-    let members: [Volunteer]
+    let members: [ClientVolunteer]
 }
 
 /// API response for the ban list.
@@ -279,10 +281,11 @@ struct CreateReportCategoryRequest: Encodable, Sendable {
     let name: String
 }
 
-// MARK: - Telephony Provider
+// MARK: - Client Telephony Provider
 
-/// Supported telephony providers.
-enum TelephonyProvider: String, Codable, Sendable, CaseIterable {
+/// Supported telephony providers (client-side enum with UI properties).
+/// Named `ClientTelephonyProvider` to avoid conflict with generated `TelephonyProvider`.
+enum ClientTelephonyProvider: String, Codable, Sendable, CaseIterable {
     case twilio
     case signalwire
     case vonage
@@ -308,40 +311,44 @@ struct TelephonySettings: Codable, Sendable {
     var phoneNumber: String
 
     /// Parsed provider enum.
-    var telephonyProvider: TelephonyProvider {
-        get { TelephonyProvider(rawValue: provider) ?? .twilio }
+    var telephonyProvider: ClientTelephonyProvider {
+        get { ClientTelephonyProvider(rawValue: provider) ?? .twilio }
         set { provider = newValue.rawValue }
     }
 }
 
-// MARK: - Call Settings
+// MARK: - Client Call Settings
 
-/// Call routing configuration from the API.
-struct CallSettings: Codable, Sendable {
+/// Call routing configuration from the API (client-side model).
+/// Named `ClientCallSettings` to avoid conflict with generated `CallSettings`.
+struct ClientCallSettings: Codable, Sendable {
     var ringTimeout: Int
     var maxDuration: Int
     var parallelRingCount: Int
 }
 
-// MARK: - IVR Languages
+// MARK: - Client IVR Languages
 
-/// IVR language configuration from the API.
-struct IvrLanguages: Codable, Sendable {
+/// IVR language configuration from the API (client-side model).
+/// Named `ClientIvrLanguages` to avoid conflict with generated `IvrLanguages`.
+struct ClientIvrLanguages: Codable, Sendable {
     var languages: [String: Bool]
 }
 
-// MARK: - Transcription Settings
+// MARK: - Client Transcription Settings
 
-/// Transcription configuration from the API.
-struct TranscriptionSettings: Codable, Sendable {
+/// Transcription configuration from the API (client-side model).
+/// Named `ClientTranscriptionSettings` to avoid conflict with generated `TranscriptionSettings`.
+struct ClientTranscriptionSettings: Codable, Sendable {
     var enabled: Bool
     var allowVolunteerOptOut: Bool
 }
 
-// MARK: - Spam Settings
+// MARK: - Client Spam Settings
 
-/// Spam mitigation configuration from the API.
-struct SpamSettings: Codable, Sendable {
+/// Spam mitigation configuration from the API (client-side model).
+/// Named `ClientSpamSettings` to avoid conflict with generated `SpamSettings`.
+struct ClientSpamSettings: Codable, Sendable {
     var maxCallsPerHour: Int
     var voiceCaptchaEnabled: Bool
     var knownNumberBypass: Bool

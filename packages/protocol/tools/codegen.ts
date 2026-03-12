@@ -183,6 +183,13 @@ function stripSwiftConvenienceExtensions(lines: string[]): string {
   output = output.replace(/^(struct \w+): Codable \{/gm, '$1: Codable, Sendable {')
   output = output.replace(/^(enum \w+: String), Codable \{/gm, '$1, Codable, Sendable {')
 
+  // Rename generated types that shadow Swift built-ins or UniFFI types.
+  // `Error` shadows Swift's Error protocol — rename to InviteError.
+  output = output.replace(/^enum Error: String/gm, 'enum InviteError: String')
+  output = output.replace(/\blet error: Error\?/g, 'let error: InviteError?')
+  // `KeyEnvelope` conflicts with UniFFI's KeyEnvelope — rename to ProtocolKeyEnvelope.
+  output = output.replace(/\bKeyEnvelope\b/g, 'ProtocolKeyEnvelope')
+
   // Clean up consecutive blank lines
   output = output.replace(/\n{3,}/g, '\n\n')
 

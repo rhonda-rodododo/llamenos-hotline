@@ -134,7 +134,7 @@ struct VolunteersView: View {
 
 /// A single volunteer row showing display name, pubkey, role badge, and status.
 struct VolunteerRowView: View {
-    let volunteer: Volunteer
+    let volunteer: ClientVolunteer
     let onRoleChange: (UserRole) -> Void
 
     var body: some View {

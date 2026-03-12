@@ -1,9 +1,10 @@
 import Foundation
 
-// MARK: - ChannelType
+// MARK: - ClientChannelType
 
-/// Messaging channel types supported by the platform.
-enum ChannelType: String, Codable, Sendable, CaseIterable {
+/// Messaging channel types supported by the platform (client-side enum with UI properties).
+/// Named `ClientChannelType` to avoid conflict with generated `ChannelType` from protocol.
+enum ClientChannelType: String, Codable, Sendable, CaseIterable {
     case sms
     case whatsapp
     case signal
@@ -68,8 +69,8 @@ struct Conversation: Codable, Identifiable, Sendable {
     let createdAt: String
 
     /// Parsed channel type enum.
-    var channel: ChannelType {
-        ChannelType(rawValue: channelType) ?? .sms
+    var channel: ClientChannelType {
+        ClientChannelType(rawValue: channelType) ?? .sms
     }
 
     /// Parsed conversation status enum.
@@ -112,7 +113,7 @@ struct ConversationMessage: Codable, Identifiable, Sendable {
     let conversationId: String
     let direction: String
     let encryptedContent: String
-    let recipientEnvelopes: [NoteRecipientEnvelope]
+    let recipientEnvelopes: [RecipientEnvelope]
     let channelType: String
     let createdAt: String
     let readAt: String?
@@ -124,41 +125,8 @@ struct ConversationMessage: Codable, Identifiable, Sendable {
     var isInbound: Bool { direction == "inbound" }
 
     /// Parsed channel type.
-    var channel: ChannelType {
-        ChannelType(rawValue: channelType) ?? .sms
-    }
-}
-
-// MARK: - DecryptedMessage
-
-/// A fully decrypted message ready for display in the conversation detail view.
-struct DecryptedMessage: Identifiable, Sendable {
-    let id: String
-    let text: String
-    let direction: String
-    let channelType: String
-    let createdAt: Date
-    let isRead: Bool
-
-    /// Whether this is an inbound message (from the contact).
-    var isInbound: Bool { direction == "inbound" }
-
-    /// Whether this is an outbound message (from the volunteer).
-    var isOutbound: Bool { direction == "outbound" }
-
-    /// Parsed channel type.
-    var channel: ChannelType {
-        ChannelType(rawValue: channelType) ?? .sms
-    }
-
-    /// Formatted time string for display alongside the message bubble.
-    var timeDisplay: String {
-        createdAt.formatted(date: .omitted, time: .shortened)
-    }
-
-    /// Full date+time for accessibility and long-press display.
-    var fullDateDisplay: String {
-        createdAt.formatted(date: .abbreviated, time: .shortened)
+    var channel: ClientChannelType {
+        ClientChannelType(rawValue: channelType) ?? .sms
     }
 }
 
@@ -181,7 +149,7 @@ struct ConversationMessagesResponse: Codable, Sendable {
 /// Request body for `POST /api/conversations/:id/messages`.
 struct SendMessageRequest: Encodable, Sendable {
     let encryptedContent: String
-    let recipientEnvelopes: [NoteRecipientEnvelope]
+    let recipientEnvelopes: [RecipientEnvelope]
 }
 
 // MARK: - MarkReadResponse

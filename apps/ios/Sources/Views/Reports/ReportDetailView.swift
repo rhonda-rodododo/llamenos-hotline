@@ -5,7 +5,7 @@ import SwiftUI
 /// Detail view for a single report. Shows title, status, category, metadata,
 /// and action buttons (claim/close) for authorized users.
 struct ReportDetailView: View {
-    let report: ReportResponse
+    let report: ClientReportResponse
     let viewModel: ReportsViewModel
 
     @Environment(AppState.self) private var appState
@@ -213,7 +213,7 @@ struct ReportDetailView: View {
 #Preview("Report Detail") {
     NavigationStack {
         ReportDetailView(
-            report: ReportResponse(
+            report: ClientReportResponse(
                 id: "preview-1",
                 channelType: "reports",
                 contactIdentifierHash: nil,

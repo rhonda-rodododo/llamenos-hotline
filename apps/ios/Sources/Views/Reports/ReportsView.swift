@@ -213,7 +213,7 @@ struct ReportsView: View {
 
 /// A single report row in the list, showing title, status badge, category, and date.
 struct ReportRowView: View {
-    let report: ReportResponse
+    let report: ClientReportResponse
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
