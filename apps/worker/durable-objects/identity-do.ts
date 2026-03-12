@@ -123,10 +123,10 @@ export class IdentityDO extends DurableObject<Env> {
       return Response.json({ ok: true })
     })
 
-    // --- Test Reset (demo mode only — Epic 258 C3) ---
+    // --- Test Reset (demo/development only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
-      if (this.env.DEMO_MODE !== 'true') {
-        return new Response('Reset not allowed outside demo mode', { status: 403 })
+      if (this.env.DEMO_MODE !== 'true' && this.env.ENVIRONMENT !== 'development') {
+        return new Response('Reset not allowed outside demo/development mode', { status: 403 })
       }
       await this.ctx.storage.deleteAll()
       this.initialized = false

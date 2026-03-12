@@ -50,6 +50,7 @@ volunteers.patch('/:targetPubkey', requirePermission('volunteers:update'), valid
   }))
   if (res.ok) {
     if (body.roles) await audit(dos.records, 'rolesChanged', pubkey, { target: targetPubkey, roles: body.roles })
+    if (body.active === false) await audit(dos.records, 'volunteerDeactivated', pubkey, { target: targetPubkey })
     // Revoke all sessions when deactivating or changing roles
     if (body.active === false || body.roles) {
       await dos.identity.fetch(new Request(`http://do/sessions/revoke-all/${targetPubkey}`, { method: 'DELETE' }))

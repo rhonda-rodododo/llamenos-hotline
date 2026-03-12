@@ -35,10 +35,10 @@ export class ShiftManagerDO extends DurableObject<Env> {
     // --- Migration Management (Epic 286) ---
     registerMigrationRoutes(this.router, () => this.ctx.storage, 'shifts')
 
-    // Demo mode only — Epic 258 C3
+    // Demo/development mode only — Epic 258 C3
     this.router.post('/reset', async () => {
-      if (this.env.DEMO_MODE !== 'true') {
-        return new Response('Reset not allowed outside demo mode', { status: 403 })
+      if (this.env.DEMO_MODE !== 'true' && this.env.ENVIRONMENT !== 'development') {
+        return new Response('Reset not allowed outside demo/development mode', { status: 403 })
       }
       await this.ctx.storage.deleteAll()
       return Response.json({ ok: true })
@@ -174,6 +174,10 @@ export class ShiftManagerDO extends DurableObject<Env> {
 
   private async deleteShift(id: string): Promise<Response> {
     const shifts = await this.ctx.storage.get<Shift[]>('shifts') || []
+    const exists = shifts.some(s => s.id === id)
+    if (!exists) {
+      return Response.json({ error: 'Shift not found' }, { status: 404 })
+    }
     await this.ctx.storage.put('shifts', shifts.filter(s => s.id !== id))
     return Response.json({ ok: true })
   }

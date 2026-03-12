@@ -196,8 +196,11 @@ Then("each admin's key wrap is unique", async ({}) => {
 // ── Session Management Steps ─────────────────────────────────────
 
 When('a new session token is issued', async ({ request }) => {
-  // Issue via auth endpoint
-  expect(secState.volunteerKeypair).toBeDefined()
+  // If no volunteer keypair yet, create one (WebAuthn credential Given sets authState, not secState)
+  if (!secState.volunteerKeypair) {
+    const vol = await createVolunteerViaApi(request, { name: `Session Token ${Date.now()}` })
+    secState.volunteerKeypair = { nsec: vol.nsec, pubkey: vol.pubkey }
+  }
   const result = await getMeViaApi(request, secState.volunteerKeypair!.nsec)
   secState.sessionResult = result
 })

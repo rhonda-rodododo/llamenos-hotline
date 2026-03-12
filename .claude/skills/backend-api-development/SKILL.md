@@ -379,7 +379,24 @@ Every new API endpoint or DO method MUST have corresponding BDD coverage:
 
 1. **Write Gherkin scenario** in `packages/test-specs/features/` with `@backend` tag
 2. **Write step definition** in `tests/steps/backend/` using simulation helpers + API helpers
-3. **Run**: `bun run test:backend:bdd`
+3. **Start backend**: dev compose + `bun run dev:node` (NOT production compose)
+4. **Run**: `bun run test:backend:bdd`
+
+### Local Backend Setup
+
+```bash
+# Backing services (PostgreSQL, MinIO, strfry)
+docker compose -f deploy/docker/docker-compose.dev.yml up -d
+
+# App with live reload (auto-detects code changes)
+bun run dev:node
+
+# Run tests
+bun run test:backend:bdd
+```
+
+NEVER use the production compose (`docker-compose.yml`) for local development or testing.
+It bundles the app into a Docker image that won't reflect code changes until rebuilt.
 
 ### Example: Adding a new endpoint
 

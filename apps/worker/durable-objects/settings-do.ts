@@ -129,10 +129,10 @@ export class SettingsDO extends DurableObject<Env> {
     // --- Migration Management (Epic 286) ---
     registerMigrationRoutes(this.router, () => this.ctx.storage, 'settings')
 
-    // --- Test Reset (demo mode only — Epic 258 C3) ---
+    // --- Test Reset (demo/development only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
-      if (this.env.DEMO_MODE !== 'true') {
-        return new Response('Reset not allowed outside demo mode', { status: 403 })
+      if (this.env.DEMO_MODE !== 'true' && this.env.ENVIRONMENT !== 'development') {
+        return new Response('Reset not allowed outside demo/development mode', { status: 403 })
       }
       await this.ctx.storage.deleteAll()
       this.initialized = false
@@ -345,11 +345,11 @@ export class SettingsDO extends DurableObject<Env> {
 
   private async getFallbackGroup(): Promise<Response> {
     const group = await this.ctx.storage.get<string[]>('fallbackGroup') || []
-    return Response.json({ volunteers: group })
+    return Response.json({ volunteerPubkeys: group, volunteers: group })
   }
 
-  private async setFallbackGroup(data: { volunteers: string[] }): Promise<Response> {
-    await this.ctx.storage.put('fallbackGroup', data.volunteers)
+  private async setFallbackGroup(data: { volunteerPubkeys: string[] }): Promise<Response> {
+    await this.ctx.storage.put('fallbackGroup', data.volunteerPubkeys)
     return Response.json({ ok: true })
   }
 

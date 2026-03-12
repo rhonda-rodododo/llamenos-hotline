@@ -53,7 +53,8 @@ cmd_start() {
   export ADMIN_PUBKEY="${ADMIN_PUBKEY:-ac4718373d30301e5c7cf55e9e6f2568efb94f3278fb88f37f4981e880505228}"
   export HOTLINE_NAME="${HOTLINE_NAME:-Llámenos (Dev)}"
   export ENVIRONMENT=development
-  if [ -z "$HMAC_SECRET" ]; then
+  export DEV_RESET_SECRET="${DEV_RESET_SECRET:-test-reset-secret}"
+  if [ -z "${HMAC_SECRET:-}" ]; then
     warn "HMAC_SECRET not set. Generating random value for this session."
     export HMAC_SECRET=$(openssl rand -hex 32)
   fi

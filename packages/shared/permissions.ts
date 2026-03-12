@@ -161,7 +161,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     slug: 'hub-admin',
     permissions: [
       'volunteers:*', 'shifts:*', 'settings:*', 'audit:read',
-      'bans:*', 'invites:*', 'notes:read-all', 'notes:create', 'notes:update-own', 'notes:reply',
+      'bans:*', 'invites:*', 'notes:*',
       'reports:*', 'conversations:*', 'calls:*', 'blasts:*', 'files:*',
       'contacts:view', 'contacts:view-history',
     ],
@@ -174,7 +174,8 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     name: 'Reviewer',
     slug: 'reviewer',
     permissions: [
-      'notes:read-assigned', 'notes:reply', 'reports:read-assigned', 'reports:assign',
+      'notes:read-own', 'notes:read-assigned', 'notes:reply',
+      'reports:read-assigned', 'reports:assign',
       'reports:update', 'reports:send-message',
       'conversations:read-assigned', 'conversations:send',
       'shifts:read-own', 'files:download-own', 'files:upload',

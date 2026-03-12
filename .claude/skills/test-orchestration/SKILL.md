@@ -69,7 +69,7 @@ All scripts support: `--verbose`, `--no-codegen`, `--json`, `--timeout <seconds>
 
 ### Prerequisites
 - Playwright browsers installed: `bunx playwright install`
-- Docker Compose backend (for full E2E): `cd deploy/docker && docker compose up -d`
+- Backend (for full E2E): dev compose + `bun run dev:node` (see "Local Backend Setup" below)
 - OR: Mock IPC layer (default for `bun run test:desktop`)
 
 ### Environment
@@ -104,12 +104,28 @@ bun run test:build && bunx playwright test --config playwright.docker.config.ts
 
 ## Platform: Backend BDD
 
-Backend BDD runs shared Gherkin specs tagged `@backend` against the Docker Compose
-backend. No browser needed -- tests hit the API directly via Playwright's APIRequestContext.
+Backend BDD runs shared Gherkin specs tagged `@backend` against a local Node.js backend.
+No browser needed -- tests hit the API directly via Playwright's APIRequestContext.
 
-### Prerequisites
-- Docker Compose backend running: `bun run test:docker:up`
-- Health check: `curl http://localhost:3000/api/health`
+### Prerequisites — Dev Compose + Local App
+
+**Always use dev compose (backing services) + `bun run dev:node` (app with file watching):**
+
+```bash
+# 1. Start backing services (PostgreSQL, MinIO, strfry)
+docker compose -f deploy/docker/docker-compose.dev.yml up -d
+
+# 2. Start app locally (auto-reloads on code changes via --watch)
+bun run dev:node
+
+# 3. Health check
+curl http://localhost:3000/api/health
+```
+
+**NEVER use the production compose** (`docker-compose.yml`) for local dev/testing — it bundles
+the app into a Docker image that won't reflect code changes until rebuilt.
+
+The CI-only test overlay (`docker-compose.test.yml`) is for GitHub Actions, not local use.
 
 ### Running
 
@@ -295,43 +311,44 @@ bun run crypto:fmt          # Format check
 - Same vectors consumed by Rust, TypeScript, Swift, and Kotlin tests
 - If a vector fails on one platform, the crypto implementation diverged
 
-## Docker Compose (Backend for E2E)
+## Local Backend Setup
 
-### Starting
+### For Development and Testing (PREFERRED)
 
-```bash
-cd deploy/docker
-
-# Full stack (app + PostgreSQL + MinIO)
-docker compose up -d --build
-
-# With test overrides (reset endpoint enabled)
-docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --build
-```
-
-### Environment Variables Required
+Use dev compose for backing services + local Node.js app with file watching:
 
 ```bash
-# .env file in deploy/docker/
-PG_PASSWORD=...
-MINIO_ACCESS_KEY=...
-MINIO_SECRET_KEY=...
-HMAC_SECRET=...
-```
+# Start backing services
+docker compose -f deploy/docker/docker-compose.dev.yml up -d
 
-Docker Compose validates ALL services at startup — missing env vars will fail.
+# Start app with live reload
+bun run dev:node
 
-### Health Check
-
-```bash
+# Health check
 curl http://localhost:3000/api/health
+
+# Stop app: Ctrl+C (or bun run dev:node:stop)
+# Stop services:
+docker compose -f deploy/docker/docker-compose.dev.yml down    # keep data
+docker compose -f deploy/docker/docker-compose.dev.yml down -v  # wipe data
 ```
 
-### Teardown
+The dev compose exposes PostgreSQL (5432), MinIO (9000/9001), and strfry (7777) directly.
+`bun run dev:node` sets `ENVIRONMENT=development` automatically, enabling `/api/test-reset`.
+
+### For CI Only
+
+CI uses the production compose with test overlay:
 
 ```bash
-docker compose down -v  # -v removes volumes (clean state)
+# CI-only (bundles app into Docker image — no live reload)
+docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --build app
 ```
+
+### Environment Variables
+
+Dev compose uses hardcoded defaults (user: `llamenos`, password: `dev`).
+Production compose requires `.env` with `PG_PASSWORD`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `HMAC_SECRET`.
 
 ## CI vs Local Differences
 

@@ -255,10 +255,25 @@ bun run crypto:clippy       # Linting
 
 ## Running Tests
 
-```bash
-# Backend BDD only (fast, no UI)
-bun run test:backend:bdd
+### Backend BDD Setup (dev compose + local app)
 
+```bash
+# 1. Start backing services (PostgreSQL, MinIO, strfry)
+docker compose -f deploy/docker/docker-compose.dev.yml up -d
+
+# 2. Start app locally (auto-reloads on code changes)
+bun run dev:node
+
+# 3. Run backend BDD
+bun run test:backend:bdd
+```
+
+NEVER use the production compose for local dev/testing — it bundles the app into Docker
+and won't pick up code changes. Always use dev compose + `bun run dev:node`.
+
+### Other test commands
+
+```bash
 # Desktop BDD
 PLAYWRIGHT_TEST=true bunx playwright test --project=bdd
 

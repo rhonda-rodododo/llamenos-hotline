@@ -395,12 +395,20 @@ export class ConversationDO extends DurableObject<Env> {
   private async handleIncoming(incoming: IncomingMessage): Promise<Response> {
     const now = new Date().toISOString()
 
-    // Find existing active/waiting conversation from this sender on this channel
+    // Find existing conversation from this sender on this channel (active, waiting, or closed)
     let conv = await this.findConversation(c =>
       c.channelType === incoming.channelType &&
       c.contactIdentifierHash === incoming.senderIdentifierHash &&
-      (c.status === 'active' || c.status === 'waiting')
+      (c.status === 'active' || c.status === 'waiting' || c.status === 'closed')
     )
+
+    // Reopen closed conversations when a new message arrives
+    if (conv && conv.status === 'closed') {
+      conv.status = 'waiting'
+      conv.updatedAt = now
+      conv.lastMessageAt = now
+      await this.saveConversation(conv)
+    }
 
     if (!conv) {
       // Create new conversation

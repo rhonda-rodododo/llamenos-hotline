@@ -42,7 +42,10 @@ async function main() {
   const staticDir = path.resolve(process.cwd(), 'dist', 'client')
   app.use('*', serveStatic({ root: staticDir }))
 
-  // SPA fallback — serve index.html for all unmatched routes
+  // API 404 — return JSON for unmatched /api/* routes (before SPA fallback)
+  app.all('/api/*', (c) => c.json({ error: 'Not Found' }, 404))
+
+  // SPA fallback — serve index.html for all unmatched non-API routes
   app.use('*', serveStatic({ root: staticDir, path: '/index.html' }))
 
   const port = parseInt(process.env.PORT || '3000')

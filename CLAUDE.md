@@ -159,6 +159,23 @@ docs/
 
 ## Development Commands
 
+### Local Backend Setup (REQUIRED for backend development and testing)
+
+**Always use dev compose (backing services) + `bun run dev:node` (app with file watching):**
+
+```bash
+# 1. Start backing services (PostgreSQL, MinIO, strfry)
+docker compose -f deploy/docker/docker-compose.dev.yml up -d
+
+# 2. Start app locally (auto-reloads on code changes via --watch)
+bun run dev:node
+
+# 3. Run backend BDD tests
+bun run test:backend:bdd
+```
+
+**NEVER use the production compose** (`deploy/docker/docker-compose.yml`) for local development or testing. It bundles the app into a Docker image that won't reflect code changes until rebuilt. The `docker-compose.test.yml` overlay is for CI only.
+
 ### Multi-Machine Workflow
 
 **Mac M4** is now fully self-contained for all platforms (iOS, Android, Desktop, Workers, Crypto).
@@ -217,7 +234,7 @@ bun run test:ios                         # iOS: codegen → xcodebuild → unit 
 bun run test:android                     # Android: codegen → gradle unit + lint + androidTest
 bun run test:worker                      # Worker: codegen → typecheck → integration tests
 bun run test:crypto                      # Crypto: cargo test + clippy
-bun run test:backend:bdd                 # Backend BDD against Docker Compose (API-level)
+bun run test:backend:bdd                 # Backend BDD against local backend (API-level)
 
 # Deploy (runs on Linux machine)
 bun run deploy                           # Deploy EVERYTHING (Worker + marketing site)

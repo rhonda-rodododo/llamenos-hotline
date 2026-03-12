@@ -64,6 +64,18 @@ function authHeaders(nsec: string, method: string, path: string): Record<string,
   }
 }
 
+// ── Safe JSON parsing (handles HTML error pages) ─────────────────
+
+async function safeJson(res: import('@playwright/test').APIResponse): Promise<unknown> {
+  const contentType = res.headers()['content-type'] ?? ''
+  if (!contentType.includes('application/json')) return null
+  try {
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
 // ── Authenticated Request Primitives ──────────────────────────────
 
 export async function apiGet<T = unknown>(
@@ -75,7 +87,7 @@ export async function apiGet<T = unknown>(
   const res = await request.get(fullPath, {
     headers: authHeaders(nsec, 'GET', fullPath),
   })
-  const data = res.ok() ? await res.json() : null
+  const data = res.ok() ? await safeJson(res) : null
   return { status: res.status(), data: data as T }
 }
 
@@ -90,7 +102,7 @@ export async function apiPost<T = unknown>(
     headers: authHeaders(nsec, 'POST', fullPath),
     data: body,
   })
-  const data = res.ok() ? await res.json() : null
+  const data = res.ok() ? await safeJson(res) : null
   return { status: res.status(), data: data as T }
 }
 
@@ -105,7 +117,7 @@ export async function apiPatch<T = unknown>(
     headers: authHeaders(nsec, 'PATCH', fullPath),
     data: body,
   })
-  const data = res.ok() ? await res.json() : null
+  const data = res.ok() ? await safeJson(res) : null
   return { status: res.status(), data: data as T }
 }
 
@@ -120,7 +132,7 @@ export async function apiPut<T = unknown>(
     headers: authHeaders(nsec, 'PUT', fullPath),
     data: body,
   })
-  const data = res.ok() ? await res.json() : null
+  const data = res.ok() ? await safeJson(res) : null
   return { status: res.status(), data: data as T }
 }
 
@@ -133,7 +145,7 @@ export async function apiDelete<T = unknown>(
   const res = await request.delete(fullPath, {
     headers: authHeaders(nsec, 'DELETE', fullPath),
   })
-  const data = res.ok() ? await res.json() : null
+  const data = res.ok() ? await safeJson(res) : null
   return { status: res.status(), data: data as T }
 }
 
@@ -331,7 +343,7 @@ export async function setFallbackGroupViaApi(
   request: APIRequestContext,
   volunteers: string[],
 ): Promise<void> {
-  const { status } = await apiPut(request, '/shifts/fallback', { volunteers })
+  const { status } = await apiPut(request, '/shifts/fallback', { volunteerPubkeys: volunteers })
   if (status !== 200) throw new Error(`Failed to set fallback group: ${status}`)
 }
 
