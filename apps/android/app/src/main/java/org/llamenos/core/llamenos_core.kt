@@ -818,6 +818,8 @@ internal interface UniffiLib : Library {
     ): RustBuffer.ByValue
     fun uniffi_llamenos_core_fn_func_ecies_decrypt_content_hex(`packedHex`: RustBuffer.ByValue,`ephemeralPubkeyHex`: RustBuffer.ByValue,`secretKeyHex`: RustBuffer.ByValue,`label`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
+    fun uniffi_llamenos_core_fn_func_decrypt_server_event_hex(`encryptedHex`: RustBuffer.ByValue,`keyHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     fun ffi_llamenos_core_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun ffi_llamenos_core_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -2100,4 +2102,19 @@ public object FfiConverterSequenceTypeRecipientKeyEnvelope: FfiConverterRustBuff
     )
     }
 
+
+        /**
+         * Decrypt a server-encrypted event payload (XChaCha20-Poly1305).
+         *
+         * Input: hex(nonce_24 + ciphertext), 32-byte key as hex.
+         * Output: decrypted UTF-8 string (JSON).
+         */
+    @Throws(CryptoException::class) fun `decryptServerEventHex`(`encryptedHex`: kotlin.String, `keyHex`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(CryptoException) { _status ->
+    UniffiLib.INSTANCE.uniffi_llamenos_core_fn_func_decrypt_server_event_hex(
+        FfiConverterString.lower(`encryptedHex`),FfiConverterString.lower(`keyHex`),_status)
+}
+    )
+    }
 

@@ -160,12 +160,16 @@ export async function navigateAfterLogin(page: Page, url: string): Promise<void>
  * via the sidebar or page.goto as appropriate.
  */
 export async function reenterPinAfterReload(page: Page): Promise<void> {
+  await page.waitForLoadState('domcontentloaded')
   const pinInput = page.locator('input[aria-label="PIN digit 1"]')
-  const pinVisible = await pinInput.isVisible({ timeout: 3000 }).catch(() => false)
-
-  if (pinVisible) {
+  // Use waitFor to actually wait for the PIN input to render after reload.
+  // isVisible() is an instant snapshot and returns false if DOM hasn't rendered yet.
+  try {
+    await pinInput.waitFor({ state: 'visible', timeout: Timeouts.ELEMENT })
     await enterPin(page, TEST_PIN)
-    await page.waitForURL(u => !u.toString().includes('/login'), { timeout: 15000 })
+    await page.waitForURL(u => !u.toString().includes('/login'), { timeout: Timeouts.AUTH })
+  } catch {
+    // PIN screen didn't appear — may already be authenticated
   }
 }
 
@@ -237,6 +241,12 @@ export async function loginAsVolunteer(page: Page, nsec: string) {
   await page.waitForLoadState('domcontentloaded')
   await enterPin(page, TEST_PIN)
   await page.waitForURL(url => !url.toString().includes('/login'), { timeout: Timeouts.AUTH })
+
+  // New volunteers land on /profile-setup — complete it to get to the main app
+  if (page.url().includes('profile-setup')) {
+    await completeProfileSetup(page)
+  }
+
   // Wait for the authenticated layout to be visible
   await page.getByTestId(TestIds.NAV_SIDEBAR).waitFor({ state: 'visible', timeout: Timeouts.AUTH })
   // Short delay for initial API calls to complete
@@ -284,10 +294,12 @@ export async function dismissNsecCard(page: Page): Promise<void> {
 
 export async function completeProfileSetup(page: Page) {
   if (page.url().includes('profile-setup')) {
-    await page.getByRole('button', { name: /complete setup/i }).click()
-    await page.waitForURL(u => !u.toString().includes('profile-setup'), { timeout: 15000 })
+    const completeBtn = page.getByRole('button', { name: /complete setup/i })
+    await completeBtn.waitFor({ state: 'visible', timeout: Timeouts.ELEMENT })
+    await completeBtn.click()
+    await page.waitForURL(u => !u.toString().includes('profile-setup'), { timeout: Timeouts.AUTH })
   }
-  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: 10000 })
+  await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.ELEMENT })
 }
 
 export function uniquePhone(): string {

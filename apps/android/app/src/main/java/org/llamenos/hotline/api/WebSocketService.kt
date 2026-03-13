@@ -224,7 +224,7 @@ class WebSocketService @Inject constructor(
                     obj["callId"]?.jsonPrimitive?.content ?: return null
                 )
                 "presence:summary" -> LlamenosEvent.PresenceSummary(
-                    obj["hasAvailable"]?.jsonPrimitive?.boolean ?: false
+                    obj["hasAvailable"]?.jsonPrimitive?.content?.toBoolean() ?: false
                 )
                 "message:new" -> LlamenosEvent.MessageNew(
                     obj["conversationId"]?.jsonPrimitive?.content ?: return null

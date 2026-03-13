@@ -261,15 +261,15 @@ jobs:
         ports:
           - 5432:5432
       minio:
-        image: minio/minio:RELEASE.2025-01-20T14-49-07Z
+        image: bitnami/minio:2025.1.20
         env:
           MINIO_ROOT_USER: testaccess
           MINIO_ROOT_PASSWORD: testsecret123456
         options: >-
-          --health-cmd "mc ready local"
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 9000:9000
 
@@ -439,7 +439,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.docs_only != 'true'
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -452,6 +452,23 @@ jobs:
 
       - name: Install dependencies and run codegen
         run: bun install --frozen-lockfile && bun run codegen
+
+      - name: Install Rust stable (for crypto xcframework)
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # stable
+        with:
+          toolchain: stable
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # v2.7.5
+        with:
+          workspaces: packages/crypto
+
+      - name: Build crypto XCFramework
+        run: |
+          cd packages/crypto
+          ./scripts/build-mobile.sh ios
+          cp -r dist/ios/LlamenosCoreFFI.xcframework ../../apps/ios/
 
       - name: Install xcodegen
         run: brew install xcodegen

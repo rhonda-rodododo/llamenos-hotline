@@ -179,7 +179,7 @@ class CrashReporter @Inject constructor(
      * Returns null if no DSN is configured.
      */
     private fun getSentryDsn(): String? {
-        return keystoreService.getString(KEY_SENTRY_DSN)
+        return keystoreService.retrieve(KEY_SENTRY_DSN)
     }
 
     /**
@@ -187,9 +187,9 @@ class CrashReporter @Inject constructor(
      */
     fun setSentryDsn(dsn: String?) {
         if (dsn.isNullOrBlank()) {
-            keystoreService.remove(KEY_SENTRY_DSN)
+            keystoreService.delete(KEY_SENTRY_DSN)
         } else {
-            keystoreService.putString(KEY_SENTRY_DSN, dsn)
+            keystoreService.store(KEY_SENTRY_DSN, dsn)
         }
     }
 

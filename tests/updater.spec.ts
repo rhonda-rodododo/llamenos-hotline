@@ -1,7 +1,37 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin } from './helpers'
+import { loginAsAdmin, reenterPinAfterReload, Timeouts } from './helpers'
+
+/**
+ * Helper to reload, set mock update, and re-enter PIN to get back to authenticated state.
+ * The __MOCK_UPDATE must be set BEFORE the UpdateChecker's 5s startup delay fires.
+ */
+async function reloadWithMockUpdate(page: import('@playwright/test').Page, mockUpdate: Record<string, unknown>) {
+  // Set mock before reload so it's ready when JS evaluates (won't survive reload though)
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+
+  // Set mock update immediately after reload, before the 5s scheduler delay
+  await page.evaluate((update) => {
+    ;(window as any).__MOCK_UPDATE = update
+  }, mockUpdate)
+
+  // Re-enter PIN to get back to authenticated state
+  await reenterPinAfterReload(page)
+
+  // Wait for sidebar to confirm we're authenticated
+  await page.waitForSelector('[data-testid="nav-sidebar"]', { timeout: Timeouts.AUTH })
+
+  // Re-set mock update after auth (in case auth navigation cleared it)
+  await page.evaluate((update) => {
+    ;(window as any).__MOCK_UPDATE = update
+  }, mockUpdate)
+}
 
 test.describe('Auto-Update (Epic 289)', () => {
+  // Tests in this suite do multiple reload+PIN cycles (loginAsAdmin + reloadWithMockUpdate),
+  // so they need more time than the default 30s test timeout.
+  test.setTimeout(90_000)
+
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
     // Wait for dashboard to load
@@ -16,29 +46,13 @@ test.describe('Auto-Update (Epic 289)', () => {
   })
 
   test('shows update banner when update is available', async ({ page }) => {
-    // Set mock update before the checker fires
-    await page.evaluate(() => {
-      window.__MOCK_UPDATE = {
-        version: '99.0.0',
-        body: 'Important security fixes and performance improvements',
-        date: '2026-03-08T00:00:00Z',
-      }
-    })
+    const mockUpdate = {
+      version: '99.0.0',
+      body: 'Important security fixes and performance improvements',
+      date: '2026-03-08T00:00:00Z',
+    }
 
-    // Trigger an immediate check via the scheduler exposed on the component
-    // Since the startup delay is 5s, manually trigger by dispatching the tray event
-    // or just wait for it — but for test speed, re-navigate
-    await page.reload()
-    await page.waitForSelector('[data-testid="nav-sidebar"]', { timeout: 30000 })
-
-    // Re-set mock after reload
-    await page.evaluate(() => {
-      window.__MOCK_UPDATE = {
-        version: '99.0.0',
-        body: 'Important security fixes and performance improvements',
-        date: '2026-03-08T00:00:00Z',
-      }
-    })
+    await reloadWithMockUpdate(page, mockUpdate)
 
     // Wait for the update banner (checker runs after 5s delay)
     const banner = page.locator('[data-testid="update-banner"]')
@@ -49,20 +63,12 @@ test.describe('Auto-Update (Epic 289)', () => {
   })
 
   test('can dismiss update banner', async ({ page }) => {
-    await page.evaluate(() => {
-      window.__MOCK_UPDATE = {
-        version: '99.0.0',
-        body: 'Test release',
-      }
-    })
-    await page.reload()
-    await page.waitForSelector('[data-testid="nav-sidebar"]', { timeout: 30000 })
-    await page.evaluate(() => {
-      window.__MOCK_UPDATE = {
-        version: '99.0.0',
-        body: 'Test release',
-      }
-    })
+    const mockUpdate = {
+      version: '99.0.0',
+      body: 'Test release',
+    }
+
+    await reloadWithMockUpdate(page, mockUpdate)
 
     const banner = page.locator('[data-testid="update-banner"]')
     await expect(banner).toBeVisible({ timeout: 15000 })
@@ -73,22 +79,13 @@ test.describe('Auto-Update (Epic 289)', () => {
   })
 
   test('shows update dialog with release notes', async ({ page }) => {
-    await page.evaluate(() => {
-      window.__MOCK_UPDATE = {
-        version: '99.0.0',
-        body: 'Detailed release notes for testing the dialog view',
-        date: '2026-03-08T00:00:00Z',
-      }
-    })
-    await page.reload()
-    await page.waitForSelector('[data-testid="nav-sidebar"]', { timeout: 30000 })
-    await page.evaluate(() => {
-      window.__MOCK_UPDATE = {
-        version: '99.0.0',
-        body: 'Detailed release notes for testing the dialog view',
-        date: '2026-03-08T00:00:00Z',
-      }
-    })
+    const mockUpdate = {
+      version: '99.0.0',
+      body: 'Detailed release notes for testing the dialog view',
+      date: '2026-03-08T00:00:00Z',
+    }
+
+    await reloadWithMockUpdate(page, mockUpdate)
 
     const banner = page.locator('[data-testid="update-banner"]')
     await expect(banner).toBeVisible({ timeout: 15000 })
@@ -107,22 +104,13 @@ test.describe('Auto-Update (Epic 289)', () => {
   })
 
   test('download progress shows in banner', async ({ page }) => {
-    await page.evaluate(() => {
-      window.__MOCK_UPDATE = {
-        version: '99.0.0',
-        body: 'Test',
-        downloadSize: 1024 * 1024, // 1MB for faster simulation
-      }
-    })
-    await page.reload()
-    await page.waitForSelector('[data-testid="nav-sidebar"]', { timeout: 30000 })
-    await page.evaluate(() => {
-      window.__MOCK_UPDATE = {
-        version: '99.0.0',
-        body: 'Test',
-        downloadSize: 1024 * 1024,
-      }
-    })
+    const mockUpdate = {
+      version: '99.0.0',
+      body: 'Test',
+      downloadSize: 1024 * 1024, // 1MB for faster simulation
+    }
+
+    await reloadWithMockUpdate(page, mockUpdate)
 
     const banner = page.locator('[data-testid="update-banner"]')
     await expect(banner).toBeVisible({ timeout: 15000 })

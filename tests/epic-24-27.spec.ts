@@ -152,13 +152,16 @@ test.describe('Epic 27: Remaining Polish', () => {
   })
 
   test('toast has dismiss button', async ({ page }) => {
-    // Trigger a toast by saving profile
-    await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
+    // Navigate to Account Settings via sidebar
+    await page.getByTestId('nav-settings').click()
+    await expect(page.getByTestId('page-title')).toBeVisible()
 
-    await page.getByRole('button', { name: /update profile/i }).click()
+    // The profile section is expanded by default — click Update Profile to trigger a toast
+    const updateBtn = page.getByRole('button', { name: /update profile/i })
+    await expect(updateBtn).toBeVisible({ timeout: 5000 })
+    await updateBtn.click()
 
-    // Wait for toast to appear
+    // Wait for toast to appear (role="status" for success/info toasts)
     const toast = page.locator('[role="status"]').first()
     await expect(toast).toBeVisible({ timeout: 5000 })
 

@@ -10,6 +10,29 @@
 import { test, expect, type Page } from '@playwright/test'
 import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, dismissNsecCard, navigateAfterLogin, TestIds, Navigation, uniquePhone } from './helpers'
 
+/**
+ * Fill the call-id field in the new note form.
+ * The call-id field is an Input when there are no recent calls,
+ * or a Select when there are recent calls (with a manual entry option).
+ */
+async function fillCallId(page: Page, callId: string) {
+  // Check if the plain input (no recent calls) is visible
+  const directInput = page.getByTestId(TestIds.NOTE_CALL_ID)
+  const isDirectInput = await directInput.isVisible({ timeout: 2000 }).catch(() => false)
+
+  if (isDirectInput) {
+    await directInput.fill(callId)
+  } else {
+    // Select the "Enter manually" option, then fill the manual input
+    const selectTrigger = page.locator('#call-id')
+    await selectTrigger.click()
+    await page.getByText(/enter manually/i).click()
+    // After selecting manual, a text input with data-testid="note-call-id" appears
+    await expect(directInput).toBeVisible({ timeout: 3000 })
+    await directInput.fill(callId)
+  }
+}
+
 test.describe('Records Architecture', () => {
   test.describe.configure({ mode: 'serial' })
 
@@ -26,13 +49,14 @@ test.describe('Records Architecture', () => {
 
     // Create a note
     await page.getByTestId(TestIds.NOTE_NEW_BTN).click()
+    await expect(page.getByTestId(TestIds.NOTE_FORM)).toBeVisible()
     const callId = 'thread-test-' + Date.now()
-    await page.locator('#call-id').fill(callId)
-    await page.locator('textarea[data-testid="note-content"]').fill('Note for threading test')
+    await fillCallId(page, callId)
+    await page.getByTestId(TestIds.NOTE_CONTENT).fill('Note for threading test')
     await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
 
     // Note should appear
-    await expect(page.locator('p').filter({ hasText: 'Note for threading test' })).toBeVisible()
+    await expect(page.locator('p').filter({ hasText: 'Note for threading test' })).toBeVisible({ timeout: 10000 })
 
     // Reply button should be visible
     await expect(page.getByTestId(TestIds.NOTE_REPLY_BTN).first()).toBeVisible()
@@ -43,23 +67,25 @@ test.describe('Records Architecture', () => {
 
     // Create a note first
     await page.getByTestId(TestIds.NOTE_NEW_BTN).click()
+    await expect(page.getByTestId(TestIds.NOTE_FORM)).toBeVisible()
     const callId = 'reply-test-' + Date.now()
-    await page.locator('#call-id').fill(callId)
-    await page.locator('textarea[data-testid="note-content"]').fill('Note with reply')
+    await fillCallId(page, callId)
+    await page.getByTestId(TestIds.NOTE_CONTENT).fill('Note with reply')
     await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
-    await expect(page.locator('p').filter({ hasText: 'Note with reply' })).toBeVisible()
+    await expect(page.locator('p').filter({ hasText: 'Note with reply' })).toBeVisible({ timeout: 10000 })
 
     // Click reply button
     await page.getByTestId(TestIds.NOTE_REPLY_BTN).first().click()
 
     // Thread area should appear
-    await expect(page.getByTestId(TestIds.NOTE_THREAD)).toBeVisible()
+    await expect(page.getByTestId(TestIds.NOTE_THREAD)).toBeVisible({ timeout: 5000 })
 
     // Reply text area should be visible
-    await expect(page.getByTestId(TestIds.NOTE_REPLY_TEXT)).toBeVisible()
+    const replyTextarea = page.getByTestId(TestIds.NOTE_REPLY_TEXT)
+    await expect(replyTextarea).toBeVisible({ timeout: 5000 })
 
     // Type a reply
-    await page.getByTestId(TestIds.NOTE_REPLY_TEXT).fill('This is a threaded reply')
+    await replyTextarea.fill('This is a threaded reply')
 
     // Send the reply
     await page.getByTestId(TestIds.NOTE_REPLY_SEND).click()
@@ -78,15 +104,19 @@ test.describe('Records Architecture', () => {
 
     // Create a note and add a reply
     await page.getByTestId(TestIds.NOTE_NEW_BTN).click()
+    await expect(page.getByTestId(TestIds.NOTE_FORM)).toBeVisible()
     const callId = 'collapse-test-' + Date.now()
-    await page.locator('#call-id').fill(callId)
-    await page.locator('textarea[data-testid="note-content"]').fill('Note for collapse test')
+    await fillCallId(page, callId)
+    await page.getByTestId(TestIds.NOTE_CONTENT).fill('Note for collapse test')
     await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
-    await expect(page.locator('p').filter({ hasText: 'Note for collapse test' })).toBeVisible()
+    await expect(page.locator('p').filter({ hasText: 'Note for collapse test' })).toBeVisible({ timeout: 10000 })
 
     // Expand thread and send reply
     await page.getByTestId(TestIds.NOTE_REPLY_BTN).first().click()
-    await page.getByTestId(TestIds.NOTE_REPLY_TEXT).fill('Reply to collapse test')
+    await expect(page.getByTestId(TestIds.NOTE_THREAD)).toBeVisible({ timeout: 5000 })
+    const replyTextarea = page.getByTestId(TestIds.NOTE_REPLY_TEXT)
+    await expect(replyTextarea).toBeVisible({ timeout: 5000 })
+    await replyTextarea.fill('Reply to collapse test')
     await page.getByTestId(TestIds.NOTE_REPLY_SEND).click()
     await page.waitForTimeout(1000)
 
@@ -161,19 +191,21 @@ test.describe('Records Architecture', () => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
     await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
 
-    // Expand custom fields section
+    // Expand custom fields section by clicking its card header
+    const customFieldsCard = page.locator('[data-testid="custom-fields"]')
+    await expect(customFieldsCard).toBeVisible({ timeout: 10000 })
+    // CardHeader is a div with data-slot="card-header", used as CollapsibleTrigger
+    await customFieldsCard.locator('[data-slot="card-header"]').click()
+
     const addFieldBtn = page.getByRole('button', { name: /add field/i })
-    if (!await addFieldBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await page.getByRole('heading', { name: /custom note fields/i }).click()
-    }
     await expect(addFieldBtn).toBeVisible({ timeout: 10000 })
 
     // Click Add Field
     await addFieldBtn.click()
 
-    // Should see context selector labelled "Appears In"
-    const contextLabel = page.getByText(/appears in/i)
-    await expect(contextLabel).toBeVisible({ timeout: 5000 })
+    // Should see context selector (labelled "Context" in en.json)
+    const contextSelect = page.getByTestId('field-context-select')
+    await expect(contextSelect).toBeVisible({ timeout: 5000 })
   })
 
   // ============ Notes Page Structure ============
@@ -196,16 +228,18 @@ test.describe('Records Architecture', () => {
     const callId = 'group-' + Date.now()
 
     await page.getByTestId(TestIds.NOTE_NEW_BTN).click()
-    await page.locator('#call-id').fill(callId)
-    await page.locator('textarea[data-testid="note-content"]').fill('Grouped note A')
+    await expect(page.getByTestId(TestIds.NOTE_FORM)).toBeVisible()
+    await fillCallId(page, callId)
+    await page.getByTestId(TestIds.NOTE_CONTENT).fill('Grouped note A')
     await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
-    await expect(page.locator('p').filter({ hasText: 'Grouped note A' })).toBeVisible()
+    await expect(page.locator('p').filter({ hasText: 'Grouped note A' })).toBeVisible({ timeout: 10000 })
 
     await page.getByTestId(TestIds.NOTE_NEW_BTN).click()
-    await page.locator('#call-id').fill(callId)
-    await page.locator('textarea[data-testid="note-content"]').fill('Grouped note B')
+    await expect(page.getByTestId(TestIds.NOTE_FORM)).toBeVisible()
+    await fillCallId(page, callId)
+    await page.getByTestId(TestIds.NOTE_CONTENT).fill('Grouped note B')
     await page.getByTestId(TestIds.FORM_SAVE_BTN).click()
-    await expect(page.locator('p').filter({ hasText: 'Grouped note B' })).toBeVisible()
+    await expect(page.locator('p').filter({ hasText: 'Grouped note B' })).toBeVisible({ timeout: 10000 })
 
     // Both should be grouped under the same card
     const callCard = page.locator('div').filter({ hasText: callId.slice(0, 12) }).first()

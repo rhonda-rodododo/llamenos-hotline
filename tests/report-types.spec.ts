@@ -2,13 +2,13 @@ import { test, expect, type Page } from '@playwright/test'
 import { loginAsAdmin } from './helpers'
 
 async function navigateToAdminSettings(page: Page): Promise<void> {
-  await page.getByRole('link', { name: 'Hub Settings' }).click()
-  await expect(page.getByRole('heading', { name: 'Hub Settings', level: 1 })).toBeVisible({ timeout: 10000 })
+  await page.getByTestId('nav-admin-settings').click()
+  await expect(page.getByTestId('page-title')).toBeVisible({ timeout: 10000 })
 }
 
 async function navigateToReports(page: Page): Promise<void> {
-  await page.getByRole('link', { name: 'Reports' }).click()
-  await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({ timeout: 10000 })
+  await page.getByTestId('nav-reports').click()
+  await expect(page.getByTestId('page-title')).toBeVisible({ timeout: 10000 })
 }
 
 test.describe('Report Types', () => {
@@ -65,30 +65,33 @@ test.describe('Report Types', () => {
     await loginAsAdmin(page)
     await navigateToReports(page)
 
-    // Open the new report form
-    await page.getByRole('button', { name: /new/i }).click()
+    // Open the new report form (Sheet)
+    await page.getByTestId('report-new-btn').click()
 
-    // The report type selector should be visible
-    await expect(page.getByTestId('report-type-select')).toBeVisible({ timeout: 5000 })
+    // Wait for the sheet content to render — the report-type-select only renders
+    // when the getReportTypes API returns results. Default report types are seeded
+    // automatically on first access after a reset.
+    await expect(page.getByTestId('report-title-input')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTestId('report-type-select')).toBeVisible({ timeout: 10000 })
   })
 
   test('creating report with selected type works', async ({ page }) => {
     await loginAsAdmin(page)
     await navigateToReports(page)
 
-    // Open the new report form
-    await page.getByRole('button', { name: /new/i }).click()
+    // Open the new report form (Sheet)
+    await page.getByTestId('report-new-btn').click()
 
     // Verify the type selector is present and has options
     const typeSelect = page.getByTestId('report-type-select')
-    await expect(typeSelect).toBeVisible({ timeout: 5000 })
+    await expect(typeSelect).toBeVisible({ timeout: 10000 })
 
-    // Fill the form
-    await page.getByPlaceholder('Brief description of the report').fill(`Typed Report ${Date.now()}`)
-    await page.getByPlaceholder('Describe the situation in detail...').fill('Report with a selected type')
+    // Fill the form using data-testid selectors
+    await page.getByTestId('report-title-input').fill(`Typed Report ${Date.now()}`)
+    await page.getByTestId('report-body-input').fill('Report with a selected type')
 
     // Submit
-    await page.getByRole('button', { name: /submit report/i }).click()
+    await page.getByTestId('report-submit-btn').click()
 
     // Verify report created
     await expect(page.getByText('Report submitted')).toBeVisible({ timeout: 10000 })

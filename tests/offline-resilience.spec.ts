@@ -1,25 +1,15 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import {
-  createVolunteerAndGetNsec,
-  dismissNsecCard,
+  loginAsAdmin,
   Timeouts,
 } from './helpers'
 
 test.describe('Offline Resilience', () => {
-  let page: Page
-
-  test.beforeEach(async ({ browser }) => {
-    const context = await browser.newContext()
-    page = await context.newPage()
-    await createVolunteerAndGetNsec(page)
-    await dismissNsecCard(page)
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page)
   })
 
-  test.afterEach(async () => {
-    await page.close()
-  })
-
-  test('shows offline banner when network is disconnected', async () => {
+  test('shows offline banner when network is disconnected', async ({ page }) => {
     // Verify banner is NOT visible when online
     await expect(page.getByTestId('offline-banner')).not.toBeVisible()
 
@@ -36,13 +26,12 @@ test.describe('Offline Resilience', () => {
     await expect(page.getByTestId('offline-banner')).not.toBeVisible({ timeout: Timeouts.ELEMENT })
   })
 
-  test('offline queue persists operations in localStorage', async () => {
+  test('offline queue persists operations in localStorage', async ({ page }) => {
     // Go offline
     await page.context().setOffline(true)
 
     // Evaluate: enqueue an operation directly via the offline queue
     const queueLength = await page.evaluate(() => {
-      const { offlineQueue } = (window as Record<string, unknown>).__llamenos_test ?? {}
       // Manually test localStorage-based queue
       const STORAGE_KEY = 'llamenos-offline-queue'
       const queue = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
@@ -74,7 +63,7 @@ test.describe('Offline Resilience', () => {
     await page.context().setOffline(false)
   })
 
-  test('offline queue does not queue GET requests', async () => {
+  test('offline queue does not queue GET requests', async ({ page }) => {
     // Verify the isQueueableMethod function works correctly
     const result = await page.evaluate(() => {
       // Test the method check logic inline since we can't import directly
@@ -100,7 +89,7 @@ test.describe('Offline Resilience', () => {
     expect(result.head).toBe(false)
   })
 
-  test('offline banner shows pending count when operations are queued', async () => {
+  test('offline banner shows pending count when operations are queued', async ({ page }) => {
     // Go offline
     await page.context().setOffline(true)
     await expect(page.getByTestId('offline-banner')).toBeVisible({ timeout: Timeouts.ELEMENT })
@@ -148,7 +137,7 @@ test.describe('Offline Resilience', () => {
     await page.context().setOffline(false)
   })
 
-  test('nostr relay state tracks disconnection for replay', async () => {
+  test('nostr relay state tracks disconnection for replay', async ({ page }) => {
     // This test verifies that the RelayState type includes disconnected
     // and that the relay connection handles reconnection
     const relayStates = await page.evaluate(() => {

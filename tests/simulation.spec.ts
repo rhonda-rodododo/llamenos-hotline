@@ -139,9 +139,11 @@ test.describe('Call Simulation', () => {
     const callList = page.getByTestId(TestIds.CALL_LIST)
     await expect(callList).toBeVisible({ timeout: Timeouts.API })
 
-    // Should have at least 3 call rows
+    // Should have at least 3 call rows (other tests may have created additional calls)
     const callRows = page.getByTestId(TestIds.CALL_ROW)
-    await expect(callRows).toHaveCount(3, { timeout: Timeouts.API })
+    await expect(callRows.first()).toBeVisible({ timeout: Timeouts.API })
+    const count = await callRows.count()
+    expect(count).toBeGreaterThanOrEqual(3)
   })
 })
 

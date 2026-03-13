@@ -139,6 +139,56 @@ reports.post('/',
   },
 )
 
+// Get report categories (from settings) — deprecated, use /types instead
+// NOTE: Must be defined BEFORE /:id to avoid Hono matching "categories" as an id param
+reports.get('/categories',
+  describeRoute({
+    tags: ['Reports'],
+    summary: 'Get report categories (deprecated)',
+    responses: {
+      200: { description: 'Report categories' },
+      ...authErrors,
+    },
+  }),
+  requirePermission('reports:create'),
+  async (c) => {
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const res = await dos.settings.fetch(new Request('http://do/settings/report-categories'))
+    if (!res.ok) {
+      return c.json({ categories: [] })
+    }
+    return new Response(res.body, res)
+  },
+)
+
+// Get report types (authenticated — available to all users who can create reports)
+// NOTE: Must be defined BEFORE /:id to avoid Hono matching "types" as an id param
+reports.get('/types',
+  describeRoute({
+    tags: ['Reports'],
+    summary: 'Get report types',
+    responses: {
+      200: { description: 'Report types' },
+      ...authErrors,
+    },
+  }),
+  async (c) => {
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const res = await dos.settings.fetch(new Request('http://do/settings/report-types'))
+    if (!res.ok) {
+      return c.json({ reportTypes: [] })
+    }
+    const data = await res.json() as { reportTypes: import('@shared/types').ReportType[] }
+    // Filter out archived types for non-admin callers
+    const permissions = c.get('permissions')
+    const isAdmin = checkPermission(permissions, 'settings:manage-fields')
+    if (!isAdmin) {
+      data.reportTypes = data.reportTypes.filter(rt => !rt.isArchived)
+    }
+    return c.json(data)
+  },
+)
+
 // Get a single report
 reports.get('/:id',
   describeRoute({
@@ -386,54 +436,6 @@ reports.patch('/:id',
 
     await audit(dos.records, 'reportUpdated', pubkey, { reportId: id, ...body })
     return new Response(res.body, res)
-  },
-)
-
-// Get report categories (from settings) — deprecated, use /types instead
-reports.get('/categories',
-  describeRoute({
-    tags: ['Reports'],
-    summary: 'Get report categories (deprecated)',
-    responses: {
-      200: { description: 'Report categories' },
-      ...authErrors,
-    },
-  }),
-  requirePermission('reports:create'),
-  async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.settings.fetch(new Request('http://do/settings/report-categories'))
-    if (!res.ok) {
-      return c.json({ categories: [] })
-    }
-    return new Response(res.body, res)
-  },
-)
-
-// Get report types (authenticated — available to all users who can create reports)
-reports.get('/types',
-  describeRoute({
-    tags: ['Reports'],
-    summary: 'Get report types',
-    responses: {
-      200: { description: 'Report types' },
-      ...authErrors,
-    },
-  }),
-  async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.settings.fetch(new Request('http://do/settings/report-types'))
-    if (!res.ok) {
-      return c.json({ reportTypes: [] })
-    }
-    const data = await res.json() as { reportTypes: import('@shared/types').ReportType[] }
-    // Filter out archived types for non-admin callers
-    const permissions = c.get('permissions')
-    const isAdmin = checkPermission(permissions, 'settings:manage-fields')
-    if (!isAdmin) {
-      data.reportTypes = data.reportTypes.filter(rt => !rt.isArchived)
-    }
-    return c.json(data)
   },
 )
 
