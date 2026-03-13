@@ -20,7 +20,7 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref != 'refs/heads/main' }}
 
 env:
   BUN_VERSION: "1.3.5"
@@ -439,10 +439,10 @@ jobs:
 
   # ─── iOS Build & Test ──────────────────────────────────────
   ios-build-test:
-    needs: changes
+    needs: [changes, build]
     if: needs.changes.outputs.docs_only != 'true'
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -516,6 +516,51 @@ jobs:
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
             -derivedDataPath /tmp/llamenos-build
 
+      # ── Docker + backend for API-connected UI tests ──
+      - name: Setup Docker
+        uses: docker/setup-docker-action@b60f85385d03ac8acfca6d9996982511d8620a19 # v4.3.0
+
+      - name: Setup Docker Compose
+        uses: docker/setup-compose-action@28f42ef356a3fdbfdadbabd8452c73c5093c5b28 # v1.0.0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: app-build
+          path: dist/
+
+      - name: Create .env for Docker Compose
+        run: |
+          printf '%s\n' \
+            "ADMIN_PUBKEY=${{ env.TEST_ADMIN_PUBKEY }}" \
+            "DOMAIN=localhost" \
+            "PG_PASSWORD=ci-test-password" \
+            "HMAC_SECRET=$(openssl rand -hex 32)" \
+            "MINIO_ACCESS_KEY=testaccess" \
+            "MINIO_SECRET_KEY=testsecret123456" \
+            "HOTLINE_NAME=Llámenos" \
+            "BRIDGE_SECRET=ci-test-bridge-secret" \
+            "ARI_PASSWORD=ci-test-ari-password" \
+            "SERVER_NOSTR_SECRET=$(openssl rand -hex 32)" \
+            > deploy/docker/.env
+
+      - name: Build and start Docker Compose
+        working-directory: deploy/docker
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --build --wait app
+        timeout-minutes: 10
+
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health; then
+              echo "Backend is ready"
+              break
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 2
+          done
+
       - name: Run UI tests
         working-directory: apps/ios
         run: |
@@ -525,6 +570,11 @@ jobs:
             -only-testing:LlamenosUITests \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
             -derivedDataPath /tmp/llamenos-build
+
+      - name: Tear down Docker Compose
+        if: always()
+        working-directory: deploy/docker
+        run: docker compose -f docker-compose.yml -f docker-compose.test.yml down -v 2>/dev/null || true
 
   # ─── Version Bump & Changelog (main only) ───────────────────
   version:
