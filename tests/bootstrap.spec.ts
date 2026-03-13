@@ -98,12 +98,14 @@ test.describe('In-Browser Admin Bootstrap', () => {
     await pinDigit1.waitFor({ state: 'visible', timeout: 5000 })
     await pinDigit1.click()
     await page.keyboard.type('123456', { delay: 50 })
+    await page.keyboard.press('Enter')
 
     // PIN confirmation
     await expect(page.getByText('Confirm your PIN')).toBeVisible({ timeout: 5000 })
     const confirmDigit1 = page.locator('input[aria-label="PIN digit 1"]')
     await confirmDigit1.click()
     await page.keyboard.type('123456', { delay: 50 })
+    await page.keyboard.press('Enter')
 
     // Step 3: Generating + backup
     await expect(page.getByText('Save Your Recovery Key')).toBeVisible({ timeout: 15000 })
@@ -146,6 +148,7 @@ test.describe('In-Browser Admin Bootstrap', () => {
     await unlockDigit1.waitFor({ state: 'visible', timeout: 5000 })
     await unlockDigit1.click()
     await page.keyboard.type('123456', { delay: 50 })
+    await page.keyboard.press('Enter')
 
     // Should advance back to the wizard after PIN entry
     await expect(page.getByText('Setup Wizard')).toBeVisible({ timeout: 10000 })
