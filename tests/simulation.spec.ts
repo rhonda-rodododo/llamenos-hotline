@@ -165,8 +165,8 @@ test.describe('Message Simulation', () => {
     expect(conversationId).toBeTruthy()
     expect(messageId).toBeTruthy()
 
-    // Navigate to conversations page
-    await Navigation.goToConversations(page)
+    // Navigate to conversations page directly (nav link may not be visible if messaging isn't configured)
+    await navigateAfterLogin(page, '/conversations')
 
     // The conversation list should show the new conversation
     const conversationList = page.getByTestId(TestIds.CONVERSATION_LIST)
@@ -189,8 +189,8 @@ test.describe('Message Simulation', () => {
     expect(conversationId).toBeTruthy()
     expect(messageId).toBeTruthy()
 
-    // Navigate to conversations page
-    await Navigation.goToConversations(page)
+    // Navigate to conversations page directly (nav link may not be visible if messaging isn't configured)
+    await navigateAfterLogin(page, '/conversations')
 
     const conversationList = page.getByTestId(TestIds.CONVERSATION_LIST)
     await expect(conversationList).toBeVisible({ timeout: Timeouts.API })
@@ -218,8 +218,8 @@ test.describe('Message Simulation', () => {
     expect(msg1.conversationId).toBe(msg2.conversationId)
     expect(msg1.messageId).not.toBe(msg2.messageId)
 
-    // Navigate to conversations
-    await Navigation.goToConversations(page)
+    // Navigate to conversations directly (nav link may not be visible if messaging isn't configured)
+    await navigateAfterLogin(page, '/conversations')
 
     const conversationList = page.getByTestId(TestIds.CONVERSATION_LIST)
     await expect(conversationList).toBeVisible({ timeout: Timeouts.API })

@@ -91,8 +91,8 @@ test.describe('Epic 27: Remaining Polish', () => {
     await page.keyboard.press('?')
     await expect(page.getByRole('dialog')).toBeVisible()
     await expect(page.getByText(/keyboard shortcuts/i).first()).toBeVisible()
-    // Should list Ctrl+K shortcut
-    await expect(page.getByText(/Ctrl\+K/)).toBeVisible()
+    // Should list command palette shortcut (⌘+K on Mac, Ctrl+K on other platforms)
+    await expect(page.getByText(/[⌘Ctrl]\+K/)).toBeVisible()
   })
 
   test('keyboard shortcuts dialog closes on Escape', async ({ page }) => {

@@ -26,7 +26,7 @@ async function fillCallId(page: Page, callId: string) {
     // Select the "Enter manually" option, then fill the manual input
     const selectTrigger = page.locator('#call-id')
     await selectTrigger.click()
-    await page.getByText(/enter manually/i).click()
+    await page.getByText(/enter.*manually/i).click()
     // After selecting manual, a text input with data-testid="note-call-id" appears
     await expect(directInput).toBeVisible({ timeout: 3000 })
     await directInput.fill(callId)
@@ -191,11 +191,10 @@ test.describe('Records Architecture', () => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
     await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
 
-    // Expand custom fields section by clicking its card header
-    const customFieldsCard = page.locator('[data-testid="custom-fields"]')
-    await expect(customFieldsCard).toBeVisible({ timeout: 10000 })
-    // CardHeader is a div with data-slot="card-header", used as CollapsibleTrigger
-    await customFieldsCard.locator('[data-slot="card-header"]').click()
+    // Expand custom fields section by clicking its title
+    const customFieldsTitle = page.locator('[data-testid="custom-fields"] h3')
+    await customFieldsTitle.scrollIntoViewIfNeeded()
+    await customFieldsTitle.click()
 
     const addFieldBtn = page.getByRole('button', { name: /add field/i })
     await expect(addFieldBtn).toBeVisible({ timeout: 10000 })

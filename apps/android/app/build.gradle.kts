@@ -147,6 +147,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
 
     androidTestImplementation(libs.espresso)
     androidTestImplementation(platform(libs.compose.bom))
