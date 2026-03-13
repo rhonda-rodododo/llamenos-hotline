@@ -517,9 +517,9 @@ jobs:
       # ── Docker via colima for API-connected UI tests ──
       - name: Setup Docker (colima)
         run: |
-          brew install docker docker-compose
-          mkdir -p ~/.docker/cli-plugins
-          ln -sfn $(brew --prefix docker-compose)/bin/docker-compose ~/.docker/cli-plugins/docker-compose
+          brew install docker docker-compose colima
+          mkdir -p ~/.docker
+          echo '{"cliPluginsExtraDirs":["/opt/homebrew/lib/docker/cli-plugins"]}' > ~/.docker/config.json
           colima start
           docker version
           docker compose version
