@@ -1820,6 +1820,7 @@
     <string name="updates_contact_admin">If you need help, contact your administrator:</string>
     <string name="updates_details">Details</string>
     <string name="updates_dialog_title">Software Update</string>
+    <string name="updates_download">Download</string>
     <string name="updates_downloading">Downloading update…</string>
     <string name="updates_later">Later</string>
     <string name="updates_published_on">Published %s</string>

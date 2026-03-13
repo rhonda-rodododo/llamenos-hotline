@@ -54,7 +54,11 @@ dev.post('/test-reset-no-admin', async (c) => {
   await dos.shifts.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.calls.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' }))
-  // Now delete the admin volunteer that ensureInit() created from ADMIN_PUBKEY
+  // Tell IdentityDO to skip admin re-creation from ADMIN_PUBKEY on next ensureInit().
+  // Without this, the next fetch to IdentityDO calls ensureInit() which re-seeds
+  // the admin from the ADMIN_PUBKEY env var, defeating the "no admin" state.
+  await dos.identity.fetch(new Request('http://do/test-skip-admin-seed', { method: 'POST' }))
+  // Delete the admin volunteer that the reset's ensureInit() already created
   if (c.env.ADMIN_PUBKEY) {
     await dos.identity.fetch(new Request(`http://do/volunteers/${c.env.ADMIN_PUBKEY}`, { method: 'DELETE' }))
   }

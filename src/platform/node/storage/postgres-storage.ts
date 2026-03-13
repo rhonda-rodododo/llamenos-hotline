@@ -45,12 +45,18 @@ export class PostgresStorage implements StorageApi {
 
   async put(key: string, value: unknown): Promise<void> {
     const sql = getPool()
+    // JSON null must be stored as the JSON literal 'null', not SQL NULL,
+    // because the value column is NOT NULL. postgres.js sql.json(null)
+    // produces SQL NULL, so we wrap null in an object to preserve it.
+    const jsonValue = value === null || value === undefined
+      ? sql.json('null' as unknown as JSONValue)
+      : sql.json(value as JSONValue)
     await sql.begin(async (tx: any) => {
       // Advisory lock scoped to transaction — serializes writes per namespace
       await tx`SELECT pg_advisory_xact_lock(hashtext(${this.namespace}))`
       await tx`
         INSERT INTO kv_store (namespace, key, value)
-        VALUES (${this.namespace}, ${key}, ${sql.json(value as JSONValue)})
+        VALUES (${this.namespace}, ${key}, ${jsonValue})
         ON CONFLICT (namespace, key)
         DO UPDATE SET value = EXCLUDED.value
       `

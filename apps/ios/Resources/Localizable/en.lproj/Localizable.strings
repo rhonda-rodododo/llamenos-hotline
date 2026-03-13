@@ -1817,6 +1817,7 @@
 "updates_contact_admin" = "If you need help, contact your administrator:";
 "updates_details" = "Details";
 "updates_dialog_title" = "Software Update";
+"updates_download" = "Download";
 "updates_downloading" = "Downloading update…";
 "updates_later" = "Later";
 "updates_published_on" = "Published %@";

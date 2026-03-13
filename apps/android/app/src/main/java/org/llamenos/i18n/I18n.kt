@@ -1821,6 +1821,7 @@ object I18n {
     const val UPDATES_CONTACT_ADMIN = "updates_contact_admin"  // "If you need help, contact your administrator:"
     const val UPDATES_DETAILS = "updates_details"  // "Details"
     const val UPDATES_DIALOG_TITLE = "updates_dialog_title"  // "Software Update"
+    const val UPDATES_DOWNLOAD = "updates_download"  // "Download"
     const val UPDATES_DOWNLOADING = "updates_downloading"  // "Downloading update…"
     const val UPDATES_LATER = "updates_later"  // "Later"
     const val UPDATES_PUBLISHED_ON = "updates_published_on"  // "Published {{date}}"
