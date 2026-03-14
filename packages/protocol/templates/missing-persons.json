@@ -1,0 +1,264 @@
+{
+  "id": "missing-persons",
+  "version": "1.0.0",
+  "name": "Missing Persons / Disappeared",
+  "description": "Missing persons and disappearance tracking for long-running search operations. Tracks last known location, physical description, detention facility checks, DNA samples, cross-referencing with national databases, and family communication. Designed for organizations tracking disappeared people, especially at borders and during conflict.",
+  "author": "Llamenos Project",
+  "license": "CC-BY-SA-4.0",
+  "tags": ["missing", "disappeared", "search"],
+  "extends": [],
+
+  "labels": {
+    "en": {
+      "missing_person_case.label": "Missing Person Case",
+      "missing_person_case.labelPlural": "Missing Person Cases",
+      "missing_person_case.description": "Track a missing person from initial report through search operations, facility checks, and resolution"
+    },
+    "es": {
+      "missing_person_case.label": "Caso de Persona Desaparecida",
+      "missing_person_case.labelPlural": "Casos de Personas Desaparecidas",
+      "missing_person_case.description": "Seguimiento de una persona desaparecida desde el reporte inicial hasta la resolucion"
+    }
+  },
+
+  "entityTypes": [
+    {
+      "name": "missing_person_case",
+      "label": "missing_person_case.label",
+      "labelPlural": "missing_person_case.labelPlural",
+      "description": "missing_person_case.description",
+      "icon": "search",
+      "color": "#7c3aed",
+      "category": "case",
+      "numberPrefix": "MP",
+      "numberingEnabled": true,
+      "defaultAccessLevel": "assigned",
+      "piiFields": ["physical_description", "travel_route", "namus_id"],
+      "allowSubRecords": false,
+      "allowFileAttachments": true,
+      "allowInteractionLinks": true,
+      "showInNavigation": true,
+      "showInDashboard": true,
+
+      "statuses": [
+        { "value": "reported_missing", "label": "Reported Missing", "color": "#ef4444", "order": 1 },
+        { "value": "active_search", "label": "Active Search", "color": "#f59e0b", "order": 2 },
+        { "value": "located_alive", "label": "Located Alive", "color": "#22c55e", "order": 3, "isClosed": true },
+        { "value": "located_deceased", "label": "Located Deceased", "color": "#000000", "order": 4, "isClosed": true },
+        { "value": "unresolved", "label": "Unresolved (Cold Case)", "color": "#6b7280", "order": 5, "isClosed": true }
+      ],
+      "defaultStatus": "reported_missing",
+      "closedStatuses": ["located_alive", "located_deceased", "unresolved"],
+
+      "severities": [
+        { "value": "critical", "label": "Critical (minor, medical condition, foul play suspected)", "color": "#ef4444", "icon": "alert-triangle", "order": 1 },
+        { "value": "high", "label": "High (recent disappearance)", "color": "#f59e0b", "order": 2 },
+        { "value": "standard", "label": "Standard", "color": "#3b82f6", "order": 3 },
+        { "value": "cold", "label": "Cold Case (extended timeframe)", "color": "#6b7280", "order": 4 }
+      ],
+      "defaultSeverity": "high",
+
+      "contactRoles": [
+        { "value": "missing_person", "label": "Missing Person", "order": 1 },
+        { "value": "family_member", "label": "Family Member", "order": 2 },
+        { "value": "last_contact", "label": "Last Known Contact", "order": 3 },
+        { "value": "search_volunteer", "label": "Search Volunteer", "order": 4 },
+        { "value": "consulate_contact", "label": "Consulate Contact", "order": 5 },
+        { "value": "attorney", "label": "Attorney", "order": 6 }
+      ],
+
+      "fields": [
+        {
+          "name": "last_known_location",
+          "label": "Last Known Location",
+          "type": "text",
+          "required": true,
+          "section": "disappearance",
+          "helpText": "Last confirmed location of the missing person.",
+          "order": 1,
+          "indexable": false,
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "last_contact_date",
+          "label": "Last Contact Date",
+          "type": "date",
+          "required": true,
+          "section": "disappearance",
+          "helpText": "Date of last confirmed contact with the missing person.",
+          "order": 2,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "physical_description",
+          "label": "Physical Description",
+          "type": "textarea",
+          "required": true,
+          "section": "identification",
+          "helpText": "Height, weight, build, hair, eye color, distinguishing marks, clothing last worn.",
+          "order": 3,
+          "indexable": false,
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "travel_route",
+          "label": "Travel Route",
+          "type": "textarea",
+          "required": false,
+          "section": "disappearance",
+          "helpText": "Planned or known travel route, especially for border crossings.",
+          "order": 4,
+          "indexable": false,
+          "accessLevel": "admin"
+        },
+        {
+          "name": "detention_check",
+          "label": "Detention Facility Check",
+          "type": "select",
+          "required": false,
+          "options": [
+            { "key": "not_checked", "label": "Not Checked" },
+            { "key": "checked_not_found", "label": "Checked - Not Found" },
+            { "key": "checked_found", "label": "Checked - Found" },
+            { "key": "na", "label": "Not Applicable" }
+          ],
+          "section": "search",
+          "order": 5,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "facilities_checked",
+          "label": "Facilities Checked",
+          "type": "textarea",
+          "required": false,
+          "section": "search",
+          "helpText": "List of detention facilities, jails, hospitals, and morgues checked. Include date checked.",
+          "order": 6,
+          "indexable": false,
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "dna_sample",
+          "label": "DNA Sample Available",
+          "type": "checkbox",
+          "required": false,
+          "section": "identification",
+          "helpText": "Whether a reference DNA sample has been provided by family.",
+          "order": 7,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "namus_id",
+          "label": "NamUs ID",
+          "type": "text",
+          "required": false,
+          "section": "databases",
+          "helpText": "National Missing and Unidentified Persons System case number.",
+          "order": 8,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "red_cross_referral",
+          "label": "Red Cross Referral",
+          "type": "checkbox",
+          "required": false,
+          "section": "referrals",
+          "helpText": "Whether a Restoring Family Links request has been submitted to the Red Cross.",
+          "order": 9,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "media_authorized",
+          "label": "Media Release Authorized",
+          "type": "checkbox",
+          "required": false,
+          "section": "media",
+          "helpText": "Whether the family has authorized public media releases about the missing person.",
+          "order": 10,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "family_contact_frequency",
+          "label": "Family Contact Frequency",
+          "type": "select",
+          "required": false,
+          "options": [
+            { "key": "daily", "label": "Daily" },
+            { "key": "weekly", "label": "Weekly" },
+            { "key": "biweekly", "label": "Every Two Weeks" },
+            { "key": "monthly", "label": "Monthly" },
+            { "key": "as_needed", "label": "As Needed" }
+          ],
+          "section": "communication",
+          "helpText": "How frequently the organization should update the family.",
+          "order": 11,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned"
+        }
+      ]
+    }
+  ],
+
+  "relationshipTypes": [
+    {
+      "sourceEntityTypeName": "contact",
+      "targetEntityTypeName": "missing_person_case",
+      "cardinality": "M:N",
+      "label": "Missing Person Cases",
+      "reverseLabel": "Contacts",
+      "sourceLabel": "has case",
+      "targetLabel": "involves",
+      "roles": [
+        { "value": "missing_person", "label": "Missing Person", "order": 1 },
+        { "value": "family_member", "label": "Family Member", "order": 2 },
+        { "value": "last_contact", "label": "Last Known Contact", "order": 3 },
+        { "value": "search_volunteer", "label": "Search Volunteer", "order": 4 },
+        { "value": "consulate_contact", "label": "Consulate Contact", "order": 5 },
+        { "value": "attorney", "label": "Attorney", "order": 6 }
+      ],
+      "defaultRole": "missing_person",
+      "cascadeDelete": false,
+      "required": true
+    }
+  ],
+
+  "suggestedRoles": [
+    {
+      "name": "Search Coordinator",
+      "slug": "search-coordinator",
+      "description": "Manages all missing person cases, coordinates search operations, contacts facilities",
+      "permissions": ["cases:*", "contacts:*", "events:*", "evidence:*", "calls:*", "notes:*", "conversations:*", "reports:*", "shifts:read", "volunteers:read"]
+    },
+    {
+      "name": "Case Worker",
+      "slug": "case-worker",
+      "description": "Manages individual cases, checks facilities, updates family, coordinates with agencies",
+      "permissions": ["cases:read-all", "cases:update", "cases:assign", "contacts:view", "contacts:view-pii", "contacts:edit", "notes:create", "notes:read-all", "events:read"]
+    },
+    {
+      "name": "Intake Volunteer",
+      "slug": "intake-volunteer",
+      "description": "Takes initial missing person reports, creates case records, collects descriptions",
+      "permissions": ["cases:create", "cases:read-own", "cases:update-own", "contacts:create", "contacts:view", "calls:answer", "calls:read-active", "notes:create", "notes:read-own", "shifts:read-own"]
+    },
+    {
+      "name": "Family Liaison",
+      "slug": "family-liaison",
+      "description": "Primary point of contact for families, provides regular updates, coordinates support services",
+      "permissions": ["cases:read-all", "contacts:view", "contacts:view-pii", "contacts:edit", "notes:create", "notes:read-all", "conversations:*"]
+    }
+  ]
+}

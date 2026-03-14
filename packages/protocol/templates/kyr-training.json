@@ -1,0 +1,172 @@
+{
+  "id": "kyr-training",
+  "version": "1.0.0",
+  "name": "Know Your Rights / Community Education",
+  "description": "Community education and Know Your Rights training event tracking. Tracks training sessions, attendance, languages, materials distributed, and follow-up requests. Primarily event-tracking rather than case management — events may link to later hotline cases.",
+  "author": "Llamenos Project",
+  "license": "CC-BY-SA-4.0",
+  "tags": ["kyr", "training", "education"],
+  "extends": [],
+
+  "labels": {
+    "en": {
+      "community_training.label": "Community Training",
+      "community_training.labelPlural": "Community Trainings",
+      "community_training.description": "Track a Know Your Rights training or community education event, including attendance, languages, and follow-up"
+    },
+    "es": {
+      "community_training.label": "Capacitacion Comunitaria",
+      "community_training.labelPlural": "Capacitaciones Comunitarias",
+      "community_training.description": "Seguimiento de una capacitacion de Conozca Sus Derechos o evento de educacion comunitaria"
+    }
+  },
+
+  "entityTypes": [
+    {
+      "name": "community_training",
+      "label": "community_training.label",
+      "labelPlural": "community_training.labelPlural",
+      "description": "community_training.description",
+      "icon": "graduation-cap",
+      "color": "#0891b2",
+      "category": "event",
+      "numberPrefix": "KYR",
+      "numberingEnabled": true,
+      "defaultAccessLevel": "hub",
+      "piiFields": [],
+      "allowSubRecords": false,
+      "allowFileAttachments": true,
+      "allowInteractionLinks": true,
+      "showInNavigation": true,
+      "showInDashboard": true,
+
+      "statuses": [
+        { "value": "scheduled", "label": "Scheduled", "color": "#3b82f6", "order": 1 },
+        { "value": "confirmed", "label": "Confirmed", "color": "#8b5cf6", "order": 2 },
+        { "value": "completed", "label": "Completed", "color": "#22c55e", "order": 3 },
+        { "value": "cancelled", "label": "Cancelled", "color": "#ef4444", "order": 4, "isClosed": true },
+        { "value": "follow_up_pending", "label": "Follow-Up Pending", "color": "#f59e0b", "order": 5 },
+        { "value": "closed", "label": "Closed", "color": "#6b7280", "order": 6, "isClosed": true }
+      ],
+      "defaultStatus": "scheduled",
+      "closedStatuses": ["cancelled", "closed"],
+
+      "fields": [
+        {
+          "name": "event_type",
+          "label": "Event Type",
+          "type": "select",
+          "required": true,
+          "options": [
+            { "key": "kyr_immigration", "label": "Know Your Rights — Immigration" },
+            { "key": "kyr_police", "label": "Know Your Rights — Police Encounters" },
+            { "key": "kyr_tenant", "label": "Know Your Rights — Tenant Rights" },
+            { "key": "kyr_workplace", "label": "Know Your Rights — Workplace" },
+            { "key": "kyr_protest", "label": "Know Your Rights — Protest / First Amendment" },
+            { "key": "community_health", "label": "Community Health Education" },
+            { "key": "legal_clinic", "label": "Legal Clinic" },
+            { "key": "train_the_trainer", "label": "Train the Trainer" },
+            { "key": "other", "label": "Other" }
+          ],
+          "section": "event",
+          "order": 1,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "all"
+        },
+        {
+          "name": "training_date",
+          "label": "Training Date",
+          "type": "date",
+          "required": true,
+          "section": "event",
+          "order": 2,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "all"
+        },
+        {
+          "name": "attendance_count",
+          "label": "Attendance Count",
+          "type": "number",
+          "required": false,
+          "section": "metrics",
+          "helpText": "Number of community members who attended.",
+          "order": 3,
+          "indexable": false,
+          "accessLevel": "all"
+        },
+        {
+          "name": "languages_available",
+          "label": "Languages Available",
+          "type": "multiselect",
+          "required": false,
+          "options": [
+            { "key": "en", "label": "English" },
+            { "key": "es", "label": "Spanish" },
+            { "key": "zh", "label": "Chinese (Mandarin/Cantonese)" },
+            { "key": "tl", "label": "Tagalog" },
+            { "key": "vi", "label": "Vietnamese" },
+            { "key": "ar", "label": "Arabic" },
+            { "key": "fr", "label": "French / Haitian Creole" },
+            { "key": "ko", "label": "Korean" },
+            { "key": "ru", "label": "Russian" },
+            { "key": "hi", "label": "Hindi" },
+            { "key": "pt", "label": "Portuguese" },
+            { "key": "other", "label": "Other" }
+          ],
+          "section": "logistics",
+          "helpText": "Languages in which the training was conducted or materials were available.",
+          "order": 4,
+          "indexable": false,
+          "accessLevel": "all"
+        },
+        {
+          "name": "materials_distributed",
+          "label": "Materials Distributed",
+          "type": "number",
+          "required": false,
+          "section": "metrics",
+          "helpText": "Number of KYR cards, pamphlets, or other materials distributed.",
+          "order": 5,
+          "indexable": false,
+          "accessLevel": "all"
+        },
+        {
+          "name": "follow_up_requests",
+          "label": "Follow-Up Requests",
+          "type": "number",
+          "required": false,
+          "section": "metrics",
+          "helpText": "Number of attendees who requested follow-up legal consultation or assistance.",
+          "order": 6,
+          "indexable": false,
+          "accessLevel": "all"
+        }
+      ]
+    }
+  ],
+
+  "relationshipTypes": [],
+
+  "suggestedRoles": [
+    {
+      "name": "Training Coordinator",
+      "slug": "training-coordinator",
+      "description": "Schedules trainings, manages trainers, tracks outreach metrics",
+      "permissions": ["events:*", "contacts:*", "notes:*", "reports:*", "shifts:read", "volunteers:read"]
+    },
+    {
+      "name": "Trainer",
+      "slug": "trainer",
+      "description": "Conducts KYR trainings, reports attendance and materials distributed",
+      "permissions": ["events:read", "events:update", "contacts:create", "contacts:view", "notes:create", "notes:read-own", "shifts:read-own"]
+    },
+    {
+      "name": "Program Director",
+      "slug": "program-director",
+      "description": "Oversees all training programs, generates reports for funders, full access",
+      "permissions": ["events:*", "contacts:*", "notes:*", "reports:*", "shifts:read", "volunteers:read"]
+    }
+  ]
+}

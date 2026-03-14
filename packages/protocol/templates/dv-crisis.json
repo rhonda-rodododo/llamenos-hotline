@@ -1,0 +1,272 @@
+{
+  "id": "dv-crisis",
+  "version": "1.0.0",
+  "name": "DV/IPV Crisis Hotline",
+  "description": "Domestic violence and intimate partner violence crisis hotline. Tracks lethality assessments, safety planning, shelter placement, protection orders, and ongoing survivor support. Requires heightened PII protections — perpetrator info is admin-only, address confidentiality enforced.",
+  "author": "Llamenos Project",
+  "license": "CC-BY-SA-4.0",
+  "tags": ["dv", "ipv", "crisis", "shelter"],
+  "extends": [],
+
+  "labels": {
+    "en": {
+      "safety_plan_case.label": "Safety Plan Case",
+      "safety_plan_case.labelPlural": "Safety Plan Cases",
+      "safety_plan_case.description": "Track a survivor through crisis intake, safety planning, shelter placement, and ongoing support"
+    },
+    "es": {
+      "safety_plan_case.label": "Caso de Plan de Seguridad",
+      "safety_plan_case.labelPlural": "Casos de Plan de Seguridad",
+      "safety_plan_case.description": "Seguimiento de una persona sobreviviente a traves de la planificacion de seguridad y apoyo continuo"
+    }
+  },
+
+  "entityTypes": [
+    {
+      "name": "safety_plan_case",
+      "label": "safety_plan_case.label",
+      "labelPlural": "safety_plan_case.labelPlural",
+      "description": "safety_plan_case.description",
+      "icon": "heart-handshake",
+      "color": "#a855f7",
+      "category": "case",
+      "numberPrefix": "DV",
+      "numberingEnabled": true,
+      "defaultAccessLevel": "assigned",
+      "piiFields": [
+        "lethality_score",
+        "risk_level",
+        "shelter_needed",
+        "shelter_placed",
+        "children_count",
+        "protection_order_status",
+        "weapons_present",
+        "strangulation_history",
+        "safety_plan_completed",
+        "substance_abuse_factor"
+      ],
+      "allowSubRecords": false,
+      "allowFileAttachments": true,
+      "allowInteractionLinks": true,
+      "showInNavigation": true,
+      "showInDashboard": true,
+
+      "statuses": [
+        { "value": "intake", "label": "Intake", "color": "#f59e0b", "order": 1 },
+        { "value": "active_crisis", "label": "Active Crisis", "color": "#ef4444", "order": 2 },
+        { "value": "safety_planned", "label": "Safety Planned", "color": "#3b82f6", "order": 3 },
+        { "value": "sheltered", "label": "Sheltered", "color": "#8b5cf6", "order": 4 },
+        { "value": "community_plan", "label": "Community Safety Plan", "color": "#0ea5e9", "order": 5 },
+        { "value": "follow_up", "label": "Follow-Up", "color": "#22c55e", "order": 6 },
+        { "value": "closed", "label": "Closed", "color": "#6b7280", "order": 7, "isClosed": true }
+      ],
+      "defaultStatus": "intake",
+      "closedStatuses": ["closed"],
+
+      "severities": [
+        { "value": "extreme", "label": "Extreme (high lethality, weapons, strangulation)", "color": "#dc2626", "icon": "alert-triangle", "order": 1 },
+        { "value": "high", "label": "High Risk", "color": "#ef4444", "icon": "alert-triangle", "order": 2 },
+        { "value": "medium", "label": "Medium Risk", "color": "#f59e0b", "order": 3 },
+        { "value": "low", "label": "Low Risk", "color": "#22c55e", "order": 4 }
+      ],
+      "defaultSeverity": "medium",
+
+      "contactRoles": [
+        { "value": "survivor", "label": "Survivor", "order": 1 },
+        { "value": "child_dependent", "label": "Child/Dependent", "order": 2 },
+        { "value": "advocate", "label": "Advocate", "order": 3 },
+        { "value": "legal_advocate", "label": "Legal Advocate", "order": 4 },
+        { "value": "shelter_contact", "label": "Shelter Contact", "order": 5 },
+        { "value": "emergency_contact", "label": "Emergency Contact", "order": 6 }
+      ],
+
+      "fields": [
+        {
+          "name": "lethality_score",
+          "label": "Lethality Assessment Score",
+          "type": "number",
+          "required": true,
+          "section": "assessment",
+          "helpText": "Score from validated lethality assessment instrument (0-20).",
+          "order": 1,
+          "indexable": false,
+          "accessLevel": "admin"
+        },
+        {
+          "name": "risk_level",
+          "label": "Risk Level",
+          "type": "select",
+          "required": true,
+          "options": [
+            { "key": "low", "label": "Low" },
+            { "key": "medium", "label": "Medium" },
+            { "key": "high", "label": "High" },
+            { "key": "extreme", "label": "Extreme" }
+          ],
+          "section": "assessment",
+          "order": 2,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "shelter_needed",
+          "label": "Shelter Needed",
+          "type": "checkbox",
+          "required": true,
+          "section": "shelter",
+          "order": 3,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "shelter_placed",
+          "label": "Shelter Placed",
+          "type": "checkbox",
+          "required": false,
+          "section": "shelter",
+          "helpText": "Whether the survivor has been placed in a shelter.",
+          "order": 4,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned",
+          "showWhen": { "field": "shelter_needed", "operator": "equals", "value": true }
+        },
+        {
+          "name": "children_count",
+          "label": "Number of Children",
+          "type": "number",
+          "required": false,
+          "section": "family",
+          "helpText": "Number of children who also need services.",
+          "order": 5,
+          "indexable": false,
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "protection_order_status",
+          "label": "Protection Order Status",
+          "type": "select",
+          "required": false,
+          "options": [
+            { "key": "none", "label": "None" },
+            { "key": "filed", "label": "Filed" },
+            { "key": "granted", "label": "Granted" },
+            { "key": "expired", "label": "Expired" },
+            { "key": "violated", "label": "Violated" }
+          ],
+          "section": "legal",
+          "order": 6,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "weapons_present",
+          "label": "Weapons Present in Home",
+          "type": "checkbox",
+          "required": true,
+          "section": "assessment",
+          "helpText": "Key lethality factor. Does the abuser have access to weapons?",
+          "order": 7,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "admin"
+        },
+        {
+          "name": "strangulation_history",
+          "label": "History of Strangulation",
+          "type": "checkbox",
+          "required": false,
+          "section": "assessment",
+          "helpText": "Key lethality indicator. Strangulation is the strongest predictor of future homicide in DV cases.",
+          "order": 8,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "admin"
+        },
+        {
+          "name": "safety_plan_completed",
+          "label": "Safety Plan Completed",
+          "type": "checkbox",
+          "required": true,
+          "section": "planning",
+          "helpText": "Whether a personalized safety plan has been developed with the survivor.",
+          "order": 9,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "substance_abuse_factor",
+          "label": "Substance Abuse Factor",
+          "type": "checkbox",
+          "required": false,
+          "section": "assessment",
+          "helpText": "Whether substance abuse by either party is a factor in the situation.",
+          "order": 10,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "admin"
+        }
+      ]
+    }
+  ],
+
+  "relationshipTypes": [
+    {
+      "sourceEntityTypeName": "contact",
+      "targetEntityTypeName": "safety_plan_case",
+      "cardinality": "M:N",
+      "label": "Safety Plan Cases",
+      "reverseLabel": "Contacts",
+      "sourceLabel": "has case",
+      "targetLabel": "involves",
+      "roles": [
+        { "value": "survivor", "label": "Survivor", "order": 1 },
+        { "value": "child_dependent", "label": "Child/Dependent", "order": 2 },
+        { "value": "advocate", "label": "Advocate", "order": 3 },
+        { "value": "legal_advocate", "label": "Legal Advocate", "order": 4 },
+        { "value": "shelter_contact", "label": "Shelter Contact", "order": 5 },
+        { "value": "emergency_contact", "label": "Emergency Contact", "order": 6 }
+      ],
+      "defaultRole": "survivor",
+      "cascadeDelete": false,
+      "required": true
+    }
+  ],
+
+  "suggestedRoles": [
+    {
+      "name": "Crisis Advocate",
+      "slug": "crisis-advocate",
+      "description": "Answers crisis calls, conducts lethality assessments, develops safety plans",
+      "permissions": ["cases:create", "cases:read-own", "cases:update-own", "contacts:create", "contacts:view", "calls:answer", "calls:read-active", "notes:create", "notes:read-own", "shifts:read-own"]
+    },
+    {
+      "name": "Shelter Coordinator",
+      "slug": "shelter-coordinator",
+      "description": "Manages shelter placements, coordinates emergency housing",
+      "permissions": ["cases:read-all", "cases:update", "contacts:view", "contacts:view-pii", "contacts:edit", "notes:create", "notes:read-all"]
+    },
+    {
+      "name": "Legal Advocate",
+      "slug": "legal-advocate",
+      "description": "Assists with protection orders, court accompaniment, legal referrals",
+      "permissions": ["cases:read-all", "cases:update", "contacts:view", "contacts:view-pii", "contacts:edit", "notes:create", "notes:read-all"]
+    },
+    {
+      "name": "Case Manager",
+      "slug": "case-manager",
+      "description": "Long-term safety planning, follow-up, and ongoing survivor support",
+      "permissions": ["cases:read-all", "cases:update", "cases:assign", "cases:close", "contacts:view", "contacts:view-pii", "contacts:edit", "notes:create", "notes:read-all", "reports:*"]
+    },
+    {
+      "name": "Supervisor",
+      "slug": "supervisor",
+      "description": "Reviews high-lethality cases, oversees all advocates and case managers",
+      "permissions": ["cases:*", "contacts:*", "events:*", "evidence:*", "calls:*", "notes:*", "conversations:*", "reports:*", "shifts:read", "volunteers:read"]
+    }
+  ]
+}

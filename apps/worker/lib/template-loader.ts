@@ -19,6 +19,16 @@ export async function loadBundledTemplates(): Promise<CaseManagementTemplate[]> 
     'general-hotline',
     'jail-support',
     'street-medic',
+    'ice-rapid-response',
+    'bail-fund',
+    'dv-crisis',
+    'anti-trafficking',
+    'hate-crime-reporting',
+    'copwatch',
+    'tenant-organizing',
+    'mutual-aid',
+    'missing-persons',
+    'kyr-training',
   ]
 
   const templates: CaseManagementTemplate[] = []
