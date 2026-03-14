@@ -28,6 +28,15 @@ export const KIND_MESSAGE_NEW = 1010
 /** Conversation assignment changed */
 export const KIND_CONVERSATION_ASSIGNED = 1011
 
+/** New case record created */
+export const KIND_RECORD_CREATED = 1020
+
+/** Case record updated */
+export const KIND_RECORD_UPDATED = 1021
+
+/** Case record assignment changed */
+export const KIND_RECORD_ASSIGNED = 1022
+
 // --- Ephemeral Events (not persisted, broadcast only) ---
 
 /** Volunteer presence update — online counts, availability */

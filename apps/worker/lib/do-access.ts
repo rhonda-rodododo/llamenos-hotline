@@ -21,6 +21,7 @@ const CALL_ID = 'global-calls'
 const CONVERSATION_ID = 'global-conversations'
 const BLAST_ID = 'global-blasts'
 const CONTACT_DIRECTORY_ID = 'global-contacts'
+const CASE_MANAGER_ID = 'global-cases'
 
 export interface DurableObjects {
   identity: DOStub
@@ -31,6 +32,7 @@ export interface DurableObjects {
   conversations: DOStub
   blasts: DOStub
   contactDirectory: DOStub
+  caseManager: DOStub
 }
 
 export function getDOs(env: Env): DurableObjects {
@@ -43,6 +45,7 @@ export function getDOs(env: Env): DurableObjects {
     conversations: env.CONVERSATION_DO.get(env.CONVERSATION_DO.idFromName(CONVERSATION_ID)),
     blasts: env.BLAST_DO.get(env.BLAST_DO.idFromName(BLAST_ID)),
     contactDirectory: env.CONTACT_DIRECTORY.get(env.CONTACT_DIRECTORY.idFromName(CONTACT_DIRECTORY_ID)),
+    caseManager: env.CASE_MANAGER.get(env.CASE_MANAGER.idFromName(CASE_MANAGER_ID)),
   }
 }
 
@@ -53,6 +56,7 @@ export interface HubDurableObjects {
   conversations: DOStub
   blasts: DOStub
   contactDirectory: DOStub
+  caseManager: DOStub
 }
 
 /**
@@ -77,6 +81,7 @@ export function getHubDOs(env: Env, hubId: string): HubDurableObjects {
     conversations: env.CONVERSATION_DO.get(env.CONVERSATION_DO.idFromName(hubId)),
     blasts: env.BLAST_DO.get(env.BLAST_DO.idFromName(hubId)),
     contactDirectory: env.CONTACT_DIRECTORY.get(env.CONTACT_DIRECTORY.idFromName(hubId)),
+    caseManager: env.CASE_MANAGER.get(env.CASE_MANAGER.idFromName(hubId)),
   }
 }
 

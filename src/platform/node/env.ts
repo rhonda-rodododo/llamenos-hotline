@@ -48,6 +48,7 @@ export async function createNodeEnv(): Promise<Record<string, unknown>> {
   const { ConversationDO } = await import('../../../apps/worker/durable-objects/conversation-do')
   const { BlastDO } = await import('../../../apps/worker/durable-objects/blast-do')
   const { ContactDirectoryDO } = await import('../../../apps/worker/durable-objects/contact-directory-do')
+  const { CaseDO } = await import('../../../apps/worker/durable-objects/case-do')
 
   // Read secrets
   const adminPubkey = readSecret('admin-pubkey', 'ADMIN_PUBKEY')
@@ -95,6 +96,7 @@ export async function createNodeEnv(): Promise<Record<string, unknown>> {
   env.CONVERSATION_DO = createDONamespace(ConversationDO as any, 'conversations', env)
   env.BLAST_DO = createDONamespace(BlastDO as any, 'blasts', env)
   env.CONTACT_DIRECTORY = createDONamespace(ContactDirectoryDO as any, 'contacts', env)
+  env.CASE_MANAGER = createDONamespace(CaseDO as any, 'cases', env)
 
   // Run migrations for all existing namespaces before accepting traffic
   await runStartupMigrations()

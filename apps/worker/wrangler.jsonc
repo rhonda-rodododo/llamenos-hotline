@@ -47,6 +47,10 @@
       {
         "name": "CONTACT_DIRECTORY",
         "class_name": "ContactDirectoryDO"
+      },
+      {
+        "name": "CASE_MANAGER",
+        "class_name": "CaseDO"
       }
     ]
   },
@@ -73,6 +77,10 @@
     {
       "tag": "v5",
       "new_classes": ["ContactDirectoryDO"]
+    },
+    {
+      "tag": "v6",
+      "new_classes": ["CaseDO"]
     }
   ],
 
@@ -131,7 +139,8 @@
           { "name": "RECORDS_DO", "class_name": "RecordsDO" },
           { "name": "CONVERSATION_DO", "class_name": "ConversationDO" },
           { "name": "BLAST_DO", "class_name": "BlastDO" },
-          { "name": "CONTACT_DIRECTORY", "class_name": "ContactDirectoryDO" }
+          { "name": "CONTACT_DIRECTORY", "class_name": "ContactDirectoryDO" },
+          { "name": "CASE_MANAGER", "class_name": "CaseDO" }
         ]
       },
       "r2_buckets": [

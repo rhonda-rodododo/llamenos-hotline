@@ -31,6 +31,7 @@ export interface Env {
   CONVERSATION_DO: DONamespace
   BLAST_DO: DONamespace
   CONTACT_DIRECTORY: DONamespace
+  CASE_MANAGER: DONamespace
 
   // Transcription (CF: Ai binding, Node: Whisper HTTP client)
   AI: TranscriptionService

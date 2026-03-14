@@ -29,6 +29,7 @@ import blastsRoutes from './routes/blasts'
 import devicesRoutes from './routes/devices'
 import contactsRoutes from './routes/contacts'
 import contactsV2Routes from './routes/contacts-v2'
+import recordsRoutes from './routes/records'
 import healthRoutes from './routes/health'
 import metricsRoutes from './routes/metrics'
 import systemRoutes from './routes/system'
@@ -136,6 +137,7 @@ authenticated.route('/blasts', blastsRoutes)
 authenticated.route('/devices', devicesRoutes)
 authenticated.route('/contacts', contactsRoutes)
 authenticated.route('/directory', contactsV2Routes)
+authenticated.route('/records', recordsRoutes)
 authenticated.route('/system', systemRoutes)
 
 // Hub-scoped authenticated routes
@@ -151,6 +153,7 @@ hubScoped.route('/reports', reportsRoutes)
 hubScoped.route('/blasts', blastsRoutes)
 hubScoped.route('/contacts', contactsRoutes)
 hubScoped.route('/directory', contactsV2Routes)
+hubScoped.route('/records', recordsRoutes)
 
 authenticated.route('/hubs/:hubId', hubScoped)
 
