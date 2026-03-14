@@ -553,8 +553,9 @@ Design doc: [`docs/plans/2026-03-08-production-readiness-design.md`](plans/2026-
 - [x] **Follow-up fixes**: Add requirePermission to GET /conversations/stats and GET /reports/categories, Zod validator for POST /calls/:callId/ban
 
 ## Test Infrastructure (Epics 312-313)
-- [ ] **[Epic 312: Permission Matrix BDD Flakiness](epics/epic-312-permission-matrix-bdd-flakiness.md)** — Intermittent failures under concurrent load, passes in isolation
-- [ ] **[Epic 313: Worker Integration Test Fixtures](epics/epic-313-worker-integration-test-fixtures.md)** — 5 tests use stale placeholder data that fails new validation (56/61 pass)
+- [x] **[Epic 312: Permission Matrix BDD Flakiness](epics/epic-312-permission-matrix-bdd-flakiness.md)** — Was caused by concurrent test suites; backend BDD passes 432/432 when run in isolation
+- [x] **[Epic 313: Worker Integration Test Fixtures](epics/epic-313-worker-integration-test-fixtures.md)** — Fixed 5 stale fixtures: pubkey validation, rate limit key, fallback body key, ECIES pubkey, conversation reopen behavior. 61/61 pass
+- [ ] **Epic 314: Desktop BDD step/UI alignment** — 102 desktop BDD scenarios fail due to UI changes since step definitions were written. Steps reference elements/flows that have been redesigned. Needs step definition updates to match current UI.
 
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
