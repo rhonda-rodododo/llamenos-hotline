@@ -43,6 +43,10 @@
       {
         "name": "BLAST_DO",
         "class_name": "BlastDO"
+      },
+      {
+        "name": "CONTACT_DIRECTORY",
+        "class_name": "ContactDirectoryDO"
       }
     ]
   },
@@ -65,6 +69,10 @@
     {
       "tag": "v4",
       "new_classes": ["BlastDO"]
+    },
+    {
+      "tag": "v5",
+      "new_classes": ["ContactDirectoryDO"]
     }
   ],
 
@@ -122,7 +130,8 @@
           { "name": "SETTINGS_DO", "class_name": "SettingsDO" },
           { "name": "RECORDS_DO", "class_name": "RecordsDO" },
           { "name": "CONVERSATION_DO", "class_name": "ConversationDO" },
-          { "name": "BLAST_DO", "class_name": "BlastDO" }
+          { "name": "BLAST_DO", "class_name": "BlastDO" },
+          { "name": "CONTACT_DIRECTORY", "class_name": "ContactDirectoryDO" }
         ]
       },
       "r2_buckets": [

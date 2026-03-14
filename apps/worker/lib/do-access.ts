@@ -20,6 +20,7 @@ const SHIFT_ID = 'global-shifts'
 const CALL_ID = 'global-calls'
 const CONVERSATION_ID = 'global-conversations'
 const BLAST_ID = 'global-blasts'
+const CONTACT_DIRECTORY_ID = 'global-contacts'
 
 export interface DurableObjects {
   identity: DOStub
@@ -29,6 +30,7 @@ export interface DurableObjects {
   calls: DOStub
   conversations: DOStub
   blasts: DOStub
+  contactDirectory: DOStub
 }
 
 export function getDOs(env: Env): DurableObjects {
@@ -40,6 +42,7 @@ export function getDOs(env: Env): DurableObjects {
     calls: env.CALL_ROUTER.get(env.CALL_ROUTER.idFromName(CALL_ID)),
     conversations: env.CONVERSATION_DO.get(env.CONVERSATION_DO.idFromName(CONVERSATION_ID)),
     blasts: env.BLAST_DO.get(env.BLAST_DO.idFromName(BLAST_ID)),
+    contactDirectory: env.CONTACT_DIRECTORY.get(env.CONTACT_DIRECTORY.idFromName(CONTACT_DIRECTORY_ID)),
   }
 }
 
@@ -49,6 +52,7 @@ export interface HubDurableObjects {
   calls: DOStub
   conversations: DOStub
   blasts: DOStub
+  contactDirectory: DOStub
 }
 
 /**
@@ -72,6 +76,7 @@ export function getHubDOs(env: Env, hubId: string): HubDurableObjects {
     calls: env.CALL_ROUTER.get(env.CALL_ROUTER.idFromName(hubId)),
     conversations: env.CONVERSATION_DO.get(env.CONVERSATION_DO.idFromName(hubId)),
     blasts: env.BLAST_DO.get(env.BLAST_DO.idFromName(hubId)),
+    contactDirectory: env.CONTACT_DIRECTORY.get(env.CONTACT_DIRECTORY.idFromName(hubId)),
   }
 }
 

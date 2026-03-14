@@ -29,6 +29,7 @@ function createMockEnv(): Env {
     RECORDS_DO: createMockNamespace('records'),
     CONVERSATION_DO: createMockNamespace('conversations'),
     BLAST_DO: createMockNamespace('blasts'),
+    CONTACT_DIRECTORY: createMockNamespace('contacts'),
     AI: { run: async () => ({}) } as any,
     R2_BUCKET: {} as any,
     TWILIO_ACCOUNT_SID: '',

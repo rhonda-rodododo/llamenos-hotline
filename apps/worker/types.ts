@@ -30,6 +30,7 @@ export interface Env {
   RECORDS_DO: DONamespace
   CONVERSATION_DO: DONamespace
   BLAST_DO: DONamespace
+  CONTACT_DIRECTORY: DONamespace
 
   // Transcription (CF: Ai binding, Node: Whisper HTTP client)
   AI: TranscriptionService

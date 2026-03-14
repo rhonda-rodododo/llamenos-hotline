@@ -6,6 +6,7 @@ export { ShiftManagerDO } from './durable-objects/shift-manager'
 export { CallRouterDO } from './durable-objects/call-router'
 export { ConversationDO } from './durable-objects/conversation-do'
 export { BlastDO } from './durable-objects/blast-do'
+export { ContactDirectoryDO } from './durable-objects/contact-directory-do'
 
 import app from './app'
 import type { Env } from './types'
@@ -30,6 +31,7 @@ export default {
       dos.calls.fetch(new Request('http://do/reset', { method: 'POST' })),
       dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' })),
       dos.blasts.fetch(new Request('http://do/reset', { method: 'POST' })),
+      dos.contactDirectory.fetch(new Request('http://do/reset', { method: 'POST' })),
     ])
   },
 }
