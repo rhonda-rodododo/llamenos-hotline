@@ -502,6 +502,66 @@ export async function listReportsViaApi(
   return data
 }
 
+/**
+ * Create a report via API with dummy encrypted content.
+ * Uses placeholder encryption values — suitable for test data seeding only.
+ */
+export async function createReportViaApi(
+  request: APIRequestContext,
+  options?: { title?: string; category?: string; status?: string },
+): Promise<ReportRecord> {
+  const skHex = nsecToSkHex(ADMIN_NSEC)
+  const pubkey = skHexToPubkey(skHex)
+
+  // Dummy ECIES envelope — server stores but doesn't validate crypto
+  const dummyEnvelope = {
+    pubkey,
+    wrappedKey: 'a'.repeat(64),
+    ephemeralPubkey: pubkey,
+  }
+
+  const title = options?.title ?? `Test Report ${Date.now()}`
+  const { status, data } = await apiPost<ReportRecord>(request, '/reports', {
+    title,
+    category: options?.category ?? 'test',
+    encryptedContent: 'dGVzdCByZXBvcnQgY29udGVudA==', // base64 "test report content"
+    readerEnvelopes: [dummyEnvelope],
+  })
+  if (status !== 201 && status !== 200) {
+    throw new Error(`Failed to create report: ${status} ${JSON.stringify(data)}`)
+  }
+
+  const report = data as ReportRecord
+  // If caller wants a specific status, update it
+  if (options?.status && options.status !== 'waiting') {
+    if (options.status === 'active') {
+      await assignReportViaApi(request, report.id, pubkey)
+    } else if (options.status === 'closed') {
+      await assignReportViaApi(request, report.id, pubkey)
+      await updateReportStatusViaApi(request, report.id, 'closed')
+    }
+  }
+  return report
+}
+
+export async function assignReportViaApi(
+  request: APIRequestContext,
+  reportId: string,
+  pubkey: string,
+): Promise<void> {
+  const { status } = await apiPost(request, `/reports/${reportId}/assign`, { assignedTo: pubkey })
+  if (status !== 200) throw new Error(`Failed to assign report: ${status}`)
+}
+
+export async function updateReportStatusViaApi(
+  request: APIRequestContext,
+  reportId: string,
+  newStatus: string,
+): Promise<void> {
+  const { status } = await apiPatch(request, `/reports/${reportId}`, { status: newStatus })
+  if (status !== 200) throw new Error(`Failed to update report status: ${status}`)
+}
+
 // ── Custom Fields ─────────────────────────────────────────────────
 
 export interface CustomFieldDefinition {

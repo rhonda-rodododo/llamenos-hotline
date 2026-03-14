@@ -247,7 +247,7 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
           />
 
           <div className="flex justify-end pt-2">
-            <Button data-testid="report-submit-btn" onClick={handleSubmit} disabled={submitting || !title.trim() || !body.trim()}>
+            <Button data-testid="report-form-submit-btn" onClick={handleSubmit} disabled={submitting || !title.trim() || !body.trim()}>
               {submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (

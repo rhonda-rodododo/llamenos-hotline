@@ -15,7 +15,7 @@ import { expect } from '@playwright/test'
 import { Given, When, Then } from '../fixtures'
 import { TestIds } from '../../test-ids'
 import { Timeouts } from '../../helpers'
-import { listReportsViaApi } from '../../api-helpers'
+import { listReportsViaApi, createReportViaApi } from '../../api-helpers'
 
 // --- Report list ---
 
@@ -35,6 +35,24 @@ Then('I should see the reports card on the dashboard', async ({ page }) => {
 When('I tap the view reports button', async ({ page }) => {
   await page.getByTestId(TestIds.NAV_REPORTS).click()
   await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+
+  // If empty state is shown, seed a report via page.request (has baseURL and cookies)
+  const emptyState = page.getByTestId(TestIds.EMPTY_STATE)
+  const isEmpty = await emptyState.isVisible({ timeout: 3000 }).catch(() => false)
+  if (isEmpty) {
+    // Use the helper with page-level request context
+    try {
+      const report = await createReportViaApi(page.request, { title: `Seed report ${Date.now()}` })
+      console.log(`[report-steps] Created seed report: ${report?.id}`)
+      // Navigate away and back to force a fresh data load
+      await page.getByTestId(TestIds.NAV_DASHBOARD).click()
+      await page.waitForTimeout(500)
+      await page.getByTestId(TestIds.NAV_REPORTS).click()
+      await page.waitForTimeout(2000)
+    } catch (err) {
+      console.warn(`[report-steps] Failed to seed report: ${String(err)}`)
+    }
+  }
 })
 
 // --- Report creation ---
@@ -87,6 +105,7 @@ Then('the report submit button should be disabled', async ({ page }) => {
 // --- Report detail / viewing ---
 
 When('I tap the first report card', async ({ page }) => {
+  // Reports should have been pre-seeded by the "view reports" step
   const reportCard = page.getByTestId(TestIds.REPORT_CARD).first()
   await expect(reportCard).toBeVisible({ timeout: Timeouts.ELEMENT })
   await reportCard.click()
@@ -113,11 +132,36 @@ When('I tap the back button on report detail', async ({ page }) => {
 
 Given('I am viewing a report with status {string}', async ({ page, request }, status: string) => {
   const { Navigation } = await import('../../pages/index')
-  await Navigation.goToReports(page)
 
-  // Verify reports exist via API
-  const result = await listReportsViaApi(request, { status })
+  // Ensure a report with the desired status exists
+  let result = await listReportsViaApi(request, { status })
+  if (result.conversations.length === 0) {
+    // Create one with the right status
+    await createReportViaApi(request, { title: `Seed ${status} report ${Date.now()}`, status })
+    result = await listReportsViaApi(request, { status })
+  }
   expect(result.conversations.length).toBeGreaterThan(0)
+
+  // Navigate to reports with the correct status filter
+  await Navigation.goToReports(page)
+  await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+
+  // If status filter exists, apply it
+  const filterArea = page.getByTestId(TestIds.REPORT_FILTER_AREA)
+  const hasFilter = await filterArea.isVisible({ timeout: 2000 }).catch(() => false)
+  if (hasFilter && status !== 'all') {
+    const selectTrigger = filterArea.locator('button[role="combobox"]').first()
+    if (await selectTrigger.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await selectTrigger.click()
+      const option = page.getByRole('option', { name: new RegExp(status, 'i') })
+      if (await option.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await option.click()
+        await page.waitForTimeout(Timeouts.UI_SETTLE)
+      } else {
+        await page.keyboard.press('Escape')
+      }
+    }
+  }
 
   const reportCard = page.getByTestId(TestIds.REPORT_CARD).first()
   await expect(reportCard).toBeVisible({ timeout: Timeouts.ELEMENT })
@@ -133,21 +177,56 @@ Then('I should see the reports title', async ({ page }) => {
 })
 
 Then('I should see the {string} report status filter', async ({ page }, filterName: string) => {
+  // Filters are only visible when reports exist (not in empty state)
+  // The "I tap the view reports button" step pre-seeds a report if needed
   const filterArea = page.getByTestId(TestIds.REPORT_FILTER_AREA)
   await expect(filterArea).toBeVisible({ timeout: Timeouts.ELEMENT })
-  await expect(filterArea.getByText(new RegExp(filterName, 'i'))).toBeVisible({ timeout: Timeouts.ELEMENT })
+
+  // Filters use a Select dropdown — click to open and check for the option
+  const selectTrigger = filterArea.locator('button[role="combobox"]').first()
+  if (await selectTrigger.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await selectTrigger.click()
+    const option = page.getByRole('option', { name: new RegExp(filterName, 'i') })
+    await expect(option).toBeVisible({ timeout: Timeouts.ELEMENT })
+    await page.keyboard.press('Escape')
+  } else {
+    await expect(filterArea.getByText(new RegExp(filterName, 'i'))).toBeVisible({ timeout: Timeouts.ELEMENT })
+  }
 })
 
 When('I tap the {string} report status filter', async ({ page }, filterName: string) => {
   const filterArea = page.getByTestId(TestIds.REPORT_FILTER_AREA)
-  await filterArea.getByText(new RegExp(filterName, 'i')).click()
+  // Status filter is a Select dropdown — click trigger, then select option
+  const selectTrigger = filterArea.locator('button[role="combobox"]').first()
+  if (await selectTrigger.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await selectTrigger.click()
+    // Map filter names to Select option values
+    const valueMap: Record<string, string> = {
+      'All': 'all',
+      'Active': 'active',
+      'Waiting': 'waiting',
+      'Closed': 'closed',
+    }
+    const option = page.getByRole('option', { name: new RegExp(filterName, 'i') })
+    await option.click()
+  } else {
+    // Fallback: direct text click
+    await filterArea.getByText(new RegExp(filterName, 'i')).click()
+  }
   await page.waitForTimeout(Timeouts.UI_SETTLE)
 })
 
 Then('the {string} report status filter should be selected', async ({ page }, filterName: string) => {
   const filterArea = page.getByTestId(TestIds.REPORT_FILTER_AREA)
-  const activeFilter = filterArea.getByText(new RegExp(filterName, 'i'))
-  await expect(activeFilter).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // With Select dropdown, the selected value is shown in the trigger
+  const selectTrigger = filterArea.locator('button[role="combobox"]').first()
+  if (await selectTrigger.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // Verify the trigger shows the selected filter name
+    await expect(selectTrigger).toContainText(new RegExp(filterName, 'i'), { timeout: Timeouts.ELEMENT })
+  } else {
+    const activeFilter = filterArea.getByText(new RegExp(filterName, 'i'))
+    await expect(activeFilter).toBeVisible({ timeout: Timeouts.ELEMENT })
+  }
 })
 
 Then('I should see the reports content or empty state', async ({ page }) => {

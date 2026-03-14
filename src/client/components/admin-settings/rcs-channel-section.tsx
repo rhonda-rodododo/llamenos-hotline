@@ -162,7 +162,7 @@ export function RCSChannelSection({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button onClick={handleSave} disabled={saving || !rcs.agentId}>
+          <Button data-testid="form-save-btn" onClick={handleSave} disabled={saving || !rcs.agentId}>
             {saving ? t('common.loading') : t('common.save')}
           </Button>
           <Button variant="outline" onClick={handleTest} disabled={testing || !rcs.agentId}>

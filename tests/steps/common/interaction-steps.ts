@@ -37,6 +37,11 @@ const buttonTestIdMap: Record<string, string> = {
   'Clock In': TestIds.BREAK_TOGGLE_BTN,
   'Clock Out': TestIds.BREAK_TOGGLE_BTN,
   'Go to Dashboard': 'setup-complete-btn',
+  'Add Field': TestIds.CUSTOM_FIELD_ADD_BTN,
+  'Add Option': TestIds.CUSTOM_FIELD_ADD_OPTION_BTN,
+  'Submit Report': TestIds.REPORT_SUBMIT_BTN,
+  'Submit report': TestIds.REPORT_SUBMIT_BTN,
+  'Save Provider': 'form-save-btn',
 }
 
 /**
@@ -64,6 +69,8 @@ async function clickByTextOrTestId(page: import('@playwright/test').Page, text: 
   // 3. Fallback: button role, link role, tab role, then text
   const button = page.getByRole('button', { name: text }).first()
   if (await button.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // Wait for the button to be enabled before clicking
+    await expect(button).toBeEnabled({ timeout: Timeouts.ELEMENT })
     await button.click()
     return
   }
@@ -171,14 +178,39 @@ When('I fill in the reason with {string}', async ({ page }, reason: string) => {
 
 // --- Section expand/collapse ---
 
+/** Map human-readable section names to their data-testid values. */
+const sectionTestIdMap: Record<string, string> = {
+  'Custom Note Fields': 'custom-fields',
+  'Custom Fields': 'custom-fields',
+  'Telephony': 'telephony',
+  'Transcription': 'transcription',
+  'Spam Mitigation': 'spam-section',
+  'Key Backup': 'key-backup',
+  'Linked Devices': 'linked-devices',
+  'Advanced Settings': 'advanced',
+  'Profile': 'profile',
+  'Theme': 'theme',
+  'Language': 'language',
+  'Notifications': 'notifications',
+  'Passkeys': 'passkeys',
+}
+
 When('I expand the {string} section', async ({ page }, sectionName: string) => {
+  const testId = sectionTestIdMap[sectionName]
   const slug = sectionName.toLowerCase().replace(/\s+/g, '-')
-  const section = page.locator(`[data-testid="${slug}"]`)
-    .or(page.locator(`[data-testid="settings-section-${slug}"]`))
+  const section = testId
+    ? page.getByTestId(testId)
+    : page.locator(`[data-testid="${slug}"]`)
+        .or(page.locator(`[data-testid="settings-section-${slug}"]`))
   const el = section.first()
   if (await el.isVisible({ timeout: 2000 }).catch(() => false)) {
     await el.scrollIntoViewIfNeeded()
-    await el.click()
+    // Check if already expanded
+    const isExpanded = await el.locator('[data-state="open"]').isVisible({ timeout: 500 }).catch(() => false)
+    if (!isExpanded) {
+      await el.locator('.cursor-pointer').first().click()
+      await page.waitForTimeout(300)
+    }
   } else {
     // Last resort: find by text
     const byText = page.getByText(sectionName, { exact: true }).first()

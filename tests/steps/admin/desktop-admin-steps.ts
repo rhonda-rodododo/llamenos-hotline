@@ -133,10 +133,22 @@ Then('I should see the RCS configuration section', async ({ page }) => {
 })
 
 When('I fill in valid RCS settings', async ({ page }) => {
+  // Ensure we're on Hub Settings with the RCS section visible
   const agentIdInput = page.getByTestId(TestIds.RCS_AGENT_ID)
-  if (await agentIdInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await agentIdInput.fill('test-agent-id')
+  if (!await agentIdInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // Navigate to hub settings
+    const { Navigation } = await import('../../pages/index')
+    await Navigation.goToHubSettings(page)
+    // Expand the RCS/messaging section
+    const rcsSection = page.locator('[data-settings-section]').filter({ hasText: /RCS|messaging/i }).first()
+    if (await rcsSection.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await rcsSection.locator('.cursor-pointer').first().click()
+      await page.waitForTimeout(Timeouts.UI_SETTLE)
+    }
   }
+  // Fill the agent ID
+  await expect(agentIdInput).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await agentIdInput.fill('test-agent-id')
 })
 
 // --- WebRTC ---
@@ -437,17 +449,29 @@ When('I complete the entire setup wizard', async ({ page }) => {
 
 // --- Reports ---
 
-Given('at least one report exists', async () => {
-  // Precondition
+Given('at least one report exists', async ({ page }) => {
+  const { listReportsViaApi, createReportViaApi } = await import('../../api-helpers')
+  const result = await listReportsViaApi(page.request)
+  if (result.conversations.length === 0) {
+    await createReportViaApi(page.request, { title: `Seed report ${Date.now()}` })
+  }
 })
 
-Given('a report exists', async () => {
-  // Precondition
+Given('a report exists', async ({ page }) => {
+  const { listReportsViaApi, createReportViaApi } = await import('../../api-helpers')
+  const result = await listReportsViaApi(page.request)
+  if (result.conversations.length === 0) {
+    await createReportViaApi(page.request, { title: `Seed report ${Date.now()}` })
+  }
 })
 
 When('I fill in the report details', async ({ page }) => {
-  const textarea = page.locator('textarea').first()
-  await textarea.fill('Test report content')
+  // Report form has both title and body fields
+  const titleInput = page.getByTestId(TestIds.REPORT_TITLE_INPUT)
+  const bodyInput = page.getByTestId(TestIds.REPORT_BODY_INPUT)
+  await expect(titleInput).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await titleInput.fill(`Test Report ${Date.now()}`)
+  await bodyInput.fill('Test report content for BDD testing')
 })
 
 Then('the report should appear in the reports list', async ({ page }) => {
@@ -466,7 +490,7 @@ When('I click on the report', async ({ page }) => {
 })
 
 Then('I should see the report detail view', async ({ page }) => {
-  await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+  await expect(page.getByTestId(TestIds.REPORT_DETAIL).or(page.getByTestId(TestIds.REPORT_METADATA))).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('I should see the report content', async ({ page }) => {

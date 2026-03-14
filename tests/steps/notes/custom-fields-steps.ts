@@ -189,21 +189,31 @@ Then('{string} should appear in the field list', async ({ page }, fieldLabel: st
 })
 
 Then('{string} should no longer appear in the field list', async ({ page }, fieldLabel: string) => {
+  // Wait for the deletion API call to complete and UI to re-render
+  // The delete handler uses confirm() (auto-accepted) then awaits updateCustomFields(next)
+  // which triggers a state update → re-render. Allow enough time for network + render.
   const fieldRow = page.getByTestId(TestIds.CUSTOM_FIELD_ROW).filter({ hasText: fieldLabel })
-  await expect(fieldRow.first()).not.toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(fieldRow.first()).not.toBeVisible({ timeout: 15000 })
 })
 
 When('I change the field type to {string}', async ({ page }, fieldType: string) => {
   const typeSelect = page.getByTestId(TestIds.CUSTOM_FIELD_TYPE_SELECT)
   await expect(typeSelect).toBeVisible({ timeout: Timeouts.ELEMENT })
-  await typeSelect.selectOption({ label: fieldType })
+  // Native <select> — use value (lowercase) since option labels may be capitalized
+  await typeSelect.selectOption(fieldType.toLowerCase())
 })
 
 When('I add option {string}', async ({ page }, option: string) => {
   const addOptionBtn = page.getByTestId(TestIds.CUSTOM_FIELD_ADD_OPTION_BTN)
   await expect(addOptionBtn).toBeVisible({ timeout: Timeouts.ELEMENT })
   await addOptionBtn.click()
-  const lastInput = page.locator('input[placeholder*="option" i]').last()
+  await page.waitForTimeout(200)
+  // Options are Input components in the edit form — find the last input that's empty or recently added
+  // The form has specific inputs for label/name/etc, but option inputs are plain <input> without specific labels
+  // Get all inputs in the form, the option inputs are the ones without id/data-testid attributes
+  const formSection = page.locator('.border-primary\\/30')
+  const allInputs = formSection.locator('input:not([id]):not([data-testid])')
+  const lastInput = allInputs.last()
   await lastInput.fill(option)
 })
 

@@ -46,6 +46,13 @@ When('I fill in Twilio credentials with WebRTC config', async ({ page }) => {
   await page.getByTestId(TestIds.ACCOUNT_SID).fill('ACwebrtctest123')
   await page.getByTestId(TestIds.AUTH_TOKEN).fill('webrtc-auth-token')
 
+  // Fill provider phone number (required for save button to be enabled)
+  const phoneInput = page.locator('#provider-phone')
+  if (await phoneInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await phoneInput.fill('+15551234567')
+    await phoneInput.blur()
+  }
+
   // Enable WebRTC
   const webrtcSection = page.locator('[data-settings-section]').filter({ hasText: /WebRTC/ })
     .or(page.locator('div').filter({ hasText: /WebRTC Configuration/ }).filter({ has: page.getByRole('switch') }).last())
