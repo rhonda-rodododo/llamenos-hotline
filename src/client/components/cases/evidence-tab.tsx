@@ -283,7 +283,7 @@ export function EvidenceTab({
             <p className="text-sm">
               {classificationFilter !== 'all'
                 ? t('cases.evidence.noFilteredItems', { defaultValue: 'No evidence matches this filter' })
-                : t('cases.evidence.noItems', { defaultValue: 'No evidence uploaded yet' })
+                : t('cases.evidence.noItems', { defaultValue: 'No evidence uploaded yet. Evidence files are encrypted and tracked with a chain of custody.' })
               }
             </p>
           </div>

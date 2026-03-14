@@ -9,7 +9,7 @@ import {
 import { SettingsSection } from '@/components/settings-section'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { LayoutTemplate, Check, Loader2 } from 'lucide-react'
+import { LayoutTemplate, Check, Loader2, HelpCircle } from 'lucide-react'
 
 interface Props {
   expanded: boolean
@@ -65,6 +65,14 @@ export function TemplateBrowser({ expanded, onToggle, statusSummary, onTemplateA
       basePath="/admin/case-management"
       statusSummary={statusSummary}
     >
+      {/* Help text */}
+      <div className="flex items-start gap-2 rounded-md border border-border/50 bg-muted/30 px-3 py-2.5 mb-3">
+        <HelpCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground">
+          {t('caseManagement.help.templates_howto', { defaultValue: 'Browse available templates below. Applying a template creates case types and fields automatically. You can customize everything after applying.' })}
+        </p>
+      </div>
+
       {loading ? (
         <p className="text-sm text-muted-foreground">{t('caseManagement.loadingTemplates')}</p>
       ) : templates.length === 0 ? (

@@ -254,7 +254,7 @@ function CasesPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               {entityTypes.length === 0
                 ? t('cases.applyTemplateHint', { defaultValue: 'Apply a case management template to get started.' })
-                : t('cases.noCasesHint', { defaultValue: 'Create a new case to get started.' })}
+                : t('cases.noCasesHint', { defaultValue: 'Cases will appear here as your team creates them.' })}
             </p>
             {hasPermission('cases:create') && entityTypes.length > 0 && (
               <Button

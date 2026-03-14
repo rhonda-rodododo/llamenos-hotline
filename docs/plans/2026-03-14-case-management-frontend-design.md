@@ -18,7 +18,7 @@
 ### 2. Privacy as UI
 - Every encrypted field shows a subtle **lock icon** — users see the system protecting data
 - PII fields the user can't decrypt show a **frosted glass blur** with "Restricted" label — reinforcing zero-knowledge even from other team members
-- Search explains itself: "Searching encrypted indexes..." brief indicator
+- Search explains itself: "Searching securely..." brief indicator
 - Encryption tier badges on records: a small shield icon with tier indicator
 
 ### 3. Crisis-Speed UX
@@ -150,11 +150,11 @@ Small shield icon showing the encryption tier of a field or record:
 
 Tooltip explains who can decrypt.
 
-#### 4. BlindSearchBar — Privacy-Aware Search
+#### 4. EncryptedSearchBar — Privacy-Aware Search
 
 Search input that:
-1. Shows "Searching encrypted indexes..." while computing blind hashes client-side
-2. Sends only hashed tokens to server
+1. Shows "Searching securely..." while computing encrypted search tokens client-side
+2. Sends only encrypted tokens to server
 3. Decrypts matching results client-side
 4. For name search: generates trigram tokens, shows partial matches
 
@@ -194,7 +194,7 @@ Search input that:
 
 **Key interactions**:
 - Entity type tabs filter the list to a single type — URL updates to `/cases?type=arrest_case`
-- Status/severity filters use blind index hashes — server filters, client decrypts results
+- Status/severity filters use privacy-preserving encrypted search — server filters without seeing values, client decrypts results
 - Checkbox multi-select enables bulk actions toolbar (sticky at bottom)
 - Case number is a link to detail page
 - Contact name shows 🔒 if user can't decrypt PII tier
@@ -275,7 +275,7 @@ Search input that:
 ┌──────────────────────────────────────────────────────────────┐
 │ Contact Directory                          [+ New Contact]   │
 │                                                               │
-│ 🔍 [Search contacts...          ]  Searching encrypted data  │
+│ 🔍 [Search contacts...          ]  Searching securely...      │
 │                                                               │
 │ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐          │
 │ │ 👤 Carlos M. │ │ 👤 Maria G.  │ │ 👤 🔒       │          │
@@ -288,7 +288,7 @@ Search input that:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Contacts the user can't decrypt show a locked card. The search bar generates trigram blind indexes client-side before querying.
+Contacts the user can't decrypt show a locked card. The search bar generates encrypted search tokens client-side before querying.
 
 ### Template Browser (Admin)
 
@@ -351,7 +351,7 @@ Mobile clients get a **read-heavy, update-light** interface for jail support fie
 
 ## Performance Strategy for 1000+ Cases
 
-1. **Server-side blind index filtering** — only matching records returned (not all 1000+)
+1. **Server-side encrypted search filtering** — only matching records returned (not all 1000+)
 2. **Pagination**: 50 records per page, cursor-based
 3. **Lazy tab loading**: Timeline, Evidence, Related tabs fetch on first click
 4. **Virtual scrolling**: Case list uses virtualization for 500+ visible rows

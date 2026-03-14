@@ -158,7 +158,7 @@ function ContactDirectoryPage() {
               {t('contactDirectory.noContacts', { defaultValue: 'No contacts in the directory' })}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {t('contactDirectory.noContactsHint', { defaultValue: 'Create a contact to get started.' })}
+              {t('contactDirectory.noContactsHint', { defaultValue: 'Contacts are created automatically from incoming calls, or you can add them manually.' })}
             </p>
             <Button
               size="sm"
@@ -195,7 +195,7 @@ function ContactDirectoryPage() {
               {isSearching && (
                 <div data-testid="search-indicator" className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Lock className="h-3 w-3" />
-                  {t('contactDirectory.searchingEncrypted', { defaultValue: 'Searching encrypted data...' })}
+                  {t('contactDirectory.searchingSecurely', { defaultValue: 'Searching securely...' })}
                 </div>
               )}
 
