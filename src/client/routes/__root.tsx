@@ -184,7 +184,7 @@ function NostrWrappedLayout() {
 function AuthenticatedLayout() {
   const { t } = useTranslation()
   const { isAdmin, signOut, name, sessionExpiring, sessionExpired, renewSession, hasPermission, primaryRoleName } = useAuth()
-  const { hotlineName, hotlineNumber, channels, demoMode } = useConfig()
+  const { hotlineName, hotlineNumber, channels, demoMode, currentHubId } = useConfig()
   const hasMessaging = useHasMessaging()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
@@ -323,10 +323,10 @@ function AuthenticatedLayout() {
               <NavLink to="/shifts" icon={<Clock className="h-4 w-4" />}>{t('nav.shifts')}</NavLink>
               <NavLink to="/volunteers" icon={<Users className="h-4 w-4" />}>{t('nav.volunteers')}</NavLink>
               <NavLink to="/bans" icon={<ShieldBan className="h-4 w-4" />}>{t('nav.banList')}</NavLink>
-              {hasPermission('contacts:view') && (
+              {hasPermission('contacts:manage') && (
                 <NavLink to="/contacts" icon={<Contact className="h-4 w-4" />}>{t('nav.contacts', { defaultValue: 'Contacts' })}</NavLink>
               )}
-              {hasPermission('contacts:view') && (
+              {hasPermission('contacts:manage') && (
                 <NavLink to="/contacts-directory" icon={<BookUser className="h-4 w-4" />}>{t('contactDirectory.title', { defaultValue: 'Contact Directory' })}</NavLink>
               )}
               <NavLink to="/audit" icon={<ScrollText className="h-4 w-4" />}>{t('nav.auditLog')}</NavLink>
@@ -401,7 +401,7 @@ function AuthenticatedLayout() {
           </div>
         </header>
 
-        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto bg-background p-4 md:p-6">
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto bg-background p-4 md:p-6" key={currentHubId}>
           <ErrorBoundary scope="page">
             <Outlet />
           </ErrorBoundary>

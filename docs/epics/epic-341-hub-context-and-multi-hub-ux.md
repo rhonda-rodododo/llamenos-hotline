@@ -1,6 +1,6 @@
 # Epic 341: Hub Context & Multi-Hub UX
 
-**Status**: PENDING
+**Status**: COMPLETE
 **Priority**: High
 **Depends on**: Epic 61 (Multi-Hub Architecture)
 **Branch**: `desktop`
@@ -27,7 +27,7 @@ The CMS stores all data per-hub (ContactDirectoryDO, CaseDO scoped via `getScope
 
 ## Acceptance Criteria
 
-- [ ] Sidebar shows active hub name and hub selector for multi-hub volunteers
-- [ ] Changing hub reloads cases, contacts, entity types for the new hub
-- [ ] Single-hub volunteers see no hub selector (no unnecessary complexity)
-- [ ] Hub context is sent on all CMS API calls
+- [x] Sidebar shows active hub name and hub selector for multi-hub volunteers
+- [x] Changing hub reloads cases, contacts, entity types for the new hub
+- [x] Single-hub volunteers see no hub selector (no unnecessary complexity)
+- [x] Hub context is sent on all CMS API calls
