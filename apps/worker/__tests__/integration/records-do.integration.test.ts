@@ -129,10 +129,13 @@ describe('RecordsDO integration', () => {
 
   it('creates audit log entries with hash chain', async () => {
     // Create first entry
+    const adminPub = '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
+    const volPub = 'aa'.repeat(32)
+
     const first = await postJSON('/audit', {
       event: 'volunteerAdded',
-      actorPubkey: 'admin-pub',
-      details: { name: 'New Vol', pubkey: 'vol-pub' },
+      actorPubkey: adminPub,
+      details: { name: 'New Vol', pubkey: volPub },
     })
     expect(first.status).toBe(200)
     const firstEntry = (await first.json() as {
@@ -144,7 +147,7 @@ describe('RecordsDO integration', () => {
     // Create second entry — should chain to first
     const second = await postJSON('/audit', {
       event: 'callAnswered',
-      actorPubkey: 'vol-pub',
+      actorPubkey: volPub,
       details: { callId: 'call-999' },
     })
     const secondEntry = (await second.json() as {
@@ -157,7 +160,7 @@ describe('RecordsDO integration', () => {
     // Create third entry — should chain to second
     const third = await postJSON('/audit', {
       event: 'noteCreated',
-      actorPubkey: 'vol-pub',
+      actorPubkey: volPub,
       details: { noteId: 'note-123' },
     })
     const thirdEntry = (await third.json() as { entry: { previousEntryHash: string } }).entry
@@ -165,10 +168,11 @@ describe('RecordsDO integration', () => {
   })
 
   it('paginates audit log entries', async () => {
+    const adminPub = '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
     for (let i = 0; i < 5; i++) {
       await postJSON('/audit', {
         event: `event-${i}`,
-        actorPubkey: 'admin-pub',
+        actorPubkey: adminPub,
         details: { index: i },
       })
     }

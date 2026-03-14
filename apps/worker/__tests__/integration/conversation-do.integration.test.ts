@@ -137,7 +137,7 @@ describe('ConversationDO integration', () => {
     expect(before.status).toBe('waiting')
 
     // Claim it
-    await postJSON(`/conversations/${conversationId}/claim`, { pubkey: 'vol-pub' })
+    await postJSON(`/conversations/${conversationId}/claim`, { pubkey: 'b95c249d84f417e3e395a127425428b540671cc15881eb828c17b722a53fc599' })
 
     // Verify status changed
     const after = await doJSON<{ status: string }>(`/conversations/${conversationId}`)
@@ -153,7 +153,7 @@ describe('ConversationDO integration', () => {
       body: 'Conversation to close',
     })
     const { conversationId } = await incoming.json() as { conversationId: string }
-    await postJSON(`/conversations/${conversationId}/claim`, { pubkey: 'vol-pub' })
+    await postJSON(`/conversations/${conversationId}/claim`, { pubkey: 'b95c249d84f417e3e395a127425428b540671cc15881eb828c17b722a53fc599' })
 
     // Close the conversation
     const closeRes = await patchJSON(`/conversations/${conversationId}`, {
@@ -168,7 +168,7 @@ describe('ConversationDO integration', () => {
     expect(check.status).toBe('closed')
   })
 
-  it('creates new conversation for closed sender (not reopen)', async () => {
+  it('reopens closed conversation when new message arrives from same sender', async () => {
     // Create, claim, and close
     const incoming = await postJSON('/conversations/incoming', {
       channelType: 'sms',
@@ -177,11 +177,10 @@ describe('ConversationDO integration', () => {
       body: 'First contact',
     })
     const { conversationId } = await incoming.json() as { conversationId: string }
-    await postJSON(`/conversations/${conversationId}/claim`, { pubkey: 'vol-pub' })
+    await postJSON(`/conversations/${conversationId}/claim`, { pubkey: 'b95c249d84f417e3e395a127425428b540671cc15881eb828c17b722a53fc599' })
     await patchJSON(`/conversations/${conversationId}`, { status: 'closed' })
 
-    // New inbound message from same sender should create a NEW conversation
-    // (closed conversations are not matched by handleIncoming)
+    // New inbound message from same sender should reopen the existing conversation
     const reopen = await postJSON('/conversations/incoming', {
       channelType: 'sms',
       senderIdentifier: '+15555555555',
@@ -189,8 +188,8 @@ describe('ConversationDO integration', () => {
       body: 'I need more help',
     })
     const reopenData = await reopen.json() as { conversationId: string; isNew: boolean }
-    expect(reopenData.conversationId).not.toBe(conversationId)
-    expect(reopenData.isNew).toBe(true)
+    expect(reopenData.conversationId).toBe(conversationId)
+    expect(reopenData.isNew).toBe(false)
   })
 
   it('tracks message delivery status', async () => {
@@ -258,7 +257,7 @@ describe('ConversationDO integration', () => {
       body: 'Active conv',
     })
     const c2Data = await c2.json() as { conversationId: string }
-    await postJSON(`/conversations/${c2Data.conversationId}/claim`, { pubkey: 'vol-pub' })
+    await postJSON(`/conversations/${c2Data.conversationId}/claim`, { pubkey: 'b95c249d84f417e3e395a127425428b540671cc15881eb828c17b722a53fc599' })
 
     await postJSON('/conversations/incoming', {
       channelType: 'signal',
@@ -364,7 +363,7 @@ describe('ConversationDO integration', () => {
       body: 'Stats test 2',
     })
     const c2Data = await c2.json() as { conversationId: string }
-    await postJSON(`/conversations/${c2Data.conversationId}/claim`, { pubkey: 'vol-pub' })
+    await postJSON(`/conversations/${c2Data.conversationId}/claim`, { pubkey: 'b95c249d84f417e3e395a127425428b540671cc15881eb828c17b722a53fc599' })
 
     const stats = await doJSON<{ waiting: number; active: number; total: number }>(
       '/conversations/stats'

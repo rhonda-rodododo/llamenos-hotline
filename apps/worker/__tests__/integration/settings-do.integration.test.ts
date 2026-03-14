@@ -190,7 +190,7 @@ describe('SettingsDO integration', () => {
   })
 
   it('tracks rate limit state', async () => {
-    const key = 'caller-+15551234567'
+    const key = 'caller-15551234567'
 
     // First call -- not rate limited
     const first = await postJSON('/rate-limit/check', { key, maxPerMinute: 3 })
@@ -215,7 +215,7 @@ describe('SettingsDO integration', () => {
 
     // Set fallback group
     const putRes = await putJSON('/fallback', {
-      volunteers: ['vol-pub-1', 'vol-pub-2', 'vol-pub-3'],
+      volunteerPubkeys: ['vol-pub-1', 'vol-pub-2', 'vol-pub-3'],
     })
     expect(putRes.status).toBe(200)
 
