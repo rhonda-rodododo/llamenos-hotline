@@ -18,6 +18,7 @@
 uniffi::setup_scaffolding!();
 
 pub mod auth;
+pub mod blind_index;
 pub mod ecies;
 pub mod encryption;
 pub mod errors;

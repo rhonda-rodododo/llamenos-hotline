@@ -28,6 +28,12 @@ hmac = "0.12"
 # Memory safety for key material
 zeroize = { version = "1", features = ["derive"] }
 
+# Unicode normalization (for blind index canonicalization)
+unicode-normalization = "0.1"
+
+# Date/time (for blind index epoch bucketing)
+chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+
 # Encoding
 hex = "0.4"
 base64 = "0.22"
