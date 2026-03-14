@@ -35,6 +35,7 @@ import healthRoutes from './routes/health'
 import metricsRoutes from './routes/metrics'
 import systemRoutes from './routes/system'
 import entitySchemaRoutes from './routes/entity-schema'
+import evidenceRoutes from './routes/evidence'
 import { hubContext } from './middleware/hub'
 import { requestId } from './middleware/request-id'
 import { getDOs } from './lib/do-access'
@@ -140,6 +141,7 @@ authenticated.route('/contacts', contactsRoutes)
 authenticated.route('/directory', contactsV2Routes)
 authenticated.route('/records', recordsRoutes)
 authenticated.route('/events', eventsRoutes)
+authenticated.route('/', evidenceRoutes)
 authenticated.route('/system', systemRoutes)
 
 // Hub-scoped authenticated routes
@@ -157,6 +159,7 @@ hubScoped.route('/contacts', contactsRoutes)
 hubScoped.route('/directory', contactsV2Routes)
 hubScoped.route('/records', recordsRoutes)
 hubScoped.route('/events', eventsRoutes)
+hubScoped.route('/', evidenceRoutes)
 
 authenticated.route('/hubs/:hubId', hubScoped)
 

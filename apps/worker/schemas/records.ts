@@ -30,7 +30,9 @@ export const recordSchema = z.object({
   contactCount: z.number(),
   interactionCount: z.number(),
   fileCount: z.number(),
+  reportCount: z.number(),
   eventIds: z.array(z.string()),
+  reportIds: z.array(z.string()),
   parentRecordId: z.string().uuid().optional(),
 
   // --- Timestamps ---

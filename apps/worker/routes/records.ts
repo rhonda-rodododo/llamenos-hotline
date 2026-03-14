@@ -13,6 +13,7 @@ import {
 } from '../schemas/records'
 import type { CaseRecord } from '../schemas/records'
 import { createInteractionBodySchema, listInteractionsQuerySchema } from '../schemas/interactions'
+import { linkReportToCaseBodySchema } from '../schemas/report-links'
 import type { EntityTypeDefinition } from '../schemas/entity-schema'
 import { authErrors, notFoundError } from '../openapi/helpers'
 import { audit } from '../services/audit'
@@ -779,6 +780,114 @@ records.delete('/:id/interactions/:interactionId',
       interactionId,
     })
 
+    return new Response(res.body, res)
+  },
+)
+
+// ============================================================
+// Report-Case Link Routes (Epic 324)
+// ============================================================
+
+// --- Link report to record ---
+records.post('/:id/reports',
+  describeRoute({
+    tags: ['Records'],
+    summary: 'Link a report to a case record',
+    responses: {
+      201: { description: 'Report linked' },
+      409: { description: 'Already linked' },
+      ...authErrors,
+      ...notFoundError,
+    },
+  }),
+  requirePermission('cases:link'),
+  validator('json', linkReportToCaseBodySchema),
+  async (c) => {
+    const id = c.req.param('id')
+    const pubkey = c.get('pubkey')
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const body = c.req.valid('json')
+
+    const res = await dos.caseManager.fetch(
+      new Request(`http://do/records/${id}/reports`, {
+        method: 'POST',
+        headers: { 'x-pubkey': pubkey },
+        body: JSON.stringify(body),
+      }),
+    )
+
+    if (!res.ok) return new Response(res.body, res)
+
+    await audit(dos.records, 'reportLinkedToCase', pubkey, {
+      caseId: id,
+      reportId: body.reportId,
+    })
+
+    return new Response(res.body, { ...res, status: 201 })
+  },
+)
+
+// --- Unlink report from record ---
+records.delete('/:id/reports/:reportId',
+  describeRoute({
+    tags: ['Records'],
+    summary: 'Unlink a report from a case record',
+    responses: {
+      200: { description: 'Report unlinked' },
+      ...authErrors,
+      ...notFoundError,
+    },
+  }),
+  requirePermission('cases:link'),
+  async (c) => {
+    const id = c.req.param('id')
+    const reportId = c.req.param('reportId')
+    const pubkey = c.get('pubkey')
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+
+    const res = await dos.caseManager.fetch(
+      new Request(`http://do/records/${id}/reports/${reportId}`, { method: 'DELETE' }),
+    )
+
+    if (!res.ok) return new Response(res.body, res)
+
+    await audit(dos.records, 'reportUnlinkedFromCase', pubkey, {
+      caseId: id,
+      reportId,
+    })
+
+    return new Response(res.body, res)
+  },
+)
+
+// --- List reports linked to a record ---
+records.get('/:id/reports',
+  describeRoute({
+    tags: ['Records'],
+    summary: 'List reports linked to a case record',
+    responses: {
+      200: { description: 'Linked reports' },
+      ...authErrors,
+      ...notFoundError,
+    },
+  }),
+  async (c) => {
+    const permissions = c.get('permissions')
+
+    const canRead = checkPermission(permissions, 'cases:read-all')
+      || checkPermission(permissions, 'cases:read-assigned')
+      || checkPermission(permissions, 'cases:read-own')
+
+    if (!canRead) {
+      return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
+    }
+
+    const id = c.req.param('id')
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+
+    const res = await dos.caseManager.fetch(
+      new Request(`http://do/records/${id}/reports`),
+    )
     return new Response(res.body, res)
   },
 )

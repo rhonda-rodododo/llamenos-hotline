@@ -12,6 +12,7 @@ import { audit } from '../services/audit'
 import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '@shared/nostr-events'
 import { publishNostrEvent } from '../lib/nostr-events'
 import { verifyReportAccess, isReport } from '../lib/report-access'
+import { linkCaseToReportBodySchema } from '../schemas/report-links'
 
 const reports = new Hono<AppEnv>()
 
@@ -478,6 +479,118 @@ reports.get('/:id/files',
     }
 
     return new Response(filesRes.body, filesRes)
+  },
+)
+
+// ============================================================
+// Report-Case Link Routes — Reverse Direction (Epic 324)
+// ============================================================
+
+// --- List cases linked to a report ---
+reports.get('/:id/records',
+  describeRoute({
+    tags: ['Reports'],
+    summary: 'List case records linked to a report',
+    responses: {
+      200: { description: 'Linked case records' },
+      ...authErrors,
+    },
+  }),
+  async (c) => {
+    const permissions = c.get('permissions')
+
+    const canRead = checkPermission(permissions, 'cases:read-all')
+      || checkPermission(permissions, 'cases:read-assigned')
+      || checkPermission(permissions, 'cases:read-own')
+
+    if (!canRead) {
+      return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
+    }
+
+    const reportId = c.req.param('id')
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+
+    const res = await dos.caseManager.fetch(
+      new Request(`http://do/reports/${reportId}/records`),
+    )
+    return new Response(res.body, res)
+  },
+)
+
+// --- Link case to report (reverse direction entry point) ---
+reports.post('/:id/records',
+  describeRoute({
+    tags: ['Reports'],
+    summary: 'Link a case record to a report',
+    responses: {
+      201: { description: 'Case linked to report' },
+      409: { description: 'Already linked' },
+      ...authErrors,
+      ...notFoundError,
+    },
+  }),
+  requirePermission('cases:link'),
+  validator('json', linkCaseToReportBodySchema),
+  async (c) => {
+    const reportId = c.req.param('id')
+    const pubkey = c.get('pubkey')
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const body = c.req.valid('json')
+
+    // Delegate to the canonical CaseDO handler (same storage, from record side)
+    const res = await dos.caseManager.fetch(
+      new Request(`http://do/records/${body.caseId}/reports`, {
+        method: 'POST',
+        headers: { 'x-pubkey': pubkey },
+        body: JSON.stringify({
+          reportId,
+          encryptedNotes: body.encryptedNotes,
+          notesEnvelopes: body.notesEnvelopes,
+        }),
+      }),
+    )
+
+    if (!res.ok) return new Response(res.body, res)
+
+    await audit(dos.records, 'caseLinkedToReport', pubkey, {
+      reportId,
+      caseId: body.caseId,
+    })
+
+    return new Response(res.body, { ...res, status: 201 })
+  },
+)
+
+// --- Unlink case from report (reverse direction) ---
+reports.delete('/:id/records/:caseId',
+  describeRoute({
+    tags: ['Reports'],
+    summary: 'Unlink a case record from a report',
+    responses: {
+      200: { description: 'Case unlinked from report' },
+      ...authErrors,
+      ...notFoundError,
+    },
+  }),
+  requirePermission('cases:link'),
+  async (c) => {
+    const reportId = c.req.param('id')
+    const caseId = c.req.param('caseId')
+    const pubkey = c.get('pubkey')
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+
+    const res = await dos.caseManager.fetch(
+      new Request(`http://do/records/${caseId}/reports/${reportId}`, { method: 'DELETE' }),
+    )
+
+    if (!res.ok) return new Response(res.body, res)
+
+    await audit(dos.records, 'caseUnlinkedFromReport', pubkey, {
+      reportId,
+      caseId,
+    })
+
+    return new Response(res.body, res)
   },
 )
 

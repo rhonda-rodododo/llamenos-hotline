@@ -184,6 +184,25 @@ import {
   interactionContentSchema,
   interactionListResponseSchema,
   sourceInteractionLookupResponseSchema,
+
+  // report-links.ts
+  reportCaseLinkSchema,
+  linkReportToCaseBodySchema,
+  linkCaseToReportBodySchema,
+  reportCaseLinkListResponseSchema,
+  casesForReportListResponseSchema,
+
+  // evidence.ts
+  evidenceClassificationSchema,
+  custodyActionSchema,
+  custodyEntrySchema,
+  evidenceMetadataSchema,
+  uploadEvidenceBodySchema,
+  logCustodyEventBodySchema,
+  verifyIntegrityBodySchema,
+  evidenceListResponseSchema,
+  custodyChainResponseSchema,
+  verifyIntegrityResponseSchema,
 } from '../../../apps/worker/schemas'
 
 import type { ZodType } from 'zod'
@@ -388,6 +407,25 @@ const schemaEntries: Array<[string, ZodType]> = [
   ['interactionContentSchema', interactionContentSchema],
   ['interactionListResponseSchema', interactionListResponseSchema],
   ['sourceInteractionLookupResponseSchema', sourceInteractionLookupResponseSchema],
+
+  // Report-Case Links
+  ['reportCaseLinkSchema', reportCaseLinkSchema],
+  ['linkReportToCaseBodySchema', linkReportToCaseBodySchema],
+  ['linkCaseToReportBodySchema', linkCaseToReportBodySchema],
+  ['reportCaseLinkListResponseSchema', reportCaseLinkListResponseSchema],
+  ['casesForReportListResponseSchema', casesForReportListResponseSchema],
+
+  // Evidence & Chain of Custody
+  ['evidenceClassificationSchema', evidenceClassificationSchema],
+  ['custodyActionSchema', custodyActionSchema],
+  ['custodyEntrySchema', custodyEntrySchema],
+  ['evidenceMetadataSchema', evidenceMetadataSchema],
+  ['uploadEvidenceBodySchema', uploadEvidenceBodySchema],
+  ['logCustodyEventBodySchema', logCustodyEventBodySchema],
+  ['verifyIntegrityBodySchema', verifyIntegrityBodySchema],
+  ['evidenceListResponseSchema', evidenceListResponseSchema],
+  ['custodyChainResponseSchema', custodyChainResponseSchema],
+  ['verifyIntegrityResponseSchema', verifyIntegrityResponseSchema],
 ]
 
 export interface SchemaRegistryEntry {

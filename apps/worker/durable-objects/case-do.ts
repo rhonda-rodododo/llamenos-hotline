@@ -3,6 +3,8 @@ import type { Env } from '../types'
 import type { CaseRecord, CreateRecordBody, RecordContact } from '../schemas/records'
 import type { Event, CreateEventBody, CaseEvent, ReportEvent } from '../schemas/events'
 import type { CaseInteraction, CreateInteractionBody } from '../schemas/interactions'
+import type { EvidenceMetadata, CustodyEntry } from '../schemas/evidence'
+import type { ReportCaseLink } from '../schemas/report-links'
 import { DORouter } from '../lib/do-router'
 import { parseBlindIndexFilters, matchesBlindIndexFilters } from '../lib/blind-index-query'
 
@@ -37,6 +39,10 @@ import { parseBlindIndexFilters, matchesBlindIndexFilters } from '../lib/blind-i
  * - reportevent:{reportId}:{eventId} → ReportEvent
  * - eventreports:{eventId}:{reportId} → ReportEvent (reverse index)
  *
+ * Report-case linking (M:N):
+ * - reportcase:{reportId}:{caseId} → ReportCaseLink
+ * - casereports:{caseId}:{reportId} → ReportCaseLink (reverse index)
+ *
  * Interaction timeline (chronological per record):
  * - interaction:{caseId}:{interactionId} → CaseInteraction
  * - idx:interaction:type:{typeHash}:{caseId}:{interactionId} → true (type filter)
@@ -58,7 +64,9 @@ export class CaseDO extends DurableObject<Env> {
 
   private setupRoutes() {
     this.setupRecordRoutes()
+    this.setupReportCaseLinkRoutes()
     this.setupInteractionRoutes()
+    this.setupEvidenceRoutes()
     this.setupEventRoutes()
     this.setupResetRoute()
   }
@@ -186,7 +194,9 @@ export class CaseDO extends DurableObject<Env> {
         contactCount: 0,
         interactionCount: 0,
         fileCount: 0,
+        reportCount: 0,
         eventIds: [],
+        reportIds: [],
         parentRecordId: body.parentRecordId,
         createdAt: now,
         updatedAt: now,
@@ -398,6 +408,13 @@ export class CaseDO extends DurableObject<Env> {
           event.updatedAt = new Date().toISOString()
           await this.ctx.storage.put(`event:${link.eventId}`, event)
         }
+      }
+
+      // Remove report-case links (both directions)
+      const reportCaseLinks = await this.ctx.storage.list<ReportCaseLink>({ prefix: `casereports:${id}:` })
+      for (const [key, link] of reportCaseLinks) {
+        deletes.push(key)
+        deletes.push(`reportcase:${link.reportId}:${id}`)
       }
 
       await this.ctx.storage.delete(deletes)
@@ -1225,6 +1242,305 @@ export class CaseDO extends DurableObject<Env> {
       }
 
       return Response.json({ links: result })
+    })
+  }
+
+  // ============================================================
+  // Report-Case Link Routes (M:N linking between reports and cases)
+  // ============================================================
+
+  private setupReportCaseLinkRoutes() {
+    // --- Link report to case ---
+    this.router.post('/records/:caseId/reports', async (req, { caseId }) => {
+      const record = await this.ctx.storage.get<CaseRecord>(`record:${caseId}`)
+      if (!record) return Response.json({ error: 'Record not found' }, { status: 404 })
+
+      const body = await req.json() as {
+        reportId: string
+        encryptedNotes?: string
+        notesEnvelopes?: Array<{ pubkey: string; wrappedKey: string; ephemeralPubkey: string }>
+      }
+      const linkedBy = req.headers.get('x-pubkey') ?? ''
+      const now = new Date().toISOString()
+
+      // Check for duplicate link
+      const existing = await this.ctx.storage.get<ReportCaseLink>(`reportcase:${body.reportId}:${caseId}`)
+      if (existing) return Response.json({ error: 'Report already linked to this case' }, { status: 409 })
+
+      const link: ReportCaseLink = {
+        reportId: body.reportId,
+        caseId,
+        linkedAt: now,
+        linkedBy,
+        encryptedNotes: body.encryptedNotes,
+        notesEnvelopes: body.notesEnvelopes,
+      }
+
+      const puts = new Map<string, unknown>()
+      puts.set(`reportcase:${body.reportId}:${caseId}`, link)
+      puts.set(`casereports:${caseId}:${body.reportId}`, link)
+
+      // Update record reportCount and reportIds
+      record.reportCount = (record.reportCount ?? 0) + 1
+      record.reportIds = [...(record.reportIds ?? []), body.reportId]
+      record.updatedAt = now
+      puts.set(`record:${caseId}`, record)
+
+      await this.ctx.storage.put(Object.fromEntries(puts))
+
+      return Response.json(link, { status: 201 })
+    })
+
+    // --- Unlink report from case ---
+    this.router.delete('/records/:caseId/reports/:reportId', async (_req, { caseId, reportId }) => {
+      const link = await this.ctx.storage.get<ReportCaseLink>(`reportcase:${reportId}:${caseId}`)
+      if (!link) return Response.json({ error: 'Link not found' }, { status: 404 })
+
+      const deletes = [
+        `reportcase:${reportId}:${caseId}`,
+        `casereports:${caseId}:${reportId}`,
+      ]
+
+      // Update record reportCount and reportIds
+      const record = await this.ctx.storage.get<CaseRecord>(`record:${caseId}`)
+      if (record) {
+        record.reportCount = Math.max(0, (record.reportCount ?? 0) - 1)
+        record.reportIds = (record.reportIds ?? []).filter(rid => rid !== reportId)
+        record.updatedAt = new Date().toISOString()
+        await this.ctx.storage.put(`record:${caseId}`, record)
+      }
+
+      await this.ctx.storage.delete(deletes)
+
+      return Response.json({ deleted: true })
+    })
+
+    // --- List reports linked to a case ---
+    this.router.get('/records/:caseId/reports', async (_req, { caseId }) => {
+      const record = await this.ctx.storage.get<CaseRecord>(`record:${caseId}`)
+      if (!record) return Response.json({ error: 'Record not found' }, { status: 404 })
+
+      const entries = await this.ctx.storage.list<ReportCaseLink>({ prefix: `casereports:${caseId}:` })
+      const links: ReportCaseLink[] = []
+      for (const [, value] of entries) links.push(value)
+      links.sort((a, b) => b.linkedAt.localeCompare(a.linkedAt))
+
+      return Response.json({ reports: links, total: links.length })
+    })
+
+    // --- List cases linked to a report (reverse direction) ---
+    this.router.get('/reports/:reportId/records', async (_req, { reportId }) => {
+      const entries = await this.ctx.storage.list<ReportCaseLink>({ prefix: `reportcase:${reportId}:` })
+      const links: ReportCaseLink[] = []
+      for (const [, value] of entries) links.push(value)
+      links.sort((a, b) => b.linkedAt.localeCompare(a.linkedAt))
+
+      return Response.json({ records: links, total: links.length })
+    })
+  }
+
+  // ============================================================
+  // Evidence & Chain of Custody Routes (Epic 325)
+  // ============================================================
+
+  private setupEvidenceRoutes() {
+    // --- Upload evidence metadata (file uploaded to R2 separately) ---
+    this.router.post('/records/:caseId/evidence', async (req, { caseId }) => {
+      const record = await this.ctx.storage.get<CaseRecord>(`record:${caseId}`)
+      if (!record) return Response.json({ error: 'Record not found' }, { status: 404 })
+
+      const body = await req.json() as {
+        fileId: string
+        filename: string
+        mimeType: string
+        sizeBytes: number
+        classification: EvidenceMetadata['classification']
+        integrityHash: string
+        source?: string
+        sourceDescription?: string
+        encryptedDescription?: string
+        descriptionEnvelopes?: EvidenceMetadata['descriptionEnvelopes']
+      }
+      const id = crypto.randomUUID()
+      const now = new Date().toISOString()
+      const pubkey = req.headers.get('x-pubkey') ?? ''
+
+      const evidence: EvidenceMetadata = {
+        id,
+        caseId,
+        fileId: body.fileId,
+        filename: body.filename,
+        mimeType: body.mimeType,
+        sizeBytes: body.sizeBytes,
+        classification: body.classification,
+        integrityHash: body.integrityHash,
+        hashAlgorithm: 'sha256',
+        source: body.source,
+        sourceDescription: body.sourceDescription,
+        encryptedDescription: body.encryptedDescription,
+        descriptionEnvelopes: body.descriptionEnvelopes,
+        uploadedAt: now,
+        uploadedBy: pubkey,
+        custodyEntryCount: 1, // Initial "uploaded" entry
+      }
+
+      // Create initial custody entry
+      const custodyId = crypto.randomUUID()
+      const uploadEntry: CustodyEntry = {
+        id: custodyId,
+        evidenceId: id,
+        action: 'uploaded',
+        actorPubkey: pubkey,
+        timestamp: now,
+        integrityHash: body.integrityHash,
+      }
+
+      const puts = new Map<string, unknown>()
+      puts.set(`evidence:${caseId}:${id}`, evidence)
+      puts.set(`idx:evidence:case:${caseId}:${id}`, true)
+      puts.set(`custody:${id}:${custodyId}`, uploadEntry)
+
+      // Update record file count
+      record.fileCount = (record.fileCount ?? 0) + 1
+      record.updatedAt = now
+      puts.set(`record:${caseId}`, record)
+
+      await this.ctx.storage.put(Object.fromEntries(puts))
+
+      return Response.json(evidence, { status: 201 })
+    })
+
+    // --- List evidence for a case ---
+    this.router.get('/records/:caseId/evidence', async (req, { caseId }) => {
+      const record = await this.ctx.storage.get<CaseRecord>(`record:${caseId}`)
+      if (!record) return Response.json({ error: 'Record not found' }, { status: 404 })
+
+      const url = new URL(req.url)
+      const page = parseInt(url.searchParams.get('page') ?? '1')
+      const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '20'), 100)
+      const classification = url.searchParams.get('classification')
+
+      const entries = await this.ctx.storage.list<EvidenceMetadata>({ prefix: `evidence:${caseId}:` })
+      let evidenceList: EvidenceMetadata[] = []
+      for (const [, value] of entries) evidenceList.push(value)
+
+      if (classification) {
+        evidenceList = evidenceList.filter(e => e.classification === classification)
+      }
+
+      evidenceList.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
+      const start = (page - 1) * limit
+      const paged = evidenceList.slice(start, start + limit)
+
+      return Response.json({
+        evidence: paged,
+        total: evidenceList.length,
+        page,
+        limit,
+        hasMore: start + limit < evidenceList.length,
+      })
+    })
+
+    // --- Get single evidence metadata ---
+    this.router.get('/evidence/:id', async (_req, { id }) => {
+      // Scan for evidence by ID across cases
+      const allEvidence = await this.ctx.storage.list<EvidenceMetadata>({ prefix: 'evidence:' })
+      for (const [, ev] of allEvidence) {
+        if (ev.id === id) return Response.json(ev)
+      }
+      return Response.json({ error: 'Evidence not found' }, { status: 404 })
+    })
+
+    // --- Get custody chain for evidence ---
+    this.router.get('/evidence/:id/custody', async (_req, { id }) => {
+      const entries = await this.ctx.storage.list<CustodyEntry>({ prefix: `custody:${id}:` })
+      const chain: CustodyEntry[] = []
+      for (const [, value] of entries) chain.push(value)
+      chain.sort((a, b) => a.timestamp.localeCompare(b.timestamp)) // Chronological order
+      return Response.json({ custodyChain: chain, total: chain.length })
+    })
+
+    // --- Add custody entry (called when evidence is accessed) ---
+    this.router.post('/evidence/:id/custody', async (req, { id: evidenceId }) => {
+      const body = await req.json() as {
+        action: CustodyEntry['action']
+        integrityHash: string
+        ipHash?: string
+        userAgent?: string
+        notes?: string
+      }
+      const custodyId = crypto.randomUUID()
+      const now = new Date().toISOString()
+
+      const entry: CustodyEntry = {
+        id: custodyId,
+        evidenceId,
+        action: body.action,
+        actorPubkey: req.headers.get('x-pubkey') ?? '',
+        timestamp: now,
+        integrityHash: body.integrityHash,
+        ipHash: body.ipHash,
+        userAgent: body.userAgent,
+        notes: body.notes,
+      }
+
+      await this.ctx.storage.put(`custody:${evidenceId}:${custodyId}`, entry)
+
+      // Update custody entry count on evidence metadata
+      const allEvidence = await this.ctx.storage.list<EvidenceMetadata>({ prefix: 'evidence:' })
+      for (const [key, ev] of allEvidence) {
+        if (ev.id === evidenceId) {
+          ev.custodyEntryCount++
+          await this.ctx.storage.put(key, ev)
+          break
+        }
+      }
+
+      return Response.json(entry, { status: 201 })
+    })
+
+    // --- Verify evidence integrity ---
+    this.router.post('/evidence/:id/verify', async (req, { id: evidenceId }) => {
+      const { currentHash } = await req.json() as { currentHash: string }
+
+      // Find the evidence metadata
+      const allEvidence = await this.ctx.storage.list<EvidenceMetadata>({ prefix: 'evidence:' })
+      let evidence: EvidenceMetadata | null = null
+      for (const [, ev] of allEvidence) {
+        if (ev.id === evidenceId) { evidence = ev; break }
+      }
+      if (!evidence) return Response.json({ error: 'Evidence not found' }, { status: 404 })
+
+      const isValid = currentHash === evidence.integrityHash
+      const now = new Date().toISOString()
+      const pubkey = req.headers.get('x-pubkey') ?? ''
+
+      // Log the verification as a custody entry
+      const custodyId = crypto.randomUUID()
+      const verifyEntry: CustodyEntry = {
+        id: custodyId,
+        evidenceId,
+        action: 'integrity_verified',
+        actorPubkey: pubkey,
+        timestamp: now,
+        integrityHash: currentHash,
+        notes: isValid
+          ? 'Integrity verified: hash matches'
+          : 'INTEGRITY MISMATCH: hash does not match original',
+      }
+      await this.ctx.storage.put(`custody:${evidenceId}:${custodyId}`, verifyEntry)
+
+      // Update custody entry count
+      const allEvidence2 = await this.ctx.storage.list<EvidenceMetadata>({ prefix: 'evidence:' })
+      for (const [key, ev] of allEvidence2) {
+        if (ev.id === evidenceId) {
+          ev.custodyEntryCount++
+          await this.ctx.storage.put(key, ev)
+          break
+        }
+      }
+
+      return Response.json({ valid: isValid, originalHash: evidence.integrityHash, currentHash })
     })
   }
 
