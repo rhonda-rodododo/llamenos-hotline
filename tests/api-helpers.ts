@@ -681,14 +681,17 @@ export async function enableCaseManagementViaApi(
   enabled = true,
   nsec = ADMIN_NSEC,
 ): Promise<{ enabled: boolean }> {
-  return apiPut<{ enabled: boolean }>(request, '/settings/cms/case-management', { enabled }, nsec)
+  const { status, data } = await apiPut<{ enabled: boolean }>(request, '/settings/cms/case-management', { enabled }, nsec)
+  if (status !== 200) throw new Error(`Failed to toggle case management: ${status}`)
+  return data
 }
 
 export async function getCaseManagementEnabledViaApi(
   request: APIRequestContext,
   nsec = ADMIN_NSEC,
 ): Promise<{ enabled: boolean }> {
-  return apiGet<{ enabled: boolean }>(request, '/settings/cms/case-management', nsec)
+  const { data } = await apiGet<{ enabled: boolean }>(request, '/settings/cms/case-management', nsec)
+  return data
 }
 
 export async function createEntityTypeViaApi(
@@ -708,7 +711,7 @@ export async function createEntityTypeViaApi(
     { value: 'open', label: 'Open', order: 0 },
     { value: 'closed', label: 'Closed', order: 1, isClosed: true },
   ]
-  return apiPost<Record<string, unknown>>(
+  const { status, data } = await apiPost<Record<string, unknown>>(
     request,
     '/settings/cms/entity-types',
     {
@@ -737,14 +740,16 @@ export async function createEntityTypeViaApi(
     },
     nsec,
   )
+  if (status !== 201 && status !== 200) throw new Error(`Failed to create entity type: ${status}`)
+  return data
 }
 
 export async function listEntityTypesViaApi(
   request: APIRequestContext,
   nsec = ADMIN_NSEC,
 ): Promise<Record<string, unknown>[]> {
-  const data = await apiGet<{ entityTypes: Record<string, unknown>[] }>(request, '/settings/cms/entity-types', nsec)
-  return data.entityTypes
+  const { data } = await apiGet<{ entityTypes: Record<string, unknown>[] }>(request, '/settings/cms/entity-types', nsec)
+  return data?.entityTypes ?? []
 }
 
 export async function updateEntityTypeViaApi(
@@ -753,7 +758,9 @@ export async function updateEntityTypeViaApi(
   updates: Record<string, unknown>,
   nsec = ADMIN_NSEC,
 ): Promise<Record<string, unknown>> {
-  return apiPatch<Record<string, unknown>>(request, `/settings/cms/entity-types/${id}`, updates, nsec)
+  const { status, data } = await apiPatch<Record<string, unknown>>(request, `/settings/cms/entity-types/${id}`, updates, nsec)
+  if (status !== 200) throw new Error(`Failed to update entity type: ${status}`)
+  return data
 }
 
 export async function deleteEntityTypeViaApi(
@@ -761,7 +768,8 @@ export async function deleteEntityTypeViaApi(
   id: string,
   nsec = ADMIN_NSEC,
 ): Promise<void> {
-  await apiDelete(request, `/settings/cms/entity-types/${id}`, nsec)
+  const { status } = await apiDelete(request, `/settings/cms/entity-types/${id}`, nsec)
+  if (status !== 200) throw new Error(`Failed to delete entity type: ${status}`)
 }
 
 export async function createRelationshipTypeViaApi(
@@ -775,7 +783,7 @@ export async function createRelationshipTypeViaApi(
   },
   nsec = ADMIN_NSEC,
 ): Promise<Record<string, unknown>> {
-  return apiPost<Record<string, unknown>>(
+  const { status, data } = await apiPost<Record<string, unknown>>(
     request,
     '/settings/cms/relationship-types',
     {
@@ -789,6 +797,8 @@ export async function createRelationshipTypeViaApi(
     },
     nsec,
   )
+  if (status !== 201 && status !== 200) throw new Error(`Failed to create relationship type: ${status}`)
+  return data
 }
 
 export async function generateCaseNumberViaApi(
@@ -796,10 +806,12 @@ export async function generateCaseNumberViaApi(
   prefix: string,
   nsec = ADMIN_NSEC,
 ): Promise<{ number: string; sequence: number }> {
-  return apiPost<{ number: string; sequence: number }>(
+  const { status, data } = await apiPost<{ number: string; sequence: number }>(
     request,
     '/settings/cms/case-number',
     { prefix },
     nsec,
   )
+  if (status !== 200) throw new Error(`Failed to generate case number: ${status}`)
+  return data
 }

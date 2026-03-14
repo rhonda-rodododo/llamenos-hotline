@@ -18,6 +18,7 @@ import {
   generateCaseNumberViaApi,
   createVolunteerViaApi,
   listRolesViaApi,
+  apiPost,
   ADMIN_NSEC,
 } from '../../api-helpers'
 
@@ -25,18 +26,14 @@ import {
 
 interface EntitySchemaState {
   lastEntityType?: Record<string, unknown>
-  lastEntityTypeId?: string
   lastRelationshipType?: Record<string, unknown>
-  lastCaseNumber?: string
-  lastResponseStatus?: number
-  volunteerNsec?: string
-  caseNumberCount: number
+  caseNumbers: string[]
 }
 
 let state: EntitySchemaState
 
 Before({ tags: '@cases' }, async () => {
-  state = { caseNumberCount: 0 }
+  state = { caseNumbers: [] }
 })
 
 // ── Given ───────────────────────────────────────────────────────────
@@ -46,53 +43,47 @@ Given('case management is enabled', async ({ request }) => {
 })
 
 Given('an entity type {string} exists', async ({ request }, name: string) => {
-  // Check if it already exists
   const types = await listEntityTypesViaApi(request)
   const existing = types.find(t => t.name === name)
   if (existing) {
     state.lastEntityType = existing
-    state.lastEntityTypeId = existing.id as string
     return
   }
   const created = await createEntityTypeViaApi(request, { name, category: 'case' })
   state.lastEntityType = created
-  state.lastEntityTypeId = created.id as string
 })
 
 // ── When ────────────────────────────────────────────────────────────
 
-When('admin {string} enables case management', async ({ request }) => {
+When('the admin enables case management', async ({ request }) => {
   await enableCaseManagementViaApi(request, true)
 })
 
-When('admin {string} creates an entity type {string} with category {string}', async ({ request }, _admin: string, name: string, category: string) => {
+When('the admin creates an entity type named {string} with category {string}', async ({ request }, name: string, category: string) => {
   const result = await createEntityTypeViaApi(request, { name, category })
   state.lastEntityType = result
-  state.lastEntityTypeId = result.id as string
 })
 
-When('admin {string} creates an entity type {string} with:', async ({ request }, _admin: string, name: string, table) => {
-  const row = table.rowsHash() as Record<string, string>
-  const statusValues = (row.statuses ?? 'open,closed').split(',').map((v: string, i: number) => ({
+When('the admin creates an entity type with statuses {string} and fields {string}', async ({ request }, statusesStr: string, fieldsStr: string) => {
+  const statuses = statusesStr.split(',').map((v, i) => ({
     value: v.trim(),
     label: v.trim().charAt(0).toUpperCase() + v.trim().slice(1),
     order: i,
   }))
-  const fields = (row.fields ?? '').split(',').filter(Boolean).map((f: string, i: number) => {
+  const fields = fieldsStr.split(',').filter(Boolean).map((f, i) => {
     const [fieldName, fieldType] = f.split(':')
     return { name: fieldName, label: fieldName, type: fieldType || 'text', order: i }
   })
   const result = await createEntityTypeViaApi(request, {
-    name,
+    name: `type_${Date.now()}`,
     category: 'case',
-    statuses: statusValues,
+    statuses,
     fields,
   })
   state.lastEntityType = result
-  state.lastEntityTypeId = result.id as string
 })
 
-When('admin {string} adds a field {string} of type {string} to {string}', async ({ request }, _admin: string, fieldName: string, fieldType: string, entityTypeName: string) => {
+When('the admin adds a field {string} of type {string} to entity type {string}', async ({ request }, fieldName: string, fieldType: string, entityTypeName: string) => {
   const types = await listEntityTypesViaApi(request)
   const entityType = types.find(t => t.name === entityTypeName)
   expect(entityType).toBeTruthy()
@@ -118,26 +109,25 @@ When('admin {string} adds a field {string} of type {string} to {string}', async 
   state.lastEntityType = result
 })
 
-When('admin {string} deletes the entity type {string}', async ({ request }, _admin: string, name: string) => {
+When('the admin deletes entity type {string}', async ({ request }, name: string) => {
   const types = await listEntityTypesViaApi(request)
   const entityType = types.find(t => t.name === name)
   expect(entityType).toBeTruthy()
   await deleteEntityTypeViaApi(request, entityType!.id as string)
 })
 
-When('admin {string} tries to create an entity type {string} with category {string}', async ({ request }, _admin: string, name: string, category: string) => {
+When('the admin tries to create an entity type named {string}', async ({ request }, name: string) => {
   try {
-    await createEntityTypeViaApi(request, { name, category })
-    state.lastResponseStatus = 201
+    await createEntityTypeViaApi(request, { name, category: 'case' })
+    shared.lastResponse = { status: 201, data: null }
   } catch (e: unknown) {
     const msg = (e as Error).message
     const match = msg.match(/(\d{3})/)
-    state.lastResponseStatus = match ? parseInt(match[1]) : 500
+    shared.lastResponse = { status: match ? parseInt(match[1]) : 500, data: null }
   }
 })
 
-When('admin {string} creates a relationship type linking {string} to {string} as {string}', async ({ request }, _admin: string, source: string, target: string, cardinality: string) => {
-  // For "contact", use a special sentinel; for named types, look up the ID
+When('the admin creates a relationship type from {string} to {string} with cardinality {string}', async ({ request }, source: string, target: string, cardinality: string) => {
   const types = await listEntityTypesViaApi(request)
   const sourceId = source === 'contact' ? 'contact' : (types.find(t => t.name === source)?.id as string)
   const targetId = target === 'contact' ? 'contact' : (types.find(t => t.name === target)?.id as string)
@@ -152,37 +142,35 @@ When('admin {string} creates a relationship type linking {string} to {string} as
   state.lastRelationshipType = result
 })
 
-When('volunteer {string} tries to create an entity type', async ({ request }) => {
+When('a volunteer tries to create an entity type', async ({ request }) => {
   const vol = await createVolunteerViaApi(request, { name: `vol-schema-${Date.now()}` })
   try {
     await createEntityTypeViaApi(request, { name: `forbidden_${Date.now()}` }, vol.nsec)
-    state.lastResponseStatus = 201
+    shared.lastResponse = { status: 201, data: null }
   } catch (e: unknown) {
     const msg = (e as Error).message
     const match = msg.match(/(\d{3})/)
-    state.lastResponseStatus = match ? parseInt(match[1]) : 500
+    shared.lastResponse = { status: match ? parseInt(match[1]) : 500, data: null }
   }
 })
 
 When('a case number is generated with prefix {string}', async ({ request }, prefix: string) => {
   const result = await generateCaseNumberViaApi(request, prefix)
-  state.lastCaseNumber = result.number
-  state.caseNumberCount++
+  state.caseNumbers.push(result.number)
 })
 
 When('another case number is generated with prefix {string}', async ({ request }, prefix: string) => {
   const result = await generateCaseNumberViaApi(request, prefix)
-  state.lastCaseNumber = result.number
-  state.caseNumberCount++
+  state.caseNumbers.push(result.number)
 })
 
-When('admin {string} lists roles', async ({ request }) => {
-  // Roles are fetched in the Then step
+When('the admin lists all roles', async () => {
+  // Roles are verified in the Then steps
 })
 
 // ── Then ────────────────────────────────────────────────────────────
 
-Then('the hub should have case management enabled', async ({ request }) => {
+Then('case management should be enabled', async ({ request }) => {
   const result = await getCaseManagementEnabledViaApi(request)
   expect(result.enabled).toBe(true)
 })
@@ -194,27 +182,27 @@ Then('the entity type {string} should exist', async ({ request }, name: string) 
   state.lastEntityType = found
 })
 
-Then('the entity type should have a generated UUID id', async () => {
+Then('it should have a generated UUID id', async () => {
   expect(state.lastEntityType).toBeTruthy()
   const id = state.lastEntityType!.id as string
   expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
 })
 
-Then('the entity type should have category {string}', async () => {
-  expect(state.lastEntityType!.category).toBe('case')
+Then('it should have category {string}', async ({}, category: string) => {
+  expect(state.lastEntityType!.category).toBe(category)
 })
 
-Then('the entity type should have {int} statuses', async ({}, count: number) => {
+Then('the created entity type should have {int} statuses', async ({}, count: number) => {
   const statuses = state.lastEntityType!.statuses as unknown[]
   expect(statuses.length).toBe(count)
 })
 
-Then('the entity type should have {int} fields', async ({}, count: number) => {
+Then('the created entity type should have {int} fields', async ({}, count: number) => {
   const fields = state.lastEntityType!.fields as unknown[]
   expect(fields.length).toBe(count)
 })
 
-Then('the entity type {string} should have the field {string}', async ({ request }, entityTypeName: string, fieldName: string) => {
+Then('entity type {string} should have the field {string}', async ({ request }, entityTypeName: string, fieldName: string) => {
   const types = await listEntityTypesViaApi(request)
   const entityType = types.find(t => t.name === entityTypeName)
   expect(entityType).toBeTruthy()
@@ -222,7 +210,7 @@ Then('the entity type {string} should have the field {string}', async ({ request
   expect(fields.some(f => f.name === fieldName)).toBe(true)
 })
 
-Then('the entity type {string} should not exist', async ({ request }, name: string) => {
+Then('entity type {string} should not exist', async ({ request }, name: string) => {
   const types = await listEntityTypesViaApi(request)
   expect(types.some(t => t.name === name)).toBe(false)
 })
@@ -232,35 +220,34 @@ Then('the relationship type should exist', async () => {
   expect(state.lastRelationshipType!.id).toBeTruthy()
 })
 
-Then('the response status should be {int}', async ({}, expectedStatus: number) => {
-  expect(state.lastResponseStatus).toBe(expectedStatus)
-})
-
-Then('the case number should match pattern {string}', async ({}, pattern: string) => {
+Then('the first case number should match {string}', async ({}, pattern: string) => {
   const year = new Date().getFullYear()
-  const expected = pattern
-    .replace('{year}', String(year))
-    .replace('0001', String(state.caseNumberCount).padStart(4, '0'))
-  expect(state.lastCaseNumber).toBe(expected)
+  const expected = pattern.replace('{year}', String(year))
+  expect(state.caseNumbers[0]).toBe(expected)
 })
 
-Then('the hub-admin role should include {string}', async ({ request }, permission: string) => {
+Then('the second case number should match {string}', async ({}, pattern: string) => {
+  const year = new Date().getFullYear()
+  const expected = pattern.replace('{year}', String(year))
+  expect(state.caseNumbers[1]).toBe(expected)
+})
+
+Then('the hub-admin role should include permission {string}', async ({ request }, permission: string) => {
   const roles = await listRolesViaApi(request)
-  const hubAdmin = roles.find(r => r.id === 'role-hub-admin' || r.slug === 'hub-admin')
+  const hubAdmin = roles.find((r: Record<string, unknown>) => r.id === 'role-hub-admin' || r.slug === 'hub-admin')
   expect(hubAdmin).toBeTruthy()
   const perms = hubAdmin!.permissions as string[]
-  // Check for exact match or wildcard match
   const domain = permission.split(':')[0]
-  const hasPermission = perms.includes(permission) || perms.includes(`${domain}:*`) || perms.includes('*')
-  expect(hasPermission).toBe(true)
+  const hasIt = perms.includes(permission) || perms.includes(`${domain}:*`) || perms.includes('*')
+  expect(hasIt).toBe(true)
 })
 
-Then('the volunteer role should include {string}', async ({ request }, permission: string) => {
+Then('the volunteer role should include permission {string}', async ({ request }, permission: string) => {
   const roles = await listRolesViaApi(request)
-  const volunteer = roles.find(r => r.id === 'role-volunteer' || r.slug === 'volunteer')
+  const volunteer = roles.find((r: Record<string, unknown>) => r.id === 'role-volunteer' || r.slug === 'volunteer')
   expect(volunteer).toBeTruthy()
   const perms = volunteer!.permissions as string[]
   const domain = permission.split(':')[0]
-  const hasPermission = perms.includes(permission) || perms.includes(`${domain}:*`) || perms.includes('*')
-  expect(hasPermission).toBe(true)
+  const hasIt = perms.includes(permission) || perms.includes(`${domain}:*`) || perms.includes('*')
+  expect(hasIt).toBe(true)
 })
