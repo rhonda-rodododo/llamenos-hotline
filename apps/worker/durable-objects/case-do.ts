@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers'
 import type { Env } from '../types'
 import type { CaseRecord, CreateRecordBody, RecordContact } from '../schemas/records'
 import type { Event, CreateEventBody, CaseEvent, ReportEvent } from '../schemas/events'
+import type { CaseInteraction, CreateInteractionBody } from '../schemas/interactions'
 import { DORouter } from '../lib/do-router'
 import { parseBlindIndexFilters, matchesBlindIndexFilters } from '../lib/blind-index-query'
 
@@ -36,6 +37,12 @@ import { parseBlindIndexFilters, matchesBlindIndexFilters } from '../lib/blind-i
  * - reportevent:{reportId}:{eventId} → ReportEvent
  * - eventreports:{eventId}:{reportId} → ReportEvent (reverse index)
  *
+ * Interaction timeline (chronological per record):
+ * - interaction:{caseId}:{interactionId} → CaseInteraction
+ * - idx:interaction:type:{typeHash}:{caseId}:{interactionId} → true (type filter)
+ * - idx:interaction:source:{sourceId} → { caseId, interactionId } (reverse lookup)
+ * - idx:interaction:time:{caseId}:{ISO timestamp}:{interactionId} → true (chronological)
+ *
  * Storage keys:
  * - record:{uuid} → CaseRecord
  * - event:{uuid} → Event
@@ -51,6 +58,7 @@ export class CaseDO extends DurableObject<Env> {
 
   private setupRoutes() {
     this.setupRecordRoutes()
+    this.setupInteractionRoutes()
     this.setupEventRoutes()
     this.setupResetRoute()
   }
@@ -237,7 +245,13 @@ export class CaseDO extends DurableObject<Env> {
       const existing = await this.ctx.storage.get<CaseRecord>(`record:${id}`)
       if (!existing) return Response.json({ error: 'Record not found' }, { status: 404 })
 
-      const body = await req.json() as Partial<CreateRecordBody>
+      const body = await req.json() as Partial<CreateRecordBody> & {
+        // Status change interaction metadata (optional, for auto-creating status_change interactions)
+        statusChangeTypeHash?: string
+        statusChangeContent?: string
+        statusChangeEnvelopes?: CaseInteraction['contentEnvelopes']
+      }
+      const now = new Date().toISOString()
 
       const updated: CaseRecord = {
         ...existing,
@@ -246,7 +260,7 @@ export class CaseDO extends DurableObject<Env> {
         hubId: existing.hubId, // Prevent hubId override
         createdAt: existing.createdAt, // Preserve creation timestamp
         createdBy: existing.createdBy, // Preserve creator
-        updatedAt: new Date().toISOString(),
+        updatedAt: now,
         // Preserve counters
         contactCount: existing.contactCount,
         interactionCount: existing.interactionCount,
@@ -299,6 +313,31 @@ export class CaseDO extends DurableObject<Env> {
         for (const pubkey of body.assignedTo) {
           puts.set(`idx:assigned:${pubkey}:${id}`, true)
         }
+      }
+
+      // Auto-create status_change interaction when status changes
+      if (body.statusHash && body.statusHash !== existing.statusHash) {
+        const interactionId = crypto.randomUUID()
+        const authorPubkey = req.headers.get('x-pubkey') ?? ''
+        const statusInteraction: CaseInteraction = {
+          id: interactionId,
+          caseId: id,
+          interactionType: 'status_change',
+          authorPubkey,
+          interactionTypeHash: body.statusChangeTypeHash ?? '',
+          createdAt: now,
+          previousStatusHash: existing.statusHash,
+          newStatusHash: body.statusHash,
+          encryptedContent: body.statusChangeContent,
+          contentEnvelopes: body.statusChangeEnvelopes,
+        }
+
+        puts.set(`interaction:${id}:${interactionId}`, statusInteraction)
+        puts.set(`idx:interaction:time:${id}:${now}:${interactionId}`, true)
+        if (body.statusChangeTypeHash) {
+          puts.set(`idx:interaction:type:${body.statusChangeTypeHash}:${id}:${interactionId}`, true)
+        }
+        updated.interactionCount = (updated.interactionCount ?? 0) + 1
       }
 
       puts.set(`record:${id}`, updated)
@@ -562,6 +601,153 @@ export class CaseDO extends DurableObject<Env> {
       await this.ctx.storage.put(`record:${id}`, record)
 
       return Response.json({ assignedTo: record.assignedTo })
+    })
+  }
+
+  // ============================================================
+  // Interaction Routes
+  // ============================================================
+
+  private setupInteractionRoutes() {
+    // --- List interactions for a case (chronological) ---
+    this.router.get('/records/:caseId/interactions', async (req, { caseId }) => {
+      const record = await this.ctx.storage.get<CaseRecord>(`record:${caseId}`)
+      if (!record) return Response.json({ error: 'Record not found' }, { status: 404 })
+
+      const url = new URL(req.url)
+      const page = parseInt(url.searchParams.get('page') ?? '1')
+      const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50'), 100)
+      const typeHash = url.searchParams.get('interactionTypeHash')
+      const after = url.searchParams.get('after')
+      const before = url.searchParams.get('before')
+
+      // Use time index for chronological ordering
+      const prefix = `idx:interaction:time:${caseId}:`
+      const listOpts: { prefix: string; limit: number; start?: string; end?: string } = {
+        prefix,
+        limit: 1000,
+      }
+      if (after) listOpts.start = `${prefix}${after}`
+      if (before) listOpts.end = `${prefix}${before}`
+
+      const timeEntries = await this.ctx.storage.list(listOpts)
+
+      // Collect interaction IDs in chronological order
+      const interactionKeys: string[] = []
+      for (const [key] of timeEntries) {
+        const parts = key.split(':')
+        const interactionId = parts[parts.length - 1]
+        interactionKeys.push(`interaction:${caseId}:${interactionId}`)
+      }
+
+      // Fetch interactions
+      let interactions: CaseInteraction[] = []
+      if (interactionKeys.length > 0) {
+        const entries = await this.ctx.storage.get<CaseInteraction>(interactionKeys)
+        for (const [, value] of entries) {
+          if (value) interactions.push(value)
+        }
+      }
+
+      // Filter by type if specified
+      if (typeHash) {
+        interactions = interactions.filter(i => i.interactionTypeHash === typeHash)
+      }
+
+      // Sort chronologically (newest first by default)
+      interactions.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+      // Paginate
+      const start = (page - 1) * limit
+      const paged = interactions.slice(start, start + limit)
+
+      return Response.json({
+        interactions: paged,
+        total: interactions.length,
+        page,
+        limit,
+        hasMore: start + limit < interactions.length,
+      })
+    })
+
+    // --- Create interaction ---
+    this.router.post('/records/:caseId/interactions', async (req, { caseId }) => {
+      const record = await this.ctx.storage.get<CaseRecord>(`record:${caseId}`)
+      if (!record) return Response.json({ error: 'Record not found' }, { status: 404 })
+
+      const body = await req.json() as CreateInteractionBody
+      const id = crypto.randomUUID()
+      const now = new Date().toISOString()
+
+      const interaction: CaseInteraction = {
+        id,
+        caseId,
+        interactionType: body.interactionType,
+        sourceId: body.sourceId,
+        encryptedContent: body.encryptedContent,
+        contentEnvelopes: body.contentEnvelopes,
+        authorPubkey: req.headers.get('x-pubkey') ?? '',
+        interactionTypeHash: body.interactionTypeHash,
+        createdAt: now,
+        previousStatusHash: body.previousStatusHash,
+        newStatusHash: body.newStatusHash,
+      }
+
+      // Build all storage writes atomically
+      const puts = new Map<string, unknown>()
+      puts.set(`interaction:${caseId}:${id}`, interaction)
+      puts.set(`idx:interaction:type:${body.interactionTypeHash}:${caseId}:${id}`, true)
+      puts.set(`idx:interaction:time:${caseId}:${now}:${id}`, true)
+
+      if (body.sourceId) {
+        puts.set(`idx:interaction:source:${body.sourceId}`, { caseId, interactionId: id })
+      }
+
+      // Update record interaction count
+      record.interactionCount = (record.interactionCount ?? 0) + 1
+      record.updatedAt = now
+      puts.set(`record:${caseId}`, record)
+
+      await this.ctx.storage.put(Object.fromEntries(puts))
+
+      return Response.json(interaction, { status: 201 })
+    })
+
+    // --- Delete interaction ---
+    this.router.delete('/records/:caseId/interactions/:interactionId', async (_req, { caseId, interactionId }) => {
+      const interaction = await this.ctx.storage.get<CaseInteraction>(`interaction:${caseId}:${interactionId}`)
+      if (!interaction) return Response.json({ error: 'Interaction not found' }, { status: 404 })
+
+      const deletes: string[] = [
+        `interaction:${caseId}:${interactionId}`,
+        `idx:interaction:type:${interaction.interactionTypeHash}:${caseId}:${interactionId}`,
+        `idx:interaction:time:${caseId}:${interaction.createdAt}:${interactionId}`,
+      ]
+
+      if (interaction.sourceId) {
+        deletes.push(`idx:interaction:source:${interaction.sourceId}`)
+      }
+
+      // Update record interaction count
+      const record = await this.ctx.storage.get<CaseRecord>(`record:${caseId}`)
+      if (record) {
+        record.interactionCount = Math.max(0, record.interactionCount - 1)
+        record.updatedAt = new Date().toISOString()
+        await this.ctx.storage.put(`record:${caseId}`, record)
+      }
+
+      await this.ctx.storage.delete(deletes)
+
+      return Response.json({ deleted: true })
+    })
+
+    // --- Check if a source entity is already linked to a case ---
+    this.router.get('/interactions/by-source/:sourceId', async (_req, { sourceId }) => {
+      const entry = await this.ctx.storage.get<{ caseId: string; interactionId: string }>(
+        `idx:interaction:source:${sourceId}`,
+      )
+      if (!entry) return Response.json({ linked: false })
+      return Response.json({ linked: true, caseId: entry.caseId, interactionId: entry.interactionId })
     })
   }
 

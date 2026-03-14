@@ -12,6 +12,7 @@ import {
   unassignBodySchema,
 } from '../schemas/records'
 import type { CaseRecord } from '../schemas/records'
+import { createInteractionBodySchema, listInteractionsQuerySchema } from '../schemas/interactions'
 import type { EntityTypeDefinition } from '../schemas/entity-schema'
 import { authErrors, notFoundError } from '../openapi/helpers'
 import { audit } from '../services/audit'
@@ -197,6 +198,33 @@ records.get('/envelope-recipients',
 
     const recipients = determineEnvelopeRecipients(entityType, assignedTo, hubMembers)
     return c.json(recipients)
+  },
+)
+
+// --- Lookup by source entity ID (must be defined BEFORE /:id to avoid Hono matching "interactions" as an id param) ---
+records.get('/interactions/by-source/:sourceId',
+  describeRoute({
+    tags: ['Interactions'],
+    summary: 'Check if a source entity is linked to a case',
+    responses: {
+      200: { description: 'Source link status' },
+      ...authErrors,
+    },
+  }),
+  async (c) => {
+    const sourceId = c.req.param('sourceId')
+    const permissions = c.get('permissions')
+
+    const accessLevel = getAccessLevel(permissions)
+    if (!accessLevel) {
+      return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
+    }
+
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const res = await dos.caseManager.fetch(
+      new Request(`http://do/interactions/by-source/${encodeURIComponent(sourceId)}`),
+    )
+    return new Response(res.body, res)
   },
 )
 
@@ -613,6 +641,141 @@ records.post('/:id/unassign',
     await audit(dos.records, 'recordUnassigned', pubkey, {
       recordId: id,
       unassignedPubkey: body.pubkey,
+    })
+
+    return new Response(res.body, res)
+  },
+)
+
+// ============================================================
+// Interaction Routes (Epic 323)
+// ============================================================
+
+// --- List interactions for a case ---
+records.get('/:id/interactions',
+  describeRoute({
+    tags: ['Interactions'],
+    summary: 'List interactions for a case (chronological timeline)',
+    responses: {
+      200: { description: 'Paginated list of interactions' },
+      ...authErrors,
+      ...notFoundError,
+    },
+  }),
+  validator('query', listInteractionsQuerySchema),
+  async (c) => {
+    const id = c.req.param('id')
+    const permissions = c.get('permissions')
+
+    const accessLevel = getAccessLevel(permissions)
+    if (!accessLevel) {
+      return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
+    }
+
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const query = c.req.valid('query')
+
+    const qs = new URLSearchParams({
+      page: String(query.page),
+      limit: String(query.limit),
+    })
+    if (query.interactionTypeHash) qs.set('interactionTypeHash', query.interactionTypeHash)
+    if (query.after) qs.set('after', query.after)
+    if (query.before) qs.set('before', query.before)
+
+    const res = await dos.caseManager.fetch(
+      new Request(`http://do/records/${id}/interactions?${qs}`),
+    )
+    return new Response(res.body, res)
+  },
+)
+
+// --- Create interaction on a case ---
+records.post('/:id/interactions',
+  describeRoute({
+    tags: ['Interactions'],
+    summary: 'Create an interaction on a case',
+    responses: {
+      201: { description: 'Interaction created' },
+      ...authErrors,
+      ...notFoundError,
+    },
+  }),
+  validator('json', createInteractionBodySchema),
+  async (c) => {
+    const id = c.req.param('id')
+    const pubkey = c.get('pubkey')
+    const permissions = c.get('permissions')
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+
+    // Check update permissions
+    const canUpdateAll = checkPermission(permissions, 'cases:update')
+    const canUpdateOwn = checkPermission(permissions, 'cases:update-own')
+
+    if (!canUpdateAll && !canUpdateOwn) {
+      return c.json({ error: 'Forbidden', required: 'cases:update-own' }, 403)
+    }
+
+    // If only own update, verify ownership or assignment
+    if (!canUpdateAll) {
+      const getRes = await dos.caseManager.fetch(new Request(`http://do/records/${id}`))
+      if (!getRes.ok) return new Response(getRes.body, getRes)
+
+      const existing = await getRes.json() as CaseRecord
+      if (existing.createdBy !== pubkey && !existing.assignedTo.includes(pubkey)) {
+        return c.json({ error: 'Forbidden' }, 403)
+      }
+    }
+
+    const body = c.req.valid('json')
+    const res = await dos.caseManager.fetch(
+      new Request(`http://do/records/${id}/interactions`, {
+        method: 'POST',
+        headers: { 'x-pubkey': pubkey },
+        body: JSON.stringify(body),
+      }),
+    )
+
+    if (!res.ok) return new Response(res.body, res)
+
+    await audit(dos.records, 'interactionCreated', pubkey, {
+      caseId: id,
+      interactionType: body.interactionType,
+    })
+
+    return new Response(res.body, { status: 201, headers: res.headers })
+  },
+)
+
+// --- Delete interaction ---
+records.delete('/:id/interactions/:interactionId',
+  describeRoute({
+    tags: ['Interactions'],
+    summary: 'Delete an interaction from a case',
+    responses: {
+      200: { description: 'Interaction deleted' },
+      ...authErrors,
+      ...notFoundError,
+    },
+  }),
+  requirePermission('cases:update'),
+  async (c) => {
+    const id = c.req.param('id')
+    const interactionId = c.req.param('interactionId')
+    const pubkey = c.get('pubkey')
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+
+    const res = await dos.caseManager.fetch(
+      new Request(`http://do/records/${id}/interactions/${interactionId}`, {
+        method: 'DELETE',
+      }),
+    )
+
+    if (!res.ok) return new Response(res.body, res)
+
+    await audit(dos.records, 'interactionDeleted', pubkey, {
+      caseId: id,
+      interactionId,
     })
 
     return new Response(res.body, res)

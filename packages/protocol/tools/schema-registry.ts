@@ -164,6 +164,26 @@ import {
   eventListResponseSchema,
   caseEventListResponseSchema,
   reportEventListResponseSchema,
+
+  // contact-relationships.ts
+  contactRelationshipSchema,
+  createRelationshipBodySchema,
+  affinityGroupSchema,
+  groupMemberSchema,
+  createAffinityGroupBodySchema,
+  updateAffinityGroupBodySchema,
+  addGroupMemberBodySchema,
+  affinityGroupDetailsSchema,
+  contactRelationshipListResponseSchema,
+  affinityGroupListResponseSchema,
+  affinityGroupWithMembersResponseSchema,
+
+  // interactions.ts
+  caseInteractionSchema,
+  createInteractionBodySchema,
+  interactionContentSchema,
+  interactionListResponseSchema,
+  sourceInteractionLookupResponseSchema,
 } from '../../../apps/worker/schemas'
 
 import type { ZodType } from 'zod'
@@ -348,6 +368,26 @@ const schemaEntries: Array<[string, ZodType]> = [
   ['eventListResponseSchema', eventListResponseSchema],
   ['caseEventListResponseSchema', caseEventListResponseSchema],
   ['reportEventListResponseSchema', reportEventListResponseSchema],
+
+  // Contact Relationships & Affinity Groups
+  ['contactRelationshipSchema', contactRelationshipSchema],
+  ['createRelationshipBodySchema', createRelationshipBodySchema],
+  ['affinityGroupSchema', affinityGroupSchema],
+  ['groupMemberSchema', groupMemberSchema],
+  ['createAffinityGroupBodySchema', createAffinityGroupBodySchema],
+  ['updateAffinityGroupBodySchema', updateAffinityGroupBodySchema],
+  ['addGroupMemberBodySchema', addGroupMemberBodySchema],
+  ['affinityGroupDetailsSchema', affinityGroupDetailsSchema],
+  ['contactRelationshipListResponseSchema', contactRelationshipListResponseSchema],
+  ['affinityGroupListResponseSchema', affinityGroupListResponseSchema],
+  ['affinityGroupWithMembersResponseSchema', affinityGroupWithMembersResponseSchema],
+
+  // Interactions
+  ['caseInteractionSchema', caseInteractionSchema],
+  ['createInteractionBodySchema', createInteractionBodySchema],
+  ['interactionContentSchema', interactionContentSchema],
+  ['interactionListResponseSchema', interactionListResponseSchema],
+  ['sourceInteractionLookupResponseSchema', sourceInteractionLookupResponseSchema],
 ]
 
 export interface SchemaRegistryEntry {

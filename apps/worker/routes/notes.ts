@@ -78,7 +78,30 @@ notes.post('/',
       method: 'POST',
       body: JSON.stringify({ ...body, authorPubkey: pubkey }),
     }))
-    if (res.ok) await audit(dos.records, 'noteCreated', pubkey, { callId: body.callId, conversationId: body.conversationId })
+    if (res.ok) {
+      await audit(dos.records, 'noteCreated', pubkey, { callId: body.callId, conversationId: body.conversationId })
+
+      // Auto-create interaction linking note to case (Epic 323)
+      // createNoteBodySchema uses z.looseObject, so extra fields pass through
+      const looseBody = body as Record<string, unknown>
+      const caseId = looseBody.caseId as string | undefined
+      const interactionTypeHash = looseBody.interactionTypeHash as string | undefined
+      if (caseId && interactionTypeHash) {
+        const noteData = await res.clone().json() as { id: string }
+        dos.caseManager.fetch(new Request(
+          `http://do/records/${caseId}/interactions`,
+          {
+            method: 'POST',
+            headers: { 'x-pubkey': pubkey },
+            body: JSON.stringify({
+              interactionType: 'note',
+              sourceId: noteData.id,
+              interactionTypeHash,
+            }),
+          },
+        )).catch((e) => { console.error('[notes] Failed to create case interaction:', e) })
+      }
+    }
     return res
   },
 )
