@@ -7,7 +7,16 @@ import { test as base, createBdd } from 'playwright-bdd'
  */
 export const test = base.extend<{
   apiErrors: { responses: Array<{ url: string; status: number }>; pageErrors: Error[] }
+  backendRequest: import('@playwright/test').APIRequestContext
 }>({
+  // Backend API request context — targets the backend server directly (not the Vite preview).
+  // Used by CMS step definitions that need to call API helpers for Given-step data setup.
+  backendRequest: async ({ playwright }, use) => {
+    const backendUrl = process.env.TEST_HUB_URL || 'http://localhost:3000'
+    const ctx = await playwright.request.newContext({ baseURL: backendUrl })
+    await use(ctx)
+    await ctx.dispose()
+  },
   apiErrors: [async ({ page }, use) => {
     const state = { responses: [] as Array<{ url: string; status: number }>, pageErrors: [] as Error[] }
 

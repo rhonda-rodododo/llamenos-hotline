@@ -160,7 +160,7 @@ Then('the apply button on the applied template should be disabled', async ({ pag
   await expect(applyBtn).toBeDisabled()
 })
 
-Given('no entity types have been created', async ({ request }) => {
+Given('no entity types have been created', async ({ backendRequest: request }) => {
   // Accept current state for template application test
   const types = await listEntityTypesViaApi(request).catch(() => [])
   void types
@@ -202,7 +202,7 @@ Then('each entity type row should show field and status counts', async ({ page }
   expect(count).toBeGreaterThanOrEqual(2)
 })
 
-Given('an entity type with a color exists', async ({ request }) => {
+Given('an entity type with a color exists', async ({ backendRequest: request }) => {
   const types = await listEntityTypesViaApi(request)
   const withColor = types.find(et => (et as { color?: string }).color)
   if (!withColor) {
@@ -394,7 +394,7 @@ Then('the add option button should be visible', async ({ page }) => {
 
 // --- Field reorder and delete ---
 
-Given('an entity type with multiple fields exists', async ({ request }) => {
+Given('an entity type with multiple fields exists', async ({ backendRequest: request }) => {
   const types = await listEntityTypesViaApi(request)
   const withFields = types.find(et => {
     const fields = (et as { fields?: unknown[] }).fields
@@ -405,7 +405,7 @@ Given('an entity type with multiple fields exists', async ({ request }) => {
   }
 })
 
-Given('an entity type with fields exists', async ({ request }) => {
+Given('an entity type with fields exists', async ({ backendRequest: request }) => {
   const types = await listEntityTypesViaApi(request)
   const withFields = types.find(et => {
     const fields = (et as { fields?: unknown[] }).fields
@@ -522,7 +522,7 @@ Then('the add contact role button should be visible', async ({ page }) => {
 
 // --- Archive and delete ---
 
-Given('an entity type {string} exists', async ({ request }, name: string) => {
+Given('an entity type {string} exists', async ({ backendRequest: request }, name: string) => {
   const types = await listEntityTypesViaApi(request)
   const found = types.find(et => (et as { name?: string }).name === name)
   if (!found) {
@@ -551,7 +551,7 @@ Then('{string} should appear in the archived section', async ({ page }, name: st
   await expect(archived.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
-Given('an archived entity type exists', async ({ request }) => {
+Given('an archived entity type exists', async ({ backendRequest: request }) => {
   const types = await listEntityTypesViaApi(request)
   const archived = types.find(et => (et as { isArchived?: boolean }).isArchived)
   if (!archived) {

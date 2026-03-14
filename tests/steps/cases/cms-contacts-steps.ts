@@ -56,7 +56,7 @@ Then('the contact type filter should be visible', async ({ page }) => {
 
 // --- Search ---
 
-Given('contacts {string} and {string} exist', async ({ request }, name1: string, name2: string) => {
+Given('contacts {string} and {string} exist', async ({ backendRequest: request }, name1: string, name2: string) => {
   const existing = await listContactsViaApi(request)
   const existingNames = existing.contacts.map(c => (c as { displayName?: string }).displayName)
 
@@ -77,14 +77,14 @@ Given('contacts {string} and {string} exist', async ({ request }, name1: string,
   }
 })
 
-Given('contacts exist', async ({ request }) => {
+Given('contacts exist', async ({ backendRequest: request }) => {
   const existing = await listContactsViaApi(request)
   if (existing.contacts.length === 0) {
     await createContactViaApi(request, `Seed Contact ${Date.now()}`)
   }
 })
 
-Given('contacts of type {string} and {string} exist', async ({ request }, type1: string, type2: string) => {
+Given('contacts of type {string} and {string} exist', async ({ backendRequest: request }, type1: string, type2: string) => {
   const hash1 = type1.toLowerCase().replace(/\s+/g, '_')
   const hash2 = type2.toLowerCase().replace(/\s+/g, '_')
   await createContactViaApi(request, `${type1} Contact ${Date.now()}`, { contactTypeHash: hash1 })
@@ -257,7 +257,7 @@ When('I click the remove button on the second identifier', async ({ page }) => {
 
 // --- Contact profile detail ---
 
-Given('a contact {string} exists', async ({ request }, name: string) => {
+Given('a contact {string} exists', async ({ backendRequest: request }, name: string) => {
   const existing = await listContactsViaApi(request)
   const found = existing.contacts.find(c => (c as { displayName?: string }).displayName === name)
   if (found) {
@@ -268,7 +268,7 @@ Given('a contact {string} exists', async ({ request }, name: string) => {
   }
 })
 
-Given('a contact {string} exists with profile data', async ({ request }, name: string) => {
+Given('a contact {string} exists with profile data', async ({ backendRequest: request }, name: string) => {
   const existing = await listContactsViaApi(request)
   const found = existing.contacts.find(c => (c as { displayName?: string }).displayName === name)
   if (found) {
@@ -279,22 +279,22 @@ Given('a contact {string} exists with profile data', async ({ request }, name: s
   }
 })
 
-Given('a contact exists with no profile data', async ({ request }) => {
+Given('a contact exists with no profile data', async ({ backendRequest: request }) => {
   const created = await createContactViaApi(request, `No-Profile ${Date.now()}`)
   contactWithDataId = (created as { id: string }).id
 })
 
-Given('a contact exists with phone and email identifiers', async ({ request }) => {
+Given('a contact exists with phone and email identifiers', async ({ backendRequest: request }) => {
   const created = await createContactViaApi(request, `Identifiers Contact ${Date.now()}`)
   contactWithDataId = (created as { id: string }).id
 })
 
-Given('a contact exists with no identifiers', async ({ request }) => {
+Given('a contact exists with no identifiers', async ({ backendRequest: request }) => {
   const created = await createContactViaApi(request, `No-ID Contact ${Date.now()}`)
   contactWithDataId = (created as { id: string }).id
 })
 
-Given('a contact exists with linked cases', async ({ request }) => {
+Given('a contact exists with linked cases', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   const contact = await createContactViaApi(request, `Cases Contact ${Date.now()}`)
@@ -306,12 +306,12 @@ Given('a contact exists with linked cases', async ({ request }) => {
   }
 })
 
-Given('a contact exists with no linked cases', async ({ request }) => {
+Given('a contact exists with no linked cases', async ({ backendRequest: request }) => {
   const created = await createContactViaApi(request, `No-Cases Contact ${Date.now()}`)
   contactWithDataId = (created as { id: string }).id
 })
 
-Given('a contact exists with relationships', async ({ request }) => {
+Given('a contact exists with relationships', async ({ backendRequest: request }) => {
   const c1 = await createContactViaApi(request, `Rel Source ${Date.now()}`)
   const c2 = await createContactViaApi(request, `Rel Target ${Date.now()}`)
   contactWithDataId = (c1 as { id: string }).id
@@ -323,12 +323,12 @@ Given('a contact exists with relationships', async ({ request }) => {
   ).catch(() => {})
 })
 
-Given('a contact exists with no relationships', async ({ request }) => {
+Given('a contact exists with no relationships', async ({ backendRequest: request }) => {
   const created = await createContactViaApi(request, `No-Rel Contact ${Date.now()}`)
   contactWithDataId = (created as { id: string }).id
 })
 
-Given('a contact exists in groups', async ({ request }) => {
+Given('a contact exists in groups', async ({ backendRequest: request }) => {
   const contact = await createContactViaApi(request, `Group Contact ${Date.now()}`)
   contactWithDataId = (contact as { id: string }).id
   const group = await createAffinityGroupViaApi(
@@ -341,7 +341,7 @@ Given('a contact exists in groups', async ({ request }) => {
   }
 })
 
-Given('a contact exists not in any groups', async ({ request }) => {
+Given('a contact exists not in any groups', async ({ backendRequest: request }) => {
   const created = await createContactViaApi(request, `No-Group Contact ${Date.now()}`)
   contactWithDataId = (created as { id: string }).id
 })
@@ -463,7 +463,7 @@ Then('the contact groups empty state should be visible', async ({ page }) => {
 
 // --- Privacy-aware display ---
 
-Given('a contact with PII data exists', async ({ request }) => {
+Given('a contact with PII data exists', async ({ backendRequest: request }) => {
   const contact = await createContactViaApi(request, `PII Contact ${Date.now()}`)
   contactWithDataId = (contact as { id: string }).id
 })

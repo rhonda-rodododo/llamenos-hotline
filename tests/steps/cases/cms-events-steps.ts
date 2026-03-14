@@ -35,7 +35,7 @@ let lastEventName = ''
 
 // --- Background: event entity type exists ---
 
-Given('an event entity type exists', async ({ request }) => {
+Given('an event entity type exists', async ({ backendRequest: request }) => {
   const types = await listEntityTypesViaApi(request)
   const eventType = types.find(et => {
     const cat = (et as { category?: string }).category
@@ -65,14 +65,14 @@ Then('the new event button should be visible', async ({ page }) => {
   await expect(btn.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
-Given('no events have been created', async ({ request }) => {
+Given('no events have been created', async ({ backendRequest: request }) => {
   if (!eventEntityTypeId) return
   const records = await listRecordsViaApi(request, { entityTypeId: eventEntityTypeId })
   // Accept current state — we just need the empty state to be possible
   void records
 })
 
-Given('events exist', async ({ request }) => {
+Given('events exist', async ({ backendRequest: request }) => {
   if (!eventEntityTypeId) return
   const records = await listRecordsViaApi(request, { entityTypeId: eventEntityTypeId })
   if (records.records.length === 0) {
@@ -143,7 +143,7 @@ Then('the new event should appear in the event list', async ({ page }) => {
 
 // --- Event detail ---
 
-Given('an event {string} exists', async ({ request }, eventName: string) => {
+Given('an event {string} exists', async ({ backendRequest: request }, eventName: string) => {
   if (!eventEntityTypeId) return
   const event = await createRecordViaApi(request, eventEntityTypeId, { statusHash: 'active' })
   lastEventId = (event as { id: string }).id
@@ -171,7 +171,7 @@ Then('the event start date should be displayed', async ({ page }) => {
   await expect(page.getByTestId('case-detail-header')).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
-Given('an event with linked cases exists', async ({ request }) => {
+Given('an event with linked cases exists', async ({ backendRequest: request }) => {
   if (!eventEntityTypeId) return
   const event = await createEventViaApi(request, eventEntityTypeId, { statusHash: 'active' }).catch(async () => {
     // Fallback: create as a record
@@ -189,7 +189,7 @@ Given('an event with linked cases exists', async ({ request }) => {
   }
 })
 
-Given('an event with {int} linked cases exists', async ({ request }, count: number) => {
+Given('an event with {int} linked cases exists', async ({ backendRequest: request }, count: number) => {
   if (!eventEntityTypeId) return
   const event = await createEventViaApi(request, eventEntityTypeId, { statusHash: 'active' }).catch(async () => {
     return createRecordViaApi(request, eventEntityTypeId, { statusHash: 'active' })
@@ -207,7 +207,7 @@ Given('an event with {int} linked cases exists', async ({ request }, count: numb
   }
 })
 
-Given('an event with linked reports exists', async ({ request }) => {
+Given('an event with linked reports exists', async ({ backendRequest: request }) => {
   if (!eventEntityTypeId) return
   const event = await createEventViaApi(request, eventEntityTypeId, { statusHash: 'active' }).catch(async () => {
     return createRecordViaApi(request, eventEntityTypeId, { statusHash: 'active' })
@@ -218,7 +218,7 @@ Given('an event with linked reports exists', async ({ request }) => {
   await linkReportToEventViaApi(request, lastEventId, (report as { id: string }).id).catch(() => {})
 })
 
-When('I view the event detail', async ({ page, request }) => {
+When('I view the event detail', async ({ page, backendRequest: request }) => {
   await navigateAfterLogin(page, '/cases')
   // Click first case card (event) to open detail
   const card = page.getByTestId('case-card').first()
@@ -264,7 +264,7 @@ Then('linked reports should be visible', async ({ page }) => {
 
 // --- Link cases to events ---
 
-Given('an event exists', async ({ request }) => {
+Given('an event exists', async ({ backendRequest: request }) => {
   if (!eventEntityTypeId) return
   const records = await listRecordsViaApi(request, { entityTypeId: eventEntityTypeId })
   if (records.records.length === 0) {
@@ -315,7 +315,7 @@ Then('the report should appear in the event\'s linked reports', async ({ page })
 
 // --- Event status ---
 
-Given('an event with status {string} exists', async ({ request }, status: string) => {
+Given('an event with status {string} exists', async ({ backendRequest: request }, status: string) => {
   if (!eventEntityTypeId) return
   const event = await createRecordViaApi(request, eventEntityTypeId, { statusHash: status })
   lastEventId = (event as { id: string }).id

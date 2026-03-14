@@ -33,15 +33,15 @@ let lastCreatedRecordId = ''
 
 // --- Background: CMS setup ---
 
-Given('case management is enabled', async ({ request }) => {
+Given('case management is enabled', async ({ backendRequest: request }) => {
   await enableCaseManagementViaApi(request, true)
 })
 
-Given('case management is disabled', async ({ request }) => {
+Given('case management is disabled', async ({ backendRequest: request }) => {
   await enableCaseManagementViaApi(request, false)
 })
 
-Given('the {string} template has been applied', async ({ request }, templateSlug: string) => {
+Given('the {string} template has been applied', async ({ backendRequest: request }, templateSlug: string) => {
   const templates = await listTemplatesViaApi(request)
   const match = templates.find(t => t.id === templateSlug || t.name.toLowerCase().includes(templateSlug.replace('-', ' ')))
   if (match) {
@@ -172,14 +172,14 @@ Then('the entity type selector should show {string}', async ({ page }, expected:
 
 // --- Case list preconditions ---
 
-Given('no cases have been created', async ({ request }) => {
+Given('no cases have been created', async ({ backendRequest: request }) => {
   // Check via API that no records exist (or ignore if API returns empty)
   const result = await listRecordsViaApi(request).catch(() => ({ records: [], total: 0, hasMore: false }))
   // We accept the current state — no deletion needed since test creates fresh cases
   void result
 })
 
-Given('arrest cases exist', async ({ request }) => {
+Given('arrest cases exist', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -190,7 +190,7 @@ Given('arrest cases exist', async ({ request }) => {
   }
 })
 
-Given('arrest cases with multiple statuses exist', async ({ request }) => {
+Given('arrest cases with multiple statuses exist', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -199,7 +199,7 @@ Given('arrest cases with multiple statuses exist', async ({ request }) => {
   await createRecordViaApi(request, etId, { statusHash: 'in_progress' }).catch(() => {})
 })
 
-Given('an arrest case exists', async ({ request }) => {
+Given('an arrest case exists', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -213,7 +213,7 @@ Given('an arrest case exists', async ({ request }) => {
   }
 })
 
-Given('an arrest case with status {string} exists', async ({ request }, status: string) => {
+Given('an arrest case with status {string} exists', async ({ backendRequest: request }, status: string) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -222,7 +222,7 @@ Given('an arrest case with status {string} exists', async ({ request }, status: 
   lastCreatedRecordId = (record as { id: string }).id
 })
 
-Given('an arrest case exists with multiple field sections', async ({ request }) => {
+Given('an arrest case exists with multiple field sections', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -437,7 +437,7 @@ Then('the status pill should not be clickable', async ({ page }) => {
 
 // --- Timeline tab ---
 
-Given('an arrest case with interactions exists', async ({ request }) => {
+Given('an arrest case with interactions exists', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -448,7 +448,7 @@ Given('an arrest case with interactions exists', async ({ request }) => {
   await createInteractionViaApi(request, recordId, { interactionType: 'comment' })
 })
 
-Given('an arrest case with a comment interaction exists', async ({ request }) => {
+Given('an arrest case with a comment interaction exists', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -459,19 +459,7 @@ Given('an arrest case with a comment interaction exists', async ({ request }) =>
   await createInteractionViaApi(request, recordId, { interactionType: 'comment' })
 })
 
-Given('an arrest case with multiple interactions exists', async ({ request }) => {
-  const entityTypes = await listEntityTypesViaApi(request)
-  const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
-  if (!arrestType) return
-  const etId = (arrestType as { id: string }).id
-  const record = await createRecordViaApi(request, etId, { statusHash: 'reported' })
-  const recordId = (record as { id: string }).id
-  lastCreatedRecordId = recordId
-  await createInteractionViaApi(request, recordId, { interactionType: 'comment' })
-  await createInteractionViaApi(request, recordId, { interactionType: 'status_change' })
-})
-
-Given('an arrest case with comment and status_change interactions exists', async ({ request }) => {
+Given('an arrest case with multiple interactions exists', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -483,7 +471,19 @@ Given('an arrest case with comment and status_change interactions exists', async
   await createInteractionViaApi(request, recordId, { interactionType: 'status_change' })
 })
 
-Given('an arrest case is selected with the Timeline tab active', async ({ page, request }) => {
+Given('an arrest case with comment and status_change interactions exists', async ({ backendRequest: request }) => {
+  const entityTypes = await listEntityTypesViaApi(request)
+  const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
+  if (!arrestType) return
+  const etId = (arrestType as { id: string }).id
+  const record = await createRecordViaApi(request, etId, { statusHash: 'reported' })
+  const recordId = (record as { id: string }).id
+  lastCreatedRecordId = recordId
+  await createInteractionViaApi(request, recordId, { interactionType: 'comment' })
+  await createInteractionViaApi(request, recordId, { interactionType: 'status_change' })
+})
+
+Given('an arrest case is selected with the Timeline tab active', async ({ page, backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -585,7 +585,7 @@ Then('the timeline comment submit button should be disabled', async ({ page }) =
 
 // --- Contacts tab ---
 
-Given('an arrest case with linked contacts exists', async ({ request }) => {
+Given('an arrest case with linked contacts exists', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -598,7 +598,7 @@ Given('an arrest case with linked contacts exists', async ({ request }) => {
   await linkContactToRecordViaApi(request, recordId, contactId, 'defendant')
 })
 
-Given('an arrest case with no linked contacts exists', async ({ request }) => {
+Given('an arrest case with no linked contacts exists', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -622,7 +622,7 @@ Then('the contacts empty state should be visible', async ({ page }) => {
 
 // --- Evidence tab ---
 
-Given('an arrest case with evidence exists', async ({ request }) => {
+Given('an arrest case with evidence exists', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -633,7 +633,7 @@ Given('an arrest case with evidence exists', async ({ request }) => {
   await uploadEvidenceViaApi(request, recordId, { classification: 'photo' })
 })
 
-Given('an arrest case with photo and document evidence exists', async ({ request }) => {
+Given('an arrest case with photo and document evidence exists', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -645,7 +645,7 @@ Given('an arrest case with photo and document evidence exists', async ({ request
   await uploadEvidenceViaApi(request, recordId, { classification: 'document' })
 })
 
-Given('an arrest case with no evidence exists', async ({ request }) => {
+Given('an arrest case with no evidence exists', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -713,7 +713,7 @@ Then('the upload evidence button should be visible', async ({ page }) => {
 
 // --- Assignment ---
 
-Given('an arrest case exists that is not assigned to me', async ({ request }) => {
+Given('an arrest case exists that is not assigned to me', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
@@ -732,7 +732,7 @@ Then('the {string} button should no longer be visible', async ({ page }, text: s
 
 // --- Pagination ---
 
-Given('more than 50 cases exist', async ({ request }) => {
+Given('more than 50 cases exist', async ({ backendRequest: request }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
