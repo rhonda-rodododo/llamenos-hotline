@@ -44,6 +44,9 @@ import {
   HelpCircle,
   Megaphone,
   Contact,
+  Briefcase,
+  BookUser,
+  FolderOpen,
 } from 'lucide-react'
 
 export const Route = createRootRoute({
@@ -283,6 +286,11 @@ function AuthenticatedLayout() {
             <>
               <NavLink to="/" icon={<LayoutDashboard className="h-4 w-4" />}>{t('nav.dashboard')}</NavLink>
               <NavLink to="/notes" icon={<StickyNote className="h-4 w-4" />}>{t('nav.notes')}</NavLink>
+              {(hasPermission('cases:read-own') || hasPermission('cases:read-assigned') || hasPermission('cases:read-all')) && (
+                <NavLink to="/cases" icon={<FolderOpen className="h-4 w-4" />}>
+                  {t('nav.cases', { defaultValue: 'Cases' })}
+                </NavLink>
+              )}
               {hasMessaging && (
                 <NavLink to="/conversations" icon={<MessageSquare className="h-4 w-4" />}>
                   {t('nav.conversations', { defaultValue: 'Conversations' })}
@@ -318,8 +326,12 @@ function AuthenticatedLayout() {
               {hasPermission('contacts:view') && (
                 <NavLink to="/contacts" icon={<Contact className="h-4 w-4" />}>{t('nav.contacts', { defaultValue: 'Contacts' })}</NavLink>
               )}
+              {hasPermission('contacts:view') && (
+                <NavLink to="/contacts-directory" icon={<BookUser className="h-4 w-4" />}>{t('contactDirectory.title', { defaultValue: 'Contact Directory' })}</NavLink>
+              )}
               <NavLink to="/audit" icon={<ScrollText className="h-4 w-4" />}>{t('nav.auditLog')}</NavLink>
               <NavLink to="/admin/settings" icon={<Settings className="h-4 w-4" />}>{t('nav.hubSettings', { defaultValue: 'Hub Settings' })}</NavLink>
+              <NavLink to="/admin/case-management" icon={<Briefcase className="h-4 w-4" />}>{t('caseManagement.title')}</NavLink>
               {hasPermission('system:manage-hubs') && (
                 <NavLink to="/admin/hubs" icon={<Building2 className="h-4 w-4" />}>{t('nav.hubs', { defaultValue: 'Hubs' })}</NavLink>
               )}

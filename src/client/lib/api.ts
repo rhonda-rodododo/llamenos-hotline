@@ -1618,3 +1618,532 @@ export interface SystemHealth {
 export async function fetchSystemHealth() {
   return request<SystemHealth>('/system/health')
 }
+
+// --- Case Management (CMS) ---
+
+import type { EntityTypeDefinition, EntityFieldDefinition, EnumOption, EntityCategory } from '@shared/types'
+export type { EntityTypeDefinition, EntityFieldDefinition, EnumOption, EntityCategory }
+
+export async function getCaseManagementEnabled() {
+  return request<{ enabled: boolean }>(hp('/settings/cms/case-management'))
+}
+
+export async function setCaseManagementEnabled(enabled: boolean) {
+  return request<{ enabled: boolean }>(hp('/settings/cms/case-management'), {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  })
+}
+
+export async function listEntityTypes() {
+  return request<{ entityTypes: EntityTypeDefinition[] }>(hp('/settings/cms/entity-types'))
+}
+
+export interface CreateEntityTypeBody {
+  name: string
+  label: string
+  labelPlural: string
+  description?: string
+  icon?: string
+  color?: string
+  category: EntityCategory
+  fields?: EntityFieldDefinition[]
+  statuses: EnumOption[]
+  defaultStatus: string
+  closedStatuses?: string[]
+  severities?: EnumOption[]
+  defaultSeverity?: string
+  categories?: EnumOption[]
+  contactRoles?: EnumOption[]
+  numberPrefix?: string
+  numberingEnabled?: boolean
+  defaultAccessLevel?: 'assigned' | 'team' | 'hub'
+  piiFields?: string[]
+  showInNavigation?: boolean
+  showInDashboard?: boolean
+  templateId?: string
+  templateVersion?: string
+}
+
+export async function createEntityType(body: CreateEntityTypeBody) {
+  return request<EntityTypeDefinition>(hp('/settings/cms/entity-types'), {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateEntityType(id: string, body: Partial<CreateEntityTypeBody> & { isArchived?: boolean }) {
+  return request<EntityTypeDefinition>(hp(`/settings/cms/entity-types/${id}`), {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteEntityType(id: string) {
+  return request<{ ok: boolean }>(hp(`/settings/cms/entity-types/${id}`), {
+    method: 'DELETE',
+  })
+}
+
+export interface TemplateSummary {
+  id: string
+  name: string
+  description: string
+  icon?: string
+  version: string
+  entityTypeCount: number
+  totalFieldCount: number
+  suggestedRoleCount: number
+  tags: string[]
+  comingSoon?: boolean
+}
+
+export async function listTemplates() {
+  return request<{ templates: TemplateSummary[] }>(hp('/settings/cms/templates'))
+}
+
+export async function applyTemplate(templateId: string) {
+  return request<{ applied: boolean; entityTypes: number }>(hp(`/settings/cms/templates/${templateId}/apply`), {
+    method: 'POST',
+  })
+}
+
+// --- Case Records (Epic 330) ---
+
+export interface CaseRecord {
+  id: string
+  hubId: string
+  entityTypeId: string
+  caseNumber?: string
+  statusHash: string
+  severityHash?: string
+  categoryHash?: string
+  assignedTo: string[]
+  blindIndexes: Record<string, string | string[]>
+  encryptedSummary: string
+  summaryEnvelopes: import('@shared/types').RecipientEnvelope[]
+  encryptedFields?: string
+  fieldEnvelopes?: import('@shared/types').RecipientEnvelope[]
+  encryptedPII?: string
+  piiEnvelopes?: import('@shared/types').RecipientEnvelope[]
+  contactCount: number
+  interactionCount: number
+  fileCount: number
+  reportCount: number
+  eventIds: string[]
+  reportIds: string[]
+  parentRecordId?: string
+  createdAt: string
+  updatedAt: string
+  closedAt?: string
+  createdBy: string
+}
+
+export interface RecordContact {
+  recordId: string
+  contactId: string
+  role: string
+  addedAt: string
+  addedBy: string
+}
+
+export interface CreateRecordBody {
+  entityTypeId: string
+  statusHash: string
+  severityHash?: string
+  categoryHash?: string
+  assignedTo?: string[]
+  blindIndexes?: Record<string, string | string[]>
+  encryptedSummary: string
+  summaryEnvelopes: import('@shared/types').RecipientEnvelope[]
+  encryptedFields?: string
+  fieldEnvelopes?: import('@shared/types').RecipientEnvelope[]
+  encryptedPII?: string
+  piiEnvelopes?: import('@shared/types').RecipientEnvelope[]
+  parentRecordId?: string
+  contactLinks?: Array<{ contactId: string; role: string }>
+}
+
+export interface UpdateRecordBody extends Partial<CreateRecordBody> {
+  statusChangeTypeHash?: string
+  statusChangeContent?: string
+  statusChangeEnvelopes?: import('@shared/types').RecipientEnvelope[]
+  closedAt?: string
+}
+
+export async function listRecords(params?: {
+  entityTypeId?: string
+  statusHash?: string
+  severityHash?: string
+  assignedTo?: string
+  page?: number
+  limit?: number
+}) {
+  const qs = new URLSearchParams()
+  if (params?.entityTypeId) qs.set('entityTypeId', params.entityTypeId)
+  if (params?.statusHash) qs.set('statusHash', params.statusHash)
+  if (params?.severityHash) qs.set('severityHash', params.severityHash)
+  if (params?.assignedTo) qs.set('assignedTo', params.assignedTo)
+  if (params?.page) qs.set('page', String(params.page))
+  qs.set('limit', String(params?.limit ?? 50))
+  return request<{ records: CaseRecord[]; total: number; page: number; limit: number; hasMore: boolean }>(hp(`/records?${qs}`))
+}
+
+export async function getRecord(id: string) {
+  return request<CaseRecord>(hp(`/records/${id}`))
+}
+
+export async function createRecord(body: CreateRecordBody) {
+  return request<CaseRecord>(hp('/records'), {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateRecord(id: string, body: UpdateRecordBody) {
+  return request<CaseRecord>(hp(`/records/${id}`), {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteRecord(id: string) {
+  return request<{ ok: boolean }>(hp(`/records/${id}`), { method: 'DELETE' })
+}
+
+export async function listRecordContacts(id: string) {
+  return request<{ contacts: RecordContact[] }>(hp(`/records/${id}/contacts`))
+}
+
+export async function linkContactToRecord(id: string, contactId: string, role: string) {
+  return request<RecordContact>(hp(`/records/${id}/contacts`), {
+    method: 'POST',
+    body: JSON.stringify({ contactId, role }),
+  })
+}
+
+export async function unlinkContactFromRecord(id: string, contactId: string) {
+  return request<{ ok: boolean }>(hp(`/records/${id}/contacts/${contactId}`), { method: 'DELETE' })
+}
+
+// --- Contact Directory (Epic 331) ---
+
+export type DirectoryContactType = 'individual' | 'organization' | 'legal_resource' | 'service_provider'
+export type IdentifierType = 'phone' | 'email' | 'signal'
+
+export interface ContactIdentifier {
+  id: string
+  type: IdentifierType
+  value: string
+  isPrimary: boolean
+}
+
+export interface DirectoryContact {
+  id: string
+  displayName: string
+  contactType: DirectoryContactType
+  tags: string[]
+  caseCount: number
+  lastInteractionAt: string | null
+  createdAt: string
+  updatedAt: string
+  /** True if user can decrypt PII for this contact */
+  canDecrypt: boolean
+  // Profile fields (encrypted — only present if canDecrypt)
+  demographics?: string
+  emergencyContacts?: string
+  communicationPrefs?: string
+  notes?: string
+  identifiers?: ContactIdentifier[]
+}
+
+export interface ContactRelationship {
+  id: string
+  sourceContactId: string
+  targetContactId: string
+  relationshipType: string
+  direction: 'outgoing' | 'incoming'
+  targetDisplayName: string
+  targetContactType: DirectoryContactType
+  createdAt: string
+}
+
+export interface ContactGroup {
+  id: string
+  name: string
+  description?: string
+  role?: string
+  memberCount: number
+}
+
+export interface ContactCaseLink {
+  recordId: string
+  caseNumber?: string
+  entityTypeLabel: string
+  role: string
+  status: string
+  createdAt: string
+}
+
+export async function listDirectoryContacts(params?: {
+  page?: number
+  limit?: number
+  contactType?: DirectoryContactType
+  search?: string
+}) {
+  const qs = new URLSearchParams()
+  if (params?.page) qs.set('page', String(params.page))
+  qs.set('limit', String(params?.limit ?? 50))
+  if (params?.contactType) qs.set('contactType', params.contactType)
+  if (params?.search) qs.set('search', params.search)
+  return request<{ contacts: DirectoryContact[]; total: number }>(hp(`/directory/contacts?${qs}`))
+}
+
+export async function searchDirectoryContacts(tokens: string) {
+  return request<{ contacts: DirectoryContact[] }>(hp('/directory/contacts/search'), {
+    method: 'POST',
+    body: JSON.stringify({ tokens }),
+  })
+}
+
+export async function getDirectoryContact(id: string) {
+  return request<DirectoryContact>(hp(`/directory/contacts/${id}`))
+}
+
+export interface CreateDirectoryContactBody {
+  displayName: string
+  contactType: DirectoryContactType
+  tags?: string[]
+  identifiers?: Array<{ type: IdentifierType; value: string; isPrimary: boolean }>
+  demographics?: string
+  emergencyContacts?: string
+  communicationPrefs?: string
+  notes?: string
+}
+
+export async function createDirectoryContact(body: CreateDirectoryContactBody) {
+  return request<DirectoryContact>(hp('/directory/contacts'), {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateDirectoryContact(id: string, body: Partial<CreateDirectoryContactBody>) {
+  return request<DirectoryContact>(hp(`/directory/contacts/${id}`), {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteDirectoryContact(id: string) {
+  return request<{ ok: boolean }>(hp(`/directory/contacts/${id}`), { method: 'DELETE' })
+}
+
+export async function listDirectoryContactRelationships(id: string) {
+  return request<{ relationships: ContactRelationship[] }>(hp(`/directory/contacts/${id}/relationships`))
+}
+
+export async function listDirectoryContactGroups(id: string) {
+  return request<{ groups: ContactGroup[] }>(hp(`/directory/contacts/${id}/groups`))
+}
+
+export async function listDirectoryContactCases(id: string) {
+  return request<{ cases: ContactCaseLink[] }>(hp(`/directory/contacts/${id}/cases`))
+}
+
+export async function assignRecord(id: string, pubkeys: string[]) {
+  return request<CaseRecord>(hp(`/records/${id}/assign`), {
+    method: 'POST',
+    body: JSON.stringify({ pubkeys }),
+  })
+}
+
+export async function unassignRecord(id: string, pubkey: string) {
+  return request<CaseRecord>(hp(`/records/${id}/unassign`), {
+    method: 'POST',
+    body: JSON.stringify({ pubkey }),
+  })
+}
+
+export async function getRecordEnvelopeRecipients(params: {
+  entityTypeId: string
+  assignedTo?: string[]
+  recordId?: string
+}) {
+  if (params.recordId) {
+    return request<{
+      summary: string[]
+      fields: string[]
+      pii: string[]
+    }>(hp(`/records/${params.recordId}/envelope-recipients`))
+  }
+  const qs = new URLSearchParams({ entityTypeId: params.entityTypeId })
+  if (params.assignedTo?.length) qs.set('assignedTo', params.assignedTo.join(','))
+  return request<{
+    summary: string[]
+    fields: string[]
+    pii: string[]
+  }>(hp(`/records/envelope-recipients?${qs}`))
+}
+
+// --- Case Interactions (Epic 332 — Timeline) ---
+
+export type InteractionType = 'note' | 'call' | 'message' | 'status_change' | 'referral' | 'assessment' | 'file_upload' | 'comment'
+
+export interface CaseInteraction {
+  id: string
+  caseId: string
+  interactionType: InteractionType
+  sourceId?: string
+  encryptedContent?: string
+  contentEnvelopes?: import('@shared/types').RecipientEnvelope[]
+  authorPubkey: string
+  interactionTypeHash: string
+  createdAt: string
+  previousStatusHash?: string
+  newStatusHash?: string
+}
+
+export async function listInteractions(recordId: string, params?: {
+  interactionTypeHash?: string
+  after?: string
+  before?: string
+  page?: number
+  limit?: number
+}) {
+  const qs = new URLSearchParams()
+  if (params?.interactionTypeHash) qs.set('interactionTypeHash', params.interactionTypeHash)
+  if (params?.after) qs.set('after', params.after)
+  if (params?.before) qs.set('before', params.before)
+  qs.set('page', String(params?.page ?? 1))
+  qs.set('limit', String(params?.limit ?? 50))
+  return request<{
+    interactions: CaseInteraction[]
+    total: number
+    page: number
+    limit: number
+    hasMore: boolean
+  }>(hp(`/records/${recordId}/interactions?${qs}`))
+}
+
+export async function createInteraction(recordId: string, body: {
+  interactionType: InteractionType
+  sourceId?: string
+  encryptedContent?: string
+  contentEnvelopes?: import('@shared/types').RecipientEnvelope[]
+  interactionTypeHash: string
+  previousStatusHash?: string
+  newStatusHash?: string
+}) {
+  return request<CaseInteraction>(hp(`/records/${recordId}/interactions`), {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+// --- Case Evidence (Epic 332 — Evidence Viewer) ---
+
+export type EvidenceClassification = 'photo' | 'video' | 'document' | 'audio' | 'other'
+
+export type CustodyAction = 'uploaded' | 'viewed' | 'downloaded' | 'shared' | 'exported' | 'integrity_verified'
+
+export interface EvidenceMetadata {
+  id: string
+  caseId: string
+  fileId: string
+  filename: string
+  mimeType: string
+  sizeBytes: number
+  classification: EvidenceClassification
+  integrityHash: string
+  hashAlgorithm: 'sha256'
+  source?: string
+  sourceDescription?: string
+  encryptedDescription?: string
+  descriptionEnvelopes?: import('@shared/types').RecipientEnvelope[]
+  uploadedAt: string
+  uploadedBy: string
+  custodyEntryCount: number
+}
+
+export interface CustodyEntry {
+  id: string
+  evidenceId: string
+  action: CustodyAction
+  actorPubkey: string
+  timestamp: string
+  integrityHash: string
+  ipHash?: string
+  userAgent?: string
+  notes?: string
+}
+
+export async function listEvidence(recordId: string, params?: {
+  classification?: EvidenceClassification
+  page?: number
+  limit?: number
+}) {
+  const qs = new URLSearchParams()
+  if (params?.classification) qs.set('classification', params.classification)
+  qs.set('page', String(params?.page ?? 1))
+  qs.set('limit', String(params?.limit ?? 50))
+  return request<{
+    evidence: EvidenceMetadata[]
+    total: number
+    page: number
+    limit: number
+    hasMore: boolean
+  }>(hp(`/records/${recordId}/evidence?${qs}`))
+}
+
+export async function uploadEvidence(recordId: string, body: {
+  fileId: string
+  filename: string
+  mimeType: string
+  sizeBytes: number
+  classification: EvidenceClassification
+  integrityHash: string
+  source?: string
+  sourceDescription?: string
+  encryptedDescription?: string
+  descriptionEnvelopes?: import('@shared/types').RecipientEnvelope[]
+  interactionTypeHash?: string
+}) {
+  return request<EvidenceMetadata>(hp(`/records/${recordId}/evidence`), {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function getEvidenceMetadata(evidenceId: string) {
+  return request<EvidenceMetadata>(hp(`/evidence/${evidenceId}`))
+}
+
+export async function getEvidenceCustody(evidenceId: string) {
+  return request<{
+    custodyChain: CustodyEntry[]
+    total: number
+  }>(hp(`/evidence/${evidenceId}/custody`))
+}
+
+export async function logEvidenceAccess(evidenceId: string, body: {
+  action: CustodyAction
+  integrityHash: string
+  notes?: string
+}) {
+  return request<CustodyEntry>(hp(`/evidence/${evidenceId}/access`), {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function verifyEvidenceIntegrity(evidenceId: string, currentHash: string) {
+  return request<{
+    valid: boolean
+    originalHash: string
+    currentHash: string
+  }>(hp(`/evidence/${evidenceId}/verify`), {
+    method: 'POST',
+    body: JSON.stringify({ currentHash }),
+  })
+}

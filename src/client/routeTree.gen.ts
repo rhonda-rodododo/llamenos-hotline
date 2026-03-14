@@ -22,7 +22,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkDeviceRouteImport } from './routes/link-device'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ConversationsRouteImport } from './routes/conversations'
+import { Route as ContactsDirectoryRouteImport } from './routes/contacts-directory'
 import { Route as ContactsRouteImport } from './routes/contacts'
+import { Route as CasesRouteImport } from './routes/cases'
 import { Route as CallsRouteImport } from './routes/calls'
 import { Route as BlastsRouteImport } from './routes/blasts'
 import { Route as BansRouteImport } from './routes/bans'
@@ -32,6 +34,7 @@ import { Route as VolunteersPubkeyRouteImport } from './routes/volunteers_.$pubk
 import { Route as AdminSystemRouteImport } from './routes/admin/system'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminHubsRouteImport } from './routes/admin/hubs'
+import { Route as AdminCaseManagementRouteImport } from './routes/admin/case-management'
 
 const VolunteersRoute = VolunteersRouteImport.update({
   id: '/volunteers',
@@ -98,9 +101,19 @@ const ConversationsRoute = ConversationsRouteImport.update({
   path: '/conversations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactsDirectoryRoute = ContactsDirectoryRouteImport.update({
+  id: '/contacts-directory',
+  path: '/contacts-directory',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContactsRoute = ContactsRouteImport.update({
   id: '/contacts',
   path: '/contacts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CasesRoute = CasesRouteImport.update({
+  id: '/cases',
+  path: '/cases',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CallsRoute = CallsRouteImport.update({
@@ -148,6 +161,11 @@ const AdminHubsRoute = AdminHubsRouteImport.update({
   path: '/admin/hubs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminCaseManagementRoute = AdminCaseManagementRouteImport.update({
+  id: '/admin/case-management',
+  path: '/admin/case-management',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -155,7 +173,9 @@ export interface FileRoutesByFullPath {
   '/bans': typeof BansRoute
   '/blasts': typeof BlastsRoute
   '/calls': typeof CallsRoute
+  '/cases': typeof CasesRoute
   '/contacts': typeof ContactsRoute
+  '/contacts-directory': typeof ContactsDirectoryRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
@@ -169,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
   '/volunteers': typeof VolunteersRoute
+  '/admin/case-management': typeof AdminCaseManagementRoute
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/system': typeof AdminSystemRoute
@@ -180,7 +201,9 @@ export interface FileRoutesByTo {
   '/bans': typeof BansRoute
   '/blasts': typeof BlastsRoute
   '/calls': typeof CallsRoute
+  '/cases': typeof CasesRoute
   '/contacts': typeof ContactsRoute
+  '/contacts-directory': typeof ContactsDirectoryRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
@@ -194,6 +217,7 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
   '/volunteers': typeof VolunteersRoute
+  '/admin/case-management': typeof AdminCaseManagementRoute
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/system': typeof AdminSystemRoute
@@ -206,7 +230,9 @@ export interface FileRoutesById {
   '/bans': typeof BansRoute
   '/blasts': typeof BlastsRoute
   '/calls': typeof CallsRoute
+  '/cases': typeof CasesRoute
   '/contacts': typeof ContactsRoute
+  '/contacts-directory': typeof ContactsDirectoryRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
@@ -220,6 +246,7 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/shifts': typeof ShiftsRoute
   '/volunteers': typeof VolunteersRoute
+  '/admin/case-management': typeof AdminCaseManagementRoute
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/system': typeof AdminSystemRoute
@@ -233,7 +260,9 @@ export interface FileRouteTypes {
     | '/bans'
     | '/blasts'
     | '/calls'
+    | '/cases'
     | '/contacts'
+    | '/contacts-directory'
     | '/conversations'
     | '/help'
     | '/link-device'
@@ -247,6 +276,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/shifts'
     | '/volunteers'
+    | '/admin/case-management'
     | '/admin/hubs'
     | '/admin/settings'
     | '/admin/system'
@@ -258,7 +288,9 @@ export interface FileRouteTypes {
     | '/bans'
     | '/blasts'
     | '/calls'
+    | '/cases'
     | '/contacts'
+    | '/contacts-directory'
     | '/conversations'
     | '/help'
     | '/link-device'
@@ -272,6 +304,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/shifts'
     | '/volunteers'
+    | '/admin/case-management'
     | '/admin/hubs'
     | '/admin/settings'
     | '/admin/system'
@@ -283,7 +316,9 @@ export interface FileRouteTypes {
     | '/bans'
     | '/blasts'
     | '/calls'
+    | '/cases'
     | '/contacts'
+    | '/contacts-directory'
     | '/conversations'
     | '/help'
     | '/link-device'
@@ -297,6 +332,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/shifts'
     | '/volunteers'
+    | '/admin/case-management'
     | '/admin/hubs'
     | '/admin/settings'
     | '/admin/system'
@@ -309,7 +345,9 @@ export interface RootRouteChildren {
   BansRoute: typeof BansRoute
   BlastsRoute: typeof BlastsRoute
   CallsRoute: typeof CallsRoute
+  CasesRoute: typeof CasesRoute
   ContactsRoute: typeof ContactsRoute
+  ContactsDirectoryRoute: typeof ContactsDirectoryRoute
   ConversationsRoute: typeof ConversationsRoute
   HelpRoute: typeof HelpRoute
   LinkDeviceRoute: typeof LinkDeviceRoute
@@ -323,6 +361,7 @@ export interface RootRouteChildren {
   SetupRoute: typeof SetupRoute
   ShiftsRoute: typeof ShiftsRoute
   VolunteersRoute: typeof VolunteersRoute
+  AdminCaseManagementRoute: typeof AdminCaseManagementRoute
   AdminHubsRoute: typeof AdminHubsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSystemRoute: typeof AdminSystemRoute
@@ -422,11 +461,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConversationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contacts-directory': {
+      id: '/contacts-directory'
+      path: '/contacts-directory'
+      fullPath: '/contacts-directory'
+      preLoaderRoute: typeof ContactsDirectoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contacts': {
       id: '/contacts'
       path: '/contacts'
       fullPath: '/contacts'
       preLoaderRoute: typeof ContactsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cases': {
+      id: '/cases'
+      path: '/cases'
+      fullPath: '/cases'
+      preLoaderRoute: typeof CasesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calls': {
@@ -492,6 +545,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminHubsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/case-management': {
+      id: '/admin/case-management'
+      path: '/admin/case-management'
+      fullPath: '/admin/case-management'
+      preLoaderRoute: typeof AdminCaseManagementRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -501,7 +561,9 @@ const rootRouteChildren: RootRouteChildren = {
   BansRoute: BansRoute,
   BlastsRoute: BlastsRoute,
   CallsRoute: CallsRoute,
+  CasesRoute: CasesRoute,
   ContactsRoute: ContactsRoute,
+  ContactsDirectoryRoute: ContactsDirectoryRoute,
   ConversationsRoute: ConversationsRoute,
   HelpRoute: HelpRoute,
   LinkDeviceRoute: LinkDeviceRoute,
@@ -515,6 +577,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetupRoute: SetupRoute,
   ShiftsRoute: ShiftsRoute,
   VolunteersRoute: VolunteersRoute,
+  AdminCaseManagementRoute: AdminCaseManagementRoute,
   AdminHubsRoute: AdminHubsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminSystemRoute: AdminSystemRoute,
