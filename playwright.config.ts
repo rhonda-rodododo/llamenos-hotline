@@ -65,6 +65,8 @@ export default defineConfig({
         missingSteps: "skip-scenario",
       }),
       use: { ...devices["Desktop Chrome"] },
+      // BDD scenarios share server state (test-reset in Background steps) — run serially
+      fullyParallel: false,
       dependencies: ["setup"],
     },
     {
