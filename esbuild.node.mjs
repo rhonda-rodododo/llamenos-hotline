@@ -19,7 +19,9 @@ const buildTime = process.env.SOURCE_DATE_EPOCH
   : new Date().toISOString()
 const buildCommit = process.env.GITHUB_SHA || 'dev'
 
-await esbuild.build({
+const watchMode = process.argv.includes('--watch')
+
+const buildOptions = {
   entryPoints: ['src/platform/node/server.ts'],
   bundle: true,
   outfile: 'dist/server/index.js',
@@ -94,6 +96,16 @@ const require = createRequire(import.meta.url);
     '__BUILD_COMMIT__': JSON.stringify(buildCommit),
     '__BUILD_VERSION__': JSON.stringify(pkg.version),
   },
-})
+}
 
-console.log('[esbuild] Node.js server built → dist/server/index.js')
+if (watchMode) {
+  const ctx = await esbuild.context(buildOptions)
+  await ctx.watch()
+  console.log('[esbuild] Watching for changes → dist/server/index.js')
+  // Keep process alive; clean up on signal
+  process.on('SIGINT', () => { ctx.dispose(); process.exit(0) })
+  process.on('SIGTERM', () => { ctx.dispose(); process.exit(0) })
+} else {
+  await esbuild.build(buildOptions)
+  console.log('[esbuild] Node.js server built → dist/server/index.js')
+}

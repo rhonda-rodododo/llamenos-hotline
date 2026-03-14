@@ -135,6 +135,14 @@ calls.get('/identify/:identifierHash',
       return c.json({ contact: null, activeCaseCount: 0, recentCases: [] })
     }
 
+    // Increment interaction count on identification
+    await dos.contactDirectory.fetch(
+      new Request(`http://do/contacts/${contact.id}/interaction`, { method: 'POST' }),
+    ).catch(() => {})  // best-effort — don't fail the lookup if increment fails
+
+    // Re-read updated contact after increment
+    contact.interactionCount = (contact.interactionCount ?? 0) + 1
+
     // Fetch active cases linked to this contact
     const casesRes = await dos.caseManager.fetch(
       new Request(`http://do/records/by-contact/${contact.id}`),

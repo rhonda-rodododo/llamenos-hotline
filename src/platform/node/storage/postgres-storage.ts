@@ -33,11 +33,29 @@ export class PostgresStorage implements StorageApi {
     }
   }
 
-  async get<T = unknown>(key: string): Promise<T | undefined> {
+  async get<T = unknown>(key: string): Promise<T | undefined>
+  async get<T = unknown>(keys: string[]): Promise<Map<string, T>>
+  async get<T = unknown>(keyOrKeys: string | string[]): Promise<T | undefined | Map<string, T>> {
     const sql = getPool()
+
+    // Batch overload: get(['key1', 'key2', ...])
+    if (Array.isArray(keyOrKeys)) {
+      const result = new Map<string, T>()
+      if (keyOrKeys.length === 0) return result
+      const rows = await sql`
+        SELECT key, value FROM kv_store
+        WHERE namespace = ${this.namespace} AND key = ANY(${keyOrKeys})
+      `
+      for (const row of rows) {
+        result.set(row.key, row.value as T)
+      }
+      return result
+    }
+
+    // Single key overload: get('key')
     const rows = await sql`
       SELECT value FROM kv_store
-      WHERE namespace = ${this.namespace} AND key = ${key}
+      WHERE namespace = ${this.namespace} AND key = ${keyOrKeys}
     `
     if (rows.length === 0) return undefined
     return rows[0].value as T
@@ -128,24 +146,34 @@ export class PostgresStorage implements StorageApi {
     })
   }
 
-  async list(options?: { prefix?: string }): Promise<Map<string, unknown>> {
+  async list(options?: { prefix?: string; limit?: number; start?: string; end?: string }): Promise<Map<string, unknown>> {
     const sql = getPool()
     const result = new Map<string, unknown>()
 
-    let rows
+    // Build conditions dynamically
+    const conditions: ReturnType<typeof sql>[] = [
+      sql`namespace = ${this.namespace}`,
+    ]
     if (options?.prefix) {
-      // Escape LIKE wildcards
       const escaped = options.prefix.replace(/[%_\\]/g, '\\$&')
-      rows = await sql`
-        SELECT key, value FROM kv_store
-        WHERE namespace = ${this.namespace} AND key LIKE ${escaped + '%'}
-      `
-    } else {
-      rows = await sql`
-        SELECT key, value FROM kv_store
-        WHERE namespace = ${this.namespace}
-      `
+      conditions.push(sql`key LIKE ${escaped + '%'}`)
     }
+    if (options?.start) {
+      conditions.push(sql`key >= ${options.start}`)
+    }
+    if (options?.end) {
+      conditions.push(sql`key < ${options.end}`)
+    }
+
+    const where = conditions.reduce((a, b) => sql`${a} AND ${b}`)
+    const limitClause = options?.limit ? sql`LIMIT ${options.limit}` : sql``
+
+    const rows = await sql`
+      SELECT key, value FROM kv_store
+      WHERE ${where}
+      ORDER BY key ASC
+      ${limitClause}
+    `
 
     for (const row of rows) {
       result.set(row.key, row.value)

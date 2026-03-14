@@ -41,9 +41,14 @@ cmd_start() {
     log "Backing services already running"
   fi
 
-  # Build Node.js server
+  # Initial build
   log "Building Node.js server..."
   node esbuild.node.mjs
+
+  # Start esbuild in watch mode (rebuilds bundle on source changes)
+  node esbuild.node.mjs --watch &
+  ESBUILD_PID=$!
+  trap "kill $ESBUILD_PID 2>/dev/null" EXIT
 
   # Set environment variables for local development
   export PLATFORM=node
@@ -66,10 +71,11 @@ cmd_start() {
   export NOSTR_RELAY_URL=ws://localhost:7777
 
   log "Starting Node.js server on http://localhost:${PORT}..."
+  log "esbuild watches source → rebuilds bundle → node restarts automatically"
   log "Press Ctrl+C to stop"
   echo ""
 
-  # Run with --watch for auto-restart on changes
+  # node --watch restarts when esbuild rewrites the bundle
   exec node --watch dist/server/index.js
 }
 

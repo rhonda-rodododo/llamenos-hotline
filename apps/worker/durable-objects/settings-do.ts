@@ -136,6 +136,7 @@ export class SettingsDO extends DurableObject<Env> {
 
     // Entity Types
     this.router.get('/settings/entity-types', () => this.getEntityTypes())
+    this.router.get('/settings/entity-types/:id', (_req, { id }) => this.getEntityTypeById(id))
     this.router.post('/settings/entity-types', async (req) => this.createEntityType(await req.json()))
     this.router.put('/settings/entity-types', async (req) => this.bulkSetEntityTypes(await req.json()))
     this.router.patch('/settings/entity-types/:id', async (req, { id }) => this.updateEntityType(id, await req.json()))
@@ -1095,6 +1096,13 @@ export class SettingsDO extends DurableObject<Env> {
   private async getEntityTypes(): Promise<Response> {
     const types = (await this.ctx.storage.get<EntityTypeDefinition[]>('entityTypes')) ?? []
     return Response.json({ entityTypes: types })
+  }
+
+  private async getEntityTypeById(id: string): Promise<Response> {
+    const types = (await this.ctx.storage.get<EntityTypeDefinition[]>('entityTypes')) ?? []
+    const entityType = types.find(t => t.id === id)
+    if (!entityType) return Response.json({ error: 'Entity type not found' }, { status: 404 })
+    return Response.json(entityType)
   }
 
   private async createEntityType(data: Record<string, unknown>): Promise<Response> {

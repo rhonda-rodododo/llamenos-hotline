@@ -704,8 +704,8 @@ export class CaseDO extends DurableObject<Env> {
         interactions = interactions.filter(i => i.interactionTypeHash === typeHash)
       }
 
-      // Sort chronologically (newest first by default)
-      interactions.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      // Sort chronologically (oldest first)
+      interactions.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 
       // Paginate
       const start = (page - 1) * limit

@@ -198,9 +198,9 @@ Then('relationship types from the template should exist', async ({ request }) =>
 
 Then('entity types from both templates should exist', async ({ request }) => {
   const types = await listEntityTypesViaApi(request)
-  // jail-support creates arrest_case; street-medic creates patient_record
+  // jail-support creates arrest_case; street-medic creates medical_encounter
   const hasArrest = types.some(t => t.name === 'arrest_case')
-  const hasPatient = types.some(t => t.name === 'patient_record')
+  const hasPatient = types.some(t => t.name === 'medical_encounter')
   expect(hasArrest).toBe(true)
   expect(hasPatient).toBe(true)
 })

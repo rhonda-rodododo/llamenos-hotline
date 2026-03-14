@@ -7,7 +7,7 @@ import { paginationSchema } from '../schemas/common'
 import { authErrors } from '../openapi/helpers'
 
 const contacts = new Hono<AppEnv>()
-contacts.use('*', requirePermission('contacts:view'))
+contacts.use('*', requirePermission('contacts:manage'))
 
 // GET /contacts — list contacts with note counts
 contacts.get('/',

@@ -187,7 +187,7 @@ records.get('/envelope-recipients',
 
     // Fetch entity type definition
     const etRes = await dos.settings.fetch(
-      new Request(`http://do/settings/cms/entity-types/${entityTypeId}`),
+      new Request(`http://do/settings/entity-types/${entityTypeId}`),
     )
     if (!etRes.ok) return c.json({ error: 'Entity type not found' }, 404)
     const entityType = await etRes.json() as EntityTypeDefinition
@@ -325,7 +325,7 @@ records.get('/:id/envelope-recipients',
 
     // Fetch entity type definition
     const etRes = await dos.settings.fetch(
-      new Request(`http://do/settings/cms/entity-types/${record.entityTypeId}`),
+      new Request(`http://do/settings/entity-types/${record.entityTypeId}`),
     )
     if (!etRes.ok) return c.json({ error: 'Entity type not found' }, 404)
     const entityType = await etRes.json() as EntityTypeDefinition
@@ -358,20 +358,20 @@ records.post('/',
     // Generate case number if entity type has numbering enabled
     let caseNumber: string | undefined
     const settingsRes = await dos.settings.fetch(
-      new Request(`http://do/settings/cms/entity-types/${body.entityTypeId}`),
+      new Request(`http://do/settings/entity-types/${body.entityTypeId}`),
     )
     if (settingsRes.ok) {
       const entityType = await settingsRes.json() as { numberPrefix?: string; numberingEnabled?: boolean }
       if (entityType.numberingEnabled && entityType.numberPrefix) {
-        // Get next number from settings
+        // Get next number from settings (SettingsDO route: POST /settings/case-number)
         const nextRes = await dos.settings.fetch(
-          new Request(`http://do/settings/cms/case-number/next`, {
+          new Request(`http://do/settings/case-number`, {
             method: 'POST',
-            body: JSON.stringify({ entityTypeId: body.entityTypeId }),
+            body: JSON.stringify({ prefix: entityType.numberPrefix }),
           }),
         )
         if (nextRes.ok) {
-          const { caseNumber: num } = await nextRes.json() as { caseNumber: string }
+          const { number: num } = await nextRes.json() as { number: string }
           caseNumber = num
         }
       }
