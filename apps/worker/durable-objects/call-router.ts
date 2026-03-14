@@ -7,7 +7,7 @@ import { migrations } from '@shared/migrations'
 import { registerMigrationRoutes } from '@shared/migrations/do-routes'
 import { publishNostrEvent } from '../lib/nostr-events'
 import { createPushDispatcher } from '../lib/push-dispatch'
-import { KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_PRESENCE_UPDATE } from '@shared/nostr-events'
+import { KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_PRESENCE_UPDATE, KIND_CONTACT_IDENTIFIED } from '@shared/nostr-events'
 import { fetchPage } from '../lib/pagination'
 import { withRetry, isRetryableError } from '../lib/retry'
 
@@ -212,7 +212,42 @@ export class CallRouterDO extends DurableObject<Env> {
       startedAt: call.startedAt,
     })
 
-    return Response.json({ call })
+    // Contact identification (Epic 326) — fire-and-forget, never blocks call routing
+    let contactMatch: { contactId: string; caseCount: number } | null = null
+    try {
+      const contactDir = this.env.CONTACT_DIRECTORY.get(
+        this.env.CONTACT_DIRECTORY.idFromName('global-contacts'),
+      )
+      const lookupRes = await contactDir.fetch(
+        new Request(`http://do/contacts/lookup/${call.callerNumber}`),
+      )
+      if (lookupRes.ok) {
+        const { contact } = await lookupRes.json() as { contact: { id: string; caseCount: number } | null }
+        if (contact) {
+          contactMatch = {
+            contactId: contact.id,
+            caseCount: contact.caseCount,
+          }
+
+          // Increment contact interaction count
+          contactDir.fetch(new Request(`http://do/contacts/${contact.id}/interaction`, {
+            method: 'POST',
+          })).catch(() => {})
+
+          // Publish identification event for client screen pop
+          this.publishEvent(KIND_CONTACT_IDENTIFIED, {
+            type: 'contact:identified',
+            callId: call.id,
+            contactId: contact.id,
+            caseCount: contact.caseCount,
+          })
+        }
+      }
+    } catch {
+      // Contact lookup failure must never block call routing
+    }
+
+    return Response.json({ call, contactMatch })
   }
 
   private async handleCallAnswered(callId: string, data: { pubkey: string }): Promise<Response> {

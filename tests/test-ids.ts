@@ -131,6 +131,15 @@ export const TestIds = {
   // ============ Contacts ============
   CONTACT_ROW: 'contact-row',
 
+  // ============ Screen Pop (Epic 326) ============
+  CONTACT_POPOVER: 'contact-popover',
+  CONTACT_NAME: 'contact-name',
+  CONTACT_CASE_COUNT: 'contact-case-count',
+  LAST_INTERACTION_DATE: 'last-interaction-date',
+  LINK_TO_CASE_DIALOG: 'link-to-case-dialog',
+  LINK_CASE_CONFIRM: 'link-case-confirm',
+  LINK_CASE_SKIP: 'link-case-skip',
+
   // ============ Blasts ============
   BLAST_LIST: 'blast-list',
   BLAST_CARD: 'blast-card',

@@ -169,6 +169,31 @@ export class CaseDO extends DurableObject<Env> {
       return Response.json(record)
     })
 
+    // --- List records linked to a contact (Epic 326 — screen pop) ---
+    this.router.get('/records/by-contact/:contactId', async (_req, { contactId }) => {
+      const links = await this.ctx.storage.list<RecordContact>({
+        prefix: `contactrecords:${contactId}:`,
+      })
+
+      const records: CaseRecord[] = []
+      for (const [key] of links) {
+        const parts = key.split(':')
+        const recordId = parts[parts.length - 1]
+        const record = await this.ctx.storage.get<CaseRecord>(`record:${recordId}`)
+        if (record && !record.closedAt) {
+          records.push(record)
+        }
+      }
+
+      // Sort by updatedAt descending
+      records.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+
+      return Response.json({
+        records,
+        total: records.length,
+      })
+    })
+
     // --- Create record ---
     this.router.post('/records', async (req) => {
       const body = await req.json() as CreateRecordBody & { hubId?: string; createdBy?: string; caseNumber?: string }
@@ -260,6 +285,8 @@ export class CaseDO extends DurableObject<Env> {
         statusChangeTypeHash?: string
         statusChangeContent?: string
         statusChangeEnvelopes?: CaseInteraction['contentEnvelopes']
+        // Record closure (Epic 326 — used by by-contact filter)
+        closedAt?: string
       }
       const now = new Date().toISOString()
 

@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv, Volunteer } from '../types'
-import { getDOs, getScopedDOs } from '../lib/do-access'
+import { getDOs, getScopedDOs, getMessagingAdapter } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import {
   createRecordBodySchema,
@@ -14,6 +14,8 @@ import {
 import type { CaseRecord } from '../schemas/records'
 import { createInteractionBodySchema, listInteractionsQuerySchema } from '../schemas/interactions'
 import { linkReportToCaseBodySchema } from '../schemas/report-links'
+import { notifyContactsBodySchema } from '../schemas/notifications'
+import type { NotifyContactsResponse, NotificationResultItem } from '../schemas/notifications'
 import type { EntityTypeDefinition } from '../schemas/entity-schema'
 import { authErrors, notFoundError } from '../openapi/helpers'
 import { audit } from '../services/audit'
@@ -199,6 +201,34 @@ records.get('/envelope-recipients',
 
     const recipients = determineEnvelopeRecipients(entityType, assignedTo, hubMembers)
     return c.json(recipients)
+  },
+)
+
+// --- List active records linked to a contact (Epic 326 — screen pop) ---
+// Must be defined BEFORE /:id to avoid Hono matching "by-contact" as an id param
+records.get('/by-contact/:contactId',
+  describeRoute({
+    tags: ['Records'],
+    summary: 'List active (non-closed) records linked to a contact',
+    responses: {
+      200: { description: 'Active records for the contact' },
+      ...authErrors,
+    },
+  }),
+  async (c) => {
+    const contactId = c.req.param('contactId')
+    const permissions = c.get('permissions')
+
+    const accessLevel = getAccessLevel(permissions)
+    if (!accessLevel) {
+      return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
+    }
+
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const res = await dos.caseManager.fetch(
+      new Request(`http://do/records/by-contact/${contactId}`),
+    )
+    return new Response(res.body, res)
   },
 )
 
@@ -889,6 +919,90 @@ records.get('/:id/reports',
       new Request(`http://do/records/${id}/reports`),
     )
     return new Response(res.body, res)
+  },
+)
+
+// ============================================================
+// Notification Routes (Epic 327)
+// ============================================================
+
+/**
+ * POST /records/:id/notify-contacts
+ *
+ * Dispatch notifications to support contacts for a record.
+ * The client resolves recipients and renders messages (E2EE constraint --
+ * the server cannot decrypt contact profiles). The server dispatches
+ * pre-rendered messages via the appropriate MessagingAdapter.
+ *
+ * Requires cases:update permission.
+ */
+records.post('/:id/notify-contacts',
+  describeRoute({
+    tags: ['Records', 'Notifications'],
+    summary: 'Send notifications to support contacts for a record',
+    responses: {
+      200: { description: 'Notification dispatch results' },
+      ...authErrors,
+      404: { description: 'Record not found' },
+    },
+  }),
+  requirePermission('cases:update'),
+  validator('json', notifyContactsBodySchema),
+  async (c) => {
+    const id = c.req.param('id')
+    const pubkey = c.get('pubkey')
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const body = c.req.valid('json')
+
+    // Verify record exists
+    const recordRes = await dos.caseManager.fetch(new Request(`http://do/records/${id}`))
+    if (!recordRes.ok) {
+      return c.json({ error: 'Record not found' }, 404)
+    }
+
+    const results: NotificationResultItem[] = []
+
+    for (const recipient of body.recipients) {
+      try {
+        const adapter = await getMessagingAdapter(recipient.channel, dos, c.env.HMAC_SECRET)
+        const sendResult = await adapter.sendMessage({
+          recipientIdentifier: recipient.identifier,
+          body: recipient.message,
+          conversationId: `notify-${id}-${Date.now()}`,
+        })
+        results.push({
+          identifier: recipient.identifier,
+          channel: recipient.channel,
+          success: sendResult.success,
+          error: sendResult.error,
+        })
+      } catch (err) {
+        results.push({
+          identifier: recipient.identifier,
+          channel: recipient.channel,
+          success: false,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        })
+      }
+    }
+
+    const notified = results.filter(r => r.success).length
+    const skipped = results.filter(r => !r.success).length
+
+    const response: NotifyContactsResponse = {
+      recordId: id,
+      notified,
+      skipped,
+      results,
+    }
+
+    await audit(dos.records, 'contactsNotified', pubkey, {
+      recordId: id,
+      notified,
+      skipped,
+    })
+
+    return c.json(response)
   },
 )
 

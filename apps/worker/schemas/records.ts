@@ -77,6 +77,8 @@ export const updateRecordBodySchema = createRecordBodySchema.partial().extend({
   statusChangeTypeHash: z.string().optional(),
   statusChangeContent: z.string().optional(),
   statusChangeEnvelopes: z.array(recipientEnvelopeSchema).optional(),
+  // Close a record (Epic 326 — screen pop uses closedAt to filter active vs closed)
+  closedAt: z.string().optional(),
 })
 
 export type UpdateRecordBody = z.infer<typeof updateRecordBodySchema>

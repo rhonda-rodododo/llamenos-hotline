@@ -37,6 +37,9 @@ export const KIND_RECORD_UPDATED = 1021
 /** Case record assignment changed */
 export const KIND_RECORD_ASSIGNED = 1022
 
+/** Caller identified from contact directory during incoming call (Epic 326) */
+export const KIND_CONTACT_IDENTIFIED = 1023
+
 // --- Ephemeral Events (not persisted, broadcast only) ---
 
 /** Volunteer presence update — online counts, availability */

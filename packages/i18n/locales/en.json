@@ -473,6 +473,20 @@
     "linkCreated": "Report linked to case",
     "linkRemoved": "Report unlinked from case"
   },
+  "telephonyCrm": {
+    "callerIdentified": "Known caller",
+    "unknownCaller": "Unknown caller",
+    "activeCases": "Active cases",
+    "recentCases": "Recent cases",
+    "screenPop": "Caller identification",
+    "linkToCase": "Link to case",
+    "skipLinking": "Skip",
+    "linkToCasePrompt": "This caller has active cases. Link this note to a case?",
+    "contactLookupFailed": "Could not look up caller",
+    "lastInteraction": "Last interaction",
+    "caseHistory": "Case history",
+    "noCases": "No active cases"
+  },
   "blasts": {
     "activeSubscribers": "Active",
     "allBlasts": "All Blasts",
@@ -667,6 +681,17 @@
   "contact": {
     "interactionsCount": "%d interactions"
   },
+  "contactNotifications": {
+    "channelPreference": "Preferred channel",
+    "noSupportContacts": "No support contacts with notification preferences",
+    "notificationSent": "{{count}} notification(s) sent successfully",
+    "notificationSkipped": "{{count}} notification(s) could not be delivered",
+    "notificationTemplate": "Update on case {{caseNumber}}: Status changed to {{status}}.",
+    "notifyContacts": "Notify Support Contacts",
+    "notifyOnStatusChange": "Notify on status change",
+    "selectRecipients": "Select recipients to notify",
+    "sendNotification": "Send Notification"
+  },
   "contacts": {
     "back": "Back",
     "call": "Call",
@@ -775,6 +800,14 @@
     "title": "Crash Reporting"
   },
   "createNewIdentity": "Create New Identity",
+  "crossHub": {
+    "crossHubDescription": "When enabled, super-admins can see case numbers, statuses, and entity types for this hub. Field values and PII are NOT shared.",
+    "crossHubDisabled": "Cross-hub sharing is disabled",
+    "crossHubEnabled": "Cross-hub sharing is enabled",
+    "crossHubSharing": "Cross-Hub Sharing",
+    "disableCrossHub": "Disable Sharing",
+    "enableCrossHub": "Enable Sharing"
+  },
   "customFields": {
     "addField": "Add Field",
     "addOption": "Add Option",

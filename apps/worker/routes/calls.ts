@@ -104,6 +104,59 @@ calls.get('/history',
   },
 )
 
+// --- Caller Identification (Epic 326 — screen pop) ---
+
+calls.get('/identify/:identifierHash',
+  describeRoute({
+    tags: ['Calls'],
+    summary: 'Identify a caller by identifier hash and return matching contact with active cases',
+    responses: {
+      200: { description: 'Contact identification result' },
+      ...authErrors,
+    },
+  }),
+  requirePermission('contacts:view'),
+  async (c) => {
+    const identifierHash = c.req.param('identifierHash')
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+
+    // Look up contact in ContactDirectoryDO
+    const lookupRes = await dos.contactDirectory.fetch(
+      new Request(`http://do/contacts/lookup/${identifierHash}`),
+    )
+
+    if (!lookupRes.ok) {
+      return c.json({ contact: null, activeCaseCount: 0, recentCases: [] })
+    }
+
+    const { contact } = await lookupRes.json() as { contact: { id: string; caseCount: number; interactionCount: number; lastInteractionAt?: string } | null }
+
+    if (!contact) {
+      return c.json({ contact: null, activeCaseCount: 0, recentCases: [] })
+    }
+
+    // Fetch active cases linked to this contact
+    const casesRes = await dos.caseManager.fetch(
+      new Request(`http://do/records/by-contact/${contact.id}`),
+    )
+
+    let activeCaseCount = 0
+    let recentCases: Array<{ id: string; caseNumber?: string; status: string }> = []
+
+    if (casesRes.ok) {
+      const { records } = await casesRes.json() as { records: Array<{ id: string; caseNumber?: string; statusHash: string }> }
+      activeCaseCount = records.length
+      recentCases = records.slice(0, 5).map(r => ({
+        id: r.id,
+        caseNumber: r.caseNumber,
+        status: r.statusHash,
+      }))
+    }
+
+    return c.json({ contact, activeCaseCount, recentCases })
+  },
+)
+
 // --- Call Actions (REST endpoints for WS→Nostr migration) ---
 
 // Answer a ringing call (volunteer)

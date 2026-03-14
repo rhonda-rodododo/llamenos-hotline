@@ -1241,3 +1241,126 @@ export async function verifyEvidenceIntegrityViaApi(
   if (status !== 200) throw new Error(`Failed to verify evidence integrity: ${status}`)
   return data
 }
+
+// ── Telephony-CRM: Caller Identification (Epic 326) ──────────────────
+
+export interface CallerIdentificationResult {
+  contact: Record<string, unknown> | null
+  activeCaseCount: number
+  recentCases: Array<{ id: string; caseNumber?: string; status: string }>
+}
+
+export async function identifyCallerViaApi(
+  request: APIRequestContext,
+  identifierHash: string,
+  nsec = ADMIN_NSEC,
+): Promise<CallerIdentificationResult> {
+  const { status, data } = await apiGet<CallerIdentificationResult>(
+    request,
+    `/calls/identify/${identifierHash}`,
+    nsec,
+  )
+  if (status !== 200) throw new Error(`Failed to identify caller: ${status}`)
+  return data
+}
+
+export async function listRecordsByContactViaApi(
+  request: APIRequestContext,
+  contactId: string,
+  nsec = ADMIN_NSEC,
+): Promise<{ records: Record<string, unknown>[]; total: number }> {
+  const { status, data } = await apiGet<{ records: Record<string, unknown>[]; total: number }>(
+    request,
+    `/records/by-contact/${contactId}`,
+    nsec,
+  )
+  if (status !== 200) throw new Error(`Failed to list records by contact: ${status}`)
+  return data
+}
+
+// ── Case Management: Cross-Hub Sharing (Epic 328) ──────────────────
+
+export async function enableCrossHubSharingViaApi(
+  request: APIRequestContext,
+  enabled: boolean,
+  nsec = ADMIN_NSEC,
+): Promise<{ enabled: boolean }> {
+  const { status, data } = await apiPut<{ enabled: boolean }>(
+    request,
+    '/settings/cms/cross-hub',
+    { enabled },
+    nsec,
+  )
+  if (status !== 200) throw new Error(`Failed to toggle cross-hub sharing: ${status}`)
+  return data
+}
+
+export async function getCrossHubSharingViaApi(
+  request: APIRequestContext,
+  nsec = ADMIN_NSEC,
+): Promise<{ enabled: boolean }> {
+  const { data } = await apiGet<{ enabled: boolean }>(
+    request,
+    '/settings/cms/cross-hub',
+    nsec,
+  )
+  return data
+}
+
+// ── Case Management: Notifications (Epic 327) ──────────────────
+
+export interface NotifyContactsResult {
+  recordId: string
+  notified: number
+  skipped: number
+  results: Array<{
+    identifier: string
+    channel: string
+    success: boolean
+    error?: string
+  }>
+}
+
+/**
+ * Send notifications to support contacts for a record.
+ * The client pre-renders messages (E2EE constraint).
+ */
+export async function notifyContactsViaApi(
+  request: APIRequestContext,
+  recordId: string,
+  recipients: Array<{
+    identifier: string
+    channel: 'sms' | 'signal' | 'whatsapp'
+    message: string
+  }>,
+  statusLabel = 'released',
+  nsec = ADMIN_NSEC,
+): Promise<{ status: number; data: NotifyContactsResult | null }> {
+  return apiPost<NotifyContactsResult>(
+    request,
+    `/records/${recordId}/notify-contacts`,
+    {
+      statusLabel,
+      recipients,
+    },
+    nsec,
+  )
+}
+
+/**
+ * Attempt to send notifications with raw body (for validation testing).
+ * Does not throw on error -- returns status + data for assertion.
+ */
+export async function notifyContactsRawViaApi(
+  request: APIRequestContext,
+  recordId: string,
+  body: Record<string, unknown>,
+  nsec = ADMIN_NSEC,
+): Promise<{ status: number; data: unknown }> {
+  return apiPost(
+    request,
+    `/records/${recordId}/notify-contacts`,
+    body,
+    nsec,
+  )
+}

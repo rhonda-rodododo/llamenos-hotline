@@ -155,6 +155,10 @@ export class SettingsDO extends DurableObject<Env> {
     this.router.get('/settings/applied-templates', () => this.getAppliedTemplates())
     this.router.put('/settings/applied-templates', async (req) => this.setAppliedTemplates(await req.json()))
 
+    // --- Cross-Hub Sharing (Epic 328) ---
+    this.router.get('/settings/cross-hub-sharing', () => this.getCrossHubSharingEnabled())
+    this.router.put('/settings/cross-hub-sharing', async (req) => this.setCrossHubSharingEnabled(await req.json()))
+
     // --- Test Reset (demo/development only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
       if (this.env.DEMO_MODE !== 'true' && this.env.ENVIRONMENT !== 'development') {
@@ -1071,6 +1075,20 @@ export class SettingsDO extends DurableObject<Env> {
 
   private async setCaseManagementEnabled(data: { enabled: boolean }): Promise<Response> {
     await this.ctx.storage.put('caseManagementEnabled', !!data.enabled)
+    return Response.json({ enabled: !!data.enabled })
+  }
+
+  // =====================================================================
+  // Cross-Hub Sharing (Epic 328)
+  // =====================================================================
+
+  private async getCrossHubSharingEnabled(): Promise<Response> {
+    const enabled = (await this.ctx.storage.get<boolean>('crossHubSharingEnabled')) ?? false
+    return Response.json({ enabled })
+  }
+
+  private async setCrossHubSharingEnabled(data: { enabled: boolean }): Promise<Response> {
+    await this.ctx.storage.put('crossHubSharingEnabled', !!data.enabled)
     return Response.json({ enabled: !!data.enabled })
   }
 

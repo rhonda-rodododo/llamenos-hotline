@@ -436,7 +436,7 @@
     "noEvidence": "No hay archivos de evidencia.",
     "evidenceChain": "Cadena de evidencia",
     "chainOfCustody": "Cadena de custodia",
-    "evidenceClassification": "Clasificaci\u00f3n",
+    "evidenceClassification": "Clasificación",
     "evidenceSource": "Fuente",
     "evidenceIntegrityHash": "Hash de integridad",
     "integrityVerified": "Integridad verificada",
@@ -451,13 +451,13 @@
     "custodyEntries": "{{count}} entradas de custodia",
     "uploadedBy": "Subido por",
     "uploadedAt": "Subido el",
-    "fileSize": "Tama\u00f1o del archivo",
+    "fileSize": "Tamaño del archivo",
     "downloadEvidence": "Descargar",
     "filterByClassification": "Filtrar por tipo",
     "classificationPhoto": "Foto",
     "classificationVideo": "Video",
     "classificationDocument": "Documento",
-    "classificationAudio": "Grabaci\u00f3n de audio",
+    "classificationAudio": "Grabación de audio",
     "classificationOther": "Otro"
   },
   "reportLinks": {
@@ -775,6 +775,14 @@
     "title": "Crash Reporting"
   },
   "createNewIdentity": "Create New Identity",
+  "crossHub": {
+    "crossHubDescription": "When enabled, super-admins can see case numbers, statuses, and entity types for this hub. Field values and PII are NOT shared.",
+    "crossHubDisabled": "Cross-hub sharing is disabled",
+    "crossHubEnabled": "Cross-hub sharing is enabled",
+    "crossHubSharing": "Cross-Hub Sharing",
+    "disableCrossHub": "Disable Sharing",
+    "enableCrossHub": "Enable Sharing"
+  },
   "customFields": {
     "addField": "Agregar Campo",
     "addOption": "Agregar Opción",
@@ -2292,5 +2300,19 @@
   "yes": "Yes",
   "yourIdentity": "Your Identity",
   "yourPrivateKey": "Your Private Key",
-  "yourPublicKey": "Your Public Key"
+  "yourPublicKey": "Your Public Key",
+  "telephonyCrm": {
+    "callerIdentified": "Known caller",
+    "unknownCaller": "Unknown caller",
+    "activeCases": "Active cases",
+    "recentCases": "Recent cases",
+    "screenPop": "Caller identification",
+    "linkToCase": "Link to case",
+    "skipLinking": "Skip",
+    "linkToCasePrompt": "This caller has active cases. Link this note to a case?",
+    "contactLookupFailed": "Could not look up caller",
+    "lastInteraction": "Last interaction",
+    "caseHistory": "Case history",
+    "noCases": "No active cases"
+  }
 }

@@ -62,6 +62,47 @@ entitySchema.put('/case-management',
   },
 )
 
+// --- Cross-Hub Sharing (Epic 328) ---
+
+entitySchema.get('/cross-hub',
+  describeRoute({
+    tags: ['Case Management'],
+    summary: 'Get cross-hub sharing status',
+    responses: {
+      200: { description: 'Cross-hub sharing status' },
+      ...authErrors,
+    },
+  }),
+  async (c) => {
+    const dos = getDOs(c.env)
+    const res = await dos.settings.fetch(new Request('http://do/settings/cross-hub-sharing'))
+    return new Response(res.body, res)
+  },
+)
+
+entitySchema.put('/cross-hub',
+  describeRoute({
+    tags: ['Case Management'],
+    summary: 'Enable or disable cross-hub sharing',
+    responses: {
+      200: { description: 'Cross-hub sharing status updated' },
+      ...authErrors,
+    },
+  }),
+  requirePermission('settings:manage'),
+  async (c) => {
+    const dos = getDOs(c.env)
+    const body = await c.req.json<{ enabled: boolean }>()
+    const res = await dos.settings.fetch(new Request('http://do/settings/cross-hub-sharing', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }))
+    await audit(dos.records, 'crossHubSharingToggled', c.get('pubkey'), body)
+    return new Response(res.body, res)
+  },
+)
+
 // --- Entity Types ---
 
 entitySchema.get('/entity-types',

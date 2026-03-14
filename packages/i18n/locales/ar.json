@@ -775,6 +775,14 @@
     "title": "Crash Reporting"
   },
   "createNewIdentity": "Create New Identity",
+  "crossHub": {
+    "crossHubDescription": "When enabled, super-admins can see case numbers, statuses, and entity types for this hub. Field values and PII are NOT shared.",
+    "crossHubDisabled": "Cross-hub sharing is disabled",
+    "crossHubEnabled": "Cross-hub sharing is enabled",
+    "crossHubSharing": "Cross-Hub Sharing",
+    "disableCrossHub": "Disable Sharing",
+    "enableCrossHub": "Enable Sharing"
+  },
   "customFields": {
     "addField": "إضافة حقل",
     "addOption": "إضافة خيار",
@@ -2292,5 +2300,19 @@
   "yes": "Yes",
   "yourIdentity": "Your Identity",
   "yourPrivateKey": "Your Private Key",
-  "yourPublicKey": "Your Public Key"
+  "yourPublicKey": "Your Public Key",
+  "telephonyCrm": {
+    "callerIdentified": "Known caller",
+    "unknownCaller": "Unknown caller",
+    "activeCases": "Active cases",
+    "recentCases": "Recent cases",
+    "screenPop": "Caller identification",
+    "linkToCase": "Link to case",
+    "skipLinking": "Skip",
+    "linkToCasePrompt": "This caller has active cases. Link this note to a case?",
+    "contactLookupFailed": "Could not look up caller",
+    "lastInteraction": "Last interaction",
+    "caseHistory": "Case history",
+    "noCases": "No active cases"
+  }
 }
