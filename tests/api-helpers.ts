@@ -1364,3 +1364,168 @@ export async function notifyContactsRawViaApi(
     nsec,
   )
 }
+
+// ── Case Management: Relationships & Affinity Groups (Epic 322) ────
+
+export interface RelationshipResult {
+  id: string
+  contactIdA: string
+  contactIdB: string
+  relationshipType: string
+  direction: string
+  createdAt: string
+  createdBy: string
+}
+
+export interface RelationshipListResult {
+  relationships: RelationshipResult[]
+}
+
+export interface GroupResult {
+  id: string
+  encryptedDetails: string
+  memberCount: number
+  createdAt: string
+  updatedAt: string
+  createdBy: string
+}
+
+export interface GroupMemberResult {
+  contactId: string
+  role?: string
+  isPrimary: boolean
+}
+
+export async function createRelationshipViaApi(
+  request: APIRequestContext,
+  contactIdA: string,
+  contactIdB: string,
+  relationshipType: string,
+  direction: 'a_to_b' | 'b_to_a' | 'bidirectional' = 'bidirectional',
+  nsec = ADMIN_NSEC,
+): Promise<RelationshipResult> {
+  const { status, data } = await apiPost<RelationshipResult>(
+    request,
+    `/directory/${contactIdA}/relationships`,
+    { contactIdB, relationshipType, direction },
+    nsec,
+  )
+  if (status !== 201 && status !== 200) throw new Error(`Failed to create relationship: ${status}`)
+  return data
+}
+
+export async function listRelationshipsViaApi(
+  request: APIRequestContext,
+  contactId: string,
+  nsec = ADMIN_NSEC,
+): Promise<RelationshipListResult> {
+  const { status, data } = await apiGet<RelationshipListResult>(
+    request,
+    `/directory/${contactId}/relationships`,
+    nsec,
+  )
+  if (status !== 200) throw new Error(`Failed to list relationships: ${status}`)
+  return data
+}
+
+export async function deleteRelationshipViaApi(
+  request: APIRequestContext,
+  contactId: string,
+  relId: string,
+  nsec = ADMIN_NSEC,
+): Promise<void> {
+  const { status } = await apiDelete(
+    request,
+    `/directory/${contactId}/relationships/${relId}`,
+    nsec,
+  )
+  if (status !== 200) throw new Error(`Failed to delete relationship: ${status}`)
+}
+
+export async function createAffinityGroupViaApi(
+  request: APIRequestContext,
+  name: string,
+  initialMembers: Array<{ contactId: string; role?: string; isPrimary?: boolean }> = [],
+  nsec = ADMIN_NSEC,
+): Promise<GroupResult> {
+  const envelope = dummyEnvelope(nsec)
+  // The group body requires at least one member. If none provided, the caller
+  // must supply initialMembers. The encryptedDetails is a base64 blob that
+  // the client would normally encrypt; for tests we embed the plaintext name.
+  const members = initialMembers.map(m => ({
+    contactId: m.contactId,
+    role: m.role,
+    isPrimary: m.isPrimary ?? false,
+  }))
+  const { status, data } = await apiPost<GroupResult>(
+    request,
+    '/directory/groups',
+    {
+      encryptedDetails: btoa(JSON.stringify({ name })),
+      detailEnvelopes: [envelope],
+      members,
+    },
+    nsec,
+  )
+  if (status !== 201 && status !== 200) throw new Error(`Failed to create affinity group: ${status}`)
+  return data
+}
+
+export async function addGroupMemberViaApi(
+  request: APIRequestContext,
+  groupId: string,
+  contactId: string,
+  role?: string,
+  nsec = ADMIN_NSEC,
+): Promise<{ added: boolean; memberCount: number }> {
+  const { status, data } = await apiPost<{ added: boolean; memberCount: number }>(
+    request,
+    `/directory/groups/${groupId}/members`,
+    { contactId, role, isPrimary: false },
+    nsec,
+  )
+  if (status !== 201 && status !== 200) throw new Error(`Failed to add group member: ${status}`)
+  return data
+}
+
+export async function removeGroupMemberViaApi(
+  request: APIRequestContext,
+  groupId: string,
+  contactId: string,
+  nsec = ADMIN_NSEC,
+): Promise<void> {
+  const { status } = await apiDelete(
+    request,
+    `/directory/groups/${groupId}/members/${contactId}`,
+    nsec,
+  )
+  if (status !== 200) throw new Error(`Failed to remove group member: ${status}`)
+}
+
+export async function listGroupMembersViaApi(
+  request: APIRequestContext,
+  groupId: string,
+  nsec = ADMIN_NSEC,
+): Promise<{ members: GroupMemberResult[] }> {
+  const { status, data } = await apiGet<{ members: GroupMemberResult[] }>(
+    request,
+    `/directory/groups/${groupId}/members`,
+    nsec,
+  )
+  if (status !== 200) throw new Error(`Failed to list group members: ${status}`)
+  return data
+}
+
+export async function getAffinityGroupViaApi(
+  request: APIRequestContext,
+  groupId: string,
+  nsec = ADMIN_NSEC,
+): Promise<GroupResult & { members: GroupMemberResult[] }> {
+  const { status, data } = await apiGet<GroupResult & { members: GroupMemberResult[] }>(
+    request,
+    `/directory/groups/${groupId}`,
+    nsec,
+  )
+  if (status !== 200) throw new Error(`Failed to get affinity group: ${status}`)
+  return data
+}
