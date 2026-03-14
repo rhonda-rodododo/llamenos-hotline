@@ -1,8 +1,8 @@
 {
   "id": "general-hotline",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "General Hotline",
-  "description": "Basic hotline case tracking with calls, notes, and contacts. A minimal starting point for custom configurations.",
+  "description": "Basic hotline case tracking with calls, notes, contacts, and follow-ups. A minimal starting point for custom configurations. Other templates extend this.",
   "author": "Llamenos Project",
   "license": "CC-BY-SA-4.0",
   "tags": ["hotline", "general", "basic"],
@@ -12,28 +12,12 @@
     "en": {
       "general_case.label": "Case",
       "general_case.labelPlural": "Cases",
-      "general_case.description": "A general hotline case for tracking calls, notes, and follow-ups",
-      "status.open": "Open",
-      "status.in_progress": "In Progress",
-      "status.resolved": "Resolved",
-      "status.closed": "Closed",
-      "field.category": "Category",
-      "field.description": "Description",
-      "field.follow_up_needed": "Follow-Up Needed",
-      "field.resolution": "Resolution"
+      "general_case.description": "A general hotline case for tracking calls, notes, and follow-ups"
     },
     "es": {
       "general_case.label": "Caso",
       "general_case.labelPlural": "Casos",
-      "general_case.description": "Un caso general de la linea de ayuda para seguimiento de llamadas, notas y seguimientos",
-      "status.open": "Abierto",
-      "status.in_progress": "En Progreso",
-      "status.resolved": "Resuelto",
-      "status.closed": "Cerrado",
-      "field.category": "Categoria",
-      "field.description": "Descripcion",
-      "field.follow_up_needed": "Seguimiento Necesario",
-      "field.resolution": "Resolucion"
+      "general_case.description": "Un caso general de la linea de ayuda para seguimiento de llamadas y notas"
     }
   },
 
@@ -56,25 +40,33 @@
       "showInDashboard": true,
 
       "statuses": [
-        { "value": "open", "label": "status.open", "color": "#3b82f6", "order": 1 },
-        { "value": "in_progress", "label": "status.in_progress", "color": "#f59e0b", "order": 2 },
-        { "value": "resolved", "label": "status.resolved", "color": "#22c55e", "order": 3 },
-        { "value": "closed", "label": "status.closed", "color": "#6b7280", "order": 4, "isClosed": true }
+        { "value": "open", "label": "Open", "color": "#3b82f6", "order": 1 },
+        { "value": "in_progress", "label": "In Progress", "color": "#f59e0b", "order": 2 },
+        { "value": "waiting", "label": "Waiting for Follow-Up", "color": "#8b5cf6", "order": 3 },
+        { "value": "resolved", "label": "Resolved", "color": "#22c55e", "order": 4 },
+        { "value": "closed", "label": "Closed", "color": "#6b7280", "order": 5, "isClosed": true }
       ],
       "defaultStatus": "open",
       "closedStatuses": ["closed"],
 
+      "contactRoles": [
+        { "value": "caller", "label": "Caller", "order": 1 },
+        { "value": "subject", "label": "Subject (person case is about)", "order": 2 },
+        { "value": "referral_contact", "label": "Referral Contact", "order": 3 }
+      ],
+
       "fields": [
         {
           "name": "category",
-          "label": "field.category",
+          "label": "Category",
           "type": "select",
           "required": true,
           "options": [
             { "key": "general_inquiry", "label": "General Inquiry" },
-            { "key": "referral", "label": "Referral" },
+            { "key": "referral_request", "label": "Referral Request" },
             { "key": "crisis", "label": "Crisis" },
-            { "key": "complaint", "label": "Complaint" },
+            { "key": "report", "label": "Report / Sighting" },
+            { "key": "follow_up", "label": "Follow-Up Call" },
             { "key": "other", "label": "Other" }
           ],
           "order": 1,
@@ -83,32 +75,77 @@
           "accessLevel": "all"
         },
         {
-          "name": "description",
-          "label": "field.description",
-          "type": "textarea",
+          "name": "caller_language",
+          "label": "Caller Language",
+          "type": "select",
           "required": false,
-          "helpText": "Describe the nature of the call or issue.",
+          "options": [
+            { "key": "en", "label": "English" },
+            { "key": "es", "label": "Spanish" },
+            { "key": "zh", "label": "Chinese (Mandarin/Cantonese)" },
+            { "key": "tl", "label": "Tagalog" },
+            { "key": "vi", "label": "Vietnamese" },
+            { "key": "ar", "label": "Arabic" },
+            { "key": "fr", "label": "French / Haitian Creole" },
+            { "key": "ko", "label": "Korean" },
+            { "key": "ru", "label": "Russian" },
+            { "key": "pt", "label": "Portuguese" },
+            { "key": "other", "label": "Other" }
+          ],
           "order": 2,
-          "indexable": false,
-          "accessLevel": "assigned"
-        },
-        {
-          "name": "follow_up_needed",
-          "label": "field.follow_up_needed",
-          "type": "checkbox",
-          "required": false,
-          "order": 3,
           "indexable": true,
           "indexType": "exact",
           "accessLevel": "all"
         },
         {
+          "name": "description",
+          "label": "Description",
+          "type": "textarea",
+          "required": false,
+          "helpText": "Describe the nature of the call or issue.",
+          "order": 3,
+          "indexable": false,
+          "accessLevel": "assigned"
+        },
+        {
+          "name": "follow_up_needed",
+          "label": "Follow-Up Needed",
+          "type": "checkbox",
+          "required": false,
+          "order": 4,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "all"
+        },
+        {
+          "name": "follow_up_date",
+          "label": "Follow-Up Date",
+          "type": "date",
+          "required": false,
+          "helpText": "When to follow up with this contact.",
+          "order": 5,
+          "indexable": true,
+          "indexType": "exact",
+          "accessLevel": "assigned",
+          "showWhen": { "field": "follow_up_needed", "operator": "equals", "value": true }
+        },
+        {
+          "name": "referral_organization",
+          "label": "Referred To",
+          "type": "text",
+          "required": false,
+          "helpText": "Organization or service the caller was referred to.",
+          "order": 6,
+          "indexable": false,
+          "accessLevel": "assigned"
+        },
+        {
           "name": "resolution",
-          "label": "field.resolution",
+          "label": "Resolution",
           "type": "textarea",
           "required": false,
           "helpText": "Describe how the case was resolved.",
-          "order": 4,
+          "order": 7,
           "indexable": false,
           "accessLevel": "assigned"
         }
@@ -116,6 +153,25 @@
     }
   ],
 
-  "relationshipTypes": [],
+  "relationshipTypes": [
+    {
+      "sourceEntityTypeName": "contact",
+      "targetEntityTypeName": "general_case",
+      "cardinality": "M:N",
+      "label": "Cases",
+      "reverseLabel": "Contacts",
+      "sourceLabel": "has case",
+      "targetLabel": "involves",
+      "roles": [
+        { "value": "caller", "label": "Caller", "order": 1 },
+        { "value": "subject", "label": "Subject", "order": 2 },
+        { "value": "referral_contact", "label": "Referral Contact", "order": 3 }
+      ],
+      "defaultRole": "caller",
+      "cascadeDelete": false,
+      "required": false
+    }
+  ],
+
   "suggestedRoles": []
 }
