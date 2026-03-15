@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
 import { getDOs, getScopedDOs } from '../lib/do-access'
-import { requirePermission } from '../middleware/permission-guard'
+import { requirePermission, requireAnyPermission } from '../middleware/permission-guard'
 import {
   createEntityTypeBodySchema,
   updateEntityTypeBodySchema,
@@ -162,7 +162,8 @@ entitySchema.get('/entity-types',
       ...authErrors,
     },
   }),
-  requirePermission('settings:read'),
+  // Entity type definitions are needed by any user who can interact with cases
+  requireAnyPermission('settings:read', 'cases:read-own', 'cases:read-assigned', 'cases:create'),
   async (c) => {
     const dos = getDOs(c.env)
     const res = await dos.settings.fetch(new Request('http://do/settings/entity-types'))

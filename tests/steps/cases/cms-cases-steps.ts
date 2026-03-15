@@ -30,6 +30,7 @@ import {
 
 let createdCaseTitle = ''
 let lastCreatedRecordId = ''
+let volunteerPubkey = ''
 
 // --- Background: CMS setup ---
 
@@ -208,10 +209,13 @@ Then('the entity type selector should show {string}', async ({ page }, expected:
 // --- Case list preconditions ---
 
 Given('no cases have been created', async ({ backendRequest: request }) => {
-  // Check via API that no records exist (or ignore if API returns empty)
+  // Delete all existing records so we get a clean empty state
   const result = await listRecordsViaApi(request).catch(() => ({ records: [], total: 0, hasMore: false }))
-  // We accept the current state — no deletion needed since test creates fresh cases
-  void result
+  const { apiDelete } = await import('../../api-helpers')
+  for (const rec of result.records) {
+    const id = (rec as { id: string }).id
+    await apiDelete(request, `/records/${id}`).catch(() => {})
+  }
 })
 
 Given('arrest cases exist', async ({ backendRequest: request }) => {
@@ -241,7 +245,9 @@ Given('an arrest case exists', async ({ backendRequest: request }) => {
   const etId = (arrestType as { id: string }).id
   const records = await listRecordsViaApi(request, { entityTypeId: etId })
   if (records.records.length === 0) {
-    const record = await createRecordViaApi(request, etId, { statusHash: 'reported' })
+    // If a volunteer is logged in, assign the case to them so they can see it
+    const assignedTo = volunteerPubkey ? [volunteerPubkey] : []
+    const record = await createRecordViaApi(request, etId, { statusHash: 'reported', assignedTo })
     lastCreatedRecordId = (record as { id: string }).id
   } else {
     lastCreatedRecordId = (records.records[0] as { id: string }).id
@@ -272,12 +278,24 @@ Given('an arrest case exists with multiple field sections', async ({ backendRequ
 })
 
 Given('a volunteer without cases:update permission is logged in', async ({ page, backendRequest: request }) => {
-  // Create a volunteer with default role-volunteer (no cases:update permission)
-  const { createVolunteerViaApi } = await import('../../api-helpers')
+  // Create a custom role with cases:read-assigned but NO cases:update or cases:update-own
+  const { createRoleViaApi, createVolunteerViaApi } = await import('../../api-helpers')
   const { loginAsVolunteer } = await import('../../helpers')
+  const role = await createRoleViaApi(request, {
+    name: `CMS Viewer ${Date.now()}`,
+    slug: `cms-viewer-${Date.now()}`,
+    permissions: [
+      'calls:answer', 'calls:read-active',
+      'notes:read-own', 'shifts:read-own',
+      'cases:create', 'cases:read-assigned',
+      'contacts:view', 'events:read',
+    ],
+  })
   const vol = await createVolunteerViaApi(request, {
     name: `CMS Restricted Vol ${Date.now()}`,
+    roleIds: [role.id],
   })
+  volunteerPubkey = vol.pubkey
   await loginAsVolunteer(page, vol.nsec)
 })
 
@@ -552,7 +570,13 @@ Given('an arrest case is selected with the Timeline tab active', async ({ page, 
 })
 
 Then('the case timeline should be visible', async ({ page }) => {
-  await expect(page.getByTestId('case-timeline').or(page.getByTestId('case-tab-timeline'))).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // First ensure the Timeline tab is active (visible and clicked)
+  await expect(page.getByTestId('case-tab-timeline')).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Then wait for the timeline container or loading state to appear
+  // The timeline component shows a loading spinner, then the timeline content
+  const timeline = page.getByTestId('case-timeline')
+  const loading = page.getByTestId('timeline-loading')
+  await expect(timeline.or(loading).first()).toBeVisible({ timeout: Timeouts.ELEMENT * 2 })
 })
 
 Then('at least one timeline item should be visible', async ({ page }) => {

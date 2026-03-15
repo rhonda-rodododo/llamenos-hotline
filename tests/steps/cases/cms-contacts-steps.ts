@@ -151,8 +151,8 @@ When('I type {string} in the contact search input', async ({ page }, query: stri
   // If input still not visible after helper, accept empty state gracefully
   if (!await input.isVisible({ timeout: 5000 }).catch(() => false)) return
   await input.fill(query)
-  // Wait for debounce (300ms in the component)
-  await page.waitForTimeout(500)
+  // Wait for debounce (300ms) + API round-trip + re-render
+  await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 })
 
 When('I clear the contact search input', async ({ page }) => {
@@ -192,7 +192,9 @@ Then('both {string} and {string} should be visible', async ({ page }, name1: str
 })
 
 Then('the contact list should show {string}', async ({ page }, message: string) => {
-  await expect(page.getByText(new RegExp(message, 'i')).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Search results are async — wait for the search to complete and the text to render
+  // The search debounce + API call + re-render may take longer than default timeout
+  await expect(page.getByText(new RegExp(message, 'i')).first()).toBeVisible({ timeout: Timeouts.ELEMENT * 2 })
 })
 
 // --- Type filter ---
@@ -429,8 +431,19 @@ Given('a contact exists not in any groups', async ({ backendRequest: request }) 
   contactWithDataId = (created as { id: string }).id
 })
 
-Given('no contacts have been created', async () => {
-  // Accept current state — the test verifies empty state which may or may not show
+Given('no contacts have been created', async ({ backendRequest: request }) => {
+  // Delete all existing contacts so we get a clean empty state.
+  const { deleteContactViaApi } = await import('../../api-helpers')
+  const existing = await listContactsViaApi(request, { limit: 100 }).catch(() => ({ contacts: [], total: 0, hasMore: false }))
+  for (const contact of existing.contacts) {
+    const id = (contact as { id: string }).id
+    await deleteContactViaApi(request, id)
+  }
+  // Verify the directory is now empty
+  const verify = await listContactsViaApi(request, { limit: 1 })
+  if (verify.total > 0) {
+    throw new Error(`Expected 0 contacts after cleanup, but found ${verify.total}`)
+  }
 })
 
 When('I click on the {string} contact card', async ({ page }, name: string) => {

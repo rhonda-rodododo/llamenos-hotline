@@ -182,6 +182,9 @@ function ContactDirectoryPage() {
         setContacts(decrypted)
         setTotal(decrypted.length)
       } catch {
+        // Clear contacts on search failure so the no-results message is shown
+        setContacts([])
+        setTotal(0)
         toast(t('contactDirectory.searchError', { defaultValue: 'Search failed' }), 'error')
       } finally {
         setIsSearching(false)
