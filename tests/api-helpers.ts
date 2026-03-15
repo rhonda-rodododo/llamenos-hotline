@@ -881,11 +881,11 @@ export async function createContactByNameViaApi(
   extraOptions?: { contactTypeHash?: string },
   nsec = ADMIN_NSEC,
 ): Promise<Record<string, unknown>> {
-  // Try the plain-text /directory/contacts endpoint first (matches frontend)
+  // Try the plain-text /directory endpoint first (matches frontend POST /directory)
   try {
     const { status, data } = await apiPost<Record<string, unknown>>(
       request,
-      '/directory/contacts',
+      '/directory',
       {
         displayName,
         contactType: extraOptions?.contactTypeHash ?? 'individual',
