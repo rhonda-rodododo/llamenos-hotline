@@ -183,12 +183,63 @@ function stripSwiftConvenienceExtensions(lines: string[]): string {
   output = output.replace(/^(struct \w+): Codable \{/gm, '$1: Codable, Sendable {')
   output = output.replace(/^(enum \w+: String), Codable \{/gm, '$1, Codable, Sendable {')
 
-  // Rename generated types that shadow Swift built-ins or UniFFI types.
+  // Rename generated types that shadow Swift built-ins, SwiftUI types, or UniFFI types.
+  // Each rename must cover the type declaration, MARK comment, and all property type references.
+
   // `Error` shadows Swift's Error protocol — rename to InviteError.
   output = output.replace(/^enum Error: String/gm, 'enum InviteError: String')
   output = output.replace(/\blet error: Error\?/g, 'let error: InviteError?')
+
   // `KeyEnvelope` conflicts with UniFFI's KeyEnvelope — rename to ProtocolKeyEnvelope.
   output = output.replace(/\bKeyEnvelope\b/g, 'ProtocolKeyEnvelope')
+
+  // `Group` shadows SwiftUI's Group view — rename to AffinityGroupElement.
+  output = output.replace(/^(struct |\/\/ MARK: - )Group\b/gm, '$1AffinityGroupElement')
+  output = output.replace(/\blet groups: \[Group\]/g, 'let groups: [AffinityGroupElement]')
+
+  // `Event` is too generic and shadows NSEvent — rename to ProtocolEvent.
+  output = output.replace(/^(struct |\/\/ MARK: - )Event:/gm, '$1ProtocolEvent:')
+  output = output.replace(/^(struct |\/\/ MARK: - )Event\b(?! *[A-Z])/gm, '$1ProtocolEvent')
+
+  // `Record` is too generic (CoreData, etc.) — rename to CaseLinkRecord.
+  // Only rename standalone `Record` type, not types that start with Record (e.g., RecordNotesEnvelope).
+  output = output.replace(/^(struct |\/\/ MARK: - )Record:/gm, '$1CaseLinkRecord:')
+  output = output.replace(/^(struct |\/\/ MARK: - )Record\b(?! *[A-Z])/gm, '$1CaseLinkRecord')
+  output = output.replace(/\blet records: \[Record\]/g, 'let records: [CaseLinkRecord]')
+
+  // `Report` is too generic — rename to CaseLinkReport (used in report-case link context).
+  // Only rename standalone `Report` type, not types that start with Report (e.g., ReportResponse).
+  output = output.replace(/^(struct |\/\/ MARK: - )Report:/gm, '$1CaseLinkReport:')
+  output = output.replace(/^(struct |\/\/ MARK: - )Report\b(?! *[A-Z])/gm, '$1CaseLinkReport')
+  output = output.replace(/\blet reports: \[Report\]/g, 'let reports: [CaseLinkReport]')
+
+  // `Location` shadows CoreLocation types — rename to EventLocation.
+  output = output.replace(/^(struct |\/\/ MARK: - )Location:/gm, '$1EventLocation:')
+  output = output.replace(/^(struct |\/\/ MARK: - )Location\b(?! *[A-Z])/gm, '$1EventLocation')
+  output = output.replace(/\blet location: Location\?/g, 'let location: EventLocation?')
+
+  // `Value` shadows Swift generic Value type parameter — rename to FieldValue.
+  output = output.replace(/^(enum |\/\/ MARK: - )Value:/gm, '$1FieldValue:')
+  output = output.replace(/^(enum |\/\/ MARK: - )Value\b(?! *[A-Z])/gm, '$1FieldValue')
+  output = output.replace(/\bValue\.self\b/g, 'FieldValue.self')
+  output = output.replace(/\blet defaultValue: Value\?/g, 'let defaultValue: FieldValue?')
+  output = output.replace(/\blet value: Value\?/g, 'let value: FieldValue?')
+
+  // `Detail` is too generic — rename to ErrorDetail (used inside ErrorResponse).
+  output = output.replace(/^(struct |\/\/ MARK: - )Detail:/gm, '$1ErrorDetail:')
+  output = output.replace(/^(struct |\/\/ MARK: - )Detail\b(?! *[A-Z])/gm, '$1ErrorDetail')
+  output = output.replace(/\blet details: \[Detail\]\?/g, 'let details: [ErrorDetail]?')
+
+  // `Category` shadows ObjC concept and would collide with iOS app's ReportCategory —
+  // rename to ReportTypeCategory.
+  output = output.replace(/^(enum |\/\/ MARK: - )Category:/gm, '$1ReportTypeCategory:')
+  output = output.replace(/^(enum |\/\/ MARK: - )Category\b(?! *[A-Z])/gm, '$1ReportTypeCategory')
+  output = output.replace(/\blet category: Category\b/g, 'let category: ReportTypeCategory')
+
+  // `Operator` is near-identical to Swift keyword `operator` — rename to FieldOperator.
+  output = output.replace(/^(enum |\/\/ MARK: - )Operator:/gm, '$1FieldOperator:')
+  output = output.replace(/^(enum |\/\/ MARK: - )Operator\b(?! *[A-Z])/gm, '$1FieldOperator')
+  output = output.replace(/\bshowWhenOperator: Operator\b/g, 'showWhenOperator: FieldOperator')
 
   // Clean up consecutive blank lines
   output = output.replace(/\n{3,}/g, '\n\n')
