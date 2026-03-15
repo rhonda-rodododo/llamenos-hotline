@@ -63,6 +63,11 @@ export function applyTemplate(
   const createdEntityTypes: EntityTypeDefinition[] = []
   const now = new Date().toISOString()
 
+  // Resolve label reference strings from template labels section
+  // Template labels are keyed by locale, e.g. template.labels.en["arrest_case.label"] = "Arrest Case"
+  const defaultLabels: Record<string, string> = (template.labels as Record<string, Record<string, string>> | undefined)?.en ?? {}
+  const resolveLabel = (ref: string): string => defaultLabels[ref] ?? ref
+
   for (const [, templateET] of resolvedEntityTypes) {
     const existingId = entityNameToId.get(templateET.name)
     const id = existingId || crypto.randomUUID()
@@ -72,9 +77,9 @@ export function applyTemplate(
       id,
       hubId,
       name: templateET.name,
-      label: templateET.label,
-      labelPlural: templateET.labelPlural,
-      description: templateET.description,
+      label: resolveLabel(templateET.label),
+      labelPlural: resolveLabel(templateET.labelPlural),
+      description: resolveLabel(templateET.description),
       icon: templateET.icon,
       color: templateET.color,
       category: templateET.category,
@@ -83,12 +88,12 @@ export function applyTemplate(
       fields: templateET.fields.map((f: typeof templateET.fields[number], i: number) => ({
         id: crypto.randomUUID(),
         name: f.name,
-        label: f.label,
+        label: resolveLabel(f.label),
         type: f.type,
         required: f.required ?? false,
         options: f.options,
-        section: f.section,
-        helpText: f.helpText,
+        section: f.section ? resolveLabel(f.section) : f.section,
+        helpText: f.helpText ? resolveLabel(f.helpText) : f.helpText,
         order: f.order ?? i,
         indexable: f.indexable ?? false,
         indexType: f.indexType ?? 'none',

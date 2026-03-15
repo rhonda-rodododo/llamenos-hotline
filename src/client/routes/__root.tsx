@@ -47,6 +47,7 @@ import {
   Briefcase,
   BookUser,
   FolderOpen,
+  Calendar,
 } from 'lucide-react'
 
 export const Route = createRootRoute({
@@ -287,9 +288,14 @@ function AuthenticatedLayout() {
               <NavLink to="/" icon={<LayoutDashboard className="h-4 w-4" />}>{t('nav.dashboard')}</NavLink>
               <NavLink to="/notes" icon={<StickyNote className="h-4 w-4" />}>{t('nav.notes')}</NavLink>
               {(hasPermission('cases:read-own') || hasPermission('cases:read-assigned') || hasPermission('cases:read-all')) && (
-                <NavLink to="/cases" icon={<FolderOpen className="h-4 w-4" />}>
-                  {t('nav.cases', { defaultValue: 'Cases' })}
-                </NavLink>
+                <>
+                  <NavLink to="/cases" icon={<FolderOpen className="h-4 w-4" />}>
+                    {t('nav.cases', { defaultValue: 'Cases' })}
+                  </NavLink>
+                  <NavLink to="/events" icon={<Calendar className="h-4 w-4" />}>
+                    {t('nav.events', { defaultValue: 'Events' })}
+                  </NavLink>
+                </>
               )}
               {hasMessaging && (
                 <NavLink to="/conversations" icon={<MessageSquare className="h-4 w-4" />}>

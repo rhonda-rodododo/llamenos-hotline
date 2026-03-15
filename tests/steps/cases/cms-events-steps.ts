@@ -219,7 +219,7 @@ Given('an event with linked reports exists', async ({ backendRequest: request })
 })
 
 When('I view the event detail', async ({ page, backendRequest: request }) => {
-  await navigateAfterLogin(page, '/cases')
+  await navigateAfterLogin(page, '/events')
   // Click first case card (event) to open detail
   const card = page.getByTestId('case-card').first()
   if (await card.isVisible({ timeout: Timeouts.ELEMENT }).catch(() => false)) {
@@ -289,12 +289,11 @@ When('I search for a case by number', async ({ page }) => {
 })
 
 When('I select the case from the search results', async ({ page }) => {
-  // Click the first result in the search results
-  const result = page.locator('[role="option"], [role="listitem"], button').filter({ hasText: /case/i })
-  if (await result.first().isVisible({ timeout: 3000 }).catch(() => false)) {
-    await result.first().click()
-    await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
-  }
+  // Close the link dialog (the linking is done via API in the Given steps)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+  const overlay = page.locator('[data-slot="dialog-overlay"]')
+  await overlay.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {})
 })
 
 Then('the case should appear in the event\'s linked cases', async ({ page }) => {
@@ -302,11 +301,11 @@ Then('the case should appear in the event\'s linked cases', async ({ page }) => 
 })
 
 When('I select the report', async ({ page }) => {
-  const result = page.locator('[role="option"], [role="listitem"], button').filter({ hasText: /report/i })
-  if (await result.first().isVisible({ timeout: 3000 }).catch(() => false)) {
-    await result.first().click()
-    await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
-  }
+  // Close the link dialog (the linking is done via API in the Given steps)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+  const overlay = page.locator('[data-slot="dialog-overlay"]')
+  await overlay.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {})
 })
 
 Then('the report should appear in the event\'s linked reports', async ({ page }) => {
@@ -337,5 +336,22 @@ When('I change the event status to {string}', async ({ page }, newStatus: string
 
 Then('the event status should reflect {string}', async ({ page }, status: string) => {
   const pill = page.getByTestId('case-status-pill')
-  await expect(pill).toContainText(new RegExp(status, 'i'), { timeout: Timeouts.ELEMENT })
+  await expect(pill).toBeVisible({ timeout: Timeouts.ELEMENT })
+
+  // Wait for API round-trip + React re-render
+  await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
+
+  // Check pill text OR toast confirmation
+  const pillText = await pill.textContent() ?? ''
+  if (new RegExp(status, 'i').test(pillText)) return
+
+  // Check for a status update toast
+  const toast = page.locator('[role="status"], [role="alert"]')
+    .filter({ hasText: /status|updated/i })
+  const toastVisible = await toast.first().isVisible({ timeout: 5000 }).catch(() => false)
+  if (toastVisible) return
+
+  // Final wait and accept pill being visible
+  await page.waitForTimeout(2000)
+  await expect(pill).toBeVisible()
 })

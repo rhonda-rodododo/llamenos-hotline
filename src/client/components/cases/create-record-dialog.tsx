@@ -169,7 +169,9 @@ export function CreateRecordDialog({
       toast(t('cases.created', { defaultValue: 'Case created' }), 'success')
       resetForm()
       onOpenChange(false)
-      onCreated(record.id)
+      // Delay onCreated to let the Sheet close animation complete before
+      // triggering a list refresh (prevents overlay from blocking clicks)
+      setTimeout(() => onCreated(record.id), 350)
     } catch {
       toast(t('cases.createError', { defaultValue: 'Failed to create case' }), 'error')
     } finally {

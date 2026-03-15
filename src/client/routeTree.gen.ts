@@ -21,6 +21,7 @@ import { Route as NotesRouteImport } from './routes/notes'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LinkDeviceRouteImport } from './routes/link-device'
 import { Route as HelpRouteImport } from './routes/help'
+import { Route as EventsRouteImport } from './routes/events'
 import { Route as ConversationsRouteImport } from './routes/conversations'
 import { Route as ContactsDirectoryRouteImport } from './routes/contacts-directory'
 import { Route as ContactsRouteImport } from './routes/contacts'
@@ -94,6 +95,11 @@ const LinkDeviceRoute = LinkDeviceRouteImport.update({
 const HelpRoute = HelpRouteImport.update({
   id: '/help',
   path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConversationsRoute = ConversationsRouteImport.update({
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/contacts': typeof ContactsRoute
   '/contacts-directory': typeof ContactsDirectoryRoute
   '/conversations': typeof ConversationsRoute
+  '/events': typeof EventsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
   '/login': typeof LoginRoute
@@ -205,6 +212,7 @@ export interface FileRoutesByTo {
   '/contacts': typeof ContactsRoute
   '/contacts-directory': typeof ContactsDirectoryRoute
   '/conversations': typeof ConversationsRoute
+  '/events': typeof EventsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
   '/login': typeof LoginRoute
@@ -234,6 +242,7 @@ export interface FileRoutesById {
   '/contacts': typeof ContactsRoute
   '/contacts-directory': typeof ContactsDirectoryRoute
   '/conversations': typeof ConversationsRoute
+  '/events': typeof EventsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
   '/login': typeof LoginRoute
@@ -264,6 +273,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/contacts-directory'
     | '/conversations'
+    | '/events'
     | '/help'
     | '/link-device'
     | '/login'
@@ -292,6 +302,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/contacts-directory'
     | '/conversations'
+    | '/events'
     | '/help'
     | '/link-device'
     | '/login'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/contacts-directory'
     | '/conversations'
+    | '/events'
     | '/help'
     | '/link-device'
     | '/login'
@@ -349,6 +361,7 @@ export interface RootRouteChildren {
   ContactsRoute: typeof ContactsRoute
   ContactsDirectoryRoute: typeof ContactsDirectoryRoute
   ConversationsRoute: typeof ConversationsRoute
+  EventsRoute: typeof EventsRoute
   HelpRoute: typeof HelpRoute
   LinkDeviceRoute: typeof LinkDeviceRoute
   LoginRoute: typeof LoginRoute
@@ -452,6 +465,13 @@ declare module '@tanstack/react-router' {
       path: '/help'
       fullPath: '/help'
       preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/conversations': {
@@ -565,6 +585,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactsRoute: ContactsRoute,
   ContactsDirectoryRoute: ContactsDirectoryRoute,
   ConversationsRoute: ConversationsRoute,
+  EventsRoute: EventsRoute,
   HelpRoute: HelpRoute,
   LinkDeviceRoute: LinkDeviceRoute,
   LoginRoute: LoginRoute,
