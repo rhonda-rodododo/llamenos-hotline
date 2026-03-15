@@ -98,6 +98,7 @@ fun MainScreen(
     onNavigateToCallHistory: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToContacts: () -> Unit,
+    onNavigateToCases: () -> Unit,
     onNavigateToBlasts: () -> Unit,
     onNavigateToHelp: () -> Unit,
     onNavigateToDeviceLink: () -> Unit,
@@ -173,6 +174,7 @@ fun MainScreen(
                         onNavigateToCallHistory = onNavigateToCallHistory,
                         onNavigateToReports = onNavigateToReports,
                         onNavigateToContacts = onNavigateToContacts,
+                        onNavigateToCases = onNavigateToCases,
                         onNavigateToBlasts = onNavigateToBlasts,
                         onNavigateToHelp = onNavigateToHelp,
                     )

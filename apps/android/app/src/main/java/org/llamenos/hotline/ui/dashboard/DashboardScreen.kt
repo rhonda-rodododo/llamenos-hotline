@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.Button
@@ -81,6 +82,7 @@ fun DashboardScreen(
     onNavigateToCallHistory: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToContacts: () -> Unit,
+    onNavigateToCases: () -> Unit,
     onNavigateToBlasts: () -> Unit,
     onNavigateToHelp: () -> Unit,
     modifier: Modifier = Modifier,
@@ -523,6 +525,15 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     QuickActionCard(
+                        icon = Icons.Filled.Folder,
+                        label = "Cases",
+                        onClick = onNavigateToCases,
+                        tint = MaterialTheme.colorScheme.primary,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                        testTag = "cases-card",
+                        modifier = Modifier.weight(1f),
+                    )
+                    QuickActionCard(
                         icon = Icons.Filled.Campaign,
                         label = stringResource(R.string.blasts_title),
                         onClick = onNavigateToBlasts,
@@ -530,6 +541,11 @@ fun DashboardScreen(
                         testTag = "blasts-card",
                         modifier = Modifier.weight(1f),
                     )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     QuickActionCard(
                         icon = Icons.Filled.HelpOutline,
                         label = stringResource(R.string.help_title),
@@ -538,6 +554,8 @@ fun DashboardScreen(
                         testTag = "help-card",
                         modifier = Modifier.weight(1f),
                     )
+                    // Empty spacer to keep grid balanced
+                    Spacer(modifier = Modifier.weight(1f))
                 }
 
                 // Recent notes preview

@@ -386,6 +386,9 @@ fun LlamenosNavigation(
                 onNavigateToContacts = {
                     navController.navigate(LlamenosRoute.Contacts.route)
                 },
+                onNavigateToCases = {
+                    navController.navigate(LlamenosRoute.CaseList.route)
+                },
                 onNavigateToBlasts = {
                     navController.navigate(LlamenosRoute.Blasts.route)
                 },

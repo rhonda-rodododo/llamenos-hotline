@@ -104,6 +104,7 @@ class NavigationSteps : BaseSteps() {
             "reports-back", "call-history-back", "contacts-back", "report-create-back",
             "help-back", "shift-detail-back", "timeline-back", "report-detail-back",
             "conversation-detail-back", "volunteer-detail-back", "blasts-back",
+            "cases-back-button", "case-detail-back",
         )
         for (tag in backTags) {
             try {
@@ -162,6 +163,7 @@ class NavigationSteps : BaseSteps() {
             "audit log", "audit" -> navigateToAdminTab("audit")
             "invites" -> navigateToAdminTab("invites")
             "reports" -> navigateViaDashboardCard("reports-card")
+            "cases" -> navigateViaDashboardCard("cases-card")
             "hub settings" -> navigateToTab(NAV_SETTINGS)
             "blasts" -> navigateViaDashboardCard("blasts-card")
             "shifts", "shift schedule" -> navigateToAdminTab("shifts")
