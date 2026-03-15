@@ -20,7 +20,7 @@ struct QuickStatusSheet: View {
                     } label: {
                         HStack(spacing: 10) {
                             Circle()
-                                .fill(Color(hex: status.color ?? "#6b7280"))
+                                .fill(Color(hex: status.color ?? "#6b7280") ?? .gray)
                                 .frame(width: 10, height: 10)
 
                             Text(status.label)

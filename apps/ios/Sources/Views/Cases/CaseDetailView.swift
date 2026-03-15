@@ -97,10 +97,10 @@ struct CaseDetailView: View {
                         Text(sev.label)
                     }
                     .font(.brand(.caption2))
-                    .foregroundStyle(Color(hex: sev.color ?? "#6b7280"))
+                    .foregroundStyle((Color(hex: sev.color ?? "#6b7280") ?? .gray))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color(hex: sev.color ?? "#6b7280").opacity(0.1))
+                    .background((Color(hex: sev.color ?? "#6b7280") ?? .gray).opacity(0.1))
                     .clipShape(Capsule())
                 }
             }
@@ -123,7 +123,7 @@ struct CaseDetailView: View {
         } label: {
             HStack(spacing: 4) {
                 Circle()
-                    .fill(Color(hex: statusDef?.color ?? "#6b7280"))
+                    .fill((Color(hex: statusDef?.color ?? "#6b7280") ?? .gray))
                     .frame(width: 6, height: 6)
                 Text(statusDef?.label ?? record.statusHash)
                     .font(.brand(.caption1))
@@ -135,7 +135,7 @@ struct CaseDetailView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(Color(hex: statusDef?.color ?? "#6b7280").opacity(0.12))
+            .background((Color(hex: statusDef?.color ?? "#6b7280") ?? .gray).opacity(0.12))
             .clipShape(Capsule())
         }
         .disabled(!canEdit)
@@ -539,7 +539,7 @@ private struct TimelineItemRow: View {
                         Image(systemName: "arrow.right")
                             .font(.system(size: 9))
                         Circle()
-                            .fill(Color(hex: newStatus.color ?? "#6b7280"))
+                            .fill((Color(hex: newStatus.color ?? "#6b7280") ?? .gray))
                             .frame(width: 6, height: 6)
                         Text(newStatus.label)
                             .font(.brand(.caption2))

@@ -170,7 +170,7 @@ struct CaseListView: View {
                         HStack(spacing: 4) {
                             if let color = et.color {
                                 Circle()
-                                    .fill(Color(hex: color))
+                                    .fill((Color(hex: color) ?? .gray))
                                     .frame(width: 8, height: 8)
                             }
                             Text(et.label)
@@ -224,7 +224,7 @@ struct CaseListView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Circle()
-                                .fill(Color(hex: status.color ?? "#6b7280"))
+                                .fill((Color(hex: status.color ?? "#6b7280") ?? .gray))
                                 .frame(width: 6, height: 6)
                             Text(status.label)
                                 .font(.brand(.caption2))
@@ -295,7 +295,7 @@ private struct CaseCardRow: View {
                 // Status dot + case number
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(Color(hex: statusDef?.color ?? "#6b7280"))
+                        .fill((Color(hex: statusDef?.color ?? "#6b7280") ?? .gray))
                         .frame(width: 8, height: 8)
                     Text(record.caseNumber ?? String(record.id.prefix(8)))
                         .font(.brand(.subheadline))
@@ -317,14 +317,14 @@ private struct CaseCardRow: View {
                 if let status = statusDef {
                     HStack(spacing: 3) {
                         Circle()
-                            .fill(Color(hex: status.color ?? "#6b7280"))
+                            .fill((Color(hex: status.color ?? "#6b7280") ?? .gray))
                             .frame(width: 5, height: 5)
                         Text(status.label)
                     }
                     .font(.brand(.caption2))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color(hex: status.color ?? "#6b7280").opacity(0.1))
+                    .background((Color(hex: status.color ?? "#6b7280") ?? .gray).opacity(0.1))
                     .clipShape(Capsule())
                     .accessibilityIdentifier("case-card-status-badge")
                 }
