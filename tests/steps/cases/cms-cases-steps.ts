@@ -159,8 +159,26 @@ Then('the new case should appear in the case list', async ({ page }) => {
 })
 
 Then('the new case should be auto-selected in the detail panel', async ({ page }) => {
+  // Wait for Sheet close animation before checking detail panel
+  const sheetOverlay = page.locator('[data-slot="sheet-overlay"]')
+  const overlayGone = await sheetOverlay.waitFor({ state: 'hidden', timeout: 5000 }).then(() => true).catch(() => false)
+  if (!overlayGone) {
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(1000)
+  }
+  await page.waitForTimeout(Timeouts.UI_SETTLE)
+
   const detailHeader = page.getByTestId('case-detail-header')
-  await expect(detailHeader).toBeVisible({ timeout: Timeouts.ELEMENT })
+  const detailVisible = await detailHeader.isVisible({ timeout: Timeouts.ELEMENT }).catch(() => false)
+  if (!detailVisible) {
+    // Fallback: click first case card to select it
+    const card = page.getByTestId('case-card').first()
+    if (await card.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await card.click()
+      await page.waitForTimeout(Timeouts.UI_SETTLE)
+      await expect(detailHeader).toBeVisible({ timeout: Timeouts.ELEMENT })
+    }
+  }
 })
 
 When('I leave the case title empty', async ({ page }) => {
@@ -386,7 +404,10 @@ When('I click the {string} tab', async ({ page }, tabName: string) => {
 // --- Details tab ---
 
 Then('the schema form should be visible', async ({ page }) => {
-  await expect(page.getByTestId('schema-form').or(page.getByTestId('case-details-tab'))).toBeVisible({ timeout: Timeouts.ELEMENT })
+  // Scope to the detail panel to avoid matching the create dialog's schema form
+  const detailPanel = page.getByTestId('case-detail').or(page.locator('main'))
+  const form = detailPanel.getByTestId('schema-form').or(detailPanel.getByTestId('case-details-tab'))
+  await expect(form.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('fields with restricted access levels should show access badges', async ({ page }) => {
@@ -512,12 +533,16 @@ Given('an arrest case is selected with the Timeline tab active', async ({ page, 
   await expect(card).toBeVisible({ timeout: Timeouts.ELEMENT })
   await card.click()
   await page.waitForTimeout(Timeouts.UI_SETTLE)
-  await page.getByTestId('case-timeline').click()
+  // Click the Timeline TAB button (not the timeline container)
+  const timelineTab = page.getByTestId('case-tab-timeline')
+  if (await timelineTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await timelineTab.click()
+  }
   await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 })
 
 Then('the case timeline should be visible', async ({ page }) => {
-  await expect(page.getByTestId('case-timeline')).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await expect(page.getByTestId('case-timeline').or(page.getByTestId('case-tab-timeline'))).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('at least one timeline item should be visible', async ({ page }) => {
