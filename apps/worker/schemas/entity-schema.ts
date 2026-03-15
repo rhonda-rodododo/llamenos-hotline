@@ -33,7 +33,7 @@ const fieldOptionSchema = z.object({
 // --- Entity Field Definition ---
 
 export const entityFieldDefinitionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string().regex(/^[a-zA-Z0-9_]+$/).max(50),
   label: z.string().max(200),
   type: z.enum([
@@ -76,7 +76,7 @@ export const entityFieldDefinitionSchema = z.object({
   hubEditable: z.boolean().default(true),
 
   // Audit
-  createdAt: z.string().optional(),
+  createdAt: z.iso.datetime().optional(),
 })
 
 export type EntityFieldDefinition = z.infer<typeof entityFieldDefinitionSchema>
@@ -89,7 +89,7 @@ export type EntityCategory = z.infer<typeof entityCategorySchema>
 // --- Entity Type Definition (full record, stored in SettingsDO) ---
 
 export const entityTypeDefinitionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   hubId: z.string(),
 
   name: z.string().regex(/^[a-zA-Z0-9_]+$/).max(100),
@@ -144,7 +144,7 @@ export type EntityTypeDefinition = z.infer<typeof entityTypeDefinitionSchema>
 // --- Relationship Type Definition ---
 
 export const relationshipTypeDefinitionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   hubId: z.string(),
 
   sourceEntityTypeId: z.string(),
@@ -187,7 +187,7 @@ export const createEntityTypeBodySchema = z.looseObject({
   category: entityCategorySchema,
 
   fields: z.array(entityFieldDefinitionSchema.omit({ id: true }).extend({
-    id: z.string().uuid().optional(),
+    id: z.uuid().optional(),
   })).max(100).default([]),
 
   statuses: z.array(enumOptionSchema).min(1).max(50),
@@ -227,7 +227,7 @@ export const updateEntityTypeBodySchema = z.looseObject({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
 
   fields: z.array(entityFieldDefinitionSchema.omit({ id: true }).extend({
-    id: z.string().uuid().optional(),
+    id: z.uuid().optional(),
   })).max(100).optional(),
 
   statuses: z.array(enumOptionSchema).min(1).max(50).optional(),
@@ -269,7 +269,7 @@ export const createRelationshipTypeBodySchema = z.looseObject({
   roles: z.array(enumOptionSchema).max(20).optional(),
   defaultRole: z.string().optional(),
   joinFields: z.array(entityFieldDefinitionSchema.omit({ id: true }).extend({
-    id: z.string().uuid().optional(),
+    id: z.uuid().optional(),
   })).max(20).optional(),
   cascadeDelete: z.boolean().default(false),
   required: z.boolean().default(false),
