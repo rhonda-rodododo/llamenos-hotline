@@ -32,7 +32,7 @@ struct QuickStatusSheet: View {
                             if status.value == currentStatus {
                                 Image(systemName: "checkmark")
                                     .font(.brand(.body))
-                                    .foregroundStyle(.brandPrimary)
+                                    .foregroundStyle(Color.brandPrimary)
                             }
 
                             if status.isClosed == true {
