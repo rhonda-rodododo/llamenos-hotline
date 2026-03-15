@@ -275,7 +275,7 @@ final class CaseManagementViewModel {
 
             let envelopes = encrypted.envelopes.map { env in
                 CaseEnvelope(
-                    pubkey: env.recipientPubkey,
+                    pubkey: env.pubkey,
                     wrappedKey: env.wrappedKey,
                     ephemeralPubkey: env.ephemeralPubkey
                 )
@@ -283,7 +283,7 @@ final class CaseManagementViewModel {
 
             let body = CreateInteractionRequest(
                 interactionType: "comment",
-                encryptedContent: encrypted.ciphertext,
+                encryptedContent: encrypted.encryptedContent,
                 contentEnvelopes: envelopes,
                 interactionTypeHash: "comment_hash"
             )

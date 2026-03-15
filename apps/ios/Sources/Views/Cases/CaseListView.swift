@@ -57,7 +57,7 @@ struct CaseListView: View {
             Text(NSLocalizedString("cases_not_enabled", comment: "Case management is not enabled"))
                 .font(.brand(.headline))
             Text(NSLocalizedString("cases_not_enabled_hint", comment: "An admin needs to enable case management."))
-                .font(.brand(.caption1))
+                .font(.brand(.caption))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -75,7 +75,7 @@ struct CaseListView: View {
             Text(NSLocalizedString("cases_empty", comment: "No cases yet"))
                 .font(.brand(.headline))
             Text(NSLocalizedString("cases_empty_hint", comment: "Cases will appear here as your team creates them."))
-                .font(.brand(.caption1))
+                .font(.brand(.caption))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -144,7 +144,7 @@ struct CaseListView: View {
                     Task { await vm.setEntityTypeFilter(nil) }
                 } label: {
                     Text(NSLocalizedString("cases_all_types", comment: "All"))
-                        .font(.brand(.caption1))
+                        .font(.brand(.caption))
                         .fontWeight(vm.entityTypeFilter == nil ? .semibold : .regular)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -174,7 +174,7 @@ struct CaseListView: View {
                                     .frame(width: 8, height: 8)
                             }
                             Text(et.label)
-                                .font(.brand(.caption1))
+                                .font(.brand(.caption))
                                 .fontWeight(vm.entityTypeFilter == et.id ? .semibold : .regular)
                         }
                         .padding(.horizontal, 12)

@@ -69,7 +69,7 @@ struct CaseDetailView: View {
                             NSLocalizedString("cases_assign_to_me", comment: "Assign to me"),
                             systemImage: "person.badge.plus"
                         )
-                        .font(.brand(.caption1))
+                        .font(.brand(.caption))
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("case-assign-btn")
@@ -126,7 +126,7 @@ struct CaseDetailView: View {
                     .fill((Color(hex: statusDef?.color ?? "#6b7280") ?? .gray))
                     .frame(width: 6, height: 6)
                 Text(statusDef?.label ?? record.statusHash)
-                    .font(.brand(.caption1))
+                    .font(.brand(.caption))
                     .fontWeight(.medium)
                 if canEdit {
                     Image(systemName: "chevron.down")
@@ -163,50 +163,48 @@ struct CaseDetailView: View {
     private var tabBar: some View {
         HStack(spacing: 0) {
             ForEach(DetailTab.allCases, id: \.self) { tab in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        viewModel.activeTab = tab
-                    }
-                    // Load data for the tab
-                    Task {
-                        switch tab {
-                        case .timeline:
-                            await viewModel.loadInteractions(for: record.id)
-                        case .contacts:
-                            await viewModel.loadContacts(for: record.id)
-                        case .evidence:
-                            await viewModel.loadEvidence(for: record.id)
-                        case .details:
-                            break
-                        }
-                    }
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: tabIcon(tab))
-                            .font(.system(size: 14))
-                        Text(tab.rawValue)
-                            .font(.brand(.caption2))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(
-                        viewModel.activeTab == tab
-                            ? Color.brandPrimary.opacity(0.1)
-                            : Color.clear
-                    )
-                    .overlay(alignment: .bottom) {
-                        if viewModel.activeTab == tab {
-                            Rectangle()
-                                .fill(Color.brandPrimary)
-                                .frame(height: 2)
-                        }
-                    }
-                }
-                .foregroundStyle(viewModel.activeTab == tab ? .brandPrimary : .secondary)
-                .accessibilityIdentifier("case-tab-\(tab.rawValue.lowercased())")
+                tabButton(for: tab)
             }
         }
         .accessibilityIdentifier("case-tabs")
+    }
+
+    private func tabButton(for tab: DetailTab) -> some View {
+        let isActive = viewModel.activeTab == tab
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                viewModel.activeTab = tab
+            }
+            Task { await loadTabData(tab) }
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: tabIcon(tab))
+                    .font(.system(size: 14))
+                Text(tab.rawValue)
+                    .font(.brand(.caption2))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(isActive ? Color.brandPrimary.opacity(0.1) : Color.clear)
+            .overlay(alignment: .bottom) {
+                if isActive {
+                    Rectangle()
+                        .fill(Color.brandPrimary)
+                        .frame(height: 2)
+                }
+            }
+        }
+        .foregroundStyle(isActive ? Color.brandPrimary : Color.secondary)
+        .accessibilityIdentifier("case-tab-\(tab.rawValue.lowercased())")
+    }
+
+    private func loadTabData(_ tab: DetailTab) async {
+        switch tab {
+        case .timeline: await viewModel.loadInteractions(for: record.id)
+        case .contacts: await viewModel.loadContacts(for: record.id)
+        case .evidence: await viewModel.loadEvidence(for: record.id)
+        case .details: break
+        }
     }
 
     private func tabIcon(_ tab: DetailTab) -> String {
@@ -274,7 +272,7 @@ struct CaseDetailView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
                 Text(field.label)
-                    .font(.brand(.caption1))
+                    .font(.brand(.caption))
                     .foregroundStyle(.secondary)
                 if field.accessLevel != nil && field.accessLevel != "all" {
                     Image(systemName: "lock")
@@ -293,11 +291,11 @@ struct CaseDetailView: View {
     private func metadataRow(label: String, value: String) -> some View {
         HStack {
             Text(label)
-                .font(.brand(.caption1))
+                .font(.brand(.caption))
                 .foregroundStyle(.secondary)
                 .frame(width: 80, alignment: .leading)
             Text(value)
-                .font(.brand(.caption1))
+                .font(.brand(.caption))
         }
     }
 
@@ -514,7 +512,7 @@ private struct TimelineItemRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(typeLabel)
-                        .font(.brand(.caption1))
+                        .font(.brand(.caption))
                         .fontWeight(.medium)
                         .accessibilityIdentifier("timeline-item-type")
 
