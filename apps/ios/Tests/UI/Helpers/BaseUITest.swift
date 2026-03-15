@@ -273,7 +273,7 @@ class BaseUITest: XCTestCase {
 
     // MARK: - Navigation
 
-    /// Tab indices: 0=Dashboard, 1=Notes, 2=Conversations, 3=Shifts, 4=Settings
+    /// Tab indices: 0=Dashboard, 1=Notes, 2=Cases, 3=Conversations, 4=Shifts, 5=Settings
     func navigateToTab(index: Int) {
         let tabView = find("main-tab-view")
         guard tabView.waitForExistence(timeout: 10) else {
@@ -295,9 +295,10 @@ class BaseUITest: XCTestCase {
 
     func navigateToDashboard() { navigateToTab(index: 0) }
     func navigateToNotes() { navigateToTab(index: 1) }
-    func navigateToConversations() { navigateToTab(index: 2) }
-    func navigateToShifts() { navigateToTab(index: 3) }
-    func navigateToSettings() { navigateToTab(index: 4) }
+    func navigateToCases() { navigateToTab(index: 2) }
+    func navigateToConversations() { navigateToTab(index: 3) }
+    func navigateToShifts() { navigateToTab(index: 4) }
+    func navigateToSettings() { navigateToTab(index: 5) }
 
     func navigateToAdminPanel() {
         navigateToSettings()

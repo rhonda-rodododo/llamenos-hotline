@@ -6,6 +6,7 @@ import SwiftUI
 enum Tab: String, CaseIterable, Sendable {
     case dashboard
     case notes
+    case cases
     case conversations
     case shifts
     case settings
@@ -14,6 +15,7 @@ enum Tab: String, CaseIterable, Sendable {
         switch self {
         case .dashboard: return NSLocalizedString("tab_dashboard", comment: "Dashboard")
         case .notes: return NSLocalizedString("tab_notes", comment: "Notes")
+        case .cases: return NSLocalizedString("tab_cases", comment: "Cases")
         case .conversations: return NSLocalizedString("tab_conversations", comment: "Messages")
         case .shifts: return NSLocalizedString("tab_shifts", comment: "Shifts")
         case .settings: return NSLocalizedString("tab_settings", comment: "Settings")
@@ -24,6 +26,7 @@ enum Tab: String, CaseIterable, Sendable {
         switch self {
         case .dashboard: return "house.fill"
         case .notes: return "note.text"
+        case .cases: return "folder.fill"
         case .conversations: return "bubble.left.and.bubble.right"
         case .shifts: return "calendar"
         case .settings: return "gearshape"
@@ -33,8 +36,8 @@ enum Tab: String, CaseIterable, Sendable {
 
 // MARK: - MainTabView
 
-/// The primary authenticated experience. Contains a `TabView` with five tabs:
-/// Dashboard, Notes, Conversations, Shifts, and Settings. Shown when `authStatus == .unlocked`.
+/// The primary authenticated experience. Contains a `TabView` with six tabs:
+/// Dashboard, Notes, Cases, Conversations, Shifts, and Settings. Shown when `authStatus == .unlocked`.
 ///
 /// Each tab has its own `NavigationStack` so navigation state is preserved
 /// when switching between tabs.
@@ -59,6 +62,14 @@ struct MainTabView: View {
                     Label(Tab.notes.title, systemImage: Tab.notes.icon)
                 }
                 .tag(Tab.notes)
+
+            // Cases
+            CaseListView()
+                .tabItem {
+                    Label(Tab.cases.title, systemImage: Tab.cases.icon)
+                }
+                .tag(Tab.cases)
+                .accessibilityIdentifier("cases-tab")
 
             // Conversations
             ConversationsView()

@@ -117,12 +117,12 @@ final class DashboardUITests: BaseUITest {
         given("I am authenticated and on the dashboard") {
             // Already on dashboard
         }
-        then("I should see 5 tab bar items") {
+        then("I should see 6 tab bar items") {
             let tabBar = app.tabBars.firstMatch
             XCTAssertTrue(tabBar.waitForExistence(timeout: 5), "Tab bar should exist")
             XCTAssertGreaterThanOrEqual(
-                tabBar.buttons.count, 5,
-                "Tab bar should have at least 5 buttons"
+                tabBar.buttons.count, 6,
+                "Tab bar should have at least 6 buttons (Dashboard, Notes, Cases, Messages, Shifts, Settings)"
             )
         }
     }

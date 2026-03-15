@@ -76,6 +76,8 @@ struct DashboardView: View {
                 switch destination {
                 case .reports:
                     ReportsView()
+                case .cases:
+                    CaseListView()
                 case .contacts:
                     ContactsView()
                 case .blasts:
@@ -186,22 +188,33 @@ struct DashboardView: View {
                 )
 
                 quickActionCard(
+                    title: NSLocalizedString("dashboard_cases", comment: "Cases"),
+                    icon: "folder.fill",
+                    destination: .cases,
+                    accessibilityID: "dashboard-cases-action"
+                )
+            }
+
+            GridRow {
+                quickActionCard(
                     title: NSLocalizedString("dashboard_help", comment: "Help"),
                     icon: "questionmark.circle.fill",
                     destination: .help,
                     accessibilityID: "dashboard-help-action"
                 )
-            }
 
-            if appState.isAdmin {
-                GridRow {
+                if appState.isAdmin {
                     quickActionCard(
                         title: NSLocalizedString("dashboard_contacts", comment: "Contacts"),
                         icon: "person.crop.circle.badge.clock",
                         destination: .contacts,
                         accessibilityID: "dashboard-contacts-action"
                     )
+                }
+            }
 
+            if appState.isAdmin {
+                GridRow {
                     quickActionCard(
                         title: NSLocalizedString("dashboard_blasts", comment: "Message Blasts"),
                         icon: "megaphone.fill",
@@ -352,6 +365,7 @@ struct DashboardView: View {
 
     enum QuickActionDestination: Hashable {
         case reports
+        case cases
         case contacts
         case blasts
         case help
