@@ -613,11 +613,14 @@ CMS backend + desktop UI complete (Epics 315-332). Remaining work: test executio
 - [ ] **[Epic 342: Smart Case Assignment & Report-to-Case Conversion](epics/epic-342-case-assignment-routing.md)** — Part 1 done (suggest-assignees API, ranked UI, auto-assign). Part 2 (report triage/conversion) unblocked by Epic 343.
 - [ ] **[Epic 338: Template Translations & Locale Completeness](epics/epic-338-template-translations-locale-completeness.md)** — 61 keys × 12 locales added (ES/FR/PT translated). Template i18n mappings, codegen validation, RTL testing still needed
 
+### In Progress
+- [ ] **[Epic 337: Mobile Case Management Views](epics/epic-337-mobile-jail-support-views.md)** — **Phase 1 complete** (report submission): ReportTypePicker, TypedReportForm, AudioInput on both iOS (SwiftUI/Speech) + Android (Compose/SpeechRecognizer). Phase 2 (case views: CaseList, CaseSummary, QuickStatus) and Phase 3 (DateCalendar, AddComment) remaining.
+
 ### Remaining
 - [ ] **[Epic 339: CMS Documentation & Operator Guide](epics/epic-339-cms-documentation-operator-guide.md)** — HelpTooltip component, operator handbook CMS section, template authoring guide, API narrative docs
-- [ ] **[Epic 337: Mobile Case Management Views](epics/epic-337-mobile-jail-support-views.md)** — Template-driven iOS (SwiftUI) + Android (Compose) CMS views: CaseList, CaseSummary, QuickStatus, DateCalendar, AddComment, **SubmitReport** (freeform textarea + audio input + media attach), MyReports. Field report submission is the highest-priority mobile CMS use case.
+- [ ] **Codegen wiring** — Wire generated `Types.swift` and `Types.kt` into iOS/Android build targets so mobile apps import `ReportTypeDefinition` from codegen instead of hand-written models
 
-**Dependency order:** 342 Part 2 (triage/conversion, now unblocked) → 337 (mobile report submission). 335 TODOs and 339 are independent.
+**All critical-path CMS epics complete.** Remaining work: 337 Phases 2-3 (mobile case views), 339 (docs), 335 remaining BDD TODOs, codegen wiring.
 
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
