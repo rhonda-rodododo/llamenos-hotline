@@ -5,6 +5,7 @@ import UIKit
 
 /// View model for the Reports feature. Fetches reports from the API,
 /// manages status filtering, and handles report creation with E2EE encryption.
+/// Supports both legacy category-based reports and template-driven typed reports.
 @Observable
 final class ReportsViewModel {
     private let apiService: APIService
@@ -19,8 +20,14 @@ final class ReportsViewModel {
     /// Available report categories from the server.
     var categories: [String] = []
 
+    /// Report type definitions fetched from the CMS settings.
+    var reportTypes: [ReportTypeDefinition] = []
+
     /// Current status filter.
     var selectedFilter: ReportStatusFilter = .all
+
+    /// Selected report type filter (nil = all types).
+    var selectedTypeFilter: String?
 
     /// Whether the initial load is in progress.
     var isLoading: Bool = false
@@ -34,13 +41,38 @@ final class ReportsViewModel {
     /// Whether the report creation sheet is shown.
     var showCreateSheet: Bool = false
 
+    /// Whether the report type picker is shown.
+    var showReportTypePicker: Bool = false
+
     /// Total report count from server.
     var totalCount: Int = 0
 
-    /// Reports filtered by the selected status filter.
+    /// Reports filtered by the selected status filter and optional type filter.
     var filteredReports: [ClientReportResponse] {
-        guard selectedFilter != .all else { return reports }
-        return reports.filter { $0.status == selectedFilter.rawValue }
+        var result = reports
+        if selectedFilter != .all {
+            result = result.filter { $0.status == selectedFilter.rawValue }
+        }
+        if let typeFilter = selectedTypeFilter {
+            result = result.filter { $0.reportTypeId == typeFilter }
+        }
+        return result
+    }
+
+    /// Mobile-optimized, non-archived report types available for submission.
+    var mobileReportTypes: [ReportTypeDefinition] {
+        reportTypes.filter { $0.mobileOptimized && !$0.isArchived }
+    }
+
+    /// Whether typed report creation is available (at least one mobile-optimized type exists).
+    var hasTypedReports: Bool {
+        !mobileReportTypes.isEmpty
+    }
+
+    /// Resolve a report type label from its ID.
+    func reportTypeLabel(for typeId: String?) -> String? {
+        guard let typeId else { return nil }
+        return reportTypes.first { $0.id == typeId }?.label
     }
 
     // MARK: - Initialization
@@ -53,7 +85,7 @@ final class ReportsViewModel {
 
     // MARK: - Data Loading
 
-    /// Load reports and categories from the API.
+    /// Load reports, categories, and report types from the API.
     func loadReports() async {
         guard !isLoading else { return }
         isLoading = true
@@ -61,9 +93,11 @@ final class ReportsViewModel {
 
         async let reportsResult: Void = fetchReports()
         async let categoriesResult: Void = fetchCategories()
+        async let typesResult: Void = fetchReportTypes()
 
         await reportsResult
         await categoriesResult
+        await typesResult
 
         isLoading = false
     }
@@ -74,9 +108,9 @@ final class ReportsViewModel {
         await loadReports()
     }
 
-    // MARK: - Report Creation
+    // MARK: - Report Creation (Legacy)
 
-    /// Encrypt and create a new report.
+    /// Encrypt and create a new report (legacy category-based).
     ///
     /// - Parameters:
     ///   - title: The report title.
@@ -113,6 +147,74 @@ final class ReportsViewModel {
                 method: "POST",
                 path: "/api/reports",
                 body: request
+            )
+
+            // Haptic feedback on success
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+
+            // Reload reports to include the new one
+            await refresh()
+            isActionInProgress = false
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            isActionInProgress = false
+            return false
+        }
+    }
+
+    // MARK: - Typed Report Creation
+
+    /// Encrypt and create a template-driven typed report.
+    ///
+    /// Field values are serialized as JSON, encrypted as a single E2EE payload,
+    /// and sent with the `reportTypeId` in metadata.
+    ///
+    /// Uses `APIService.request(rawBody:)` to bypass the `convertToSnakeCase` encoder —
+    /// the backend expects camelCase keys (`reportTypeId`, `encryptedContent`,
+    /// `readerEnvelopes`).
+    ///
+    /// - Parameters:
+    ///   - reportTypeId: The report type definition ID.
+    ///   - title: The report title (derived from type label or first text field).
+    ///   - fieldValues: Dictionary of field name to value, serialized as JSON for encryption.
+    /// - Returns: `true` if creation succeeded.
+    @discardableResult
+    func createTypedReport(reportTypeId: String, title: String, fieldValues: [String: AnyCodableValue]) async -> Bool {
+        isActionInProgress = true
+        errorMessage = nil
+
+        do {
+            // Serialize field values as JSON for encryption
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .sortedKeys
+            let fieldsData = try encoder.encode(fieldValues)
+            let fieldsJSON = String(data: fieldsData, encoding: .utf8) ?? "{}"
+
+            // Encrypt the fields JSON with per-message forward secrecy
+            let encrypted = try cryptoService.encryptMessage(
+                plaintext: fieldsJSON,
+                readerPubkeys: adminPubkeys
+            )
+
+            // Encode body with a plain encoder (no snake_case conversion).
+            // The backend expects camelCase keys (reportTypeId, encryptedContent,
+            // readerEnvelopes), but APIService.encoder uses convertToSnakeCase.
+            let body = CreateTypedReportRequest(
+                title: title,
+                category: nil,
+                reportTypeId: reportTypeId,
+                encryptedContent: encrypted.encryptedContent,
+                readerEnvelopes: encrypted.envelopes
+            )
+            let plainEncoder = JSONEncoder()
+            let rawBody = try plainEncoder.encode(body)
+
+            let _: ClientReportResponse = try await apiService.request(
+                method: "POST",
+                path: "/api/reports",
+                rawBody: rawBody
             )
 
             // Haptic feedback on success
@@ -210,6 +312,19 @@ final class ReportsViewModel {
         } catch {
             // Categories are optional — silently continue without them
             categories = []
+        }
+    }
+
+    private func fetchReportTypes() async {
+        do {
+            let response: ReportTypesResponse = try await apiService.request(
+                method: "GET",
+                path: "/api/reports/types"
+            )
+            reportTypes = response.reportTypes
+        } catch {
+            // Report types are optional — hub may not have any configured
+            reportTypes = []
         }
     }
 }

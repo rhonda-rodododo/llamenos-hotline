@@ -78,8 +78,26 @@ struct ReportDetailView: View {
             )
             .accessibilityIdentifier("report-status")
 
-            // Category badge
-            if let category = report.reportCategory {
+            // Report type badge (if typed report)
+            if let typeLabel = viewModel.reportTypeLabel(for: report.reportTypeId) {
+                HStack(spacing: 4) {
+                    Image(systemName: "doc.text.fill")
+                        .font(.brand(.caption))
+                    Text(typeLabel)
+                        .font(.brand(.caption))
+                        .fontWeight(.semibold)
+                }
+                .foregroundStyle(Color.brandPrimary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule().fill(Color.brandPrimary.opacity(0.12))
+                )
+                .accessibilityIdentifier("report-type-badge")
+            }
+
+            // Category badge (legacy reports without a type)
+            if report.reportTypeId == nil, let category = report.reportCategory {
                 HStack(spacing: 4) {
                     Image(systemName: "tag.fill")
                         .font(.brand(.caption))
@@ -227,6 +245,7 @@ struct ReportDetailView: View {
                     type: "report",
                     reportTitle: "Suspicious activity near shelter",
                     reportCategory: "Safety",
+                    reportTypeId: nil,
                     linkedCallId: nil,
                     reportId: nil
                 )

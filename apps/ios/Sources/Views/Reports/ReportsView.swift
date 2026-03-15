@@ -3,10 +3,12 @@ import SwiftUI
 // MARK: - ReportsView
 
 /// Reports list view showing all reports with status filtering, pull-to-refresh,
-/// and a create button for filing new reports.
+/// type filtering (when typed reports are available), and creation via either the
+/// legacy form or the template-driven report type picker.
 struct ReportsView: View {
     @Environment(AppState.self) private var appState
     @State private var viewModel: ReportsViewModel?
+    @State private var selectedReportType: ReportTypeDefinition?
 
     var body: some View {
         let vm = resolvedViewModel
@@ -27,11 +29,15 @@ struct ReportsView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 12) {
+                    if vm.hasTypedReports {
+                        typeFilterMenu(vm: vm)
+                    }
                     filterMenu(vm: vm)
                     createButton(vm: vm)
                 }
             }
         }
+        // Legacy report creation sheet
         .sheet(isPresented: Binding(
             get: { vm.showCreateSheet },
             set: { vm.showCreateSheet = $0 }
@@ -51,6 +57,32 @@ struct ReportsView: View {
                 }
             )
         }
+        // Report type picker sheet
+        .sheet(isPresented: Binding(
+            get: { vm.showReportTypePicker },
+            set: { vm.showReportTypePicker = $0 }
+        )) {
+            ReportTypePicker(
+                reportTypes: vm.mobileReportTypes,
+                onSelect: { reportType in
+                    vm.showReportTypePicker = false
+                    selectedReportType = reportType
+                }
+            )
+        }
+        // Typed report form sheet
+        .sheet(item: $selectedReportType) { reportType in
+            TypedReportCreateView(
+                reportType: reportType,
+                onSubmit: { title, fieldValues in
+                    await vm.createTypedReport(
+                        reportTypeId: reportType.id,
+                        title: title,
+                        fieldValues: fieldValues
+                    )
+                }
+            )
+        }
         .refreshable {
             await vm.refresh()
         }
@@ -62,6 +94,45 @@ struct ReportsView: View {
                 ReportDetailView(report: report, viewModel: vm)
             }
         }
+    }
+
+    // MARK: - Type Filter Menu
+
+    @ViewBuilder
+    private func typeFilterMenu(vm: ReportsViewModel) -> some View {
+        Menu {
+            Button {
+                vm.selectedTypeFilter = nil
+            } label: {
+                if vm.selectedTypeFilter == nil {
+                    Label(
+                        NSLocalizedString("report_filter_all_types", comment: "All Types"),
+                        systemImage: "checkmark"
+                    )
+                } else {
+                    Text(NSLocalizedString("report_filter_all_types", comment: "All Types"))
+                }
+            }
+
+            Divider()
+
+            ForEach(vm.reportTypes.filter { !$0.isArchived }) { reportType in
+                Button {
+                    vm.selectedTypeFilter = reportType.id
+                } label: {
+                    if vm.selectedTypeFilter == reportType.id {
+                        Label(reportType.label, systemImage: "checkmark")
+                    } else {
+                        Text(reportType.label)
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.brand(.body))
+                .symbolVariant(vm.selectedTypeFilter != nil ? .fill : .none)
+        }
+        .accessibilityIdentifier("reports-type-filter-button")
     }
 
     // MARK: - Filter Menu
@@ -92,14 +163,27 @@ struct ReportsView: View {
 
     @ViewBuilder
     private func createButton(vm: ReportsViewModel) -> some View {
-        Button {
-            vm.showCreateSheet = true
-        } label: {
-            Image(systemName: "plus.circle.fill")
-                .font(.brand(.body))
+        if vm.hasTypedReports {
+            // When typed reports are available, the primary action opens the type picker
+            Button {
+                vm.showReportTypePicker = true
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.brand(.body))
+            }
+            .accessibilityIdentifier("create-report-button")
+            .accessibilityLabel(NSLocalizedString("reports_create", comment: "Create Report"))
+        } else {
+            // Legacy: direct to simple report creation
+            Button {
+                vm.showCreateSheet = true
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.brand(.body))
+            }
+            .accessibilityIdentifier("create-report-button")
+            .accessibilityLabel(NSLocalizedString("reports_create", comment: "Create Report"))
         }
-        .accessibilityIdentifier("create-report-button")
-        .accessibilityLabel(NSLocalizedString("reports_create", comment: "Create Report"))
     }
 
     // MARK: - Reports List
@@ -109,7 +193,10 @@ struct ReportsView: View {
         List {
             ForEach(vm.filteredReports) { report in
                 NavigationLink(value: report.id) {
-                    ReportRowView(report: report)
+                    ReportRowView(
+                        report: report,
+                        reportTypeLabel: vm.reportTypeLabel(for: report.reportTypeId)
+                    )
                 }
                 .accessibilityIdentifier("report-row-\(report.id)")
             }
@@ -144,13 +231,23 @@ struct ReportsView: View {
             }
         } actions: {
             if vm.selectedFilter == .all {
-                Button {
-                    vm.showCreateSheet = true
-                } label: {
-                    Text(NSLocalizedString("reports_create_first", comment: "Create First Report"))
+                if vm.hasTypedReports {
+                    Button {
+                        vm.showReportTypePicker = true
+                    } label: {
+                        Text(NSLocalizedString("reports_create_first", comment: "Create First Report"))
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("create-first-report")
+                } else {
+                    Button {
+                        vm.showCreateSheet = true
+                    } label: {
+                        Text(NSLocalizedString("reports_create_first", comment: "Create First Report"))
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("create-first-report")
                 }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("create-first-report")
             }
         }
         .accessibilityElement(children: .contain)
@@ -211,9 +308,10 @@ struct ReportsView: View {
 
 // MARK: - ReportRowView
 
-/// A single report row in the list, showing title, status badge, category, and date.
+/// A single report row in the list, showing title, status badge, category or type label, and date.
 struct ReportRowView: View {
     let report: ClientReportResponse
+    var reportTypeLabel: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -229,8 +327,26 @@ struct ReportRowView: View {
                 // Status badge
                 statusBadge(report.statusEnum)
 
-                // Category badge
-                if let category = report.reportCategory {
+                // Report type badge (if typed report)
+                if let typeLabel = reportTypeLabel {
+                    HStack(spacing: 3) {
+                        Image(systemName: "doc.text.fill")
+                            .font(.brand(.caption))
+                        Text(typeLabel)
+                            .font(.brand(.caption))
+                            .fontWeight(.medium)
+                    }
+                    .foregroundStyle(Color.brandPrimary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule().fill(Color.brandPrimary.opacity(0.12))
+                    )
+                    .accessibilityIdentifier("report-type-badge")
+                }
+
+                // Category badge (legacy reports)
+                if reportTypeLabel == nil, let category = report.reportCategory {
                     HStack(spacing: 3) {
                         Image(systemName: "tag.fill")
                             .font(.brand(.caption))

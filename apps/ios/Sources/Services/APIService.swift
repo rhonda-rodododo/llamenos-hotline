@@ -216,6 +216,75 @@ final class APIService: @unchecked Sendable {
         }
     }
 
+    /// Perform an authenticated API request with a pre-encoded JSON body.
+    ///
+    /// Use this when the body must bypass the `convertToSnakeCase` encoder — for example,
+    /// when the backend expects camelCase keys (`reportTypeId`, `encryptedContent`).
+    ///
+    /// - Parameters:
+    ///   - method: HTTP method.
+    ///   - path: API path relative to the base URL.
+    ///   - rawBody: Pre-encoded JSON `Data`.
+    /// - Returns: Decoded response of type T.
+    func request<T: Decodable>(
+        method: String,
+        path: String,
+        rawBody: Data
+    ) async throws -> T {
+        guard let baseURL else { throw APIError.noBaseURL }
+
+        let fullURL = baseURL.appendingPathComponent(path)
+        var urlRequest = URLRequest(url: fullURL)
+        urlRequest.httpMethod = method.uppercased()
+
+        // Attach Schnorr auth token as Bearer header
+        if cryptoService.isUnlocked {
+            do {
+                let token = try cryptoService.createAuthToken(method: method.uppercased(), path: path)
+                let authJSON = """
+                {"pubkey":"\(token.pubkey)","timestamp":\(token.timestamp),"token":"\(token.token)"}
+                """
+                urlRequest.setValue("Bearer \(authJSON)", forHTTPHeaderField: "Authorization")
+            } catch {
+                throw APIError.authTokenCreationFailed(error)
+            }
+        }
+
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        urlRequest.httpBody = rawBody
+
+        // Execute request
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: urlRequest)
+        } catch {
+            throw APIError.networkError(error)
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.requestFailed(statusCode: 0, body: "Non-HTTP response")
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let bodyString = String(data: data, encoding: .utf8) ?? "<binary>"
+            throw APIError.requestFailed(statusCode: httpResponse.statusCode, body: bodyString)
+        }
+
+        if httpResponse.statusCode == 204 || data.isEmpty {
+            if let empty = EmptyResponse() as? T {
+                return empty
+            }
+        }
+
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw APIError.decodingError(error)
+        }
+    }
+
     /// Fire-and-forget request with no response body expected.
     func request(
         method: String,

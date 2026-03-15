@@ -60,6 +60,7 @@ struct ReportMetadata: Codable, Sendable {
     let type: String?
     let reportTitle: String?
     let reportCategory: String?
+    let reportTypeId: String?
     let linkedCallId: String?
     let reportId: String?
 }
@@ -85,6 +86,8 @@ struct ClientReportResponse: Codable, Identifiable, Sendable {
     }
 
     var reportCategory: String? { metadata?.reportCategory }
+
+    var reportTypeId: String? { metadata?.reportTypeId }
 
     var statusEnum: ReportStatus { ReportStatus(rawValue: status) ?? .waiting }
 }
