@@ -49,6 +49,9 @@ import org.llamenos.hotline.ui.help.HelpScreen
 import org.llamenos.hotline.ui.notes.NoteCreateScreen
 import org.llamenos.hotline.ui.notes.NoteDetailScreen
 import org.llamenos.hotline.ui.notes.NotesViewModel
+import org.llamenos.hotline.ui.cases.CaseDetailScreen
+import org.llamenos.hotline.ui.cases.CaseListScreen
+import org.llamenos.hotline.ui.cases.CaseManagementViewModel
 import org.llamenos.hotline.ui.settings.DeviceLinkScreen
 
 /**
@@ -197,6 +200,20 @@ sealed interface LlamenosRoute {
     /** Device linking via QR code. */
     data object DeviceLink : LlamenosRoute {
         override val route = "device_link"
+    }
+
+    /** Case management list. */
+    data object CaseList : LlamenosRoute {
+        override val route = "cases"
+    }
+
+    /** Case detail view. */
+    data class CaseDetail(val recordId: String) : LlamenosRoute {
+        override val route = "case/$recordId"
+
+        companion object {
+            const val ROUTE_PATTERN = "case/{recordId}"
+        }
     }
 }
 
@@ -566,6 +583,34 @@ fun LlamenosNavigation(
 
         composable(LlamenosRoute.DeviceLink.route) {
             DeviceLinkScreen(
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(LlamenosRoute.CaseList.route) {
+            val caseViewModel: CaseManagementViewModel = hiltViewModel()
+            CaseListScreen(
+                viewModel = caseViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCaseDetail = { recordId ->
+                    navController.navigate("case/$recordId")
+                },
+            )
+        }
+
+        composable(
+            LlamenosRoute.CaseDetail.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument("recordId") {
+                    type = NavType.StringType
+                },
+            ),
+        ) { backStackEntry ->
+            val recordId = backStackEntry.arguments?.getString("recordId") ?: ""
+            val caseViewModel: CaseManagementViewModel = hiltViewModel()
+            CaseDetailScreen(
+                viewModel = caseViewModel,
+                recordId = recordId,
                 onNavigateBack = { navController.popBackStack() },
             )
         }
