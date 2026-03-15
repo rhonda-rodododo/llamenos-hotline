@@ -1,6 +1,6 @@
 # Epic 342: Smart Case Assignment & Report-to-Case Conversion
 
-**Status**: IN PROGRESS
+**Status**: COMPLETED (2026-03-15)
 **Priority**: High
 **Depends on**: Epic 340 (Volunteer Profiles), Epic 319 (Record Entity), Epic 343 (Template-Defined Report Types), Epic 324 (Report-Record-Event Linking)
 **Branch**: `desktop`
