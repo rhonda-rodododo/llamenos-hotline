@@ -871,9 +871,8 @@ export async function applyTemplateViaApi(
 
 /**
  * Convenience wrapper: create a contact by display name.
- * Uses the /directory/contacts endpoint (same as frontend UI) so contacts
- * appear in the directory listing. Falls back to the encrypted /directory
- * endpoint if the plain-text endpoint fails.
+ * Encrypts the contact summary (matching the E2EE format) and sends
+ * to POST /directory with proper blind indexes and trigram tokens for search.
  */
 export async function createContactByNameViaApi(
   request: APIRequestContext,
@@ -881,26 +880,21 @@ export async function createContactByNameViaApi(
   extraOptions?: { contactTypeHash?: string },
   nsec = ADMIN_NSEC,
 ): Promise<Record<string, unknown>> {
-  // Try the plain-text /directory endpoint first (matches frontend POST /directory)
-  try {
-    const { status, data } = await apiPost<Record<string, unknown>>(
-      request,
-      '/directory',
-      {
-        displayName,
-        contactType: extraOptions?.contactTypeHash ?? 'individual',
-      },
-      nsec,
-    )
-    if (status === 200 || status === 201) return data
-  } catch {
-    // Fall through to encrypted endpoint
+  const contactType = extraOptions?.contactTypeHash ?? 'individual'
+  // Build trigram tokens for name search
+  const normalized = displayName.toLowerCase()
+  const trigrams: string[] = []
+  for (let i = 0; i <= normalized.length - 3; i++) {
+    trigrams.push(normalized.slice(i, i + 3))
   }
-  // Fallback: encrypted /directory endpoint
+  const nameHash = Buffer.from(normalized).toString('base64').slice(0, 32)
+
   return createContactViaApi(request, {
-    encryptedSummary: btoa(JSON.stringify({ displayName })),
+    encryptedSummary: btoa(JSON.stringify({ displayName, contactType, tags: [] })),
     identifierHashes: [`name_${Date.now()}_${Math.random().toString(36).slice(2)}`],
-    contactTypeHash: extraOptions?.contactTypeHash,
+    contactTypeHash: contactType,
+    nameHash,
+    trigramTokens: trigrams,
   }, nsec)
 }
 
@@ -915,6 +909,7 @@ export async function createContactViaApi(
   options?: {
     identifierHashes?: string[]
     nameHash?: string
+    trigramTokens?: string[]
     encryptedSummary?: string
     contactTypeHash?: string
   },
@@ -928,6 +923,7 @@ export async function createContactViaApi(
       hubId: '',
       identifierHashes: options?.identifierHashes ?? [`idhash_${Date.now()}_${Math.random().toString(36).slice(2)}`],
       nameHash: options?.nameHash,
+      trigramTokens: options?.trigramTokens,
       encryptedSummary: options?.encryptedSummary ?? 'dGVzdCBjb250YWN0',
       summaryEnvelopes: [envelope],
       contactTypeHash: options?.contactTypeHash,

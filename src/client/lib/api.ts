@@ -1840,6 +1840,60 @@ export interface ContactIdentifier {
   isPrimary: boolean
 }
 
+/** Raw encrypted contact from the backend (matches contactSchema in contacts-v2.ts) */
+export interface RawContact {
+  id: string
+  hubId: string
+  identifierHashes: string[]
+  nameHash?: string
+  trigramTokens?: string[]
+  encryptedSummary: string
+  summaryEnvelopes: import('@shared/types').RecipientEnvelope[]
+  encryptedPII?: string
+  piiEnvelopes?: import('@shared/types').RecipientEnvelope[]
+  contactTypeHash?: string
+  tagHashes: string[]
+  statusHash?: string
+  blindIndexes: Record<string, string | string[]>
+  createdAt: string
+  updatedAt: string
+  lastInteractionAt: string
+  caseCount: number
+  noteCount: number
+  interactionCount: number
+}
+
+/** Decrypted summary from encryptedSummary (matches contactSummarySchema in contacts-v2.ts) */
+export interface DirectoryContactSummary {
+  displayName: string
+  contactType?: string
+  tags?: string[]
+  status?: string
+}
+
+/** Decrypted PII from encryptedPII (matches contactPIISchema) */
+export interface ContactPII {
+  legalName?: string
+  aliases?: string[]
+  identifiers: Array<{ type: string; value: string; label?: string; isPrimary: boolean }>
+  demographics?: {
+    pronouns?: string
+    language?: string
+    age?: number
+    race?: string
+    gender?: string
+    nationality?: string
+  }
+  emergencyContacts?: Array<{ name: string; relationship: string; phone?: string; signal?: string }>
+  notes?: string
+  communicationPreferences?: {
+    preferredChannel?: string
+    preferredLanguage?: string
+    doNotContact?: boolean
+  }
+}
+
+/** Client-side decrypted contact for UI rendering */
 export interface DirectoryContact {
   id: string
   displayName: string
@@ -1849,14 +1903,15 @@ export interface DirectoryContact {
   lastInteractionAt: string | null
   createdAt: string
   updatedAt: string
-  /** True if user can decrypt PII for this contact */
   canDecrypt: boolean
-  // Profile fields (encrypted — only present if canDecrypt)
+  // Profile fields (decrypted from PII tier)
   demographics?: string
   emergencyContacts?: string
   communicationPrefs?: string
   notes?: string
   identifiers?: ContactIdentifier[]
+  // Raw envelope data for re-encryption
+  _raw?: RawContact
 }
 
 export interface ContactRelationship {
@@ -1887,70 +1942,107 @@ export interface ContactCaseLink {
   createdAt: string
 }
 
-export async function listDirectoryContacts(params?: {
+/** Fetch raw encrypted contacts from /directory (backend returns encrypted data) */
+export async function listRawContacts(params?: {
   page?: number
   limit?: number
-  contactType?: DirectoryContactType
-  search?: string
+  contactTypeHash?: string
+  statusHash?: string
+  nameToken?: string
 }) {
   const qs = new URLSearchParams()
   if (params?.page) qs.set('page', String(params.page))
   qs.set('limit', String(params?.limit ?? 50))
-  if (params?.contactType) qs.set('contactType', params.contactType)
-  if (params?.search) qs.set('search', params.search)
-  return request<{ contacts: DirectoryContact[]; total: number }>(hp(`/directory/contacts?${qs}`))
+  if (params?.contactTypeHash) qs.set('contactTypeHash', params.contactTypeHash)
+  if (params?.statusHash) qs.set('statusHash', params.statusHash)
+  if (params?.nameToken) qs.set('nameToken', params.nameToken)
+  return request<{ contacts: RawContact[]; total: number; page: number; limit: number; hasMore: boolean }>(hp(`/directory?${qs}`))
 }
 
-export async function searchDirectoryContacts(tokens: string) {
-  return request<{ contacts: DirectoryContact[] }>(hp('/directory/contacts/search'), {
-    method: 'POST',
-    body: JSON.stringify({ tokens }),
-  })
+/** Search contacts by trigram tokens */
+export async function searchRawContacts(tokens: string) {
+  return request<{ contacts: RawContact[] }>(hp(`/directory/search?tokens=${encodeURIComponent(tokens)}`))
 }
 
-export async function getDirectoryContact(id: string) {
-  return request<DirectoryContact>(hp(`/directory/contacts/${id}`))
+/** Get a single raw contact by ID */
+export async function getRawContact(id: string) {
+  return request<RawContact>(hp(`/directory/${id}`))
 }
 
-export interface CreateDirectoryContactBody {
-  displayName: string
-  contactType: DirectoryContactType
-  tags?: string[]
-  identifiers?: Array<{ type: IdentifierType; value: string; isPrimary: boolean }>
-  demographics?: string
-  emergencyContacts?: string
-  communicationPrefs?: string
-  notes?: string
+/** Encrypted body for creating a contact via POST /directory */
+export interface CreateRawContactBody {
+  hubId: string
+  identifierHashes: string[]
+  nameHash?: string
+  trigramTokens?: string[]
+  encryptedSummary: string
+  summaryEnvelopes: import('@shared/types').RecipientEnvelope[]
+  encryptedPII?: string
+  piiEnvelopes?: import('@shared/types').RecipientEnvelope[]
+  contactTypeHash?: string
+  tagHashes?: string[]
+  statusHash?: string
+  blindIndexes?: Record<string, string | string[]>
 }
 
-export async function createDirectoryContact(body: CreateDirectoryContactBody) {
-  return request<DirectoryContact>(hp('/directory/contacts'), {
+/** Create an encrypted contact record */
+export async function createRawContact(body: CreateRawContactBody) {
+  return request<RawContact>(hp('/directory'), {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
-export async function updateDirectoryContact(id: string, body: Partial<CreateDirectoryContactBody>) {
-  return request<DirectoryContact>(hp(`/directory/contacts/${id}`), {
-    method: 'PATCH',
+/** Legacy aliases for backwards compatibility with existing UI code */
+export async function listDirectoryContacts(params?: {
+  page?: number
+  limit?: number
+  contactType?: DirectoryContactType
+}) {
+  return listRawContacts({
+    page: params?.page,
+    limit: params?.limit,
+    contactTypeHash: params?.contactType,
+  })
+}
+
+export async function searchDirectoryContacts(tokens: string) {
+  return searchRawContacts(tokens)
+}
+
+export async function getDirectoryContact(id: string) {
+  return getRawContact(id)
+}
+
+export async function updateDirectoryContact(id: string, body: Partial<CreateRawContactBody>) {
+  return request<RawContact>(hp(`/directory/${id}`), {
+    method: 'PUT',
     body: JSON.stringify(body),
   })
 }
 
 export async function deleteDirectoryContact(id: string) {
-  return request<{ ok: boolean }>(hp(`/directory/contacts/${id}`), { method: 'DELETE' })
+  return request<{ ok: boolean }>(hp(`/directory/${id}`), { method: 'DELETE' })
 }
 
 export async function listDirectoryContactRelationships(id: string) {
-  return request<{ relationships: ContactRelationship[] }>(hp(`/directory/contacts/${id}/relationships`))
+  return request<{ relationships: ContactRelationship[] }>(hp(`/directory/${id}/relationships`))
 }
 
 export async function listDirectoryContactGroups(id: string) {
-  return request<{ groups: ContactGroup[] }>(hp(`/directory/contacts/${id}/groups`))
+  return request<{ groups: ContactGroup[] }>(hp(`/directory/${id}/groups`))
 }
 
 export async function listDirectoryContactCases(id: string) {
-  return request<{ cases: ContactCaseLink[] }>(hp(`/directory/contacts/${id}/cases`))
+  return request<{ cases: ContactCaseLink[] }>(hp(`/directory/${id}/cases`))
+}
+
+// Keep legacy type alias for create dialog (now encrypts client-side)
+export interface CreateDirectoryContactBody {
+  displayName: string
+  contactType: DirectoryContactType
+  tags?: string[]
+  identifiers?: Array<{ type: IdentifierType; value: string; isPrimary: boolean }>
 }
 
 export async function assignRecord(id: string, pubkeys: string[]) {

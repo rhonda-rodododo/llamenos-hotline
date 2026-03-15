@@ -4,13 +4,18 @@ import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  listDirectoryContacts,
-  searchDirectoryContacts,
-  getDirectoryContact,
+  listRawContacts,
+  searchRawContacts,
+  getRawContact,
+  type RawContact,
   type DirectoryContact,
   type DirectoryContactType,
+  type DirectoryContactSummary,
+  type ContactPII,
+  type ContactIdentifier,
 } from '@/lib/api'
-import { formatRelativeTime } from '@/lib/format'
+import { decryptMessage } from '@/lib/platform'
+import * as keyManager from '@/lib/key-manager'
 import { ContactCard } from '@/components/contacts/contact-card'
 import { ContactProfile } from '@/components/contacts/contact-profile'
 import { CreateContactDialog } from '@/components/contacts/create-contact-dialog'
@@ -26,6 +31,88 @@ import {
 export const Route = createFileRoute('/contacts-directory')({
   component: ContactDirectoryPage,
 })
+
+/** Decrypt a RawContact into a DirectoryContact for UI rendering */
+async function decryptContact(raw: RawContact): Promise<DirectoryContact> {
+  let displayName = raw.id.slice(0, 8) + '...'
+  let contactType: DirectoryContactType = 'individual'
+  let tags: string[] = []
+  let canDecrypt = false
+  let demographics: string | undefined
+  let emergencyContacts: string | undefined
+  let communicationPrefs: string | undefined
+  let notes: string | undefined
+  let identifiers: ContactIdentifier[] | undefined
+
+  // Decrypt summary tier
+  if (raw.encryptedSummary && raw.summaryEnvelopes?.length) {
+    const plaintext = await decryptMessage(raw.encryptedSummary, raw.summaryEnvelopes)
+    if (plaintext) {
+      canDecrypt = true
+      try {
+        const summary = JSON.parse(plaintext) as DirectoryContactSummary
+        displayName = summary.displayName || displayName
+        if (summary.contactType) {
+          contactType = summary.contactType as DirectoryContactType
+        }
+        tags = summary.tags ?? []
+      } catch { /* malformed JSON */ }
+    }
+  }
+
+  // Use contactTypeHash as fallback
+  if (!canDecrypt && raw.contactTypeHash) {
+    contactType = raw.contactTypeHash as DirectoryContactType
+  }
+
+  // Decrypt PII tier
+  if (raw.encryptedPII && raw.piiEnvelopes?.length) {
+    const piiPlaintext = await decryptMessage(raw.encryptedPII, raw.piiEnvelopes)
+    if (piiPlaintext) {
+      try {
+        const pii = JSON.parse(piiPlaintext) as ContactPII
+        if (pii.demographics) {
+          demographics = typeof pii.demographics === 'string'
+            ? pii.demographics
+            : JSON.stringify(pii.demographics)
+        }
+        if (pii.emergencyContacts) {
+          emergencyContacts = JSON.stringify(pii.emergencyContacts)
+        }
+        if (pii.communicationPreferences) {
+          communicationPrefs = JSON.stringify(pii.communicationPreferences)
+        }
+        notes = pii.notes
+        if (pii.identifiers?.length) {
+          identifiers = pii.identifiers.map((ident, i) => ({
+            id: `${raw.id}-ident-${i}`,
+            type: ident.type as 'phone' | 'email' | 'signal',
+            value: ident.value,
+            isPrimary: ident.isPrimary,
+          }))
+        }
+      } catch { /* malformed JSON */ }
+    }
+  }
+
+  return {
+    id: raw.id,
+    displayName,
+    contactType,
+    tags,
+    caseCount: raw.caseCount,
+    lastInteractionAt: raw.lastInteractionAt || null,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+    canDecrypt,
+    demographics,
+    emergencyContacts,
+    communicationPrefs,
+    notes,
+    identifiers,
+    _raw: raw,
+  }
+}
 
 function ContactDirectoryPage() {
   const { t } = useTranslation()
@@ -48,19 +135,21 @@ function ContactDirectoryPage() {
   // Filter state
   const [typeFilter, setTypeFilter] = useState<string>('all')
 
-  // Load contacts
+  // Load + decrypt contacts
   const loadContacts = useCallback(async () => {
     setLoading(true)
     try {
       const params: {
         limit?: number
-        contactType?: DirectoryContactType
+        contactTypeHash?: string
       } = { limit: 50 }
       if (typeFilter !== 'all') {
-        params.contactType = typeFilter as DirectoryContactType
+        params.contactTypeHash = typeFilter
       }
-      const res = await listDirectoryContacts(params)
-      setContacts(res.contacts)
+      const res = await listRawContacts(params)
+      // Client-side decryption of each contact
+      const decrypted = await Promise.all(res.contacts.map(decryptContact))
+      setContacts(decrypted)
       setTotal(res.total)
     } catch {
       toast(t('contactDirectory.loadError', { defaultValue: 'Failed to load contacts' }), 'error')
@@ -88,9 +177,10 @@ function ContactDirectoryPage() {
     setIsSearching(true)
     searchTimerRef.current = setTimeout(async () => {
       try {
-        const res = await searchDirectoryContacts(value.trim())
-        setContacts(res.contacts)
-        setTotal(res.contacts.length)
+        const res = await searchRawContacts(value.trim())
+        const decrypted = await Promise.all(res.contacts.map(decryptContact))
+        setContacts(decrypted)
+        setTotal(decrypted.length)
       } catch {
         toast(t('contactDirectory.searchError', { defaultValue: 'Search failed' }), 'error')
       } finally {
@@ -106,15 +196,18 @@ function ContactDirectoryPage() {
       return
     }
 
-    // Try to use the list version first for instant display
+    // Use the list version first for instant display
     const listContact = contacts.find(c => c.id === selectedId)
     if (listContact) {
       setSelectedContact(listContact)
     }
 
     setDetailLoading(true)
-    getDirectoryContact(selectedId)
-      .then(full => setSelectedContact(full))
+    getRawContact(selectedId)
+      .then(async (raw) => {
+        const decrypted = await decryptContact(raw as unknown as RawContact)
+        setSelectedContact(decrypted)
+      })
       .catch(() => {
         toast(t('contactDirectory.detailError', { defaultValue: 'Failed to load contact details' }), 'error')
       })

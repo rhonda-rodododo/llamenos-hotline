@@ -1,12 +1,15 @@
 import { useTranslation } from 'react-i18next'
 import { useState, useCallback } from 'react'
 import {
-  createDirectoryContact,
+  createRawContact,
   type DirectoryContactType,
   type IdentifierType,
   type DirectoryContact,
+  type DirectoryContactSummary,
 } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
+import { encryptMessage } from '@/lib/platform'
 import {
   Dialog,
   DialogContent,
@@ -50,6 +53,7 @@ const IDENTIFIER_TYPES: Array<{ value: IdentifierType; label: string }> = [
 
 export function CreateContactDialog({ open, onOpenChange, onCreated }: CreateContactDialogProps) {
   const { t } = useTranslation()
+  const { hasNsec, publicKey, adminDecryptionPubkey } = useAuth()
   const { toast } = useToast()
   const [saving, setSaving] = useState(false)
 
@@ -80,7 +84,6 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: CreateCon
   const removeIdentifier = useCallback((tempId: string) => {
     setIdentifiers(prev => {
       const next = prev.filter(i => i.tempId !== tempId)
-      // If we removed the primary, make the first one primary
       if (next.length > 0 && !next.some(i => i.isPrimary)) {
         next[0].isPrimary = true
       }
@@ -91,7 +94,6 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: CreateCon
   const updateIdentifier = useCallback((tempId: string, field: keyof IdentifierRow, value: string | boolean) => {
     setIdentifiers(prev => prev.map(i => {
       if (i.tempId !== tempId) {
-        // If setting primary, clear other primaries
         if (field === 'isPrimary' && value === true) {
           return { ...i, isPrimary: false }
         }
@@ -103,29 +105,84 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: CreateCon
 
   const handleSubmit = useCallback(async () => {
     if (!displayName.trim()) return
+    if (!hasNsec || !publicKey) {
+      toast(t('contactDirectory.noKeyPair', { defaultValue: 'Encryption key not available' }), 'error')
+      return
+    }
+
     setSaving(true)
     try {
-      const validIdentifiers = identifiers.filter(i => i.value.trim())
-      const result = await createDirectoryContact({
+      // Build reader pubkeys for E2EE envelopes
+      const readerPubkeys = [publicKey]
+      if (adminDecryptionPubkey && adminDecryptionPubkey !== publicKey) {
+        readerPubkeys.push(adminDecryptionPubkey)
+      }
+
+      // Encrypt contact summary (displayName + contactType + tags)
+      const summary: DirectoryContactSummary = {
         displayName: displayName.trim(),
         contactType,
-        identifiers: validIdentifiers.length > 0
-          ? validIdentifiers.map(i => ({
-              type: i.type,
-              value: i.value.trim(),
-              isPrimary: i.isPrimary,
-            }))
-          : undefined,
+        tags: [],
+      }
+      const encryptedSummary = await encryptMessage(JSON.stringify(summary), readerPubkeys)
+
+      // Build identifier hashes (simple hash for blind index)
+      const validIdentifiers = identifiers.filter(i => i.value.trim())
+      const identifierHashes = validIdentifiers.length > 0
+        ? validIdentifiers.map(i => `${i.type}:${btoa(i.value.trim()).slice(0, 16)}`)
+        : [`name:${btoa(displayName.trim()).slice(0, 16)}`]
+
+      // Name hash for blind index search
+      const nameHash = btoa(displayName.trim().toLowerCase()).slice(0, 32)
+
+      // Trigram tokens for search
+      const normalized = displayName.trim().toLowerCase()
+      const trigrams: string[] = []
+      for (let i = 0; i <= normalized.length - 3; i++) {
+        trigrams.push(normalized.slice(i, i + 3))
+      }
+
+      const raw = await createRawContact({
+        hubId: '',
+        identifierHashes,
+        nameHash,
+        trigramTokens: trigrams,
+        encryptedSummary: encryptedSummary.encryptedContent,
+        summaryEnvelopes: encryptedSummary.readerEnvelopes,
+        contactTypeHash: contactType,
+        tagHashes: [],
+        blindIndexes: {},
       })
+
       toast(t('contactDirectory.created', { defaultValue: 'Contact created' }))
-      onCreated(result)
+
+      // Return a decrypted DirectoryContact for immediate UI display
+      const newContact: DirectoryContact = {
+        id: raw.id,
+        displayName: displayName.trim(),
+        contactType,
+        tags: [],
+        caseCount: 0,
+        lastInteractionAt: null,
+        createdAt: raw.createdAt,
+        updatedAt: raw.updatedAt,
+        canDecrypt: true,
+        identifiers: validIdentifiers.map((ident, i) => ({
+          id: `${raw.id}-ident-${i}`,
+          type: ident.type,
+          value: ident.value.trim(),
+          isPrimary: ident.isPrimary,
+        })),
+      }
+
+      onCreated(newContact)
       handleClose(false)
     } catch {
       toast(t('contactDirectory.createError', { defaultValue: 'Failed to create contact' }), 'error')
     } finally {
       setSaving(false)
     }
-  }, [displayName, contactType, identifiers, toast, t, onCreated, handleClose])
+  }, [displayName, contactType, identifiers, hasNsec, publicKey, adminDecryptionPubkey, toast, t, onCreated, handleClose])
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
