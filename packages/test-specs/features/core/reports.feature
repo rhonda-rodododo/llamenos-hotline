@@ -236,3 +236,47 @@ Feature: Reports
     When I tap the submit button
     Then a success message should appear
     And the report should appear in my reports list
+
+  # ── Desktop: Template-Driven Report Types ──────────────────────────────
+
+  @desktop
+  Scenario: Template apply creates report types
+    Given I am logged in as an admin
+    And case management is enabled
+    And the "jail-support" template has been applied
+    When I navigate to the "Reports" page
+    Then I should see the report type tabs
+    And the report type tabs should include template-defined types
+
+  @desktop
+  Scenario: Report type selector shows template types in create dialog
+    Given I am logged in as an admin
+    And case management is enabled
+    And the "jail-support" template has been applied
+    When I navigate to the "Reports" page
+    And I click "New Report"
+    Then the report type selector should be visible
+    And the report type selector should list template-defined types
+
+  @desktop
+  Scenario: Template-driven report form shows schema fields
+    Given I am logged in as an admin
+    And case management is enabled
+    And the "jail-support" template has been applied
+    When I navigate to the "Reports" page
+    And I click "New Report"
+    And I select the first template report type
+    Then the report form should show dynamic schema fields
+
+  @desktop
+  Scenario: Submit a template-driven report via desktop
+    Given I am logged in as an admin
+    And case management is enabled
+    And the "jail-support" template has been applied
+    When I navigate to the "Reports" page
+    And I click "New Report"
+    And I select the first template report type
+    And I fill in the required report fields
+    And I click "Submit Report"
+    Then a success toast should appear
+    And the submitted report should appear in the list

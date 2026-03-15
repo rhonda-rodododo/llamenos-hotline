@@ -10,7 +10,10 @@ import {
   listEntityTypes,
   listRecordContacts,
   assignRecord as apiAssignRecord,
+  unassignRecord as apiUnassignRecord,
   getCaseManagementEnabled,
+  getAutoAssignmentStatus,
+  setAutoAssignment,
   type CaseRecord,
   type EntityTypeDefinition,
   type RecordContact,
@@ -28,8 +31,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
-  FolderOpen, Plus, Loader2, Clock, ArrowLeft, UserPlus,
-  Users, FileText, MessageSquare, Link2, AlertTriangle,
+  FolderOpen, Plus, Loader2, Clock, ArrowLeft, UserPlus, UserMinus,
+  Users, FileText, MessageSquare, Link2, AlertTriangle, ToggleRight,
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
@@ -58,6 +61,8 @@ function CasesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
   const pageSize = 50
+  const [autoAssign, setAutoAssign] = useState(false)
+  const [autoAssignLoading, setAutoAssignLoading] = useState(false)
 
   const entityTypeMap = useMemo(
     () => new Map(entityTypes.map(et => [et.id, et])),
@@ -69,7 +74,7 @@ function CasesPage() {
     ? entityTypeMap.get(selectedRecord.entityTypeId)
     : undefined
 
-  // --- Load entity types + CMS status ---
+  // --- Load entity types + CMS status + auto-assignment ---
   useEffect(() => {
     getCaseManagementEnabled()
       .then(({ enabled }) => setCmsEnabled(enabled))
@@ -77,6 +82,10 @@ function CasesPage() {
 
     listEntityTypes()
       .then(({ entityTypes: types }) => setEntityTypes(types.filter(et => !et.isArchived)))
+      .catch(() => {})
+
+    getAutoAssignmentStatus()
+      .then(({ enabled }) => setAutoAssign(enabled))
       .catch(() => {})
   }, [])
 
@@ -144,6 +153,47 @@ function CasesPage() {
     }
   }, [publicKey, toast, t])
 
+  const handleUnassign = useCallback(async (recordId: string) => {
+    // Find the record to determine who to unassign
+    const record = records.find(r => r.id === recordId)
+    if (!record) return
+    // Prefer unassigning the current user; if not assigned, unassign the first assignee (admin action)
+    const target = (publicKey && record.assignedTo.includes(publicKey))
+      ? publicKey
+      : record.assignedTo[0]
+    if (!target) return
+    try {
+      await apiUnassignRecord(recordId, target)
+      setRecords(prev =>
+        prev.map(r => {
+          if (r.id !== recordId) return r
+          return { ...r, assignedTo: r.assignedTo.filter(pk => pk !== target), updatedAt: new Date().toISOString() }
+        }),
+      )
+      toast(t('cases.unassigned', { defaultValue: 'Unassigned' }))
+    } catch {
+      toast(t('cases.unassignError', { defaultValue: 'Failed to unassign' }), 'error')
+    }
+  }, [publicKey, records, toast, t])
+
+  const handleToggleAutoAssign = useCallback(async () => {
+    setAutoAssignLoading(true)
+    const newVal = !autoAssign
+    try {
+      await setAutoAssignment(newVal)
+      setAutoAssign(newVal)
+      toast(
+        newVal
+          ? t('cases.autoAssignEnabled', { defaultValue: 'Auto-assignment enabled' })
+          : t('cases.autoAssignDisabled', { defaultValue: 'Auto-assignment disabled' }),
+      )
+    } catch {
+      toast(t('cases.autoAssignError', { defaultValue: 'Failed to toggle auto-assignment' }), 'error')
+    } finally {
+      setAutoAssignLoading(false)
+    }
+  }, [autoAssign, toast, t])
+
   // Filter statuses come from all entity types combined, deduped
   const allStatuses = useMemo(() => {
     const map = new Map<string, EnumOption>()
@@ -202,12 +252,39 @@ function CasesPage() {
             {t('cases.title', { defaultValue: 'Cases' })}
           </h1>
         </div>
-        {hasPermission('cases:create') && (
-          <Button size="sm" data-testid="case-new-btn" onClick={() => setShowCreateDialog(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            {t('cases.new', { defaultValue: 'New Case' })}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Auto-assignment toggle */}
+          {isAdmin && (
+            <button
+              type="button"
+              data-testid="auto-assignment-toggle"
+              onClick={handleToggleAutoAssign}
+              disabled={autoAssignLoading}
+              className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                autoAssign
+                  ? 'border-primary/30 bg-primary/10 text-primary'
+                  : 'border-border bg-muted text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ToggleRight className="h-3.5 w-3.5" />
+              {autoAssign
+                ? t('cases.autoAssignOn', { defaultValue: 'Auto-assign on' })
+                : t('cases.autoAssignOff', { defaultValue: 'Auto-assign' })}
+            </button>
+          )}
+          {autoAssign && (
+            <span data-testid="auto-assignment-indicator" className="text-xs text-primary font-medium flex items-center gap-1">
+              <ToggleRight className="h-3 w-3" />
+              {t('cases.autoAssignActive', { defaultValue: 'Auto-assign active' })}
+            </span>
+          )}
+          {hasPermission('cases:create') && (
+            <Button size="sm" data-testid="case-new-btn" onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              {t('cases.new', { defaultValue: 'New Case' })}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Entity type tabs */}
@@ -378,6 +455,7 @@ function CasesPage() {
                 publicKey={publicKey}
                 onStatusChange={handleStatusChange}
                 onAssignToMe={handleAssignToMe}
+                onUnassign={handleUnassign}
                 onOpenAssignDialog={(id) => { setAssignDialogRecordId(id); setShowAssignDialog(true) }}
                 onBack={() => setSelectedId(null)}
               />
@@ -533,6 +611,7 @@ function RecordDetail({
   publicKey,
   onStatusChange,
   onAssignToMe,
+  onUnassign,
   onOpenAssignDialog,
   onBack,
 }: {
@@ -543,6 +622,7 @@ function RecordDetail({
   publicKey: string | null
   onStatusChange: (id: string, newStatus: string) => void
   onAssignToMe: (id: string) => void
+  onUnassign: (id: string) => void
   onOpenAssignDialog?: (recordId: string) => void
   onBack: () => void
 }) {
@@ -652,6 +732,21 @@ function RecordDetail({
               >
                 <UserPlus className="h-3.5 w-3.5" />
                 {t('cases.assignToMe', { defaultValue: 'Assign to me' })}
+              </Button>
+            )}
+            {record.assignedTo.length > 0 && hasPermission('cases:assign') && (
+              <Button
+                size="sm"
+                variant="outline"
+                data-testid="case-unassign-btn"
+                onClick={() => {
+                  // Unassign the current user if assigned, otherwise unassign the first assignee
+                  const target = isAssigned && publicKey ? publicKey : record.assignedTo[0]
+                  if (target) onUnassign(record.id)
+                }}
+              >
+                <UserMinus className="h-3.5 w-3.5" />
+                {t('cases.unassign', { defaultValue: 'Unassign' })}
               </Button>
             )}
             {hasPermission('cases:assign') && (

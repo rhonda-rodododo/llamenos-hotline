@@ -43,7 +43,7 @@ export function ContactProfile({ contact }: ContactProfileProps) {
     { key: 'groups', label: t('contactDirectory.tabGroups', { defaultValue: 'Groups' }) },
   ]
 
-  const config = CONTACT_TYPE_CONFIG[contact.contactType]
+  const config = CONTACT_TYPE_CONFIG[contact.contactType] ?? CONTACT_TYPE_CONFIG.individual
   const TypeIcon = config.icon
 
   return (
@@ -300,7 +300,7 @@ function RelationshipsTab({ contactId }: { contactId: string }) {
   return (
     <div data-testid="contact-relationships-list" className="space-y-2">
       {relationships.map(rel => {
-        const targetConfig = CONTACT_TYPE_CONFIG[rel.targetContactType]
+        const targetConfig = CONTACT_TYPE_CONFIG[rel.targetContactType] ?? CONTACT_TYPE_CONFIG.individual
         const TargetIcon = targetConfig.icon
         return (
           <Card key={rel.id}>

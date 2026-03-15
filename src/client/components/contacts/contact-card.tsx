@@ -19,7 +19,7 @@ interface ContactCardProps {
 
 export function ContactCard({ contact, isSelected, onSelect }: ContactCardProps) {
   const { t } = useTranslation()
-  const config = CONTACT_TYPE_CONFIG[contact.contactType]
+  const config = CONTACT_TYPE_CONFIG[contact.contactType] ?? CONTACT_TYPE_CONFIG.individual
   const TypeIcon = config.icon
 
   const initials = contact.canDecrypt && contact.displayName

@@ -64,17 +64,20 @@ Given('volunteer B has {int} active cases', async () => {
 })
 
 Given('a case assigned to a volunteer exists', async ({ backendRequest: request }) => {
+  const { assignRecordViaApi } = await import('../../api-helpers')
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
   const etId = (arrestType as { id: string }).id
-  const records = await listRecordsViaApi(request, { entityTypeId: etId })
-  if (records.records.length > 0) {
-    lastRecordId = (records.records[0] as { id: string }).id
-  } else {
-    const record = await createRecordViaApi(request, etId, { statusHash: 'reported' })
-    lastRecordId = (record as { id: string }).id
-  }
+  // Create a new case and assign the admin to it so the Unassign button appears
+  const adminPubkey = process.env.ADMIN_PUBKEY || 'ac4718373d30301e5c7cf55e9e6f2568efb94f3278fb88f37f4981e880505228'
+  const record = await createRecordViaApi(request, etId, {
+    statusHash: 'reported',
+    assignedTo: [adminPubkey],
+  })
+  lastRecordId = (record as { id: string }).id
+  // Also assign via the explicit endpoint to be sure
+  await assignRecordViaApi(request, lastRecordId, [adminPubkey]).catch(() => {})
 })
 
 Given('auto-assignment is enabled', async () => {

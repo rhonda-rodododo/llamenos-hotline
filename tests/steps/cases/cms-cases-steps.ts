@@ -243,11 +243,22 @@ Given('an arrest case exists', async ({ backendRequest: request }) => {
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   if (!arrestType) return
   const etId = (arrestType as { id: string }).id
+
+  // If a volunteer is logged in (volunteerPubkey set), always create a new case
+  // assigned to them so they can see it with cases:read-assigned permission.
+  if (volunteerPubkey) {
+    const record = await createRecordViaApi(request, etId, {
+      statusHash: 'reported',
+      assignedTo: [volunteerPubkey],
+    })
+    lastCreatedRecordId = (record as { id: string }).id
+    return
+  }
+
+  // For admin: reuse existing or create new
   const records = await listRecordsViaApi(request, { entityTypeId: etId })
   if (records.records.length === 0) {
-    // If a volunteer is logged in, assign the case to them so they can see it
-    const assignedTo = volunteerPubkey ? [volunteerPubkey] : []
-    const record = await createRecordViaApi(request, etId, { statusHash: 'reported', assignedTo })
+    const record = await createRecordViaApi(request, etId, { statusHash: 'reported' })
     lastCreatedRecordId = (record as { id: string }).id
   } else {
     lastCreatedRecordId = (records.records[0] as { id: string }).id

@@ -42,6 +42,8 @@ const buttonTestIdMap: Record<string, string> = {
   'Submit Report': TestIds.REPORT_SUBMIT_BTN,
   'Submit report': TestIds.REPORT_SUBMIT_BTN,
   'Save Provider': 'form-save-btn',
+  'Assign': 'case-assign-dialog-btn',
+  'Unassign': 'case-unassign-btn',
 }
 
 /**
