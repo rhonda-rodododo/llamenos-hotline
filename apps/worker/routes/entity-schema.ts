@@ -1,7 +1,8 @@
+import { z } from 'zod'
 import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getDOs } from '../lib/do-access'
+import { getDOs, getScopedDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
 import {
   createEntityTypeBodySchema,
@@ -58,6 +59,48 @@ entitySchema.put('/case-management',
       body: JSON.stringify(body),
     }))
     await audit(dos.records, 'caseManagementToggled', c.get('pubkey'), body)
+    return new Response(res.body, res)
+  },
+)
+
+// --- Auto-Assignment (Epic 342) ---
+
+entitySchema.get('/auto-assignment',
+  describeRoute({
+    tags: ['Case Management'],
+    summary: 'Get auto-assignment setting',
+    responses: {
+      200: { description: 'Auto-assignment status' },
+      ...authErrors,
+    },
+  }),
+  async (c) => {
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const res = await dos.settings.fetch(new Request('http://do/settings/auto-assignment'))
+    return new Response(res.body, res)
+  },
+)
+
+entitySchema.put('/auto-assignment',
+  describeRoute({
+    tags: ['Case Management'],
+    summary: 'Toggle auto-assignment for new cases',
+    responses: {
+      200: { description: 'Auto-assignment updated' },
+      ...authErrors,
+    },
+  }),
+  requirePermission('cases:manage'),
+  validator('json', z.object({ enabled: z.boolean() })),
+  async (c) => {
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const body = c.req.valid('json')
+    const res = await dos.settings.fetch(new Request('http://do/settings/auto-assignment', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }))
+    await audit(dos.records, 'autoAssignmentToggled', c.get('pubkey'), body)
     return new Response(res.body, res)
   },
 )

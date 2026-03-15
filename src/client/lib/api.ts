@@ -2059,6 +2059,31 @@ export async function unassignRecord(id: string, pubkey: string) {
   })
 }
 
+// --- Assignment Suggestions (Epic 342) ---
+
+export interface AssignmentSuggestion {
+  pubkey: string
+  score: number
+  reasons: string[]
+  activeCaseCount: number
+  maxCases: number
+}
+
+export async function getAssignmentSuggestions(recordId: string) {
+  return request<{ suggestions: AssignmentSuggestion[] }>(hp(`/records/${recordId}/suggest-assignees`))
+}
+
+export async function getAutoAssignmentStatus() {
+  return request<{ enabled: boolean }>(hp('/settings/cms/auto-assignment'))
+}
+
+export async function setAutoAssignment(enabled: boolean) {
+  return request<{ enabled: boolean }>(hp('/settings/cms/auto-assignment'), {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  })
+}
+
 export async function getRecordEnvelopeRecipients(params: {
   entityTypeId: string
   assignedTo?: string[]

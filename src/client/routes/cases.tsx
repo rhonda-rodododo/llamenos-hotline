@@ -22,6 +22,7 @@ import { SchemaForm, type SchemaFieldValues } from '@/components/cases/schema-fo
 import { CreateRecordDialog } from '@/components/cases/create-record-dialog'
 import { CaseTimeline } from '@/components/cases/case-timeline'
 import { EvidenceTab } from '@/components/cases/evidence-tab'
+import { AssignmentDialog } from '@/components/cases/assignment-dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -51,6 +52,8 @@ function CasesPage() {
   // --- UI state ---
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showAssignDialog, setShowAssignDialog] = useState(false)
+  const [assignDialogRecordId, setAssignDialogRecordId] = useState<string | null>(null)
   const [entityTypeFilter, setEntityTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
@@ -375,6 +378,7 @@ function CasesPage() {
                 publicKey={publicKey}
                 onStatusChange={handleStatusChange}
                 onAssignToMe={handleAssignToMe}
+                onOpenAssignDialog={(id) => { setAssignDialogRecordId(id); setShowAssignDialog(true) }}
                 onBack={() => setSelectedId(null)}
               />
             ) : (
@@ -393,6 +397,23 @@ function CasesPage() {
         onCreated={handleRecordCreated}
         defaultEntityTypeId={entityTypeFilter !== 'all' ? entityTypeFilter : undefined}
       />
+
+      {assignDialogRecordId && (
+        <AssignmentDialog
+          open={showAssignDialog}
+          onOpenChange={setShowAssignDialog}
+          recordId={assignDialogRecordId}
+          onAssigned={(pubkeys) => {
+            setRecords(prev =>
+              prev.map(r => {
+                if (r.id !== assignDialogRecordId) return r
+                const assignedTo = [...new Set([...r.assignedTo, ...pubkeys])]
+                return { ...r, assignedTo, updatedAt: new Date().toISOString() }
+              }),
+            )
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -512,6 +533,7 @@ function RecordDetail({
   publicKey,
   onStatusChange,
   onAssignToMe,
+  onOpenAssignDialog,
   onBack,
 }: {
   record: CaseRecord
@@ -521,6 +543,7 @@ function RecordDetail({
   publicKey: string | null
   onStatusChange: (id: string, newStatus: string) => void
   onAssignToMe: (id: string) => void
+  onOpenAssignDialog?: (recordId: string) => void
   onBack: () => void
 }) {
   const { t } = useTranslation()
@@ -629,6 +652,17 @@ function RecordDetail({
               >
                 <UserPlus className="h-3.5 w-3.5" />
                 {t('cases.assignToMe', { defaultValue: 'Assign to me' })}
+              </Button>
+            )}
+            {hasPermission('cases:assign') && (
+              <Button
+                size="sm"
+                variant="outline"
+                data-testid="case-assign-dialog-btn"
+                onClick={() => onOpenAssignDialog?.(record.id)}
+              >
+                <Users className="h-3.5 w-3.5" />
+                {t('cases.assign', { defaultValue: 'Assign' })}
               </Button>
             )}
           </div>

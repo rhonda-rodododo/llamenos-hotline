@@ -595,6 +595,118 @@ records.get('/:id/contacts',
   },
 )
 
+// --- Suggest assignees (Epic 342) ---
+records.get('/:id/suggest-assignees',
+  describeRoute({
+    tags: ['Records'],
+    summary: 'Get ranked volunteer suggestions for case assignment',
+    responses: {
+      200: { description: 'Assignment suggestions' },
+      ...authErrors,
+      ...notFoundError,
+    },
+  }),
+  requirePermission('cases:assign'),
+  async (c) => {
+    const id = c.req.param('id')
+    const dos = getScopedDOs(c.env, c.get('hubId'))
+
+    // 1. Get the record to check entity type and current assignments
+    const recordRes = await dos.caseManager.fetch(new Request(`http://do/records/${id}`))
+    if (!recordRes.ok) return new Response(recordRes.body, recordRes)
+    const record = await recordRes.json() as {
+      entityTypeId: string
+      assignedTo: string[]
+      languageNeed?: string
+    }
+
+    // 2. Get on-shift volunteers
+    const shiftRes = await dos.shifts.fetch(new Request('http://do/current-volunteers'))
+    const { pubkeys: onShiftPubkeys } = shiftRes.ok
+      ? await shiftRes.json() as { pubkeys: string[] }
+      : { pubkeys: [] as string[] }
+
+    // 3. Get all volunteer profiles
+    const volRes = await dos.identity.fetch(new Request('http://do/volunteers'))
+    const { volunteers } = volRes.ok
+      ? await volRes.json() as { volunteers: Array<{
+          pubkey: string
+          active: boolean
+          onBreak: boolean
+          spokenLanguages?: string[]
+          specializations?: string[]
+          maxCaseAssignments?: number
+        }> }
+      : { volunteers: [] as Array<{ pubkey: string; active: boolean; onBreak: boolean; spokenLanguages?: string[]; specializations?: string[]; maxCaseAssignments?: number }> }
+
+    const onShiftSet = new Set(onShiftPubkeys)
+    const alreadyAssigned = new Set(record.assignedTo)
+
+    // 4. Score each eligible volunteer
+    const suggestions: Array<{
+      pubkey: string
+      score: number
+      reasons: string[]
+      activeCaseCount: number
+      maxCases: number
+    }> = []
+
+    for (const vol of volunteers) {
+      if (!vol.active) continue
+      if (vol.onBreak) continue
+      if (!onShiftSet.has(vol.pubkey)) continue
+      if (alreadyAssigned.has(vol.pubkey)) continue
+
+      // Get workload
+      const countRes = await dos.caseManager.fetch(
+        new Request(`http://do/records/count-by-assignment/${vol.pubkey}`),
+      )
+      const { count: activeCaseCount } = countRes.ok
+        ? await countRes.json() as { count: number }
+        : { count: 0 }
+
+      const maxCases = vol.maxCaseAssignments ?? 0
+      if (maxCases > 0 && activeCaseCount >= maxCases) continue
+
+      let score = 50 // Base score
+      const reasons: string[] = ['On shift']
+
+      // Workload score: lower workload = higher score (0-30 points)
+      const effectiveMax = maxCases > 0 ? maxCases : 20
+      const utilization = activeCaseCount / effectiveMax
+      score += Math.round((1 - utilization) * 30)
+      reasons.push(`${activeCaseCount}/${effectiveMax} cases`)
+
+      // Language match (0-15 points)
+      const languageNeed = record.languageNeed ?? c.req.query('language')
+      if (languageNeed && vol.spokenLanguages?.includes(languageNeed)) {
+        score += 15
+        reasons.push(`Speaks ${languageNeed}`)
+      }
+
+      // Specialization match (0-10 points)
+      // Map entity type categories to specialization tags
+      if (vol.specializations?.length) {
+        score += 5
+        reasons.push('Has specializations')
+      }
+
+      suggestions.push({
+        pubkey: vol.pubkey,
+        score,
+        reasons,
+        activeCaseCount,
+        maxCases: effectiveMax,
+      })
+    }
+
+    // Sort by score descending
+    suggestions.sort((a, b) => b.score - a.score)
+
+    return c.json({ suggestions })
+  },
+)
+
 // --- Assign volunteers ---
 records.post('/:id/assign',
   describeRoute({
