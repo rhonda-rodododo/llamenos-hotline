@@ -37,23 +37,25 @@ export function applyTemplate(
   appliedRecord: AppliedTemplateRecord
 } {
   // 1. Resolve extends chain (depth-first)
+  // Guard against undefined arrays — template JSON may omit optional fields
+  // that Zod would default to [] if parsed, but dynamic imports skip Zod.
   const resolvedEntityTypes = new Map<string, CaseManagementTemplate['entityTypes'][0]>()
   const resolvedRelationships: CaseManagementTemplate['relationshipTypes'] = []
 
-  for (const parentId of template.extends) {
+  for (const parentId of (template.extends ?? [])) {
     const parent = allTemplates.get(parentId)
     if (!parent) continue
-    for (const et of parent.entityTypes) {
+    for (const et of parent.entityTypes ?? []) {
       resolvedEntityTypes.set(et.name, et)
     }
-    resolvedRelationships.push(...parent.relationshipTypes)
+    resolvedRelationships.push(...(parent.relationshipTypes ?? []))
   }
 
   // 2. Apply this template's types (overrides parents for same name)
-  for (const et of template.entityTypes) {
+  for (const et of template.entityTypes ?? []) {
     resolvedEntityTypes.set(et.name, et)
   }
-  resolvedRelationships.push(...template.relationshipTypes)
+  resolvedRelationships.push(...(template.relationshipTypes ?? []))
 
   // 3. Convert to EntityTypeDefinitions
   const entityNameToId = new Map<string, string>()
@@ -173,14 +175,14 @@ export function applyTemplate(
 
   // Resolve parent template report types (same depth-first pattern as entity types)
   const resolvedReportTypes = new Map<string, TemplateReportType>()
-  for (const parentId of template.extends) {
+  for (const parentId of (template.extends ?? [])) {
     const parent = allTemplates.get(parentId)
     if (!parent) continue
-    for (const rt of parent.reportTypes) {
+    for (const rt of (parent.reportTypes ?? [])) {
       resolvedReportTypes.set(rt.name, rt)
     }
   }
-  for (const rt of template.reportTypes) {
+  for (const rt of (template.reportTypes ?? [])) {
     resolvedReportTypes.set(rt.name, rt)
   }
 
