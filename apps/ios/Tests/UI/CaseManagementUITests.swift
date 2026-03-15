@@ -382,10 +382,11 @@ final class CaseManagementUITests: BaseUITest {
 
                 // Verify metadata section renders (always present regardless of fields)
                 // The metadata row shows "Created" and "Updated" timestamps
-                let found = app.descendants(matching: .any)
+                let fieldElements = app.descendants(matching: .any)
                     .matching(NSPredicate(format: "identifier BEGINSWITH 'case-field-' OR identifier BEGINSWITH 'case-section-'"))
                 // If entity type has fields, at least one case-field-* should exist
                 // If no fields defined, metadata section is still present
+                _ = fieldElements.count  // Access to verify query runs
                 XCTAssertTrue(true, "Details tab rendered successfully")
             }
         }
@@ -407,11 +408,6 @@ final class CaseManagementUITests: BaseUITest {
         }
         then("I should see timeline content or empty state") {
             guard find("case-detail-header").exists else { return }
-
-            let timeline = find("case-timeline")
-            let timelineEmpty = find("timeline-empty")
-            let timelineLoading = find("timeline-loading")
-            let timelineTab = find("case-timeline-tab")
 
             let found = anyElementExists([
                 "case-timeline",
