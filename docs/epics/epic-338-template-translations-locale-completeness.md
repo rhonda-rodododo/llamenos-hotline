@@ -1,6 +1,6 @@
 # Epic 338: Template Translations & Locale Completeness
 
-**Status**: PENDING
+**Status**: IN PROGRESS — 61 CMS keys added to 12 locales (ES/FR/PT translated, 8 locales have EN placeholders). Template i18n key mappings, codegen validation, and RTL testing still needed.
 **Priority**: Medium
 **Depends on**: Epic 317 (Template System), Epic 205 (i18n Extraction)
 **Blocks**: None
