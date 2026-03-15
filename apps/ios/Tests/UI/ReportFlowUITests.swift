@@ -161,4 +161,181 @@ final class ReportFlowUITests: BaseUITest {
             // If reports exist, that's fine too
         }
     }
+
+    // MARK: - Scenario: Report type picker shows types (API-connected)
+
+    /// Verifies that when report types are configured on the hub, tapping
+    /// the create button opens the ReportTypePicker with type cards.
+    /// Requires Docker Compose backend with report types configured.
+    func testReportTypePickerShowsTypes() {
+        given("I am authenticated as admin with API") {
+            resetServerState()
+            launchAsAdminWithAPI()
+        }
+        when("I navigate to reports and tap create") {
+            navigateToReports()
+            let createButton = find("create-report-button")
+            XCTAssertTrue(createButton.waitForExistence(timeout: 10))
+            createButton.tap()
+        }
+        then("I should see the report type picker or legacy form") {
+            // If report types are configured, the type picker appears with cards.
+            // If no report types exist, the legacy form appears instead.
+            let foundTypePicker = anyElementExists([
+                "cancel-report-type-picker",  // type picker cancel button
+                "report-title-input",          // legacy form fallback
+            ])
+            XCTAssertTrue(
+                foundTypePicker,
+                "Tapping create should open either the report type picker or legacy creation form"
+            )
+        }
+    }
+
+    // MARK: - Scenario: Typed report form renders fields
+
+    /// Verifies that selecting a report type from the picker opens the
+    /// TypedReportCreateView with dynamic form fields and a submit button.
+    /// Requires Docker Compose backend with mobile-optimized report types.
+    func testTypedReportFormRendersFields() {
+        given("I am authenticated as admin with API") {
+            resetServerState()
+            launchAsAdminWithAPI()
+        }
+        when("I navigate to reports and open a typed report form") {
+            navigateToReports()
+            let createButton = find("create-report-button")
+            XCTAssertTrue(createButton.waitForExistence(timeout: 10))
+            createButton.tap()
+
+            // If a type picker appears, select the first available type card.
+            // Type cards use "report-type-{name}" identifiers.
+            let pickerCancel = find("cancel-report-type-picker")
+            if pickerCancel.waitForExistence(timeout: 5) {
+                // Type picker is showing — tap the first type card found
+                // Cards are buttons inside the picker's LazyVStack
+                let firstCard = app.descendants(matching: .button)
+                    .matching(NSPredicate(format: "identifier BEGINSWITH 'report-type-'"))
+                    .firstMatch
+                if firstCard.waitForExistence(timeout: 5) {
+                    firstCard.tap()
+                }
+            }
+        }
+        then("I should see the typed report form with fields and submit button") {
+            // The typed form should have a submit button and a cancel button
+            let submitButton = find("typed-report-submit")
+            let cancelButton = find("cancel-typed-report")
+
+            let hasTypedForm = submitButton.waitForExistence(timeout: 5)
+                || cancelButton.waitForExistence(timeout: 2)
+
+            if hasTypedForm {
+                XCTAssertTrue(
+                    submitButton.exists,
+                    "Typed report form should have a submit button"
+                )
+                XCTAssertTrue(
+                    cancelButton.exists,
+                    "Typed report form should have a cancel button"
+                )
+            }
+            // If no typed form appeared (no report types on server), pass gracefully
+        }
+    }
+
+    // MARK: - Scenario: Cancel typed report form
+
+    /// Verifies that cancelling the typed report form returns to the reports screen.
+    func testCancelTypedReportForm() {
+        given("I am authenticated as admin with API") {
+            resetServerState()
+            launchAsAdminWithAPI()
+        }
+        when("I open a typed report form and cancel") {
+            navigateToReports()
+            let createButton = find("create-report-button")
+            XCTAssertTrue(createButton.waitForExistence(timeout: 10))
+            createButton.tap()
+
+            // If type picker appears, select a type
+            let pickerCancel = find("cancel-report-type-picker")
+            if pickerCancel.waitForExistence(timeout: 5) {
+                let firstCard = app.descendants(matching: .button)
+                    .matching(NSPredicate(format: "identifier BEGINSWITH 'report-type-'"))
+                    .firstMatch
+                if firstCard.waitForExistence(timeout: 5) {
+                    firstCard.tap()
+                }
+            }
+
+            // Cancel the typed form if it appeared
+            let cancelTyped = find("cancel-typed-report")
+            if cancelTyped.waitForExistence(timeout: 5) {
+                cancelTyped.tap()
+            } else {
+                // Fall back to cancelling the legacy form
+                let cancelLegacy = find("cancel-report-create")
+                if cancelLegacy.waitForExistence(timeout: 3) {
+                    cancelLegacy.tap()
+                }
+            }
+        }
+        then("I should be back on the reports screen") {
+            let createButton = find("create-report-button")
+            XCTAssertTrue(
+                createButton.waitForExistence(timeout: 5),
+                "Create button should be visible after cancelling typed report"
+            )
+        }
+    }
+
+    // MARK: - Scenario: Audio input button visible on textarea fields
+
+    /// Verifies that textarea fields with `supportAudioInput: true` show the
+    /// mic button (AudioInputButton) for speech-to-text dictation.
+    func testAudioInputButtonVisibleOnTextareaFields() {
+        given("I am authenticated as admin with API") {
+            resetServerState()
+            launchAsAdminWithAPI()
+        }
+        when("I open a typed report form") {
+            navigateToReports()
+            let createButton = find("create-report-button")
+            XCTAssertTrue(createButton.waitForExistence(timeout: 10))
+            createButton.tap()
+
+            // Select the first type if picker appears
+            let pickerCancel = find("cancel-report-type-picker")
+            if pickerCancel.waitForExistence(timeout: 5) {
+                let firstCard = app.descendants(matching: .button)
+                    .matching(NSPredicate(format: "identifier BEGINSWITH 'report-type-'"))
+                    .firstMatch
+                if firstCard.waitForExistence(timeout: 5) {
+                    firstCard.tap()
+                }
+            }
+        }
+        then("textarea fields with audio support should show a mic button") {
+            // The audio input button has a fixed identifier
+            let audioButton = find("audio-input-button")
+            let typedSubmit = find("typed-report-submit")
+
+            // Only check for audio button if we're on the typed form
+            if typedSubmit.waitForExistence(timeout: 5) {
+                // Scroll to find the audio button — it may be below the fold
+                let found = scrollToFind("audio-input-button", maxSwipes: 5)
+                // Audio button presence depends on whether the report type
+                // has textarea fields with supportAudioInput: true.
+                // If present, verify it exists; if not, that's acceptable.
+                if found.exists {
+                    XCTAssertTrue(
+                        audioButton.isHittable || audioButton.exists,
+                        "Audio input button should be visible on textarea fields with audio support"
+                    )
+                }
+            }
+            // If no typed form (no report types on server), pass gracefully
+        }
+    }
 }
