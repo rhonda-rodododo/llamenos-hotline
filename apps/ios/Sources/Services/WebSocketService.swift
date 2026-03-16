@@ -61,6 +61,9 @@ struct NostrEvent: Codable, Sendable, Identifiable {
 enum HubEventType: String, Sendable {
     case callRing = "call:ring"
     case callUpdate = "call:update"
+    case callEnded = "call:ended"
+    case shiftUpdate = "shift:update"
+    case noteCreated = "note:created"
     case voicemailNew = "voicemail:new"
     case presenceSummary = "presence:summary"
     case messageNew = "message:new"

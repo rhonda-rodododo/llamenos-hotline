@@ -4,7 +4,8 @@ import UIKit
 // MARK: - CaseManagementViewModel
 
 /// View model for CMS case management. Fetches entity types, records, interactions,
-/// contacts, and evidence from the API. Handles status changes, comments, and assignment.
+/// contacts, and evidence from the API. Handles status changes, comments, assignment,
+/// summary decryption, and field decryption.
 @Observable
 final class CaseManagementViewModel {
     private let apiService: APIService
@@ -67,6 +68,34 @@ final class CaseManagementViewModel {
     /// Whether the comment sheet is shown.
     var showCommentSheet: Bool = false
 
+    /// Whether the create case sheet is shown.
+    var showCreateSheet: Bool = false
+
+    // MARK: - Summary & Field Decryption
+
+    /// Decrypted summaries keyed by record ID. Contains title/description extracted from JSON.
+    var decryptedSummaries: [String: DecryptedSummary] = [:]
+
+    /// Decrypted field values for the currently selected record.
+    var decryptedFieldValues: [String: String] = [:]
+
+    /// Whether field decryption is in progress.
+    var isDecryptingFields: Bool = false
+
+    // MARK: - Timeline Sort
+
+    /// Sort order for the timeline. Default is newest first.
+    var timelineSortNewestFirst: Bool = true
+
+    /// Sorted interactions based on the current sort order.
+    var sortedInteractions: [Interaction] {
+        if timelineSortNewestFirst {
+            return interactions.sorted { $0.createdAt > $1.createdAt }
+        } else {
+            return interactions.sorted { $0.createdAt < $1.createdAt }
+        }
+    }
+
     // MARK: - Computed
 
     /// All unique statuses across entity types (for filter dropdown).
@@ -100,6 +129,11 @@ final class CaseManagementViewModel {
     /// Status definition for a record.
     func statusDef(for record: CaseRecord) -> CaseEnumOption? {
         entityType(for: record.entityTypeId)?.statuses.first { $0.value == record.statusHash }
+    }
+
+    /// Decrypted title for a record, if available.
+    func decryptedTitle(for recordId: String) -> String? {
+        decryptedSummaries[recordId]?.title
     }
 
     // MARK: - Init
@@ -155,6 +189,9 @@ final class CaseManagementViewModel {
             )
             records = response.records
             totalRecords = response.total
+
+            // Decrypt summaries for all loaded records
+            await decryptRecordSummaries(response.records)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -166,6 +203,9 @@ final class CaseManagementViewModel {
         selectedEntityType = entityType(for: record.entityTypeId)
         activeTab = .details
 
+        // Decrypt fields for the selected record
+        await decryptRecordFields(record)
+
         // Preload timeline
         await loadInteractions(for: record.id)
     }
@@ -175,6 +215,89 @@ final class CaseManagementViewModel {
         await loadRecords()
         if let selected = selectedRecord {
             await selectRecord(selected)
+        }
+    }
+
+    // MARK: - Summary Decryption
+
+    /// Decrypt the encrypted summary of each record to extract title/description.
+    /// This runs on the list view to show titles in case cards.
+    private func decryptRecordSummaries(_ records: [CaseRecord]) async {
+        guard cryptoService.isUnlocked, let ourPubkey = cryptoService.pubkey else { return }
+
+        for record in records {
+            // Skip if already decrypted
+            if decryptedSummaries[record.id] != nil { continue }
+
+            guard let encryptedSummary = record.encryptedSummary,
+                  let envelopes = record.summaryEnvelopes,
+                  !envelopes.isEmpty else { continue }
+
+            // Find our envelope
+            guard let envelope = envelopes.first(where: { $0.pubkey == ourPubkey }) else { continue }
+
+            do {
+                let plaintext = try cryptoService.decryptMessage(
+                    encryptedContent: encryptedSummary,
+                    wrappedKey: envelope.wrappedKey,
+                    ephemeralPubkey: envelope.ephemeralPubkey
+                )
+                if let data = plaintext.data(using: .utf8),
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    let summary = DecryptedSummary(
+                        title: json["title"] as? String,
+                        description: json["description"] as? String
+                    )
+                    decryptedSummaries[record.id] = summary
+                }
+            } catch {
+                // Decryption failed — skip this record
+            }
+        }
+    }
+
+    // MARK: - Field Decryption
+
+    /// Decrypt encrypted fields for the selected record to display in the detail view.
+    private func decryptRecordFields(_ record: CaseRecord) async {
+        isDecryptingFields = true
+        defer { isDecryptingFields = false }
+        decryptedFieldValues = [:]
+
+        guard cryptoService.isUnlocked, let ourPubkey = cryptoService.pubkey else { return }
+
+        guard let encryptedFields = record.encryptedFields,
+              let envelopes = record.fieldEnvelopes,
+              !envelopes.isEmpty else { return }
+
+        guard let envelope = envelopes.first(where: { $0.pubkey == ourPubkey }) else { return }
+
+        do {
+            let plaintext = try cryptoService.decryptMessage(
+                encryptedContent: encryptedFields,
+                wrappedKey: envelope.wrappedKey,
+                ephemeralPubkey: envelope.ephemeralPubkey
+            )
+            if let data = plaintext.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                var values: [String: String] = [:]
+                for (key, value) in json {
+                    if let str = value as? String {
+                        values[key] = str
+                    } else if let num = value as? NSNumber {
+                        values[key] = num.stringValue
+                    } else if let bool = value as? Bool {
+                        values[key] = bool ? "Yes" : "No"
+                    } else if let arr = value as? [String] {
+                        values[key] = arr.joined(separator: ", ")
+                    } else {
+                        values[key] = String(describing: value)
+                    }
+                }
+                decryptedFieldValues = values
+            }
+        } catch {
+            // Field decryption failed — fields will show as encrypted
         }
     }
 
@@ -237,13 +360,6 @@ final class CaseManagementViewModel {
                 method: "PATCH", path: "/api/records/\(recordId)",
                 body: UpdateRecordRequest(statusHash: newStatus, severityHash: nil)
             )
-            // Update local state
-            if let idx = records.firstIndex(where: { $0.id == recordId }) {
-                var updated = records[idx]
-                // CaseRecord is a struct — recreate with new status
-                let mirror = Mirror(reflecting: updated)
-                _ = mirror // Can't mutate directly, reload instead
-            }
             await loadRecords()
             if selectedRecord?.id == recordId {
                 // Refresh selected record
@@ -252,6 +368,8 @@ final class CaseManagementViewModel {
                         method: "GET", path: "/api/records/\(recordId)"
                     )
                     selectedRecord = fresh
+                    // Reload timeline to reflect status change interaction
+                    await loadInteractions(for: recordId)
                 } catch { /* keep stale */ }
             }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -288,7 +406,7 @@ final class CaseManagementViewModel {
                 interactionTypeHash: "comment_hash"
             )
 
-            let _: CaseInteraction = try await apiService.request( // Returns full CaseInteraction on create
+            let _: CaseInteraction = try await apiService.request(
                 method: "POST", path: "/api/records/\(recordId)/interactions",
                 body: body
             )
@@ -314,10 +432,51 @@ final class CaseManagementViewModel {
                 body: AssignRecordRequest(pubkeys: [pubkey])
             )
             await loadRecords()
+            // Refresh selected record if it's the one we assigned
+            if selectedRecord?.id == recordId {
+                do {
+                    let fresh: CaseRecord = try await apiService.request(
+                        method: "GET", path: "/api/records/\(recordId)"
+                    )
+                    selectedRecord = fresh
+                } catch { /* keep stale */ }
+            }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Unassign the current user from a record.
+    func unassignFromMe(recordId: String) async {
+        guard let pubkey = cryptoService.pubkey else { return }
+        isActionInProgress = true
+        defer { isActionInProgress = false }
+
+        do {
+            try await apiService.request(
+                method: "POST", path: "/api/records/\(recordId)/unassign",
+                body: UnassignRecordRequest(pubkey: pubkey)
+            )
+            await loadRecords()
+            // Refresh selected record
+            if selectedRecord?.id == recordId {
+                do {
+                    let fresh: CaseRecord = try await apiService.request(
+                        method: "GET", path: "/api/records/\(recordId)"
+                    )
+                    selectedRecord = fresh
+                } catch { /* keep stale */ }
+            }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Toggle timeline sort order.
+    func toggleTimelineSort() {
+        timelineSortNewestFirst.toggle()
     }
 
     // MARK: - Pagination
@@ -354,4 +513,18 @@ enum DetailTab: String, CaseIterable, Sendable {
     case timeline = "Timeline"
     case contacts = "Contacts"
     case evidence = "Evidence"
+}
+
+// MARK: - DecryptedSummary
+
+/// Decrypted case record summary containing title and description.
+struct DecryptedSummary {
+    let title: String?
+    let description: String?
+}
+
+// MARK: - Request Bodies
+
+struct UnassignRecordRequest: Codable, Sendable {
+    let pubkey: String
 }

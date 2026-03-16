@@ -2,7 +2,8 @@ import SwiftUI
 
 // MARK: - CaseListView
 
-/// Main case list screen with entity type tabs, status filtering, and pull-to-refresh.
+/// Main case list screen with entity type tabs, status filtering, pull-to-refresh,
+/// decrypted summary titles, and navigation to case detail.
 struct CaseListView: View {
     @Environment(AppState.self) private var appState
     @State private var viewModel: CaseManagementViewModel?
@@ -36,6 +37,19 @@ struct CaseListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle(NSLocalizedString("cases_title", comment: "Cases"))
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    if vm.cmsEnabled == true && !vm.entityTypes.isEmpty {
+                        Button {
+                            // Navigate to create flow — trigger by setting a flag
+                            vm.showCreateSheet = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityIdentifier("case-new-btn")
+                    }
+                }
+            }
             .task {
                 await vm.loadInitial()
             }
@@ -60,36 +74,31 @@ struct CaseListView: View {
     // MARK: - CMS Disabled
 
     private var cmsDisabledView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "folder")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-            Text(NSLocalizedString("cases_not_enabled", comment: "Case management is not enabled"))
-                .font(.brand(.headline))
-            Text(NSLocalizedString("cases_not_enabled_hint", comment: "An admin needs to enable case management."))
-                .font(.brand(.caption))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
+        BrandEmptyState(
+            icon: "folder",
+            title: NSLocalizedString("cases_not_enabled", comment: "Case management is not enabled"),
+            message: appState.isAdmin
+                ? NSLocalizedString("cases_enable_hint_admin", comment: "Enable case management and apply a template in Hub Settings.")
+                : NSLocalizedString("cases_not_enabled_hint", comment: "An admin needs to enable case management.")
+        )
         .accessibilityIdentifier("cms-not-enabled")
     }
 
     // MARK: - Empty State
 
     private func emptyStateView(vm: CaseManagementViewModel) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: "folder.badge.plus")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-            Text(NSLocalizedString("cases_empty", comment: "No cases yet"))
-                .font(.brand(.headline))
-            Text(NSLocalizedString("cases_empty_hint", comment: "Cases will appear here as your team creates them."))
-                .font(.brand(.caption))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
+        BrandEmptyState(
+            icon: "folder.badge.plus",
+            title: NSLocalizedString("cases_empty", comment: "No cases yet"),
+            message: vm.entityTypes.isEmpty
+                ? NSLocalizedString("cases_apply_template_hint", comment: "Apply a case management template to get started.")
+                : NSLocalizedString("cases_empty_hint", comment: "Cases will appear here as your team creates them."),
+            action: vm.entityTypes.isEmpty ? nil : {
+                vm.showCreateSheet = true
+            },
+            actionLabel: vm.entityTypes.isEmpty ? nil : NSLocalizedString("cases_new", comment: "New Case"),
+            actionAccessibilityID: "case-empty-create-btn"
+        )
         .accessibilityIdentifier("case-empty-state")
     }
 
@@ -113,7 +122,8 @@ struct CaseListView: View {
                     CaseCardRow(
                         record: record,
                         entityType: vm.entityType(for: record.entityTypeId),
-                        statusDef: vm.statusDef(for: record)
+                        statusDef: vm.statusDef(for: record),
+                        decryptedTitle: vm.decryptedTitle(for: record.id)
                     )
                     .accessibilityIdentifier("case-card-\(record.id)")
                     .onTapGesture {
@@ -292,24 +302,34 @@ struct CaseListView: View {
 
 // MARK: - CaseCardRow
 
-/// A single case card in the list showing case number, status, entity type, and timestamp.
+/// A single case card in the list showing case number, decrypted title, status,
+/// entity type, assigned count, and relative timestamp.
 private struct CaseCardRow: View {
     let record: CaseRecord
     let entityType: CaseEntityTypeDefinition?
     let statusDef: CaseEnumOption?
+    let decryptedTitle: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Top row: case number + timestamp
+            // Top row: case number + title + timestamp
             HStack {
-                // Status dot + case number
+                // Status dot + case number + title
                 HStack(spacing: 6) {
                     Circle()
                         .fill((Color(hex: statusDef?.color ?? "#6b7280") ?? .gray))
                         .frame(width: 8, height: 8)
-                    Text(record.caseNumber ?? String(record.id.prefix(8)))
-                        .font(.brand(.subheadline))
-                        .fontWeight(.medium)
+
+                    if let title = decryptedTitle {
+                        Text("\(record.caseNumber ?? String(record.id.prefix(8))) \u{2014} \(title)")
+                            .font(.brand(.subheadline))
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                    } else {
+                        Text(record.caseNumber ?? String(record.id.prefix(8)))
+                            .font(.brand(.subheadline))
+                            .fontWeight(.medium)
+                    }
                 }
 
                 Spacer()
@@ -337,6 +357,22 @@ private struct CaseCardRow: View {
                     .background((Color(hex: status.color ?? "#6b7280") ?? .gray).opacity(0.1))
                     .clipShape(Capsule())
                     .accessibilityIdentifier("case-card-status-badge")
+                }
+
+                // Severity badge
+                if let sevHash = record.severityHash,
+                   let sev = entityType?.severities?.first(where: { $0.value == sevHash }) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 8))
+                        Text(sev.label)
+                    }
+                    .font(.brand(.caption2))
+                    .foregroundStyle((Color(hex: sev.color ?? "#6b7280") ?? .gray))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background((Color(hex: sev.color ?? "#6b7280") ?? .gray).opacity(0.1))
+                    .clipShape(Capsule())
                 }
 
                 // Entity type badge

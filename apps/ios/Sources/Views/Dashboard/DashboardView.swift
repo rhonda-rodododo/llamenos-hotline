@@ -24,6 +24,20 @@ struct DashboardView: View {
                             .clipped()
                     }
 
+                    // 0. Active call panel (shown above everything when on a call)
+                    if let call = vm.currentCall {
+                        ActiveCallView(
+                            call: call,
+                            onHangup: { await vm.hangupCall() },
+                            onReportSpam: { await vm.reportSpam() },
+                            onBanAndHangup: { reason in await vm.banAndHangup(reason: reason) },
+                            onQuickNote: {
+                                // Navigate to note creation — could be handled via
+                                // a sheet or navigation destination in the future
+                            }
+                        )
+                    }
+
                     // 1. Hero shift card
                     heroShiftCard(vm: vm)
 

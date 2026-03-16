@@ -53,6 +53,9 @@ final class DashboardViewModel {
     /// Number of active calls (loaded from API).
     var activeCallCount: Int = 0
 
+    /// The current volunteer's active call (if any).
+    var currentCall: ActiveCall?
+
     /// Number of recent notes (loaded from API).
     var recentNoteCount: Int = 0
 
@@ -96,12 +99,14 @@ final class DashboardViewModel {
         isLoading = true
         errorMessage = nil
 
-        // Fetch shift status and recent notes in parallel
+        // Fetch shift status, active call, and recent notes in parallel
         async let statusResult: Void = fetchShiftStatus()
         async let notesResult: Void = fetchRecentNotes()
+        async let callResult: Void = fetchActiveCall()
 
         await statusResult
         await notesResult
+        await callResult
 
         isLoading = false
     }
@@ -139,7 +144,18 @@ final class DashboardViewModel {
         switch eventType {
         case .callRing, .callUpdate, .voicemailNew, .presenceSummary:
             // Call/presence events affect shift status (active calls, availability)
+            Task {
+                await fetchShiftStatus()
+                await fetchActiveCall()
+            }
+        case .callEnded:
+            // Call ended — clear active call immediately, then refresh
+            currentCall = nil
             Task { await fetchShiftStatus() }
+        case .shiftUpdate:
+            Task { await fetchShiftStatus() }
+        case .noteCreated:
+            Task { await fetchRecentNotes() }
         case .messageNew, .conversationAssigned, .conversationClosed:
             // Message events don't affect dashboard — handled by ConversationsViewModel
             break
@@ -166,7 +182,68 @@ final class DashboardViewModel {
         timerTask = nil
     }
 
+    // MARK: - Call Actions
+
+    /// Hang up the current active call.
+    func hangupCall() async {
+        guard let callId = currentCall?.id else { return }
+        do {
+            try await apiService.request(method: "POST", path: "/api/calls/\(callId)/hangup")
+            currentCall = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Report the current active call as spam.
+    func reportSpam() async {
+        guard let callId = currentCall?.id else { return }
+        do {
+            try await apiService.request(method: "POST", path: "/api/calls/\(callId)/spam")
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Ban the caller and hang up.
+    func banAndHangup(reason: String?) async {
+        guard let callId = currentCall?.id else { return }
+        do {
+            let body: [String: String]? = reason.map { ["reason": $0] }
+            if let body {
+                try await apiService.request(method: "POST", path: "/api/calls/\(callId)/ban", body: body)
+            } else {
+                try await apiService.request(method: "POST", path: "/api/calls/\(callId)/ban")
+            }
+            currentCall = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     // MARK: - Private Helpers
+
+    /// Fetch the volunteer's active call (if any).
+    private func fetchActiveCall() async {
+        do {
+            let response: ActiveCallsResponse = try await apiService.request(
+                method: "GET",
+                path: "/api/calls/active"
+            )
+            if let first = response.calls.first {
+                currentCall = ActiveCall(
+                    id: first.id,
+                    callerNumber: first.callerNumber,
+                    startedAt: DateFormatting.parseISO(first.startedAt) ?? Date(),
+                    status: first.status
+                )
+            } else {
+                currentCall = nil
+            }
+        } catch {
+            // Non-fatal — active call state will be updated on next event
+        }
+    }
 
     private func fetchShiftStatus() async {
         do {
@@ -275,4 +352,17 @@ private struct DashboardShiftStatusResponse: Decodable {
     let startedAt: String?
     let activeCallCount: Int?
     let recentNoteCount: Int?
+}
+
+/// Response from GET /api/calls/active.
+private struct ActiveCallsResponse: Decodable {
+    let calls: [ActiveCallDTO]
+}
+
+/// DTO for an active call from the API.
+private struct ActiveCallDTO: Decodable {
+    let id: String
+    let callerNumber: String?
+    let startedAt: String
+    let status: String
 }
