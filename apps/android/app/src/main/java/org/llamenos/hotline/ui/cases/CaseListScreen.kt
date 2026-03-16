@@ -48,9 +48,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.llamenos.hotline.model.CaseRecord
-import org.llamenos.hotline.model.EntityTypeDefinition
-import org.llamenos.hotline.model.EnumOption
+import org.llamenos.protocol.EntityTypeDefinition
+import org.llamenos.protocol.EntityTypeDefinitionStatus
+import org.llamenos.protocol.Record
 import org.llamenos.hotline.util.DateFormatUtils
 
 /**
@@ -83,7 +83,7 @@ fun CaseListScreen(
     }
 
     // Status options for the selected entity type
-    val statusOptions: List<EnumOption> = remember(uiState.selectedEntityTypeId, uiState.entityTypes) {
+    val statusOptions: List<EntityTypeDefinitionStatus> = remember(uiState.selectedEntityTypeId, uiState.entityTypes) {
         if (uiState.selectedEntityTypeId != null) {
             uiState.entityTypes.find { it.id == uiState.selectedEntityTypeId }?.statuses
                 ?: emptyList()
@@ -294,7 +294,7 @@ fun CaseListScreen(
                             ) { record ->
                                 CaseCard(
                                     record = record,
-                                    entityType = uiState.entityTypes.find { it.id == record.entityTypeId },
+                                    entityType = uiState.entityTypes.find { it.id == record.entityTypeID },
                                     onClick = { onNavigateToCaseDetail(record.id) },
                                     modifier = Modifier.testTag("case-card-${record.id}"),
                                 )
@@ -315,7 +315,7 @@ fun CaseListScreen(
  */
 @Composable
 private fun CaseCard(
-    record: CaseRecord,
+    record: Record,
     entityType: EntityTypeDefinition?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -418,7 +418,7 @@ private fun CaseCard(
             }
 
             // Assignment and counts row
-            if (record.assignedTo.isNotEmpty() || record.interactionCount > 0 || record.contactCount > 0) {
+            if (record.assignedTo.isNotEmpty() || record.interactionCount > 0.0 || record.contactCount > 0.0) {
                 Spacer(Modifier.height(6.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -431,16 +431,16 @@ private fun CaseCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         )
                     }
-                    if (record.interactionCount > 0) {
+                    if (record.interactionCount > 0.0) {
                         Text(
-                            text = "${record.interactionCount} interactions",
+                            text = "${record.interactionCount.toInt()} interactions",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         )
                     }
-                    if (record.contactCount > 0) {
+                    if (record.contactCount > 0.0) {
                         Text(
-                            text = "${record.contactCount} contacts",
+                            text = "${record.contactCount.toInt()} contacts",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         )

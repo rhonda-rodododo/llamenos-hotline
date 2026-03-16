@@ -58,12 +58,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.llamenos.hotline.model.CaseInteraction
-import org.llamenos.hotline.model.CaseRecord
-import org.llamenos.hotline.model.EntityFieldDefinition
-import org.llamenos.hotline.model.EntityTypeDefinition
-import org.llamenos.hotline.model.EvidenceItem
-import org.llamenos.hotline.model.RecordContact
+import org.llamenos.protocol.EntityTypeDefinition
+import org.llamenos.protocol.EntityTypeDefinitionField
+import org.llamenos.protocol.Evidence
+import org.llamenos.protocol.EvidenceClassification
+import org.llamenos.protocol.Interaction
+import org.llamenos.protocol.InteractionType
+import org.llamenos.protocol.Record
+import org.llamenos.protocol.RecordContact
 import org.llamenos.hotline.util.DateFormatUtils
 
 /**
@@ -291,7 +293,7 @@ fun CaseDetailScreen(
 
 @Composable
 private fun CaseDetailHeader(
-    record: CaseRecord?,
+    record: Record?,
     entityType: EntityTypeDefinition?,
     isNewCase: Boolean = false,
     onStatusClick: () -> Unit,
@@ -429,7 +431,7 @@ private fun NewCaseContent(
 
 @Composable
 private fun DetailsTab(
-    record: CaseRecord,
+    record: Record,
     entityType: EntityTypeDefinition?,
     onAssignToMe: () -> Unit,
     isAssigning: Boolean,
@@ -505,10 +507,10 @@ private fun DetailsTab(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                DetailRow(label = "Interactions", value = record.interactionCount.toString())
-                DetailRow(label = "Contacts", value = record.contactCount.toString())
-                DetailRow(label = "Files", value = record.fileCount.toString())
-                DetailRow(label = "Reports", value = record.reportCount.toString())
+                DetailRow(label = "Interactions", value = record.interactionCount.toInt().toString())
+                DetailRow(label = "Contacts", value = record.contactCount.toInt().toString())
+                DetailRow(label = "Files", value = record.fileCount.toInt().toString())
+                DetailRow(label = "Reports", value = record.reportCount.toInt().toString())
             }
         }
 
@@ -562,8 +564,8 @@ private fun DetailRow(label: String, value: String) {
  */
 @Composable
 private fun TemplateFieldsSection(
-    fields: List<EntityFieldDefinition>,
-    record: CaseRecord,
+    fields: List<EntityTypeDefinitionField>,
+    record: Record,
 ) {
     val sortedFields = fields.sortedBy { it.order }
     var currentSection: String? = null
@@ -632,7 +634,7 @@ private fun TemplateFieldsSection(
 
 @Composable
 private fun TimelineTab(
-    interactions: List<CaseInteraction>,
+    interactions: List<Interaction>,
     isLoading: Boolean,
     error: String?,
     entityType: EntityTypeDefinition?,
@@ -743,35 +745,34 @@ private fun TimelineTab(
  */
 @Composable
 private fun TimelineItem(
-    interaction: CaseInteraction,
+    interaction: Interaction,
     entityType: EntityTypeDefinition?,
     modifier: Modifier = Modifier,
 ) {
     val icon: ImageVector = when (interaction.interactionType) {
-        "comment" -> Icons.AutoMirrored.Filled.Comment
-        "status_change" -> Icons.Filled.SwapHoriz
-        "note" -> Icons.Filled.Description
-        "call" -> Icons.Filled.Phone
-        "file_upload" -> Icons.Filled.Upload
-        "referral" -> Icons.Filled.LinkOff
-        "assessment" -> Icons.Filled.Description
-        else -> Icons.AutoMirrored.Filled.Comment
+        InteractionType.Comment -> Icons.AutoMirrored.Filled.Comment
+        InteractionType.StatusChange -> Icons.Filled.SwapHoriz
+        InteractionType.Note -> Icons.Filled.Description
+        InteractionType.Call -> Icons.Filled.Phone
+        InteractionType.FileUpload -> Icons.Filled.Upload
+        InteractionType.Referral -> Icons.Filled.LinkOff
+        InteractionType.Assessment -> Icons.Filled.Description
+        InteractionType.Message -> Icons.AutoMirrored.Filled.Comment
     }
 
     val typeLabel = when (interaction.interactionType) {
-        "comment" -> "Comment"
-        "status_change" -> "Status changed"
-        "note" -> "Note linked"
-        "call" -> "Call linked"
-        "message" -> "Message"
-        "file_upload" -> "File uploaded"
-        "referral" -> "Referral"
-        "assessment" -> "Assessment"
-        else -> interaction.interactionType.replaceFirstChar { it.uppercase() }
+        InteractionType.Comment -> "Comment"
+        InteractionType.StatusChange -> "Status changed"
+        InteractionType.Note -> "Note linked"
+        InteractionType.Call -> "Call linked"
+        InteractionType.Message -> "Message"
+        InteractionType.FileUpload -> "File uploaded"
+        InteractionType.Referral -> "Referral"
+        InteractionType.Assessment -> "Assessment"
     }
 
     // For status changes, show the status transition
-    val statusChangeText = if (interaction.interactionType == "status_change") {
+    val statusChangeText = if (interaction.interactionType == InteractionType.StatusChange) {
         val prevStatus = interaction.previousStatusHash?.let { hash ->
             entityType?.statuses?.find { it.value == hash }?.label ?: hash.take(8)
         }
@@ -849,10 +850,10 @@ private fun TimelineItem(
                     )
                 }
                 // Source link
-                if (interaction.sourceId != null) {
+                if (interaction.sourceID != null) {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "Linked: ${interaction.sourceId.take(8)}...",
+                        text = "Linked: ${interaction.sourceID.take(8)}...",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     )
@@ -934,7 +935,7 @@ private fun ContactsTab(
             ) {
                 items(
                     items = contacts,
-                    key = { it.contactId },
+                    key = { it.contactID },
                 ) { contact ->
                     ContactItem(
                         contact = contact,
@@ -975,7 +976,7 @@ private fun ContactItem(
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = contact.contactId.take(12) + "...",
+                    text = contact.contactID.take(12) + "...",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                 )
@@ -1006,7 +1007,7 @@ private fun ContactItem(
 
 @Composable
 private fun EvidenceTab(
-    evidence: List<EvidenceItem>,
+    evidence: List<Evidence>,
     isLoading: Boolean,
     error: String?,
 ) {
@@ -1084,18 +1085,18 @@ private fun EvidenceTab(
 
 @Composable
 private fun EvidenceCard(
-    item: EvidenceItem,
+    item: Evidence,
 ) {
     val classificationIcon: ImageVector = when (item.classification) {
-        "photo" -> Icons.Filled.AttachFile
-        "video" -> Icons.Filled.AttachFile
-        "document" -> Icons.Filled.Description
-        "audio" -> Icons.Filled.AttachFile
-        else -> Icons.Filled.AttachFile
+        EvidenceClassification.Photo -> Icons.Filled.AttachFile
+        EvidenceClassification.Video -> Icons.Filled.AttachFile
+        EvidenceClassification.Document -> Icons.Filled.Description
+        EvidenceClassification.Audio -> Icons.Filled.AttachFile
+        EvidenceClassification.Other -> Icons.Filled.AttachFile
     }
 
-    val classificationLabel = item.classification.replaceFirstChar { it.uppercase() }
-    val sizeText = formatFileSize(item.sizeBytes)
+    val classificationLabel = item.classification.value.replaceFirstChar { it.uppercase() }
+    val sizeText = formatFileSize(item.sizeBytes.toLong())
 
     Card(
         colors = CardDefaults.cardColors(

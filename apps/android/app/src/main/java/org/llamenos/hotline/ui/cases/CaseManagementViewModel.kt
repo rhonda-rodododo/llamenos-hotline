@@ -14,19 +14,21 @@ import org.llamenos.hotline.api.SessionState
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.model.AssignRecordRequest
 import org.llamenos.hotline.model.AssignResponse
-import org.llamenos.hotline.model.CaseInteraction
 import org.llamenos.hotline.model.CaseRecord
-import org.llamenos.hotline.model.CreateInteractionRequest
-import org.llamenos.hotline.model.EntityTypeDefinition
 import org.llamenos.hotline.model.EntityTypesResponse
 import org.llamenos.hotline.model.EvidenceItem
-import org.llamenos.hotline.model.EvidenceListResponse
 import org.llamenos.hotline.model.InteractionsResponse
-import org.llamenos.hotline.model.RecordContact
-import org.llamenos.hotline.model.RecordContactsResponse
-import org.llamenos.hotline.model.RecordEnvelope
 import org.llamenos.hotline.model.RecordsListResponse
+import org.llamenos.hotline.model.RecordContactsResponse
 import org.llamenos.hotline.model.UpdateRecordRequest
+import org.llamenos.protocol.CreateInteractionBody
+import org.llamenos.protocol.CreateInteractionBodyContentEnvelope
+import org.llamenos.protocol.EntityTypeDefinition
+import org.llamenos.protocol.Evidence
+import org.llamenos.protocol.Interaction
+import org.llamenos.protocol.InteractionType
+import org.llamenos.protocol.Record
+import org.llamenos.protocol.RecordContact
 import javax.inject.Inject
 
 /**
@@ -49,7 +51,7 @@ data class CaseUiState(
     val entityTypesError: String? = null,
 
     // Records
-    val records: List<CaseRecord> = emptyList(),
+    val records: List<Record> = emptyList(),
     val recordsTotal: Int = 0,
     val recordsPage: Int = 1,
     val hasMoreRecords: Boolean = false,
@@ -62,13 +64,13 @@ data class CaseUiState(
     val selectedStatusHash: String? = null,
 
     // Selected record detail
-    val selectedRecord: CaseRecord? = null,
+    val selectedRecord: Record? = null,
     val isLoadingDetail: Boolean = false,
     val detailError: String? = null,
     val activeTab: CaseDetailTab = CaseDetailTab.DETAILS,
 
     // Interactions (timeline)
-    val interactions: List<CaseInteraction> = emptyList(),
+    val interactions: List<Interaction> = emptyList(),
     val interactionsTotal: Int = 0,
     val isLoadingInteractions: Boolean = false,
     val interactionsError: String? = null,
@@ -79,7 +81,7 @@ data class CaseUiState(
     val contactsError: String? = null,
 
     // Evidence
-    val evidence: List<EvidenceItem> = emptyList(),
+    val evidence: List<Evidence> = emptyList(),
     val evidenceTotal: Int = 0,
     val isLoadingEvidence: Boolean = false,
     val evidenceError: String? = null,
@@ -103,7 +105,7 @@ data class CaseUiState(
      */
     val selectedEntityType: EntityTypeDefinition?
         get() = selectedRecord?.let { record ->
-            entityTypes.find { it.id == record.entityTypeId }
+            entityTypes.find { it.id == record.entityTypeID }
         }
 }
 
@@ -372,19 +374,19 @@ class CaseManagementViewModel @Inject constructor(
             try {
                 val encrypted = cryptoService.encryptNote(comment, sessionState.adminPubkeys)
                 val envelopes = encrypted.envelopes.map { env ->
-                    RecordEnvelope(
+                    CreateInteractionBodyContentEnvelope(
                         pubkey = env.recipientPubkey,
                         wrappedKey = env.wrappedKey,
                         ephemeralPubkey = env.ephemeralPubkey,
                     )
                 }
-                val request = CreateInteractionRequest(
-                    interactionType = "comment",
+                val request = CreateInteractionBody(
+                    interactionType = InteractionType.Comment,
                     encryptedContent = encrypted.ciphertext,
                     contentEnvelopes = envelopes,
                     interactionTypeHash = "comment",
                 )
-                apiService.request<CaseInteraction>(
+                apiService.request<Interaction>(
                     "POST",
                     "/api/records/$recordId/interactions",
                     request,
@@ -446,14 +448,14 @@ class CaseManagementViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingEvidence = true, evidenceError = null) }
             try {
-                val response = apiService.request<EvidenceListResponse>(
+                val response = apiService.request<org.llamenos.protocol.EvidenceListResponse>(
                     "GET",
                     "/api/records/$recordId/evidence?limit=50",
                 )
                 _uiState.update {
                     it.copy(
                         evidence = response.evidence,
-                        evidenceTotal = response.total,
+                        evidenceTotal = response.total.toInt(),
                         isLoadingEvidence = false,
                     )
                 }
