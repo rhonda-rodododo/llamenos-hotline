@@ -23,6 +23,7 @@ import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
 import org.llamenos.hotline.ui.admin.AdminScreen
+import org.llamenos.hotline.ui.admin.SchemaBrowserScreen
 import org.llamenos.hotline.ui.admin.ShiftDetailScreen
 import org.llamenos.hotline.ui.admin.VolunteerDetailScreen
 import org.llamenos.hotline.ui.auth.AuthViewModel
@@ -231,6 +232,11 @@ sealed interface LlamenosRoute {
     /** Create a new hub. */
     data object HubCreate : LlamenosRoute {
         override val route = "hub_create"
+    }
+
+    /** Schema browser (read-only entity types). */
+    data object SchemaBrowser : LlamenosRoute {
+        override val route = "schema_browser"
     }
 
     /** Events list. */
@@ -497,6 +503,15 @@ fun LlamenosNavigation(
                 onNavigateToShiftDetail = { shiftId ->
                     navController.navigate("shift/$shiftId")
                 },
+                onNavigateToSchemaBrowser = {
+                    navController.navigate(LlamenosRoute.SchemaBrowser.route)
+                },
+            )
+        }
+
+        composable(LlamenosRoute.SchemaBrowser.route) {
+            SchemaBrowserScreen(
+                onNavigateBack = { navController.popBackStack() },
             )
         }
 

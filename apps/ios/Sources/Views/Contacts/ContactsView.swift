@@ -22,6 +22,11 @@ struct ContactsView: View {
         }
         .navigationTitle(NSLocalizedString("contacts_title", comment: "Contacts"))
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                contactTypeFilterMenu(vm: vm)
+            }
+        }
         .searchable(
             text: Binding(
                 get: { vm.searchQuery },
@@ -38,12 +43,59 @@ struct ContactsView: View {
         .task {
             await vm.loadContacts()
         }
-        .navigationDestination(for: String.self) { contactHash in
-            ContactTimelineView(
-                contactHash: contactHash,
-                displayIdentifier: vm.contacts.first(where: { $0.contactHash == contactHash })?.displayIdentifier ?? contactHash
-            )
+        .navigationDestination(for: ContactNavDestination.self) { destination in
+            switch destination {
+            case .timeline(let contactHash, let displayIdentifier):
+                ContactTimelineView(
+                    contactHash: contactHash,
+                    displayIdentifier: displayIdentifier
+                )
+            case .detail(let contactHash, let displayIdentifier):
+                ContactDetailView(
+                    contactHash: contactHash,
+                    displayIdentifier: displayIdentifier
+                )
+            }
         }
+    }
+
+    // MARK: - Contact Type Filter Menu
+
+    @ViewBuilder
+    private func contactTypeFilterMenu(vm: ContactsViewModel) -> some View {
+        Menu {
+            Button {
+                Task { await vm.filterByContactType(nil) }
+            } label: {
+                if vm.selectedContactType == nil {
+                    Label(
+                        NSLocalizedString("contactDirectory_filter_all", comment: "All Types"),
+                        systemImage: "checkmark"
+                    )
+                } else {
+                    Text(NSLocalizedString("contactDirectory_filter_all", comment: "All Types"))
+                }
+            }
+
+            Divider()
+
+            ForEach(vm.contactTypes, id: \.self) { contactType in
+                Button {
+                    Task { await vm.filterByContactType(contactType) }
+                } label: {
+                    if vm.selectedContactType == contactType {
+                        Label(contactType, systemImage: "checkmark")
+                    } else {
+                        Text(contactType)
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+                .font(.brand(.body))
+                .symbolVariant(vm.selectedContactType != nil ? .fill : .none)
+        }
+        .accessibilityIdentifier("contacts-type-filter-button")
     }
 
     // MARK: - Contacts List
@@ -52,7 +104,10 @@ struct ContactsView: View {
     private func contactsList(vm: ContactsViewModel) -> some View {
         List {
             ForEach(vm.contacts) { contact in
-                NavigationLink(value: contact.contactHash) {
+                NavigationLink(value: ContactNavDestination.detail(
+                    contactHash: contact.contactHash,
+                    displayIdentifier: contact.displayIdentifier
+                )) {
                     ContactRowView(contact: contact)
                 }
                 .accessibilityIdentifier("contact-row-\(contact.contactHash)")
@@ -141,6 +196,13 @@ struct ContactsView: View {
         DispatchQueue.main.async { self.viewModel = vm }
         return vm
     }
+}
+
+// MARK: - Contact Navigation Destination
+
+enum ContactNavDestination: Hashable {
+    case timeline(contactHash: String, displayIdentifier: String)
+    case detail(contactHash: String, displayIdentifier: String)
 }
 
 // MARK: - ContactRowView

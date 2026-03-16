@@ -46,6 +46,78 @@ struct ContactTimelineResponse: Codable, Sendable {
     let total: Int
 }
 
+// MARK: - Contact Detail
+
+/// Full contact profile including linked cases and identifiers.
+struct ContactDetail: Codable, Sendable {
+    let contactHash: String
+    let last4: String?
+    let firstSeen: String
+    let lastSeen: String
+    let callCount: Int
+    let conversationCount: Int
+    let noteCount: Int
+    let reportCount: Int
+    let contactType: String?
+    let linkedCases: [ContactLinkedCase]?
+    let identifiers: [ContactIdentifier]?
+
+    var displayIdentifier: String {
+        if let last4 { return "***\(last4)" }
+        return String(contactHash.prefix(8)) + "..."
+    }
+}
+
+/// A case linked to a contact.
+struct ContactLinkedCase: Codable, Identifiable, Sendable {
+    let id: String
+    let caseNumber: String?
+    let entityTypeId: String
+    let statusHash: String
+    let role: String?
+    let createdAt: String
+}
+
+/// An identifier associated with a contact (phone, email, etc).
+struct ContactIdentifier: Codable, Identifiable, Sendable {
+    var id: String { type + ":" + (value ?? hash) }
+    let type: String
+    let hash: String
+    let value: String?
+    let addedAt: String?
+}
+
+struct ContactDetailResponse: Codable, Sendable {
+    let contact: ContactDetail
+}
+
+// MARK: - Contact Relationship
+
+/// A relationship between two contacts.
+struct ContactRelationship: Codable, Identifiable, Sendable {
+    var id: String { relatedContactHash + ":" + relationshipType }
+    let relatedContactHash: String
+    let relatedLast4: String?
+    let relationshipType: String
+    let createdAt: String?
+
+    var relatedDisplayIdentifier: String {
+        if let relatedLast4 { return "***\(relatedLast4)" }
+        return String(relatedContactHash.prefix(8)) + "..."
+    }
+}
+
+struct ContactRelationshipsResponse: Codable, Sendable {
+    let relationships: [ContactRelationship]
+}
+
+// MARK: - Contact Search Response
+
+struct ContactSearchResponse: Codable, Sendable {
+    let contacts: [ContactSummary]
+    let total: Int
+}
+
 // MARK: - Event Type
 
 enum ContactEventType: String, CaseIterable, Sendable {

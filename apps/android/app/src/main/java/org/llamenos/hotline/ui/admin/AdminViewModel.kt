@@ -52,6 +52,7 @@ enum class AdminTab {
     AUDIT,
     INVITES,
     FIELDS,
+    SCHEMA,
     SHIFTS,
     SETTINGS,
     SYSTEM_HEALTH,
@@ -182,6 +183,7 @@ class AdminViewModel @Inject constructor(
             AdminTab.AUDIT -> loadAuditLog(page = 1)
             AdminTab.INVITES -> loadInvites()
             AdminTab.FIELDS -> loadCustomFields()
+            AdminTab.SCHEMA -> { /* Schema browser handled inline via SchemaBrowserViewModel */ }
             AdminTab.SHIFTS -> loadAdminShifts()
             AdminTab.SETTINGS -> loadAdminSettings()
             AdminTab.SYSTEM_HEALTH -> loadSystemHealth()
