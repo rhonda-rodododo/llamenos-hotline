@@ -359,3 +359,108 @@ private fun parseHexColor(hex: String?): Color? {
         null
     }
 }
+
+// MARK: - SchemaBrowserTab
+
+/**
+ * Inline tab version of the schema browser for use within the AdminScreen.
+ * Loads entity types and allows tapping to view details inline.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun SchemaBrowserTab(
+    modifier: Modifier = Modifier,
+    viewModel: SchemaBrowserViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    // If an entity type is selected, show detail inline
+    val selected = uiState.selectedEntityType
+    if (selected != null) {
+        SchemaDetailScreen(
+            entityType = selected,
+            onNavigateBack = { viewModel.clearSelection() },
+        )
+        return
+    }
+
+    when {
+        uiState.isLoading -> {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .testTag("schema-tab-loading"),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+
+        uiState.error != null -> {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .testTag("schema-tab-error"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = uiState.error ?: "",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    TextButton(onClick = { viewModel.loadEntityTypes() }) {
+                        Text(stringResource(R.string.action_retry))
+                    }
+                }
+            }
+        }
+
+        uiState.entityTypes.isEmpty() -> {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .testTag("schema-tab-empty"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Filled.Description,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(48.dp),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.schema_browser_empty),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.schema_browser_empty_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        else -> {
+            LazyColumn(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .testTag("schema-tab-list"),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp),
+            ) {
+                items(uiState.entityTypes, key = { it.id }) { entityType ->
+                    EntityTypeCard(
+                        entityType = entityType,
+                        onClick = { viewModel.selectEntityType(entityType) },
+                    )
+                }
+            }
+        }
+    }
+}

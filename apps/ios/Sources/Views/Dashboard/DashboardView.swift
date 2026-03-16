@@ -98,6 +98,8 @@ struct DashboardView: View {
                     BlastsView()
                 case .help:
                     HelpView()
+                case .triage:
+                    TriageListView()
                 }
             }
             .task {
@@ -234,6 +236,13 @@ struct DashboardView: View {
                         icon: "megaphone.fill",
                         destination: .blasts,
                         accessibilityID: "dashboard-blasts-action"
+                    )
+
+                    quickActionCard(
+                        title: NSLocalizedString("dashboard_triage", comment: "Triage"),
+                        icon: "tray.and.arrow.down.fill",
+                        destination: .triage,
+                        accessibilityID: "dashboard-triage-action"
                     )
                 }
             }
@@ -383,6 +392,7 @@ struct DashboardView: View {
         case contacts
         case blasts
         case help
+        case triage
     }
 
     // MARK: - Shift Status Badge

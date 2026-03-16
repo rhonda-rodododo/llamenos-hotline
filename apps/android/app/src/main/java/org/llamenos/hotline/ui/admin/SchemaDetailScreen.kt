@@ -276,14 +276,14 @@ private fun FieldsTab(
                             }
 
                             if (field.section != null) {
-                                DetailChip(text = field.section!!)
+                                DetailChip(text = field.section.orEmpty())
                             }
                         }
 
                         if (field.helpText != null) {
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = field.helpText!!,
+                                text = field.helpText.orEmpty(),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -328,7 +328,8 @@ private fun StatusesTab(
         }
 
         // Severities
-        if (entityType.severities != null && entityType.severities!!.isNotEmpty()) {
+        val severities = entityType.severities
+        if (!severities.isNullOrEmpty()) {
             Spacer(Modifier.height(16.dp))
             Text(
                 text = stringResource(R.string.schema_severities),
@@ -337,7 +338,7 @@ private fun StatusesTab(
                 modifier = Modifier.padding(bottom = 8.dp),
             )
 
-            entityType.severities!!.forEach { severity ->
+            severities.forEach { severity ->
                 StatusRow(
                     option = severity,
                     isDefault = severity.value == entityType.defaultSeverity,
@@ -348,7 +349,8 @@ private fun StatusesTab(
         }
 
         // Contact Roles
-        if (entityType.contactRoles != null && entityType.contactRoles!!.isNotEmpty()) {
+        val contactRoles = entityType.contactRoles
+        if (!contactRoles.isNullOrEmpty()) {
             Spacer(Modifier.height(16.dp))
             Text(
                 text = stringResource(R.string.schema_contact_roles),
@@ -357,7 +359,7 @@ private fun StatusesTab(
                 modifier = Modifier.padding(bottom = 8.dp),
             )
 
-            entityType.contactRoles!!.forEach { role ->
+            contactRoles.forEach { role ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -461,10 +463,11 @@ private fun ConfigTab(
             .testTag("schema-config-tab"),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        if (entityType.numberPrefix != null) {
+        val numberPrefix = entityType.numberPrefix
+        if (numberPrefix != null) {
             ConfigRow(
                 label = stringResource(R.string.schema_number_prefix),
-                value = entityType.numberPrefix!!,
+                value = numberPrefix,
             )
             HorizontalDivider()
         }
@@ -504,11 +507,12 @@ private fun ConfigTab(
             value = entityType.labelPlural,
         )
 
-        if (entityType.templateId != null) {
+        val templateId = entityType.templateId
+        if (templateId != null) {
             HorizontalDivider()
             ConfigRow(
                 label = stringResource(R.string.schema_template),
-                value = entityType.templateId!!,
+                value = templateId,
             )
         }
     }

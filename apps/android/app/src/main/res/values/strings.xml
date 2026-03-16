@@ -2318,6 +2318,22 @@
     <string name="your_private_key">Your Private Key</string>
     <string name="your_public_key">Your Public Key</string>
 
+    <!-- Contact Directory -->
+    <string name="contactDirectory_filter_all">All</string>
+    <string name="contactDirectory_detail_title">Contact</string>
+    <string name="contactDirectory_error">Error loading contact</string>
+    <string name="contactDirectory_first_seen">First Seen</string>
+    <string name="contactDirectory_last_seen">Last Seen</string>
+    <string name="contactDirectory_identifiers">Identifiers</string>
+    <string name="contactDirectory_interactions">Interactions</string>
+    <string name="contactDirectory_calls">Calls</string>
+    <string name="contactDirectory_messages">Messages</string>
+    <string name="contactDirectory_notes">Notes</string>
+    <string name="contactDirectory_reports">Reports</string>
+    <string name="contactDirectory_linked_cases">Linked Cases</string>
+    <string name="contactDirectory_relationships">Relationships</string>
+    <string name="contactDirectory_view_timeline">View Timeline</string>
+
     <!-- Schema Browser -->
     <string name="schema_browser_title">Entity Types</string>
     <string name="schema_browser_empty">No entity types configured</string>

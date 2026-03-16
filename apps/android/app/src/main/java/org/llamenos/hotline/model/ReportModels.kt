@@ -86,3 +86,22 @@ typealias AssignReportRequest = org.llamenos.protocol.AssignReportBody
 data class UpdateReportRequest(
     val status: String,
 )
+
+/**
+ * Request body for POST /reports/:id/convert-to-case.
+ */
+@Serializable
+data class ConvertReportToCaseRequest(
+    val reportId: String,
+    val title: String,
+    val reportTypeId: String? = null,
+)
+
+/**
+ * Response from POST /reports/:id/convert-to-case.
+ */
+@Serializable
+data class ConvertReportToCaseResponse(
+    val recordId: String,
+    val reportId: String,
+)

@@ -1,9 +1,9 @@
 package org.llamenos.hotline.ui.contacts
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -26,6 +27,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -56,7 +58,7 @@ import org.llamenos.hotline.util.DateFormatUtils
  * aggregated interaction counts (calls, messages, notes, reports).
  *
  * Each contact is identified by their hashed phone number. Only admins
- * can see the last 4 digits. Tapping a contact navigates to the timeline view.
+ * can see the last 4 digits. Tapping a contact navigates to the detail view.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +66,7 @@ fun ContactsScreen(
     viewModel: ContactsViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToTimeline: (String) -> Unit = {},
+    onNavigateToDetail: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -131,6 +134,35 @@ fun ContactsScreen(
                         .testTag("contacts-search"),
                 )
 
+                // Contact type filter chips
+                if (uiState.contactTypes.isNotEmpty()) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("contacts-type-filters"),
+                    ) {
+                        item {
+                            FilterChip(
+                                selected = uiState.selectedContactType == null,
+                                onClick = { viewModel.setContactTypeFilter(null) },
+                                label = { Text(stringResource(R.string.contactDirectory_filter_all)) },
+                                modifier = Modifier.testTag("contacts-filter-all"),
+                            )
+                        }
+                        items(uiState.contactTypes) { contactType ->
+                            FilterChip(
+                                selected = uiState.selectedContactType == contactType,
+                                onClick = { viewModel.setContactTypeFilter(contactType) },
+                                label = { Text(contactType) },
+                                modifier = Modifier.testTag("contacts-filter-$contactType"),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                }
+
                 when {
                 uiState.isLoading && uiState.contacts.isEmpty() -> {
                     Box(
@@ -151,7 +183,7 @@ fun ContactsScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .testTag("contacts-list"),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        contentPadding = PaddingValues(
                             horizontal = 16.dp,
                             vertical = 8.dp,
                         ),
@@ -163,7 +195,7 @@ fun ContactsScreen(
                         ) { contact ->
                             ContactCard(
                                 contact = contact,
-                                onClick = { onNavigateToTimeline(contact.contactHash) },
+                                onClick = { onNavigateToDetail(contact.contactHash) },
                             )
                         }
 
@@ -229,7 +261,7 @@ private fun ContactCard(
                 text = if (contact.last4 != null) {
                     "***${contact.last4}"
                 } else {
-                    contact.contactHash.take(12) + "…"
+                    contact.contactHash.take(12) + "\u2026"
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,

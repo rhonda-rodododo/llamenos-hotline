@@ -40,6 +40,7 @@ fun AdminScreen(
     onNavigateBack: () -> Unit,
     onNavigateToVolunteerDetail: (String) -> Unit = {},
     onNavigateToShiftDetail: (String) -> Unit = {},
+    onNavigateToSchemaBrowser: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: AdminViewModel = hiltViewModel(),
 ) {
@@ -96,6 +97,7 @@ fun AdminScreen(
                                     AdminTab.AUDIT -> stringResource(R.string.admin_audit)
                                     AdminTab.INVITES -> stringResource(R.string.admin_invites)
                                     AdminTab.FIELDS -> stringResource(R.string.admin_fields)
+                                    AdminTab.SCHEMA -> stringResource(R.string.schema_browser_title)
                                     AdminTab.SHIFTS -> stringResource(R.string.shifts_schedule)
                                     AdminTab.SETTINGS -> stringResource(R.string.settings_title)
                                     AdminTab.SYSTEM_HEALTH -> stringResource(R.string.admin_system_health)
@@ -117,6 +119,7 @@ fun AdminScreen(
                 AdminTab.AUDIT -> AuditLogTab(viewModel = viewModel)
                 AdminTab.INVITES -> InvitesTab(viewModel = viewModel)
                 AdminTab.FIELDS -> CustomFieldsTab(viewModel = viewModel)
+                AdminTab.SCHEMA -> SchemaBrowserTab()
                 AdminTab.SHIFTS -> ShiftScheduleTab(
                     viewModel = viewModel,
                     onNavigateToShiftDetail = onNavigateToShiftDetail,
