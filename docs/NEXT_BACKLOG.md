@@ -611,7 +611,7 @@ CMS backend + desktop UI complete (Epics 315-332). Remaining work: test executio
 - [x] **[Epic 342: Smart Case Assignment & Report-to-Case Conversion](epics/epic-342-case-assignment-routing.md)** — Smart assignment API with scoring, auto-assign, report triage queue, template-driven case creation, LLM-assisted parsing
 
 ### In Progress
-- [ ] **[Epic 335: Desktop BDD CMS Test Execution & Fixes](epics/epic-335-desktop-bdd-cms-test-execution.md)** — 89/99 BDD pass (90%). Events route, E2EE contact directory, template label fix done. [Remaining TODOs](epics/epic-335-remaining-todos.md) being fixed.
+- [~] **[Epic 335: Desktop BDD CMS Test Execution & Fixes](epics/epic-335-desktop-bdd-cms-test-execution.md)** — 92+/99 BDD pass (~93%). Card click timing fixes applied. Remaining failures: create case toast (mock encryption), empty state persistence, volunteer fixture gaps.
 - [ ] **[Epic 338: Template Translations & Locale Completeness](epics/epic-338-template-translations-locale-completeness.md)** — 61 keys × 12 locales added (ES/FR/PT translated). Template i18n mappings, codegen validation, RTL testing still needed
 - [ ] **[Epic 337: Mobile Case Management Views](epics/epic-337-mobile-jail-support-views.md)** — **Phase 1 complete** (report submission): ReportTypePicker, TypedReportForm, AudioInput on both iOS (SwiftUI/Speech) + Android (Compose/SpeechRecognizer). Phase 2 (case views: CaseList, CaseSummary, QuickStatus) and Phase 3 (DateCalendar, AddComment) remaining.
 
@@ -632,7 +632,7 @@ Identified via comprehensive gap analysis (2026-03-16). Covers code-level bugs, 
 - [x] **[Epic 352: Relay Event Delivery Queue](epics/epic-352-relay-event-delivery-queue.md)** — PostgreSQL outbox, 30s drain poller, reconnect cap removed. All publish call sites already had .catch() from Epic 310.
 
 ### Tier 2 — Feature Completion (parity & polish)
-- [ ] **[Epic 351: In-Call Action UI — Mobile](epics/epic-351-in-call-action-ui-mobile.md)** — Active call panel on iOS + Android (hangup, ban, spam, quick note). Desktop ban reason prompt. Deferred from Epic 308.
+- [~] **[Epic 351: In-Call Action UI — Mobile](epics/epic-351-in-call-action-ui-mobile.md)** — Desktop ban reason prompt done. iOS + Android active call panels (hangup, ban, spam, quick note) remaining.
 - [ ] **[Epic 353: Mobile Feature Parity Screens](epics/epic-353-mobile-feature-parity-screens.md)** — Hub management, events, contact directory, triage queue, schema browser, transcription settings on iOS + Android.
 - [x] **[Epic 354: Kotlin Codegen Nested Defaults](epics/epic-354-kotlin-codegen-nested-defaults.md)** — Enhanced Kotlin post-processor for enum/SerialName defaults. Schema-level `.optional().default()` on EntityTypeDefinition fields. Android lenient types kept for now (String-vs-enum migration deferred).
 
