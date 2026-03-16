@@ -169,6 +169,31 @@ object SimulationClient {
         return json.decodeFromString<StatusResponse>(responseText)
     }
 
+    // ─── CMS Setup ────────────────────────────────────────────────
+
+    /**
+     * Response from the CMS test setup endpoint.
+     */
+    @Serializable
+    data class CmsSetupResponse(
+        val ok: Boolean = false,
+        val templateId: String = "",
+        val entityTypeCount: Int = 0,
+        val sampleRecordId: String? = null,
+        val error: String? = null,
+    )
+
+    /**
+     * Set up CMS for E2E testing: enables case management, applies the
+     * jail-support template, and creates a sample record.
+     *
+     * Corresponds to `POST /api/test-setup-cms`.
+     */
+    fun setupCms(): CmsSetupResponse {
+        val responseText = post("/api/test-setup-cms", "{}")
+        return json.decodeFromString<CmsSetupResponse>(responseText)
+    }
+
     // ─── HTTP Helpers ───────────────────────────────────────────────
 
     /**

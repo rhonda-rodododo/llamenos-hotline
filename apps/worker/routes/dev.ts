@@ -93,6 +93,74 @@ dev.post('/test-reset-records', async (c) => {
   return c.json({ ok: true })
 })
 
+// ─── CMS Test Setup (E2E test helpers) ──────────────────────────────────────
+// Sets up CMS data for mobile E2E tests that can't call authenticated API endpoints.
+// Gated by ENVIRONMENT=development + DEV_RESET_SECRET / E2E_TEST_SECRET.
+
+dev.post('/test-setup-cms', async (c) => {
+  if (c.env.ENVIRONMENT !== 'development') {
+    return c.json({ error: 'Not Found' }, 404)
+  }
+  if (!checkResetSecret(c)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  const dos = getDOs(c.env)
+  const templateId = 'jail-support'
+
+  // 1. Enable case management
+  await dos.settings.fetch(new Request('http://do/settings/case-management', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled: true }),
+  }))
+
+  // 2. Apply the jail-support template
+  const applyRes = await dos.settings.fetch(new Request('http://do/settings/templates/apply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ templateId }),
+  }))
+  const applyData = applyRes.ok
+    ? await applyRes.json() as { entityTypes?: number }
+    : { entityTypes: 0 }
+
+  // 3. Get entity types to find the first one for creating a sample record
+  const etRes = await dos.settings.fetch(new Request('http://do/settings/entity-types'))
+  const etData = await etRes.json() as { entityTypes?: Array<{ id: string; name: string; defaultStatus: string }> }
+  const entityTypes = etData.entityTypes ?? []
+
+  // 4. Create a sample record if entity types exist
+  let recordId: string | null = null
+  if (entityTypes.length > 0) {
+    const et = entityTypes[0]
+    const createRes = await dos.caseManager.fetch(new Request('http://do/records', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entityTypeId: et.id,
+        statusHash: et.defaultStatus || 'reported',
+        assignedTo: [],
+        blindIndexes: {},
+        encryptedSummary: btoa('{"title":"Test Case","summary":"BDD test case"}'),
+        summaryEnvelopes: [],
+      }),
+    }))
+    if (createRes.ok) {
+      const rec = await createRes.json() as { id: string }
+      recordId = rec.id
+    }
+  }
+
+  return c.json({
+    ok: true,
+    templateId,
+    entityTypeCount: applyData.entityTypes ?? entityTypes.length,
+    entityTypes: entityTypes.map(et => ({ id: et.id, name: et.name })),
+    sampleRecordId: recordId,
+  })
+})
+
 // ─── Simulation Endpoints (E2E test helpers) ───────────────────────────────
 // These bypass TelephonyAdapter entirely — they proxy directly to DO internal routes.
 // Gated by ENVIRONMENT=development + DEV_RESET_SECRET / E2E_TEST_SECRET.

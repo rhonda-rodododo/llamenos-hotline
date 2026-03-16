@@ -7,9 +7,11 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import io.cucumber.java.en.And
+import android.util.Log
 import io.cucumber.java.en.Given
 import io.cucumber.java.en.Then
 import io.cucumber.java.en.When
+import org.llamenos.hotline.helpers.SimulationClient
 import org.llamenos.hotline.steps.BaseSteps
 
 /**
@@ -27,6 +29,16 @@ class CaseListSteps : BaseSteps() {
 
     @Given("the app is launched and authenticated as admin")
     fun theAppIsLaunchedAndAuthenticatedAsAdmin() {
+        // Set up CMS data on the backend BEFORE launching the app.
+        // This enables case management, applies the jail-support template,
+        // and creates a sample record so the cases screen has data to display.
+        try {
+            val result = SimulationClient.setupCms()
+            Log.d("CaseListSteps", "CMS setup: ok=${result.ok}, entityTypes=${result.entityTypeCount}, record=${result.sampleRecordId}")
+        } catch (e: Throwable) {
+            Log.w("CaseListSteps", "CMS setup failed (backend may be down): ${e.message}")
+        }
+
         navigateToMainScreen()
     }
 
