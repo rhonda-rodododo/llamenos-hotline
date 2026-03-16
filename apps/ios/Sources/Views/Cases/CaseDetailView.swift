@@ -430,7 +430,7 @@ struct CaseDetailView: View {
         case .checkbox:
             HStack(spacing: 4) {
                 Image(systemName: value == "Yes" || value == "true" ? "checkmark.square.fill" : "square")
-                    .foregroundStyle(value == "Yes" || value == "true" ? .brandPrimary : .secondary)
+                    .foregroundStyle(value == "Yes" || value == "true" ? Color.brandPrimary : Color.secondary)
                 Text(value)
             }
             .font(.brand(.body))
