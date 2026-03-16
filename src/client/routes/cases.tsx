@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   listRecords,
   getRecord,
@@ -36,6 +36,8 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { HelpTooltip } from '@/components/ui/help-tooltip'
+import { decryptMessage, encryptMessage } from '@/lib/platform'
+import * as keyManager from '@/lib/key-manager'
 
 export const Route = createFileRoute('/cases')({
   component: CasesPage,
@@ -43,7 +45,7 @@ export const Route = createFileRoute('/cases')({
 
 function CasesPage() {
   const { t } = useTranslation()
-  const { hasNsec, publicKey, isAdmin, hasPermission } = useAuth()
+  const { hasNsec, publicKey, isAdmin, hasPermission, adminDecryptionPubkey } = useAuth()
   const { toast } = useToast()
 
   // --- Data state ---
@@ -406,6 +408,7 @@ function CasesPage() {
                       entityType={entityTypeMap.get(record.entityTypeId)}
                       isSelected={selectedId === record.id}
                       onSelect={setSelectedId}
+                      hasNsec={hasNsec}
                     />
                   ))}
                 </div>
@@ -455,6 +458,8 @@ function CasesPage() {
                 isAdmin={isAdmin}
                 hasPermission={hasPermission}
                 publicKey={publicKey}
+                hasNsec={hasNsec}
+                adminDecryptionPubkey={adminDecryptionPubkey}
                 onStatusChange={handleStatusChange}
                 onAssignToMe={handleAssignToMe}
                 onUnassign={handleUnassign}
@@ -505,13 +510,31 @@ function RecordCard({
   entityType,
   isSelected,
   onSelect,
+  hasNsec,
 }: {
   record: CaseRecord
   entityType: EntityTypeDefinition | undefined
   isSelected: boolean
   onSelect: (id: string) => void
+  hasNsec: boolean
 }) {
   const { t } = useTranslation()
+  const [title, setTitle] = useState<string | null>(null)
+
+  // Decrypt summary to extract title
+  useEffect(() => {
+    let cancelled = false
+    const canDecrypt = hasNsec && keyManager.isUnlocked()
+    if (!canDecrypt || !record.encryptedSummary || !record.summaryEnvelopes?.length) return
+    decryptMessage(record.encryptedSummary, record.summaryEnvelopes).then(plaintext => {
+      if (cancelled || !plaintext) return
+      try {
+        const summary = JSON.parse(plaintext)
+        if (summary.title) setTitle(summary.title)
+      } catch { /* ignore parse errors */ }
+    })
+    return () => { cancelled = true }
+  }, [record.id, record.encryptedSummary, hasNsec])
 
   const statusDef = entityType?.statuses.find(s => s.value === record.statusHash)
   const statusColor = statusDef?.color ?? '#6b7280'
@@ -541,7 +564,7 @@ function RecordCard({
           style={{ backgroundColor: statusColor }}
         />
         <span className="truncate text-sm font-medium text-foreground flex-1">
-          {record.caseNumber || record.id.slice(0, 8)}
+          {title ? `${record.caseNumber || record.id.slice(0, 8)} — ${title}` : (record.caseNumber || record.id.slice(0, 8))}
         </span>
         <span data-testid="case-card-timestamp" className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
           <Clock className="h-3 w-3" />
@@ -611,6 +634,8 @@ function RecordDetail({
   isAdmin,
   hasPermission,
   publicKey,
+  hasNsec,
+  adminDecryptionPubkey,
   onStatusChange,
   onAssignToMe,
   onUnassign,
@@ -622,6 +647,8 @@ function RecordDetail({
   isAdmin: boolean
   hasPermission: (p: string) => boolean
   publicKey: string | null
+  hasNsec: boolean
+  adminDecryptionPubkey: string
   onStatusChange: (id: string, newStatus: string) => void
   onAssignToMe: (id: string) => void
   onUnassign: (id: string) => void
@@ -632,6 +659,27 @@ function RecordDetail({
   const [activeTab, setActiveTab] = useState<DetailTab>('details')
   const [contacts, setContacts] = useState<RecordContact[]>([])
   const [contactsLoading, setContactsLoading] = useState(false)
+
+  // Decrypt summary for title/description display
+  const [decryptedSummary, setDecryptedSummary] = useState<{ title?: string; description?: string } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const canDecrypt = hasNsec && keyManager.isUnlocked()
+    if (!canDecrypt || !record.encryptedSummary || !record.summaryEnvelopes?.length) {
+      setDecryptedSummary(null)
+      return
+    }
+    decryptMessage(record.encryptedSummary, record.summaryEnvelopes).then(plaintext => {
+      if (cancelled || !plaintext) return
+      try {
+        setDecryptedSummary(JSON.parse(plaintext))
+      } catch {
+        setDecryptedSummary(null)
+      }
+    })
+    return () => { cancelled = true }
+  }, [record.id, record.encryptedSummary, hasNsec])
 
   // Derive status / severity info
   const statusDef = entityType.statuses.find(s => s.value === record.statusHash)
@@ -678,6 +726,11 @@ function RecordDetail({
               <span className="font-mono text-sm font-bold text-foreground">
                 {record.caseNumber || record.id.slice(0, 8)}
               </span>
+              {decryptedSummary?.title && (
+                <span data-testid="case-detail-title" className="text-sm font-medium text-foreground truncate max-w-[200px]">
+                  {decryptedSummary.title}
+                </span>
+              )}
               <StatusPill
                 currentStatus={record.statusHash}
                 statuses={entityType.statuses}
@@ -721,6 +774,11 @@ function RecordDetail({
                 </>
               )}
             </p>
+            {decryptedSummary?.description && (
+              <p data-testid="case-detail-description" className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                {decryptedSummary.description}
+              </p>
+            )}
           </div>
 
           {/* Action buttons */}
@@ -798,6 +856,9 @@ function RecordDetail({
             isAdmin={isAdmin}
             hasPermission={hasPermission}
             isAssigned={isAssigned}
+            hasNsec={hasNsec}
+            publicKey={publicKey}
+            adminDecryptionPubkey={adminDecryptionPubkey}
           />
         )}
         {activeTab === 'timeline' && (
@@ -838,21 +899,88 @@ function DetailsTab({
   isAdmin,
   hasPermission,
   isAssigned,
+  hasNsec,
+  publicKey,
+  adminDecryptionPubkey,
 }: {
   record: CaseRecord
   entityType: EntityTypeDefinition
   isAdmin: boolean
   hasPermission: (p: string) => boolean
   isAssigned: boolean
+  hasNsec: boolean
+  publicKey: string | null
+  adminDecryptionPubkey: string
 }) {
   const { t } = useTranslation()
+  const { toast } = useToast()
+  const [fieldValues, setFieldValues] = useState<SchemaFieldValues>({})
+  const [decrypting, setDecrypting] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // In a real implementation, field values would be decrypted from record.encryptedFields.
-  // For now, show the schema form in read-only mode with empty values.
-  // TODO: integrate client-side decryption of encryptedFields
-  const [fieldValues] = useState<SchemaFieldValues>({})
+  // Decrypt encrypted fields on load
+  useEffect(() => {
+    let cancelled = false
+    const canDecrypt = hasNsec && keyManager.isUnlocked()
+    if (!canDecrypt || !record.encryptedFields || !record.fieldEnvelopes?.length) {
+      setFieldValues({})
+      return
+    }
+    setDecrypting(true)
+    decryptMessage(record.encryptedFields, record.fieldEnvelopes).then(plaintext => {
+      if (cancelled) return
+      if (plaintext) {
+        try {
+          setFieldValues(JSON.parse(plaintext))
+        } catch {
+          setFieldValues({})
+        }
+      }
+    }).finally(() => {
+      if (!cancelled) setDecrypting(false)
+    })
+    return () => { cancelled = true }
+  }, [record.id, record.encryptedFields, hasNsec])
+
+  // Cleanup save timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    }
+  }, [])
 
   const canEdit = hasPermission('cases:update') || (hasPermission('cases:update-own') && isAssigned)
+
+  // Debounced encrypted save
+  const handleFieldChange = useCallback((newValues: SchemaFieldValues) => {
+    setFieldValues(newValues)
+    setSaveStatus('idle')
+
+    if (!canEdit || !publicKey || !hasNsec) return
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(async () => {
+      setSaveStatus('saving')
+      try {
+        const readerPubkeys = [publicKey]
+        if (adminDecryptionPubkey && adminDecryptionPubkey !== publicKey) {
+          readerPubkeys.push(adminDecryptionPubkey)
+        }
+
+        const encrypted = await encryptMessage(JSON.stringify(newValues), readerPubkeys)
+        await updateRecord(record.id, {
+          encryptedFields: encrypted.encryptedContent,
+          fieldEnvelopes: encrypted.readerEnvelopes,
+        })
+        setSaveStatus('saved')
+        setTimeout(() => setSaveStatus(prev => prev === 'saved' ? 'idle' : prev), 2000)
+      } catch {
+        setSaveStatus('error')
+        toast(t('cases.saveError', { defaultValue: 'Failed to save field changes' }), 'error')
+      }
+    }, 800)
+  }, [publicKey, hasNsec, adminDecryptionPubkey, canEdit, record.id, toast, t])
 
   if (entityType.fields.length === 0) {
     return (
@@ -863,14 +991,28 @@ function DetailsTab({
     )
   }
 
+  if (decrypting) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
   return (
     <div data-testid="case-details-tab">
+      {saveStatus !== 'idle' && (
+        <div className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+          {saveStatus === 'saving' && <Loader2 className="h-3 w-3 animate-spin" />}
+          {saveStatus === 'saving' && t('cases.saving', { defaultValue: 'Saving...' })}
+          {saveStatus === 'saved' && <span className="text-green-600">{t('cases.saved', { defaultValue: 'Saved' })}</span>}
+          {saveStatus === 'error' && <span className="text-destructive">{t('cases.saveError', { defaultValue: 'Save failed' })}</span>}
+        </div>
+      )}
       <SchemaForm
         entityType={entityType}
         values={fieldValues}
-        onChange={() => {
-          // TODO: implement save with encryption on change
-        }}
+        onChange={handleFieldChange}
         readOnly={!canEdit}
         showAccessIndicators
       />
