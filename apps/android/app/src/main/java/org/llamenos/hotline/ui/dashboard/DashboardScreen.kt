@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -88,6 +89,7 @@ fun DashboardScreen(
     onNavigateToHelp: () -> Unit,
     onNavigateToHubs: () -> Unit = {},
     onNavigateToEvents: () -> Unit = {},
+    onNavigateToTriage: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -595,8 +597,15 @@ fun DashboardScreen(
                         testTag = "help-card",
                         modifier = Modifier.weight(1f),
                     )
-                    // Empty spacer to keep grid balanced
-                    Spacer(modifier = Modifier.weight(1f))
+                    QuickActionCard(
+                        icon = Icons.AutoMirrored.Filled.Assignment,
+                        label = stringResource(R.string.triage_title),
+                        onClick = onNavigateToTriage,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                        testTag = "triage-card",
+                        modifier = Modifier.weight(1f),
+                    )
                 }
 
                 // Recent notes preview

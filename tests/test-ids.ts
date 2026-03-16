@@ -102,6 +102,11 @@ export const TestIds = {
   RECORDING_BADGE: 'recording-badge',
   RECORDING_PLAYER: 'recording-player',
   RECORDING_PLAY_BTN: 'recording-play-btn',
+  ACTIVE_CALL_PANEL: 'active-call-panel',
+  CALL_TIMER: 'call-timer',
+  BAN_BTN: 'ban-btn',
+  BAN_REASON_INPUT: 'ban-reason-input',
+  BAN_CONFIRM_BTN: 'ban-confirm-btn',
 
   // ============ Reports ============
   REPORT_LIST: 'report-list',

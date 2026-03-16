@@ -71,6 +71,7 @@ Feature: Case Management
     Then the empty state card should be visible
     And the empty state create button should be visible
 
+  @ios @android
   Scenario: Case list shows case cards with status and type badges
     Given arrest cases exist
     When I navigate to the "Cases" page
@@ -78,6 +79,7 @@ Feature: Case Management
     And each case card should show a status badge
     And each case card should show a relative timestamp
 
+  @ios @android
   Scenario: Clicking a case card loads the detail panel
     Given arrest cases exist
     When I navigate to the "Cases" page
@@ -136,6 +138,7 @@ Feature: Case Management
     Then the status dropdown should be visible
     And the status dropdown should list available statuses
 
+  @ios @android
   Scenario: Select a new status from the dropdown
     Given an arrest case with status "reported" exists
     When I navigate to the "Cases" page
@@ -154,6 +157,7 @@ Feature: Case Management
 
   # --- Timeline tab ---
 
+  @ios @android
   Scenario: Timeline tab loads interactions for a case
     Given an arrest case with interactions exists
     When I navigate to the "Cases" page

@@ -769,8 +769,8 @@
     <string name="contacts_empty_subtitle">Contacts will appear here from calls and messages</string>
     <string name="contacts_empty_title">No Contacts</string>
     <string name="contacts_error_title">Unable to Load</string>
-    <string name="contacts_first_seen">First seen</string>
-    <string name="contacts_last_seen">Last seen</string>
+    <string name="contacts_first_seen">First seen %s</string>
+    <string name="contacts_last_seen">Last seen %s</string>
     <string name="contacts_loading">Loading contacts...</string>
     <string name="contacts_messages">messages</string>
     <string name="contacts_no_contacts">No contacts found</string>
@@ -2363,4 +2363,42 @@
     <string name="schema_interactions">Interaction Links</string>
     <string name="schema_access_level">Default Access</string>
     <string name="schema_no_fields">No fields defined</string>
+
+    <!-- Contact Directory Enhancement -->
+    <string name="contactDirectory_filter_all">All Types</string>
+    <string name="contactDirectory_detail_title">Contact</string>
+    <string name="contactDirectory_first_seen">First seen</string>
+    <string name="contactDirectory_last_seen">Last seen</string>
+    <string name="contactDirectory_identifiers">Identifiers</string>
+    <string name="contactDirectory_interactions">Interactions</string>
+    <string name="contactDirectory_calls">Calls</string>
+    <string name="contactDirectory_messages">Messages</string>
+    <string name="contactDirectory_notes">Notes</string>
+    <string name="contactDirectory_reports">Reports</string>
+    <string name="contactDirectory_linked_cases">Linked Cases</string>
+    <string name="contactDirectory_relationships">Relationships</string>
+    <string name="contactDirectory_view_timeline">View Full Timeline</string>
+    <string name="contactDirectory_loading">Loading contact…</string>
+    <string name="contactDirectory_error">Unable to Load</string>
+
+    <!-- Triage Queue -->
+    <string name="triage_title">Triage Queue</string>
+    <string name="triage_filter_all">All</string>
+    <string name="triage_filter_pending">Pending</string>
+    <string name="triage_filter_in_progress">In Progress</string>
+    <string name="triage_filter_completed">Completed</string>
+    <string name="triage_empty_title">No Reports to Triage</string>
+    <string name="triage_empty_message">Reports eligible for case conversion will appear here.</string>
+    <string name="triage_loading">Loading triage queue…</string>
+    <string name="triage_untitled">Untitled Report</string>
+    <string name="triage_detail_title">Triage Report</string>
+    <string name="triage_detail_created">Created</string>
+    <string name="triage_detail_assigned">Assigned To</string>
+    <string name="triage_detail_messages">Messages</string>
+    <string name="triage_detail_updated">Updated</string>
+    <string name="triage_convert_to_case">Convert to Case</string>
+    <string name="triage_convert_confirm_title">Convert to Case</string>
+    <string name="triage_convert_confirm_message">This will create a new case record from this report. The report will be linked to the new case.</string>
+    <string name="triage_convert_confirm_action">Convert</string>
+    <string name="triage_report_not_found">Report not found</string>
 </resources>

@@ -153,7 +153,7 @@ fun TriageScreen(
                             ) { report ->
                                 TriageReportCard(
                                     report = report,
-                                    reportTypeLabel = viewModel.reportTypeLabel(report.metadata?.reportId),
+                                    reportTypeLabel = viewModel.reportTypeLabel(report.metadata?.reportTypeId),
                                     onClick = { onNavigateToDetail(report.id) },
                                 )
                             }

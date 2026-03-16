@@ -164,7 +164,7 @@ fun TriageDetailScreen(
                     modifier = Modifier.testTag("triage-detail-status"),
                 )
 
-                val typeLabel = viewModel.reportTypeLabel(report.metadata?.reportId)
+                val typeLabel = viewModel.reportTypeLabel(report.metadata?.reportTypeId)
                 if (typeLabel != null) {
                     Text(
                         text = typeLabel,

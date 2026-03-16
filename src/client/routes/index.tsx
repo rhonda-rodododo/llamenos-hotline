@@ -372,7 +372,7 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
   }
 
   return (
-    <Card className="border-2 border-blue-500 bg-blue-50 dark:border-blue-600 dark:bg-blue-950/20">
+    <Card data-testid="active-call-panel" className="border-2 border-blue-500 bg-blue-50 dark:border-blue-600 dark:bg-blue-950/20">
       <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -385,7 +385,7 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
             </div>
           </div>
           <div className="text-right">
-            <p className="font-mono text-2xl font-bold text-blue-700 dark:text-blue-300">{formatted}</p>
+            <p data-testid="call-timer" className="font-mono text-2xl font-bold text-blue-700 dark:text-blue-300">{formatted}</p>
             <p className="text-xs text-muted-foreground">{t('calls.duration')}</p>
           </div>
         </div>
@@ -476,6 +476,7 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
           </Button>
           <Button
             variant="outline"
+            data-testid="ban-btn"
             onClick={() => setShowBanDialog(true)}
             className="border-red-500/50 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-600/50 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
           >

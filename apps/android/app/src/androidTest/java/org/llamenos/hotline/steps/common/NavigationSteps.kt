@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollTo
 import io.cucumber.java.en.Given
 import io.cucumber.java.en.Then
 import io.cucumber.java.en.When
@@ -172,6 +173,16 @@ class NavigationSteps : BaseSteps() {
             "settings" -> navigateToTab(NAV_SETTINGS)
             "dashboard" -> navigateToTab(NAV_DASHBOARD)
             "custom fields", "fields" -> navigateToAdminTab("fields")
+            "events" -> navigateViaDashboardCard("events-card")
+            "triage" -> navigateViaDashboardCard("triage-card")
+            "hubs", "hub management" -> {
+                navigateToTab(NAV_SETTINGS)
+                try {
+                    onNodeWithTag("settings-hub-card").performScrollTo()
+                    onNodeWithTag("settings-hub-card").performClick()
+                    composeRule.waitForIdle()
+                } catch (_: Throwable) { /* hub card may not exist */ }
+            }
             else -> navigateToTab(NAV_DASHBOARD) // Unknown page — go to dashboard
         }
     }

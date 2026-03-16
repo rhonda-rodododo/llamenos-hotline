@@ -474,6 +474,9 @@ fun LlamenosNavigation(
                 onNavigateToEvents = {
                     navController.navigate(LlamenosRoute.Events.route)
                 },
+                onNavigateToTriage = {
+                    navController.navigate(LlamenosRoute.Triage.route)
+                },
             )
         }
 
@@ -642,6 +645,31 @@ fun LlamenosNavigation(
                 onNavigateToTimeline = { contactHash ->
                     navController.navigate("contact/$contactHash")
                 },
+                onNavigateToDetail = { contactHash ->
+                    navController.navigate("contact_detail/$contactHash")
+                },
+            )
+        }
+
+        composable(
+            LlamenosRoute.ContactDetail.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument("contactHash") {
+                    type = NavType.StringType
+                },
+            ),
+        ) { backStackEntry ->
+            val contactHash = backStackEntry.arguments?.getString("contactHash") ?: ""
+            val contactDetailViewModel: ContactDetailViewModel = hiltViewModel()
+            LaunchedEffect(contactHash) {
+                contactDetailViewModel.loadContact(contactHash)
+            }
+            ContactDetailScreen(
+                viewModel = contactDetailViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToTimeline = { hash ->
+                    navController.navigate("contact/$hash")
+                },
             )
         }
 
@@ -653,6 +681,34 @@ fun LlamenosNavigation(
             }
             ContactTimelineScreen(
                 viewModel = timelineViewModel,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(LlamenosRoute.Triage.route) {
+            val triageViewModel: TriageViewModel = hiltViewModel()
+            TriageScreen(
+                viewModel = triageViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToDetail = { reportId ->
+                    navController.navigate("triage/$reportId")
+                },
+            )
+        }
+
+        composable(
+            LlamenosRoute.TriageDetail.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument("reportId") {
+                    type = NavType.StringType
+                },
+            ),
+        ) { backStackEntry ->
+            val reportId = backStackEntry.arguments?.getString("reportId") ?: ""
+            val triageViewModel: TriageViewModel = hiltViewModel()
+            TriageDetailScreen(
+                viewModel = triageViewModel,
+                reportId = reportId,
                 onNavigateBack = { navController.popBackStack() },
             )
         }

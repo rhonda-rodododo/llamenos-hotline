@@ -104,6 +104,7 @@ fun MainScreen(
     onNavigateToDeviceLink: () -> Unit,
     onNavigateToHubs: () -> Unit = {},
     onNavigateToEvents: () -> Unit = {},
+    onNavigateToTriage: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -181,6 +182,7 @@ fun MainScreen(
                         onNavigateToHelp = onNavigateToHelp,
                         onNavigateToHubs = onNavigateToHubs,
                         onNavigateToEvents = onNavigateToEvents,
+                        onNavigateToTriage = onNavigateToTriage,
                     )
                 }
 

@@ -141,7 +141,7 @@ class TriageViewModel @Inject constructor(
                 val body = ConvertReportToCaseRequest(
                     reportId = report.id,
                     title = title,
-                    reportTypeId = report.metadata?.reportId,
+                    reportTypeId = report.metadata?.reportTypeId,
                 )
                 apiService.request<ConvertReportToCaseResponse>(
                     "POST",

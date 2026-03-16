@@ -31,8 +31,10 @@ data class ReportMetadata(
     val type: String = "report",
     val reportTitle: String? = null,
     val reportCategory: String? = null,
+    val reportTypeId: String? = null,
     val linkedCallId: String? = null,
     val reportId: String? = null,
+    val conversionStatus: String? = null,
 )
 
 /**
