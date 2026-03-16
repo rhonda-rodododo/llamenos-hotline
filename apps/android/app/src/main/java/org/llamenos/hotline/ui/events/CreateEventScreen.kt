@@ -170,11 +170,11 @@ fun CreateEventScreen(
             // which handles E2EE encryption. This screen provides the form UI.
             Button(
                 onClick = {
-                    // TODO: Wire to CaseManagementViewModel.createRecord() with
-                    // the event entity type and encrypted fields.
-                    // For now, navigate back as the creation flow requires
-                    // the full record creation API with E2EE.
-                    onNavigateBack()
+                    defaultEntityType?.let { et ->
+                        viewModel.createEvent(et.id, title, description) {
+                            onNavigateBack()
+                        }
+                    }
                 },
                 enabled = title.isNotBlank() && defaultEntityType != null,
                 modifier = Modifier

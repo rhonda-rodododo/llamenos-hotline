@@ -583,8 +583,8 @@ export async function decryptProvisionedNsec(
       ephemeralSkHex,
     })
   }
-  // TODO: Add decryptProvisionedNsec to wasm.rs once provisioning module is implemented
-  throw new Error('Provisioning decryption not yet available in WASM — use Tauri desktop for device linking')
+  const state = await getWasmState()
+  return state.decryptProvisionedNsec(encryptedHex, primaryPubkeyHex, ephemeralSkHex)
 }
 
 /**

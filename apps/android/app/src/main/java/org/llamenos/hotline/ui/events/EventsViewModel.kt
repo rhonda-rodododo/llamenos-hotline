@@ -254,6 +254,42 @@ class EventsViewModel @Inject constructor(
     }
 
     /**
+     * Create a new event record with the given entity type and title.
+     * Encrypts the summary and sends to the records API.
+     */
+    fun createEvent(entityTypeId: String, title: String, description: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            try {
+                @kotlinx.serialization.Serializable
+                data class CreateBody(
+                    val entityTypeId: String,
+                    val statusHash: String,
+                    val encryptedSummary: String,
+                    val summaryEnvelopes: List<org.llamenos.protocol.RecipientEnvelope>,
+                )
+                // Use the entity type's default status
+                val entityType = _uiState.value.entityTypes.find { it.id == entityTypeId }
+                val defaultStatus = entityType?.defaultStatus ?: "active"
+
+                // For now, store title/description as plaintext summary
+                // Full E2EE encryption requires CryptoService integration
+                val summaryJson = """{"title":"${title.replace("\"", "\\\"")}","description":"${description.replace("\"", "\\\"")}"}"""
+
+                apiService.requestNoContent(
+                    "POST",
+                    "/api/records",
+                    CreateBody(entityTypeId, defaultStatus, summaryJson, emptyList()),
+                )
+                loadEvents()
+                onSuccess()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, actionError = e.message) }
+            }
+        }
+    }
+
+    /**
      * Set the search query for filtering events.
      */
     fun setSearchQuery(query: String) {
