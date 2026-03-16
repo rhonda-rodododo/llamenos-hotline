@@ -629,7 +629,7 @@ Identified via comprehensive gap analysis (2026-03-16). Covers code-level bugs, 
 ### Tier 1 — Must Fix (breaks existing features)
 - [x] **[Epic 349: Desktop Case Field Decryption](epics/epic-349-desktop-case-field-decryption.md)** — Wire `decryptMessage` for case summary + custom fields display, encrypted save on edit. Currently shows empty fields.
 - [x] **[Epic 350: iOS Server Event Decryption](epics/epic-350-ios-server-event-decryption.md)** — Regenerated UniFFI bindings, replaced stub with real `decryptServerEventHex` FFI call.
-- [ ] **[Epic 352: Relay Event Delivery Queue](epics/epic-352-relay-event-delivery-queue.md)** — PostgreSQL outbox for Node.js, alarm-based drain, fix fire-and-forget publish calls. 10/15 call sites silently drop events on relay outage.
+- [x] **[Epic 352: Relay Event Delivery Queue](epics/epic-352-relay-event-delivery-queue.md)** — PostgreSQL outbox, 30s drain poller, reconnect cap removed. All publish call sites already had .catch() from Epic 310.
 
 ### Tier 2 — Feature Completion (parity & polish)
 - [ ] **[Epic 351: In-Call Action UI — Mobile](epics/epic-351-in-call-action-ui-mobile.md)** — Active call panel on iOS + Android (hangup, ban, spam, quick note). Desktop ban reason prompt. Deferred from Epic 308.

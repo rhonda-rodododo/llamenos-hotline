@@ -178,9 +178,9 @@ function DashboardPage() {
           call={currentCall}
           onHangup={() => hangupCall(currentCall.id)}
           onReportSpam={() => reportSpam(currentCall.id)}
-          onBanNumber={async () => {
+          onBanNumber={async (reason) => {
             try {
-              await banAndHangup(currentCall.id)
+              await banAndHangup(currentCall.id, reason)
               toast(t('common.success'), 'success')
             } catch {
               toast(t('common.error'), 'error')
@@ -310,7 +310,7 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
   call: ActiveCall
   onHangup: () => void
   onReportSpam: () => void
-  onBanNumber: () => void
+  onBanNumber: (reason?: string) => void
   authorPubkey: string
 }) {
   const { t } = useTranslation()
@@ -320,6 +320,8 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
   const [noteText, setNoteText] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [showBanDialog, setShowBanDialog] = useState(false)
+  const [banReason, setBanReason] = useState('')
   const { status: txStatus, transcript, startTranscription, stopTranscription, cancelTranscription, settings: txSettings, progress: txProgress } = useTranscription()
 
   // Start client-side transcription when panel mounts (call answered)
@@ -474,13 +476,51 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
           </Button>
           <Button
             variant="outline"
-            onClick={onBanNumber}
+            onClick={() => setShowBanDialog(true)}
             className="border-red-500/50 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-600/50 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
           >
             <ShieldBan className="h-4 w-4" />
             {t('banList.addNumber')}
           </Button>
         </div>
+
+        {/* Ban reason dialog */}
+        {showBanDialog && (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
+            <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+              {t('callActions.banConfirmTitle', { defaultValue: 'Ban caller and hang up?' })}
+            </p>
+            <input
+              type="text"
+              data-testid="ban-reason-input"
+              placeholder={t('callActions.banReasonPlaceholder', { defaultValue: 'Reason (optional)' })}
+              value={banReason}
+              onChange={e => setBanReason(e.target.value)}
+              className="w-full rounded-md border border-red-300 bg-white px-2.5 py-1.5 text-sm dark:border-red-700 dark:bg-red-950/50 dark:text-red-100 mb-2"
+            />
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setShowBanDialog(false); setBanReason('') }}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                data-testid="ban-confirm-btn"
+                onClick={() => {
+                  onBanNumber(banReason || undefined)
+                  setShowBanDialog(false)
+                  setBanReason('')
+                }}
+              >
+                {t('callActions.banAndHangUp', { defaultValue: 'Ban & Hang Up' })}
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
