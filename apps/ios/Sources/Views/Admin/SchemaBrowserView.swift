@@ -22,7 +22,7 @@ struct SchemaBrowserView: View {
                 ContentUnavailableView {
                     Label(
                         NSLocalizedString("error_title", comment: "Error"),
-                        systemImage: "exclamationmark.triangle"
+                        icon: "exclamationmark.triangle"
                     )
                 } description: {
                     Text(errorMessage)
@@ -36,7 +36,7 @@ struct SchemaBrowserView: View {
                 ContentUnavailableView {
                     Label(
                         NSLocalizedString("cases_no_entity_types", comment: "No Entity Types"),
-                        systemImage: "doc.text.magnifyingglass"
+                        icon: "doc.text.magnifyingglass"
                     )
                 } description: {
                     Text(NSLocalizedString(
@@ -121,18 +121,18 @@ private struct EntityTypeRow: View {
                 HStack(spacing: 8) {
                     BadgeView(
                         text: "\(entityType.fields.count) \(NSLocalizedString("schema_fields_label", comment: "fields"))",
-                        systemImage: "list.bullet"
+                        icon: "list.bullet"
                     )
 
                     BadgeView(
                         text: "\(entityType.statuses.count) \(NSLocalizedString("schema_statuses_label", comment: "statuses"))",
-                        systemImage: "circle.fill"
+                        icon: "circle.fill"
                     )
 
                     if let category = entityType.category {
                         BadgeView(
                             text: category,
-                            systemImage: "folder"
+                            icon: "folder"
                         )
                     }
                 }
@@ -163,39 +163,7 @@ private struct EntityTypeRow: View {
     }
 }
 
-// MARK: - BadgeView
-
-/// Small metadata badge with icon and text.
-private struct BadgeView: View {
-    let text: String
-    let systemImage: String
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: systemImage)
-                .font(.system(size: 9))
-            Text(text)
-                .font(.system(size: 11))
-        }
-        .foregroundStyle(Color.brandMutedForeground)
-    }
-}
-
-// MARK: - Color Hex Extension
-
-private extension Color {
-    init?(hex: String) {
-        let hex = hex.trimmingCharacters(in: .init(charactersIn: "#"))
-        guard hex.count == 6,
-              let intVal = UInt64(hex, radix: 16)
-        else { return nil }
-
-        let r = Double((intVal >> 16) & 0xFF) / 255.0
-        let g = Double((intVal >> 8) & 0xFF) / 255.0
-        let b = Double(intVal & 0xFF) / 255.0
-        self.init(red: r, green: g, blue: b)
-    }
-}
+// BadgeView and Color.init(hex:) are defined app-wide in Components/BadgeView.swift and ReportTypePicker.swift
 
 // MARK: - Preview
 
