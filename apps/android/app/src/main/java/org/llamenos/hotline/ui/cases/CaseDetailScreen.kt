@@ -100,6 +100,22 @@ fun CaseDetailScreen(
     val record = uiState.selectedRecord
     val entityType = uiState.selectedEntityType
 
+    // Trigger decryption when the record loads
+    LaunchedEffect(record?.id) {
+        val r = record ?: return@LaunchedEffect
+        viewModel.decryptSummary(r)
+        viewModel.decryptFields(r)
+    }
+
+    // Trigger interaction decryption when interactions load
+    LaunchedEffect(uiState.interactions) {
+        for (interaction in uiState.interactions) {
+            if (interaction.encryptedContent != null) {
+                viewModel.decryptInteraction(interaction)
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -176,7 +192,14 @@ fun CaseDetailScreen(
                         record = record,
                         entityType = entityType,
                         isNewCase = isNewCase,
+                        decryptedSummary = uiState.decryptedSummary,
                         onStatusClick = { showStatusSheet = true },
+                        onAssignToMe = { record?.let { viewModel.assignToMe(it.id) } },
+                        onUnassignFromMe = { record?.let { viewModel.unassignFromMe(it.id) } },
+                        isAssigning = uiState.isAssigning,
+                        isCurrentUserAssigned = record?.assignedTo?.contains(
+                            viewModel.currentUserPubkey
+                        ) == true,
                     )
 
                     // Tab row
@@ -218,15 +241,19 @@ fun CaseDetailScreen(
                             CaseDetailTab.DETAILS -> DetailsTab(
                                 record = record,
                                 entityType = entityType,
-                                onAssignToMe = { viewModel.assignToMe(record.id) },
-                                isAssigning = uiState.isAssigning,
+                                decryptedSummary = uiState.decryptedSummary,
+                                decryptedFields = uiState.decryptedFields,
+                                isDecryptingFields = uiState.isDecryptingFields,
                             )
                             CaseDetailTab.TIMELINE -> TimelineTab(
-                                interactions = uiState.interactions,
+                                interactions = uiState.sortedInteractions,
                                 isLoading = uiState.isLoadingInteractions,
                                 error = uiState.interactionsError,
                                 entityType = entityType,
+                                sortOrder = uiState.timelineSortOrder,
+                                onToggleSort = { viewModel.toggleTimelineSort() },
                                 onAddComment = { showCommentSheet = true },
+                                decryptedInteractions = uiState.decryptedInteractions,
                             )
                             CaseDetailTab.CONTACTS -> ContactsTab(
                                 contacts = uiState.contacts,
@@ -296,57 +323,190 @@ private fun CaseDetailHeader(
     record: Record?,
     entityType: EntityTypeDefinition?,
     isNewCase: Boolean = false,
+    decryptedSummary: DecryptedSummary? = null,
     onStatusClick: () -> Unit,
+    onAssignToMe: () -> Unit = {},
+    onUnassignFromMe: () -> Unit = {},
+    isAssigning: Boolean = false,
+    isCurrentUserAssigned: Boolean = false,
 ) {
     val statusOption = record?.let { r ->
         entityType?.statuses?.find { it.value == r.statusHash }
     }
-    val statusLabel = statusOption?.label ?: record?.statusHash ?: if (isNewCase) "New" else "—"
+    val statusLabel = statusOption?.label ?: record?.statusHash ?: if (isNewCase) "New" else "---"
     val statusColor = statusOption?.color?.let { parseHexColor(it) }
 
-    Row(
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        // Entity type label
-        if (entityType != null) {
+        // Top row: entity type label + status pill
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            // Entity type label
+            if (entityType != null) {
+                val typeColor = entityType.color?.let { parseHexColor(it) }
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = (typeColor ?: MaterialTheme.colorScheme.secondaryContainer)
+                            .copy(alpha = 0.15f),
+                    ),
+                ) {
+                    Text(
+                        text = entityType.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = typeColor ?: MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
+            } else if (isNewCase) {
+                Text(
+                    text = "New Case",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            // Status pill button
+            OutlinedButton(
+                onClick = onStatusClick,
+                enabled = record != null,
+                modifier = Modifier.testTag("case-status-pill"),
+            ) {
+                if (statusColor != null) {
+                    Icon(
+                        imageVector = Icons.Filled.Circle,
+                        contentDescription = null,
+                        tint = statusColor,
+                        modifier = Modifier.size(8.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(
+                    text = statusLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+        }
+
+        // Decrypted title
+        if (decryptedSummary?.title != null) {
+            Spacer(Modifier.height(4.dp))
             Text(
-                text = entityType.label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else if (isNewCase) {
-            Text(
-                text = "New Case",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = decryptedSummary.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag("case-detail-title"),
             )
         }
 
-        Spacer(Modifier.weight(1f))
-
-        // Status pill button
-        OutlinedButton(
-            onClick = onStatusClick,
-            enabled = record != null,
-            modifier = Modifier.testTag("case-status-pill"),
-        ) {
-            if (statusColor != null) {
-                Icon(
-                    imageVector = Icons.Filled.Circle,
-                    contentDescription = null,
-                    tint = statusColor,
-                    modifier = Modifier.size(8.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-            }
+        // Decrypted description
+        if (decryptedSummary?.description != null) {
+            Spacer(Modifier.height(2.dp))
             Text(
-                text = statusLabel,
-                style = MaterialTheme.typography.labelMedium,
+                text = decryptedSummary.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag("case-detail-description"),
             )
+        }
+
+        // Severity + assignment info
+        if (record != null) {
+            Spacer(Modifier.height(6.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                // Severity badge
+                val severityOption = record.severityHash?.let { hash ->
+                    entityType?.severities?.find { it.value == hash }
+                }
+                if (severityOption != null) {
+                    val sevColor = severityOption.color?.let { parseHexColor(it) }
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = (sevColor ?: MaterialTheme.colorScheme.errorContainer)
+                                .copy(alpha = 0.15f),
+                        ),
+                    ) {
+                        Text(
+                            text = severityOption.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = sevColor ?: MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+
+                // Assignment count
+                if (record.assignedTo.isNotEmpty()) {
+                    Text(
+                        text = "${record.assignedTo.size} assigned",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    )
+                }
+
+                Spacer(Modifier.weight(1f))
+
+                // Assign / unassign button
+                if (isCurrentUserAssigned) {
+                    OutlinedButton(
+                        onClick = onUnassignFromMe,
+                        enabled = !isAssigning,
+                        modifier = Modifier.testTag("case-unassign-btn"),
+                    ) {
+                        if (isAssigning) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        Icon(
+                            imageVector = Icons.Filled.PersonAdd,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("Unassign", style = MaterialTheme.typography.labelSmall)
+                    }
+                } else {
+                    Button(
+                        onClick = onAssignToMe,
+                        enabled = !isAssigning,
+                        modifier = Modifier.testTag("case-assign-btn-header"),
+                    ) {
+                        if (isAssigning) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        Icon(
+                            imageVector = Icons.Filled.PersonAdd,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("Assign to me", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
         }
     }
 }
@@ -411,7 +571,7 @@ private fun NewCaseContent(
             isLoading = false,
             error = null,
             entityType = null,
-            onAddComment = { },
+            onAddComment = {},
         )
         CaseDetailTab.CONTACTS -> ContactsTab(
             contacts = emptyList(),
@@ -433,8 +593,9 @@ private fun NewCaseContent(
 private fun DetailsTab(
     record: Record,
     entityType: EntityTypeDefinition?,
-    onAssignToMe: () -> Unit,
-    isAssigning: Boolean,
+    decryptedSummary: DecryptedSummary? = null,
+    decryptedFields: Map<String, String> = emptyMap(),
+    isDecryptingFields: Boolean = false,
 ) {
     Column(
         modifier = Modifier
@@ -448,7 +609,9 @@ private fun DetailsTab(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             ),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("case-details-summary"),
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -463,6 +626,14 @@ private fun DetailsTab(
                 // Case number
                 if (record.caseNumber != null) {
                     DetailRow(label = "Case Number", value = record.caseNumber)
+                }
+                // Decrypted title
+                if (decryptedSummary?.title != null) {
+                    DetailRow(label = "Title", value = decryptedSummary.title)
+                }
+                // Decrypted description
+                if (decryptedSummary?.description != null) {
+                    DetailRow(label = "Description", value = decryptedSummary.description)
                 }
                 // Created at
                 DetailRow(label = "Created", value = DateFormatUtils.formatDateVerbose(record.createdAt))
@@ -487,6 +658,8 @@ private fun DetailsTab(
             TemplateFieldsSection(
                 fields = entityType.fields,
                 record = record,
+                decryptedFields = decryptedFields,
+                isDecrypting = isDecryptingFields,
             )
         }
 
@@ -512,25 +685,6 @@ private fun DetailsTab(
                 DetailRow(label = "Files", value = record.fileCount.toInt().toString())
                 DetailRow(label = "Reports", value = record.reportCount.toInt().toString())
             }
-        }
-
-        // Assign to me button
-        Button(
-            onClick = onAssignToMe,
-            enabled = !isAssigning,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("case-assign-btn"),
-        ) {
-            if (isAssigning) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-                Spacer(Modifier.width(8.dp))
-            }
-            Text("Assign to me")
         }
     }
 }
@@ -558,14 +712,16 @@ private fun DetailRow(label: String, value: String) {
 
 /**
  * Renders the entity type's custom fields section.
- * Since field values are E2EE-encrypted, this shows field labels
- * and marks encrypted fields. Decryption is handled by the caller
- * if they have the appropriate envelope.
+ *
+ * When [decryptedFields] contains values, shows the decrypted content.
+ * Otherwise, shows an "[Encrypted]" placeholder.
  */
 @Composable
 private fun TemplateFieldsSection(
     fields: List<EntityFieldDefinition>,
     record: Record,
+    decryptedFields: Map<String, String> = emptyMap(),
+    isDecrypting: Boolean = false,
 ) {
     val sortedFields = fields.sortedBy { it.order }
     var currentSection: String? = null
@@ -574,18 +730,32 @@ private fun TemplateFieldsSection(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("case-details-fields"),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = "Fields",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = "Fields",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                if (isDecrypting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp,
+                    )
+                }
+            }
 
             sortedFields.forEach { field ->
                 // Section header if the section changed
@@ -603,6 +773,20 @@ private fun TemplateFieldsSection(
                     )
                 }
 
+                val fieldValue = decryptedFields[field.name]
+                val displayValue = when {
+                    fieldValue != null && fieldValue.isNotEmpty() -> fieldValue
+                    decryptedFields.isNotEmpty() -> "-" // Decrypted but no value for this field
+                    record.encryptedFields != null -> "[Encrypted]"
+                    else -> "-"
+                }
+                val valueColor = when {
+                    fieldValue != null && fieldValue.isNotEmpty() ->
+                        MaterialTheme.colorScheme.onSurface
+                    else ->
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                }
+
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth(),
@@ -616,10 +800,10 @@ private fun TemplateFieldsSection(
                             .testTag("case-field-label-${field.name}"),
                     )
                     Text(
-                        text = if (record.encryptedFields != null) "[Encrypted]" else "-",
+                        text = displayValue,
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        color = valueColor,
                         modifier = Modifier
                             .weight(0.6f)
                             .testTag("case-field-value-${field.name}"),
@@ -638,11 +822,48 @@ private fun TimelineTab(
     isLoading: Boolean,
     error: String?,
     entityType: EntityTypeDefinition?,
+    sortOrder: TimelineSortOrder = TimelineSortOrder.NEWEST_FIRST,
+    onToggleSort: () -> Unit = {},
     onAddComment: () -> Unit,
+    decryptedInteractions: Map<String, String> = emptyMap(),
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
     ) {
+        // Sort toggle row
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+        ) {
+            Text(
+                text = "${interactions.size} interactions",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("case-timeline-count"),
+            )
+            OutlinedButton(
+                onClick = onToggleSort,
+                modifier = Modifier.testTag("case-timeline-sort"),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.SwapHoriz,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = when (sortOrder) {
+                        TimelineSortOrder.NEWEST_FIRST -> "Newest first"
+                        TimelineSortOrder.OLDEST_FIRST -> "Oldest first"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+        }
+
         when {
             isLoading && interactions.isEmpty() -> {
                 Box(
@@ -706,6 +927,7 @@ private fun TimelineTab(
                         TimelineItem(
                             interaction = interaction,
                             entityType = entityType,
+                            decryptedContent = decryptedInteractions[interaction.id],
                             modifier = Modifier.testTag("timeline-item-${interaction.id}"),
                         )
                     }
@@ -747,6 +969,7 @@ private fun TimelineTab(
 private fun TimelineItem(
     interaction: Interaction,
     entityType: EntityTypeDefinition?,
+    decryptedContent: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val icon: ImageVector = when (interaction.interactionType) {
@@ -840,8 +1063,16 @@ private fun TimelineItem(
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }
-                // Encrypted content indicator
-                if (interaction.encryptedContent != null) {
+                // Content — decrypted or encrypted indicator
+                if (decryptedContent != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = decryptedContent,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.testTag("timeline-content-${interaction.id}"),
+                    )
+                } else if (interaction.encryptedContent != null) {
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = "[Encrypted content]",

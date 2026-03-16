@@ -38,3 +38,19 @@ data class CallHistoryResponse(
 data class CallCountResponse(
     val count: Int,
 )
+
+/**
+ * Response from GET /api/calls/active — list of the volunteer's active calls.
+ */
+@Serializable
+data class ActiveCallsResponse(
+    val calls: List<ActiveCall>,
+)
+
+/**
+ * Request body for POST /api/calls/{callId}/ban.
+ */
+@Serializable
+data class BanRequest(
+    val reason: String,
+)

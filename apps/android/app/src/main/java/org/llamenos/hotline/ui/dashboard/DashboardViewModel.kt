@@ -14,6 +14,9 @@ import org.llamenos.hotline.api.ApiService
 import org.llamenos.hotline.api.SessionState
 import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
+import org.llamenos.hotline.model.ActiveCall
+import org.llamenos.hotline.model.ActiveCallsResponse
+import org.llamenos.hotline.model.BanRequest
 import org.llamenos.hotline.model.ClockResponse
 import org.llamenos.hotline.model.LlamenosEvent
 import org.llamenos.hotline.model.MeResponse
@@ -27,6 +30,10 @@ data class DashboardUiState(
     val shiftStartedAt: String? = null,
     val activeCallCount: Int = 0,
     val callsToday: Int = 0,
+    val currentCall: ActiveCall? = null,
+    val isHangingUp: Boolean = false,
+    val isReportingSpam: Boolean = false,
+    val isBanning: Boolean = false,
     val connectionState: WebSocketService.ConnectionState = WebSocketService.ConnectionState.DISCONNECTED,
     val isRefreshing: Boolean = false,
     val isClockingInOut: Boolean = false,
@@ -76,8 +83,9 @@ class DashboardViewModel @Inject constructor(
             }
         }
 
-        // Load initial shift status
+        // Load initial shift status and active call
         viewModelScope.launch { loadShiftStatus() }
+        viewModelScope.launch { fetchActiveCall() }
     }
 
     /**
@@ -87,11 +95,18 @@ class DashboardViewModel @Inject constructor(
         when (event) {
             is LlamenosEvent.CallRing -> {
                 _uiState.update { it.copy(activeCallCount = it.activeCallCount + 1) }
+                viewModelScope.launch { fetchActiveCall() }
             }
             is LlamenosEvent.CallEnded -> {
                 _uiState.update {
-                    it.copy(activeCallCount = maxOf(0, it.activeCallCount - 1))
+                    it.copy(
+                        activeCallCount = maxOf(0, it.activeCallCount - 1),
+                        currentCall = if (it.currentCall?.id == event.callId) null else it.currentCall,
+                    )
                 }
+            }
+            is LlamenosEvent.CallUpdate -> {
+                viewModelScope.launch { fetchActiveCall() }
             }
             is LlamenosEvent.ShiftUpdate -> {
                 viewModelScope.launch { loadShiftStatus() }
@@ -105,9 +120,6 @@ class DashboardViewModel @Inject constructor(
             is LlamenosEvent.ConversationAssigned,
             is LlamenosEvent.ConversationClosed -> {
                 // Conversations list will refresh via its own ViewModel
-            }
-            is LlamenosEvent.CallUpdate -> {
-                // Call status updates handled by call UI
             }
             is LlamenosEvent.VoicemailNew -> {
                 // Voicemail notifications handled by call UI
@@ -218,6 +230,73 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    // MARK: - Call Actions
+
+    /**
+     * Hang up the current active call.
+     */
+    fun hangupCall() {
+        val callId = _uiState.value.currentCall?.id ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isHangingUp = true) }
+            try {
+                apiService.requestNoContent("POST", "/api/calls/$callId/hangup")
+                _uiState.update { it.copy(currentCall = null, isHangingUp = false) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isHangingUp = false, errorRes = R.string.call_actions_ban_failed) }
+            }
+        }
+    }
+
+    /**
+     * Report the current active call as spam.
+     */
+    fun reportSpam() {
+        val callId = _uiState.value.currentCall?.id ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isReportingSpam = true) }
+            try {
+                apiService.requestNoContent("POST", "/api/calls/$callId/spam")
+                _uiState.update { it.copy(isReportingSpam = false) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isReportingSpam = false, errorRes = R.string.call_actions_ban_failed) }
+            }
+        }
+    }
+
+    /**
+     * Ban the caller and hang up the call.
+     */
+    fun banAndHangup(reason: String?) {
+        val callId = _uiState.value.currentCall?.id ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isBanning = true) }
+            try {
+                if (reason != null) {
+                    apiService.requestNoContent("POST", "/api/calls/$callId/ban", BanRequest(reason))
+                } else {
+                    apiService.requestNoContent("POST", "/api/calls/$callId/ban")
+                }
+                _uiState.update { it.copy(currentCall = null, isBanning = false) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isBanning = false, errorRes = R.string.call_actions_ban_failed) }
+            }
+        }
+    }
+
+    /**
+     * Fetch the volunteer's active call from the API.
+     */
+    private suspend fun fetchActiveCall() {
+        try {
+            val response = apiService.request<ActiveCallsResponse>("GET", "/api/calls/active")
+            val call = response.calls.firstOrNull()
+            _uiState.update { it.copy(currentCall = call) }
+        } catch (_: Exception) {
+            // Non-fatal — active call will be updated on next event
+        }
+    }
+
     /**
      * Pull-to-refresh on the dashboard.
      */
@@ -228,6 +307,7 @@ class DashboardViewModel @Inject constructor(
             if (!success) {
                 _uiState.update { it.copy(errorRes = R.string.dashboard_error_refresh) }
             }
+            fetchActiveCall()
             _uiState.update { it.copy(isRefreshing = false) }
         }
     }

@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import org.llamenos.hotline.api.ApiService
 import org.llamenos.hotline.api.SessionState
 import org.llamenos.hotline.crypto.CryptoService
@@ -28,6 +31,7 @@ import org.llamenos.protocol.Evidence
 import org.llamenos.protocol.Interaction
 import org.llamenos.protocol.InteractionType
 import org.llamenos.protocol.Record
+import org.llamenos.protocol.UnassignBody
 import org.llamenos.protocol.RecordContact
 import javax.inject.Inject
 
@@ -40,6 +44,22 @@ enum class CaseDetailTab {
     CONTACTS,
     EVIDENCE,
 }
+
+/**
+ * Sort order for timeline interactions.
+ */
+enum class TimelineSortOrder {
+    NEWEST_FIRST,
+    OLDEST_FIRST,
+}
+
+/**
+ * Decrypted case summary fields.
+ */
+data class DecryptedSummary(
+    val title: String? = null,
+    val description: String? = null,
+)
 
 /**
  * UI state for the case management screens.
@@ -86,12 +106,27 @@ data class CaseUiState(
     val isLoadingEvidence: Boolean = false,
     val evidenceError: String? = null,
 
+    // Decrypted content
+    val decryptedSummary: DecryptedSummary? = null,
+    val decryptedFields: Map<String, String> = emptyMap(),
+    val isDecryptingSummary: Boolean = false,
+    val isDecryptingFields: Boolean = false,
+
+    // Timeline sort
+    val timelineSortOrder: TimelineSortOrder = TimelineSortOrder.NEWEST_FIRST,
+
+    // Decrypted interaction content (interaction ID -> plaintext)
+    val decryptedInteractions: Map<String, String> = emptyMap(),
+
     // Action states
     val isUpdatingStatus: Boolean = false,
     val isAddingComment: Boolean = false,
     val isAssigning: Boolean = false,
     val actionError: String? = null,
     val actionSuccess: String? = null,
+
+    // Decrypted record titles for list display (record ID -> title)
+    val decryptedRecordTitles: Map<String, String> = emptyMap(),
 ) {
     /**
      * Active entity types that should be shown in the tab bar.
@@ -106,6 +141,15 @@ data class CaseUiState(
     val selectedEntityType: EntityTypeDefinition?
         get() = selectedRecord?.let { record ->
             entityTypes.find { it.id == record.entityTypeID }
+        }
+
+    /**
+     * Interactions sorted by the current sort order.
+     */
+    val sortedInteractions: List<Interaction>
+        get() = when (timelineSortOrder) {
+            TimelineSortOrder.NEWEST_FIRST -> interactions.sortedByDescending { it.createdAt }
+            TimelineSortOrder.OLDEST_FIRST -> interactions.sortedBy { it.createdAt }
         }
 }
 
@@ -127,6 +171,10 @@ class CaseManagementViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(CaseUiState())
     val uiState: StateFlow<CaseUiState> = _uiState.asStateFlow()
+
+    /** The current user's pubkey, or null if no key is loaded. */
+    val currentUserPubkey: String?
+        get() = cryptoService.pubkey
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -514,6 +562,212 @@ class CaseManagementViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Unassign the current user from a record via POST /api/records/:id/unassign.
+     */
+    fun unassignFromMe(recordId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isAssigning = true, actionError = null) }
+            val pubkey = cryptoService.pubkey
+            if (pubkey == null) {
+                _uiState.update {
+                    it.copy(isAssigning = false, actionError = "No identity available")
+                }
+                return@launch
+            }
+            try {
+                val request = UnassignBody(pubkey = pubkey)
+                val response = apiService.request<AssignResponse>(
+                    "POST",
+                    "/api/records/$recordId/unassign",
+                    request,
+                )
+                _uiState.update {
+                    it.copy(
+                        selectedRecord = it.selectedRecord?.copy(
+                            assignedTo = response.assignedTo,
+                        ),
+                        isAssigning = false,
+                        actionSuccess = "Unassigned",
+                    )
+                }
+                loadRecords()
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isAssigning = false,
+                        actionError = e.message ?: "Failed to unassign",
+                    )
+                }
+            }
+        }
+    }
+
+    // ---- Summary / Field Decryption ----
+
+    /**
+     * Decrypt the encrypted summary of the selected record.
+     *
+     * Finds the envelope matching our pubkey and decrypts the summary
+     * JSON to extract title and description fields.
+     */
+    fun decryptSummary(record: Record) {
+        val pubkey = cryptoService.pubkey ?: return
+        val envelope = record.summaryEnvelopes.find { it.pubkey == pubkey } ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDecryptingSummary = true) }
+            try {
+                val plaintext = cryptoService.decryptMessage(
+                    encryptedContent = record.encryptedSummary,
+                    wrappedKey = envelope.wrappedKey,
+                    ephemeralPubkey = envelope.ephemeralPubkey,
+                )
+                if (plaintext != null) {
+                    val jsonObj = json.decodeFromString<JsonObject>(plaintext)
+                    val summary = DecryptedSummary(
+                        title = jsonObj["title"]?.jsonPrimitive?.contentOrNull,
+                        description = jsonObj["description"]?.jsonPrimitive?.contentOrNull,
+                    )
+                    _uiState.update {
+                        it.copy(
+                            decryptedSummary = summary,
+                            isDecryptingSummary = false,
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isDecryptingSummary = false) }
+                }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isDecryptingSummary = false) }
+            }
+        }
+    }
+
+    /**
+     * Decrypt the encrypted fields of the selected record.
+     *
+     * Finds the field envelope matching our pubkey and decrypts to
+     * a map of field name -> value string.
+     */
+    fun decryptFields(record: Record) {
+        val pubkey = cryptoService.pubkey ?: return
+        val envelopes = record.fieldEnvelopes ?: return
+        val envelope = envelopes.find { it.pubkey == pubkey } ?: return
+        val encryptedFields = record.encryptedFields ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDecryptingFields = true) }
+            try {
+                val plaintext = cryptoService.decryptMessage(
+                    encryptedContent = encryptedFields,
+                    wrappedKey = envelope.wrappedKey,
+                    ephemeralPubkey = envelope.ephemeralPubkey,
+                )
+                if (plaintext != null) {
+                    val jsonObj = json.decodeFromString<JsonObject>(plaintext)
+                    val fields = jsonObj.mapValues { (_, value) ->
+                        value.jsonPrimitive.contentOrNull ?: ""
+                    }
+                    _uiState.update {
+                        it.copy(
+                            decryptedFields = fields,
+                            isDecryptingFields = false,
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isDecryptingFields = false) }
+                }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isDecryptingFields = false) }
+            }
+        }
+    }
+
+    /**
+     * Decrypt an interaction's encrypted content.
+     */
+    fun decryptInteraction(interaction: Interaction) {
+        val pubkey = cryptoService.pubkey ?: return
+        val encryptedContent = interaction.encryptedContent ?: return
+        val envelopes = interaction.contentEnvelopes ?: return
+        val envelope = envelopes.find { it.pubkey == pubkey } ?: return
+
+        // Skip if already decrypted
+        if (_uiState.value.decryptedInteractions.containsKey(interaction.id)) return
+
+        viewModelScope.launch {
+            try {
+                val plaintext = cryptoService.decryptMessage(
+                    encryptedContent = encryptedContent,
+                    wrappedKey = envelope.wrappedKey,
+                    ephemeralPubkey = envelope.ephemeralPubkey,
+                )
+                if (plaintext != null) {
+                    _uiState.update {
+                        it.copy(
+                            decryptedInteractions = it.decryptedInteractions + (interaction.id to plaintext),
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                // Decryption failure — leave as encrypted
+            }
+        }
+    }
+
+    /**
+     * Decrypt summaries for list records to show titles.
+     */
+    fun decryptRecordTitles(records: List<Record>) {
+        val pubkey = cryptoService.pubkey ?: return
+
+        viewModelScope.launch {
+            for (record in records) {
+                // Skip if already decrypted
+                if (_uiState.value.decryptedRecordTitles.containsKey(record.id)) continue
+
+                val envelope = record.summaryEnvelopes.find { it.pubkey == pubkey } ?: continue
+                try {
+                    val plaintext = cryptoService.decryptMessage(
+                        encryptedContent = record.encryptedSummary,
+                        wrappedKey = envelope.wrappedKey,
+                        ephemeralPubkey = envelope.ephemeralPubkey,
+                    )
+                    if (plaintext != null) {
+                        val jsonObj = json.decodeFromString<JsonObject>(plaintext)
+                        val title = jsonObj["title"]?.jsonPrimitive?.contentOrNull
+                        if (title != null) {
+                            _uiState.update {
+                                it.copy(
+                                    decryptedRecordTitles = it.decryptedRecordTitles + (record.id to title),
+                                )
+                            }
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Skip — leave as encrypted
+                }
+            }
+        }
+    }
+
+    // ---- Timeline Sort ----
+
+    /**
+     * Toggle the timeline sort order between newest and oldest first.
+     */
+    fun toggleTimelineSort() {
+        _uiState.update {
+            it.copy(
+                timelineSortOrder = when (it.timelineSortOrder) {
+                    TimelineSortOrder.NEWEST_FIRST -> TimelineSortOrder.OLDEST_FIRST
+                    TimelineSortOrder.OLDEST_FIRST -> TimelineSortOrder.NEWEST_FIRST
+                },
+            )
+        }
+    }
+
     // ---- Refresh ----
 
     /**
@@ -561,6 +815,10 @@ class CaseManagementViewModel @Inject constructor(
                 evidence = emptyList(),
                 activeTab = CaseDetailTab.DETAILS,
                 detailError = null,
+                decryptedSummary = null,
+                decryptedFields = emptyMap(),
+                decryptedInteractions = emptyMap(),
+                timelineSortOrder = TimelineSortOrder.NEWEST_FIRST,
             )
         }
     }

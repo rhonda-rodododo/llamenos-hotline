@@ -170,6 +170,21 @@ fun DashboardScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                // Active call card (shown above everything when on a call)
+                val currentCall = uiState.currentCall
+                if (currentCall != null) {
+                    ActiveCallCard(
+                        call = currentCall,
+                        onHangup = { viewModel.hangupCall() },
+                        onReportSpam = { viewModel.reportSpam() },
+                        onBanAndHangup = { reason -> viewModel.banAndHangup(reason) },
+                        onQuickNote = onNavigateToNotes,
+                        isHangingUp = uiState.isHangingUp,
+                        isReportingSpam = uiState.isReportingSpam,
+                        isBanning = uiState.isBanning,
+                    )
+                }
+
                 // Connection status card
                 Card(
                     modifier = Modifier
