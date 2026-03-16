@@ -56,6 +56,12 @@ struct CaseListView: View {
             .refreshable {
                 await vm.refresh()
             }
+            .sheet(isPresented: Binding(
+                get: { vm.showCreateSheet },
+                set: { vm.showCreateSheet = $0 }
+            )) {
+                CreateCasePlaceholderSheet(entityTypes: vm.entityTypes)
+            }
         }
     }
 
@@ -409,6 +415,59 @@ private struct CaseCardRow: View {
         let rel = RelativeDateTimeFormatter()
         rel.unitsStyle = .abbreviated
         return rel.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+// MARK: - CreateCasePlaceholderSheet
+
+/// Placeholder sheet for creating a new case. Will be replaced by a full create form
+/// once the create-record flow is implemented in a future epic.
+private struct CreateCasePlaceholderSheet: View {
+    let entityTypes: [CaseEntityTypeDefinition]
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                Image(systemName: "folder.badge.plus")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.secondary)
+                Text(NSLocalizedString("cases_create_coming_soon", comment: "Case creation will be available in a future update."))
+                    .font(.brand(.body))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                if !entityTypes.isEmpty {
+                    Text(NSLocalizedString("cases_available_types", comment: "Available entity types:"))
+                        .font(.brand(.caption))
+                        .foregroundStyle(.secondary)
+                    ForEach(entityTypes) { et in
+                        HStack(spacing: 6) {
+                            if let color = et.color {
+                                Circle()
+                                    .fill(Color(hex: color) ?? .gray)
+                                    .frame(width: 8, height: 8)
+                            }
+                            Text(et.label)
+                                .font(.brand(.subheadline))
+                        }
+                    }
+                }
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle(NSLocalizedString("cases_new", comment: "New Case"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(NSLocalizedString("common_cancel", comment: "Cancel")) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("create-case-sheet")
     }
 }
 

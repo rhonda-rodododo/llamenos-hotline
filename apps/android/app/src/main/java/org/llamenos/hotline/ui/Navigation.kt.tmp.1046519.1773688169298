@@ -52,6 +52,13 @@ import org.llamenos.hotline.ui.notes.NotesViewModel
 import org.llamenos.hotline.ui.cases.CaseDetailScreen
 import org.llamenos.hotline.ui.cases.CaseListScreen
 import org.llamenos.hotline.ui.cases.CaseManagementViewModel
+import org.llamenos.hotline.ui.events.CreateEventScreen
+import org.llamenos.hotline.ui.events.EventDetailScreen
+import org.llamenos.hotline.ui.events.EventListScreen
+import org.llamenos.hotline.ui.events.EventsViewModel
+import org.llamenos.hotline.ui.hubs.CreateHubScreen
+import org.llamenos.hotline.ui.hubs.HubListScreen
+import org.llamenos.hotline.ui.hubs.HubManagementViewModel
 import org.llamenos.hotline.ui.settings.DeviceLinkScreen
 
 /**

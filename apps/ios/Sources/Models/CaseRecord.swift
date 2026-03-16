@@ -153,6 +153,7 @@ struct CaseFieldValidation: Codable, Sendable {
 // Add Identifiable conformance for SwiftUI ForEach compatibility.
 extension CaseInteraction: Identifiable {}
 extension Interaction: Identifiable {}
+extension Evidence: Identifiable {}
 
 // MARK: - RecordContact
 

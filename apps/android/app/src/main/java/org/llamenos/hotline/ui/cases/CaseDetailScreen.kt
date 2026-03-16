@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.outlined.PersonOff
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Upload
@@ -476,7 +477,7 @@ private fun CaseDetailHeader(
                             Spacer(Modifier.width(6.dp))
                         }
                         Icon(
-                            imageVector = Icons.Filled.PersonAdd,
+                            imageVector = Icons.Outlined.PersonOff,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp),
                         )

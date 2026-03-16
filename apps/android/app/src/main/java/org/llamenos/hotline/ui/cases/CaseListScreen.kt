@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.LaunchedEffect
 import org.llamenos.hotline.model.EntityTypeDefinition
 import org.llamenos.hotline.model.EnumOption
 import org.llamenos.protocol.Record
@@ -71,6 +72,13 @@ fun CaseListScreen(
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // Trigger decryption of record summaries for title display
+    LaunchedEffect(uiState.records) {
+        if (uiState.records.isNotEmpty()) {
+            viewModel.decryptRecordTitles(uiState.records)
+        }
+    }
 
     // Build tab list: "All" + each visible entity type
     val tabs = remember(uiState.visibleEntityTypes) {
@@ -295,6 +303,7 @@ fun CaseListScreen(
                                 CaseCard(
                                     record = record,
                                     entityType = uiState.entityTypes.find { it.id == record.entityTypeID },
+                                    decryptedTitle = uiState.decryptedRecordTitles[record.id],
                                     onClick = { onNavigateToCaseDetail(record.id) },
                                     modifier = Modifier.testTag("case-card-${record.id}"),
                                 )
@@ -317,12 +326,18 @@ fun CaseListScreen(
 private fun CaseCard(
     record: Record,
     entityType: EntityTypeDefinition?,
+    decryptedTitle: String? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val statusOption = entityType?.statuses?.find { it.value == record.statusHash }
     val statusLabel = statusOption?.label ?: record.statusHash
     val statusColor = statusOption?.color?.let { parseHexColor(it) }
+
+    // Severity info
+    val severityOption = record.severityHash?.let { hash ->
+        entityType?.severities?.find { it.value == hash }
+    }
 
     Card(
         colors = CardDefaults.cardColors(
@@ -337,15 +352,22 @@ private fun CaseCard(
                 .fillMaxWidth()
                 .padding(16.dp),
         ) {
-            // Top row: case number + entity type badge
+            // Top row: case number (+ decrypted title) + entity type badge
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                // Case number or ID prefix
+                // Case number or ID prefix, with optional decrypted title
+                val displayText = buildString {
+                    append(record.caseNumber ?: record.id.take(8))
+                    if (decryptedTitle != null) {
+                        append(" --- ")
+                        append(decryptedTitle)
+                    }
+                }
                 Text(
-                    text = record.caseNumber ?: record.id.take(8),
+                    text = displayText,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -378,34 +400,56 @@ private fun CaseCard(
 
             Spacer(Modifier.height(8.dp))
 
-            // Bottom row: status badge + timestamp
+            // Middle row: status badge + severity + timestamp
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                // Status badge — separate semantics node so testTag is accessible
-                // in the merged tree even though the parent Card is clickable
                 Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .semantics(mergeDescendants = true) {}
-                        .testTag("case-card-status-${record.id}"),
                 ) {
-                    if (statusColor != null) {
-                        Icon(
-                            imageVector = Icons.Filled.Circle,
-                            contentDescription = null,
-                            tint = statusColor,
-                            modifier = Modifier.size(8.dp),
+                    // Status badge
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .semantics(mergeDescendants = true) {}
+                            .testTag("case-card-status-${record.id}"),
+                    ) {
+                        if (statusColor != null) {
+                            Icon(
+                                imageVector = Icons.Filled.Circle,
+                                contentDescription = null,
+                                tint = statusColor,
+                                modifier = Modifier.size(8.dp),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        Text(
+                            text = statusLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = statusColor ?: MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Spacer(Modifier.width(6.dp))
                     }
-                    Text(
-                        text = statusLabel,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = statusColor ?: MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+
+                    // Severity badge
+                    if (severityOption != null) {
+                        val sevColor = severityOption.color?.let { parseHexColor(it) }
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = (sevColor ?: MaterialTheme.colorScheme.errorContainer)
+                                    .copy(alpha = 0.15f),
+                            ),
+                        ) {
+                            Text(
+                                text = severityOption.label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = sevColor ?: MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
                 }
 
                 // Timestamp
