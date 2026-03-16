@@ -127,6 +127,18 @@ class DashboardViewModel @Inject constructor(
             is LlamenosEvent.PresenceSummary -> {
                 // Presence updates could refresh availability indicators
             }
+            is LlamenosEvent.CallAnswered -> {
+                viewModelScope.launch { fetchActiveCall() }
+            }
+            is LlamenosEvent.PresenceDetail -> {
+                // Admin-only detailed presence — dashboard could show counts
+            }
+            is LlamenosEvent.MessageStatus -> {
+                // Message delivery status — handled by ConversationsViewModel
+            }
+            is LlamenosEvent.ConversationNew -> {
+                // New conversation — handled by ConversationsViewModel
+            }
             is LlamenosEvent.Unknown -> {
                 // Forward compatibility — ignore unknown events
             }
