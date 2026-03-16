@@ -22,9 +22,13 @@ let initPromise: Promise<void> | null = null
 /**
  * Initialize the WASM module and create a WasmCryptoState instance.
  * Throws if WASM is not available (no fallback).
- * Safe to call multiple times — subsequent calls return the cached result.
+ *
+ * Uses a module-level promise to guarantee that:
+ * 1. Init runs exactly once (dedup via cached promise)
+ * 2. All concurrent callers await the same promise
+ * 3. On failure, the promise is cleared so the next call retries
  */
-export async function initWasmCrypto(): Promise<void> {
+export function initWasmCrypto(): Promise<void> {
   if (initPromise) return initPromise
 
   initPromise = (async () => {
@@ -35,6 +39,9 @@ export async function initWasmCrypto(): Promise<void> {
       cryptoState = new mod.WasmCryptoState()
       console.log('[tauri-mock] WASM crypto initialized successfully')
     } catch (e) {
+      // Clear the cached promise so the next call retries instead of
+      // returning a permanently rejected promise
+      initPromise = null
       const msg = [
         '[tauri-mock] FATAL: WASM crypto module not available.',
         'Playwright tests require the Rust WASM build.',

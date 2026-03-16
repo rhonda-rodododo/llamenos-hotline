@@ -237,7 +237,7 @@ final class ConversationsViewModel {
             if let id = currentConversationId {
                 Task { await loadMessages(for: id) }
             }
-        case .callRing, .callUpdate, .voicemailNew, .presenceSummary, .unknown:
+        case .callRing, .callUpdate, .callEnded, .voicemailNew, .presenceSummary, .shiftUpdate, .noteCreated, .unknown:
             // Not conversation-related — ignore
             break
         }

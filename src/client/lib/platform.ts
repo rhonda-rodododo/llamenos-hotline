@@ -1,10 +1,11 @@
 /**
- * Platform abstraction layer — Tauri-only desktop application.
+ * Platform abstraction layer — dual-backend crypto (Tauri IPC + WASM).
  *
- * All crypto operations route through native Rust via Tauri IPC.
- * The nsec (secret key) lives exclusively in the Rust process.
- * The webview never receives it (except for device provisioning
- * via getNsecFromState, which is intentional — see Epic 93 §5.4).
+ * In Tauri desktop: all crypto operations route through native Rust via IPC.
+ * In browser/test: all crypto operations route through the Rust-compiled WASM module.
+ *
+ * The nsec (secret key) never enters JavaScript in either mode — it lives in
+ * Rust memory (native process or WASM linear memory).
  *
  * This module is the single entry point for all platform-specific behavior.
  * Import from here instead of directly from crypto.ts or @tauri-apps/*.
@@ -13,11 +14,53 @@
 // Type re-exports from shared types
 export type { KeyEnvelope, RecipientEnvelope, RecipientKeyEnvelope } from '@shared/types'
 
-// ── Tauri IPC wrapper ────────────────────────────────────────────────
+// ── Backend detection ────────────────────────────────────────────────
+// Tauri injects __TAURI_INTERNALS__ at startup. If present, use IPC.
+// Otherwise, use WASM (browser/test builds).
+
+const useTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+
+// ── Tauri IPC wrapper (desktop only) ─────────────────────────────────
 
 async function tauriInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   const { invoke } = await import('@tauri-apps/api/core')
   return invoke<T>(cmd, args)
+}
+
+// ── WASM backend (browser/test only) ─────────────────────────────────
+
+type WasmModule = typeof import('../../../packages/crypto/dist/wasm/llamenos_core')
+type WasmState = import('../../../packages/crypto/dist/wasm/llamenos_core').WasmCryptoState
+
+let wasmModulePromise: Promise<WasmModule> | null = null
+let wasmState: WasmState | null = null
+
+async function getWasm(): Promise<WasmModule> {
+  if (!wasmModulePromise) {
+    wasmModulePromise = (async () => {
+      try {
+        const mod = await import('../../../packages/crypto/dist/wasm/llamenos_core')
+        await mod.default()
+        return mod
+      } catch (e) {
+        const msg = [
+          'FATAL: WASM crypto module not available.',
+          'Run: bun run crypto:wasm',
+          `Original error: ${e instanceof Error ? e.message : String(e)}`,
+        ].join('\n')
+        throw new Error(msg)
+      }
+    })()
+  }
+  return wasmModulePromise
+}
+
+async function getWasmState(): Promise<WasmState> {
+  const mod = await getWasm()
+  if (!wasmState) {
+    wasmState = new mod.WasmCryptoState()
+  }
+  return wasmState
 }
 
 // ── Crypto types ─────────────────────────────────────────────────────
@@ -60,20 +103,37 @@ export interface EncryptedKeyData {
 
 // ── Keypair generation (stateless) ───────────────────────────────────
 
-/** Generate a new Nostr keypair via Rust. */
+/** Generate a new Nostr keypair. */
 export async function generateKeyPair(): Promise<PlatformKeyPair> {
-  return tauriInvoke<PlatformKeyPair>('generate_keypair')
+  if (useTauri) {
+    return tauriInvoke<PlatformKeyPair>('generate_keypair')
+  }
+  const mod = await getWasm()
+  const result = mod.generateKeypair()
+  return { secretKeyHex: result.skHex, publicKey: result.pubkeyHex, nsec: result.nsec, npub: result.npub }
 }
 
 /** Get x-only public key from a secret key hex (stateless). */
 export async function getPublicKey(secretKeyHex: string): Promise<string> {
-  return tauriInvoke<string>('get_public_key', { secretKeyHex })
+  if (useTauri) {
+    return tauriInvoke<string>('get_public_key', { secretKeyHex })
+  }
+  const mod = await getWasm()
+  return mod.getPublicKeyFromSecret(secretKeyHex)
 }
 
-/** Get public key from CryptoState (stateful — no key leaves Rust). */
+/** Get public key from CryptoState (stateful). */
 export async function getPublicKeyFromState(): Promise<string | null> {
+  if (useTauri) {
+    try {
+      return await tauriInvoke<string>('get_public_key_from_state')
+    } catch {
+      return null
+    }
+  }
   try {
-    return await tauriInvoke<string>('get_public_key_from_state')
+    const state = await getWasmState()
+    return state.getPublicKey()
   } catch {
     return null
   }
@@ -82,19 +142,22 @@ export async function getPublicKeyFromState(): Promise<string | null> {
 // ── Auth tokens ──────────────────────────────────────────────────────
 
 /**
- * Create a Schnorr auth token using CryptoState (nsec stays in Rust).
- * For day-to-day auth after unlock.
+ * Create a Schnorr auth token using CryptoState (nsec stays in Rust/WASM).
  */
 export async function createAuthToken(
   timestamp: number,
   method: string,
   path: string,
 ): Promise<string> {
-  return tauriInvoke<string>('create_auth_token_from_state', {
-    timestamp,
-    method,
-    path,
-  })
+  if (useTauri) {
+    return tauriInvoke<string>('create_auth_token_from_state', {
+      timestamp,
+      method,
+      path,
+    })
+  }
+  const state = await getWasmState()
+  return JSON.stringify(state.createAuthToken(method, path))
 }
 
 /**
@@ -107,12 +170,16 @@ export async function createAuthTokenStateless(
   method: string,
   path: string,
 ): Promise<string> {
-  return tauriInvoke<string>('create_auth_token', {
-    secretKeyHex,
-    timestamp,
-    method,
-    path,
-  })
+  if (useTauri) {
+    return tauriInvoke<string>('create_auth_token', {
+      secretKeyHex,
+      timestamp,
+      method,
+      path,
+    })
+  }
+  const mod = await getWasm()
+  return JSON.stringify(mod.createAuthTokenStateless(secretKeyHex, method, path))
 }
 
 // ── ECIES operations ─────────────────────────────────────────────────
@@ -125,11 +192,15 @@ export async function eciesWrapKey(
   recipientPubkey: string,
   label: string,
 ): Promise<import('@shared/types').KeyEnvelope> {
-  return tauriInvoke<import('@shared/types').KeyEnvelope>('ecies_wrap_key', {
-    keyHex,
-    recipientPubkey,
-    label,
-  })
+  if (useTauri) {
+    return tauriInvoke<import('@shared/types').KeyEnvelope>('ecies_wrap_key', {
+      keyHex,
+      recipientPubkey,
+      label,
+    })
+  }
+  const mod = await getWasm()
+  return mod.eciesWrapKey(keyHex, recipientPubkey, label)
 }
 
 /**
@@ -139,10 +210,14 @@ export async function eciesUnwrapKey(
   envelope: import('@shared/types').KeyEnvelope,
   label: string,
 ): Promise<string> {
-  return tauriInvoke<string>('ecies_unwrap_key_from_state', {
-    envelope,
-    label,
-  })
+  if (useTauri) {
+    return tauriInvoke<string>('ecies_unwrap_key_from_state', {
+      envelope,
+      label,
+    })
+  }
+  const state = await getWasmState()
+  return state.eciesUnwrapKey(JSON.stringify(envelope), label)
 }
 
 // ── Note encryption/decryption ───────────────────────────────────────
@@ -155,11 +230,15 @@ export async function encryptNote(
   authorPubkey: string,
   adminPubkeys: string[],
 ): Promise<EncryptedNoteResult> {
-  return tauriInvoke<EncryptedNoteResult>('encrypt_note', {
-    payloadJson,
-    authorPubkey,
-    adminPubkeys,
-  })
+  if (useTauri) {
+    return tauriInvoke<EncryptedNoteResult>('encrypt_note', {
+      payloadJson,
+      authorPubkey,
+      adminPubkeys,
+    })
+  }
+  const state = await getWasmState()
+  return state.encryptNote(payloadJson, authorPubkey, JSON.stringify(adminPubkeys))
 }
 
 /**
@@ -169,10 +248,18 @@ export async function decryptNote(
   encryptedContent: string,
   envelope: import('@shared/types').KeyEnvelope,
 ): Promise<string | null> {
-  return tauriInvoke<string>('decrypt_note_from_state', {
-    encryptedContent,
-    envelope,
-  })
+  if (useTauri) {
+    return tauriInvoke<string>('decrypt_note_from_state', {
+      encryptedContent,
+      envelope,
+    })
+  }
+  try {
+    const state = await getWasmState()
+    return state.decryptNote(encryptedContent, JSON.stringify(envelope))
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -181,8 +268,17 @@ export async function decryptNote(
 export async function decryptLegacyNote(
   packed: string,
 ): Promise<import('@shared/types').NotePayload | null> {
+  if (useTauri) {
+    try {
+      const json = await tauriInvoke<string>('decrypt_legacy_note_from_state', { packed })
+      return JSON.parse(json)
+    } catch {
+      return null
+    }
+  }
   try {
-    const json = await tauriInvoke<string>('decrypt_legacy_note_from_state', { packed })
+    const state = await getWasmState()
+    const json = state.decryptLegacyNote(packed)
     return JSON.parse(json)
   } catch {
     return null
@@ -198,10 +294,14 @@ export async function encryptMessage(
   plaintext: string,
   readerPubkeys: string[],
 ): Promise<EncryptedMessageResult> {
-  return tauriInvoke<EncryptedMessageResult>('encrypt_message', {
-    plaintext,
-    readerPubkeys,
-  })
+  if (useTauri) {
+    return tauriInvoke<EncryptedMessageResult>('encrypt_message', {
+      plaintext,
+      readerPubkeys,
+    })
+  }
+  const state = await getWasmState()
+  return state.encryptMessage(plaintext, JSON.stringify(readerPubkeys))
 }
 
 /**
@@ -211,11 +311,19 @@ export async function decryptMessage(
   encryptedContent: string,
   readerEnvelopes: import('@shared/types').RecipientEnvelope[],
 ): Promise<string | null> {
+  if (useTauri) {
+    try {
+      return await tauriInvoke<string>('decrypt_message_from_state', {
+        encryptedContent,
+        readerEnvelopes,
+      })
+    } catch {
+      return null
+    }
+  }
   try {
-    return await tauriInvoke<string>('decrypt_message_from_state', {
-      encryptedContent,
-      readerEnvelopes,
-    })
+    const state = await getWasmState()
+    return state.decryptMessage(encryptedContent, JSON.stringify(readerEnvelopes))
   } catch {
     return null
   }
@@ -230,11 +338,20 @@ export async function decryptCallRecord(
   encryptedContent: string,
   adminEnvelopes: import('@shared/types').RecipientEnvelope[],
 ): Promise<{ answeredBy: string | null; callerNumber: string } | null> {
+  if (useTauri) {
+    try {
+      const json = await tauriInvoke<string>('decrypt_call_record_from_state', {
+        encryptedContent,
+        adminEnvelopes,
+      })
+      return JSON.parse(json)
+    } catch {
+      return null
+    }
+  }
   try {
-    const json = await tauriInvoke<string>('decrypt_call_record_from_state', {
-      encryptedContent,
-      adminEnvelopes,
-    })
+    const state = await getWasmState()
+    const json = state.decryptCallRecord(encryptedContent, JSON.stringify(adminEnvelopes))
     return JSON.parse(json)
   } catch {
     return null
@@ -250,11 +367,19 @@ export async function decryptTranscription(
   packed: string,
   ephemeralPubkeyHex: string,
 ): Promise<string | null> {
+  if (useTauri) {
+    try {
+      return await tauriInvoke<string>('decrypt_transcription_from_state', {
+        packed,
+        ephemeralPubkeyHex,
+      })
+    } catch {
+      return null
+    }
+  }
   try {
-    return await tauriInvoke<string>('decrypt_transcription_from_state', {
-      packed,
-      ephemeralPubkeyHex,
-    })
+    const state = await getWasmState()
+    return state.decryptTranscription(packed, ephemeralPubkeyHex)
   } catch {
     return null
   }
@@ -268,7 +393,11 @@ export async function decryptTranscription(
 export async function encryptDraft(
   plaintext: string,
 ): Promise<string> {
-  return tauriInvoke<string>('encrypt_draft_from_state', { plaintext })
+  if (useTauri) {
+    return tauriInvoke<string>('encrypt_draft_from_state', { plaintext })
+  }
+  const state = await getWasmState()
+  return state.encryptDraft(plaintext)
 }
 
 /**
@@ -277,8 +406,16 @@ export async function encryptDraft(
 export async function decryptDraft(
   packed: string,
 ): Promise<string | null> {
+  if (useTauri) {
+    try {
+      return await tauriInvoke<string>('decrypt_draft_from_state', { packed })
+    } catch {
+      return null
+    }
+  }
   try {
-    return await tauriInvoke<string>('decrypt_draft_from_state', { packed })
+    const state = await getWasmState()
+    return state.decryptDraft(packed)
   } catch {
     return null
   }
@@ -288,19 +425,22 @@ export async function decryptDraft(
 
 /**
  * Encrypt a JSON export blob via CryptoState.
- * Returns a base64-encoded string (Rust side encodes to base64 for IPC efficiency).
+ * Returns a base64-encoded string.
  */
 export async function encryptExport(
   jsonString: string,
 ): Promise<string> {
-  return tauriInvoke<string>('encrypt_export_from_state', { jsonString })
+  if (useTauri) {
+    return tauriInvoke<string>('encrypt_export_from_state', { jsonString })
+  }
+  const state = await getWasmState()
+  return state.encryptExport(jsonString)
 }
 
 // ── Nostr event signing ──────────────────────────────────────────────
 
 /**
- * Sign a Nostr event using CryptoState. Replaces finalizeEvent(template, sk).
- * Computes event ID + signs in Rust (canonical JSON serialization).
+ * Sign a Nostr event using CryptoState.
  */
 export async function signNostrEvent(
   kind: number,
@@ -308,15 +448,20 @@ export async function signNostrEvent(
   tags: string[][],
   content: string,
 ): Promise<SignedNostrEvent> {
-  return tauriInvoke<SignedNostrEvent>('sign_nostr_event_from_state', {
-    kind,
-    createdAt,
-    tags,
-    content,
-  })
+  if (useTauri) {
+    return tauriInvoke<SignedNostrEvent>('sign_nostr_event_from_state', {
+      kind,
+      createdAt,
+      tags,
+      content,
+    })
+  }
+  const state = await getWasmState()
+  const eventTemplate = { kind, created_at: createdAt, tags, content }
+  return state.signNostrEvent(JSON.stringify(eventTemplate))
 }
 
-// ── File crypto (ECIES ops through Rust) ─────────────────────────────
+// ── File crypto ──────────────────────────────────────────────────────
 
 /**
  * Decrypt file metadata via ECIES through CryptoState.
@@ -325,11 +470,20 @@ export async function decryptFileMetadata(
   encryptedContentHex: string,
   ephemeralPubkeyHex: string,
 ): Promise<string | null> {
+  if (useTauri) {
+    try {
+      return await tauriInvoke<string>('decrypt_file_metadata_from_state', {
+        encryptedContentHex,
+        ephemeralPubkeyHex,
+      })
+    } catch {
+      return null
+    }
+  }
   try {
-    return await tauriInvoke<string>('decrypt_file_metadata_from_state', {
-      encryptedContentHex,
-      ephemeralPubkeyHex,
-    })
+    const state = await getWasmState()
+    const envelope = { wrappedKey: encryptedContentHex, ephemeralPubkey: ephemeralPubkeyHex }
+    return state.decryptFileMetadata(encryptedContentHex, JSON.stringify(envelope))
   } catch {
     return null
   }
@@ -341,7 +495,11 @@ export async function decryptFileMetadata(
 export async function unwrapFileKey(
   envelope: import('@shared/types').KeyEnvelope,
 ): Promise<string> {
-  return tauriInvoke<string>('unwrap_file_key_from_state', { envelope })
+  if (useTauri) {
+    return tauriInvoke<string>('unwrap_file_key_from_state', { envelope })
+  }
+  const state = await getWasmState()
+  return state.unwrapFileKey(JSON.stringify(envelope))
 }
 
 /**
@@ -350,7 +508,11 @@ export async function unwrapFileKey(
 export async function unwrapHubKey(
   envelope: import('@shared/types').KeyEnvelope,
 ): Promise<string> {
-  return tauriInvoke<string>('unwrap_hub_key_from_state', { envelope })
+  if (useTauri) {
+    return tauriInvoke<string>('unwrap_hub_key_from_state', { envelope })
+  }
+  const state = await getWasmState()
+  return state.unwrapHubKey(JSON.stringify(envelope))
 }
 
 /**
@@ -361,35 +523,49 @@ export async function rewrapFileKey(
   ephemeralPubkeyHex: string,
   newRecipientPubkeyHex: string,
 ): Promise<import('@shared/types').RecipientEnvelope> {
-  return tauriInvoke<import('@shared/types').RecipientEnvelope>('rewrap_file_key_from_state', {
-    encryptedFileKeyHex,
-    ephemeralPubkeyHex,
-    newRecipientPubkeyHex,
-  })
+  if (useTauri) {
+    return tauriInvoke<import('@shared/types').RecipientEnvelope>('rewrap_file_key_from_state', {
+      encryptedFileKeyHex,
+      ephemeralPubkeyHex,
+      newRecipientPubkeyHex,
+    })
+  }
+  const state = await getWasmState()
+  const envelope = { wrappedKey: encryptedFileKeyHex, ephemeralPubkey: ephemeralPubkeyHex }
+  return state.rewrapFileKey(JSON.stringify(envelope), newRecipientPubkeyHex)
 }
 
 // ── nsec retrieval (device provisioning only) ────────────────────────
 
 /**
  * Get nsec from CryptoState for device provisioning/backup ONLY.
- *
- * Uses a one-time provisioning token to prevent concurrent provisioning races
- * and limit nsec exposure. Calls `request_provisioning_token` first, then
- * passes the token to `get_nsec_from_state` which consumes it.
  */
 export async function getNsecFromState(): Promise<string> {
-  const token = await tauriInvoke<string>('request_provisioning_token')
-  return tauriInvoke<string>('get_nsec_from_state', { token })
+  if (useTauri) {
+    const token = await tauriInvoke<string>('request_provisioning_token')
+    return tauriInvoke<string>('get_nsec_from_state', { token })
+  }
+  const state = await getWasmState()
+  const token = state.requestProvisioningToken()
+  return state.getNsec(token)
 }
 
 // ── Nsec validation & parsing (stateless) ────────────────────────────
 
 /**
- * Validate nsec format via Rust (stateless IPC).
+ * Validate nsec format (stateless).
  */
 export async function isValidNsec(nsec: string): Promise<boolean> {
+  if (useTauri) {
+    try {
+      return await tauriInvoke<boolean>('is_valid_nsec', { nsec })
+    } catch {
+      return false
+    }
+  }
   try {
-    return await tauriInvoke<boolean>('is_valid_nsec', { nsec })
+    const mod = await getWasm()
+    return mod.isValidNsec(nsec)
   } catch {
     return false
   }
@@ -400,8 +576,17 @@ export async function isValidNsec(nsec: string): Promise<boolean> {
  * Returns null if the nsec is invalid.
  */
 export async function keyPairFromNsec(nsec: string): Promise<PlatformKeyPair | null> {
+  if (useTauri) {
+    try {
+      return await tauriInvoke<PlatformKeyPair>('key_pair_from_nsec', { nsec })
+    } catch {
+      return null
+    }
+  }
   try {
-    return await tauriInvoke<PlatformKeyPair>('key_pair_from_nsec', { nsec })
+    const mod = await getWasm()
+    const result = mod.keyPairFromNsec(nsec)
+    return { secretKeyHex: result.skHex, publicKey: result.pubkeyHex, nsec: result.nsec, npub: result.npub }
   } catch {
     return null
   }
@@ -410,15 +595,23 @@ export async function keyPairFromNsec(nsec: string): Promise<PlatformKeyPair | n
 // ── Schnorr signature verification (stateless) ──────────────────────
 
 /**
- * Verify a Schnorr signature (stateless — for event/auth verification).
+ * Verify a Schnorr signature (stateless).
  */
 export async function verifySchnorr(
   message: string,
   signature: string,
   pubkey: string,
 ): Promise<boolean> {
+  if (useTauri) {
+    try {
+      return await tauriInvoke<boolean>('verify_schnorr', { message, signature, pubkey })
+    } catch {
+      return false
+    }
+  }
   try {
-    return await tauriInvoke<boolean>('verify_schnorr', { message, signature, pubkey })
+    const mod = await getWasm()
+    return mod.verifySchnorr(message, signature, pubkey)
   } catch {
     return false
   }
@@ -426,83 +619,130 @@ export async function verifySchnorr(
 
 // ── Key persistence ─────────────────────────────────────────────────
 
-const TAURI_ENCRYPTED_KEY_STORE = 'llamenos-encrypted-key'
+const STORE_KEY = 'llamenos-encrypted-key'
+
+/** Get the Tauri Store or a localStorage-based fallback for browser. */
+async function getStore() {
+  if (useTauri) {
+    const { Store } = await import('@tauri-apps/plugin-store')
+    return Store.load('keys.json')
+  }
+  // Browser/test: use localStorage with a prefix
+  return {
+    async get<T>(key: string): Promise<T | null> {
+      const raw = localStorage.getItem(`llamenos:${key}`)
+      if (raw === null) return null
+      return JSON.parse(raw) as T
+    },
+    async set(key: string, value: unknown): Promise<void> {
+      localStorage.setItem(`llamenos:${key}`, JSON.stringify(value))
+    },
+    async delete(key: string): Promise<void> {
+      localStorage.removeItem(`llamenos:${key}`)
+    },
+    async save(): Promise<void> {
+      // No-op — localStorage persists automatically
+    },
+  }
+}
 
 /**
- * Encrypt an nsec with a PIN and persist to Tauri Store.
- * Also loads the key into CryptoState (Rust-side).
+ * Encrypt an nsec with a PIN and persist to store.
+ * Also loads the key into CryptoState.
  */
 export async function encryptWithPin(
   nsec: string,
   pin: string,
   pubkeyHex: string,
 ): Promise<void> {
-  const encryptedData = await tauriInvoke<EncryptedKeyData>('import_key_to_state', {
-    nsec,
-    pin,
-    pubkeyHex,
-  })
-  const { Store } = await import('@tauri-apps/plugin-store')
-  const store = await Store.load('keys.json')
-  await store.set(TAURI_ENCRYPTED_KEY_STORE, encryptedData)
+  let encryptedData: EncryptedKeyData
+  if (useTauri) {
+    encryptedData = await tauriInvoke<EncryptedKeyData>('import_key_to_state', {
+      nsec,
+      pin,
+      pubkeyHex,
+    })
+  } else {
+    const state = await getWasmState()
+    encryptedData = state.importKey(nsec, pin)
+  }
+  const store = await getStore()
+  await store.set(STORE_KEY, encryptedData)
   await store.save()
 }
 
 /**
  * Decrypt an nsec from PIN-encrypted storage and load into CryptoState.
- * Returns ONLY the pubkey — the nsec NEVER leaves the Rust process.
+ * Returns ONLY the pubkey — the nsec NEVER leaves the Rust/WASM process.
  *
- * Throws on lockout or key wipe (Rust-side PIN attempt tracking).
+ * Throws on lockout or key wipe.
  * Returns null only for wrong PIN (no lockout).
  */
 export async function decryptWithPin(pin: string): Promise<string | null> {
-  const { Store } = await import('@tauri-apps/plugin-store')
-  const store = await Store.load('keys.json')
-  const data = await store.get<EncryptedKeyData>(TAURI_ENCRYPTED_KEY_STORE)
+  const store = await getStore()
+  const data = await store.get<EncryptedKeyData>(STORE_KEY)
   if (!data) return null
+  if (useTauri) {
+    try {
+      return await tauriInvoke<string>('unlock_with_pin', { data, pin })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('Locked out') || msg.includes('Keys wiped')) {
+        throw new Error(msg)
+      }
+      return null
+    }
+  }
   try {
-    return await tauriInvoke<string>('unlock_with_pin', { data, pin })
+    const state = await getWasmState()
+    return state.unlockWithPin(JSON.stringify(data), pin)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    // Lockout and wipe errors should propagate to the UI
     if (msg.includes('Locked out') || msg.includes('Keys wiped')) {
       throw new Error(msg)
     }
-    return null // Wrong PIN (no lockout)
+    return null
   }
 }
 
 /**
- * Lock the crypto state (zeros nsec in Rust process).
+ * Lock the crypto state (zeros nsec).
  */
 export async function lockCrypto(): Promise<void> {
-  await tauriInvoke<void>('lock_crypto')
+  if (useTauri) {
+    await tauriInvoke<void>('lock_crypto')
+    return
+  }
+  const state = await getWasmState()
+  state.lock()
 }
 
 /**
  * Check if the crypto state is unlocked.
  */
 export async function isCryptoUnlocked(): Promise<boolean> {
-  return tauriInvoke<boolean>('is_crypto_unlocked')
+  if (useTauri) {
+    return tauriInvoke<boolean>('is_crypto_unlocked')
+  }
+  const state = await getWasmState()
+  return state.isUnlocked()
 }
 
 /**
- * Check if an encrypted key exists in Tauri Store.
+ * Check if an encrypted key exists in store.
  */
 export async function hasStoredKey(): Promise<boolean> {
-  const { Store } = await import('@tauri-apps/plugin-store')
-  const store = await Store.load('keys.json')
-  const data = await store.get(TAURI_ENCRYPTED_KEY_STORE)
+  const store = await getStore()
+  const data = await store.get(STORE_KEY)
   return data !== null && data !== undefined
 }
 
 /**
- * Clear the encrypted key from Tauri Store and lock CryptoState.
+ * Clear the encrypted key from store and lock CryptoState.
  */
 export async function clearStoredKey(): Promise<void> {
-  const { Store } = await import('@tauri-apps/plugin-store')
-  const store = await Store.load('keys.json')
-  await store.delete(TAURI_ENCRYPTED_KEY_STORE)
+  const store = await getStore()
+  await store.delete(STORE_KEY)
   await store.save()
   await lockCrypto()
 }

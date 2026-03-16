@@ -15,9 +15,16 @@ if (!import.meta.env.PLAYWRIGHT_TEST) {
 
 import { initWasmCrypto, getWasmState, getWasmModule } from './wasm-crypto-state'
 
-// ── WASM initialization (top-level await via vite-plugin-top-level-await) ──
-await initWasmCrypto()
-console.log('[tauri-mock] Crypto backend: WASM (Rust)')
+// ── WASM initialization ──────────────────────────────────────────────
+// Every invoke() call awaits this before touching any WASM function.
+// initWasmCrypto() itself is idempotent (caches its own promise), so
+// we simply call it on every invoke — no separate cache needed.
+// This eliminates the double-promise-cache that could desync if the
+// bundler instantiates modules in an unexpected order.
+
+async function ensureWasmReady(): Promise<void> {
+  await initWasmCrypto()
+}
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -221,6 +228,7 @@ const commands: Record<string, CommandHandler> = {
 // ── Public API ────────────────────────────────────────────────────────
 
 export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  await ensureWasmReady()
   const handler = commands[cmd]
   if (!handler) throw new Error(`Unknown Tauri command: ${cmd}`)
   return await handler(args || {}) as T
