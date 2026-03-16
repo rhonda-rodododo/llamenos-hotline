@@ -4,7 +4,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performScrollTo
 import io.cucumber.java.en.Given
 import io.cucumber.java.en.Then
 import io.cucumber.java.en.When
@@ -106,6 +105,8 @@ class NavigationSteps : BaseSteps() {
             "help-back", "shift-detail-back", "timeline-back", "report-detail-back",
             "conversation-detail-back", "volunteer-detail-back", "blasts-back",
             "cases-back-button", "case-detail-back",
+            "events-back", "event-detail-back", "triage-back", "triage-detail-back",
+            "hubs-back",
         )
         for (tag in backTags) {
             try {

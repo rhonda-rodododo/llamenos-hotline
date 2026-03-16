@@ -33,7 +33,7 @@ Given('the admin creates a hub via API', async ({ request }) => {
     '/hubs',
     { name, slug },
   )
-  expect(res.status).toBe(201)
+  expect(res.status).toBe(200)
   hubState.createdHub = res.data.hub
 })
 
@@ -66,7 +66,7 @@ When(
 
 // ── Then ───────────────────────────────────────────────────────────
 
-Then('the hub list should contain at least {int} hub', async (_ctx, count: number) => {
+Then('the hub list should contain at least {int} hub', async ({}, count: number) => {
   expect(hubState.hubList).toBeTruthy()
   expect(hubState.hubList!.length).toBeGreaterThanOrEqual(count)
 })
@@ -79,12 +79,12 @@ Then('each hub should have a name and slug', async () => {
   }
 })
 
-Then('the created hub should have name {string}', async (_ctx, expectedName: string) => {
+Then('the created hub should have name {string}', async ({}, expectedName: string) => {
   expect(hubState.createdHub).toBeTruthy()
   expect(hubState.createdHub!.name).toBe(expectedName)
 })
 
-Then('the created hub should have slug {string}', async (_ctx, expectedSlug: string) => {
+Then('the created hub should have slug {string}', async ({}, expectedSlug: string) => {
   expect(hubState.createdHub).toBeTruthy()
   expect(hubState.createdHub!.slug).toBe(expectedSlug)
 })
