@@ -76,6 +76,9 @@ export interface Env {
 
   // Push notifications (Epic 86) — FCM (Android)
   FCM_SERVICE_ACCOUNT_KEY?: string  // Google Cloud service account JSON
+
+  // Pre-configured NostrPublisher (Node.js only — set by createNodeEnv with outbox wired)
+  NOSTR_PUBLISHER?: import('./lib/nostr-publisher').NostrPublisher
 }
 
 // --- Push Notification Types (Epic 86) ---

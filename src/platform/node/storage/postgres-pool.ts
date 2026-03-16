@@ -48,6 +48,21 @@ export async function initPostgresPool(): Promise<ReturnType<typeof postgres>> {
     await pool`
       CREATE INDEX IF NOT EXISTS idx_alarms_scheduled ON alarms (scheduled_at)
     `
+    await pool`
+      CREATE TABLE IF NOT EXISTS nostr_event_outbox (
+        id SERIAL PRIMARY KEY,
+        event_json JSONB NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        attempts INTEGER DEFAULT 0,
+        next_retry_at TIMESTAMPTZ DEFAULT NOW(),
+        status TEXT DEFAULT 'pending'
+      )
+    `
+    await pool`
+      CREATE INDEX IF NOT EXISTS idx_outbox_pending
+      ON nostr_event_outbox (status, next_retry_at)
+      WHERE status = 'pending'
+    `
   } catch (err: unknown) {
     // Ignore duplicate type errors from concurrent table creation (code 23505 on pg_type)
     const pgErr = err as { code?: string; constraint_name?: string }

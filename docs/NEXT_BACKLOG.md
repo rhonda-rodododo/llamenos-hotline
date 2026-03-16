@@ -634,7 +634,7 @@ Identified via comprehensive gap analysis (2026-03-16). Covers code-level bugs, 
 ### Tier 2 — Feature Completion (parity & polish)
 - [ ] **[Epic 351: In-Call Action UI — Mobile](epics/epic-351-in-call-action-ui-mobile.md)** — Active call panel on iOS + Android (hangup, ban, spam, quick note). Desktop ban reason prompt. Deferred from Epic 308.
 - [ ] **[Epic 353: Mobile Feature Parity Screens](epics/epic-353-mobile-feature-parity-screens.md)** — Hub management, events, contact directory, triage queue, schema browser, transcription settings on iOS + Android.
-- [ ] **[Epic 354: Kotlin Codegen Nested Defaults](epics/epic-354-kotlin-codegen-nested-defaults.md)** — Enhance Kotlin post-processor for enum/list/string defaults, remove hand-written lenient EntityTypeDefinition from Android.
+- [x] **[Epic 354: Kotlin Codegen Nested Defaults](epics/epic-354-kotlin-codegen-nested-defaults.md)** — Enhanced Kotlin post-processor for enum/SerialName defaults. Schema-level `.optional().default()` on EntityTypeDefinition fields. Android lenient types kept for now (String-vs-enum migration deferred).
 
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)

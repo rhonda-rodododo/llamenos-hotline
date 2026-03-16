@@ -21,6 +21,16 @@ import { withRetry, isRetryableError, RetryableError } from './retry'
 import { getCircuitBreaker } from './circuit-breaker'
 
 /**
+ * Outbox interface for persistent event storage.
+ * Matches EventOutbox from src/platform/node/storage/outbox.ts.
+ */
+export interface NostrEventOutbox {
+  enqueue(eventJson: Record<string, unknown>): Promise<void>
+  markDelivered(id: number): Promise<void>
+  markFailed(id: number, attempts: number): Promise<void>
+}
+
+/**
  * NostrPublisher interface — all platform implementations must satisfy this.
  */
 export interface NostrPublisher {
@@ -151,6 +161,7 @@ export class NodeNostrPublisher implements NostrPublisher {
   private pendingPublishes = new Map<string, { resolve: () => void; reject: (err: Error) => void }>()
   private publishTimeout = 10_000
   private closed = false
+  private outbox: NostrEventOutbox | null = null
 
   constructor(
     private readonly relayUrl: string,
@@ -159,6 +170,15 @@ export class NodeNostrPublisher implements NostrPublisher {
     const keypair = deriveServerKeypair(serverSecret)
     this.secretKey = keypair.secretKey
     this.serverPubkey = keypair.pubkey
+  }
+
+  /**
+   * Attach a persistent outbox for durable event delivery.
+   * When set, events are persisted to PostgreSQL before WebSocket delivery,
+   * ensuring no events are lost during relay disconnections.
+   */
+  setOutbox(outbox: NostrEventOutbox): void {
+    this.outbox = outbox
   }
 
   /**
@@ -204,7 +224,27 @@ export class NodeNostrPublisher implements NostrPublisher {
   async publish(template: EventTemplate): Promise<void> {
     const event = signServerEvent(template, this.secretKey)
 
-    // If connected and authenticated, send and await relay acknowledgment
+    // With outbox: persist first, then attempt delivery
+    if (this.outbox) {
+      // Spread into a plain object to satisfy Record<string, unknown> without `as` cast
+      const eventRecord: Record<string, unknown> = { ...event }
+      await this.outbox.enqueue(eventRecord)
+
+      // Attempt immediate delivery if connected
+      if (this.ws?.readyState === WebSocket.OPEN && this.authenticated) {
+        // Fire-and-forget — outbox poller will retry on failure
+        this.sendAndAwaitOk(event).catch(() => {
+          // Event is safe in the outbox — poller will retry
+        })
+      } else if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
+        this.connect().catch((err) => {
+          console.error('[nostr-publisher] Failed to connect:', err)
+        })
+      }
+      return
+    }
+
+    // Without outbox: original behavior (in-memory queue)
     if (this.ws?.readyState === WebSocket.OPEN && this.authenticated) {
       return this.sendAndAwaitOk(event)
     }
@@ -216,6 +256,36 @@ export class NodeNostrPublisher implements NostrPublisher {
         console.error('[nostr-publisher] Failed to connect:', err)
       })
     }
+  }
+
+  /**
+   * Deliver a pre-signed event directly via WebSocket.
+   * Used by the outbox poller to retry events without re-signing.
+   * Throws if not connected or delivery fails.
+   */
+  async deliverSignedEvent(eventJson: Record<string, unknown>): Promise<void> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.authenticated) {
+      // Trigger reconnect if needed
+      if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
+        this.connect().catch(() => {})
+      }
+      throw new Error('WebSocket not connected — event will be retried by outbox poller')
+    }
+
+    const eventId = eventJson.id as string
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingPublishes.delete(eventId)
+        reject(new Error(`Relay did not acknowledge event ${eventId} within ${this.publishTimeout}ms`))
+      }, this.publishTimeout)
+
+      this.pendingPublishes.set(eventId, {
+        resolve: () => { clearTimeout(timer); resolve() },
+        reject: (err) => { clearTimeout(timer); reject(err) },
+      })
+
+      this.ws!.send(JSON.stringify(['EVENT', eventJson]))
+    })
   }
 
   private sendAndAwaitOk(event: VerifiedEvent): Promise<void> {
@@ -342,7 +412,10 @@ export class NodeNostrPublisher implements NostrPublisher {
     if (this.closed || this.reconnectTimer) return
 
     this.reconnectAttempts++
-    if (this.reconnectAttempts > NodeNostrPublisher.MAX_RECONNECT_ATTEMPTS) {
+
+    // When outbox is present, events are safe in PostgreSQL — never give up reconnecting.
+    // Without outbox, cap reconnect attempts to avoid infinite retry with in-memory queue.
+    if (!this.outbox && this.reconnectAttempts > NodeNostrPublisher.MAX_RECONNECT_ATTEMPTS) {
       console.error(`[nostr-publisher] Max reconnect attempts (${NodeNostrPublisher.MAX_RECONNECT_ATTEMPTS}) reached, giving up`)
       return
     }

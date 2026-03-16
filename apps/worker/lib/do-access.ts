@@ -184,10 +184,15 @@ let cachedPublisher: NostrPublisher | null = null
  */
 export function getNostrPublisher(env: Env): NostrPublisher {
   if (!cachedPublisher) {
-    cachedPublisher = createNostrPublisher(env)
-    // Eagerly connect Node.js publisher so events don't queue behind a 2s auth timeout
-    if (cachedPublisher instanceof NodeNostrPublisher) {
-      cachedPublisher.connect().catch(() => {})
+    // Check if a pre-configured publisher was set by createNodeEnv() (with outbox wired)
+    if (env.NOSTR_PUBLISHER) {
+      cachedPublisher = env.NOSTR_PUBLISHER
+    } else {
+      cachedPublisher = createNostrPublisher(env)
+      // Eagerly connect Node.js publisher so events don't queue behind a 2s auth timeout
+      if (cachedPublisher instanceof NodeNostrPublisher) {
+        cachedPublisher.connect().catch(() => {})
+      }
     }
   }
   return cachedPublisher

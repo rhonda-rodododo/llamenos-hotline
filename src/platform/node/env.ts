@@ -12,7 +12,10 @@ import { createBlobStorage } from './blob-storage'
 import { createTranscriptionService } from './transcription'
 import { initPostgresPool, getPool } from './storage/postgres-pool'
 import { startAlarmPoller } from './storage/alarm-poller'
+import { EventOutbox } from './storage/outbox'
+import { startOutboxPoller } from './storage/outbox-poller'
 import { runStartupMigrations } from './storage/startup-migrations'
+import { createNostrPublisher, NodeNostrPublisher } from '../../../apps/worker/lib/nostr-publisher'
 import fs from 'node:fs'
 
 /**
@@ -103,6 +106,26 @@ export async function createNodeEnv(): Promise<Record<string, unknown>> {
 
   // Start alarm poller (storageInstances is populated as DOs are created above)
   startAlarmPoller(storageInstances)
+
+  // Create Nostr publisher with persistent outbox (Node.js only)
+  if (serverNostrSecret && nostrRelayUrl) {
+    const publisher = createNostrPublisher({
+      SERVER_NOSTR_SECRET: serverNostrSecret,
+      NOSTR_RELAY_URL: nostrRelayUrl,
+    })
+
+    if (publisher instanceof NodeNostrPublisher) {
+      const outbox = new EventOutbox()
+      publisher.setOutbox(outbox)
+      startOutboxPoller(outbox, publisher)
+      publisher.connect().catch((err) => {
+        console.warn('[node-env] Initial relay connection failed (outbox will retry):', err)
+      })
+    }
+
+    // Set on env so getNostrPublisher() picks it up instead of creating a new one
+    env.NOSTR_PUBLISHER = publisher
+  }
 
   return env
 }
