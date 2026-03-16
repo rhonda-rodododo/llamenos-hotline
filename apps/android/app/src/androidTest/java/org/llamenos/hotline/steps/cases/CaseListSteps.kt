@@ -11,6 +11,7 @@ import android.util.Log
 import io.cucumber.java.en.Given
 import io.cucumber.java.en.Then
 import io.cucumber.java.en.When
+import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.helpers.SimulationClient
 import org.llamenos.hotline.steps.BaseSteps
 
@@ -29,17 +30,31 @@ class CaseListSteps : BaseSteps() {
 
     @Given("the app is launched and authenticated as admin")
     fun theAppIsLaunchedAndAuthenticatedAsAdmin() {
-        // Set up CMS data on the backend BEFORE launching the app.
-        // This enables case management, applies the jail-support template,
-        // and creates a sample record so the cases screen has data to display.
+        // Phase 1: Set up CMS template + entity types (no pubkey yet)
         try {
-            val result = SimulationClient.setupCms()
-            Log.d("CaseListSteps", "CMS setup: ok=${result.ok}, entityTypes=${result.entityTypeCount}, record=${result.sampleRecordId}")
+            SimulationClient.setupCms()
+            Log.d("CaseListSteps", "CMS template + entity types set up")
         } catch (e: Throwable) {
-            Log.w("CaseListSteps", "CMS setup failed (backend may be down): ${e.message}")
+            Log.w("CaseListSteps", "CMS setup phase 1 failed: ${e.message}")
         }
 
+        // Phase 2: Launch app and create identity (generates keypair)
         navigateToMainScreen()
+
+        // Phase 3: Register the app's identity as admin + create sample records
+        // After navigateToMainScreen(), the CryptoService has the pubkey.
+        try {
+            val crypto = CryptoService()
+            val pubkey = crypto.pubkey
+            if (pubkey != null) {
+                val result = SimulationClient.setupCms(pubkey)
+                Log.d("CaseListSteps", "CMS admin registered: ok=${result.ok}, record=${result.sampleRecordId}")
+            } else {
+                Log.w("CaseListSteps", "No pubkey available after auth — CMS records may not be visible")
+            }
+        } catch (e: Throwable) {
+            Log.w("CaseListSteps", "CMS setup phase 3 failed: ${e.message}")
+        }
     }
 
     @Given("cases exist in the system")

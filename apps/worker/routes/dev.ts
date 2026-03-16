@@ -105,8 +105,24 @@ dev.post('/test-setup-cms', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
+  const body = await c.req.json().catch(() => ({})) as { pubkey?: string }
   const dos = getDOs(c.env)
   const templateId = 'jail-support'
+
+  // 0. If a pubkey is provided, register it as a volunteer with admin role
+  //    so the test identity can access CMS endpoints.
+  if (body.pubkey) {
+    await dos.identity.fetch(new Request('http://do/volunteers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pubkey: body.pubkey,
+        name: 'BDD Test Admin',
+        phone: '+15550000001',
+        roleIds: ['role-admin'],
+      }),
+    })).catch(() => {})
+  }
 
   // 1. Enable case management
   await dos.settings.fetch(new Request('http://do/settings/case-management', {
@@ -134,16 +150,18 @@ dev.post('/test-setup-cms', async (c) => {
   let recordId: string | null = null
   if (entityTypes.length > 0) {
     const et = entityTypes[0]
+    const assignedTo = body.pubkey ? [body.pubkey] : []
     const createRes = await dos.caseManager.fetch(new Request('http://do/records', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         entityTypeId: et.id,
         statusHash: et.defaultStatus || 'reported',
-        assignedTo: [],
+        assignedTo,
         blindIndexes: {},
         encryptedSummary: btoa('{"title":"Test Case","summary":"BDD test case"}'),
         summaryEnvelopes: [],
+        createdBy: body.pubkey ?? '',
       }),
     }))
     if (createRes.ok) {

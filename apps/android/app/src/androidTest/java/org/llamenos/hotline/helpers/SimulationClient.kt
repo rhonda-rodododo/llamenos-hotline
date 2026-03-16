@@ -185,12 +185,18 @@ object SimulationClient {
 
     /**
      * Set up CMS for E2E testing: enables case management, applies the
-     * jail-support template, and creates a sample record.
+     * jail-support template, creates a sample record, and optionally
+     * registers a pubkey as admin so the test identity can access CMS data.
      *
      * Corresponds to `POST /api/test-setup-cms`.
      */
-    fun setupCms(): CmsSetupResponse {
-        val responseText = post("/api/test-setup-cms", "{}")
+    fun setupCms(pubkey: String? = null): CmsSetupResponse {
+        val body = if (pubkey != null) {
+            """{"pubkey":"${escapeJson(pubkey)}"}"""
+        } else {
+            "{}"
+        }
+        val responseText = post("/api/test-setup-cms", body)
         return json.decodeFromString<CmsSetupResponse>(responseText)
     }
 
