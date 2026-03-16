@@ -1096,6 +1096,11 @@
 "help_admin_tip5" = "Review the Audit Log for a history of all system events";
 "help_admin_volunteers_detail" = "Invite new volunteers with invite codes. Assign roles, manage permissions, and deactivate accounts as needed. Volunteer personal information is only visible to admins.";
 "help_admin_volunteers_title" = "Managing volunteers";
+"help_case_timeline" = "The timeline shows all activity on this case: comments, status changes, linked notes, and evidence uploads.";
+"help_cms_toggle" = "Enable case management to track contacts, cases, and events with customizable fields and workflows.";
+"help_contact_linking" = "Link contacts to cases with roles like 'arrestee', 'attorney', or 'witness'. Contact data is encrypted separately from case data.";
+"help_entity_types" = "Entity types define what kinds of records your hub tracks. Each type has its own fields, statuses, and workflows.";
+"help_evidence_tab" = "Evidence files are stored with integrity hashes for chain of custody. Upload photos, documents, or media files.";
 "help_faq_admin" = "Administration";
 "help_faq_admin_a1" = "Go to Admin Panel > Invites and create a new invite code. Share the code securely with the volunteer. They'll use it during onboarding to register with your hub.";
 "help_faq_admin_a2" = "Go to Admin Panel > Ban List and add the caller's phone number. Banned callers will hear a message and be disconnected automatically.";
@@ -1159,6 +1164,7 @@
 "help_reporter_tip2" = "Your report details are encrypted end-to-end — only you and admins can read them";
 "help_reporter_tip3" = "Reply to your own reports to provide updates or additional information";
 "help_reporter_tip4" = "Attach files to messages — they are encrypted before upload";
+"help_schema_fields" = "Fields define what data is collected for each case type. Set access levels to control who can see sensitive information.";
 "help_sec_auth" = "Authentication";
 "help_sec_auth_detail" = "Login uses cryptographic keypairs (Nostr). No passwords stored on servers.";
 "help_sec_e2ee" = "E2E encrypted";
@@ -1188,7 +1194,9 @@
 "help_shortcut_palette" = "Command palette";
 "help_shortcut_save_note" = "Save note";
 "help_shortcuts_card" = "Keyboard Shortcuts";
+"help_status_pill" = "Click to change the case status. Status changes are logged in the timeline automatically.";
 "help_subtitle" = "How to use the app";
+"help_template_browser" = "Templates provide pre-configured case types, fields, and suggested roles. You can customize everything after applying.";
 "help_title" = "Help";
 "help_vol_calls_detail" = "When a caller dials the hotline, all on-shift volunteers ring simultaneously. The first volunteer to pick up handles the call — all other rings are cancelled. Calls are routed based on your shift schedule and availability.";
 "help_vol_calls_title" = "How calls work";

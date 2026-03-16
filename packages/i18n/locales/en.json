@@ -1338,7 +1338,15 @@
     "volunteerTip2": "When a call rings, click \"Answer\" — all on-shift volunteers ring simultaneously, first to answer gets the call",
     "volunteerTip3": "Take notes during calls — they're encrypted before leaving your device",
     "volunteerTip4": "Use 'Take a Break' when you need to step away — you won't receive calls",
-    "volunteerTip5": "Report spam calls or ban numbers directly from the active call panel"
+    "volunteerTip5": "Report spam calls or ban numbers directly from the active call panel",
+    "cmsToggle": "Enable case management to track contacts, cases, and events with customizable fields and workflows.",
+    "templateBrowser": "Templates provide pre-configured case types, fields, and suggested roles. You can customize everything after applying.",
+    "entityTypes": "Entity types define what kinds of records your hub tracks. Each type has its own fields, statuses, and workflows.",
+    "schemaFields": "Fields define what data is collected for each case type. Set access levels to control who can see sensitive information.",
+    "statusPill": "Click to change the case status. Status changes are logged in the timeline automatically.",
+    "caseTimeline": "The timeline shows all activity on this case: comments, status changes, linked notes, and evidence uploads.",
+    "evidenceTab": "Evidence files are stored with integrity hashes for chain of custody. Upload photos, documents, or media files.",
+    "contactLinking": "Link contacts to cases with roles like 'arrestee', 'attorney', or 'witness'. Contact data is encrypted separately from case data."
   },
   "hubs": {
     "accessDenied": "Access denied",

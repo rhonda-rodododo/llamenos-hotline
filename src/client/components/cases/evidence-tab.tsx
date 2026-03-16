@@ -30,6 +30,7 @@ import {
   Loader2,
   Package,
 } from 'lucide-react'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 // --- Classification icons & labels ---
 
@@ -224,6 +225,7 @@ export function EvidenceTab({
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
+          <HelpTooltip helpKey="evidenceTab" side="bottom" />
           {/* View mode toggle */}
           <div className="flex rounded-md border border-border">
             <Button

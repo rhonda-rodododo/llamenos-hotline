@@ -25,8 +25,8 @@ import {
   Archive,
   ChevronDown,
   ChevronUp,
-  HelpCircle,
 } from 'lucide-react'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 // --- Props ---
 
@@ -217,12 +217,9 @@ export function CaseManagementSection({ expanded, onToggle, statusSummary }: Pro
       basePath="/admin/case-management"
       statusSummary={statusSummary}
     >
-      {/* Help text */}
-      <div className="flex items-start gap-2 rounded-md border border-border/50 bg-muted/30 px-3 py-2.5 mb-3">
-        <HelpCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-        <p className="text-xs text-muted-foreground">
-          {t('caseManagement.help.entityTypes', { defaultValue: 'Entity types define what kinds of records your hub tracks. Each type has its own fields, statuses, and workflows.' })}
-        </p>
+      {/* Help tooltip */}
+      <div className="flex items-center gap-2 mb-3">
+        <HelpTooltip helpKey="entityTypes" side="right" />
       </div>
 
       {loading ? (

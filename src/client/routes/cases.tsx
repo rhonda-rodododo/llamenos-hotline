@@ -35,6 +35,7 @@ import {
   Users, FileText, MessageSquare, Link2, AlertTriangle, ToggleRight,
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 export const Route = createFileRoute('/cases')({
   component: CasesPage,
@@ -251,6 +252,7 @@ function CasesPage() {
           <h1 data-testid="page-title" className="text-xl font-bold sm:text-2xl">
             {t('cases.title', { defaultValue: 'Cases' })}
           </h1>
+          <HelpTooltip helpKey="cmsToggle" side="bottom" />
         </div>
         <div className="flex items-center gap-2">
           {/* Auto-assignment toggle */}

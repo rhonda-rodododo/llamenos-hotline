@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ChevronDown, Lock, Shield, Users } from 'lucide-react'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 import { cn } from '@/lib/utils'
 import type { EntityTypeDefinition, EntityFieldDefinition } from '@/lib/api'
 
@@ -235,7 +236,10 @@ function SchemaFieldRenderer({
           {label}
         </Label>
         {showAccessIndicator && field.accessLevel !== 'all' && (
-          <AccessBadge level={field.accessLevel} />
+          <>
+            <AccessBadge level={field.accessLevel} />
+            <HelpTooltip helpKey="schemaFields" side="right" />
+          </>
         )}
       </div>
       {field.helpText && (
