@@ -250,6 +250,112 @@ function stripSwiftConvenienceExtensions(lines: string[]): string {
   return output
 }
 
+/**
+ * Post-process Kotlin output:
+ * 1. Replace package name
+ * 2. Add default values for required fields that have defaults in JSON Schema.
+ *    quicktype generates `val x: Boolean` for required fields with `"default": false`,
+ *    but kotlinx.serialization needs `val x: Boolean = false` to deserialize
+ *    responses that omit the field (common with Zod `.default()` fields).
+ * 3. Add `= emptyList()` for required List<*> fields that have `"default": []`.
+ */
+function postProcessKotlin(
+  raw: string,
+  schemas: Array<{ name: string; schema: string }>,
+): string {
+  let output = raw.replace('package quicktype', 'package org.llamenos.protocol')
+
+  // Build a map of schema defaults: { TypeName: { fieldName: defaultValue } }
+  const defaultsMap = new Map<string, Map<string, unknown>>()
+  for (const { name, schema } of schemas) {
+    try {
+      const parsed = JSON.parse(schema)
+      if (parsed.properties && parsed.required) {
+        // Convert schema name to PascalCase type name (e.g., 'entityTypeDefinitionSchema' → 'EntityTypeDefinition')
+        const typeName = name
+          .replace(/Schema$/, '')
+          .replace(/(^|_)(\w)/g, (_, _prefix, ch) => ch.toUpperCase())
+        const fieldDefaults = new Map<string, unknown>()
+        for (const [prop, def] of Object.entries(parsed.properties)) {
+          const propDef = def as { default?: unknown }
+          if (propDef.default !== undefined && parsed.required.includes(prop)) {
+            fieldDefaults.set(prop, propDef.default)
+          }
+        }
+        if (fieldDefaults.size > 0) {
+          defaultsMap.set(typeName, fieldDefaults)
+        }
+      }
+    } catch { /* skip non-JSON schemas */ }
+  }
+
+  // Apply defaults to Kotlin data class fields.
+  // Match patterns like:
+  //   val fieldName: Boolean,       → val fieldName: Boolean = false,
+  //   val fieldName: Long,          → val fieldName: Long = 0,
+  //   val fieldName: String,        → val fieldName: String = "",
+  //   val fieldName: List<...>,     → val fieldName: List<...> = emptyList(),
+  // Only within data class bodies for types that have defaults.
+
+  let currentType: string | null = null
+  const lines = output.split('\n')
+  const result: string[] = []
+
+  for (const line of lines) {
+    // Track which data class we're inside
+    const classMatch = line.match(/^data class (\w+)\s*\(/)
+    if (classMatch) {
+      currentType = classMatch[1]
+    }
+    if (line.trim() === ')' || line.trim() === ') {') {
+      currentType = null
+    }
+
+    // Check if this line is a field declaration that needs a default
+    if (currentType && defaultsMap.has(currentType)) {
+      const defaults = defaultsMap.get(currentType)!
+      // Match: val fieldName: Type,  OR  val fieldName: Type
+      const fieldMatch = line.match(/^(\s+val )(\w+)(: .+?)(,?\s*)$/)
+      if (fieldMatch) {
+        const [, prefix, fieldName, typeDecl, suffix] = fieldMatch
+        // Check if quicktype used a different casing (e.g., camelCase from JSON → Kotlin)
+        // quicktype preserves JSON property names in @SerialName but uses camelCase for val names
+        const defaultVal = defaults.get(fieldName)
+          ?? defaults.get(fieldName.replace(/[A-Z]/g, m => '_' + m.toLowerCase())) // try snake_case
+        if (defaultVal !== undefined && !typeDecl.includes('=')) {
+          // Determine the Kotlin default expression
+          let kotlinDefault: string
+          if (typeof defaultVal === 'boolean') {
+            kotlinDefault = String(defaultVal)
+          } else if (typeof defaultVal === 'number') {
+            kotlinDefault = typeDecl.includes('Long') ? `${defaultVal}L` : String(defaultVal)
+          } else if (typeof defaultVal === 'string') {
+            // Skip string defaults for enum types (can't assign String to enum)
+            const typeOnly = typeDecl.replace(/^:\s*/, '').replace(/[,\s].*$/, '')
+            if (typeOnly !== 'String' && typeOnly !== 'String?') {
+              result.push(line)
+              continue
+            }
+            kotlinDefault = `"${defaultVal}"`
+          } else if (Array.isArray(defaultVal) && defaultVal.length === 0) {
+            kotlinDefault = 'emptyList()'
+          } else {
+            // Skip complex defaults
+            result.push(line)
+            continue
+          }
+          result.push(`${prefix}${fieldName}${typeDecl} = ${kotlinDefault}${suffix}`)
+          continue
+        }
+      }
+    }
+
+    result.push(line)
+  }
+
+  return result.join('\n')
+}
+
 async function main() {
   // Build schema registry from Zod schemas
   const registry = getSchemaRegistry()
@@ -289,10 +395,7 @@ async function main() {
   // Post-process Swift: strip convenience initializer extensions, keep only types + CodingKeys.
   // Also add Sendable conformance to all generated structs and enums.
   const swiftContent = header + stripSwiftConvenienceExtensions(swiftLines) + '\n'
-  const kotlinContent = header + kotlinLines.join('\n').replace(
-    'package quicktype',
-    'package org.llamenos.protocol',
-  ) + '\n'
+  const kotlinContent = header + postProcessKotlin(kotlinLines.join('\n'), allSchemas) + '\n'
 
   const tsCryptoContent = generateTSCryptoLabels(cryptoLabels)
   const swiftCryptoContent = generateSwiftCryptoLabels(cryptoLabels)
