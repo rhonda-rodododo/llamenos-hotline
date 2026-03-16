@@ -61,6 +61,11 @@ import org.llamenos.hotline.ui.hubs.CreateHubScreen
 import org.llamenos.hotline.ui.hubs.HubListScreen
 import org.llamenos.hotline.ui.hubs.HubManagementViewModel
 import org.llamenos.hotline.ui.settings.DeviceLinkScreen
+import org.llamenos.hotline.ui.contacts.ContactDetailScreen
+import org.llamenos.hotline.ui.contacts.ContactDetailViewModel
+import org.llamenos.hotline.ui.triage.TriageScreen
+import org.llamenos.hotline.ui.triage.TriageDetailScreen
+import org.llamenos.hotline.ui.triage.TriageViewModel
 
 /**
  * Type-safe route definitions for the navigation graph.
@@ -256,6 +261,29 @@ sealed interface LlamenosRoute {
     /** Create a new event. */
     data object EventCreate : LlamenosRoute {
         override val route = "event_create"
+    }
+
+    /** Triage queue. */
+    data object Triage : LlamenosRoute {
+        override val route = "triage"
+    }
+
+    /** Triage report detail. */
+    data class TriageDetail(val reportId: String) : LlamenosRoute {
+        override val route = "triage/$reportId"
+
+        companion object {
+            const val ROUTE_PATTERN = "triage/{reportId}"
+        }
+    }
+
+    /** Contact profile detail. */
+    data class ContactDetail(val contactHash: String) : LlamenosRoute {
+        override val route = "contact_detail/$contactHash"
+
+        companion object {
+            const val ROUTE_PATTERN = "contact_detail/{contactHash}"
+        }
     }
 }
 
