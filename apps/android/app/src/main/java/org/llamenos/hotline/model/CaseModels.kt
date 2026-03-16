@@ -281,6 +281,15 @@ data class EvidenceListResponse(
     val hasMore: Boolean = false,
 )
 
+/**
+ * Response from POST /api/records/:id/assign and POST /api/records/:id/unassign.
+ * The endpoint returns only the updated assignedTo list, not the full record.
+ */
+@Serializable
+data class AssignResponse(
+    val assignedTo: List<String>,
+)
+
 // --- Request Bodies ---
 
 /**

@@ -3,6 +3,9 @@ import { z } from 'zod'
 /** Hex-encoded 32-byte Nostr public key (x-only, 64 hex chars) */
 export const pubkeySchema = z.string().regex(/^[0-9a-f]{64}$/, 'Must be a 64-character hex string')
 
+/** Hex-encoded ECIES ephemeral public key — compressed SEC1 (33 bytes, 66 hex) or x-only (32 bytes, 64 hex) */
+export const eciesPubkeySchema = z.string().regex(/^[0-9a-f]{64,66}$/, 'Must be a 64 or 66-character hex string')
+
 /** UUID v4 */
 export const uuidSchema = z.uuid()
 
@@ -53,27 +56,27 @@ export const okResponseSchema = z.object({ ok: z.boolean() })
 export const recipientEnvelopeSchema = z.looseObject({
   pubkey: pubkeySchema,
   wrappedKey: z.string().min(1),
-  ephemeralPubkey: pubkeySchema,
+  ephemeralPubkey: eciesPubkeySchema,
 })
 
 /** Key envelope — used for note author copies (no pubkey) */
 export const keyEnvelopeSchema = z.looseObject({
   wrappedKey: z.string().min(1),
-  ephemeralPubkey: pubkeySchema,
+  ephemeralPubkey: eciesPubkeySchema,
 })
 
 /** File key envelope — used for file uploads */
 export const fileKeyEnvelopeSchema = z.looseObject({
   pubkey: pubkeySchema,
   encryptedFileKey: z.string().min(1),
-  ephemeralPubkey: pubkeySchema,
+  ephemeralPubkey: eciesPubkeySchema,
 })
 
 /** Encrypted metadata entry — used for file uploads */
 export const encryptedMetadataEntrySchema = z.looseObject({
   pubkey: z.string().min(1),
   encryptedContent: z.string().min(1),
-  ephemeralPubkey: pubkeySchema,
+  ephemeralPubkey: eciesPubkeySchema,
 })
 
 // --- Inferred types (canonical source of truth for envelope types) ---

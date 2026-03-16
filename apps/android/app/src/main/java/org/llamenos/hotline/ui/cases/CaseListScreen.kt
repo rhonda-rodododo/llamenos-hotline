@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -383,10 +384,13 @@ private fun CaseCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                // Status badge
+                // Status badge — separate semantics node so testTag is accessible
+                // in the merged tree even though the parent Card is clickable
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.testTag("case-card-status-${record.id}"),
+                    modifier = Modifier
+                        .semantics(mergeDescendants = true) {}
+                        .testTag("case-card-status-${record.id}"),
                 ) {
                     if (statusColor != null) {
                         Icon(

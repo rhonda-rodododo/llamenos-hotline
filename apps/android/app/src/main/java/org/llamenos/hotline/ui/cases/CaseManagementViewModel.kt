@@ -13,6 +13,7 @@ import org.llamenos.hotline.api.ApiService
 import org.llamenos.hotline.api.SessionState
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.model.AssignRecordRequest
+import org.llamenos.hotline.model.AssignResponse
 import org.llamenos.hotline.model.CaseInteraction
 import org.llamenos.hotline.model.CaseRecord
 import org.llamenos.hotline.model.CreateInteractionRequest
@@ -484,14 +485,17 @@ class CaseManagementViewModel @Inject constructor(
             }
             try {
                 val request = AssignRecordRequest(pubkeys = listOf(pubkey))
-                val updated = apiService.request<CaseRecord>(
+                val response = apiService.request<AssignResponse>(
                     "POST",
                     "/api/records/$recordId/assign",
                     request,
                 )
+                // Update the selected record's assignedTo list from the response
                 _uiState.update {
                     it.copy(
-                        selectedRecord = updated,
+                        selectedRecord = it.selectedRecord?.copy(
+                            assignedTo = response.assignedTo,
+                        ),
                         isAssigning = false,
                         actionSuccess = "Assigned to you",
                     )
