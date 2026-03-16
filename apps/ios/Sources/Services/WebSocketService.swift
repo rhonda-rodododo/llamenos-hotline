@@ -60,13 +60,17 @@ struct NostrEvent: Codable, Sendable, Identifiable {
 /// by reading the `content.type` JSON field.
 enum HubEventType: String, Sendable {
     case callRing = "call:ring"
+    case callAnswered = "call:answered"
     case callUpdate = "call:update"
     case callEnded = "call:ended"
     case shiftUpdate = "shift:update"
     case noteCreated = "note:created"
     case voicemailNew = "voicemail:new"
     case presenceSummary = "presence:summary"
+    case presenceDetail = "presence:detail"
     case messageNew = "message:new"
+    case messageStatus = "message:status"
+    case conversationNew = "conversation:new"
     case conversationAssigned = "conversation:assigned"
     case conversationClosed = "conversation:closed"
     case unknown

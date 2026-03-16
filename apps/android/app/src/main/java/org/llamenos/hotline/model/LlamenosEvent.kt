@@ -27,6 +27,9 @@ sealed class LlamenosEvent {
     /** Summary of volunteer presence/availability. */
     data class PresenceSummary(val hasAvailable: Boolean) : LlamenosEvent()
 
+    /** Detailed presence info for admins (available/onCall/total counts). */
+    data class PresenceDetail(val available: Int, val onCall: Int, val total: Int) : LlamenosEvent()
+
     /** A shift's status has changed (assignment, clock in/out by another volunteer). */
     data class ShiftUpdate(val shiftId: String, val status: String) : LlamenosEvent()
 
@@ -36,6 +39,12 @@ sealed class LlamenosEvent {
     /** A new message arrived in a conversation. */
     data class MessageNew(val conversationId: String) : LlamenosEvent()
 
+    /** Message delivery status update (sent, delivered, read, failed). */
+    data class MessageStatus(val conversationId: String, val messageId: String, val status: String) : LlamenosEvent()
+
+    /** A new conversation was created. */
+    data class ConversationNew(val conversationId: String) : LlamenosEvent()
+
     /** A conversation was assigned to a volunteer. */
     data class ConversationAssigned(
         val conversationId: String,
@@ -44,6 +53,9 @@ sealed class LlamenosEvent {
 
     /** A conversation was closed. */
     data class ConversationClosed(val conversationId: String) : LlamenosEvent()
+
+    /** A call was answered by a volunteer. */
+    data class CallAnswered(val callId: String, val answeredBy: String) : LlamenosEvent()
 
     /** An event type this client version does not recognize. */
     data class Unknown(val type: String) : LlamenosEvent()

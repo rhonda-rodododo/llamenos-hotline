@@ -535,10 +535,61 @@ export async function rewrapFileKey(
   return state.rewrapFileKey(JSON.stringify(envelope), newRecipientPubkeyHex)
 }
 
-// ── nsec retrieval (device provisioning only) ────────────────────────
+// ── Device provisioning (nsec never enters JS) ──────────────────────
+
+export interface ProvisioningEncryptResult {
+  encryptedHex: string
+  sasCode: string
+}
+
+export interface ProvisioningDecryptResult {
+  nsec: string
+  sasCode: string
+}
+
+/**
+ * Encrypt the nsec for device provisioning entirely in Rust/WASM.
+ * The nsec NEVER enters JavaScript — ECDH, key derivation, encryption,
+ * and SAS computation all happen inside the native/WASM crypto module.
+ */
+export async function encryptNsecForProvisioning(
+  ephemeralPubkeyHex: string,
+): Promise<ProvisioningEncryptResult> {
+  if (useTauri) {
+    return tauriInvoke<ProvisioningEncryptResult>('encrypt_nsec_for_provisioning', {
+      ephemeralPubkeyHex,
+    })
+  }
+  const state = await getWasmState()
+  return state.encryptNsecForProvisioning(ephemeralPubkeyHex)
+}
+
+/**
+ * Decrypt a provisioned nsec from the primary device entirely in Rust/WASM.
+ * Used by the NEW device after receiving the encrypted payload.
+ *
+ * Note: The ephemeral SK is passed in because it was generated before
+ * CryptoState existed on this device.
+ */
+export async function decryptProvisionedNsec(
+  encryptedHex: string,
+  primaryPubkeyHex: string,
+  ephemeralSkHex: string,
+): Promise<ProvisioningDecryptResult> {
+  if (useTauri) {
+    return tauriInvoke<ProvisioningDecryptResult>('decrypt_provisioned_nsec', {
+      encryptedHex,
+      primaryPubkeyHex,
+      ephemeralSkHex,
+    })
+  }
+  // TODO: Add decryptProvisionedNsec to wasm.rs once provisioning module is implemented
+  throw new Error('Provisioning decryption not yet available in WASM — use Tauri desktop for device linking')
+}
 
 /**
  * Get nsec from CryptoState for device provisioning/backup ONLY.
+ * @deprecated Use encryptNsecForProvisioning instead — this leaks the nsec into JS.
  */
 export async function getNsecFromState(): Promise<string> {
   if (useTauri) {

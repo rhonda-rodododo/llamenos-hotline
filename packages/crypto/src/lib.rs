@@ -25,6 +25,7 @@ pub mod errors;
 pub mod keys;
 pub mod labels;
 pub mod nostr;
+pub mod provisioning;
 
 #[cfg(feature = "mobile")]
 mod ffi;

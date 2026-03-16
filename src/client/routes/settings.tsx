@@ -16,9 +16,7 @@ import { isWebAuthnAvailable, registerCredential, listCredentials, deleteCredent
 import { PhoneInput } from '@/components/phone-input'
 import {
   getProvisioningRoom,
-  encryptNsecForDevice,
   sendProvisionedKey,
-  computeSASForPrimaryDevice,
 } from '@/lib/provisioning'
 import { getNotificationPrefs, setNotificationPrefs } from '@/lib/notifications'
 import { useNotificationPermission } from '@/lib/use-notification-permission'
@@ -576,30 +574,13 @@ function LinkDeviceSection() {
         return
       }
 
-      // Get nsec from Rust CryptoState (device provisioning is the one case
-      // where the nsec intentionally enters the webview — see Epic 93 §5.4)
-      const { getNsecFromState, createAuthToken } = await import('@/lib/platform')
-      const nsecStr = await getNsecFromState()
-      if (!nsecStr) {
-        setStatus('error')
-        setStatusMessage(t('pin.keyLocked'))
-        return
-      }
-
-      const publicKey = keyManager.getPublicKeyHex()!
-
-      // Decode nsec temporarily for SAS computation and ECDH
-      const { nip19 } = await import('nostr-tools')
-      const decoded = nip19.decode(nsecStr)
-      if (decoded.type !== 'nsec') throw new Error('Invalid nsec')
-      const secretKeyBytes = decoded.data
-
-      // Compute SAS for display BEFORE sending nsec
-      const sas = computeSASForPrimaryDevice(secretKeyBytes, room.ephemeralPubkey)
+      // Encrypt nsec entirely in Rust/WASM — the nsec NEVER enters JavaScript.
+      // ECDH, HKDF key derivation, encryption, and SAS all happen in native code.
+      const { encryptNsecForProvisioning, createAuthToken } = await import('@/lib/platform')
+      const { encryptedHex: encrypted, sasCode: sas } = await encryptNsecForProvisioning(room.ephemeralPubkey)
       setSasCode(sas)
 
-      // ECDH encrypt nsec for the new device
-      const encrypted = encryptNsecForDevice(nsecStr, room.ephemeralPubkey, secretKeyBytes)
+      const publicKey = keyManager.getPublicKeyHex()!
 
       // Send encrypted payload (authenticated via CryptoState)
       const provisionPath = `/api/provision/rooms/${roomId}/payload`

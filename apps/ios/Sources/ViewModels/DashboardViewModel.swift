@@ -142,7 +142,7 @@ final class DashboardViewModel {
     @MainActor
     private func handleTypedEvent(_ eventType: HubEventType) {
         switch eventType {
-        case .callRing, .callUpdate, .voicemailNew, .presenceSummary:
+        case .callRing, .callAnswered, .callUpdate, .voicemailNew, .presenceSummary, .presenceDetail:
             // Call/presence events affect shift status (active calls, availability)
             Task {
                 await fetchShiftStatus()
@@ -156,7 +156,7 @@ final class DashboardViewModel {
             Task { await fetchShiftStatus() }
         case .noteCreated:
             Task { await fetchRecentNotes() }
-        case .messageNew, .conversationAssigned, .conversationClosed:
+        case .messageNew, .messageStatus, .conversationNew, .conversationAssigned, .conversationClosed:
             // Message events don't affect dashboard — handled by ConversationsViewModel
             break
         case .unknown:

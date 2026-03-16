@@ -165,6 +165,8 @@ pub fn run() {
             crypto::rewrap_file_key_from_state,
             crypto::request_provisioning_token,
             crypto::get_nsec_from_state,
+            crypto::encrypt_nsec_for_provisioning,
+            crypto::decrypt_provisioned_nsec,
             // Stateless commands — public-key-only, validation, or sign-in flow only
             crypto::ecies_wrap_key,
             crypto::encrypt_note,

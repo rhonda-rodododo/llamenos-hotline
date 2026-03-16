@@ -15,7 +15,7 @@ use std::sync::Mutex;
 
 use zeroize::Zeroize;
 
-use llamenos_core::{auth, ecies, encryption, keys, nostr};
+use llamenos_core::{auth, ecies, encryption, keys, nostr, provisioning};
 use tauri_plugin_store::StoreExt;
 
 // Re-export types for serde bridging with the frontend
@@ -431,6 +431,53 @@ pub fn get_nsec_from_state(
     let nsec = bech32::encode::<bech32::Bech32>(bech32::Hrp::parse("nsec").unwrap(), &sk_bytes)
         .map_err(err_str)?;
     Ok(nsec)
+}
+
+/// Encrypt the nsec for device provisioning. The nsec NEVER leaves the Rust process.
+///
+/// Performs ECDH + HKDF + XChaCha20-Poly1305 entirely in Rust using the nsec
+/// from CryptoState. Returns { encryptedHex, sasCode }.
+#[tauri::command]
+pub fn encrypt_nsec_for_provisioning(
+    state: tauri::State<'_, CryptoState>,
+    ephemeral_pubkey_hex: String,
+) -> Result<serde_json::Value, String> {
+    let sk_hex = state.get_secret_key()?;
+    let sk_bytes = hex::decode(&sk_hex).map_err(err_str)?;
+
+    let result = provisioning::encrypt_nsec_for_provisioning(&sk_bytes, &ephemeral_pubkey_hex)
+        .map_err(err_str)?;
+
+    Ok(serde_json::json!({
+        "encryptedHex": result.encrypted_hex,
+        "sasCode": result.sas_code,
+    }))
+}
+
+/// Decrypt a provisioned nsec from the primary device.
+///
+/// This is for the NEW device side — the ephemeral SK is passed in hex because
+/// it was generated before CryptoState existed on this device.
+/// Returns { nsec, sasCode }.
+#[tauri::command]
+pub fn decrypt_provisioned_nsec(
+    encrypted_hex: String,
+    primary_pubkey_hex: String,
+    ephemeral_sk_hex: String,
+) -> Result<serde_json::Value, String> {
+    let sk_bytes = hex::decode(&ephemeral_sk_hex).map_err(err_str)?;
+
+    let result = provisioning::decrypt_provisioned_nsec(
+        &encrypted_hex,
+        &primary_pubkey_hex,
+        &sk_bytes,
+    )
+    .map_err(err_str)?;
+
+    Ok(serde_json::json!({
+        "nsec": *result.nsec,
+        "sasCode": result.sas_code,
+    }))
 }
 
 // ── Stateless commands ───────────────────────────────────────────────

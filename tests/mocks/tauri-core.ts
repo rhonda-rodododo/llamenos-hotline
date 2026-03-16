@@ -209,6 +209,16 @@ const commands: Record<string, CommandHandler> = {
   get_nsec_from_state: (a) =>
     getWasmState().getNsec(a.token as string),
 
+  encrypt_nsec_for_provisioning: (a) =>
+    getWasmState().encryptNsecForProvisioning(a.ephemeralPubkeyHex as string),
+
+  decrypt_provisioned_nsec: (a) =>
+    getWasmState().decryptProvisionedNsec(
+      a.encryptedHex as string,
+      a.primaryPubkeyHex as string,
+      a.ephemeralSkHex as string,
+    ),
+
   // --- PIN lockout (WASM handles internally) ---
 
   get_pin_lockout_state: () => ({

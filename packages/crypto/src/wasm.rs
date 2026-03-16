@@ -22,7 +22,7 @@
 use wasm_bindgen::prelude::*;
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::{auth, blind_index, ecies, encryption, keys, labels, nostr};
+use crate::{auth, blind_index, ecies, encryption, keys, labels, nostr, provisioning};
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -414,6 +414,61 @@ impl WasmCryptoState {
             ephemeral_pubkey: new_envelope.ephemeral_pubkey,
         };
         serde_wasm_bindgen::to_value(&result).map_err(to_js_err)
+    }
+
+    /// Encrypt the nsec for device provisioning. The nsec NEVER leaves WASM.
+    ///
+    /// Performs ECDH with the ephemeral pubkey, derives a key via HKDF,
+    /// encrypts the nsec, and computes a SAS code — all inside WASM.
+    ///
+    /// Returns JSON: { encryptedHex, sasCode }
+    #[wasm_bindgen(js_name = "encryptNsecForProvisioning")]
+    pub fn encrypt_nsec_for_provisioning(
+        &self,
+        ephemeral_pubkey_hex: &str,
+    ) -> Result<JsValue, JsError> {
+        let sk_bytes = self.secret_key
+            .as_ref()
+            .ok_or_else(|| JsError::new("Key is locked. Enter PIN to unlock."))?;
+
+        let result = provisioning::encrypt_nsec_for_provisioning(sk_bytes.as_slice(), ephemeral_pubkey_hex)
+            .map_err(to_js_err)?;
+
+        let json = serde_json::json!({
+            "encryptedHex": result.encrypted_hex,
+            "sasCode": result.sas_code,
+        });
+        serde_wasm_bindgen::to_value(&json).map_err(to_js_err)
+    }
+
+    /// Decrypt a provisioned nsec from the primary device.
+    ///
+    /// Takes the ephemeral secret key bytes (hex), the encrypted payload, and
+    /// the primary device's pubkey. Returns JSON: { nsec, sasCode }
+    ///
+    /// NOTE: This is for the NEW device side — the ephemeral SK is passed in
+    /// because it was generated before CryptoState existed on this device.
+    #[wasm_bindgen(js_name = "decryptProvisionedNsec")]
+    pub fn decrypt_provisioned_nsec(
+        &self,
+        encrypted_hex: &str,
+        primary_pubkey_hex: &str,
+        ephemeral_sk_hex: &str,
+    ) -> Result<JsValue, JsError> {
+        let sk_bytes = hex::decode(ephemeral_sk_hex).map_err(to_js_err)?;
+
+        let result = provisioning::decrypt_provisioned_nsec(
+            encrypted_hex,
+            primary_pubkey_hex,
+            &sk_bytes,
+        )
+        .map_err(to_js_err)?;
+
+        let json = serde_json::json!({
+            "nsec": *result.nsec,
+            "sasCode": result.sas_code,
+        });
+        serde_wasm_bindgen::to_value(&json).map_err(to_js_err)
     }
 
     /// Request a one-time provisioning token. Must be called before `getNsec`.
