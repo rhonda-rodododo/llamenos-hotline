@@ -29,6 +29,9 @@ pub mod nostr;
 #[cfg(feature = "mobile")]
 mod ffi;
 
+#[cfg(feature = "wasm")]
+mod wasm;
+
 // Re-export core types
 pub use auth::AuthToken;
 pub use ecies::{KeyEnvelope, RecipientKeyEnvelope};

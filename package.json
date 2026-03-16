@@ -48,6 +48,8 @@
     "crypto:test": "cargo test --manifest-path packages/crypto/Cargo.toml",
     "crypto:clippy": "cargo clippy --manifest-path packages/crypto/Cargo.toml -- -D warnings",
     "crypto:fmt": "cargo fmt --manifest-path packages/crypto/Cargo.toml --check",
+    "crypto:wasm": "packages/crypto/scripts/build-wasm.sh",
+    "crypto:wasm:dev": "packages/crypto/scripts/build-wasm.sh dev",
     "i18n:codegen": "bun run packages/i18n/tools/i18n-codegen.ts",
     "i18n:validate": "bun run packages/i18n/tools/i18n-codegen.ts --validate",
     "i18n:validate:android": "bun run packages/i18n/tools/validate-strings.ts android",
@@ -163,6 +165,8 @@
     "twilio": "^5.13.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.6.0",
     "vitest": "^4.1.0",
     "webdriverio": "^9.25.0",
     "wrangler": "^4.72.0"

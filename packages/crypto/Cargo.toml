@@ -6,6 +6,9 @@ description = "Shared cryptographic core for Llamenos — ECIES, XChaCha20-Poly1
 license = "AGPL-3.0-or-later"
 repository = "https://github.com/rhonda-rodododo/llamenos-core"
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
 [lib]
 crate-type = ["lib", "cdylib", "staticlib"]
 
@@ -57,12 +60,14 @@ uniffi = { version = "0.28", optional = true }
 
 # WASM bindings for web browser
 wasm-bindgen = { version = "0.2", optional = true }
+serde-wasm-bindgen = { version = "0.6", optional = true }
+js-sys = { version = "0.3", optional = true }
 
 [features]
 default = []
 mobile = ["dep:uniffi"]
 uniffi-bindgen = ["mobile", "uniffi/cli"]
-wasm = ["dep:wasm-bindgen", "getrandom/js"]
+wasm = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen", "dep:js-sys", "getrandom/js"]
 
 [[bin]]
 name = "uniffi-bindgen"
