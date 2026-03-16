@@ -1,343 +1,224 @@
 /**
  * Mock @tauri-apps/api/core for Playwright test builds.
  *
- * Replaces Tauri IPC with JS crypto using @noble/curves.
+ * All crypto operations route through the Rust-compiled WasmCryptoState,
+ * ensuring tests exercise the same crypto code as the native desktop app.
+ * There is no JS/@noble fallback — WASM is required.
+ *
  * Aliased via vite.config.ts when PLAYWRIGHT_TEST=true.
  */
 
 // Production guard: prevent test mocks from loading in production builds.
-// The PLAYWRIGHT_TEST env var is set by Vite when building for tests.
 if (!import.meta.env.PLAYWRIGHT_TEST) {
   throw new Error('FATAL: Tauri IPC mock loaded outside test environment.')
 }
 
-import { schnorr } from '@noble/curves/secp256k1.js'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
-import { sha256 } from '@noble/hashes/sha2.js'
-import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
-import { randomBytes, utf8ToBytes } from '@noble/ciphers/utils.js'
-import { bech32 } from '@scure/base'
+import { initWasmCrypto, getWasmState, getWasmModule } from './wasm-crypto-state'
 
-// Must match packages/shared/crypto-labels.ts AUTH_PREFIX
-const AUTH_PREFIX = 'llamenos:auth:'
+// ── WASM initialization (top-level await via vite-plugin-top-level-await) ──
+await initWasmCrypto()
+console.log('[tauri-mock] Crypto backend: WASM (Rust)')
 
-// ── CryptoState ───────────────────────────────────────────────────
-
-let secretKeyHex: string | null = null
-let publicKeyHex: string | null = null
-let mockProvisioningToken: string | null = null
-
-// PIN lockout tracking (mirrors Rust crypto.rs)
-let pinFailedAttempts = 0
-let pinLockoutUntil = 0 // epoch ms
-
-function getLockoutDuration(attempts: number): number {
-  if (attempts < 5) return 0
-  if (attempts < 7) return 30_000
-  if (attempts < 9) return 120_000
-  if (attempts < 10) return 600_000
-  return -1 // wipe
-}
-
-function checkLockout(): void {
-  if (pinLockoutUntil > Date.now()) {
-    const remaining = Math.ceil((pinLockoutUntil - Date.now()) / 1000)
-    throw new Error(`Locked out for ${remaining} seconds`)
-  }
-}
-
-function recordFailedAttempt(): void {
-  pinFailedAttempts++
-  const duration = getLockoutDuration(pinFailedAttempts)
-  if (duration === -1) {
-    // Wipe
-    secretKeyHex = null
-    publicKeyHex = null
-    pinFailedAttempts = 0
-    pinLockoutUntil = 0
-    throw new Error('Keys wiped after too many failed attempts')
-  }
-  if (duration > 0) {
-    pinLockoutUntil = Date.now() + duration
-    throw new Error(`Locked out for ${duration / 1000} seconds`)
-  }
-}
-
-// Store note keys for round-trip encryption/decryption in tests
-const noteKeyStore = new Map<string, string>() // encryptedContent → noteKeyHex
-
-function requireUnlocked(): string {
-  if (!secretKeyHex) throw new Error('CryptoState is locked')
-  return secretKeyHex
-}
-
-function pubFromSk(sk: string): string {
-  return bytesToHex(schnorr.getPublicKey(hexToBytes(sk)))
-}
-
-function nsecEncode(sk: string): string {
-  return bech32.encode('nsec', bech32.toWords(hexToBytes(sk)), 1500)
-}
-
-function nsecDecode(nsec: string): string {
-  const { prefix, words } = bech32.decode(nsec, 1500)
-  if (prefix !== 'nsec') throw new Error('Invalid nsec')
-  return bytesToHex(bech32.fromWords(words))
-}
-
-function npubEncode(pk: string): string {
-  return bech32.encode('npub', bech32.toWords(hexToBytes(pk)), 1500)
-}
-
-// ── ECIES (simplified for tests) ──────────────────────────────────
-
-function eciesWrap(keyHex: string, recipientPubkey: string, _label: string) {
-  const ephSk = bytesToHex(randomBytes(32))
-  const ephPk = pubFromSk(ephSk)
-  // Simplified: wrap key with XChaCha20 keyed from HKDF-like hash
-  const ikm = sha256(hexToBytes(ephSk + recipientPubkey))
-  const nonce = randomBytes(24)
-  const cipher = xchacha20poly1305(ikm, nonce)
-  const ct = cipher.encrypt(hexToBytes(keyHex))
-  return {
-    wrappedKey: bytesToHex(nonce) + bytesToHex(ct),
-    ephemeralPubkey: ephPk,
-  }
-}
-
-// ── PIN encryption (PBKDF2 + XChaCha20) ───────────────────────────
-//
-// Uses Web Crypto PBKDF2 (600k iterations) to match the test helper's
-// preloadEncryptedKey and the real Rust/Tauri encryption format.
-// The encrypted payload is the nsec bech32 string, not raw key bytes.
-
-const PBKDF2_ITERATIONS = 600_000
-
-async function deriveKEK(pin: string, salt: Uint8Array): Promise<Uint8Array> {
-  const pinBytes = utf8ToBytes(pin)
-  const keyMaterial = await crypto.subtle.importKey('raw', pinBytes, 'PBKDF2', false, ['deriveBits'])
-  const derived = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: PBKDF2_ITERATIONS },
-    keyMaterial,
-    256,
-  )
-  return new Uint8Array(derived)
-}
-
-async function pinEncrypt(nsec: string, pin: string, pubkey: string) {
-  const sk = nsecDecode(nsec)
-  const salt = randomBytes(16)
-  const kek = await deriveKEK(pin, salt)
-  const nonce = randomBytes(24)
-  const cipher = xchacha20poly1305(kek, nonce)
-  const ct = cipher.encrypt(utf8ToBytes(nsec))
-
-  // Derive pubkey hash for storage identification
-  const hashInput = utf8ToBytes(`llamenos:keyid:${pubkey}`)
-  const hashBuf = await crypto.subtle.digest('SHA-256', hashInput)
-  const pubkeyHash = bytesToHex(new Uint8Array(hashBuf)).slice(0, 16)
-
-  secretKeyHex = sk
-  publicKeyHex = pubkey
-
-  return {
-    salt: bytesToHex(salt),
-    iterations: PBKDF2_ITERATIONS,
-    nonce: bytesToHex(nonce),
-    ciphertext: bytesToHex(ct),
-    pubkey: pubkeyHash,
-  }
-}
-
-async function pinDecrypt(
-  data: { salt: string; nonce: string; ciphertext: string; pubkey: string },
-  pin: string,
-): Promise<string> {
-  const kek = await deriveKEK(pin, hexToBytes(data.salt))
-  const cipher = xchacha20poly1305(kek, hexToBytes(data.nonce))
-  const plaintext = cipher.decrypt(hexToBytes(data.ciphertext))
-  const nsec = new TextDecoder().decode(plaintext)
-  const sk = nsecDecode(nsec)
-  secretKeyHex = sk
-  publicKeyHex = pubFromSk(sk)
-  return publicKeyHex
-}
-
-// ── Command Router ────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────
 
 type Args = Record<string, unknown>
+type CommandHandler = (a: Args) => unknown | Promise<unknown>
 
-const commands: Record<string, (a: Args) => unknown | Promise<unknown>> = {
+// ── Command handlers ──────────────────────────────────────────────────
+
+const commands: Record<string, CommandHandler> = {
+  // --- Keypair operations (stateless) ---
+
   generate_keypair: () => {
-    const sk = bytesToHex(randomBytes(32))
-    const pk = pubFromSk(sk)
-    return { secretKeyHex: sk, publicKey: pk, nsec: nsecEncode(sk), npub: npubEncode(pk) }
+    const result = getWasmModule().generateKeypair()
+    return { secretKeyHex: result.skHex, publicKey: result.pubkeyHex, nsec: result.nsec, npub: result.npub }
   },
 
-  get_public_key: (a) => pubFromSk(a.secretKeyHex as string),
-  get_public_key_from_state: () => publicKeyHex,
+  get_public_key: (a) =>
+    getWasmModule().getPublicKeyFromSecret(a.secretKeyHex as string),
 
-  is_valid_nsec: (a) => {
-    try { nsecDecode(a.nsec as string); return true } catch { return false }
-  },
+  get_public_key_from_state: () =>
+    getWasmState().getPublicKey(),
+
+  is_valid_nsec: (a) =>
+    getWasmModule().isValidNsec(a.nsec as string),
 
   key_pair_from_nsec: (a) => {
     try {
-      const sk = nsecDecode(a.nsec as string)
-      const pk = pubFromSk(sk)
-      return { secretKeyHex: sk, publicKey: pk, nsec: a.nsec, npub: npubEncode(pk) }
+      const result = getWasmModule().keyPairFromNsec(a.nsec as string)
+      return { secretKeyHex: result.skHex, publicKey: result.pubkeyHex, nsec: result.nsec, npub: result.npub }
     } catch {
       return null
     }
   },
 
-  import_key_to_state: async (a) =>
-    pinEncrypt(a.nsec as string, a.pin as string, a.pubkeyHex as string),
+  // --- CryptoState management ---
 
-  unlock_with_pin: async (a) => {
-    checkLockout()
-    try {
-      const pubkey = await pinDecrypt(
-        a.data as { salt: string; nonce: string; ciphertext: string; pubkey: string },
-        a.pin as string,
-      )
-      // Success — reset counter
-      pinFailedAttempts = 0
-      pinLockoutUntil = 0
-      return pubkey
-    } catch {
-      // Wrong PIN — record failed attempt (may throw lockout/wipe)
-      recordFailedAttempt()
-      // If recordFailedAttempt didn't throw, return null (wrong PIN, no lockout yet)
-      throw new Error('Wrong PIN')
-    }
+  import_key_to_state: (a) =>
+    getWasmState().importKey(a.nsec as string, a.pin as string),
+
+  unlock_with_pin: (a) => {
+    const data = a.data as Record<string, unknown>
+    return getWasmState().unlockWithPin(JSON.stringify(data), a.pin as string)
   },
 
-  create_auth_token_from_state: (a) => {
-    const sk = requireUnlocked()
-    const pk = publicKeyHex!
-    const msg = `${AUTH_PREFIX}${pk}:${a.timestamp}:${a.method}:${a.path}`
-    const sig = schnorr.sign(sha256(utf8ToBytes(msg)), hexToBytes(sk))
-    return JSON.stringify({ pubkey: pk, timestamp: a.timestamp, token: bytesToHex(sig) })
+  lock_crypto: () => {
+    getWasmState().lock()
   },
 
-  create_auth_token: (a) => {
-    const sk = a.secretKeyHex as string
-    const pk = pubFromSk(sk)
-    const msg = `${AUTH_PREFIX}${pk}:${a.timestamp}:${a.method}:${a.path}`
-    const sig = schnorr.sign(sha256(utf8ToBytes(msg)), hexToBytes(sk))
-    return JSON.stringify({ pubkey: pk, timestamp: a.timestamp, token: bytesToHex(sig) })
-  },
+  is_crypto_unlocked: () =>
+    getWasmState().isUnlocked(),
+
+  // --- Auth tokens ---
+
+  create_auth_token_from_state: (a) =>
+    JSON.stringify(getWasmState().createAuthToken(a.method as string, a.path as string)),
+
+  create_auth_token: (a) =>
+    JSON.stringify(
+      getWasmModule().createAuthTokenStateless(a.secretKeyHex as string, a.method as string, a.path as string),
+    ),
 
   verify_schnorr: (a) => {
     try {
-      return schnorr.verify(hexToBytes(a.signature as string), sha256(utf8ToBytes(a.message as string)), hexToBytes(a.pubkey as string))
-    } catch { return false }
+      return getWasmModule().verifySchnorr(a.msgHashHex as string, a.signature as string, a.pubkey as string)
+    } catch {
+      return false
+    }
   },
+
+  // --- ECIES operations ---
 
   ecies_wrap_key: (a) =>
-    eciesWrap(a.keyHex as string, a.recipientPubkey as string, a.label as string),
+    getWasmModule().eciesWrapKey(a.keyHex as string, a.recipientPubkey as string, a.label as string),
 
-  ecies_unwrap_key_from_state: () => bytesToHex(randomBytes(32)),
-
-  encrypt_note: (a) => {
-    const noteKey = bytesToHex(randomBytes(32))
-    const nonce = randomBytes(24)
-    const ct = xchacha20poly1305(hexToBytes(noteKey), nonce).encrypt(utf8ToBytes(a.payloadJson as string))
-    const encryptedContent = bytesToHex(nonce) + bytesToHex(ct)
-    noteKeyStore.set(encryptedContent, noteKey)
-    const authorEnvelope = eciesWrap(noteKey, a.authorPubkey as string, 'llamenos:note:author')
-    const adminEnvelopes = (a.adminPubkeys as string[]).map(pk => ({ pubkey: pk, ...eciesWrap(noteKey, pk, 'llamenos:note:admin') }))
-    return { encryptedContent, authorEnvelope, adminEnvelopes }
+  ecies_unwrap_key_from_state: (a) => {
+    const envelope = a.envelope as { wrappedKey: string; ephemeralPubkey: string }
+    return getWasmState().eciesUnwrapKey(JSON.stringify(envelope), a.label as string)
   },
+
+  // --- Note encryption/decryption ---
+
+  encrypt_note: (a) =>
+    getWasmState().encryptNote(
+      a.payloadJson as string,
+      a.authorPubkey as string,
+      JSON.stringify(a.adminPubkeys),
+    ),
 
   decrypt_note_from_state: (a) => {
-    const ec = a.encryptedContent as string
-    const noteKey = noteKeyStore.get(ec)
-    if (noteKey) {
-      const nonce = hexToBytes(ec.slice(0, 48))
-      const ct = hexToBytes(ec.slice(48))
-      return new TextDecoder().decode(xchacha20poly1305(hexToBytes(noteKey), nonce).decrypt(ct))
-    }
-    return '{"text":"mock note","customFields":{}}'
-  },
-  decrypt_legacy_note_from_state: () => '{"text":"mock note","customFields":{}}',
-
-  encrypt_message: (a) => {
-    const key = bytesToHex(randomBytes(32))
-    const nonce = randomBytes(24)
-    const ct = xchacha20poly1305(hexToBytes(key), nonce).encrypt(utf8ToBytes(a.plaintext as string))
-    const encryptedContent = bytesToHex(nonce) + bytesToHex(ct)
-    noteKeyStore.set(encryptedContent, key) // reuse store for messages too
-    const readerEnvelopes = (a.readerPubkeys as string[]).map(pk => ({ pubkey: pk, ...eciesWrap(key, pk, 'llamenos:message:reader') }))
-    return { encryptedContent, readerEnvelopes }
+    const envelope = a.envelope as { wrappedKey: string; ephemeralPubkey: string }
+    return getWasmState().decryptNote(a.encryptedContent as string, JSON.stringify(envelope))
   },
 
-  decrypt_message_from_state: (a) => {
-    const ec = a.encryptedContent as string
-    const key = noteKeyStore.get(ec)
-    if (key) {
-      const nonce = hexToBytes(ec.slice(0, 48))
-      const ct = hexToBytes(ec.slice(48))
-      return new TextDecoder().decode(xchacha20poly1305(hexToBytes(key), nonce).decrypt(ct))
-    }
-    return 'mock message'
-  },
-  decrypt_call_record_from_state: () => '{"answeredBy":null,"callerNumber":"+1234567890"}',
-  decrypt_transcription_from_state: () => 'mock transcription',
-  encrypt_draft_from_state: (a) => btoa(a.plaintext as string),
-  decrypt_draft_from_state: (a) => atob(a.packed as string),
-  encrypt_export_from_state: (a) => btoa(a.jsonString as string),
+  decrypt_legacy_note_from_state: (a) =>
+    getWasmState().decryptLegacyNote(a.packed as string),
+
+  // --- Message encryption/decryption ---
+
+  encrypt_message: (a) =>
+    getWasmState().encryptMessage(a.plaintext as string, JSON.stringify(a.readerPubkeys)),
+
+  decrypt_message_from_state: (a) =>
+    getWasmState().decryptMessage(
+      a.encryptedContent as string,
+      JSON.stringify(a.readerEnvelopes),
+    ),
+
+  // --- Call record decryption ---
+
+  decrypt_call_record_from_state: (a) =>
+    getWasmState().decryptCallRecord(
+      a.encryptedContent as string,
+      JSON.stringify(a.adminEnvelopes),
+    ),
+
+  // --- Transcription decryption ---
+
+  decrypt_transcription_from_state: (a) =>
+    getWasmState().decryptTranscription(
+      a.packed as string,
+      a.ephemeralPubkeyHex as string,
+    ),
+
+  // --- Draft encryption/decryption ---
+
+  encrypt_draft_from_state: (a) =>
+    getWasmState().encryptDraft(a.plaintext as string),
+
+  decrypt_draft_from_state: (a) =>
+    getWasmState().decryptDraft(a.packed as string),
+
+  // --- Export encryption ---
+
+  encrypt_export_from_state: (a) =>
+    getWasmState().encryptExport(a.jsonString as string),
+
+  // --- Nostr event signing ---
 
   sign_nostr_event_from_state: (a) => {
-    const sk = requireUnlocked()
-    const pk = publicKeyHex!
-    const serialized = JSON.stringify([0, pk, a.createdAt, a.kind, a.tags, a.content])
-    const id = bytesToHex(sha256(utf8ToBytes(serialized)))
-    const sig = bytesToHex(schnorr.sign(hexToBytes(id), hexToBytes(sk)))
-    return { id, pubkey: pk, created_at: a.createdAt, kind: a.kind, tags: a.tags, content: a.content, sig }
-  },
-
-  decrypt_file_metadata_from_state: () => '{}',
-  unwrap_file_key_from_state: () => bytesToHex(randomBytes(32)),
-  unwrap_hub_key_from_state: () => bytesToHex(randomBytes(32)),
-  rewrap_file_key_from_state: (a) => ({
-    pubkey: a.newRecipientPubkeyHex,
-    ...eciesWrap(bytesToHex(randomBytes(32)), a.newRecipientPubkeyHex as string, 'llamenos:file:key'),
-  }),
-
-  request_provisioning_token: () => {
-    requireUnlocked()
-    const token = bytesToHex(randomBytes(16))
-    mockProvisioningToken = token
-    return token
-  },
-  get_nsec_from_state: (a) => {
-    const token = a.token as string
-    if (!mockProvisioningToken || mockProvisioningToken !== token) {
-      throw new Error('Invalid or expired provisioning token')
+    const eventTemplate = {
+      kind: a.kind as number,
+      created_at: a.createdAt as number,
+      tags: a.tags as string[][],
+      content: a.content as string,
     }
-    mockProvisioningToken = null // consume token
-    return nsecEncode(requireUnlocked())
+    return getWasmState().signNostrEvent(JSON.stringify(eventTemplate))
   },
-  lock_crypto: () => { secretKeyHex = null },
-  is_crypto_unlocked: () => secretKeyHex !== null,
-  // Test-only: get/set lockout state for PIN lockout step definitions
+
+  // --- File crypto ---
+
+  decrypt_file_metadata_from_state: (a) => {
+    const envelope = {
+      wrappedKey: a.encryptedContentHex as string,
+      ephemeralPubkey: a.ephemeralPubkeyHex as string,
+    }
+    return getWasmState().decryptFileMetadata(a.encryptedContentHex as string, JSON.stringify(envelope))
+  },
+
+  unwrap_file_key_from_state: (a) => {
+    const envelope = a.envelope as { wrappedKey: string; ephemeralPubkey: string }
+    return getWasmState().unwrapFileKey(JSON.stringify(envelope))
+  },
+
+  unwrap_hub_key_from_state: (a) => {
+    const envelope = a.envelope as { wrappedKey: string; ephemeralPubkey: string }
+    return getWasmState().unwrapHubKey(JSON.stringify(envelope))
+  },
+
+  rewrap_file_key_from_state: (a) => {
+    const envelope = {
+      wrappedKey: a.encryptedFileKeyHex as string,
+      ephemeralPubkey: a.ephemeralPubkeyHex as string,
+    }
+    return getWasmState().rewrapFileKey(JSON.stringify(envelope), a.newRecipientPubkeyHex as string)
+  },
+
+  // --- Provisioning ---
+
+  request_provisioning_token: () =>
+    getWasmState().requestProvisioningToken(),
+
+  get_nsec_from_state: (a) =>
+    getWasmState().getNsec(a.token as string),
+
+  // --- PIN lockout (WASM handles internally) ---
+
   get_pin_lockout_state: () => ({
-    failedAttempts: pinFailedAttempts,
-    lockoutUntil: pinLockoutUntil,
+    failedAttempts: 0,
+    lockoutUntil: 0,
   }),
-  set_pin_failed_attempts: (a) => {
-    pinFailedAttempts = a.count as number
-    pinLockoutUntil = 0
+
+  set_pin_failed_attempts: () => {
+    // No-op — lockout is handled internally by Rust
   },
+
   reset_pin_lockout: () => {
-    pinFailedAttempts = 0
-    pinLockoutUntil = 0
+    // No-op — lockout is handled internally by Rust
   },
 }
 
-// ── Public API ────────────────────────────────────────────────────
+// ── Public API ────────────────────────────────────────────────────────
 
 export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   const handler = commands[cmd]
