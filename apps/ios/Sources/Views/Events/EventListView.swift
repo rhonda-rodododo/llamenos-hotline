@@ -343,7 +343,7 @@ private struct EventRow: View {
     private var statusColor: Color {
         if let statusDef = viewModel.statusDef(for: event),
            let color = statusDef.color {
-            return Color(hex: color)
+            return Color(hex: color) ?? Color.gray
         }
         return Color.gray
     }
