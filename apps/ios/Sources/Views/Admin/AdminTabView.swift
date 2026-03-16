@@ -63,6 +63,26 @@ struct AdminTabView: View {
             }
             .accessibilityIdentifier("admin-custom-fields")
 
+            NavigationLink {
+                SchemaBrowserView()
+            } label: {
+                Label(
+                    NSLocalizedString("admin_schema_browser", comment: "Entity Types"),
+                    systemImage: "doc.text.magnifyingglass"
+                )
+            }
+            .accessibilityIdentifier("admin-schema-browser")
+
+            NavigationLink {
+                EventListView()
+            } label: {
+                Label(
+                    NSLocalizedString("events_title", comment: "Events"),
+                    systemImage: "calendar"
+                )
+            }
+            .accessibilityIdentifier("admin-events")
+
             // MARK: - Settings Section
 
             Section(header: Text(NSLocalizedString("admin_settings_section", comment: "Settings"))) {

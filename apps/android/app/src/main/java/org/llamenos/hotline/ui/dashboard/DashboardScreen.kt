@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Lock
@@ -85,6 +86,8 @@ fun DashboardScreen(
     onNavigateToCases: () -> Unit,
     onNavigateToBlasts: () -> Unit,
     onNavigateToHelp: () -> Unit,
+    onNavigateToHubs: () -> Unit = {},
+    onNavigateToEvents: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -554,6 +557,29 @@ fun DashboardScreen(
                         onClick = onNavigateToBlasts,
                         tint = MaterialTheme.colorScheme.tertiary,
                         testTag = "blasts-card",
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    QuickActionCard(
+                        icon = Icons.Filled.Business,
+                        label = stringResource(R.string.hubs_title),
+                        onClick = onNavigateToHubs,
+                        tint = MaterialTheme.colorScheme.primary,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                        testTag = "hubs-card",
+                        modifier = Modifier.weight(1f),
+                    )
+                    QuickActionCard(
+                        icon = Icons.Filled.CalendarMonth,
+                        label = stringResource(R.string.events_title),
+                        onClick = onNavigateToEvents,
+                        tint = MaterialTheme.colorScheme.primary,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                        testTag = "events-card",
                         modifier = Modifier.weight(1f),
                     )
                 }

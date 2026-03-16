@@ -2317,4 +2317,34 @@
     <string name="your_identity">Your Identity</string>
     <string name="your_private_key">Your Private Key</string>
     <string name="your_public_key">Your Public Key</string>
+
+    <!-- Schema Browser -->
+    <string name="schema_browser_title">Entity Types</string>
+    <string name="schema_browser_empty">No entity types configured</string>
+    <string name="schema_browser_empty_desc">No entity types are configured for this hub.</string>
+    <string name="schema_fields_count">%d fields</string>
+    <string name="schema_statuses_count">%d statuses</string>
+    <string name="schema_overview">Overview</string>
+    <string name="schema_fields">Fields</string>
+    <string name="schema_statuses">Statuses</string>
+    <string name="schema_severities">Severities</string>
+    <string name="schema_contact_roles">Contact Roles</string>
+    <string name="schema_configuration">Configuration</string>
+    <string name="schema_required">Required</string>
+    <string name="schema_optional">Optional</string>
+    <string name="schema_default">Default</string>
+    <string name="schema_closed">Closed</string>
+    <string name="schema_name">Name</string>
+    <string name="schema_label">Label</string>
+    <string name="schema_label_plural">Plural</string>
+    <string name="schema_description">Description</string>
+    <string name="schema_category">Category</string>
+    <string name="schema_template">Template</string>
+    <string name="schema_number_prefix">Number Prefix</string>
+    <string name="schema_numbering">Auto-Numbering</string>
+    <string name="schema_sub_records">Sub-Records</string>
+    <string name="schema_file_attachments">File Attachments</string>
+    <string name="schema_interactions">Interaction Links</string>
+    <string name="schema_access_level">Default Access</string>
+    <string name="schema_no_fields">No fields defined</string>
 </resources>

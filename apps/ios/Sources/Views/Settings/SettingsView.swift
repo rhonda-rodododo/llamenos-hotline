@@ -110,6 +110,8 @@ struct SettingsView: View {
             }
             .navigationDestination(for: String.self) { destination in
                 switch destination {
+                case "hubs":
+                    HubManagementView()
                 case "account":
                     AccountSettingsView()
                 case "preferences":
@@ -193,6 +195,17 @@ struct SettingsView: View {
 
     private var navigationSection: some View {
         Section {
+            NavigationLink(value: "hubs") {
+                Label {
+                    Text(NSLocalizedString("hubs_title", comment: "Hubs"))
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "building.2.fill")
+                        .foregroundStyle(Color.brandPrimary)
+                }
+            }
+            .accessibilityIdentifier("settings-hubs-link")
+
             NavigationLink(value: "account") {
                 Label {
                     Text(NSLocalizedString("settings_account_title", comment: "Account"))

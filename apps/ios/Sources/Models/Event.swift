@@ -92,6 +92,10 @@ struct EventResponse: Codable, Sendable {
     let event: CaseEvent
 }
 
+struct SubEventsResponse: Codable, Sendable {
+    let events: [CaseEvent]
+}
+
 // MARK: - Request Bodies
 
 struct CreateEventRequest: Codable, Sendable {

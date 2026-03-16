@@ -52,6 +52,13 @@ import org.llamenos.hotline.ui.notes.NotesViewModel
 import org.llamenos.hotline.ui.cases.CaseDetailScreen
 import org.llamenos.hotline.ui.cases.CaseListScreen
 import org.llamenos.hotline.ui.cases.CaseManagementViewModel
+import org.llamenos.hotline.ui.events.CreateEventScreen
+import org.llamenos.hotline.ui.events.EventDetailScreen
+import org.llamenos.hotline.ui.events.EventListScreen
+import org.llamenos.hotline.ui.events.EventsViewModel
+import org.llamenos.hotline.ui.hubs.CreateHubScreen
+import org.llamenos.hotline.ui.hubs.HubListScreen
+import org.llamenos.hotline.ui.hubs.HubManagementViewModel
 import org.llamenos.hotline.ui.settings.DeviceLinkScreen
 
 /**
@@ -427,6 +434,12 @@ fun LlamenosNavigation(
                 onNavigateToDeviceLink = {
                     navController.navigate(LlamenosRoute.DeviceLink.route)
                 },
+                onNavigateToHubs = {
+                    navController.navigate(LlamenosRoute.HubList.route)
+                },
+                onNavigateToEvents = {
+                    navController.navigate(LlamenosRoute.Events.route)
+                },
             )
         }
 
@@ -643,6 +656,64 @@ fun LlamenosNavigation(
             CaseDetailScreen(
                 viewModel = caseViewModel,
                 recordId = recordId,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(LlamenosRoute.HubList.route) {
+            val hubViewModel: HubManagementViewModel = hiltViewModel()
+            HubListScreen(
+                viewModel = hubViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCreateHub = {
+                    navController.navigate(LlamenosRoute.HubCreate.route)
+                },
+            )
+        }
+
+        composable(LlamenosRoute.HubCreate.route) {
+            val hubViewModel: HubManagementViewModel = hiltViewModel()
+            CreateHubScreen(
+                viewModel = hubViewModel,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(LlamenosRoute.Events.route) {
+            val eventsViewModel: EventsViewModel = hiltViewModel()
+            EventListScreen(
+                viewModel = eventsViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEventDetail = { eventId ->
+                    navController.navigate("event/$eventId")
+                },
+                onNavigateToCreateEvent = {
+                    navController.navigate(LlamenosRoute.EventCreate.route)
+                },
+            )
+        }
+
+        composable(
+            LlamenosRoute.EventDetail.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument("eventId") {
+                    type = NavType.StringType
+                },
+            ),
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getString("eventId") ?: ""
+            val eventsViewModel: EventsViewModel = hiltViewModel()
+            EventDetailScreen(
+                viewModel = eventsViewModel,
+                eventId = eventId,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(LlamenosRoute.EventCreate.route) {
+            val eventsViewModel: EventsViewModel = hiltViewModel()
+            CreateEventScreen(
+                viewModel = eventsViewModel,
                 onNavigateBack = { navController.popBackStack() },
             )
         }

@@ -161,10 +161,10 @@ final class EventsViewModel {
         isLoadingLinks = true
         defer { isLoadingLinks = false }
 
-        // Load linked cases
+        // Load linked records (cases)
         do {
             let response: CaseEventLinksResponse = try await apiService.request(
-                method: "GET", path: "/api/events/\(event.id)/cases"
+                method: "GET", path: "/api/events/\(event.id)/records"
             )
             linkedCases = response.links
         } catch {
@@ -183,9 +183,9 @@ final class EventsViewModel {
 
         // Load sub-events
         do {
-            let response: EventsListResponse = try await apiService.request(
+            let response: SubEventsResponse = try await apiService.request(
                 method: "GET",
-                path: "/api/events?parentEventId=\(event.id)&limit=50"
+                path: "/api/events/\(event.id)/subevents"
             )
             subEvents = response.events
         } catch {
@@ -260,23 +260,24 @@ final class EventsViewModel {
         }
 
         // Encrypt the details
-        let encrypted: CryptoService.EncryptedMessage
+        let encryptedContent: String
+        let envelopes: [CaseEnvelope]
         do {
-            encrypted = try cryptoService.encryptMessage(
+            let result = try cryptoService.encryptMessage(
                 plaintext: detailsString,
                 readerPubkeys: [] // Server adds admin pubkeys
             )
+            encryptedContent = result.encryptedContent
+            envelopes = result.envelopes.map { env in
+                CaseEnvelope(
+                    pubkey: env.pubkey,
+                    wrappedKey: env.wrappedKey,
+                    ephemeralPubkey: env.ephemeralPubkey
+                )
+            }
         } catch {
             errorMessage = error.localizedDescription
             return false
-        }
-
-        let envelopes = encrypted.envelopes.map { env in
-            CaseEnvelope(
-                pubkey: env.pubkey,
-                wrappedKey: env.wrappedKey,
-                ephemeralPubkey: env.ephemeralPubkey
-            )
         }
 
         let isoFormatter = ISO8601DateFormatter()
@@ -289,7 +290,7 @@ final class EventsViewModel {
             parentEventId: nil,
             locationPrecision: location != nil ? "neighborhood" : "none",
             locationApproximate: location,
-            encryptedDetails: encrypted.encryptedContent,
+            encryptedDetails: encryptedContent,
             detailEnvelopes: envelopes,
             blindIndexes: [:]
         )
