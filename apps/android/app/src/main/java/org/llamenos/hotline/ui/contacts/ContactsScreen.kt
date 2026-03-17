@@ -147,7 +147,7 @@ fun ContactsScreen(
                             FilterChip(
                                 selected = uiState.selectedContactType == null,
                                 onClick = { viewModel.setContactTypeFilter(null) },
-                                label = { Text(stringResource(R.string.contactDirectory_filter_all)) },
+                                label = { Text(stringResource(R.string.contact_directory_filter_all)) },
                                 modifier = Modifier.testTag("contacts-filter-all"),
                             )
                         }

@@ -74,7 +74,7 @@ fun ContactDetailScreen(
                     val displayId = uiState.contact?.let { contact ->
                         if (contact.last4 != null) "***${contact.last4}"
                         else contact.contactHash.take(8) + "\u2026"
-                    } ?: stringResource(R.string.contactDirectory_detail_title)
+                    } ?: stringResource(R.string.contact_directory_detail_title)
                     Text(
                         text = displayId,
                         modifier = Modifier.testTag("contact-detail-title"),
@@ -119,7 +119,7 @@ fun ContactDetailScreen(
                 uiState.error != null && uiState.contact == null -> {
                     org.llamenos.hotline.ui.components.EmptyState(
                         icon = Icons.Filled.Warning,
-                        title = stringResource(R.string.contactDirectory_error),
+                        title = stringResource(R.string.contact_directory_error),
                         subtitle = uiState.error ?: "",
                         testTag = "contact-detail-error",
                         modifier = Modifier.fillMaxSize(),
@@ -171,7 +171,7 @@ private fun ContactProfileContent(
             ) {
                 Column {
                     Text(
-                        text = stringResource(R.string.contactDirectory_first_seen),
+                        text = stringResource(R.string.contact_directory_first_seen),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     )
@@ -182,7 +182,7 @@ private fun ContactProfileContent(
                 }
                 Column {
                     Text(
-                        text = stringResource(R.string.contactDirectory_last_seen),
+                        text = stringResource(R.string.contact_directory_last_seen),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     )
@@ -199,7 +199,7 @@ private fun ContactProfileContent(
         if (identifiers.isNotEmpty()) {
             item {
                 Text(
-                    text = stringResource(R.string.contactDirectory_identifiers),
+                    text = stringResource(R.string.contact_directory_identifiers),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.testTag("contact-identifiers-header"),
@@ -213,7 +213,7 @@ private fun ContactProfileContent(
         // Interaction summary
         item {
             Text(
-                text = stringResource(R.string.contactDirectory_interactions),
+                text = stringResource(R.string.contact_directory_interactions),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.testTag("contact-interactions-header"),
@@ -227,25 +227,25 @@ private fun ContactProfileContent(
                 InteractionStatCard(
                     icon = Icons.Filled.Phone,
                     count = contact.callCount,
-                    label = stringResource(R.string.contactDirectory_calls),
+                    label = stringResource(R.string.contact_directory_calls),
                     modifier = Modifier.weight(1f),
                 )
                 InteractionStatCard(
                     icon = Icons.Filled.Chat,
                     count = contact.conversationCount,
-                    label = stringResource(R.string.contactDirectory_messages),
+                    label = stringResource(R.string.contact_directory_messages),
                     modifier = Modifier.weight(1f),
                 )
                 InteractionStatCard(
                     icon = Icons.Filled.Description,
                     count = contact.noteCount,
-                    label = stringResource(R.string.contactDirectory_notes),
+                    label = stringResource(R.string.contact_directory_notes),
                     modifier = Modifier.weight(1f),
                 )
                 InteractionStatCard(
                     icon = Icons.Filled.Warning,
                     count = contact.reportCount,
-                    label = stringResource(R.string.contactDirectory_reports),
+                    label = stringResource(R.string.contact_directory_reports),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -256,7 +256,7 @@ private fun ContactProfileContent(
         if (linkedCases.isNotEmpty()) {
             item {
                 Text(
-                    text = stringResource(R.string.contactDirectory_linked_cases),
+                    text = stringResource(R.string.contact_directory_linked_cases),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.testTag("contact-linked-cases-header"),
@@ -271,7 +271,7 @@ private fun ContactProfileContent(
         if (relationships.isNotEmpty()) {
             item {
                 Text(
-                    text = stringResource(R.string.contactDirectory_relationships),
+                    text = stringResource(R.string.contact_directory_relationships),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.testTag("contact-relationships-header"),
@@ -306,7 +306,7 @@ private fun ContactProfileContent(
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = stringResource(R.string.contactDirectory_view_timeline),
+                        text = stringResource(R.string.contact_directory_view_timeline),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium,
                     )
