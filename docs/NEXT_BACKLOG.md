@@ -642,6 +642,7 @@ Complete backend modernization: replace Node.js with Bun runtime, then replace t
 
 - [x] **[Epic 357: Migrate from Node.js to Bun Runtime](epics/epic-357-bun-runtime-migration.md)** — Server entry point (Hono Bun adapter), PostgreSQL driver (Bun.sql), remove esbuild, Docker image (oven/bun:1-slim), dev scripts, WebSocket, deploy configs (Compose, Helm, Ansible), documentation
 - [x] **[Epic 358: Drop DO Architecture — Drizzle ORM + Direct PostgreSQL](epics/epic-358-drop-do-architecture.md)** — Replaced 9 DOs (8,160 lines) + platform layer (1,200 lines) with 11 Drizzle-backed service classes (9,081 lines). 51 typed PostgreSQL tables with GIN/partial indexes. Net -10,680 lines deleted. ConversationDO/BlastDO subscriber data integrity bug fixed.
+- [ ] **[Epic 359: BDD Test Compatibility — Fix Service Response Shapes](epics/epic-359-bdd-service-compat.md)** — Fix 230 skipped BDD tests: API response wrapping (159 tests), auth token validation in dev mode (44 tests), audit log hash chain init (11 tests), simulation endpoint shapes (8 tests)
 
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
