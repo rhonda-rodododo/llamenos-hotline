@@ -1,16 +1,16 @@
 /**
  * System health dashboard endpoint (Epic 295).
  *
- * Aggregates health data from multiple sources (DOs, env, process)
+ * Aggregates health data from multiple sources (services, env, process)
  * for admin monitoring. Uses Promise.allSettled so individual source
  * failures don't break the entire response.
  */
 import { Hono } from 'hono'
 import { describeRoute } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
 import { authErrors } from '../openapi/helpers'
+import type { Services } from '../services'
 
 declare const __BUILD_VERSION__: string
 
@@ -54,7 +54,7 @@ export interface SystemHealth {
 const systemRoutes = new Hono<AppEnv>()
 systemRoutes.use('*', requirePermission('system:manage-instance'))
 
-async function fetchServerHealth(env: Record<string, unknown>): Promise<SystemHealth['server']> {
+async function fetchServerHealth(): Promise<SystemHealth['server']> {
   const uptime = typeof process !== 'undefined' ? Math.floor(process.uptime()) : 0
   const version = typeof __BUILD_VERSION__ !== 'undefined' ? __BUILD_VERSION__ : 'dev'
 
@@ -92,23 +92,16 @@ async function fetchServices(env: Record<string, unknown>): Promise<ServiceStatu
   return services
 }
 
-async function fetchCallMetrics(dos: ReturnType<typeof getDOs>): Promise<SystemHealth['calls']> {
+async function fetchCallMetrics(services: Services, hubId: string): Promise<SystemHealth['calls']> {
   try {
-    // Fetch active calls
-    const activeRes = await dos.calls.fetch(new Request('http://do/calls/active'))
-    const activeData = activeRes.ok
-      ? (await activeRes.json() as { calls: unknown[] })
-      : { calls: [] }
-
-    // Fetch today's call count
-    const todayRes = await dos.calls.fetch(new Request('http://do/calls/today-count'))
-    const todayData = todayRes.ok
-      ? (await todayRes.json() as { count: number })
-      : { count: 0 }
+    const [activeCalls, todayCount] = await Promise.all([
+      services.calls.getActiveCalls(hubId),
+      services.calls.getTodayCount(hubId),
+    ])
 
     return {
-      today: todayData.count,
-      active: activeData.calls.length,
+      today: todayCount,
+      active: activeCalls.length,
       avgResponseSeconds: 0,
       missed: 0,
     }
@@ -117,31 +110,21 @@ async function fetchCallMetrics(dos: ReturnType<typeof getDOs>): Promise<SystemH
   }
 }
 
-async function fetchVolunteerInfo(dos: ReturnType<typeof getDOs>): Promise<SystemHealth['volunteers']> {
+async function fetchVolunteerInfo(services: Services, hubId: string): Promise<SystemHealth['volunteers']> {
   try {
-    const [volRes, presenceRes, shiftRes] = await Promise.all([
-      dos.identity.fetch(new Request('http://do/volunteers')),
-      dos.calls.fetch(new Request('http://do/calls/presence')),
-      dos.shifts.fetch(new Request('http://do/shifts/on-shift')),
+    const [volResult, presenceResult, onShiftPubkeys] = await Promise.all([
+      services.identity.getVolunteers(),
+      services.calls.getPresence(hubId),
+      services.shifts.getCurrentVolunteers(hubId),
     ])
 
-    const volData = volRes.ok
-      ? (await volRes.json() as { volunteers: Array<{ active: boolean }> })
-      : { volunteers: [] }
-    const presenceData = presenceRes.ok
-      ? (await presenceRes.json() as { volunteers: unknown[] })
-      : { volunteers: [] }
-    const shiftData = shiftRes.ok
-      ? (await shiftRes.json() as { pubkeys: string[] })
-      : { pubkeys: [] }
-
-    const totalActive = volData.volunteers.filter(v => v.active).length
-    const onShift = shiftData.pubkeys.length
+    const totalActive = volResult.volunteers.filter(v => v.active).length
+    const onShift = onShiftPubkeys.length
     const shiftCoverage = totalActive > 0 ? Math.round((onShift / totalActive) * 100) : 0
 
     return {
       totalActive,
-      onlineNow: presenceData.volunteers.length,
+      onlineNow: presenceResult.volunteers.length,
       onShift,
       shiftCoverage,
     }
@@ -161,20 +144,21 @@ systemRoutes.get('/health',
   }),
   async (c) => {
   const env = c.env as unknown as Record<string, unknown>
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? ''
 
   const [serverResult, servicesResult, callsResult, volunteersResult] = await Promise.allSettled([
-    fetchServerHealth(env),
+    fetchServerHealth(),
     fetchServices(env),
-    fetchCallMetrics(dos),
-    fetchVolunteerInfo(dos),
+    fetchCallMetrics(services, hubId),
+    fetchVolunteerInfo(services, hubId),
   ])
 
   const server = serverResult.status === 'fulfilled'
     ? serverResult.value
     : { status: 'down' as const, uptime: 0, version: 'unknown' }
 
-  const services = servicesResult.status === 'fulfilled'
+  const servicesList = servicesResult.status === 'fulfilled'
     ? servicesResult.value
     : []
 
@@ -187,14 +171,14 @@ systemRoutes.get('/health',
     : { totalActive: 0, onlineNow: 0, onShift: 0, shiftCoverage: 0 }
 
   // Derive overall server status from services
-  const anyDown = services.some(s => s.status === 'down')
-  const anyDegraded = services.some(s => s.status === 'degraded')
+  const anyDown = servicesList.some(s => s.status === 'down')
+  const anyDegraded = servicesList.some(s => s.status === 'degraded')
   if (anyDown) server.status = 'degraded'
   if (anyDegraded && server.status === 'ok') server.status = 'degraded'
 
   const health: SystemHealth = {
     server,
-    services,
+    services: servicesList,
     calls,
     storage: {
       dbSize: 'N/A',

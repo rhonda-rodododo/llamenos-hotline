@@ -1,8 +1,6 @@
 import { Hono } from 'hono'
 import { describeRoute } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import type { TelephonyProviderConfig } from '@shared/types'
-import { getDOs } from '../lib/do-access'
 import { generateWebRtcToken, isWebRtcConfigured } from '../telephony/webrtc-tokens'
 import { generateSipParams, isSipConfigured } from '../telephony/sip-tokens'
 import { authErrors } from '../openapi/helpers'
@@ -26,7 +24,7 @@ webrtc.get('/webrtc-token',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const volunteer = c.get('volunteer')
 
@@ -37,12 +35,11 @@ webrtc.get('/webrtc-token',
     }
 
     // Get provider config
-    const res = await dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
-    if (!res.ok) {
+    const config = await services.settings.getTelephonyProvider()
+    if (!config) {
       return c.json({ error: 'No telephony provider configured' }, 404)
     }
-    const config = await res.json() as TelephonyProviderConfig | null
-    if (!config || !isWebRtcConfigured(config)) {
+    if (!isWebRtcConfigured(config)) {
       return c.json({ error: 'WebRTC is not configured for the current provider. Admin must enable it in settings.' }, 400)
     }
 
@@ -74,7 +71,7 @@ webrtc.get('/sip-token',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const volunteer = c.get('volunteer')
 
@@ -85,12 +82,11 @@ webrtc.get('/sip-token',
     }
 
     // Get provider config
-    const res = await dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
-    if (!res.ok) {
+    const config = await services.settings.getTelephonyProvider()
+    if (!config) {
       return c.json({ error: 'No telephony provider configured' }, 404)
     }
-    const config = await res.json() as TelephonyProviderConfig | null
-    if (!config || !isSipConfigured(config)) {
+    if (!isSipConfigured(config)) {
       return c.json({ error: 'SIP is not configured for the current provider.' }, 400)
     }
 
@@ -118,12 +114,8 @@ webrtc.get('/sip-status',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
-    const res = await dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
-    if (!res.ok) {
-      return c.json({ available: false, provider: null })
-    }
-    const config = await res.json() as TelephonyProviderConfig | null
+    const services = c.get('services')
+    const config = await services.settings.getTelephonyProvider()
     return c.json({
       available: isSipConfigured(config),
       provider: config?.type ?? null,
@@ -144,12 +136,8 @@ webrtc.get('/webrtc-status',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
-    const res = await dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
-    if (!res.ok) {
-      return c.json({ available: false, provider: null })
-    }
-    const config = await res.json() as TelephonyProviderConfig | null
+    const services = c.get('services')
+    const config = await services.settings.getTelephonyProvider()
     return c.json({
       available: isWebRtcConfigured(config),
       provider: config?.type ?? null,

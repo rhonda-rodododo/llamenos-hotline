@@ -112,6 +112,28 @@ export async function getTelephony(env: Env, dos: DurableObjects): Promise<Telep
 }
 
 /**
+ * Create a TelephonyAdapter from SettingsService (service-based version).
+ * Reads config via direct service call; falls back to env vars for Twilio.
+ */
+export async function getTelephonyFromService(
+  env: Env,
+  settingsService: { getTelephonyProvider(): Promise<TelephonyProviderConfig | null> },
+): Promise<TelephonyAdapter | null> {
+  try {
+    const config = await settingsService.getTelephonyProvider()
+    if (config) return createAdapterFromConfig(config)
+  } catch {
+    // Fall through to env var defaults
+  }
+
+  if (env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_PHONE_NUMBER) {
+    return new TwilioAdapter(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN, env.TWILIO_PHONE_NUMBER)
+  }
+
+  return null
+}
+
+/**
  * Get TelephonyAdapter for a specific hub.
  * Falls back to global telephony config, then env vars.
  */
@@ -127,6 +149,27 @@ export async function getHubTelephony(env: Env, hubId: string): Promise<Telephon
     // Fall through to global
   }
   return getTelephony(env, dos)
+}
+
+/**
+ * Get TelephonyAdapter for a specific hub (service-based version).
+ * Falls back to global telephony config, then env vars.
+ */
+export async function getHubTelephonyFromService(
+  env: Env,
+  settingsService: {
+    getHubTelephonyProvider(hubId: string): Promise<TelephonyProviderConfig | null>
+    getTelephonyProvider(): Promise<TelephonyProviderConfig | null>
+  },
+  hubId: string,
+): Promise<TelephonyAdapter | null> {
+  try {
+    const config = await settingsService.getHubTelephonyProvider(hubId)
+    if (config) return createAdapterFromConfig(config)
+  } catch {
+    // Fall through to global
+  }
+  return getTelephonyFromService(env, settingsService)
 }
 
 /**

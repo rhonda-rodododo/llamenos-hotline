@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv, Volunteer } from '../types'
-import { getDOs, getScopedDOs, getMessagingAdapter } from '../lib/do-access'
+import { getMessagingAdapter, getScopedDOs } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import {
   createRecordBodySchema,
@@ -16,7 +16,6 @@ import { createInteractionBodySchema, listInteractionsQuerySchema } from '@proto
 import { linkReportToCaseBodySchema } from '@protocol/schemas/report-links'
 import { notifyContactsBodySchema } from '@protocol/schemas/notifications'
 import type { NotifyContactsResponse, NotificationResultItem } from '@protocol/schemas/notifications'
-import type { EntityTypeDefinition } from '@protocol/schemas/entity-schema'
 import { authErrors, notFoundError } from '../openapi/helpers'
 import { audit } from '../services/audit'
 import { KIND_RECORD_CREATED, KIND_RECORD_UPDATED, KIND_RECORD_ASSIGNED } from '@shared/nostr-events'
@@ -24,6 +23,7 @@ import { publishNostrEvent } from '../lib/nostr-events'
 import { resolvePermissions } from '@shared/permissions'
 import { determineEnvelopeRecipients } from '../lib/envelope-recipients'
 import type { HubMemberInfo } from '../lib/envelope-recipients'
+import type { Services } from '../services'
 
 const records = new Hono<AppEnv>()
 
@@ -39,20 +39,12 @@ function getAccessLevel(permissions: string[]): 'all' | 'assigned' | 'own' | nul
  * Resolve hub members with their role slugs and permissions
  * for envelope recipient determination.
  */
-async function resolveHubMembers(
-  env: AppEnv['Bindings'],
-  hubId: string | undefined,
-): Promise<HubMemberInfo[]> {
-  const dos = getScopedDOs(env, hubId)
-  const globalDOs = getDOs(env)
-
+async function resolveHubMembers(services: Services): Promise<HubMemberInfo[]> {
   // Get all role definitions
-  const rolesRes = await globalDOs.settings.fetch(new Request('http://do/settings/roles'))
-  const { roles: roleDefs } = await rolesRes.json() as { roles: Array<{ id: string; slug: string; permissions: string[] }> }
+  const { roles: roleDefs } = await services.settings.getRoles()
 
   // Get all volunteers (hub members)
-  const volRes = await globalDOs.identity.fetch(new Request('http://do/volunteers'))
-  const { volunteers } = await volRes.json() as { volunteers: Volunteer[] }
+  const { volunteers } = await services.identity.getVolunteers()
 
   return volunteers
     .filter(v => v.active)
@@ -83,7 +75,8 @@ records.get('/',
   async (c) => {
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
     const query = c.req.valid('query')
 
     const accessLevel = getAccessLevel(permissions)
@@ -91,35 +84,23 @@ records.get('/',
       return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
     }
 
-    const qs = new URLSearchParams({
-      page: String(query.page),
-      limit: String(query.limit),
-    })
-    if (query.entityTypeId) qs.set('entityTypeId', query.entityTypeId)
-    if (query.parentRecordId) qs.set('parentRecordId', query.parentRecordId)
+    const listInput: Parameters<typeof services.cases.list>[0] = {
+      hubId,
+      page: query.page,
+      limit: query.limit,
+      entityTypeId: query.entityTypeId,
+      parentRecordId: query.parentRecordId,
+    }
 
-    // Scoped read: cases:read-own and cases:read-assigned both filter by pubkey
-    // at the DO level (using the assignment index). The difference:
-    //   - read-own: only records assigned to or created by self
-    //   - read-assigned: records assigned to self or teammates with same roles
-    // Both set assignedTo=pubkey to leverage the DO prefix scan index.
+    // Scoped read: non-admin users filter by assignment
     if (accessLevel !== 'all') {
-      qs.set('assignedTo', pubkey)
+      listInput.assignedTo = pubkey
     } else if (query.assignedTo) {
-      // Admin can explicitly filter by assignment
-      qs.set('assignedTo', query.assignedTo)
+      listInput.assignedTo = query.assignedTo
     }
 
-    // Forward blind index filters from the original query string
-    const rawParams = new URL(c.req.url).searchParams
-    for (const [key, value] of rawParams) {
-      if (key.startsWith('field_') || (key.endsWith('Hash') && !qs.has(key))) {
-        qs.set(key, value)
-      }
-    }
-
-    const res = await dos.caseManager.fetch(new Request(`http://do/records?${qs}`))
-    return new Response(res.body, res)
+    const result = await services.cases.list(listInput)
+    return c.json(result)
   },
 )
 
@@ -144,12 +125,10 @@ records.get('/by-number/:number',
       return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
     }
 
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.caseManager.fetch(new Request(`http://do/records/by-number/${encodeURIComponent(number)}`))
-    if (!res.ok) return new Response(res.body, res)
+    const services = c.get('services')
+    const record = await services.cases.getByNumber(number)
 
     // If user can only see assigned records, verify assignment
-    const record = await res.json() as CaseRecord
     if (accessLevel !== 'all') {
       const pubkey = c.get('pubkey')
       if (!record.assignedTo.includes(pubkey) && record.createdBy !== pubkey) {
@@ -183,17 +162,13 @@ records.get('/envelope-recipients',
       return c.json({ error: 'entityTypeId query parameter required' }, 400)
     }
 
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
     // Fetch entity type definition
-    const etRes = await dos.settings.fetch(
-      new Request(`http://do/settings/entity-types/${entityTypeId}`),
-    )
-    if (!etRes.ok) return c.json({ error: 'Entity type not found' }, 404)
-    const entityType = await etRes.json() as EntityTypeDefinition
+    const entityType = await services.settings.getEntityTypeById(entityTypeId)
 
     // Resolve hub members with permissions
-    const hubMembers = await resolveHubMembers(c.env, c.get('hubId'))
+    const hubMembers = await resolveHubMembers(services)
 
     // assignedTo from query (for existing records) or empty for new records
     const assignedToParam = c.req.query('assignedTo')
@@ -224,11 +199,9 @@ records.get('/by-contact/:contactId',
       return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
     }
 
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.caseManager.fetch(
-      new Request(`http://do/records/by-contact/${contactId}`),
-    )
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.cases.listByContact(contactId)
+    return c.json(result)
   },
 )
 
@@ -251,11 +224,9 @@ records.get('/interactions/by-source/:sourceId',
       return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
     }
 
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.caseManager.fetch(
-      new Request(`http://do/interactions/by-source/${encodeURIComponent(sourceId)}`),
-    )
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.cases.getBySource(sourceId)
+    return c.json(result)
   },
 )
 
@@ -280,11 +251,8 @@ records.get('/:id',
       return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
     }
 
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.caseManager.fetch(new Request(`http://do/records/${id}`))
-    if (!res.ok) return new Response(res.body, res)
-
-    const record = await res.json() as CaseRecord
+    const services = c.get('services')
+    const record = await services.cases.get(id)
 
     // Non-admin users can only see records assigned to them or created by them
     if (accessLevel !== 'all') {
@@ -316,22 +284,19 @@ records.get('/:id/envelope-recipients',
       return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
     }
 
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
     // Fetch record to get entityTypeId and assignedTo
-    const recordRes = await dos.caseManager.fetch(new Request(`http://do/records/${id}`))
-    if (!recordRes.ok) return c.json({ error: 'Record not found' }, 404)
-    const record = await recordRes.json() as CaseRecord
+    const record = await services.cases.get(id)
+    if (!record.entityTypeId) {
+      return c.json({ error: 'Record has no entity type' }, 400)
+    }
 
     // Fetch entity type definition
-    const etRes = await dos.settings.fetch(
-      new Request(`http://do/settings/entity-types/${record.entityTypeId}`),
-    )
-    if (!etRes.ok) return c.json({ error: 'Entity type not found' }, 404)
-    const entityType = await etRes.json() as EntityTypeDefinition
+    const entityType = await services.settings.getEntityTypeById(record.entityTypeId)
 
     // Resolve hub members with permissions
-    const hubMembers = await resolveHubMembers(c.env, c.get('hubId'))
+    const hubMembers = await resolveHubMembers(services)
 
     const recipients = determineEnvelopeRecipients(entityType, record.assignedTo, hubMembers)
     return c.json(recipients)
@@ -352,44 +317,29 @@ records.post('/',
   validator('json', createRecordBodySchema),
   async (c) => {
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
     // Generate case number if entity type has numbering enabled
     let caseNumber: string | undefined
-    const settingsRes = await dos.settings.fetch(
-      new Request(`http://do/settings/entity-types/${body.entityTypeId}`),
-    )
-    if (settingsRes.ok) {
-      const entityType = await settingsRes.json() as { numberPrefix?: string; numberingEnabled?: boolean }
+    try {
+      const entityType = await services.settings.getEntityTypeById(body.entityTypeId)
       if (entityType.numberingEnabled && entityType.numberPrefix) {
-        // Get next number from settings (SettingsDO route: POST /settings/case-number)
-        const nextRes = await dos.settings.fetch(
-          new Request(`http://do/settings/case-number`, {
-            method: 'POST',
-            body: JSON.stringify({ prefix: entityType.numberPrefix }),
-          }),
-        )
-        if (nextRes.ok) {
-          const { number: num } = await nextRes.json() as { number: string }
-          caseNumber = num
-        }
+        const result = await services.settings.generateCaseNumber({
+          prefix: entityType.numberPrefix,
+        })
+        caseNumber = result.number
       }
+    } catch {
+      // Entity type not found — proceed without case number
     }
 
-    const res = await dos.caseManager.fetch(new Request('http://do/records', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...body,
-        hubId: c.get('hubId') ?? '',
-        createdBy: pubkey,
-        caseNumber,
-      }),
-    }))
-
-    if (!res.ok) return new Response(res.body, res)
-
-    const record = await res.json() as CaseRecord
+    const record = await services.cases.create({
+      ...body,
+      hubId: c.get('hubId') ?? '',
+      createdBy: pubkey,
+      caseNumber,
+    })
 
     // Publish Nostr event
     publishNostrEvent(c.env, KIND_RECORD_CREATED, {
@@ -399,7 +349,7 @@ records.post('/',
       caseNumber: record.caseNumber,
     }).catch((e) => { console.error('[records] Failed to publish event:', e) })
 
-    await audit(c.get('services').audit, 'recordCreated', pubkey, {
+    await audit(services.audit, 'recordCreated', pubkey, {
       recordId: record.id,
       entityTypeId: record.entityTypeId,
       caseNumber: record.caseNumber,
@@ -425,7 +375,7 @@ records.patch('/:id',
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
     // Check update permissions — cases:update for any, cases:update-own for own
     const canUpdateAll = checkPermission(permissions, 'cases:update')
@@ -437,24 +387,14 @@ records.patch('/:id',
 
     // If only own update, verify ownership or assignment
     if (!canUpdateAll) {
-      const getRes = await dos.caseManager.fetch(new Request(`http://do/records/${id}`))
-      if (!getRes.ok) return new Response(getRes.body, getRes)
-
-      const existing = await getRes.json() as CaseRecord
+      const existing = await services.cases.get(id)
       if (existing.createdBy !== pubkey && !existing.assignedTo.includes(pubkey)) {
         return c.json({ error: 'Forbidden' }, 403)
       }
     }
 
     const body = c.req.valid('json')
-
-    const res = await dos.caseManager.fetch(new Request(`http://do/records/${id}`, {
-      method: 'PATCH',
-      headers: { 'x-pubkey': pubkey },
-      body: JSON.stringify(body),
-    }))
-
-    if (!res.ok) return new Response(res.body, res)
+    const updated = await services.cases.update(id, { ...body, authorPubkey: pubkey })
 
     // Publish update event
     publishNostrEvent(c.env, KIND_RECORD_UPDATED, {
@@ -462,9 +402,9 @@ records.patch('/:id',
       recordId: id,
     }).catch((e) => { console.error('[records] Failed to publish event:', e) })
 
-    await audit(c.get('services').audit, 'recordUpdated', pubkey, { recordId: id })
+    await audit(services.audit, 'recordUpdated', pubkey, { recordId: id })
 
-    return new Response(res.body, res)
+    return c.json(updated)
   },
 )
 
@@ -483,17 +423,13 @@ records.delete('/:id',
   async (c) => {
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.caseManager.fetch(new Request(`http://do/records/${id}`, {
-      method: 'DELETE',
-    }))
+    await services.cases.delete(id)
 
-    if (!res.ok) return new Response(res.body, res)
+    await audit(services.audit, 'recordDeleted', pubkey, { recordId: id })
 
-    await audit(c.get('services').audit, 'recordDeleted', pubkey, { recordId: id })
-
-    return new Response(res.body, res)
+    return c.json({ ok: true })
   },
 )
 
@@ -513,23 +449,18 @@ records.post('/:id/contacts',
   async (c) => {
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.caseManager.fetch(new Request(`http://do/records/${id}/contacts`, {
-      method: 'POST',
-      body: JSON.stringify({ ...body, addedBy: pubkey }),
-    }))
+    const result = await services.cases.linkContact(id, body.contactId, body.role, pubkey)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'recordContactLinked', pubkey, {
+    await audit(services.audit, 'recordContactLinked', pubkey, {
       recordId: id,
       contactId: body.contactId,
       role: body.role,
     })
 
-    return new Response(res.body, { status: 201, headers: res.headers })
+    return c.json(result, 201)
   },
 )
 
@@ -549,20 +480,16 @@ records.delete('/:id/contacts/:contactId',
     const id = c.req.param('id')
     const contactId = c.req.param('contactId')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.caseManager.fetch(new Request(`http://do/records/${id}/contacts/${contactId}`, {
-      method: 'DELETE',
-    }))
+    await services.cases.unlinkContact(id, contactId)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'recordContactUnlinked', pubkey, {
+    await audit(services.audit, 'recordContactUnlinked', pubkey, {
       recordId: id,
       contactId,
     })
 
-    return new Response(res.body, res)
+    return c.json({ ok: true })
   },
 )
 
@@ -589,9 +516,9 @@ records.get('/:id/contacts',
       return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
     }
 
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.caseManager.fetch(new Request(`http://do/records/${id}/contacts`))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const contacts = await services.cases.listContacts(id)
+    return c.json({ contacts })
   },
 )
 
@@ -609,35 +536,17 @@ records.get('/:id/suggest-assignees',
   requirePermission('cases:assign'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
 
     // 1. Get the record to check entity type and current assignments
-    const recordRes = await dos.caseManager.fetch(new Request(`http://do/records/${id}`))
-    if (!recordRes.ok) return new Response(recordRes.body, recordRes)
-    const record = await recordRes.json() as {
-      entityTypeId: string
-      assignedTo: string[]
-      languageNeed?: string
-    }
+    const record = await services.cases.get(id)
 
     // 2. Get on-shift volunteers
-    const shiftRes = await dos.shifts.fetch(new Request('http://do/current-volunteers'))
-    const { pubkeys: onShiftPubkeys } = shiftRes.ok
-      ? await shiftRes.json() as { pubkeys: string[] }
-      : { pubkeys: [] as string[] }
+    const onShiftPubkeys = await services.shifts.getCurrentVolunteers(hubId)
 
     // 3. Get all volunteer profiles
-    const volRes = await dos.identity.fetch(new Request('http://do/volunteers'))
-    const { volunteers } = volRes.ok
-      ? await volRes.json() as { volunteers: Array<{
-          pubkey: string
-          active: boolean
-          onBreak: boolean
-          spokenLanguages?: string[]
-          specializations?: string[]
-          maxCaseAssignments?: number
-        }> }
-      : { volunteers: [] as Array<{ pubkey: string; active: boolean; onBreak: boolean; spokenLanguages?: string[]; specializations?: string[]; maxCaseAssignments?: number }> }
+    const { volunteers } = await services.identity.getVolunteers()
 
     const onShiftSet = new Set(onShiftPubkeys)
     const alreadyAssigned = new Set(record.assignedTo)
@@ -658,12 +567,7 @@ records.get('/:id/suggest-assignees',
       if (alreadyAssigned.has(vol.pubkey)) continue
 
       // Get workload
-      const countRes = await dos.caseManager.fetch(
-        new Request(`http://do/records/count-by-assignment/${vol.pubkey}`),
-      )
-      const { count: activeCaseCount } = countRes.ok
-        ? await countRes.json() as { count: number }
-        : { count: 0 }
+      const { count: activeCaseCount } = await services.cases.countByAssignment(vol.pubkey)
 
       const maxCases = vol.maxCaseAssignments ?? 0
       if (maxCases > 0 && activeCaseCount >= maxCases) continue
@@ -678,14 +582,13 @@ records.get('/:id/suggest-assignees',
       reasons.push(`${activeCaseCount}/${effectiveMax} cases`)
 
       // Language match (0-15 points)
-      const languageNeed = record.languageNeed ?? c.req.query('language')
+      const languageNeed = c.req.query('language')
       if (languageNeed && vol.spokenLanguages?.includes(languageNeed)) {
         score += 15
         reasons.push(`Speaks ${languageNeed}`)
       }
 
       // Specialization match (0-10 points)
-      // Map entity type categories to specialization tags
       if (vol.specializations?.length) {
         score += 5
         reasons.push('Has specializations')
@@ -723,15 +626,10 @@ records.post('/:id/assign',
   async (c) => {
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.caseManager.fetch(new Request(`http://do/records/${id}/assign`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }))
-
-    if (!res.ok) return new Response(res.body, res)
+    const result = await services.cases.assign(id, body.pubkeys)
 
     // Publish assignment event
     publishNostrEvent(c.env, KIND_RECORD_ASSIGNED, {
@@ -740,12 +638,12 @@ records.post('/:id/assign',
       pubkeys: body.pubkeys,
     }).catch((e) => { console.error('[records] Failed to publish event:', e) })
 
-    await audit(c.get('services').audit, 'recordAssigned', pubkey, {
+    await audit(services.audit, 'recordAssigned', pubkey, {
       recordId: id,
       assignedPubkeys: body.pubkeys,
     })
 
-    return new Response(res.body, res)
+    return c.json(result)
   },
 )
 
@@ -765,15 +663,10 @@ records.post('/:id/unassign',
   async (c) => {
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.caseManager.fetch(new Request(`http://do/records/${id}/unassign`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }))
-
-    if (!res.ok) return new Response(res.body, res)
+    const result = await services.cases.unassign(id, body.pubkey)
 
     // Publish assignment change event
     publishNostrEvent(c.env, KIND_RECORD_ASSIGNED, {
@@ -782,12 +675,12 @@ records.post('/:id/unassign',
       pubkey: body.pubkey,
     }).catch((e) => { console.error('[records] Failed to publish event:', e) })
 
-    await audit(c.get('services').audit, 'recordUnassigned', pubkey, {
+    await audit(services.audit, 'recordUnassigned', pubkey, {
       recordId: id,
       unassignedPubkey: body.pubkey,
     })
 
-    return new Response(res.body, res)
+    return c.json(result)
   },
 )
 
@@ -816,21 +709,19 @@ records.get('/:id/interactions',
       return c.json({ error: 'Forbidden', required: 'cases:read-own' }, 403)
     }
 
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const query = c.req.valid('query')
 
-    const qs = new URLSearchParams({
-      page: String(query.page),
-      limit: String(query.limit),
+    const result = await services.cases.listInteractions({
+      caseId: id,
+      page: query.page,
+      limit: query.limit,
+      interactionTypeHash: query.interactionTypeHash,
+      after: query.after,
+      before: query.before,
     })
-    if (query.interactionTypeHash) qs.set('interactionTypeHash', query.interactionTypeHash)
-    if (query.after) qs.set('after', query.after)
-    if (query.before) qs.set('before', query.before)
 
-    const res = await dos.caseManager.fetch(
-      new Request(`http://do/records/${id}/interactions?${qs}`),
-    )
-    return new Response(res.body, res)
+    return c.json(result)
   },
 )
 
@@ -850,7 +741,7 @@ records.post('/:id/interactions',
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
     // Check update permissions
     const canUpdateAll = checkPermission(permissions, 'cases:update')
@@ -862,32 +753,21 @@ records.post('/:id/interactions',
 
     // If only own update, verify ownership or assignment
     if (!canUpdateAll) {
-      const getRes = await dos.caseManager.fetch(new Request(`http://do/records/${id}`))
-      if (!getRes.ok) return new Response(getRes.body, getRes)
-
-      const existing = await getRes.json() as CaseRecord
+      const existing = await services.cases.get(id)
       if (existing.createdBy !== pubkey && !existing.assignedTo.includes(pubkey)) {
         return c.json({ error: 'Forbidden' }, 403)
       }
     }
 
     const body = c.req.valid('json')
-    const res = await dos.caseManager.fetch(
-      new Request(`http://do/records/${id}/interactions`, {
-        method: 'POST',
-        headers: { 'x-pubkey': pubkey },
-        body: JSON.stringify(body),
-      }),
-    )
+    const interaction = await services.cases.createInteraction(id, pubkey, body)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'interactionCreated', pubkey, {
+    await audit(services.audit, 'interactionCreated', pubkey, {
       caseId: id,
       interactionType: body.interactionType,
     })
 
-    return new Response(res.body, { status: 201, headers: res.headers })
+    return c.json(interaction, 201)
   },
 )
 
@@ -907,22 +787,16 @@ records.delete('/:id/interactions/:interactionId',
     const id = c.req.param('id')
     const interactionId = c.req.param('interactionId')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.caseManager.fetch(
-      new Request(`http://do/records/${id}/interactions/${interactionId}`, {
-        method: 'DELETE',
-      }),
-    )
+    await services.cases.deleteInteraction(id, interactionId)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'interactionDeleted', pubkey, {
+    await audit(services.audit, 'interactionDeleted', pubkey, {
       caseId: id,
       interactionId,
     })
 
-    return new Response(res.body, res)
+    return c.json({ ok: true })
   },
 )
 
@@ -947,25 +821,17 @@ records.post('/:id/reports',
   async (c) => {
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.caseManager.fetch(
-      new Request(`http://do/records/${id}/reports`, {
-        method: 'POST',
-        headers: { 'x-pubkey': pubkey },
-        body: JSON.stringify(body),
-      }),
-    )
+    const result = await services.cases.linkReportCase(id, body.reportId, pubkey)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'reportLinkedToCase', pubkey, {
+    await audit(services.audit, 'reportLinkedToCase', pubkey, {
       caseId: id,
       reportId: body.reportId,
     })
 
-    return new Response(res.body, { ...res, status: 201 })
+    return c.json(result, 201)
   },
 )
 
@@ -985,20 +851,16 @@ records.delete('/:id/reports/:reportId',
     const id = c.req.param('id')
     const reportId = c.req.param('reportId')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.caseManager.fetch(
-      new Request(`http://do/records/${id}/reports/${reportId}`, { method: 'DELETE' }),
-    )
+    await services.cases.unlinkReportCase(id, reportId)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'reportUnlinkedFromCase', pubkey, {
+    await audit(services.audit, 'reportUnlinkedFromCase', pubkey, {
       caseId: id,
       reportId,
     })
 
-    return new Response(res.body, res)
+    return c.json({ ok: true })
   },
 )
 
@@ -1025,12 +887,9 @@ records.get('/:id/reports',
     }
 
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-
-    const res = await dos.caseManager.fetch(
-      new Request(`http://do/records/${id}/reports`),
-    )
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.cases.listCaseReports(id)
+    return c.json(result)
   },
 )
 
@@ -1047,6 +906,9 @@ records.get('/:id/reports',
  * pre-rendered messages via the appropriate MessagingAdapter.
  *
  * Requires cases:update permission.
+ *
+ * NOTE: getMessagingAdapter still uses DO stubs internally — this will be
+ * migrated when MessagingAdapter is refactored to use services.
  */
 records.post('/:id/notify-contacts',
   describeRoute({
@@ -1063,14 +925,14 @@ records.post('/:id/notify-contacts',
   async (c) => {
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    // Verify record exists
-    const recordRes = await dos.caseManager.fetch(new Request(`http://do/records/${id}`))
-    if (!recordRes.ok) {
-      return c.json({ error: 'Record not found' }, 404)
-    }
+    // Verify record exists (throws ServiceError 404 if not)
+    await services.cases.get(id)
+
+    // getMessagingAdapter still uses DO stubs — pass scoped DOs
+    const dos = getScopedDOs(c.env, c.get('hubId'))
 
     const results: NotificationResultItem[] = []
 
@@ -1108,7 +970,7 @@ records.post('/:id/notify-contacts',
       results,
     }
 
-    await audit(c.get('services').audit, 'contactsNotified', pubkey, {
+    await audit(services.audit, 'contactsNotified', pubkey, {
       recordId: id,
       notified,
       skipped,

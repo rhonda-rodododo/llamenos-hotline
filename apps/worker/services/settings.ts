@@ -111,6 +111,7 @@ const ALLOWED_HUB_SETTINGS = new Set([
   'callSettings',
   'spamSettings',
   'transcriptionEnabled',
+  'autoAssignment',
 ])
 
 const VALID_PROVIDER_TYPES = [

@@ -3,7 +3,7 @@ import { describeRoute, resolver, validator } from 'hono-openapi'
 import { z } from 'zod'
 import type { AppEnv, EncryptedMessage } from '../types'
 import type { MessagingChannelType } from '@shared/types'
-import { getScopedDOs, getMessagingAdapter, getDOs } from '../lib/do-access'
+import { getDOs, getMessagingAdapter } from '../lib/do-access'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { listConversationsQuerySchema, sendMessageBodySchema, updateConversationBodySchema, conversationResponseSchema, messageResponseSchema } from '@protocol/schemas/conversations'
 import { paginationSchema, okResponseSchema, paginatedMeta } from '@protocol/schemas/common'
@@ -64,38 +64,36 @@ conversations.get('/',
   }),
   validator('query', listConversationsQuerySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
     const volunteer = c.get('volunteer')
     const canReadAll = checkPermission(permissions, 'conversations:read-all')
     const query = c.req.valid('query')
+    const hubId = c.get('hubId')
 
-    const params = new URLSearchParams()
-    if (query.status) params.set('status', query.status)
-    if (query.channel) params.set('channel', query.channel)
-    params.set('page', String(query.page))
-    params.set('limit', String(query.limit))
+    const offset = (query.page - 1) * query.limit
 
     // Users without read-all only see their assigned conversations + waiting queue
     if (!canReadAll) {
       // Fetch assigned conversations
-      params.set('assignedTo', pubkey)
-      const assignedRes = await dos.conversations.fetch(
-        new Request(`http://do/conversations?${params}`)
-      )
-      if (!assignedRes.ok) return c.json({ error: 'Failed to fetch conversations' }, 500)
-      const assigned = await assignedRes.json() as { conversations: Array<{ channelType: string }>; total: number }
+      const assigned = await services.conversations.list({
+        hubId,
+        status: query.status as import('../types').ConversationStatus | undefined,
+        channelType: query.channel as MessagingChannelType | 'web' | undefined,
+        assignedTo: pubkey,
+        limit: query.limit,
+        offset,
+      })
 
       // Also fetch waiting conversations (available to claim)
-      const waitingParams = new URLSearchParams(params)
-      waitingParams.delete('assignedTo')
-      waitingParams.set('status', 'waiting')
-      const waitingRes = await dos.conversations.fetch(
-        new Request(`http://do/conversations?${waitingParams}`)
-      )
-      if (!waitingRes.ok) return c.json({ error: 'Failed to fetch waiting conversations' }, 500)
-      const waiting = await waitingRes.json() as { conversations: Array<{ channelType: string }>; total: number }
+      const waiting = await services.conversations.list({
+        hubId,
+        status: 'waiting',
+        channelType: query.channel as MessagingChannelType | 'web' | undefined,
+        limit: query.limit,
+        offset,
+      })
 
       // Filter waiting conversations by channels the volunteer can claim
       const claimableChannels = getClaimableChannels(permissions)
@@ -127,8 +125,15 @@ conversations.get('/',
       })
     }
 
-    const res = await dos.conversations.fetch(new Request(`http://do/conversations?${params}`))
-    return c.json(await res.json())
+    const result = await services.conversations.list({
+      hubId,
+      status: query.status as import('../types').ConversationStatus | undefined,
+      channelType: query.channel as MessagingChannelType | 'web' | undefined,
+      limit: query.limit,
+      offset,
+    })
+
+    return c.json(result)
   },
 )
 
@@ -146,9 +151,10 @@ conversations.get('/stats',
   }),
   requirePermission('conversations:read-assigned'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.conversations.fetch(new Request('http://do/conversations/stats'))
-    return c.json(await res.json())
+    const services = c.get('services')
+    const hubId = c.get('hubId')
+    const stats = await services.conversations.getStats(hubId)
+    return c.json(stats)
   },
 )
 
@@ -172,9 +178,10 @@ conversations.get('/load',
       return c.json({ error: 'Forbidden' }, 403)
     }
 
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.conversations.fetch(new Request('http://do/load'))
-    return c.json(await res.json())
+    const services = c.get('services')
+    const hubId = c.get('hubId')
+    const loads = await services.conversations.getAllVolunteerLoads(hubId)
+    return c.json({ loads })
   },
 )
 
@@ -199,16 +206,14 @@ conversations.get('/:id',
     },
   }),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
     const canReadAll = checkPermission(permissions, 'conversations:read-all')
 
-    const res = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`))
-    if (!res.ok) return c.json({ error: 'Not found' }, 404)
+    const conv = await services.conversations.getById(id)
 
-    const conv = await res.json() as { assignedTo?: string; status: string }
     // Non-admins can only view their assigned or waiting conversations
     if (!canReadAll && conv.assignedTo !== pubkey && conv.status !== 'waiting') {
       return c.json({ error: 'Forbidden' }, 403)
@@ -243,7 +248,7 @@ conversations.get('/:id/messages',
   }),
   validator('query', paginationSchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
@@ -251,17 +256,17 @@ conversations.get('/:id/messages',
     const query = c.req.valid('query')
 
     // Verify access
-    const convRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`))
-    if (!convRes.ok) return c.json({ error: 'Not found' }, 404)
-    const conv = await convRes.json() as { assignedTo?: string; status: string }
+    const conv = await services.conversations.getById(id)
     if (!canReadAll && conv.assignedTo !== pubkey && conv.status !== 'waiting') {
       return c.json({ error: 'Forbidden' }, 403)
     }
 
-    const res = await dos.conversations.fetch(
-      new Request(`http://do/conversations/${id}/messages?page=${query.page}&limit=${query.limit}`)
-    )
-    return c.json(await res.json())
+    const result = await services.conversations.listMessages(id, {
+      limit: query.limit,
+      offset: (query.page - 1) * query.limit,
+    })
+
+    return c.json(result)
   },
 )
 
@@ -289,21 +294,15 @@ conversations.post('/:id/messages',
   }),
   validator('json', sendMessageBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const dos = getDOs(c.env)
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
     const canSendAny = checkPermission(permissions, 'conversations:send-any')
 
     // Verify access
-    const convRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`))
-    if (!convRes.ok) return c.json({ error: 'Not found' }, 404)
-    const conv = await convRes.json() as {
-      assignedTo?: string
-      channelType: string
-      contactIdentifierHash: string
-      status: string
-    }
+    const conv = await services.conversations.getById(id)
     if (!canSendAny && conv.assignedTo !== pubkey) {
       return c.json({ error: 'Forbidden' }, 403)
     }
@@ -311,27 +310,18 @@ conversations.post('/:id/messages',
     const body = c.req.valid('json')
 
     // Build the message with initial pending status
-    const message: EncryptedMessage = {
-      id: crypto.randomUUID(),
-      conversationId: id,
-      direction: 'outbound',
-      authorPubkey: pubkey,
-      encryptedContent: body.encryptedContent,
-      readerEnvelopes: body.readerEnvelopes,
-      hasAttachments: false,
-      createdAt: new Date().toISOString(),
-      status: 'pending',
-    }
+    const messageId = crypto.randomUUID()
+    let status: EncryptedMessage['status'] = 'pending'
+    let externalId: string | undefined
+    let failureReason: string | undefined
 
     // Send via messaging adapter first to get external ID (for external channels)
     let sendFailed = false
     if (body.plaintextForSending && conv.channelType !== 'web') {
       try {
         const adapter = await getMessagingAdapter(conv.channelType as 'sms' | 'whatsapp' | 'signal', dos, c.env.HMAC_SECRET)
-        // Fetch the actual contact identifier from ConversationDO (server-side only)
-        const contactRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}/contact`))
-        if (!contactRes.ok) throw new Error('Contact identifier not available for outbound')
-        const { identifier } = await contactRes.json() as { identifier: string }
+        // Fetch the actual contact identifier from the service (server-side only)
+        const identifier = await services.conversations.getContactIdentifier(id)
 
         const messagingBreaker = getCircuitBreaker({
           name: `messaging:${conv.channelType}`,
@@ -351,7 +341,6 @@ conversations.post('/:id/messages',
               baseDelayMs: 300,
               maxDelayMs: 3000,
               isRetryable: (error) => {
-                // Don't retry if the adapter itself returned a non-retryable failure
                 if (typeof error === 'object' && error !== null && 'success' in error) return false
                 return isRetryableError(error)
               },
@@ -364,34 +353,35 @@ conversations.post('/:id/messages',
         )
 
         if (result.success && result.externalId) {
-          message.externalId = result.externalId
-          message.status = 'sent'
+          externalId = result.externalId
+          status = 'sent'
         } else if (!result.success) {
-          message.status = 'failed'
-          message.failureReason = result.error
+          status = 'failed'
+          failureReason = result.error
           sendFailed = true
         }
       } catch (err) {
         console.error(`[conversations] Failed to send outbound message via ${conv.channelType}:`, err)
-        message.status = 'failed'
-        message.failureReason = err instanceof Error ? err.message : 'Unknown error'
+        status = 'failed'
+        failureReason = err instanceof Error ? err.message : 'Unknown error'
         sendFailed = true
       }
     } else if (conv.channelType === 'web') {
       // Web channel doesn't need external sending
-      message.status = 'delivered'
+      status = 'delivered'
     }
 
-    // Store the message (with external ID and status)
-    const storeRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    }))
-
-    if (!storeRes.ok) {
-      return c.json({ error: 'Failed to store message' }, 500)
-    }
+    // Store the message via service
+    const msg = await services.conversations.addMessage({
+      id: messageId,
+      conversationId: id,
+      direction: 'outbound',
+      authorPubkey: pubkey,
+      encryptedContent: body.encryptedContent,
+      readerEnvelopes: body.readerEnvelopes,
+      externalId,
+      status,
+    })
 
     // Publish new message event to Nostr relay
     publishNostrEvent(c.env, KIND_MESSAGE_NEW, {
@@ -407,7 +397,7 @@ conversations.post('/:id/messages',
       })
     )
 
-    return c.json(await storeRes.json())
+    return c.json(msg)
   },
 )
 
@@ -433,7 +423,7 @@ conversations.patch('/:id',
   }),
   validator('json', updateConversationBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
@@ -441,26 +431,14 @@ conversations.patch('/:id',
     const body = c.req.valid('json')
 
     // Only users with update permission or assigned volunteer can update
-    const convRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`))
-    if (!convRes.ok) return c.json({ error: 'Not found' }, 404)
-    const conv = await convRes.json() as { assignedTo?: string }
+    const conv = await services.conversations.getById(id)
     if (!canUpdate && conv.assignedTo !== pubkey) {
       return c.json({ error: 'Forbidden' }, 403)
     }
 
-    const res = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-
-    if (!res.ok) {
-      const err = await res.text()
-      return c.json({ error: err }, res.status as 400 | 404 | 500)
-    }
+    const updated = await services.conversations.update(id, body)
 
     // Publish status change to Nostr relay
-    const updated = await res.json()
     const convEventType = body.status === 'closed' ? 'conversation:closed' : 'conversation:assigned'
     publishNostrEvent(c.env, KIND_CONVERSATION_ASSIGNED, {
       type: convEventType,
@@ -500,16 +478,14 @@ conversations.post('/:id/claim',
     },
   }),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
     const volunteer = c.get('volunteer')
 
     // Fetch conversation to check channel type
-    const convRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`))
-    if (!convRes.ok) return c.json({ error: 'Not found' }, 404)
-    const conv = await convRes.json() as { channelType: string; status: string }
+    const conv = await services.conversations.getById(id)
 
     // Check channel-specific claim permission
     if (!canClaimChannel(permissions, conv.channelType)) {
@@ -536,16 +512,7 @@ conversations.post('/:id/claim',
       return c.json({ error: 'Messaging not enabled for this volunteer' }, 403)
     }
 
-    const res = await dos.conversations.fetch(new Request(`http://do/conversations/${id}/claim`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pubkey }),
-    }))
-
-    if (!res.ok) {
-      const err = await res.text()
-      return c.json({ error: err }, res.status as 400)
-    }
+    const claimed = await services.conversations.claim(id, pubkey)
 
     // Publish assignment to Nostr relay
     publishNostrEvent(c.env, KIND_CONVERSATION_ASSIGNED, {
@@ -572,7 +539,7 @@ conversations.post('/:id/claim',
       })
     )
 
-    return c.json(await res.json())
+    return c.json(claimed)
   },
 )
 

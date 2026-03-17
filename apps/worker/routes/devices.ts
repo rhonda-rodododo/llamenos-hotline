@@ -8,7 +8,6 @@
 import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getDOs } from '../lib/do-access'
 import { authErrors } from '../openapi/helpers'
 import { registerDeviceBodySchema, voipTokenBodySchema } from '@protocol/schemas/devices'
 
@@ -32,23 +31,13 @@ devicesRoutes.post('/register',
   async (c) => {
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
+    const services = c.get('services')
 
-    const dos = getDOs(c.env)
-    const res = await dos.identity.fetch(
-      new Request(`http://do/devices/${pubkey}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform: body.platform,
-          pushToken: body.pushToken,
-          wakeKeyPublic: body.wakeKeyPublic,
-        }),
-      }),
-    )
-
-    if (!res.ok) {
-      return c.json({ error: 'Failed to register device' }, 500)
-    }
+    await services.identity.registerDevice(pubkey, {
+      platform: body.platform,
+      pushToken: body.pushToken,
+      wakeKeyPublic: body.wakeKeyPublic,
+    })
 
     return c.body(null, 204)
   })
@@ -72,22 +61,12 @@ devicesRoutes.post('/voip-token',
   async (c) => {
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
+    const services = c.get('services')
 
-    const dos = getDOs(c.env)
-    const res = await dos.identity.fetch(
-      new Request(`http://do/devices/${pubkey}/voip-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform: body.platform,
-          voipToken: body.voipToken,
-        }),
-      }),
-    )
-
-    if (!res.ok) {
-      return c.json({ error: 'Failed to register VoIP token' }, 500)
-    }
+    await services.identity.registerVoipToken(pubkey, {
+      platform: body.platform,
+      voipToken: body.voipToken,
+    })
 
     return c.body(null, 204)
   })
@@ -107,11 +86,9 @@ devicesRoutes.delete('/voip-token',
   }),
   async (c) => {
     const pubkey = c.get('pubkey')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
 
-    await dos.identity.fetch(
-      new Request(`http://do/devices/${pubkey}/voip-token`, { method: 'DELETE' }),
-    )
+    await services.identity.deleteVoipToken(pubkey)
 
     return c.body(null, 204)
   })
@@ -131,11 +108,9 @@ devicesRoutes.delete('/',
   }),
   async (c) => {
     const pubkey = c.get('pubkey')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
 
-    await dos.identity.fetch(
-      new Request(`http://do/devices/${pubkey}`, { method: 'DELETE' }),
-    )
+    await services.identity.deleteAllDevices(pubkey)
 
     return c.body(null, 204)
   })

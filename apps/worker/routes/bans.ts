@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { describeRoute, resolver, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getScopedDOs } from '../lib/do-access'
 import { isValidE164 } from '../lib/helpers'
 import { requirePermission } from '../middleware/permission-guard'
 import { okResponseSchema } from '@protocol/schemas/common'
@@ -31,18 +30,21 @@ bans.post('/',
   requirePermission('bans:report'),
   validator('json', createBanBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
+    const hubId = c.get('hubId')
     const body = c.req.valid('json')
     if (!isValidE164(body.phone)) {
       return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
     }
-    const res = await dos.records.fetch(new Request('http://do/bans', {
-      method: 'POST',
-      body: JSON.stringify({ ...body, bannedBy: pubkey }),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'numberBanned', pubkey, { phone: body.phone })
-    return res
+    await services.records.addBan({
+      hubId,
+      phone: body.phone,
+      reason: body.reason ?? '',
+      bannedBy: pubkey,
+    })
+    await audit(services.audit, 'numberBanned', pubkey, { phone: body.phone })
+    return c.json({ ok: true })
   },
 )
 
@@ -57,8 +59,10 @@ bans.get('/',
   }),
   requirePermission('bans:read'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    return dos.records.fetch(new Request('http://do/bans'))
+    const services = c.get('services')
+    const hubId = c.get('hubId')
+    const result = await services.records.listBans(hubId)
+    return c.json({ bans: result })
   },
 )
 
@@ -81,19 +85,17 @@ bans.post('/bulk',
   requirePermission('bans:bulk-create'),
   validator('json', bulkBanBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
+    const hubId = c.get('hubId')
     const body = c.req.valid('json')
     const invalidPhones = body.phones.filter(p => !isValidE164(p))
     if (invalidPhones.length > 0) {
       return c.json({ error: `Invalid phone number(s): ${invalidPhones[0]}. Use E.164 format (e.g. +12125551234)` }, 400)
     }
-    const res = await dos.records.fetch(new Request('http://do/bans/bulk', {
-      method: 'POST',
-      body: JSON.stringify({ ...body, bannedBy: pubkey }),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'numberBanned', pubkey, { count: body.phones.length, bulk: true })
-    return res
+    const added = await services.records.bulkAddBans(body.phones, body.reason ?? '', pubkey, hubId)
+    await audit(services.audit, 'numberBanned', pubkey, { count: body.phones.length, bulk: true })
+    return c.json({ ok: true, added })
   },
 )
 
@@ -115,12 +117,13 @@ bans.delete('/:phone',
   }),
   requirePermission('bans:delete'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
+    const hubId = c.get('hubId')
     const phone = decodeURIComponent(c.req.param('phone'))
-    const res = await dos.records.fetch(new Request(`http://do/bans/${encodeURIComponent(phone)}`, { method: 'DELETE' }))
-    if (res.ok) await audit(c.get('services').audit, 'numberUnbanned', pubkey, {})
-    return res
+    await services.records.removeBan(phone, hubId)
+    await audit(services.audit, 'numberUnbanned', pubkey, {})
+    return c.json({ ok: true })
   },
 )
 

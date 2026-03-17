@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { describeRoute, resolver, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getDOs } from '../lib/do-access'
 import { checkRateLimit } from '../lib/helpers'
 import { hashIP } from '../lib/crypto'
 import { verifyAuthToken } from '../lib/auth'
@@ -11,7 +10,7 @@ import { redeemInviteBodySchema, createInviteBodySchema } from '@protocol/schema
 import { okResponseSchema } from '@protocol/schemas/common'
 import { publicErrors, authErrors } from '../openapi/helpers'
 import { audit } from '../services/audit'
-import { permissionGranted, resolvePermissions } from '@shared/permissions'
+import { permissionGranted } from '@shared/permissions'
 import type { Role } from '@shared/permissions'
 
 const invites = new Hono<AppEnv>()
@@ -28,13 +27,14 @@ invites.get('/validate/:code',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const code = c.req.param('code')
     // Rate limit invite validation to prevent enumeration
     const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-    const limited = await checkRateLimit(dos.settings, `invite-validate:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 5)
+    const limited = await checkRateLimit(services.settings, `invite-validate:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 5)
     if (limited) return c.json({ error: 'Too many requests' }, 429)
-    return dos.identity.fetch(new Request(`http://do/invites/validate/${code}`))
+    const result = await services.identity.validateInvite(code)
+    return c.json(result)
   },
 )
 
@@ -56,7 +56,7 @@ invites.post('/redeem',
   }),
   validator('json', redeemInviteBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const body = c.req.valid('json')
 
     // Verify Schnorr signature
@@ -68,13 +68,11 @@ invites.post('/redeem',
 
     // Rate limit redemption attempts
     const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-    const limited = await checkRateLimit(dos.settings, `invite-redeem:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 5)
+    const limited = await checkRateLimit(services.settings, `invite-redeem:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 5)
     if (limited) return c.json({ error: 'Too many requests' }, 429)
 
-    return dos.identity.fetch(new Request('http://do/invites/redeem', {
-      method: 'POST',
-      body: JSON.stringify({ code: body.code, pubkey: body.pubkey }),
-    }))
+    const result = await services.identity.redeemInvite({ code: body.code, pubkey: body.pubkey })
+    return c.json(result)
   },
 )
 
@@ -92,8 +90,9 @@ invites.get('/',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.identity.fetch(new Request('http://do/invites'))
+    const services = c.get('services')
+    const result = await services.identity.getInvites()
+    return c.json(result)
   },
 )
 
@@ -109,7 +108,7 @@ invites.post('/',
   requirePermission('invites:create'),
   validator('json', createInviteBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
 
@@ -132,12 +131,9 @@ invites.post('/',
       }
     }
 
-    const res = await dos.identity.fetch(new Request('http://do/invites', {
-      method: 'POST',
-      body: JSON.stringify({ ...body, createdBy: pubkey }),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'inviteCreated', pubkey, { name: body.name })
-    return res
+    const result = await services.identity.createInvite({ ...body, createdBy: pubkey })
+    await audit(services.audit, 'inviteCreated', pubkey, { name: body.name })
+    return c.json(result, 201)
   },
 )
 
@@ -159,12 +155,12 @@ invites.delete('/:code',
   }),
   requirePermission('invites:revoke'),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const code = c.req.param('code')
-    const res = await dos.identity.fetch(new Request(`http://do/invites/${code}`, { method: 'DELETE' }))
-    if (res.ok) await audit(c.get('services').audit, 'inviteRevoked', pubkey, { code })
-    return res
+    await services.identity.revokeInvite(code)
+    await audit(services.audit, 'inviteRevoked', pubkey, { code })
+    return c.json({ ok: true })
   },
 )
 

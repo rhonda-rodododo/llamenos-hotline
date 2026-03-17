@@ -2,7 +2,6 @@ import { Hono } from 'hono'
 import { describeRoute, resolver, validator } from 'hono-openapi'
 import { z } from 'zod'
 import type { AppEnv } from '../types'
-import { getScopedDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
 import { createShiftBodySchema, updateShiftBodySchema, fallbackGroupSchema, shiftResponseSchema } from '@protocol/schemas/shifts'
 import { okResponseSchema } from '@protocol/schemas/common'
@@ -22,9 +21,11 @@ shifts.get('/my-status',
     },
   }),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
-    return dos.shifts.fetch(new Request(`http://do/my-status?pubkey=${pubkey}`))
+    const hubId = c.get('hubId') ?? ''
+    const result = await services.shifts.getMyStatus(hubId, pubkey)
+    return c.json(result)
   },
 )
 
@@ -41,8 +42,9 @@ shifts.get('/fallback',
   }),
   requirePermission('shifts:manage-fallback'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    return dos.settings.fetch(new Request('http://do/fallback'))
+    const services = c.get('services')
+    const result = await services.settings.getFallbackGroup()
+    return c.json(result)
   },
 )
 
@@ -58,12 +60,10 @@ shifts.put('/fallback',
   requirePermission('shifts:manage-fallback'),
   validator('json', fallbackGroupSchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
-    return dos.settings.fetch(new Request('http://do/fallback', {
-      method: 'PUT',
-      body: JSON.stringify(body),
-    }))
+    const result = await services.settings.setFallbackGroup(body)
+    return c.json(result)
   },
 )
 
@@ -85,8 +85,10 @@ shifts.get('/',
   }),
   requirePermission('shifts:read'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    return dos.shifts.fetch(new Request('http://do/shifts'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+    const shiftList = await services.shifts.list(hubId)
+    return c.json({ shifts: shiftList })
   },
 )
 
@@ -109,15 +111,13 @@ shifts.post('/',
   requirePermission('shifts:create'),
   validator('json', createShiftBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
+    const hubId = c.get('hubId') ?? ''
     const body = c.req.valid('json')
-    const res = await dos.shifts.fetch(new Request('http://do/shifts', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'shiftCreated', pubkey)
-    return res
+    const shift = await services.shifts.create(hubId, body)
+    await audit(services.audit, 'shiftCreated', pubkey)
+    return c.json(shift, 201)
   },
 )
 
@@ -141,17 +141,15 @@ shifts.patch('/:id',
   requirePermission('shifts:update'),
   validator('json', updateShiftBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
+    const hubId = c.get('hubId') ?? ''
     const id = c.req.param('id')
     if (id === 'fallback') return c.json({ error: 'Not Found' }, 404)
     const body = c.req.valid('json')
-    const res = await dos.shifts.fetch(new Request(`http://do/shifts/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'shiftEdited', pubkey, { shiftId: id })
-    return res
+    const shift = await services.shifts.update(hubId, id, body)
+    await audit(services.audit, 'shiftEdited', pubkey, { shiftId: id })
+    return c.json(shift)
   },
 )
 
@@ -174,13 +172,14 @@ shifts.delete('/:id',
   }),
   requirePermission('shifts:delete'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
+    const hubId = c.get('hubId') ?? ''
     const id = c.req.param('id')
     if (id === 'fallback') return c.json({ error: 'Not Found' }, 404)
-    const res = await dos.shifts.fetch(new Request(`http://do/shifts/${id}`, { method: 'DELETE' }))
-    if (res.ok) await audit(c.get('services').audit, 'shiftDeleted', pubkey, { shiftId: id })
-    return res
+    const result = await services.shifts.delete(hubId, id)
+    await audit(services.audit, 'shiftDeleted', pubkey, { shiftId: id })
+    return c.json(result)
   },
 )
 

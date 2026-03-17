@@ -2,8 +2,8 @@ import { checkPermission } from '../middleware/permission-guard'
 
 interface ReportLike {
   contactIdentifierHash: string
-  assignedTo?: string
-  metadata?: { type?: string }
+  assignedTo?: string | null
+  metadata?: { type?: string } | unknown
 }
 
 /**
@@ -28,5 +28,6 @@ export function verifyReportAccess(
 
 /** Verify that a conversation is actually a report. Returns false if not. */
 export function isReport(report: ReportLike): boolean {
-  return report.metadata?.type === 'report'
+  const meta = report.metadata as { type?: string } | undefined
+  return meta?.type === 'report'
 }

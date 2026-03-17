@@ -23,9 +23,20 @@ export function uint8ArrayToBase64URL(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-export async function buildAudioUrlMap(settings: { fetch(req: Request): Promise<Response> }, origin: string): Promise<Record<string, string>> {
-  const audioRes = await settings.fetch(new Request('http://do/settings/ivr-audio'))
-  const { recordings } = await audioRes.json() as { recordings: Array<{ promptType: string; language: string }> }
+type AudioUrlMapSource =
+  | { fetch(req: Request): Promise<Response> }
+  | { getIvrAudioList(): Promise<{ recordings: Array<{ promptType: string; language: string }> }> }
+
+export async function buildAudioUrlMap(settings: AudioUrlMapSource, origin: string): Promise<Record<string, string>> {
+  let recordings: Array<{ promptType: string; language: string }>
+  if ('getIvrAudioList' in settings) {
+    const result = await settings.getIvrAudioList()
+    recordings = result.recordings
+  } else {
+    const audioRes = await settings.fetch(new Request('http://do/settings/ivr-audio'))
+    const data = await audioRes.json() as { recordings: Array<{ promptType: string; language: string }> }
+    recordings = data.recordings
+  }
   const map: Record<string, string> = {}
   for (const rec of recordings) {
     map[`${rec.promptType}:${rec.language}`] = `${origin}/api/ivr-audio/${rec.promptType}/${rec.language}`
@@ -37,11 +48,7 @@ export function telephonyResponse(response: { contentType: string; body: string 
   return new Response(response.body, { headers: { 'Content-Type': response.contentType } })
 }
 
-export async function checkRateLimit(settings: { fetch(req: Request): Promise<Response> }, key: string, maxPerMinute: number): Promise<boolean> {
-  const rlRes = await settings.fetch(new Request('http://do/rate-limit/check', {
-    method: 'POST',
-    body: JSON.stringify({ key, maxPerMinute }),
-  }))
-  const rlData = await rlRes.json() as { limited: boolean }
-  return rlData.limited
+export async function checkRateLimit(settings: { checkRateLimit(data: { key: string; maxPerMinute: number }): Promise<{ limited: boolean }> }, key: string, maxPerMinute: number): Promise<boolean> {
+  const result = await settings.checkRateLimit({ key, maxPerMinute })
+  return result.limited
 }

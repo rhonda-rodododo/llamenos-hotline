@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { describeRoute, resolver, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getDOs } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import {
   spamSettingsSchema,
@@ -37,8 +36,9 @@ settings.get('/transcription',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.settings.fetch(new Request('http://do/settings/transcription'))
+    const services = c.get('services')
+    const result = await services.settings.getTranscriptionSettings()
+    return c.json(result)
   },
 )
 
@@ -54,15 +54,12 @@ settings.patch('/transcription',
   requirePermission('settings:manage-transcription'),
   validator('json', transcriptionSettingsSchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/transcription', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'transcriptionToggled', pubkey, body as Record<string, unknown>)
-    return res
+    const services = c.get('services')
+    const result = await services.settings.updateTranscriptionSettings(body)
+    await audit(services.audit, 'transcriptionToggled', pubkey, body as Record<string, unknown>)
+    return c.json(result)
   },
 )
 
@@ -77,10 +74,11 @@ settings.get('/custom-fields',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
     const permissions = c.get('permissions')
     const canManageFields = checkPermission(permissions, 'settings:manage-fields')
-    return dos.settings.fetch(new Request(`http://do/settings/custom-fields?role=${canManageFields ? 'admin' : 'volunteer'}`))
+    const services = c.get('services')
+    const result = await services.settings.getCustomFields(canManageFields ? 'admin' : 'volunteer')
+    return c.json(result)
   },
 )
 
@@ -96,15 +94,12 @@ settings.put('/custom-fields',
   requirePermission('settings:manage-fields'),
   validator('json', customFieldsBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/custom-fields', {
-      method: 'PUT',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'customFieldsUpdated', pubkey, {})
-    return res
+    const services = c.get('services')
+    const result = await services.settings.updateCustomFields(body as unknown as Parameters<typeof services.settings.updateCustomFields>[0])
+    await audit(services.audit, 'customFieldsUpdated', pubkey, {})
+    return c.json(result)
   },
 )
 
@@ -120,8 +115,9 @@ settings.get('/spam',
   }),
   requirePermission('settings:manage-spam'),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.settings.fetch(new Request('http://do/settings/spam'))
+    const services = c.get('services')
+    const result = await services.settings.getSpamSettings()
+    return c.json(result)
   },
 )
 
@@ -137,15 +133,12 @@ settings.patch('/spam',
   requirePermission('settings:manage-spam'),
   validator('json', spamSettingsSchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/spam', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'spamMitigationToggled', pubkey, body as Record<string, unknown>)
-    return res
+    const services = c.get('services')
+    const result = await services.settings.updateSpamSettings(body)
+    await audit(services.audit, 'spamMitigationToggled', pubkey, body as Record<string, unknown>)
+    return c.json(result)
   },
 )
 
@@ -160,8 +153,9 @@ settings.get('/call',
   }),
   requirePermission('settings:manage'),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.settings.fetch(new Request('http://do/settings/call'))
+    const services = c.get('services')
+    const result = await services.settings.getCallSettings()
+    return c.json(result)
   },
 )
 
@@ -177,15 +171,12 @@ settings.patch('/call',
   requirePermission('settings:manage'),
   validator('json', callSettingsSchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/call', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'callSettingsUpdated', pubkey, body as Record<string, unknown>)
-    return res
+    const services = c.get('services')
+    const result = await services.settings.updateCallSettings(body)
+    await audit(services.audit, 'callSettingsUpdated', pubkey, body as Record<string, unknown>)
+    return c.json(result)
   },
 )
 
@@ -200,8 +191,9 @@ settings.get('/ivr-languages',
   }),
   requirePermission('settings:manage-ivr'),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.settings.fetch(new Request('http://do/settings/ivr-languages'))
+    const services = c.get('services')
+    const result = await services.settings.getIvrLanguages()
+    return c.json(result)
   },
 )
 
@@ -217,15 +209,12 @@ settings.patch('/ivr-languages',
   requirePermission('settings:manage-ivr'),
   validator('json', ivrLanguagesSchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/ivr-languages', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'ivrLanguagesUpdated', pubkey, body as Record<string, unknown>)
-    return res
+    const services = c.get('services')
+    const result = await services.settings.updateIvrLanguages(body as Parameters<typeof services.settings.updateIvrLanguages>[0])
+    await audit(services.audit, 'ivrLanguagesUpdated', pubkey, body as Record<string, unknown>)
+    return c.json(result)
   },
 )
 
@@ -240,8 +229,9 @@ settings.get('/webauthn',
   }),
   requirePermission('settings:manage'),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.identity.fetch(new Request('http://do/settings/webauthn'))
+    const services = c.get('services')
+    const result = await services.identity.getWebAuthnSettings()
+    return c.json(result)
   },
 )
 
@@ -257,15 +247,12 @@ settings.patch('/webauthn',
   requirePermission('settings:manage'),
   validator('json', webauthnSettingsSchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.identity.fetch(new Request('http://do/settings/webauthn', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'webauthnSettingsUpdated', pubkey, body as Record<string, unknown>)
-    return res
+    const services = c.get('services')
+    const result = await services.identity.updateWebAuthnSettings(body)
+    await audit(services.audit, 'webauthnSettingsUpdated', pubkey, body as Record<string, unknown>)
+    return c.json(result)
   },
 )
 
@@ -281,8 +268,9 @@ settings.get('/telephony-provider',
   }),
   requirePermission('settings:manage-telephony'),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
+    const services = c.get('services')
+    const result = await services.settings.getTelephonyProvider()
+    return c.json(result)
   },
 )
 
@@ -298,15 +286,12 @@ settings.patch('/telephony-provider',
   requirePermission('settings:manage-telephony'),
   validator('json', telephonyProviderSchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/telephony-provider', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'telephonyProviderChanged', pubkey, { type: body.type })
-    return res
+    const services = c.get('services')
+    const result = await services.settings.updateTelephonyProvider(body as Parameters<typeof services.settings.updateTelephonyProvider>[0])
+    await audit(services.audit, 'telephonyProviderChanged', pubkey, { type: body.type })
+    return c.json(result)
   },
 )
 
@@ -401,8 +386,9 @@ settings.get('/messaging',
   }),
   requirePermission('settings:manage-messaging'),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.settings.fetch(new Request('http://do/settings/messaging'))
+    const services = c.get('services')
+    const result = await services.settings.getMessagingConfig()
+    return c.json(result)
   },
 )
 
@@ -418,15 +404,12 @@ settings.patch('/messaging',
   requirePermission('settings:manage-messaging'),
   validator('json', messagingConfigSchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/messaging', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'messagingConfigUpdated', pubkey, body as Record<string, unknown>)
-    return res
+    const services = c.get('services')
+    const result = await services.settings.updateMessagingConfig(body)
+    await audit(services.audit, 'messagingConfigUpdated', pubkey, body as Record<string, unknown>)
+    return c.json(result)
   },
 )
 
@@ -442,8 +425,9 @@ settings.get('/setup',
   }),
   requirePermission('settings:manage'),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.settings.fetch(new Request('http://do/settings/setup'))
+    const services = c.get('services')
+    const result = await services.settings.getSetupState()
+    return c.json(result)
   },
 )
 
@@ -459,15 +443,12 @@ settings.patch('/setup',
   requirePermission('settings:manage'),
   validator('json', setupStateSchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/setup', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'setupStateUpdated', pubkey, body as Record<string, unknown>)
-    return res
+    const services = c.get('services')
+    const result = await services.settings.updateSetupState(body as Record<string, unknown> as Parameters<typeof services.settings.updateSetupState>[0])
+    await audit(services.audit, 'setupStateUpdated', pubkey, body as Record<string, unknown>)
+    return c.json(result)
   },
 )
 
@@ -482,8 +463,9 @@ settings.get('/ivr-audio',
   }),
   requirePermission('settings:manage-ivr'),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.settings.fetch(new Request('http://do/settings/ivr-audio'))
+    const services = c.get('services')
+    const result = await services.settings.getIvrAudioList()
+    return c.json(result)
   },
 )
 
@@ -498,17 +480,17 @@ settings.put('/ivr-audio/:promptType/:language',
   }),
   requirePermission('settings:manage-ivr'),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const promptType = c.req.param('promptType')
     const language = c.req.param('language')
     const body = await c.req.arrayBuffer()
-    const res = await dos.settings.fetch(new Request(`http://do/settings/ivr-audio/${promptType}/${language}`, {
-      method: 'PUT',
-      body,
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'ivrAudioUploaded', pubkey, { promptType, language })
-    return res
+    const services = c.get('services')
+    // Convert to base64 for storage
+    const bytes = new Uint8Array(body)
+    const audioBase64 = btoa(String.fromCharCode(...bytes))
+    const result = await services.settings.uploadIvrAudio(promptType, language, audioBase64, body.byteLength)
+    await audit(services.audit, 'ivrAudioUploaded', pubkey, { promptType, language })
+    return c.json(result)
   },
 )
 
@@ -523,15 +505,13 @@ settings.delete('/ivr-audio/:promptType/:language',
   }),
   requirePermission('settings:manage-ivr'),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const promptType = c.req.param('promptType')
     const language = c.req.param('language')
-    const res = await dos.settings.fetch(new Request(`http://do/settings/ivr-audio/${promptType}/${language}`, {
-      method: 'DELETE',
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'ivrAudioDeleted', pubkey, { promptType, language })
-    return res
+    const services = c.get('services')
+    const result = await services.settings.deleteIvrAudio(promptType, language)
+    await audit(services.audit, 'ivrAudioDeleted', pubkey, { promptType, language })
+    return c.json(result)
   },
 )
 
@@ -546,8 +526,9 @@ settings.get('/report-types',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.settings.fetch(new Request('http://do/settings/report-types'))
+    const services = c.get('services')
+    const result = await services.settings.getReportTypes()
+    return c.json(result)
   },
 )
 
@@ -563,15 +544,12 @@ settings.post('/report-types',
   requirePermission('settings:manage-fields'),
   validator('json', createReportTypeBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/report-types', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'reportTypeCreated', pubkey, { name: body.name })
-    return res
+    const services = c.get('services')
+    const result = await services.settings.createReportType(body as Record<string, unknown> as Parameters<typeof services.settings.createReportType>[0])
+    await audit(services.audit, 'reportTypeCreated', pubkey, { name: body.name })
+    return c.json(result, 201)
   },
 )
 
@@ -587,16 +565,13 @@ settings.patch('/report-types/:id',
   requirePermission('settings:manage-fields'),
   validator('json', updateReportTypeBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const id = c.req.param('id')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request(`http://do/settings/report-types/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'reportTypeUpdated', pubkey, { reportTypeId: id })
-    return res
+    const services = c.get('services')
+    const result = await services.settings.updateReportType(id, body as Record<string, unknown> as Parameters<typeof services.settings.updateReportType>[1])
+    await audit(services.audit, 'reportTypeUpdated', pubkey, { reportTypeId: id })
+    return c.json(result)
   },
 )
 
@@ -611,12 +586,12 @@ settings.delete('/report-types/:id',
   }),
   requirePermission('settings:manage-fields'),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const id = c.req.param('id')
-    const res = await dos.settings.fetch(new Request(`http://do/settings/report-types/${id}`, { method: 'DELETE' }))
-    if (res.ok) await audit(c.get('services').audit, 'reportTypeArchived', pubkey, { reportTypeId: id })
-    return res
+    const services = c.get('services')
+    const result = await services.settings.archiveReportType(id)
+    await audit(services.audit, 'reportTypeArchived', pubkey, { reportTypeId: id })
+    return c.json(result)
   },
 )
 
@@ -631,8 +606,9 @@ settings.get('/roles',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.settings.fetch(new Request('http://do/settings/roles'))
+    const services = c.get('services')
+    const result = await services.settings.getRoles()
+    return c.json(result)
   },
 )
 
@@ -648,15 +624,12 @@ settings.post('/roles',
   requirePermission('system:manage-roles'),
   validator('json', createRoleSchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/roles', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'roleCreated', pubkey, { name: body.name })
-    return res
+    const services = c.get('services')
+    const result = await services.settings.createRole(body)
+    await audit(services.audit, 'roleCreated', pubkey, { name: body.name })
+    return c.json(result, 201)
   },
 )
 
@@ -672,16 +645,13 @@ settings.patch('/roles/:id',
   requirePermission('system:manage-roles'),
   validator('json', updateRoleSchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const id = c.req.param('id')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request(`http://do/settings/roles/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'roleUpdated', pubkey, { roleId: id })
-    return res
+    const services = c.get('services')
+    const result = await services.settings.updateRole(id, body)
+    await audit(services.audit, 'roleUpdated', pubkey, { roleId: id })
+    return c.json(result)
   },
 )
 
@@ -696,12 +666,12 @@ settings.delete('/roles/:id',
   }),
   requirePermission('system:manage-roles'),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const id = c.req.param('id')
-    const res = await dos.settings.fetch(new Request(`http://do/settings/roles/${id}`, { method: 'DELETE' }))
-    if (res.ok) await audit(c.get('services').audit, 'roleDeleted', pubkey, { roleId: id })
-    return res
+    const services = c.get('services')
+    const result = await services.settings.deleteRole(id)
+    await audit(services.audit, 'roleDeleted', pubkey, { roleId: id })
+    return c.json(result)
   },
 )
 
@@ -738,34 +708,8 @@ settings.get('/migrations',
   }),
   requirePermission('system:manage-roles'),
   async (c) => {
-    const dos = getDOs(c.env)
-
-    const doNames: Array<{ label: string; stub: typeof dos.settings }> = [
-      { label: 'settings', stub: dos.settings },
-      { label: 'identity', stub: dos.identity },
-      { label: 'records', stub: dos.records },
-      { label: 'shifts', stub: dos.shifts },
-      { label: 'calls', stub: dos.calls },
-      { label: 'conversations', stub: dos.conversations },
-      { label: 'blasts', stub: dos.blasts },
-    ]
-
-    const results = await Promise.all(
-      doNames.map(async ({ label, stub }) => {
-        try {
-          const res = await stub.fetch(new Request('http://do/migrations/status'))
-          if (res.ok) {
-            const data = await res.json()
-            return { namespace: label, ...data as Record<string, unknown> }
-          }
-          return { namespace: label, error: `HTTP ${res.status}` }
-        } catch (err) {
-          return { namespace: label, error: err instanceof Error ? err.message : 'Unknown error' }
-        }
-      }),
-    )
-
-    return c.json({ namespaces: results })
+    // Migration status is a DO-specific concept — return empty for service-based deployments
+    return c.json({ namespaces: [], note: 'Service-based deployment — no DO migrations' })
   },
 )
 
@@ -781,8 +725,9 @@ settings.get('/ttl',
   }),
   requirePermission('settings:manage'),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.settings.fetch(new Request('http://do/settings/ttl'))
+    const services = c.get('services')
+    const result = await services.settings.getTTLOverrides()
+    return c.json(result)
   },
 )
 
@@ -798,15 +743,12 @@ settings.patch('/ttl',
   requirePermission('settings:manage'),
   validator('json', ttlOverridesBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/ttl', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'ttlOverridesUpdated', pubkey, body as Record<string, unknown>)
-    return res
+    const services = c.get('services')
+    const result = await services.settings.updateTTLOverrides(body as Record<string, unknown>)
+    await audit(services.audit, 'ttlOverridesUpdated', pubkey, body as Record<string, unknown>)
+    return c.json(result)
   },
 )
 
@@ -822,19 +764,12 @@ settings.get('/cleanup-metrics',
   }),
   requirePermission('settings:manage'),
   async (c) => {
-    const dos = getDOs(c.env)
-    const [settingsRes, identityRes, conversationRes] = await Promise.all([
-      dos.settings.fetch(new Request('http://do/settings/cleanup-metrics')),
-      dos.identity.fetch(new Request('http://do/identity/cleanup-metrics')),
-      dos.conversations.fetch(new Request('http://do/conversations/cleanup-metrics')),
-    ])
-    const settingsMetrics = settingsRes.ok ? await settingsRes.json() : {}
-    const identityMetrics = identityRes.ok ? await identityRes.json() : {}
-    const conversationMetrics = conversationRes.ok ? await conversationRes.json() : {}
+    const services = c.get('services')
+    const settingsMetrics = await services.settings.getCleanupMetrics()
     return c.json({
       settings: settingsMetrics,
-      identity: identityMetrics,
-      conversation: conversationMetrics,
+      identity: {},
+      conversation: {},
     })
   },
 )

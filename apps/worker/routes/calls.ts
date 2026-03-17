@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
 import { describeRoute, resolver, validator } from 'hono-openapi'
 import { z } from 'zod'
-import type { AppEnv, CallRecord } from '../types'
-import { getScopedDOs, getTelephony } from '../lib/do-access'
+import type { AppEnv } from '../types'
+import { getTelephonyFromService } from '../lib/do-access'
 import { audit } from '../services/audit'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import { callHistoryQuerySchema, callRecordResponseSchema, banCallerBodySchema } from '@protocol/schemas/calls'
@@ -22,16 +22,16 @@ calls.get('/active',
   }),
   requirePermission('calls:read-active'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
     const permissions = c.get('permissions')
     const canSeeFullInfo = checkPermission(permissions, 'calls:read-active-full')
-    const res = await dos.calls.fetch(new Request('http://do/calls/active'))
+    const activeCalls = await services.calls.getActiveCalls(hubId)
     if (!canSeeFullInfo) {
-      const data = await res.json() as { calls: Array<{ callerNumber: string; [key: string]: unknown }> }
-      data.calls = data.calls.map(call => ({ ...call, callerNumber: '[redacted]' }))
-      return c.json(data)
+      const redacted = activeCalls.map(call => ({ ...call, callerNumber: '[redacted]' }))
+      return c.json({ calls: redacted })
     }
-    return res
+    return c.json({ calls: activeCalls })
   },
 )
 
@@ -46,8 +46,10 @@ calls.get('/today-count',
   }),
   requirePermission('calls:read-active'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    return dos.calls.fetch(new Request('http://do/calls/today-count'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+    const count = await services.calls.getTodayCount(hubId)
+    return c.json({ count })
   },
 )
 
@@ -62,8 +64,10 @@ calls.get('/presence',
   }),
   requirePermission('calls:read-presence'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    return dos.calls.fetch(new Request('http://do/calls/presence'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+    const result = await services.calls.getPresence(hubId)
+    return c.json(result)
   },
 )
 
@@ -89,18 +93,17 @@ calls.get('/history',
   requirePermission('calls:read-history'),
   validator('query', callHistoryQuerySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
     const query = c.req.valid('query')
-
-    const params = new URLSearchParams()
-    params.set('page', String(query.page))
-    params.set('limit', String(query.limit))
-    // Cursor-based pagination (Epic 281)
-    if (query.cursor) params.set('cursor', query.cursor)
-    if (query.search) params.set('search', query.search)
-    if (query.dateFrom) params.set('dateFrom', query.dateFrom)
-    if (query.dateTo) params.set('dateTo', query.dateTo)
-    return dos.calls.fetch(new Request(`http://do/calls/history?${params}`))
+    const result = await services.calls.listCallHistory(hubId, {
+      search: query.search,
+      dateFrom: query.dateFrom,
+      dateTo: query.dateTo,
+      page: query.page,
+      limit: query.limit,
+    })
+    return c.json(result)
   },
 )
 
@@ -118,47 +121,38 @@ calls.get('/identify/:identifierHash',
   requirePermission('contacts:view'),
   async (c) => {
     const identifierHash = c.req.param('identifierHash')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
 
-    // Look up contact in ContactDirectoryDO
-    const lookupRes = await dos.contactDirectory.fetch(
-      new Request(`http://do/contacts/lookup/${identifierHash}`),
-    )
-
-    if (!lookupRes.ok) {
-      return c.json({ contact: null, activeCaseCount: 0, recentCases: [] })
-    }
-
-    const { contact } = await lookupRes.json() as { contact: { id: string; caseCount: number; interactionCount: number; lastInteractionAt?: string } | null }
+    // Look up contact in ContactsService
+    const contact = await services.contacts.lookupByIdentifierHash(hubId, identifierHash)
 
     if (!contact) {
       return c.json({ contact: null, activeCaseCount: 0, recentCases: [] })
     }
 
     // Increment interaction count on identification
-    await dos.contactDirectory.fetch(
-      new Request(`http://do/contacts/${contact.id}/interaction`, { method: 'POST' }),
-    ).catch(() => {})  // best-effort — don't fail the lookup if increment fails
-
-    // Re-read updated contact after increment
-    contact.interactionCount = (contact.interactionCount ?? 0) + 1
+    try {
+      await services.contacts.updateLastInteraction(contact.id)
+      contact.interactionCount = (contact.interactionCount ?? 0) + 1
+    } catch {
+      // best-effort — don't fail the lookup if increment fails
+    }
 
     // Fetch active cases linked to this contact
-    const casesRes = await dos.caseManager.fetch(
-      new Request(`http://do/records/by-contact/${contact.id}`),
-    )
-
     let activeCaseCount = 0
     let recentCases: Array<{ id: string; caseNumber?: string; status: string }> = []
 
-    if (casesRes.ok) {
-      const { records } = await casesRes.json() as { records: Array<{ id: string; caseNumber?: string; statusHash: string }> }
-      activeCaseCount = records.length
-      recentCases = records.slice(0, 5).map(r => ({
+    try {
+      const casesResult = await services.cases.listByContact(contact.id)
+      activeCaseCount = casesResult.total
+      recentCases = casesResult.records.slice(0, 5).map(r => ({
         id: r.id,
-        caseNumber: r.caseNumber,
-        status: r.statusHash,
+        caseNumber: r.caseNumber ?? undefined,
+        status: r.statusHash ?? '',
       }))
+    } catch {
+      // Non-fatal
     }
 
     return c.json({ contact, activeCaseCount, recentCases })
@@ -181,16 +175,18 @@ calls.post('/:callId/answer',
   async (c) => {
     const callId = c.req.param('callId')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
 
-    const res = await dos.calls.fetch(new Request(`http://do/calls/${callId}/answer`, {
-      method: 'POST',
-      body: JSON.stringify({ pubkey }),
-    }))
-
-    if (res.status === 409) return c.json({ error: 'Call already answered' }, 409)
-    if (!res.ok) return c.json({ error: 'Failed to answer call' }, 500)
-    return res
+    try {
+      const result = await services.calls.answerCall(hubId, callId, pubkey)
+      return c.json(result)
+    } catch (err) {
+      if (err instanceof Error && 'status' in err && (err as { status: number }).status === 409) {
+        return c.json({ error: 'Call already answered' }, 409)
+      }
+      return c.json({ error: 'Failed to answer call' }, 500)
+    }
   },
 )
 
@@ -209,20 +205,20 @@ calls.post('/:callId/hangup',
   async (c) => {
     const callId = c.req.param('callId')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
 
     // Verify the volunteer answered this call
-    const callRes = await dos.calls.fetch(new Request(`http://do/calls/${callId}`))
-    if (!callRes.ok) return c.json({ error: 'Call not found' }, 404)
-    const { call } = await callRes.json() as { call: CallRecord }
+    const call = await services.calls.getActiveCallById(hubId, callId)
+    if (!call) return c.json({ error: 'Call not found' }, 404)
     if (call.answeredBy !== pubkey) return c.json({ error: 'Not your call' }, 403)
 
-    const res = await dos.calls.fetch(new Request(`http://do/calls/${callId}/end`, {
-      method: 'POST',
-    }))
-
-    if (!res.ok) return c.json({ error: 'Failed to hang up call' }, 500)
-    return res
+    try {
+      const result = await services.calls.endCall(hubId, callId)
+      return c.json(result)
+    } catch {
+      return c.json({ error: 'Failed to hang up call' }, 500)
+    }
   },
 )
 
@@ -241,21 +237,20 @@ calls.post('/:callId/spam',
   async (c) => {
     const callId = c.req.param('callId')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
 
     // Verify the volunteer answered this call
-    const callRes = await dos.calls.fetch(new Request(`http://do/calls/${callId}`))
-    if (!callRes.ok) return c.json({ error: 'Call not found' }, 404)
-    const { call } = await callRes.json() as { call: CallRecord }
+    const call = await services.calls.getActiveCallById(hubId, callId)
+    if (!call) return c.json({ error: 'Call not found' }, 404)
     if (call.answeredBy !== pubkey) return c.json({ error: 'Not your call' }, 403)
 
-    const res = await dos.calls.fetch(new Request(`http://do/calls/${callId}/spam`, {
-      method: 'POST',
-      body: JSON.stringify({ pubkey }),
-    }))
-
-    if (!res.ok) return c.json({ error: 'Failed to report spam' }, 500)
-    return res
+    try {
+      const result = await services.calls.reportSpam(hubId, callId, pubkey)
+      return c.json(result)
+    } catch {
+      return c.json({ error: 'Failed to report spam' }, 500)
+    }
   },
 )
 
@@ -275,12 +270,12 @@ calls.post('/:callId/ban',
   async (c) => {
     const callId = c.req.param('callId')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
 
     // Get call record to verify ownership and extract caller phone
-    const callRes = await dos.calls.fetch(new Request(`http://do/calls/${callId}`))
-    if (!callRes.ok) return c.json({ error: 'Call not found' }, 404)
-    const { call } = await callRes.json() as { call: CallRecord }
+    const call = await services.calls.getActiveCallById(hubId, callId)
+    if (!call) return c.json({ error: 'Call not found' }, 404)
 
     if (call.answeredBy !== pubkey) {
       return c.json({ error: 'Not your call' }, 403)
@@ -289,25 +284,30 @@ calls.post('/:callId/ban',
     const body = c.req.valid('json')
 
     // Ban the caller (server resolves phone number — volunteer never sees it)
-    const banRes = await dos.records.fetch(new Request('http://do/bans', {
-      method: 'POST',
-      body: JSON.stringify({
+    let banned = false
+    try {
+      await services.records.addBan({
         phone: call.callerNumber,
         reason: body.reason || 'Banned during active call',
         bannedBy: pubkey,
-      }),
-    }))
-
-    // Hang up the call
-    await dos.calls.fetch(new Request(`http://do/calls/${callId}/end`, {
-      method: 'POST',
-    }))
-
-    if (banRes.ok) {
-      await audit(c.get('services').audit, 'numberBanned', pubkey, { phone: call.callerNumber, callId })
+      })
+      banned = true
+    } catch {
+      // Ban failed
     }
 
-    return c.json({ banned: banRes.ok, hungUp: true })
+    // Hang up the call
+    try {
+      await services.calls.endCall(hubId, callId)
+    } catch {
+      // End call failed
+    }
+
+    if (banned) {
+      await audit(services.audit, 'numberBanned', pubkey, { phone: call.callerNumber, callId })
+    }
+
+    return c.json({ banned, hungUp: true })
   },
 )
 
@@ -324,31 +324,33 @@ calls.get('/:callId/recording',
   }),
   async (c) => {
     const callId = c.req.param('callId')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const permissions = c.get('permissions')
     const pubkey = c.get('pubkey')
 
-    // Fetch the call record to verify permission and get recordingSid
-    const callRes = await dos.calls.fetch(new Request(`http://do/calls/${callId}`))
-    if (!callRes.ok) return c.json({ error: 'Call not found' }, 404)
-    const { call } = await callRes.json() as { call: CallRecord }
+    // Check call record for recording info (try active calls first, then history)
+    const activeCall = await services.calls.getActiveCallById(c.get('hubId') ?? '', callId)
+    const historyRecord = activeCall ? null : await services.calls.getCallRecord(callId)
+    const recordingSid = activeCall?.recordingSid ?? historyRecord?.recordingSid
+    const hasRecording = activeCall?.hasRecording ?? historyRecord?.hasRecording
+    const answeredBy = activeCall?.answeredBy ?? null
 
-    if (!call.recordingSid || !call.hasRecording) {
+    if (!recordingSid || !hasRecording) {
       return c.json({ error: 'No recording available for this call' }, 404)
     }
 
     // Permission check: admin (calls:read-recording) or the volunteer who answered
     const isAdmin = checkPermission(permissions, 'calls:read-recording')
-    const isAnsweringVolunteer = call.answeredBy === pubkey
+    const isAnsweringVolunteer = answeredBy === pubkey
     if (!isAdmin && !isAnsweringVolunteer) {
       return c.json({ error: 'Forbidden' }, 403)
     }
 
     // Fetch recording audio from the telephony provider on demand
-    const adapter = await getTelephony(c.env, dos)
+    const adapter = await getTelephonyFromService(c.env, services.settings)
     if (!adapter) return c.json({ error: 'Telephony provider not configured' }, 503)
 
-    const audio = await adapter.getRecordingAudio(call.recordingSid)
+    const audio = await adapter.getRecordingAudio(recordingSid)
     if (!audio) return c.json({ error: 'Recording not available from provider' }, 404)
 
     return new Response(audio, {
@@ -373,9 +375,10 @@ calls.get('/debug',
   }),
   requirePermission('calls:debug'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.calls.fetch(new Request('http://do/calls/debug'))
-    return res
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+    const result = await services.calls.debug(hubId)
+    return c.json(result)
   },
 )
 

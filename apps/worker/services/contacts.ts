@@ -495,6 +495,17 @@ export class ContactsService {
       .where(eq(affinityGroups.hubId, hubId))
   }
 
+  async getGroup(id: string): Promise<AffinityGroupRow> {
+    const rows = await this.db
+      .select()
+      .from(affinityGroups)
+      .where(eq(affinityGroups.id, id))
+    if (rows.length === 0) {
+      throw new ServiceError(404, 'Group not found')
+    }
+    return rows[0]
+  }
+
   // =========================================================================
   // Group Members
   // =========================================================================

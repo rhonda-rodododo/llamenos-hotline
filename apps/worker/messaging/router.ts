@@ -10,6 +10,7 @@ import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '@shared/nostr-even
 import { publishNostrEvent } from '../lib/nostr-events'
 import { createPushDispatcher } from '../lib/push-dispatch'
 import { createLogger } from '../lib/logger'
+import type { Services } from '../services'
 
 const logger = createLogger('messaging')
 
@@ -74,6 +75,7 @@ messaging.post('/:channel/webhook', async (c) => {
   const url = new URL(c.req.url)
   const hubId = url.searchParams.get('hub') || undefined
   const dos = getScopedDOs(c.env, hubId)
+  const services = c.get('services')
 
   let adapter: MessagingAdapter
   try {
@@ -95,26 +97,19 @@ messaging.post('/:channel/webhook', async (c) => {
       const statusUpdate = await adapter.parseStatusWebhook(c.req.raw)
       if (statusUpdate) {
         // This is a status update, not a new message
-        const statusRes = await dos.conversations.fetch(new Request('http://do/messages/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(statusUpdate),
-        }))
+        const result = await services.conversations.updateMessageStatus(statusUpdate)
 
-        if (statusRes.ok) {
+        if ('conversationId' in result && result.conversationId && 'messageId' in result && result.messageId) {
           // Publish status update to Nostr relay
-          const result = await statusRes.json() as { conversationId?: string; messageId?: string }
-          if (result.conversationId && result.messageId) {
-            publishNostrEvent(c.env, KIND_MESSAGE_NEW, {
-              type: 'message:status',
-              conversationId: result.conversationId,
-              messageId: result.messageId,
-              status: statusUpdate.status,
-              timestamp: statusUpdate.timestamp,
-            }).catch((e) => {
-              console.error('[messaging] Failed to publish status update:', e)
-            })
-          }
+          publishNostrEvent(c.env, KIND_MESSAGE_NEW, {
+            type: 'message:status',
+            conversationId: result.conversationId,
+            messageId: result.messageId,
+            status: statusUpdate.status,
+            timestamp: statusUpdate.timestamp,
+          }).catch((e) => {
+            console.error('[messaging] Failed to publish status update:', e)
+          })
         }
 
         return c.json({ ok: true })
@@ -136,65 +131,39 @@ messaging.post('/:channel/webhook', async (c) => {
   // Keyword interception for blast subscribe/unsubscribe
   if (incoming.body) {
     const normalizedBody = incoming.body.trim().toUpperCase()
+    const effectiveHubId = hubId ?? ''
     // STOP is always recognized (TCPA compliance)
     if (normalizedBody === 'STOP') {
-      await dos.blasts.fetch(new Request('http://do/subscribers/keyword', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identifier: incoming.senderIdentifier,
-          identifierHash: incoming.senderIdentifierHash,
-          keyword: 'STOP',
-          channel: incoming.channelType,
-        }),
-      }))
+      await services.blasts.handleSubscriberKeyword(effectiveHubId, {
+        identifier: incoming.senderIdentifier,
+        identifierHash: incoming.senderIdentifierHash,
+        keyword: 'STOP',
+        channel: incoming.channelType,
+      })
       // Still forward to conversation for logging
     } else {
       // Check if it matches the subscribe keyword
       try {
-        const settingsRes = await dos.blasts.fetch(new Request('http://do/blast-settings'))
-        if (settingsRes.ok) {
-          const settings = await settingsRes.json() as { subscribeKeyword: string }
-          if (normalizedBody === settings.subscribeKeyword.toUpperCase()) {
-            await dos.blasts.fetch(new Request('http://do/subscribers/keyword', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                identifier: incoming.senderIdentifier,
-                identifierHash: incoming.senderIdentifierHash,
-                keyword: normalizedBody,
-                channel: incoming.channelType,
-              }),
-            }))
-          }
+        const settings = await services.blasts.getBlastSettings(effectiveHubId)
+        if (normalizedBody === settings.subscribeKeyword.toUpperCase()) {
+          await services.blasts.handleSubscriberKeyword(effectiveHubId, {
+            identifier: incoming.senderIdentifier,
+            identifierHash: incoming.senderIdentifierHash,
+            keyword: normalizedBody,
+            channel: incoming.channelType,
+          })
         }
       } catch { /* blast settings not configured — ignore */ }
     }
   }
 
-  // Forward to hub-scoped ConversationDO for processing
-  const convRes = await dos.conversations.fetch(new Request('http://do/conversations/incoming', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(incoming),
-  }))
-
-  if (!convRes.ok) {
-    console.error(`[messaging] ConversationDO rejected incoming message: ${convRes.status}`)
-  }
-
-  // Check if this is a new conversation that needs auto-assignment
-  const convResult = await convRes.json() as {
-    conversationId: string
-    messageId: string
-    isNew: boolean
-    status: string
-  }
+  // Forward to ConversationsService for processing
+  const convResult = await services.conversations.handleIncoming(incoming, c.env.ADMIN_PUBKEY)
 
   // Auto-assignment for new conversations
   if (convResult.isNew && convResult.status === 'waiting') {
     c.executionCtx.waitUntil(
-      tryAutoAssign(dos, c.env, convResult.conversationId, channel, c.env.ADMIN_PUBKEY)
+      tryAutoAssign(dos, services, c.env, convResult.conversationId, channel, c.env.ADMIN_PUBKEY)
     )
   }
 
@@ -203,24 +172,19 @@ messaging.post('/:channel/webhook', async (c) => {
     c.executionCtx.waitUntil((async () => {
       try {
         // Fetch the conversation to get the assigned volunteer
-        const fetchConvRes = await dos.conversations.fetch(
-          new Request(`http://do/conversations/${convResult.conversationId}`),
-        )
-        if (fetchConvRes.ok) {
-          const conv = await fetchConvRes.json() as { assignedTo?: string; channelType: string }
-          if (conv.assignedTo) {
-            const globalDOs = getDOs(c.env)
-            const dispatcher = createPushDispatcher(c.env, globalDOs.identity, globalDOs.shifts)
-            await dispatcher.sendToVolunteer(conv.assignedTo, {
-              type: 'message',
-              conversationId: convResult.conversationId,
-              channelType: conv.channelType,
-            }, {
-              type: 'message',
-              conversationId: convResult.conversationId,
-              channelType: conv.channelType,
-            })
-          }
+        const conv = await services.conversations.getById(convResult.conversationId)
+        if (conv.assignedTo) {
+          const globalDOs = getDOs(c.env)
+          const dispatcher = createPushDispatcher(c.env, globalDOs.identity, globalDOs.shifts)
+          await dispatcher.sendToVolunteer(conv.assignedTo, {
+            type: 'message',
+            conversationId: convResult.conversationId,
+            channelType: conv.channelType,
+          }, {
+            type: 'message',
+            conversationId: convResult.conversationId,
+            channelType: conv.channelType,
+          })
         }
       } catch {
         // Push dispatch failure should not affect webhook response
@@ -230,7 +194,7 @@ messaging.post('/:channel/webhook', async (c) => {
 
   // Audit the incoming message (no PII — only hashed identifier)
   c.executionCtx.waitUntil(
-    audit(c.get('services').audit, 'messageReceived', 'system', {
+    audit(services.audit, 'messageReceived', 'system', {
       channel,
       senderHash: incoming.senderIdentifierHash,
     })
@@ -246,6 +210,7 @@ messaging.post('/:channel/webhook', async (c) => {
  */
 async function tryAutoAssign(
   dos: ReturnType<typeof getScopedDOs>,
+  services: Services,
   env: Env,
   conversationId: string,
   channelType: MessagingChannelType,
@@ -291,9 +256,8 @@ async function tryAutoAssign(
 
     if (eligibleVolunteers.length === 0) return
 
-    // 4. Get volunteer load counts
-    const loadRes = await dos.conversations.fetch(new Request('http://do/load'))
-    const { loads } = await loadRes.json() as { loads: Record<string, number> }
+    // 4. Get volunteer load counts via service
+    const loads = await services.conversations.getAllVolunteerLoads()
 
     // 5. Find least-loaded volunteer under max capacity
     let bestCandidate: string | null = null
@@ -309,28 +273,20 @@ async function tryAutoAssign(
 
     if (!bestCandidate) return // All volunteers at capacity
 
-    // 6. Auto-assign the conversation
-    const assignRes = await dos.conversations.fetch(
-      new Request(`http://do/conversations/${conversationId}/auto-assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pubkey: bestCandidate, adminPubkey }),
-      })
-    )
+    // 6. Auto-assign the conversation via service
+    await services.conversations.claim(conversationId, bestCandidate)
 
-    if (assignRes.ok) {
-      // Publish assignment to Nostr relay
-      publishNostrEvent(env, KIND_CONVERSATION_ASSIGNED, {
-        type: 'conversation:assigned',
-        conversationId,
-        assignedTo: bestCandidate,
-        autoAssigned: true,
-      }).catch((e) => {
-        console.error('[messaging] Failed to publish auto-assignment:', e)
-      })
+    // Publish assignment to Nostr relay
+    publishNostrEvent(env, KIND_CONVERSATION_ASSIGNED, {
+      type: 'conversation:assigned',
+      conversationId,
+      assignedTo: bestCandidate,
+      autoAssigned: true,
+    }).catch((e) => {
+      console.error('[messaging] Failed to publish auto-assignment:', e)
+    })
 
-      logger.info('Auto-assigned conversation', { conversationId, assignedTo: bestCandidate.slice(0, 8) })
-    }
+    logger.info('Auto-assigned conversation', { conversationId, assignedTo: bestCandidate.slice(0, 8) })
   } catch (err) {
     console.error('[messaging] Auto-assignment failed:', err)
   }

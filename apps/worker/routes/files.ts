@@ -1,8 +1,6 @@
 import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import type { FileRecord, FileKeyEnvelope } from '@shared/types'
-import { getDOs } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
 import { withRetry, isRetryableError } from '../lib/retry'
@@ -30,23 +28,20 @@ files.get('/:id/content',
     const fileId = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
 
     // Get file record to verify access
-    const recordRes = await dos.conversations.fetch(new Request(`http://do/files/${fileId}`))
-    if (!recordRes.ok) {
-      return c.json({ error: 'File not found' }, 404)
-    }
+    const fileRecord = await services.conversations.getFile(fileId)
 
-    const fileRecord = await recordRes.json() as FileRecord
     if (fileRecord.status !== 'complete') {
       return c.json({ error: 'File upload not complete' }, 400)
     }
 
     // Verify the requester has an envelope (is an authorized recipient)
+    const envelopes = (fileRecord.recipientEnvelopes ?? []) as Array<{ pubkey: string }>
     const hasAccess = checkPermission(permissions, 'files:download-all') ||
       fileRecord.uploadedBy === pubkey ||
-      fileRecord.recipientEnvelopes.some(e => e.pubkey === pubkey)
+      envelopes.some(e => e.pubkey === pubkey)
 
     if (!hasAccess) {
       return c.json({ error: 'Forbidden' }, 403)
@@ -101,18 +96,14 @@ files.get('/:id/envelopes',
     const fileId = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
 
-    const recordRes = await dos.conversations.fetch(new Request(`http://do/files/${fileId}`))
-    if (!recordRes.ok) {
-      return c.json({ error: 'File not found' }, 404)
-    }
-
-    const fileRecord = await recordRes.json() as FileRecord
+    const fileRecord = await services.conversations.getFile(fileId)
+    const envelopes = (fileRecord.recipientEnvelopes ?? []) as Array<{ pubkey: string }>
 
     const hasAccess = checkPermission(permissions, 'files:download-all') ||
       fileRecord.uploadedBy === pubkey ||
-      fileRecord.recipientEnvelopes.some(e => e.pubkey === pubkey)
+      envelopes.some(e => e.pubkey === pubkey)
 
     if (!hasAccess) {
       return c.json({ error: 'Forbidden' }, 403)
@@ -120,10 +111,10 @@ files.get('/:id/envelopes',
 
     // Return only the envelope for the requesting user (or all for users with download-all)
     if (checkPermission(permissions, 'files:download-all')) {
-      return c.json({ envelopes: fileRecord.recipientEnvelopes })
+      return c.json({ envelopes })
     }
 
-    const myEnvelope = fileRecord.recipientEnvelopes.find(e => e.pubkey === pubkey)
+    const myEnvelope = envelopes.find(e => e.pubkey === pubkey)
     return c.json({ envelopes: myEnvelope ? [myEnvelope] : [] })
   })
 
@@ -143,18 +134,15 @@ files.get('/:id/metadata',
     const fileId = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
 
-    const recordRes = await dos.conversations.fetch(new Request(`http://do/files/${fileId}`))
-    if (!recordRes.ok) {
-      return c.json({ error: 'File not found' }, 404)
-    }
-
-    const fileRecord = await recordRes.json() as FileRecord
+    const fileRecord = await services.conversations.getFile(fileId)
+    const envelopes = (fileRecord.recipientEnvelopes ?? []) as Array<{ pubkey: string }>
+    const metadataEntries = (fileRecord.encryptedMetadata ?? []) as Array<{ pubkey: string }>
 
     const hasAccess = checkPermission(permissions, 'files:download-all') ||
       fileRecord.uploadedBy === pubkey ||
-      fileRecord.recipientEnvelopes.some(e => e.pubkey === pubkey)
+      envelopes.some(e => e.pubkey === pubkey)
 
     if (!hasAccess) {
       return c.json({ error: 'Forbidden' }, 403)
@@ -162,10 +150,10 @@ files.get('/:id/metadata',
 
     // Return only the metadata blob for the requesting user (or all for users with download-all)
     if (checkPermission(permissions, 'files:download-all')) {
-      return c.json({ metadata: fileRecord.encryptedMetadata })
+      return c.json({ metadata: metadataEntries })
     }
 
-    const myMeta = fileRecord.encryptedMetadata.find(m => m.pubkey === pubkey)
+    const myMeta = metadataEntries.find(m => m.pubkey === pubkey)
     return c.json({ metadata: myMeta ? [myMeta] : [] })
   })
 
@@ -185,23 +173,12 @@ files.post('/:id/share', requirePermission('files:share'),
     const fileId = c.req.param('id')
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
+    const services = c.get('services')
 
-    const dos = getDOs(c.env)
+    // Add the new envelope to the file record via service
+    await services.conversations.addFileRecipient(fileId, body.envelope, body.encryptedMetadata)
 
-    // Add the new envelope to the file record
-    const res = await dos.conversations.fetch(new Request(`http://do/files/${fileId}/share`, {
-      method: 'POST',
-      body: JSON.stringify({
-        envelope: body.envelope,
-        encryptedMetadata: body.encryptedMetadata,
-      }),
-    }))
-
-    if (!res.ok) {
-      return c.json({ error: 'Failed to share file' }, 500)
-    }
-
-    await audit(c.get('services').audit, 'fileShared', pubkey, { fileId, sharedWith: body.envelope.pubkey })
+    await audit(services.audit, 'fileShared', pubkey, { fileId, sharedWith: body.envelope.pubkey })
 
     return c.json({ ok: true })
   })

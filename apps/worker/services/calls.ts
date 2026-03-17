@@ -387,6 +387,69 @@ export class CallsService {
     }
   }
 
+  /** Get a single active call by callId */
+  async getActiveCallById(hubId: string, callId: string): Promise<ActiveCallRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(activeCalls)
+      .where(
+        and(
+          eq(activeCalls.callId, callId),
+          eq(activeCalls.hubId, hubId),
+        ),
+      )
+      .limit(1)
+
+    return row ?? null
+  }
+
+  /** Mark a call as having a voicemail */
+  async markVoicemail(hubId: string, callId: string): Promise<{ ok: true }> {
+    await this.db
+      .update(activeCalls)
+      .set({ hasVoicemail: true })
+      .where(
+        and(
+          eq(activeCalls.callId, callId),
+          eq(activeCalls.hubId, hubId),
+        ),
+      )
+    return { ok: true }
+  }
+
+  /** Update call metadata (recordingSid, hasRecording, etc.) */
+  async updateMetadata(
+    hubId: string,
+    callId: string,
+    data: Partial<Pick<ActiveCallRow, 'recordingSid' | 'hasRecording' | 'hasTranscription'>>,
+  ): Promise<{ ok: true }> {
+    await this.db
+      .update(activeCalls)
+      .set(data)
+      .where(
+        and(
+          eq(activeCalls.callId, callId),
+          eq(activeCalls.hubId, hubId),
+        ),
+      )
+    return { ok: true }
+  }
+
+  /** Report a call as spam */
+  async reportSpam(hubId: string, callId: string, pubkey: string): Promise<{ ok: true }> {
+    // Mark the call as spam in the active calls table
+    await this.db
+      .update(activeCalls)
+      .set({ status: 'spam' })
+      .where(
+        and(
+          eq(activeCalls.callId, callId),
+          eq(activeCalls.hubId, hubId),
+        ),
+      )
+    return { ok: true }
+  }
+
   /** Truncate all call data for a hub */
   async reset(hubId: string): Promise<{ ok: true }> {
     await this.db.delete(activeCalls).where(eq(activeCalls.hubId, hubId))

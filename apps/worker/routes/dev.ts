@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import type { AppEnv } from '../types'
 import type { MessagingChannelType } from '@shared/types'
-import { getDOs } from '../lib/do-access'
 import { hashPhone } from '../lib/crypto'
 import { publishNostrEvent } from '../lib/nostr-events'
 import { KIND_MESSAGE_NEW } from '@shared/nostr-events'
@@ -40,15 +39,16 @@ dev.post('/test-reset', async (c) => {
   if (!checkResetSecret(c)) {
     return c.json({ error: 'Forbidden' }, 403)
   }
-  const dos = getDOs(c.env)
-  await dos.identity.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.settings.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.records.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.shifts.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.calls.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.contactDirectory.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.caseManager.fetch(new Request('http://do/reset', { method: 'POST' }))
+  const services = c.get('services')
+  const env = { DEMO_MODE: 'true', ENVIRONMENT: c.env.ENVIRONMENT }
+  await services.identity.reset(true, c.env.ENVIRONMENT)
+  await services.settings.reset(env)
+  await services.records.reset()
+  await services.shifts.reset('')
+  await services.calls.reset('')
+  await services.conversations.reset()
+  await services.contacts.reset(env)
+  await services.cases.reset(env)
   return c.json({ ok: true })
 })
 
@@ -62,23 +62,22 @@ dev.post('/test-reset-no-admin', async (c) => {
   if (!checkResetSecret(c)) {
     return c.json({ error: 'Forbidden' }, 403)
   }
-  const dos = getDOs(c.env)
-  // Reset all DOs
-  await dos.identity.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.settings.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.records.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.shifts.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.calls.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.contactDirectory.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.caseManager.fetch(new Request('http://do/reset', { method: 'POST' }))
-  // Tell IdentityDO to skip admin re-creation from ADMIN_PUBKEY on next ensureInit().
-  // Without this, the next fetch to IdentityDO calls ensureInit() which re-seeds
-  // the admin from the ADMIN_PUBKEY env var, defeating the "no admin" state.
-  await dos.identity.fetch(new Request('http://do/test-skip-admin-seed', { method: 'POST' }))
+  const services = c.get('services')
+  const env = { DEMO_MODE: 'true', ENVIRONMENT: c.env.ENVIRONMENT }
+  // Reset all services
+  await services.identity.reset(true, c.env.ENVIRONMENT)
+  await services.settings.reset(env)
+  await services.records.reset()
+  await services.shifts.reset('')
+  await services.calls.reset('')
+  await services.conversations.reset()
+  await services.contacts.reset(env)
+  await services.cases.reset(env)
+  // Tell IdentityService to skip admin re-creation from ADMIN_PUBKEY on next ensureInit().
+  await services.identity.testSkipAdminSeed()
   // Delete the admin volunteer that the reset's ensureInit() already created
   if (c.env.ADMIN_PUBKEY) {
-    await dos.identity.fetch(new Request(`http://do/volunteers/${c.env.ADMIN_PUBKEY}`, { method: 'DELETE' }))
+    await services.identity.deleteVolunteer(c.env.ADMIN_PUBKEY).catch(() => {})
   }
   return c.json({ ok: true })
 })
@@ -97,13 +96,14 @@ dev.post('/test-reset-records', async (c) => {
   if (isDev && !checkResetSecret(c)) {
     return c.json({ error: 'Forbidden' }, 403)
   }
-  const dos = getDOs(c.env)
-  await dos.records.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.shifts.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.calls.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.contactDirectory.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.caseManager.fetch(new Request('http://do/reset', { method: 'POST' }))
+  const services = c.get('services')
+  const env = { DEMO_MODE: 'true', ENVIRONMENT: c.env.ENVIRONMENT }
+  await services.records.reset()
+  await services.shifts.reset('')
+  await services.calls.reset('')
+  await services.conversations.reset()
+  await services.contacts.reset(env)
+  await services.cases.reset(env)
   return c.json({ ok: true })
 })
 
@@ -127,27 +127,19 @@ dev.post('/test-promote-admin', async (c) => {
   } catch (e) {
     return c.json({ error: `Invalid pubkey: ${e instanceof Error ? e.message : String(e)}` }, 400)
   }
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   // Try to update existing volunteer to super-admin role.
-  // Must use the admin PATCH route to update roles (non-admin PATCH strips role changes).
-  const updateRes = await dos.identity.fetch(new Request(`http://do/admin/volunteers/${pubkey}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ roles: ['role-super-admin'] }),
-  }))
-  if (!updateRes.ok) {
+  try {
+    await services.identity.updateVolunteer(pubkey, { roles: ['role-super-admin'] }, true)
+  } catch {
     // Volunteer may not exist yet — create with admin role
-    await dos.identity.fetch(new Request('http://do/volunteers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pubkey,
-        name: 'BDD Test Admin',
-        phone: '+15550000001',
-        roleIds: ['role-super-admin'],
-        encryptedSecretKey: '',
-      }),
-    }))
+    await services.identity.createVolunteer({
+      pubkey,
+      name: 'BDD Test Admin',
+      phone: '+15550000001',
+      roleIds: ['role-super-admin'],
+      encryptedSecretKey: '',
+    })
   }
   return c.json({ ok: true, pubkey })
 })
@@ -173,16 +165,16 @@ dev.post('/test-setup-cms', async (c) => {
       pubkey = body.pubkey // Fall back to raw value if decode fails
     }
   }
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const templateId = 'jail-support'
 
   // 0. Grant the default volunteer role cases:read permission so test
   //    identities (who register as volunteers during onboarding) can see
   //    all records without explicit assignment.
-  const roleRes = await dos.settings.fetch(new Request('http://do/settings/roles/role-volunteer', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  let roleOk = false
+  let roleStatus = 500
+  try {
+    await services.settings.updateRole('role-volunteer', {
       permissions: [
         'calls:answer', 'calls:read-active',
         'notes:create', 'notes:read-own', 'notes:update-own', 'notes:reply',
@@ -197,28 +189,23 @@ dev.post('/test-setup-cms', async (c) => {
         'contacts:view', 'contacts:create', 'contacts:update',
         'events:read', 'events:create', 'evidence:upload', 'evidence:read',
       ],
-    }),
-  }))
-  const roleOk = roleRes.ok
-  const roleStatus = roleRes.status
+    })
+    roleOk = true
+    roleStatus = 200
+  } catch {
+    roleOk = false
+  }
 
   // 1. Enable case management
-  await dos.settings.fetch(new Request('http://do/settings/case-management', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ enabled: true }),
-  }))
+  await services.settings.setCaseManagementEnabled({ enabled: true })
 
   // 2. Create a test entity type directly (bypassing template engine which requires
   //    loading bundled template JSON files that may not be available in all environments).
   const entityTypeId = crypto.randomUUID()
-  const entityTypeName = 'arrest_case'
-  await dos.settings.fetch(new Request('http://do/settings/entity-types', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  try {
+    await services.settings.createEntityType({
       id: entityTypeId,
-      name: entityTypeName,
+      name: 'arrest_case',
       label: 'Arrest Case',
       labelPlural: 'Arrest Cases',
       description: 'BDD test entity type',
@@ -240,23 +227,19 @@ dev.post('/test-setup-cms', async (c) => {
       ],
       numberPrefix: 'JS',
       numberingEnabled: true,
-    }),
-  })).catch(() => {})
+    })
+  } catch { /* ignore entity type creation failures */ }
 
   // 3. Get entity types to verify creation
-  const etRes = await dos.settings.fetch(new Request('http://do/settings/entity-types'))
-  const etData = await etRes.json() as { entityTypes?: Array<{ id: string; name: string; defaultStatus: string }> }
-  const entityTypes = etData.entityTypes ?? []
+  const { entityTypes } = await services.settings.getEntityTypes()
 
   // 4. Create a sample record if entity types exist
   let recordId: string | null = null
   if (entityTypes.length > 0) {
     const et = entityTypes[0]
     const assignedTo = pubkey ? [pubkey] : []
-    const createRes = await dos.caseManager.fetch(new Request('http://do/records', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    try {
+      const record = await services.cases.create({
         entityTypeId: et.id,
         statusHash: et.defaultStatus || 'reported',
         assignedTo,
@@ -264,12 +247,10 @@ dev.post('/test-setup-cms', async (c) => {
         encryptedSummary: btoa('{"title":"Test Case","summary":"BDD test case"}'),
         summaryEnvelopes: [],
         createdBy: pubkey ?? '',
-      }),
-    }))
-    if (createRes.ok) {
-      const rec = await createRes.json() as { id: string }
-      recordId = rec.id
-    }
+        hubId: '',
+      })
+      recordId = record.id
+    } catch { /* ignore record creation failures */ }
   }
 
   return c.json({
@@ -284,7 +265,7 @@ dev.post('/test-setup-cms', async (c) => {
 })
 
 // ─── Simulation Endpoints (E2E test helpers) ───────────────────────────────
-// These bypass TelephonyAdapter entirely — they proxy directly to DO internal routes.
+// These bypass TelephonyAdapter entirely — they proxy directly to service calls.
 // Gated by ENVIRONMENT=development + DEV_RESET_SECRET / E2E_TEST_SECRET.
 
 /** Request/response types for simulation endpoints */
@@ -347,44 +328,28 @@ dev.post('/test-simulate/incoming-call', async (c) => {
   }
 
   const callId = crypto.randomUUID()
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = body.hubId ?? ''
 
   // Check if the caller is banned (mirrors real telephony flow)
   const hashedPhone = hashPhone(body.callerNumber, c.env.HMAC_SECRET)
-  const banCheckRes = await dos.records.fetch(new Request(`http://do/bans/check/${encodeURIComponent(hashedPhone)}`))
-  if (banCheckRes.ok) {
-    const { banned } = await banCheckRes.json() as { banned: boolean }
-    if (banned) {
-      return c.json({ error: 'Caller is banned', banned: true }, 403)
-    }
+  const banned = await services.records.checkBan(hashedPhone, hubId || undefined)
+  if (banned) {
+    return c.json({ error: 'Caller is banned', banned: true }, 403)
   }
 
   // Get on-shift volunteer pubkeys for the call record
   let volunteerPubkeys: string[] = []
   try {
-    const shiftRes = await dos.shifts.fetch(new Request('http://do/current-volunteers'))
-    if (shiftRes.ok) {
-      const data = await shiftRes.json() as { volunteers?: string[] }
-      volunteerPubkeys = Array.isArray(data.volunteers) ? data.volunteers : []
-    }
+    volunteerPubkeys = await services.shifts.getCurrentVolunteers(hubId)
   } catch {
     // Shifts not configured — proceed with empty list
   }
 
-  const res = await dos.calls.fetch(new Request('http://do/calls/incoming', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      callSid: callId,
-      callerNumber: body.callerNumber,
-      volunteerPubkeys,
-    }),
-  }))
-
-  if (!res.ok) {
-    const text = await res.text()
-    return c.json({ error: 'CallRouterDO rejected incoming call', detail: text }, 500)
-  }
+  await services.calls.addCall(hubId, {
+    callId,
+    callerNumber: body.callerNumber,
+  })
 
   return c.json({ ok: true, callId, status: 'ringing' })
 })
@@ -399,17 +364,9 @@ dev.post('/test-simulate/answer-call', async (c) => {
     return c.json({ error: 'callId and pubkey are required' }, 400)
   }
 
-  const dos = getDOs(c.env)
-  const res = await dos.calls.fetch(new Request(`http://do/calls/${body.callId}/answer`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pubkey: body.pubkey }),
-  }))
-
-  if (!res.ok) {
-    const text = await res.text()
-    return c.json({ error: 'CallRouterDO rejected answer', detail: text }, res.status as 400 | 404 | 500)
-  }
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? ''
+  await services.calls.answerCall(hubId, body.callId, body.pubkey)
 
   return c.json({ ok: true, callId: body.callId, status: 'in-progress' })
 })
@@ -424,15 +381,9 @@ dev.post('/test-simulate/end-call', async (c) => {
     return c.json({ error: 'callId is required' }, 400)
   }
 
-  const dos = getDOs(c.env)
-  const res = await dos.calls.fetch(new Request(`http://do/calls/${body.callId}/end`, {
-    method: 'POST',
-  }))
-
-  if (!res.ok) {
-    const text = await res.text()
-    return c.json({ error: 'CallRouterDO rejected end', detail: text }, res.status as 400 | 404 | 500)
-  }
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? ''
+  await services.calls.endCall(hubId, body.callId)
 
   return c.json({ ok: true, callId: body.callId, status: 'completed' })
 })
@@ -447,15 +398,10 @@ dev.post('/test-simulate/voicemail', async (c) => {
     return c.json({ error: 'callId is required' }, 400)
   }
 
-  const dos = getDOs(c.env)
-  const res = await dos.calls.fetch(new Request(`http://do/calls/${body.callId}/voicemail`, {
-    method: 'POST',
-  }))
-
-  if (!res.ok) {
-    const text = await res.text()
-    return c.json({ error: 'CallRouterDO rejected voicemail', detail: text }, res.status as 400 | 404 | 500)
-  }
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? ''
+  // Voicemail = call ends without being answered → status becomes 'unanswered'
+  await services.calls.endCall(hubId, body.callId)
 
   return c.json({ ok: true, callId: body.callId, status: 'unanswered' })
 })
@@ -473,26 +419,16 @@ dev.post('/test-simulate/incoming-message', async (c) => {
   const channel: MessagingChannelType = body.channel || 'sms'
   const senderHash = hashPhone(body.senderNumber, c.env.HMAC_SECRET)
 
-  const dos = getDOs(c.env)
-  const res = await dos.conversations.fetch(new Request('http://do/conversations/incoming', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      channelType: channel,
-      externalId: crypto.randomUUID(),
-      senderIdentifier: body.senderNumber,
-      senderIdentifierHash: senderHash,
-      body: body.body,
-      timestamp: new Date().toISOString(),
-    }),
-  }))
-
-  if (!res.ok) {
-    const text = await res.text()
-    return c.json({ error: 'ConversationDO rejected incoming message', detail: text }, 500)
-  }
-
-  const result = await res.json() as { conversationId: string; messageId: string }
+  const services = c.get('services')
+  const adminDecryptionPubkey = c.env.ADMIN_DECRYPTION_PUBKEY || c.env.ADMIN_PUBKEY
+  const result = await services.conversations.handleIncoming({
+    channelType: channel,
+    externalId: crypto.randomUUID(),
+    senderIdentifier: body.senderNumber,
+    senderIdentifierHash: senderHash,
+    body: body.body,
+    timestamp: new Date().toISOString(),
+  }, adminDecryptionPubkey)
 
   // Publish Nostr event (mirrors real messaging webhook flow)
   publishNostrEvent(c.env, KIND_MESSAGE_NEW, {
@@ -515,21 +451,12 @@ dev.post('/test-simulate/delivery-status', async (c) => {
     return c.json({ error: 'conversationId, messageId, and status are required' }, 400)
   }
 
-  const dos = getDOs(c.env)
+  const services = c.get('services')
 
-  // Delivery status updates use the external ID mapping in ConversationDO.
+  // Delivery status updates use the external ID mapping in ConversationsService.
   // For simulation, we fetch the message to find its externalId, then call the status endpoint.
-  const messagesRes = await dos.conversations.fetch(
-    new Request(`http://do/conversations/${body.conversationId}/messages?limit=200`)
-  )
+  const { messages } = await services.conversations.listMessages(body.conversationId, { limit: 200 })
 
-  if (!messagesRes.ok) {
-    return c.json({ error: 'Failed to fetch conversation messages' }, 500)
-  }
-
-  const { messages } = await messagesRes.json() as {
-    messages: Array<{ id: string; externalId?: string }>
-  }
   const message = messages.find(m => m.id === body.messageId)
   if (!message) {
     return c.json({ error: 'Message not found in conversation' }, 404)
@@ -539,21 +466,12 @@ dev.post('/test-simulate/delivery-status', async (c) => {
     return c.json({ error: 'Message has no externalId — only outbound messages with provider IDs support delivery status' }, 400)
   }
 
-  const statusRes = await dos.conversations.fetch(new Request('http://do/messages/status', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      externalId: message.externalId,
-      status: body.status,
-      timestamp: new Date().toISOString(),
-      failureReason: body.status === 'failed' ? 'Simulated failure' : undefined,
-    }),
-  }))
-
-  if (!statusRes.ok) {
-    const text = await statusRes.text()
-    return c.json({ error: 'ConversationDO rejected status update', detail: text }, 500)
-  }
+  await services.conversations.updateMessageStatus({
+    externalId: message.externalId,
+    status: body.status,
+    timestamp: new Date().toISOString(),
+    failureReason: body.status === 'failed' ? 'Simulated failure' : undefined,
+  })
 
   return c.json({ ok: true })
 })

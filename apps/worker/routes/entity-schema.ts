@@ -2,7 +2,6 @@ import { z } from 'zod'
 import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getDOs, getScopedDOs } from '../lib/do-access'
 import { requirePermission, requireAnyPermission } from '../middleware/permission-guard'
 import {
   createEntityTypeBodySchema,
@@ -39,9 +38,9 @@ entitySchema.get('/case-management',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
-    const res = await dos.settings.fetch(new Request('http://do/settings/case-management'))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.getCaseManagementEnabled()
+    return c.json(result)
   },
 )
 
@@ -56,15 +55,11 @@ entitySchema.put('/case-management',
   }),
   requirePermission('settings:manage'),
   async (c) => {
-    const dos = getDOs(c.env)
     const body = await c.req.json<{ enabled: boolean }>()
-    const res = await dos.settings.fetch(new Request('http://do/settings/case-management', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    await audit(c.get('services').audit, 'caseManagementToggled', c.get('pubkey'), body)
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.setCaseManagementEnabled(body)
+    await audit(services.audit, 'caseManagementToggled', c.get('pubkey'), body)
+    return c.json(result)
   },
 )
 
@@ -80,9 +75,10 @@ entitySchema.get('/auto-assignment',
     },
   }),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.settings.fetch(new Request('http://do/settings/auto-assignment'))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+    const hubSettings = await services.settings.getHubSettings(hubId)
+    return c.json({ enabled: (hubSettings.autoAssignment as boolean) ?? false })
   },
 )
 
@@ -98,15 +94,12 @@ entitySchema.put('/auto-assignment',
   requirePermission('cases:manage'),
   validator('json', z.object({ enabled: z.boolean() })),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/auto-assignment', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    await audit(c.get('services').audit, 'autoAssignmentToggled', c.get('pubkey'), body)
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+    await services.settings.updateHubSettings(hubId, { autoAssignment: body.enabled })
+    await audit(services.audit, 'autoAssignmentToggled', c.get('pubkey'), body)
+    return c.json({ enabled: body.enabled })
   },
 )
 
@@ -122,9 +115,9 @@ entitySchema.get('/cross-hub',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
-    const res = await dos.settings.fetch(new Request('http://do/settings/cross-hub-sharing'))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.getCrossHubSharingEnabled()
+    return c.json(result)
   },
 )
 
@@ -139,15 +132,11 @@ entitySchema.put('/cross-hub',
   }),
   requirePermission('settings:manage'),
   async (c) => {
-    const dos = getDOs(c.env)
     const body = await c.req.json<{ enabled: boolean }>()
-    const res = await dos.settings.fetch(new Request('http://do/settings/cross-hub-sharing', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    await audit(c.get('services').audit, 'crossHubSharingToggled', c.get('pubkey'), body)
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.setCrossHubSharingEnabled(body)
+    await audit(services.audit, 'crossHubSharingToggled', c.get('pubkey'), body)
+    return c.json(result)
   },
 )
 
@@ -165,9 +154,9 @@ entitySchema.get('/entity-types',
   // Entity type definitions are needed by any user who can interact with cases
   requireAnyPermission('settings:read', 'cases:read-own', 'cases:read-assigned', 'cases:create'),
   async (c) => {
-    const dos = getDOs(c.env)
-    const res = await dos.settings.fetch(new Request('http://do/settings/entity-types'))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.getEntityTypes()
+    return c.json(result)
   },
 )
 
@@ -183,16 +172,10 @@ entitySchema.post('/entity-types',
   requirePermission('cases:manage-types'),
   validator('json', createEntityTypeBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/entity-types', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    if (!res.ok) return new Response(res.body, res)
-    const created = await res.json() as { id: string; name: string }
-    await audit(c.get('services').audit, 'entityTypeCreated', c.get('pubkey'), { entityTypeId: created.id, name: created.name })
+    const services = c.get('services')
+    const created = await services.settings.createEntityType(body as Record<string, unknown>)
+    await audit(services.audit, 'entityTypeCreated', c.get('pubkey'), { entityTypeId: created.id, name: created.name })
     return c.json(created, 201)
   },
 )
@@ -211,16 +194,11 @@ entitySchema.patch('/entity-types/:id',
   validator('json', updateEntityTypeBodySchema),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getDOs(c.env)
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request(`http://do/settings/entity-types/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    if (!res.ok) return new Response(res.body, res)
-    await audit(c.get('services').audit, 'entityTypeUpdated', c.get('pubkey'), { entityTypeId: id })
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.updateEntityType(id, body as Record<string, unknown>)
+    await audit(services.audit, 'entityTypeUpdated', c.get('pubkey'), { entityTypeId: id })
+    return c.json(result)
   },
 )
 
@@ -237,13 +215,10 @@ entitySchema.delete('/entity-types/:id',
   requirePermission('cases:manage-types'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getDOs(c.env)
-    const res = await dos.settings.fetch(new Request(`http://do/settings/entity-types/${id}`, {
-      method: 'DELETE',
-    }))
-    if (!res.ok) return new Response(res.body, res)
-    await audit(c.get('services').audit, 'entityTypeDeleted', c.get('pubkey'), { entityTypeId: id })
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.deleteEntityType(id)
+    await audit(services.audit, 'entityTypeDeleted', c.get('pubkey'), { entityTypeId: id })
+    return c.json(result)
   },
 )
 
@@ -260,9 +235,9 @@ entitySchema.get('/relationship-types',
   }),
   requirePermission('settings:read'),
   async (c) => {
-    const dos = getDOs(c.env)
-    const res = await dos.settings.fetch(new Request('http://do/settings/relationship-types'))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.getRelationshipTypes()
+    return c.json(result)
   },
 )
 
@@ -278,16 +253,10 @@ entitySchema.post('/relationship-types',
   requirePermission('cases:manage-types'),
   validator('json', createRelationshipTypeBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/relationship-types', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    if (!res.ok) return new Response(res.body, res)
-    const created = await res.json() as { id: string }
-    await audit(c.get('services').audit, 'relationshipTypeCreated', c.get('pubkey'), { relationshipTypeId: created.id })
+    const services = c.get('services')
+    const created = await services.settings.createRelationshipType(body as Record<string, unknown>)
+    await audit(services.audit, 'relationshipTypeCreated', c.get('pubkey'), { relationshipTypeId: created.id })
     return c.json(created, 201)
   },
 )
@@ -306,16 +275,11 @@ entitySchema.patch('/relationship-types/:id',
   validator('json', updateRelationshipTypeBodySchema),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getDOs(c.env)
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request(`http://do/settings/relationship-types/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    if (!res.ok) return new Response(res.body, res)
-    await audit(c.get('services').audit, 'relationshipTypeUpdated', c.get('pubkey'), { relationshipTypeId: id })
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.updateRelationshipType(id, body as Record<string, unknown>)
+    await audit(services.audit, 'relationshipTypeUpdated', c.get('pubkey'), { relationshipTypeId: id })
+    return c.json(result)
   },
 )
 
@@ -332,13 +296,10 @@ entitySchema.delete('/relationship-types/:id',
   requirePermission('cases:manage-types'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getDOs(c.env)
-    const res = await dos.settings.fetch(new Request(`http://do/settings/relationship-types/${id}`, {
-      method: 'DELETE',
-    }))
-    if (!res.ok) return new Response(res.body, res)
-    await audit(c.get('services').audit, 'relationshipTypeDeleted', c.get('pubkey'), { relationshipTypeId: id })
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.deleteRelationshipType(id)
+    await audit(services.audit, 'relationshipTypeDeleted', c.get('pubkey'), { relationshipTypeId: id })
+    return c.json(result)
   },
 )
 
@@ -356,14 +317,10 @@ entitySchema.post('/case-number',
   requirePermission('cases:create'),
   validator('json', caseNumberBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/case-number', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.generateCaseNumber(body)
+    return c.json(result)
   },
 )
 
@@ -380,11 +337,10 @@ entitySchema.get('/templates',
   }),
   requirePermission('settings:read'),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const templates = await loadBundledTemplates()
     // Fetch applied templates to include appliedTemplateIds in response
-    const appliedRes = await dos.settings.fetch(new Request('http://do/settings/applied-templates'))
-    const { appliedTemplates = [] } = await appliedRes.json() as { appliedTemplates: AppliedTemplateRecord[] }
+    const { appliedTemplates = [] } = await services.settings.getAppliedTemplates() as { appliedTemplates: AppliedTemplateRecord[] }
     const appliedIds = appliedTemplates.map(at => at.templateId)
     return c.json({
       templates: templates.map(t => ({
@@ -437,7 +393,7 @@ entitySchema.post('/templates/apply',
   requirePermission('cases:manage-types'),
   async (c) => {
     const { templateId } = await c.req.json<{ templateId: string }>()
-    const dos = getDOs(c.env)
+    const services = c.get('services')
 
     // Load template
     const templates = await loadBundledTemplates()
@@ -445,12 +401,10 @@ entitySchema.post('/templates/apply',
     if (!template) return c.json({ error: 'Template not found' }, 404)
 
     // Get existing entity types
-    const existingRes = await dos.settings.fetch(new Request('http://do/settings/entity-types'))
-    const { entityTypes: existing } = await existingRes.json() as { entityTypes: EntityTypeDefinition[] }
+    const { entityTypes: existing } = await services.settings.getEntityTypes()
 
     // Get existing CMS report types
-    const existingReportTypesRes = await dos.settings.fetch(new Request('http://do/settings/cms-report-types'))
-    const { reportTypes: existingReportTypes } = await existingReportTypesRes.json() as { reportTypes: ReportTypeDefinition[] }
+    const { reportTypes: existingReportTypes } = await services.settings.getCmsReportTypes()
 
     // Apply template
     const allTemplatesMap = new Map(templates.map(t => [t.id, t]))
@@ -465,20 +419,13 @@ entitySchema.post('/templates/apply',
     }
 
     // Save entity types (bulk replacement)
-    await dos.settings.fetch(new Request('http://do/settings/entity-types', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entityTypes: merged }),
-    }))
+    await services.settings.bulkSetEntityTypes({ entityTypes: merged })
 
     // Save relationship types (append)
-    const existingRelRes = await dos.settings.fetch(new Request('http://do/settings/relationship-types'))
-    const { relationshipTypes: existingRels } = await existingRelRes.json() as { relationshipTypes: RelationshipTypeDefinition[] }
-    await dos.settings.fetch(new Request('http://do/settings/relationship-types', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ relationshipTypes: [...existingRels, ...result.relationshipTypes] }),
-    }))
+    const { relationshipTypes: existingRels } = await services.settings.getRelationshipTypes()
+    await services.settings.bulkSetRelationshipTypes({
+      relationshipTypes: [...existingRels, ...result.relationshipTypes],
+    })
 
     // Merge CMS report types: replace matching names, add new (Epic 343)
     if (result.reportTypes.length > 0) {
@@ -488,31 +435,18 @@ entitySchema.post('/templates/apply',
         if (idx >= 0) mergedReportTypes[idx] = newRT
         else mergedReportTypes.push(newRT)
       }
-      await dos.settings.fetch(new Request('http://do/settings/cms-report-types', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reportTypes: mergedReportTypes }),
-      }))
+      await services.settings.bulkSetCmsReportTypes({ reportTypes: mergedReportTypes })
     }
 
     // Track applied template
-    const appliedRes = await dos.settings.fetch(new Request('http://do/settings/applied-templates'))
-    const { appliedTemplates = [] } = await appliedRes.json() as { appliedTemplates: unknown[] }
+    const { appliedTemplates = [] } = await services.settings.getAppliedTemplates() as { appliedTemplates: unknown[] }
     appliedTemplates.push(result.appliedRecord)
-    await dos.settings.fetch(new Request('http://do/settings/applied-templates', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ appliedTemplates }),
-    }))
+    await services.settings.setAppliedTemplates({ appliedTemplates })
 
     // Enable case management
-    await dos.settings.fetch(new Request('http://do/settings/case-management', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: true }),
-    }))
+    await services.settings.setCaseManagementEnabled({ enabled: true })
 
-    await audit(c.get('services').audit, 'templateApplied', c.get('pubkey'), {
+    await audit(services.audit, 'templateApplied', c.get('pubkey'), {
       templateId,
       templateVersion: template.version,
       entityTypesCreated: result.entityTypes.length,
@@ -541,9 +475,8 @@ entitySchema.get('/templates/updates',
   }),
   requirePermission('settings:read'),
   async (c) => {
-    const dos = getDOs(c.env)
-    const appliedRes = await dos.settings.fetch(new Request('http://do/settings/applied-templates'))
-    const { appliedTemplates = [] } = await appliedRes.json() as { appliedTemplates: AppliedTemplateRecord[] }
+    const services = c.get('services')
+    const { appliedTemplates = [] } = await services.settings.getAppliedTemplates() as { appliedTemplates: AppliedTemplateRecord[] }
     const available = await loadBundledTemplates()
     const updates = detectTemplateUpdates(appliedTemplates, available)
     return c.json({ updates })
@@ -565,7 +498,7 @@ entitySchema.post('/roles/from-template',
   validator('json', createRolesFromTemplateBodySchema),
   async (c) => {
     const { roles } = c.req.valid('json')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
 
     // Validate all permissions in all roles before creating any
@@ -580,10 +513,7 @@ entitySchema.post('/roles/from-template',
     }
 
     // Fetch existing roles to skip duplicates by slug
-    const existingRes = await dos.settings.fetch(new Request('http://do/settings/roles'))
-    const { roles: existingRoles } = await existingRes.json() as {
-      roles: Array<{ slug: string }>
-    }
+    const { roles: existingRoles } = await services.settings.getRoles()
     const existingSlugs = new Set(existingRoles.map(r => r.slug))
 
     const created: Array<{ id: string; name: string }> = []
@@ -592,27 +522,20 @@ entitySchema.post('/roles/from-template',
       // Skip roles that already exist by slug
       if (existingSlugs.has(suggested.slug)) continue
 
-      const res = await dos.settings.fetch(new Request('http://do/settings/roles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: suggested.name,
-          slug: suggested.slug,
-          description: suggested.description,
-          permissions: suggested.permissions,
-        }),
-      }))
+      const role = await services.settings.createRole({
+        name: suggested.name,
+        slug: suggested.slug,
+        description: suggested.description,
+        permissions: suggested.permissions,
+      })
 
-      if (res.ok) {
-        const role = await res.json() as { id: string; name: string }
-        created.push(role)
-        existingSlugs.add(suggested.slug)
+      created.push({ id: role.id, name: role.name })
+      existingSlugs.add(suggested.slug)
 
-        await audit(c.get('services').audit, 'roleCreatedFromTemplate', pubkey, {
-          roleId: role.id,
-          roleName: role.name,
-        })
-      }
+      await audit(services.audit, 'roleCreatedFromTemplate', pubkey, {
+        roleId: role.id,
+        roleName: role.name,
+      })
     }
 
     return c.json({ created, count: created.length }, 201)
@@ -632,9 +555,9 @@ entitySchema.get('/report-types',
   }),
   requirePermission('settings:read'),
   async (c) => {
-    const dos = getDOs(c.env)
-    const res = await dos.settings.fetch(new Request('http://do/settings/cms-report-types'))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.getCmsReportTypes()
+    return c.json(result)
   },
 )
 
@@ -650,16 +573,10 @@ entitySchema.post('/report-types',
   requirePermission('cases:manage-types'),
   validator('json', createCmsReportTypeBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request('http://do/settings/cms-report-types', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    if (!res.ok) return new Response(res.body, res)
-    const created = await res.json() as { id: string; name: string }
-    await audit(c.get('services').audit, 'reportTypeCreated', c.get('pubkey'), { reportTypeId: created.id, name: created.name })
+    const services = c.get('services')
+    const created = await services.settings.createCmsReportType(body as Record<string, unknown>)
+    await audit(services.audit, 'reportTypeCreated', c.get('pubkey'), { reportTypeId: created.id, name: created.name })
     return c.json(created, 201)
   },
 )
@@ -677,9 +594,9 @@ entitySchema.get('/report-types/:id',
   requirePermission('settings:read'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getDOs(c.env)
-    const res = await dos.settings.fetch(new Request(`http://do/settings/cms-report-types/${id}`))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.getCmsReportTypeById(id)
+    return c.json(result)
   },
 )
 
@@ -697,16 +614,11 @@ entitySchema.patch('/report-types/:id',
   validator('json', updateCmsReportTypeBodySchema),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getDOs(c.env)
     const body = c.req.valid('json')
-    const res = await dos.settings.fetch(new Request(`http://do/settings/cms-report-types/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    if (!res.ok) return new Response(res.body, res)
-    await audit(c.get('services').audit, 'reportTypeUpdated', c.get('pubkey'), { reportTypeId: id })
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.updateCmsReportType(id, body as Record<string, unknown>)
+    await audit(services.audit, 'reportTypeUpdated', c.get('pubkey'), { reportTypeId: id })
+    return c.json(result)
   },
 )
 
@@ -723,13 +635,10 @@ entitySchema.delete('/report-types/:id',
   requirePermission('cases:manage-types'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getDOs(c.env)
-    const res = await dos.settings.fetch(new Request(`http://do/settings/cms-report-types/${id}`, {
-      method: 'DELETE',
-    }))
-    if (!res.ok) return new Response(res.body, res)
-    await audit(c.get('services').audit, 'reportTypeArchived', c.get('pubkey'), { reportTypeId: id })
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const result = await services.settings.deleteCmsReportType(id)
+    await audit(services.audit, 'reportTypeArchived', c.get('pubkey'), { reportTypeId: id })
+    return c.json(result)
   },
 )
 

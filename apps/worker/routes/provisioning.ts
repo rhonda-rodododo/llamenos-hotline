@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getDOs } from '../lib/do-access'
 import { auth } from '../middleware/auth'
 import { checkRateLimit } from '../lib/helpers'
 import { hashIP } from '../lib/crypto'
@@ -32,12 +31,10 @@ provisioning.post('/rooms',
   }),
   validator('json', createRoomBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const body = c.req.valid('json')
-    return dos.identity.fetch(new Request('http://do/provision/rooms', {
-      method: 'POST',
-      body: JSON.stringify({ ephemeralPubkey: body.ephemeralPubkey }),
-    }))
+    const result = await services.identity.createProvisionRoom(body.ephemeralPubkey)
+    return c.json(result)
   })
 
 // Get room status (public — new device polls this, rate limited)
@@ -53,14 +50,15 @@ provisioning.get('/rooms/:id',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const clientIp = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown'
-    const limited = await checkRateLimit(dos.settings, `provision:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 30)
+    const limited = await checkRateLimit(services.settings, `provision:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 30)
     if (limited) return c.json({ error: 'Rate limited' }, 429)
     const id = c.req.param('id')
     const token = c.req.query('token')
     if (!token) return c.json({ error: 'Missing token' }, 400)
-    return dos.identity.fetch(new Request(`http://do/provision/rooms/${id}?token=${token}`))
+    const result = await services.identity.getProvisionRoom(id, token)
+    return c.json(result)
   })
 
 // Send encrypted payload (authenticated — primary device)
@@ -75,14 +73,12 @@ provisioning.post('/rooms/:id/payload', auth,
   }),
   validator('json', roomPayloadBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    return dos.identity.fetch(new Request(`http://do/provision/rooms/${id}/payload`, {
-      method: 'POST',
-      body: JSON.stringify({ ...body, senderPubkey: pubkey }),
-    }))
+    await services.identity.setProvisionPayload(id, { ...body, senderPubkey: pubkey })
+    return c.json({ ok: true })
   })
 
 export default provisioning

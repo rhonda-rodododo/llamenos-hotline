@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { describeRoute, resolver, validator } from 'hono-openapi'
-import type { AppEnv, WebAuthnCredential } from '../types'
-import { getDOs } from '../lib/do-access'
+import type { AppEnv } from '../types'
 import { hashIP } from '../lib/crypto'
 import { isValidE164, checkRateLimit } from '../lib/helpers'
 import { verifyAuthToken } from '../lib/auth'
@@ -37,12 +36,12 @@ auth.post('/login',
   }),
   validator('json', loginBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
 
     // Rate limit login attempts by IP (skip in development for testing)
     if (c.env.ENVIRONMENT !== 'development') {
       const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-      const limited = await checkRateLimit(dos.settings, `auth:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 10)
+      const limited = await checkRateLimit(services.settings, `auth:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 10)
       if (limited) {
         return c.json({ error: 'Too many login attempts. Try again later.' }, 429)
       }
@@ -55,10 +54,12 @@ auth.post('/login',
     const isValid = await verifyAuthToken({ pubkey: body.pubkey, timestamp: body.timestamp, token: body.token }, c.req.method, url.pathname)
     if (!isValid) return c.json({ error: 'Invalid credentials' }, 401)
 
-    const res = await dos.identity.fetch(new Request(`http://do/volunteer/${body.pubkey}`))
-    if (!res.ok) return c.json({ error: 'Invalid credentials' }, 401)
-    const volunteer = await res.json() as { roles: string[] }
-    return c.json({ ok: true, roles: volunteer.roles })
+    try {
+      const volunteer = await services.identity.getVolunteer(body.pubkey)
+      return c.json({ ok: true, roles: volunteer.roles })
+    } catch {
+      return c.json({ error: 'Invalid credentials' }, 401)
+    }
   },
 )
 
@@ -81,12 +82,12 @@ auth.post('/bootstrap',
   }),
   validator('json', bootstrapBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
 
     // Rate limit by IP
     if (c.env.ENVIRONMENT !== 'development') {
       const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-      const limited = await checkRateLimit(dos.settings, `bootstrap:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 5)
+      const limited = await checkRateLimit(services.settings, `bootstrap:${hashIP(clientIp, c.env.HMAC_SECRET)}`, 5)
       if (limited) {
         return c.json({ error: 'Too many attempts. Try again later.' }, 429)
       }
@@ -100,20 +101,13 @@ auth.post('/bootstrap',
     if (!isValid) return c.json({ error: 'Invalid signature' }, 401)
 
     // Check if admin already exists
-    const checkRes = await dos.identity.fetch(new Request('http://do/has-admin'))
-    const { hasAdmin } = await checkRes.json() as { hasAdmin: boolean }
+    const { hasAdmin } = await services.identity.hasAdmin()
     if (hasAdmin) {
       return c.json({ error: 'Admin already exists' }, 403)
     }
 
     // Create the admin
-    const bootstrapRes = await dos.identity.fetch(new Request('http://do/bootstrap', {
-      method: 'POST',
-      body: JSON.stringify({ pubkey: body.pubkey }),
-    }))
-    if (!bootstrapRes.ok) {
-      return c.json({ error: 'Bootstrap failed' }, 500)
-    }
+    await services.identity.bootstrapAdmin(body.pubkey)
 
     return c.json({ ok: true, roles: ['role-super-admin'] })
   },
@@ -140,20 +134,14 @@ auth.get('/me',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const volunteer = c.get('volunteer')
     const permissions = c.get('permissions')
     const allRoles = c.get('allRoles')
 
-    const credsRes = await dos.identity.fetch(new Request(`http://do/webauthn/credentials?pubkey=${pubkey}`))
-    const { credentials: webauthnCreds } = credsRes.ok
-      ? await credsRes.json() as { credentials: WebAuthnCredential[] }
-      : { credentials: [] as WebAuthnCredential[] }
-    const settingsRes = await dos.identity.fetch(new Request('http://do/settings/webauthn'))
-    const webauthnSettings = settingsRes.ok
-      ? await settingsRes.json() as { requireForAdmins: boolean; requireForVolunteers: boolean }
-      : { requireForAdmins: false, requireForVolunteers: false }
+    const { credentials: webauthnCreds } = await services.identity.getWebAuthnCredentials(pubkey)
+    const webauthnSettings = await services.identity.getWebAuthnSettings()
 
     const isAdmin = checkPermission(permissions, 'settings:manage')
     const webauthnRequired = isAdmin ? webauthnSettings.requireForAdmins : webauthnSettings.requireForVolunteers
@@ -204,15 +192,15 @@ auth.post('/me/logout',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const authHeader = c.req.header('Authorization') || ''
     // Revoke the session token if using session-based auth
     if (authHeader.startsWith('Session ')) {
       const token = authHeader.slice(8).trim()
-      await dos.identity.fetch(new Request(`http://do/sessions/revoke/${token}`, { method: 'DELETE' }))
+      await services.identity.revokeSession(token)
     }
-    await audit(c.get('services').audit, 'logout', pubkey)
+    await audit(services.audit, 'logout', pubkey)
     return c.json({ ok: true })
   },
 )
@@ -235,16 +223,13 @@ auth.patch('/me/profile',
   }),
   validator('json', profileUpdateBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
     if (body.phone && !isValidE164(body.phone)) {
       return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
     }
-    await dos.identity.fetch(new Request(`http://do/volunteers/${pubkey}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
+    await services.identity.updateVolunteer(pubkey, body, false)
     return c.json({ ok: true })
   },
 )
@@ -267,14 +252,11 @@ auth.patch('/me/availability',
   }),
   validator('json', availabilityBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    await dos.identity.fetch(new Request(`http://do/volunteers/${pubkey}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ onBreak: body.onBreak }),
-    }))
-    await audit(c.get('services').audit, body.onBreak ? 'volunteerOnBreak' : 'volunteerAvailable', pubkey)
+    await services.identity.updateVolunteer(pubkey, { onBreak: body.onBreak }, false)
+    await audit(services.audit, body.onBreak ? 'volunteerOnBreak' : 'volunteerAvailable', pubkey)
     return c.json({ ok: true })
   },
 )
@@ -297,23 +279,19 @@ auth.patch('/me/transcription',
   }),
   validator('json', transcriptionToggleBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
     const body = c.req.valid('json')
     // If volunteer is trying to disable, check if admin allows opt-out
     if (!body.enabled && !checkPermission(permissions, 'settings:manage-transcription')) {
-      const transRes = await dos.settings.fetch(new Request('http://do/settings/transcription'))
-      const transSettings = await transRes.json() as { globalEnabled: boolean; allowVolunteerOptOut: boolean }
+      const transSettings = await services.settings.getTranscriptionSettings()
       if (!transSettings.allowVolunteerOptOut) {
         return c.json({ error: 'Transcription opt-out is not allowed' }, 403)
       }
     }
-    await dos.identity.fetch(new Request(`http://do/volunteers/${pubkey}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ transcriptionEnabled: body.enabled }),
-    }))
-    await audit(c.get('services').audit, 'transcriptionToggled', pubkey, { enabled: body.enabled })
+    await services.identity.updateVolunteer(pubkey, { transcriptionEnabled: body.enabled }, false)
+    await audit(services.audit, 'transcriptionToggled', pubkey, { enabled: body.enabled })
     return c.json({ ok: true })
   },
 )

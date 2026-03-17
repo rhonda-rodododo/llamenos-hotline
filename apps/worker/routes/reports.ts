@@ -30,54 +30,54 @@ reports.get('/',
   async (c) => {
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId')
     const query = c.req.valid('query')
 
     const limit = Math.min(query.limit, 100)
-
-    const qs = new URLSearchParams({
-      type: 'report',
-      page: String(query.page),
-      limit: String(limit),
-    })
-    if (query.status) qs.set('status', query.status)
-    if (query.category) qs.set('category', query.category)
-
     const canReadAll = checkPermission(permissions, 'reports:read-all')
     const canReadAssigned = checkPermission(permissions, 'reports:read-assigned')
 
-    // If user can only read their own reports (reporter)
-    if (!canReadAll && !canReadAssigned) {
-      qs.set('authorPubkey', pubkey)
-    }
+    const result = await services.conversations.list({
+      hubId,
+      type: 'report',
+      status: query.status as import('../types').ConversationStatus | undefined,
+      // If user can only read their own reports (reporter)
+      authorPubkey: (!canReadAll && !canReadAssigned) ? pubkey : undefined,
+      limit,
+      offset: (query.page - 1) * limit,
+    })
 
-    const res = await dos.conversations.fetch(new Request(`http://do/conversations?${qs}`))
-    if (!res.ok) {
-      return c.json({ error: 'Failed to fetch reports' }, 500)
-    }
-
-    const data = await res.json() as { conversations: Array<{ metadata?: { reportTypeId?: string; conversionStatus?: string } }>; total: number }
+    let data = result
 
     // Triage queue filtering: only reports whose report type allows case conversion
     if (query.conversionEnabled) {
+      const dos = getScopedDOs(c.env, hubId)
       const rtRes = await dos.settings.fetch(new Request('http://do/settings/cms-report-types'))
       if (rtRes.ok) {
         const rtData = await rtRes.json() as { reportTypes: Array<{ id: string; allowCaseConversion: boolean }> }
         const conversionTypeIds = new Set(
           rtData.reportTypes.filter(rt => rt.allowCaseConversion).map(rt => rt.id),
         )
-        data.conversations = data.conversations.filter(
-          c => c.metadata?.reportTypeId && conversionTypeIds.has(c.metadata.reportTypeId),
-        )
+        data = {
+          conversations: data.conversations.filter(
+            conv => (conv.metadata as Record<string, unknown> | null)?.reportTypeId &&
+              conversionTypeIds.has((conv.metadata as Record<string, unknown>).reportTypeId as string),
+          ),
+          total: 0,
+        }
         data.total = data.conversations.length
       }
     }
 
     // Filter by conversion status if specified
     if (query.conversionStatus) {
-      data.conversations = data.conversations.filter(
-        c => c.metadata?.conversionStatus === query.conversionStatus,
-      )
+      data = {
+        conversations: data.conversations.filter(
+          conv => (conv.metadata as Record<string, unknown> | null)?.conversionStatus === query.conversionStatus,
+        ),
+        total: 0,
+      }
       data.total = data.conversations.length
     }
 
@@ -106,11 +106,13 @@ reports.post('/',
   validator('json', createReportBodySchema),
   async (c) => {
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId')
     const body = c.req.valid('json')
 
     // Create the conversation with report metadata
-    const conversationData = {
+    const conversation = await services.conversations.create({
+      hubId,
       channelType: 'web',
       contactIdentifierHash: pubkey,  // Reporter is the "contact"
       status: 'waiting',
@@ -120,33 +122,16 @@ reports.post('/',
         reportCategory: body.category,
         reportTypeId: body.reportTypeId,
       },
-    }
-
-    const convRes = await dos.conversations.fetch(new Request('http://do/conversations', {
-      method: 'POST',
-      body: JSON.stringify(conversationData),
-    }))
-
-    if (!convRes.ok) {
-      return c.json({ error: 'Failed to create report' }, 500)
-    }
-
-    const conversation = await convRes.json() as { id: string }
+    })
 
     // Add the initial message
-    const msgRes = await dos.conversations.fetch(new Request(`http://do/conversations/${conversation.id}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({
-        direction: 'inbound',
-        authorPubkey: pubkey,
-        encryptedContent: body.encryptedContent,
-        readerEnvelopes: body.readerEnvelopes,
-      }),
-    }))
-
-    if (!msgRes.ok) {
-      return c.json({ error: 'Failed to add report message' }, 500)
-    }
+    await services.conversations.addMessage({
+      conversationId: conversation.id,
+      direction: 'inbound',
+      authorPubkey: pubkey,
+      encryptedContent: body.encryptedContent,
+      readerEnvelopes: body.readerEnvelopes,
+    })
 
     // Publish report event to Nostr relay
     publishNostrEvent(c.env, KIND_MESSAGE_NEW, {
@@ -155,12 +140,12 @@ reports.post('/',
       category: body.category,
     }).catch((e) => { console.error('[reports] Failed to publish event:', e) })
 
-    await audit(c.get('services').audit, 'reportCreated', pubkey, {
+    await audit(services.audit, 'reportCreated', pubkey, {
       conversationId: conversation.id,
       category: body.category,
     })
 
-    return c.json({ id: conversation.id, ...conversationData })
+    return c.json(conversation, 201)
   },
 )
 
@@ -236,14 +221,9 @@ reports.get('/:id',
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`))
-    if (!res.ok) {
-      return c.json({ error: 'Report not found' }, 404)
-    }
-
-    const report = await res.json() as { contactIdentifierHash: string; assignedTo?: string; metadata?: { type?: string } }
+    const report = await services.conversations.getById(id)
 
     if (!isReport(report)) {
       return c.json({ error: 'Not a report' }, 404)
@@ -280,15 +260,10 @@ reports.get('/:id/messages',
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
     // Verify access
-    const convRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`))
-    if (!convRes.ok) {
-      return c.json({ error: 'Report not found' }, 404)
-    }
-
-    const report = await convRes.json() as { contactIdentifierHash: string; assignedTo?: string; metadata?: { type?: string } }
+    const report = await services.conversations.getById(id)
 
     if (!isReport(report)) {
       return c.json({ error: 'Not a report' }, 404)
@@ -301,8 +276,12 @@ reports.get('/:id/messages',
     const query = c.req.valid('query')
     const limit = Math.min(query.limit, 200)
 
-    const msgRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}/messages?limit=${limit}&page=${query.page}`))
-    return new Response(msgRes.body, msgRes)
+    const result = await services.conversations.listMessages(id, {
+      limit,
+      offset: (query.page - 1) * limit,
+    })
+
+    return c.json(result)
   },
 )
 
@@ -329,15 +308,10 @@ reports.post('/:id/messages',
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
     // Verify access
-    const convRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`))
-    if (!convRes.ok) {
-      return c.json({ error: 'Report not found' }, 404)
-    }
-
-    const report = await convRes.json() as { contactIdentifierHash: string; assignedTo?: string; metadata?: { type?: string } }
+    const report = await services.conversations.getById(id)
 
     if (!isReport(report)) {
       return c.json({ error: 'Not a report' }, 404)
@@ -360,25 +334,17 @@ reports.post('/:id/messages',
     const body = c.req.valid('json')
 
     const isReporter = report.contactIdentifierHash === pubkey
-    const direction = isReporter ? 'inbound' : 'outbound'
+    const direction = isReporter ? 'inbound' as const : 'outbound' as const
 
-    const msgRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({
-        direction,
-        authorPubkey: pubkey,
-        encryptedContent: body.encryptedContent,
-        readerEnvelopes: body.readerEnvelopes,
-        hasAttachments: (body.attachmentIds?.length ?? 0) > 0,
-        attachmentIds: body.attachmentIds,
-      }),
-    }))
-
-    if (!msgRes.ok) {
-      return c.json({ error: 'Failed to send message' }, 500)
-    }
-
-    const msg = await msgRes.json()
+    const msg = await services.conversations.addMessage({
+      conversationId: id,
+      direction,
+      authorPubkey: pubkey,
+      encryptedContent: body.encryptedContent,
+      readerEnvelopes: body.readerEnvelopes,
+      hasAttachments: (body.attachmentIds?.length ?? 0) > 0,
+      attachmentIds: body.attachmentIds,
+    })
 
     // Publish message event to Nostr relay
     publishNostrEvent(c.env, KIND_MESSAGE_NEW, {
@@ -407,18 +373,14 @@ reports.post('/:id/assign',
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ assignedTo: body.assignedTo, status: 'active' }),
-    }))
+    const updated = await services.conversations.update(id, {
+      assignedTo: body.assignedTo,
+      status: 'active',
+    })
 
-    if (!res.ok) {
-      return c.json({ error: 'Failed to assign report' }, 500)
-    }
-
-    await audit(c.get('services').audit, 'reportAssigned', pubkey, { reportId: id, assignedTo: body.assignedTo })
+    await audit(services.audit, 'reportAssigned', pubkey, { reportId: id, assignedTo: body.assignedTo })
 
     // Publish assignment event to Nostr relay
     publishNostrEvent(c.env, KIND_CONVERSATION_ASSIGNED, {
@@ -427,7 +389,7 @@ reports.post('/:id/assign',
       assignedTo: body.assignedTo,
     }).catch((e) => { console.error('[reports] Failed to publish event:', e) })
 
-    return new Response(res.body, res)
+    return c.json(updated)
   },
 )
 
@@ -447,27 +409,20 @@ reports.patch('/:id',
   async (c) => {
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
     // Build the update payload — conversionStatus goes into metadata
-    const patchBody: Record<string, unknown> = {}
-    if (body.status) patchBody.status = body.status
+    const patchBody: import('../services/conversations').UpdateConversationInput = {}
+    if (body.status) patchBody.status = body.status as import('../types').ConversationStatus
     if (body.conversionStatus) {
       patchBody.metadata = { conversionStatus: body.conversionStatus }
     }
 
-    const res = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(patchBody),
-    }))
+    const updated = await services.conversations.update(id, patchBody)
 
-    if (!res.ok) {
-      return c.json({ error: 'Failed to update report' }, 500)
-    }
-
-    await audit(c.get('services').audit, 'reportUpdated', pubkey, { reportId: id, ...body })
-    return new Response(res.body, res)
+    await audit(services.audit, 'reportUpdated', pubkey, { reportId: id, ...body })
+    return c.json(updated)
   },
 )
 
@@ -486,15 +441,10 @@ reports.get('/:id/files',
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
     // Verify access
-    const convRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`))
-    if (!convRes.ok) {
-      return c.json({ error: 'Report not found' }, 404)
-    }
-
-    const report = await convRes.json() as { contactIdentifierHash: string; assignedTo?: string; metadata?: { type?: string } }
+    const report = await services.conversations.getById(id)
 
     if (!isReport(report)) {
       return c.json({ error: 'Not a report' }, 404)
@@ -504,12 +454,8 @@ reports.get('/:id/files',
       return c.json({ error: 'Forbidden' }, 403)
     }
 
-    const filesRes = await dos.conversations.fetch(new Request(`http://do/files?conversationId=${id}`))
-    if (!filesRes.ok) {
-      return c.json({ files: [] })
-    }
-
-    return new Response(filesRes.body, filesRes)
+    const filesList = await services.conversations.listFiles(id)
+    return c.json({ files: filesList })
   },
 )
 

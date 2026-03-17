@@ -1,8 +1,7 @@
 import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getScopedDOs } from '../lib/do-access'
-import { requirePermission, checkPermission } from '../middleware/permission-guard'
+import { requirePermission } from '../middleware/permission-guard'
 import {
   createEventBodySchema,
   updateEventBodySchema,
@@ -10,7 +9,6 @@ import {
   linkRecordToEventBodySchema,
   linkReportToEventBodySchema,
 } from '@protocol/schemas/events'
-import type { Event } from '@protocol/schemas/events'
 import { authErrors, notFoundError } from '../openapi/helpers'
 import { audit } from '../services/audit'
 import { KIND_RECORD_CREATED, KIND_RECORD_UPDATED } from '@shared/nostr-events'
@@ -31,29 +29,22 @@ events.get('/',
   validator('query', listEventsQuerySchema),
   requirePermission('events:read'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
     const query = c.req.valid('query')
 
-    const qs = new URLSearchParams({
-      page: String(query.page),
-      limit: String(query.limit),
+    const result = await services.cases.listEvents({
+      hubId,
+      page: query.page,
+      limit: query.limit,
+      eventTypeHash: query.eventTypeHash,
+      statusHash: query.statusHash,
+      parentEventId: query.parentEventId,
+      startAfter: query.startAfter,
+      startBefore: query.startBefore,
     })
-    if (query.eventTypeHash) qs.set('eventTypeHash', query.eventTypeHash)
-    if (query.statusHash) qs.set('statusHash', query.statusHash)
-    if (query.parentEventId) qs.set('parentEventId', query.parentEventId)
-    if (query.startAfter) qs.set('startAfter', query.startAfter)
-    if (query.startBefore) qs.set('startBefore', query.startBefore)
 
-    // Forward blind index filters from the original query string
-    const rawParams = new URL(c.req.url).searchParams
-    for (const [key, value] of rawParams) {
-      if (key.startsWith('field_') || (key.endsWith('Hash') && !qs.has(key))) {
-        qs.set(key, value)
-      }
-    }
-
-    const res = await dos.caseManager.fetch(new Request(`http://do/events?${qs}`))
-    return new Response(res.body, res)
+    return c.json(result)
   },
 )
 
@@ -71,9 +62,9 @@ events.get('/:id',
   requirePermission('events:read'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.caseManager.fetch(new Request(`http://do/events/${id}`))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const event = await services.cases.getEvent(id)
+    return c.json(event)
   },
 )
 
@@ -91,43 +82,29 @@ events.post('/',
   validator('json', createEventBodySchema),
   async (c) => {
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
     // Generate case number if entity type has numbering enabled
     let caseNumber: string | undefined
-    const settingsRes = await dos.settings.fetch(
-      new Request(`http://do/settings/cms/entity-types/${body.entityTypeId}`),
-    )
-    if (settingsRes.ok) {
-      const entityType = await settingsRes.json() as { numberPrefix?: string; numberingEnabled?: boolean }
+    try {
+      const entityType = await services.settings.getEntityTypeById(body.entityTypeId)
       if (entityType.numberingEnabled && entityType.numberPrefix) {
-        const nextRes = await dos.settings.fetch(
-          new Request(`http://do/settings/cms/case-number/next`, {
-            method: 'POST',
-            body: JSON.stringify({ entityTypeId: body.entityTypeId }),
-          }),
-        )
-        if (nextRes.ok) {
-          const { caseNumber: num } = await nextRes.json() as { caseNumber: string }
-          caseNumber = num
-        }
+        const result = await services.settings.generateCaseNumber({
+          prefix: entityType.numberPrefix,
+        })
+        caseNumber = result.number
       }
+    } catch {
+      // Entity type not found — proceed without case number
     }
 
-    const res = await dos.caseManager.fetch(new Request('http://do/events', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...body,
-        hubId: c.get('hubId') ?? '',
-        createdBy: pubkey,
-        caseNumber,
-      }),
-    }))
-
-    if (!res.ok) return new Response(res.body, res)
-
-    const event = await res.json() as Event
+    const event = await services.cases.createEvent({
+      ...body,
+      hubId: c.get('hubId') ?? '',
+      createdBy: pubkey,
+      caseNumber,
+    })
 
     // Publish Nostr event (events use the same kinds as records)
     publishNostrEvent(c.env, KIND_RECORD_CREATED, {
@@ -137,7 +114,7 @@ events.post('/',
       caseNumber: event.caseNumber,
     }).catch((e) => { console.error('[events] Failed to publish event:', e) })
 
-    await audit(c.get('services').audit, 'eventCreated', pubkey, {
+    await audit(services.audit, 'eventCreated', pubkey, {
       eventId: event.id,
       entityTypeId: event.entityTypeId,
       caseNumber: event.caseNumber,
@@ -163,24 +140,19 @@ events.patch('/:id',
   async (c) => {
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.caseManager.fetch(new Request(`http://do/events/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-
-    if (!res.ok) return new Response(res.body, res)
+    const updated = await services.cases.updateEvent(id, body)
 
     publishNostrEvent(c.env, KIND_RECORD_UPDATED, {
       type: 'event:updated',
       eventId: id,
     }).catch((e) => { console.error('[events] Failed to publish event:', e) })
 
-    await audit(c.get('services').audit, 'eventUpdated', pubkey, { eventId: id })
+    await audit(services.audit, 'eventUpdated', pubkey, { eventId: id })
 
-    return new Response(res.body, res)
+    return c.json(updated)
   },
 )
 
@@ -199,17 +171,13 @@ events.delete('/:id',
   async (c) => {
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.caseManager.fetch(new Request(`http://do/events/${id}`, {
-      method: 'DELETE',
-    }))
+    await services.cases.deleteEvent(id)
 
-    if (!res.ok) return new Response(res.body, res)
+    await audit(services.audit, 'eventDeleted', pubkey, { eventId: id })
 
-    await audit(c.get('services').audit, 'eventDeleted', pubkey, { eventId: id })
-
-    return new Response(res.body, res)
+    return c.json({ ok: true })
   },
 )
 
@@ -227,9 +195,16 @@ events.get('/:id/subevents',
   requirePermission('events:read'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.caseManager.fetch(new Request(`http://do/events/${id}/subevents`))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+
+    // Sub-events are events with parentEventId = this event's id
+    const result = await services.cases.listEvents({
+      hubId,
+      parentEventId: id,
+    })
+
+    return c.json(result)
   },
 )
 
@@ -249,22 +224,17 @@ events.post('/:id/records',
   async (c) => {
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.caseManager.fetch(new Request(`http://do/events/${id}/records`, {
-      method: 'POST',
-      body: JSON.stringify({ recordId: body.recordId, linkedBy: pubkey }),
-    }))
+    const result = await services.cases.linkEvent(body.recordId, id, pubkey)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'recordLinkedToEvent', pubkey, {
+    await audit(services.audit, 'recordLinkedToEvent', pubkey, {
       eventId: id,
       recordId: body.recordId,
     })
 
-    return new Response(res.body, { status: 201, headers: res.headers })
+    return c.json(result, 201)
   },
 )
 
@@ -284,20 +254,16 @@ events.delete('/:id/records/:recordId',
     const id = c.req.param('id')
     const recordId = c.req.param('recordId')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.caseManager.fetch(new Request(`http://do/events/${id}/records/${recordId}`, {
-      method: 'DELETE',
-    }))
+    await services.cases.unlinkEvent(recordId, id)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'recordUnlinkedFromEvent', pubkey, {
+    await audit(services.audit, 'recordUnlinkedFromEvent', pubkey, {
       eventId: id,
       recordId,
     })
 
-    return new Response(res.body, res)
+    return c.json({ ok: true })
   },
 )
 
@@ -315,9 +281,9 @@ events.get('/:id/records',
   requirePermission('events:read'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.caseManager.fetch(new Request(`http://do/events/${id}/records`))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const caseEvents = await services.cases.listCaseEvents(id)
+    return c.json({ records: caseEvents })
   },
 )
 
@@ -337,22 +303,17 @@ events.post('/:id/reports',
   async (c) => {
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.caseManager.fetch(new Request(`http://do/events/${id}/reports`, {
-      method: 'POST',
-      body: JSON.stringify({ reportId: body.reportId, linkedBy: pubkey }),
-    }))
+    const result = await services.cases.linkReportEvent(body.reportId, id, pubkey)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'reportLinkedToEvent', pubkey, {
+    await audit(services.audit, 'reportLinkedToEvent', pubkey, {
       eventId: id,
       reportId: body.reportId,
     })
 
-    return new Response(res.body, { status: 201, headers: res.headers })
+    return c.json(result, 201)
   },
 )
 
@@ -372,20 +333,16 @@ events.delete('/:id/reports/:reportId',
     const id = c.req.param('id')
     const reportId = c.req.param('reportId')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.caseManager.fetch(new Request(`http://do/events/${id}/reports/${reportId}`, {
-      method: 'DELETE',
-    }))
+    await services.cases.unlinkReportEvent(reportId, id)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'reportUnlinkedFromEvent', pubkey, {
+    await audit(services.audit, 'reportUnlinkedFromEvent', pubkey, {
       eventId: id,
       reportId,
     })
 
-    return new Response(res.body, res)
+    return c.json({ ok: true })
   },
 )
 
@@ -403,9 +360,9 @@ events.get('/:id/reports',
   requirePermission('events:read'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.caseManager.fetch(new Request(`http://do/events/${id}/reports`))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const reports = await services.cases.listEventReports(id)
+    return c.json({ reports })
   },
 )
 

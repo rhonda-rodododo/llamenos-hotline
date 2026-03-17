@@ -34,20 +34,27 @@ notes.get('/',
   }),
   validator('query', listNotesQuerySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
     const canReadAll = checkPermission(permissions, 'notes:read-all')
     const query = c.req.valid('query')
 
-    const params = new URLSearchParams()
-    if (query.callId) params.set('callId', query.callId)
-    if (query.conversationId) params.set('conversationId', query.conversationId)
-    if (query.contactHash) params.set('contactHash', query.contactHash)
-    if (!canReadAll) params.set('author', pubkey)
-    params.set('page', String(query.page))
-    params.set('limit', String(query.limit))
-    return dos.records.fetch(new Request(`http://do/notes?${params}`))
+    const result = await services.records.listNotes({
+      callId: query.callId,
+      conversationId: query.conversationId,
+      contactHash: query.contactHash,
+      authorPubkey: canReadAll ? undefined : pubkey,
+      limit: query.limit,
+      offset: (query.page - 1) * query.limit,
+    })
+
+    return c.json({
+      notes: result.notes,
+      total: result.total,
+      page: query.page,
+      limit: query.limit,
+    })
   },
 )
 
@@ -70,39 +77,44 @@ notes.post('/',
   requirePermission('notes:create'),
   validator('json', createNoteBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
 
-    const res = await dos.records.fetch(new Request('http://do/notes', {
-      method: 'POST',
-      body: JSON.stringify({ ...body, authorPubkey: pubkey }),
-    }))
-    if (res.ok) {
-      await audit(c.get('services').audit, 'noteCreated', pubkey, { callId: body.callId, conversationId: body.conversationId })
+    const note = await services.records.createNote({
+      authorPubkey: pubkey,
+      encryptedContent: body.encryptedContent,
+      callId: body.callId,
+      conversationId: body.conversationId,
+      contactHash: body.contactHash,
+      authorEnvelope: body.authorEnvelope ?? {},
+      adminEnvelopes: body.adminEnvelopes,
+    })
 
-      // Auto-create interaction linking note to case (Epic 323)
-      // createNoteBodySchema uses z.looseObject, so extra fields pass through
-      const looseBody = body as Record<string, unknown>
-      const caseId = looseBody.caseId as string | undefined
-      const interactionTypeHash = looseBody.interactionTypeHash as string | undefined
-      if (caseId && interactionTypeHash) {
-        const noteData = await res.clone().json() as { id: string }
-        dos.caseManager.fetch(new Request(
-          `http://do/records/${caseId}/interactions`,
-          {
-            method: 'POST',
-            headers: { 'x-pubkey': pubkey },
-            body: JSON.stringify({
-              interactionType: 'note',
-              sourceId: noteData.id,
-              interactionTypeHash,
-            }),
-          },
-        )).catch((e) => { console.error('[notes] Failed to create case interaction:', e) })
-      }
+    await audit(services.audit, 'noteCreated', pubkey, { callId: body.callId, conversationId: body.conversationId })
+
+    // Auto-create interaction linking note to case (Epic 323)
+    // createNoteBodySchema uses z.looseObject, so extra fields pass through
+    const looseBody = body as Record<string, unknown>
+    const caseId = looseBody.caseId as string | undefined
+    const interactionTypeHash = looseBody.interactionTypeHash as string | undefined
+    if (caseId && interactionTypeHash) {
+      const dos = getScopedDOs(c.env, c.get('hubId'))
+      dos.caseManager.fetch(new Request(
+        `http://do/records/${caseId}/interactions`,
+        {
+          method: 'POST',
+          headers: { 'x-pubkey': pubkey },
+          body: JSON.stringify({
+            interactionType: 'note',
+            sourceId: note.id,
+            interactionTypeHash,
+          }),
+        },
+      )).catch((e) => { console.error('[notes] Failed to create case interaction:', e) })
     }
-    return res
+
+    return c.json(note, 201)
   },
 )
 
@@ -126,17 +138,20 @@ notes.patch('/:id',
   requirePermission('notes:update-own'),
   validator('json', updateNoteBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const id = c.req.param('id')
     const body = c.req.valid('json')
 
-    const res = await dos.records.fetch(new Request(`http://do/notes/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ ...body, authorPubkey: pubkey }),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'noteEdited', pubkey, { noteId: id })
-    return res
+    const updated = await services.records.updateNote(id, {
+      encryptedContent: body.encryptedContent ?? '',
+      authorPubkey: pubkey,
+      authorEnvelope: body.authorEnvelope,
+      adminEnvelopes: body.adminEnvelopes,
+    })
+
+    await audit(services.audit, 'noteEdited', pubkey, { noteId: id })
+    return c.json(updated)
   },
 )
 
@@ -162,9 +177,10 @@ notes.get('/:id/replies',
     },
   }),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const id = c.req.param('id')
-    return dos.records.fetch(new Request(`http://do/notes/${id}/replies`))
+    const replies = await services.records.listReplies(id)
+    return c.json({ replies })
   },
 )
 
@@ -188,17 +204,18 @@ notes.post('/:id/replies',
   requirePermission('notes:reply'),
   validator('json', createReplyBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const id = c.req.param('id')
     const body = c.req.valid('json')
 
-    const res = await dos.records.fetch(new Request(`http://do/notes/${id}/replies`, {
-      method: 'POST',
-      body: JSON.stringify({ ...body, authorPubkey: pubkey }),
-    }))
-    if (res.ok) await audit(c.get('services').audit, 'noteReplyCreated', pubkey, { noteId: id })
-    return res
+    const reply = await services.records.createReply(id, {
+      ...body,
+      authorPubkey: pubkey,
+    })
+
+    await audit(services.audit, 'noteReplyCreated', pubkey, { noteId: id })
+    return c.json(reply, 201)
   },
 )
 

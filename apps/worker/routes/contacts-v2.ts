@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getScopedDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
 import { createContactBodySchema, updateContactBodySchema, listContactsQuerySchema } from '@protocol/schemas/contacts-v2'
 import {
@@ -32,26 +31,18 @@ contactsV2.get('/',
   requirePermission('contacts:view'),
   validator('query', listContactsQuerySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
     const query = c.req.valid('query')
-    const qs = new URLSearchParams({
-      page: String(query.page),
-      limit: String(query.limit),
+
+    const result = await services.contacts.list({
+      hubId,
+      page: query.page,
+      limit: query.limit,
+      contactTypeHash: query.contactTypeHash,
     })
-    if (query.contactTypeHash) qs.set('contactTypeHash', query.contactTypeHash)
-    if (query.statusHash) qs.set('statusHash', query.statusHash)
-    if (query.nameToken) qs.set('nameToken', query.nameToken)
 
-    // Forward any additional blind index filters from the original query string
-    const rawParams = new URL(c.req.url).searchParams
-    for (const [key, value] of rawParams) {
-      if (key.startsWith('field_') || (key.endsWith('Hash') && !qs.has(key))) {
-        qs.set(key, value)
-      }
-    }
-
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/contacts?${qs}`))
-    return new Response(res.body, res)
+    return c.json(result)
   },
 )
 
@@ -68,9 +59,11 @@ contactsV2.get('/lookup/:identifierHash',
   requirePermission('contacts:view'),
   async (c) => {
     const hash = c.req.param('identifierHash')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/contacts/lookup/${hash}`))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+
+    const contact = await services.contacts.lookupByIdentifierHash(hubId, hash)
+    return c.json({ contact })
   },
 )
 
@@ -88,11 +81,13 @@ contactsV2.get('/search',
   async (c) => {
     const tokens = c.req.query('tokens')
     if (!tokens) return c.json({ contacts: [] })
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.contactDirectory.fetch(
-      new Request(`http://do/contacts/search?tokens=${encodeURIComponent(tokens)}`),
-    )
-    return new Response(res.body, res)
+
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+    const tokenList = tokens.split(',').map(t => t.trim()).filter(Boolean)
+
+    const contacts = await services.contacts.searchByTrigramTokens(hubId, tokenList)
+    return c.json({ contacts })
   },
 )
 
@@ -109,18 +104,15 @@ contactsV2.post('/',
   requirePermission('contacts:create'),
   validator('json', createContactBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.contactDirectory.fetch(new Request('http://do/contacts', {
-      method: 'POST',
-      body: JSON.stringify({ ...body, hubId: c.get('hubId') ?? body.hubId }),
-    }))
+    const contact = await services.contacts.create({
+      ...body,
+      hubId: c.get('hubId') ?? body.hubId,
+    })
 
-    if (!res.ok) return new Response(res.body, res)
-
-    const contact = await res.json() as { id: string }
-    await audit(c.get('services').audit, 'contactCreated', c.get('pubkey'), { contactId: contact.id })
+    await audit(services.audit, 'contactCreated', c.get('pubkey'), { contactId: contact.id })
     return c.json(contact, 201)
   },
 )
@@ -141,9 +133,10 @@ contactsV2.get('/groups',
   }),
   requirePermission('contacts:manage-groups'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.contactDirectory.fetch(new Request('http://do/groups'))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+    const groups = await services.contacts.listGroups(hubId)
+    return c.json({ groups })
   },
 )
 
@@ -160,22 +153,14 @@ contactsV2.post('/groups',
   requirePermission('contacts:manage-groups'),
   validator('json', createAffinityGroupBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+    const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
 
-    const res = await dos.contactDirectory.fetch(new Request('http://do/groups', {
-      method: 'POST',
-      headers: {
-        'x-hub-id': c.get('hubId') ?? '',
-        'x-pubkey': c.get('pubkey'),
-      },
-      body: JSON.stringify(body),
-    }))
+    const group = await services.contacts.createGroup(hubId, pubkey, body)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    const group = await res.json() as { id: string }
-    await audit(c.get('services').audit, 'groupCreated', c.get('pubkey'), {
+    await audit(services.audit, 'groupCreated', pubkey, {
       groupId: group.id,
       memberCount: body.members.length,
     })
@@ -197,9 +182,14 @@ contactsV2.get('/groups/:groupId',
   requirePermission('contacts:view'),
   async (c) => {
     const groupId = c.req.param('groupId')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/groups/${groupId}`))
-    return new Response(res.body, res)
+    const services = c.get('services')
+
+    const [group, members] = await Promise.all([
+      services.contacts.getGroup(groupId),
+      services.contacts.listMembers(groupId),
+    ])
+
+    return c.json({ ...group, members })
   },
 )
 
@@ -218,18 +208,13 @@ contactsV2.patch('/groups/:groupId',
   validator('json', updateAffinityGroupBodySchema),
   async (c) => {
     const groupId = c.req.param('groupId')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/groups/${groupId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
+    const updated = await services.contacts.updateGroup(groupId, body)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'groupUpdated', c.get('pubkey'), { groupId })
-    return new Response(res.body, res)
+    await audit(services.audit, 'groupUpdated', c.get('pubkey'), { groupId })
+    return c.json(updated)
   },
 )
 
@@ -247,16 +232,12 @@ contactsV2.delete('/groups/:groupId',
   requirePermission('contacts:manage-groups'),
   async (c) => {
     const groupId = c.req.param('groupId')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/groups/${groupId}`, {
-      method: 'DELETE',
-    }))
+    await services.contacts.deleteGroup(groupId)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'groupDeleted', c.get('pubkey'), { groupId })
-    return new Response(res.body, res)
+    await audit(services.audit, 'groupDeleted', c.get('pubkey'), { groupId })
+    return c.json({ ok: true })
   },
 )
 
@@ -275,21 +256,15 @@ contactsV2.post('/groups/:groupId/members',
   validator('json', addGroupMemberBodySchema),
   async (c) => {
     const groupId = c.req.param('groupId')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/groups/${groupId}/members`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }))
+    const result = await services.contacts.addMember(groupId, body)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'groupMemberAdded', c.get('pubkey'), {
+    await audit(services.audit, 'groupMemberAdded', c.get('pubkey'), {
       groupId,
       contactId: body.contactId,
     })
-    const result = await res.json()
     return c.json(result, 201)
   },
 )
@@ -309,16 +284,12 @@ contactsV2.delete('/groups/:groupId/members/:contactId',
   async (c) => {
     const groupId = c.req.param('groupId')
     const contactId = c.req.param('contactId')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.contactDirectory.fetch(
-      new Request(`http://do/groups/${groupId}/members/${contactId}`, { method: 'DELETE' }),
-    )
+    const result = await services.contacts.removeMember(groupId, contactId)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'groupMemberRemoved', c.get('pubkey'), { groupId, contactId })
-    return new Response(res.body, res)
+    await audit(services.audit, 'groupMemberRemoved', c.get('pubkey'), { groupId, contactId })
+    return c.json(result)
   },
 )
 
@@ -336,9 +307,9 @@ contactsV2.get('/groups/:groupId/members',
   requirePermission('contacts:view'),
   async (c) => {
     const groupId = c.req.param('groupId')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/groups/${groupId}/members`))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const members = await services.contacts.listMembers(groupId)
+    return c.json({ members })
   },
 )
 
@@ -362,18 +333,13 @@ contactsV2.patch('/:id',
   validator('json', updateContactBodySchema),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/contacts/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
+    const updated = await services.contacts.update(id, body)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'contactUpdated', c.get('pubkey'), { contactId: id })
-    return new Response(res.body, res)
+    await audit(services.audit, 'contactUpdated', c.get('pubkey'), { contactId: id })
+    return c.json(updated)
   },
 )
 
@@ -391,16 +357,12 @@ contactsV2.delete('/:id',
   requirePermission('contacts:delete'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/contacts/${id}`, {
-      method: 'DELETE',
-    }))
+    await services.contacts.delete(id)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'contactDeleted', c.get('pubkey'), { contactId: id })
-    return new Response(res.body, res)
+    await audit(services.audit, 'contactDeleted', c.get('pubkey'), { contactId: id })
+    return c.json({ ok: true })
   },
 )
 
@@ -420,22 +382,19 @@ contactsV2.post('/:id/relationships',
   validator('json', createRelationshipBodySchema),
   async (c) => {
     const contactIdA = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+    const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
 
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/contacts/${contactIdA}/relationships`, {
-      method: 'POST',
-      headers: {
-        'x-hub-id': c.get('hubId') ?? '',
-        'x-pubkey': c.get('pubkey'),
-      },
-      body: JSON.stringify(body),
-    }))
+    const relationship = await services.contacts.createRelationship(
+      contactIdA,
+      hubId,
+      pubkey,
+      body,
+    )
 
-    if (!res.ok) return new Response(res.body, res)
-
-    const relationship = await res.json() as { id: string }
-    await audit(c.get('services').audit, 'relationshipCreated', c.get('pubkey'), {
+    await audit(services.audit, 'relationshipCreated', pubkey, {
       relationshipId: relationship.id,
       contactIdA,
       contactIdB: body.contactIdB,
@@ -460,19 +419,15 @@ contactsV2.delete('/:id/relationships/:relId',
   async (c) => {
     const contactId = c.req.param('id')
     const relId = c.req.param('relId')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/contacts/${contactId}/relationships/${relId}`, {
-      method: 'DELETE',
-    }))
+    await services.contacts.deleteRelationship(contactId, relId)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'relationshipDeleted', c.get('pubkey'), {
+    await audit(services.audit, 'relationshipDeleted', c.get('pubkey'), {
       relationshipId: relId,
       contactId,
     })
-    return new Response(res.body, res)
+    return c.json({ ok: true })
   },
 )
 
@@ -489,9 +444,9 @@ contactsV2.get('/:id/relationships',
   requirePermission('contacts:view'),
   async (c) => {
     const contactId = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/contacts/${contactId}/relationships`))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const relationships = await services.contacts.listRelationships(contactId)
+    return c.json({ relationships })
   },
 )
 
@@ -508,9 +463,9 @@ contactsV2.get('/:id/groups',
   requirePermission('contacts:view'),
   async (c) => {
     const contactId = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/contacts/${contactId}/groups`))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const groups = await services.contacts.listGroupsForContact(contactId)
+    return c.json({ groups })
   },
 )
 
@@ -528,9 +483,9 @@ contactsV2.get('/:id',
   requirePermission('contacts:view'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.contactDirectory.fetch(new Request(`http://do/contacts/${id}`))
-    return new Response(res.body, res)
+    const services = c.get('services')
+    const contact = await services.contacts.get(id)
+    return c.json(contact)
   },
 )
 

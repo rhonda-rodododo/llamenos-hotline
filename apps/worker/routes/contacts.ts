@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getScopedDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
 import { paginationSchema } from '@protocol/schemas/common'
 import { authErrors } from '../openapi/helpers'
@@ -21,24 +20,20 @@ contacts.get('/',
   }),
   validator('query', paginationSchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId')
     const query = c.req.valid('query')
-    const params = new URLSearchParams({ page: String(query.page), limit: String(query.limit) })
+    const offset = ((query.page ?? 1) - 1) * (query.limit ?? 20)
 
-    // Get contact data from RecordsDO (notes with contactHash)
-    const notesRes = await dos.records.fetch(new Request(`http://do/contacts?${params}`))
-    if (!notesRes.ok) return notesRes
+    // Get contact data from RecordsService (notes with contactHash)
+    const { contacts: noteContacts, total } = await services.records.listContacts(
+      hubId,
+      query.limit ?? 20,
+      offset,
+    )
 
-    const { contacts: noteContacts, total } = await notesRes.json() as {
-      contacts: { contactHash: string; firstSeen: string; lastSeen: string; noteCount: number }[]
-      total: number
-    }
-
-    // Enrich with conversation data from ConversationDO
-    const convRes = await dos.conversations.fetch(new Request('http://do/contacts'))
-    const convData = convRes.ok
-      ? await convRes.json() as { contacts: Record<string, { last4?: string; conversationCount: number; reportCount: number; firstSeen: string; lastSeen: string }> }
-      : { contacts: {} }
+    // Enrich with conversation data from ConversationsService
+    const convSummaries = await services.conversations.getContactSummaries(hubId)
 
     // Merge data
     const merged = new Map<string, {
@@ -49,8 +44,8 @@ contacts.get('/',
     for (const nc of noteContacts) {
       merged.set(nc.contactHash, {
         contactHash: nc.contactHash,
-        firstSeen: nc.firstSeen,
-        lastSeen: nc.lastSeen,
+        firstSeen: nc.firstSeen.toISOString(),
+        lastSeen: nc.lastSeen.toISOString(),
         callCount: 0,
         conversationCount: 0,
         noteCount: nc.noteCount,
@@ -58,32 +53,34 @@ contacts.get('/',
       })
     }
 
-    for (const [hash, cd] of Object.entries(convData.contacts)) {
+    for (const cs of convSummaries) {
+      const hash = cs.contactHash
+      const csFirstSeen = cs.firstSeen.toISOString()
+      const csLastSeen = cs.lastSeen.toISOString()
       const existing = merged.get(hash)
       if (existing) {
-        existing.last4 = cd.last4
-        existing.conversationCount = cd.conversationCount
-        existing.reportCount = cd.reportCount
-        if (cd.firstSeen < existing.firstSeen) existing.firstSeen = cd.firstSeen
-        if (cd.lastSeen > existing.lastSeen) existing.lastSeen = cd.lastSeen
+        existing.last4 = cs.last4 ?? undefined
+        existing.conversationCount = cs.conversationCount
+        if (csFirstSeen < existing.firstSeen) existing.firstSeen = csFirstSeen
+        if (csLastSeen > existing.lastSeen) existing.lastSeen = csLastSeen
       } else {
         merged.set(hash, {
           contactHash: hash,
-          last4: cd.last4,
-          firstSeen: cd.firstSeen,
-          lastSeen: cd.lastSeen,
+          last4: cs.last4 ?? undefined,
+          firstSeen: csFirstSeen,
+          lastSeen: csLastSeen,
           callCount: 0,
-          conversationCount: cd.conversationCount,
+          conversationCount: cs.conversationCount,
           noteCount: 0,
-          reportCount: cd.reportCount,
+          reportCount: 0,
         })
       }
     }
 
-    const contacts = Array.from(merged.values())
+    const contactsList = Array.from(merged.values())
       .sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())
 
-    return c.json({ contacts, total: Math.max(total, contacts.length) })
+    return c.json({ contacts: contactsList, total: Math.max(total, contactsList.length) })
   },
 )
 
@@ -98,24 +95,16 @@ contacts.get('/:hash',
     },
   }),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const hash = c.req.param('hash')
 
-    // Parallel fetch from RecordsDO (notes) and ConversationDO (conversations)
-    const [notesRes, convsRes] = await Promise.all([
-      dos.records.fetch(new Request(`http://do/contacts/${hash}`)),
-      dos.conversations.fetch(new Request(`http://do/contacts/${hash}`)),
+    // Parallel fetch from RecordsService (notes) and ConversationsService (conversations)
+    const [notesResult, conversations] = await Promise.all([
+      services.records.listNotes({ contactHash: hash }),
+      services.conversations.getContactConversations(hash),
     ])
 
-    const notes = notesRes.ok
-      ? (await notesRes.json() as { notes: unknown[] }).notes
-      : []
-
-    const conversations = convsRes.ok
-      ? (await convsRes.json() as { conversations: unknown[] }).conversations
-      : []
-
-    return c.json({ notes, conversations })
+    return c.json({ notes: notesResult.notes, conversations })
   },
 )
 

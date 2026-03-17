@@ -1,16 +1,11 @@
 import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getScopedDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
 import { listBlastsQuerySchema, createBlastBodySchema, updateBlastBodySchema, scheduleBlastBodySchema, importSubscribersBodySchema, updateBlastSettingsBodySchema } from '@protocol/schemas/blasts'
 import { authErrors } from '../openapi/helpers'
 
 const blasts = new Hono<AppEnv>()
-
-// Forward all blast routes to BlastDO
-// These are hub-scoped and require authentication (handled by middleware in app.ts)
-// Each endpoint also requires specific blast permissions
 
 // --- Subscribers ---
 blasts.get('/subscribers',
@@ -24,10 +19,25 @@ blasts.get('/subscribers',
   }),
   requirePermission('blasts:manage'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId')
     const url = new URL(c.req.url)
-    const res = await dos.blasts.fetch(new Request(`http://do/subscribers${url.search}`))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const tag = url.searchParams.get('tag') ?? undefined
+    const channel = url.searchParams.get('channel') as import('@shared/types').MessagingChannelType | undefined
+    const status = url.searchParams.get('status') as import('@shared/types').Subscriber['status'] | undefined
+    const page = parseInt(url.searchParams.get('page') ?? '1', 10)
+    const limit = parseInt(url.searchParams.get('limit') ?? '50', 10)
+
+    const result = await services.blasts.listSubscribers({
+      hubId,
+      tag,
+      channel,
+      status,
+      limit,
+      offset: (page - 1) * limit,
+    })
+
+    return c.json(result)
   },
 )
 
@@ -43,9 +53,9 @@ blasts.delete('/subscribers/:id',
   requirePermission('blasts:manage'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.blasts.fetch(new Request(`http://do/subscribers/${id}`, { method: 'DELETE' }))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const services = c.get('services')
+    await services.blasts.deleteSubscriber(id)
+    return c.json({ ok: true })
   },
 )
 
@@ -60,9 +70,10 @@ blasts.get('/subscribers/stats',
   }),
   requirePermission('blasts:read'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.blasts.fetch(new Request('http://do/subscribers/stats'))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const services = c.get('services')
+    const hubId = c.get('hubId')
+    const stats = await services.blasts.getSubscriberStats(hubId)
+    return c.json(stats)
   },
 )
 
@@ -78,14 +89,11 @@ blasts.post('/subscribers/import',
   requirePermission('blasts:manage'),
   validator('json', importSubscribersBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
     const body = c.req.valid('json')
-    const res = await dos.blasts.fetch(new Request('http://do/subscribers/import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const result = await services.blasts.importBulk(hubId, body.subscribers)
+    return c.json(result)
   },
 )
 
@@ -102,14 +110,23 @@ blasts.get('/',
   requirePermission('blasts:read'),
   validator('query', listBlastsQuerySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId')
     const query = c.req.valid('query')
-    const params = new URLSearchParams()
-    params.set('page', String(query.page))
-    params.set('limit', String(query.limit))
-    if (query.status) params.set('status', query.status)
-    const res = await dos.blasts.fetch(new Request(`http://do/blasts?${params}`))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+
+    let allBlasts = await services.blasts.listBlasts(hubId)
+
+    // Apply status filter
+    if (query.status) {
+      allBlasts = allBlasts.filter(b => b.status === query.status)
+    }
+
+    // Apply pagination at route level (service returns all)
+    const total = allBlasts.length
+    const offset = (query.page - 1) * query.limit
+    const paged = allBlasts.slice(offset, offset + query.limit)
+
+    return c.json({ blasts: paged, total, page: query.page, limit: query.limit })
   },
 )
 
@@ -125,14 +142,18 @@ blasts.post('/',
   requirePermission('blasts:send'),
   validator('json', createBlastBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId')
+    const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
-    const res = await dos.blasts.fetch(new Request('http://do/blasts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const blast = await services.blasts.createBlast({
+      hubId,
+      name: body.name,
+      content: { text: body.content.body, mediaUrl: body.content.mediaUrl },
+      targetChannels: body.channels,
+      createdBy: pubkey,
+    })
+    return c.json(blast, 201)
   },
 )
 
@@ -148,9 +169,9 @@ blasts.get('/:id',
   requirePermission('blasts:read'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}`))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const services = c.get('services')
+    const blast = await services.blasts.getBlast(id)
+    return c.json(blast)
   },
 )
 
@@ -167,14 +188,14 @@ blasts.patch('/:id',
   validator('json', updateBlastBodySchema),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
-    const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const updateInput: import('../services/blasts').UpdateBlastInput = {}
+    if (body.name !== undefined) updateInput.name = body.name
+    if (body.content !== undefined) updateInput.content = { text: body.content.body, mediaUrl: body.content.mediaUrl }
+    if (body.channels !== undefined) updateInput.targetChannels = body.channels
+    const blast = await services.blasts.updateBlast(id, updateInput)
+    return c.json(blast)
   },
 )
 
@@ -190,9 +211,9 @@ blasts.delete('/:id',
   requirePermission('blasts:manage'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}`, { method: 'DELETE' }))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const services = c.get('services')
+    await services.blasts.deleteBlast(id)
+    return c.json({ ok: true })
   },
 )
 
@@ -208,9 +229,10 @@ blasts.post('/:id/send',
   requirePermission('blasts:send'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}/send`, { method: 'POST' }))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const services = c.get('services')
+    const hubId = c.get('hubId')
+    const blast = await services.blasts.send(id, hubId)
+    return c.json(blast)
   },
 )
 
@@ -227,14 +249,10 @@ blasts.post('/:id/schedule',
   validator('json', scheduleBlastBodySchema),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
-    const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}/schedule`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const blast = await services.blasts.schedule(id, body.scheduledAt)
+    return c.json(blast)
   },
 )
 
@@ -250,9 +268,9 @@ blasts.post('/:id/cancel',
   requirePermission('blasts:schedule'),
   async (c) => {
     const id = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}/cancel`, { method: 'POST' }))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const services = c.get('services')
+    const blast = await services.blasts.cancel(id)
+    return c.json(blast)
   },
 )
 
@@ -268,9 +286,10 @@ blasts.get('/settings',
   }),
   requirePermission('blasts:read'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.blasts.fetch(new Request('http://do/blast-settings'))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
+    const settings = await services.blasts.getBlastSettings(hubId)
+    return c.json(settings)
   },
 )
 
@@ -286,14 +305,11 @@ blasts.patch('/settings',
   requirePermission('blasts:manage'),
   validator('json', updateBlastSettingsBodySchema),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? ''
     const body = c.req.valid('json')
-    const res = await dos.blasts.fetch(new Request('http://do/blast-settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }))
-    return new Response(res.body, { status: res.status, headers: res.headers })
+    const settings = await services.blasts.updateBlastSettings(hubId, body)
+    return c.json(settings)
   },
 )
 

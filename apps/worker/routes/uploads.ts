@@ -1,8 +1,7 @@
 import { Hono } from 'hono'
 import { describeRoute, resolver, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import type { FileRecord, UploadInit } from '@shared/types'
-import { getDOs } from '../lib/do-access'
+import type { FileRecord } from '@shared/types'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import { uploadInitBodySchema } from '@protocol/schemas/uploads'
 import { okResponseSchema } from '@protocol/schemas/common'
@@ -31,9 +30,8 @@ uploads.post('/init',
   validator('json', uploadInitBodySchema),
   async (c) => {
     const pubkey = c.get('pubkey')
-    const body = c.req.valid('json') as UploadInit
-
-    const dos = getDOs(c.env)
+    const services = c.get('services')
+    const body = c.req.valid('json') as import('@shared/types').UploadInit
 
     if (body.totalSize > MAX_UPLOAD_SIZE) {
       return c.json({ error: `File too large (max ${MAX_UPLOAD_SIZE / 1024 / 1024}MB)` }, 400)
@@ -41,7 +39,8 @@ uploads.post('/init',
 
     const uploadId = crypto.randomUUID()
 
-    const fileRecord: FileRecord = {
+    // Store file record via service
+    await services.conversations.createFile({
       id: uploadId,
       conversationId: body.conversationId,
       uploadedBy: pubkey,
@@ -49,22 +48,9 @@ uploads.post('/init',
       encryptedMetadata: body.encryptedMetadata || [],
       totalSize: body.totalSize,
       totalChunks: body.totalChunks,
-      status: 'uploading',
-      completedChunks: 0,
-      createdAt: new Date().toISOString(),
-    }
+    })
 
-    // Store file record in ConversationDO
-    const res = await dos.conversations.fetch(new Request('http://do/files', {
-      method: 'POST',
-      body: JSON.stringify(fileRecord),
-    }))
-
-    if (!res.ok) {
-      return c.json({ error: 'Failed to initialize upload' }, 500)
-    }
-
-    await audit(c.get('services').audit, 'fileUploadStarted', pubkey, {
+    await audit(services.audit, 'fileUploadStarted', pubkey, {
       uploadId,
       conversationId: body.conversationId,
       totalSize: body.totalSize,
@@ -91,18 +77,14 @@ uploads.put('/:id/chunks/:chunkIndex',
     const permissions = c.get('permissions')
     const uploadId = c.req.param('id')
     const chunkIndex = parseInt(c.req.param('chunkIndex'), 10)
+    const services = c.get('services')
 
     if (isNaN(chunkIndex) || chunkIndex < 0) {
       return c.json({ error: 'Invalid chunk index' }, 400)
     }
 
     // Verify ownership before accepting chunk
-    const dos = getDOs(c.env)
-    const ownerRes = await dos.conversations.fetch(new Request(`http://do/files/${uploadId}`))
-    if (!ownerRes.ok) {
-      return c.json({ error: 'Upload not found' }, 404)
-    }
-    const fileRecord = await ownerRes.json() as FileRecord
+    const fileRecord = await services.conversations.getFile(uploadId)
     if (fileRecord.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
       return c.json({ error: 'Forbidden' }, 403)
     }
@@ -139,18 +121,10 @@ uploads.put('/:id/chunks/:chunkIndex',
       )
     )
 
-    // Update completion count in ConversationDO
-    const res = await dos.conversations.fetch(new Request(`http://do/files/${uploadId}/chunk-complete`, {
-      method: 'POST',
-      body: JSON.stringify({ chunkIndex }),
-    }))
+    // Update completion count via service
+    const updated = await services.conversations.markChunkComplete(uploadId)
 
-    if (!res.ok) {
-      return c.json({ error: 'Failed to record chunk' }, 500)
-    }
-
-    const result = await res.json() as { completedChunks: number; totalChunks: number }
-    return c.json({ chunkIndex, completedChunks: result.completedChunks, totalChunks: result.totalChunks })
+    return c.json({ chunkIndex, completedChunks: updated.completedChunks, totalChunks: updated.totalChunks })
   },
 )
 
@@ -169,15 +143,10 @@ uploads.post('/:id/complete',
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
     const uploadId = c.req.param('id')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
 
     // Verify all chunks are uploaded
-    const statusRes = await dos.conversations.fetch(new Request(`http://do/files/${uploadId}`))
-    if (!statusRes.ok) {
-      return c.json({ error: 'Upload not found' }, 404)
-    }
-
-    const fileRecord = await statusRes.json() as FileRecord
+    const fileRecord = await services.conversations.getFile(uploadId)
 
     if (fileRecord.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
       return c.json({ error: 'Forbidden' }, 403)
@@ -257,16 +226,10 @@ uploads.post('/:id/complete',
       await c.env.R2_BUCKET.delete(r2Key)
     }
 
-    // Mark file as complete
-    const completeRes = await dos.conversations.fetch(new Request(`http://do/files/${uploadId}/complete`, {
-      method: 'POST',
-    }))
+    // Mark file as complete via service
+    await services.conversations.markFileComplete(uploadId)
 
-    if (!completeRes.ok) {
-      return c.json({ error: 'Failed to complete upload' }, 500)
-    }
-
-    await audit(c.get('services').audit, 'fileUploadCompleted', pubkey, { uploadId })
+    await audit(services.audit, 'fileUploadCompleted', pubkey, { uploadId })
 
     return c.json({ fileId: uploadId, status: 'complete' })
   },
@@ -287,14 +250,10 @@ uploads.get('/:id/status',
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
     const uploadId = c.req.param('id')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
 
-    const res = await dos.conversations.fetch(new Request(`http://do/files/${uploadId}`))
-    if (!res.ok) {
-      return c.json({ error: 'Upload not found' }, 404)
-    }
+    const fileRecord = await services.conversations.getFile(uploadId)
 
-    const fileRecord = await res.json() as FileRecord
     // Only allow the uploader or users with download-all to check status
     if (fileRecord.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
       return c.json({ error: 'Upload not found' }, 404)

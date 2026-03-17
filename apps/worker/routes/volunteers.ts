@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { describeRoute, resolver, validator } from 'hono-openapi'
 import { z } from 'zod'
 import type { AppEnv } from '../types'
-import { getDOs, getScopedDOs } from '../lib/do-access'
+import { getDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
 import { createVolunteerBodySchema, adminUpdateVolunteerBodySchema, volunteerResponseSchema } from '@protocol/schemas/volunteers'
 import { okResponseSchema } from '@protocol/schemas/common'
@@ -30,8 +30,9 @@ volunteers.get('/',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
-    return dos.identity.fetch(new Request('http://do/volunteers'))
+    const services = c.get('services')
+    const result = await services.identity.getVolunteers()
+    return c.json(result)
   },
 )
 
@@ -53,9 +54,10 @@ volunteers.get('/:targetPubkey',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const targetPubkey = c.req.param('targetPubkey')
-    return dos.identity.fetch(new Request(`http://do/volunteer/${targetPubkey}`))
+    const volunteer = await services.identity.getVolunteer(targetPubkey)
+    return c.json(volunteer)
   },
 )
 
@@ -78,31 +80,26 @@ volunteers.post('/',
   requirePermission('volunteers:create'),
   validator('json', createVolunteerBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const body = c.req.valid('json')
 
-    const res = await dos.identity.fetch(new Request('http://do/volunteers', {
-      method: 'POST',
-      body: JSON.stringify({
-        pubkey: body.pubkey,
-        name: body.name,
-        phone: body.phone,
-        roles: body.roleIds || body.roles || ['role-volunteer'],
-        encryptedSecretKey: body.encryptedSecretKey || '',
-        // Epic 340: Volunteer profile extensions
-        ...(body.specializations && { specializations: body.specializations }),
-        ...(body.maxCaseAssignments !== undefined && { maxCaseAssignments: body.maxCaseAssignments }),
-        ...(body.teamId && { teamId: body.teamId }),
-        ...(body.supervisorPubkey && { supervisorPubkey: body.supervisorPubkey }),
-      }),
-    }))
+    const result = await services.identity.createVolunteer({
+      pubkey: body.pubkey,
+      name: body.name,
+      phone: body.phone,
+      roleIds: body.roleIds || body.roles || ['role-volunteer'],
+      encryptedSecretKey: body.encryptedSecretKey || '',
+      // Epic 340: Volunteer profile extensions
+      ...(body.specializations && { specializations: body.specializations }),
+      ...(body.maxCaseAssignments !== undefined && { maxCaseAssignments: body.maxCaseAssignments }),
+      ...(body.teamId && { teamId: body.teamId }),
+      ...(body.supervisorPubkey && { supervisorPubkey: body.supervisorPubkey }),
+    })
 
-    if (res.ok) {
-      await audit(c.get('services').audit, 'volunteerAdded', pubkey, { target: body.pubkey, roles: body.roleIds || body.roles })
-    }
+    await audit(services.audit, 'volunteerAdded', pubkey, { target: body.pubkey, roles: body.roleIds || body.roles })
 
-    return res
+    return c.json(result, 201)
   },
 )
 
@@ -125,24 +122,21 @@ volunteers.patch('/:targetPubkey',
   requirePermission('volunteers:update'),
   validator('json', adminUpdateVolunteerBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const targetPubkey = c.req.param('targetPubkey')
     const body = c.req.valid('json')
 
-    const res = await dos.identity.fetch(new Request(`http://do/admin/volunteers/${targetPubkey}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-    if (res.ok) {
-      if (body.roles) await audit(c.get('services').audit, 'rolesChanged', pubkey, { target: targetPubkey, roles: body.roles })
-      if (body.active === false) await audit(c.get('services').audit, 'volunteerDeactivated', pubkey, { target: targetPubkey })
-      // Revoke all sessions when deactivating or changing roles
-      if (body.active === false || body.roles) {
-        await dos.identity.fetch(new Request(`http://do/sessions/revoke-all/${targetPubkey}`, { method: 'DELETE' }))
-      }
+    const result = await services.identity.updateVolunteer(targetPubkey, body, true)
+
+    if (body.roles) await audit(services.audit, 'rolesChanged', pubkey, { target: targetPubkey, roles: body.roles })
+    if (body.active === false) await audit(services.audit, 'volunteerDeactivated', pubkey, { target: targetPubkey })
+    // Revoke all sessions when deactivating or changing roles
+    if (body.active === false || body.roles) {
+      await services.identity.revokeAllSessions(targetPubkey)
     }
-    return res
+
+    return c.json(result)
   },
 )
 
@@ -164,15 +158,15 @@ volunteers.delete('/:targetPubkey',
   }),
   requirePermission('volunteers:delete'),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const pubkey = c.get('pubkey')
     const targetPubkey = c.req.param('targetPubkey')
     // Revoke all sessions before deletion — proceed even if this fails
     // (orphaned sessions will expire naturally via TTL)
-    await dos.identity.fetch(new Request(`http://do/sessions/revoke-all/${targetPubkey}`, { method: 'DELETE' })).catch(() => {})
-    const res = await dos.identity.fetch(new Request(`http://do/volunteers/${targetPubkey}`, { method: 'DELETE' }))
-    if (res.ok) await audit(c.get('services').audit, 'volunteerRemoved', pubkey, { target: targetPubkey })
-    return res
+    await services.identity.revokeAllSessions(targetPubkey).catch(() => {})
+    await services.identity.deleteVolunteer(targetPubkey)
+    await audit(services.audit, 'volunteerRemoved', pubkey, { target: targetPubkey })
+    return c.json({ ok: true })
   },
 )
 
@@ -199,12 +193,12 @@ volunteers.get('/:targetPubkey/cases',
     },
   }),
   async (c) => {
+    const services = c.get('services')
     const dos = getDOs(c.env)
     const targetPubkey = c.req.param('targetPubkey')
 
-    // Verify volunteer exists
-    const volRes = await dos.identity.fetch(new Request(`http://do/volunteer/${targetPubkey}`))
-    if (!volRes.ok) return new Response(volRes.body, volRes)
+    // Verify volunteer exists (throws 404 if not found)
+    await services.identity.getVolunteer(targetPubkey)
 
     // Query CaseDO for records assigned to this volunteer
     const qs = new URLSearchParams({
@@ -250,12 +244,12 @@ volunteers.get('/:targetPubkey/metrics',
     },
   }),
   async (c) => {
+    const services = c.get('services')
     const dos = getDOs(c.env)
     const targetPubkey = c.req.param('targetPubkey')
 
-    // Verify volunteer exists
-    const volRes = await dos.identity.fetch(new Request(`http://do/volunteer/${targetPubkey}`))
-    if (!volRes.ok) return new Response(volRes.body, volRes)
+    // Verify volunteer exists (throws 404 if not found)
+    await services.identity.getVolunteer(targetPubkey)
 
     // Fetch all records assigned to this volunteer (use a high limit to get all)
     const qs = new URLSearchParams({

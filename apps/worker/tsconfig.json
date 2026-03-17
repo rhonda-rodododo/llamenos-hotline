@@ -14,7 +14,8 @@
     "types": ["@cloudflare/workers-types"],
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["../../packages/shared/*"]
+      "@shared/*": ["../../packages/shared/*"],
+      "@protocol/*": ["../../packages/protocol/*"]
     }
   },
   "include": ["./**/*.ts"],

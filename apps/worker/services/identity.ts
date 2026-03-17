@@ -872,6 +872,56 @@ export class IdentityService {
     await this.db.delete(devices).where(eq(devices.pubkey, pubkey))
   }
 
+  /**
+   * Register or update a VoIP push token for a device.
+   * Updates the voipToken on the device matching the pubkey + platform,
+   * or creates a new device entry if none exists.
+   */
+  async registerVoipToken(pubkey: string, data: {
+    platform: 'ios' | 'android'
+    voipToken: string
+  }): Promise<void> {
+    const now = new Date()
+
+    // Find existing device for this pubkey + platform
+    const existing = await this.db
+      .select()
+      .from(devices)
+      .where(
+        and(
+          eq(devices.pubkey, pubkey),
+          eq(devices.platform, data.platform),
+        ),
+      )
+      .limit(1)
+
+    if (existing.length > 0) {
+      await this.db
+        .update(devices)
+        .set({ voipToken: data.voipToken, lastSeenAt: now })
+        .where(eq(devices.id, existing[0].id))
+    } else {
+      // Create a device record just for the voip token
+      await this.db.insert(devices).values({
+        pubkey,
+        platform: data.platform,
+        voipToken: data.voipToken,
+        registeredAt: now,
+        lastSeenAt: now,
+      })
+    }
+  }
+
+  /**
+   * Remove VoIP push token from all devices for a volunteer.
+   */
+  async deleteVoipToken(pubkey: string): Promise<void> {
+    await this.db
+      .update(devices)
+      .set({ voipToken: null })
+      .where(eq(devices.pubkey, pubkey))
+  }
+
   // =========================================================================
   // Device Provisioning Rooms
   // =========================================================================
