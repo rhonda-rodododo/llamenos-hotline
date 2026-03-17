@@ -641,7 +641,7 @@ Complete backend modernization: replace Node.js with Bun runtime, then replace t
 **Dependency order:** 357 → 358
 
 - [x] **[Epic 357: Migrate from Node.js to Bun Runtime](epics/epic-357-bun-runtime-migration.md)** — Server entry point (Hono Bun adapter), PostgreSQL driver (Bun.sql), remove esbuild, Docker image (oven/bun:1-slim), dev scripts, WebSocket, deploy configs (Compose, Helm, Ansible), documentation
-- [ ] **[Epic 358: Drop DO Architecture — Direct PostgreSQL Services](epics/epic-358-drop-do-architecture.md)** — Replace 9 DOs with service classes, `kv_store` → ~40 typed tables with proper indexes/constraints, eliminate platform abstraction (1,194 lines), do-router, do-access, Request/Response serialization overhead. Hub scoping via `hub_id` columns. Scheduled task system replaces DO alarms.
+- [x] **[Epic 358: Drop DO Architecture — Drizzle ORM + Direct PostgreSQL](epics/epic-358-drop-do-architecture.md)** — Replaced 9 DOs (8,160 lines) + platform layer (1,200 lines) with 11 Drizzle-backed service classes (9,081 lines). 51 typed PostgreSQL tables with GIN/partial indexes. Net -10,680 lines deleted. ConversationDO/BlastDO subscriber data integrity bug fixed.
 
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
