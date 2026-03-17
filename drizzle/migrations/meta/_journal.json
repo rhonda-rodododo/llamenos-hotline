@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1773708416650,
+      "tag": "0000_bouncy_morlocks",
+      "breakpoints": true
+    }
+  ]
+}

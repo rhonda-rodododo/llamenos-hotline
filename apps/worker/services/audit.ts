@@ -1,6 +1,16 @@
+/**
+ * AuditService — replaces audit helper + RecordsDO audit methods.
+ * Methods will be migrated from the DO as routes are updated.
+ */
+import type { Database } from '../db'
 import type { DOStub } from '../types'
 import { hashIP } from '../lib/crypto'
 
+export class AuditService {
+  constructor(protected db: Database) {}
+}
+
+/** Legacy audit helper — delegates to RecordsDO. Will be replaced by AuditService methods. */
 export async function audit(
   records: DOStub,
   event: string,
