@@ -113,7 +113,7 @@ When('the event field of entry {int} is modified', async ({}, index: number) => 
   // Tampering is simulated client-side by modifying the fetched entry
   if (adminState.auditEntries.length >= index) {
     const entry = { ...adminState.auditEntries[index - 1] }
-    entry.event = 'TAMPERED_EVENT'
+    entry.action = 'TAMPERED_EVENT'
     adminState.auditEntries[index - 1] = entry
   }
 })
@@ -143,7 +143,7 @@ Then('chain verification should fail at entry {int}', async ({}, index: number) 
   const entry = adminState.auditEntries[index - 1]
   if (entry.entryHash) {
     // Recompute hash matching server's hashAuditEntry()
-    const content = `${entry.id}:${entry.event}:${entry.actorPubkey}:${entry.createdAt}:${JSON.stringify(entry.details)}:${entry.previousEntryHash || ''}`
+    const content = `${entry.id}:${entry.action}:${entry.actorPubkey}:${entry.createdAt}:${JSON.stringify(entry.details)}:${entry.previousEntryHash || ''}`
     const recomputed = bytesToHex(sha256(utf8ToBytes(content)))
     expect(recomputed).not.toBe(entry.entryHash)
   }

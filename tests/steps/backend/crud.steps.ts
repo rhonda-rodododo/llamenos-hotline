@@ -459,8 +459,10 @@ When('the reporter creates a report titled {string}', async ({ request }, title:
     },
     crud.reporterNsec!,
   )
+  expect(status).toBeLessThan(300)
   crud.reportId = (data as Record<string, unknown>)?.id as string
     ?? ((data as Record<string, unknown>)?.conversation as Record<string, unknown>)?.id as string
+  expect(crud.reportId).toBeTruthy()
 })
 
 Then('the report should appear in the reports list', async ({ request }) => {
@@ -529,7 +531,7 @@ Then('the fallback group should be empty', async ({ request }) => {
 Then('the audit log should contain a {string} entry', async ({ request }, eventType: string) => {
   const { entries } = await listAuditLogViaApi(request, { eventType })
   expect(entries.length).toBeGreaterThan(0)
-  expect(entries.some(e => e.event === eventType)).toBeTruthy()
+  expect(entries.some(e => e.action === eventType)).toBeTruthy()
 })
 
 // ─── Spam Settings ──────────────────────────────────────────────────

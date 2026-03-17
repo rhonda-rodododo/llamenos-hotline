@@ -282,8 +282,8 @@ events.get('/:id/records',
   async (c) => {
     const id = c.req.param('id')
     const services = c.get('services')
-    const caseEvents = await services.cases.listCaseEvents(id)
-    return c.json({ links: caseEvents })
+    const eventRecords = await services.cases.listEventRecords(id)
+    return c.json({ links: eventRecords })
   },
 )
 

@@ -110,9 +110,9 @@ Then('the call history should show a completed call', async ({ request }) => {
   if (xdo.callStatus === 'in-progress') {
     await simulateEndCall(request, xdo.callId!)
   }
-  const { data } = await apiGet<{ calls: Array<{ id: string; status: string }> }>(request, '/calls/history')
-  const calls = (data as { calls: Array<{ id: string; status: string }> }).calls
-  const call = calls.find(c => c.id === xdo.callId)
+  const { data } = await apiGet<{ calls: Array<{ callId: string; status: string }> }>(request, '/calls/history')
+  const calls = (data as { calls: Array<{ callId: string; status: string }> }).calls
+  const call = calls.find(c => c.callId === xdo.callId)
   expect(call).toBeDefined()
   expect(call!.status).toBe('completed')
 })
@@ -126,7 +126,7 @@ Then('the audit log should have entries for each step', async ({ request }) => {
   const { entries } = await listAuditLogViaApi(request)
   expect(entries.length).toBeGreaterThan(0)
   // Should have volunteer creation and note creation at minimum
-  const events = entries.map(e => e.event)
+  const events = entries.map(e => e.action)
   expect(events).toContain('volunteerAdded')
   expect(events).toContain('noteCreated')
 })
@@ -360,9 +360,9 @@ Then('the call should go to voicemail', async ({}) => {
 })
 
 Then('the call history should show an unanswered call', async ({ request }) => {
-  const { data } = await apiGet<{ calls: Array<{ id: string; status: string }> }>(request, '/calls/history')
-  const calls = (data as { calls: Array<{ id: string; status: string }> }).calls
-  const call = calls.find(c => c.id === xdo.callId)
+  const { data } = await apiGet<{ calls: Array<{ callId: string; status: string }> }>(request, '/calls/history')
+  const calls = (data as { calls: Array<{ callId: string; status: string }> }).calls
+  const call = calls.find(c => c.callId === xdo.callId)
   expect(call).toBeDefined()
   expect(call!.status).toBe('unanswered')
 })

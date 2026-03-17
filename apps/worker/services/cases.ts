@@ -894,6 +894,22 @@ export class CasesService {
       .where(eq(caseEvents.caseId, caseId))
   }
 
+  /** List records linked to an event (inverse of listCaseEvents). */
+  async listEventRecords(eventId: string): Promise<CaseEventRow[]> {
+    const event = await this.db
+      .select({ id: events.id })
+      .from(events)
+      .where(eq(events.id, eventId))
+    if (event.length === 0) {
+      throw new ServiceError(404, 'Event not found')
+    }
+
+    return this.db
+      .select()
+      .from(caseEvents)
+      .where(eq(caseEvents.eventId, eventId))
+  }
+
   // =========================================================================
   // Report-Event Linking
   // =========================================================================

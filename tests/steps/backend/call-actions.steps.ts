@@ -138,12 +138,12 @@ Then('the response should indicate the caller was banned', async () => {
 
 Then('the call status should be {string}', async ({ request }, expectedStatus: string) => {
   expect(state.callId).toBeTruthy()
-  const res = await apiGet<{ calls: Array<{ id: string; status: string }> }>(
+  const res = await apiGet<{ calls: Array<{ callId: string; status: string }> }>(
     request,
     '/calls/history',
   )
   expect(res.status).toBe(200)
-  const call = res.data.calls.find(c => c.id === state.callId)
+  const call = res.data.calls.find(c => c.callId === state.callId)
   expect(call).toBeTruthy()
   expect(call!.status).toBe(expectedStatus)
 })

@@ -304,7 +304,7 @@ calls.post('/:callId/ban',
     }
 
     if (banned) {
-      await audit(services.audit, 'numberBanned', pubkey, { phone: call.callerNumber, callId })
+      await audit(services.audit, 'numberBanned', pubkey, { callId })
     }
 
     return c.json({ banned, hungUp: true })

@@ -460,7 +460,7 @@ export async function listNotesViaApi(
 
 export interface AuditEntry {
   id: string
-  event: string
+  action: string
   actorPubkey: string
   details: Record<string, unknown>
   createdAt: string

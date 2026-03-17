@@ -84,7 +84,7 @@ Then('volunteer {int} no longer receives a ring', async ({}, _index: number) => 
 // ── Call History Assertions ────────────────────────────────────────
 
 Then('the call history contains {int} entry/entries', async ({ request }, count: number) => {
-  const { status, data } = await apiGet<{ calls: Array<{ id: string }>; total: number }>(
+  const { status, data } = await apiGet<{ calls: Array<{ callId: string }>; total: number }>(
     request,
     '/calls/history',
   )
@@ -116,7 +116,7 @@ Then('the most recent call shows caller {string}', async ({ request }, expectedC
 })
 
 When('the call history is filtered by status {string}', async ({ request }, filterStatus: string) => {
-  const { status, data } = await apiGet<{ calls: Array<{ id: string }>; total: number }>(
+  const { status, data } = await apiGet<{ calls: Array<{ callId: string }>; total: number }>(
     request,
     `/calls/history?status=${filterStatus}`,
   )
@@ -126,7 +126,7 @@ When('the call history is filtered by status {string}', async ({ request }, filt
 
 When('the call history is filtered to today\'s date', async ({ request }) => {
   const today = new Date().toISOString().split('T')[0]
-  const { status, data } = await apiGet<{ calls: Array<{ id: string }>; total: number }>(
+  const { status, data } = await apiGet<{ calls: Array<{ callId: string }>; total: number }>(
     request,
     `/calls/history?dateFrom=${today}&dateTo=${today}`,
   )

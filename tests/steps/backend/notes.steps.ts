@@ -98,12 +98,20 @@ Given('two notes created by the same volunteer', async ({ request }) => {
 })
 
 When('a note is created', async ({ request }) => {
+  // Build admin envelopes from the keypairs created in the "hub with N admins" step
+  const adminEnvelopes = noteState.adminKeypairs.map(kp => ({
+    pubkey: kp.pubkey,
+    wrappedKey: 'a'.repeat(64),
+    ephemeralPubkey: kp.pubkey,
+  }))
+
   const { status, data } = await apiPost<{ note: Record<string, unknown> }>(
     request,
     '/notes',
     {
       encryptedContent: 'bXVsdGkgYWRtaW4gbm90ZQ==', // base64 mock
       callId: `test-call-${Date.now()}`,
+      adminEnvelopes,
     },
   )
   if (status === 200 || status === 201) {
@@ -130,12 +138,9 @@ Then("the envelope should contain the key wrapped for the volunteer's pubkey", a
 Then('the envelope should contain {int} admin key wraps', async ({}, count: number) => {
   expect(noteState.envelope).toBeDefined()
   const envelope = noteState.envelope!
-  // If adminEnvelopes were included, check their count
   const adminEnvelopes = envelope.adminEnvelopes as Array<unknown> | undefined
-  if (adminEnvelopes) {
-    expect(adminEnvelopes.length).toBeGreaterThanOrEqual(count)
-  }
-  // The note was created successfully — envelope structure verified
+  expect(adminEnvelopes).toBeDefined()
+  expect(adminEnvelopes!.length).toBeGreaterThanOrEqual(count)
 })
 
 Then('the ciphertext should be decryptable with the correct symmetric key', async ({}) => {
