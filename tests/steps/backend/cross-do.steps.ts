@@ -133,6 +133,10 @@ Then('the audit log should have entries for each step', async ({ request }) => {
 
 // ─── Ban Lifecycle with Call Integration ────────────────────────────
 
+When('an admin bans {string}', async ({ request }, phone: string) => {
+  await createBanViaApi(request, { phone, reason: 'XDO ban test' })
+})
+
 When('an incoming call arrives from {string}', async ({ request }, phone: string) => {
   const result = await simulateIncomingCall(request, { callerNumber: phone })
   xdo.callId = result.callId

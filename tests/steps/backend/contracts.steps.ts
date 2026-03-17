@@ -81,21 +81,21 @@ When('an admin sends {string} to {string}', async ({ request }, method: string, 
 
 // ── Specific invalid body steps ─────────────────────────────────────
 
-When('an admin sends "POST" to "/api/notes" with empty encrypted content', async ({ request }) => {
+When('an admin sends {string} to {string} with empty encrypted content', async ({ request }, _method: string, _path: string) => {
   shared.lastResponse = await apiPost(request, '/notes', {
     encryptedContent: '',
     callId: 'test-call-id',
   }, ADMIN_NSEC)
 })
 
-When('an admin sends "POST" to "/api/reports" with missing title', async ({ request }) => {
+When('an admin sends {string} to {string} with missing title', async ({ request }, _method: string, _path: string) => {
   shared.lastResponse = await apiPost(request, '/reports', {
     encryptedContent: 'test-content',
     readerEnvelopes: [{ pubkey: 'a'.repeat(64), wrappedKey: 'key', ephemeralPubkey: 'b'.repeat(64) }],
   }, ADMIN_NSEC)
 })
 
-When('an admin sends "POST" to "/api/shifts" with invalid day body', async ({ request }) => {
+When('an admin sends {string} to {string} with invalid day body', async ({ request }, _method: string, _path: string) => {
   shared.lastResponse = await apiPost(request, '/shifts', {
     name: 'Bad Shift',
     startTime: '09:00',
@@ -105,7 +105,7 @@ When('an admin sends "POST" to "/api/shifts" with invalid day body', async ({ re
   }, ADMIN_NSEC)
 })
 
-When('an admin sends "POST" to "/api/shifts" with negative day body', async ({ request }) => {
+When('an admin sends {string} to {string} with negative day body', async ({ request }, _method: string, _path: string) => {
   shared.lastResponse = await apiPost(request, '/shifts', {
     name: 'Bad Shift',
     startTime: '09:00',
@@ -115,7 +115,7 @@ When('an admin sends "POST" to "/api/shifts" with negative day body', async ({ r
   }, ADMIN_NSEC)
 })
 
-When('an admin sends "PATCH" to "/api/settings/telephony-provider" with valid twilio body', async ({ request }) => {
+When('an admin sends {string} to {string} with valid twilio body', async ({ request }, _method: string, _path: string) => {
   shared.lastResponse = await apiPatch(request, '/settings/telephony-provider', {
     type: 'twilio',
     accountSid: 'ACtest123456789012345678901234',

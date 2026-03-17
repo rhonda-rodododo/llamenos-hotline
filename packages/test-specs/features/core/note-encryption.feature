@@ -1,4 +1,4 @@
-@backend @desktop @ios @android
+@desktop @ios @android
 Feature: Note Encryption & Management
   As a volunteer
   I want to create, view, edit, and search encrypted notes

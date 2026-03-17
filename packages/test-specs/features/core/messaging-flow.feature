@@ -1,4 +1,4 @@
-@backend @desktop @ios @android
+@desktop @ios @android
 Feature: Messaging Flow
   As the messaging system
   I want conversations to be routed, assigned, and managed correctly

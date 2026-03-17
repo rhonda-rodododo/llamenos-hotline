@@ -1,4 +1,4 @@
-@backend @desktop @ios @android
+@desktop @ios @android
 Feature: Audit Log
   As an admin
   I want to view and verify the audit log

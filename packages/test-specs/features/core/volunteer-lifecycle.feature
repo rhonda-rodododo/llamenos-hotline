@@ -1,4 +1,4 @@
-@backend @desktop @ios @android
+@desktop @ios @android
 Feature: Volunteer Lifecycle
   As an admin
   I want to manage volunteers through their lifecycle

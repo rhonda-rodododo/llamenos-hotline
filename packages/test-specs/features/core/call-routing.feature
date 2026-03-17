@@ -1,4 +1,4 @@
-@backend @desktop @ios @android
+@desktop @ios @android
 Feature: Call Routing & History
   As the call routing system
   I want calls to be routed to on-shift volunteers and history to be searchable

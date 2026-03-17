@@ -155,18 +155,13 @@ extension CaseInteraction: Identifiable {}
 extension Interaction: Identifiable {}
 extension Evidence: Identifiable {}
 
-// MARK: - RecordContact
+// RecordContact is defined in generated Types.swift (protocol codegen).
+// Add Identifiable conformance and convenience accessors for SwiftUI compatibility.
+extension RecordContact: Identifiable {
+    var id: String { contactID }
 
-/// A contact linked to a case record with a role.
-struct RecordContact: Codable, Identifiable, Sendable {
-    let contactId: String
-    let role: String
-    let addedAt: String?
-    let addedBy: String?
-    let encryptedSummary: String?
-    let summaryEnvelopes: [CaseEnvelope]?
-
-    var id: String { contactId }
+    /// Convenience alias matching the JSON key name used in view code.
+    var contactId: String { contactID }
 }
 
 // MARK: - EvidenceItem
