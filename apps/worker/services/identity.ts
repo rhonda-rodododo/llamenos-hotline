@@ -913,6 +913,40 @@ export class IdentityService {
   }
 
   /**
+   * Get VoIP tokens for multiple volunteers (batch).
+   * Used by VoIP push dispatch during incoming calls.
+   */
+  async getVoipTokens(pubkeys: string[]): Promise<{
+    devices: Array<{ pubkey: string; platform: 'ios' | 'android'; voipToken: string }>
+  }> {
+    if (pubkeys.length === 0) return { devices: [] }
+
+    const rows = await this.db
+      .select({
+        pubkey: devices.pubkey,
+        platform: devices.platform,
+        voipToken: devices.voipToken,
+      })
+      .from(devices)
+      .where(
+        and(
+          inArray(devices.pubkey, pubkeys),
+          sql`${devices.voipToken} IS NOT NULL`,
+        ),
+      )
+
+    return {
+      devices: rows
+        .filter((r): r is typeof r & { voipToken: string } => r.voipToken !== null)
+        .map(r => ({
+          pubkey: r.pubkey,
+          platform: r.platform as 'ios' | 'android',
+          voipToken: r.voipToken,
+        })),
+    }
+  }
+
+  /**
    * Remove VoIP push token from all devices for a volunteer.
    */
   async deleteVoipToken(pubkey: string): Promise<void> {

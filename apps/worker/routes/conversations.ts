@@ -3,7 +3,7 @@ import { describeRoute, resolver, validator } from 'hono-openapi'
 import { z } from 'zod'
 import type { AppEnv, EncryptedMessage } from '../types'
 import type { MessagingChannelType } from '@shared/types'
-import { getDOs, getMessagingAdapter } from '../lib/do-access'
+import { getMessagingAdapterFromService } from '../lib/do-access'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { listConversationsQuerySchema, sendMessageBodySchema, updateConversationBodySchema, conversationResponseSchema, messageResponseSchema } from '@protocol/schemas/conversations'
 import { paginationSchema, okResponseSchema, paginatedMeta } from '@protocol/schemas/common'
@@ -11,25 +11,26 @@ import { authErrors, notFoundError } from '../openapi/helpers'
 import { audit } from '../services/audit'
 import { canClaimChannel, getClaimableChannels } from '@shared/permissions'
 import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '@shared/nostr-events'
-import { createPushDispatcher } from '../lib/push-dispatch'
+import { createPushDispatcherFromService } from '../lib/push-dispatch'
 import type { WakePayload, FullPushPayload } from '../types'
 import { publishNostrEvent } from '../lib/nostr-events'
 import { withRetry, isRetryableError } from '../lib/retry'
 import { getCircuitBreaker } from '../lib/circuit-breaker'
 import { incCounter } from './metrics'
+import type { Services } from '../services'
 
 const conversations = new Hono<AppEnv>()
 
 /** Dispatch push notification to a specific volunteer (Epic 86) */
 function dispatchPushToVolunteer(
   env: AppEnv['Bindings'],
+  services: Services,
   volunteerPubkey: string,
   wake: WakePayload,
   full: FullPushPayload,
 ): void {
   try {
-    const dos = getDOs(env)
-    const dispatcher = createPushDispatcher(env, dos.identity, dos.shifts)
+    const dispatcher = createPushDispatcherFromService(env, services.identity, services.shifts)
     dispatcher.sendToVolunteer(volunteerPubkey, wake, full).catch((e) => {
       console.error('[conversations] Push dispatch to volunteer failed:', e)
     })
@@ -295,7 +296,6 @@ conversations.post('/:id/messages',
   validator('json', sendMessageBodySchema),
   async (c) => {
     const services = c.get('services')
-    const dos = getDOs(c.env)
     const id = c.req.param('id')
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
@@ -319,7 +319,11 @@ conversations.post('/:id/messages',
     let sendFailed = false
     if (body.plaintextForSending && conv.channelType !== 'web') {
       try {
-        const adapter = await getMessagingAdapter(conv.channelType as 'sms' | 'whatsapp' | 'signal', dos, c.env.HMAC_SECRET)
+        const adapter = await getMessagingAdapterFromService(
+          conv.channelType as 'sms' | 'whatsapp' | 'signal',
+          services.settings,
+          c.env.HMAC_SECRET,
+        )
         // Fetch the actual contact identifier from the service (server-side only)
         const identifier = await services.conversations.getContactIdentifier(id)
 
@@ -522,7 +526,7 @@ conversations.post('/:id/claim',
     }).catch((e) => { console.error('[conversations] Failed to publish event:', e) })
 
     // Push notification to assigned volunteer (Epic 86)
-    dispatchPushToVolunteer(c.env, pubkey, {
+    dispatchPushToVolunteer(c.env, services, pubkey, {
       type: 'assignment',
       conversationId: id,
       channelType: conv.channelType,

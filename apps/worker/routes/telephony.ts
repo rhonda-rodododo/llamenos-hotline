@@ -11,7 +11,6 @@ import { audit } from '../services/audit'
 import { startParallelRinging } from '../services/ringing'
 import { maybeTranscribe, transcribeVoicemail } from '../services/transcription'
 import { createLogger } from '../lib/logger'
-import { getScopedDOs } from '../lib/do-access'
 
 const logger = createLogger('telephony')
 
@@ -154,9 +153,7 @@ telephony.post('/language-selected', async (c) => {
   if (!rateLimited && !spamSettings.voiceCaptchaEnabled) {
     const origin = new URL(c.req.url).origin
     logger.info('Starting parallel ringing', { callSid, origin, hubId: hubId || 'global' })
-    // startParallelRinging still uses DOs internally — pass scoped DOs
-    const dos = getScopedDOs(c.env, hubId)
-    c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, c.env, dos, hubId))
+    c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, c.env, services, hubId))
   }
 
   return telephonyResponse(response)
@@ -179,9 +176,7 @@ telephony.post('/captcha', async (c) => {
 
   if (match) {
     const origin = new URL(c.req.url).origin
-    // startParallelRinging still uses DOs internally — pass scoped DOs
-    const dos = getScopedDOs(c.env, hubId)
-    c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, c.env, dos, hubId))
+    c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, c.env, services, hubId))
   }
 
   return telephonyResponse(response)
@@ -343,16 +338,8 @@ telephony.post('/call-recording', async (c) => {
     }
 
     if (recordingSid) {
-      // Persist recording SID on the call record
-      // Note: the call is already ended by this point, so this targets call_records
-      // We still use updateMetadata which operates on active_calls — the record is already in call_records
-      // For now, skip metadata update since endCall already moved it to call_records
-      // TODO: add updateCallRecordMetadata to CallsService for post-end metadata updates
-
-      // maybeTranscribe still uses DOs internally
-      const dos = getScopedDOs(c.env, hubId)
       c.executionCtx.waitUntil(
-        maybeTranscribe(parentCallSid, recordingSid, pubkey, c.env, dos)
+        maybeTranscribe(parentCallSid, recordingSid, pubkey, c.env, services)
       )
     }
   }
@@ -374,9 +361,7 @@ telephony.post('/voicemail-recording', async (c) => {
 
     await audit(services.audit, 'voicemailReceived', 'system', { callSid }, { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET })
 
-    // transcribeVoicemail still uses DOs internally
-    const dos = getScopedDOs(c.env, hubId)
-    c.executionCtx.waitUntil(transcribeVoicemail(callSid, c.env, dos))
+    c.executionCtx.waitUntil(transcribeVoicemail(callSid, c.env, services))
   }
 
   return telephonyResponse(adapter.emptyResponse())

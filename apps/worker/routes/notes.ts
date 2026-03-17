@@ -2,7 +2,6 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { describeRoute, resolver, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getScopedDOs } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import { listNotesQuerySchema, createNoteBodySchema, updateNoteBodySchema, createReplyBodySchema, noteResponseSchema } from '@protocol/schemas/notes'
 import { okResponseSchema, paginatedMeta } from '@protocol/schemas/common'
@@ -99,19 +98,11 @@ notes.post('/',
     const caseId = looseBody.caseId as string | undefined
     const interactionTypeHash = looseBody.interactionTypeHash as string | undefined
     if (caseId && interactionTypeHash) {
-      const dos = getScopedDOs(c.env, c.get('hubId'))
-      dos.caseManager.fetch(new Request(
-        `http://do/records/${caseId}/interactions`,
-        {
-          method: 'POST',
-          headers: { 'x-pubkey': pubkey },
-          body: JSON.stringify({
-            interactionType: 'note',
-            sourceId: note.id,
-            interactionTypeHash,
-          }),
-        },
-      )).catch((e) => { console.error('[notes] Failed to create case interaction:', e) })
+      services.cases.createInteraction(caseId, pubkey, {
+        interactionType: 'note',
+        sourceId: note.id,
+        interactionTypeHash,
+      }).catch((e) => { console.error('[notes] Failed to create case interaction:', e) })
     }
 
     return c.json(note, 201)

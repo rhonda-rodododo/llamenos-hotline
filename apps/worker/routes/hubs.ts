@@ -5,7 +5,6 @@ import { requirePermission, checkPermission } from '../middleware/permission-gua
 import { createHubBodySchema, updateHubBodySchema, addHubMemberBodySchema, hubKeyEnvelopesBodySchema } from '@protocol/schemas/hubs'
 import { okResponseSchema } from '@protocol/schemas/common'
 import { authErrors, notFoundError } from '../openapi/helpers'
-import { getDOs } from '../lib/do-access'
 import type { Hub } from '@shared/types'
 
 const routes = new Hono<AppEnv>()
@@ -21,13 +20,11 @@ routes.get('/',
     },
   }),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const volunteer = c.get('volunteer')
     const permissions = c.get('permissions')
 
-    const res = await dos.settings.fetch(new Request('http://do/settings/hubs'))
-    if (!res.ok) return c.json({ hubs: [] })
-    const { hubs } = await res.json() as { hubs: Hub[] }
+    const { hubs } = await services.settings.getHubs()
 
     // Super admin sees all
     if (checkPermission(permissions, '*')) {
@@ -53,8 +50,8 @@ routes.post('/',
   requirePermission('system:manage-hubs'),
   validator('json', createHubBodySchema),
   async (c) => {
-    const dos = getDOs(c.env)
     const pubkey = c.get('pubkey')
+    const services = c.get('services')
     const body = c.req.valid('json')
 
     const hub: Hub = {
@@ -69,14 +66,11 @@ routes.post('/',
       updatedAt: new Date().toISOString(),
     }
 
-    const res = await dos.settings.fetch(new Request('http://do/settings/hubs', {
-      method: 'POST',
-      body: JSON.stringify(hub),
-    }))
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to create hub' }))
-      return c.json(err, 500)
+    try {
+      await services.settings.createHub(hub)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create hub'
+      return c.json({ error: message }, 500)
     }
 
     return c.json({ hub })
@@ -96,23 +90,24 @@ routes.get('/:hubId',
   }),
   async (c) => {
     const hubId = c.req.param('hubId')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const volunteer = c.get('volunteer')
     const permissions = c.get('permissions')
 
-    const res = await dos.settings.fetch(new Request(`http://do/settings/hub/${hubId}`))
-    if (!res.ok) return c.json({ error: 'Hub not found' }, 404)
+    try {
+      const { hub } = await services.settings.getHub(hubId)
 
-    const { hub } = await res.json() as { hub: Hub }
+      // Check access
+      const isSuperAdmin = checkPermission(permissions, '*')
+      const hasHubAccess = (volunteer.hubRoles || []).some(hr => hr.hubId === hubId)
+      if (!isSuperAdmin && !hasHubAccess) {
+        return c.json({ error: 'Access denied' }, 403)
+      }
 
-    // Check access
-    const isSuperAdmin = checkPermission(permissions, '*')
-    const hasHubAccess = (volunteer.hubRoles || []).some(hr => hr.hubId === hubId)
-    if (!isSuperAdmin && !hasHubAccess) {
-      return c.json({ error: 'Access denied' }, 403)
+      return c.json({ hub })
+    } catch {
+      return c.json({ error: 'Hub not found' }, 404)
     }
-
-    return c.json({ hub })
   },
 )
 
@@ -131,17 +126,15 @@ routes.patch('/:hubId',
   validator('json', updateHubBodySchema),
   async (c) => {
     const hubId = c.req.param('hubId')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.settings.fetch(new Request(`http://do/settings/hub/${hubId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }))
-
-    if (!res.ok) return c.json({ error: 'Failed to update hub' }, 500)
-    const result = await res.json()
-    return c.json(result)
+    try {
+      const result = await services.settings.updateHub(hubId, body)
+      return c.json(result)
+    } catch {
+      return c.json({ error: 'Failed to update hub' }, 500)
+    }
   },
 )
 
@@ -159,16 +152,19 @@ routes.post('/:hubId/members',
   validator('json', addHubMemberBodySchema),
   async (c) => {
     const hubId = c.req.param('hubId')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.identity.fetch(new Request('http://do/identity/hub-role', {
-      method: 'POST',
-      body: JSON.stringify({ pubkey: body.pubkey, hubId, roleIds: body.roleIds }),
-    }))
-
-    if (!res.ok) return c.json({ error: 'Failed to add member' }, 500)
-    return c.json(await res.json())
+    try {
+      const result = await services.identity.setHubRole({
+        pubkey: body.pubkey,
+        hubId,
+        roleIds: body.roleIds,
+      })
+      return c.json(result)
+    } catch {
+      return c.json({ error: 'Failed to add member' }, 500)
+    }
   },
 )
 
@@ -193,15 +189,14 @@ routes.delete('/:hubId/members/:pubkey',
   async (c) => {
     const hubId = c.req.param('hubId')
     const pubkey = c.req.param('pubkey')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
 
-    const res = await dos.identity.fetch(new Request('http://do/identity/hub-role', {
-      method: 'DELETE',
-      body: JSON.stringify({ pubkey, hubId }),
-    }))
-
-    if (!res.ok) return c.json({ error: 'Failed to remove member' }, 500)
-    return c.json({ ok: true })
+    try {
+      await services.identity.removeHubRole({ pubkey, hubId })
+      return c.json({ ok: true })
+    } catch {
+      return c.json({ error: 'Failed to remove member' }, 500)
+    }
   },
 )
 
@@ -221,20 +216,19 @@ routes.get('/:hubId/key',
   async (c) => {
     const hubId = c.req.param('hubId')
     const pubkey = c.get('pubkey')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
 
-    const res = await dos.settings.fetch(new Request(`http://do/settings/hub/${hubId}/key`))
-    if (!res.ok) return c.json({ error: 'Hub not found' }, 404)
+    try {
+      const { envelopes } = await services.settings.getHubKeyEnvelopes(hubId)
 
-    const { envelopes } = await res.json() as {
-      envelopes: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
+      // Return only the envelope for this user
+      const myEnvelope = envelopes.find(e => e.pubkey === pubkey)
+      if (!myEnvelope) return c.json({ error: 'No key envelope for this user' }, 404)
+
+      return c.json({ envelope: myEnvelope })
+    } catch {
+      return c.json({ error: 'Hub not found' }, 404)
     }
-
-    // Return only the envelope for this user
-    const myEnvelope = envelopes.find(e => e.pubkey === pubkey)
-    if (!myEnvelope) return c.json({ error: 'No key envelope for this user' }, 404)
-
-    return c.json({ envelope: myEnvelope })
   },
 )
 
@@ -260,20 +254,17 @@ routes.put('/:hubId/key',
   validator('json', hubKeyEnvelopesBodySchema),
   async (c) => {
     const hubId = c.req.param('hubId')
-    const dos = getDOs(c.env)
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    const res = await dos.settings.fetch(new Request(`http://do/settings/hub/${hubId}/key`, {
-      method: 'PUT',
-      body: JSON.stringify(body),
-    }))
-
-    if (!res.ok) {
-      const err = await res.text()
-      return c.json({ error: err }, res.status as 404 | 500)
+    try {
+      await services.settings.setHubKeyEnvelopes(hubId, body)
+      return c.json({ ok: true })
+    } catch (err) {
+      const status = (err as { status?: number }).status ?? 500
+      const message = err instanceof Error ? err.message : 'Failed to set hub key'
+      return c.json({ error: message }, status as 404 | 500)
     }
-
-    return c.json({ ok: true })
   },
 )
 

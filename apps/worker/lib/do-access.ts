@@ -216,6 +216,47 @@ export async function getMessagingAdapter(
   }
 }
 
+/**
+ * Get a MessagingAdapter for the specified channel (service-based version).
+ * Uses SettingsService instead of DO stubs.
+ */
+export async function getMessagingAdapterFromService(
+  channel: MessagingChannelType,
+  settingsService: {
+    getMessagingConfig(): Promise<MessagingConfig>
+    getTelephonyProvider(): Promise<TelephonyProviderConfig | null>
+  },
+  hmacSecret: string,
+): Promise<MessagingAdapter> {
+  const config = await settingsService.getMessagingConfig()
+  if (!config || !config.enabledChannels.includes(channel)) {
+    throw new Error(`${channel} channel is not enabled`)
+  }
+
+  switch (channel) {
+    case 'sms': {
+      if (!config.sms?.enabled) throw new Error('SMS is not enabled')
+      const telConfig = await settingsService.getTelephonyProvider()
+      if (!telConfig) throw new Error('SMS requires a configured telephony provider')
+      return createSMSAdapter(telConfig, config.sms, hmacSecret)
+    }
+    case 'whatsapp': {
+      if (!config.whatsapp) throw new Error('WhatsApp is not configured')
+      return createWhatsAppAdapter(config.whatsapp, hmacSecret)
+    }
+    case 'signal': {
+      if (!config.signal) throw new Error('Signal is not configured')
+      return createSignalAdapter(config.signal, hmacSecret)
+    }
+    case 'rcs': {
+      if (!config.rcs) throw new Error('RCS is not configured')
+      return createRCSAdapter(config.rcs, hmacSecret)
+    }
+    default:
+      throw new Error(`Unknown channel: ${channel}`)
+  }
+}
+
 // --- Nostr Publisher (Epic 76.1) ---
 
 let cachedPublisher: NostrPublisher | null = null

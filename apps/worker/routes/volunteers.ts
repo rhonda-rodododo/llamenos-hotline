@@ -2,11 +2,9 @@ import { Hono } from 'hono'
 import { describeRoute, resolver, validator } from 'hono-openapi'
 import { z } from 'zod'
 import type { AppEnv } from '../types'
-import { getDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
 import { createVolunteerBodySchema, adminUpdateVolunteerBodySchema, volunteerResponseSchema } from '@protocol/schemas/volunteers'
 import { okResponseSchema } from '@protocol/schemas/common'
-import type { CaseRecord } from '@protocol/schemas/records'
 import { authErrors, notFoundError } from '../openapi/helpers'
 import { audit } from '../services/audit'
 
@@ -177,10 +175,7 @@ volunteers.delete('/:targetPubkey',
 /**
  * GET /volunteers/:pubkey/cases
  *
- * List case records assigned to a volunteer. Queries CaseDO using the
- * idx:assigned:{pubkey}: prefix index for efficient lookup. Uses the
- * global (non-hub-scoped) CaseManager — hub-scoped queries would need
- * a different approach.
+ * List case records assigned to a volunteer via CasesService.
  */
 volunteers.get('/:targetPubkey/cases',
   describeRoute({
@@ -194,23 +189,24 @@ volunteers.get('/:targetPubkey/cases',
   }),
   async (c) => {
     const services = c.get('services')
-    const dos = getDOs(c.env)
     const targetPubkey = c.req.param('targetPubkey')
 
     // Verify volunteer exists (throws 404 if not found)
     await services.identity.getVolunteer(targetPubkey)
 
-    // Query CaseDO for records assigned to this volunteer
-    const qs = new URLSearchParams({
-      page: c.req.query('page') ?? '1',
-      limit: c.req.query('limit') ?? '20',
-      assignedTo: targetPubkey,
-    })
+    const page = parseInt(c.req.query('page') ?? '1', 10)
+    const limit = parseInt(c.req.query('limit') ?? '20', 10)
     const entityTypeId = c.req.query('entityTypeId')
-    if (entityTypeId) qs.set('entityTypeId', entityTypeId)
 
-    const res = await dos.caseManager.fetch(new Request(`http://do/records?${qs}`))
-    return new Response(res.body, res)
+    const result = await services.cases.list({
+      hubId: '',
+      page,
+      limit,
+      assignedTo: targetPubkey,
+      entityTypeId,
+    })
+
+    return c.json(result)
   },
 )
 
@@ -218,8 +214,7 @@ volunteers.get('/:targetPubkey/cases',
  * GET /volunteers/:pubkey/metrics
  *
  * Volunteer workload metrics: active case count, total cases handled,
- * and average resolution days. This avoids making the volunteer list
- * endpoint expensive by providing per-volunteer metrics on demand.
+ * and average resolution days.
  */
 volunteers.get('/:targetPubkey/metrics',
   describeRoute({
@@ -245,24 +240,20 @@ volunteers.get('/:targetPubkey/metrics',
   }),
   async (c) => {
     const services = c.get('services')
-    const dos = getDOs(c.env)
     const targetPubkey = c.req.param('targetPubkey')
 
     // Verify volunteer exists (throws 404 if not found)
     await services.identity.getVolunteer(targetPubkey)
 
-    // Fetch all records assigned to this volunteer (use a high limit to get all)
-    const qs = new URLSearchParams({
-      page: '1',
-      limit: '1000',
+    // Get all records assigned to this volunteer
+    const result = await services.cases.list({
+      hubId: '',
+      page: 1,
+      limit: 1000,
       assignedTo: targetPubkey,
     })
-    const recordsRes = await dos.caseManager.fetch(new Request(`http://do/records?${qs}`))
-    if (!recordsRes.ok) {
-      return c.json({ pubkey: targetPubkey, activeCaseCount: 0, totalCasesHandled: 0, averageResolutionDays: null })
-    }
 
-    const { records } = await recordsRes.json() as { records: CaseRecord[] }
+    const records = result.records
     const totalCasesHandled = records.length
     const closedRecords = records.filter(r => r.closedAt)
     const activeRecords = records.filter(r => !r.closedAt)

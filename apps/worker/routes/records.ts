@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { describeRoute, validator } from 'hono-openapi'
 import type { AppEnv, Volunteer } from '../types'
-import { getMessagingAdapter, getScopedDOs } from '../lib/do-access'
+import { getMessagingAdapterFromService } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import {
   createRecordBodySchema,
@@ -931,14 +931,11 @@ records.post('/:id/notify-contacts',
     // Verify record exists (throws ServiceError 404 if not)
     await services.cases.get(id)
 
-    // getMessagingAdapter still uses DO stubs — pass scoped DOs
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-
     const results: NotificationResultItem[] = []
 
     for (const recipient of body.recipients) {
       try {
-        const adapter = await getMessagingAdapter(recipient.channel, dos, c.env.HMAC_SECRET)
+        const adapter = await getMessagingAdapterFromService(recipient.channel, services.settings, c.env.HMAC_SECRET)
         const sendResult = await adapter.sendMessage({
           recipientIdentifier: recipient.identifier,
           body: recipient.message,

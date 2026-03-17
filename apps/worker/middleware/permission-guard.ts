@@ -1,7 +1,6 @@
 import { createMiddleware } from 'hono/factory'
 import type { AppEnv } from '../types'
 import { permissionGranted } from '@shared/permissions'
-import { getDOs } from '../lib/do-access'
 import type { EntityTypeDefinition } from '@protocol/schemas/entity-schema'
 
 /**
@@ -67,14 +66,13 @@ export function requireEntityTypeAccess(action: 'read' | 'write') {
     const entityTypeId = c.req.param('entityTypeId') ?? c.req.query('entityTypeId')
     if (!entityTypeId) return next() // No entity type context, skip
 
-    const dos = getDOs(c.env)
-    const res = await dos.settings.fetch(
-      new Request(`http://do/settings/cms/entity-types/${entityTypeId}`),
-    )
-    if (!res.ok) {
+    const services = c.get('services')
+    let entityType: EntityTypeDefinition
+    try {
+      entityType = await services.settings.getEntityTypeById(entityTypeId)
+    } catch {
       return c.json({ error: 'Entity type not found' }, 404)
     }
-    const entityType = await res.json() as EntityTypeDefinition
 
     const permissions = c.get('permissions')
     const volunteer = c.get('volunteer')

@@ -8,6 +8,8 @@
  */
 
 import type { Env, DeviceRecord, WakePayload, FullPushPayload, DOStub } from '../types'
+import type { IdentityService } from '../services/identity'
+import type { ShiftsService } from '../services/shifts'
 import { encryptWakePayload, encryptFullPayload } from './push-encryption'
 import { FcmClient } from './fcm-client'
 
@@ -45,6 +47,25 @@ export function createPushDispatcher(env: Env, identityDO: DOStub, shiftsDO: DOS
   }
 
   return new LivePushDispatcher(env, identityDO, shiftsDO, hasApns, hasFcm)
+}
+
+/**
+ * Create a PushDispatcher from services (no DO stubs).
+ * Returns a no-op dispatcher if push credentials aren't configured.
+ */
+export function createPushDispatcherFromService(
+  env: Env,
+  identityService: IdentityService,
+  shiftsService: ShiftsService,
+): PushDispatcher {
+  const hasApns = !!(env.APNS_KEY_P8 && env.APNS_KEY_ID && env.APNS_TEAM_ID)
+  const hasFcm = !!env.FCM_SERVICE_ACCOUNT_KEY
+
+  if (!hasApns && !hasFcm) {
+    return new NoopPushDispatcher()
+  }
+
+  return new ServicePushDispatcher(env, identityService, shiftsService, hasApns, hasFcm)
 }
 
 class NoopPushDispatcher implements PushDispatcher {
@@ -207,6 +228,138 @@ class LivePushDispatcher implements PushDispatcher {
         body: JSON.stringify({ tokens }),
       }),
     )
+  }
+}
+
+/**
+ * Service-based push dispatcher — uses IdentityService and ShiftsService directly.
+ */
+class ServicePushDispatcher implements PushDispatcher {
+  private fcmClient: FcmClient | null = null
+
+  constructor(
+    private env: Env,
+    private identityService: IdentityService,
+    private shiftsService: ShiftsService,
+    private hasApns: boolean,
+    private hasFcm: boolean,
+  ) {
+    if (hasFcm && env.FCM_SERVICE_ACCOUNT_KEY) {
+      this.fcmClient = new FcmClient(env.FCM_SERVICE_ACCOUNT_KEY)
+    }
+  }
+
+  async sendToVolunteer(
+    volunteerPubkey: string,
+    wakePayload: WakePayload,
+    fullPayload: FullPushPayload,
+  ): Promise<void> {
+    const { devices: deviceList } = await this.identityService.getDevices(volunteerPubkey)
+    if (deviceList.length === 0) return
+
+    const staleTokens: string[] = []
+
+    for (const device of deviceList) {
+      const encryptedWake = encryptWakePayload(wakePayload, device.wakeKeyPublic)
+      const encryptedFull = encryptFullPayload(fullPayload, volunteerPubkey)
+
+      const success = await this.sendToDevice(device, encryptedWake, encryptedFull, wakePayload)
+      if (!success) {
+        staleTokens.push(device.pushToken)
+      }
+    }
+
+    if (staleTokens.length > 0) {
+      await this.identityService.cleanupDevices(volunteerPubkey, staleTokens)
+    }
+  }
+
+  async sendToAllOnShift(
+    wakePayload: WakePayload,
+    fullPayload: FullPushPayload,
+  ): Promise<void> {
+    const pubkeys = await this.shiftsService.getCurrentVolunteers('')
+    await Promise.allSettled(
+      pubkeys.map(pk => this.sendToVolunteer(pk, wakePayload, fullPayload)),
+    )
+  }
+
+  private async sendToDevice(
+    device: DeviceRecord,
+    encryptedWake: string,
+    encryptedFull: string,
+    wake: WakePayload,
+  ): Promise<boolean> {
+    if (device.platform === 'ios' && this.hasApns) {
+      return this.sendApns(device.pushToken, encryptedWake, encryptedFull, wake)
+    }
+    if (device.platform === 'android' && this.fcmClient) {
+      return this.sendFcm(device.pushToken, encryptedWake, encryptedFull, wake)
+    }
+    return true
+  }
+
+  private async sendApns(
+    deviceToken: string,
+    encryptedWake: string,
+    encryptedFull: string,
+    wake: WakePayload,
+  ): Promise<boolean> {
+    const { ApnsClient, Notification } = await import(
+      '@fivesheepco/cloudflare-apns2'
+    )
+
+    const apns = new ApnsClient({
+      team: this.env.APNS_TEAM_ID!,
+      keyId: this.env.APNS_KEY_ID!,
+      signingKey: this.env.APNS_KEY_P8!,
+      defaultTopic: APNS_BUNDLE_ID,
+    })
+
+    const notification = new Notification(deviceToken, {
+      alert: { title: notificationTitle(wake), body: notificationBody(wake) },
+      badge: 1,
+      sound: 'default',
+      mutableContent: true,
+      category: notificationCategory(wake),
+      data: {
+        encrypted: encryptedWake,
+        encryptedFull,
+      },
+    })
+
+    try {
+      await apns.send(notification)
+      return true
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error)
+      if (errMsg.includes('410') || errMsg.includes('BadDeviceToken') || errMsg.includes('Unregistered')) {
+        return false
+      }
+      return true
+    }
+  }
+
+  private async sendFcm(
+    deviceToken: string,
+    encryptedWake: string,
+    encryptedFull: string,
+    wake: WakePayload,
+  ): Promise<boolean> {
+    if (!this.fcmClient) return true
+
+    return this.fcmClient.send({
+      token: deviceToken,
+      data: {
+        encrypted: encryptedWake,
+        encryptedFull,
+        type: wake.type,
+      },
+      channelId: notificationChannel(wake),
+      title: notificationTitle(wake),
+      body: notificationBody(wake),
+      priority: wake.type === 'shift_reminder' ? 'normal' : 'high',
+    })
   }
 }
 

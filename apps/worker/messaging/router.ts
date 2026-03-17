@@ -2,13 +2,12 @@ import { Hono } from 'hono'
 import type { AppEnv, Env, Volunteer } from '../types'
 import type { MessagingChannelType, MessagingConfig, WhatsAppConfig } from '@shared/types'
 import type { MessagingAdapter, IncomingMessage, MessageStatusUpdate } from './adapter'
-import { getDOs, getScopedDOs } from '../lib/do-access'
-import { getMessagingAdapter } from '../lib/do-access'
+import { getMessagingAdapterFromService } from '../lib/do-access'
 import { audit } from '../services/audit'
 import { canClaimChannel } from '@shared/permissions'
 import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '@shared/nostr-events'
 import { publishNostrEvent } from '../lib/nostr-events'
-import { createPushDispatcher } from '../lib/push-dispatch'
+import { createPushDispatcherFromService } from '../lib/push-dispatch'
 import { createLogger } from '../lib/logger'
 import type { Services } from '../services'
 
@@ -31,15 +30,12 @@ messaging.get('/whatsapp/webhook', async (c) => {
   }
 
   // Read WhatsApp config to check verify token
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   try {
-    const res = await dos.settings.fetch(new Request('http://do/settings/messaging'))
-    if (res.ok) {
-      const config = await res.json() as MessagingConfig | null
-      const waConfig = config?.whatsapp as WhatsAppConfig | null
-      if (waConfig?.verifyToken && token === waConfig.verifyToken) {
-        return c.text(challenge)
-      }
+    const config = await services.settings.getMessagingConfig()
+    const waConfig = config?.whatsapp as WhatsAppConfig | null
+    if (waConfig?.verifyToken && token === waConfig.verifyToken) {
+      return c.text(challenge)
     }
   } catch { /* fall through */ }
 
@@ -74,12 +70,11 @@ messaging.post('/:channel/webhook', async (c) => {
   // Hub-scoped routing: read hubId from query param, fall back to global
   const url = new URL(c.req.url)
   const hubId = url.searchParams.get('hub') || undefined
-  const dos = getScopedDOs(c.env, hubId)
   const services = c.get('services')
 
   let adapter: MessagingAdapter
   try {
-    adapter = await getMessagingAdapter(channel, dos, c.env.HMAC_SECRET)
+    adapter = await getMessagingAdapterFromService(channel, services.settings, c.env.HMAC_SECRET)
   } catch {
     return c.json({ error: `${channel} channel is not configured` }, 404)
   }
@@ -163,7 +158,7 @@ messaging.post('/:channel/webhook', async (c) => {
   // Auto-assignment for new conversations
   if (convResult.isNew && convResult.status === 'waiting') {
     c.executionCtx.waitUntil(
-      tryAutoAssign(dos, services, c.env, convResult.conversationId, channel, c.env.ADMIN_PUBKEY)
+      tryAutoAssign(services, c.env, convResult.conversationId, channel, c.env.ADMIN_PUBKEY)
     )
   }
 
@@ -174,8 +169,7 @@ messaging.post('/:channel/webhook', async (c) => {
         // Fetch the conversation to get the assigned volunteer
         const conv = await services.conversations.getById(convResult.conversationId)
         if (conv.assignedTo) {
-          const globalDOs = getDOs(c.env)
-          const dispatcher = createPushDispatcher(c.env, globalDOs.identity, globalDOs.shifts)
+          const dispatcher = createPushDispatcherFromService(c.env, services.identity, services.shifts)
           await dispatcher.sendToVolunteer(conv.assignedTo, {
             type: 'message',
             conversationId: convResult.conversationId,
@@ -209,7 +203,6 @@ messaging.post('/:channel/webhook', async (c) => {
  * This runs in background via executionCtx.waitUntil() to not delay webhook response.
  */
 async function tryAutoAssign(
-  dos: ReturnType<typeof getScopedDOs>,
   services: Services,
   env: Env,
   conversationId: string,
@@ -218,26 +211,17 @@ async function tryAutoAssign(
 ): Promise<void> {
   try {
     // 1. Check if auto-assign is enabled
-    const settingsRes = await dos.settings.fetch(new Request('http://do/settings/messaging'))
-    if (!settingsRes.ok) return
-
-    const messagingConfig = await settingsRes.json() as MessagingConfig | null
+    const messagingConfig = await services.settings.getMessagingConfig()
     if (!messagingConfig?.autoAssign) return
 
     const maxConcurrent = messagingConfig.maxConcurrentPerVolunteer || 3
 
     // 2. Get current on-shift volunteers
-    const shiftRes = await dos.shifts.fetch(new Request('http://do/current-volunteers'))
-    if (!shiftRes.ok) return
-
-    const { pubkeys: onShiftPubkeys } = await shiftRes.json() as { pubkeys: string[] }
+    const onShiftPubkeys = await services.shifts.getCurrentVolunteers('')
     if (onShiftPubkeys.length === 0) return
 
     // 3. Get volunteer details to filter by channel capability
-    const volRes = await dos.identity.fetch(new Request('http://do/volunteers'))
-    if (!volRes.ok) return
-
-    const { volunteers } = await volRes.json() as { volunteers: Volunteer[] }
+    const { volunteers } = await services.identity.getVolunteers()
     const onShiftVolunteers = volunteers.filter(v =>
       onShiftPubkeys.includes(v.pubkey) &&
       v.active &&

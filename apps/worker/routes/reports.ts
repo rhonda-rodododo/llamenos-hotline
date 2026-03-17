@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { describeRoute, resolver, validator } from 'hono-openapi'
 import type { AppEnv } from '../types'
-import { getScopedDOs } from '../lib/do-access'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import { listReportsQuerySchema, createReportBodySchema, reportMessageBodySchema, assignReportBodySchema, updateReportBodySchema } from '@protocol/schemas/reports'
 import { paginationSchema } from '@protocol/schemas/common'
@@ -52,22 +51,18 @@ reports.get('/',
 
     // Triage queue filtering: only reports whose report type allows case conversion
     if (query.conversionEnabled) {
-      const dos = getScopedDOs(c.env, hubId)
-      const rtRes = await dos.settings.fetch(new Request('http://do/settings/cms-report-types'))
-      if (rtRes.ok) {
-        const rtData = await rtRes.json() as { reportTypes: Array<{ id: string; allowCaseConversion: boolean }> }
-        const conversionTypeIds = new Set(
-          rtData.reportTypes.filter(rt => rt.allowCaseConversion).map(rt => rt.id),
-        )
-        data = {
-          conversations: data.conversations.filter(
-            conv => (conv.metadata as Record<string, unknown> | null)?.reportTypeId &&
-              conversionTypeIds.has((conv.metadata as Record<string, unknown>).reportTypeId as string),
-          ),
-          total: 0,
-        }
-        data.total = data.conversations.length
+      const { reportTypes } = await services.settings.getCmsReportTypes()
+      const conversionTypeIds = new Set(
+        reportTypes.filter(rt => rt.allowCaseConversion).map(rt => rt.id),
+      )
+      data = {
+        conversations: data.conversations.filter(
+          conv => (conv.metadata as Record<string, unknown> | null)?.reportTypeId &&
+            conversionTypeIds.has((conv.metadata as Record<string, unknown>).reportTypeId as string),
+        ),
+        total: 0,
       }
+      data.total = data.conversations.length
     }
 
     // Filter by conversion status if specified
@@ -162,12 +157,13 @@ reports.get('/categories',
   }),
   requirePermission('reports:create'),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.settings.fetch(new Request('http://do/settings/report-categories'))
-    if (!res.ok) {
+    const services = c.get('services')
+    try {
+      const result = await services.settings.getReportCategories()
+      return c.json(result)
+    } catch {
       return c.json({ categories: [] })
     }
-    return new Response(res.body, res)
   },
 )
 
@@ -183,19 +179,19 @@ reports.get('/types',
     },
   }),
   async (c) => {
-    const dos = getScopedDOs(c.env, c.get('hubId'))
-    const res = await dos.settings.fetch(new Request('http://do/settings/report-types'))
-    if (!res.ok) {
+    const services = c.get('services')
+    try {
+      let { reportTypes } = await services.settings.getReportTypes()
+      // Filter out archived types for non-admin callers
+      const permissions = c.get('permissions')
+      const isAdmin = checkPermission(permissions, 'settings:manage-fields')
+      if (!isAdmin) {
+        reportTypes = reportTypes.filter(rt => !rt.isArchived)
+      }
+      return c.json({ reportTypes })
+    } catch {
       return c.json({ reportTypes: [] })
     }
-    const data = await res.json() as { reportTypes: import('@shared/types').ReportType[] }
-    // Filter out archived types for non-admin callers
-    const permissions = c.get('permissions')
-    const isAdmin = checkPermission(permissions, 'settings:manage-fields')
-    if (!isAdmin) {
-      data.reportTypes = data.reportTypes.filter(rt => !rt.isArchived)
-    }
-    return c.json(data)
   },
 )
 
@@ -485,12 +481,10 @@ reports.get('/:id/records',
     }
 
     const reportId = c.req.param('id')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.caseManager.fetch(
-      new Request(`http://do/reports/${reportId}/records`),
-    )
-    return new Response(res.body, res)
+    const result = await services.cases.listReportCases(reportId)
+    return c.json(result)
   },
 )
 
@@ -511,30 +505,17 @@ reports.post('/:id/records',
   async (c) => {
     const reportId = c.req.param('id')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
     const body = c.req.valid('json')
 
-    // Delegate to the canonical CaseDO handler (same storage, from record side)
-    const res = await dos.caseManager.fetch(
-      new Request(`http://do/records/${body.caseId}/reports`, {
-        method: 'POST',
-        headers: { 'x-pubkey': pubkey },
-        body: JSON.stringify({
-          reportId,
-          encryptedNotes: body.encryptedNotes,
-          notesEnvelopes: body.notesEnvelopes,
-        }),
-      }),
-    )
+    const result = await services.cases.linkReportCase(body.caseId, reportId, pubkey)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'caseLinkedToReport', pubkey, {
+    await audit(services.audit, 'caseLinkedToReport', pubkey, {
       reportId,
       caseId: body.caseId,
     })
 
-    return new Response(res.body, { ...res, status: 201 })
+    return c.json(result, 201)
   },
 )
 
@@ -554,20 +535,16 @@ reports.delete('/:id/records/:caseId',
     const reportId = c.req.param('id')
     const caseId = c.req.param('caseId')
     const pubkey = c.get('pubkey')
-    const dos = getScopedDOs(c.env, c.get('hubId'))
+    const services = c.get('services')
 
-    const res = await dos.caseManager.fetch(
-      new Request(`http://do/records/${caseId}/reports/${reportId}`, { method: 'DELETE' }),
-    )
+    await services.cases.unlinkReportCase(caseId, reportId)
 
-    if (!res.ok) return new Response(res.body, res)
-
-    await audit(c.get('services').audit, 'caseUnlinkedFromReport', pubkey, {
+    await audit(services.audit, 'caseUnlinkedFromReport', pubkey, {
       reportId,
       caseId,
     })
 
-    return new Response(res.body, res)
+    return c.json({ ok: true })
   },
 )
 

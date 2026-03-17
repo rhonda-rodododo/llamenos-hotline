@@ -14,6 +14,7 @@
 
 import type { Env, DOStub } from '../types'
 import type { DurableObjects } from '../lib/do-access'
+import type { IdentityService } from '../services/identity'
 import { FcmClient } from './fcm-client'
 
 const APNS_BUNDLE_ID = 'org.llamenos.mobile'
@@ -79,6 +80,40 @@ export async function dispatchVoipPush(
         callerDisplay,
         env,
       ))
+    }
+  }
+
+  await Promise.allSettled(promises)
+}
+
+/**
+ * Dispatch VoIP push using IdentityService instead of DO stubs.
+ */
+export async function dispatchVoipPushFromService(
+  volunteerPubkeys: string[],
+  callId: string,
+  callerDisplay: string,
+  env: Env,
+  identityService: IdentityService,
+): Promise<void> {
+  if (volunteerPubkeys.length === 0) return
+
+  const hasApns = !!(env.APNS_KEY_P8 && env.APNS_KEY_ID && env.APNS_TEAM_ID)
+  const hasFcm = !!env.FCM_SERVICE_ACCOUNT_KEY
+  if (!hasApns && !hasFcm) return
+
+  const { devices: deviceList } = await identityService.getVoipTokens(volunteerPubkeys)
+  if (deviceList.length === 0) return
+
+  console.debug(`[voip-push] Dispatching to ${deviceList.length} devices for call ${callId}`)
+
+  const promises: Promise<void>[] = []
+
+  for (const device of deviceList) {
+    if (device.platform === 'ios' && hasApns) {
+      promises.push(sendApnsVoipPush(device.voipToken, callId, callerDisplay, env))
+    } else if (device.platform === 'android' && hasFcm) {
+      promises.push(sendFcmVoipPush(device.voipToken, callId, callerDisplay, env))
     }
   }
 
