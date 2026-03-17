@@ -230,7 +230,7 @@ messaging.post('/:channel/webhook', async (c) => {
 
   // Audit the incoming message (no PII — only hashed identifier)
   c.executionCtx.waitUntil(
-    audit(dos.records, 'messageReceived', 'system', {
+    audit(c.get('services').audit, 'messageReceived', 'system', {
       channel,
       senderHash: incoming.senderIdentifierHash,
     })

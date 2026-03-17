@@ -120,7 +120,7 @@ contactsV2.post('/',
     if (!res.ok) return new Response(res.body, res)
 
     const contact = await res.json() as { id: string }
-    await audit(dos.records, 'contactCreated', c.get('pubkey'), { contactId: contact.id })
+    await audit(c.get('services').audit, 'contactCreated', c.get('pubkey'), { contactId: contact.id })
     return c.json(contact, 201)
   },
 )
@@ -175,7 +175,7 @@ contactsV2.post('/groups',
     if (!res.ok) return new Response(res.body, res)
 
     const group = await res.json() as { id: string }
-    await audit(dos.records, 'groupCreated', c.get('pubkey'), {
+    await audit(c.get('services').audit, 'groupCreated', c.get('pubkey'), {
       groupId: group.id,
       memberCount: body.members.length,
     })
@@ -228,7 +228,7 @@ contactsV2.patch('/groups/:groupId',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'groupUpdated', c.get('pubkey'), { groupId })
+    await audit(c.get('services').audit, 'groupUpdated', c.get('pubkey'), { groupId })
     return new Response(res.body, res)
   },
 )
@@ -255,7 +255,7 @@ contactsV2.delete('/groups/:groupId',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'groupDeleted', c.get('pubkey'), { groupId })
+    await audit(c.get('services').audit, 'groupDeleted', c.get('pubkey'), { groupId })
     return new Response(res.body, res)
   },
 )
@@ -285,7 +285,7 @@ contactsV2.post('/groups/:groupId/members',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'groupMemberAdded', c.get('pubkey'), {
+    await audit(c.get('services').audit, 'groupMemberAdded', c.get('pubkey'), {
       groupId,
       contactId: body.contactId,
     })
@@ -317,7 +317,7 @@ contactsV2.delete('/groups/:groupId/members/:contactId',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'groupMemberRemoved', c.get('pubkey'), { groupId, contactId })
+    await audit(c.get('services').audit, 'groupMemberRemoved', c.get('pubkey'), { groupId, contactId })
     return new Response(res.body, res)
   },
 )
@@ -372,7 +372,7 @@ contactsV2.patch('/:id',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'contactUpdated', c.get('pubkey'), { contactId: id })
+    await audit(c.get('services').audit, 'contactUpdated', c.get('pubkey'), { contactId: id })
     return new Response(res.body, res)
   },
 )
@@ -399,7 +399,7 @@ contactsV2.delete('/:id',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'contactDeleted', c.get('pubkey'), { contactId: id })
+    await audit(c.get('services').audit, 'contactDeleted', c.get('pubkey'), { contactId: id })
     return new Response(res.body, res)
   },
 )
@@ -435,7 +435,7 @@ contactsV2.post('/:id/relationships',
     if (!res.ok) return new Response(res.body, res)
 
     const relationship = await res.json() as { id: string }
-    await audit(dos.records, 'relationshipCreated', c.get('pubkey'), {
+    await audit(c.get('services').audit, 'relationshipCreated', c.get('pubkey'), {
       relationshipId: relationship.id,
       contactIdA,
       contactIdB: body.contactIdB,
@@ -468,7 +468,7 @@ contactsV2.delete('/:id/relationships/:relId',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'relationshipDeleted', c.get('pubkey'), {
+    await audit(c.get('services').audit, 'relationshipDeleted', c.get('pubkey'), {
       relationshipId: relId,
       contactId,
     })

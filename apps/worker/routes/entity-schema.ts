@@ -63,7 +63,7 @@ entitySchema.put('/case-management',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }))
-    await audit(dos.records, 'caseManagementToggled', c.get('pubkey'), body)
+    await audit(c.get('services').audit, 'caseManagementToggled', c.get('pubkey'), body)
     return new Response(res.body, res)
   },
 )
@@ -105,7 +105,7 @@ entitySchema.put('/auto-assignment',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }))
-    await audit(dos.records, 'autoAssignmentToggled', c.get('pubkey'), body)
+    await audit(c.get('services').audit, 'autoAssignmentToggled', c.get('pubkey'), body)
     return new Response(res.body, res)
   },
 )
@@ -146,7 +146,7 @@ entitySchema.put('/cross-hub',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }))
-    await audit(dos.records, 'crossHubSharingToggled', c.get('pubkey'), body)
+    await audit(c.get('services').audit, 'crossHubSharingToggled', c.get('pubkey'), body)
     return new Response(res.body, res)
   },
 )
@@ -192,7 +192,7 @@ entitySchema.post('/entity-types',
     }))
     if (!res.ok) return new Response(res.body, res)
     const created = await res.json() as { id: string; name: string }
-    await audit(dos.records, 'entityTypeCreated', c.get('pubkey'), { entityTypeId: created.id, name: created.name })
+    await audit(c.get('services').audit, 'entityTypeCreated', c.get('pubkey'), { entityTypeId: created.id, name: created.name })
     return c.json(created, 201)
   },
 )
@@ -219,7 +219,7 @@ entitySchema.patch('/entity-types/:id',
       body: JSON.stringify(body),
     }))
     if (!res.ok) return new Response(res.body, res)
-    await audit(dos.records, 'entityTypeUpdated', c.get('pubkey'), { entityTypeId: id })
+    await audit(c.get('services').audit, 'entityTypeUpdated', c.get('pubkey'), { entityTypeId: id })
     return new Response(res.body, res)
   },
 )
@@ -242,7 +242,7 @@ entitySchema.delete('/entity-types/:id',
       method: 'DELETE',
     }))
     if (!res.ok) return new Response(res.body, res)
-    await audit(dos.records, 'entityTypeDeleted', c.get('pubkey'), { entityTypeId: id })
+    await audit(c.get('services').audit, 'entityTypeDeleted', c.get('pubkey'), { entityTypeId: id })
     return new Response(res.body, res)
   },
 )
@@ -287,7 +287,7 @@ entitySchema.post('/relationship-types',
     }))
     if (!res.ok) return new Response(res.body, res)
     const created = await res.json() as { id: string }
-    await audit(dos.records, 'relationshipTypeCreated', c.get('pubkey'), { relationshipTypeId: created.id })
+    await audit(c.get('services').audit, 'relationshipTypeCreated', c.get('pubkey'), { relationshipTypeId: created.id })
     return c.json(created, 201)
   },
 )
@@ -314,7 +314,7 @@ entitySchema.patch('/relationship-types/:id',
       body: JSON.stringify(body),
     }))
     if (!res.ok) return new Response(res.body, res)
-    await audit(dos.records, 'relationshipTypeUpdated', c.get('pubkey'), { relationshipTypeId: id })
+    await audit(c.get('services').audit, 'relationshipTypeUpdated', c.get('pubkey'), { relationshipTypeId: id })
     return new Response(res.body, res)
   },
 )
@@ -337,7 +337,7 @@ entitySchema.delete('/relationship-types/:id',
       method: 'DELETE',
     }))
     if (!res.ok) return new Response(res.body, res)
-    await audit(dos.records, 'relationshipTypeDeleted', c.get('pubkey'), { relationshipTypeId: id })
+    await audit(c.get('services').audit, 'relationshipTypeDeleted', c.get('pubkey'), { relationshipTypeId: id })
     return new Response(res.body, res)
   },
 )
@@ -512,7 +512,7 @@ entitySchema.post('/templates/apply',
       body: JSON.stringify({ enabled: true }),
     }))
 
-    await audit(dos.records, 'templateApplied', c.get('pubkey'), {
+    await audit(c.get('services').audit, 'templateApplied', c.get('pubkey'), {
       templateId,
       templateVersion: template.version,
       entityTypesCreated: result.entityTypes.length,
@@ -608,7 +608,7 @@ entitySchema.post('/roles/from-template',
         created.push(role)
         existingSlugs.add(suggested.slug)
 
-        await audit(dos.records, 'roleCreatedFromTemplate', pubkey, {
+        await audit(c.get('services').audit, 'roleCreatedFromTemplate', pubkey, {
           roleId: role.id,
           roleName: role.name,
         })
@@ -659,7 +659,7 @@ entitySchema.post('/report-types',
     }))
     if (!res.ok) return new Response(res.body, res)
     const created = await res.json() as { id: string; name: string }
-    await audit(dos.records, 'reportTypeCreated', c.get('pubkey'), { reportTypeId: created.id, name: created.name })
+    await audit(c.get('services').audit, 'reportTypeCreated', c.get('pubkey'), { reportTypeId: created.id, name: created.name })
     return c.json(created, 201)
   },
 )
@@ -705,7 +705,7 @@ entitySchema.patch('/report-types/:id',
       body: JSON.stringify(body),
     }))
     if (!res.ok) return new Response(res.body, res)
-    await audit(dos.records, 'reportTypeUpdated', c.get('pubkey'), { reportTypeId: id })
+    await audit(c.get('services').audit, 'reportTypeUpdated', c.get('pubkey'), { reportTypeId: id })
     return new Response(res.body, res)
   },
 )
@@ -728,7 +728,7 @@ entitySchema.delete('/report-types/:id',
       method: 'DELETE',
     }))
     if (!res.ok) return new Response(res.body, res)
-    await audit(dos.records, 'reportTypeArchived', c.get('pubkey'), { reportTypeId: id })
+    await audit(c.get('services').audit, 'reportTypeArchived', c.get('pubkey'), { reportTypeId: id })
     return new Response(res.body, res)
   },
 )

@@ -38,12 +38,20 @@ import entitySchemaRoutes from './routes/entity-schema'
 import evidenceRoutes from './routes/evidence'
 import { hubContext } from './middleware/hub'
 import { requestId } from './middleware/request-id'
-import { getDOs } from './lib/do-access'
 import { openAPIRouteHandler } from 'hono-openapi'
 import { Scalar } from '@scalar/hono-api-reference'
 import { openAPIConfig } from './openapi/config'
+import { ServiceError } from './services/settings'
 
 const app = new Hono<AppEnv>()
+
+// --- Global error handler for ServiceError ---
+app.onError((err, c) => {
+  if (err instanceof ServiceError) {
+    return c.json({ error: err.message }, err.status as 400 | 401 | 403 | 404 | 409 | 410 | 429 | 500)
+  }
+  throw err
+})
 
 // --- API routes: CORS on all /api/* ---
 const api = new Hono<AppEnv>()
@@ -78,43 +86,44 @@ api.route('/messaging', messagingRoutes)
 api.get('/messaging/preferences', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
-  const dos = getDOs(c.env)
-  const res = await dos.blasts.fetch(new Request('http://do/subscribers/validate-token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-  }))
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  const result = await services.blasts.validatePreferenceToken(token)
+  return c.json(result)
 })
 
 api.patch('/messaging/preferences', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   let body: Record<string, unknown>
   try {
     body = await c.req.json()
   } catch {
     return c.json({ error: 'Invalid JSON body' }, 400)
   }
-  const res = await dos.blasts.fetch(new Request('http://do/subscribers/update-preferences', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, ...body }),
-  }))
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const result = await services.blasts.updatePreferences(token, body as { language?: string; status?: 'active' | 'paused' | 'unsubscribed'; tags?: string[] })
+  return c.json(result)
 })
 
 // Public IVR audio serve (Twilio fetches during calls)
 api.get('/ivr-audio/:promptType/:language', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const promptType = c.req.param('promptType')
   const language = c.req.param('language')
-  // Validate path params to prevent injection into the internal DO URL
+  // Validate path params to prevent injection
   if (!/^[a-z_-]+$/.test(promptType) || !/^[a-z]{2,5}(-[A-Z]{2})?$/.test(language)) {
     return c.json({ error: 'Invalid parameters' }, 400)
   }
-  return dos.settings.fetch(new Request(`http://do/settings/ivr-audio/${promptType}/${language}`))
+  const result = await services.settings.getIvrAudio(promptType, language)
+  if (!result) return c.json({ error: 'Not found' }, 404)
+  // Decode base64 audio to binary for streaming
+  const binary = Uint8Array.from(atob(result.audio), c => c.charCodeAt(0))
+  return new Response(binary, {
+    headers: {
+      'Content-Type': 'audio/wav',
+      'Content-Length': String(binary.byteLength),
+    },
+  })
 })
 
 // Authenticated routes

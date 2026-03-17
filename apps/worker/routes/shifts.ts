@@ -116,7 +116,7 @@ shifts.post('/',
       method: 'POST',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'shiftCreated', pubkey)
+    if (res.ok) await audit(c.get('services').audit, 'shiftCreated', pubkey)
     return res
   },
 )
@@ -150,7 +150,7 @@ shifts.patch('/:id',
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'shiftEdited', pubkey, { shiftId: id })
+    if (res.ok) await audit(c.get('services').audit, 'shiftEdited', pubkey, { shiftId: id })
     return res
   },
 )
@@ -179,7 +179,7 @@ shifts.delete('/:id',
     const id = c.req.param('id')
     if (id === 'fallback') return c.json({ error: 'Not Found' }, 404)
     const res = await dos.shifts.fetch(new Request(`http://do/shifts/${id}`, { method: 'DELETE' }))
-    if (res.ok) await audit(dos.records, 'shiftDeleted', pubkey, { shiftId: id })
+    if (res.ok) await audit(c.get('services').audit, 'shiftDeleted', pubkey, { shiftId: id })
     return res
   },
 )

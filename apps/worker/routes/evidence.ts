@@ -77,7 +77,7 @@ evidence.post('/records/:id/evidence',
       }),
     )
 
-    await audit(dos.records, 'evidenceUploaded', pubkey, {
+    await audit(c.get('services').audit, 'evidenceUploaded', pubkey, {
       caseId,
       evidenceId: created.id,
       classification: body.classification,
@@ -201,7 +201,7 @@ evidence.post('/evidence/:evidenceId/access',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'evidenceAccessed', pubkey, {
+    await audit(c.get('services').audit, 'evidenceAccessed', pubkey, {
       evidenceId,
       action: body.action,
     })
@@ -241,7 +241,7 @@ evidence.post('/evidence/:evidenceId/verify',
 
     const result = await res.json() as { valid: boolean; originalHash: string; currentHash: string }
 
-    await audit(dos.records, 'evidenceIntegrityVerified', pubkey, {
+    await audit(c.get('services').audit, 'evidenceIntegrityVerified', pubkey, {
       evidenceId,
       valid: result.valid,
     })

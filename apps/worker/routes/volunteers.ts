@@ -99,7 +99,7 @@ volunteers.post('/',
     }))
 
     if (res.ok) {
-      await audit(dos.records, 'volunteerAdded', pubkey, { target: body.pubkey, roles: body.roleIds || body.roles })
+      await audit(c.get('services').audit, 'volunteerAdded', pubkey, { target: body.pubkey, roles: body.roleIds || body.roles })
     }
 
     return res
@@ -135,8 +135,8 @@ volunteers.patch('/:targetPubkey',
       body: JSON.stringify(body),
     }))
     if (res.ok) {
-      if (body.roles) await audit(dos.records, 'rolesChanged', pubkey, { target: targetPubkey, roles: body.roles })
-      if (body.active === false) await audit(dos.records, 'volunteerDeactivated', pubkey, { target: targetPubkey })
+      if (body.roles) await audit(c.get('services').audit, 'rolesChanged', pubkey, { target: targetPubkey, roles: body.roles })
+      if (body.active === false) await audit(c.get('services').audit, 'volunteerDeactivated', pubkey, { target: targetPubkey })
       // Revoke all sessions when deactivating or changing roles
       if (body.active === false || body.roles) {
         await dos.identity.fetch(new Request(`http://do/sessions/revoke-all/${targetPubkey}`, { method: 'DELETE' }))
@@ -171,7 +171,7 @@ volunteers.delete('/:targetPubkey',
     // (orphaned sessions will expire naturally via TTL)
     await dos.identity.fetch(new Request(`http://do/sessions/revoke-all/${targetPubkey}`, { method: 'DELETE' })).catch(() => {})
     const res = await dos.identity.fetch(new Request(`http://do/volunteers/${targetPubkey}`, { method: 'DELETE' }))
-    if (res.ok) await audit(dos.records, 'volunteerRemoved', pubkey, { target: targetPubkey })
+    if (res.ok) await audit(c.get('services').audit, 'volunteerRemoved', pubkey, { target: targetPubkey })
     return res
   },
 )

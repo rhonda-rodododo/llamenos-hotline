@@ -8,6 +8,8 @@
  */
 import { Hono } from 'hono'
 import { createBunEnv } from './env'
+import { createDatabase } from '../../../apps/worker/db'
+import { createServices } from '../../../apps/worker/services'
 
 console.log('[llamenos] Starting Bun server...')
 
@@ -15,17 +17,24 @@ console.log('[llamenos] Starting Bun server...')
 const env = await createBunEnv()
 console.log('[llamenos] Environment initialized')
 
+// Initialize database and services
+const databaseUrl = process.env.DATABASE_URL || `postgres://postgres:${process.env.PG_PASSWORD || 'postgres'}@localhost:5432/llamenos`
+const db = createDatabase(databaseUrl)
+const services = createServices(db)
+console.log('[llamenos] Services initialized')
+
 // Import the app after environment is ready
 const { default: workerApp } = await import('../../../apps/worker/app')
 
 // Create a top-level Hono app
 const app = new Hono()
 
-// Inject env bindings into every request via middleware
+// Inject env bindings and services into every request via middleware
 app.use('*', async (c, next) => {
   // Hono on CF Workers provides env via c.env
   // On Bun, we inject it manually
   ;(c as any).env = env
+  ;(c as any).set('services', services)
   await next()
 })
 

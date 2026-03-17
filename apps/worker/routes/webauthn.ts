@@ -90,7 +90,7 @@ webauthn.post('/login/verify',
         body: JSON.stringify({ pubkey: matched.ownerPubkey }),
       }))
       const session = await sessionRes.json() as { token: string; pubkey: string }
-      await audit(dos.records, 'webauthnLogin', matched.ownerPubkey, { credId: matched.id }, { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET })
+      await audit(c.get('services').audit, 'webauthnLogin', matched.ownerPubkey, { credId: matched.id }, { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET })
       return c.json({ token: session.token, pubkey: session.pubkey })
     } catch {
       return c.json({ error: 'Verification failed' }, 401)
@@ -169,7 +169,7 @@ webauthn.post('/register/verify',
         method: 'POST',
         body: JSON.stringify({ pubkey, credential: newCred }),
       }))
-      await audit(dos.records, 'webauthnRegistered', pubkey, { credId: newCred.id, label: body.label }, { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET })
+      await audit(c.get('services').audit, 'webauthnRegistered', pubkey, { credId: newCred.id, label: body.label }, { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET })
       return c.json({ ok: true })
     } catch {
       return c.json({ error: 'Verification failed' }, 400)
@@ -217,7 +217,7 @@ webauthn.delete('/credentials/:credId',
     const credId = decodeURIComponent(c.req.param('credId'))
     if (!credId) return c.json({ error: 'Invalid credential ID' }, 400)
     const res = await dos.identity.fetch(new Request(`http://do/webauthn/credentials/${encodeURIComponent(credId)}?pubkey=${pubkey}`, { method: 'DELETE' }))
-    if (res.ok) await audit(dos.records, 'webauthnDeleted', pubkey, { credId }, { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET })
+    if (res.ok) await audit(c.get('services').audit, 'webauthnDeleted', pubkey, { credId }, { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET })
     return res
   })
 

@@ -61,7 +61,7 @@ settings.patch('/transcription',
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'transcriptionToggled', pubkey, body as Record<string, unknown>)
+    if (res.ok) await audit(c.get('services').audit, 'transcriptionToggled', pubkey, body as Record<string, unknown>)
     return res
   },
 )
@@ -103,7 +103,7 @@ settings.put('/custom-fields',
       method: 'PUT',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'customFieldsUpdated', pubkey, {})
+    if (res.ok) await audit(c.get('services').audit, 'customFieldsUpdated', pubkey, {})
     return res
   },
 )
@@ -144,7 +144,7 @@ settings.patch('/spam',
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'spamMitigationToggled', pubkey, body as Record<string, unknown>)
+    if (res.ok) await audit(c.get('services').audit, 'spamMitigationToggled', pubkey, body as Record<string, unknown>)
     return res
   },
 )
@@ -184,7 +184,7 @@ settings.patch('/call',
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'callSettingsUpdated', pubkey, body as Record<string, unknown>)
+    if (res.ok) await audit(c.get('services').audit, 'callSettingsUpdated', pubkey, body as Record<string, unknown>)
     return res
   },
 )
@@ -224,7 +224,7 @@ settings.patch('/ivr-languages',
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'ivrLanguagesUpdated', pubkey, body as Record<string, unknown>)
+    if (res.ok) await audit(c.get('services').audit, 'ivrLanguagesUpdated', pubkey, body as Record<string, unknown>)
     return res
   },
 )
@@ -264,7 +264,7 @@ settings.patch('/webauthn',
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'webauthnSettingsUpdated', pubkey, body as Record<string, unknown>)
+    if (res.ok) await audit(c.get('services').audit, 'webauthnSettingsUpdated', pubkey, body as Record<string, unknown>)
     return res
   },
 )
@@ -305,7 +305,7 @@ settings.patch('/telephony-provider',
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'telephonyProviderChanged', pubkey, { type: body.type })
+    if (res.ok) await audit(c.get('services').audit, 'telephonyProviderChanged', pubkey, { type: body.type })
     return res
   },
 )
@@ -425,7 +425,7 @@ settings.patch('/messaging',
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'messagingConfigUpdated', pubkey, body as Record<string, unknown>)
+    if (res.ok) await audit(c.get('services').audit, 'messagingConfigUpdated', pubkey, body as Record<string, unknown>)
     return res
   },
 )
@@ -466,7 +466,7 @@ settings.patch('/setup',
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'setupStateUpdated', pubkey, body as Record<string, unknown>)
+    if (res.ok) await audit(c.get('services').audit, 'setupStateUpdated', pubkey, body as Record<string, unknown>)
     return res
   },
 )
@@ -507,7 +507,7 @@ settings.put('/ivr-audio/:promptType/:language',
       method: 'PUT',
       body,
     }))
-    if (res.ok) await audit(dos.records, 'ivrAudioUploaded', pubkey, { promptType, language })
+    if (res.ok) await audit(c.get('services').audit, 'ivrAudioUploaded', pubkey, { promptType, language })
     return res
   },
 )
@@ -530,7 +530,7 @@ settings.delete('/ivr-audio/:promptType/:language',
     const res = await dos.settings.fetch(new Request(`http://do/settings/ivr-audio/${promptType}/${language}`, {
       method: 'DELETE',
     }))
-    if (res.ok) await audit(dos.records, 'ivrAudioDeleted', pubkey, { promptType, language })
+    if (res.ok) await audit(c.get('services').audit, 'ivrAudioDeleted', pubkey, { promptType, language })
     return res
   },
 )
@@ -570,7 +570,7 @@ settings.post('/report-types',
       method: 'POST',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'reportTypeCreated', pubkey, { name: body.name })
+    if (res.ok) await audit(c.get('services').audit, 'reportTypeCreated', pubkey, { name: body.name })
     return res
   },
 )
@@ -595,7 +595,7 @@ settings.patch('/report-types/:id',
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'reportTypeUpdated', pubkey, { reportTypeId: id })
+    if (res.ok) await audit(c.get('services').audit, 'reportTypeUpdated', pubkey, { reportTypeId: id })
     return res
   },
 )
@@ -615,7 +615,7 @@ settings.delete('/report-types/:id',
     const pubkey = c.get('pubkey')
     const id = c.req.param('id')
     const res = await dos.settings.fetch(new Request(`http://do/settings/report-types/${id}`, { method: 'DELETE' }))
-    if (res.ok) await audit(dos.records, 'reportTypeArchived', pubkey, { reportTypeId: id })
+    if (res.ok) await audit(c.get('services').audit, 'reportTypeArchived', pubkey, { reportTypeId: id })
     return res
   },
 )
@@ -655,7 +655,7 @@ settings.post('/roles',
       method: 'POST',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'roleCreated', pubkey, { name: body.name })
+    if (res.ok) await audit(c.get('services').audit, 'roleCreated', pubkey, { name: body.name })
     return res
   },
 )
@@ -680,7 +680,7 @@ settings.patch('/roles/:id',
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'roleUpdated', pubkey, { roleId: id })
+    if (res.ok) await audit(c.get('services').audit, 'roleUpdated', pubkey, { roleId: id })
     return res
   },
 )
@@ -700,7 +700,7 @@ settings.delete('/roles/:id',
     const pubkey = c.get('pubkey')
     const id = c.req.param('id')
     const res = await dos.settings.fetch(new Request(`http://do/settings/roles/${id}`, { method: 'DELETE' }))
-    if (res.ok) await audit(dos.records, 'roleDeleted', pubkey, { roleId: id })
+    if (res.ok) await audit(c.get('services').audit, 'roleDeleted', pubkey, { roleId: id })
     return res
   },
 )
@@ -805,7 +805,7 @@ settings.patch('/ttl',
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'ttlOverridesUpdated', pubkey, body as Record<string, unknown>)
+    if (res.ok) await audit(c.get('services').audit, 'ttlOverridesUpdated', pubkey, body as Record<string, unknown>)
     return res
   },
 )

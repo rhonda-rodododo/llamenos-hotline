@@ -4,6 +4,8 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { hexToBytes } from '@noble/hashes/utils.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { AUTH_PREFIX } from '@shared/crypto-labels'
+import type { IdentityService } from '../services/identity'
+import { ServiceError } from '../services/settings'
 
 const TOKEN_MAX_AGE_MS = 5 * 60 * 1000 // 5 minutes
 
@@ -41,7 +43,50 @@ export async function verifyAuthToken(auth: AuthPayload, method?: string, path?:
   }
 }
 
+/**
+ * Authenticate a request using session token or Schnorr signature.
+ * Uses the IdentityService directly instead of DO stubs.
+ */
 export async function authenticateRequest(
+  request: Request,
+  identityService: IdentityService,
+): Promise<{ pubkey: string; volunteer: Volunteer } | null> {
+  const authHeader = request.headers.get('Authorization')
+
+  // Try session token auth first (WebAuthn-based sessions)
+  const sessionToken = parseSessionHeader(authHeader)
+  if (sessionToken) {
+    try {
+      const session = await identityService.validateSession(sessionToken)
+      const volunteer = await identityService.getVolunteerInternal(session.pubkey)
+      if (!volunteer) return null
+      return { pubkey: session.pubkey, volunteer }
+    } catch {
+      return null
+    }
+  }
+
+  // Fall back to Schnorr signature auth
+  const auth = parseAuthHeader(authHeader)
+  if (!auth) return null
+  const url = new URL(request.url)
+  if (!(await verifyAuthToken(auth, request.method, url.pathname))) return null
+
+  // Look up volunteer via identity service
+  try {
+    const volunteer = await identityService.getVolunteerInternal(auth.pubkey)
+    if (!volunteer) return null
+    return { pubkey: auth.pubkey, volunteer }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * @deprecated Use the IdentityService-based overload instead.
+ * Kept for backwards compatibility during migration.
+ */
+export async function authenticateRequestLegacy(
   request: Request,
   identityDO: { fetch(req: Request): Promise<Response> }
 ): Promise<{ pubkey: string; volunteer: Volunteer } | null> {

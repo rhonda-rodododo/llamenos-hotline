@@ -201,7 +201,7 @@ files.post('/:id/share', requirePermission('files:share'),
       return c.json({ error: 'Failed to share file' }, 500)
     }
 
-    await audit(dos.records, 'fileShared', pubkey, { fileId, sharedWith: body.envelope.pubkey })
+    await audit(c.get('services').audit, 'fileShared', pubkey, { fileId, sharedWith: body.envelope.pubkey })
 
     return c.json({ ok: true })
   })

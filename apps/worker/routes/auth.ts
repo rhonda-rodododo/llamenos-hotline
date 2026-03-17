@@ -212,7 +212,7 @@ auth.post('/me/logout',
       const token = authHeader.slice(8).trim()
       await dos.identity.fetch(new Request(`http://do/sessions/revoke/${token}`, { method: 'DELETE' }))
     }
-    await audit(dos.records, 'logout', pubkey)
+    await audit(c.get('services').audit, 'logout', pubkey)
     return c.json({ ok: true })
   },
 )
@@ -274,7 +274,7 @@ auth.patch('/me/availability',
       method: 'PATCH',
       body: JSON.stringify({ onBreak: body.onBreak }),
     }))
-    await audit(dos.records, body.onBreak ? 'volunteerOnBreak' : 'volunteerAvailable', pubkey)
+    await audit(c.get('services').audit, body.onBreak ? 'volunteerOnBreak' : 'volunteerAvailable', pubkey)
     return c.json({ ok: true })
   },
 )
@@ -313,7 +313,7 @@ auth.patch('/me/transcription',
       method: 'PATCH',
       body: JSON.stringify({ transcriptionEnabled: body.enabled }),
     }))
-    await audit(dos.records, 'transcriptionToggled', pubkey, { enabled: body.enabled })
+    await audit(c.get('services').audit, 'transcriptionToggled', pubkey, { enabled: body.enabled })
     return c.json({ ok: true })
   },
 )

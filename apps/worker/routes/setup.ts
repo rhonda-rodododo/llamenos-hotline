@@ -56,7 +56,7 @@ setup.patch('/state', requirePermission('settings:manage'),
       method: 'PATCH',
       body: JSON.stringify(body),
     }))
-    if (res.ok) await audit(dos.records, 'setupStateUpdated', pubkey, body as Record<string, unknown>)
+    if (res.ok) await audit(c.get('services').audit, 'setupStateUpdated', pubkey, body as Record<string, unknown>)
     return new Response(res.body, res)
   })
 
@@ -111,7 +111,7 @@ setup.post('/complete', requirePermission('settings:manage'),
       body: JSON.stringify({ setupCompleted: true, demoMode: body.demoMode ?? false }),
     }))
 
-    if (res.ok) await audit(dos.records, 'setupCompleted', pubkey, { demoMode: body.demoMode ?? false })
+    if (res.ok) await audit(c.get('services').audit, 'setupCompleted', pubkey, { demoMode: body.demoMode ?? false })
     return new Response(res.body, res)
   })
 

@@ -1,7 +1,6 @@
 import { createMiddleware } from 'hono/factory'
 import type { AppEnv, Volunteer } from '../types'
 import { authenticateRequest, parseAuthHeader, parseSessionHeader } from '../lib/auth'
-import { getDOs } from '../lib/do-access'
 import type { Role } from '@shared/permissions'
 import { resolvePermissions } from '@shared/permissions'
 import { createLogger } from '../lib/logger'
@@ -10,11 +9,11 @@ import { incError } from '../lib/error-counter'
 const log = createLogger('auth')
 
 export const auth = createMiddleware<AppEnv>(async (c, next) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const requestId = c.get('requestId')
   const reqLog = requestId ? log.child({ requestId }) : log
 
-  let authResult = await authenticateRequest(c.req.raw, dos.identity)
+  let authResult = await authenticateRequest(c.req.raw, services.identity)
 
   // Dev-mode signature bypass: when ENVIRONMENT=development and Schnorr verification
   // fails, fall back to pubkey-only auth. This handles mobile E2E tests where the
@@ -25,23 +24,19 @@ export const auth = createMiddleware<AppEnv>(async (c, next) => {
     const devAuthHeader = c.req.header('Authorization') ?? null
     const authPayload = parseAuthHeader(devAuthHeader)
     if (authPayload?.pubkey) {
-      let volRes = await dos.identity.fetch(new Request('http://do/volunteer/' + authPayload.pubkey))
-      if (!volRes.ok) {
+      let volunteer = await services.identity.getVolunteerInternal(authPayload.pubkey)
+      if (!volunteer) {
         // Auto-register the identity as a volunteer in dev mode.
-        await dos.identity.fetch(new Request('http://do/volunteers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            pubkey: authPayload.pubkey,
-            name: 'Dev Auto-Registered',
-            phone: '+15550000000',
-            roleIds: ['role-volunteer'],
-          }),
-        }))
-        volRes = await dos.identity.fetch(new Request('http://do/volunteer/' + authPayload.pubkey))
+        await services.identity.createVolunteer({
+          pubkey: authPayload.pubkey,
+          name: 'Dev Auto-Registered',
+          phone: '+15550000000',
+          roleIds: ['role-volunteer'],
+          encryptedSecretKey: '',
+        })
+        volunteer = await services.identity.getVolunteerInternal(authPayload.pubkey)
       }
-      if (volRes.ok) {
-        const volunteer = await volRes.json() as Volunteer
+      if (volunteer) {
         authResult = { pubkey: authPayload.pubkey, volunteer }
         reqLog.info('Dev-mode signature bypass', { pubkeyPrefix: authPayload.pubkey.slice(0, 8) })
       }
@@ -69,9 +64,8 @@ export const auth = createMiddleware<AppEnv>(async (c, next) => {
     return c.json({ error: 'Unauthorized' }, 401)
   }
 
-  // Load all roles from SettingsDO (cached per-request)
-  const rolesRes = await dos.settings.fetch(new Request('http://do/settings/roles'))
-  const allRoles: Role[] = rolesRes.ok ? ((await rolesRes.json()) as { roles: Role[] }).roles : []
+  // Load all roles from SettingsService
+  const { roles: allRoles } = await services.settings.getRoles()
 
   // Resolve effective permissions from user's role IDs
   const permissions = resolvePermissions(authResult.volunteer.roles, allRoles)

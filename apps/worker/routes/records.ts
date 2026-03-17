@@ -399,7 +399,7 @@ records.post('/',
       caseNumber: record.caseNumber,
     }).catch((e) => { console.error('[records] Failed to publish event:', e) })
 
-    await audit(dos.records, 'recordCreated', pubkey, {
+    await audit(c.get('services').audit, 'recordCreated', pubkey, {
       recordId: record.id,
       entityTypeId: record.entityTypeId,
       caseNumber: record.caseNumber,
@@ -462,7 +462,7 @@ records.patch('/:id',
       recordId: id,
     }).catch((e) => { console.error('[records] Failed to publish event:', e) })
 
-    await audit(dos.records, 'recordUpdated', pubkey, { recordId: id })
+    await audit(c.get('services').audit, 'recordUpdated', pubkey, { recordId: id })
 
     return new Response(res.body, res)
   },
@@ -491,7 +491,7 @@ records.delete('/:id',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'recordDeleted', pubkey, { recordId: id })
+    await audit(c.get('services').audit, 'recordDeleted', pubkey, { recordId: id })
 
     return new Response(res.body, res)
   },
@@ -523,7 +523,7 @@ records.post('/:id/contacts',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'recordContactLinked', pubkey, {
+    await audit(c.get('services').audit, 'recordContactLinked', pubkey, {
       recordId: id,
       contactId: body.contactId,
       role: body.role,
@@ -557,7 +557,7 @@ records.delete('/:id/contacts/:contactId',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'recordContactUnlinked', pubkey, {
+    await audit(c.get('services').audit, 'recordContactUnlinked', pubkey, {
       recordId: id,
       contactId,
     })
@@ -740,7 +740,7 @@ records.post('/:id/assign',
       pubkeys: body.pubkeys,
     }).catch((e) => { console.error('[records] Failed to publish event:', e) })
 
-    await audit(dos.records, 'recordAssigned', pubkey, {
+    await audit(c.get('services').audit, 'recordAssigned', pubkey, {
       recordId: id,
       assignedPubkeys: body.pubkeys,
     })
@@ -782,7 +782,7 @@ records.post('/:id/unassign',
       pubkey: body.pubkey,
     }).catch((e) => { console.error('[records] Failed to publish event:', e) })
 
-    await audit(dos.records, 'recordUnassigned', pubkey, {
+    await audit(c.get('services').audit, 'recordUnassigned', pubkey, {
       recordId: id,
       unassignedPubkey: body.pubkey,
     })
@@ -882,7 +882,7 @@ records.post('/:id/interactions',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'interactionCreated', pubkey, {
+    await audit(c.get('services').audit, 'interactionCreated', pubkey, {
       caseId: id,
       interactionType: body.interactionType,
     })
@@ -917,7 +917,7 @@ records.delete('/:id/interactions/:interactionId',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'interactionDeleted', pubkey, {
+    await audit(c.get('services').audit, 'interactionDeleted', pubkey, {
       caseId: id,
       interactionId,
     })
@@ -960,7 +960,7 @@ records.post('/:id/reports',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'reportLinkedToCase', pubkey, {
+    await audit(c.get('services').audit, 'reportLinkedToCase', pubkey, {
       caseId: id,
       reportId: body.reportId,
     })
@@ -993,7 +993,7 @@ records.delete('/:id/reports/:reportId',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'reportUnlinkedFromCase', pubkey, {
+    await audit(c.get('services').audit, 'reportUnlinkedFromCase', pubkey, {
       caseId: id,
       reportId,
     })
@@ -1108,7 +1108,7 @@ records.post('/:id/notify-contacts',
       results,
     }
 
-    await audit(dos.records, 'contactsNotified', pubkey, {
+    await audit(c.get('services').audit, 'contactsNotified', pubkey, {
       recordId: id,
       notified,
       skipped,

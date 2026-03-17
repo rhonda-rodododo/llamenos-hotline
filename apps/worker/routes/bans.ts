@@ -41,7 +41,7 @@ bans.post('/',
       method: 'POST',
       body: JSON.stringify({ ...body, bannedBy: pubkey }),
     }))
-    if (res.ok) await audit(dos.records, 'numberBanned', pubkey, { phone: body.phone })
+    if (res.ok) await audit(c.get('services').audit, 'numberBanned', pubkey, { phone: body.phone })
     return res
   },
 )
@@ -92,7 +92,7 @@ bans.post('/bulk',
       method: 'POST',
       body: JSON.stringify({ ...body, bannedBy: pubkey }),
     }))
-    if (res.ok) await audit(dos.records, 'numberBanned', pubkey, { count: body.phones.length, bulk: true })
+    if (res.ok) await audit(c.get('services').audit, 'numberBanned', pubkey, { count: body.phones.length, bulk: true })
     return res
   },
 )
@@ -119,7 +119,7 @@ bans.delete('/:phone',
     const pubkey = c.get('pubkey')
     const phone = decodeURIComponent(c.req.param('phone'))
     const res = await dos.records.fetch(new Request(`http://do/bans/${encodeURIComponent(phone)}`, { method: 'DELETE' }))
-    if (res.ok) await audit(dos.records, 'numberUnbanned', pubkey, {})
+    if (res.ok) await audit(c.get('services').audit, 'numberUnbanned', pubkey, {})
     return res
   },
 )

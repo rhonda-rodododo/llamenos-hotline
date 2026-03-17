@@ -155,7 +155,7 @@ reports.post('/',
       category: body.category,
     }).catch((e) => { console.error('[reports] Failed to publish event:', e) })
 
-    await audit(dos.records, 'reportCreated', pubkey, {
+    await audit(c.get('services').audit, 'reportCreated', pubkey, {
       conversationId: conversation.id,
       category: body.category,
     })
@@ -418,7 +418,7 @@ reports.post('/:id/assign',
       return c.json({ error: 'Failed to assign report' }, 500)
     }
 
-    await audit(dos.records, 'reportAssigned', pubkey, { reportId: id, assignedTo: body.assignedTo })
+    await audit(c.get('services').audit, 'reportAssigned', pubkey, { reportId: id, assignedTo: body.assignedTo })
 
     // Publish assignment event to Nostr relay
     publishNostrEvent(c.env, KIND_CONVERSATION_ASSIGNED, {
@@ -466,7 +466,7 @@ reports.patch('/:id',
       return c.json({ error: 'Failed to update report' }, 500)
     }
 
-    await audit(dos.records, 'reportUpdated', pubkey, { reportId: id, ...body })
+    await audit(c.get('services').audit, 'reportUpdated', pubkey, { reportId: id, ...body })
     return new Response(res.body, res)
   },
 )
@@ -583,7 +583,7 @@ reports.post('/:id/records',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'caseLinkedToReport', pubkey, {
+    await audit(c.get('services').audit, 'caseLinkedToReport', pubkey, {
       reportId,
       caseId: body.caseId,
     })
@@ -616,7 +616,7 @@ reports.delete('/:id/records/:caseId',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'caseUnlinkedFromReport', pubkey, {
+    await audit(c.get('services').audit, 'caseUnlinkedFromReport', pubkey, {
       reportId,
       caseId,
     })

@@ -218,7 +218,7 @@ telephony.post('/volunteer-answer', async (c) => {
   const volInfo = volInfoRes.ok ? await volInfoRes.json() as { name?: string } : {}
   const { calls: activeCalls } = await activeCallsRes.json() as { calls: Array<{ id: string; callerLast4?: string }> }
   const callRecord = activeCalls.find(call => call.id === parentCallSid)
-  await audit(dos.records, 'callAnswered', pubkey, {
+  await audit(c.get('services').audit, 'callAnswered', pubkey, {
     callerLast4: callRecord?.callerLast4 || '',
   })
 
@@ -253,7 +253,7 @@ telephony.post('/call-status', async (c) => {
         const duration = preCall
           ? Math.floor((Date.now() - new Date(preCall.startedAt).getTime()) / 1000)
           : undefined
-        await audit(dos.records, 'callEnded', pubkey, {
+        await audit(c.get('services').audit, 'callEnded', pubkey, {
           callerLast4: preCall?.callerLast4 || '',
           duration,
         })
@@ -292,7 +292,7 @@ telephony.post('/queue-exit', async (c) => {
   if (queueResult === 'hangup') {
     // Caller hung up while in queue — end the call as unanswered
     await dos.calls.fetch(new Request(`http://do/calls/${callSid}/end`, { method: 'POST' }))
-    await audit(dos.records, 'callMissed', 'system', { callSid })
+    await audit(c.get('services').audit, 'callMissed', 'system', { callSid })
     return telephonyResponse(adapter.emptyResponse())
   }
 
@@ -345,7 +345,7 @@ telephony.post('/call-recording', async (c) => {
     logger.info('Call recording completed', { parentCallSid, endStatus: endRes.status })
 
     if (pubkey) {
-      await audit(dos.records, 'callEnded', pubkey, {
+      await audit(c.get('services').audit, 'callEnded', pubkey, {
         callerLast4: callRecord?.callerLast4 || '',
       })
     }
@@ -379,7 +379,7 @@ telephony.post('/voicemail-recording', async (c) => {
       method: 'POST',
     }))
 
-    await audit(dos.records, 'voicemailReceived', 'system', { callSid }, { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET })
+    await audit(c.get('services').audit, 'voicemailReceived', 'system', { callSid }, { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET })
 
     c.executionCtx.waitUntil(transcribeVoicemail(callSid, c.env, dos))
   }

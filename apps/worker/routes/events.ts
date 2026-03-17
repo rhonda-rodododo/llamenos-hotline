@@ -137,7 +137,7 @@ events.post('/',
       caseNumber: event.caseNumber,
     }).catch((e) => { console.error('[events] Failed to publish event:', e) })
 
-    await audit(dos.records, 'eventCreated', pubkey, {
+    await audit(c.get('services').audit, 'eventCreated', pubkey, {
       eventId: event.id,
       entityTypeId: event.entityTypeId,
       caseNumber: event.caseNumber,
@@ -178,7 +178,7 @@ events.patch('/:id',
       eventId: id,
     }).catch((e) => { console.error('[events] Failed to publish event:', e) })
 
-    await audit(dos.records, 'eventUpdated', pubkey, { eventId: id })
+    await audit(c.get('services').audit, 'eventUpdated', pubkey, { eventId: id })
 
     return new Response(res.body, res)
   },
@@ -207,7 +207,7 @@ events.delete('/:id',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'eventDeleted', pubkey, { eventId: id })
+    await audit(c.get('services').audit, 'eventDeleted', pubkey, { eventId: id })
 
     return new Response(res.body, res)
   },
@@ -259,7 +259,7 @@ events.post('/:id/records',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'recordLinkedToEvent', pubkey, {
+    await audit(c.get('services').audit, 'recordLinkedToEvent', pubkey, {
       eventId: id,
       recordId: body.recordId,
     })
@@ -292,7 +292,7 @@ events.delete('/:id/records/:recordId',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'recordUnlinkedFromEvent', pubkey, {
+    await audit(c.get('services').audit, 'recordUnlinkedFromEvent', pubkey, {
       eventId: id,
       recordId,
     })
@@ -347,7 +347,7 @@ events.post('/:id/reports',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'reportLinkedToEvent', pubkey, {
+    await audit(c.get('services').audit, 'reportLinkedToEvent', pubkey, {
       eventId: id,
       reportId: body.reportId,
     })
@@ -380,7 +380,7 @@ events.delete('/:id/reports/:reportId',
 
     if (!res.ok) return new Response(res.body, res)
 
-    await audit(dos.records, 'reportUnlinkedFromEvent', pubkey, {
+    await audit(c.get('services').audit, 'reportUnlinkedFromEvent', pubkey, {
       eventId: id,
       reportId,
     })

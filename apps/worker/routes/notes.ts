@@ -79,7 +79,7 @@ notes.post('/',
       body: JSON.stringify({ ...body, authorPubkey: pubkey }),
     }))
     if (res.ok) {
-      await audit(dos.records, 'noteCreated', pubkey, { callId: body.callId, conversationId: body.conversationId })
+      await audit(c.get('services').audit, 'noteCreated', pubkey, { callId: body.callId, conversationId: body.conversationId })
 
       // Auto-create interaction linking note to case (Epic 323)
       // createNoteBodySchema uses z.looseObject, so extra fields pass through
@@ -135,7 +135,7 @@ notes.patch('/:id',
       method: 'PATCH',
       body: JSON.stringify({ ...body, authorPubkey: pubkey }),
     }))
-    if (res.ok) await audit(dos.records, 'noteEdited', pubkey, { noteId: id })
+    if (res.ok) await audit(c.get('services').audit, 'noteEdited', pubkey, { noteId: id })
     return res
   },
 )
@@ -197,7 +197,7 @@ notes.post('/:id/replies',
       method: 'POST',
       body: JSON.stringify({ ...body, authorPubkey: pubkey }),
     }))
-    if (res.ok) await audit(dos.records, 'noteReplyCreated', pubkey, { noteId: id })
+    if (res.ok) await audit(c.get('services').audit, 'noteReplyCreated', pubkey, { noteId: id })
     return res
   },
 )

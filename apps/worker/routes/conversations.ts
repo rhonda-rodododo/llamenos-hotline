@@ -401,7 +401,7 @@ conversations.post('/:id/messages',
     }).catch((e) => { console.error('[conversations] Failed to publish event:', e) })
 
     c.executionCtx.waitUntil(
-      audit(dos.records, 'messageSent', pubkey, {
+      audit(c.get('services').audit, 'messageSent', pubkey, {
         conversationId: id,
         channel: conv.channelType,
       })
@@ -469,7 +469,7 @@ conversations.patch('/:id',
     }).catch((e) => { console.error('[conversations] Failed to publish event:', e) })
 
     c.executionCtx.waitUntil(
-      audit(dos.records, body.status === 'closed' ? 'conversationClosed' : 'conversationUpdated', pubkey, {
+      audit(c.get('services').audit, body.status === 'closed' ? 'conversationClosed' : 'conversationUpdated', pubkey, {
         conversationId: id,
       })
     )
@@ -566,7 +566,7 @@ conversations.post('/:id/claim',
     })
 
     c.executionCtx.waitUntil(
-      audit(dos.records, 'conversationClaimed', pubkey, {
+      audit(c.get('services').audit, 'conversationClaimed', pubkey, {
         conversationId: id,
         channelType: conv.channelType,
       })

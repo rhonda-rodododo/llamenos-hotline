@@ -64,7 +64,7 @@ uploads.post('/init',
       return c.json({ error: 'Failed to initialize upload' }, 500)
     }
 
-    await audit(dos.records, 'fileUploadStarted', pubkey, {
+    await audit(c.get('services').audit, 'fileUploadStarted', pubkey, {
       uploadId,
       conversationId: body.conversationId,
       totalSize: body.totalSize,
@@ -266,7 +266,7 @@ uploads.post('/:id/complete',
       return c.json({ error: 'Failed to complete upload' }, 500)
     }
 
-    await audit(dos.records, 'fileUploadCompleted', pubkey, { uploadId })
+    await audit(c.get('services').audit, 'fileUploadCompleted', pubkey, { uploadId })
 
     return c.json({ fileId: uploadId, status: 'complete' })
   },

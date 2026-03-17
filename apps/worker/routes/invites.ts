@@ -136,7 +136,7 @@ invites.post('/',
       method: 'POST',
       body: JSON.stringify({ ...body, createdBy: pubkey }),
     }))
-    if (res.ok) await audit(dos.records, 'inviteCreated', pubkey, { name: body.name })
+    if (res.ok) await audit(c.get('services').audit, 'inviteCreated', pubkey, { name: body.name })
     return res
   },
 )
@@ -163,7 +163,7 @@ invites.delete('/:code',
     const pubkey = c.get('pubkey')
     const code = c.req.param('code')
     const res = await dos.identity.fetch(new Request(`http://do/invites/${code}`, { method: 'DELETE' }))
-    if (res.ok) await audit(dos.records, 'inviteRevoked', pubkey, { code })
+    if (res.ok) await audit(c.get('services').audit, 'inviteRevoked', pubkey, { code })
     return res
   },
 )
