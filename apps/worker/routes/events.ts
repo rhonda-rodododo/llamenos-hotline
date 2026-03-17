@@ -283,7 +283,7 @@ events.get('/:id/records',
     const id = c.req.param('id')
     const services = c.get('services')
     const caseEvents = await services.cases.listCaseEvents(id)
-    return c.json({ records: caseEvents })
+    return c.json({ links: caseEvents })
   },
 )
 
@@ -362,7 +362,7 @@ events.get('/:id/reports',
     const id = c.req.param('id')
     const services = c.get('services')
     const reports = await services.cases.listEventReports(id)
-    return c.json({ reports })
+    return c.json({ links: reports })
   },
 )
 

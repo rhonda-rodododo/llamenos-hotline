@@ -117,7 +117,7 @@ shifts.post('/',
     const body = c.req.valid('json')
     const shift = await services.shifts.create(hubId, body)
     await audit(services.audit, 'shiftCreated', pubkey)
-    return c.json(shift, 201)
+    return c.json({ shift }, 201)
   },
 )
 
@@ -149,7 +149,7 @@ shifts.patch('/:id',
     const body = c.req.valid('json')
     const shift = await services.shifts.update(hubId, id, body)
     await audit(services.audit, 'shiftEdited', pubkey, { shiftId: id })
-    return c.json(shift)
+    return c.json({ shift })
   },
 )
 

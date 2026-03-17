@@ -241,6 +241,11 @@ export class AuditService {
 
     return row?.entryHash ?? null
   }
+
+  /** Clear all audit log entries (test/demo reset only). */
+  async reset(): Promise<void> {
+    await this.db.delete(auditLog)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -266,3 +271,6 @@ export async function audit(
   }
   await auditService.log(event, actorPubkey, { ...details, ...meta }, hubId)
 }
+
+// Re-export for convenience
+export { auditLog } from '../db/schema'

@@ -41,6 +41,7 @@ dev.post('/test-reset', async (c) => {
   }
   const services = c.get('services')
   const env = { DEMO_MODE: 'true', ENVIRONMENT: c.env.ENVIRONMENT }
+  await services.audit.reset()
   await services.identity.reset(true, c.env.ENVIRONMENT)
   await services.settings.reset(env)
   await services.records.reset()
@@ -76,12 +77,14 @@ dev.post('/test-reset-no-admin', async (c) => {
   const services = c.get('services')
   const env = { DEMO_MODE: 'true', ENVIRONMENT: c.env.ENVIRONMENT }
   // Reset all services
+  await services.audit.reset()
   await services.identity.reset(true, c.env.ENVIRONMENT)
   await services.settings.reset(env)
   await services.records.reset()
   await services.shifts.reset('')
   await services.calls.reset('')
   await services.conversations.reset()
+  await services.blasts.reset()
   await services.contacts.reset(env)
   await services.cases.reset(env)
   // Tell IdentityService to skip admin re-creation from ADMIN_PUBKEY on next ensureInit().

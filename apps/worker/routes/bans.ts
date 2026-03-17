@@ -95,7 +95,7 @@ bans.post('/bulk',
     }
     const added = await services.records.bulkAddBans(body.phones, body.reason ?? '', pubkey, hubId)
     await audit(services.audit, 'numberBanned', pubkey, { count: body.phones.length, bulk: true })
-    return c.json({ ok: true, added })
+    return c.json({ count: added })
   },
 )
 

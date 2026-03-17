@@ -1,6 +1,6 @@
 import { createMiddleware } from 'hono/factory'
 import type { AppEnv, Volunteer } from '../types'
-import { authenticateRequest, parseAuthHeader, parseSessionHeader } from '../lib/auth'
+import { authenticateRequest, parseAuthHeader, parseSessionHeader, validateToken } from '../lib/auth'
 import type { Role } from '@shared/permissions'
 import { resolvePermissions } from '@shared/permissions'
 import { createLogger } from '../lib/logger'
@@ -19,11 +19,11 @@ export const auth = createMiddleware<AppEnv>(async (c, next) => {
   // fails, fall back to pubkey-only auth. This handles mobile E2E tests where the
   // Rust native crypto library may produce signatures that fail verification due to
   // cross-architecture interop differences (e.g., x86_64 emulator vs. backend).
-  // The pubkey must still exist as a registered volunteer.
+  // Still validates token format and freshness — only bypasses signature verification.
   if (!authResult && c.env.ENVIRONMENT === 'development') {
     const devAuthHeader = c.req.header('Authorization') ?? null
     const authPayload = parseAuthHeader(devAuthHeader)
-    if (authPayload?.pubkey) {
+    if (authPayload?.pubkey && validateToken(authPayload)) {
       let volunteer = await services.identity.getVolunteerInternal(authPayload.pubkey)
       if (!volunteer) {
         // Auto-register the identity as a volunteer in dev mode.
