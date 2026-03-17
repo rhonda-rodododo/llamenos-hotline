@@ -659,11 +659,9 @@ struct CaseDetailView: View {
                             Text(String(contact.contactId.prefix(12)) + "...")
                                 .font(.brand(.body))
                                 .fontDesign(.monospaced)
-                            if let addedAt = contact.addedAt {
-                                Text(NSLocalizedString("cases_added", comment: "Added") + " " + relativeTime(addedAt))
-                                    .font(.brand(.caption2))
-                                    .foregroundStyle(.secondary)
-                            }
+                            Text(NSLocalizedString("cases_added", comment: "Added") + " " + relativeTime(contact.addedAt))
+                                .font(.brand(.caption2))
+                                .foregroundStyle(.secondary)
                         }
                         Spacer()
                         // Role badge with color from entity type contactRoles
