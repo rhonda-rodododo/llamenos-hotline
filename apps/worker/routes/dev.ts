@@ -362,6 +362,7 @@ dev.post('/test-simulate/incoming-call', async (c) => {
   await services.calls.addCall(hubId, {
     callId,
     callerNumber: body.callerNumber,
+    callerLast4: body.callerNumber?.slice(-4),
   })
 
   // Publish call ring event (mirrors real telephony flow)
