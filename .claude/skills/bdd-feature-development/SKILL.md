@@ -21,14 +21,19 @@ between phases. Tests are written BEFORE implementation, not after.
 
 ### Phase 1: API + Locales + Shared BDD Specs (single agent)
 
-**Touches:** `apps/worker/`, `packages/i18n/`, `packages/test-specs/`, `tests/steps/backend/`
+**Touches:** `apps/worker/`, `packages/i18n/`, `packages/protocol/`, `packages/test-specs/`, `tests/steps/backend/`
 **Does NOT touch:** `src/client/`, `apps/ios/`, `apps/android/`
 
-1. Implement backend routes/DO methods
-2. Add i18n strings (all 13 locales)
-3. Write shared .feature files in `packages/test-specs/features/`
-4. Write backend step definitions in `tests/steps/backend/`
-5. **Gate**: `bun run test:backend:bdd` passes
+Every feature MUST include ALL of these in Phase 1 — they are NOT afterthoughts:
+
+1. **Define/update protocol schemas** (`packages/protocol/schemas/`) — Zod schemas are the API contract. Add new schemas or update existing ones for new request/response shapes. Run `bun run codegen` to generate TS/Swift/Kotlin types.
+2. **Add API validation** — Use `validator('json', schema)` on every route that accepts input. Response shapes must match the declared schema.
+3. **Add/update permissions** — Every new endpoint MUST have a `requirePermission()` guard with a specific, purpose-built permission (not a reused one). Add new permissions to `PERMISSION_CATALOG` in `packages/shared/permissions.ts`. Update default roles.
+4. **Add i18n strings** — Add to `packages/i18n/locales/en.json` (source of truth), then to all 13 locales. Run `bun run i18n:codegen` to generate iOS .strings + Android strings.xml + Kotlin I18n.kt. NEVER add strings directly to platform files.
+5. **Implement backend routes/service methods** — Drizzle ORM service classes in `apps/worker/services/`.
+6. **Write shared .feature files** in `packages/test-specs/features/` — Include permission matrix scenarios for new endpoints.
+7. **Write backend step definitions** in `tests/steps/backend/`
+8. **Gate**: `bun run test:backend:bdd` passes
 
 ### Phase 2: Client Implementation (parallel agents)
 
@@ -262,14 +267,14 @@ bun run crypto:clippy       # Linting
 docker compose -f deploy/docker/docker-compose.dev.yml up -d
 
 # 2. Start app locally (auto-reloads on code changes)
-bun run dev:node
+bun run dev:server
 
 # 3. Run backend BDD
 bun run test:backend:bdd
 ```
 
 NEVER use the production compose for local dev/testing — it bundles the app into Docker
-and won't pick up code changes. Always use dev compose + `bun run dev:node`.
+and won't pick up code changes. Always use dev compose + `bun run dev:server`.
 
 ### Other test commands
 

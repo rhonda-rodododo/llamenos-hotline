@@ -14,18 +14,29 @@ Client HTTP request
   -> Hono route (/api/*)
     -> CORS middleware
     -> auth middleware (verify Schnorr sig or WebAuthn session token)
-      -> sets c.get('pubkey'), c.get('volunteer'), c.get('permissions')
+      -> sets c.get('pubkey'), c.get('volunteer'), c.get('permissions'), c.get('services')
     -> requirePermission('feature:action') guard
     -> route handler
-      -> getDOs(c.env) or getScopedDOs(c.env, hubId)
-      -> DO.fetch(new Request('http://do/path', { method, body }))
-        -> DORouter.handle(request)
-          -> handler reads/writes ctx.storage
-          -> returns Response.json(...)
-      -> audit(dos.records, 'eventName', pubkey, details)
+      -> const services = c.get('services')
+      -> services.{domain}.method(params)  // Drizzle ORM → PostgreSQL
+      -> audit(services.audit, 'eventName', pubkey, details)
       -> publishNostrEvent(c.env, KIND_*, { id-only payload })
     -> return Response to client
 ```
+
+## New Endpoint Checklist (MANDATORY)
+
+Every new API endpoint MUST include ALL of these — they are not afterthoughts:
+
+1. **Protocol schema** — Define request/response Zod schemas in `packages/protocol/schemas/`. Run `bun run codegen`.
+2. **API validation** — Use `validator('json', schema)` on every route accepting input.
+3. **Permission** — Add a NEW, specific permission to `PERMISSION_CATALOG`. NEVER reuse an existing permission for a semantically different operation. Update default roles.
+4. **Service method** — Implement in `apps/worker/services/{domain}.ts` using Drizzle ORM.
+5. **i18n strings** — Add to `packages/i18n/locales/en.json` + all 13 locales. Run `bun run i18n:codegen`. NEVER add strings directly to platform files.
+6. **Audit log** — Call `audit()` for all state-changing operations.
+7. **Nostr event** — Call `publishNostrEvent()` for operations that need real-time client updates.
+8. **BDD test** — Add scenario to the relevant `.feature` file + backend step definition. Add permission-matrix scenario for the new endpoint.
+9. **Run tests** — `bun run test:backend:bdd` must pass before committing.
 
 ## The 7 Durable Objects
 
