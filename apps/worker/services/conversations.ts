@@ -136,10 +136,25 @@ export class ConversationsService {
         contactLast4: input.contactLast4,
         assignedTo: input.assignedTo,
         status: input.status ?? 'waiting',
-        metadata: input.metadata ?? null,
         lastMessageAt: new Date(),
       })
       .returning()
+
+    // Drizzle bun-sql double-serializes JSONB objects in insert .values().
+    // Use .update().set() with an explicit ::jsonb SQL cast instead, which
+    // handles parameterized JSONB correctly.
+    if (input.metadata) {
+      console.log('[conversations.create] Fixing metadata for', row.id, JSON.stringify(input.metadata).slice(0, 100))
+      const [updated] = await this.db
+        .update(conversations)
+        .set({
+          metadata: sql`${JSON.stringify(input.metadata)}::jsonb`,
+        })
+        .where(eq(conversations.id, row.id))
+        .returning()
+      console.log('[conversations.create] After update, metadata type:', typeof updated.metadata, 'value:', JSON.stringify(updated.metadata).slice(0, 100))
+      return updated
+    }
 
     return row
   }

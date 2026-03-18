@@ -60,6 +60,7 @@ let secNet: NetworkSecState = {}
 
 Before({ tags: '@backend' }, async () => {
   secNet = {}
+  resetSharedState()
 })
 
 // ── Vonage Webhook Steps ─────────────────────────────────────────
@@ -143,8 +144,8 @@ When('a client makes any API request', async ({ request }) => {
     headers: { 'Content-Type': 'application/json' },
   })
   const headers: Record<string, string> = {}
-  for (const [key, value] of res.headersArray()) {
-    headers[key.toLowerCase()] = value
+  for (const entry of res.headersArray()) {
+    headers[entry.name.toLowerCase()] = entry.value
   }
   secNet.apiResponse = { status: res.status(), headers, data: null }
 })

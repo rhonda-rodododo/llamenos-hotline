@@ -39,14 +39,14 @@ export const hubKeyEnvelopeResponseSchema = z.object({
 
 export const createHubBodySchema = z.looseObject({
   name: z.string().min(1).max(200),
-  slug: z.string().regex(/^[a-z0-9-]+$/).optional(),
+  slug: z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/).optional(),
   description: z.string().max(500).optional(),
   phoneNumber: z.string().max(20).optional(),
 })
 
 export const updateHubBodySchema = z.looseObject({
   name: z.string().min(1).max(200).optional(),
-  slug: z.string().regex(/^[a-z0-9-]+$/).optional(),
+  slug: z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/).optional(),
   description: z.string().max(500).optional(),
   phoneNumber: z.string().max(20).optional(),
   status: z.enum(['active', 'archived']).optional(),

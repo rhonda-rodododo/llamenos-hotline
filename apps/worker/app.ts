@@ -64,6 +64,15 @@ api.route('/health', healthRoutes)
 api.route('/metrics', metricsRoutes)
 
 api.use('*', cors)
+
+// Security headers — defense-in-depth for all API responses
+api.use('*', async (c, next) => {
+  await next()
+  c.header('X-Content-Type-Options', 'nosniff')
+  c.header('Referrer-Policy', 'no-referrer')
+  c.header('Cross-Origin-Opener-Policy', 'same-origin')
+})
+
 api.use('*', apiVersion)
 
 // Public routes (no auth)

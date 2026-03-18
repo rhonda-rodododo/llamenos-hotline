@@ -13,8 +13,11 @@ import { state } from './common.steps'
 import {
   apiGet,
   apiPatch,
+  apiPut,
   createVolunteerViaApi,
   createShiftViaApi,
+  listShiftsViaApi,
+  deleteShiftViaApi,
   uniquePhone,
   uniqueName,
 } from '../../api-helpers'
@@ -211,8 +214,22 @@ Given('a fallback ring group is configured', async ({ request }) => {
   }
 })
 
-Given('no shift is active and no fallback is configured', async ({}) => {
-  // Neither shift nor fallback — empty state
+Given('no shift is active and no fallback is configured', async ({ request }) => {
+  // Clear all existing shifts so no volunteers are on-shift
+  try {
+    const shifts = await listShiftsViaApi(request)
+    for (const shift of shifts) {
+      await deleteShiftViaApi(request, shift.id)
+    }
+  } catch {
+    // Best effort — shifts may not exist
+  }
+  // Clear fallback ring group so getCurrentVolunteers returns empty
+  try {
+    await apiPut(request, '/shifts/fallback', { volunteerPubkeys: [] })
+  } catch {
+    // Best effort
+  }
   sim.fallbackConfigured = false
 })
 

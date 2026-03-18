@@ -43,23 +43,21 @@ Before({ tags: '@backend' }, async () => {
 // ── CMS Report Type Steps ────────────────────────────────────────
 
 Given('a CMS report type with allowCaseConversion enabled exists', async ({ request }) => {
-  const name = uniqueName('Triage Enabled RT')
   const rt = await createCmsReportTypeViaApi(request, {
-    name,
+    name: `triage_enabled_${Date.now()}`,
     allowCaseConversion: true,
   })
   triage.enabledReportTypeId = rt.id as string
-  triage.enabledReportTypeName = name
+  triage.enabledReportTypeName = rt.name as string
 })
 
 Given('a CMS report type with allowCaseConversion disabled exists', async ({ request }) => {
-  const name = uniqueName('Triage Disabled RT')
   const rt = await createCmsReportTypeViaApi(request, {
-    name,
+    name: `triage_disabled_${Date.now()}`,
     allowCaseConversion: false,
   })
   triage.disabledReportTypeId = rt.id as string
-  triage.disabledReportTypeName = name
+  triage.disabledReportTypeName = rt.name as string
 })
 
 // ── Report Creation Steps ────────────────────────────────────────

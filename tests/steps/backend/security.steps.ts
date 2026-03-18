@@ -4,6 +4,7 @@
  */
 import { expect } from '@playwright/test'
 import { Given, When, Then } from './fixtures'
+import { shared } from './shared-state'
 import { state } from './common.steps'
 import {
   apiGet,
@@ -236,8 +237,11 @@ When('the user presents the expired token', async ({ request }) => {
 })
 
 Then('the server should reject with {int}', async ({}, expectedStatus: number) => {
-  expect(secState.sessionResult).toBeDefined()
-  expect(secState.sessionResult!.status).toBe(expectedStatus)
+  // Prefer shared.lastResponse (set by network-security and other When steps),
+  // fall back to secState.sessionResult (session management tests)
+  const result = shared.lastResponse ?? secState.sessionResult
+  expect(result).toBeDefined()
+  expect(result!.status).toBe(expectedStatus)
 })
 
 When('the user makes an authenticated request', async ({ request }) => {

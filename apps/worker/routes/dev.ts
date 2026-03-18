@@ -355,8 +355,18 @@ dev.post('/test-simulate/incoming-call', async (c) => {
   let volunteerPubkeys: string[] = []
   try {
     volunteerPubkeys = await services.shifts.getCurrentVolunteers(hubId)
+    // Fall back to default hub if the specified hub has no volunteers
+    if (volunteerPubkeys.length === 0 && hubId) {
+      volunteerPubkeys = await services.shifts.getCurrentVolunteers('')
+    }
   } catch {
     // Shifts not configured — proceed with empty list
+  }
+
+  // If no volunteers are available, return a no-volunteers status
+  // (mirrors real telephony flow where the call cannot be routed)
+  if (volunteerPubkeys.length === 0) {
+    return c.json({ ok: false, callId, status: 'no-volunteers', error: 'No volunteers available' })
   }
 
   await services.calls.addCall(hubId, {

@@ -84,8 +84,15 @@ When('an incoming call arrives', async ({ request }) => {
 })
 
 When('the volunteer answers the call', async ({ request }) => {
-  const result = await simulateAnswerCall(request, xdo.callId!, xdo.volunteerPubkey!)
+  // Use xdo state if available (cross-DO workflow), fall back to shared state
+  // (simulation scenarios that use "Given an incoming call from ..." steps)
+  const callId = xdo.callId ?? state.callId
+  const pubkey = xdo.volunteerPubkey ?? state.volunteers[0]?.pubkey
+  expect(callId).toBeTruthy()
+  expect(pubkey).toBeTruthy()
+  const result = await simulateAnswerCall(request, callId!, pubkey!)
   xdo.callStatus = result.status
+  state.callStatus = result.status
 })
 
 When('the volunteer writes a note for the call', async ({ request }) => {
@@ -138,17 +145,24 @@ When('an admin bans {string}', async ({ request }, phone: string) => {
 })
 
 When('an incoming call arrives from {string}', async ({ request }, phone: string) => {
-  const result = await simulateIncomingCall(request, { callerNumber: phone })
-  xdo.callId = result.callId
-  xdo.callStatus = result.status
+  try {
+    const result = await simulateIncomingCall(request, { callerNumber: phone })
+    xdo.callId = result.callId
+    xdo.callStatus = result.status
+  } catch (e) {
+    // Banned callers get a 403 — record as 'rejected' instead of throwing
+    const msg = e instanceof Error ? e.message : String(e)
+    if (msg.includes('banned') || msg.includes('403')) {
+      xdo.callStatus = 'rejected'
+    } else {
+      throw e
+    }
+  }
 })
 
-Then('the banned call should be rejected', async ({ request }) => {
-  // After a banned call, check status
-  const { data } = await apiGet<{ calls: Array<{ callId: string; status: string }> }>(request, '/calls/active')
-  // Banned calls may not appear in active list, or have 'rejected' status
-  // The key assertion is that the call didn't route to volunteers
-  expect(xdo.callStatus).toBeDefined()
+Then('the banned call should be rejected', async ({}) => {
+  // The incoming-call step catches the 403 and sets status to 'rejected'
+  expect(xdo.callStatus).toBe('rejected')
 })
 
 Then('the call should be ringing', async ({}) => {
