@@ -75,6 +75,10 @@ fun AudioInputButton(
     testTagPrefix: String = "audio-input",
 ) {
     val context = LocalContext.current
+    val strPermissionDenied = stringResource(R.string.report_typed_audio_permission_denied)
+    val strUnavailable = stringResource(R.string.report_typed_audio_unavailable)
+    val strListening = stringResource(R.string.report_typed_audio_listening)
+    val strError = stringResource(R.string.report_typed_audio_error)
     var audioState by remember { mutableStateOf(AudioInputState.IDLE) }
     var statusText by remember { mutableStateOf<String?>(null) }
     var speechRecognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
@@ -94,7 +98,7 @@ fun AudioInputButton(
             audioState = AudioInputState.IDLE
         } else if (!granted) {
             audioState = AudioInputState.UNAVAILABLE
-            statusText = context.getString(R.string.report_typed_audio_permission_denied)
+            statusText = strPermissionDenied
         }
     }
 
@@ -116,7 +120,7 @@ fun AudioInputButton(
     fun startListening() {
         if (!isAvailable) {
             audioState = AudioInputState.UNAVAILABLE
-            statusText = context.getString(R.string.report_typed_audio_unavailable)
+            statusText = strUnavailable
             return
         }
 
@@ -128,7 +132,7 @@ fun AudioInputButton(
         recognizer.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
                 audioState = AudioInputState.LISTENING
-                statusText = context.getString(R.string.report_typed_audio_listening)
+                statusText = strListening
             }
 
             override fun onBeginningOfSpeech() {
@@ -156,14 +160,14 @@ fun AudioInputButton(
                 }
                 statusText = when (error) {
                     SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
-                        context.getString(R.string.report_typed_audio_permission_denied)
+                        strPermissionDenied
                     SpeechRecognizer.ERROR_NO_MATCH ->
                         null // Silent — no speech detected is not an error to show
                     SpeechRecognizer.ERROR_NETWORK,
                     SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
-                        context.getString(R.string.report_typed_audio_error)
+                        strError
                     else ->
-                        context.getString(R.string.report_typed_audio_error)
+                        strError
                 }
             }
 
@@ -225,7 +229,7 @@ fun AudioInputButton(
                     AudioInputState.IDLE -> {
                         if (!isAvailable) {
                             audioState = AudioInputState.UNAVAILABLE
-                            statusText = context.getString(R.string.report_typed_audio_unavailable)
+                            statusText = strUnavailable
                         } else if (!hasPermission) {
                             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                         } else {

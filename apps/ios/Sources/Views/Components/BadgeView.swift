@@ -29,6 +29,7 @@ struct BadgeView: View {
             Capsule()
                 .stroke(borderColor, lineWidth: style == .outlined ? 1 : 0)
         )
+        .accessibilityElement(children: .combine)
     }
 
     private var foregroundColor: Color {

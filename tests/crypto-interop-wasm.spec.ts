@@ -11,6 +11,9 @@
 import { test, expect } from '@playwright/test'
 import { readFileSync, existsSync } from 'fs'
 import { resolve } from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 const VECTORS_PATH = resolve(__dirname, '../packages/crypto/tests/fixtures/test-vectors.json')
 const WASM_PATH = resolve(__dirname, '../packages/crypto/dist/wasm/llamenos_core.js')
