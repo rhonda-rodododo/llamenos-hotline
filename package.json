@@ -160,6 +160,7 @@
     "drizzle-kit": "^0.31.9",
     "eslint": "^10.0.3",
     "playwright-bdd": "^8.4.2",
+    "postgres": "^3.4.8",
     "quicktype-core": "^23.2.6",
     "shadcn": "^3.8.5",
     "tailwindcss": "^4.2.1",

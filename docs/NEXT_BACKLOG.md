@@ -647,7 +647,8 @@ Complete backend modernization: replace Node.js with Bun runtime, then replace t
 - [x] **[Epic 361: Mobile Client Compatibility — Drizzle Backend Validation](epics/epic-361-mobile-drizzle-compat.md)** — Codegen verified: zero drift on TS/Swift/Kotlin types + i18n. Protocol schemas unchanged. iOS build fixed (duplicate RecordContact), Android build fixed (66 missing i18n strings). iOS: 107 unit tests pass. XCUITests: 253 executed.
 - [x] **[Epic 362: Permission Granularity Overhaul](epics/epic-362-permission-granularity.md)** — 73→93 permissions. 20 new, 30 route guard fixes, 5 phantom fixes, 8 unguarded endpoints guarded, 14 templates updated. Split calls:answer (3-way), settings:manage (5-way). All 5 default roles updated.
 - [x] **[Epic 363: Wire Schema Coverage — All Endpoints Validated](epics/epic-363-wire-schema-coverage.md)** — ~130 endpoints with response schemas, ~60 named schemas, all registered for codegen. 566 BDD tests pass, 0 failures.
-- [ ] **[Epic 364: Downstream Client Type Migration](epics/epic-364-client-type-migration.md)** — Replace ~100 manually-defined types across Desktop/iOS/Android with codegen'd protocol types. Single source of truth for all API types.
+- [x] **[Epic 364: Downstream Client Type Migration](epics/epic-364-client-type-migration.md)** — Replace ~100 manually-defined types across Desktop/iOS/Android with codegen'd protocol types. Single source of truth for all API types.
+- [ ] **[Epic 365: BDD Behavioral Depth — Real Workflow Tests](epics/epic-365-bdd-behavioral-depth.md)** — ~60 new scenarios testing real crypto round-trips, data isolation, state transitions, JSONB fidelity, audit chain integrity, and cross-domain lifecycle flows. Includes DB verification layer.
 
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
