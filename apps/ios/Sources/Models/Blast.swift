@@ -1,8 +1,11 @@
 import SwiftUI
 
-// MARK: - Blast
+// MARK: - AppBlast
 
-struct Blast: Identifiable, Codable, Sendable {
+/// Client-side blast model with UI-specific fields and computed properties.
+/// Named `AppBlast` to avoid conflict with generated `Blast` from protocol codegen.
+/// The generated `Blast` has a different shape (structured content, typed status enum).
+struct AppBlast: Identifiable, Codable, Sendable {
     let id: String
     let name: String
     let content: [String: [String: String]]
@@ -27,8 +30,10 @@ struct Blast: Identifiable, Codable, Sendable {
     }
 }
 
-struct BlastsListResponse: Codable, Sendable {
-    let blasts: [Blast]
+/// Client-side API response for the blast list.
+/// Named `AppBlastsListResponse` to avoid conflict with generated `BlastListResponse`.
+struct AppBlastsListResponse: Codable, Sendable {
+    let blasts: [AppBlast]
     let total: Int
 }
 

@@ -2,13 +2,30 @@ package org.llamenos.hotline.model
 
 import kotlinx.serialization.Serializable
 
+// ---- Re-exports of generated types ----
+
+/**
+ * Request body for sending an encrypted reply.
+ * Uses the generated SendMessageBody type.
+ */
+typealias SendMessageRequest = org.llamenos.protocol.SendMessageBody
+
+/**
+ * Envelope structure for the send-message request body.
+ * Uses the generated SendMessageBodyReaderEnvelope type.
+ */
+typealias CreateMessageEnvelope = org.llamenos.protocol.SendMessageBodyReaderEnvelope
+
+// ---- Client-specific types ----
+
 /**
  * A messaging conversation between a contact and the hotline.
  *
  * Client-specific shape optimized for local UI. The generated
  * ConversationResponse (org.llamenos.protocol.ConversationResponse) represents
  * the full API shape with different field names (contactIdentifierHash,
- * assignedTo, messageCount). This type uses UI-friendly field names.
+ * assignedTo, messageCount as Double). This type uses UI-friendly field names
+ * (contactHash, assignedVolunteerPubkey, unreadCount).
  */
 @Serializable
 data class Conversation(
@@ -25,9 +42,10 @@ data class Conversation(
 /**
  * An encrypted message within a conversation.
  *
- * Message content is E2EE: a random symmetric key encrypts the plaintext,
- * then the key is ECIES-wrapped in [recipientEnvelopes] for each authorized
- * reader (assigned volunteer + admins).
+ * Client-specific shape — the generated MessageResponse uses
+ * conversationID (with @SerialName), has authorPubkey/status fields,
+ * and uses MessageResponseReaderEnvelope. This type uses different
+ * field names (channelType, readAt) for UI convenience.
  */
 @Serializable
 data class ConversationMessage(
@@ -58,18 +76,6 @@ data class MessagesListResponse(
     val messages: List<ConversationMessage>,
     val total: Int,
 )
-
-/**
- * Request body for sending an encrypted reply.
- * Uses the generated SendMessageBody type.
- */
-typealias SendMessageRequest = org.llamenos.protocol.SendMessageBody
-
-/**
- * Envelope structure for the send-message request body.
- * Uses the generated SendMessageBodyReaderEnvelope type.
- */
-typealias CreateMessageEnvelope = org.llamenos.protocol.SendMessageBodyReaderEnvelope
 
 /**
  * Decrypted message for UI display.

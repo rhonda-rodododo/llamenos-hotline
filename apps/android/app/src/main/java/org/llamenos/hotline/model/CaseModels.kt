@@ -2,13 +2,10 @@ package org.llamenos.hotline.model
 
 import kotlinx.serialization.Serializable
 import org.llamenos.protocol.AssignBody
-import org.llamenos.protocol.CaseInteraction
 import org.llamenos.protocol.CreateInteractionBody
 import org.llamenos.protocol.CreateRecordBody
 import org.llamenos.protocol.Evidence
-import org.llamenos.protocol.EvidenceListResponse
 import org.llamenos.protocol.Interaction
-import org.llamenos.protocol.InteractionListResponse
 import org.llamenos.protocol.Record
 import org.llamenos.protocol.RecordContact
 import org.llamenos.protocol.UpdateRecordBody
@@ -32,11 +29,6 @@ typealias UpdateRecordRequest = UpdateRecordBody
 
 /** Alias: codegen [CreateInteractionBody] corresponds to the old hand-written CreateInteractionRequest. */
 typealias CreateInteractionRequest = CreateInteractionBody
-
-// ---- Re-exports of codegen types that share the same name ----
-// These are re-exported so existing `import org.llamenos.hotline.model.X` imports continue to work.
-// NOTE: Kotlin does not allow re-exporting via typealias when the alias name == original name
-// in a different package. So consumers should import directly from org.llamenos.protocol instead.
 
 // ---- Lenient entity type definition ----
 // The codegen EntityTypeDefinition now has defaults on all fields (Epic 354: Zod schemas

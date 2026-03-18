@@ -129,7 +129,7 @@ struct AuditLogView: View {
 
 /// A single audit log entry row showing the action, actor, timestamp, and hash chain info.
 struct AuditEntryRowView: View {
-    let entry: AuditEntry
+    let entry: AppAuditEntry
 
     @State private var isExpanded: Bool = false
 

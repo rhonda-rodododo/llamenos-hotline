@@ -10,6 +10,8 @@ typealias CallRecord = org.llamenos.protocol.CallRecordResponse
 /**
  * Active call — a call currently ringing or in progress.
  * Client-only type — not part of the generated API surface.
+ * The generated ActiveCallsResponseCall has a different shape (callerLast4 instead of callerNumber,
+ * includes hasRecording/hasTranscription/hasVoicemail/duration/endedAt which are not needed here).
  */
 @Serializable
 data class ActiveCall(
@@ -22,7 +24,8 @@ data class ActiveCall(
 
 /**
  * Paginated call history response from GET /calls/history.
- * Client-side wrapper.
+ * Client-side wrapper — the generated CallHistoryResponse uses Double for pagination fields
+ * and a nested CallHistoryResponseCall type. This uses Int and the generated CallRecordResponse.
  */
 @Serializable
 data class CallHistoryResponse(
@@ -32,7 +35,7 @@ data class CallHistoryResponse(
 
 /**
  * Today's call count response from GET /calls/today-count.
- * Client-only type.
+ * Client-only type using Int instead of the generated TodayCountResponse (Double).
  */
 @Serializable
 data class CallCountResponse(
@@ -41,6 +44,8 @@ data class CallCountResponse(
 
 /**
  * Response from GET /api/calls/active — list of the volunteer's active calls.
+ * Client-only type — the generated ActiveCallsResponse uses ActiveCallsResponseCall
+ * which has a different shape from our client ActiveCall.
  */
 @Serializable
 data class ActiveCallsResponse(
@@ -49,6 +54,8 @@ data class ActiveCallsResponse(
 
 /**
  * Request body for POST /api/calls/{callId}/ban.
+ * Client-specific shape — uses 'reason: String' (non-nullable) vs the generated
+ * BanCallerBody which has 'reason: String? = null'.
  */
 @Serializable
 data class BanRequest(

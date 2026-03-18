@@ -266,7 +266,7 @@ final class ShiftsViewModel {
         let today = Calendar.current.component(.weekday, from: Date()) - 1  // 0-indexed, Sunday = 0
 
         shiftDays = (0..<7).map { dayIndex in
-            let dayShifts = shifts.filter { $0.days.contains(dayIndex) }
+            let dayShifts = shifts.filter { $0.daysAsInt.contains(dayIndex) }
             return ShiftDay(
                 id: dayIndex,
                 name: weekdays[dayIndex],

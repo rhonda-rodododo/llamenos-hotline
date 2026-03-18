@@ -1,7 +1,21 @@
+import { z } from 'zod'
 import * as keyManager from './key-manager'
 import { createAuthToken } from './platform'
 import { APP_API_VERSION, emitUpdateRequired } from './version'
 import { offlineQueue, isQueueableMethod, isNetworkError as isOfflineNetworkError } from './offline-queue'
+
+// --- Protocol schema imports (Epic 364) ---
+import { shiftResponseSchema } from '@protocol/schemas/shifts'
+import { callRecordResponseSchema, callPresenceResponseSchema } from '@protocol/schemas/calls'
+import { volunteerResponseSchema } from '@protocol/schemas/volunteers'
+import { banResponseSchema } from '@protocol/schemas/bans'
+import { noteResponseSchema } from '@protocol/schemas/notes'
+import { conversationResponseSchema, messageResponseSchema } from '@protocol/schemas/conversations'
+import { inviteResponseSchema } from '@protocol/schemas/invites'
+import { recordSchema, recordContactSchema } from '@protocol/schemas/records'
+import { caseInteractionSchema } from '@protocol/schemas/interactions'
+import { reportTypeDefinitionSchema } from '@protocol/schemas/report-types'
+import { spamSettingsSchema, callSettingsSchema } from '@protocol/schemas/settings'
 
 const API_BASE = '/api'
 
@@ -583,10 +597,7 @@ export async function updateSpamSettings(data: Partial<SpamSettings>) {
 
 // --- Call Settings ---
 
-export interface CallSettings {
-  queueTimeoutSeconds: number
-  voicemailMaxSeconds: number
-}
+export type CallSettings = Required<z.infer<typeof callSettingsSchema>>
 
 export async function getCallSettings() {
   return request<CallSettings>('/settings/call')
@@ -892,54 +903,29 @@ export async function getMigrationStatus() {
 /** @deprecated Use roles array + permissions */
 export type UserRole = 'volunteer' | 'admin' | 'reporter'
 
-export interface Volunteer {
-  pubkey: string
-  name: string
-  phone: string
-  roles: string[]
-  active: boolean
+export type Volunteer = z.infer<typeof volunteerResponseSchema> & {
+  // Fields present in API responses but not yet in protocol schema
   createdAt: string
+  phone: string
   transcriptionEnabled: boolean
   onBreak: boolean
   callPreference: 'phone' | 'browser' | 'both'
   // Messaging capabilities (Epic 68)
-  supportedMessagingChannels?: string[]  // SMS, WhatsApp, Signal, RCS (empty = all)
-  messagingEnabled?: boolean  // Whether volunteer can handle messaging conversations
+  supportedMessagingChannels?: string[]
+  messagingEnabled?: boolean
 }
 
-export interface Shift {
-  id: string
-  name: string
-  startTime: string   // HH:mm
-  endTime: string     // HH:mm
-  days: number[]      // 0=Sunday, 1=Monday, ..., 6=Saturday
-  volunteerPubkeys: string[]
-  createdAt: string
-}
+export type Shift = z.infer<typeof shiftResponseSchema>
 
-export interface BanEntry {
-  phone: string
-  reason: string
-  bannedBy: string
-  bannedAt: string
-}
+export type BanEntry = z.infer<typeof banResponseSchema>
 
-export interface EncryptedNote {
-  id: string
-  callId?: string
-  conversationId?: string
-  contactHash?: string
-  authorPubkey: string
-  encryptedContent: string
-  createdAt: string
-  updatedAt: string
+export type EncryptedNote = z.infer<typeof noteResponseSchema> & {
+  // Legacy field — not in protocol schema
   ephemeralPubkey?: string
-  // V2 per-note ECIES envelopes (forward secrecy)
-  authorEnvelope?: import('@shared/types').KeyEnvelope
-  adminEnvelopes?: import('@shared/types').RecipientEnvelope[]
-  replyCount?: number
 }
 
+// ActiveCall diverges from callRecordResponseSchema (has callerNumber, different status enum)
+// Kept as standalone interface — see Epic 364 for future alignment
 export interface ActiveCall {
   id: string
   callerNumber: string
@@ -948,22 +934,12 @@ export interface ActiveCall {
   status: 'ringing' | 'in-progress' | 'completed' | 'unanswered'
 }
 
-export interface CallRecord {
-  id: string
-  callerLast4?: string
-  startedAt: string
-  endedAt?: string
-  duration?: number
-  hasTranscription: boolean
-  hasVoicemail: boolean
-  hasRecording?: boolean
+export type CallRecord = z.infer<typeof callRecordResponseSchema> & {
+  // Extra fields not yet in protocol schema
   recordingSid?: string
-  status: 'completed' | 'unanswered'
-
   // Envelope-encrypted metadata (Epic 77)
   encryptedContent?: string
   adminEnvelopes?: import('@shared/types').RecipientEnvelope[]
-
   // Decrypted fields (populated client-side after decryption)
   answeredBy?: string | null
   callerNumber?: string
@@ -980,42 +956,23 @@ export interface AuditLogEntry {
   entryHash?: string
 }
 
-export interface VolunteerPresence {
-  pubkey: string
-  status: 'available' | 'on-call' | 'online'
-}
+export type VolunteerPresence = z.infer<typeof callPresenceResponseSchema>['volunteers'][number]
 
-export interface SpamSettings {
-  voiceCaptchaEnabled: boolean
-  rateLimitEnabled: boolean
-  maxCallsPerMinute: number
-  blockDurationMinutes: number
-}
+export type SpamSettings = Required<z.infer<typeof spamSettingsSchema>>
 
-export interface InviteCode {
-  code: string
-  name: string
+export type InviteCode = z.infer<typeof inviteResponseSchema> & {
+  // These fields are always present in admin invite list responses
   phone: string
-  roleIds: string[]
   createdBy: string
-  createdAt: string
-  expiresAt: string
-  usedAt?: string
 }
 
 // --- Conversations ---
 
-export interface Conversation {
-  id: string
-  channelType: string
-  contactIdentifierHash: string
-  contactLast4?: string
-  assignedTo?: string
-  status: 'active' | 'waiting' | 'closed'
-  createdAt: string
-  updatedAt: string
+export type Conversation = z.infer<typeof conversationResponseSchema> & {
+  // Fields required in client but optional in protocol schema
   lastMessageAt: string
-  messageCount: number
+  status: 'active' | 'waiting' | 'closed'
+  // Client extensions not in protocol schema
   metadata?: {
     linkedCallId?: string
     reportId?: string
@@ -1031,22 +988,19 @@ export type MessageDeliveryStatus = 'pending' | 'sent' | 'delivered' | 'read' | 
 /** @deprecated Import RecipientEnvelope from @shared/types instead. */
 export type { RecipientEnvelope as MessageKeyEnvelope } from '@shared/types'
 
-export interface ConversationMessage {
-  id: string
-  conversationId: string
-  direction: 'inbound' | 'outbound'
+export type ConversationMessage = z.infer<typeof messageResponseSchema> & {
+  // Fields narrowed or required compared to protocol schema
   authorPubkey: string
-  encryptedContent: string         // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
-  readerEnvelopes: import('@shared/types').RecipientEnvelope[]  // per-reader ECIES-wrapped message keys
-  hasAttachments: boolean
+  direction: 'inbound' | 'outbound'
+  status?: MessageDeliveryStatus
+  // Client extensions not yet in protocol schema
+  hasAttachments?: boolean
   attachmentIds?: string[]
   // Delivery status tracking (Epic 71)
-  status?: MessageDeliveryStatus
   deliveredAt?: string
   readAt?: string
   failureReason?: string
   retryCount?: number
-  createdAt: string
   externalId?: string
 }
 
@@ -1749,32 +1703,7 @@ export async function applyTemplate(templateId: string) {
 
 // --- CMS Report Type Definitions (Epic 343) ---
 
-export interface ReportTypeDefinition {
-  id: string
-  hubId: string
-  name: string
-  label: string
-  labelPlural: string
-  description: string
-  icon?: string
-  color?: string
-  category: 'report'
-  templateId?: string
-  templateVersion?: string
-  fields: Array<EntityFieldDefinition & { supportAudioInput?: boolean }>
-  statuses: EnumOption[]
-  defaultStatus: string
-  closedStatuses: string[]
-  numberPrefix?: string
-  numberingEnabled: boolean
-  allowFileAttachments: boolean
-  allowCaseConversion: boolean
-  mobileOptimized: boolean
-  isArchived: boolean
-  isSystem: boolean
-  createdAt: string
-  updatedAt: string
-}
+export type ReportTypeDefinition = z.infer<typeof reportTypeDefinitionSchema>
 
 export async function listCmsReportTypes() {
   return request<{ reportTypes: ReportTypeDefinition[] }>(hp('/settings/cms/report-types'))
@@ -1838,42 +1767,9 @@ export async function deleteCmsReportType(id: string) {
 
 // --- Case Records (Epic 330) ---
 
-export interface CaseRecord {
-  id: string
-  hubId: string
-  entityTypeId: string
-  caseNumber?: string
-  statusHash: string
-  severityHash?: string
-  categoryHash?: string
-  assignedTo: string[]
-  blindIndexes: Record<string, string | string[]>
-  encryptedSummary: string
-  summaryEnvelopes: import('@shared/types').RecipientEnvelope[]
-  encryptedFields?: string
-  fieldEnvelopes?: import('@shared/types').RecipientEnvelope[]
-  encryptedPII?: string
-  piiEnvelopes?: import('@shared/types').RecipientEnvelope[]
-  contactCount: number
-  interactionCount: number
-  fileCount: number
-  reportCount: number
-  eventIds: string[]
-  reportIds: string[]
-  parentRecordId?: string
-  createdAt: string
-  updatedAt: string
-  closedAt?: string
-  createdBy: string
-}
+export type CaseRecord = z.infer<typeof recordSchema>
 
-export interface RecordContact {
-  recordId: string
-  contactId: string
-  role: string
-  addedAt: string
-  addedBy: string
-}
+export type RecordContact = z.infer<typeof recordContactSchema>
 
 export interface CreateRecordBody {
   entityTypeId: string
@@ -2233,21 +2129,9 @@ export async function getRecordEnvelopeRecipients(params: {
 
 // --- Case Interactions (Epic 332 — Timeline) ---
 
-export type InteractionType = 'note' | 'call' | 'message' | 'status_change' | 'referral' | 'assessment' | 'file_upload' | 'comment'
+export type InteractionType = CaseInteraction['interactionType']
 
-export interface CaseInteraction {
-  id: string
-  caseId: string
-  interactionType: InteractionType
-  sourceId?: string
-  encryptedContent?: string
-  contentEnvelopes?: import('@shared/types').RecipientEnvelope[]
-  authorPubkey: string
-  interactionTypeHash: string
-  createdAt: string
-  previousStatusHash?: string
-  newStatusHash?: string
-}
+export type CaseInteraction = z.infer<typeof caseInteractionSchema>
 
 export async function listInteractions(recordId: string, params?: {
   interactionTypeHash?: string

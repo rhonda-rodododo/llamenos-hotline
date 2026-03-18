@@ -6,7 +6,7 @@ import Foundation
 final class BlastsViewModel {
     private let apiService: APIService
 
-    var blasts: [Blast] = []
+    var blasts: [AppBlast] = []
     var subscriberStats: BlastSubscriberStats?
     var isLoading = false
     var isSending = false
@@ -25,7 +25,7 @@ final class BlastsViewModel {
         errorMessage = nil
 
         do {
-            let response: BlastsListResponse = try await apiService.request(
+            let response: AppBlastsListResponse = try await apiService.request(
                 method: "GET",
                 path: "/api/blasts"
             )
@@ -67,7 +67,7 @@ final class BlastsViewModel {
                 targetTags: [],
                 targetLanguages: ["en"]
             )
-            let _: Blast = try await apiService.request(
+            let _: AppBlast = try await apiService.request(
                 method: "POST",
                 path: "/api/blasts",
                 body: body

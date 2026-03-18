@@ -10,6 +10,7 @@ typealias NoteResponse = org.llamenos.protocol.NoteResponse
 typealias RecipientEnvelope = org.llamenos.protocol.RecipientEnvelope
 typealias CreateNoteBody = org.llamenos.protocol.CreateNoteBody
 typealias CreateReplyBody = org.llamenos.protocol.CreateReplyBody
+typealias UpdateNoteBody = org.llamenos.protocol.UpdateNoteBody
 
 /**
  * Decrypted note payload — the plaintext content inside an encrypted note.
@@ -26,7 +27,8 @@ data class NotePayload(
 
 /**
  * Paginated notes list response from GET /api/notes.
- * Client-side wrapper — the API returns notes array + pagination metadata.
+ * Client-side wrapper — the generated NoteListResponse uses Double for
+ * pagination fields and a nested Note type. This uses Int.
  */
 @Serializable
 data class NotesListResponse(
@@ -37,6 +39,8 @@ data class NotesListResponse(
 
 /**
  * Response from GET /api/notes/:id/replies.
+ * Client-specific shape — the generated NoteRepliesResponse uses a nested
+ * Reply type. This uses a client NoteReply with noteId field.
  */
 @Serializable
 data class NoteRepliesResponse(
@@ -45,6 +49,7 @@ data class NoteRepliesResponse(
 
 /**
  * A reply in a note thread.
+ * Client-specific shape with noteId field not present in the generated Reply type.
  */
 @Serializable
 data class NoteReply(

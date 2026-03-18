@@ -5,8 +5,10 @@ import kotlinx.serialization.Serializable
 /**
  * A hub representing a hotline operation.
  *
- * Hubs are the top-level organizational unit: each hub has its own
- * phone number, volunteers, shifts, and settings.
+ * Client-specific shape — the generated HubResponse uses enum status
+ * (HubResponseStatus) and has optional slug/createdAt/updatedAt, while
+ * this type uses String status with non-nullable defaults for createdBy,
+ * createdAt, updatedAt (fields not in the generated type).
  */
 @Serializable
 data class Hub(
@@ -23,6 +25,7 @@ data class Hub(
 
 /**
  * Response from GET /api/hubs.
+ * Client-side wrapper that uses the client Hub type.
  */
 @Serializable
 data class HubsListResponse(
@@ -39,6 +42,7 @@ data class CreateHubResponse(
 
 /**
  * Request body for POST /api/hubs.
+ * Client-specific simplified shape — matches CreateHubBody but without slug.
  */
 @Serializable
 data class CreateHubRequest(
@@ -57,6 +61,8 @@ data class UpdateHubResponse(
 
 /**
  * Request body for PATCH /api/hubs/:id.
+ * Client-specific simplified shape — matches UpdateHubBody but without
+ * slug and status (enum) fields.
  */
 @Serializable
 data class UpdateHubRequest(

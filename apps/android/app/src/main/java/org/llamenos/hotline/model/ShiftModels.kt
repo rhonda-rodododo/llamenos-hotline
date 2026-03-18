@@ -2,6 +2,8 @@ package org.llamenos.hotline.model
 
 import kotlinx.serialization.Serializable
 
+// ---- Re-exports of generated types ----
+
 /**
  * Re-export generated ShiftResponse from protocol package.
  * The generated type includes the full API shape (id, name, startTime, endTime,
@@ -9,13 +11,15 @@ import kotlinx.serialization.Serializable
  */
 typealias ShiftResponse = org.llamenos.protocol.ShiftResponse
 
+// ---- Client-specific types ----
+
 /**
  * Current shift status for the authenticated volunteer.
  * Client-specific shape for the /api/shifts/status endpoint.
  *
  * Note: The generated MyStatusResponse has a different shape (nested
- * currentShift/nextShift objects). This client type uses flat fields
- * matching the app's UI expectations.
+ * currentShift/nextShift objects with onShift boolean). This client type
+ * uses flat fields matching the app's UI expectations.
  */
 @Serializable
 data class ShiftStatusResponse(
@@ -40,7 +44,8 @@ data class ClockResponse(
 
 /**
  * Paginated shifts list response from GET /api/shifts.
- * Client-side wrapper — the API returns shifts array + count.
+ * Client-side wrapper — the generated ShiftListResponse uses a nested
+ * Shift type and Double for total. This uses ShiftResponse and Int.
  */
 @Serializable
 data class ShiftsListResponse(

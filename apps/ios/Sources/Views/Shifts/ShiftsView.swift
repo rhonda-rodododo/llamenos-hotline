@@ -236,8 +236,8 @@ struct ShiftsView: View {
                     .fontWeight(.medium)
                     .foregroundStyle(Color.brandForeground)
 
-                if let name = shift.name {
-                    Text(name)
+                if !shift.name.isEmpty {
+                    Text(shift.name)
                         .font(.brand(.caption))
                         .foregroundStyle(Color.brandMutedForeground)
                 }

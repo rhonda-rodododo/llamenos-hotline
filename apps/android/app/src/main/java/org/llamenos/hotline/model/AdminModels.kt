@@ -2,12 +2,88 @@ package org.llamenos.hotline.model
 
 import kotlinx.serialization.Serializable
 
+// ---- Re-exports of generated types ----
+
+/**
+ * Re-export generated BulkBanBody from protocol package.
+ */
+typealias BulkBanRequest = org.llamenos.protocol.BulkBanBody
+
+
+// ---- System Health ----
+// The generated SystemHealthResponse and nested types (Server, Service, Calls, Storage,
+// Backup, Volunteers) use ServerStatus enum, Double for numeric fields, and different
+// nullability from the client types below. Keeping client-specific types to avoid
+// cascading UI changes (StatusBadge expects String, formatUptime expects Int, etc.).
+
+/**
+ * Aggregate system health response from GET /api/system/health.
+ * Client-only composite type — not in the generated API surface.
+ */
+@Serializable
+data class SystemHealth(
+    val server: ServerHealth,
+    val services: List<ServiceStatus>,
+    val calls: CallMetrics,
+    val storage: StorageInfo,
+    val backup: BackupInfo,
+    val volunteers: VolunteerInfo,
+    val timestamp: String,
+)
+
+@Serializable
+data class ServerHealth(
+    val status: String,
+    val uptime: Int,
+    val version: String,
+)
+
+@Serializable
+data class ServiceStatus(
+    val name: String,
+    val status: String,
+    val details: String? = null,
+)
+
+@Serializable
+data class CallMetrics(
+    val today: Int,
+    val active: Int,
+    val avgResponseSeconds: Int,
+    val missed: Int,
+)
+
+@Serializable
+data class StorageInfo(
+    val dbSize: String,
+    val blobStorage: String,
+)
+
+@Serializable
+data class BackupInfo(
+    val lastBackup: String?,
+    val backupSize: String,
+    val lastVerify: String?,
+)
+
+@Serializable
+data class VolunteerInfo(
+    val totalActive: Int,
+    val onlineNow: Int,
+    val onShift: Int,
+    val shiftCoverage: Int,
+)
+
+// ---- Client-specific types ----
+
 /**
  * A volunteer registered in the system.
  *
  * Client-specific type for admin views. The generated VolunteerResponse
  * (org.llamenos.protocol.VolunteerResponse) has a different shape optimized
- * for the API response. This type uses UI-friendly field names.
+ * for the API response (uses pubkey-based identity, roles as List<String>,
+ * has callPreference/spokenLanguages/etc.). This type uses UI-friendly
+ * field names (id, displayName, role as singular String, status).
  */
 @Serializable
 data class Volunteer(
@@ -30,7 +106,8 @@ data class VolunteersListResponse(
 
 /**
  * A ban list entry for the client.
- * Extends the generated BanResponse with client-specific field names.
+ * The generated BanResponse/Ban uses 'phone', 'bannedBy', 'bannedAt' fields
+ * while this client type uses 'identifierHash', 'createdBy', 'createdAt'.
  */
 @Serializable
 data class BanEntry(
@@ -43,6 +120,7 @@ data class BanEntry(
 
 /**
  * Paginated response from GET /api/admin/bans.
+ * The generated BanListResponse has bans: List<Ban> without pagination.
  */
 @Serializable
 data class BanListResponse(
@@ -66,7 +144,7 @@ data class AddBanRequest(
  *
  * Client-specific shape with field names matching the UI. The generated
  * AuditEntryResponse uses `event` and `createdAt` instead of `action`
- * and `timestamp`.
+ * and `timestamp`, and uses JsonObject? for details instead of String?.
  */
 @Serializable
 data class AuditEntry(
@@ -81,6 +159,7 @@ data class AuditEntry(
 
 /**
  * Paginated response from GET /api/admin/audit.
+ * The generated AuditListResponse uses Double for pagination fields.
  */
 @Serializable
 data class AuditLogResponse(
@@ -92,7 +171,8 @@ data class AuditLogResponse(
 /**
  * An invite code for onboarding new volunteers.
  * Client-specific shape — the generated InviteResponse has different
- * field names (usedBy instead of claimedBy, roleIDS instead of role).
+ * field names (usedBy instead of claimedBy, roleIDS instead of role,
+ * and includes name/phone fields not in the client type).
  */
 @Serializable
 data class Invite(
@@ -116,6 +196,8 @@ data class InvitesListResponse(
 
 /**
  * Request body for creating an invite.
+ * Client-specific shape — the generated CreateInviteBody requires
+ * name, phone, and roleIDS (List<String>) while this only needs role.
  */
 @Serializable
 data class CreateInviteRequest(
@@ -126,6 +208,8 @@ data class CreateInviteRequest(
 
 /**
  * Request body for creating a volunteer via POST /api/admin/volunteers.
+ * Client-specific shape — the generated CreateVolunteerBody has many more
+ * fields (pubkey, encryptedSecretKey, specializations, etc.).
  */
 @Serializable
 data class CreateVolunteerRequest(
@@ -137,22 +221,12 @@ data class CreateVolunteerRequest(
 /**
  * Response from creating a volunteer. Contains the volunteer data
  * and a one-time nsec that must be given to the volunteer.
+ * Client-only type — no generated equivalent.
  */
 @Serializable
 data class CreateVolunteerResponse(
     val volunteer: Volunteer,
     val nsec: String,
-)
-
-// ---- Bulk Ban Import ----
-
-/**
- * Request body for bulk importing bans via POST /api/admin/bans/bulk.
- */
-@Serializable
-data class BulkBanRequest(
-    val phones: List<String>,
-    val reason: String? = null,
 )
 
 // ---- Shift Admin ----
@@ -254,6 +328,8 @@ data class CreateReportCategoryRequest(
 
 /**
  * Request body for PUT /api/settings/telephony.
+ * Client-specific simplified shape — the generated TelephonyProvider
+ * supports multiple providers with many more fields.
  */
 @Serializable
 data class TelephonySettingsRequest(
@@ -265,6 +341,8 @@ data class TelephonySettingsRequest(
 
 /**
  * Response from GET /api/settings/telephony.
+ * Client-specific simplified shape — the generated TelephonyProvider
+ * is a union type for all provider configurations.
  */
 @Serializable
 data class TelephonySettingsResponse(
@@ -278,6 +356,8 @@ data class TelephonySettingsResponse(
 
 /**
  * Request body for PUT /api/settings/call.
+ * Client-specific shape — the generated CallSettings uses Long and
+ * has different field names (queueTimeoutSeconds, voicemailMaxSeconds).
  */
 @Serializable
 data class CallSettingsRequest(
@@ -288,6 +368,8 @@ data class CallSettingsRequest(
 
 /**
  * Response from GET /api/settings/call.
+ * Client-specific shape — the generated CallSettings has different
+ * field names and optional fields.
  */
 @Serializable
 data class CallSettingsResponse(
@@ -300,6 +382,8 @@ data class CallSettingsResponse(
 
 /**
  * Request body for PUT /api/settings/ivr-languages.
+ * Client-specific shape — uses Map<String, Boolean> for toggle state.
+ * The generated IvrLanguages uses languages: List<String>? for enabled languages.
  */
 @Serializable
 data class IvrLanguagesRequest(
@@ -308,6 +392,7 @@ data class IvrLanguagesRequest(
 
 /**
  * Response from GET /api/settings/ivr-languages.
+ * Client-specific shape — uses Map<String, Boolean> for toggle state.
  */
 @Serializable
 data class IvrLanguagesResponse(
@@ -318,6 +403,8 @@ data class IvrLanguagesResponse(
 
 /**
  * Request body for PUT /api/settings/spam.
+ * Client-specific shape — uses Int and different field names from the
+ * generated SpamSettings (which uses Long? and different naming).
  */
 @Serializable
 data class SpamSettingsRequest(
@@ -328,70 +415,11 @@ data class SpamSettingsRequest(
 
 /**
  * Response from GET /api/settings/spam.
+ * Client-specific shape with non-nullable defaults.
  */
 @Serializable
 data class SpamSettingsResponse(
     val maxCallsPerHour: Int = 10,
     val voiceCaptchaEnabled: Boolean = false,
     val knownNumberBypass: Boolean = true,
-)
-
-// ---- System Health ----
-
-/**
- * Aggregate system health response from GET /api/system/health.
- * Client-only composite type — not in the generated API surface.
- */
-@Serializable
-data class SystemHealth(
-    val server: ServerHealth,
-    val services: List<ServiceStatus>,
-    val calls: CallMetrics,
-    val storage: StorageInfo,
-    val backup: BackupInfo,
-    val volunteers: VolunteerInfo,
-    val timestamp: String,
-)
-
-@Serializable
-data class ServerHealth(
-    val status: String,
-    val uptime: Int,
-    val version: String,
-)
-
-@Serializable
-data class ServiceStatus(
-    val name: String,
-    val status: String,
-    val details: String? = null,
-)
-
-@Serializable
-data class CallMetrics(
-    val today: Int,
-    val active: Int,
-    val avgResponseSeconds: Int,
-    val missed: Int,
-)
-
-@Serializable
-data class StorageInfo(
-    val dbSize: String,
-    val blobStorage: String,
-)
-
-@Serializable
-data class BackupInfo(
-    val lastBackup: String?,
-    val backupSize: String,
-    val lastVerify: String?,
-)
-
-@Serializable
-data class VolunteerInfo(
-    val totalActive: Int,
-    val onlineNow: Int,
-    val onShift: Int,
-    val shiftCoverage: Int,
 )

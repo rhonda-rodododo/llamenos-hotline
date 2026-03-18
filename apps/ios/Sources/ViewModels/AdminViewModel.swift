@@ -89,7 +89,7 @@ final class AdminViewModel {
     // MARK: - Ban List State
 
     /// All ban entries from the server.
-    var bans: [BanEntry] = []
+    var bans: [AppBanEntry] = []
 
     /// Whether bans are loading.
     var isLoadingBans: Bool = false
@@ -106,7 +106,7 @@ final class AdminViewModel {
     // MARK: - Audit Log State
 
     /// Audit log entries from the server.
-    var auditEntries: [AuditEntry] = []
+    var auditEntries: [AppAuditEntry] = []
 
     /// Total count of audit entries for pagination.
     var auditTotal: Int = 0
@@ -127,7 +127,7 @@ final class AdminViewModel {
     // MARK: - Invites State
 
     /// All invite codes from the server.
-    var invites: [Invite] = []
+    var invites: [AppInvite] = []
 
     /// Whether invites are loading.
     var isLoadingInvites: Bool = false
@@ -320,7 +320,7 @@ final class AdminViewModel {
         errorMessage = nil
 
         do {
-            let response: BanListResponse = try await apiService.request(
+            let response: AppBanListResponse = try await apiService.request(
                 method: "GET",
                 path: "/api/bans"
             )
@@ -468,7 +468,7 @@ final class AdminViewModel {
 
         do {
             let request = CreateInviteRequest(role: newInviteRole.rawValue)
-            let _: Invite = try await apiService.request(
+            let _: AppInvite = try await apiService.request(
                 method: "POST",
                 path: "/api/identity/invite",
                 body: request

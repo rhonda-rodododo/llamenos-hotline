@@ -183,7 +183,7 @@ struct BlastsView: View {
 // MARK: - BlastRowView
 
 struct BlastRowView: View {
-    let blast: Blast
+    let blast: AppBlast
     let onSend: () -> Void
 
     var body: some View {

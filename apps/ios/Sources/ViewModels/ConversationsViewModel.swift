@@ -15,10 +15,10 @@ final class ConversationsViewModel {
     // MARK: - Public State
 
     /// All conversations from the server, filtered by current status filter.
-    var filteredConversations: [Conversation] = []
+    var filteredConversations: [AppConversation] = []
 
     /// All conversations (unfiltered), used for badge count calculations.
-    var allConversations: [Conversation] = []
+    var allConversations: [AppConversation] = []
 
     /// Total unread message count across all conversations.
     var totalUnreadCount: Int {

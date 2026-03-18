@@ -111,12 +111,8 @@ struct CreateReportRequest: Encodable, Sendable {
     let adminEnvelopes: [RecipientEnvelope]
 }
 
-// MARK: - ReportCategoriesResponse
-
-/// API response for `GET /api/reports/categories`.
-struct ReportCategoriesResponse: Codable, Sendable {
-    let categories: [String]
-}
+// ReportCategoriesResponse is defined in the generated Types.swift (protocol codegen).
+// No hand-written definition needed — shape is identical: `categories: [String]`.
 
 // MARK: - ReportAssignRequest
 

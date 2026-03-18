@@ -1,17 +1,14 @@
 import Foundation
 
-// MARK: - Shift
+// MARK: - Shift Extensions
+// The `Shift` struct is defined in the generated Types.swift (protocol codegen).
+// We extend it here with Identifiable conformance and UI computed properties.
 
-/// A scheduled shift from the API. Matches the protocol spec (Section 4.6).
-struct Shift: Codable, Identifiable, Sendable {
-    let id: String
-    let name: String?
-    let startTime: String
-    let endTime: String
-    let days: [Int]          // 0 = Sunday, 6 = Saturday
-    let volunteerPubkeys: [String]?
-    let createdAt: String?
-    let updatedAt: String?
+extension Shift: Identifiable {
+    /// Days as Int array (generated type uses [Double] from JSON).
+    var daysAsInt: [Int] {
+        days.map { Int($0) }
+    }
 
     /// Parse the start time string into a Date using ISO 8601 or HH:mm format.
     var startDate: Date? {
@@ -35,7 +32,7 @@ struct Shift: Codable, Identifiable, Sendable {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
         let weekdaySymbols = formatter.shortWeekdaySymbols ?? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        return days.compactMap { day in
+        return daysAsInt.compactMap { day in
             guard day >= 0, day < weekdaySymbols.count else { return nil }
             return weekdaySymbols[day]
         }
@@ -43,13 +40,13 @@ struct Shift: Codable, Identifiable, Sendable {
 
     /// Number of volunteers assigned to this shift.
     var volunteerCount: Int {
-        volunteerPubkeys?.count ?? 0
+        volunteerPubkeys.count
     }
 
     /// Whether the current day of the week is one of this shift's days.
     var isActiveToday: Bool {
         let weekday = Calendar.current.component(.weekday, from: Date()) - 1  // Sunday = 0
-        return days.contains(weekday)
+        return daysAsInt.contains(weekday)
     }
 
     // MARK: - Private Helpers
@@ -85,6 +82,8 @@ struct Shift: Codable, Identifiable, Sendable {
 }
 
 // MARK: - ShiftStatusResponse
+// Generated `MyStatusResponse` has a different structure (currentShift/nextShift).
+// Keep this client-side type for the iOS-specific status endpoint shape.
 
 /// Response from `GET /api/shifts/my-status`.
 struct ShiftStatusResponse: Codable, Sendable {
@@ -96,11 +95,9 @@ struct ShiftStatusResponse: Codable, Sendable {
 }
 
 // MARK: - ShiftsListResponse
+// Generated `ShiftListResponse` exists with the same shape. Use a typealias.
 
-/// API response wrapper for the shifts list.
-struct ShiftsListResponse: Codable, Sendable {
-    let shifts: [Shift]
-}
+typealias ShiftsListResponse = ShiftListResponse
 
 // MARK: - ClockInResponse
 

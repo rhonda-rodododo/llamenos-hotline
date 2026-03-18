@@ -86,10 +86,11 @@ struct ClientVolunteer: Codable, Identifiable, Sendable {
     }
 }
 
-// MARK: - BanEntry
+// MARK: - AppBanEntry
 
-/// A ban list entry from the API.
-struct BanEntry: Codable, Identifiable, Sendable {
+/// A ban list entry from the API (client-side model with UI properties).
+/// Named `AppBanEntry` to avoid conflict with generated `Ban`/`BanResponse`.
+struct AppBanEntry: Codable, Identifiable, Sendable {
     let id: String
     let identifierHash: String
     let reason: String?
@@ -118,10 +119,11 @@ struct BanEntry: Codable, Identifiable, Sendable {
     }
 }
 
-// MARK: - AuditEntry
+// MARK: - AppAuditEntry
 
-/// A hash-chained audit log entry from the API.
-struct AuditEntry: Codable, Identifiable, Sendable {
+/// A hash-chained audit log entry from the API (client-side model with UI properties).
+/// Named `AppAuditEntry` to avoid conflict with generated `AuditEntryResponse`/`Entry`.
+struct AppAuditEntry: Codable, Identifiable, Sendable {
     let id: String
     let action: String
     let actorPubkey: String
@@ -157,10 +159,11 @@ struct AuditEntry: Codable, Identifiable, Sendable {
     }
 }
 
-// MARK: - Invite
+// MARK: - AppInvite
 
-/// An invite code from the API.
-struct Invite: Codable, Identifiable, Sendable {
+/// An invite code from the API (client-side model with UI properties).
+/// Named `AppInvite` to avoid conflict with generated `Invite` from protocol codegen.
+struct AppInvite: Codable, Identifiable, Sendable {
     let id: String
     let code: String
     let role: String
@@ -218,20 +221,21 @@ struct VolunteersListResponse: Codable, Sendable {
     let members: [ClientVolunteer]
 }
 
-/// API response for the ban list.
-struct BanListResponse: Codable, Sendable {
-    let bans: [BanEntry]
+/// API response for the ban list (client-side).
+/// Named `AppBanListResponse` to avoid conflict with generated `BanListResponse`.
+struct AppBanListResponse: Codable, Sendable {
+    let bans: [AppBanEntry]
 }
 
 /// API response for the audit log.
 struct AuditLogResponse: Codable, Sendable {
-    let entries: [AuditEntry]
+    let entries: [AppAuditEntry]
     let total: Int
 }
 
 /// API response for the invites list.
 struct InvitesListResponse: Codable, Sendable {
-    let invites: [Invite]
+    let invites: [AppInvite]
 }
 
 // MARK: - Request Types

@@ -191,7 +191,7 @@ struct BanListView: View {
 
 /// A single ban entry row showing the identifier hash, reason, creator, and date.
 struct BanRowView: View {
-    let ban: BanEntry
+    let ban: AppBanEntry
     let onDelete: () -> Void
 
     var body: some View {

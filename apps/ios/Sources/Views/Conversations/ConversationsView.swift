@@ -172,7 +172,7 @@ struct ConversationsView: View {
 /// A single conversation row in the list, showing channel badge, contact hash,
 /// unread count, status, and last message time.
 struct ConversationRowView: View {
-    let conversation: Conversation
+    let conversation: AppConversation
 
     var body: some View {
         HStack(spacing: 12) {

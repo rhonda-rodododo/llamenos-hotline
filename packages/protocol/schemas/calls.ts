@@ -6,7 +6,7 @@ import { paginationSchema, paginatedMeta } from './common'
 export const callRecordResponseSchema = z.object({
   id: z.string(),
   callerLast4: z.string().optional(),
-  answeredBy: z.string().optional(),
+  answeredBy: z.string().nullable().optional(),
   startedAt: z.string(),
   endedAt: z.string().optional(),
   duration: z.number().optional(),

@@ -54,11 +54,12 @@ enum ConversationStatus: String, Codable, Sendable, CaseIterable {
     }
 }
 
-// MARK: - Conversation
+// MARK: - AppConversation
 
 /// A messaging conversation (SMS/WhatsApp/Signal) from the API.
-/// Matches the protocol spec wire format for conversations.
-struct Conversation: Codable, Identifiable, Sendable {
+/// Named `AppConversation` to avoid conflict with generated `Conversation` from protocol codegen.
+/// Matches the protocol spec wire format for conversations with client-specific field names.
+struct AppConversation: Codable, Identifiable, Sendable {
     let id: String
     let channelType: String
     let contactHash: String
@@ -134,7 +135,7 @@ struct ConversationMessage: Codable, Identifiable, Sendable {
 
 /// API response wrapper for the conversations list.
 struct ConversationsListResponse: Codable, Sendable {
-    let conversations: [Conversation]
+    let conversations: [AppConversation]
 }
 
 // MARK: - ConversationMessagesResponse
