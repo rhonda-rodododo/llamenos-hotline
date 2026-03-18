@@ -45,10 +45,37 @@ fi
 
 IOS_DIR="$PROJECT_ROOT/apps/ios"
 DESTINATION="platform=iOS Simulator,name=${SIMULATOR}"
+TEST_HUB_URL="${TEST_HUB_URL:-http://localhost:3000}"
+BACKEND_STARTUP_TIMEOUT="${BACKEND_STARTUP_TIMEOUT:-30}"
 
 reporter_init "ios"
 
 overall_result="pass"
+
+# Step 0: Ensure backend is running
+# UI tests (APIConnectedUITests) require a live backend. Start it if needed.
+echo "Checking backend at ${TEST_HUB_URL}..."
+if ! curl -sf "${TEST_HUB_URL}/api/health" > /dev/null 2>&1; then
+  echo "Backend not running — starting bun run dev:node..."
+  nohup bun run dev:node > /tmp/dev-node-ios-test.log 2>&1 &
+  DEV_NODE_PID=$!
+
+  # Wait for health check to pass
+  waited=0
+  until curl -sf "${TEST_HUB_URL}/api/health" > /dev/null 2>&1; do
+    sleep 2
+    waited=$((waited + 2))
+    if [[ $waited -ge $BACKEND_STARTUP_TIMEOUT ]]; then
+      echo "ERROR: Backend did not start within ${BACKEND_STARTUP_TIMEOUT}s"
+      echo "Check /tmp/dev-node-ios-test.log for details"
+      kill $DEV_NODE_PID 2>/dev/null || true
+      exit 1
+    fi
+  done
+  echo "Backend started (pid $DEV_NODE_PID, took ${waited}s)"
+else
+  echo "Backend healthy."
+fi
 
 # Step 1: Codegen guard
 if [[ "$NO_CODEGEN" != "true" ]]; then
@@ -111,6 +138,14 @@ parse_xcodebuild_results "$UNIT_LOG"
 reporter_record_suite "LlamenosTests" "$PARSED_PASSED" "$PARSED_FAILED" "$PARSED_SKIPPED"
 
 # Step 5: UI tests
+# Reset server state before UI tests for a clean baseline.
+# Uses DEV_RESET_SECRET (default: test-reset-secret, set in dev-bun.sh).
+RESET_SECRET="${DEV_RESET_SECRET:-test-reset-secret}"
+echo "Resetting server state for UI tests..."
+if ! curl -sf -X POST "${TEST_HUB_URL}/api/test-reset" -H "X-Test-Secret: ${RESET_SECRET}" > /dev/null 2>&1; then
+  echo "WARNING: test-reset failed (backend may not have DEV_RESET_SECRET set)"
+fi
+
 UI_LOG="/tmp/test-ios-ui-$(date +%Y%m%d-%H%M%S).log"
 
 echo -e "${CYAN:-}--- UI Tests ---${RESET:-}"
