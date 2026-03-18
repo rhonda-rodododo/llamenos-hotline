@@ -45,7 +45,7 @@ final class SettingsUITests: BaseUITest {
             // Already navigated
         }
         then("I should see a lock button") {
-            let lockButton = scrollToFind("settings-lock-app")
+            let lockButton = scrollToFind("settings-lock-app", maxSwipes: 10)
             XCTAssertTrue(
                 lockButton.exists,
                 "Lock app button should exist in settings"
@@ -58,7 +58,7 @@ final class SettingsUITests: BaseUITest {
             // Already navigated
         }
         then("I should see a logout button") {
-            let logoutButton = scrollToFind("settings-logout")
+            let logoutButton = scrollToFind("settings-logout", maxSwipes: 10)
             XCTAssertTrue(
                 logoutButton.exists,
                 "Logout button should exist in settings"
@@ -71,7 +71,7 @@ final class SettingsUITests: BaseUITest {
             // Already navigated
         }
         then("I should see the app version") {
-            let versionRow = scrollToFind("settings-version")
+            let versionRow = scrollToFind("settings-version", maxSwipes: 10)
             XCTAssertTrue(
                 versionRow.exists,
                 "Version info should be displayed"
@@ -166,7 +166,7 @@ final class SettingsUITests: BaseUITest {
             accountLink.tap()
         }
         then("I should see a device link button") {
-            let linkButton = scrollToFind("settings-link-device")
+            let linkButton = scrollToFind("settings-link-device", maxSwipes: 10)
             XCTAssertTrue(
                 linkButton.exists,
                 "Link device button should exist in account settings"
@@ -233,7 +233,7 @@ final class SettingsUITests: BaseUITest {
             // Already navigated
         }
         when("I tap the lock button") {
-            let lockButton = scrollToFind("settings-lock-app")
+            let lockButton = scrollToFind("settings-lock-app", maxSwipes: 10)
             XCTAssertTrue(lockButton.exists, "Lock button should exist")
             lockButton.tap()
         }
@@ -251,7 +251,7 @@ final class SettingsUITests: BaseUITest {
             // Already navigated
         }
         when("I tap the logout button") {
-            let logoutButton = scrollToFind("settings-logout")
+            let logoutButton = scrollToFind("settings-logout", maxSwipes: 10)
             XCTAssertTrue(logoutButton.exists, "Logout button should exist")
             logoutButton.tap()
         }

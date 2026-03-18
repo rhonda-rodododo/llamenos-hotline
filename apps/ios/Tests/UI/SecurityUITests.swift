@@ -33,7 +33,7 @@ final class SecurityUITests: BaseUITest {
             guard lockButton.waitForExistence(timeout: 10) else {
                 // Try settings lock button (may need scrolling)
                 navigateToSettings()
-                let settingsLock = scrollToFind("settings-lock-app")
+                let settingsLock = scrollToFind("settings-lock-app", maxSwipes: 10)
                 guard settingsLock.exists else {
                     XCTFail("No lock button found")
                     return
@@ -67,7 +67,7 @@ final class SecurityUITests: BaseUITest {
                 lockButton.tap()
             } else {
                 navigateToSettings()
-                let settingsLock = scrollToFind("settings-lock-app")
+                let settingsLock = scrollToFind("settings-lock-app", maxSwipes: 10)
                 guard settingsLock.exists else { return }
                 settingsLock.tap()
             }
@@ -182,7 +182,7 @@ final class SecurityUITests: BaseUITest {
                 lockButton.tap()
             } else {
                 navigateToSettings()
-                let settingsLock = scrollToFind("settings-lock-app")
+                let settingsLock = scrollToFind("settings-lock-app", maxSwipes: 10)
                 guard settingsLock.exists else { return }
                 settingsLock.tap()
             }
@@ -270,7 +270,7 @@ final class SecurityUITests: BaseUITest {
             navigateToPreferencesSettings()
         }
         then("the auto-lock timeout picker should exist") {
-            let picker = scrollToFind("settings-auto-lock-picker")
+            let picker = scrollToFind("settings-auto-lock-picker", maxSwipes: 10)
             XCTAssertTrue(
                 picker.exists,
                 "Auto-lock timeout picker should exist in preferences settings"
@@ -413,7 +413,7 @@ final class SecurityUITests: BaseUITest {
                 lockButton.tap()
             } else {
                 navigateToSettings()
-                let settingsLock = scrollToFind("settings-lock-app")
+                let settingsLock = scrollToFind("settings-lock-app", maxSwipes: 10)
                 guard settingsLock.exists else {
                     XCTFail("No lock mechanism found")
                     return
@@ -455,7 +455,7 @@ final class SecurityUITests: BaseUITest {
                 lockButton.tap()
             } else {
                 navigateToSettings()
-                let settingsLock = scrollToFind("settings-lock-app")
+                let settingsLock = scrollToFind("settings-lock-app", maxSwipes: 10)
                 guard settingsLock.exists else {
                     XCTFail("No lock mechanism found")
                     return
@@ -503,7 +503,7 @@ final class SecurityUITests: BaseUITest {
                 lockButton.tap()
             } else {
                 navigateToSettings()
-                let settingsLock = scrollToFind("settings-lock-app")
+                let settingsLock = scrollToFind("settings-lock-app", maxSwipes: 10)
                 guard settingsLock.exists else {
                     XCTFail("No lock mechanism found")
                     return

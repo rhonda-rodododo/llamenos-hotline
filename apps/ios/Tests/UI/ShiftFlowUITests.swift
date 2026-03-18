@@ -22,9 +22,10 @@ final class ShiftFlowUITests: BaseUITest {
         }
         then("I should see shifts content") {
             // Shifts content should appear (loading, empty, or schedule with clock button)
+            // empty-state and loading come first — they appear in offline/no-hub mode
             let found = anyElementExists([
-                "clock-in-button", "clock-out-button",
                 "shifts-empty-state", "shifts-loading",
+                "clock-in-button", "clock-out-button",
             ])
             XCTAssertTrue(found, "Shifts view should show clock button, empty state, or loading")
         }
@@ -42,9 +43,10 @@ final class ShiftFlowUITests: BaseUITest {
         then("I should see a clock button or empty state") {
             // Without an API connection, the shifts view shows empty state.
             // With shifts data, the clock in/out button appears.
+            // empty-state first — it's the expected state without a hub connection
             let found = anyElementExists([
-                "clock-in-button", "clock-out-button",
                 "shifts-empty-state",
+                "clock-in-button", "clock-out-button",
             ])
             XCTAssertTrue(found, "Clock in/out button or empty state should exist")
         }
@@ -59,9 +61,10 @@ final class ShiftFlowUITests: BaseUITest {
         }
         then("I should see shift status or empty state") {
             // Shift status label only appears in the shift list (not empty state)
+            // empty-state first — it's the expected state without a hub connection
             let found = anyElementExists([
-                "shift-status-label",
                 "shifts-empty-state",
+                "shift-status-label",
             ])
             XCTAssertTrue(found, "Shift status label or empty state should exist")
         }
@@ -123,8 +126,9 @@ final class ShiftFlowUITests: BaseUITest {
         }
         then("I should see the schedule or empty state") {
             // Wait for content to load
+            // empty-state first — it's the expected state without a hub connection
             let found = anyElementExists([
-                "weekly-schedule-header", "shifts-empty-state",
+                "shifts-empty-state", "weekly-schedule-header",
             ])
             // It's okay if the schedule is empty (no shifts configured)
             XCTAssertTrue(found, "Weekly schedule header or empty state should exist")
@@ -196,7 +200,7 @@ final class ShiftFlowUITests: BaseUITest {
             navigateToSettings()
         }
         then("the lock app button should exist") {
-            let lockButton = scrollToFind("settings-lock-app")
+            let lockButton = scrollToFind("settings-lock-app", maxSwipes: 10)
             XCTAssertTrue(lockButton.exists, "Lock app button should exist in settings")
         }
     }
@@ -209,7 +213,7 @@ final class ShiftFlowUITests: BaseUITest {
             navigateToSettings()
         }
         then("the logout button should exist") {
-            let logoutButton = scrollToFind("settings-logout")
+            let logoutButton = scrollToFind("settings-logout", maxSwipes: 10)
             XCTAssertTrue(logoutButton.exists, "Logout button should exist in settings")
         }
     }
