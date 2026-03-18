@@ -233,7 +233,7 @@ final class DashboardViewModel {
             if let first = response.calls.first {
                 currentCall = ActiveCall(
                     id: first.id,
-                    callerNumber: first.callerNumber,
+                    callerNumber: first.callerLast4,
                     startedAt: DateFormatting.parseISO(first.startedAt) ?? Date(),
                     status: first.status
                 )
@@ -354,15 +354,3 @@ private struct DashboardShiftStatusResponse: Decodable {
     let recentNoteCount: Int?
 }
 
-/// Response from GET /api/calls/active.
-private struct ActiveCallsResponse: Decodable {
-    let calls: [ActiveCallDTO]
-}
-
-/// DTO for an active call from the API.
-private struct ActiveCallDTO: Decodable {
-    let id: String
-    let callerNumber: String?
-    let startedAt: String
-    let status: String
-}

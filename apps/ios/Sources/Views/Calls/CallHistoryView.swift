@@ -88,9 +88,9 @@ final class CallHistoryViewModel {
                 }
                 return CallHistoryEntry(
                     id: dto.id,
-                    callerNumber: dto.callerNumber,
+                    callerNumber: dto.callerLast4,
                     status: status,
-                    duration: dto.duration,
+                    duration: dto.duration.map { Int($0) },
                     startedAt: DateFormatting.parseISO(dto.startedAt) ?? Date(),
                     answeredBy: dto.answeredBy
                 )
@@ -110,21 +110,6 @@ final class CallHistoryViewModel {
         isLoading = false
         await loadCallHistory()
     }
-}
-
-// MARK: - API Response Types
-
-private struct CallHistoryResponse: Decodable {
-    let calls: [CallHistoryDTO]
-}
-
-private struct CallHistoryDTO: Decodable {
-    let id: String
-    let callerNumber: String?
-    let status: String
-    let duration: Int?
-    let startedAt: String
-    let answeredBy: String?
 }
 
 // MARK: - CallHistoryView
