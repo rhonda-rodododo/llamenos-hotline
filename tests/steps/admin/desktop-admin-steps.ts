@@ -11,10 +11,73 @@
  *   - packages/test-specs/features/admin/demo-mode.feature
  *   - packages/test-specs/features/messaging/blasts.feature
  */
-import { expect } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import { Given, When, Then } from '../fixtures'
 import { TestIds, navTestIdMap } from '../../test-ids'
 import { Timeouts, navigateAfterLogin } from '../../helpers'
+
+/**
+ * Select a channel card in the setup wizard by label.
+ * Scoped to data-testid="setup-step" to avoid matching sidebar nav links.
+ */
+async function selectWizardChannel(page: Page, channelLabel: string) {
+  const card = page.getByTestId('setup-step').getByRole('button', { name: new RegExp('^' + channelLabel, 'i') })
+  await expect(card).toBeVisible({ timeout: Timeouts.ELEMENT })
+  await card.click()
+}
+
+/**
+ * Navigate through the setup wizard to a target step (0-indexed).
+ * Starts at step 0 (Identity), advances through prior steps automatically.
+ * @param channel - channel to select on step 1 (default: 'Reports')
+ */
+async function advanceWizardToStep(page: Page, targetStep: number, channel = 'Reports') {
+  // Navigate away first to force SetupWizard remount and reset local step state.
+  // TanStack Router won't remount the component on same-URL navigation, so if we're
+  // already on /setup the wizard local state (step, data) would carry over.
+  await navigateAfterLogin(page, '/')
+  await navigateAfterLogin(page, '/setup')
+
+  // Step 0 – Identity: fill hotline name
+  await page.getByLabel(/hotline name|name/i).first().fill(`TestHotline ${Date.now()}`)
+  const orgInput = page.getByLabel(/organization/i)
+  if (await orgInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await orgInput.fill('Test Org')
+  }
+  if (targetStep === 0) return
+
+  // Advance 0→1: Channels — wait for step 1 progressbar to confirm transition
+  await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
+  await expect(page.locator('[role="progressbar"][aria-valuenow="2"]')).toBeVisible({ timeout: 10000 })
+  if (targetStep === 1) return
+
+  // Step 1 – Channels: select the specified channel
+  await selectWizardChannel(page, channel)
+
+  // Advance 1→2: Providers
+  await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
+  await expect(page.locator('[role="progressbar"][aria-valuenow="3"]')).toBeVisible({ timeout: 10000 })
+  if (targetStep === 2) return
+
+  // Step 2 – Providers: skip
+  const skipBtn = page.getByRole('button', { name: /skip/i })
+  if (await skipBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await skipBtn.click()
+  } else {
+    await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
+  }
+  await expect(page.locator('[role="progressbar"][aria-valuenow="4"]')).toBeVisible({ timeout: 10000 })
+  if (targetStep === 3) return
+
+  // Step 3 – Settings: advance
+  await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
+  await expect(page.locator('[role="progressbar"][aria-valuenow="5"]')).toBeVisible({ timeout: 10000 })
+  if (targetStep === 4) return
+
+  // Step 4 – Invite: advance
+  await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
+  await expect(page.locator('[role="progressbar"][aria-valuenow="6"]')).toBeVisible({ timeout: 10000 })
+}
 
 // --- Telephony provider ---
 
@@ -283,22 +346,15 @@ When('I fill in the organization name', async ({ page }) => {
 })
 
 Given('I am on the channels step', async ({ page }) => {
-  await navigateAfterLogin(page, '/setup')
-  await page.getByLabel(/hotline name|name/i).first().fill('Test Hotline')
-  const orgInput = page.getByLabel(/organization/i)
-  if (await orgInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await orgInput.fill('Test Org')
-  }
-  await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
+  await advanceWizardToStep(page, 1)
 })
 
 When('I select the {string} channel', async ({ page }, channel: string) => {
-  // Content-based click — selecting a channel by its label text
-  await page.getByText(channel, { exact: true }).first().click()
+  await selectWizardChannel(page, channel)
 })
 
 When('I click the {string} channel again', async ({ page }, channel: string) => {
-  await page.getByText(channel, { exact: true }).first().click()
+  await selectWizardChannel(page, channel)
 })
 
 Then('both channels should be marked as selected', async ({ page }) => {
@@ -323,28 +379,29 @@ Then('the validation error should reappear', async ({ page }) => {
 })
 
 Given('I am on the providers step', async ({ page }) => {
-  await navigateAfterLogin(page, '/setup')
-  // Skip through to providers step
+  await advanceWizardToStep(page, 2)
 })
 
 Given('I selected only {string} on the channels step', async ({ page }, channel: string) => {
-  // Setup wizard state
+  await advanceWizardToStep(page, 1)
+  await selectWizardChannel(page, channel)
 })
 
 Given('I selected {string} on the channels step', async ({ page }, channel: string) => {
-  // Setup wizard state
+  await advanceWizardToStep(page, 1)
+  await selectWizardChannel(page, channel)
 })
 
 When('I advance to the providers step', async ({ page }) => {
   await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
 })
 
-Given('I selected {string} and advanced to settings step', async () => {
-  // Setup wizard state
+Given('I selected {string} and advanced to settings step', async ({ page }, channel: string) => {
+  await advanceWizardToStep(page, 3, channel)
 })
 
-Given('I am on the invite step', async () => {
-  // Setup wizard state
+Given('I am on the invite step', async ({ page }) => {
+  await advanceWizardToStep(page, 4)
 })
 
 When('I fill in the volunteer name', async ({ page }) => {
@@ -362,8 +419,8 @@ Then('the volunteer name should appear with an invite code', async ({ page }) =>
   await expect(page.getByText(/SetupVol/).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
-Given('I have completed all wizard steps', async () => {
-  // Full wizard completion precondition
+Given('I have completed all wizard steps', async ({ page }) => {
+  await advanceWizardToStep(page, 5)
 })
 
 Then('I should see the configured hotline name', async ({ page }) => {
@@ -383,8 +440,8 @@ When('I clear the hotline name', async ({ page }) => {
   await page.getByLabel(/hotline name|name/i).first().clear()
 })
 
-Given('I have advanced to the providers step', async () => {
-  // Wizard state
+Given('I have advanced to the providers step', async ({ page }) => {
+  await advanceWizardToStep(page, 2)
 })
 
 Then('the previously selected channel should still be selected', async () => {
@@ -398,51 +455,7 @@ Then('the previously entered hotline name should still be filled', async ({ page
 })
 
 When('I complete the entire setup wizard', async ({ page }) => {
-  await navigateAfterLogin(page, '/setup')
-  // Step 0 – Identity: fill hotline name
-  const nameInput = page.getByLabel(/hotline name|name/i).first()
-  await expect(nameInput).toBeVisible({ timeout: Timeouts.ELEMENT })
-  await nameInput.fill(`TestHotline ${Date.now()}`)
-  const orgInput = page.getByLabel(/organization/i)
-  if (await orgInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await orgInput.fill('Test Org')
-  }
-  // Advance to Step 1 – Channels
-  await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
-  await page.waitForTimeout(500)
-  // Step 1 – Select Reports channel (simplest, no providers needed)
-  const reportsChannel = page.getByText('Reports', { exact: true }).first()
-  await expect(reportsChannel).toBeVisible({ timeout: Timeouts.ELEMENT })
-  await reportsChannel.click()
-  // Advance to Step 2 – Providers
-  await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
-  await page.waitForTimeout(500)
-  // Step 2 – Skip providers (Reports doesn't need them)
-  const skipBtn = page.getByRole('button', { name: /skip/i })
-  if (await skipBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await skipBtn.click()
-  } else {
-    await page.getByTestId(TestIds.SETUP_NEXT_BTN).click()
-  }
-  await page.waitForTimeout(500)
-  // Step 3 – Settings: just advance
-  const nextBtn3 = page.getByTestId(TestIds.SETUP_NEXT_BTN)
-  if (await nextBtn3.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await nextBtn3.click()
-  } else {
-    const skip3 = page.getByRole('button', { name: /skip/i })
-    if (await skip3.isVisible({ timeout: 2000 }).catch(() => false)) await skip3.click()
-  }
-  await page.waitForTimeout(500)
-  // Step 4 – Invite: just advance
-  const nextBtn4 = page.getByTestId(TestIds.SETUP_NEXT_BTN)
-  if (await nextBtn4.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await nextBtn4.click()
-  } else {
-    const skip4 = page.getByRole('button', { name: /skip/i })
-    if (await skip4.isVisible({ timeout: 2000 }).catch(() => false)) await skip4.click()
-  }
-  await page.waitForTimeout(500)
+  await advanceWizardToStep(page, 5)
   // Should now be on Step 5 – Summary with "Go to Dashboard" button
   await expect(page.getByText(/review|summary|launch/i).first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
@@ -501,14 +514,15 @@ Then('I should see the report content', async ({ page }) => {
 // --- Demo mode ---
 
 When('I navigate to the setup wizard summary step', async ({ page }) => {
-  await navigateAfterLogin(page, '/setup')
-  // Navigate to summary step
+  await advanceWizardToStep(page, 5)
 })
 
 When('I enable the demo mode toggle', async ({ page }) => {
-  const demoLabel = page.getByText(/sample data|demo/i).first()
-  const toggle = demoLabel.locator('..').locator('[role="switch"], input[type="checkbox"]')
-  if (await toggle.isVisible({ timeout: 2000 }).catch(() => false)) {
+  // Find the Switch by its id (linked to the "Populate with sample data" label via htmlFor="demo-mode")
+  const toggle = page.locator('#demo-mode')
+  await expect(toggle).toBeVisible({ timeout: Timeouts.ELEMENT })
+  const state = await toggle.getAttribute('data-state').catch(() => null)
+  if (state !== 'checked') {
     await toggle.click()
   }
 })

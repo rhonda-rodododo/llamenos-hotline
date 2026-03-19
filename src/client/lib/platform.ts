@@ -736,7 +736,8 @@ export async function encryptWithPin(
     // importKey returns { encryptedKeyData: EncryptedKeyData, pubkey: string }.
     // serde_wasm_bindgen 0.6 converts serde_json::Value::Object to JS Map (not plain object),
     // so JSON.stringify gives {}. Use fromWasmValue to get plain objects, then extract the inner data.
-    const result = fromWasmValue(state.importKey(nsec, pin)) as { encryptedKeyData: EncryptedKeyData }
+    const rawResult = state.importKey(nsec, pin)
+    const result = fromWasmValue(rawResult) as { encryptedKeyData: EncryptedKeyData }
     encryptedData = result.encryptedKeyData
   }
   const store = await getStore()
@@ -768,7 +769,9 @@ export async function decryptWithPin(pin: string): Promise<string | null> {
   }
   try {
     const state = await getWasmState()
-    return state.unlockWithPin(JSON.stringify(data), pin)
+    const dataJson = JSON.stringify(data)
+    const result = state.unlockWithPin(dataJson, pin)
+    return result
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     if (msg.includes('Locked out') || msg.includes('Keys wiped')) {

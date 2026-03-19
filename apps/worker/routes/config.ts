@@ -29,7 +29,12 @@ config.get('/',
     const services = c.get('services')
 
     // Fetch enabled channels to include in config
-    const channels = await services.settings.getEnabledChannels(c.env)
+    let channels: import('@shared/types').EnabledChannels = {
+      voice: false, sms: false, whatsapp: false, signal: false, rcs: false, reports: false,
+    }
+    try {
+      channels = await services.settings.getEnabledChannels(c.env)
+    } catch { /* default to all-disabled on fetch failure */ }
 
     // Get phone number from telephony provider config or env
     let hotlineNumber = c.env.TWILIO_PHONE_NUMBER || ''

@@ -41,7 +41,6 @@ const buttonTestIdMap: Record<string, string> = {
   'Add Option': TestIds.CUSTOM_FIELD_ADD_OPTION_BTN,
   'Submit Report': TestIds.REPORT_SUBMIT_BTN,
   'Submit report': TestIds.REPORT_SUBMIT_BTN,
-  'Save Provider': 'form-save-btn',
   'Assign': 'case-assign-dialog-btn',
   'Unassign': 'case-unassign-btn',
 }

@@ -10,7 +10,7 @@
     "site"
   ],
   "scripts": {
-    "dev": "bunx tauri dev --project-path apps/desktop",
+    "dev": "bunx tauri dev apps/desktop",
     "dev:vite": "vite",
     "build": "vite build",
     "deploy": "bun run deploy:api && bun run deploy:site",
@@ -42,9 +42,9 @@
     "changelog": "git-cliff --output CHANGELOG.md",
     "changelog:preview": "git-cliff --unreleased",
     "version:bump": "bun run scripts/bump-version.ts",
-    "tauri:dev": "bunx tauri dev --project-path apps/desktop",
-    "tauri:build": "bunx tauri build --project-path apps/desktop",
-    "tauri:icon": "bunx tauri icon --project-path apps/desktop",
+    "tauri:dev": "bunx tauri dev apps/desktop",
+    "tauri:build": "bunx tauri build apps/desktop",
+    "tauri:icon": "bunx tauri icon apps/desktop",
     "crypto:test": "cargo test --manifest-path packages/crypto/Cargo.toml",
     "crypto:clippy": "cargo clippy --manifest-path packages/crypto/Cargo.toml -- -D warnings",
     "crypto:fmt": "cargo fmt --manifest-path packages/crypto/Cargo.toml --check",

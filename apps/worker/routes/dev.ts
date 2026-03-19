@@ -40,9 +40,17 @@ dev.post('/test-reset', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
   const services = c.get('services')
-  const env = { DEMO_MODE: 'true', ENVIRONMENT: c.env.ENVIRONMENT }
+  const env = { DEMO_MODE: c.env.DEMO_MODE, ENVIRONMENT: c.env.ENVIRONMENT }
+  const adminPubkey = c.env.ADMIN_PUBKEY
+  const demoMode = c.env.DEMO_MODE === 'true'
   await services.audit.reset()
   await services.identity.reset(true, c.env.ENVIRONMENT)
+  // Re-seed admin immediately — minimizes the window where hasAdmin()=false
+  // (concurrent browser requests between reset() and the later ensureInit() would
+  // see needsBootstrap=true, causing flaky AdminBootstrap to appear in E2E tests)
+  if (adminPubkey) {
+    await services.identity.ensureInit(adminPubkey, demoMode)
+  }
   await services.settings.reset(env)
   await services.records.reset()
   await services.shifts.reset('')
@@ -51,15 +59,6 @@ dev.post('/test-reset', async (c) => {
   await services.blasts.reset()
   await services.contacts.reset(env)
   await services.cases.reset(env)
-
-  // Re-seed admin and default settings after reset
-  // (In the DO architecture, ensureInit() was called on every request.
-  //  Now we must explicitly re-seed after truncating tables.)
-  const adminPubkey = c.env.ADMIN_PUBKEY
-  const demoMode = c.env.DEMO_MODE === 'true'
-  if (adminPubkey) {
-    await services.identity.ensureInit(adminPubkey, demoMode)
-  }
   await services.settings.ensureInit()
   return c.json({ ok: true })
 })
@@ -75,7 +74,7 @@ dev.post('/test-reset-no-admin', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
   const services = c.get('services')
-  const env = { DEMO_MODE: 'true', ENVIRONMENT: c.env.ENVIRONMENT }
+  const env = { DEMO_MODE: c.env.DEMO_MODE, ENVIRONMENT: c.env.ENVIRONMENT }
   // Reset all services
   await services.audit.reset()
   await services.identity.reset(true, c.env.ENVIRONMENT)
@@ -111,7 +110,7 @@ dev.post('/test-reset-records', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
   const services = c.get('services')
-  const env = { DEMO_MODE: 'true', ENVIRONMENT: c.env.ENVIRONMENT }
+  const env = { DEMO_MODE: c.env.DEMO_MODE, ENVIRONMENT: c.env.ENVIRONMENT }
   await services.records.reset()
   await services.shifts.reset('')
   await services.calls.reset('')

@@ -69,16 +69,18 @@ export function StepInvite({ headingRef }: Props = {}) {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
-            <Label>{t('volunteers.name')}</Label>
+            <Label htmlFor="invite-name">{t('volunteers.name')}</Label>
             <Input
+              id="invite-name"
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder={t('setup.namePlaceholder')}
             />
           </div>
           <div className="space-y-1">
-            <Label>{t('volunteers.phone')}</Label>
+            <Label htmlFor="invite-phone">{t('volunteers.phone')}</Label>
             <Input
+              id="invite-phone"
               value={phone}
               onChange={e => setPhone(e.target.value)}
               placeholder="+12125551234"

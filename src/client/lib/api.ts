@@ -5,7 +5,7 @@ import { APP_API_VERSION, emitUpdateRequired } from './version'
 import { offlineQueue, isQueueableMethod, isNetworkError as isOfflineNetworkError } from './offline-queue'
 
 // --- Protocol schema imports (Epic 364) ---
-import { shiftResponseSchema } from '@protocol/schemas/shifts'
+import { shiftResponseSchema, createShiftBodySchema } from '@protocol/schemas/shifts'
 import { callRecordResponseSchema, callPresenceResponseSchema } from '@protocol/schemas/calls'
 import { volunteerResponseSchema } from '@protocol/schemas/volunteers'
 import { banResponseSchema } from '@protocol/schemas/bans'
@@ -224,7 +224,7 @@ export async function getConfig() {
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
     const res = await fetch(`${API_BASE}/config`, {
-      headers: { 'X-API-Version': String(APP_API_VERSION) },
+      headers: { 'X-API-Version': String(APP_API_VERSION), 'Cache-Control': 'no-cache' },
       signal: controller.signal,
     })
     if (!res.ok) return { hotlineName: 'Hotline', hotlineNumber: '', channels: undefined, setupCompleted: undefined }
@@ -343,7 +343,7 @@ export async function listShifts() {
   return request<{ shifts: Shift[] }>(hp('/shifts'))
 }
 
-export async function createShift(data: Omit<Shift, 'id'>) {
+export async function createShift(data: z.infer<typeof createShiftBodySchema>) {
   return request<{ shift: Shift }>(hp('/shifts'), {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1430,9 +1430,9 @@ export async function seedDemoData() {
   const maria = DEMO_ACCOUNTS.find(a => a.name === 'Maria Santos')!
   const james = DEMO_ACCOUNTS.find(a => a.name === 'James Chen')!
   const shifts = [
-    { name: 'Morning Team', startTime: '08:00', endTime: '16:00', days: [1, 2, 3, 4, 5], volunteerPubkeys: [maria.pubkey, james.pubkey], createdAt: new Date().toISOString() },
-    { name: 'Evening Team', startTime: '16:00', endTime: '23:59', days: [1, 2, 3, 4, 5], volunteerPubkeys: [maria.pubkey], createdAt: new Date().toISOString() },
-    { name: 'Weekend Coverage', startTime: '10:00', endTime: '18:00', days: [0, 6], volunteerPubkeys: [james.pubkey], createdAt: new Date().toISOString() },
+    { name: 'Morning Team', startTime: '08:00', endTime: '16:00', days: [1, 2, 3, 4, 5], volunteerPubkeys: [maria.pubkey, james.pubkey] },
+    { name: 'Evening Team', startTime: '16:00', endTime: '23:59', days: [1, 2, 3, 4, 5], volunteerPubkeys: [maria.pubkey] },
+    { name: 'Weekend Coverage', startTime: '10:00', endTime: '18:00', days: [0, 6], volunteerPubkeys: [james.pubkey] },
   ]
   for (const shift of shifts) {
     try {

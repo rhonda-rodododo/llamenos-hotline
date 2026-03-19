@@ -84,6 +84,10 @@ export default defineConfig({
       }),
       use: { ...devices["Desktop Chrome"] },
       fullyParallel: false,
+      // Must run on a single worker: @resets-state tests call test-reset before each
+      // scenario. With workers > 1, multiple feature files run concurrently and their
+      // test-resets race against each other, corrupting shared server state.
+      workers: 1,
       dependencies: ["setup"],
     },
     {

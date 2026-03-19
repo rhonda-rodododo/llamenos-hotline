@@ -157,13 +157,16 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
       await completeSetup(demoMode)
       sessionStorage.removeItem('bootstrapComplete')
       if (demoMode) {
+        // Re-fetch config to get the default hub ID (created during setup) — non-fatal
         try {
-          // Re-fetch config to get the default hub ID (created during setup)
           const config = await getConfig()
           if (config.hubs?.length) {
             const hubId = config.defaultHubId || config.hubs[0].id
             setActiveHub(hubId)
           }
+        } catch { /* ignore — hub switching is best-effort */ }
+        // Seed demo volunteers — always attempt, regardless of config fetch
+        try {
           await seedDemoData()
         } catch {
           toast(t('setup.demoSeedFailed', { defaultValue: 'Sample data partially created' }), 'error')

@@ -210,6 +210,10 @@ export async function loginAsAdmin(page: Page) {
   await page.waitForLoadState('domcontentloaded')
   await enterPin(page, TEST_PIN)
   await expect(page.getByTestId(TestIds.PAGE_TITLE)).toBeVisible({ timeout: Timeouts.AUTH })
+  // Wait for admin section in sidebar — confirms getMe() completed and permissions are set.
+  // Without this, the brief window between isKeyUnlocked=true (onUnlock fires synchronously)
+  // and getMe() completing (async) can cause isAdmin=false on the first admin-only route.
+  await expect(page.getByTestId(TestIds.NAV_ADMIN_SECTION)).toBeVisible({ timeout: Timeouts.AUTH })
 }
 
 /**

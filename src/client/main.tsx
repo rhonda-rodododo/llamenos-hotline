@@ -29,6 +29,7 @@ declare global {
     __TEST_ROUTER: typeof router
     __TEST_KEY_MANAGER: typeof import('./lib/key-manager')
     __TEST_PLATFORM: typeof import('./lib/platform')
+    __TEST_SET_ACTIVE_HUB: (id: string | null) => void
   }
 }
 if (typeof window !== 'undefined') {
@@ -38,6 +39,9 @@ if (typeof window !== 'undefined') {
   })
   import('./lib/platform').then(p => {
     window.__TEST_PLATFORM = p
+  })
+  import('./lib/api').then(api => {
+    window.__TEST_SET_ACTIVE_HUB = api.setActiveHub
   })
 }
 

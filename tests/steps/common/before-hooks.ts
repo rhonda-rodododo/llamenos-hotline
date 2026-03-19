@@ -18,4 +18,8 @@ Before({ tags: '@resets-state' }, async ({ page }) => {
   } catch {
     // Server may not be ready — scenario will fail on its own if so
   }
+  // Clear browser-side hub context so stale hub IDs don't persist between tests
+  await page.evaluate(() => {
+    window.__TEST_SET_ACTIVE_HUB?.(null)
+  }).catch(() => {})
 })
