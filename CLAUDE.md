@@ -265,6 +265,8 @@ bun run bootstrap-admin                  # Generate admin keypair
 
 Domain skills (e.g. `bdd-feature-development`, `protocol-schema-change`) are **reference material** used during plan execution — not primary workflow entry points.
 
+`docs/epics/` contains historical planning documents for reference. New planning uses superpowers specs (`docs/superpowers/specs/`) and plans (`docs/superpowers/plans/`).
+
 ### Test Philosophy
 
 1. Tests assert **behavior** (state changes, API responses, data persistence) — never assert UI element existence
