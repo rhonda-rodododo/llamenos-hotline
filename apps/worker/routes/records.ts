@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { describeRoute, resolver, validator } from 'hono-openapi'
 import type { AppEnv, Volunteer } from '../types'
-import { getMessagingAdapterFromService } from '../lib/do-access'
+import { getMessagingAdapterFromService } from '../lib/service-factories'
 import { requirePermission, checkPermission } from '../middleware/permission-guard'
 import {
   createRecordBodySchema,

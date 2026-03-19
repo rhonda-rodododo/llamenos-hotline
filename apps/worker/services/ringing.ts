@@ -1,6 +1,6 @@
 import type { Env } from '../types'
 import type { Services } from '../services'
-import { getTelephonyFromService, getHubTelephonyFromService } from '../lib/do-access'
+import { getTelephonyFromService, getHubTelephonyFromService } from '../lib/service-factories'
 import { dispatchVoipPushFromService } from '../lib/voip-push'
 import { publishNostrEvent } from '../lib/nostr-events'
 import { KIND_CALL_RING } from '@shared/nostr-events'

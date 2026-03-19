@@ -1,6 +1,6 @@
 import type { Env } from '../types'
 import type { Services } from '../services'
-import { getTelephonyFromService } from '../lib/do-access'
+import { getTelephonyFromService } from '../lib/service-factories'
 import { encryptMessageForStorage } from '../lib/crypto'
 
 export async function maybeTranscribe(

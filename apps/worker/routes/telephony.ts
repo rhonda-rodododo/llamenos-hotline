@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { AppEnv } from '../types'
-import { getTelephonyFromService, getHubTelephonyFromService } from '../lib/do-access'
+import { getTelephonyFromService, getHubTelephonyFromService } from '../lib/service-factories'
 import type { TelephonyAdapter } from '../telephony/adapter'
 import type { Services } from '../services'
 import type { Env } from '../types'
