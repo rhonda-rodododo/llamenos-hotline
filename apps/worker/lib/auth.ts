@@ -1,4 +1,4 @@
-import type { AuthPayload, Env, Volunteer, ServerSession } from '../types'
+import type { AuthPayload, Volunteer } from '../types'
 import { schnorr } from '@noble/curves/secp256k1.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { hexToBytes } from '@noble/hashes/utils.js'
@@ -84,38 +84,3 @@ export async function authenticateRequest(
   }
 }
 
-/**
- * @deprecated Use the IdentityService-based overload instead.
- * Kept for backwards compatibility during migration.
- */
-export async function authenticateRequestLegacy(
-  request: Request,
-  identityDO: { fetch(req: Request): Promise<Response> }
-): Promise<{ pubkey: string; volunteer: Volunteer } | null> {
-  const authHeader = request.headers.get('Authorization')
-
-  // Try session token auth first (WebAuthn-based sessions)
-  const sessionToken = parseSessionHeader(authHeader)
-  if (sessionToken) {
-    const sessionRes = await identityDO.fetch(new Request(`http://do/sessions/validate/${sessionToken}`))
-    if (!sessionRes.ok) return null
-    const session = await sessionRes.json() as ServerSession
-    // Look up volunteer
-    const volRes = await identityDO.fetch(new Request('http://do/volunteer/' + session.pubkey))
-    if (!volRes.ok) return null
-    const volunteer = await volRes.json() as Volunteer
-    return { pubkey: session.pubkey, volunteer }
-  }
-
-  // Fall back to Schnorr signature auth
-  const auth = parseAuthHeader(authHeader)
-  if (!auth) return null
-  const url = new URL(request.url)
-  if (!(await verifyAuthToken(auth, request.method, url.pathname))) return null
-
-  // Look up volunteer in identity DO
-  const res = await identityDO.fetch(new Request('http://do/volunteer/' + auth.pubkey))
-  if (!res.ok) return null
-  const volunteer = await res.json() as Volunteer
-  return { pubkey: auth.pubkey, volunteer }
-}
