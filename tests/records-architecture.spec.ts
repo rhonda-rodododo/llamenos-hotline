@@ -243,25 +243,31 @@ test.describe('Records Architecture', () => {
 
   // ============ Report Isolation ============
 
-  test('reports page only shows reports, not conversations', async ({ page }) => {
+  test('reports page shows reports and new-report button, not conversation cards', async ({ page }) => {
+    // Seed a report via API so the page has content
+    const { createReportViaApi } = await import('./api-helpers')
+    await createReportViaApi(page.request, { title: `Isolation Report ${Date.now()}` })
+
     await Navigation.goToReports(page)
 
-    // Reports page should render
-    const heading = page.locator('h1', { hasText: /reports/i })
-    await expect(heading).toBeVisible()
+    // The report list or a report card should be visible
+    const reportContent = page.getByTestId(TestIds.REPORT_CARD).first()
+      .or(page.getByTestId(TestIds.REPORT_NEW_BTN))
+    await expect(reportContent).toBeVisible({ timeout: 10000 })
 
-    // Verify the page renders (report cards, empty state, or new report button)
-    // The page is considered valid if the h1 heading is present (asserted above)
+    // Conversation list element must NOT appear on the reports page
+    await expect(page.getByTestId(TestIds.CONVERSATION_LIST)).not.toBeVisible()
   })
 
-  test('conversations page only shows conversations, not reports', async ({ page }) => {
+  test('conversations page does not show report cards', async ({ page }) => {
     // Navigate directly (Conversations link may not be in nav if channels are not configured)
     await navigateAfterLogin(page, '/conversations')
 
-    // Conversations page should render
+    // Page should render — either conversation list, empty state, or no-channels notice
     const heading = page.locator('h1', { hasText: /conversations/i })
-    await expect(heading).toBeVisible()
+    await expect(heading).toBeVisible({ timeout: 10000 })
 
-    // Should show either conversation list or empty/no-channels state
+    // Report cards must NOT appear on the conversations page
+    await expect(page.getByTestId(TestIds.REPORT_CARD).first()).not.toBeVisible()
   })
 })

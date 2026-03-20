@@ -101,14 +101,12 @@ test.describe('Report Types', () => {
     await loginAsAdmin(page)
     await navigateToReports(page)
 
-    // Wait for reports to load
+    // The previous serial test created a report with a type — its badge must be visible
+    const badge = page.getByTestId(TestIds.REPORT_TYPE_BADGE).first()
+    await expect(badge).toBeVisible({ timeout: 10000 })
 
-    // At least one report should have a type badge visible in the list
-    const badges = page.getByTestId(TestIds.REPORT_TYPE_BADGE)
-    // If there's a report with a type, the badge should show the type name
-    if (await badges.count() > 0) {
-      const badgeText = await badges.first().textContent()
-      expect(badgeText?.trim().length).toBeGreaterThan(0)
-    }
+    // Badge should contain the type name (non-empty text)
+    const badgeText = await badge.textContent()
+    expect(badgeText?.trim().length).toBeGreaterThan(0)
   })
 })
