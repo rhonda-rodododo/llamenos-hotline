@@ -1,6 +1,6 @@
 import { type APIRequestContext } from '@playwright/test'
 import { test as base, createBdd } from 'playwright-bdd'
-import { createHubViaApi } from '../../api-helpers'
+import { createHubViaApi } from '../api-helpers'
 
 // ── Scenario-scoped World types ──────────────────────────────────────
 // Each scenario gets a fresh instance via fixture. Step definitions read/write
