@@ -14,6 +14,7 @@ import type { Services } from '../services'
 import { requirePermission } from '../middleware/permission-guard'
 import { authErrors, notFoundError } from '../openapi/helpers'
 import { audit } from '../services/audit'
+import { okResponseSchema } from '@protocol/schemas/common'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Hono handler context
 type Ctx = Context<AppEnv, any, any>
@@ -284,7 +285,7 @@ export function createEntityRouter<
   // ---------------------------------------------------------------------------
 
   if (!disableDelete) {
-    const deleteSchema = deleteResponseSchema ?? listResponseSchema
+    const deleteSchema = deleteResponseSchema ?? okResponseSchema
     router.delete(`/:${idParam}`,
       describeRoute({
         tags: [tag],
