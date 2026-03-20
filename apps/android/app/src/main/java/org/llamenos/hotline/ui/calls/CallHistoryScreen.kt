@@ -63,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.llamenos.hotline.R
 import org.llamenos.hotline.model.CallRecord
+import org.llamenos.protocol.ActiveCallResponseStatus
 import org.llamenos.hotline.model.durationSeconds
 import org.llamenos.hotline.model.hasRecordingFlag
 import org.llamenos.hotline.model.hasTranscriptionFlag
@@ -268,7 +269,7 @@ private fun CallRecordCard(
     onAddNote: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val isUnanswered = call.status == "unanswered"
+    val isUnanswered = call.status == ActiveCallResponseStatus.Unanswered
 
     Card(
         modifier = modifier

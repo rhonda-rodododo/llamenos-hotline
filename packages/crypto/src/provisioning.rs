@@ -94,10 +94,10 @@ fn compute_sas(shared_x: &[u8]) -> String {
     let mut sas_bytes = [0u8; 4];
     hk.expand(SAS_INFO.as_bytes(), &mut sas_bytes)
         .expect("HKDF expand should not fail for 4-byte output");
-    let num = ((sas_bytes[0] as u32) << 24
+    let num = (sas_bytes[0] as u32) << 24
         | (sas_bytes[1] as u32) << 16
         | (sas_bytes[2] as u32) << 8
-        | sas_bytes[3] as u32) as u32;
+        | sas_bytes[3] as u32;
     let code = format!("{:06}", num % 1_000_000);
     format!("{} {}", &code[..3], &code[3..])
 }

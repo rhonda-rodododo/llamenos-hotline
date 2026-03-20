@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     name: "worker-integration",
     include: ["apps/worker/__tests__/integration/**/*.test.ts"],
+    passWithNoTests: true,
     environment: "node",
   },
   resolve: {

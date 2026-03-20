@@ -56,7 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import org.llamenos.hotline.R
-import org.llamenos.protocol.ReportFieldDefinitionType
+import org.llamenos.protocol.JoinFieldType
 import org.llamenos.protocol.ReportTypeDefinitionField
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -307,7 +307,7 @@ private fun DynamicField(
 
     Column(modifier = modifier.fillMaxWidth()) {
         when (field.type) {
-            ReportFieldDefinitionType.Text -> TextInputField(
+            JoinFieldType.Text -> TextInputField(
                 field = field,
                 label = labelText,
                 value = value,
@@ -315,48 +315,48 @@ private fun DynamicField(
                 singleLine = true,
             )
 
-            ReportFieldDefinitionType.Textarea -> TextAreaField(
+            JoinFieldType.Textarea -> TextAreaField(
                 field = field,
                 label = labelText,
                 value = value,
                 onValueChange = onValueChange,
             )
 
-            ReportFieldDefinitionType.Number -> NumberInputField(
+            JoinFieldType.Number -> NumberInputField(
                 field = field,
                 label = labelText,
                 value = value,
                 onValueChange = onValueChange,
             )
 
-            ReportFieldDefinitionType.Select -> SelectField(
+            JoinFieldType.Select -> SelectField(
                 field = field,
                 label = labelText,
                 value = value,
                 onValueChange = onValueChange,
             )
 
-            ReportFieldDefinitionType.Multiselect -> MultiselectField(
+            JoinFieldType.Multiselect -> MultiselectField(
                 field = field,
                 label = labelText,
                 value = value,
                 onValueChange = onValueChange,
             )
 
-            ReportFieldDefinitionType.Checkbox -> CheckboxField(
+            JoinFieldType.Checkbox -> CheckboxField(
                 field = field,
                 value = value,
                 onValueChange = onValueChange,
             )
 
-            ReportFieldDefinitionType.Date -> DateField(
+            JoinFieldType.Date -> DateField(
                 field = field,
                 label = labelText,
                 value = value,
                 onValueChange = onValueChange,
             )
 
-            ReportFieldDefinitionType.File -> {
+            JoinFieldType.File -> {
                 // File uploads are not supported in the mobile form —
                 // render as a disabled text field indicating desktop-only
                 TextInputField(

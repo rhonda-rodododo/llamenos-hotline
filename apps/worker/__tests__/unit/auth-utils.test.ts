@@ -175,7 +175,10 @@ describe('verifyAuthToken', () => {
   it('returns false for tampered token', async () => {
     const timestamp = Date.now()
     const token = createSignedToken(timestamp, 'GET', '/api/notes')
-    const tampered = '0' + token.slice(1)
+    // Flip the last byte to guarantee the token differs from the original
+    // (changing the first char risks a no-op if it's already '0')
+    const lastByte = parseInt(token.slice(-2), 16)
+    const tampered = token.slice(0, -2) + ((lastByte ^ 0xff).toString(16).padStart(2, '0'))
     const result = await verifyAuthToken({ pubkey: pubkeyHex, timestamp, token: tampered }, 'GET', '/api/notes')
     expect(result).toBe(false)
   })
