@@ -46,7 +46,7 @@ All platforms implement the same protocol: `docs/protocol/PROTOCOL.md`
 | Role | Can See | Can Do |
 |------|---------|--------|
 | **Caller** | Nothing (GSM phone) | Call the hotline number |
-| **Volunteer** | Own notes only | Answer calls, write notes during shift |
+| **User with Volunteer role** | Own notes only | Answer calls, write notes during shift |
 | **Admin** | All notes, audit logs, active calls, billing data | Manage volunteers, shifts, ban lists, spam mitigation settings |
 
 ## Security Requirements
@@ -54,7 +54,7 @@ All platforms implement the same protocol: `docs/protocol/PROTOCOL.md`
 These are non-negotiable architectural constraints, not guidelines:
 
 - **E2EE / zero-knowledge**: The server should not be able to read call notes, transcripts, or PII. Encrypt at rest minimum; E2EE where feasible.
-- **Volunteer identity protection**: Personal info (name, phone) visible only to admins, never to other volunteers or callers.
+- **User identity protection**: Personal info (name, phone) visible only to admins, never to other users or callers.
 - **Call spam mitigation**: Real-time ban lists, optional CAPTCHA-like voice bot detection (randomized digit input), network-level rate limiting. Admins toggle these in real-time.
 - **Audit logging**: Every call answered, every note created — visible to admins only.
 - **GDPR compliance**: EU parent org, data handling must comply.
