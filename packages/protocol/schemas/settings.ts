@@ -14,6 +14,35 @@ export type MessagingChannelType = z.infer<typeof messagingChannelTypeSchema>
 export const channelTypeSchema = z.enum(['voice', 'sms', 'whatsapp', 'signal', 'rcs', 'reports'])
 export type ChannelType = z.infer<typeof channelTypeSchema>
 
+// --- Custom Field Definition (canonical storage type) ---
+
+export const customFieldContextSchema = z.enum(['call-notes', 'conversation-notes', 'reports', 'all'])
+export type CustomFieldContext = z.infer<typeof customFieldContextSchema>
+
+export const customFieldDefinitionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  label: z.string(),
+  type: z.enum(['text', 'number', 'select', 'checkbox', 'textarea', 'file']),
+  required: z.boolean(),
+  options: z.array(z.string()).optional(),
+  validation: z.object({
+    minLength: z.number().optional(),
+    maxLength: z.number().optional(),
+    min: z.number().optional(),
+    max: z.number().optional(),
+  }).optional(),
+  visibleToVolunteers: z.boolean(),
+  editableByVolunteers: z.boolean(),
+  context: customFieldContextSchema,
+  maxFileSize: z.number().optional(),
+  allowedMimeTypes: z.array(z.string()).optional(),
+  maxFiles: z.number().optional(),
+  order: z.number(),
+  createdAt: z.string(),
+})
+export type CustomFieldDefinition = z.infer<typeof customFieldDefinitionSchema>
+
 // --- Response schemas ---
 
 export const roleResponseSchema = z.object({

@@ -73,33 +73,9 @@ export const PROVIDER_REQUIRED_FIELDS: Record<TelephonyProviderType, (keyof Tele
 }
 
 // --- Custom Fields ---
-
-export type CustomFieldContext = 'call-notes' | 'conversation-notes' | 'reports' | 'all'
-
-/** Custom field definition — stored as config in SessionManager DO */
-export interface CustomFieldDefinition {
-  id: string               // unique UUID
-  name: string             // internal key (machine-readable, e.g. "severity")
-  label: string            // display label (e.g. "Severity Rating")
-  type: 'text' | 'number' | 'select' | 'checkbox' | 'textarea' | 'file'
-  required: boolean
-  options?: string[]        // for 'select' type only
-  validation?: {
-    minLength?: number      // text/textarea
-    maxLength?: number      // text/textarea
-    min?: number            // number
-    max?: number            // number
-  }
-  visibleToVolunteers: boolean
-  editableByVolunteers: boolean
-  context: CustomFieldContext  // where this field appears
-  // File field type options
-  maxFileSize?: number        // bytes, for file type
-  allowedMimeTypes?: string[] // e.g., ['image/*', 'application/pdf']
-  maxFiles?: number           // for multi-file fields (default: 1)
-  order: number
-  createdAt: string
-}
+// Canonical type is inferred from Zod schema in @protocol/schemas/settings
+export type { CustomFieldContext, CustomFieldDefinition } from '@protocol/schemas/settings'
+import type { CustomFieldContext, CustomFieldDefinition } from '@protocol/schemas/settings'
 
 // --- Encrypted File Upload Types ---
 
