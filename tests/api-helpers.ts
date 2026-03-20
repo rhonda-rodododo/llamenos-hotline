@@ -346,13 +346,13 @@ export async function createShiftViaApi(
   const days = options?.days ?? [1, 2, 3, 4, 5]
   const volunteerPubkeys = options?.volunteerPubkeys ?? []
 
-  const { status, data } = await apiPost<{ shift: { id: string } }>(request, hubPath('/shifts', options?.hubId), {
+  const { status, data } = await apiPost<{ id: string }>(request, hubPath('/shifts', options?.hubId), {
     name, startTime, endTime, days, volunteerPubkeys,
   })
   if (status !== 200 && status !== 201) {
     throw new Error(`Failed to create shift: ${status}`)
   }
-  return { id: data.shift.id, name }
+  return { id: data.id, name }
 }
 
 export async function deleteShiftViaApi(

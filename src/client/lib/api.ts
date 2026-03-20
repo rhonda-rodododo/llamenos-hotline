@@ -370,14 +370,14 @@ export async function listShifts() {
 }
 
 export async function createShift(data: z.infer<typeof createShiftBodySchema>) {
-  return request<{ shift: Shift }>(hp('/shifts'), {
+  return request<Shift>(hp('/shifts'), {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
 export async function updateShift(id: string, data: Partial<Shift>) {
-  return request<{ shift: Shift }>(hp(`/shifts/${id}`), {
+  return request<Shift>(hp(`/shifts/${id}`), {
     method: 'PATCH',
     body: JSON.stringify(data),
   })

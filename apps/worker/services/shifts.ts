@@ -53,11 +53,12 @@ export class ShiftsService {
   // =========================================================================
 
   /** List all shifts for a hub */
-  async list(hubId: string): Promise<ShiftRow[]> {
-    return this.db
+  async list(hubId: string): Promise<{ shifts: ShiftRow[] }> {
+    const rows = await this.db
       .select()
       .from(shifts)
       .where(eq(shifts.hubId, hubId))
+    return { shifts: rows }
   }
 
   /** Create a new shift, return the created row */
@@ -130,7 +131,7 @@ export class ShiftsService {
     currentShift: { name: string; startTime: string; endTime: string } | null
     nextShift: { name: string; startTime: string; endTime: string; day: number } | null
   }> {
-    const allShifts = await this.list(hubId)
+    const { shifts: allShifts } = await this.list(hubId)
     const now = new Date()
     const currentDay = now.getUTCDay()
     const currentTime = utcTimeNow(now)
@@ -181,7 +182,7 @@ export class ShiftsService {
    * Falls back to the fallback group from SettingsService if no shifts are defined or active.
    */
   async getCurrentVolunteers(hubId: string): Promise<string[]> {
-    const allShifts = await this.list(hubId)
+    const { shifts: allShifts } = await this.list(hubId)
     const now = new Date()
     const currentDay = now.getUTCDay()
     const currentTime = utcTimeNow(now)

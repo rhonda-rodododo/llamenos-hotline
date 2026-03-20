@@ -82,10 +82,10 @@ function ShiftsPage() {
             try {
               if (editingShift) {
                 const res = await updateShift(editingShift.id, data)
-                setShifts(prev => prev.map(s => s.id === editingShift.id ? res.shift : s))
+                setShifts(prev => prev.map(s => s.id === editingShift.id ? res : s))
               } else {
                 const res = await createShift(data as Omit<Shift, 'id'>)
-                setShifts(prev => [...prev, res.shift])
+                setShifts(prev => [...prev, res])
               }
               setShowForm(false)
               setEditingShift(null)
