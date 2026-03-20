@@ -7,9 +7,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-source "$SCRIPT_DIR/lib/test-reporter.sh"
 
-# Parse arguments
+# Parse arguments (before sourcing test-reporter.sh so REPORTER_TIMEOUT is set first)
 VERBOSE="${VERBOSE:-false}"
 NO_CODEGEN="${NO_CODEGEN:-false}"
 JSON_OUTPUT="${JSON_OUTPUT:-false}"
@@ -24,6 +23,8 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+source "$SCRIPT_DIR/lib/test-reporter.sh"
 
 export VERBOSE JSON_OUTPUT REPORTER_TIMEOUT
 

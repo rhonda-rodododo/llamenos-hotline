@@ -55,11 +55,11 @@ function getStorageIntegrityState(world: Record<string, unknown>): StorageIntegr
 
 
 Before(async ({ world }) => {
-  s = {
+  setState<StorageIntegrityState>(world, STORAGE_INTEGRITY_KEY, {
     entityIds: new Map(),
     apiResponses: new Map(),
     dbRows: new Map(),
-  }
+  })
 })
 
 // ── Helpers ─────────────────────────────────────────────────────────

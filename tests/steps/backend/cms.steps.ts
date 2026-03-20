@@ -101,6 +101,7 @@ Before({ tags: '@cases or @contacts or @events or @evidence or @templates or @re
 // ── Helper: resolve or create entity type by name ──────────────────
 
 async function resolveEntityTypeId(
+  world: Record<string, unknown>,
   request: import('@playwright/test').APIRequestContext,
   name: string,
 ): Promise<string> {
@@ -122,6 +123,7 @@ async function resolveEntityTypeId(
 }
 
 async function resolveEventEntityTypeId(
+  world: Record<string, unknown>,
   request: import('@playwright/test').APIRequestContext,
   name: string,
 ): Promise<string> {
@@ -154,7 +156,7 @@ Then('the template catalog should have at least {int} templates', async ({ world
   expect(getCmsState(world).templateCatalog.length).toBeGreaterThanOrEqual(count)
 })
 
-Then('each template should have an id, name, and description', async () => {
+Then('each template should have an id, name, and description', async ({ world }) => {
   for (const t of getCmsState(world).templateCatalog) {
     expect(t.id).toBeTruthy()
     expect(t.name).toBeTruthy()
@@ -166,13 +168,13 @@ When('the admin gets details for template {string}', async ({ request, world }, 
   getCmsState(world).templateDetails = await getTemplateViaApi(request, templateId)
 })
 
-Then('the template should have entity types', async () => {
+Then('the template should have entity types', async ({ world }) => {
   expect(getCmsState(world).templateDetails).toBeTruthy()
   const entityTypes = getCmsState(world).templateDetails!.entityTypes as unknown[]
   expect(entityTypes.length).toBeGreaterThan(0)
 })
 
-Then('the template should have relationship types', async () => {
+Then('the template should have relationship types', async ({ world }) => {
   expect(getCmsState(world).templateDetails).toBeTruthy()
   const relTypes = getCmsState(world).templateDetails!.relationshipTypes as unknown[]
   expect(relTypes.length).toBeGreaterThan(0)
@@ -187,7 +189,7 @@ When('the admin applies template {string}', async ({ request, world }, templateI
   getCmsState(world).applyResult = result.data
 })
 
-Then('the template should be applied successfully', async () => {
+Then('the template should be applied successfully', async ({ world }) => {
   expect(getCmsState(world).applyResult).toBeTruthy()
   expect(getCmsState(world).applyResult!.applied).toBe(true)
 })
@@ -225,13 +227,13 @@ When('the admin creates a contact with encrypted profile', async ({ request, wor
   getCmsState(world).lastContact = await createContactViaApi(request)
 })
 
-Then('the contact should have a generated UUID id', async () => {
+Then('the contact should have a generated UUID id', async ({ world }) => {
   expect(getCmsState(world).lastContact).toBeTruthy()
   const id = getCmsState(world).lastContact!.id as string
   expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
 })
 
-Then('the contact should have an encrypted summary', async () => {
+Then('the contact should have an encrypted summary', async ({ world }) => {
   expect(getCmsState(world).lastContact!.encryptedSummary).toBeTruthy()
 })
 
@@ -251,7 +253,7 @@ Then('the contact list should have {int} contacts', async ({ world }, count: num
   expect(getCmsState(world).contactListResult!.contacts.length).toBe(count)
 })
 
-Then('the contact list should indicate more pages', async () => {
+Then('the contact list should indicate more pages', async ({ world }) => {
   expect(getCmsState(world).contactListResult!.hasMore).toBe(true)
 })
 
@@ -264,7 +266,7 @@ When('the admin looks up contact by identifier hash {string}', async ({ request,
   getCmsState(world).lookedUpContact = result.contact
 })
 
-Then('the looked-up contact should match the created contact', async () => {
+Then('the looked-up contact should match the created contact', async ({ world }) => {
   expect(getCmsState(world).lookedUpContact).toBeTruthy()
   expect(getCmsState(world).lookedUpContact!.id).toBe(getCmsState(world).lastContact!.id)
 })
@@ -282,7 +284,7 @@ When('the admin updates the contact encrypted summary', async ({ request, world 
   getCmsState(world).lastContact = updated
 })
 
-Then('the contact should have the updated summary', async () => {
+Then('the contact should have the updated summary', async ({ world }) => {
   expect(getCmsState(world).lastContact!.encryptedSummary).toBe('dXBkYXRlZCBjb250YWN0')
 })
 
@@ -319,7 +321,7 @@ When('the volunteer lists contacts', async ({ request, world }) => {
   }
 })
 
-Then('the contact list request should succeed', async () => {
+Then('the contact list request should succeed', async ({ world }) => {
   expect(getCmsState(world).contactListResult).toBeTruthy()
 })
 
@@ -342,19 +344,19 @@ When('the volunteer tries to create a contact', async ({ request, world }) => {
 // CMS steps use resolveEntityTypeId() internally to get the ID when needed.
 
 When('the admin creates a record of type {string} with status hash {string}', async ({ request, world }, typeName: string, statusHash: string) => {
-  const entityTypeId = await resolveEntityTypeId(request, typeName)
+  const entityTypeId = await resolveEntityTypeId(world, request, typeName)
   getCmsState(world).lastRecord = await createRecordViaApi(request, entityTypeId, { statusHash })
   getCmsState(world).records.push(getCmsState(world).lastRecord)
 })
 
-Then('the record should have a generated UUID id', async () => {
+Then('the record should have a generated UUID id', async ({ world }) => {
   expect(getCmsState(world).lastRecord).toBeTruthy()
   const id = getCmsState(world).lastRecord!.id as string
   expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
 })
 
 Then('the record should have entity type {string}', async ({ request, world }, typeName: string) => {
-  const entityTypeId = await resolveEntityTypeId(request, typeName)
+  const entityTypeId = await resolveEntityTypeId(world, request, typeName)
   expect(getCmsState(world).lastRecord!.entityTypeId).toBe(entityTypeId)
 })
 
@@ -363,24 +365,24 @@ Then('the record should have status hash {string}', async ({ world }, statusHash
 })
 
 Given('a record of type {string} exists', async ({ request, world }, typeName: string) => {
-  const entityTypeId = await resolveEntityTypeId(request, typeName)
+  const entityTypeId = await resolveEntityTypeId(world, request, typeName)
   getCmsState(world).lastRecord = await createRecordViaApi(request, entityTypeId)
   getCmsState(world).records.push(getCmsState(world).lastRecord)
 })
 
 Given('a record of type {string} exists with status hash {string}', async ({ request, world }, typeName: string, statusHash: string) => {
-  const entityTypeId = await resolveEntityTypeId(request, typeName)
+  const entityTypeId = await resolveEntityTypeId(world, request, typeName)
   getCmsState(world).lastRecord = await createRecordViaApi(request, entityTypeId, { statusHash })
   getCmsState(world).records.push(getCmsState(world).lastRecord)
 })
 
 When('the admin lists records filtered by entity type {string}', async ({ request, world }, typeName: string) => {
-  const entityTypeId = await resolveEntityTypeId(request, typeName)
+  const entityTypeId = await resolveEntityTypeId(world, request, typeName)
   getCmsState(world).recordListResult = await listRecordsViaApi(request, { entityTypeId })
 })
 
 Then('all returned records should have entity type {string}', async ({ request, world }, typeName: string) => {
-  const entityTypeId = await resolveEntityTypeId(request, typeName)
+  const entityTypeId = await resolveEntityTypeId(world, request, typeName)
   expect(getCmsState(world).recordListResult).toBeTruthy()
   for (const r of getCmsState(world).recordListResult!.records) {
     expect(r.entityTypeId).toBe(entityTypeId)
@@ -493,26 +495,26 @@ Then('the volunteer should see {int} records', async ({ world }, count: number) 
 // ============================================================
 
 Given('an event entity type {string} exists', async ({request, world}, name: string) => {
-  await resolveEventEntityTypeId(request, name)
+  await resolveEventEntityTypeId(world, request, name)
 })
 
 When('the admin creates an event of type {string}', async ({ request, world }, typeName: string) => {
-  const entityTypeId = await resolveEventEntityTypeId(request, typeName)
+  const entityTypeId = await resolveEventEntityTypeId(world, request, typeName)
   getCmsState(world).lastEvent = await createEventViaApi(request, entityTypeId)
 })
 
-Then('the event should have a generated UUID id', async () => {
+Then('the event should have a generated UUID id', async ({ world }) => {
   expect(getCmsState(world).lastEvent).toBeTruthy()
   const id = getCmsState(world).lastEvent!.id as string
   expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
 })
 
-Then('the event should have a start date', async () => {
+Then('the event should have a start date', async ({ world }) => {
   expect(getCmsState(world).lastEvent!.startDate).toBeTruthy()
 })
 
 Given('an event of type {string} exists', async ({ request, world }, typeName: string) => {
-  const entityTypeId = await resolveEventEntityTypeId(request, typeName)
+  const entityTypeId = await resolveEventEntityTypeId(world, request, typeName)
   getCmsState(world).lastEvent = await createEventViaApi(request, entityTypeId)
 })
 
@@ -548,7 +550,7 @@ Then('the event should have {int} linked report', async ({ request, world }, cou
 })
 
 Given('{int} records of type {string} are linked to the event', async ({ request, world }, count: number, typeName: string) => {
-  const entityTypeId = await resolveEntityTypeId(request, typeName)
+  const entityTypeId = await resolveEntityTypeId(world, request, typeName)
   for (let i = 0; i < count; i++) {
     const record = await createRecordViaApi(request, entityTypeId)
     await linkRecordToEventViaApi(request, getCmsState(world).lastEvent!.id as string, record.id as string)
@@ -584,7 +586,7 @@ Then('the interaction should have type {string}', async ({ world }, interactionT
   expect(getCmsState(world).lastInteraction!.interactionType).toBe(interactionType)
 })
 
-Then('the interaction should have encrypted content', async () => {
+Then('the interaction should have encrypted content', async ({ world }) => {
   expect(getCmsState(world).lastInteraction!.encryptedContent).toBeTruthy()
 })
 
@@ -633,7 +635,7 @@ Then('{int} interactions should be returned', async ({ world }, count: number) =
   expect(getCmsState(world).interactionListResult!.interactions.length).toBe(count)
 })
 
-Then('the interactions should be in chronological order', async () => {
+Then('the interactions should be in chronological order', async ({ world }) => {
   const interactions = getCmsState(world).interactionListResult!.interactions
   for (let i = 1; i < interactions.length; i++) {
     const prev = new Date(interactions[i - 1].createdAt as string).getTime()
@@ -650,7 +652,7 @@ When('the admin uploads evidence to the record', async ({ request, world }) => {
   getCmsState(world).lastEvidence = await uploadEvidenceViaApi(request, getCmsState(world).lastRecord!.id as string)
 })
 
-Then('the evidence should have a generated UUID id', async () => {
+Then('the evidence should have a generated UUID id', async ({ world }) => {
   expect(getCmsState(world).lastEvidence).toBeTruthy()
   const id = getCmsState(world).lastEvidence!.id as string
   expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
@@ -660,7 +662,7 @@ Then('the evidence should have classification {string}', async ({ world }, class
   expect(getCmsState(world).lastEvidence!.classification).toBe(classification)
 })
 
-Then('the evidence should have an integrity hash', async () => {
+Then('the evidence should have an integrity hash', async ({ world }) => {
   expect(getCmsState(world).lastEvidence!.integrityHash).toBeTruthy()
 })
 
@@ -689,7 +691,7 @@ When('the admin verifies evidence integrity with the correct hash', async ({ req
   )
 })
 
-Then('the verification should return valid true', async () => {
+Then('the verification should return valid true', async ({ world }) => {
   expect(getCmsState(world).verifyResult!.valid).toBe(true)
 })
 
@@ -701,6 +703,6 @@ When('the admin verifies evidence integrity with a wrong hash', async ({ request
   )
 })
 
-Then('the verification should return valid false', async () => {
+Then('the verification should return valid false', async ({ world }) => {
   expect(getCmsState(world).verifyResult!.valid).toBe(false)
 })
