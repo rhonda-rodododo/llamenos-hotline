@@ -17,6 +17,8 @@ export const callRecordResponseSchema = z.object({
   recordingSid: z.string().optional(),
   encryptedContent: z.string().optional(),
   adminEnvelopes: z.array(recipientEnvelopeSchema).optional(),
+  // Client-side decrypted field (populated after envelope decryption)
+  callerNumber: z.string().optional(),
 })
 
 export const activeCallResponseSchema = z.object({

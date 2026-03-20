@@ -5,17 +5,44 @@ import { APP_API_VERSION, emitUpdateRequired } from './version'
 import { offlineQueue, isQueueableMethod, isNetworkError as isOfflineNetworkError } from './offline-queue'
 
 // --- Protocol schema imports (Epic 364) ---
-import { shiftResponseSchema, createShiftBodySchema } from '@protocol/schemas/shifts'
-import { callRecordResponseSchema, callPresenceResponseSchema } from '@protocol/schemas/calls'
-import { volunteerResponseSchema } from '@protocol/schemas/volunteers'
-import { banResponseSchema } from '@protocol/schemas/bans'
-import { noteResponseSchema } from '@protocol/schemas/notes'
-import { conversationResponseSchema, messageResponseSchema } from '@protocol/schemas/conversations'
-import { inviteResponseSchema } from '@protocol/schemas/invites'
+import { createShiftBodySchema } from '@protocol/schemas/shifts'
 import { recordSchema, recordContactSchema } from '@protocol/schemas/records'
 import { caseInteractionSchema } from '@protocol/schemas/interactions'
 import { reportTypeDefinitionSchema } from '@protocol/schemas/report-types'
-import { spamSettingsSchema, callSettingsSchema } from '@protocol/schemas/settings'
+
+// Protocol types used in function signatures within this file.
+// Re-exported to consumers via `export type { ... }` statements inline below.
+import type {
+  Volunteer,
+  Shift,
+  ShiftStatus,
+  BanEntry,
+  EncryptedNote,
+  Conversation,
+  ConversationMessage,
+  InviteCode,
+  CallRecord,
+  ActiveCall,
+  VolunteerPresence,
+  AuditLogEntry,
+  AssignmentSuggestion,
+  EvidenceMetadata,
+  EvidenceClassification,
+  CustodyEntry,
+  CustodyAction,
+  Hub,
+  ContactTimelineSummary,
+  ServiceStatus,
+  SystemHealth,
+  RoleDefinition,
+  IvrAudioRecording,
+  CreateRecordBody,
+  UpdateRecordBody,
+  DirectoryContactType,
+  IdentifierType,
+  ContactIdentifier,
+  ContactCaseLink,
+} from '@protocol/schemas'
 
 const API_BASE = '/api'
 
@@ -327,11 +354,7 @@ export async function deleteVolunteer(pubkey: string) {
 
 // --- Shift Status (all users) ---
 
-export interface ShiftStatus {
-  onShift: boolean
-  currentShift: { name: string; startTime: string; endTime: string } | null
-  nextShift: { name: string; startTime: string; endTime: string; day: number } | null
-}
+export type { ShiftStatus }
 
 export async function getMyShiftStatus() {
   return request<ShiftStatus>(hp('/shifts/my-status'))
@@ -456,19 +479,13 @@ export async function createNoteReply(noteId: string, data: {
 }
 
 // Contacts (Epic 123)
-export interface ContactSummary {
-  contactHash: string
-  last4?: string
-  firstSeen: string
-  lastSeen: string
-  callCount: number
-  conversationCount: number
-  noteCount: number
-  reportCount: number
-}
+export type { ContactTimelineSummary }
+/** @deprecated Use ContactTimelineSummary instead */
+export type ContactSummary = ContactTimelineSummary
 
+// Composed type — no single schema covers this
 export interface ContactTimeline {
-  contact: ContactSummary
+  contact: ContactTimelineSummary
   calls: CallRecord[]
   conversations: Conversation[]
   notes: EncryptedNote[]
@@ -597,7 +614,8 @@ export async function updateSpamSettings(data: Partial<SpamSettings>) {
 
 // --- Call Settings ---
 
-export type CallSettings = Required<z.infer<typeof callSettingsSchema>>
+// CallSettings response has all fields required (schema uses optional for input)
+export type CallSettings = Required<import('@protocol/schemas').CallSettings>
 
 export async function getCallSettings() {
   return request<CallSettings>('/settings/call')
@@ -720,12 +738,7 @@ export async function redeemInvite(code: string, pubkey: string, secretKeyHex?: 
 
 // --- IVR Audio ---
 
-export interface IvrAudioRecording {
-  promptType: string
-  language: string
-  size: number
-  uploadedAt: string
-}
+export type { IvrAudioRecording }
 
 export async function listIvrAudio() {
   return request<{ recordings: IvrAudioRecording[] }>('/settings/ivr-audio')
@@ -818,10 +831,8 @@ export async function getWebRtcStatus() {
 
 // --- WebAuthn Settings ---
 
-export interface WebAuthnSettings {
-  requireForAdmins: boolean
-  requireForVolunteers: boolean
-}
+// Response has all fields required (schema uses optional for input/looseObject)
+export type WebAuthnSettings = Required<import('@protocol/schemas').WebAuthnSettings>
 
 export async function getWebAuthnSettings() {
   return request<WebAuthnSettings>('/settings/webauthn')
@@ -836,17 +847,7 @@ export async function updateWebAuthnSettings(data: Partial<WebAuthnSettings>) {
 
 // --- Roles (PBAC) ---
 
-export interface RoleDefinition {
-  id: string
-  name: string
-  slug: string
-  permissions: string[]
-  isDefault: boolean
-  isSystem: boolean
-  description: string
-  createdAt: string
-  updatedAt: string
-}
+export type { RoleDefinition }
 
 export async function listRoles() {
   return request<{ roles: RoleDefinition[] }>('/settings/roles')
@@ -898,111 +899,26 @@ export async function getMigrationStatus() {
   }>('/settings/migrations')
 }
 
-// --- Types ---
+// --- Types (re-exported from @protocol/schemas) ---
 
 /** @deprecated Use roles array + permissions */
 export type UserRole = 'volunteer' | 'admin' | 'reporter'
 
-export type Volunteer = z.infer<typeof volunteerResponseSchema> & {
-  // Fields present in API responses but not yet in protocol schema
-  createdAt: string
-  phone: string
-  transcriptionEnabled: boolean
-  onBreak: boolean
-  callPreference: 'phone' | 'browser' | 'both'
-  // Messaging capabilities (Epic 68)
-  supportedMessagingChannels?: string[]
-  messagingEnabled?: boolean
-}
+export type { Volunteer, Shift, BanEntry, EncryptedNote, ActiveCall, AuditLogEntry, VolunteerPresence, InviteCode }
 
-export type Shift = z.infer<typeof shiftResponseSchema>
+export type { CallRecord }
 
-export type BanEntry = z.infer<typeof banResponseSchema>
-
-export type EncryptedNote = z.infer<typeof noteResponseSchema> & {
-  // Legacy field — not in protocol schema
-  ephemeralPubkey?: string
-}
-
-// ActiveCall diverges from callRecordResponseSchema (has callerNumber, different status enum)
-// Kept as standalone interface — see Epic 364 for future alignment
-export interface ActiveCall {
-  id: string
-  callerNumber: string
-  answeredBy: string | null
-  startedAt: string
-  status: 'ringing' | 'in-progress' | 'completed' | 'unanswered'
-}
-
-export type CallRecord = z.infer<typeof callRecordResponseSchema> & {
-  // Extra fields not yet in protocol schema
-  recordingSid?: string
-  // Envelope-encrypted metadata (Epic 77)
-  encryptedContent?: string
-  adminEnvelopes?: import('@shared/types').RecipientEnvelope[]
-  // Decrypted fields (populated client-side after decryption)
-  answeredBy?: string | null
-  callerNumber?: string
-}
-
-export interface AuditLogEntry {
-  id: string
-  event: string
-  actorPubkey: string
-  details: Record<string, unknown>
-  createdAt: string
-  // Chain integrity (Epic 77)
-  previousEntryHash?: string
-  entryHash?: string
-}
-
-export type VolunteerPresence = z.infer<typeof callPresenceResponseSchema>['volunteers'][number]
-
-export type SpamSettings = Required<z.infer<typeof spamSettingsSchema>>
-
-export type InviteCode = z.infer<typeof inviteResponseSchema> & {
-  // These fields are always present in admin invite list responses
-  phone: string
-  createdBy: string
-}
+// SpamSettings response has all fields required (schema uses optional for input)
+export type SpamSettings = Required<import('@protocol/schemas').SpamSettings>
 
 // --- Conversations ---
 
-export type Conversation = z.infer<typeof conversationResponseSchema> & {
-  // Fields required in client but optional in protocol schema
-  lastMessageAt: string
-  status: 'active' | 'waiting' | 'closed'
-  // Client extensions not in protocol schema
-  metadata?: {
-    linkedCallId?: string
-    reportId?: string
-    type?: 'report'
-    reportTitle?: string
-    reportCategory?: string
-    reportTypeId?: string
-  }
-}
+export type { Conversation, ConversationMessage }
 
 export type MessageDeliveryStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed'
 
 /** @deprecated Import RecipientEnvelope from @shared/types instead. */
 export type { RecipientEnvelope as MessageKeyEnvelope } from '@shared/types'
-
-export type ConversationMessage = z.infer<typeof messageResponseSchema> & {
-  // Fields narrowed or required compared to protocol schema
-  authorPubkey: string
-  direction: 'inbound' | 'outbound'
-  status?: MessageDeliveryStatus
-  // Client extensions not yet in protocol schema
-  hasAttachments?: boolean
-  attachmentIds?: string[]
-  // Delivery status tracking (Epic 71)
-  deliveredAt?: string
-  readAt?: string
-  failureReason?: string
-  retryCount?: number
-  externalId?: string
-}
 
 export async function listConversations(params?: {
   status?: string
@@ -1531,8 +1447,7 @@ export async function updateBlastSettings(data: Partial<BlastSettings>) {
 
 // --- Hub Management ---
 
-export type { Hub } from '@shared/types'
-import type { Hub } from '@shared/types'
+export type { Hub }
 
 export async function listHubs() {
   return request<{ hubs: Hub[] }>('/hubs')
@@ -1569,42 +1484,7 @@ export async function removeHubMember(hubId: string, pubkey: string) {
 
 // --- System Health (admin only) ---
 
-export interface ServiceStatus {
-  name: string
-  status: 'ok' | 'degraded' | 'down'
-  details?: string
-}
-
-export interface SystemHealth {
-  server: {
-    status: 'ok' | 'degraded' | 'down'
-    uptime: number
-    version: string
-  }
-  services: ServiceStatus[]
-  calls: {
-    today: number
-    active: number
-    avgResponseSeconds: number
-    missed: number
-  }
-  storage: {
-    dbSize: string
-    blobStorage: string
-  }
-  backup: {
-    lastBackup: string | null
-    backupSize: string
-    lastVerify: string | null
-  }
-  volunteers: {
-    totalActive: number
-    onlineNow: number
-    onShift: number
-    shiftCoverage: number
-  }
-  timestamp: string
-}
+export type { ServiceStatus, SystemHealth }
 
 export async function fetchSystemHealth() {
   return request<SystemHealth>('/system/health')
@@ -1771,29 +1651,7 @@ export type CaseRecord = z.infer<typeof recordSchema>
 
 export type RecordContact = z.infer<typeof recordContactSchema>
 
-export interface CreateRecordBody {
-  entityTypeId: string
-  statusHash: string
-  severityHash?: string
-  categoryHash?: string
-  assignedTo?: string[]
-  blindIndexes?: Record<string, string | string[]>
-  encryptedSummary: string
-  summaryEnvelopes: import('@shared/types').RecipientEnvelope[]
-  encryptedFields?: string
-  fieldEnvelopes?: import('@shared/types').RecipientEnvelope[]
-  encryptedPII?: string
-  piiEnvelopes?: import('@shared/types').RecipientEnvelope[]
-  parentRecordId?: string
-  contactLinks?: Array<{ contactId: string; role: string }>
-}
-
-export interface UpdateRecordBody extends Partial<CreateRecordBody> {
-  statusChangeTypeHash?: string
-  statusChangeContent?: string
-  statusChangeEnvelopes?: import('@shared/types').RecipientEnvelope[]
-  closedAt?: string
-}
+export type { CreateRecordBody, UpdateRecordBody }
 
 export async function listRecords(params?: {
   entityTypeId?: string
@@ -1852,87 +1710,16 @@ export async function unlinkContactFromRecord(id: string, contactId: string) {
 
 // --- Contact Directory (Epic 331) ---
 
-export type DirectoryContactType = 'individual' | 'organization' | 'legal_resource' | 'service_provider'
-export type IdentifierType = 'phone' | 'email' | 'signal'
+export type { DirectoryContactType, IdentifierType, ContactIdentifier, ContactCaseLink }
+import type { Contact as RawContactBase } from '@protocol/schemas/contacts-v2'
+export type { ContactSummary as DirectoryContactSummary } from '@protocol/schemas/contacts-v2'
+export type { ContactPII } from '@protocol/schemas/contacts-v2'
 
-export interface ContactIdentifier {
-  id: string
-  type: IdentifierType
-  value: string
-  isPrimary: boolean
-}
+/** Raw encrypted contact from the backend (alias for protocol Contact) */
+export type RawContact = RawContactBase
 
-/** Raw encrypted contact from the backend (matches contactSchema in contacts-v2.ts) */
-export interface RawContact {
-  id: string
-  hubId: string
-  identifierHashes: string[]
-  nameHash?: string
-  trigramTokens?: string[]
-  encryptedSummary: string
-  summaryEnvelopes: import('@shared/types').RecipientEnvelope[]
-  encryptedPII?: string
-  piiEnvelopes?: import('@shared/types').RecipientEnvelope[]
-  contactTypeHash?: string
-  tagHashes: string[]
-  statusHash?: string
-  blindIndexes: Record<string, string | string[]>
-  createdAt: string
-  updatedAt: string
-  lastInteractionAt: string
-  caseCount: number
-  noteCount: number
-  interactionCount: number
-}
-
-/** Decrypted summary from encryptedSummary (matches contactSummarySchema in contacts-v2.ts) */
-export interface DirectoryContactSummary {
-  displayName: string
-  contactType?: string
-  tags?: string[]
-  status?: string
-}
-
-/** Decrypted PII from encryptedPII (matches contactPIISchema) */
-export interface ContactPII {
-  legalName?: string
-  aliases?: string[]
-  identifiers: Array<{ type: string; value: string; label?: string; isPrimary: boolean }>
-  demographics?: {
-    pronouns?: string
-    language?: string
-    age?: number
-    race?: string
-    gender?: string
-    nationality?: string
-  }
-  emergencyContacts?: Array<{ name: string; relationship: string; phone?: string; signal?: string }>
-  notes?: string
-  communicationPreferences?: {
-    preferredChannel?: string
-    preferredLanguage?: string
-    doNotContact?: boolean
-  }
-}
-
-/** Client-side decrypted contact for UI rendering */
-export interface DirectoryContact {
-  id: string
-  displayName: string
-  contactType: DirectoryContactType
-  tags: string[]
-  caseCount: number
-  lastInteractionAt: string | null
-  createdAt: string
-  updatedAt: string
-  canDecrypt: boolean
-  // Profile fields (decrypted from PII tier)
-  demographics?: string
-  emergencyContacts?: string
-  communicationPrefs?: string
-  notes?: string
-  identifiers?: ContactIdentifier[]
-  // Raw envelope data for re-encryption
+/** Client-side decrypted contact for UI rendering (extends protocol DirectoryContact with _raw) */
+export type DirectoryContact = import('@protocol/schemas').DirectoryContact & {
   _raw?: RawContact
 }
 
@@ -1943,7 +1730,7 @@ export interface ContactRelationship {
   relationshipType: string
   direction: 'outgoing' | 'incoming'
   targetDisplayName: string
-  targetContactType: DirectoryContactType
+  targetContactType: import('@protocol/schemas').DirectoryContactType
   createdAt: string
 }
 
@@ -1953,15 +1740,6 @@ export interface ContactGroup {
   description?: string
   role?: string
   memberCount: number
-}
-
-export interface ContactCaseLink {
-  recordId: string
-  caseNumber?: string
-  entityTypeLabel: string
-  role: string
-  status: string
-  createdAt: string
 }
 
 /** Fetch raw encrypted contacts from /directory (backend returns encrypted data) */
@@ -1992,20 +1770,8 @@ export async function getRawContact(id: string) {
 }
 
 /** Encrypted body for creating a contact via POST /directory */
-export interface CreateRawContactBody {
-  hubId: string
-  identifierHashes: string[]
-  nameHash?: string
-  trigramTokens?: string[]
-  encryptedSummary: string
-  summaryEnvelopes: import('@shared/types').RecipientEnvelope[]
-  encryptedPII?: string
-  piiEnvelopes?: import('@shared/types').RecipientEnvelope[]
-  contactTypeHash?: string
-  tagHashes?: string[]
-  statusHash?: string
-  blindIndexes?: Record<string, string | string[]>
-}
+import type { CreateContactBody as CreateRawContactBody } from '@protocol/schemas/contacts-v2'
+export type { CreateRawContactBody }
 
 /** Create an encrypted contact record */
 export async function createRawContact(body: CreateRawContactBody) {
@@ -2083,13 +1849,7 @@ export async function unassignRecord(id: string, pubkey: string) {
 
 // --- Assignment Suggestions (Epic 342) ---
 
-export interface AssignmentSuggestion {
-  pubkey: string
-  score: number
-  reasons: string[]
-  activeCaseCount: number
-  maxCases: number
-}
+export type { AssignmentSuggestion }
 
 export async function getAssignmentSuggestions(recordId: string) {
   return request<{ suggestions: AssignmentSuggestion[] }>(hp(`/records/${recordId}/suggest-assignees`))
@@ -2172,40 +1932,7 @@ export async function createInteraction(recordId: string, body: {
 
 // --- Case Evidence (Epic 332 — Evidence Viewer) ---
 
-export type EvidenceClassification = 'photo' | 'video' | 'document' | 'audio' | 'other'
-
-export type CustodyAction = 'uploaded' | 'viewed' | 'downloaded' | 'shared' | 'exported' | 'integrity_verified'
-
-export interface EvidenceMetadata {
-  id: string
-  caseId: string
-  fileId: string
-  filename: string
-  mimeType: string
-  sizeBytes: number
-  classification: EvidenceClassification
-  integrityHash: string
-  hashAlgorithm: 'sha256'
-  source?: string
-  sourceDescription?: string
-  encryptedDescription?: string
-  descriptionEnvelopes?: import('@shared/types').RecipientEnvelope[]
-  uploadedAt: string
-  uploadedBy: string
-  custodyEntryCount: number
-}
-
-export interface CustodyEntry {
-  id: string
-  evidenceId: string
-  action: CustodyAction
-  actorPubkey: string
-  timestamp: string
-  integrityHash: string
-  ipHash?: string
-  userAgent?: string
-  notes?: string
-}
+export type { EvidenceClassification, CustodyAction, EvidenceMetadata, CustodyEntry }
 
 export async function listEvidence(recordId: string, params?: {
   classification?: EvidenceClassification

@@ -98,7 +98,7 @@ export function ReassignDialog({
     if (!vol.supportedMessagingChannels || vol.supportedMessagingChannels.length === 0) {
       return true // Empty array means all channels
     }
-    return vol.supportedMessagingChannels.includes(conversation.channelType as string)
+    return vol.supportedMessagingChannels.some(ch => ch === conversation.channelType)
   }
 
   // Sort volunteers: capable first, then by load (ascending)

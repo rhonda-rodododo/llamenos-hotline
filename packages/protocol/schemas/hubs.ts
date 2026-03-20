@@ -6,12 +6,12 @@ import { pubkeySchema, recipientEnvelopeSchema } from './common'
 export const hubResponseSchema = z.object({
   id: z.string(),
   name: z.string(),
-  slug: z.string().optional(),
+  slug: z.string(),
   description: z.string().optional(),
   phoneNumber: z.string().optional(),
-  status: z.enum(['active', 'archived']).optional(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
+  status: z.enum(['active', 'suspended', 'archived']),
+  createdAt: z.string(),
+  updatedAt: z.string(),
 })
 
 export type Hub = z.infer<typeof hubResponseSchema>

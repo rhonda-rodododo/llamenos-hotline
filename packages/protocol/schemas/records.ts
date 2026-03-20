@@ -66,7 +66,7 @@ export const createRecordBodySchema = z.object({
   })).optional(),
 })
 
-export type CreateRecordBody = z.infer<typeof createRecordBodySchema>
+export type CreateRecordBody = z.input<typeof createRecordBodySchema>
 
 // --- Update record body (partial, with optional status change interaction metadata) ---
 
@@ -81,7 +81,7 @@ export const updateRecordBodySchema = createRecordBodySchema.partial().extend({
   closedAt: z.string().optional(),
 })
 
-export type UpdateRecordBody = z.infer<typeof updateRecordBodySchema>
+export type UpdateRecordBody = z.input<typeof updateRecordBodySchema>
 
 // --- List records query (pagination + filters) ---
 
