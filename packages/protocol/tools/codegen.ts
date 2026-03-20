@@ -273,6 +273,28 @@ function stripSwiftConvenienceExtensions(lines: string[]): string {
   // rename to ProtocolCustomFieldDefinition. Only match the standalone type declaration.
   output = output.replace(/^(struct |\/\/ MARK: - )CustomFieldDefinition\b(?![A-Z])/gm, '$1ProtocolCustomFieldDefinition')
 
+  // Types that conflict with iOS app's local model files. The generated types have different
+  // shapes from the local models (iOS app uses the local versions for API decoding).
+  // Rename to Protocol-prefixed names so both can coexist in the same Swift module.
+
+  // `BlastStatus` conflicts with local Blast.swift — same enum, local adds icon/color helpers.
+  output = output.replace(/\bBlastStatus\b/g, 'ProtocolBlastStatus')
+
+  // `ConversationStatus` conflicts with local Conversation.swift — same cases, local adds displayName.
+  output = output.replace(/\bConversationStatus\b/g, 'ProtocolConversationStatus')
+
+  // `ContactIdentifier` conflicts with local Contact.swift — different shape.
+  output = output.replace(/\bContactIdentifier\b(?!Type)/g, 'ProtocolContactIdentifier')
+
+  // `ContactSearchResponse` conflicts with local Contact.swift — different shape.
+  output = output.replace(/\bContactSearchResponse\b(?!Contact)/g, 'ProtocolContactSearchResponse')
+
+  // `ContactSummary` conflicts with local Contact.swift — different shape.
+  output = output.replace(/\bContactSummary\b(?!Envelope)/g, 'ProtocolContactSummary')
+
+  // `ContactTimelineResponse` conflicts with local Contact.swift — different shape.
+  output = output.replace(/\bContactTimelineResponse\b(?!Contact)/g, 'ProtocolContactTimelineResponse')
+
   // Note: CaseInteraction and EvidenceListResponse are NOT renamed — the iOS app
   // uses the generated types directly (custom duplicates removed from CaseRecord.swift).
 
