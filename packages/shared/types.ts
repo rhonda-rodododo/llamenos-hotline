@@ -190,9 +190,9 @@ export interface MessagingConfig {
   whatsapp: WhatsAppConfig | null
   signal: SignalConfig | null
   rcs: RCSConfig | null
-  autoAssign: boolean               // auto-assign to on-shift volunteers
+  autoAssign: boolean               // auto-assign to on-shift users
   inactivityTimeout: number         // minutes before auto-close
-  maxConcurrentPerUser: number  // conversation limit per volunteer
+  maxConcurrentPerUser: number  // conversation limit per user
 }
 
 export const DEFAULT_MESSAGING_CONFIG: MessagingConfig = {

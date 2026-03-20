@@ -123,7 +123,7 @@ export interface FullPushPayload extends WakePayload {
 /**
  * Server-internal User record — includes storage-only fields
  * (encryptedSecretKey, hubRoles) not present in the API response schema.
- * See @protocol/schemas/volunteers for the API response type.
+ * See @protocol/schemas/users for the API response type.
  */
 export interface User {
   pubkey: string
