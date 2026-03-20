@@ -405,7 +405,7 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
             {(report.metadata?.reportCategory || report.metadata?.reportTypeId) && (
               <>
                 <span className="mx-1">·</span>
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge data-testid="report-type-badge" variant="secondary" className="text-[10px]">
                   {report.metadata.reportCategory || report.metadata.reportTypeId}
                 </Badge>
               </>

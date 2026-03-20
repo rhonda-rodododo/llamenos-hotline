@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { loginAsAdmin } from './helpers'
+import { loginAsAdmin, TestIds } from './helpers'
 
 async function navigateToAdminSettings(page: Page): Promise<void> {
   await page.getByTestId('nav-admin-settings').click()
@@ -19,7 +19,7 @@ test.describe('Report Types', () => {
     await navigateToAdminSettings(page)
 
     // Find and expand the Report Types section
-    const section = page.locator('#report-types')
+    const section = page.getByTestId('report-types')
     await expect(section).toBeVisible({ timeout: 10000 })
   })
 
@@ -28,7 +28,7 @@ test.describe('Report Types', () => {
     await navigateToAdminSettings(page)
 
     // Expand the report types section by clicking on it
-    await page.locator('#report-types').click()
+    await page.getByTestId('report-types').click()
 
     // Wait for report type rows to appear (default types seeded on first load)
     await expect(page.getByTestId('report-type-row').first()).toBeVisible({ timeout: 10000 })
@@ -43,7 +43,7 @@ test.describe('Report Types', () => {
     await navigateToAdminSettings(page)
 
     // Expand the report types section
-    await page.locator('#report-types').click()
+    await page.getByTestId('report-types').click()
     await expect(page.getByTestId('report-type-row').first()).toBeVisible({ timeout: 10000 })
 
     // Click "Add Report Type"
@@ -104,8 +104,7 @@ test.describe('Report Types', () => {
     // Wait for reports to load
 
     // At least one report should have a type badge visible in the list
-    // The badge comes from the reportCategory set from the report type name
-    const badges = page.locator('button[type="button"]').first().locator('.text-\\[10px\\]')
+    const badges = page.getByTestId(TestIds.REPORT_TYPE_BADGE)
     // If there's a report with a type, the badge should show the type name
     if (await badges.count() > 0) {
       const badgeText = await badges.first().textContent()

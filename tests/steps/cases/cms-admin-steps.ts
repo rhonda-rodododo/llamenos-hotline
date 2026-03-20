@@ -17,19 +17,17 @@ import {
   updateEntityTypeViaApi,
 } from '../../api-helpers'
 
-// --- Module-level state ---
-
-let initialFieldCount = 0
+// State is now in casesWorld fixture (initialFieldCount)
 
 // --- CMS toggle section ---
 
 Then('the CMS toggle section should be visible', async ({ page }) => {
-  const section = page.getByTestId('cms-enable-toggle').or(page.locator('#cms-toggle'))
+  const section = page.getByTestId('cms-enable-toggle').or(page.getByTestId('cms-toggle'))
   await expect(section.first()).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 When('I expand the CMS toggle section', async ({ page }) => {
-  const section = page.locator('#cms-toggle')
+  const section = page.getByTestId('cms-toggle')
   await expect(section).toBeVisible({ timeout: Timeouts.ELEMENT })
   await section.scrollIntoViewIfNeeded()
   // Check if already expanded — the switch is inside CollapsibleContent
@@ -75,29 +73,29 @@ Then('a toast indicating disabled should appear', async ({ page }) => {
 })
 
 Then('the entity types section should become visible', async ({ page }) => {
-  const section = page.locator('#entity-types')
+  const section = page.getByTestId('entity-types')
   await expect(section).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('the templates section should become visible', async ({ page }) => {
-  const section = page.locator('#templates')
+  const section = page.getByTestId('templates')
   await expect(section).toBeVisible({ timeout: Timeouts.ELEMENT })
 })
 
 Then('the entity types section should not be visible', async ({ page }) => {
-  const section = page.locator('#entity-types')
+  const section = page.getByTestId('entity-types')
   await expect(section).not.toBeVisible({ timeout: 5000 })
 })
 
 Then('the templates section should not be visible', async ({ page }) => {
-  const section = page.locator('#templates')
+  const section = page.getByTestId('templates')
   await expect(section).not.toBeVisible({ timeout: 5000 })
 })
 
 Then('the CMS toggle section should show {string} in its status summary', async ({ page }, text: string) => {
   // The SettingsSection wrapper has id="cms-toggle" and renders statusSummary ONLY when collapsed.
   // The section defaults to expanded, so collapse it first.
-  const section = page.locator('#cms-toggle')
+  const section = page.getByTestId('cms-toggle')
   await expect(section).toBeVisible({ timeout: Timeouts.ELEMENT })
 
   // Check if expanded — if CollapsibleContent is visible, collapse the section
@@ -123,7 +121,7 @@ Then('the CMS toggle section should show {string} in its status summary', async 
 // --- Templates ---
 
 When('I expand the templates section', async ({ page }) => {
-  const section = page.locator('#templates')
+  const section = page.getByTestId('templates')
   await expect(section).toBeVisible({ timeout: Timeouts.ELEMENT })
   await section.scrollIntoViewIfNeeded()
   const content = section.locator('[data-testid="template-card"]')
@@ -193,7 +191,7 @@ Given('no entity types have been created', async ({ backendRequest: request }) =
 // --- Entity type list ---
 
 When('I expand the entity types section', async ({ page }) => {
-  const section = page.locator('#entity-types')
+  const section = page.getByTestId('entity-types')
   await expect(section).toBeVisible({ timeout: Timeouts.ELEMENT })
   await section.scrollIntoViewIfNeeded()
   const content = section.locator('[data-testid="entity-type-row"], [data-testid="entity-type-add-btn"]')
@@ -483,9 +481,9 @@ Then('middle field rows should have both buttons enabled', async ({ page }) => {
   }
 })
 
-When('I note the field count', async ({ page }) => {
+When('I note the field count', async ({ page, casesWorld }) => {
   const rows = page.getByTestId('entity-field-row')
-  initialFieldCount = await rows.count()
+  casesWorld.initialFieldCount = await rows.count()
 })
 
 When('I click the delete button on a field', async ({ page }) => {
@@ -493,10 +491,10 @@ When('I click the delete button on a field', async ({ page }) => {
   await deleteBtn.click()
 })
 
-Then('the field count should decrease by one', async ({ page }) => {
+Then('the field count should decrease by one', async ({ page, casesWorld }) => {
   const rows = page.getByTestId('entity-field-row')
   const currentCount = await rows.count()
-  expect(currentCount).toBe(initialFieldCount - 1)
+  expect(currentCount).toBe(casesWorld.initialFieldCount - 1)
 })
 
 // --- Statuses tab ---
@@ -636,7 +634,7 @@ Then('the entity type should be removed from the list', async ({ page }) => {
 
 Then('the templates section should be expanded', async ({ page }) => {
   // Templates section should be visible and expanded (showing template cards or loading text)
-  const section = page.locator('#templates')
+  const section = page.getByTestId('templates')
   await expect(section).toBeVisible({ timeout: Timeouts.ELEMENT })
   // Check that the section content is expanded
   const content = section.locator('[data-testid="template-card"]')

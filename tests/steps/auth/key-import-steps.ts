@@ -23,7 +23,7 @@ When('I see the error {string}', async ({ page }, errorText: string) => {
 })
 
 When('I start typing in the nsec field', async ({ page }) => {
-  await page.locator('#nsec').fill('n')
+  await page.getByTestId(TestIds.NSEC_INPUT).fill('n')
 })
 
 Then('the error should disappear', async ({ page }) => {
@@ -34,5 +34,5 @@ Then('the error should disappear', async ({ page }) => {
     .catch(() => false)
   // Error may or may not be gone depending on implementation
   // Just verify the nsec field is still editable
-  await expect(page.locator('#nsec')).toBeEditable()
+  await expect(page.getByTestId(TestIds.NSEC_INPUT)).toBeEditable()
 })

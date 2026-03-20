@@ -262,7 +262,7 @@ export async function loginAsVolunteer(page: Page, nsec: string) {
 export async function loginWithNsec(page: Page, nsec: string) {
   await page.goto('/login')
   await page.evaluate(() => sessionStorage.clear())
-  await page.locator('#nsec').fill(nsec)
+  await page.getByTestId(TestIds.NSEC_INPUT).fill(nsec)
   await page.getByTestId(TestIds.LOGIN_SUBMIT_BTN).click()
   await page.waitForURL(url => !url.toString().includes('/login'), { timeout: 15000 })
 }

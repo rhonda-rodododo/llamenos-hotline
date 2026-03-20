@@ -202,7 +202,11 @@ When('I fill in valid RCS settings', async ({ page }) => {
     // Expand the RCS/messaging section
     const rcsSection = page.locator('[data-settings-section]').filter({ hasText: /RCS|messaging/i }).first()
     if (await rcsSection.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await rcsSection.locator('.cursor-pointer').first().click()
+      // Click the trigger element using data-testid pattern "{id}-trigger"
+      const sectionTestId = await rcsSection.getAttribute('data-testid')
+      if (sectionTestId) {
+        await rcsSection.getByTestId(`${sectionTestId}-trigger`).click()
+      }
     }
   }
   // Fill the agent ID
