@@ -6,57 +6,25 @@ import { createUserBodySchema, adminUpdateUserBodySchema, userResponseSchema, us
 import { okResponseSchema } from '@protocol/schemas/common'
 import { authErrors, notFoundError } from '../openapi/helpers'
 import { audit } from '../services/audit'
+import { createEntityRouter } from '../lib/entity-router'
 
 const users = new Hono<AppEnv>()
-users.use('*', requirePermission('users:read'))
 
-users.get('/',
-  describeRoute({
-    tags: ['Users'],
-    summary: 'List all users',
-    responses: {
-      200: {
-        description: 'List of users',
-        content: {
-          'application/json': {
-            schema: resolver(userListResponseSchema),
-          },
-        },
-      },
-      ...authErrors,
-    },
-  }),
-  async (c) => {
-    const services = c.get('services')
-    const result = await services.identity.getUsers()
-    return c.json(result)
+// GET / and GET /:targetPubkey via factory
+const userReadRouter = createEntityRouter({
+  tag: 'Users',
+  domain: 'users',
+  service: 'identity',
+  listResponseSchema: userListResponseSchema,
+  itemResponseSchema: userResponseSchema,
+  disableDelete: true,
+  idParam: 'targetPubkey',
+  methods: {
+    list: 'getUsers',
+    get: 'getUser',
   },
-)
-
-users.get('/:targetPubkey',
-  describeRoute({
-    tags: ['Users'],
-    summary: 'Get a single user by pubkey',
-    responses: {
-      200: {
-        description: 'User details',
-        content: {
-          'application/json': {
-            schema: resolver(userResponseSchema),
-          },
-        },
-      },
-      ...authErrors,
-      ...notFoundError,
-    },
-  }),
-  async (c) => {
-    const services = c.get('services')
-    const targetPubkey = c.req.param('targetPubkey')
-    const user = await services.identity.getUser(targetPubkey)
-    return c.json(user)
-  },
-)
+})
+users.route('/', userReadRouter)
 
 users.post('/',
   describeRoute({
