@@ -25,9 +25,9 @@ const EVENT_CATEGORIES: Record<string, string[]> = {
     'login', 'logout', 'sessionCreated', 'sessionExpired',
     'passkeyRegistered', 'deviceLinked',
   ],
-  volunteers: [
-    'volunteerAdded', 'volunteerRemoved', 'volunteerRoleChanged',
-    'volunteerActivated', 'volunteerDeactivated', 'volunteerOnBreak',
+  users: [
+    'userAdded', 'userRemoved', 'volunteerRoleChanged',
+    'volunteerActivated', 'userDeactivated', 'volunteerOnBreak',
     'volunteerOffBreak', 'inviteCreated', 'inviteRedeemed',
   ],
   calls: [
