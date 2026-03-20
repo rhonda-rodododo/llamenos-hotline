@@ -22,11 +22,7 @@ import {
   addGroupMemberViaApi,
 } from '../../api-helpers'
 
-// --- Module-level state ---
-
-let contactCarlosId = ''
-let contactMariaId = ''
-let contactWithDataId = ''
+// State is now in casesWorld fixture (casesWorld.contactCarlosId, casesWorld.contactMariaId, casesWorld.contactWithDataId)
 
 // Navigation is handled by common/navigation-steps.ts (added CMS routes there)
 
@@ -105,36 +101,36 @@ Then('the contact type filter should be visible', async ({ page }) => {
 
 // --- Search ---
 
-Given('contacts {string} and {string} exist', async ({ backendRequest: request }, name1: string, name2: string) => {
+Given('contacts {string} and {string} exist', async ({ backendRequest: request, casesWorld },name1: string, name2: string) => {
   // Create contacts via API for data integrity
   const existing = await listContactsViaApi(request)
   const existingNames = existing.contacts.map(c => (c as { displayName?: string }).displayName)
 
   if (!existingNames.includes(name1)) {
     const c1 = await createContactByNameViaApi(request, name1)
-    contactCarlosId = (c1 as { id: string }).id
+    casesWorld.contactCarlosId = (c1 as { id: string }).id
   } else {
     const found = existing.contacts.find(c => (c as { displayName?: string }).displayName === name1)
-    contactCarlosId = (found as { id: string }).id
+    casesWorld.contactCarlosId = (found as { id: string }).id
   }
 
   if (!existingNames.includes(name2)) {
     const c2 = await createContactByNameViaApi(request, name2)
-    contactMariaId = (c2 as { id: string }).id
+    casesWorld.contactMariaId = (c2 as { id: string }).id
   } else {
     const found = existing.contacts.find(c => (c as { displayName?: string }).displayName === name2)
-    contactMariaId = (found as { id: string }).id
+    casesWorld.contactMariaId = (found as { id: string }).id
   }
 })
 
-Given('contacts exist', async ({ backendRequest: request }) => {
+Given('contacts exist', async ({ backendRequest: request, casesWorld }) => {
   const existing = await listContactsViaApi(request)
   if (existing.contacts.length === 0) {
     await createContactByNameViaApi(request, `Seed Contact ${Date.now()}`)
   }
 })
 
-Given('contacts of type {string} and {string} exist', async ({ backendRequest: request }, type1: string, type2: string) => {
+Given('contacts of type {string} and {string} exist', async ({ backendRequest: request, casesWorld },type1: string, type2: string) => {
   const hash1 = type1.toLowerCase().replace(/\s+/g, '_')
   const hash2 = type2.toLowerCase().replace(/\s+/g, '_')
   await createContactByNameViaApi(request, `${type1} Contact ${Date.now()}`, { contactTypeHash: hash1 })
@@ -342,96 +338,96 @@ When('I click the remove button on the second identifier', async ({ page }) => {
 
 // --- Contact profile detail ---
 
-Given('a contact {string} exists', async ({ backendRequest: request }, name: string) => {
+Given('a contact {string} exists', async ({ backendRequest: request, casesWorld },name: string) => {
   const existing = await listContactsViaApi(request)
   const found = existing.contacts.find(c => (c as { displayName?: string }).displayName === name)
   if (found) {
-    contactWithDataId = (found as { id: string }).id
+    casesWorld.contactWithDataId = (found as { id: string }).id
   } else {
     const created = await createContactByNameViaApi(request, name)
-    contactWithDataId = (created as { id: string }).id
+    casesWorld.contactWithDataId = (created as { id: string }).id
   }
 })
 
-Given('a contact {string} exists with profile data', async ({ backendRequest: request }, name: string) => {
+Given('a contact {string} exists with profile data', async ({ backendRequest: request, casesWorld },name: string) => {
   const existing = await listContactsViaApi(request)
   const found = existing.contacts.find(c => (c as { displayName?: string }).displayName === name)
   if (found) {
-    contactWithDataId = (found as { id: string }).id
+    casesWorld.contactWithDataId = (found as { id: string }).id
   } else {
     const created = await createContactByNameViaApi(request, name)
-    contactWithDataId = (created as { id: string }).id
+    casesWorld.contactWithDataId = (created as { id: string }).id
   }
 })
 
-Given('a contact exists with no profile data', async ({ backendRequest: request }) => {
+Given('a contact exists with no profile data', async ({ backendRequest: request, casesWorld }) => {
   const created = await createContactByNameViaApi(request, `No-Profile ${Date.now()}`)
-  contactWithDataId = (created as { id: string }).id
+  casesWorld.contactWithDataId = (created as { id: string }).id
 })
 
-Given('a contact exists with phone and email identifiers', async ({ backendRequest: request }) => {
+Given('a contact exists with phone and email identifiers', async ({ backendRequest: request, casesWorld }) => {
   const created = await createContactByNameViaApi(request, `Identifiers Contact ${Date.now()}`)
-  contactWithDataId = (created as { id: string }).id
+  casesWorld.contactWithDataId = (created as { id: string }).id
 })
 
-Given('a contact exists with no identifiers', async ({ backendRequest: request }) => {
+Given('a contact exists with no identifiers', async ({ backendRequest: request, casesWorld }) => {
   const created = await createContactByNameViaApi(request, `No-ID Contact ${Date.now()}`)
-  contactWithDataId = (created as { id: string }).id
+  casesWorld.contactWithDataId = (created as { id: string }).id
 })
 
-Given('a contact exists with linked cases', async ({ backendRequest: request }) => {
+Given('a contact exists with linked cases', async ({ backendRequest: request, casesWorld }) => {
   const entityTypes = await listEntityTypesViaApi(request)
   const arrestType = entityTypes.find(et => (et as { name?: string }).name === 'arrest_case')
   const contact = await createContactByNameViaApi(request, `Cases Contact ${Date.now()}`)
-  contactWithDataId = (contact as { id: string }).id
+  casesWorld.contactWithDataId = (contact as { id: string }).id
   if (arrestType) {
     const etId = (arrestType as { id: string }).id
     const record = await createRecordViaApi(request, etId, { statusHash: 'reported' })
-    await linkContactToRecordViaApi(request, (record as { id: string }).id, contactWithDataId, 'defendant')
+    await linkContactToRecordViaApi(request, (record as { id: string }).id, casesWorld.contactWithDataId, 'defendant')
   }
 })
 
-Given('a contact exists with no linked cases', async ({ backendRequest: request }) => {
+Given('a contact exists with no linked cases', async ({ backendRequest: request, casesWorld }) => {
   const created = await createContactByNameViaApi(request, `No-Cases Contact ${Date.now()}`)
-  contactWithDataId = (created as { id: string }).id
+  casesWorld.contactWithDataId = (created as { id: string }).id
 })
 
-Given('a contact exists with relationships', async ({ backendRequest: request }) => {
+Given('a contact exists with relationships', async ({ backendRequest: request, casesWorld }) => {
   const c1 = await createContactByNameViaApi(request, `Rel Source ${Date.now()}`)
   const c2 = await createContactByNameViaApi(request, `Rel Target ${Date.now()}`)
-  contactWithDataId = (c1 as { id: string }).id
+  casesWorld.contactWithDataId = (c1 as { id: string }).id
   await createRelationshipViaApi(
     request,
-    contactWithDataId,
+    casesWorld.contactWithDataId,
     (c2 as { id: string }).id,
     'family_member',
   ).catch(() => {})
 })
 
-Given('a contact exists with no relationships', async ({ backendRequest: request }) => {
+Given('a contact exists with no relationships', async ({ backendRequest: request, casesWorld }) => {
   const created = await createContactByNameViaApi(request, `No-Rel Contact ${Date.now()}`)
-  contactWithDataId = (created as { id: string }).id
+  casesWorld.contactWithDataId = (created as { id: string }).id
 })
 
-Given('a contact exists in groups', async ({ backendRequest: request }) => {
+Given('a contact exists in groups', async ({ backendRequest: request, casesWorld }) => {
   const contact = await createContactByNameViaApi(request, `Group Contact ${Date.now()}`)
-  contactWithDataId = (contact as { id: string }).id
+  casesWorld.contactWithDataId = (contact as { id: string }).id
   const group = await createAffinityGroupViaApi(
     request,
     `Test Group ${Date.now()}`,
-    [{ contactId: contactWithDataId }],
+    [{ contactId: casesWorld.contactWithDataId }],
   ).catch(() => null)
   if (!group) {
     // Group creation may fail if API is not available — continue anyway
   }
 })
 
-Given('a contact exists not in any groups', async ({ backendRequest: request }) => {
+Given('a contact exists not in any groups', async ({ backendRequest: request, casesWorld }) => {
   const created = await createContactByNameViaApi(request, `No-Group Contact ${Date.now()}`)
-  contactWithDataId = (created as { id: string }).id
+  casesWorld.contactWithDataId = (created as { id: string }).id
 })
 
-Given('no contacts have been created', async ({ backendRequest: request }) => {
+Given('no contacts have been created', async ({ backendRequest: request, casesWorld }) => {
   // Delete all existing contacts so we get a clean empty state.
   const { deleteContactViaApi } = await import('../../api-helpers')
   const existing = await listContactsViaApi(request, { limit: 100 }).catch(() => ({ contacts: [], total: 0, hasMore: false }))
@@ -610,12 +606,12 @@ Then('the contact groups empty state should be visible', async ({ page }) => {
 
 // --- Privacy-aware display ---
 
-Given('a contact with PII data exists', async ({ backendRequest: request }) => {
+Given('a contact with PII data exists', async ({ backendRequest: request, casesWorld }) => {
   const contact = await createContactByNameViaApi(request, `PII Contact ${Date.now()}`)
-  contactWithDataId = (contact as { id: string }).id
+  casesWorld.contactWithDataId = (contact as { id: string }).id
 })
 
-Given('I am logged in as a volunteer without PII access', async ({ page, backendRequest: request }) => {
+Given('I am logged in as a volunteer without PII access', async ({ page, backendRequest: request, casesWorld }) => {
   // Create a volunteer with default role-volunteer (no contacts:view-pii permission)
   const { createVolunteerViaApi } = await import('../../api-helpers')
   const { loginAsVolunteer } = await import('../../helpers')

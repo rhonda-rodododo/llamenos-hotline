@@ -62,7 +62,8 @@ export default defineConfig({
       use: {
         baseURL: process.env.TEST_HUB_URL || "http://localhost:3000",
       },
-      fullyParallel: false,
+      fullyParallel: true,
+      workers: 3,
     },
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL

@@ -276,12 +276,12 @@ export interface CreateBanResult {
 
 export async function createBanViaApi(
   request: APIRequestContext,
-  options?: { phone?: string; reason?: string },
+  options?: { phone?: string; reason?: string; hubId?: string },
 ): Promise<CreateBanResult> {
   const phone = options?.phone ?? uniquePhone()
   const reason = options?.reason ?? 'E2E test ban'
 
-  const { status } = await apiPost(request, '/bans', { phone, reason })
+  const { status } = await apiPost(request, hubPath('/bans', options?.hubId), { phone, reason })
   if (status !== 200 && status !== 201) {
     throw new Error(`Failed to create ban: ${status}`)
   }
@@ -291,15 +291,17 @@ export async function createBanViaApi(
 export async function removeBanViaApi(
   request: APIRequestContext,
   phone: string,
+  hubId?: string,
 ): Promise<void> {
-  const { status } = await apiDelete(request, `/bans/${encodeURIComponent(phone)}`)
+  const { status } = await apiDelete(request, hubPath(`/bans/${encodeURIComponent(phone)}`, hubId))
   if (status !== 200) throw new Error(`Failed to remove ban: ${status}`)
 }
 
 export async function listBansViaApi(
   request: APIRequestContext,
+  hubId?: string,
 ): Promise<Array<{ phone: string; reason: string; bannedBy: string; bannedAt: string }>> {
-  const { status, data } = await apiGet<{ bans: Array<{ phone: string; reason: string; bannedBy: string; bannedAt: string }> }>(request, '/bans')
+  const { status, data } = await apiGet<{ bans: Array<{ phone: string; reason: string; bannedBy: string; bannedAt: string }> }>(request, hubPath('/bans', hubId))
   if (status !== 200) throw new Error(`Failed to list bans: ${status}`)
   return data.bans
 }
@@ -308,8 +310,9 @@ export async function bulkAddBansViaApi(
   request: APIRequestContext,
   phones: string[],
   reason: string,
+  hubId?: string,
 ): Promise<{ count: number }> {
-  const { status, data } = await apiPost<{ count: number }>(request, '/bans/bulk', { phones, reason })
+  const { status, data } = await apiPost<{ count: number }>(request, hubPath('/bans/bulk', hubId), { phones, reason })
   if (status !== 200) throw new Error(`Failed to bulk add bans: ${status}`)
   return data
 }
@@ -321,6 +324,11 @@ export interface CreateShiftResult {
   name: string
 }
 
+/** Resolve hub-scoped path prefix. Hub-scoped resources live at /hubs/:id/resource. */
+function hubPath(base: string, hubId?: string): string {
+  return hubId ? `/hubs/${hubId}${base}` : base
+}
+
 export async function createShiftViaApi(
   request: APIRequestContext,
   options?: {
@@ -329,6 +337,7 @@ export async function createShiftViaApi(
     endTime?: string
     days?: number[]
     volunteerPubkeys?: string[]
+    hubId?: string
   },
 ): Promise<CreateShiftResult> {
   const name = options?.name ?? uniqueName('TestShift')
@@ -337,7 +346,7 @@ export async function createShiftViaApi(
   const days = options?.days ?? [1, 2, 3, 4, 5]
   const volunteerPubkeys = options?.volunteerPubkeys ?? []
 
-  const { status, data } = await apiPost<{ shift: { id: string } }>(request, '/shifts', {
+  const { status, data } = await apiPost<{ shift: { id: string } }>(request, hubPath('/shifts', options?.hubId), {
     name, startTime, endTime, days, volunteerPubkeys,
   })
   if (status !== 200 && status !== 201) {
@@ -349,15 +358,17 @@ export async function createShiftViaApi(
 export async function deleteShiftViaApi(
   request: APIRequestContext,
   id: string,
+  hubId?: string,
 ): Promise<void> {
-  const { status } = await apiDelete(request, `/shifts/${id}`)
+  const { status } = await apiDelete(request, hubPath(`/shifts/${id}`, hubId))
   if (status !== 200) throw new Error(`Failed to delete shift: ${status}`)
 }
 
 export async function listShiftsViaApi(
   request: APIRequestContext,
+  hubId?: string,
 ): Promise<Array<{ id: string; name: string; startTime: string; endTime: string; days: number[]; volunteerPubkeys: string[] }>> {
-  const { status, data } = await apiGet<{ shifts: Array<{ id: string; name: string; startTime: string; endTime: string; days: number[]; volunteerPubkeys: string[] }> }>(request, '/shifts')
+  const { status, data } = await apiGet<{ shifts: Array<{ id: string; name: string; startTime: string; endTime: string; days: number[]; volunteerPubkeys: string[] }> }>(request, hubPath('/shifts', hubId))
   if (status !== 200) throw new Error(`Failed to list shifts: ${status}`)
   return data.shifts
 }
@@ -366,15 +377,17 @@ export async function updateShiftViaApi(
   request: APIRequestContext,
   id: string,
   updates: { name?: string; startTime?: string; endTime?: string; days?: number[]; volunteerPubkeys?: string[] },
+  hubId?: string,
 ): Promise<void> {
-  const { status } = await apiPatch(request, `/shifts/${id}`, updates)
+  const { status } = await apiPatch(request, hubPath(`/shifts/${id}`, hubId), updates)
   if (status !== 200) throw new Error(`Failed to update shift: ${status}`)
 }
 
 export async function getFallbackGroupViaApi(
   request: APIRequestContext,
+  hubId?: string,
 ): Promise<{ volunteers: string[] }> {
-  const { status, data } = await apiGet<{ volunteers: string[] }>(request, '/shifts/fallback')
+  const { status, data } = await apiGet<{ volunteers: string[] }>(request, hubPath('/shifts/fallback', hubId))
   if (status !== 200) throw new Error(`Failed to get fallback group: ${status}`)
   return data
 }
@@ -382,8 +395,9 @@ export async function getFallbackGroupViaApi(
 export async function setFallbackGroupViaApi(
   request: APIRequestContext,
   volunteers: string[],
+  hubId?: string,
 ): Promise<void> {
-  const { status } = await apiPut(request, '/shifts/fallback', { volunteerPubkeys: volunteers })
+  const { status } = await apiPut(request, hubPath('/shifts/fallback', hubId), { volunteerPubkeys: volunteers })
   if (status !== 200) throw new Error(`Failed to set fallback group: ${status}`)
 }
 
@@ -473,14 +487,15 @@ export interface NoteRecord {
 
 export async function listNotesViaApi(
   request: APIRequestContext,
-  params?: { callId?: string; page?: number; limit?: number },
+  params?: { callId?: string; page?: number; limit?: number; hubId?: string },
 ): Promise<{ notes: NoteRecord[]; total: number }> {
   const qs = new URLSearchParams()
   if (params?.callId) qs.set('callId', params.callId)
   if (params?.page) qs.set('page', String(params.page))
   if (params?.limit) qs.set('limit', String(params.limit))
   const qsStr = qs.toString()
-  const path = `/notes${qsStr ? `?${qsStr}` : ''}`
+  const base = `/notes${qsStr ? `?${qsStr}` : ''}`
+  const path = params?.hubId ? hubPath(base.split('?')[0], params.hubId) + (qsStr ? `?${qsStr}` : '') : base
   const { status, data } = await apiGet<{ notes: NoteRecord[]; total: number }>(request, path)
   if (status !== 200) throw new Error(`Failed to list notes: ${status}`)
   return data
@@ -500,7 +515,7 @@ export interface AuditEntry {
 
 export async function listAuditLogViaApi(
   request: APIRequestContext,
-  params?: { eventType?: string; search?: string; page?: number; limit?: number },
+  params?: { eventType?: string; search?: string; page?: number; limit?: number; hubId?: string },
 ): Promise<{ entries: AuditEntry[]; total: number }> {
   const qs = new URLSearchParams()
   if (params?.eventType) qs.set('eventType', params.eventType)
@@ -508,7 +523,7 @@ export async function listAuditLogViaApi(
   if (params?.page) qs.set('page', String(params.page))
   if (params?.limit) qs.set('limit', String(params.limit))
   const qsStr = qs.toString()
-  const path = `/audit${qsStr ? `?${qsStr}` : ''}`
+  const path = hubPath('/audit', params?.hubId) + (qsStr ? `?${qsStr}` : '')
   const { status, data } = await apiGet<{ entries: AuditEntry[]; total: number }>(request, path)
   if (status !== 200) throw new Error(`Failed to list audit log: ${status}`)
   return data
