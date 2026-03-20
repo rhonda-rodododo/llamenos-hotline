@@ -160,7 +160,7 @@ struct SystemHealthView: View {
 
 /// A single health status card showing an icon, label, status indicator, and details.
 struct HealthCardView: View {
-    let status: ServiceStatus
+    let status: ServiceHealthStatus
     let icon: String
     let label: String
 

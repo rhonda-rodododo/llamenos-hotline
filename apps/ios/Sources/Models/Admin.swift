@@ -362,16 +362,16 @@ struct ClientSpamSettings: Codable, Sendable {
 
 /// System health dashboard data from the API.
 struct SystemHealth: Codable, Sendable {
-    let server: ServiceStatus
-    let services: ServiceStatus
-    let calls: ServiceStatus
-    let storage: ServiceStatus
-    let backup: ServiceStatus
-    let volunteers: ServiceStatus
+    let server: ServiceHealthStatus
+    let services: ServiceHealthStatus
+    let calls: ServiceHealthStatus
+    let storage: ServiceHealthStatus
+    let backup: ServiceHealthStatus
+    let volunteers: ServiceHealthStatus
 }
 
 /// Status of an individual service or subsystem.
-struct ServiceStatus: Codable, Sendable {
+struct ServiceHealthStatus: Codable, Sendable {
     let name: String
     let status: String
     let details: String?
