@@ -9,6 +9,12 @@ import type { Hub } from '@shared/types'
 
 const routes = new Hono<AppEnv>()
 
+// Hub routes are not migrated to the entity-router factory — access control
+// and hub construction logic cannot be expressed in factory config. Hub
+// creation uses inline crypto.randomUUID() + slug generation; GET / and
+// GET /:hubId have non-standard access control checks (isSuperAdmin OR
+// hasHubAccess) that cannot be expressed via the factory's single domain prefix.
+
 // List hubs (filtered by user's membership, super admin sees all)
 routes.get('/',
   describeRoute({
