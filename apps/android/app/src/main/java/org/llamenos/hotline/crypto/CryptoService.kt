@@ -564,7 +564,7 @@ class CryptoService @Inject constructor() {
      * Hub keys are 32-byte random values used to decrypt Nostr relay events.
      * Populated via [loadHubKey]; cleared on [lock].
      */
-    private val hubKeys: MutableMap<String, ByteArray> = mutableMapOf()
+    private val hubKeys: MutableMap<String, ByteArray> = java.util.concurrent.ConcurrentHashMap()
 
     /**
      * Returns true if the hub key for [hubId] is already cached in memory.
