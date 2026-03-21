@@ -23,7 +23,7 @@ export const customFieldDefinitionSchema = z.object({
   id: z.string(),
   name: z.string(),
   label: z.string(),
-  type: z.enum(['text', 'number', 'select', 'checkbox', 'textarea', 'file']),
+  type: z.enum(['text', 'number', 'select', 'checkbox', 'textarea', 'file', 'location']),
   required: z.boolean(),
   options: z.array(z.string()).optional(),
   validation: z.object({
@@ -62,7 +62,7 @@ export type RoleDefinition = z.infer<typeof roleResponseSchema>
 export const customFieldResponseSchema = z.object({
   name: z.string(),
   label: z.string(),
-  type: z.enum(['text', 'number', 'select', 'checkbox', 'textarea', 'file']),
+  type: z.enum(['text', 'number', 'select', 'checkbox', 'textarea', 'file', 'location']),
   required: z.boolean().optional(),
   options: z.array(z.string()).optional(),
   order: z.number().optional(),
@@ -88,7 +88,7 @@ export const customFieldsBodySchema = z.looseObject({
   fields: z.array(z.looseObject({
     name: z.string().min(1).max(200),
     label: z.string().min(1).max(200),
-    type: z.enum(['text', 'number', 'select', 'checkbox', 'textarea', 'file']),
+    type: z.enum(['text', 'number', 'select', 'checkbox', 'textarea', 'file', 'location']),
     required: z.boolean().optional(),
     options: z.array(z.string().max(200)).optional(),
     order: z.number().int().optional(),
@@ -145,7 +145,8 @@ export const messagingConfigSchema = z.looseObject({
 
 export const telephonyProviderSchema = z.looseObject({
   type: telephonyProviderTypeSchema,
-  accountSid: z.string().optional(),
+  // HIGH-W5: Validate Twilio/SignalWire Account SID format to prevent SSRF via crafted SIDs
+  accountSid: z.string().regex(/^AC[0-9a-f]{32}$/, 'Invalid Account SID format (must be AC followed by 32 hex chars)').optional(),
   authToken: z.string().optional(),
   apiKeySid: z.string().optional(),
   apiKeySecret: z.string().optional(),

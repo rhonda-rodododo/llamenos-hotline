@@ -1,13 +1,11 @@
 import { z } from 'zod'
 import { recipientEnvelopeSchema, paginationSchema } from './common'
+import { locationPrecisionSchema } from './geocoding'
 
-// --- Location Precision ---
+// --- Location Precision (re-exported from geocoding.ts) ---
 
-export const locationPrecisionSchema = z.enum([
-  'none', 'city', 'neighborhood', 'block', 'exact',
-])
-
-export type LocationPrecision = z.infer<typeof locationPrecisionSchema>
+export { locationPrecisionSchema } from './geocoding'
+export type { LocationPrecision } from './geocoding'
 
 // --- Event (stored in CaseDO as a record with category='event') ---
 
@@ -124,11 +122,9 @@ export const eventDetailsSchema = z.object({
   eventType: z.string(),
   status: z.string(),
   location: z.object({
-    name: z.string(),
-    coordinates: z.object({
-      lat: z.number(),
-      lng: z.number(),
-    }).optional(),
+    address: z.string(),
+    lat: z.number().optional(),
+    lon: z.number().optional(),
     area: z.string().optional(),
     jurisdiction: z.string().optional(),
   }).optional(),

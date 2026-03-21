@@ -38,10 +38,15 @@ export const entityFieldDefinitionSchema = z.object({
   label: z.string().max(200),
   type: z.enum([
     'text', 'number', 'select', 'multiselect', 'checkbox',
-    'textarea', 'date', 'file',
+    'textarea', 'date', 'file', 'location',
   ]),
   required: z.boolean().optional().default(false),
   options: z.array(fieldOptionSchema).max(50).optional(),
+  locationOptions: z.object({
+    maxPrecision: z.enum(['none', 'city', 'neighborhood', 'block', 'exact']).optional().default('exact'),
+    allowGps: z.boolean().optional().default(true),
+    allowAutocomplete: z.boolean().optional().default(true),
+  }).optional(),
   lookupId: z.string().optional(),
   validation: z.object({
     minLength: z.number().optional(),

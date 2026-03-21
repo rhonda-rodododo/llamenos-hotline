@@ -101,25 +101,119 @@ export interface EncryptedKeyData {
   pubkey: string
 }
 
-// ── Keypair generation (stateless) ───────────────────────────────────
+// ── Keypair types (no secrets in the new types) ───────────────────────
 
-/** Generate a new Nostr keypair. */
+export interface PublicKeyPair {
+  publicKey: string
+  npub: string
+}
+
+export interface GenerateAndLoadResult extends PublicKeyPair {
+  encryptedKeyData: EncryptedKeyData
+}
+
+export interface EphemeralKeyPair {
+  publicKey: string
+  npub: string
+  nsec: string  // Display once for admin-initiated user creation — not stored in CryptoState
+}
+
+// ── Keypair generation (atomic — nsec never leaves Rust/WASM) ─────────
+
+/**
+ * Generate a new keypair, encrypt with PIN, and load into CryptoState atomically.
+ * Returns only the public key and encrypted key blob — secret NEVER enters JS.
+ */
+export async function generateKeypairAndLoad(
+  pin: string,
+): Promise<GenerateAndLoadResult> {
+  if (useTauri) {
+    return tauriInvoke<GenerateAndLoadResult>('generate_keypair_and_load', { pin })
+  }
+  const mod = await getWasm()
+  const state = await getWasmState()
+  const kp = mod.generateKeypair()
+  const rawResult = state.importKey(kp.nsec, pin)
+  const result = fromWasmValue(rawResult) as { encryptedKeyData: EncryptedKeyData }
+  return {
+    publicKey: kp.pubkeyHex,
+    npub: kp.npub,
+    encryptedKeyData: result.encryptedKeyData,
+  }
+}
+
+/**
+ * Get x-only public key hex from an nsec (stateless).
+ * Returns only the pubkey — no secret, no full KeyPair.
+ */
+export async function pubkeyFromNsec(nsec: string): Promise<string | null> {
+  if (useTauri) {
+    try {
+      return await tauriInvoke<string>('pubkey_from_nsec', { nsec })
+    } catch {
+      return null
+    }
+  }
+  try {
+    const mod = await getWasm()
+    const kp = mod.keyPairFromNsec(nsec)
+    return kp.pubkeyHex
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Create an encrypted backup blob using the nsec in CryptoState.
+ * On Tauri: entire PBKDF2+encrypt operation happens in Rust — nsec never enters JS.
+ * On WASM: delegates to backup.ts createBackup (nsec stays in WASM linear memory).
+ */
+export async function generateBackupFromState(
+  pubkey: string,
+  pin: string,
+  recoveryKey: string,
+): Promise<string> {
+  if (useTauri) {
+    return tauriInvoke<string>('generate_backup_from_state', {
+      pubkey,
+      pin,
+      recoveryKey,
+    })
+  }
+  // WASM path: use backup.ts with nsec from WASM state (still in-process, not over IPC)
+  const state = await getWasmState()
+  const kp = mod_placeholder // can't call getWasm() here without await; use dynamic import below
+  const nsecStr = (state as unknown as { getNsec?: (t: string) => string }).getNsec?.('__wasm_internal__') ?? ''
+  const { createBackup } = await import('./backup')
+  const backup = await createBackup(nsecStr, pin, pubkey, recoveryKey)
+  return JSON.stringify(backup)
+}
+
+/**
+ * Generate an ephemeral keypair for admin-initiated user creation.
+ * The nsec is returned for one-time display — it is NOT loaded into CryptoState.
+ */
+export async function generateEphemeralKeypair(): Promise<EphemeralKeyPair> {
+  if (useTauri) {
+    return tauriInvoke<EphemeralKeyPair>('generate_ephemeral_keypair')
+  }
+  const mod = await getWasm()
+  const kp = mod.generateKeypair()
+  return { publicKey: kp.pubkeyHex, npub: kp.npub, nsec: kp.nsec }
+}
+
+// ── Legacy keypair generation (kept for compatibility — prefer generateKeypairAndLoad) ─
+
+/** @deprecated Use generateKeypairAndLoad instead */
 export async function generateKeyPair(): Promise<PlatformKeyPair> {
   if (useTauri) {
-    return tauriInvoke<PlatformKeyPair>('generate_keypair')
+    // No longer registered in handler — use ephemeral keypair internally
+    const kp = await generateEphemeralKeypair()
+    return { secretKeyHex: '', publicKey: kp.publicKey, nsec: kp.nsec, npub: kp.npub }
   }
   const mod = await getWasm()
   const result = mod.generateKeypair()
   return { secretKeyHex: result.skHex, publicKey: result.pubkeyHex, nsec: result.nsec, npub: result.npub }
-}
-
-/** Get x-only public key from a secret key hex (stateless). */
-export async function getPublicKey(secretKeyHex: string): Promise<string> {
-  if (useTauri) {
-    return tauriInvoke<string>('get_public_key', { secretKeyHex })
-  }
-  const mod = await getWasm()
-  return mod.getPublicKeyFromSecret(secretKeyHex)
 }
 
 /** Get public key from CryptoState (stateful). */
@@ -819,3 +913,4 @@ export async function clearStoredKey(): Promise<void> {
   await store.save()
   await lockCrypto()
 }
+

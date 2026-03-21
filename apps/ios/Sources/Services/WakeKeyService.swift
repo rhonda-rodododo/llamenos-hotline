@@ -1,6 +1,10 @@
 import Foundation
 import Security
 
+// MARK: - Crypto Label Constants
+// Source of truth: packages/protocol/crypto-labels.json (LABEL_PUSH_WAKE)
+private let LABEL_PUSH_WAKE = "llamenos:push-wake"
+
 // MARK: - WakeKeyError
 
 enum WakeKeyError: LocalizedError {
@@ -242,7 +246,7 @@ final class WakeKeyService: @unchecked Sendable {
             packedHex: packedHex,
             ephemeralPubkeyHex: ephemeralPubkeyHex,
             secretKeyHex: privateKeyHex,
-            label: "llamenos:wake-key"
+            label: LABEL_PUSH_WAKE
         )
     }
 
