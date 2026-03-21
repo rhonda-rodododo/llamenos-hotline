@@ -1,6 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 import { defineBddProject } from "playwright-bdd";
 
+// ESM-safe worktree detection (no __dirname in ESM scope)
+const configDir = new URL(".", import.meta.url).pathname;
+
 // Desktop BDD: exclude tests/steps/backend/ to avoid loading backend-only step defs
 // that use a different createBdd() instance.
 const desktopStepDirs = [
@@ -78,7 +81,7 @@ export default defineConfig({
         // Never reuse a server from a different worktree or main checkout —
         // stale builds silently serve wrong code, causing hard-to-diagnose
         // test failures when testIds or API responses don't match the branch.
-        reuseExistingServer: !process.env.CI && !__dirname.includes("/.worktrees/"),
+        reuseExistingServer: !process.env.CI && !configDir.includes("/.worktrees/"),
         timeout: 120_000, // Allow time for the build step
       },
 });

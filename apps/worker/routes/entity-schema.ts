@@ -194,7 +194,9 @@ entitySchema.get('/entity-types',
   requireAnyPermission('settings:read', 'cases:read-own', 'cases:read-assigned', 'cases:create'),
   async (c) => {
     const services = c.get('services')
-    const result = await services.settings.getEntityTypes()
+    // Support optional hubId query param for filtering by hub (or falls back to hub middleware context)
+    const hubId = c.req.query('hubId') ?? c.get('hubId')
+    const result = await services.settings.getEntityTypes(hubId)
     return c.json(result)
   },
 )
@@ -280,7 +282,13 @@ entitySchema.post('/case-number',
   async (c) => {
     const body = c.req.valid('json')
     const services = c.get('services')
-    const result = await services.settings.generateCaseNumber(body)
+    // hubId is passed in body (looseObject allows extra fields) or falls back to middleware context
+    const bodyRecord = body as Record<string, unknown>
+    const result = await services.settings.generateCaseNumber({
+      prefix: body.prefix,
+      year: body.year,
+      hubId: (bodyRecord.hubId as string) || c.get('hubId') || '',
+    })
     return c.json(result)
   },
 )
@@ -540,7 +548,8 @@ entitySchema.get('/report-types',
   requirePermission('settings:read'),
   async (c) => {
     const services = c.get('services')
-    const result = await services.settings.getCmsReportTypes()
+    const hubId = c.req.query('hubId') ?? c.get('hubId')
+    const result = await services.settings.getCmsReportTypes(hubId)
     return c.json(result)
   },
 )
