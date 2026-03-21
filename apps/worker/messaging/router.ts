@@ -165,12 +165,13 @@ messaging.post('/:channel/webhook', async (c) => {
   // Auto-assignment for new conversations
   if (convResult.isNew && convResult.status === 'waiting') {
     c.executionCtx.waitUntil(
-      tryAutoAssign(services, c.env, convResult.conversationId, channel, c.env.ADMIN_PUBKEY)
+      tryAutoAssign(services, c.env, convResult.conversationId, channel, c.env.ADMIN_PUBKEY, hubId)
     )
   }
 
   // Push notification to assigned volunteer for new messages (Epic 86)
-  if (convResult.conversationId) {
+  // Only dispatch push if hubId is present — mobile clients require a real hub ID to route the notification.
+  if (convResult.conversationId && hubId) {
     c.executionCtx.waitUntil((async () => {
       try {
         // Fetch the conversation to get the assigned volunteer
@@ -178,12 +179,12 @@ messaging.post('/:channel/webhook', async (c) => {
         if (conv.assignedTo) {
           const dispatcher = createPushDispatcherFromService(c.env, services.identity, services.shifts)
           await dispatcher.sendToVolunteer(conv.assignedTo, {
-            hubId: hubId ?? '',
+            hubId,
             type: 'message',
             conversationId: convResult.conversationId,
             channelType: conv.channelType,
           }, {
-            hubId: hubId ?? '',
+            hubId,
             type: 'message',
             conversationId: convResult.conversationId,
             channelType: conv.channelType,
@@ -216,7 +217,8 @@ async function tryAutoAssign(
   env: Env,
   conversationId: string,
   channelType: MessagingChannelType,
-  adminPubkey: string
+  adminPubkey: string,
+  hubId: string | undefined,
 ): Promise<void> {
   try {
     // 1. Check if auto-assign is enabled
@@ -225,8 +227,8 @@ async function tryAutoAssign(
 
     const maxConcurrent = messagingConfig.maxConcurrentPerUser || 3
 
-    // 2. Get current on-shift volunteers
-    const onShiftPubkeys = await services.shifts.getCurrentVolunteers('')
+    // 2. Get current on-shift volunteers (scoped to hub, or global if no hub)
+    const onShiftPubkeys = await services.shifts.getCurrentVolunteers(hubId ?? '')
     if (onShiftPubkeys.length === 0) return
 
     // 3. Get user details to filter by channel capability

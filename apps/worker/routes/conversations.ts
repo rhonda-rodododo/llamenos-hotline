@@ -480,7 +480,10 @@ conversations.post('/:id/claim',
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
     const user = c.get('user')
-    const hubId = c.get('hubId') ?? ''
+    const hubId = c.get('hubId')
+    if (!hubId) {
+      return c.json({ error: 'missing hub context' }, 500)
+    }
 
     // Fetch conversation to check channel type
     const conv = await services.conversations.getById(id)
