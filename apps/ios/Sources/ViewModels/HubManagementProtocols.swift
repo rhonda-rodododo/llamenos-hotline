@@ -30,10 +30,6 @@ protocol HubCryptoServiceProtocol {
     func loadHubKey(hubId: String, envelope: HubKeyEnvelopeResponse) throws
 }
 
-// Stub conformance on CryptoService — Task 7 replaces these with the real implementation.
-extension CryptoService: HubCryptoServiceProtocol {
-    func hasHubKey(hubId: String) -> Bool { false }
-    func loadHubKey(hubId: String, envelope: HubKeyEnvelopeResponse) throws {
-        // No-op stub — real implementation added in Task 7
-    }
-}
+// CryptoService conforms to HubCryptoServiceProtocol via its real implementations
+// in CryptoService.swift (hasHubKey, loadHubKey, clearHubKeys, allHubKeys, hubKeyCount).
+extension CryptoService: HubCryptoServiceProtocol {}
