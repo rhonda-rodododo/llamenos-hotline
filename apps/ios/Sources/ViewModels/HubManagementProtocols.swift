@@ -23,8 +23,8 @@ extension APIService: HubAPIServiceProtocol {}
 // MARK: - HubCryptoServiceProtocol
 
 /// Narrow protocol exposing only the hub-key cache operations that HubManagementViewModel needs.
-/// Task 7 will add the real implementations to CryptoService; until then the protocol
-/// defines the contract and CryptoService gets stub conformance here.
+/// Allows test doubles without subclassing the final CryptoService class.
+/// Real implementations live in CryptoService.swift (hasHubKey, loadHubKey, clearHubKeys, allHubKeys, hubKeyCount).
 protocol HubCryptoServiceProtocol {
     func hasHubKey(hubId: String) -> Bool
     func loadHubKey(hubId: String, envelope: HubKeyEnvelopeResponse) throws
