@@ -347,6 +347,11 @@ final class CryptoService: @unchecked Sendable {
     /// Uses eciesUnwrapKeyHex with the CryptoLabels.LABEL_HUB_KEY_WRAP domain separation label.
     /// Requires the user's nsec to be loaded (app unlocked).
     func loadHubKey(hubId: String, envelope: HubKeyEnvelopeResponse) throws {
+        hubKeyCacheLock.lock()
+        let alreadyCached = hubKeyCache[hubId] != nil
+        hubKeyCacheLock.unlock()
+        guard !alreadyCached else { return }
+
         guard let nsecHex else { throw CryptoServiceError.noKeyLoaded }
         let ffiEnvelope = KeyEnvelope(
             wrappedKey: envelope.envelope.wrappedKey,
