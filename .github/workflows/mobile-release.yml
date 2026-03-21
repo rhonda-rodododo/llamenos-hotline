@@ -16,9 +16,6 @@ on:
         description: 'Version to release (e.g., 1.0.0)'
         required: true
 
-permissions:
-  contents: write
-
 env:
   # Safely capture workflow_dispatch input at top level
   INPUT_VERSION: ${{ github.event.inputs.version }}
@@ -29,6 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Build (Android)
     timeout-minutes: 30
+    permissions:
+      contents: write   # needed for gh release create/upload in this job
 
     env:
       HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
@@ -174,6 +173,8 @@ jobs:
     runs-on: macos-latest
     name: Build (iOS)
     timeout-minutes: 45
+    permissions:
+      contents: read
 
     env:
       HAS_APPLE_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE_BASE64 != '' }}

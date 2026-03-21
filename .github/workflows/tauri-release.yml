@@ -17,11 +17,10 @@ on:
         description: 'Version to release (e.g., 1.0.0)'
         required: true
 
-permissions:
-  contents: write
-
 jobs:
   build:
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -174,6 +173,8 @@ jobs:
   build-flatpak:
     runs-on: ubuntu-latest
     name: Build (Flatpak)
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -200,6 +201,8 @@ jobs:
     needs: [build, build-flatpak]
     runs-on: ubuntu-latest
     name: Publish Release
+    permissions:
+      contents: write
 
     # Run even if Flatpak fails (it's a new build target, may have issues)
     if: always() && needs.build.result == 'success'
