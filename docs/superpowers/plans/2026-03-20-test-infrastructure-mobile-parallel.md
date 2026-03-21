@@ -60,6 +60,7 @@ Reading the source files reveals:
 **iOS — files to modify:**
 - `apps/ios/Tests/UI/Helpers/BaseUITest.swift` — replace `resetServerState()` with `createTestHub()` returning hub ID; update all `launchWithAPI` variants to accept `hubId`
 - `apps/ios/Tests/UI/APIConnectedUITests.swift` — update `setUp()` to use hub isolation
+- All other iOS test files calling `resetServerState()` — audit via `grep -rn "resetServerState" apps/ios/` and update each caller; expected to find 8 files total with 46 call sites
 
 **Android — files to modify:**
 - `apps/android/app/src/androidTest/java/org/llamenos/hotline/steps/ScenarioHooks.kt` — replace `resetServerState()` with `createTestHub()`; store `hubId` for scenario use
@@ -363,21 +364,47 @@ await page.getByTestId(`${TestIds.SETTINGS_TELEPHONY}-trigger`).click()
 
 - [ ] In `interaction-steps.ts`, same fix — the `I expand the {string} section` step should already use `{testId}-trigger` after Task 3.
 
-#### 4e: `[data-settings-section]` → `data-testid`
+#### 4e: `[data-settings-section]` → `data-testid` (all 12 occurrences in 7 files)
 
-**File:** `desktop-admin-steps.ts` (line 85)
+- [ ] Find ALL occurrences of `[data-settings-section]` across the test and source trees:
 
-- [ ] Find the step that uses `[data-settings-section]` and replace with the appropriate `getByTestId(TestIds.SETTINGS_SECTION)`:
+```bash
+grep -rn "\[data-settings-section\]" tests/ src/ --include="*.ts" --include="*.tsx"
+```
+
+Expected: ~12 occurrences across ~7 files.
+
+- [ ] For EVERY occurrence in test files, replace with `getByTestId(TestIds.SETTINGS_SECTION)`:
 
 ```typescript
-// Before:
+// Before (any test file):
 page.locator('[data-settings-section]').first()
+page.locator('[data-settings-section]').nth(2)
+await page.locator('[data-settings-section]').count()
 
 // After:
 page.getByTestId(TestIds.SETTINGS_SECTION).first()
+page.getByTestId(TestIds.SETTINGS_SECTION).nth(2)
+await page.getByTestId(TestIds.SETTINGS_SECTION).count()
 ```
 
-Confirm that the component uses `data-testid="settings-section"` (not `data-settings-section`). If the component uses `data-settings-section` as a private implementation detail, add `data-testid="settings-section"` alongside it.
+- [ ] For each component source file that currently uses `data-settings-section` as an attribute, add `data-testid="settings-section"` alongside it (do NOT remove `data-settings-section` if it serves a non-test purpose):
+
+```tsx
+// Before:
+<div data-settings-section="telephony" ...>
+
+// After:
+<div data-settings-section="telephony" data-testid="settings-section" ...>
+```
+
+- [ ] Verify zero `[data-settings-section]` remain in test files:
+
+```bash
+grep -rn "\[data-settings-section\]" tests/ --include="*.ts" | wc -l
+```
+
+Expected: `0`
 
 #### 4f: `.text-destructive` → `data-testid="error-message"` or `getByRole('alert')`
 
@@ -462,6 +489,16 @@ Expected: empty output
 git add tests/steps/admin/desktop-admin-steps.ts tests/steps/common/interaction-steps.ts tests/steps/crypto/crypto-steps.ts tests/report-types.spec.ts tests/records-architecture.spec.ts tests/steps/calls/call-steps.ts src/
 git commit -m "test(desktop): replace all CSS/DOM/position selectors with data-testid"
 ```
+
+---
+
+**Phase 3 checkpoint — run full desktop E2E suite:**
+
+```bash
+bun run test
+```
+
+Expected: all tests pass with zero `waitForTimeout` and zero CSS class selector failures.
 
 ---
 
@@ -770,6 +807,22 @@ git commit -m "test(desktop): replace vacuous conditional assertions with real b
 
 ---
 
+**Phase 4 checkpoint — run backend BDD and full desktop E2E:**
+
+```bash
+bun run test:backend:bdd
+```
+
+Expected: 598+ scenarios passing.
+
+```bash
+bun run test
+```
+
+Expected: all tests pass, no vacuous tests, no empty step definitions.
+
+---
+
 ## Phase 5: iOS XCUITest Hub Isolation
 
 ### Task 8 — Add createTestHub() to BaseUITest.swift; replace resetServerState()
@@ -1059,6 +1112,49 @@ Expected: all previously-passing tests still pass (no regressions from removing 
 ```bash
 git add apps/ios/Tests/UI/APIConnectedUITests.swift
 git commit -m "test(ios): remove serial execution and per-test resetServerState() — use hub isolation"
+```
+
+---
+
+### Task 9b — Audit and update all remaining iOS test files calling resetServerState()
+
+**Files:** All iOS test files with `resetServerState()` calls beyond `BaseUITest.swift` and `APIConnectedUITests.swift`
+
+- [ ] Find all remaining callers:
+
+```bash
+grep -rn "resetServerState" apps/ios/ --include="*.swift"
+```
+
+Expected: approximately 6 additional files with a total of ~44 additional call sites (46 total across all files, minus the 2 already fixed in Tasks 8 and 9).
+
+- [ ] For each file found:
+  1. Remove the `resetServerState()` call from `setUp()` (or wherever it appears)
+  2. If the test class has its own `setUp()` that calls `super.setUp()` (which now calls `createTestHub()`), no further change needed — the hub is already created
+  3. If the test uses `testHubId` (from `BaseUITest`) in simulation calls, ensure `testHubId` is passed to `simulateIncomingCall(hubId:)` etc.
+  4. If the test had a custom `resetServerState()` override (not from base), delete it entirely
+
+- [ ] Verify zero `resetServerState` calls remain in iOS:
+
+```bash
+grep -rn "resetServerState" apps/ios/ --include="*.swift" | wc -l
+```
+
+Expected: `0`
+
+- [ ] Build to confirm no compile errors:
+
+```bash
+ssh mac 'cd ~/projects/llamenos && xcodebuild build -scheme Llamenos-Package -destination "platform=iOS Simulator,name=iPhone 17" 2>&1 | grep -E "error:|BUILD"'
+```
+
+Expected: `BUILD SUCCEEDED`
+
+- [ ] Commit:
+
+```bash
+git add apps/ios/Tests/
+git commit -m "test(ios): remove all resetServerState() calls from iOS test suite — hub isolation complete"
 ```
 
 ---
@@ -1407,6 +1503,51 @@ cd apps/android && ./gradlew testDebugUnitTest && ./gradlew lintDebug && ./gradl
 
 Expected: `BUILD SUCCESSFUL` for all three commands.
 
+- [ ] If a device or emulator is available, also run the full Android E2E suite to confirm hub isolation works:
+
+```bash
+cd apps/android && ./gradlew connectedAndroidTest 2>&1 | tail -30
+```
+
+Expected: all Cucumber scenarios pass with hub-per-scenario isolation (no shared global state resets). If no device is connected, skip this step and note it in the commit message — CI will pick it up.
+
+- [ ] Commit final Android verification:
+
+```bash
+git add apps/android/
+git commit -m "test(android): verify hub isolation — all unit, lint, E2E tests pass"
+```
+
+---
+
+### Task 16 — Parallelism stress test: time bun run test:backend:bdd at workers=3
+
+This task verifies that hub-per-worker isolation actually enables meaningful parallel speedup, not just that the tests pass.
+
+- [ ] Run the BDD suite and capture the wall-clock time:
+
+```bash
+time bun run test:backend:bdd
+```
+
+Record the elapsed time. It should be significantly less than running sequentially (workers: 1).
+
+- [ ] As a baseline comparison, run with workers=1:
+
+```bash
+PLAYWRIGHT_WORKERS=1 bun run test:backend:bdd
+```
+
+Expected: `workers: 3` run should be at least 40% faster than `workers: 1`. If the speedup is minimal, investigate whether scenarios are truly independent (no shared state, no ordering dependencies). A realistic target: 598 scenarios should complete in under 3 minutes at workers=3.
+
+- [ ] Record results in a commit message note:
+
+```bash
+git commit --allow-empty -m "test(perf): BDD parallel baseline — workers=3: Xs, workers=1: Ys (Z% speedup)"
+```
+
+(Replace X, Y, Z with actual measured values.)
+
 ---
 
 ## Success Criteria Checklist
@@ -1425,10 +1566,13 @@ Expected: `BUILD SUCCESSFUL` for all three commands.
 | Empty step definitions | 0 | All steps in `desktop-admin-steps.ts` have non-empty bodies |
 | CSS class selectors | 0 | `grep -rn "\.cursor-pointer\|\.text-destructive" tests/` → empty |
 | DOM ID selectors (`#nsec`, etc.) | 0 | `grep -rn "#nsec\|#cms-toggle\|#report-types" tests/` → empty |
-| iOS `resetServerState()` calls | 0 | `grep -rn "resetServerState" apps/ios/` → empty |
+| iOS `resetServerState()` calls | 0 | `grep -rn "resetServerState" apps/ios/` → empty (all 8 files cleaned) |
 | Android `resetServerState()` calls | 0 | `grep -rn "resetServerState" apps/android/` → empty |
+| `[data-settings-section]` in test files | 0 | `grep -rn "[data-settings-section]" tests/` → empty (all 12 occurrences) |
 | Backend BDD parallel | `fullyParallel: true`, workers: 3 | Read `playwright.config.ts` backend-bdd project |
 | Backend BDD pass count | 598+ | `bun run test:backend:bdd` output |
+| Parallel speedup | ≥40% faster at workers=3 vs workers=1 | `time bun run test:backend:bdd` (Task 16) |
+| Android E2E hub isolation | hub-per-scenario | `./gradlew connectedAndroidTest` passes |
 
 ---
 

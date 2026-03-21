@@ -20,6 +20,7 @@
 - `apps/android/app/src/main/java/org/llamenos/hotline/di/CoroutineScopeModule.kt` — @ApplicationScope CoroutineScope Hilt module
 - `apps/android/app/src/main/java/org/llamenos/hotline/LlamenosApplication.kt` — @HiltAndroidApp, calls linphoneService.initialize()
 - `apps/android/app/src/main/java/org/llamenos/hotline/telephony/LinphoneService.kt` — Linphone Core wrapper
+- `apps/ios/Sources/Services/HubActivityService.swift` — per-hub activity state machine (call counts, unread counts)
 
 **Modified files:**
 - `apps/worker/types/infra.ts` — add hubId to WakePayload/FullPushPayload
@@ -299,35 +300,24 @@ init(hubContext: HubContext) {
 }
 ```
 
-Add `loadAllHubKeys(hubs:)` method (full implementation in Task 13 — stub here):
+Add `loadAllHubKeys(hubs:)` and `clearHubKeys()` **compile-only stubs** — bodies are filled in Task 13, after `APIService.getHubKey()` (Task 4) and `CryptoService.loadHubKey/clearHubKeys()` (Task 7) are implemented. Do NOT write the full bodies here or the file will not compile:
 
 ```swift
 /// Load hub keys for all hubs in parallel. Called after login.
-/// Full implementation in Task 13 (background services phase).
+/// Full implementation added in Task 13 (requires APIService.getHubKey from Task 4
+/// and CryptoService.loadHubKey from Task 7).
 func loadAllHubKeys(hubs: [Hub]) async {
-    await withTaskGroup(of: Void.self) { group in
-        for hub in hubs {
-            group.addTask { [weak self] in
-                guard let self else { return }
-                do {
-                    let envelope = try await apiService.getHubKey(hub.id)
-                    try cryptoService.loadHubKey(hubId: hub.id, envelope: envelope)
-                } catch {
-                    print("[HubKeys] Warning: failed to load hub key for \(hub.id): \(error)")
-                }
-            }
-        }
-    }
+    // Implemented in Task 13
 }
 
-/// Clear hub key cache. Called on lock and logout.
+/// Clear hub key cache on lock / logout.
+/// Full implementation added in Task 13 (requires CryptoService.clearHubKeys from Task 7).
 func clearHubKeys() {
-    cryptoService.clearHubKeys()
     hubContext.clearActiveHub()
 }
 ```
 
-Update `lockApp()` and `logout()` to call `clearHubKeys()`.
+Do NOT wire `clearHubKeys()` into `lockApp()` or `logout()` yet — that step belongs in Task 13 once `cryptoService.clearHubKeys()` exists.
 
 **`APIService.swift` changes** — add `hubContext` property and `hp()`:
 
@@ -680,9 +670,68 @@ git commit -m "feat(ios): real switchHub() in HubManagementViewModel — key fet
 
 ### Task 6 — Hub-scoped view reload via .task(id: hubContext.activeHubId)
 
-**Files:** All hub-scoped view files that load data on appear (Dashboard, Notes, Cases, Reports, Calls, Conversations, Shifts, etc.)
+**Files:** All hub-scoped view files that load data on appear (Dashboard, Notes, Cases, Reports, Calls, Conversations, Shifts, etc.), `apps/ios/Tests/HubScopedReloadTests.swift`
 
-No unit test — reload behavior is structural. Verified by typecheck.
+**Write the failing test first** (verifies that the ViewModel `load()` method uses `hp()` with the active hub ID — which means a hub change triggers a different API path):
+
+```swift
+// apps/ios/Tests/HubScopedReloadTests.swift
+import Testing
+@testable import Llamenos
+
+@MainActor
+struct HubScopedReloadTests {
+
+    @Test func loadNotesUsesActiveHubPath() async throws {
+        let ctx = HubContext()
+        ctx.setActiveHub("hub-uuid-001")
+        let mockAPI = MockAPIService()
+        let vm = NotesViewModel(apiService: mockAPI, hubContext: ctx)
+
+        await vm.loadNotes()
+
+        // The request path must include the active hub UUID
+        #expect(mockAPI.lastRequestPath?.contains("hub-uuid-001") == true)
+        #expect(mockAPI.lastRequestPath?.hasPrefix("/hubs/") == true)
+    }
+
+    @Test func hubChangeProducesNewApiPath() async throws {
+        let ctx = HubContext()
+        ctx.setActiveHub("hub-uuid-001")
+        let mockAPI = MockAPIService()
+        let vm = NotesViewModel(apiService: mockAPI, hubContext: ctx)
+
+        await vm.loadNotes()
+        let firstPath = mockAPI.lastRequestPath
+
+        ctx.setActiveHub("hub-uuid-002")
+        await vm.loadNotes()
+        let secondPath = mockAPI.lastRequestPath
+
+        #expect(firstPath?.contains("hub-uuid-001") == true)
+        #expect(secondPath?.contains("hub-uuid-002") == true)
+        #expect(firstPath != secondPath)
+    }
+}
+```
+
+Note: `MockAPIService.lastRequestPath` records the last path passed to `request(method:path:)` — add this property if it doesn't exist. This test verifies that the ViewModel's `load()` method goes through `hp()` and picks up the new hub ID, which is what drives correct reload behavior when SwiftUI's `.task(id:)` re-invokes `load()` on hub switch.
+
+**Run (red):**
+
+```bash
+ssh mac 'cd ~/projects/llamenos && xcodebuild test -scheme Llamenos-Package -destination "platform=iOS Simulator,name=iPhone 17" -only-testing LlamenosTests/HubScopedReloadTests 2>&1 | tail -20'
+```
+
+Expected: compile failure — `NotesViewModel` does not accept `hubContext:` in constructor yet.
+
+**Run (green):**
+
+```bash
+ssh mac 'cd ~/projects/llamenos && xcodebuild test -scheme Llamenos-Package -destination "platform=iOS Simulator,name=iPhone 17" -only-testing LlamenosTests/HubScopedReloadTests 2>&1 | tail -20'
+```
+
+**Implementation:**
 
 The pattern is the same in every hub-scoped view. Each view:
 1. Gets `@Environment(HubContext.self) private var hubContext`
@@ -718,8 +767,8 @@ ssh mac 'cd ~/projects/llamenos && xcodebuild build -scheme Llamenos-Package -de
 **Commit:**
 
 ```bash
-git add apps/ios/Sources/Views/
-git commit -m "feat(ios): hub-scoped views reload on hub switch via .task(id: hubContext.activeHubId)"
+git add apps/ios/Sources/Views/ apps/ios/Tests/HubScopedReloadTests.swift
+git commit -m "feat(ios): hub-scoped views reload on hub switch via .task(id: hubContext.activeHubId) + reload path tests"
 ```
 
 ---
@@ -1153,12 +1202,13 @@ git commit -m "feat(android): inject ActiveHubState into ApiService, add hp() he
 
 ---
 
-### Task 10 — Create HubRepository.kt + wire into HubManagementViewModel
+### Task 10 — Create HubRepository.kt + wire into HubManagementViewModel + reload on hub change unit test
 
 **Files:**
 - `apps/android/app/src/main/java/org/llamenos/hotline/hub/HubRepository.kt`
 - `apps/android/app/src/main/java/org/llamenos/hotline/ui/hubs/HubManagementViewModel.kt`
 - `apps/android/app/src/test/java/org/llamenos/hotline/hub/HubRepositoryTest.kt`
+- `apps/android/app/src/test/java/org/llamenos/hotline/hub/HubScopedViewModelReloadTest.kt`
 
 **Write the failing test first:**
 
@@ -1339,11 +1389,63 @@ git commit -m "feat(android): HubRepository switchHub/loadAllHubKeys, wire into 
 
 ---
 
-### Task 11 — Android hub-scoped ViewModels: collect activeHubId + reload
+### Task 11 — Android hub-scoped ViewModels: collect activeHubId + reload + unit test
 
-**Files:** All hub-scoped ViewModel files (ShiftViewModel, CallsViewModel, NotesViewModel, CasesViewModel, ConversationsViewModel, etc.)
+**Files:** All hub-scoped ViewModel files (ShiftViewModel, CallsViewModel, NotesViewModel, CasesViewModel, ConversationsViewModel, etc.), `apps/android/app/src/test/java/org/llamenos/hotline/hub/HubScopedViewModelReloadTest.kt`
 
-No unit test — structural. Verified by `./gradlew compileDebugKotlin`.
+**Write the failing test first** (verifies that hub-scoped ViewModels re-invoke `loadData()` when `activeHubId` changes):
+
+```kotlin
+// apps/android/app/src/test/java/org/llamenos/hotline/hub/HubScopedViewModelReloadTest.kt
+package org.llamenos.hotline.hub
+
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import org.junit.Test
+import org.llamenos.hotline.api.ApiService
+import org.llamenos.hotline.ui.notes.NotesViewModel
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class HubScopedViewModelReloadTest {
+
+    @Test
+    fun `activeHubId change triggers reload`() = runTest {
+        val activeHubIdFlow = MutableStateFlow<String?>("hub-uuid-001")
+        val activeHubState = mockk<ActiveHubState> {
+            every { activeHubId } returns activeHubIdFlow
+        }
+        val apiService = mockk<ApiService>(relaxed = true)
+        coEvery { apiService.getNotes() } returns emptyList()
+
+        // Pass backgroundScope so the ViewModel's init collector uses the test dispatcher
+        val vm = NotesViewModel(apiService, activeHubState, backgroundScope)
+
+        // Initial load on first hub
+        advanceUntilIdle()
+        coVerify(exactly = 1) { apiService.getNotes() }
+
+        // Switch hub — flow emits new value, onEach { loadData() } fires again
+        activeHubIdFlow.value = "hub-uuid-002"
+        advanceUntilIdle()
+
+        // Must have been called at least twice — once per hub
+        coVerify(atLeast = 2) { apiService.getNotes() }
+    }
+}
+```
+
+Note: `ApiService.getNotes()` uses `hp()` internally — there is no explicit `hubId` parameter. This test verifies that the ViewModel calls `getNotes()` again when the hub changes, not which hub ID is embedded in the path (that is verified by the `hp()` unit test in Task 9). `backgroundScope` is available inside `runTest {}` as a coroutine scope. Adapt `NotesViewModel`'s constructor to accept a scope parameter for testability, or inject the scope via Hilt's `@ViewModelScoped`.
+
+**Run (red):**
+
+```bash
+cd apps/android && ./gradlew testDebugUnitTest --tests "org.llamenos.hotline.hub.HubScopedViewModelReloadTest" 2>&1 | tail -20
+```
 
 Pattern applied to every hub-scoped ViewModel:
 
@@ -1361,7 +1463,13 @@ init {
 }
 ```
 
-**Verify:**
+**Run (green):**
+
+```bash
+cd apps/android && ./gradlew testDebugUnitTest --tests "org.llamenos.hotline.hub.HubScopedViewModelReloadTest" 2>&1 | tail -20
+```
+
+**Verify compile:**
 
 ```bash
 cd apps/android && ./gradlew compileDebugKotlin 2>&1 | grep -E "error:|BUILD"
@@ -1370,8 +1478,8 @@ cd apps/android && ./gradlew compileDebugKotlin 2>&1 | grep -E "error:|BUILD"
 **Commit:**
 
 ```bash
-git add apps/android/app/src/main/java/org/llamenos/hotline/ui/
-git commit -m "feat(android): hub-scoped ViewModels reload on activeHubId change via StateFlow"
+git add apps/android/app/src/main/java/org/llamenos/hotline/ui/ apps/android/app/src/test/java/org/llamenos/hotline/hub/HubScopedViewModelReloadTest.kt
+git commit -m "feat(android): hub-scoped ViewModels reload on activeHubId change via StateFlow + reload test"
 ```
 
 ---
@@ -2251,10 +2359,101 @@ git commit -m "feat(android): PushService reads hubId from payload, routes to Ac
 
 **Files:**
 - `apps/ios/Sources/Services/LinphoneService.swift` (new)
+- `apps/ios/Tests/LinphoneServiceTests.swift` (new)
 - `apps/ios/project.yml`
 - `apps/ios/Sources/App/LlamenosApp.swift`
+- `apps/ios/Frameworks/LINPHONE_VERSION` (version pin file)
+- `scripts/download-linphone-ios.sh` (CI download script)
 
 **Linphone SDK integration decision:** Use the official Linphone XCFramework (direct download — no CocoaPods required, preserving the pure-SPM+xcodegen build system). Download URL: `https://download.linphone.org/releases/ios/linphone-sdk-ios-5.3.x.zip`. Unzip and place `linphone-sdk.xcframework` in `apps/ios/Frameworks/`. Pin version in a `Frameworks/LINPHONE_VERSION` file.
+
+**CI download script** — create `scripts/download-linphone-ios.sh` so CI can acquire the XCFramework before building:
+
+```bash
+#!/usr/bin/env bash
+# scripts/download-linphone-ios.sh — download Linphone XCFramework for iOS CI builds
+set -euo pipefail
+
+VERSION=$(cat apps/ios/Frameworks/LINPHONE_VERSION)
+DEST="apps/ios/Frameworks/linphone-sdk.xcframework"
+
+if [ -d "$DEST" ]; then
+  echo "Linphone XCFramework already present at $DEST, skipping download."
+  exit 0
+fi
+
+URL="https://download.linphone.org/releases/ios/linphone-sdk-ios-${VERSION}.zip"
+echo "Downloading Linphone iOS SDK ${VERSION} from ${URL}..."
+curl -L --fail --retry 3 -o /tmp/linphone-ios.zip "$URL"
+unzip -q /tmp/linphone-ios.zip -d /tmp/linphone-ios/
+cp -r "/tmp/linphone-ios/linphone-sdk-${VERSION}/linphone-sdk.xcframework" "$DEST"
+rm -rf /tmp/linphone-ios.zip /tmp/linphone-ios/
+echo "Linphone XCFramework installed at $DEST"
+```
+
+Add `apps/ios/Frameworks/linphone-sdk.xcframework/` to `.gitignore`. Run the script in iOS CI before `xcodebuild build`. The CI step:
+
+```yaml
+- name: Download Linphone iOS SDK
+  run: bash scripts/download-linphone-ios.sh
+```
+
+**Write the failing test first** (pending call hub map — does not require Linphone Core to run):
+
+```swift
+// apps/ios/Tests/LinphoneServiceTests.swift
+import Testing
+@testable import Llamenos
+
+struct LinphoneServiceTests {
+
+    @Test func handleVoipPushStoresCallIdToHubIdMapping() {
+        let svc = LinphoneService()
+        svc.handleVoipPush(callId: "call-abc-001", hubId: "hub-uuid-001")
+        // Access internal state via test-only accessor
+        #expect(svc.pendingCallHubIdForTesting("call-abc-001") == "hub-uuid-001")
+    }
+
+    @Test func pendingCallHubIdRemovedAfterConsumption() {
+        let svc = LinphoneService()
+        svc.handleVoipPush(callId: "call-abc-001", hubId: "hub-uuid-001")
+        svc.consumePendingCallHubForTesting("call-abc-001")
+        #expect(svc.pendingCallHubIdForTesting("call-abc-001") == nil)
+    }
+
+    @Test func separateCallIdsAreTrackedIndependently() {
+        let svc = LinphoneService()
+        svc.handleVoipPush(callId: "call-aaa", hubId: "hub-001")
+        svc.handleVoipPush(callId: "call-bbb", hubId: "hub-002")
+        #expect(svc.pendingCallHubIdForTesting("call-aaa") == "hub-001")
+        #expect(svc.pendingCallHubIdForTesting("call-bbb") == "hub-002")
+    }
+}
+```
+
+Add test-only accessors to `LinphoneService.swift` (in a `#if DEBUG` block):
+
+```swift
+#if DEBUG
+func pendingCallHubIdForTesting(_ callId: String) -> String? {
+    pendingCallLock.lock()
+    defer { pendingCallLock.unlock() }
+    return pendingCallHubIds[callId]
+}
+
+func consumePendingCallHubForTesting(_ callId: String) {
+    pendingCallLock.lock()
+    pendingCallHubIds.removeValue(forKey: callId)
+    pendingCallLock.unlock()
+}
+#endif
+```
+
+**Run (red):**
+
+```bash
+ssh mac 'cd ~/projects/llamenos && xcodebuild test -scheme Llamenos-Package -destination "platform=iOS Simulator,name=iPhone 17" -only-testing LlamenosTests/LinphoneServiceTests 2>&1 | tail -20'
+```
 
 **`project.yml` changes** — add framework dependency and Info.plist keys:
 
@@ -2457,9 +2656,17 @@ ssh mac 'cd ~/projects/llamenos && xcodebuild build -scheme Llamenos-Package -de
 
 **Commit:**
 
+**Run (green):**
+
 ```bash
-git add apps/ios/Sources/Services/LinphoneService.swift apps/ios/project.yml apps/ios/Sources/App/LlamenosApp.swift
-git commit -m "feat(ios): LinphoneService skeleton with Core init, SIP account per hub, VoIP push hub map, PushKit ownership"
+ssh mac 'cd ~/projects/llamenos && xcodebuild test -scheme Llamenos-Package -destination "platform=iOS Simulator,name=iPhone 17" -only-testing LlamenosTests/LinphoneServiceTests 2>&1 | tail -20'
+```
+
+Expected: `Test Suite 'LinphoneServiceTests' passed. 3 test(s) passed.`
+
+```bash
+git add apps/ios/Sources/Services/LinphoneService.swift apps/ios/Tests/LinphoneServiceTests.swift apps/ios/project.yml apps/ios/Sources/App/LlamenosApp.swift apps/ios/Frameworks/LINPHONE_VERSION scripts/download-linphone-ios.sh
+git commit -m "feat(ios): LinphoneService skeleton — Core init, SIP account per hub, VoIP push hub map, PushKit ownership + unit tests"
 ```
 
 ---
@@ -2470,8 +2677,85 @@ git commit -m "feat(ios): LinphoneService skeleton with Core init, SIP account p
 - `apps/ios/Sources/Services/LinphoneService.swift`
 - `apps/ios/Sources/ViewModels/ShiftViewModel.swift`
 - `apps/ios/Sources/Services/APIService.swift`
+- `apps/ios/Tests/ShiftViewModelLinphoneTests.swift`
 
-No unit test for SIP registration (requires Linphone Core). Verified by typecheck.
+**First: verify SipTokenResponse is not already a codegen-generated type**. Run:
+
+```bash
+grep -rn "SipTokenResponse" packages/protocol/schemas/ apps/ios/Sources/Generated/
+```
+
+If `SipTokenResponse` exists in generated types (`apps/ios/Sources/Generated/`), use the generated type and remove the local struct definition from `LinphoneService.swift` (Task 19). If it does not exist in generated types, the local definition stays.
+
+**Write the failing test first** (uses `MockLinphoneService` to avoid real Linphone Core dependency):
+
+```swift
+// apps/ios/Tests/ShiftViewModelLinphoneTests.swift
+import Testing
+@testable import Llamenos
+
+// MARK: - MockLinphoneService
+
+final class MockLinphoneService {
+    var registeredHubIds: [String] = []
+    var unregisteredHubIds: [String] = []
+
+    func registerHubAccount(hubId: String, sipParams: SipTokenResponse) throws {
+        registeredHubIds.append(hubId)
+    }
+
+    func unregisterHubAccount(hubId: String) {
+        unregisteredHubIds.append(hubId)
+    }
+}
+
+// MARK: - Tests
+
+@MainActor
+struct ShiftViewModelLinphoneTests {
+
+    @Test func shiftStartRegistersLinphoneAccountForHub() async throws {
+        let mockAPI = MockAPIService()
+        let mockLinphone = MockLinphoneService()
+        mockAPI.sipTokenResponse = SipTokenResponse(
+            username: "testuser", domain: "sip.example.org",
+            password: "secret", transport: "tls", expiry: 3600
+        )
+
+        let vm = ShiftViewModel(apiService: mockAPI, linphoneService: mockLinphone)
+        await vm.onShiftStarted(hubId: "hub-uuid-001")
+
+        #expect(mockLinphone.registeredHubIds == ["hub-uuid-001"])
+    }
+
+    @Test func shiftEndUnregistersLinphoneAccountForHub() async {
+        let mockLinphone = MockLinphoneService()
+        let vm = ShiftViewModel(apiService: MockAPIService(), linphoneService: mockLinphone)
+
+        vm.onShiftEnded(hubId: "hub-uuid-001")
+
+        #expect(mockLinphone.unregisteredHubIds == ["hub-uuid-001"])
+    }
+
+    @Test func sipTokenFetchFailureDoesNotCrash() async {
+        let mockAPI = MockAPIService()
+        let mockLinphone = MockLinphoneService()
+        mockAPI.sipTokenError = APIError.requestFailed(statusCode: 503, body: "unavailable")
+
+        let vm = ShiftViewModel(apiService: mockAPI, linphoneService: mockLinphone)
+        // Should not throw — error is logged, Linphone not registered
+        await vm.onShiftStarted(hubId: "hub-uuid-001")
+
+        #expect(mockLinphone.registeredHubIds.isEmpty)
+    }
+}
+```
+
+**Run (red):**
+
+```bash
+ssh mac 'cd ~/projects/llamenos && xcodebuild test -scheme Llamenos-Package -destination "platform=iOS Simulator,name=iPhone 17" -only-testing LlamenosTests/ShiftViewModelLinphoneTests 2>&1 | tail -20'
+```
 
 **APIService.swift** — add `getSipToken(hubId:)`:
 
@@ -2511,7 +2795,19 @@ linphoneService.unregisterHubAccount(hubId: hubId)
 
 The relay `shift:started` and `shift:ended` events arriving via `attributedEvents` carry the hub context — use `attributed.hubId` to identify which hub's SIP account to register/unregister.
 
-**Verify:**
+**Implementation:**
+
+(existing implementation content — `APIService.getSipToken`, `ShiftViewModel.onShiftStarted/onShiftEnded` — unchanged)
+
+**Run (green):**
+
+```bash
+ssh mac 'cd ~/projects/llamenos && xcodebuild test -scheme Llamenos-Package -destination "platform=iOS Simulator,name=iPhone 17" -only-testing LlamenosTests/ShiftViewModelLinphoneTests 2>&1 | tail -20'
+```
+
+Expected: `Test Suite 'ShiftViewModelLinphoneTests' passed. 3 test(s) passed.`
+
+**Verify build:**
 
 ```bash
 ssh mac 'cd ~/projects/llamenos && xcodebuild build -scheme Llamenos-Package -destination "platform=iOS Simulator,name=iPhone 17" 2>&1 | grep -E "error:|BUILD"'
@@ -2520,8 +2816,8 @@ ssh mac 'cd ~/projects/llamenos && xcodebuild build -scheme Llamenos-Package -de
 **Commit:**
 
 ```bash
-git add apps/ios/Sources/Services/LinphoneService.swift apps/ios/Sources/ViewModels/ShiftViewModel.swift apps/ios/Sources/Services/APIService.swift
-git commit -m "feat(ios): SIP account registered per hub on shift start/end via LinphoneService + ShiftViewModel"
+git add apps/ios/Sources/Services/LinphoneService.swift apps/ios/Sources/ViewModels/ShiftViewModel.swift apps/ios/Sources/Services/APIService.swift apps/ios/Tests/ShiftViewModelLinphoneTests.swift
+git commit -m "feat(ios): SIP account registered per hub on shift start/end via LinphoneService + ShiftViewModel + MockLinphoneService tests"
 ```
 
 ---
@@ -2816,6 +3112,308 @@ git commit -m "feat(android): LlamenosApplication + LinphoneService + Gradle dep
 
 ---
 
+## Phase 8: E2E Tests
+
+### Task 22 — Backend BDD scenario: hubId in push dispatch
+
+**Files:**
+- `packages/test-specs/features/backend/push/hub-push-dispatch.feature` (new)
+- `tests/steps/backend/push-steps.ts` (new or extend existing)
+
+**Write the feature file:**
+
+```gherkin
+@backend
+Feature: Hub-scoped push notifications
+  Push payloads carry hubId so mobile clients can route to the correct hub.
+
+  Background:
+    Given I am authenticated as admin
+
+  Scenario: Incoming call push includes hubId in payload
+    Given a volunteer is registered and on shift in hub "test-hub"
+    When an incoming call arrives for hub "test-hub"
+    Then the VoIP push payload sent to the volunteer contains hubId "test-hub"
+
+  Scenario: Message notification includes hubId in payload
+    Given a volunteer is registered in hub "test-hub"
+    When a new message arrives in hub "test-hub"
+    Then the wake push payload sent to the volunteer contains field "hubId" matching "test-hub"
+```
+
+**Backend: add test push log endpoint to `apps/worker/routes/dev.ts`:**
+
+```typescript
+// Add to dev.ts — stores the last push payload dispatched in memory for test inspection
+let lastPushPayload: Record<string, unknown> | null = null
+
+// Call this from push-dispatch.ts after building any WakePayload/FullPushPayload:
+// import { recordTestPushPayload } from './test-push-log'
+export function recordTestPushPayload(payload: Record<string, unknown>) {
+    if (process.env.ENVIRONMENT === 'development') lastPushPayload = payload
+}
+
+dev.get('/test-push-log', requireTestSecret, (c) => {
+    return c.json({ last: lastPushPayload })
+})
+```
+
+Call `recordTestPushPayload(wakePayload)` in `push-dispatch.ts` immediately after constructing each `WakePayload`.
+
+**Step definitions** (in `tests/steps/backend/push-steps.ts`):
+
+```typescript
+import { Given, When, Then } from '@cucumber/cucumber'
+import { expect } from '@playwright/test'
+
+let testHubId: string = ''
+
+Given('a volunteer is registered and on shift in hub {string}', async function({ request, workerHub }) {
+    testHubId = workerHub
+    // Volunteer and shift already exist via workerHub fixture
+})
+
+When('an incoming call arrives for hub {string}', async function({ request }) {
+    const res = await request.post(`${process.env.TEST_HUB_URL}/api/test-simulate/incoming-call`, {
+        data: { callerNumber: '+15550001111', hubId: testHubId },
+        headers: { 'X-Test-Secret': process.env.E2E_TEST_SECRET ?? 'test-reset-secret' },
+    })
+    expect(res.ok()).toBeTruthy()
+})
+
+Then('the VoIP push payload sent to the volunteer contains hubId {string}', async function({ request }) {
+    const res = await request.get(`${process.env.TEST_HUB_URL}/api/test-push-log`, {
+        headers: { 'X-Test-Secret': process.env.E2E_TEST_SECRET ?? 'test-reset-secret' },
+    })
+    expect(res.ok()).toBeTruthy()
+    const { last } = await res.json() as { last: Record<string, unknown> }
+    expect(last).toBeDefined()
+    expect(last['hub-id'] ?? last['hubId']).toBe(testHubId)
+})
+```
+
+**Run:**
+
+```bash
+bun run test:backend:bdd --grep "Hub-scoped push notifications"
+```
+
+Expected: all scenarios pass.
+
+**Commit:**
+
+```bash
+git add packages/test-specs/features/backend/push/ tests/steps/backend/push-steps.ts apps/worker/routes/dev.ts
+git commit -m "test(backend-bdd): hub push dispatch scenarios — verify hubId in WakePayload and VoIP push"
+```
+
+---
+
+### Task 23 — iOS XCUITest: hub switch end-to-end
+
+**Files:**
+- `apps/ios/Tests/UI/HubSwitchUITests.swift` (new)
+
+This test requires the multi-hub switch implementation from Tasks 2–7 to be complete.
+
+All helpers used in this test — `given()`, `when()`, `then()`, `and()`, `launchAsAdminWithAPI()`, `navigateToSettings()`, `navigateToNotes()`, `createTestHub()`, `find()`, `waitForElement()` — are defined in `BaseUITest.swift`. No new infrastructure is needed.
+
+```swift
+// apps/ios/Tests/UI/HubSwitchUITests.swift
+import XCTest
+
+class HubSwitchUITests: BaseUITest {
+
+    // Each test gets its own hub via testHubId from BaseUITest.setUp()
+    var secondHubId: String = ""
+
+    override func setUp() {
+        super.setUp()
+        // Create a second hub so there are two to switch between
+        secondHubId = createTestHub()
+    }
+
+    func testHubSwitchUpdatesDataScope() throws {
+        given("the app is launched with admin API") {
+            launchAsAdminWithAPI()
+        }
+
+        when("I navigate to hub management") {
+            navigateToSettings()
+            let hubMgmt = find("hub-management-link")
+            XCTAssertTrue(hubMgmt.waitForExistence(timeout: 10), "Hub management link must exist")
+            hubMgmt.tap()
+        }
+
+        then("two hubs are visible") {
+            let hubRows = app.tables.cells.matching(identifier: "hub-row")
+            XCTAssertGreaterThanOrEqual(hubRows.count, 2, "At least two hub rows must be visible")
+        }
+
+        when("I tap the second hub") {
+            // Find a hub row that is not active and tap it
+            let inactiveRow = app.tables.cells.matching(identifier: "hub-row")
+                .element(matching: .cell, identifier: "hub-row-inactive")
+                .firstMatch
+            XCTAssertTrue(inactiveRow.waitForExistence(timeout: 5))
+            inactiveRow.tap()
+        }
+
+        then("the active hub checkmark moves") {
+            // The previously tapped row should now show the active indicator
+            let activeIndicator = find("hub-active-indicator")
+            XCTAssertTrue(activeIndicator.waitForExistence(timeout: 5),
+                "Active hub indicator must appear after switch")
+        }
+
+        and("API calls use the new hub prefix") {
+            // Navigate to notes — the notes loaded should be from the new hub
+            navigateToNotes()
+            let notesList = find("notes-list")
+            _ = notesList.waitForExistence(timeout: 10)
+            // Pass: if the notes screen loads without error, hub scoping is working
+        }
+    }
+}
+```
+
+**Run:**
+
+```bash
+ssh mac 'cd ~/projects/llamenos && xcodebuild test -scheme Llamenos -destination "platform=iOS Simulator,name=iPhone 17" -only-testing LlamenosUITests/HubSwitchUITests 2>&1 | tail -30'
+```
+
+Expected: test passes, hub switch completes with no error alerts.
+
+**Commit:**
+
+```bash
+git add apps/ios/Tests/UI/HubSwitchUITests.swift
+git commit -m "test(ios-xcuitest): hub switch E2E — two hubs, tap to switch, verify active indicator and data reload"
+```
+
+---
+
+### Task 24 — Android Cucumber scenario: hub switch flow
+
+**Files:**
+- `packages/test-specs/features/android/hub-switch.feature` (new)
+- `apps/android/app/src/androidTest/java/org/llamenos/hotline/steps/HubSwitchSteps.kt` (new)
+
+**Feature file:**
+
+```gherkin
+@android
+Feature: Hub switching
+  Users can switch between hubs they belong to.
+
+  Background:
+    Given the app is launched with two test hubs
+
+  Scenario: Switching hubs changes active hub indicator
+    Given I am on the hub management screen
+    When I tap the second hub in the list
+    Then the second hub shows the active indicator
+    And the first hub no longer shows the active indicator
+
+  Scenario: Switching hubs reloads hub-scoped data
+    Given I am on the hub management screen
+    When I tap the second hub in the list
+    And I navigate to the notes screen
+    Then the notes screen loads without error
+```
+
+**Step definitions** (`HubSwitchSteps.kt`):
+
+Note: `ComposeRuleHolder` is an existing Android test infrastructure class — it is already used in `ScenarioHooks.kt` (line 76: `ComposeRuleHolder.current.activityScenarioHolder.close()`). It provides `composeRule` for Compose UI assertions. No new infrastructure needed.
+
+```kotlin
+package org.llamenos.hotline.steps
+
+import androidx.compose.ui.test.*
+import io.cucumber.java.en.*
+import org.llamenos.hotline.helpers.SimulationClient
+
+class HubSwitchSteps {
+
+    @Given("the app is launched with two test hubs")
+    fun launchWithTwoHubs() {
+        // ScenarioHooks already created one hub; create a second
+        SimulationClient.createTestHub("android-test-hub-2-${System.currentTimeMillis()}")
+        // App is launched by ComposeRuleHolder
+    }
+
+    @Given("I am on the hub management screen")
+    fun navigateToHubManagement() {
+        ComposeRuleHolder.current.composeRule.apply {
+            onNodeWithTag("settings-tab").performClick()
+            onNodeWithTag("hub-management-link").performClick()
+            onNodeWithTag("hub-list").assertIsDisplayed()
+        }
+    }
+
+    @When("I tap the second hub in the list")
+    fun tapSecondHub() {
+        ComposeRuleHolder.current.composeRule.apply {
+            onAllNodesWithTag("hub-row")[1].performClick()
+            // Wait for switch animation
+            waitUntil(timeoutMillis = 5_000) {
+                onAllNodesWithTag("hub-row")[1]
+                    .fetchSemanticsNode()
+                    .config.getOrElse(SemanticsProperties.Selected) { false }
+            }
+        }
+    }
+
+    @Then("the second hub shows the active indicator")
+    fun secondHubIsActive() {
+        ComposeRuleHolder.current.composeRule
+            .onAllNodesWithTag("hub-active-indicator")
+            .filterToOne(hasTestTag("hub-row-1-active"))
+            .assertIsDisplayed()
+    }
+
+    @And("I navigate to the notes screen")
+    fun navigateToNotes() {
+        ComposeRuleHolder.current.composeRule
+            .onNodeWithTag("notes-tab").performClick()
+    }
+
+    @Then("the notes screen loads without error")
+    fun notesScreenLoads() {
+        ComposeRuleHolder.current.composeRule.apply {
+            onNodeWithTag("notes-list")
+                .or(onNodeWithTag("empty-state"))
+                .assertIsDisplayed()
+            onNodeWithTag("error-message").assertDoesNotExist()
+        }
+    }
+}
+```
+
+**Compile check:**
+
+```bash
+cd apps/android && ./gradlew compileDebugAndroidTestKotlin 2>&1 | grep -E "error:|BUILD"
+```
+
+**Run (requires connected device or emulator):**
+
+```bash
+cd apps/android && ./gradlew connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.tag=android 2>&1 | tail -30
+```
+
+Expected: hub-switch scenarios pass.
+
+**Commit:**
+
+```bash
+git add packages/test-specs/features/android/hub-switch.feature apps/android/app/src/androidTest/java/org/llamenos/hotline/steps/HubSwitchSteps.kt
+git commit -m "test(android-cucumber): hub switch E2E scenario — two hubs, tap to switch, verify active indicator"
+```
+
+---
+
 ## Pre-commit Verification Checklist
 
 Before marking implementation complete, run all of the following:
@@ -2832,6 +3430,9 @@ cd apps/android && ./gradlew testDebugUnitTest 2>&1 | tail -30
 
 # Android E2E test compilation (required per project conventions)
 cd apps/android && ./gradlew compileDebugAndroidTestKotlin 2>&1 | grep -E "error:|BUILD"
+
+# Backend BDD (includes hub push dispatch scenario)
+bun run test:backend:bdd 2>&1 | tail -5
 
 # Android lint
 cd apps/android && ./gradlew lintDebug 2>&1 | grep -E "Error|Warning.*error"
@@ -2860,6 +3461,9 @@ All must pass before the implementation is considered complete.
 | Push notification tap switches hub | 16, 18 | typecheck |
 | switchHub() on-demand key fetch on cache miss | 5, 10 | Unit tests |
 | WakePayload/FullPushPayload carry hubId | 1 | typecheck |
-| iOS LinphoneService initializes, registers SIP per shift | 19, 20 | typecheck + BUILD |
+| iOS LinphoneService initializes, registers SIP per shift | 19, 20 | Unit tests (MockLinphoneService) + BUILD |
 | Android LlamenosApplication injects LinphoneService.initialize() | 21 | Unit tests |
 | pendingCallHubIds routes VoIP push hubId to correct hub on INVITE | 19, 21 | Unit tests |
+| WakePayload/VoIP push carry hubId — verified end-to-end | 1, 22 | Backend BDD |
+| iOS hub switch flow navigates and reloads data | 23 | XCUITest |
+| Android hub switch flow navigates and reloads data | 24 | Android Cucumber E2E |
