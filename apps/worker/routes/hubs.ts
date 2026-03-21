@@ -6,6 +6,7 @@ import { createHubBodySchema, updateHubBodySchema, addHubMemberBodySchema, hubKe
 import { okResponseSchema } from '@protocol/schemas/common'
 import { authErrors, notFoundError } from '../openapi/helpers'
 import type { Hub } from '@shared/types'
+import { ServiceError } from '../services/settings'
 
 const routes = new Hono<AppEnv>()
 
@@ -90,6 +91,9 @@ routes.post('/',
     try {
       await services.settings.createHub(hub)
     } catch (err) {
+      if (err instanceof ServiceError) {
+        return c.json({ error: err.message }, err.status as 400 | 409 | 500)
+      }
       const message = err instanceof Error ? err.message : 'Failed to create hub'
       return c.json({ error: message }, 500)
     }
