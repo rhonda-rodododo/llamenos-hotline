@@ -150,13 +150,18 @@
         {
           "name": "last_known_location",
           "label": "Last Known Location",
-          "type": "text",
+          "type": "location",
           "required": true,
           "section": "disappearance",
           "helpText": "Last confirmed location of the missing person.",
           "order": 1,
           "indexable": false,
-          "accessLevel": "assigned"
+          "accessLevel": "assigned",
+          "locationOptions": {
+            "maxPrecision": "block",
+            "allowGps": true,
+            "allowAutocomplete": true
+          }
         },
         {
           "name": "last_contact_date",

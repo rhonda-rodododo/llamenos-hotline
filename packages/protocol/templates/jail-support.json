@@ -176,13 +176,18 @@
         {
           "name": "arrest_location",
           "label": "Arrest Location",
-          "type": "text",
+          "type": "location",
           "required": true,
           "section": "arrest_details",
           "helpText": "Intersection or landmark where the arrest occurred.",
           "order": 2,
           "indexable": false,
-          "accessLevel": "all"
+          "accessLevel": "all",
+          "locationOptions": {
+            "maxPrecision": "block",
+            "allowGps": true,
+            "allowAutocomplete": true
+          }
         },
         {
           "name": "arresting_agency",
@@ -679,12 +684,17 @@
         {
           "name": "location",
           "label": "Location",
-          "type": "text",
+          "type": "location",
           "required": true,
           "helpText": "Intersection or landmark. Use neighborhood-level precision.",
           "order": 2,
           "indexable": false,
-          "accessLevel": "all"
+          "accessLevel": "all",
+          "locationOptions": {
+            "maxPrecision": "block",
+            "allowGps": true,
+            "allowAutocomplete": true
+          }
         },
         {
           "name": "arrest_count",
@@ -878,11 +888,16 @@
         {
           "name": "location",
           "label": "Location",
-          "type": "text",
+          "type": "location",
           "required": true,
           "helpText": "Intersection or landmark where arrests occurred.",
           "order": 1,
-          "accessLevel": "all"
+          "accessLevel": "all",
+          "locationOptions": {
+            "maxPrecision": "block",
+            "allowGps": true,
+            "allowAutocomplete": true
+          }
         },
         {
           "name": "time",
@@ -997,11 +1012,16 @@
         {
           "name": "location",
           "label": "Location",
-          "type": "text",
+          "type": "location",
           "required": true,
           "helpText": "Intersection or landmark where misconduct occurred.",
           "order": 1,
-          "accessLevel": "all"
+          "accessLevel": "all",
+          "locationOptions": {
+            "maxPrecision": "block",
+            "allowGps": true,
+            "allowAutocomplete": true
+          }
         },
         {
           "name": "time",

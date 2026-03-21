@@ -419,12 +419,17 @@
         {
           "name": "location",
           "label": "Location (Approximate)",
-          "type": "text",
+          "type": "location",
           "required": true,
           "helpText": "Neighborhood-level only. Do NOT record exact addresses for security.",
           "order": 2,
           "indexable": false,
-          "accessLevel": "all"
+          "accessLevel": "all",
+          "locationOptions": {
+            "maxPrecision": "neighborhood",
+            "allowGps": true,
+            "allowAutocomplete": true
+          }
         },
         {
           "name": "agent_count",

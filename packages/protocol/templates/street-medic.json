@@ -157,13 +157,18 @@
         {
           "name": "encounter_location",
           "label": "Encounter Location",
-          "type": "text",
+          "type": "location",
           "required": false,
           "section": "assessment",
           "helpText": "Where the patient was found/treated (intersection, landmark).",
           "order": 2,
           "indexable": false,
-          "accessLevel": "all"
+          "accessLevel": "all",
+          "locationOptions": {
+            "maxPrecision": "exact",
+            "allowGps": true,
+            "allowAutocomplete": true
+          }
         },
         {
           "name": "patient_identifier",

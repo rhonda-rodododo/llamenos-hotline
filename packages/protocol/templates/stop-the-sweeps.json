@@ -207,7 +207,7 @@
         {
           "name": "sweep_location",
           "label": "Sweep Location",
-          "type": "text",
+          "type": "location",
           "required": true,
           "section": "Displacement",
           "order": 2,
@@ -215,7 +215,12 @@
           "indexType": "exact",
           "accessLevel": "all",
           "hubEditable": true,
-          "supportAudioInput": false
+          "supportAudioInput": false,
+          "locationOptions": {
+            "maxPrecision": "neighborhood",
+            "allowGps": true,
+            "allowAutocomplete": true
+          }
         },
         {
           "name": "sweep_date",
@@ -419,7 +424,7 @@
         {
           "name": "relocation_destination",
           "label": "Relocated To",
-          "type": "text",
+          "type": "location",
           "required": false,
           "section": "Outcome",
           "order": 14,
@@ -427,7 +432,12 @@
           "indexable": false,
           "indexType": "none",
           "hubEditable": true,
-          "supportAudioInput": false
+          "supportAudioInput": false,
+          "locationOptions": {
+            "maxPrecision": "neighborhood",
+            "allowGps": true,
+            "allowAutocomplete": true
+          }
         },
         {
           "name": "legal_challenge",
@@ -520,14 +530,19 @@
         {
           "name": "location",
           "label": "Location",
-          "type": "text",
+          "type": "location",
           "required": true,
           "order": 0,
           "indexable": true,
           "indexType": "exact",
           "accessLevel": "all",
           "hubEditable": true,
-          "supportAudioInput": false
+          "supportAudioInput": false,
+          "locationOptions": {
+            "maxPrecision": "neighborhood",
+            "allowGps": true,
+            "allowAutocomplete": true
+          }
         },
         {
           "name": "sweep_date",
@@ -741,14 +756,19 @@
         {
           "name": "location",
           "label": "Location",
-          "type": "text",
+          "type": "location",
           "required": true,
           "order": 0,
           "indexable": true,
           "indexType": "exact",
           "accessLevel": "all",
           "hubEditable": true,
-          "supportAudioInput": false
+          "supportAudioInput": false,
+          "locationOptions": {
+            "maxPrecision": "neighborhood",
+            "allowGps": true,
+            "allowAutocomplete": true
+          }
         },
         {
           "name": "time",

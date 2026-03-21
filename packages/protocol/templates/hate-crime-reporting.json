@@ -480,12 +480,17 @@
         {
           "name": "geographic_area",
           "label": "Geographic Area",
-          "type": "text",
+          "type": "location",
           "required": true,
           "helpText": "Neighborhood, district, or area where the pattern is occurring.",
           "order": 2,
           "indexable": false,
-          "accessLevel": "all"
+          "accessLevel": "all",
+          "locationOptions": {
+            "maxPrecision": "neighborhood",
+            "allowGps": true,
+            "allowAutocomplete": true
+          }
         },
         {
           "name": "incident_count",
