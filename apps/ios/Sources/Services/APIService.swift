@@ -335,9 +335,20 @@ final class APIService: @unchecked Sendable {
     func fetchCmsReportTypes() async throws -> [ClientReportTypeDefinition] {
         let response: ClientReportTypesResponse = try await request(
             method: "GET",
-            path: "/api/settings/cms/report-types"
+            path: hp("/api/settings/cms/report-types")
         )
         return response.reportTypes
+    }
+
+    // MARK: - Hub Key
+
+    /// Fetch the ECIES-wrapped hub key envelope for the given hub.
+    /// Path is NOT wrapped with hp() — it uses the explicit hubId parameter.
+    func getHubKey(_ hubId: String) async throws -> HubKeyEnvelopeResponse {
+        return try await request(
+            method: "GET",
+            path: "/api/hubs/\(hubId)/key"
+        )
     }
 
     // MARK: - Version Check
