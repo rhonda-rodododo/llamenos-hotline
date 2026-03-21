@@ -7,17 +7,30 @@ import io.cucumber.java.Before
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
 import org.llamenos.hotline.helpers.SimulationClient
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * Cucumber hooks for scenario lifecycle management.
  *
- * - @Before: Resets Docker backend state so each scenario starts clean.
- * - @After: Closes the Activity and wipes local identity (keystore + crypto lock)
- *   to prevent identity leaking between scenarios.
+ * @Before(order = 0): Grant camera permissions.
+ * @Before(order = 1): Create an isolated test hub for this scenario.
+ *   Each scenario gets its own hub ID, scoping all test data within it.
+ *   No global database reset needed — hub isolation replaces resetServerState().
+ * @After: Close activity, wipe local identity.
  */
 class ScenarioHooks {
+
+    companion object {
+        /**
+         * The hub ID created for the current scenario.
+         * Set in @Before(order = 1), readable by step definitions via ScenarioHooks.currentHubId.
+         *
+         * Thread-safe: Cucumber-Android runs scenarios sequentially within a single device,
+         * so a single companion object var is safe.
+         */
+        @Volatile
+        var currentHubId: String = ""
+            private set
+    }
 
     private val keystoreService = KeystoreService(
         InstrumentationRegistry.getInstrumentation().targetContext
@@ -43,31 +56,23 @@ class ScenarioHooks {
     }
 
     /**
-     * Reset the Docker Compose backend before each scenario.
-     * Calls POST /api/test-reset which clears all Durable Object state.
-     * This ensures each scenario starts with a fresh server.
+     * Create an isolated hub for this scenario.
+     * Replaces the previous resetServerState() — no global database wipe.
+     * Each scenario gets its own hub, so tests never share data.
      */
     @Before(order = 1)
-    fun resetServerState() {
+    fun createScenarioHub() {
         try {
-            val url = URL("${BaseSteps.TEST_HUB_URL}/api/test-reset")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.connectTimeout = 5_000
-            conn.readTimeout = 5_000
-            conn.setRequestProperty("X-Test-Secret", SimulationClient.testSecret)
-            conn.doOutput = true
-            conn.outputStream.close() // Send empty POST body
-            val code = conn.responseCode
-            if (code == 200) {
-                Log.d("ScenarioHooks", "Server state reset OK")
+            val response = SimulationClient.createTestHub()
+            if (response.id.isNotEmpty()) {
+                currentHubId = response.id
+                Log.d("ScenarioHooks", "Created test hub: ${response.id} (${response.name})")
             } else {
-                Log.w("ScenarioHooks", "Server reset returned HTTP $code — continuing")
+                Log.w("ScenarioHooks", "createTestHub returned empty ID — error: ${response.error}")
             }
-            conn.disconnect()
         } catch (e: Exception) {
-            Log.w("ScenarioHooks", "Server reset failed (backend may be down): ${e.message}")
-            // Don't fail the scenario — tests can still run against local-only state
+            Log.w("ScenarioHooks", "createTestHub failed: ${e.message}")
+            // Best-effort — don't fail the scenario if hub creation fails
         }
     }
 
