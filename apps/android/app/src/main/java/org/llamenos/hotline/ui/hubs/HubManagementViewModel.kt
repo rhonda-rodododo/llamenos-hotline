@@ -131,9 +131,15 @@ class HubManagementViewModel @Inject constructor(
     fun switchHub(hub: Hub) {
         viewModelScope.launch {
             _uiState.update { it.copy(isSwitching = true) }
-            runCatching { hubRepository.switchHub(hub.id) }
-                .onFailure { e -> _uiState.update { it.copy(error = e.message) } }
-            _uiState.update { it.copy(isSwitching = false) }
+            try {
+                hubRepository.switchHub(hub.id)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message) }
+            } finally {
+                _uiState.update { it.copy(isSwitching = false) }
+            }
         }
     }
 

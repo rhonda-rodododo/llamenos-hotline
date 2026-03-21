@@ -553,6 +553,7 @@ class CryptoService @Inject constructor() {
     fun lock() {
         nsecHex = null
         nsecBech32 = null
+        hubKeys.clear()
     }
 
     // ---- Hub Key Management ----
