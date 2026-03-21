@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { AppEnv } from '../types'
-import type { MessagingChannelType } from '@shared/types'
+import type { Hub, MessagingChannelType } from '@shared/types'
 import { hashPhone } from '../lib/crypto'
 import { publishNostrEvent } from '../lib/nostr-events'
 import { KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_MESSAGE_NEW, KIND_PRESENCE_UPDATE } from '@shared/nostr-events'
@@ -589,6 +589,42 @@ dev.post('/test-simulate/push-dispatch', async (c) => {
   await dispatcher.sendToVolunteer(body.recipientPubkey, wake, { ...wake })
 
   return c.json({ ok: true, wake })
+})
+
+// ─── Test Hub Creation (dev/test isolation helper) ──────────────────────────
+// Creates an isolated hub for a single test run.
+// Gated by ENVIRONMENT=development + DEV_RESET_SECRET / E2E_TEST_SECRET.
+
+dev.post('/test-create-hub', async (c) => {
+  const denied = simulationGuard(c)
+  if (denied) return denied
+
+  const rawBody = await c.req.json().catch(() => ({}))
+  const hubName = typeof rawBody === 'object' && rawBody !== null && 'name' in rawBody && typeof rawBody.name === 'string'
+    ? rawBody.name
+    : `test-hub-${Date.now()}`
+  const name = hubName.trim()
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+  const hub: Hub = {
+    id: crypto.randomUUID(),
+    name,
+    slug,
+    status: 'active',
+    createdBy: 'test',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+
+  const services = c.get('services')
+  try {
+    await services.settings.createHub(hub)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to create hub'
+    return c.json({ error: message }, 500)
+  }
+
+  return c.json({ id: hub.id, name: hub.name })
 })
 
 export default dev
