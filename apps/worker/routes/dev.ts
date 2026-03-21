@@ -5,6 +5,7 @@ import { hashPhone } from '../lib/crypto'
 import { publishNostrEvent } from '../lib/nostr-events'
 import { KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_MESSAGE_NEW, KIND_PRESENCE_UPDATE } from '@shared/nostr-events'
 import { nip19 } from 'nostr-tools'
+import { getTestPushLog, clearTestPushLog } from '../lib/push-dispatch'
 
 /**
  * Decode a pubkey that may be in npub1... bech32 format or raw hex.
@@ -528,6 +529,66 @@ dev.post('/test-simulate/delivery-status', async (c) => {
   })
 
   return c.json({ ok: true })
+})
+
+// ─── Test Push Log (dev/test BDD helper) ──────────────────────────────────
+// Returns or clears the in-memory push payload log recorded by push-dispatch.ts.
+// Used by backend BDD tests to verify that push payloads carry hubId without
+// real APNs/FCM credentials being configured.
+
+dev.get('/test-push-log', (c) => {
+  const denied = simulationGuard(c)
+  if (denied) return denied
+
+  return c.json({ entries: getTestPushLog() })
+})
+
+dev.delete('/test-push-log', (c) => {
+  const denied = simulationGuard(c)
+  if (denied) return denied
+
+  clearTestPushLog()
+  return c.json({ ok: true })
+})
+
+// 7. Simulate push dispatch — directly invokes createPushDispatcherFromService with
+//    a synthetic WakePayload to verify that hubId is present in the dispatched payload.
+//    Useful for BDD scenarios that need to assert push payload structure without
+//    requiring a full telephony or messaging flow.
+
+interface SimulatePushDispatchBody {
+  hubId: string
+  type: 'message' | 'voicemail' | 'shift_reminder' | 'assignment'
+  recipientPubkey: string
+  conversationId?: string
+  channelType?: string
+  callId?: string
+}
+
+dev.post('/test-simulate/push-dispatch', async (c) => {
+  const denied = simulationGuard(c)
+  if (denied) return denied
+
+  const body = await c.req.json().catch(() => ({})) as SimulatePushDispatchBody
+  if (!body.hubId || !body.type || !body.recipientPubkey) {
+    return c.json({ error: 'hubId, type, and recipientPubkey are required' }, 400)
+  }
+
+  const services = c.get('services')
+  const { createPushDispatcherFromService } = await import('../lib/push-dispatch')
+
+  const wake = {
+    hubId: body.hubId,
+    type: body.type,
+    conversationId: body.conversationId,
+    channelType: body.channelType,
+    callId: body.callId,
+  }
+
+  const dispatcher = createPushDispatcherFromService(c.env, services.identity, services.shifts)
+  await dispatcher.sendToVolunteer(body.recipientPubkey, wake, { ...wake })
+
+  return c.json({ ok: true, wake })
 })
 
 export default dev
