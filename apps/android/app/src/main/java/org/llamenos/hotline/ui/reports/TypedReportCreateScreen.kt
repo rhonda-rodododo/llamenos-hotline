@@ -367,6 +367,18 @@ private fun DynamicField(
                     singleLine = true,
                 )
             }
+
+            JoinFieldType.Location -> {
+                // Location picker not yet implemented on mobile —
+                // render as a text field for manual coordinate/address entry
+                TextInputField(
+                    field = field,
+                    label = labelText,
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                )
+            }
         }
 
         // Help text below the field

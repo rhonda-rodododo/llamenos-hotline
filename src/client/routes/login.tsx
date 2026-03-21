@@ -25,7 +25,7 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const { t } = useTranslation()
-  const { signIn, signInWithPasskey, unlockWithPin, error, isLoading } = useAuth()
+  const { signIn, loginAfterKeyLoaded, signInWithPasskey, unlockWithPin, error, isLoading } = useAuth()
   const { hotlineName, demoMode, needsBootstrap } = useConfig()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
@@ -98,7 +98,11 @@ function LoginPage() {
       setValidationError(t('auth.invalidKey'))
       return
     }
-    await signIn(nsec.trim())
+    if (!keyManager.isValidPin(recoveryPin)) {
+      setValidationError(t('pin.tooShort', { defaultValue: 'PIN must be 6–8 digits' }))
+      return
+    }
+    await signIn(nsec.trim(), recoveryPin)
     navigate({ to: '/' })
   }
 
@@ -185,7 +189,10 @@ function LoginPage() {
       // Import the recovered key with the new PIN
       try {
         await keyManager.importKey(recoveredNsec, pin)
-        await signIn(recoveredNsec)
+        // Key is now in CryptoState — use loginAfterKeyLoaded (not signIn, which would re-import)
+        await loginAfterKeyLoaded(
+          (await import('@/lib/platform').then(m => m.pubkeyFromNsec(recoveredNsec))) ?? '',
+        )
         navigate({ to: '/' })
       } catch {
         setValidationError(t('common.error'))
@@ -479,6 +486,19 @@ function LoginPage() {
                     onChange={(e) => setNsec(e.target.value)}
                     placeholder={t('auth.secretKeyPlaceholder')}
                     autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nsec-pin">{t('pin.createPin', { defaultValue: 'Create PIN (6–8 digits)' })}</Label>
+                  <Input
+                    id="nsec-pin"
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={8}
+                    value={recoveryPin}
+                    onChange={(e) => setRecoveryPin(e.target.value.replace(/\D/g, ''))}
+                    placeholder="000000"
+                    autoComplete="new-password"
                   />
                 </div>
                 <Button type="submit" disabled={isLoading} className="w-full" data-testid="login-submit-btn">

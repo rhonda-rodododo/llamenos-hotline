@@ -50,7 +50,7 @@ export function DemoAccountPicker() {
       await keyManager.importKey(nsec, DEMO_PIN)
       // Disable auto-lock in demo mode — frequent tab switches shouldn't force re-login
       keyManager.disableAutoLock()
-      await signIn(nsec)
+      await signIn(nsec, DEMO_PIN)
       navigate({ to: '/' })
     } catch {
       setLoadingPubkey(null)

@@ -45,7 +45,7 @@ class CrashReporter @Inject constructor(
 
     private var previousHandler: Thread.UncaughtExceptionHandler? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val prefs: SharedPreferences by lazy {
+    private val prefs: SharedPreferences? by lazy {
         try {
             val masterKey = androidx.security.crypto.MasterKey.Builder(context)
                 .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)
@@ -58,8 +58,9 @@ class CrashReporter @Inject constructor(
                 androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
         } catch (_: Exception) {
-            // Fallback to unencrypted if Keystore unavailable (rare)
-            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            // Keystore unavailable — fail safe. Do not fall back to plaintext storage.
+            // Crash reporting will be disabled until the device Keystore is available.
+            null
         }
     }
 
@@ -68,8 +69,8 @@ class CrashReporter @Inject constructor(
      * Default: false (opt-in).
      */
     var crashReportingEnabled: Boolean
-        get() = prefs.getBoolean(KEY_CONSENT, false)
-        set(value) = prefs.edit().putBoolean(KEY_CONSENT, value).apply()
+        get() = prefs?.getBoolean(KEY_CONSENT, false) ?: false
+        set(value) { prefs?.edit()?.putBoolean(KEY_CONSENT, value)?.apply() }
 
     /**
      * Install as the default uncaught exception handler.
