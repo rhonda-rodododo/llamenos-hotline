@@ -75,7 +75,10 @@ export default defineConfig({
         command:
           "PLAYWRIGHT_TEST=true bun run build && PLAYWRIGHT_TEST=true bunx vite preview --port 8788 --strictPort",
         url: "http://localhost:8788",
-        reuseExistingServer: !process.env.CI,
+        // Never reuse a server from a different worktree or main checkout —
+        // stale builds silently serve wrong code, causing hard-to-diagnose
+        // test failures when testIds or API responses don't match the branch.
+        reuseExistingServer: !process.env.CI && !__dirname.includes("/.worktrees/"),
         timeout: 120_000, // Allow time for the build step
       },
 });
