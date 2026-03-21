@@ -17,6 +17,10 @@ on:
         description: 'Version to release (e.g., 1.0.0)'
         required: true
 
+env:
+  # Safely capture workflow_dispatch input at top level — never interpolate directly in run: blocks
+  INPUT_VERSION: ${{ github.event.inputs.version }}
+
 jobs:
   build:
     permissions:
@@ -83,27 +87,33 @@ jobs:
       # Sync version from tag into tauri.conf.json and package.json
       - name: Sync version from tag
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_VERSION: ${{ env.INPUT_VERSION }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            VERSION="${{ github.event.inputs.version }}"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            VERSION="$RELEASE_VERSION"
           else
             VERSION="${GITHUB_REF_NAME#v}"
           fi
           echo "Building version: ${VERSION}"
+          echo "RELEASE_VERSION=${VERSION}" >> "$GITHUB_ENV"
 
           # Update tauri.conf.json
           node -e "
             const fs = require('fs');
+            const v = process.env.RELEASE_VERSION;
             const conf = JSON.parse(fs.readFileSync('apps/desktop/tauri.conf.json', 'utf-8'));
-            conf.version = '${VERSION}';
+            conf.version = v;
             fs.writeFileSync('apps/desktop/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
           "
 
           # Update package.json (for Vite build metadata)
           node -e "
             const fs = require('fs');
+            const v = process.env.RELEASE_VERSION;
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
-            pkg.version = '${VERSION}';
+            pkg.version = v;
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
 
@@ -236,9 +246,12 @@ jobs:
       # Determine version for release
       - name: Determine version
         id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VER: ${{ env.INPUT_VERSION }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "version=${INPUT_VER}" >> "$GITHUB_OUTPUT"
           else
             VERSION="${GITHUB_REF_NAME#v}"
             echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
