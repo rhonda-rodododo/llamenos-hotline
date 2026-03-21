@@ -97,6 +97,19 @@ bun run e2e:build:android && bun run e2e:test:android
 4. CI builds desktop installers and publishes to GitHub Releases
 5. For mobile: tag the mobile repo and CI produces APK + iOS sim build
 
+## Secrets and Environment Variables
+
+**Never commit `.env` files** from `deploy/docker/`. These files may contain secrets
+or appear to contain secrets (even test placeholders). Git history is permanent.
+
+Operators provision secrets via their orchestration layer:
+- **Ansible**: use Ansible Vault for sensitive vars
+- **Docker Compose**: set env vars in the shell or via secrets management (not `.env` in git)
+- **Helm/Kubernetes**: use Helm secrets or Kubernetes Secrets objects
+
+The `deploy/docker/.env*` paths are `.gitignore`d. A pre-commit hook in `lefthook.yml`
+also blocks staging them as a safety net.
+
 ## License
 
 AGPL-3.0-or-later. All contributions must be compatible with this license.

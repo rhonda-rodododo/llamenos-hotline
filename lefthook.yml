@@ -7,6 +7,15 @@ pre-commit:
     codegen-freshness:
       glob: "packages/protocol/schemas/*.ts"
       run: bun run codegen && git diff --exit-code packages/protocol/generated/
+    block-env-files:
+      run: |
+        staged=$(git diff --cached --name-only | grep -E 'deploy/docker/\.env' || true)
+        if [ -n "$staged" ]; then
+          echo "ERROR: Refusing to commit deploy/docker/.env files."
+          echo "These files contain secrets. Provision via orchestration layer instead."
+          echo "Staged: $staged"
+          exit 1
+        fi
 
 pre-push:
   commands:
