@@ -314,13 +314,13 @@ Then(
 )
 
 Then('each settings section should have a {string} button', async ({ page }) => {
-  // Each SettingsSection has a copy-link button inside the CardHeader
-  // The button has aria-label containing "Copy" or "link"
-  const sections = page.locator('[data-settings-section]')
+  // Each SettingsSection renders with data-testid={id} and data-settings-section.
+  // The copy-link button lives inside the CardHeader trigger element.
+  const sections = page.locator('[data-testid][data-settings-section]')
   const sectionCount = await sections.count()
   expect(sectionCount).toBeGreaterThanOrEqual(1)
-  // Check at least one section has a button (copy link button is always in CardHeader)
-  const linkButtons = page.locator('[data-settings-section] button[aria-label]')
+  // Check at least one section has an aria-labelled button (copy link)
+  const linkButtons = page.locator('[data-testid][data-settings-section] button[aria-label]')
   const count = await linkButtons.count()
   expect(count).toBeGreaterThanOrEqual(1)
 })

@@ -24,7 +24,7 @@ async function fillCallId(page: Page, callId: string) {
     await directInput.fill(callId)
   } else {
     // Select the "Enter manually" option, then fill the manual input
-    const selectTrigger = page.locator('#call-id')
+    const selectTrigger = page.getByTestId('call-id-select')
     await selectTrigger.click()
     await page.getByText(/enter.*manually/i).click()
     // After selecting manual, a text input with data-testid="note-call-id" appears
@@ -187,10 +187,10 @@ test.describe('Records Architecture', () => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
     await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
 
-    // Expand custom fields section by clicking its title
-    const customFieldsTitle = page.locator('[data-testid="custom-fields"] h3')
-    await customFieldsTitle.scrollIntoViewIfNeeded()
-    await customFieldsTitle.click()
+    // Expand custom fields section by clicking its trigger
+    const customFieldsTrigger = page.getByTestId(`${TestIds.SETTINGS_CUSTOM_FIELDS}-trigger`)
+    await customFieldsTrigger.scrollIntoViewIfNeeded()
+    await customFieldsTrigger.click()
 
     const addFieldBtn = page.getByRole('button', { name: /add field/i })
     await expect(addFieldBtn).toBeVisible({ timeout: 10000 })
