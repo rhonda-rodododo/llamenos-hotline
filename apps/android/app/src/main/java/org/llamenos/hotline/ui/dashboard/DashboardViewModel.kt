@@ -7,6 +7,9 @@ import androidx.annotation.StringRes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.llamenos.hotline.R
@@ -14,6 +17,7 @@ import org.llamenos.hotline.api.ApiService
 import org.llamenos.hotline.api.SessionState
 import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
+import org.llamenos.hotline.hub.ActiveHubState
 import org.llamenos.hotline.model.ActiveCall
 import org.llamenos.hotline.model.ActiveCallsResponse
 import org.llamenos.hotline.model.BanRequest
@@ -54,6 +58,7 @@ class DashboardViewModel @Inject constructor(
     private val webSocketService: WebSocketService,
     private val apiService: ApiService,
     private val sessionState: SessionState,
+    private val activeHubState: ActiveHubState,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -83,9 +88,11 @@ class DashboardViewModel @Inject constructor(
             }
         }
 
-        // Load initial shift status and active call
-        viewModelScope.launch { loadShiftStatus() }
-        viewModelScope.launch { fetchActiveCall() }
+        // Reload hub-scoped data when the active hub changes
+        activeHubState.activeHubId
+            .filterNotNull()
+            .onEach { refresh() }
+            .launchIn(viewModelScope)
     }
 
     /**

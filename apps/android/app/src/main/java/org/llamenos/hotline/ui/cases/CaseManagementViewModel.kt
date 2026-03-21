@@ -6,6 +6,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -15,6 +18,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.llamenos.hotline.api.ApiService
 import org.llamenos.hotline.api.SessionState
 import org.llamenos.hotline.crypto.CryptoService
+import org.llamenos.hotline.hub.ActiveHubState
 import org.llamenos.hotline.model.AssignRecordRequest
 import org.llamenos.hotline.model.AssignResponse
 import org.llamenos.hotline.model.CaseRecord
@@ -167,6 +171,7 @@ class CaseManagementViewModel @Inject constructor(
     private val apiService: ApiService,
     private val cryptoService: CryptoService,
     private val sessionState: SessionState,
+    private val activeHubState: ActiveHubState,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CaseUiState())
@@ -182,8 +187,10 @@ class CaseManagementViewModel @Inject constructor(
     }
 
     init {
-        loadEntityTypes()
-        loadRecords()
+        activeHubState.activeHubId
+            .filterNotNull()
+            .onEach { refresh() }
+            .launchIn(viewModelScope)
     }
 
     // ---- Entity Types ----

@@ -6,12 +6,16 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.llamenos.hotline.api.ApiService
 import org.llamenos.hotline.api.SessionState
 import org.llamenos.hotline.api.WebSocketService
 import org.llamenos.hotline.crypto.CryptoService
+import org.llamenos.hotline.hub.ActiveHubState
 import org.llamenos.hotline.model.Conversation
 import org.llamenos.hotline.model.ConversationMessage
 import org.llamenos.hotline.model.ConversationsListResponse
@@ -78,13 +82,17 @@ class ConversationsViewModel @Inject constructor(
     private val cryptoService: CryptoService,
     private val webSocketService: WebSocketService,
     private val sessionState: SessionState,
+    private val activeHubState: ActiveHubState,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConversationsUiState())
     val uiState: StateFlow<ConversationsUiState> = _uiState.asStateFlow()
 
     init {
-        loadConversations()
+        activeHubState.activeHubId
+            .filterNotNull()
+            .onEach { loadConversations() }
+            .launchIn(viewModelScope)
         subscribeToEvents()
     }
 

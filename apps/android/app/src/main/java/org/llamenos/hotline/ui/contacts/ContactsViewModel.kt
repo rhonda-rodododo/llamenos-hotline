@@ -6,9 +6,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.llamenos.hotline.api.ApiService
+import org.llamenos.hotline.hub.ActiveHubState
 import org.llamenos.hotline.model.ContactSummary
 import org.llamenos.hotline.model.ContactSearchResponse
 import org.llamenos.hotline.model.ContactsListResponse
@@ -36,13 +40,17 @@ data class ContactsUiState(
 @HiltViewModel
 class ContactsViewModel @Inject constructor(
     private val apiService: ApiService,
+    private val activeHubState: ActiveHubState,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ContactsUiState())
     val uiState: StateFlow<ContactsUiState> = _uiState.asStateFlow()
 
     init {
-        loadContacts()
+        activeHubState.activeHubId
+            .filterNotNull()
+            .onEach { loadContacts() }
+            .launchIn(viewModelScope)
     }
 
     fun loadContacts(page: Int = 1) {
