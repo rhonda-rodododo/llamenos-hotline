@@ -148,7 +148,7 @@ final class APIService: @unchecked Sendable {
         var request = URLRequest(url: healthURL, timeoutInterval: 5)
         request.httpMethod = "GET"
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await session.data(for: request)
             if let httpResponse = response as? HTTPURLResponse {
                 return (200...499).contains(httpResponse.statusCode)
             }
@@ -365,7 +365,7 @@ final class APIService: @unchecked Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse,
                   (200...299).contains(httpResponse.statusCode) else {
                 return .unknown
