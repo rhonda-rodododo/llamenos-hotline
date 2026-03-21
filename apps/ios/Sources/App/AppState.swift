@@ -416,6 +416,11 @@ final class AppState {
             relayURL += "/relay"
         }
 
+        // Tag the WebSocket connection with the active hub ID so emitted events
+        // carry hub context. When no hub is selected yet (fresh install), events
+        // arrive without a hub ID and are dropped from the typed stream.
+        webSocketService.activeHubId = hubContext.activeHubId
+
         Task {
             await webSocketService.connect(to: relayURL)
         }

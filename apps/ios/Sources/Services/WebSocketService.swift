@@ -52,6 +52,21 @@ struct NostrEvent: Codable, Sendable, Identifiable {
     }
 }
 
+// MARK: - AttributedHubEvent
+
+/// A decoded event paired with the hub ID of the connection it arrived on.
+///
+/// `WebSocketService` maintains a single relay connection at a time. When a new hub
+/// is activated the service reconnects. Every emitted event is tagged with the
+/// `hubId` that was active at the moment of receipt, so downstream consumers can
+/// filter or route by hub without maintaining their own connection-identity bookkeeping.
+struct AttributedHubEvent: Sendable {
+    /// The UUID of the hub whose relay connection delivered this event.
+    let hubId: String
+    /// The hub event type decoded from the decrypted event content.
+    let eventType: HubEventType
+}
+
 // MARK: - HubEventType
 
 /// Known hub event types parsed from decrypted event content's `type` field.
@@ -105,6 +120,12 @@ final class WebSocketService: @unchecked Sendable {
     /// Used to decrypt XChaCha20-Poly1305-encrypted event content from the relay.
     var serverEventKeyHex: String?
 
+    /// The hub ID whose relay this connection is subscribed to.
+    /// Set by the caller before or immediately after `connect(to:)`. Events received
+    /// while this is nil are tagged with an empty string and dropped by typed-event
+    /// subscribers that require a hub ID.
+    var activeHubId: String?
+
     // MARK: - Event Streams
 
     /// Public async stream of raw Nostr events.
@@ -122,9 +143,9 @@ final class WebSocketService: @unchecked Sendable {
         }
     }
 
-    /// Public async stream of decrypted, typed hub events.
-    /// Only emits events that were successfully decrypted and parsed.
-    var typedEvents: AsyncStream<HubEventType> {
+    /// Public async stream of decrypted, hub-attributed typed events.
+    /// Only emits events that were successfully decrypted, parsed, and have a known hub ID.
+    var typedEvents: AsyncStream<AttributedHubEvent> {
         AsyncStream { continuation in
             let id = UUID()
             typedContinuationsLock.lock()
@@ -154,7 +175,7 @@ final class WebSocketService: @unchecked Sendable {
     private let continuationsLock = NSLock()
 
     /// Thread-safe storage for typed event stream continuations.
-    private var typedContinuations: [UUID: AsyncStream<HubEventType>.Continuation] = [:]
+    private var typedContinuations: [UUID: AsyncStream<AttributedHubEvent>.Continuation] = [:]
     private let typedContinuationsLock = NSLock()
 
     /// Maximum reconnection attempts before giving up.
@@ -310,7 +331,8 @@ final class WebSocketService: @unchecked Sendable {
     }
 
     /// Broadcast an event to all active continuations (raw + typed).
-    private func emitEvent(_ event: NostrEvent) {
+    /// `internal` (not `private`) so unit tests can inject synthetic events via `@testable import`.
+    func emitEvent(_ event: NostrEvent) {
         eventCount += 1
 
         // Emit raw event
@@ -321,14 +343,18 @@ final class WebSocketService: @unchecked Sendable {
             continuation.yield(event)
         }
 
-        // Decrypt and emit typed event
-        if let json = decryptEventContent(event.content),
+        // Decrypt and emit typed event, tagged with the active hub ID.
+        // Events without a hub ID are silently dropped from the typed stream —
+        // raw events are still delivered above so diagnostics are unaffected.
+        if let hubId = activeHubId,
+           let json = decryptEventContent(event.content),
            let eventType = parseTypedContent(json) {
+            let attributed = AttributedHubEvent(hubId: hubId, eventType: eventType)
             typedContinuationsLock.lock()
             let activeTyped = typedContinuations.values
             typedContinuationsLock.unlock()
             for continuation in activeTyped {
-                continuation.yield(eventType)
+                continuation.yield(attributed)
             }
         }
     }

@@ -124,9 +124,9 @@ final class DashboardViewModel {
         eventTask?.cancel()
         eventTask = Task { [weak self] in
             guard let self else { return }
-            for await eventType in self.webSocketService.typedEvents {
+            for await attributed in self.webSocketService.typedEvents {
                 guard !Task.isCancelled else { break }
-                await self.handleTypedEvent(eventType)
+                await self.handleTypedEvent(attributed.eventType)
             }
         }
     }
