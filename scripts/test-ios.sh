@@ -55,14 +55,15 @@ overall_result="pass"
 # Step 0: Ensure backend is running
 # UI tests (APIConnectedUITests) require a live backend. Start it if needed.
 echo "Checking backend at ${TEST_HUB_URL}..."
-if ! curl -sf "${TEST_HUB_URL}/api/health" > /dev/null 2>&1; then
+# Use -s (no -f) so 503/degraded health doesn't falsely indicate "not running"
+if ! curl -s "${TEST_HUB_URL}/api/health" 2>/dev/null | grep -q '"status"'; then
   echo "Backend not running — starting bun run dev:node..."
   nohup bun run dev:node > /tmp/dev-node-ios-test.log 2>&1 &
   DEV_NODE_PID=$!
 
-  # Wait for health check to pass
+  # Wait for health check to respond (any valid JSON response)
   waited=0
-  until curl -sf "${TEST_HUB_URL}/api/health" > /dev/null 2>&1; do
+  until curl -s "${TEST_HUB_URL}/api/health" 2>/dev/null | grep -q '"status"'; do
     sleep 2
     waited=$((waited + 2))
     if [[ $waited -ge $BACKEND_STARTUP_TIMEOUT ]]; then
