@@ -38,7 +38,7 @@ dev.post('/test-reset', async (c) => {
     return c.json({ error: 'Not Found' }, 404)
   }
   if (!checkResetSecret(c)) {
-    return c.json({ error: 'Forbidden' }, 403)
+    return c.json({ error: 'Not Found' }, 404)
   }
   const services = c.get('services')
   const env = { DEMO_MODE: c.env.DEMO_MODE, ENVIRONMENT: c.env.ENVIRONMENT }
@@ -72,7 +72,7 @@ dev.post('/test-reset-no-admin', async (c) => {
     return c.json({ error: 'Not Found' }, 404)
   }
   if (!checkResetSecret(c)) {
-    return c.json({ error: 'Forbidden' }, 403)
+    return c.json({ error: 'Not Found' }, 404)
   }
   const services = c.get('services')
   const env = { DEMO_MODE: c.env.DEMO_MODE, ENVIRONMENT: c.env.ENVIRONMENT }
@@ -129,7 +129,7 @@ dev.post('/test-promote-admin', async (c) => {
     return c.json({ error: 'Not Found' }, 404)
   }
   if (!checkResetSecret(c)) {
-    return c.json({ error: 'Forbidden' }, 403)
+    return c.json({ error: 'Not Found' }, 404)
   }
   const body = await c.req.json().catch(() => ({})) as { pubkey?: string }
   if (!body.pubkey) {
@@ -167,7 +167,7 @@ dev.post('/test-setup-cms', async (c) => {
     return c.json({ error: 'Not Found' }, 404)
   }
   if (!checkResetSecret(c)) {
-    return c.json({ error: 'Forbidden' }, 403)
+    return c.json({ error: 'Not Found' }, 404)
   }
 
   const body = await c.req.json().catch(() => ({})) as { pubkey?: string }
@@ -326,7 +326,7 @@ function simulationGuard(c: {
     return Response.json({ error: 'Not Found' }, { status: 404 })
   }
   if (!checkResetSecret(c)) {
-    return Response.json({ error: 'Forbidden' }, { status: 403 })
+    return Response.json({ error: 'Not Found' }, { status: 404 })
   }
   return null
 }

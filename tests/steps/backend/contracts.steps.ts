@@ -158,7 +158,7 @@ Then(
   async ({ request }, eventType: string, rawPhone: string) => {
     const res = await apiGet<{ entries: Array<{ eventType: string; payload: unknown }> }>(
       request,
-      '/audit-log',
+      '/audit',
       ADMIN_NSEC,
     )
     expect(res.status).toBe(200)
