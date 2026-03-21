@@ -11,7 +11,9 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.llamenos.hotline.crypto.KeyValueStore
 import org.llamenos.hotline.crypto.KeystoreService
+import org.llamenos.hotline.hub.ActiveHubState
 import org.llamenos.hotline.service.OfflineQueue
+import org.llamenos.protocol.HubKeyEnvelopeResponse
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -33,6 +35,7 @@ class ApiService @Inject constructor(
     authInterceptor: AuthInterceptor,
     retryInterceptor: RetryInterceptor,
     @PublishedApi internal val keystoreService: KeyValueStore,
+    private val activeHubState: ActiveHubState,
 ) {
 
     @PublishedApi
@@ -235,6 +238,25 @@ class ApiService @Inject constructor(
             val errorBody = response.body?.string() ?: response.message
             throw ApiException(response.code, errorBody)
         }
+    }
+
+    /**
+     * Returns the path prefixed with /hubs/{activeHubId}.
+     * Falls back to the bare path if no hub is currently active.
+     */
+    fun hp(path: String): String {
+        require(path.startsWith("/")) { "hp() path must start with '/': $path" }
+        val hubId = activeHubState.activeHubId.value ?: return path
+        return "/hubs/$hubId$path"
+    }
+
+    /**
+     * Fetch the E2EE key envelope for a specific hub.
+     * Used during hub selection to decrypt the hub key.
+     * Returns HubKeyEnvelopeResponse wrapping the ECIES envelope fields.
+     */
+    suspend fun getHubKey(hubId: String): HubKeyEnvelopeResponse {
+        return request("GET", "/api/hubs/$hubId/key")
     }
 
     /**

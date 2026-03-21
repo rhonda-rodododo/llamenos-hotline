@@ -6,66 +6,116 @@ import UIKit
 /// View model for hub listing, creation, and switching.
 @Observable
 final class HubManagementViewModel {
-    private let apiService: APIService
+    private let apiService: any HubAPIServiceProtocol
+    private let cryptoService: any HubCryptoServiceProtocol
+    private let hubContext: HubContext
+    private let feedbackGenerator = UINotificationFeedbackGenerator()
 
     // MARK: - State
 
     var hubs: [Hub] = []
     var isLoading: Bool = false
     var isSaving: Bool = false
-    var errorMessage: String?
+    var isSwitching: Bool = false
+    var error: Error?
+    var errorMessage: String? { error?.localizedDescription }
     var successMessage: String?
-
-    /// The currently active hub slug (stored in UserDefaults for persistence).
-    var activeHubSlug: String? {
-        didSet {
-            if let slug = activeHubSlug {
-                UserDefaults.standard.set(slug, forKey: "activeHubSlug")
-            } else {
-                UserDefaults.standard.removeObject(forKey: "activeHubSlug")
-            }
-        }
-    }
 
     // MARK: - Init
 
-    init(apiService: APIService) {
+    /// Primary init — uses protocol types so tests can inject mocks.
+    init(
+        apiService: any HubAPIServiceProtocol,
+        cryptoService: any HubCryptoServiceProtocol,
+        hubContext: HubContext
+    ) {
         self.apiService = apiService
-        self.activeHubSlug = UserDefaults.standard.string(forKey: "activeHubSlug")
+        self.cryptoService = cryptoService
+        self.hubContext = hubContext
+        feedbackGenerator.prepare()
     }
 
     // MARK: - Data Loading
 
     /// Fetch all hubs the user belongs to.
+    /// Uses the global /api/hubs path (not hub-prefixed — this is a cross-hub listing).
     func loadHubs() async {
         isLoading = true
         defer { isLoading = false }
-        errorMessage = nil
+        error = nil
 
         do {
             let response: HubsListResponse = try await apiService.request(
-                method: "GET", path: "/api/hubs"
+                method: "GET", path: "/api/hubs", body: nil
             )
             hubs = response.hubs
 
+            // Eager-load hub keys for all hubs in parallel.
+            // Errors from individual key fetches are logged but do not fail the overall load.
+            await eagerLoadHubKeys(for: hubs)
+
             // If no active hub is set and there are hubs, select the first one
-            if activeHubSlug == nil, let first = hubs.first {
-                activeHubSlug = first.slug
+            if hubContext.activeHubId == nil, let first = hubs.first {
+                await switchHub(to: first)
             }
         } catch {
-            errorMessage = error.localizedDescription
+            self.error = error
         }
     }
 
-    /// Switch to a different hub.
-    func switchHub(to hub: Hub) {
-        activeHubSlug = hub.slug
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    // MARK: - Eager Hub Key Loading
+
+    /// Pre-fetch and cache hub keys for all hubs in the background.
+    /// Runs fetches in parallel; individual failures are logged and skipped.
+    func eagerLoadHubKeys(for hubs: [Hub]) async {
+        await withTaskGroup(of: Void.self) { group in
+            for hub in hubs {
+                guard !cryptoService.hasHubKey(hubId: hub.id) else { continue }
+                group.addTask {
+                    do {
+                        let envelope = try await self.apiService.getHubKey(hub.id)
+                        try self.cryptoService.loadHubKey(hubId: hub.id, envelope: envelope)
+                    } catch {
+                        // Individual key fetch errors do not propagate — log and continue
+                        // so that the hub list remains usable even if some keys fail.
+                        print("[HubManagementViewModel] Failed to eager-load key for hub \(hub.id): \(error)")
+                    }
+                }
+            }
+        }
     }
 
-    /// Check if a hub is the currently active one.
+    // MARK: - Hub Switching
+
+    /// Switch to a different hub.
+    ///
+    /// 1. Guard: already active → no-op.
+    /// 2. Fetch hub key from API if not cached in CryptoService.
+    /// 3. Load into CryptoService key cache.
+    /// 4. Update HubContext (persists to UserDefaults).
+    ///
+    /// On any error, HubContext is NOT updated — the active hub remains unchanged.
+    func switchHub(to hub: Hub) async {
+        guard hubContext.activeHubId != hub.id else { return }
+        isSwitching = true
+        error = nil
+        defer { isSwitching = false }
+
+        do {
+            if !cryptoService.hasHubKey(hubId: hub.id) {
+                let envelope = try await apiService.getHubKey(hub.id)
+                try cryptoService.loadHubKey(hubId: hub.id, envelope: envelope)
+            }
+            hubContext.setActiveHub(hub.id)
+            feedbackGenerator.notificationOccurred(.success)
+        } catch {
+            self.error = error
+        }
+    }
+
+    /// Check if a hub is the currently active one. Compares by UUID, not slug.
     func isActive(_ hub: Hub) -> Bool {
-        hub.slug == activeHubSlug
+        hub.id == hubContext.activeHubId
     }
 
     // MARK: - Hub Creation
@@ -74,7 +124,7 @@ final class HubManagementViewModel {
     func createHub(name: String, slug: String?, description: String?, phoneNumber: String?) async -> Bool {
         isSaving = true
         defer { isSaving = false }
-        errorMessage = nil
+        error = nil
 
         let body = CreateHubRequest(
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -85,15 +135,15 @@ final class HubManagementViewModel {
 
         do {
             let response: AppHubResponse = try await apiService.request(
-                method: "POST", path: "/api/hubs", body: body
+                method: "POST", path: "/api/hubs", body: body as (any Encodable)?
             )
             hubs.append(response.hub)
             successMessage = NSLocalizedString("hubs_created_success", comment: "Hub created successfully")
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            feedbackGenerator.notificationOccurred(.success)
             return true
         } catch {
-            errorMessage = error.localizedDescription
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            self.error = error
+            feedbackGenerator.notificationOccurred(.error)
             return false
         }
     }

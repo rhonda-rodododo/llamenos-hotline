@@ -117,6 +117,7 @@ final class CallHistoryViewModel {
 /// Accessible from the dashboard quick actions (admin) and navigation.
 struct CallHistoryView: View {
     @Environment(AppState.self) private var appState
+    @Environment(HubContext.self) private var hubContext
     @State private var viewModel: CallHistoryViewModel?
 
     var body: some View {
@@ -180,7 +181,7 @@ struct CallHistoryView: View {
             .refreshable {
                 await vm.refresh()
             }
-            .task {
+            .task(id: hubContext.activeHubId) {
                 await vm.loadCallHistory()
             }
         }
@@ -293,7 +294,7 @@ struct CallHistoryView: View {
 #if DEBUG
 #Preview("Call History") {
     CallHistoryView()
-        .environment(AppState())
+        .environment(AppState(hubContext: HubContext()))
         .environment(Router())
 }
 #endif

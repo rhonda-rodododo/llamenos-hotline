@@ -316,6 +316,66 @@ final class CryptoService: @unchecked Sendable {
         return try? ffiDecryptServerEventHex(encryptedHex: encryptedHex, keyHex: keyHex)
     }
 
+    // MARK: - Hub Key Cache
+
+    /// In-memory hub key cache. Keys are hex strings of 32-byte symmetric keys. Never written to disk.
+    private var hubKeyCache: [String: String] = [:]  // hubId → keyHex
+    private let hubKeyCacheLock = NSLock()
+
+    /// Total number of hub keys currently cached.
+    var hubKeyCount: Int {
+        hubKeyCacheLock.lock()
+        defer { hubKeyCacheLock.unlock() }
+        return hubKeyCache.count
+    }
+
+    /// Returns true if a key for the given hub is cached.
+    func hasHubKey(hubId: String) -> Bool {
+        hubKeyCacheLock.lock()
+        defer { hubKeyCacheLock.unlock() }
+        return hubKeyCache[hubId] != nil
+    }
+
+    /// Returns a copy of the hub key cache (for relay event decryption).
+    func allHubKeys() -> [String: String] {
+        hubKeyCacheLock.lock()
+        defer { hubKeyCacheLock.unlock() }
+        return hubKeyCache
+    }
+
+    /// Unwrap a hub key envelope using the user's nsec and store in the in-memory cache.
+    /// Uses eciesUnwrapKeyHex with the CryptoLabels.LABEL_HUB_KEY_WRAP domain separation label.
+    /// Requires the user's nsec to be loaded (app unlocked).
+    func loadHubKey(hubId: String, envelope: HubKeyEnvelopeResponse) throws {
+        hubKeyCacheLock.lock()
+        let alreadyCached = hubKeyCache[hubId] != nil
+        hubKeyCacheLock.unlock()
+        guard !alreadyCached else { return }
+
+        guard let nsecHex else { throw CryptoServiceError.noKeyLoaded }
+        let ffiEnvelope = KeyEnvelope(
+            wrappedKey: envelope.envelope.wrappedKey,
+            ephemeralPubkey: envelope.envelope.ephemeralPubkey
+        )
+        // FFI call happens before acquiring the lock — no point holding the lock
+        // during decryption, which may be slow and does not access hubKeyCache.
+        let keyHex = try eciesUnwrapKeyHex(
+            envelope: ffiEnvelope,
+            secretKeyHex: nsecHex,
+            label: CryptoLabels.LABEL_HUB_KEY_WRAP
+        )
+        hubKeyCacheLock.lock()
+        defer { hubKeyCacheLock.unlock() }
+        hubKeyCache[hubId] = keyHex
+    }
+
+    /// Evict all hub keys. Must be called on lock and logout.
+    func clearHubKeys() {
+        hubKeyCacheLock.lock()
+        defer { hubKeyCacheLock.unlock() }
+        hubKeyCache.removeAll()
+    }
+
     // MARK: - Lock
 
     /// Clear the nsec from memory. The pubkey and npub remain so the UI can show
@@ -323,11 +383,28 @@ final class CryptoService: @unchecked Sendable {
     func lock() {
         nsecHex = nil
         nsecBech32 = nil
+        clearHubKeys()
+    }
+
+    /// Store a server event encryption key directly for a hub (no ECIES unwrapping needed —
+    /// the key is provided in plaintext by `GET /api/auth/me` as `serverEventKeyHex`).
+    /// This is distinct from `loadHubKey(hubId:envelope:)` which unwraps hub membership keys.
+    func storeServerEventKey(hubId: String, keyHex: String) {
+        hubKeyCacheLock.lock()
+        defer { hubKeyCacheLock.unlock() }
+        hubKeyCache[hubId] = keyHex
     }
 
     // MARK: - Test Support
 
     #if DEBUG
+    /// Store a hub key directly for testing (bypasses FFI envelope decryption).
+    func storeHubKeyForTesting(hubId: String, keyHex: String) {
+        hubKeyCacheLock.lock()
+        defer { hubKeyCacheLock.unlock() }
+        hubKeyCache[hubId] = keyHex
+    }
+
     /// Set a deterministic test identity for XCUITest automation.
     /// Uses the same admin secret key as the desktop Playwright tests,
     /// matching the ADMIN_PUBKEY configured in Docker Compose. The real

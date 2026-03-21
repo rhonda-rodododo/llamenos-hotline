@@ -17,11 +17,11 @@ export async function startParallelRinging(
   origin: string,
   env: Env,
   services: Services,
-  hubId?: string,
+  hubId: string,
 ) {
   try {
     // Get on-shift volunteers
-    let onShiftPubkeys = await services.shifts.getCurrentVolunteers(hubId ?? '')
+    let onShiftPubkeys = await services.shifts.getCurrentVolunteers(hubId)
 
     // If no one is on shift, use fallback group
     if (onShiftPubkeys.length === 0) {
@@ -65,7 +65,7 @@ export async function startParallelRinging(
     logger.info('Ringing volunteers', { callSid, total: available.length, phone: toRingPhone.length, browserVoip: browserVoip.length })
 
     // Register the incoming call
-    await services.calls.addCall(hubId ?? '', {
+    await services.calls.addCall(hubId, {
       callId: callSid,
       callerNumber,
       callerLast4: callerNumber.slice(-4),
@@ -79,21 +79,25 @@ export async function startParallelRinging(
     }).catch((e) => { console.error('[ringing] Failed to publish event:', e) })
 
     // Dispatch VoIP push notifications to mobile volunteers with registered VoIP tokens.
+    // Skip VoIP push for global-scope (hubId='') calls — mobile clients require a real hub ID to route the call.
     const callerLast4 = callerNumber.slice(-4)
-    dispatchVoipPushFromService(
-      browserVoip.map(v => v.pubkey),
-      callSid,
-      callerLast4,
-      env,
-      services.identity,
-    ).catch(err => {
-      // VoIP push is best-effort — Nostr relay is the primary notification path
-      console.error('[ringing] VoIP push dispatch failed:', err)
-    })
+    if (hubId !== '') {
+      dispatchVoipPushFromService(
+        browserVoip.map(v => v.pubkey),
+        callSid,
+        callerLast4,
+        hubId,
+        env,
+        services.identity,
+      ).catch(err => {
+        // VoIP push is best-effort — Nostr relay is the primary notification path
+        console.error('[ringing] VoIP push dispatch failed:', err)
+      })
+    }
 
     // Ring phone volunteers via telephony adapter (skip if no one needs phone ringing)
     if (toRingPhone.length > 0) {
-      const adapter = hubId
+      const adapter = hubId !== ''
         ? await getHubTelephonyFromService(env, services.settings, hubId)
         : await getTelephonyFromService(env, services.settings)
       if (!adapter) return

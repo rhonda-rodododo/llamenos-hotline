@@ -20,6 +20,7 @@ enum AuthStatus: Equatable {
 final class AppState {
     // MARK: - Services
 
+    let hubContext: HubContext
     let cryptoService: CryptoService
     let keychainService: KeychainService
     let apiService: APIService
@@ -29,6 +30,7 @@ final class AppState {
     let transcriptionService: TranscriptionService
     let crashReportingService: CrashReportingService
     let offlineQueue: OfflineQueue
+    let hubActivityService: HubActivityService
 
     // MARK: - Auth State
 
@@ -69,16 +71,18 @@ final class AppState {
 
     // MARK: - Initialization
 
-    init() {
+    init(hubContext: HubContext) {
+        self.hubContext = hubContext
         let crypto = CryptoService()
         let keychain = KeychainService()
-        let api = APIService(cryptoService: crypto)
+        let api = APIService(cryptoService: crypto, hubContext: hubContext)
         let auth = AuthService(cryptoService: crypto, keychainService: keychain)
-        let ws = WebSocketService()
+        let ws = WebSocketService(cryptoService: crypto)
         let wake = WakeKeyService(keychainService: keychain, cryptoService: crypto, apiService: api)
         let transcription = TranscriptionService()
         let crashReporting = CrashReportingService()
         let offline = OfflineQueue(apiService: api)
+        let hubActivity = HubActivityService()
 
         self.cryptoService = crypto
         self.keychainService = keychain
@@ -89,6 +93,7 @@ final class AppState {
         self.transcriptionService = transcription
         self.crashReportingService = crashReporting
         self.offlineQueue = offline
+        self.hubActivityService = hubActivity
 
         // Wire offline queue into API service for automatic enqueue on network errors
         api.offlineQueue = offline
@@ -315,7 +320,7 @@ final class AppState {
     /// Called when the user logs out / resets identity.
     func didLogout() {
         webSocketService.disconnect()
-        webSocketService.serverEventKeyHex = nil
+        cryptoService.clearHubKeys()
         eventListenerTask?.cancel()
         eventListenerTask = nil
         wakeKeyService.cleanup()
@@ -326,6 +331,21 @@ final class AppState {
         authStatus = .unauthenticated
         userRole = .volunteer
         unreadConversationCount = 0
+    }
+
+    // MARK: - Hub Key Management
+
+    /// Load hub keys for all hubs in parallel. Called after login.
+    /// Full implementation added in Task 13 (requires APIService.getHubKey from Task 4
+    /// and CryptoService.loadHubKey from Task 7).
+    func loadAllHubKeys(hubs: [Hub]) async {
+        // Implemented in Task 13
+    }
+
+    /// Clear hub key cache on lock / logout.
+    /// Full implementation added in Task 13 (requires CryptoService.clearHubKeys from Task 7).
+    func clearHubKeys() {
+        hubContext.clearActiveHub()
     }
 
     // MARK: - WebSocket Connection
@@ -368,8 +388,12 @@ final class AppState {
                     // Store admin decryption pubkey for E2EE envelope encryption
                     self.adminDecryptionPubkey = response.adminDecryptionPubkey
 
-                    // Pass server event encryption key to WebSocket for relay event decryption
-                    self.webSocketService.serverEventKeyHex = response.serverEventKeyHex
+                    // Store the server event key in CryptoService keyed by the active hub ID
+                    // so multi-hub key-trial attribution can identify this hub's events.
+                    if let hubId = self.hubContext.activeHubId,
+                       let keyHex = response.serverEventKeyHex {
+                        self.cryptoService.storeServerEventKey(hubId: hubId, keyHex: keyHex)
+                    }
                 }
             } catch {
                 // Default to volunteer if role fetch fails
@@ -401,6 +425,15 @@ final class AppState {
 
         Task {
             await webSocketService.connect(to: relayURL)
+        }
+
+        // Start (or restart) the attributed-event consumer that drives per-hub activity state.
+        eventListenerTask?.cancel()
+        eventListenerTask = Task { [weak self] in
+            guard let self else { return }
+            for await attributed in webSocketService.attributedEvents {
+                hubActivityService.handle(attributed)
+            }
         }
     }
 }

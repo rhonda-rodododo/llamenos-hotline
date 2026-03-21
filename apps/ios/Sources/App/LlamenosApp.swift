@@ -9,6 +9,11 @@ import UserNotifications
 struct LlamenosApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var hubContext: HubContext
+    @State private var appState: AppState
+    @State private var router = Router()
+
     init() {
         let largeTitleAttrs: [NSAttributedString.Key: Any] = [
             .font: UIFont(name: "DMSans-Bold", size: 34) ?? UIFont.systemFont(ofSize: 34, weight: .bold)
@@ -24,11 +29,11 @@ struct LlamenosApp: App {
         UINavigationBar.appearance().standardAppearance = navBarAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
         UINavigationBar.appearance().compactAppearance = navBarAppearance
-    }
 
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var appState = AppState()
-    @State private var router = Router()
+        let ctx = HubContext()
+        _hubContext = State(initialValue: ctx)
+        _appState = State(initialValue: AppState(hubContext: ctx))
+    }
     @State private var backgroundTimestamp: Date?
 
     /// M28: Whether to show the privacy overlay (app switcher / inactive state).
@@ -56,6 +61,7 @@ struct LlamenosApp: App {
                         ContentView()
                             .environment(appState)
                             .environment(router)
+                            .environment(hubContext)
                     }
                 }
             }
@@ -201,6 +207,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(
         _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    func application(
+        _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
         let tokenHex = deviceToken.map { String(format: "%02x", $0) }.joined()
@@ -253,6 +267,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                     ?? NSLocalizedString("notification_call_body", comment: "A caller needs assistance")
                 content.sound = .default
 
+                // Switch to the notified hub before posting the local notification
+                if let hubId = payload["hubId"] as? String {
+                    Task { @MainActor in
+                        appState.hubContext.setActiveHub(hubId)
+                    }
+                    content.userInfo["hubId"] = hubId
+                }
+
                 // Attach deep link data for navigation on tap
                 if let type = payload["type"] as? String {
                     content.userInfo["deepLinkType"] = type
@@ -274,6 +296,44 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             print("[APNs] Wake payload decryption failed: \(error.localizedDescription)")
             completionHandler(.failed)
         }
+    }
+}
+
+// MARK: - UNUserNotificationCenterDelegate (Notification Tap Routing)
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    /// Called when the user taps a delivered notification while the app is foregrounded or from the lock screen.
+    /// Reads `hubId` from `userInfo`, switches the active hub, then navigates to the entity.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let userInfo = response.notification.request.content.userInfo
+
+        if let hubId = userInfo["hubId"] as? String {
+            appState?.hubContext.setActiveHub(hubId)
+        }
+
+        if let deepLinkType = userInfo["deepLinkType"] as? String,
+           let entityId = userInfo["deepLinkEntityId"] as? String {
+            Task { @MainActor in
+                // TODO: navigate via router — requires router access from AppDelegate.
+                // LlamenosApp posts a Notification or uses a shared NavigationBus to bridge this.
+                _ = (deepLinkType, entityId)
+            }
+        }
+
+        completionHandler()
+    }
+
+    /// Allow notifications to display as banners even when the app is in the foreground.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
     }
 }
 

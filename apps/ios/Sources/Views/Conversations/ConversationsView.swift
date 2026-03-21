@@ -6,6 +6,7 @@ import SwiftUI
 /// with channel badges, unread counts, status filtering, and pull-to-refresh.
 struct ConversationsView: View {
     @Environment(AppState.self) private var appState
+    @Environment(HubContext.self) private var hubContext
     @State private var viewModel: ConversationsViewModel?
 
     var body: some View {
@@ -33,7 +34,7 @@ struct ConversationsView: View {
             .refreshable {
                 await vm.refresh()
             }
-            .task {
+            .task(id: hubContext.activeHubId) {
                 await vm.loadConversations()
                 vm.startEventListener()
             }
@@ -158,6 +159,7 @@ struct ConversationsView: View {
             apiService: appState.apiService,
             cryptoService: appState.cryptoService,
             webSocketService: appState.webSocketService,
+            hubContext: hubContext,
             adminPubkeys: [appState.adminDecryptionPubkey].compactMap { $0 }
         )
         DispatchQueue.main.async {
@@ -278,6 +280,6 @@ struct ConversationRowView: View {
 #if DEBUG
 #Preview("Conversations - Empty") {
     ConversationsView()
-        .environment(AppState())
+        .environment(AppState(hubContext: HubContext()))
 }
 #endif

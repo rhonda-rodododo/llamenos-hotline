@@ -155,7 +155,7 @@ telephony.post('/language-selected', async (c) => {
   if (!rateLimited && !spamSettings.voiceCaptchaEnabled) {
     const origin = new URL(c.req.url).origin
     logger.info('Starting parallel ringing', { callSid, origin, hubId: hubId || 'global' })
-    c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, c.env, services, hubId))
+    c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, c.env, services, hubId ?? ''))
   }
 
   return telephonyResponse(response)
@@ -178,7 +178,7 @@ telephony.post('/captcha', async (c) => {
 
   if (match) {
     const origin = new URL(c.req.url).origin
-    c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, c.env, services, hubId))
+    c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, c.env, services, hubId ?? ''))
   }
 
   return telephonyResponse(response)

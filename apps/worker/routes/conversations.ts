@@ -480,6 +480,10 @@ conversations.post('/:id/claim',
     const pubkey = c.get('pubkey')
     const permissions = c.get('permissions')
     const user = c.get('user')
+    const hubId = c.get('hubId')
+    if (!hubId) {
+      return c.json({ error: 'missing hub context' }, 500)
+    }
 
     // Fetch conversation to check channel type
     const conv = await services.conversations.getById(id)
@@ -520,10 +524,12 @@ conversations.post('/:id/claim',
 
     // Push notification to assigned user (Epic 86)
     dispatchPushToUser(c.env, services, pubkey, {
+      hubId,
       type: 'assignment',
       conversationId: id,
       channelType: conv.channelType,
     }, {
+      hubId,
       type: 'assignment',
       conversationId: id,
       channelType: conv.channelType,

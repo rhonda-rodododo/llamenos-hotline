@@ -1,7 +1,11 @@
 package org.llamenos.hotline
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -13,13 +17,16 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.llamenos.hotline.api.ApiService
 import org.llamenos.hotline.api.AuthInterceptor
 import org.llamenos.hotline.api.RetryInterceptor
 import org.llamenos.hotline.api.VersionChecker
 import org.llamenos.hotline.crypto.CryptoService
 import org.llamenos.hotline.crypto.KeystoreService
+import org.llamenos.hotline.hub.ActiveHubState
 
 /**
  * Unit tests for [VersionChecker] — verifies the client-side API version
@@ -35,7 +42,10 @@ import org.llamenos.hotline.crypto.KeystoreService
 @OptIn(ExperimentalCoroutinesApi::class)
 class VersionCheckerTest {
 
+    @get:Rule val tmpFolder = TemporaryFolder()
+
     private val testDispatcher = UnconfinedTestDispatcher()
+    private val testScope = TestScope(testDispatcher)
     private lateinit var mockWebServer: MockWebServer
     private lateinit var versionChecker: VersionChecker
 
@@ -48,8 +58,14 @@ class VersionCheckerTest {
         val keyValueStore = InMemoryKeyValueStore()
         keyValueStore.store(KeystoreService.KEY_HUB_URL, mockWebServer.url("/").toString().trimEnd('/'))
 
+        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
+            scope = testScope,
+            produceFile = { tmpFolder.newFile("version_checker_test.preferences_pb") },
+        )
+        val activeHubState = ActiveHubState(dataStore, testScope)
+
         val cryptoService = CryptoService()
-        val apiService = ApiService(AuthInterceptor(cryptoService), RetryInterceptor(), keyValueStore)
+        val apiService = ApiService(AuthInterceptor(cryptoService), RetryInterceptor(), keyValueStore, activeHubState)
         // Replace production OkHttpClient (which has AuthInterceptor + cert pinning)
         // with a plain client for JVM unit tests
         apiService.client = OkHttpClient()

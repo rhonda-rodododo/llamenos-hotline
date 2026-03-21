@@ -6,6 +6,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.MapSerializer
@@ -14,6 +17,7 @@ import kotlinx.serialization.json.Json
 import org.llamenos.hotline.api.ApiService
 import org.llamenos.hotline.api.SessionState
 import org.llamenos.hotline.crypto.CryptoService
+import org.llamenos.hotline.hub.ActiveHubState
 import org.llamenos.hotline.model.AssignReportRequest
 import org.llamenos.hotline.model.CreateReportRequest
 import org.llamenos.hotline.model.CreateTypedReportRequest
@@ -86,6 +90,7 @@ class ReportsViewModel @Inject constructor(
     private val apiService: ApiService,
     private val cryptoService: CryptoService,
     private val sessionState: SessionState,
+    private val activeHubState: ActiveHubState,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReportsUiState())
@@ -97,9 +102,10 @@ class ReportsViewModel @Inject constructor(
     }
 
     init {
-        loadCategories()
-        loadReports()
-        loadReportTypes()
+        activeHubState.activeHubId
+            .filterNotNull()
+            .onEach { loadReports() }
+            .launchIn(viewModelScope)
     }
 
     fun loadReports() {

@@ -6,6 +6,7 @@ import SwiftUI
 struct DashboardView: View {
     @Environment(AppState.self) private var appState
     @Environment(Router.self) private var router
+    @Environment(HubContext.self) private var hubContext
     @State private var viewModel: DashboardViewModel?
     @State private var quickActionDestination: QuickActionDestination?
 
@@ -107,7 +108,7 @@ struct DashboardView: View {
                     CallHistoryView()
                 }
             }
-            .task {
+            .task(id: hubContext.activeHubId) {
                 await vm.loadDashboard()
                 vm.startEventListener()
             }
@@ -455,7 +456,8 @@ struct DashboardView: View {
         let vm = DashboardViewModel(
             apiService: appState.apiService,
             cryptoService: appState.cryptoService,
-            webSocketService: appState.webSocketService
+            webSocketService: appState.webSocketService,
+            hubContext: hubContext
         )
         DispatchQueue.main.async {
             self.viewModel = vm
@@ -470,7 +472,7 @@ struct DashboardView: View {
 #Preview("Dashboard - Off Shift") {
     NavigationStack {
         DashboardView()
-            .environment(AppState())
+            .environment(AppState(hubContext: HubContext()))
             .environment(Router())
     }
 }
