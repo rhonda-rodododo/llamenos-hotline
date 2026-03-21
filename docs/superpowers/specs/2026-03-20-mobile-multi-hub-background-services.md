@@ -15,10 +15,10 @@ Currently:
 - Hub keys are loaded only for the active hub — relay events from other hubs cannot be decrypted
 - `WakePayload` and `FullPushPayload` carry no `hubId` — the client cannot route an incoming notification to the correct hub
 - Linphone is documented in Epic 91 but designed for React Native, which is not the app architecture. No native Linphone integration exists
-- The relay WebSocket emits bare `HubEvent` values with no hub attribution — consumers cannot distinguish which hub an event belongs to
+- The relay WebSocket emits bare events with no hub attribution — consumers cannot distinguish which hub an event belongs to
 - SIP registration (for VoIP calls) is not implemented on mobile at all
 
-This spec implements the background layer: eager hub key loading, hub-attributed relay events, `hubId` in push payloads, per-hub activity indicators in the hub list, and native Linphone integration for iOS (Swift) and Android (Kotlin).
+This spec implements the background layer: eager hub key loading, hub-attributed relay events, `hubId` in push payloads, per-hub activity indicators, and native Linphone integration for iOS (Swift) and Android (Kotlin).
 
 ---
 
@@ -36,10 +36,10 @@ The relay WebSocket connection remains single (one connection to strfry). All hu
 ### Approach: Eager Key Loading + Hub-Tagged Events
 
 - At login: load hub keys for **all** hubs the user belongs to
-- Relay events: try all cached keys, emit `(hubId, event)` pairs
+- Relay events: try all cached keys, emit `(hubId, ProtocolHubEvent)` pairs
 - Push payloads: carry `hubId` for routing
 - SIP (Linphone): register one account per hub the user is on shift in; accounts added/removed on shift state changes
-- VoIP push: `hubId` in payload → accepting a call switches `activeHubId`
+- VoIP push: `hubId` in payload stored against `callId`; accepting a call switches `activeHubId`
 
 ---
 
@@ -74,16 +74,18 @@ All push dispatch call sites in `push-dispatch.ts` and `voip-push.ts` already op
 
 ### 2. `hubId` in VoIP Push Payload
 
-`apps/worker/lib/voip-push.ts` — the VoIP push payload sent to Linphone must include `hubId` so the native call handler can route correctly:
+`apps/worker/lib/voip-push.ts` — the VoIP push payload sent to Linphone must include `hubId`:
 
 ```typescript
 // Payload sent to APNs (PushKit) and FCM (high-priority)
 {
   callId: string,
   caller: string,   // obfuscated caller display
-  hubId: string,    // NEW
+  hubId: string,    // NEW — stored by client and correlated to inbound SIP call by callId
 }
 ```
+
+`hubId` comes from the push payload — not from SIP headers — because VoIP push may wake the app before any SIP connection is established. See "Hub Attribution for Inbound Calls" below.
 
 ### 3. No New Endpoints
 
@@ -95,27 +97,30 @@ Device token registration is already per-user (not per-hub) — correct. One dev
 
 ### At Login (iOS + Android)
 
-After authenticating and receiving the hub list, load hub keys for all hubs before completing the login flow:
+After authenticating and receiving the hub list, load hub keys for all hubs before completing the login flow.
 
-**iOS** — in `AppState` post-login, after `switchHub()` from spec 1 has been replaced with eager loading:
+**iOS** — in `AppState` post-login:
 
 ```swift
-func loadAllHubKeys(hubs: [Hub]) async throws {
-    try await withThrowingTaskGroup(of: Void.self) { group in
+func loadAllHubKeys(hubs: [Hub]) async {
+    await withTaskGroup(of: Void.self) { group in
         for hub in hubs {
-            group.addTask {
-                let envelope = try await self.apiService.getHubKey(hub.id)
-                try self.cryptoService.loadHubKey(hubId: hub.id, envelope: envelope)
+            group.addTask { [weak self] in
+                guard let self else { return }
+                do {
+                    let envelope = try await self.apiService.getHubKey(hub.id)
+                    try self.cryptoService.loadHubKey(hubId: hub.id, envelope: envelope)
+                } catch {
+                    // Log and skip — user may have been removed from hub between sessions
+                    print("Warning: failed to load hub key for \(hub.id): \(error)")
+                }
             }
         }
-        try await group.waitForAll()
     }
 }
 ```
 
-Keys are fetched in parallel. Any individual failure is surfaced (the user may have been removed from a hub between session starts) — log and skip rather than failing the entire login.
-
-**Android** — in `HubRepository.loadInitialHub()`, extended to load all hub keys:
+**Android** — in `HubRepository`:
 
 ```kotlin
 suspend fun loadAllHubKeys(hubs: List<Hub>) {
@@ -132,64 +137,82 @@ suspend fun loadAllHubKeys(hubs: List<Hub>) {
 }
 ```
 
+Keys are fetched in parallel. Individual failures are logged and skipped — a missing key means relay events from that hub will fail to decrypt and be silently ignored, which is safe.
+
 ### Consequence for Spec 1 `switchHub()`
 
-`switchHub()` from spec 1 no longer needs to fetch the hub key — it is already cached. It only updates `activeHubId`. The key-fetch-before-commit safety (abort switch on key failure) from spec 1 is no longer needed since keys are pre-loaded; remove that complexity from the switch path.
+With all hub keys pre-loaded, `switchHub()` no longer fetches the key — it only updates `activeHubId`. However, the key may not be cached if loading failed at login (network error, hub membership changed). `switchHub()` must handle this: attempt an on-demand fetch if the key is not in the cache, and surface an error if that also fails. This supersedes spec 1's "abort switch if key fetch fails" — the abort condition now only triggers on cache-miss + on-demand fetch failure, not on every switch.
 
 ### Hub Membership Changes
 
-When the relay emits a `hubMemberAdded` or `hubMemberRemoved` event for the current user:
-- **Added**: fetch and cache the new hub's key immediately
-- **Removed**: evict the departed hub's key from the cache and unregister its Linphone SIP account
+When the relay emits a hub membership event for the current user:
+- **Added to hub**: fetch and cache the new hub's key immediately, register a Linphone SIP account if on shift
+- **Removed from hub**: evict the departed hub's key from the cache, unregister its Linphone SIP account
 
 ### Cache Eviction
 
-Hub key cache cleared on lock and logout, as defined in spec 1.
+Hub key cache cleared on lock and logout, as defined in spec 1. After `lock()` or `logout()`, `cryptoService.hubKeyCount == 0` (unit-testable).
 
 ---
 
 ## Multi-Hub Relay Event Routing
 
-### Hub Attribution
+### Event Type Contract
 
-Change `WebSocketService` on both platforms to emit `(hubId: String, event: HubEvent)` tuples rather than bare `HubEvent` values. Attribution is determined by decryption:
+The protocol codegen produces a `ProtocolHubEvent` type (generated from the Zod schema in `packages/protocol/schemas/`) for Swift and Kotlin. This is the structured event type used throughout — not the raw `HubEventType` enum currently in `WebSocketService`. The `WebSocketService` refactor introduced by this spec replaces the existing `AsyncStream<HubEventType>` with `AsyncStream<AttributedHubEvent>`:
+
+```swift
+// iOS — new attributed event type
+struct AttributedHubEvent {
+    let hubId: String
+    let event: ProtocolHubEvent  // generated type from protocol codegen
+}
+```
+
+```kotlin
+// Android
+data class AttributedHubEvent(
+    val hubId: String,
+    val event: ProtocolHubEvent,
+)
+```
+
+### Hub Attribution via Decryption
 
 **iOS:**
 
 ```swift
-func decryptEvent(_ encryptedContent: String) -> (hubId: String, event: HubEvent)? {
+func decryptEvent(_ encryptedContent: String) -> AttributedHubEvent? {
     for (hubId, key) in cryptoService.allHubKeys() {
-        if let plaintext = try? cryptoService.decrypt(encryptedContent, using: key),
-           let event = try? JSONDecoder().decode(HubEvent.self, from: plaintext) {
-            return (hubId, event)
-        }
+        guard let plaintext = try? cryptoService.decrypt(encryptedContent, using: key),
+              let event = try? JSONDecoder().decode(ProtocolHubEvent.self, from: plaintext)
+        else { continue }
+        return AttributedHubEvent(hubId: hubId, event: event)
     }
-    return nil  // Event not for this user's hubs — ignore
+    return nil  // Not for this user's hubs — ignore
 }
 ```
 
 **Android:**
 
 ```kotlin
-fun decryptEvent(encryptedContent: String): Pair<String, HubEvent>? {
+fun decryptEvent(encryptedContent: String): AttributedHubEvent? {
     for ((hubId, key) in cryptoService.allHubKeys()) {
-        val plaintext = runCatching {
-            cryptoService.decrypt(encryptedContent, key)
-        }.getOrNull() ?: continue
-        val event = runCatching {
-            json.decodeFromString<HubEvent>(plaintext)
-        }.getOrNull() ?: continue
-        return hubId to event
+        val plaintext = runCatching { cryptoService.decrypt(encryptedContent, key) }
+            .getOrNull() ?: continue
+        val event = runCatching { json.decodeFromString<ProtocolHubEvent>(plaintext) }
+            .getOrNull() ?: continue
+        return AttributedHubEvent(hubId, event)
     }
     return null
 }
 ```
 
-Events that fail all hub key decryptions are silently ignored — they belong to other hubs or are unrelated relay traffic (consistent with the server-blind security model).
+Events that fail all hub key decryptions are silently ignored — consistent with the server-blind security model.
 
 ### Event Consumers
 
-All relay event consumers are updated to receive `(hubId, event)` pairs. Consumers that are hub-scoped (e.g. dashboard for active hub) filter by `hubId == activeHubId`. Consumers that are hub-agnostic (e.g. the background call handler, activity indicators) process events from all hubs.
+All relay event consumers are updated to receive `AttributedHubEvent`. Consumers scoped to the active hub filter by `hubId == activeHubId`. Background consumers (call handler, activity indicators) process events from all hubs.
 
 ---
 
@@ -197,27 +220,65 @@ All relay event consumers are updated to receive `(hubId, event)` pairs. Consume
 
 When a push notification arrives with `hubId`:
 
-**On tap (iOS `didReceiveResponse` / Android notification intent):**
+**On tap (iOS `UNUserNotificationCenterDelegate.didReceiveResponse` / Android notification intent):**
 1. Read `hubId` from payload
-2. Call `hubContext.setActiveHub(hubId)` / `activeHubState.setActiveHub(hubId)` — switches UI to the notification's hub
+2. Call `hubContext.setActiveHub(hubId)` / `activeHubState.setActiveHub(hubId)`
 3. Navigate to the relevant screen (`/calls`, `/conversations`, etc.)
 
-The user lands directly in the correct hub view without manual switching.
+---
 
-**VoIP push (incoming call):**
-- Linphone's native push handler fires before the app is in the foreground
-- `hubId` is stored alongside `callId` in the native call context
-- When the user accepts the call (via CallKit/ConnectionService), `activeHubId` switches to the call's hub
-- The in-call screen loads with the correct hub context
+## Hub Attribution for Inbound Calls
+
+VoIP push may wake the app from a killed or suspended state before any SIP connection exists. The `hubId` must come from the push payload — not from SIP `X-Hub-Id` headers, which are only available once the SIP INVITE arrives over the wire.
+
+**Mechanism:** When a VoIP push is received, store `(callId → hubId)` in a pending call map before Linphone processes the INVITE. In the Linphone `onCallStateChanged` callback, look up `hubId` by `callId`:
+
+**iOS:**
+
+```swift
+// In LinphoneService — populated from VoIP push handler
+private var pendingCallHubIds: [String: String] = [:]  // callId → hubId
+
+func handleVoipPush(payload: [String: Any]) {
+    guard let callId = payload["callId"] as? String,
+          let hubId = payload["hubId"] as? String else { return }
+    pendingCallHubIds[callId] = hubId
+    // Let Linphone process the push
+}
+
+// CoreDelegate
+func onCallStateChanged(core: Core, call: Call, state: Call.State, message: String) {
+    if state == .IncomingReceived {
+        if let callId = call.callLog?.callId,
+           let hubId = pendingCallHubIds[callId] {
+            hubContext.setActiveHub(hubId)
+            pendingCallHubIds.removeValue(forKey: callId)
+        }
+    }
+    if state == .Released || state == .End {
+        if let callId = call.callLog?.callId {
+            pendingCallHubIds.removeValue(forKey: callId)
+        }
+    }
+}
+```
+
+**Android:** Same pattern in `LinphoneService` — a `ConcurrentHashMap<String, String>` populated in the FCM push handler, read in `CoreListenerStub.onCallStateChanged`.
+
+---
+
+## PushKit Ownership (iOS)
+
+Linphone SDK registers its own `PKPushRegistry` delegate internally when `core.start()` is called. There must be exactly one `PKPushRegistry` delegate in the app. Any existing VoIP PushKit registration in `LlamenosApp` or `AppDelegate` must be removed when Linphone is integrated — Linphone becomes the sole owner of the VoIP push channel. Regular APNs (non-VoIP push) continues to be handled by the existing `AppDelegate.didRegisterForRemoteNotificationsWithDeviceToken`.
 
 ---
 
 ## Per-Hub Activity Indicators
 
-The hub list screen shows live per-hub status badges driven by relay events:
+The hub list screen shows live per-hub status badges driven by relay events.
 
 ```swift
-// iOS — HubActivityState per hub
+// iOS
 struct HubActivityState {
     var isOnShift: Bool = false
     var activeCallCount: Int = 0
@@ -236,43 +297,57 @@ data class HubActivityState(
 )
 ```
 
-`HubListViewModel` / the equivalent iOS ViewModel maintains a `[hubId: HubActivityState]` map, updated by the relay event stream. Events: `callRing` increments `activeCallCount`, `callAnswered`/`callEnded` decrements, `messageNew` increments `unreadMessageCount`, shift events update `isOnShift`.
+**State machine for each hub:**
+
+| Event | Effect |
+|---|---|
+| `shiftStarted` | `isOnShift = true` |
+| `shiftEnded` | `isOnShift = false` |
+| `callRing` | `activeCallCount += 1` |
+| `callAnswered` / `callEnded` / `callVoicemail` | `activeCallCount = max(0, activeCallCount - 1)` |
+| `messageNew` | `unreadMessageCount += 1` |
+| `conversationAssigned` | `unreadConversationCount += 1` |
+| User opens hub (switches `activeHubId` to this hub) | `unreadMessageCount = 0`, `unreadConversationCount = 0` |
+| `conversationClosed` | `unreadConversationCount = max(0, unreadConversationCount - 1)` |
+
+This state machine is defined once and shared between iOS and Android implementations. Both platforms must implement the same transitions to prevent divergent indicator behavior.
 
 ---
 
 ## Linphone Native Integration
 
-### Why the Epic 91 Design Is Superseded
+### Why Epic 91 Is Superseded
 
-Epic 91 designed a React Native Turbo Native Module (`llamenos-sip`). The Llamenos mobile apps are native SwiftUI (iOS) and Kotlin/Compose (Android) — not React Native. No Turbo Module, no `NativeModules`, no `useVoip()` hook. The Linphone SDK design (provider-agnostic SIP, SRTP, CallKit, ConnectionService, multi-account) is correct and carried forward. Only the integration layer changes.
+Epic 91 designed a React Native Turbo Native Module (`llamenos-sip`). The Llamenos mobile apps are native SwiftUI (iOS) and Kotlin/Compose (Android) — not React Native. No Turbo Module, no `NativeModules`, no `useVoip()` hook. The Linphone SDK design (provider-agnostic SIP, SRTP, CallKit, ConnectionService, multi-account) is correct and is carried forward; only the integration layer changes.
 
 ### iOS — `LinphoneService.swift`
 
-A `@Observable` singleton owning the Linphone `Core`, integrated via `linphone-sdk-swift` (SPM package or CocoaPods). Injected into the SwiftUI environment alongside `HubContext`.
+An `@Observable` singleton owning the Linphone `Core`. Integrated via **CocoaPods** (`pod 'linphone-sdk'`) — the official Linphone iOS distribution is CocoaPods or direct XCFramework; no official SPM package exists. This requires adding a `Podfile` to `apps/ios/` alongside the existing SPM packages and configuring `xcodegen`'s `project.yml` to support CocoaPods (`generateSchemes: false` under `options` is incompatible with pod install — review xcodegen + CocoaPods interop). The Linphone XCFramework alternative (manual integration, no CocoaPods) is the preferred path if it avoids adding a `Podfile` to a currently pure-SPM project. Pin to a specific SDK version (e.g. `5.3.x`) — Linphone API surfaces change between major versions.
 
-**Initialization (once at app start):**
+**Initialization — called from `LlamenosApp` init or `AppState.init()`:**
 
 ```swift
-@Observable
-final class LinphoneService {
-    private var core: Core?
-
-    func initialize() throws {
-        let core = try Factory.Instance.createCore(
-            configPath: nil, factoryConfigPath: nil, systemContext: nil
-        )
-        core.callkitEnabled = true          // Linphone handles CallKit internally
-        core.mediaEncryption = .SRTP
-        core.mediaEncryptionMandatory = true
-        // Prefer Opus codec
-        core.audioPayloadTypes.forEach { $0.enable = ($0.mimeType == "opus" || $0.mimeType == "PCMU") }
-        try core.start()
-        self.core = core
+func initialize() throws {
+    let factory = Factory.Instance
+    // Pin to explicit config filenames (not paths — SDK 5.x API)
+    let core = try factory.createCore(
+        configFilename: "linphone",
+        factoryConfigFilename: nil,
+        systemContext: nil
+    )
+    core.callKitEnabled = true          // capital K — SDK 5.x property name
+    core.mediaEncryption = .SRTP
+    core.mediaEncryptionMandatory = true
+    // enable() is a method call, not a property setter
+    core.audioPayloadTypes.forEach {
+        $0.enable($0.mimeType == "opus" || $0.mimeType == "PCMU")
     }
+    try core.start()
+    self.core = core
 }
 ```
 
-Linphone's internal `PKPushRegistry` delegate handles VoIP PushKit. No separate PushKit setup needed in the app — Linphone registers when `core.start()` is called.
+Linphone's internal `PKPushRegistry` delegate registers for VoIP push when `core.start()` is called. The existing app's VoIP PushKit registration (if any) must be removed — Linphone is the sole PushKit owner.
 
 **SIP registration per hub on shift:**
 
@@ -280,10 +355,13 @@ Linphone's internal `PKPushRegistry` delegate handles VoIP PushKit. No separate 
 func registerHubAccount(hubId: String, sipParams: SipTokenResponse) throws {
     guard let core else { throw LinphoneError.notInitialized }
     let params = try core.createAccountParams()
-    // identity, server address, credentials from sipParams
-    // push notification config — APNs VoIP token from Linphone's PKPushRegistry
+    let identity = try Factory.Instance.createAddress(addr: "sip:\(sipParams.username)@\(sipParams.domain)")
+    try params.setIdentityaddress(newValue: identity)
+    let server = try Factory.Instance.createAddress(addr: "sip:\(sipParams.domain);transport=\(sipParams.transport)")
+    try params.setServeraddress(newValue: server)
+    params.registerEnabled = true
+    // Linphone reads voipToken from its own PKPushRegistry — no manual token injection needed
     let account = try core.createAccount(params: params)
-    account.params?.pushNotificationAllowed = true
     try core.addAccount(account: account)
     hubAccounts[hubId] = account
 }
@@ -294,27 +372,58 @@ func unregisterHubAccount(hubId: String) {
 }
 ```
 
-**Shift state integration:** `ShiftViewModel` calls `linphoneService.registerHubAccount()` when a shift starts and `unregisterHubAccount()` when it ends. Linphone maintains persistent SIP registration (keep-alive) for all active shift accounts.
+**Shift integration:** `ShiftViewModel` calls `linphoneService.registerHubAccount()` on shift start and `unregisterHubAccount()` on shift end.
 
-**CallKit:** Handled entirely by Linphone SDK internally (`core.callkitEnabled = true`). Incoming SIP INVITEs trigger `CXProvider.reportNewIncomingCall()` automatically. The app receives call state changes via `CoreDelegate` callbacks.
+### Android — `LinphoneService.kt`
 
-**Call answer → hub switch:**
+A Hilt `@Singleton` wrapping `org.linphone:linphone-sdk-android`. Dependency:
 
-```swift
-// CoreDelegate callback
-func onCallStateChanged(core: Core, call: Call, state: Call.State, message: String) {
-    if state == .IncomingReceived {
-        // Extract hubId from call's custom headers or push payload context
-        if let hubId = call.remoteParams?.customHeader(name: "X-Hub-Id") {
-            hubContext.setActiveHub(hubId)
-        }
+```gradle
+// apps/android/app/build.gradle
+repositories {
+    maven { url "https://linphone.org/maven_repository/" }
+}
+dependencies {
+    implementation 'org.linphone:linphone-sdk-android:5.3.+'
+}
+```
+
+**`initialize()` must be called from `Application.onCreate()`** — Linphone requires the Android `Context` to initialize audio subsystems before any Activity starts. Create `LlamenosApplication.kt` (or extend the existing application class) and inject `LinphoneService` there:
+
+```kotlin
+@HiltAndroidApp
+class LlamenosApplication : Application() {
+    @Inject lateinit var linphoneService: LinphoneService
+
+    override fun onCreate() {
+        super.onCreate()
+        linphoneService.initialize()
     }
 }
 ```
 
-### Android — `LinphoneService.kt`
+Register in `AndroidManifest.xml`:
+```xml
+<application android:name=".LlamenosApplication" ...>
+```
 
-A Hilt `@Singleton` service wrapping `org.linphone:linphone-sdk-android` via Gradle dependency.
+**ConnectionService declaration** — Linphone's `ConnectionService` subclass must be declared in `AndroidManifest.xml`:
+
+```xml
+<service
+    android:name="org.linphone.core.tools.service.CoreService"
+    android:foregroundServiceType="phoneCall"
+    android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
+    android:exported="true">
+    <intent-filter>
+        <action android:name="android.telecom.ConnectionService"/>
+    </intent-filter>
+</service>
+```
+
+This enables Linphone's native `ConnectionService` which shows full-screen incoming call UI.
+
+**`LinphoneService.kt`:**
 
 ```kotlin
 @Singleton
@@ -325,11 +434,12 @@ class LinphoneService @Inject constructor(
 ) {
     private var core: Core? = null
     private val hubAccounts = mutableMapOf<String, Account>()
+    private val pendingCallHubIds = ConcurrentHashMap<String, String>() // callId → hubId
 
     fun initialize() {
         val factory = Factory.instance()
         val core = factory.createCore(null, null, context)
-        core.isCallkitIntegrationEnabled = true  // ConnectionService
+        core.isCallkitIntegrationEnabled = true  // enables Android ConnectionService
         core.mediaEncryption = MediaEncryption.SRTP
         core.isMediaEncryptionMandatory = true
         core.audioPayloadTypes.forEach { it.enable(it.mimeType == "opus" || it.mimeType == "PCMU") }
@@ -338,10 +448,19 @@ class LinphoneService @Inject constructor(
         setupCoreListener()
     }
 
+    // Called from FCM push handler before Linphone processes the INVITE
+    fun storePendingCallHub(callId: String, hubId: String) {
+        pendingCallHubIds[callId] = hubId
+    }
+
     fun registerHubAccount(hubId: String, sipParams: SipTokenResponse) {
         val core = this.core ?: return
         val params = core.createAccountParams()
-        // identity, server, credentials, FCM push token from sipParams
+        val identity = Factory.instance().createAddress("sip:${sipParams.username}@${sipParams.domain}")
+        params.identityAddress = identity
+        val server = Factory.instance().createAddress("sip:${sipParams.domain};transport=${sipParams.transport}")
+        params.serverAddress = server
+        params.isRegisterEnabled = true
         val account = core.createAccount(params)
         core.addAccount(account)
         hubAccounts[hubId] = account
@@ -357,11 +476,17 @@ class LinphoneService @Inject constructor(
             override fun onCallStateChanged(
                 core: Core, call: Call, state: Call.State, message: String
             ) {
-                if (state == Call.State.IncomingReceived) {
-                    val hubId = call.remoteParams?.getCustomHeader("X-Hub-Id")
-                    if (hubId != null) {
-                        scope.launch { activeHubState.setActiveHub(hubId) }
+                val callId = call.callLog?.callId ?: return
+                when (state) {
+                    Call.State.IncomingReceived -> {
+                        pendingCallHubIds.remove(callId)?.let { hubId ->
+                            scope.launch { activeHubState.setActiveHub(hubId) }
+                        }
                     }
+                    Call.State.Released, Call.State.End -> {
+                        pendingCallHubIds.remove(callId)
+                    }
+                    else -> {}
                 }
             }
         })
@@ -369,75 +494,73 @@ class LinphoneService @Inject constructor(
 }
 ```
 
-**ConnectionService:** Handled internally by Linphone when `core.isCallkitIntegrationEnabled = true`. Incoming calls show as a full-screen foreground notification on the lock screen via Android's native telecom stack.
-
-**FCM VoIP push:** Linphone's FCM integration handles high-priority data messages from the server's `voip-push.ts`. The `hubId` in the FCM payload is available in the `LinphoneService` push handler to pre-switch the hub before the call UI appears.
-
 ### Provider SIP Config Mapping
 
 `GET /hubs/{hubId}/telephony/sip-token` returns provider-specific SIP params. The mobile client maps these to Linphone account configuration:
 
-| Provider | domain | transport | auth | encryption |
-|---|---|---|---|---|
-| Twilio | `{account}.pstn.twilio.com` | tls | SIP digest | SRTP |
-| SignalWire | `{space}.signalwire.com` | tls | SIP digest | SRTP |
-| Plivo | `phone.plivo.com` | tls | SIP endpoint creds | SRTP |
-| Asterisk | `{host}` | tls/wss | PJSIP creds | ZRTP |
-| Vonage | via Asterisk gateway | tls | Asterisk creds | ZRTP |
-
-### Linphone SDK Dependencies
-
-**iOS:** `linphone-sdk-swift` via CocoaPods (`pod 'linphone-sdk'`) or direct XCFramework. Add to `apps/ios/` Podfile or `project.yml`. Requires physical device for CallKit testing (simulator does not support CallKit).
-
-**Android:** `implementation 'org.linphone:linphone-sdk-android:5.x.x'` in `apps/android/app/build.gradle`. Maven repository: `maven { url "https://linphone.org/maven_repository/" }`.
-
-**AGPLv3 license:** Linphone SDK is AGPLv3. Llamenos is AGPLv3-compatible. Source for the native integration must remain available — it lives in this repo.
+| Provider | domain | transport | encryption |
+|---|---|---|---|
+| Twilio | `{account}.pstn.twilio.com` | tls | SRTP |
+| SignalWire | `{space}.signalwire.com` | tls | SRTP |
+| Plivo | `phone.plivo.com` | tls | SRTP |
+| Asterisk | `{host}` | tls/wss | ZRTP |
+| Vonage | via Asterisk gateway | tls | ZRTP |
 
 ### Required Permissions
 
 **iOS** (`apps/ios/project.yml` / `Info.plist`):
 - `NSMicrophoneUsageDescription` — answering crisis calls
 - `UIBackgroundModes`: `voip`, `audio`
-- PushKit entitlement (`aps-environment` for VoIP)
+- PushKit entitlement (`aps-environment` with `voip` capability)
 
-**Android** (`apps/android/app/src/main/AndroidManifest.xml` — several already present):
-- `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`
-- `BLUETOOTH`, `BLUETOOTH_CONNECT`
+**Android** (`apps/android/app/src/main/AndroidManifest.xml`):
+- `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS` (new)
+- `BLUETOOTH`, `BLUETOOTH_CONNECT` (new)
 - `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_PHONE_CALL` (already declared)
-- `USE_FULL_SCREEN_INTENT`, `MANAGE_OWN_CALLS`
+- `USE_FULL_SCREEN_INTENT`, `MANAGE_OWN_CALLS` (new)
+
+### AGPLv3 License
+
+Linphone SDK is AGPLv3. Llamenos is AGPLv3-compatible. Source for the native integration lives in this repo and must remain available.
 
 ---
 
 ## Security Notes
 
 - SIP credentials are hub-specific, fetched fresh via `GET /hubs/{hubId}/telephony/sip-token`, never persisted to disk
-- VoIP push payloads carry only `callId`, `caller` (obfuscated), and `hubId` — no PII in the push payload
-- Media encryption: SRTP mandatory for all providers, ZRTP where supported (Asterisk, direct SIP)
-- Linphone's native push handlers run before JS context — Llamenos has no JS context, but the equivalent applies: Linphone handles PushKit/FCM before the SwiftUI/Compose layer, which is required by Apple's iOS 13+ VoIP push mandate
+- VoIP push payloads carry only `callId`, `caller` (obfuscated), and `hubId` — no PII
+- Media encryption: SRTP mandatory for all providers, ZRTP where supported
+- Linphone handles PushKit before the SwiftUI layer starts — satisfies Apple's iOS 13+ VoIP push mandate (report to CallKit immediately in push handler)
 
 ---
 
 ## Implementation Order
 
-1. **Backend: add `hubId` to push payloads** — small, unblocks everything else
+1. **Backend: add `hubId` to push payloads** — small, unblocks all client routing
 2. **Eager hub key loading** — prerequisite for relay event routing
-3. **Hub-attributed relay events** — `(hubId, event)` tuples, update all consumers
+3. **Hub-attributed relay events** — `AttributedHubEvent` stream, update all consumers; refactor `WebSocketService` from `HubEventType` to `ProtocolHubEvent`
 4. **Per-hub activity indicators** — depends on attributed events
 5. **Push notification routing** — depends on `hubId` in payload (step 1)
-6. **Linphone SDK integration** — iOS then Android; largest piece, independent of steps 1-5 except VoIP push routing
+6. **Linphone integration** — iOS then Android; resolve CocoaPods/XCFramework build system question first; `LlamenosApplication` wiring; SIP account per shift; pending call hub map
 
 ---
 
 ## Success Criteria
 
-- Hub keys for all user's hubs are loaded at login; relay events from any hub are decrypted correctly
-- `WakePayload.hubId` and `FullPushPayload.hubId` populated on all push dispatch paths; codegen updated
+### CI-Verifiable
+- `WakePayload.hubId` and `FullPushPayload.hubId` populated on all push dispatch paths; codegen updated; TypeScript and generated Swift/Kotlin types compile
+- `loadAllHubKeys()` called at login; unit tests verify all hub keys are in cache after login with multiple hubs
+- `WebSocketService` emits `AttributedHubEvent` — unit tests verify correct hub attribution by decryption (using test hub keys)
+- Hub activity state machine unit tests: correct increments/decrements for all relay event types on both platforms
+- After `lock()` or `logout()`, `cryptoService.hubKeyCount == 0`
+- `switchHub()` on-demand key fetch verified by unit test (simulate cache miss, verify fetch occurs)
+- Android: `LlamenosApplication` injects and calls `linphoneService.initialize()` — unit test verifies `core` is non-null after app start
+
+### Device/Integration (manual or device farm)
 - Tapping a push notification for Hub B while Hub A is active switches the UI to Hub B and navigates to the correct screen
-- Per-hub activity badges (on shift, active call, unread count) update live from relay events for all hubs, not just the active hub
-- iOS: Linphone `Core` initializes with SRTP + Opus; SIP REGISTER succeeds for each hub the user is on shift in; incoming call appears on lock screen via CallKit; accepting the call switches `activeHubId` to the call's hub
-- Android: same via `LinphoneService.kt` and ConnectionService; FCM high-priority data message wakes app from background
-- Shift start → SIP account registered for that hub's provider; shift end → account unregistered
-- VoIP push arrives with `hubId`; accepting call switches active hub
+- iOS: Linphone `Core` initializes with SRTP + Opus; SIP REGISTER succeeds against a test Twilio/Asterisk endpoint
+- iOS: Incoming call appears on lock screen via CallKit; accepting the call switches `activeHubId` to the call's hub (verified via `X-Hub-Id` fallback or pending call map)
+- Android: FCM high-priority data message wakes app; ConnectionService full-screen notification shown; call answer switches active hub
+- Shift start → SIP account registered; shift end → account unregistered (verified in device session logs)
+- Per-hub activity badges update live for non-active hubs
 - No regressions for single-hub users
-- Hub key cache cleared on lock and logout (same as spec 1)
-- `clearHubKeys()` verified by unit test: after `lock()`, `cryptoService.hubKeyCount == 0`
