@@ -220,7 +220,7 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 - [x] **PWA Offline Tests** (`2026-03-22-pwa-offline-tests-plan.md`) — SW registration, offline banner, API not cached, queue sends on reconnect
 - [x] **WebAuthn Registration Tests** (`2026-03-22-webauthn-registration-tests-plan.md`) — Virtual authenticator via CDP, passkey register/login, multi-device, session revocation
 - [x] **i18n Locale Tests** (`2026-03-22-i18n-locale-tests-plan.md`) — All 13 locales, RTL Arabic, dynamic locale file comparison (no hardcoded strings), `scripts/check-locales.ts` with nested key traversal
-- [ ] **Provider Simulation Suite** — *(spec needed first)* Comprehensive webhook/callback simulation for all 5 telephony adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk) and all messaging adapters (Twilio SMS, WhatsApp Business, Signal). Must research each provider's actual sandbox tooling, webhook payload formats, status callback schemas, error conditions, and signature validation before writing the spec. Do not implement without completed research and approved spec.
+- [ ] **Provider Simulation Suite** (`2026-03-22-provider-simulation-suite-plan.md`) — Payload factory + proxy simulation endpoints for all 5 telephony providers × 9 events and all 4 messaging channels. Asterisk-first build order. Dev bypass added to messaging router. E2E tests assert 200/404 (not 400/403/500) for all provider × event combinations.
 
 ### Features (Lower Priority — v1 Gap Filling)
 
