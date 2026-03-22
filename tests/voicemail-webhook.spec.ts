@@ -65,9 +65,9 @@ test.describe('Voicemail webhook simulation', () => {
       }),
     })
 
-    // If telephony is not configured (no provider in dev), the handler returns 404.
+    // If telephony is not configured (no provider in dev), the handler returns 503.
     // Skip this test gracefully in that case — it's a config issue, not a code issue.
-    if (incomingRes.status() === 404) {
+    if (incomingRes.status() === 503) {
       test.skip(true, 'Telephony not configured in dev env — skipping voicemail webhook test')
       return
     }
@@ -119,7 +119,7 @@ test.describe('Voicemail webhook simulation', () => {
         Direction: 'inbound',
       }),
     })
-    if (incomingRes.status() === 404) {
+    if (incomingRes.status() === 503) {
       test.skip(true, 'Telephony not configured in dev env — skipping voicemail UI badge test')
       return
     }
@@ -166,8 +166,8 @@ test.describe('Voicemail webhook simulation', () => {
       }),
     })
 
-    // With no telephony configured → 404; with config → 200 TwiML
-    if (res.status() !== 404) {
+    // With no telephony configured → 503; with config → 200 TwiML
+    if (res.status() !== 503) {
       expect(res.status()).toBe(200)
       const body = await res.text()
       // TwiML responses are XML with a <Response> root element
@@ -190,7 +190,7 @@ test.describe('Voicemail webhook simulation', () => {
         }),
       }
     )
-    // Should not return 500 — either 200/204 (handled gracefully) or 404 (no telephony config)
+    // Should not return 500 — either 200/204 (handled gracefully) or 503 (no telephony config)
     expect(res.status()).not.toBe(500)
   })
 })

@@ -57,9 +57,6 @@ api.route('/invites', invitesRoutes)
 // Device provisioning (mixed auth — room creation is public, payload submission is authenticated)
 api.route('/provision', provisioningRoutes)
 
-// Telephony webhooks (validated by Twilio signature, not our auth)
-api.route('/telephony', telephonyRoutes)
-
 // Messaging webhooks (each adapter validates its own signature)
 api.route('/messaging', messagingRoutes)
 
@@ -183,6 +180,10 @@ hubScoped.route('/contacts', contactsRoutes)
 authenticated.route('/hubs/:hubId', hubScoped)
 
 api.route('/', authenticated)
+
+// Telephony webhooks at top-level /telephony (validated by provider signature, not our auth)
+// Must be top-level so Workbox navigateFallbackDenylist can exclude /telephony/* from SPA caching
+app.route('/telephony', telephonyRoutes)
 
 // Mount API under /api
 app.route('/api', api)

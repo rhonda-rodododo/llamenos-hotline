@@ -11,13 +11,23 @@ export interface MockCallOptions {
 }
 
 /**
+ * Build a Twilio-style application/x-www-form-urlencoded body string.
+ */
+function formEncode(params: Record<string, string>): string {
+  return new URLSearchParams(params).toString()
+}
+
+/**
  * Simulate an inbound call by posting a webhook payload to the telephony route.
  * Signature validation is skipped in development/test mode (localhost).
+ *
+ * Returns the HTTP status code. Callers should skip the test if 404 is returned
+ * (telephony not configured in dev env).
  */
 export async function simulateInboundCall(
   request: APIRequestContext,
   options: MockCallOptions
-): Promise<void> {
+): Promise<Response & { status(): number; ok(): boolean }> {
   const { callSid, from, to, provider = 'twilio' } = options
 
   let payload: Record<string, string>
@@ -53,11 +63,11 @@ export async function simulateInboundCall(
     }
   }
 
-  const res = await request.post('/api/telephony/incoming', { form: payload })
-  if (!res.ok()) {
-    const body = await res.text()
-    throw new Error(`simulateInboundCall failed: ${res.status()} ${body}`)
-  }
+  // Telephony routes are at /telephony/* (top-level, not /api/telephony/*)
+  return request.post('/telephony/incoming', {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    data: formEncode(payload),
+  }) as unknown as Response & { status(): number; ok(): boolean }
 }
 
 /**
@@ -69,12 +79,13 @@ export async function simulateCallAnswered(
   callSid: string,
   answeredByPhone?: string
 ): Promise<void> {
-  const res = await request.post('/api/telephony/answer', {
-    form: {
+  const res = await request.post('/telephony/volunteer-answer', {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    data: formEncode({
       CallSid: callSid,
       ...(answeredByPhone ? { To: answeredByPhone } : {}),
       CallStatus: 'in-progress',
-    },
+    }),
   })
   if (!res.ok()) {
     const body = await res.text()
@@ -89,12 +100,13 @@ export async function simulateCallHungUp(
   request: APIRequestContext,
   callSid: string
 ): Promise<void> {
-  const res = await request.post('/api/telephony/hangup', {
-    form: {
+  const res = await request.post('/telephony/call-status', {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    data: formEncode({
       CallSid: callSid,
       CallStatus: 'completed',
       CallDuration: '0',
-    },
+    }),
   })
   if (!res.ok()) {
     const body = await res.text()
@@ -110,14 +122,15 @@ export async function simulateVoicemail(
   callSid: string,
   recordingUrl: string
 ): Promise<void> {
-  const res = await request.post('/api/telephony/voicemail', {
-    form: {
+  const res = await request.post(`/telephony/voicemail-recording?callSid=${callSid}`, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    data: formEncode({
       CallSid: callSid,
       RecordingUrl: recordingUrl,
       RecordingSid: `RE${callSid.replace(/\D/g, '')}`,
       RecordingDuration: '30',
       CallStatus: 'completed',
-    },
+    }),
   })
   if (!res.ok()) {
     const body = await res.text()

@@ -47,8 +47,8 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: "bun run build && bunx wrangler dev --port 8788",
-        url: "http://localhost:8788",
+        command: "bun run build && PORT=8788 bun run start",
+        url: "http://localhost:8788/api/health/ready",
         reuseExistingServer: !process.env.CI,
       },
 });
