@@ -1,6 +1,8 @@
+import { KIND_CALL_RING } from '@shared/nostr-events'
 import type { Services } from '../services'
 import type { Env } from '../types'
 import { getTelephony } from './adapters'
+import { publishNostrEvent } from './nostr-events'
 
 export async function startParallelRinging(
   callSid: string,
@@ -60,6 +62,13 @@ export async function startParallelRinging(
       hubId: hubId ?? 'global',
       callerNumber,
       status: 'ringing',
+    })
+
+    // Publish call:ring event to Nostr relay for real-time client notification
+    publishNostrEvent(env, KIND_CALL_RING, {
+      type: 'call:ring',
+      callSid,
+      hubId: hubId ?? 'global',
     })
 
     // Ring phone volunteers via telephony adapter (skip if no one needs phone ringing)
