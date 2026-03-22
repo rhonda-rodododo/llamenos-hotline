@@ -349,7 +349,7 @@ export type AppEnv = {
     hubId?: string
     /** Hub-scoped permissions (resolved for the current hub) */
     hubPermissions?: string[]
-    /** Injected service instances (Node.js / Drizzle path) */
-    services?: Services
+    /** Injected service instances */
+    services: Services
   }
 }
