@@ -26,6 +26,7 @@ import metricsRoutes from './routes/metrics'
 import notesRoutes from './routes/notes'
 import provisioningRoutes from './routes/provisioning'
 import reportsRoutes from './routes/reports'
+import reportTypesRoutes from './routes/report-types'
 import settingsRoutes from './routes/settings'
 import setupRoutes from './routes/setup'
 import shiftsRoutes from './routes/shifts'
@@ -148,6 +149,8 @@ authenticated.use('/conversations/*', requireHubOrSuperAdmin)
 authenticated.use('/conversations', requireHubOrSuperAdmin)
 authenticated.use('/reports/*', requireHubOrSuperAdmin)
 authenticated.use('/reports', requireHubOrSuperAdmin)
+authenticated.use('/report-types/*', requireHubOrSuperAdmin)
+authenticated.use('/report-types', requireHubOrSuperAdmin)
 authenticated.use('/blasts/*', requireHubOrSuperAdmin)
 authenticated.use('/blasts', requireHubOrSuperAdmin)
 authenticated.use('/contacts/*', requireHubOrSuperAdmin)
@@ -164,6 +167,7 @@ authenticated.route('/conversations', conversationsRoutes)
 authenticated.route('/uploads', uploadsRoutes)
 authenticated.route('/files', filesRoutes)
 authenticated.route('/reports', reportsRoutes)
+authenticated.route('/report-types', reportTypesRoutes)
 authenticated.route('/setup', setupRoutes)
 authenticated.route('/hubs', hubRoutes)
 authenticated.route('/blasts', blastsRoutes)
@@ -181,6 +185,7 @@ hubScoped.route('/calls', callsRoutes)
 hubScoped.route('/audit', auditRoutes)
 hubScoped.route('/conversations', conversationsRoutes)
 hubScoped.route('/reports', reportsRoutes)
+hubScoped.route('/report-types', reportTypesRoutes)
 hubScoped.route('/blasts', blastsRoutes)
 hubScoped.route('/contacts', contactsRoutes)
 

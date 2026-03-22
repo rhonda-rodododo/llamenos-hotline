@@ -259,6 +259,8 @@ export interface Conversation {
   assignedTo?: string | null
   status: string
   metadata: Record<string, unknown>
+  /** FK to report_types — only set on web/report conversations */
+  reportTypeId?: string | null
   messageCount: number
   createdAt: Date
   updatedAt: Date
@@ -758,6 +760,8 @@ export interface CreateConversationData {
   assignedTo?: string
   status?: string
   metadata?: Record<string, unknown>
+  /** Optional: bind this conversation to a report type (for web/report channelType) */
+  reportTypeId?: string
 }
 
 export interface CreateMessageData {

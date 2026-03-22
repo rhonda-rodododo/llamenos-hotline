@@ -649,7 +649,26 @@
     "transcriptionEnableDesc": "Automatically transcribe your calls",
     "transcriptionManaged": "Managed by admin",
     "version": "Version",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "reportTypes": {
+      "title": "Report Types",
+      "description": "Description",
+      "empty": "No report types defined",
+      "new": "New Report Type",
+      "name": "Name",
+      "namePlaceholder": "e.g. Crisis Report",
+      "descriptionPlaceholder": "Brief description of when to use this type",
+      "fields": "Bound fields",
+      "default": "Default",
+      "setDefault": "Set as default",
+      "archive": "Archive",
+      "unarchive": "Restore",
+      "archived": "Archived",
+      "archiveConfirm": "Archive this report type? Existing reports will keep their type.",
+      "showArchived": "Show archived",
+      "hideArchived": "Hide archived",
+      "typesCount": "types"
+    }
   },
   "session": {
     "expiringWarning": "आपका सत्र समाप्त होने वाला है।",
@@ -1245,7 +1264,11 @@
     "messages": "Messages",
     "noReportsHint": "No reports yet. Create one to get started.",
     "notFound": "Report not found",
-    "updated": "Report Updated"
+    "updated": "Report Updated",
+    "type": {
+      "label": "Report Type",
+      "placeholder": "Select a report type"
+    }
   },
   "hubs": {
     "title": "Hub Management",

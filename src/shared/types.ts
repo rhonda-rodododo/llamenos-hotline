@@ -113,12 +113,42 @@ export interface CustomFieldDefinition {
   visibleToVolunteers: boolean
   editableByVolunteers: boolean
   context: CustomFieldContext // where this field appears
+  /**
+   * IDs of report types that display this field.
+   * Empty array (default) means shown for all report types when context includes 'reports'.
+   */
+  reportTypeIds?: string[]
   // File field type options
   maxFileSize?: number // bytes, for file type
   allowedMimeTypes?: string[] // e.g., ['image/*', 'application/pdf']
   maxFiles?: number // for multi-file fields (default: 1)
   order: number
   createdAt: string
+}
+
+// --- Report Types ---
+
+export interface ReportType {
+  id: string
+  hubId: string
+  name: string
+  description?: string
+  isDefault: boolean
+  archivedAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateReportTypeInput {
+  name: string
+  description?: string
+  isDefault?: boolean
+}
+
+export interface UpdateReportTypeInput {
+  name?: string
+  description?: string
+  isDefault?: boolean
 }
 
 // --- Encrypted File Upload Types ---

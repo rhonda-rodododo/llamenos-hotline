@@ -7,6 +7,7 @@ import { FilesService } from './files'
 import { GdprService } from './gdpr'
 import { IdentityService } from './identity'
 import { RecordsService } from './records'
+import { ReportTypeService } from './report-types'
 import { SettingsService } from './settings'
 import { ShiftService } from './shifts'
 
@@ -18,6 +19,7 @@ export type {
   GdprService,
   IdentityService,
   RecordsService,
+  ReportTypeService,
   SettingsService,
   ShiftService,
 }
@@ -32,6 +34,7 @@ export interface Services {
   blasts: BlastService
   files: FilesService
   gdpr: GdprService
+  reportTypes: ReportTypeService
 }
 
 export function createServices(db: Database, blob: BlobStorage | null = null): Services {
@@ -45,5 +48,6 @@ export function createServices(db: Database, blob: BlobStorage | null = null): S
     blasts: new BlastService(db),
     files: new FilesService(db, blob),
     gdpr: new GdprService(db),
+    reportTypes: new ReportTypeService(db),
   }
 }

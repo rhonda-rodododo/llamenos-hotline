@@ -1039,6 +1039,47 @@ export async function testWhatsAppConnection(data: { phoneNumberId: string; acce
   })
 }
 
+// --- Report Types ---
+
+export type { ReportType, CreateReportTypeInput, UpdateReportTypeInput } from '@shared/types'
+import type { ReportType } from '@shared/types'
+
+export async function listReportTypes() {
+  return request<{ reportTypes: ReportType[] }>(hp('/report-types'))
+}
+
+export async function createReportType(data: { name: string; description?: string; isDefault?: boolean }) {
+  return request<ReportType>(hp('/report-types'), {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateReportType(id: string, data: { name?: string; description?: string }) {
+  return request<ReportType>(hp(`/report-types/${id}`), {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function archiveReportType(id: string) {
+  return request<{ ok: boolean }>(hp(`/report-types/${id}`), {
+    method: 'DELETE',
+  })
+}
+
+export async function unarchiveReportType(id: string) {
+  return request<ReportType>(hp(`/report-types/${id}/unarchive`), {
+    method: 'POST',
+  })
+}
+
+export async function setDefaultReportType(id: string) {
+  return request<ReportType>(hp(`/report-types/${id}/default`), {
+    method: 'POST',
+  })
+}
+
 // --- Reports ---
 
 export interface Report extends Conversation {
@@ -1069,6 +1110,7 @@ export async function listReports(params?: {
 export async function createReport(data: {
   title: string
   category?: string
+  reportTypeId?: string
   encryptedContent: string
   readerEnvelopes: MessageKeyEnvelope[]
 }) {
