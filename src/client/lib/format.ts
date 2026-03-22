@@ -21,7 +21,7 @@ export function formatTimestamp(iso: string): string {
 /** Format an ISO timestamp as relative time (e.g., "5m ago", "2h ago"). */
 export function formatRelativeTime(
   iso: string,
-  t: (key: string, opts?: Record<string, unknown>) => string,
+  t: (key: string, opts?: Record<string, unknown>) => string
 ): string {
   const now = Date.now()
   const then = new Date(iso).getTime()
@@ -33,10 +33,12 @@ export function formatRelativeTime(
   if (seconds < 60) return t('conversations.justNow', { defaultValue: 'just now' })
 
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return t('conversations.minutesAgo', { count: minutes, defaultValue: '{{count}}m ago' })
+  if (minutes < 60)
+    return t('conversations.minutesAgo', { count: minutes, defaultValue: '{{count}}m ago' })
 
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return t('conversations.hoursAgo', { count: hours, defaultValue: '{{count}}h ago' })
+  if (hours < 24)
+    return t('conversations.hoursAgo', { count: hours, defaultValue: '{{count}}h ago' })
 
   const days = Math.floor(hours / 24)
   return t('conversations.daysAgo', { count: days, defaultValue: '{{count}}d ago' })

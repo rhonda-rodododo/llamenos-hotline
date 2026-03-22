@@ -1,10 +1,10 @@
+import type { SMSConfig, TelephonyProviderConfig } from '../../../shared/types'
 import type { MessagingAdapter } from '../adapter'
-import type { TelephonyProviderConfig, SMSConfig } from '../../../shared/types'
-import { TwilioSMSAdapter } from './twilio'
-import { SignalWireSMSAdapter } from './signalwire'
-import { VonageSMSAdapter } from './vonage'
-import { PlivoSMSAdapter } from './plivo'
 import { AsteriskSMSAdapter } from './asterisk'
+import { PlivoSMSAdapter } from './plivo'
+import { SignalWireSMSAdapter } from './signalwire'
+import { TwilioSMSAdapter } from './twilio'
+import { VonageSMSAdapter } from './vonage'
 
 /**
  * Create an SMS messaging adapter based on the telephony provider configuration.
@@ -18,7 +18,7 @@ import { AsteriskSMSAdapter } from './asterisk'
 export function createSMSAdapter(
   telephonyConfig: TelephonyProviderConfig,
   _smsConfig: SMSConfig,
-  hmacSecret: string,
+  hmacSecret: string
 ): MessagingAdapter {
   const phoneNumber = telephonyConfig.phoneNumber
 
@@ -31,12 +31,16 @@ export function createSMSAdapter(
         telephonyConfig.accountSid,
         telephonyConfig.authToken,
         phoneNumber,
-        hmacSecret,
+        hmacSecret
       )
     }
 
     case 'signalwire': {
-      if (!telephonyConfig.accountSid || !telephonyConfig.authToken || !telephonyConfig.signalwireSpace) {
+      if (
+        !telephonyConfig.accountSid ||
+        !telephonyConfig.authToken ||
+        !telephonyConfig.signalwireSpace
+      ) {
         throw new Error('SignalWire SMS requires accountSid, authToken, and signalwireSpace')
       }
       return new SignalWireSMSAdapter(
@@ -44,7 +48,7 @@ export function createSMSAdapter(
         telephonyConfig.authToken,
         phoneNumber,
         telephonyConfig.signalwireSpace,
-        hmacSecret,
+        hmacSecret
       )
     }
 
@@ -56,7 +60,7 @@ export function createSMSAdapter(
         telephonyConfig.apiKey,
         telephonyConfig.apiSecret,
         phoneNumber,
-        hmacSecret,
+        hmacSecret
       )
     }
 
@@ -68,7 +72,7 @@ export function createSMSAdapter(
         telephonyConfig.authId,
         telephonyConfig.authToken,
         phoneNumber,
-        hmacSecret,
+        hmacSecret
       )
     }
 
@@ -79,13 +83,13 @@ export function createSMSAdapter(
           telephonyConfig.accountSid,
           telephonyConfig.authToken,
           phoneNumber,
-          hmacSecret,
+          hmacSecret
         )
         return new AsteriskSMSAdapter(twilioDelegate)
       }
       throw new Error(
         'Asterisk requires separate SMS provider credentials. ' +
-        'Provide Twilio accountSid and authToken alongside Asterisk config for SMS support.'
+          'Provide Twilio accountSid and authToken alongside Asterisk config for SMS support.'
       )
     }
 
@@ -98,7 +102,7 @@ export function createSMSAdapter(
         telephonyConfig.accountSid,
         telephonyConfig.authToken,
         phoneNumber,
-        hmacSecret,
+        hmacSecret
       )
     }
   }

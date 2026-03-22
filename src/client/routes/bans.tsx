@@ -1,16 +1,16 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useEffect, useState } from 'react'
-import { listBans, addBan, removeBan, bulkAddBans, type BanEntry } from '@/lib/api'
-import { useToast } from '@/lib/toast'
-import { ShieldBan, Plus, Upload, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { PhoneInput, isValidE164 } from '@/components/phone-input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PhoneInput, isValidE164 } from '@/components/phone-input'
+import { type BanEntry, addBan, bulkAddBans, listBans, removeBan } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { useToast } from '@/lib/toast'
+import { createFileRoute } from '@tanstack/react-router'
+import { Plus, ShieldBan, Trash2, Upload } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/bans')({
   component: BansPage,
@@ -27,7 +27,7 @@ function BansPage() {
 
   useEffect(() => {
     listBans()
-      .then(r => setBans(r.bans))
+      .then((r) => setBans(r.bans))
       .catch(() => toast(t('common.error'), 'error'))
       .finally(() => setLoading(false))
   }, [])
@@ -44,7 +44,11 @@ function BansPage() {
           <h1 className="text-xl font-bold sm:text-2xl">{t('banList.title')}</h1>
         </div>
         <div className="flex gap-2">
-          <Button data-testid="ban-import-btn" variant="outline" onClick={() => setShowBulk(!showBulk)}>
+          <Button
+            data-testid="ban-import-btn"
+            variant="outline"
+            onClick={() => setShowBulk(!showBulk)}
+          >
             <Upload className="h-4 w-4" />
             {t('banList.bulkImport')}
           </Button>
@@ -58,7 +62,7 @@ function BansPage() {
       {showAdd && (
         <AddBanForm
           onAdded={(ban) => {
-            setBans(prev => [ban, ...prev])
+            setBans((prev) => [ban, ...prev])
             setShowAdd(false)
           }}
           onCancel={() => setShowAdd(false)}
@@ -68,7 +72,7 @@ function BansPage() {
       {showBulk && (
         <BulkImportForm
           onImported={() => {
-            listBans().then(r => setBans(r.bans))
+            listBans().then((r) => setBans(r.bans))
             setShowBulk(false)
           }}
           onCancel={() => setShowBulk(false)}
@@ -95,11 +99,11 @@ function BansPage() {
             </div>
           ) : (
             <div data-testid="ban-list" className="divide-y divide-border">
-              {bans.map(ban => (
+              {bans.map((ban) => (
                 <BanRow
                   key={ban.phone}
                   ban={ban}
-                  onRemoved={() => setBans(prev => prev.filter(b => b.phone !== ban.phone))}
+                  onRemoved={() => setBans((prev) => prev.filter((b) => b.phone !== ban.phone))}
                 />
               ))}
             </div>
@@ -110,7 +114,10 @@ function BansPage() {
   )
 }
 
-function AddBanForm({ onAdded, onCancel }: {
+function AddBanForm({
+  onAdded,
+  onCancel,
+}: {
   onAdded: (ban: BanEntry) => void
   onCancel: () => void
 }) {
@@ -151,19 +158,14 @@ function AddBanForm({ onAdded, onCancel }: {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="ban-phone">{t('banList.phoneNumber')}</Label>
-              <PhoneInput
-                id="ban-phone"
-                value={phone}
-                onChange={setPhone}
-                required
-              />
+              <PhoneInput id="ban-phone" value={phone} onChange={setPhone} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="ban-reason">{t('banList.reason')}</Label>
               <Input
                 id="ban-reason"
                 value={reason}
-                onChange={e => setReason(e.target.value)}
+                onChange={(e) => setReason(e.target.value)}
                 required
               />
             </div>
@@ -172,7 +174,12 @@ function AddBanForm({ onAdded, onCancel }: {
             <Button data-testid="form-save-btn" type="submit" disabled={saving}>
               {saving ? t('common.loading') : t('common.save')}
             </Button>
-            <Button data-testid="form-cancel-btn" type="button" variant="outline" onClick={onCancel}>
+            <Button
+              data-testid="form-cancel-btn"
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+            >
               {t('common.cancel')}
             </Button>
           </div>
@@ -182,7 +189,10 @@ function AddBanForm({ onAdded, onCancel }: {
   )
 }
 
-function BanRow({ ban, onRemoved }: {
+function BanRow({
+  ban,
+  onRemoved,
+}: {
   ban: BanEntry
   onRemoved: () => void
 }) {
@@ -191,7 +201,10 @@ function BanRow({ ban, onRemoved }: {
   const [showConfirm, setShowConfirm] = useState(false)
 
   return (
-    <div data-testid={`ban-row-${ban.phone.replace(/\+/g, '')}`} className="flex flex-wrap items-center gap-4 px-4 py-3 sm:px-6">
+    <div
+      data-testid={`ban-row-${ban.phone.replace(/\+/g, '')}`}
+      className="flex flex-wrap items-center gap-4 px-4 py-3 sm:px-6"
+    >
       <code className="text-xs font-mono">{ban.phone}</code>
       <span className="flex-1 text-sm text-muted-foreground">{ban.reason}</span>
       <span className="text-xs text-muted-foreground">
@@ -227,7 +240,10 @@ function BanRow({ ban, onRemoved }: {
   )
 }
 
-function BulkImportForm({ onImported, onCancel }: {
+function BulkImportForm({
+  onImported,
+  onCancel,
+}: {
   onImported: (count: number) => void
   onCancel: () => void
 }) {
@@ -241,8 +257,11 @@ function BulkImportForm({ onImported, onCancel }: {
     e.preventDefault()
     setSaving(true)
     try {
-      const phones = text.split('\n').map(l => l.trim()).filter(Boolean)
-      const invalid = phones.filter(p => !/^\+\d{7,15}$/.test(p))
+      const phones = text
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+      const invalid = phones.filter((p) => !/^\+\d{7,15}$/.test(p))
       if (invalid.length > 0) {
         toast(`${t('volunteers.invalidPhone')}: ${invalid[0]}`, 'error')
         setSaving(false)
@@ -273,7 +292,7 @@ function BulkImportForm({ onImported, onCancel }: {
             <textarea
               data-testid="ban-bulk-phones"
               value={text}
-              onChange={e => setText(e.target.value)}
+              onChange={(e) => setText(e.target.value)}
               rows={6}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               required
@@ -284,7 +303,7 @@ function BulkImportForm({ onImported, onCancel }: {
             <Input
               id="bulk-reason"
               value={reason}
-              onChange={e => setReason(e.target.value)}
+              onChange={(e) => setReason(e.target.value)}
               required
             />
           </div>
@@ -292,7 +311,12 @@ function BulkImportForm({ onImported, onCancel }: {
             <Button data-testid="form-submit-btn" type="submit" disabled={saving}>
               {saving ? t('common.loading') : t('common.submit')}
             </Button>
-            <Button data-testid="form-cancel-btn" type="button" variant="outline" onClick={onCancel}>
+            <Button
+              data-testid="form-cancel-btn"
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+            >
               {t('common.cancel')}
             </Button>
           </div>

@@ -24,7 +24,8 @@ export class SignalWireAdapter extends TwilioAdapter {
   override async validateWebhook(request: Request): Promise<boolean> {
     // SignalWire uses the same X-Twilio-Signature HMAC-SHA1 validation as Twilio
     // but may send X-SignalWire-Signature header instead
-    const signature = request.headers.get('X-SignalWire-Signature') || request.headers.get('X-Twilio-Signature')
+    const signature =
+      request.headers.get('X-SignalWire-Signature') || request.headers.get('X-Twilio-Signature')
     if (!signature) return false
 
     const url = new URL(request.url)

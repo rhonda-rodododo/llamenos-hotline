@@ -22,10 +22,7 @@ export class TwilioWhatsAppClient {
   /**
    * Send a plain text message via Twilio WhatsApp.
    */
-  async sendTextMessage(
-    to: string,
-    body: string,
-  ): Promise<TwilioSendMessageResponse> {
+  async sendTextMessage(to: string, body: string): Promise<TwilioSendMessageResponse> {
     const params = new URLSearchParams({
       From: `whatsapp:+${this.whatsappNumber.replace(/^\+/, '')}`,
       To: `whatsapp:+${to.replace(/^\+/, '')}`,
@@ -43,7 +40,7 @@ export class TwilioWhatsAppClient {
     to: string,
     mediaUrl: string,
     _mediaType: string,
-    caption?: string,
+    caption?: string
   ): Promise<TwilioSendMessageResponse> {
     const params = new URLSearchParams({
       From: `whatsapp:+${this.whatsappNumber.replace(/^\+/, '')}`,
@@ -83,7 +80,7 @@ export class TwilioWhatsAppClient {
       encoder.encode(this.authToken),
       { name: 'HMAC', hash: 'SHA-1' },
       false,
-      ['sign'],
+      ['sign']
     )
     const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(dataString))
     const expected = btoa(String.fromCharCode(...new Uint8Array(sig)))
@@ -104,40 +101,35 @@ export class TwilioWhatsAppClient {
    */
   async checkHealth(): Promise<{ ok: boolean; error?: string }> {
     try {
-      const res = await fetch(
-        `${TWILIO_API_BASE}/${this.accountSid}.json`,
-        {
-          headers: {
-            Authorization: 'Basic ' + btoa(`${this.accountSid}:${this.authToken}`),
-          },
+      const res = await fetch(`${TWILIO_API_BASE}/${this.accountSid}.json`, {
+        headers: {
+          Authorization: `Basic ${btoa(`${this.accountSid}:${this.authToken}`)}`,
         },
-      )
+      })
       if (res.ok) {
         return { ok: true }
       }
       const body = await res.text()
       return { ok: false, error: `Twilio API returned ${res.status}: ${body}` }
     } catch (err) {
-      return { ok: false, error: `Twilio API unreachable: ${err instanceof Error ? err.message : String(err)}` }
+      return {
+        ok: false,
+        error: `Twilio API unreachable: ${err instanceof Error ? err.message : String(err)}`,
+      }
     }
   }
 
   // --- Private helpers ---
 
-  private async postMessage(
-    params: URLSearchParams,
-  ): Promise<TwilioSendMessageResponse> {
-    const res = await fetch(
-      `${TWILIO_API_BASE}/${this.accountSid}/Messages.json`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Basic ' + btoa(`${this.accountSid}:${this.authToken}`),
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params,
+  private async postMessage(params: URLSearchParams): Promise<TwilioSendMessageResponse> {
+    const res = await fetch(`${TWILIO_API_BASE}/${this.accountSid}/Messages.json`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${btoa(`${this.accountSid}:${this.authToken}`)}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-    )
+      body: params,
+    })
 
     if (!res.ok) {
       const errorBody = await res.text()

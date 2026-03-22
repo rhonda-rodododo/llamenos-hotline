@@ -1,24 +1,33 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState, useEffect, useRef } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useConfig } from '@/lib/config'
-import { useTheme } from '@/lib/theme'
-import {
-  createProvisioningRoom,
-  pollProvisioningRoom,
-  decryptProvisionedNsec,
-  computeSASForNewDevice,
-  type ProvisioningSession,
-} from '@/lib/provisioning'
-import * as keyManager from '@/lib/key-manager'
-import { hasStoredKey } from '@/lib/key-store'
-import { LogoMark } from '@/components/logo-mark'
 import { LanguageSelect } from '@/components/language-select'
+import { LogoMark } from '@/components/logo-mark'
 import { PinInput } from '@/components/pin-input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Smartphone, Loader2, CheckCircle2, XCircle, ShieldCheck, Sun, Moon, Monitor } from 'lucide-react'
+import { useConfig } from '@/lib/config'
+import * as keyManager from '@/lib/key-manager'
+import { hasStoredKey } from '@/lib/key-store'
+import {
+  type ProvisioningSession,
+  computeSASForNewDevice,
+  createProvisioningRoom,
+  decryptProvisionedNsec,
+  pollProvisioningRoom,
+} from '@/lib/provisioning'
+import { useTheme } from '@/lib/theme'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import {
+  CheckCircle2,
+  Loader2,
+  Monitor,
+  Moon,
+  ShieldCheck,
+  Smartphone,
+  Sun,
+  XCircle,
+} from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/link-device')({
   component: LinkDevicePage,
@@ -35,7 +44,10 @@ function LinkDevicePage() {
   const [session, setSession] = useState<ProvisioningSession | null>(null)
   const [error, setError] = useState('')
   const [sasCode, setSasCode] = useState('')
-  const [encryptedNsecData, setEncryptedNsecData] = useState<{ encryptedNsec: string; primaryPubkey: string } | null>(null)
+  const [encryptedNsecData, setEncryptedNsecData] = useState<{
+    encryptedNsec: string
+    primaryPubkey: string
+  } | null>(null)
   const [nsec, setNsec] = useState('')
   const [pin1, setPin1] = useState('')
   const [pin2, setPin2] = useState('')
@@ -65,7 +77,10 @@ function LinkDevicePage() {
             // Compute SAS for verification before decrypting
             const sas = computeSASForNewDevice(s.ephemeralSecret, status.primaryPubkey)
             setSasCode(sas)
-            setEncryptedNsecData({ encryptedNsec: status.encryptedNsec, primaryPubkey: status.primaryPubkey })
+            setEncryptedNsecData({
+              encryptedNsec: status.encryptedNsec,
+              primaryPubkey: status.primaryPubkey,
+            })
             setStep('verify-sas')
           } else if (status.status === 'expired') {
             clearInterval(pollRef.current!)
@@ -96,7 +111,7 @@ function LinkDevicePage() {
       const decryptedNsec = decryptProvisionedNsec(
         encryptedNsecData.encryptedNsec,
         encryptedNsecData.primaryPubkey,
-        session.ephemeralSecret,
+        session.ephemeralSecret
       )
       setNsec(decryptedNsec)
       setEncryptedNsecData(null)
@@ -154,7 +169,12 @@ function LinkDevicePage() {
           <Button variant="ghost" size="icon" onClick={() => setTheme('dark')} aria-label="Dark">
             <Moon className={`h-4 w-4 ${theme === 'dark' ? 'text-primary' : ''}`} />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => setTheme('system')} aria-label="System">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme('system')}
+            aria-label="System"
+          >
             <Monitor className={`h-4 w-4 ${theme === 'system' ? 'text-primary' : ''}`} />
           </Button>
         </div>
@@ -197,16 +217,24 @@ function LinkDevicePage() {
               <CardDescription>{t('deviceLink.scanFromPrimary')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex justify-center rounded-lg bg-white p-4" data-testid="provisioning-qr">
+              <div
+                className="flex justify-center rounded-lg bg-white p-4"
+                data-testid="provisioning-qr"
+              >
                 <QRCodeSVG value={qrData} size={200} level="M" />
               </div>
               <div className="text-center">
                 <p className="text-xs text-muted-foreground">{t('deviceLink.orEnterCode')}</p>
-                <code className="mt-1 block text-xl font-mono font-bold tracking-widest" data-testid="short-code">
+                <code
+                  className="mt-1 block text-xl font-mono font-bold tracking-widest"
+                  data-testid="short-code"
+                >
                   {shortCode}
                 </code>
               </div>
-              <p className="text-xs text-center text-muted-foreground">{t('deviceLink.expiresIn5')}</p>
+              <p className="text-xs text-center text-muted-foreground">
+                {t('deviceLink.expiresIn5')}
+              </p>
             </CardContent>
           </>
         )}
@@ -221,17 +249,27 @@ function LinkDevicePage() {
               <CardDescription>{t('deviceLink.verifySASDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-lg border-2 border-primary/20 bg-primary/5 p-6 text-center" data-testid="sas-code">
+              <div
+                className="rounded-lg border-2 border-primary/20 bg-primary/5 p-6 text-center"
+                data-testid="sas-code"
+              >
                 <p className="text-xs text-muted-foreground mb-2">{t('deviceLink.securityCode')}</p>
                 <p className="text-4xl font-mono font-bold tracking-[0.3em]">{sasCode}</p>
               </div>
-              <p className="text-sm text-muted-foreground text-center">{t('deviceLink.compareCodes')}</p>
+              <p className="text-sm text-muted-foreground text-center">
+                {t('deviceLink.compareCodes')}
+              </p>
               <div className="flex gap-2">
                 <Button onClick={handleSASConfirm} className="flex-1" data-testid="sas-match">
                   <CheckCircle2 className="h-4 w-4 mr-1" />
                   {t('deviceLink.codesMatch')}
                 </Button>
-                <Button onClick={handleSASMismatch} variant="destructive" className="flex-1" data-testid="sas-mismatch">
+                <Button
+                  onClick={handleSASMismatch}
+                  variant="destructive"
+                  className="flex-1"
+                  data-testid="sas-mismatch"
+                >
                   <XCircle className="h-4 w-4 mr-1" />
                   {t('deviceLink.codesDontMatch')}
                 </Button>
@@ -304,7 +342,13 @@ function LinkDevicePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-destructive">{error}</p>
-              <Button onClick={() => { setStep('init'); setError('') }} className="w-full">
+              <Button
+                onClick={() => {
+                  setStep('init')
+                  setError('')
+                }}
+                className="w-full"
+              >
                 {t('common.retry')}
               </Button>
               <Button variant="ghost" className="w-full" onClick={() => navigate({ to: '/login' })}>

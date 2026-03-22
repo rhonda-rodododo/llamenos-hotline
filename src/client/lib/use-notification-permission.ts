@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { setNotificationPrefs } from './notifications'
 
 type PermissionState = 'granted' | 'denied' | 'default' | 'unsupported'
@@ -17,21 +17,24 @@ export function useNotificationPermission() {
     // Try the Permissions API with onchange for live updates
     let permStatus: PermissionStatus | null = null
 
-    navigator.permissions?.query({ name: 'notifications' }).then(status => {
-      permStatus = status
-      setPermission(status.state === 'prompt' ? 'default' : status.state as PermissionState)
+    navigator.permissions
+      ?.query({ name: 'notifications' })
+      .then((status) => {
+        permStatus = status
+        setPermission(status.state === 'prompt' ? 'default' : (status.state as PermissionState))
 
-      status.onchange = () => {
-        setPermission(status.state === 'prompt' ? 'default' : status.state as PermissionState)
-      }
-    }).catch(() => {
-      // Permissions API not available — fall back to polling
-    })
+        status.onchange = () => {
+          setPermission(status.state === 'prompt' ? 'default' : (status.state as PermissionState))
+        }
+      })
+      .catch(() => {
+        // Permissions API not available — fall back to polling
+      })
 
     // Fallback: poll Notification.permission every 2s
     const interval = setInterval(() => {
       const current = Notification.permission as PermissionState
-      setPermission(prev => prev !== current ? current : prev)
+      setPermission((prev) => (prev !== current ? current : prev))
     }, 2000)
 
     return () => {

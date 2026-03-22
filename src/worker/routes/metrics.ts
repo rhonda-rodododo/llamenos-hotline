@@ -22,15 +22,23 @@ const startTime = Date.now()
 /** Increment a counter metric */
 export function incCounter(name: string, labels?: Record<string, string>): void {
   const key = labels
-    ? `${name}{${Object.entries(labels).map(([k, v]) => `${k}="${v}"`).join(',')}}`
+    ? `${name}{${Object.entries(labels)
+        .map(([k, v]) => `${k}="${v}"`)
+        .join(',')}}`
     : name
   counters[key] = (counters[key] || 0) + 1
 }
 
 /** Record a histogram observation (in seconds) */
-export function observeHistogram(name: string, value: number, labels?: Record<string, string>): void {
+export function observeHistogram(
+  name: string,
+  value: number,
+  labels?: Record<string, string>
+): void {
   const key = labels
-    ? `${name}{${Object.entries(labels).map(([k, v]) => `${k}="${v}"`).join(',')}}`
+    ? `${name}{${Object.entries(labels)
+        .map(([k, v]) => `${k}="${v}"`)
+        .join(',')}}`
     : name
   if (!histograms[key]) histograms[key] = []
   histograms[key].push(value)
@@ -49,7 +57,7 @@ function formatMetrics(): string {
   // Counters
   for (const [key, value] of Object.entries(counters)) {
     const name = key.split('{')[0]
-    if (!lines.some(l => l.includes(`# TYPE ${name}`))) {
+    if (!lines.some((l) => l.includes(`# TYPE ${name}`))) {
       lines.push(`# TYPE ${name} counter`)
     }
     lines.push(`${key} ${value}`)
@@ -70,7 +78,7 @@ function formatMetrics(): string {
     lines.push(`${name}_sum${labelPart} ${sum.toFixed(6)}`)
   }
 
-  return lines.join('\n') + '\n'
+  return `${lines.join('\n')}\n`
 }
 
 metrics.get('/', (c) => {

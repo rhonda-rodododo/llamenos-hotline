@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
-import type { AppEnv } from '../types'
 import { getScopedDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
+import type { AppEnv } from '../types'
 
 const contacts = new Hono<AppEnv>()
 contacts.use('*', requirePermission('contacts:view'))
@@ -17,7 +17,7 @@ contacts.get('/', async (c) => {
   const notesRes = await dos.records.fetch(new Request(`http://do/contacts?${params}`))
   if (!notesRes.ok) return notesRes
 
-  const { contacts: noteContacts, total } = await notesRes.json() as {
+  const { contacts: noteContacts, total } = (await notesRes.json()) as {
     contacts: { contactHash: string; firstSeen: string; lastSeen: string; noteCount: number }[]
     total: number
   }
@@ -25,14 +25,34 @@ contacts.get('/', async (c) => {
   // Enrich with conversation data from ConversationDO
   const convRes = await dos.conversations.fetch(new Request('http://do/contacts'))
   const convData = convRes.ok
-    ? await convRes.json() as { contacts: Record<string, { last4?: string; conversationCount: number; reportCount: number; firstSeen: string; lastSeen: string }> }
+    ? ((await convRes.json()) as {
+        contacts: Record<
+          string,
+          {
+            last4?: string
+            conversationCount: number
+            reportCount: number
+            firstSeen: string
+            lastSeen: string
+          }
+        >
+      })
     : { contacts: {} }
 
   // Merge data
-  const merged = new Map<string, {
-    contactHash: string; last4?: string; firstSeen: string; lastSeen: string
-    callCount: number; conversationCount: number; noteCount: number; reportCount: number
-  }>()
+  const merged = new Map<
+    string,
+    {
+      contactHash: string
+      last4?: string
+      firstSeen: string
+      lastSeen: string
+      callCount: number
+      conversationCount: number
+      noteCount: number
+      reportCount: number
+    }
+  >()
 
   for (const nc of noteContacts) {
     merged.set(nc.contactHash, {
@@ -68,8 +88,9 @@ contacts.get('/', async (c) => {
     }
   }
 
-  const contactsList = Array.from(merged.values())
-    .sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())
+  const contactsList = Array.from(merged.values()).sort(
+    (a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
+  )
 
   return c.json({ contacts: contactsList, total: Math.max(total, contactsList.length) })
 })
@@ -85,12 +106,10 @@ contacts.get('/:hash', async (c) => {
     dos.conversations.fetch(new Request(`http://do/contacts/${hash}`)),
   ])
 
-  const notes = notesRes.ok
-    ? (await notesRes.json() as { notes: unknown[] }).notes
-    : []
+  const notes = notesRes.ok ? ((await notesRes.json()) as { notes: unknown[] }).notes : []
 
   const conversations = convsRes.ok
-    ? (await convsRes.json() as { conversations: unknown[] }).conversations
+    ? ((await convsRes.json()) as { conversations: unknown[] }).conversations
     : []
 
   return c.json({ notes, conversations })

@@ -136,8 +136,8 @@ export interface Role {
   name: string
   slug: string
   permissions: string[]
-  isDefault: boolean   // ships with system
-  isSystem: boolean    // can't be modified at all (super-admin)
+  isDefault: boolean // ships with system
+  isSystem: boolean // can't be modified at all (super-admin)
   description: string
   createdAt: string
   updatedAt: string
@@ -160,10 +160,23 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     name: 'Hub Admin',
     slug: 'hub-admin',
     permissions: [
-      'volunteers:*', 'shifts:*', 'settings:*', 'audit:read',
-      'bans:*', 'invites:*', 'notes:read-all', 'notes:create', 'notes:update-own', 'notes:reply',
-      'reports:*', 'conversations:*', 'calls:*', 'blasts:*', 'files:*',
-      'contacts:view', 'contacts:view-history',
+      'volunteers:*',
+      'shifts:*',
+      'settings:*',
+      'audit:read',
+      'bans:*',
+      'invites:*',
+      'notes:read-all',
+      'notes:create',
+      'notes:update-own',
+      'notes:reply',
+      'reports:*',
+      'conversations:*',
+      'calls:*',
+      'blasts:*',
+      'files:*',
+      'contacts:view',
+      'contacts:view-history',
     ],
     isDefault: true,
     isSystem: false,
@@ -174,10 +187,17 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     name: 'Reviewer',
     slug: 'reviewer',
     permissions: [
-      'notes:read-assigned', 'notes:reply', 'reports:read-assigned', 'reports:assign',
-      'reports:update', 'reports:send-message',
-      'conversations:read-assigned', 'conversations:send',
-      'shifts:read-own', 'files:download-own', 'files:upload',
+      'notes:read-assigned',
+      'notes:reply',
+      'reports:read-assigned',
+      'reports:assign',
+      'reports:update',
+      'reports:send-message',
+      'conversations:read-assigned',
+      'conversations:send',
+      'shifts:read-own',
+      'files:download-own',
+      'files:upload',
     ],
     isDefault: true,
     isSystem: false,
@@ -188,14 +208,26 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     name: 'Volunteer',
     slug: 'volunteer',
     permissions: [
-      'calls:answer', 'calls:read-active',
-      'notes:create', 'notes:read-own', 'notes:update-own', 'notes:reply',
-      'conversations:claim', 'conversations:send', 'conversations:read-assigned',
-      'conversations:claim-sms', 'conversations:claim-whatsapp',
-      'conversations:claim-signal', 'conversations:claim-rcs', 'conversations:claim-web',
-      'shifts:read-own', 'bans:report',
-      'reports:read-assigned', 'reports:send-message',
-      'files:upload', 'files:download-own',
+      'calls:answer',
+      'calls:read-active',
+      'notes:create',
+      'notes:read-own',
+      'notes:update-own',
+      'notes:reply',
+      'conversations:claim',
+      'conversations:send',
+      'conversations:read-assigned',
+      'conversations:claim-sms',
+      'conversations:claim-whatsapp',
+      'conversations:claim-signal',
+      'conversations:claim-rcs',
+      'conversations:claim-web',
+      'shifts:read-own',
+      'bans:report',
+      'reports:read-assigned',
+      'reports:send-message',
+      'files:upload',
+      'files:download-own',
     ],
     isDefault: true,
     isSystem: false,
@@ -206,8 +238,11 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     name: 'Reporter',
     slug: 'reporter',
     permissions: [
-      'reports:create', 'reports:read-own', 'reports:send-message-own',
-      'files:upload', 'files:download-own',
+      'reports:create',
+      'reports:read-own',
+      'reports:send-message-own',
+      'files:upload',
+      'files:download-own',
     ],
     isDefault: true,
     isSystem: false,
@@ -239,7 +274,7 @@ export function permissionGranted(grantedPermissions: string[], required: string
 export function resolvePermissions(roleIds: string[], roles: Role[]): string[] {
   const perms = new Set<string>()
   for (const roleId of roleIds) {
-    const role = roles.find(r => r.id === roleId)
+    const role = roles.find((r) => r.id === roleId)
     if (role) {
       for (const p of role.permissions) perms.add(p)
     }
@@ -269,7 +304,7 @@ const ROLE_PRIORITY: Record<string, number> = {
 
 export function getPrimaryRole(roleIds: string[], roles: Role[]): Role | undefined {
   const userRoles = roleIds
-    .map(id => roles.find(r => r.id === id))
+    .map((id) => roles.find((r) => r.id === id))
     .filter((r): r is Role => !!r)
     .sort((a, b) => {
       const pa = ROLE_PRIORITY[a.id] ?? 99
@@ -291,14 +326,14 @@ export function hasHubPermission(
   hubRoles: { hubId: string; roleIds: string[] }[],
   allRoleDefs: Role[],
   hubId: string,
-  permission: string,
+  permission: string
 ): boolean {
   // Super-admin bypasses all hub checks
   const globalPerms = resolvePermissions(globalRoles, allRoleDefs)
   if (permissionGranted(globalPerms, permission)) return true
 
   // Check hub-specific roles
-  const assignment = hubRoles.find(hr => hr.hubId === hubId)
+  const assignment = hubRoles.find((hr) => hr.hubId === hubId)
   if (!assignment) return false
 
   const hubPerms = resolvePermissions(assignment.roleIds, allRoleDefs)
@@ -313,7 +348,7 @@ export function resolveHubPermissions(
   globalRoles: string[],
   hubRoles: { hubId: string; roleIds: string[] }[],
   allRoleDefs: Role[],
-  hubId: string,
+  hubId: string
 ): string[] {
   const perms = new Set<string>()
   // Global permissions always apply
@@ -321,7 +356,7 @@ export function resolveHubPermissions(
     perms.add(p)
   }
   // Hub-specific permissions
-  const assignment = hubRoles.find(hr => hr.hubId === hubId)
+  const assignment = hubRoles.find((hr) => hr.hubId === hubId)
   if (assignment) {
     for (const p of resolvePermissions(assignment.roleIds, allRoleDefs)) {
       perms.add(p)
@@ -337,11 +372,11 @@ export function resolveHubPermissions(
 export function getUserHubIds(
   globalRoles: string[],
   hubRoles: { hubId: string; roleIds: string[] }[],
-  allRoleDefs: Role[],
+  allRoleDefs: Role[]
 ): string[] | null {
   const globalPerms = resolvePermissions(globalRoles, allRoleDefs)
   if (permissionGranted(globalPerms, '*')) return null // all hubs
-  return hubRoles.map(hr => hr.hubId)
+  return hubRoles.map((hr) => hr.hubId)
 }
 
 // --- Channel Permission Helpers ---

@@ -67,7 +67,12 @@ export interface TelephonyAdapter {
    * Generate hold music / wait message for callers in queue.
    * When queueTime exceeds threshold, returns <Leave/> to trigger voicemail.
    */
-  handleWaitMusic(lang: string, audioUrls?: AudioUrlMap, queueTime?: number, queueTimeout?: number): Promise<TelephonyResponse>
+  handleWaitMusic(
+    lang: string,
+    audioUrls?: AudioUrlMap,
+    queueTime?: number,
+    queueTimeout?: number
+  ): Promise<TelephonyResponse>
 
   /**
    * Reject a banned/blocked caller.

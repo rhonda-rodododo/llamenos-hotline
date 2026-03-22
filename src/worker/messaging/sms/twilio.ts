@@ -1,15 +1,15 @@
-import type {
-  MessagingAdapter,
-  IncomingMessage,
-  SendMessageParams,
-  SendMediaParams,
-  SendResult,
-  ChannelStatus,
-  MessageStatusUpdate,
-} from '../adapter'
-import type { MessageDeliveryStatus } from '../../types'
 import type { MessagingChannelType } from '../../../shared/types'
 import { hashPhone } from '../../lib/crypto'
+import type { MessageDeliveryStatus } from '../../types'
+import type {
+  ChannelStatus,
+  IncomingMessage,
+  MessageStatusUpdate,
+  MessagingAdapter,
+  SendMediaParams,
+  SendMessageParams,
+  SendResult,
+} from '../adapter'
 
 /**
  * TwilioSMSAdapter -- Twilio SMS implementation of MessagingAdapter.
@@ -37,7 +37,7 @@ export class TwilioSMSAdapter implements MessagingAdapter {
     const from = (form.get('From') as string) || ''
     const body = (form.get('Body') as string) || undefined
     const messageSid = (form.get('MessageSid') as string) || ''
-    const numMedia = parseInt((form.get('NumMedia') as string) || '0', 10)
+    const numMedia = Number.parseInt((form.get('NumMedia') as string) || '0', 10)
 
     const mediaUrls: string[] = []
     const mediaTypes: string[] = []
@@ -109,11 +109,11 @@ export class TwilioSMSAdapter implements MessagingAdapter {
 
     const res = await this.twilioMessagesApi(body)
     if (res.ok) {
-      const data = await res.json() as { sid: string }
+      const data = (await res.json()) as { sid: string }
       return { success: true, externalId: data.sid }
     }
 
-    const errorData = await res.json().catch(() => null) as { message?: string } | null
+    const errorData = (await res.json().catch(() => null)) as { message?: string } | null
     return {
       success: false,
       error: errorData?.message ?? `Twilio SMS API returned ${res.status}`,
@@ -130,11 +130,11 @@ export class TwilioSMSAdapter implements MessagingAdapter {
 
     const res = await this.twilioMessagesApi(body)
     if (res.ok) {
-      const data = await res.json() as { sid: string }
+      const data = (await res.json()) as { sid: string }
       return { success: true, externalId: data.sid }
     }
 
-    const errorData = await res.json().catch(() => null) as { message?: string } | null
+    const errorData = (await res.json().catch(() => null)) as { message?: string } | null
     return {
       success: false,
       error: errorData?.message ?? `Twilio SMS API returned ${res.status}`,
@@ -143,18 +143,15 @@ export class TwilioSMSAdapter implements MessagingAdapter {
 
   async getChannelStatus(): Promise<ChannelStatus> {
     try {
-      const res = await fetch(
-        `${this.getApiBaseUrl()}.json`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': 'Basic ' + btoa(`${this.accountSid}:${this.authToken}`),
-          },
-        }
-      )
+      const res = await fetch(`${this.getApiBaseUrl()}.json`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Basic ${btoa(`${this.accountSid}:${this.authToken}`)}`,
+        },
+      })
 
       if (res.ok) {
-        const data = await res.json() as { status?: string; friendly_name?: string }
+        const data = (await res.json()) as { status?: string; friendly_name?: string }
         return {
           connected: true,
           details: {
@@ -183,15 +180,12 @@ export class TwilioSMSAdapter implements MessagingAdapter {
    * Delete a message from Twilio logs (for provider-side cleanup).
    */
   async deleteMessage(messageSid: string): Promise<void> {
-    await fetch(
-      `${this.getApiBaseUrl()}/Messages/${messageSid}.json`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Authorization': 'Basic ' + btoa(`${this.accountSid}:${this.authToken}`),
-        },
-      }
-    )
+    await fetch(`${this.getApiBaseUrl()}/Messages/${messageSid}.json`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Basic ${btoa(`${this.accountSid}:${this.authToken}`)}`,
+      },
+    })
   }
 
   /**
@@ -214,12 +208,12 @@ export class TwilioSMSAdapter implements MessagingAdapter {
 
       // Map Twilio status to our normalized status
       const statusMap: Record<string, MessageDeliveryStatus> = {
-        'queued': 'pending',
-        'sending': 'pending',
-        'sent': 'sent',
-        'delivered': 'delivered',
-        'undelivered': 'failed',
-        'failed': 'failed',
+        queued: 'pending',
+        sending: 'pending',
+        sent: 'sent',
+        delivered: 'delivered',
+        undelivered: 'failed',
+        failed: 'failed',
       }
 
       const status = statusMap[messageStatus.toLowerCase()]
@@ -231,9 +225,10 @@ export class TwilioSMSAdapter implements MessagingAdapter {
         externalId: messageSid,
         status,
         timestamp: new Date().toISOString(),
-        failureReason: status === 'failed' && (errorMessage || errorCode)
-          ? `${errorCode || 'ERR'}: ${errorMessage || 'Message delivery failed'}`
-          : undefined,
+        failureReason:
+          status === 'failed' && (errorMessage || errorCode)
+            ? `${errorCode || 'ERR'}: ${errorMessage || 'Message delivery failed'}`
+            : undefined,
       }
     } catch {
       return null
@@ -247,16 +242,13 @@ export class TwilioSMSAdapter implements MessagingAdapter {
   }
 
   protected async twilioMessagesApi(body: URLSearchParams): Promise<Response> {
-    return fetch(
-      `${this.getApiBaseUrl()}/Messages.json`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Basic ' + btoa(`${this.accountSid}:${this.authToken}`),
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body,
-      }
-    )
+    return fetch(`${this.getApiBaseUrl()}/Messages.json`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${btoa(`${this.accountSid}:${this.authToken}`)}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body,
+    })
   }
 }

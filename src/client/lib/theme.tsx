@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { type ReactNode, createContext, useCallback, useContext, useEffect, useState } from 'react'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -27,7 +27,7 @@ function applyTheme(resolved: 'light' | 'dark') {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
-    return (stored === 'light' || stored === 'dark' || stored === 'system') ? stored : 'system'
+    return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system'
   })
 
   const resolvedTheme = theme === 'system' ? getSystemTheme() : theme

@@ -1,20 +1,50 @@
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useEffect, useState, useCallback, useMemo } from 'react'
-import { listNotes, createNote, updateNote, getCallHistory, listVolunteers, getCustomFields, type EncryptedNote, type CallRecord, type CustomFieldDefinition, type Volunteer } from '@/lib/api'
-import { encryptNoteV2, decryptNoteV2, decryptNote, decryptTranscription, decryptCallRecord, encryptExport } from '@/lib/crypto'
-import * as keyManager from '@/lib/key-manager'
-import { useToast } from '@/lib/toast'
-import type { NotePayload } from '@shared/types'
-import { StickyNote, Plus, Pencil, Lock, Mic, Save, X, Search, ChevronLeft, ChevronRight, Download } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { NewNoteForm } from '@/components/notes/new-note-form'
 import { NoteEditForm } from '@/components/notes/note-edit-form'
 import { RecordingPlayer } from '@/components/recording-player'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import {
+  type CallRecord,
+  type CustomFieldDefinition,
+  type EncryptedNote,
+  type Volunteer,
+  createNote,
+  getCallHistory,
+  getCustomFields,
+  listNotes,
+  listVolunteers,
+  updateNote,
+} from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import {
+  decryptCallRecord,
+  decryptNote,
+  decryptNoteV2,
+  decryptTranscription,
+  encryptExport,
+  encryptNoteV2,
+} from '@/lib/crypto'
+import * as keyManager from '@/lib/key-manager'
+import { useToast } from '@/lib/toast'
+import type { NotePayload } from '@shared/types'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Lock,
+  Mic,
+  Pencil,
+  Plus,
+  Save,
+  Search,
+  StickyNote,
+  X,
+} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 type NotesSearch = { page: number; callId: string; search: string }
 
@@ -52,10 +82,16 @@ function NotesPage() {
   const limit = 50
 
   useEffect(() => {
-    getCustomFields().then(r => setCustomFields(r.fields)).catch(() => {})
+    getCustomFields()
+      .then((r) => setCustomFields(r.fields))
+      .catch(() => {})
     if (isAdmin) {
-      getCallHistory({ limit: 100 }).then(r => setRecentCalls(r.calls)).catch(() => {})
-      listVolunteers().then(r => setVolunteers(r.volunteers)).catch(() => {})
+      getCallHistory({ limit: 100 })
+        .then((r) => setRecentCalls(r.calls))
+        .catch(() => {})
+      listVolunteers()
+        .then((r) => setVolunteers(r.volunteers))
+        .catch(() => {})
     }
   }, [isAdmin])
 
@@ -66,10 +102,15 @@ function NotesPage() {
     if (!secretKey) return
 
     let changed = false
-    const decrypted = recentCalls.map(call => {
+    const decrypted = recentCalls.map((call) => {
       if (call.answeredBy !== undefined) return call
       if (!call.encryptedContent || !call.adminEnvelopes?.length) return call
-      const meta = decryptCallRecord(call.encryptedContent, call.adminEnvelopes, secretKey, publicKey)
+      const meta = decryptCallRecord(
+        call.encryptedContent,
+        call.adminEnvelopes,
+        secretKey,
+        publicKey
+      )
       if (meta) {
         changed = true
         return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
@@ -94,19 +135,21 @@ function NotesPage() {
   const loadNotes = useCallback(() => {
     setLoading(true)
     listNotes({ callId: callId || undefined, page, limit })
-      .then(res => {
+      .then((res) => {
         const decryptedNotes: DecryptedNote[] = res.notes
-          .filter(note => {
+          .filter((note) => {
             if (note.authorPubkey === 'system:transcription:admin') return isAdmin
             if (note.authorPubkey === 'system:transcription') return !isAdmin
             return true
           })
-          .map(note => {
+          .map((note) => {
             const isTranscription = note.authorPubkey.startsWith('system:transcription')
             let payload: NotePayload
             if (isTranscription && note.ephemeralPubkey && hasNsec) {
               const sk = keyManager.getSecretKey()
-              const text = decryptTranscription(note.encryptedContent, note.ephemeralPubkey, sk) || '[Decryption failed]'
+              const text =
+                decryptTranscription(note.encryptedContent, note.ephemeralPubkey, sk) ||
+                '[Decryption failed]'
               payload = { text }
             } else if (isTranscription && !note.ephemeralPubkey) {
               payload = { text: note.encryptedContent }
@@ -115,10 +158,13 @@ function NotesPage() {
               const sk = keyManager.getSecretKey()
               const myPubkey = publicKey!
               const envelope = isAdmin
-                ? note.adminEnvelopes?.find(e => e.pubkey === myPubkey) ?? note.adminEnvelopes?.[0]
+                ? (note.adminEnvelopes?.find((e) => e.pubkey === myPubkey) ??
+                  note.adminEnvelopes?.[0])
                 : note.authorEnvelope
               if (envelope) {
-                payload = decryptNoteV2(note.encryptedContent, envelope, sk) || { text: '[Decryption failed]' }
+                payload = decryptNoteV2(note.encryptedContent, envelope, sk) || {
+                  text: '[Decryption failed]',
+                }
               } else {
                 payload = decryptNote(note.encryptedContent, sk) || { text: '[Decryption failed]' }
               }
@@ -134,9 +180,15 @@ function NotesPage() {
       .finally(() => setLoading(false))
   }, [page, callId, hasNsec, isAdmin])
 
-  useEffect(() => { loadNotes() }, [loadNotes])
+  useEffect(() => {
+    loadNotes()
+  }, [loadNotes])
 
-  async function handleSaveEdit(noteId: string, text: string, fields: Record<string, string | number | boolean>) {
+  async function handleSaveEdit(
+    noteId: string,
+    text: string,
+    fields: Record<string, string | number | boolean>
+  ) {
     if (!hasNsec || !publicKey || !text.trim()) return
     setSaving(true)
     try {
@@ -144,11 +196,19 @@ function NotesPage() {
       if (Object.keys(fields).length > 0) payload.fields = fields
       const authorPub = publicKey
       const adminPub = adminDecryptionPubkey || authorPub
-      const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(payload, authorPub, [adminPub])
+      const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(
+        payload,
+        authorPub,
+        [adminPub]
+      )
       const res = await updateNote(noteId, { encryptedContent, authorEnvelope, adminEnvelopes })
-      setNotes(prev => prev.map(n =>
-        n.id === noteId ? { ...res.note, decrypted: text, payload, isTranscription: n.isTranscription } : n
-      ))
+      setNotes((prev) =>
+        prev.map((n) =>
+          n.id === noteId
+            ? { ...res.note, decrypted: text, payload, isTranscription: n.isTranscription }
+            : n
+        )
+      )
       setEditingId(null)
     } catch {
       toast(t('common.error'), 'error')
@@ -157,7 +217,11 @@ function NotesPage() {
     }
   }
 
-  async function handleCreateNote(callId: string, text: string, fields: Record<string, string | number | boolean>) {
+  async function handleCreateNote(
+    callId: string,
+    text: string,
+    fields: Record<string, string | number | boolean>
+  ) {
     if (!hasNsec || !publicKey || !text.trim() || !callId.trim()) return
     setSaving(true)
     try {
@@ -165,10 +229,17 @@ function NotesPage() {
       if (Object.keys(fields).length > 0) payload.fields = fields
       const authorPub = publicKey
       const adminPub = adminDecryptionPubkey || authorPub
-      const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(payload, authorPub, [adminPub])
+      const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(
+        payload,
+        authorPub,
+        [adminPub]
+      )
       const res = await createNote({ callId, encryptedContent, authorEnvelope, adminEnvelopes })
-      setNotes(prev => [{ ...res.note, decrypted: text, payload, isTranscription: false }, ...prev])
-      setTotal(prev => prev + 1)
+      setNotes((prev) => [
+        { ...res.note, decrypted: text, payload, isTranscription: false },
+        ...prev,
+      ])
+      setTotal((prev) => prev + 1)
       setShowNewNote(false)
     } catch {
       toast(t('common.error'), 'error')
@@ -187,7 +258,7 @@ function NotesPage() {
   }
 
   const filteredNotes = search
-    ? notes.filter(n => n.decrypted.toLowerCase().includes(search.toLowerCase()))
+    ? notes.filter((n) => n.decrypted.toLowerCase().includes(search.toLowerCase()))
     : notes
 
   const notesByCall = filteredNotes.reduce<Record<string, DecryptedNote[]>>((acc, note) => {
@@ -198,14 +269,19 @@ function NotesPage() {
   }, {})
 
   const totalPages = Math.ceil(total / limit)
-  const visibleFields = customFields.filter(f => isAdmin || f.visibleToVolunteers)
+  const visibleFields = customFields.filter((f) => isAdmin || f.visibleToVolunteers)
 
   async function handleExport() {
     if (!hasNsec) return
     const sk = keyManager.getSecretKey()
-    const rows = filteredNotes.map(n => ({
-      id: n.id, callId: n.callId, content: n.decrypted, fields: n.payload.fields,
-      isTranscription: n.isTranscription, createdAt: n.createdAt, updatedAt: n.updatedAt,
+    const rows = filteredNotes.map((n) => ({
+      id: n.id,
+      callId: n.callId,
+      content: n.decrypted,
+      fields: n.payload.fields,
+      isTranscription: n.isTranscription,
+      createdAt: n.createdAt,
+      updatedAt: n.updatedAt,
     }))
     const jsonString = JSON.stringify(rows, null, 2)
     const encrypted = encryptExport(jsonString, sk)
@@ -251,12 +327,14 @@ function NotesPage() {
         <CardContent className="py-3">
           <form onSubmit={handleSearch} className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1">
-              <label className="mb-1 block text-xs text-muted-foreground">{t('notes.searchNotes')}</label>
+              <label className="mb-1 block text-xs text-muted-foreground">
+                {t('notes.searchNotes')}
+              </label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={searchInput}
-                  onChange={e => setSearchInput(e.target.value)}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   placeholder={t('notes.searchPlaceholder')}
                   className="pl-9"
                 />
@@ -268,8 +346,13 @@ function NotesPage() {
               </Button>
               {(search || callId) && (
                 <Button
-                  type="button" variant="ghost" size="sm"
-                  onClick={() => { setSearchInput(''); navigate({ search: { page: 1, callId: '', search: '' } }) }}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchInput('')
+                    navigate({ search: { page: 1, callId: '', search: '' } })
+                  }}
                   aria-label={t('a11y.clearFilters')}
                 >
                   <X className="h-4 w-4" />
@@ -320,15 +403,21 @@ function NotesPage() {
                 <CardTitle className="text-sm">
                   {(() => {
                     const callInfo = callInfoMap.get(cId)
-                    if (!callInfo) return t('notes.callWith', { number: cId.slice(0, 12) + '...' })
-                    const volunteerName = callInfo.answeredBy ? nameMap.get(callInfo.answeredBy) : null
+                    if (!callInfo) return t('notes.callWith', { number: `${cId.slice(0, 12)}...` })
+                    const volunteerName = callInfo.answeredBy
+                      ? nameMap.get(callInfo.answeredBy)
+                      : null
                     const phone = callInfo.callerLast4 ? `***${callInfo.callerLast4}` : ''
                     return (
                       <span className="flex flex-wrap items-center gap-1.5">
                         {callInfo.status === 'unanswered' ? (
                           <span className="text-destructive">{t('callHistory.unanswered')}</span>
                         ) : volunteerName && isAdmin ? (
-                          <Link to="/volunteers/$pubkey" params={{ pubkey: callInfo.answeredBy! }} className="text-primary hover:underline">
+                          <Link
+                            to="/volunteers/$pubkey"
+                            params={{ pubkey: callInfo.answeredBy! }}
+                            className="text-primary hover:underline"
+                          >
                             {volunteerName}
                           </Link>
                         ) : volunteerName ? (
@@ -357,7 +446,7 @@ function NotesPage() {
                 )}
               </CardHeader>
               <CardContent className="p-0 divide-y divide-border">
-                {callNotes.map(note => (
+                {callNotes.map((note) => (
                   <div key={note.id} className="px-6 py-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -386,12 +475,15 @@ function NotesPage() {
                             <p className="mt-2 text-sm whitespace-pre-wrap">{note.decrypted}</p>
                             {note.payload.fields && visibleFields.length > 0 && (
                               <div className="mt-2 flex flex-wrap gap-2">
-                                {visibleFields.map(field => {
+                                {visibleFields.map((field) => {
                                   const val = note.payload.fields?.[field.id]
                                   if (val === undefined || val === '') return null
-                                  const displayVal = field.type === 'checkbox'
-                                    ? (val ? '\u2713' : '\u2717')
-                                    : String(val)
+                                  const displayVal =
+                                    field.type === 'checkbox'
+                                      ? val
+                                        ? '\u2713'
+                                        : '\u2717'
+                                      : String(val)
                                   return (
                                     <Badge key={field.id} variant="outline" className="text-xs">
                                       {field.label}: {displayVal}
@@ -406,7 +498,8 @@ function NotesPage() {
                       {editingId !== note.id && (
                         <Button
                           data-testid="note-edit-btn"
-                          variant="ghost" size="icon-xs"
+                          variant="ghost"
+                          size="icon-xs"
                           onClick={() => setEditingId(note.id)}
                           aria-label={t('a11y.editItem')}
                         >
@@ -425,12 +518,24 @@ function NotesPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(Math.max(1, page - 1))}
+            disabled={page === 1}
+          >
             <ChevronLeft className="h-4 w-4" />
             {t('common.back')}
           </Button>
-          <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
-          <Button variant="outline" size="sm" onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}>
+          <span className="text-sm text-muted-foreground">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(Math.min(totalPages, page + 1))}
+            disabled={page === totalPages}
+          >
             {t('common.next')}
             <ChevronRight className="h-4 w-4" />
           </Button>

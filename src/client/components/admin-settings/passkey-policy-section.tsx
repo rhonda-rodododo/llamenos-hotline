@@ -1,10 +1,10 @@
-import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
-import { updateWebAuthnSettings, type WebAuthnSettings } from '@/lib/api'
 import { SettingsSection } from '@/components/settings-section'
-import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { type WebAuthnSettings, updateWebAuthnSettings } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 import { Shield } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   settings: WebAuthnSettings
@@ -14,7 +14,13 @@ interface Props {
   statusSummary?: string
 }
 
-export function PasskeyPolicySection({ settings, onChange, expanded, onToggle, statusSummary }: Props) {
+export function PasskeyPolicySection({
+  settings,
+  onChange,
+  expanded,
+  onToggle,
+  statusSummary,
+}: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
 

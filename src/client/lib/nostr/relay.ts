@@ -9,11 +9,11 @@
  * - Event deduplication and validation
  */
 
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import type { Event as NostrEvent } from 'nostr-tools/core'
-import { EventDeduplicator, validateLlamenosEvent, parseLlamenosContent } from './events'
+import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { decryptFromHub } from '../hub-key-manager'
-import type { LlamenosEvent, RelayState, NostrEventHandler } from './types'
+import { EventDeduplicator, parseLlamenosContent, validateLlamenosEvent } from './events'
+import type { LlamenosEvent, NostrEventHandler, RelayState } from './types'
 
 export interface RelayManagerOptions {
   relayUrl: string
@@ -133,7 +133,7 @@ export class RelayManager {
     if (!sub) return
 
     this.subscriptions.delete(subId)
-    this.pendingSubscriptions = this.pendingSubscriptions.filter(s => s.id !== subId)
+    this.pendingSubscriptions = this.pendingSubscriptions.filter((s) => s.id !== subId)
 
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(['CLOSE', subId]))
@@ -157,7 +157,9 @@ export class RelayManager {
     }
     for (const sub of this.subscriptions.values()) {
       if (this.ws?.readyState === WebSocket.OPEN) {
-        try { this.ws.send(JSON.stringify(['CLOSE', sub.id])) } catch {}
+        try {
+          this.ws.send(JSON.stringify(['CLOSE', sub.id]))
+        } catch {}
       }
     }
     this.subscriptions.clear()
@@ -245,15 +247,18 @@ export class RelayManager {
       return
     }
 
-    const authEvent = finalizeEvent({
-      kind: 22242,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [
-        ['relay', this.relayUrl],
-        ['challenge', challenge],
-      ],
-      content: '',
-    }, sk)
+    const authEvent = finalizeEvent(
+      {
+        kind: 22242,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['relay', this.relayUrl],
+          ['challenge', challenge],
+        ],
+        content: '',
+      },
+      sk
+    )
 
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(['AUTH', authEvent]))
@@ -283,7 +288,7 @@ export class RelayManager {
     if (!content) return
 
     // Route to all matching subscribers
-    const hubId = event.tags.find(t => t[0] === 'd')?.[1]
+    const hubId = event.tags.find((t) => t[0] === 'd')?.[1]
     if (!hubId) return
 
     for (const sub of this.subscriptions.values()) {
@@ -300,11 +305,17 @@ export class RelayManager {
   private sendSubscription(sub: Subscription): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
 
-    this.ws.send(JSON.stringify(['REQ', sub.id, {
-      kinds: sub.kinds,
-      '#d': [sub.hubId],
-      '#t': ['llamenos:event'],
-    }]))
+    this.ws.send(
+      JSON.stringify([
+        'REQ',
+        sub.id,
+        {
+          kinds: sub.kinds,
+          '#d': [sub.hubId],
+          '#t': ['llamenos:event'],
+        },
+      ])
+    )
   }
 
   private flushPendingSubscriptions(): void {
@@ -325,10 +336,7 @@ export class RelayManager {
     if (this.destroyed || this.reconnectTimer) return
     if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return
 
-    const delay = Math.min(
-      BASE_RECONNECT_DELAY * Math.pow(2, this.reconnectAttempts),
-      MAX_RECONNECT_DELAY,
-    )
+    const delay = Math.min(BASE_RECONNECT_DELAY * 2 ** this.reconnectAttempts, MAX_RECONNECT_DELAY)
     const jitter = Math.random() * 500
 
     this.reconnectAttempts++

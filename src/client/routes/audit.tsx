@@ -1,14 +1,20 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useEffect, useState, useMemo, useCallback } from 'react'
-import { listAuditLog, listVolunteers, type AuditLogEntry, type Volunteer } from '@/lib/api'
-import { ScrollText, ChevronLeft, ChevronRight, Search } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { type AuditLogEntry, type Volunteer, listAuditLog, listVolunteers } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { Link, createFileRoute } from '@tanstack/react-router'
+import { ChevronLeft, ChevronRight, ScrollText, Search } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/audit')({
   component: AuditPage,
@@ -25,17 +31,53 @@ const EVENT_CATEGORIES = [
 ] as const
 
 function getEventCategoryColor(event: string): string {
-  const authEvents = ['login', 'logout', 'sessionCreated', 'sessionExpired', 'passkeyRegistered', 'deviceLinked']
-  const volEvents = ['volunteerAdded', 'volunteerRemoved', 'volunteerRoleChanged', 'volunteerActivated', 'volunteerDeactivated', 'volunteerOnBreak', 'volunteerOffBreak', 'inviteCreated', 'inviteRedeemed']
-  const callEvents = ['callAnswered', 'callEnded', 'callMissed', 'spamReported', 'voicemailReceived']
-  const settingsEvents = ['settingsUpdated', 'telephonyConfigured', 'transcriptionToggled', 'ivrUpdated', 'customFieldsUpdated', 'spamSettingsUpdated', 'callSettingsUpdated']
+  const authEvents = [
+    'login',
+    'logout',
+    'sessionCreated',
+    'sessionExpired',
+    'passkeyRegistered',
+    'deviceLinked',
+  ]
+  const volEvents = [
+    'volunteerAdded',
+    'volunteerRemoved',
+    'volunteerRoleChanged',
+    'volunteerActivated',
+    'volunteerDeactivated',
+    'volunteerOnBreak',
+    'volunteerOffBreak',
+    'inviteCreated',
+    'inviteRedeemed',
+  ]
+  const callEvents = [
+    'callAnswered',
+    'callEnded',
+    'callMissed',
+    'spamReported',
+    'voicemailReceived',
+  ]
+  const settingsEvents = [
+    'settingsUpdated',
+    'telephonyConfigured',
+    'transcriptionToggled',
+    'ivrUpdated',
+    'customFieldsUpdated',
+    'spamSettingsUpdated',
+    'callSettingsUpdated',
+  ]
   const shiftEvents = ['shiftCreated', 'shiftUpdated', 'shiftDeleted']
 
-  if (authEvents.includes(event)) return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-  if (volEvents.includes(event)) return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
-  if (callEvents.includes(event)) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-  if (settingsEvents.includes(event)) return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-  if (shiftEvents.includes(event)) return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300'
+  if (authEvents.includes(event))
+    return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+  if (volEvents.includes(event))
+    return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+  if (callEvents.includes(event))
+    return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+  if (settingsEvents.includes(event))
+    return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+  if (shiftEvents.includes(event))
+    return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300'
   return 'bg-secondary text-secondary-foreground'
 }
 
@@ -54,7 +96,9 @@ function AuditPage() {
   const limit = 50
 
   useEffect(() => {
-    listVolunteers().then(r => setVolunteers(r.volunteers)).catch(() => {})
+    listVolunteers()
+      .then((r) => setVolunteers(r.volunteers))
+      .catch(() => {})
   }, [])
 
   const fetchEntries = useCallback(() => {
@@ -67,7 +111,10 @@ function AuditPage() {
       dateTo: dateTo || undefined,
       search: searchText || undefined,
     })
-      .then(r => { setEntries(r.entries); setTotal(r.total) })
+      .then((r) => {
+        setEntries(r.entries)
+        setTotal(r.total)
+      })
       .finally(() => setLoading(false))
   }, [page, eventType, dateFrom, dateTo, searchText])
 
@@ -105,47 +152,62 @@ function AuditPage() {
       <Card>
         <CardContent className="flex flex-wrap items-end gap-3 py-3">
           <div className="flex-1 min-w-[180px]">
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">{t('common.search', { defaultValue: 'Search' })}</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              {t('common.search', { defaultValue: 'Search' })}
+            </label>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={searchText}
-                onChange={e => setSearchText(e.target.value)}
-                placeholder={t('auditLog.searchPlaceholder', { defaultValue: 'Search actor or event...' })}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder={t('auditLog.searchPlaceholder', {
+                  defaultValue: 'Search actor or event...',
+                })}
                 className="h-8 pl-8 text-sm"
               />
             </div>
           </div>
           <div className="min-w-[150px]">
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">{t('auditLog.eventType', { defaultValue: 'Event Type' })}</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              {t('auditLog.eventType', { defaultValue: 'Event Type' })}
+            </label>
             <Select value={eventType} onValueChange={setEventType}>
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {EVENT_CATEGORIES.map(cat => (
+                {EVENT_CATEGORIES.map((cat) => (
                   <SelectItem key={cat.value} value={cat.value}>
-                    {t(cat.labelKey, { defaultValue: cat.value === 'all' ? 'All Events' : cat.value.charAt(0).toUpperCase() + cat.value.slice(1) })}
+                    {t(cat.labelKey, {
+                      defaultValue:
+                        cat.value === 'all'
+                          ? 'All Events'
+                          : cat.value.charAt(0).toUpperCase() + cat.value.slice(1),
+                    })}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">{t('callHistory.from', { defaultValue: 'From' })}</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              {t('callHistory.from', { defaultValue: 'From' })}
+            </label>
             <Input
               type="date"
               value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
+              onChange={(e) => setDateFrom(e.target.value)}
               className="h-8 text-sm"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">{t('callHistory.to', { defaultValue: 'To' })}</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              {t('callHistory.to', { defaultValue: 'To' })}
+            </label>
             <Input
               type="date"
               value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
+              onChange={(e) => setDateTo(e.target.value)}
               className="h-8 text-sm"
             />
           </div>
@@ -154,7 +216,12 @@ function AuditPage() {
               variant="ghost"
               size="sm"
               className="h-8"
-              onClick={() => { setSearchText(''); setEventType('all'); setDateFrom(''); setDateTo('') }}
+              onClick={() => {
+                setSearchText('')
+                setEventType('all')
+                setDateFrom('')
+                setDateTo('')
+              }}
             >
               {t('common.clear', { defaultValue: 'Clear' })}
             </Button>
@@ -182,7 +249,7 @@ function AuditPage() {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {entries.map(entry => (
+              {entries.map((entry) => (
                 <div key={entry.id} className="flex flex-wrap items-center gap-4 px-4 py-3 sm:px-6">
                   <span className="w-full text-xs text-muted-foreground whitespace-nowrap sm:w-36 sm:shrink-0">
                     {new Date(entry.createdAt).toLocaleString()}
@@ -204,17 +271,19 @@ function AuditPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setPage(p => Math.max(1, p - 1))}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
           >
             <ChevronLeft className="h-4 w-4" />
             {t('common.back')}
           </Button>
-          <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
+          <span className="text-sm text-muted-foreground">
+            {page} / {totalPages}
+          </span>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
           >
             {t('common.next')}
@@ -258,7 +327,8 @@ function AuditDetails({ entry }: { entry: AuditLogEntry }) {
   const callerLast4 = details.callerLast4 as string | undefined
   const duration = details.duration as number | undefined
 
-  const isCallEvent = entry.event === 'callAnswered' || entry.event === 'callEnded' || entry.event === 'callMissed'
+  const isCallEvent =
+    entry.event === 'callAnswered' || entry.event === 'callEnded' || entry.event === 'callMissed'
   const isVoicemail = entry.event === 'voicemailReceived'
 
   if (isCallEvent) {
@@ -270,7 +340,9 @@ function AuditDetails({ entry }: { entry: AuditLogEntry }) {
           </code>
         )}
         {duration !== undefined && entry.event === 'callEnded' && (
-          <span>{Math.floor(duration / 60)}:{String(duration % 60).padStart(2, '0')}</span>
+          <span>
+            {Math.floor(duration / 60)}:{String(duration % 60).padStart(2, '0')}
+          </span>
         )}
       </span>
     )
@@ -278,9 +350,7 @@ function AuditDetails({ entry }: { entry: AuditLogEntry }) {
 
   if (isVoicemail) {
     return (
-      <span className="flex-1 text-xs text-muted-foreground">
-        {t('callHistory.hasVoicemail')}
-      </span>
+      <span className="flex-1 text-xs text-muted-foreground">{t('callHistory.hasVoicemail')}</span>
     )
   }
 

@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import { getBlastSettings, updateBlastSettings } from '@/lib/api'
-import type { BlastSettings } from '@/lib/api'
-import { useToast } from '@/lib/toast'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { Settings2 } from 'lucide-react'
+import { getBlastSettings, updateBlastSettings } from '@/lib/api'
+import type { BlastSettings } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 import { DEFAULT_BLAST_SETTINGS } from '@shared/types'
+import { Settings2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export function BlastSettingsPanel() {
   const { t } = useTranslation()
@@ -42,7 +42,8 @@ export function BlastSettingsPanel() {
     }
   }
 
-  if (loading || !settings) return <div className="text-muted-foreground">{t('common.loading')}</div>
+  if (loading || !settings)
+    return <div className="text-muted-foreground">{t('common.loading')}</div>
 
   return (
     <Card>
@@ -56,28 +57,44 @@ export function BlastSettingsPanel() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>{t('blasts.subscribeKeyword')}</Label>
-            <Input value={settings.subscribeKeyword} onChange={e => setSettings({ ...settings, subscribeKeyword: e.target.value })} />
+            <Input
+              value={settings.subscribeKeyword}
+              onChange={(e) => setSettings({ ...settings, subscribeKeyword: e.target.value })}
+            />
           </div>
           <div className="space-y-2">
             <Label>{t('blasts.unsubscribeKeyword')}</Label>
-            <Input value={settings.unsubscribeKeyword} onChange={e => setSettings({ ...settings, unsubscribeKeyword: e.target.value })} disabled />
+            <Input
+              value={settings.unsubscribeKeyword}
+              onChange={(e) => setSettings({ ...settings, unsubscribeKeyword: e.target.value })}
+              disabled
+            />
             <p className="text-xs text-muted-foreground">{t('blasts.stopRequired')}</p>
           </div>
         </div>
 
         <div className="space-y-2">
           <Label>{t('blasts.confirmationMsg')}</Label>
-          <Input value={settings.confirmationMessage} onChange={e => setSettings({ ...settings, confirmationMessage: e.target.value })} />
+          <Input
+            value={settings.confirmationMessage}
+            onChange={(e) => setSettings({ ...settings, confirmationMessage: e.target.value })}
+          />
         </div>
 
         <div className="space-y-2">
           <Label>{t('blasts.unsubscribeMsg')}</Label>
-          <Input value={settings.unsubscribeMessage} onChange={e => setSettings({ ...settings, unsubscribeMessage: e.target.value })} />
+          <Input
+            value={settings.unsubscribeMessage}
+            onChange={(e) => setSettings({ ...settings, unsubscribeMessage: e.target.value })}
+          />
         </div>
 
         <div className="space-y-2">
           <Label>{t('blasts.optOutFooter')}</Label>
-          <Input value={settings.optOutFooter} onChange={e => setSettings({ ...settings, optOutFooter: e.target.value })} />
+          <Input
+            value={settings.optOutFooter}
+            onChange={(e) => setSettings({ ...settings, optOutFooter: e.target.value })}
+          />
         </div>
 
         <div className="flex items-center justify-between rounded-lg border border-border p-4">
@@ -85,17 +102,35 @@ export function BlastSettingsPanel() {
             <Label>{t('blasts.doubleOptIn')}</Label>
             <p className="text-xs text-muted-foreground">{t('blasts.doubleOptInDesc')}</p>
           </div>
-          <Switch checked={settings.doubleOptIn} onCheckedChange={c => setSettings({ ...settings, doubleOptIn: c })} />
+          <Switch
+            checked={settings.doubleOptIn}
+            onCheckedChange={(c) => setSettings({ ...settings, doubleOptIn: c })}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>{t('blasts.maxPerDay')}</Label>
-            <Input type="number" value={settings.maxBlastsPerDay} onChange={e => setSettings({ ...settings, maxBlastsPerDay: parseInt(e.target.value) || 10 })} />
+            <Input
+              type="number"
+              value={settings.maxBlastsPerDay}
+              onChange={(e) =>
+                setSettings({ ...settings, maxBlastsPerDay: Number.parseInt(e.target.value) || 10 })
+              }
+            />
           </div>
           <div className="space-y-2">
             <Label>{t('blasts.rateLimit')}</Label>
-            <Input type="number" value={settings.rateLimitPerSecond} onChange={e => setSettings({ ...settings, rateLimitPerSecond: parseInt(e.target.value) || 10 })} />
+            <Input
+              type="number"
+              value={settings.rateLimitPerSecond}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  rateLimitPerSecond: Number.parseInt(e.target.value) || 10,
+                })
+              }
+            />
           </div>
         </div>
 

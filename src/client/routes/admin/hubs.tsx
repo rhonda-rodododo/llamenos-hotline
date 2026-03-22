@@ -1,22 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useEffect, useState } from 'react'
-import {
-  listHubs,
-  createHub,
-  updateHub,
-  type Hub,
-} from '@/lib/api'
-import { useToast } from '@/lib/toast'
-import { Building2, Plus, Pencil, Phone } from 'lucide-react'
+import { PhoneInput } from '@/components/phone-input'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { PhoneInput } from '@/components/phone-input'
 import {
   Dialog,
   DialogContent,
@@ -25,6 +10,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { type Hub, createHub, listHubs, updateHub } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { useToast } from '@/lib/toast'
+import { createFileRoute } from '@tanstack/react-router'
+import { Building2, Pencil, Phone, Plus } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/admin/hubs')({
   component: HubsPage,
@@ -55,7 +50,11 @@ function HubsPage() {
   }
 
   if (!hasPermission('system:manage-hubs')) {
-    return <div className="text-muted-foreground">{t('hubs.accessDenied', { defaultValue: 'Access denied' })}</div>
+    return (
+      <div className="text-muted-foreground">
+        {t('hubs.accessDenied', { defaultValue: 'Access denied' })}
+      </div>
+    )
   }
 
   return (
@@ -87,17 +86,11 @@ function HubsPage() {
               ))}
             </div>
           ) : hubs.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              {t('hubs.noHubs')}
-            </div>
+            <div className="p-8 text-center text-muted-foreground">{t('hubs.noHubs')}</div>
           ) : (
             <div className="divide-y divide-border">
-              {hubs.map(hub => (
-                <HubRow
-                  key={hub.id}
-                  hub={hub}
-                  onEdit={() => setEditingHub(hub)}
-                />
+              {hubs.map((hub) => (
+                <HubRow key={hub.id} hub={hub} onEdit={() => setEditingHub(hub)} />
               ))}
             </div>
           )}
@@ -109,7 +102,7 @@ function HubsPage() {
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onCreated={(hub) => {
-          setHubs(prev => [...prev, hub])
+          setHubs((prev) => [...prev, hub])
           setShowCreateDialog(false)
         }}
       />
@@ -118,10 +111,12 @@ function HubsPage() {
       {editingHub && (
         <EditHubDialog
           open={!!editingHub}
-          onOpenChange={(open) => { if (!open) setEditingHub(null) }}
+          onOpenChange={(open) => {
+            if (!open) setEditingHub(null)
+          }}
           hub={editingHub}
           onUpdated={(updated) => {
-            setHubs(prev => prev.map(h => h.id === updated.id ? updated : h))
+            setHubs((prev) => prev.map((h) => (h.id === updated.id ? updated : h)))
             setEditingHub(null)
           }}
         />
@@ -220,7 +215,13 @@ function CreateHubDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetForm() }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v)
+        if (!v) resetForm()
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('hubs.createHub')}</DialogTitle>
@@ -232,7 +233,7 @@ function CreateHubDialog({
             <Input
               id="hub-name"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
               placeholder={t('hubs.hubNamePlaceholder')}
               required
             />
@@ -242,22 +243,26 @@ function CreateHubDialog({
             <Textarea
               id="hub-description"
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
               placeholder={t('hubs.hubDescriptionPlaceholder')}
               rows={3}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="hub-phone">{t('hubs.hubPhoneNumber')}</Label>
-            <PhoneInput
-              id="hub-phone"
-              value={phoneNumber}
-              onChange={setPhoneNumber}
-            />
+            <PhoneInput id="hub-phone" value={phoneNumber} onChange={setPhoneNumber} />
             <p className="text-xs text-muted-foreground">{t('hubs.hubPhoneNumberHelp')}</p>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => { onOpenChange(false); resetForm() }} disabled={saving}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false)
+                resetForm()
+              }}
+              disabled={saving}
+            >
               {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={saving || !name.trim()}>
@@ -327,7 +332,7 @@ function EditHubDialog({
             <Input
               id="edit-hub-name"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
               required
             />
           </div>
@@ -336,17 +341,13 @@ function EditHubDialog({
             <Textarea
               id="edit-hub-description"
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
               rows={3}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit-hub-phone">{t('hubs.hubPhoneNumber')}</Label>
-            <PhoneInput
-              id="edit-hub-phone"
-              value={phoneNumber}
-              onChange={setPhoneNumber}
-            />
+            <PhoneInput id="edit-hub-phone" value={phoneNumber} onChange={setPhoneNumber} />
             <p className="text-xs text-muted-foreground">{t('hubs.hubPhoneNumberHelp')}</p>
           </div>
 
@@ -354,11 +355,16 @@ function EditHubDialog({
           <div className="space-y-2">
             <Label>{t('common.status')}</Label>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className={
-                hub.status === 'active' ? 'border-green-500/50 text-green-700 dark:text-green-400'
-                : hub.status === 'suspended' ? 'border-yellow-500/50 text-yellow-700 dark:text-yellow-400'
-                : 'border-red-500/50 text-red-700 dark:text-red-400'
-              }>
+              <Badge
+                variant="outline"
+                className={
+                  hub.status === 'active'
+                    ? 'border-green-500/50 text-green-700 dark:text-green-400'
+                    : hub.status === 'suspended'
+                      ? 'border-yellow-500/50 text-yellow-700 dark:text-yellow-400'
+                      : 'border-red-500/50 text-red-700 dark:text-red-400'
+                }
+              >
                 {t(`hubs.status.${hub.status}`)}
               </Badge>
               <span className="font-mono text-xs text-muted-foreground">/{hub.slug}</span>
@@ -366,7 +372,12 @@ function EditHubDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={saving}
+            >
               {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={saving || !name.trim()}>

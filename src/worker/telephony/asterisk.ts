@@ -1,25 +1,22 @@
+import { DEFAULT_LANGUAGE, IVR_LANGUAGES } from '../../shared/languages'
+import { IVR_PROMPTS, getPrompt, getVoicemailThanks } from '../../shared/voice-prompts'
 import type {
-  TelephonyAdapter,
-  IncomingCallParams,
-  CaptchaResponseParams,
+  AudioUrlMap,
   CallAnsweredParams,
+  CaptchaResponseParams,
+  IncomingCallParams,
   LanguageMenuParams,
   RingVolunteersParams,
-  VoicemailParams,
+  TelephonyAdapter,
   TelephonyResponse,
-  AudioUrlMap,
+  VoicemailParams,
   WebhookCallInfo,
-  WebhookDigits,
   WebhookCallStatus,
+  WebhookDigits,
   WebhookQueueResult,
   WebhookQueueWait,
   WebhookRecordingStatus,
 } from './adapter'
-import {
-  DEFAULT_LANGUAGE,
-  IVR_LANGUAGES,
-} from '../../shared/languages'
-import { IVR_PROMPTS, getPrompt, getVoicemailThanks } from '../../shared/voice-prompts'
 
 /**
  * AsteriskAdapter — communicates with an ARI bridge service that runs
@@ -37,7 +34,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
     private ariPassword: string,
     private phoneNumber: string,
     private bridgeCallbackUrl: string,
-    private bridgeSecret: string,
+    private bridgeSecret: string
   ) {}
 
   // --- JSON command helpers ---
@@ -57,7 +54,12 @@ export class AsteriskAdapter implements TelephonyAdapter {
     return { action: 'play', url }
   }
 
-  private speakOrPlay(promptKey: string, lang: string, audioUrls?: AudioUrlMap, text?: string): AriCommand {
+  private speakOrPlay(
+    promptKey: string,
+    lang: string,
+    audioUrls?: AudioUrlMap,
+    text?: string
+  ): AriCommand {
     const audioUrl = audioUrls?.[`${promptKey}:${lang}`]
     if (audioUrl) return this.play(audioUrl)
     const content = text ?? getPrompt(promptKey, lang)
@@ -68,13 +70,19 @@ export class AsteriskAdapter implements TelephonyAdapter {
 
   async handleLanguageMenu(params: LanguageMenuParams): Promise<TelephonyResponse> {
     const { enabledLanguages } = params
-    const activeLanguages = IVR_LANGUAGES.filter(code => enabledLanguages.includes(code))
+    const activeLanguages = IVR_LANGUAGES.filter((code) => enabledLanguages.includes(code))
 
     if (activeLanguages.length <= 1) {
       const lang = activeLanguages[0] || DEFAULT_LANGUAGE
       return this.json([
         this.speak(' ', lang),
-        { action: 'gather', numDigits: 0, timeout: 0, callbackEvent: 'language_selected', metadata: { auto: '1', forceLang: lang } },
+        {
+          action: 'gather',
+          numDigits: 0,
+          timeout: 0,
+          callbackEvent: 'language_selected',
+          metadata: { auto: '1', forceLang: lang },
+        },
       ])
     }
 
@@ -102,16 +110,18 @@ export class AsteriskAdapter implements TelephonyAdapter {
     const { rateLimited, voiceCaptchaEnabled, callerLanguage: lang, callSid, audioUrls } = params
 
     if (rateLimited) {
-      return this.json([
-        this.speakOrPlay('rateLimited', lang, audioUrls),
-        { action: 'hangup' },
-      ])
+      return this.json([this.speakOrPlay('rateLimited', lang, audioUrls), { action: 'hangup' }])
     }
 
     if (voiceCaptchaEnabled && params.captchaDigits) {
       const digits = params.captchaDigits
       return this.json([
-        this.speakOrPlay('captcha', lang, audioUrls, getPrompt('captcha', lang).replace('{digits}', digits.split('').join(' '))),
+        this.speakOrPlay(
+          'captcha',
+          lang,
+          audioUrls,
+          getPrompt('captcha', lang).replace('{digits}', digits.split('').join(' '))
+        ),
         {
           action: 'gather',
           numDigits: 4,
@@ -149,10 +159,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
       ])
     }
 
-    return this.json([
-      this.speak(getPrompt('captchaFailed', lang), lang),
-      { action: 'hangup' },
-    ])
+    return this.json([this.speak(getPrompt('captchaFailed', lang), lang), { action: 'hangup' }])
   }
 
   async handleCallAnswered(params: CallAnsweredParams): Promise<TelephonyResponse> {
@@ -179,14 +186,17 @@ export class AsteriskAdapter implements TelephonyAdapter {
     ])
   }
 
-  async handleWaitMusic(lang: string, audioUrls?: AudioUrlMap, queueTime?: number, queueTimeout?: number): Promise<TelephonyResponse> {
+  async handleWaitMusic(
+    lang: string,
+    audioUrls?: AudioUrlMap,
+    queueTime?: number,
+    queueTimeout?: number
+  ): Promise<TelephonyResponse> {
     const timeout = queueTimeout || 90
     if (queueTime && queueTime >= timeout) {
       return this.json([{ action: 'leave_queue' }])
     }
-    return this.json([
-      this.speakOrPlay('holdMusic', lang, audioUrls),
-    ])
+    return this.json([this.speakOrPlay('holdMusic', lang, audioUrls)])
   }
 
   rejectCall(): TelephonyResponse {
@@ -194,10 +204,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
   }
 
   handleVoicemailComplete(lang: string): TelephonyResponse {
-    return this.json([
-      this.speak(getPrompt('voicemailThankYou', lang), lang),
-      { action: 'hangup' },
-    ])
+    return this.json([this.speak(getPrompt('voicemailThankYou', lang), lang), { action: 'hangup' }])
   }
 
   emptyResponse(): TelephonyResponse {
@@ -215,7 +222,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
     const result = await this.bridgeRequest('POST', '/commands/ring', {
       parentCallSid: callSid,
       callerNumber,
-      volunteers: volunteers.map(v => ({ pubkey: v.pubkey, phone: v.phone })),
+      volunteers: volunteers.map((v) => ({ pubkey: v.pubkey, phone: v.phone })),
       callbackUrl,
       hubId,
     })
@@ -272,8 +279,8 @@ export class AsteriskAdapter implements TelephonyAdapter {
     const timestamp = request.headers.get('X-Bridge-Timestamp') || ''
 
     // Reject webhooks with timestamps older than 5 minutes (replay protection)
-    const tsSeconds = parseInt(timestamp, 10)
-    if (isNaN(tsSeconds) || Math.abs(Date.now() / 1000 - tsSeconds) > 300) {
+    const tsSeconds = Number.parseInt(timestamp, 10)
+    if (Number.isNaN(tsSeconds) || Math.abs(Date.now() / 1000 - tsSeconds) > 300) {
       return false
     }
 
@@ -284,10 +291,12 @@ export class AsteriskAdapter implements TelephonyAdapter {
       new TextEncoder().encode(this.bridgeSecret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
-      ['sign'],
+      ['sign']
     )
     const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
-    const expectedSig = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('')
+    const expectedSig = Array.from(new Uint8Array(sig))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
 
     // Constant-time comparison to prevent timing attacks
     if (signature.length !== expectedSig.length) return false
@@ -304,7 +313,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
   // --- Webhook parsing (JSON payloads from ARI bridge) ---
 
   async parseIncomingWebhook(request: Request): Promise<WebhookCallInfo> {
-    const data = await request.json() as AriWebhookPayload
+    const data = (await request.json()) as AriWebhookPayload
     return {
       callSid: data.channelId || data.callSid || '',
       callerNumber: data.callerNumber || data.from || '',
@@ -313,7 +322,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
   }
 
   async parseLanguageWebhook(request: Request): Promise<WebhookCallInfo & WebhookDigits> {
-    const data = await request.json() as AriWebhookPayload
+    const data = (await request.json()) as AriWebhookPayload
     return {
       callSid: data.channelId || data.callSid || '',
       callerNumber: data.callerNumber || data.from || '',
@@ -322,7 +331,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
   }
 
   async parseCaptchaWebhook(request: Request): Promise<WebhookDigits & { callerNumber: string }> {
-    const data = await request.json() as AriWebhookPayload
+    const data = (await request.json()) as AriWebhookPayload
     return {
       digits: data.digits || '',
       callerNumber: data.callerNumber || data.from || '',
@@ -330,22 +339,22 @@ export class AsteriskAdapter implements TelephonyAdapter {
   }
 
   async parseCallStatusWebhook(request: Request): Promise<WebhookCallStatus> {
-    const data = await request.json() as AriWebhookPayload
+    const data = (await request.json()) as AriWebhookPayload
     return { status: mapAriStatus(data.state || data.status || '') }
   }
 
   async parseQueueWaitWebhook(request: Request): Promise<WebhookQueueWait> {
-    const data = await request.json() as AriWebhookPayload
+    const data = (await request.json()) as AriWebhookPayload
     return { queueTime: data.queueTime || 0 }
   }
 
   async parseQueueExitWebhook(request: Request): Promise<WebhookQueueResult> {
-    const data = await request.json() as AriWebhookPayload
+    const data = (await request.json()) as AriWebhookPayload
     return { result: mapQueueResult(data.result || data.reason || '') }
   }
 
   async parseRecordingWebhook(request: Request): Promise<WebhookRecordingStatus> {
-    const data = await request.json() as AriWebhookPayload
+    const data = (await request.json()) as AriWebhookPayload
     return {
       status: data.recordingStatus === 'done' ? 'completed' : 'failed',
       recordingSid: data.recordingName || data.recordingSid,
@@ -366,10 +375,12 @@ export class AsteriskAdapter implements TelephonyAdapter {
       new TextEncoder().encode(this.bridgeSecret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
-      ['sign'],
+      ['sign']
     )
     const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
-    const signature = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('')
+    const signature = Array.from(new Uint8Array(sig))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
 
     const response = await fetch(url, {
       method,
@@ -489,7 +500,7 @@ function getAsteriskLang(lang: string): string {
     vi: 'vi',
     ar: 'ar',
     fr: 'fr',
-    ht: 'fr',    // Haitian Creole — fallback to French
+    ht: 'fr', // Haitian Creole — fallback to French
     ko: 'ko',
     ru: 'ru',
     hi: 'hi',

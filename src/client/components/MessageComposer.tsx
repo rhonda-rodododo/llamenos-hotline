@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Send, Lock, Paperclip } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Lock, Paperclip, Send } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface MessageComposerProps {
   onSend: (plaintext: string) => void
@@ -21,6 +21,7 @@ export function MessageComposer({ onSend, disabled = false, channelType }: Messa
     textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
   }, [])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: text triggers height adjustment when content changes
   useEffect(() => {
     adjustHeight()
   }, [text, adjustHeight])
@@ -74,7 +75,7 @@ export function MessageComposer({ onSend, disabled = false, channelType }: Messa
         <textarea
           ref={textareaRef}
           value={text}
-          onChange={e => setText(e.target.value)}
+          onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={t('notes.notePlaceholder')}
           disabled={disabled}
@@ -93,9 +94,7 @@ export function MessageComposer({ onSend, disabled = false, channelType }: Messa
         </Button>
       </div>
 
-      <p className="mt-1.5 text-[11px] text-muted-foreground text-right">
-        {modKey}+Enter
-      </p>
+      <p className="mt-1.5 text-[11px] text-muted-foreground text-right">{modKey}+Enter</p>
     </div>
   )
 }

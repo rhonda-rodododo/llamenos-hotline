@@ -11,10 +11,10 @@
  * Gracefully degrades when the browser doesn't support integrity on fetch.
  */
 
+import { createHash } from 'node:crypto'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import type { Plugin } from 'vite'
-import { createHash } from 'crypto'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { join, resolve } from 'path'
 
 function computeSRI(filePath: string): string | null {
   try {
@@ -46,9 +46,8 @@ export function sriWorkboxPlugin(): Plugin {
       // Extract all URL references from these entries.
       const urlPattern = /\{url:"([^"]+)"/g
       const integrityMap: Record<string, string> = {}
-      let match: RegExpExecArray | null
 
-      while ((match = urlPattern.exec(swContent)) !== null) {
+      for (const match of swContent.matchAll(urlPattern)) {
         const url = match[1]
         const filePath = join(outDir, url)
         const sri = computeSRI(filePath)

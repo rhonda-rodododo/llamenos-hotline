@@ -21,7 +21,7 @@ export function useNostrSubscription(
   hubId: string | undefined,
   kinds: number[],
   handler: NostrEventHandler,
-  enabled = true,
+  enabled = true
 ): void {
   const relay = useRelay()
   const state = useRelayState()

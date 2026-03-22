@@ -1,15 +1,15 @@
+import { SettingsSection } from '@/components/settings-section'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { type CustomFieldDefinition, updateCustomFields } from '@/lib/api'
+import { useToast } from '@/lib/toast'
+import { MAX_CUSTOM_FIELDS } from '@shared/types'
+import { ChevronDown, ChevronUp, Plus, Save, StickyNote, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
-import { updateCustomFields, type CustomFieldDefinition } from '@/lib/api'
-import { MAX_CUSTOM_FIELDS } from '@shared/types'
-import { SettingsSection } from '@/components/settings-section'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { StickyNote, ChevronUp, ChevronDown, Save, Trash2, Plus } from 'lucide-react'
 
 interface Props {
   fields: CustomFieldDefinition[]
@@ -19,7 +19,13 @@ interface Props {
   statusSummary?: string
 }
 
-export function CustomFieldsSection({ fields, onChange, expanded, onToggle, statusSummary }: Props) {
+export function CustomFieldsSection({
+  fields,
+  onChange,
+  expanded,
+  onToggle,
+  statusSummary,
+}: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [editing, setEditing] = useState<Partial<CustomFieldDefinition> | null>(null)
@@ -29,15 +35,15 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
     const next = [...fields]
     const swapIdx = index + direction
     ;[next[index], next[swapIdx]] = [next[swapIdx], next[index]]
-    next.forEach((f, i) => f.order = i)
+    for (let i = 0; i < next.length; i++) next[i].order = i
     onChange(next)
     updateCustomFields(next).catch(() => toast(t('common.error'), 'error'))
   }
 
   async function handleDelete(fieldId: string) {
     if (!confirm(t('customFields.deleteConfirm'))) return
-    const next = fields.filter(f => f.id !== fieldId)
-    next.forEach((f, i) => f.order = i)
+    const next = fields.filter((f) => f.id !== fieldId)
+    for (let i = 0; i < next.length; i++) next[i].order = i
     try {
       const res = await updateCustomFields(next)
       onChange(res.fields)
@@ -52,8 +58,8 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
     try {
       let next: CustomFieldDefinition[]
       if (editing.id) {
-        next = fields.map(f =>
-          f.id === editing.id ? { ...f, ...editing } as CustomFieldDefinition : f
+        next = fields.map((f) =>
+          f.id === editing.id ? ({ ...f, ...editing } as CustomFieldDefinition) : f
         )
       } else {
         const newField: CustomFieldDefinition = {
@@ -99,27 +105,56 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
       ) : (
         <div className="space-y-2">
           {fields.map((field, index) => (
-            <div key={field.id} data-testid="custom-field-row" className="flex items-center gap-2 rounded-lg border border-border px-4 py-3">
+            <div
+              key={field.id}
+              data-testid="custom-field-row"
+              className="flex items-center gap-2 rounded-lg border border-border px-4 py-3"
+            >
               <div className="flex flex-col gap-0.5">
-                <Button variant="ghost" size="icon-xs" disabled={index === 0} onClick={() => handleReorder(index, -1)}>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  disabled={index === 0}
+                  onClick={() => handleReorder(index, -1)}
+                >
                   <ChevronUp className="h-3 w-3" />
                 </Button>
-                <Button variant="ghost" size="icon-xs" disabled={index === fields.length - 1} onClick={() => handleReorder(index, 1)}>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  disabled={index === fields.length - 1}
+                  onClick={() => handleReorder(index, 1)}
+                >
                   <ChevronDown className="h-3 w-3" />
                 </Button>
               </div>
               <div className="flex-1 space-y-0.5">
                 <p className="text-sm font-medium">{field.label}</p>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px]">{t(`customFields.types.${field.type}`)}</Badge>
-                  {field.required && <Badge variant="secondary" className="text-[10px]">{t('customFields.required')}</Badge>}
-                  {!field.visibleToVolunteers && <Badge variant="secondary" className="text-[10px]">{t('customFields.adminOnly')}</Badge>}
+                  <Badge variant="outline" className="text-[10px]">
+                    {t(`customFields.types.${field.type}`)}
+                  </Badge>
+                  {field.required && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      {t('customFields.required')}
+                    </Badge>
+                  )}
+                  {!field.visibleToVolunteers && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      {t('customFields.adminOnly')}
+                    </Badge>
+                  )}
                 </div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setEditing({ ...field })}>
                 {t('common.edit')}
               </Button>
-              <Button data-testid="custom-field-delete-btn" variant="ghost" size="sm" onClick={() => handleDelete(field.id)}>
+              <Button
+                data-testid="custom-field-delete-btn"
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDelete(field.id)}
+              >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
@@ -140,13 +175,21 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
                 id="custom-field-label"
                 data-testid="custom-field-label-input"
                 value={editing.label || ''}
-                onChange={e => {
+                onChange={(e) => {
                   const label = e.target.value
                   const autoName = !editing.id
-                  setEditing(prev => ({
+                  setEditing((prev) => ({
                     ...prev!,
                     label,
-                    ...(autoName ? { name: label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 50) } : {}),
+                    ...(autoName
+                      ? {
+                          name: label
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]+/g, '_')
+                            .replace(/^_|_$/g, '')
+                            .slice(0, 50),
+                        }
+                      : {}),
                   }))
                 }}
                 placeholder="e.g. Severity Rating"
@@ -158,7 +201,7 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
                 id="custom-field-name"
                 data-testid="custom-field-name-input"
                 value={editing.name || ''}
-                onChange={e => setEditing(prev => ({ ...prev!, name: e.target.value }))}
+                onChange={(e) => setEditing((prev) => ({ ...prev!, name: e.target.value }))}
                 placeholder="e.g. severity"
                 maxLength={50}
               />
@@ -171,7 +214,12 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
               <select
                 data-testid="custom-field-type-select"
                 value={editing.type || 'text'}
-                onChange={e => setEditing(prev => ({ ...prev!, type: e.target.value as CustomFieldDefinition['type'] }))}
+                onChange={(e) =>
+                  setEditing((prev) => ({
+                    ...prev!,
+                    type: e.target.value as CustomFieldDefinition['type'],
+                  }))
+                }
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="text">{t('customFields.types.text')}</option>
@@ -186,7 +234,7 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
           <div className="flex items-center gap-2">
             <Switch
               checked={editing.required ?? false}
-              onCheckedChange={checked => setEditing(prev => ({ ...prev!, required: checked }))}
+              onCheckedChange={(checked) => setEditing((prev) => ({ ...prev!, required: checked }))}
             />
             <Label className="text-sm">{t('customFields.required')}</Label>
           </div>
@@ -199,22 +247,34 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
                 <div key={i} className="flex gap-2">
                   <Input
                     value={opt}
-                    onChange={e => {
+                    onChange={(e) => {
                       const next = [...(editing.options || [])]
                       next[i] = e.target.value
-                      setEditing(prev => ({ ...prev!, options: next }))
+                      setEditing((prev) => ({ ...prev!, options: next }))
                     }}
                   />
-                  <Button variant="ghost" size="sm" onClick={() => {
-                    setEditing(prev => ({ ...prev!, options: prev!.options!.filter((_, j) => j !== i) }))
-                  }}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEditing((prev) => ({
+                        ...prev!,
+                        options: prev?.options?.filter((_, j) => j !== i),
+                      }))
+                    }}
+                  >
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
               ))}
-              <Button data-testid="custom-field-add-option-btn" variant="outline" size="sm" onClick={() => {
-                setEditing(prev => ({ ...prev!, options: [...(prev!.options || []), ''] }))
-              }}>
+              <Button
+                data-testid="custom-field-add-option-btn"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setEditing((prev) => ({ ...prev!, options: [...(prev?.options || []), ''] }))
+                }}
+              >
                 <Plus className="h-3 w-3" />
                 {t('customFields.addOption')}
               </Button>
@@ -229,10 +289,15 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
                 <Input
                   type="number"
                   value={editing.validation?.minLength ?? ''}
-                  onChange={e => setEditing(prev => ({
-                    ...prev!,
-                    validation: { ...prev!.validation, minLength: e.target.value ? Number(e.target.value) : undefined },
-                  }))}
+                  onChange={(e) =>
+                    setEditing((prev) => ({
+                      ...prev!,
+                      validation: {
+                        ...prev?.validation,
+                        minLength: e.target.value ? Number(e.target.value) : undefined,
+                      },
+                    }))
+                  }
                   min={0}
                 />
               </div>
@@ -241,10 +306,15 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
                 <Input
                   type="number"
                   value={editing.validation?.maxLength ?? ''}
-                  onChange={e => setEditing(prev => ({
-                    ...prev!,
-                    validation: { ...prev!.validation, maxLength: e.target.value ? Number(e.target.value) : undefined },
-                  }))}
+                  onChange={(e) =>
+                    setEditing((prev) => ({
+                      ...prev!,
+                      validation: {
+                        ...prev?.validation,
+                        maxLength: e.target.value ? Number(e.target.value) : undefined,
+                      },
+                    }))
+                  }
                   min={0}
                 />
               </div>
@@ -257,10 +327,15 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
                 <Input
                   type="number"
                   value={editing.validation?.min ?? ''}
-                  onChange={e => setEditing(prev => ({
-                    ...prev!,
-                    validation: { ...prev!.validation, min: e.target.value ? Number(e.target.value) : undefined },
-                  }))}
+                  onChange={(e) =>
+                    setEditing((prev) => ({
+                      ...prev!,
+                      validation: {
+                        ...prev?.validation,
+                        min: e.target.value ? Number(e.target.value) : undefined,
+                      },
+                    }))
+                  }
                 />
               </div>
               <div className="space-y-1">
@@ -268,10 +343,15 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
                 <Input
                   type="number"
                   value={editing.validation?.max ?? ''}
-                  onChange={e => setEditing(prev => ({
-                    ...prev!,
-                    validation: { ...prev!.validation, max: e.target.value ? Number(e.target.value) : undefined },
-                  }))}
+                  onChange={(e) =>
+                    setEditing((prev) => ({
+                      ...prev!,
+                      validation: {
+                        ...prev?.validation,
+                        max: e.target.value ? Number(e.target.value) : undefined,
+                      },
+                    }))
+                  }
                 />
               </div>
             </div>
@@ -282,21 +362,29 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
             <div className="flex items-center gap-2">
               <Switch
                 checked={editing.visibleToVolunteers ?? true}
-                onCheckedChange={checked => setEditing(prev => ({ ...prev!, visibleToVolunteers: checked }))}
+                onCheckedChange={(checked) =>
+                  setEditing((prev) => ({ ...prev!, visibleToVolunteers: checked }))
+                }
               />
               <Label className="text-sm">{t('customFields.visibleToVolunteers')}</Label>
             </div>
             <div className="flex items-center gap-2">
               <Switch
                 checked={editing.editableByVolunteers ?? true}
-                onCheckedChange={checked => setEditing(prev => ({ ...prev!, editableByVolunteers: checked }))}
+                onCheckedChange={(checked) =>
+                  setEditing((prev) => ({ ...prev!, editableByVolunteers: checked }))
+                }
               />
               <Label className="text-sm">{t('customFields.editableByVolunteers')}</Label>
             </div>
           </div>
 
           <div className="flex gap-2">
-            <Button data-testid="form-save-btn" disabled={saving || !editing.label?.trim() || !editing.name?.trim()} onClick={handleSave}>
+            <Button
+              data-testid="form-save-btn"
+              disabled={saving || !editing.label?.trim() || !editing.name?.trim()}
+              onClick={handleSave}
+            >
               <Save className="h-4 w-4" />
               {saving ? t('common.loading') : t('common.save')}
             </Button>
@@ -310,12 +398,14 @@ export function CustomFieldsSection({ fields, onChange, expanded, onToggle, stat
           <Button
             data-testid="custom-field-add-btn"
             variant="outline"
-            onClick={() => setEditing({
-              type: 'text',
-              required: false,
-              visibleToVolunteers: true,
-              editableByVolunteers: true,
-            })}
+            onClick={() =>
+              setEditing({
+                type: 'text',
+                required: false,
+                visibleToVolunteers: true,
+                editableByVolunteers: true,
+              })
+            }
           >
             <Plus className="h-4 w-4" />
             {t('customFields.addField')}

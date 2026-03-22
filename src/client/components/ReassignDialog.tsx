@@ -1,19 +1,25 @@
-import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { listVolunteers, getVolunteerLoads, updateConversation, type Volunteer, type Conversation } from '@/lib/api'
+import {
+  type Conversation,
+  type Volunteer,
+  getVolunteerLoads,
+  listVolunteers,
+  updateConversation,
+} from '@/lib/api'
 import { useToast } from '@/lib/toast'
-import { User, Users, AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2, User, Users } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface ReassignDialogProps {
   conversation: Conversation
@@ -43,22 +49,20 @@ export function ReassignDialog({
     setLoading(true)
     setSelectedPubkey(null)
 
-    Promise.all([
-      listVolunteers(),
-      getVolunteerLoads(),
-    ])
+    Promise.all([listVolunteers(), getVolunteerLoads()])
       .then(([volRes, loadRes]) => {
         // Filter to active volunteers with messaging enabled
-        const eligible = volRes.volunteers.filter(v =>
-          v.active &&
-          v.messagingEnabled !== false &&
-          v.pubkey !== conversation.assignedTo // Exclude current assignee
+        const eligible = volRes.volunteers.filter(
+          (v) => v.active && v.messagingEnabled !== false && v.pubkey !== conversation.assignedTo // Exclude current assignee
         )
         setVolunteers(eligible)
         setLoads(loadRes.loads)
       })
       .catch(() => {
-        toast(t('conversations.loadVolunteersError', { defaultValue: 'Failed to load volunteers' }), 'error')
+        toast(
+          t('conversations.loadVolunteersError', { defaultValue: 'Failed to load volunteers' }),
+          'error'
+        )
       })
       .finally(() => setLoading(false))
   }, [open, conversation.assignedTo, t, toast])
@@ -73,7 +77,10 @@ export function ReassignDialog({
       onOpenChange(false)
       onReassigned?.()
     } catch {
-      toast(t('conversations.reassignError', { defaultValue: 'Failed to reassign conversation' }), 'error')
+      toast(
+        t('conversations.reassignError', { defaultValue: 'Failed to reassign conversation' }),
+        'error'
+      )
     } finally {
       setReassigning(false)
     }
@@ -87,7 +94,10 @@ export function ReassignDialog({
       onOpenChange(false)
       onReassigned?.()
     } catch {
-      toast(t('conversations.unassignError', { defaultValue: 'Failed to unassign conversation' }), 'error')
+      toast(
+        t('conversations.unassignError', { defaultValue: 'Failed to unassign conversation' }),
+        'error'
+      )
     } finally {
       setReassigning(false)
     }
@@ -119,7 +129,9 @@ export function ReassignDialog({
             {t('conversations.reassignTitle', { defaultValue: 'Reassign Conversation' })}
           </DialogTitle>
           <DialogDescription>
-            {t('conversations.reassignDescription', { defaultValue: 'Select a volunteer to handle this conversation.' })}
+            {t('conversations.reassignDescription', {
+              defaultValue: 'Select a volunteer to handle this conversation.',
+            })}
           </DialogDescription>
         </DialogHeader>
 
@@ -131,7 +143,9 @@ export function ReassignDialog({
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground">
-              {t('conversations.noVolunteersAvailable', { defaultValue: 'No volunteers available' })}
+              {t('conversations.noVolunteersAvailable', {
+                defaultValue: 'No volunteers available',
+              })}
             </p>
           </div>
         ) : (
@@ -145,6 +159,7 @@ export function ReassignDialog({
                 return (
                   <button
                     key={vol.pubkey}
+                    type="button"
                     onClick={() => setSelectedPubkey(vol.pubkey)}
                     disabled={!capable}
                     className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
@@ -162,7 +177,10 @@ export function ReassignDialog({
                       <div className="flex items-center gap-2">
                         <span className="font-medium truncate">{vol.name}</span>
                         {vol.onBreak && (
-                          <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-600">
+                          <Badge
+                            variant="outline"
+                            className="text-xs border-yellow-500/50 text-yellow-600"
+                          >
                             {t('dashboard.onBreak', { defaultValue: 'On break' })}
                           </Badge>
                         )}
@@ -170,18 +188,19 @@ export function ReassignDialog({
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <User className="h-3 w-3" />
                         <span>
-                          {load} {t('conversations.activeConversations', { defaultValue: 'active' })}
+                          {load}{' '}
+                          {t('conversations.activeConversations', { defaultValue: 'active' })}
                         </span>
                         {!capable && (
                           <span className="text-amber-600">
-                            {t('conversations.channelNotSupported', { defaultValue: 'Channel not supported' })}
+                            {t('conversations.channelNotSupported', {
+                              defaultValue: 'Channel not supported',
+                            })}
                           </span>
                         )}
                       </div>
                     </div>
-                    {isSelected && (
-                      <div className="h-2 w-2 rounded-full bg-primary" />
-                    )}
+                    {isSelected && <div className="h-2 w-2 rounded-full bg-primary" />}
                   </button>
                 )
               })}
@@ -201,17 +220,10 @@ export function ReassignDialog({
             </Button>
           )}
           <div className="flex-1" />
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={reassigning}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={reassigning}>
             {t('common.cancel', { defaultValue: 'Cancel' })}
           </Button>
-          <Button
-            onClick={handleReassign}
-            disabled={!selectedPubkey || reassigning}
-          >
+          <Button onClick={handleReassign} disabled={!selectedPubkey || reassigning}>
             {reassigning && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
             {t('conversations.reassign', { defaultValue: 'Reassign' })}
           </Button>

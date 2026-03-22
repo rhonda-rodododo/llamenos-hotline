@@ -1,11 +1,11 @@
-import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
+import { utf8ToBytes } from '@noble/ciphers/utils.js'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
-import { utf8ToBytes } from '@noble/ciphers/utils.js'
-import type { EncryptedFileMetadata, FileKeyEnvelope } from '@shared/types'
 import { LABEL_FILE_KEY, LABEL_FILE_METADATA } from '@shared/crypto-labels'
-import { eciesWrapKey, eciesUnwrapKey } from './crypto'
+import type { EncryptedFileMetadata, FileKeyEnvelope } from '@shared/types'
+import { eciesUnwrapKey, eciesWrapKey } from './crypto'
 
 function randomBytes(n: number): Uint8Array {
   const buf = new Uint8Array(n)
@@ -19,12 +19,12 @@ function randomBytes(n: number): Uint8Array {
 export function unwrapFileKey(
   encryptedFileKeyHex: string,
   ephemeralPubkeyHex: string,
-  secretKey: Uint8Array,
+  secretKey: Uint8Array
 ): Uint8Array {
   return eciesUnwrapKey(
     { wrappedKey: encryptedFileKeyHex, ephemeralPubkey: ephemeralPubkeyHex },
     secretKey,
-    LABEL_FILE_KEY,
+    LABEL_FILE_KEY
   )
 }
 
@@ -34,12 +34,12 @@ export function unwrapFileKey(
  */
 function encryptMetadataForPubkey(
   metadata: EncryptedFileMetadata,
-  recipientPubkeyHex: string,
+  recipientPubkeyHex: string
 ): { pubkey: string; encryptedContent: string; ephemeralPubkey: string } {
   const ephemeralSecret = randomBytes(32)
   const ephemeralPublicKey = secp256k1.getPublicKey(ephemeralSecret, true)
 
-  const recipientCompressed = hexToBytes('02' + recipientPubkeyHex)
+  const recipientCompressed = hexToBytes(`02${recipientPubkeyHex}`)
   const shared = secp256k1.getSharedSecret(ephemeralSecret, recipientCompressed)
   const sharedX = shared.slice(1, 33)
 
@@ -71,7 +71,7 @@ function encryptMetadataForPubkey(
 export function decryptFileMetadata(
   encryptedContentHex: string,
   ephemeralPubkeyHex: string,
-  secretKey: Uint8Array,
+  secretKey: Uint8Array
 ): EncryptedFileMetadata | null {
   try {
     const ephemeralPub = hexToBytes(ephemeralPubkeyHex)
@@ -112,7 +112,7 @@ export interface EncryptedFileUpload {
  */
 export async function encryptFile(
   file: File,
-  recipientPubkeys: string[],
+  recipientPubkeys: string[]
 ): Promise<EncryptedFileUpload> {
   const plaintextBytes = new Uint8Array(await file.arrayBuffer())
 
@@ -139,13 +139,13 @@ export async function encryptFile(
   packed.set(encryptedContent, fileNonce.length)
 
   // Wrap the file key for each recipient using shared ECIES
-  const recipientEnvelopes: FileKeyEnvelope[] = recipientPubkeys.map(pubkey => {
+  const recipientEnvelopes: FileKeyEnvelope[] = recipientPubkeys.map((pubkey) => {
     const { wrappedKey, ephemeralPubkey } = eciesWrapKey(fileKey, pubkey, LABEL_FILE_KEY)
     return { pubkey, encryptedFileKey: wrappedKey, ephemeralPubkey }
   })
 
   // Encrypt metadata for each recipient
-  const encryptedMetadataList = recipientPubkeys.map(pubkey =>
+  const encryptedMetadataList = recipientPubkeys.map((pubkey) =>
     encryptMetadataForPubkey(metadata, pubkey)
   )
 
@@ -162,7 +162,7 @@ export async function encryptFile(
 export async function decryptFile(
   encryptedContent: ArrayBuffer,
   envelope: FileKeyEnvelope,
-  secretKey: Uint8Array,
+  secretKey: Uint8Array
 ): Promise<{ blob: Blob; checksum: string }> {
   // Unwrap the file key
   const fileKey = unwrapFileKey(envelope.encryptedFileKey, envelope.ephemeralPubkey, secretKey)
@@ -192,13 +192,17 @@ export function rewrapFileKey(
   encryptedFileKeyHex: string,
   ephemeralPubkeyHex: string,
   adminSecretKey: Uint8Array,
-  newRecipientPubkeyHex: string,
+  newRecipientPubkeyHex: string
 ): FileKeyEnvelope {
   // Decrypt with admin key
   const fileKey = unwrapFileKey(encryptedFileKeyHex, ephemeralPubkeyHex, adminSecretKey)
 
   // Re-encrypt for new recipient
-  const { wrappedKey: encryptedFileKey, ephemeralPubkey } = eciesWrapKey(fileKey, newRecipientPubkeyHex, LABEL_FILE_KEY)
+  const { wrappedKey: encryptedFileKey, ephemeralPubkey } = eciesWrapKey(
+    fileKey,
+    newRecipientPubkeyHex,
+    LABEL_FILE_KEY
+  )
 
   return {
     pubkey: newRecipientPubkeyHex,

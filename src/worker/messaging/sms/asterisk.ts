@@ -1,12 +1,12 @@
-import type {
-  MessagingAdapter,
-  IncomingMessage,
-  SendMessageParams,
-  SendMediaParams,
-  SendResult,
-  ChannelStatus,
-} from '../adapter'
 import type { MessagingChannelType } from '../../../shared/types'
+import type {
+  ChannelStatus,
+  IncomingMessage,
+  MessagingAdapter,
+  SendMediaParams,
+  SendMessageParams,
+  SendResult,
+} from '../adapter'
 
 /**
  * AsteriskSMSAdapter -- thin delegation wrapper for Asterisk.

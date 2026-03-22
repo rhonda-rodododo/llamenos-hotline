@@ -1,5 +1,5 @@
-import type { CustomFieldDefinition } from '@shared/types'
 import { Badge } from '@/components/ui/badge'
+import type { CustomFieldDefinition } from '@shared/types'
 
 interface Props {
   fields: CustomFieldDefinition[]
@@ -12,12 +12,10 @@ interface Props {
  */
 export function CustomFieldBadges({ fields, values }: Props) {
   const badges = fields
-    .map(field => {
+    .map((field) => {
       const val = values[field.id]
       if (val === undefined || val === '') return null
-      const displayVal = field.type === 'checkbox'
-        ? (val ? '\u2713' : '\u2717')
-        : String(val)
+      const displayVal = field.type === 'checkbox' ? (val ? '\u2713' : '\u2717') : String(val)
       return (
         <Badge key={field.id} variant="outline" className="text-xs">
           {field.label}: {displayVal}
@@ -28,9 +26,5 @@ export function CustomFieldBadges({ fields, values }: Props) {
 
   if (badges.length === 0) return null
 
-  return (
-    <div className="mt-2 flex flex-wrap gap-2">
-      {badges}
-    </div>
-  )
+  return <div className="mt-2 flex flex-wrap gap-2">{badges}</div>
 }

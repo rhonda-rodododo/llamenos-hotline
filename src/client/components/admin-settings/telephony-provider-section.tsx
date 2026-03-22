@@ -1,20 +1,20 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
+import { PhoneInput } from '@/components/phone-input'
+import { SettingsSection } from '@/components/settings-section'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
-  updateTelephonyProvider,
-  testTelephonyProvider,
   type TelephonyProviderConfig,
   type TelephonyProviderType,
+  testTelephonyProvider,
+  updateTelephonyProvider,
 } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 import { TELEPHONY_PROVIDER_LABELS } from '@shared/types'
-import { SettingsSection } from '@/components/settings-section'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { PhoneInput } from '@/components/phone-input'
 import { Radio, Save } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   config: TelephonyProviderConfig | null
@@ -26,7 +26,15 @@ interface Props {
   statusSummary?: string
 }
 
-export function TelephonyProviderSection({ config, draft, onConfigChange, onDraftChange, expanded, onToggle, statusSummary }: Props) {
+export function TelephonyProviderSection({
+  config,
+  draft,
+  onConfigChange,
+  onDraftChange,
+  expanded,
+  onToggle,
+  statusSummary,
+}: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [testing, setTesting] = useState(false)
@@ -51,7 +59,10 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
       {config && (
         <div className="rounded-lg border border-border bg-muted/50 p-3">
           <p className="text-xs text-muted-foreground">
-            {t('telephonyProvider.currentProvider')}: <span className="font-medium text-foreground">{TELEPHONY_PROVIDER_LABELS[config.type]}</span>
+            {t('telephonyProvider.currentProvider')}:{' '}
+            <span className="font-medium text-foreground">
+              {TELEPHONY_PROVIDER_LABELS[config.type]}
+            </span>
           </p>
         </div>
       )}
@@ -66,15 +77,19 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
           <Label>{t('telephonyProvider.provider')}</Label>
           <select
             value={draft.type || 'twilio'}
-            onChange={e => {
+            onChange={(e) => {
               onDraftChange({ type: e.target.value as TelephonyProviderType })
               setTestResult(null)
             }}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            {(Object.entries(TELEPHONY_PROVIDER_LABELS) as [TelephonyProviderType, string][]).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
+            {(Object.entries(TELEPHONY_PROVIDER_LABELS) as [TelephonyProviderType, string][]).map(
+              ([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              )
+            )}
           </select>
           <p className="text-xs text-muted-foreground">
             {t(`telephonyProvider.providerDescriptions.${draft.type || 'twilio'}`)}
@@ -100,7 +115,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
                 <Label>{t('telephonyProvider.accountSid')}</Label>
                 <Input
                   value={draft.accountSid || ''}
-                  onChange={e => updateDraft({ accountSid: e.target.value })}
+                  onChange={(e) => updateDraft({ accountSid: e.target.value })}
                   placeholder="AC..."
                   data-testid="account-sid"
                 />
@@ -110,7 +125,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
                 <Input
                   type="password"
                   value={draft.authToken || ''}
-                  onChange={e => updateDraft({ authToken: e.target.value })}
+                  onChange={(e) => updateDraft({ authToken: e.target.value })}
                   data-testid="auth-token"
                 />
               </div>
@@ -118,10 +133,12 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
             {draft.type === 'signalwire' && (
               <div className="space-y-1">
                 <Label>{t('telephonyProvider.signalwireSpace')}</Label>
-                <p className="text-xs text-muted-foreground">{t('telephonyProvider.signalwireSpaceHelp')}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t('telephonyProvider.signalwireSpaceHelp')}
+                </p>
                 <Input
                   value={draft.signalwireSpace || ''}
-                  onChange={e => updateDraft({ signalwireSpace: e.target.value })}
+                  onChange={(e) => updateDraft({ signalwireSpace: e.target.value })}
                   placeholder="myspace"
                 />
               </div>
@@ -136,7 +153,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
               <Label>{t('telephonyProvider.apiKey')}</Label>
               <Input
                 value={draft.apiKey || ''}
-                onChange={e => updateDraft({ apiKey: e.target.value })}
+                onChange={(e) => updateDraft({ apiKey: e.target.value })}
               />
             </div>
             <div className="space-y-1">
@@ -144,14 +161,14 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
               <Input
                 type="password"
                 value={draft.apiSecret || ''}
-                onChange={e => updateDraft({ apiSecret: e.target.value })}
+                onChange={(e) => updateDraft({ apiSecret: e.target.value })}
               />
             </div>
             <div className="space-y-1">
               <Label>{t('telephonyProvider.applicationId')}</Label>
               <Input
                 value={draft.applicationId || ''}
-                onChange={e => updateDraft({ applicationId: e.target.value })}
+                onChange={(e) => updateDraft({ applicationId: e.target.value })}
               />
             </div>
           </div>
@@ -164,7 +181,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
               <Label>{t('telephonyProvider.authId')}</Label>
               <Input
                 value={draft.authId || ''}
-                onChange={e => updateDraft({ authId: e.target.value })}
+                onChange={(e) => updateDraft({ authId: e.target.value })}
               />
             </div>
             <div className="space-y-1">
@@ -172,7 +189,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
               <Input
                 type="password"
                 value={draft.authToken || ''}
-                onChange={e => updateDraft({ authToken: e.target.value })}
+                onChange={(e) => updateDraft({ authToken: e.target.value })}
               />
             </div>
           </div>
@@ -186,7 +203,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
               <p className="text-xs text-muted-foreground">{t('telephonyProvider.ariUrlHelp')}</p>
               <Input
                 value={draft.ariUrl || ''}
-                onChange={e => updateDraft({ ariUrl: e.target.value })}
+                onChange={(e) => updateDraft({ ariUrl: e.target.value })}
                 placeholder="https://asterisk.example.com:8089/ari"
               />
             </div>
@@ -195,7 +212,7 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
                 <Label>{t('telephonyProvider.ariUsername')}</Label>
                 <Input
                   value={draft.ariUsername || ''}
-                  onChange={e => updateDraft({ ariUsername: e.target.value })}
+                  onChange={(e) => updateDraft({ ariUsername: e.target.value })}
                 />
               </div>
               <div className="space-y-1">
@@ -203,16 +220,18 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
                 <Input
                   type="password"
                   value={draft.ariPassword || ''}
-                  onChange={e => updateDraft({ ariPassword: e.target.value })}
+                  onChange={(e) => updateDraft({ ariPassword: e.target.value })}
                 />
               </div>
             </div>
             <div className="space-y-1">
               <Label>{t('telephonyProvider.bridgeCallbackUrl')}</Label>
-              <p className="text-xs text-muted-foreground">{t('telephonyProvider.bridgeCallbackUrlHelp')}</p>
+              <p className="text-xs text-muted-foreground">
+                {t('telephonyProvider.bridgeCallbackUrlHelp')}
+              </p>
               <Input
                 value={draft.bridgeCallbackUrl || ''}
-                onChange={e => updateDraft({ bridgeCallbackUrl: e.target.value })}
+                onChange={(e) => updateDraft({ bridgeCallbackUrl: e.target.value })}
               />
             </div>
           </>
@@ -224,21 +243,25 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label className="text-sm font-medium">{t('telephonyProvider.webrtcConfig')}</Label>
-                <p className="text-xs text-muted-foreground">{t('telephonyProvider.webrtcConfigHelp')}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t('telephonyProvider.webrtcConfigHelp')}
+                </p>
               </div>
               <Switch
                 checked={draft.webrtcEnabled || false}
-                onCheckedChange={checked => updateDraft({ webrtcEnabled: checked })}
+                onCheckedChange={(checked) => updateDraft({ webrtcEnabled: checked })}
               />
             </div>
             {draft.webrtcEnabled && (draft.type === 'twilio' || draft.type === 'signalwire') && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label>{t('telephonyProvider.apiKeySid')}</Label>
-                  <p className="text-xs text-muted-foreground">{t('telephonyProvider.apiKeySidHelp')}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('telephonyProvider.apiKeySidHelp')}
+                  </p>
                   <Input
                     value={draft.apiKeySid || ''}
-                    onChange={e => updateDraft({ apiKeySid: e.target.value })}
+                    onChange={(e) => updateDraft({ apiKeySid: e.target.value })}
                     placeholder="SK..."
                     data-testid="api-key-sid"
                   />
@@ -248,15 +271,17 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
                   <Input
                     type="password"
                     value={draft.apiKeySecret || ''}
-                    onChange={e => updateDraft({ apiKeySecret: e.target.value })}
+                    onChange={(e) => updateDraft({ apiKeySecret: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1 sm:col-span-2">
                   <Label>{t('telephonyProvider.twimlAppSid')}</Label>
-                  <p className="text-xs text-muted-foreground">{t('telephonyProvider.twimlAppSidHelp')}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('telephonyProvider.twimlAppSidHelp')}
+                  </p>
                   <Input
                     value={draft.twimlAppSid || ''}
-                    onChange={e => updateDraft({ twimlAppSid: e.target.value })}
+                    onChange={(e) => updateDraft({ twimlAppSid: e.target.value })}
                     placeholder="AP..."
                     data-testid="twiml-app-sid"
                   />
@@ -268,9 +293,15 @@ export function TelephonyProviderSection({ config, draft, onConfigChange, onDraf
 
         {/* Test result */}
         {testResult && (
-          <div className={`rounded-lg border p-3 ${testResult.ok ? 'border-green-500/30 bg-green-500/10' : 'border-destructive/30 bg-destructive/10'}`}>
-            <p className={`text-xs ${testResult.ok ? 'text-green-700 dark:text-green-400' : 'text-destructive'}`}>
-              {testResult.ok ? t('telephonyProvider.testSuccess') : `${t('telephonyProvider.testFailed')}: ${testResult.error || ''}`}
+          <div
+            className={`rounded-lg border p-3 ${testResult.ok ? 'border-green-500/30 bg-green-500/10' : 'border-destructive/30 bg-destructive/10'}`}
+          >
+            <p
+              className={`text-xs ${testResult.ok ? 'text-green-700 dark:text-green-400' : 'text-destructive'}`}
+            >
+              {testResult.ok
+                ? t('telephonyProvider.testSuccess')
+                : `${t('telephonyProvider.testFailed')}: ${testResult.error || ''}`}
             </p>
           </div>
         )}

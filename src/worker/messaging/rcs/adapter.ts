@@ -2,10 +2,17 @@
  * RCSAdapter — implements MessagingAdapter for Google RCS Business Messaging.
  */
 
-import type { MessagingAdapter, IncomingMessage, SendMessageParams, SendMediaParams, SendResult, ChannelStatus } from '../adapter'
 import type { RCSConfig } from '../../../shared/types'
-import type { RBMWebhookPayload, GoogleServiceAccountKey } from './types'
+import type {
+  ChannelStatus,
+  IncomingMessage,
+  MessagingAdapter,
+  SendMediaParams,
+  SendMessageParams,
+  SendResult,
+} from '../adapter'
 import { RBMClient } from './rbm-client'
+import type { GoogleServiceAccountKey, RBMWebhookPayload } from './types'
 
 export class RCSAdapter implements MessagingAdapter {
   readonly channelType = 'rcs' as const
@@ -17,15 +24,16 @@ export class RCSAdapter implements MessagingAdapter {
     this.config = config
     this.hmacSecret = hmacSecret
 
-    const serviceAccountKey = typeof config.serviceAccountKey === 'string'
-      ? JSON.parse(config.serviceAccountKey) as GoogleServiceAccountKey
-      : config.serviceAccountKey as unknown as GoogleServiceAccountKey
+    const serviceAccountKey =
+      typeof config.serviceAccountKey === 'string'
+        ? (JSON.parse(config.serviceAccountKey) as GoogleServiceAccountKey)
+        : (config.serviceAccountKey as unknown as GoogleServiceAccountKey)
 
     this.client = new RBMClient(config.agentId, serviceAccountKey)
   }
 
   async parseIncomingMessage(request: Request): Promise<IncomingMessage> {
-    const payload = await request.json() as RBMWebhookPayload
+    const payload = (await request.json()) as RBMWebhookPayload
 
     if (!payload.message) {
       throw new Error('RCS webhook has no message content')
@@ -122,8 +130,11 @@ async function hashIdentifier(identifier: string, secret: string): Promise<strin
     encoder.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign'],
+    ['sign']
   )
   const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(identifier))
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32)
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 32)
 }

@@ -1,16 +1,14 @@
+import { useNotificationPermission } from '@/lib/use-notification-permission'
+import { Bell, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Bell, X } from 'lucide-react'
-import { useNotificationPermission } from '@/lib/use-notification-permission'
 
 const DISMISS_KEY = 'llamenos-notification-prompt-dismissed'
 
 export function NotificationPromptBanner() {
   const { t } = useTranslation()
   const { permission, requestPermission } = useNotificationPermission()
-  const [dismissed, setDismissed] = useState(() =>
-    localStorage.getItem(DISMISS_KEY) === 'true'
-  )
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === 'true')
 
   if (dismissed || permission !== 'default') return null
 
@@ -22,12 +20,14 @@ export function NotificationPromptBanner() {
       </p>
       <div className="flex items-center gap-2 shrink-0">
         <button
+          type="button"
           onClick={() => requestPermission()}
           className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
         >
           {t('notifications.promptEnable')}
         </button>
         <button
+          type="button"
           onClick={() => {
             localStorage.setItem(DISMISS_KEY, 'true')
             setDismissed(true)

@@ -4,11 +4,11 @@
  */
 
 import type {
-  GoogleServiceAccountKey,
   GoogleOAuthTokenResponse,
-  RBMSendMessageRequest,
+  GoogleServiceAccountKey,
   RBMApiResponse,
   RBMContentMessage,
+  RBMSendMessageRequest,
 } from './types'
 
 const RBM_API_BASE = 'https://rcsbusinessmessaging.googleapis.com/v1'
@@ -49,20 +49,20 @@ export class RBMClient {
       .replace(/-----BEGIN PRIVATE KEY-----/g, '')
       .replace(/-----END PRIVATE KEY-----/g, '')
       .replace(/\s/g, '')
-    const binaryKey = Uint8Array.from(atob(pemContent), c => c.charCodeAt(0))
+    const binaryKey = Uint8Array.from(atob(pemContent), (c) => c.charCodeAt(0))
 
     const key = await crypto.subtle.importKey(
       'pkcs8',
       binaryKey,
       { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
       false,
-      ['sign'],
+      ['sign']
     )
 
     const signature = await crypto.subtle.sign(
       'RSASSA-PKCS1-v1_5',
       key,
-      new TextEncoder().encode(signingInput),
+      new TextEncoder().encode(signingInput)
     )
 
     const encodedSignature = base64urlEncode(String.fromCharCode(...new Uint8Array(signature)))
@@ -92,7 +92,7 @@ export class RBMClient {
       throw new Error(`OAuth2 token exchange failed: ${res.status} ${text}`)
     }
 
-    const data = await res.json() as GoogleOAuthTokenResponse
+    const data = (await res.json()) as GoogleOAuthTokenResponse
     this.cachedToken = {
       token: data.access_token,
       expiresAt: Date.now() + (data.expires_in - 60) * 1000, // 1 min buffer
@@ -114,13 +114,13 @@ export class RBMClient {
     const res = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
     })
 
-    return await res.json() as RBMApiResponse
+    return (await res.json()) as RBMApiResponse
   }
 
   /**
@@ -132,7 +132,7 @@ export class RBMClient {
       // Try listing agent — if token works, we're connected
       const res = await fetch(`${RBM_API_BASE}/phones/+0/agentMessages?agentId=${this.agentId}`, {
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
       // 404 is fine (no messages) — it means auth worked
       return { connected: res.status !== 401 && res.status !== 403 }

@@ -1,35 +1,44 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useEffect, useState } from 'react'
-import { useCalls, useCallTimer, useShiftStatus } from '@/lib/hooks'
-import { createNote, addBan, getCallsTodayCount, getVolunteerPresence, listVolunteers, type ActiveCall, type VolunteerPresence, type Volunteer } from '@/lib/api'
-import { encryptNoteV2 } from '@/lib/crypto'
-import { useTranscription } from '@/lib/transcription'
-
-import { useToast } from '@/lib/toast'
 import {
-  PhoneIncoming,
-  PhoneCall,
-  PhoneOff,
-  Activity,
-  Clock,
-  BarChart3,
-  LayoutDashboard,
-  Save,
-  ShieldBan,
-  Lock,
-  AlertTriangle,
-  Coffee,
-  Users,
-  Mic,
-  Loader2,
-} from 'lucide-react'
+  type ActiveCall,
+  type Volunteer,
+  type VolunteerPresence,
+  addBan,
+  createNote,
+  getCallsTodayCount,
+  getVolunteerPresence,
+  listVolunteers,
+} from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { encryptNoteV2 } from '@/lib/crypto'
+import { useCallTimer, useCalls, useShiftStatus } from '@/lib/hooks'
+import { useTranscription } from '@/lib/transcription'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import { GettingStartedChecklist } from '@/components/getting-started'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { WebRtcStatus, WebRtcCallControls } from '@/components/webrtc-call'
-import { GettingStartedChecklist } from '@/components/getting-started'
+import { WebRtcCallControls, WebRtcStatus } from '@/components/webrtc-call'
+import { useToast } from '@/lib/toast'
+import {
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  Clock,
+  Coffee,
+  LayoutDashboard,
+  Loader2,
+  Lock,
+  Mic,
+  PhoneCall,
+  PhoneIncoming,
+  PhoneOff,
+  Save,
+  ShieldBan,
+  Users,
+} from 'lucide-react'
 
 export const Route = createFileRoute('/')({
   component: DashboardPage,
@@ -40,7 +49,8 @@ function DashboardPage() {
   const { isAuthenticated, isAdmin, hasNsec, publicKey, onBreak, toggleBreak } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
-  const { calls, currentCall, answerCall, hangupCall, reportSpam, ringingCalls, activeCalls } = useCalls()
+  const { calls, currentCall, answerCall, hangupCall, reportSpam, ringingCalls, activeCalls } =
+    useCalls()
   const { onShift, currentShift, nextShift } = useShiftStatus()
   const [callsToday, setCallsToday] = useState<number | null>(null)
   const [presence, setPresence] = useState<VolunteerPresence[]>([])
@@ -55,7 +65,9 @@ function DashboardPage() {
   // Fetch calls today count
   useEffect(() => {
     if (!isAuthenticated) return
-    getCallsTodayCount().then(r => setCallsToday(r.count)).catch(() => {})
+    getCallsTodayCount()
+      .then((r) => setCallsToday(r.count))
+      .catch(() => {})
   }, [isAuthenticated, activeCalls.length])
 
   // Fetch volunteer presence (admin only) with periodic refresh
@@ -63,13 +75,24 @@ function DashboardPage() {
     if (!isAuthenticated || !isAdmin) return
     let mounted = true
     const fetchPresence = () => {
-      getVolunteerPresence().then(r => { if (mounted) setPresence(r.volunteers) }).catch(() => {})
+      getVolunteerPresence()
+        .then((r) => {
+          if (mounted) setPresence(r.volunteers)
+        })
+        .catch(() => {})
     }
     fetchPresence()
-    listVolunteers().then(r => { if (mounted) setVolunteers(r.volunteers) }).catch(() => {})
+    listVolunteers()
+      .then((r) => {
+        if (mounted) setVolunteers(r.volunteers)
+      })
+      .catch(() => {})
     // Poll presence every 15s (replaces WS-based real-time presence)
     const interval = setInterval(fetchPresence, 15_000)
-    return () => { mounted = false; clearInterval(interval) }
+    return () => {
+      mounted = false
+      clearInterval(interval)
+    }
   }, [isAuthenticated, isAdmin])
 
   if (!isAuthenticated) return null
@@ -84,10 +107,20 @@ function DashboardPage() {
 
       {/* Status cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className={activeCalls.length > 0 ? 'border-green-500/20 bg-green-50/50 dark:bg-green-950/10' : undefined}>
+        <Card
+          className={
+            activeCalls.length > 0
+              ? 'border-green-500/20 bg-green-50/50 dark:bg-green-950/10'
+              : undefined
+          }
+        >
           <CardContent className="flex items-center gap-4 py-0">
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${activeCalls.length > 0 ? 'bg-green-500/15' : 'bg-muted'}`}>
-              <Activity className={`h-5 w-5 ${activeCalls.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
+            <div
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${activeCalls.length > 0 ? 'bg-green-500/15' : 'bg-muted'}`}
+            >
+              <Activity
+                className={`h-5 w-5 ${activeCalls.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}
+              />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{t('dashboard.activeCalls')}</p>
@@ -95,17 +128,39 @@ function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className={onBreak ? 'border-yellow-400/30 bg-yellow-50/50 dark:border-yellow-600/30 dark:bg-yellow-950/10' : onShift ? 'border-primary/20 bg-primary/5' : undefined}>
+        <Card
+          className={
+            onBreak
+              ? 'border-yellow-400/30 bg-yellow-50/50 dark:border-yellow-600/30 dark:bg-yellow-950/10'
+              : onShift
+                ? 'border-primary/20 bg-primary/5'
+                : undefined
+          }
+        >
           <CardContent className="flex items-center gap-4 py-0">
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-              onBreak ? 'bg-yellow-500/15' : onShift ? 'bg-primary/10' : 'bg-muted'
-            }`}>
-              {onBreak ? <Coffee className="h-5 w-5 text-yellow-600 dark:text-yellow-400" /> : <Clock className={`h-5 w-5 ${onShift ? 'text-primary' : 'text-muted-foreground'}`} />}
+            <div
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                onBreak ? 'bg-yellow-500/15' : onShift ? 'bg-primary/10' : 'bg-muted'
+              }`}
+            >
+              {onBreak ? (
+                <Coffee className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+              ) : (
+                <Clock
+                  className={`h-5 w-5 ${onShift ? 'text-primary' : 'text-muted-foreground'}`}
+                />
+              )}
             </div>
             <div className="flex-1">
               <p className="text-sm text-muted-foreground">{t('dashboard.currentShift')}</p>
               <p className="text-lg font-bold sm:text-2xl">
-                {currentCall ? t('dashboard.onCall') : onBreak ? t('dashboard.onBreak') : onShift ? t('dashboard.ready') : t('shifts.offShift')}
+                {currentCall
+                  ? t('dashboard.onCall')
+                  : onBreak
+                    ? t('dashboard.onBreak')
+                    : onShift
+                      ? t('dashboard.ready')
+                      : t('shifts.offShift')}
               </p>
               {onShift && currentShift && !currentCall && (
                 <p className="text-xs text-muted-foreground">
@@ -114,7 +169,8 @@ function DashboardPage() {
               )}
               {!onShift && nextShift && !currentCall && (
                 <p className="text-xs text-muted-foreground">
-                  {t('shifts.nextShift')}: {nextShift.name} {t('shifts.startsAt')} {nextShift.startTime}
+                  {t('shifts.nextShift')}: {nextShift.name} {t('shifts.startsAt')}{' '}
+                  {nextShift.startTime}
                 </p>
               )}
             </div>
@@ -162,7 +218,9 @@ function DashboardPage() {
         <Card className="border-yellow-400/40 bg-yellow-50 dark:border-yellow-600/40 dark:bg-yellow-950/10">
           <CardContent className="flex items-center gap-3 py-4">
             <Coffee className="h-5 w-5 text-yellow-600 dark:text-yellow-500" />
-            <p className="text-sm text-yellow-700 dark:text-yellow-300">{t('dashboard.breakDescription')}</p>
+            <p className="text-sm text-yellow-700 dark:text-yellow-300">
+              {t('dashboard.breakDescription')}
+            </p>
           </CardContent>
         </Card>
       )}
@@ -196,8 +254,11 @@ function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {ringingCalls.map(call => (
-              <div key={call.id} className="flex items-center justify-between rounded-lg bg-green-100 px-4 py-3 dark:bg-green-950/30">
+            {ringingCalls.map((call) => (
+              <div
+                key={call.id}
+                className="flex items-center justify-between rounded-lg bg-green-100 px-4 py-3 dark:bg-green-950/30"
+              >
                 <div>
                   <p className="font-medium">{t('calls.incoming')}</p>
                 </div>
@@ -226,20 +287,31 @@ function DashboardPage() {
           </CardHeader>
           <CardContent>
             {presence.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">{t('dashboard.noVolunteersOnline')}</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                {t('dashboard.noVolunteersOnline')}
+              </p>
             ) : (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                {presence.map(vol => {
-                  const volInfo = volunteers.find(v => v.pubkey === vol.pubkey)
+                {presence.map((vol) => {
+                  const volInfo = volunteers.find((v) => v.pubkey === vol.pubkey)
                   return (
-                    <div key={vol.pubkey} className="flex items-center gap-2 rounded-lg border border-border p-2">
-                      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                        vol.status === 'on-call' ? 'bg-blue-500' : 'bg-green-500'
-                      }`} />
+                    <div
+                      key={vol.pubkey}
+                      className="flex items-center gap-2 rounded-lg border border-border p-2"
+                    >
+                      <span
+                        className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                          vol.status === 'on-call' ? 'bg-blue-500' : 'bg-green-500'
+                        }`}
+                      />
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{volInfo?.name || vol.pubkey.slice(0, 8)}</p>
+                        <p className="truncate text-sm font-medium">
+                          {volInfo?.name || vol.pubkey.slice(0, 8)}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          {vol.status === 'on-call' ? t('dashboard.onCall') : t('dashboard.available')}
+                          {vol.status === 'on-call'
+                            ? t('dashboard.onCall')
+                            : t('dashboard.available')}
                         </p>
                       </div>
                     </div>
@@ -266,29 +338,38 @@ function DashboardPage() {
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {calls.map(call => (
-                  <div key={call.id} className="flex items-center justify-between px-4 py-3 sm:px-6">
+                {calls.map((call) => (
+                  <div
+                    key={call.id}
+                    className="flex items-center justify-between px-4 py-3 sm:px-6"
+                  >
                     <div>
                       <p className="text-sm font-medium">
                         {call.status === 'ringing' ? t('calls.incoming') : t('calls.active')}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {call.answeredBy && (() => {
-                          const vol = volunteers.find(v => v.pubkey === call.answeredBy)
-                          return vol ? vol.name : t('calls.active')
-                        })()}
+                        {call.answeredBy &&
+                          (() => {
+                            const vol = volunteers.find((v) => v.pubkey === call.answeredBy)
+                            return vol ? vol.name : t('calls.active')
+                          })()}
                       </p>
                     </div>
                     <Badge
                       variant={call.status === 'ringing' ? 'outline' : 'default'}
-                      className={call.status === 'ringing'
-                        ? 'border-yellow-500/50 text-yellow-700 dark:text-yellow-400'
-                        : 'bg-green-600'
+                      className={
+                        call.status === 'ringing'
+                          ? 'border-yellow-500/50 text-yellow-700 dark:text-yellow-400'
+                          : 'bg-green-600'
                       }
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${
-                        call.status === 'ringing' ? 'bg-yellow-500 dark:bg-yellow-400' : 'bg-white'
-                      }`} />
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full animate-pulse ${
+                          call.status === 'ringing'
+                            ? 'bg-yellow-500 dark:bg-yellow-400'
+                            : 'bg-white'
+                        }`}
+                      />
                       {call.status === 'ringing' ? t('calls.incoming') : t('calls.active')}
                     </Badge>
                   </div>
@@ -302,7 +383,13 @@ function DashboardPage() {
   )
 }
 
-function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubkey }: {
+function ActiveCallPanel({
+  call,
+  onHangup,
+  onReportSpam,
+  onBanNumber,
+  authorPubkey,
+}: {
   call: ActiveCall
   onHangup: () => void
   onReportSpam: () => void
@@ -316,14 +403,24 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
   const [noteText, setNoteText] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const { status: txStatus, transcript, startTranscription, stopTranscription, cancelTranscription, settings: txSettings, progress: txProgress } = useTranscription()
+  const {
+    status: txStatus,
+    transcript,
+    startTranscription,
+    stopTranscription,
+    cancelTranscription,
+    settings: txSettings,
+    progress: txProgress,
+  } = useTranscription()
 
   // Start client-side transcription when panel mounts (call answered)
   useEffect(() => {
     if (txSettings.enabled) {
       startTranscription()
     }
-    return () => { cancelTranscription() }
+    return () => {
+      cancelTranscription()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -332,7 +429,11 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
     setSaving(true)
     try {
       const adminPub = adminDecryptionPubkey || authorPubkey
-      const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2({ text: noteText }, authorPubkey, [adminPub])
+      const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(
+        { text: noteText },
+        authorPubkey,
+        [adminPub]
+      )
       await createNote({ callId: call.id, encryptedContent, authorEnvelope, adminEnvelopes })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -353,7 +454,7 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
           const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(
             { text: `[${t('transcription.title')}] ${text}` },
             authorPubkey,
-            [adminPub],
+            [adminPub]
           )
           await createNote({ callId: call.id, encryptedContent, authorEnvelope, adminEnvelopes })
           toast(t('transcription.saved'), 'success')
@@ -374,12 +475,18 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
               <PhoneCall className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <CardTitle className="text-blue-700 dark:text-blue-300">{t('calls.active')}</CardTitle>
-              <p className="text-sm text-muted-foreground">{call.callerNumber || t('calls.unknown')}</p>
+              <CardTitle className="text-blue-700 dark:text-blue-300">
+                {t('calls.active')}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {call.callerNumber || t('calls.unknown')}
+              </p>
             </div>
           </div>
           <div className="text-right">
-            <p className="font-mono text-2xl font-bold text-blue-700 dark:text-blue-300">{formatted}</p>
+            <p className="font-mono text-2xl font-bold text-blue-700 dark:text-blue-300">
+              {formatted}
+            </p>
             <p className="text-xs text-muted-foreground">{t('calls.duration')}</p>
           </div>
         </div>
@@ -394,22 +501,21 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
           </label>
           <textarea
             value={noteText}
-            onChange={e => setNoteText(e.target.value)}
+            onChange={(e) => setNoteText(e.target.value)}
             placeholder={t('notes.notePlaceholder')}
             rows={4}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <div className="flex items-center gap-2">
-            <Button
-              onClick={handleSaveNote}
-              disabled={saving || !noteText.trim()}
-              size="sm"
-            >
+            <Button onClick={handleSaveNote} disabled={saving || !noteText.trim()} size="sm">
               <Save className="h-3.5 w-3.5" />
               {saving ? t('common.loading') : t('common.save')}
             </Button>
             {saved && (
-              <Badge variant="outline" className="border-green-500/50 text-green-700 dark:text-green-400">
+              <Badge
+                variant="outline"
+                className="border-green-500/50 text-green-700 dark:text-green-400"
+              >
                 {t('common.success')}
               </Badge>
             )}
@@ -428,7 +534,9 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">
                   {txProgress?.progress != null
-                    ? t('transcription.downloadProgress', { progress: Math.round(txProgress.progress) })
+                    ? t('transcription.downloadProgress', {
+                        progress: Math.round(txProgress.progress),
+                      })
                     : t('transcription.loading')}
                 </span>
               </>
@@ -436,13 +544,17 @@ function ActiveCallPanel({ call, onHangup, onReportSpam, onBanNumber, authorPubk
             {txStatus === 'capturing' && (
               <>
                 <Mic className="h-3.5 w-3.5 animate-pulse text-red-500" />
-                <span className="text-xs text-muted-foreground">{t('transcription.capturing')}</span>
+                <span className="text-xs text-muted-foreground">
+                  {t('transcription.capturing')}
+                </span>
               </>
             )}
             {txStatus === 'finalizing' && (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">{t('transcription.finalizing')}</span>
+                <span className="text-xs text-muted-foreground">
+                  {t('transcription.finalizing')}
+                </span>
               </>
             )}
             {transcript && (

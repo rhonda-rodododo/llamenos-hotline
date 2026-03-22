@@ -34,7 +34,8 @@ function validateWhisperUrl(url: string): void {
 export function createTranscriptionService(opts?: {
   whisperUrl?: string
 }): TranscriptionService {
-  const whisperUrl = opts?.whisperUrl || process.env.WHISPER_URL || 'http://localhost:8080/v1/audio/transcriptions'
+  const whisperUrl =
+    opts?.whisperUrl || process.env.WHISPER_URL || 'http://localhost:8080/v1/audio/transcriptions'
   validateWhisperUrl(whisperUrl)
 
   return {
@@ -58,7 +59,7 @@ export function createTranscriptionService(opts?: {
         throw new Error(`Whisper transcription failed: ${response.status} ${response.statusText}`)
       }
 
-      const result = await response.json() as { text: string }
+      const result = (await response.json()) as { text: string }
       return { text: result.text || '' }
     },
   }

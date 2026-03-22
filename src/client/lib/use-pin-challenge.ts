@@ -7,7 +7,7 @@
  *   if (!ok) return // user cancelled or max attempts exceeded
  */
 
-import { useState, useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import * as keyManager from './key-manager'
 
 const MAX_ATTEMPTS = 3
@@ -63,7 +63,7 @@ export function usePinChallenge(): PinChallengeReturn {
       resolveRef.current = null
     } else {
       // Wrong PIN
-      setState(prev => {
+      setState((prev) => {
         const newAttempts = prev.attempts + 1
         if (newAttempts >= MAX_ATTEMPTS) {
           // Max attempts exceeded — close dialog, wipe key

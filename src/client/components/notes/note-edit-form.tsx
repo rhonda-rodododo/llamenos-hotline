@@ -1,8 +1,8 @@
+import { Button } from '@/components/ui/button'
+import type { CustomFieldDefinition } from '@/lib/api'
+import { Save, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { CustomFieldDefinition } from '@/lib/api'
-import { Button } from '@/components/ui/button'
-import { Save, X } from 'lucide-react'
 import { CustomFieldInputs } from './custom-field-inputs'
 
 interface Props {
@@ -14,7 +14,14 @@ interface Props {
   onCancel: () => void
 }
 
-export function NoteEditForm({ text: initialText, fields: initialFields, customFieldDefs, saving, onSave, onCancel }: Props) {
+export function NoteEditForm({
+  text: initialText,
+  fields: initialFields,
+  customFieldDefs,
+  saving,
+  onSave,
+  onCancel,
+}: Props) {
   const { t } = useTranslation()
   const [text, setText] = useState(initialText)
   const [fields, setFields] = useState(initialFields)
@@ -24,7 +31,7 @@ export function NoteEditForm({ text: initialText, fields: initialFields, customF
       <textarea
         data-testid="note-edit-input"
         value={text}
-        onChange={e => setText(e.target.value)}
+        onChange={(e) => setText(e.target.value)}
         rows={6}
         className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
       />
@@ -35,7 +42,12 @@ export function NoteEditForm({ text: initialText, fields: initialFields, customF
         idPrefix="edit-field"
       />
       <div className="flex gap-2">
-        <Button size="sm" data-testid="form-save-btn" onClick={() => onSave(text, fields)} disabled={saving}>
+        <Button
+          size="sm"
+          data-testid="form-save-btn"
+          onClick={() => onSave(text, fields)}
+          disabled={saving}
+        >
           <Save className="h-3.5 w-3.5" />
           {saving ? t('common.loading') : t('common.save')}
         </Button>

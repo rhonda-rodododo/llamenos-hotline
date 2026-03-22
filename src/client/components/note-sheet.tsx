@@ -1,33 +1,47 @@
-import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
+import { encryptNoteV2 } from '@/lib/crypto'
 import { useNoteSheet } from '@/lib/note-sheet-context'
 import { useDraft } from '@/lib/use-draft'
-import { encryptNoteV2 } from '@/lib/crypto'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { createNote, updateNote, getCallHistory, getCustomFields, type CallRecord, type CustomFieldDefinition } from '@/lib/api'
-import { useToast } from '@/lib/toast'
-import type { NotePayload } from '@shared/types'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from '@/components/ui/sheet'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { Lock, Save, Clock } from 'lucide-react'
+import {
+  type CallRecord,
+  type CustomFieldDefinition,
+  createNote,
+  getCallHistory,
+  getCustomFields,
+  updateNote,
+} from '@/lib/api'
+import { useToast } from '@/lib/toast'
+import type { NotePayload } from '@shared/types'
+import { Clock, Lock, Save } from 'lucide-react'
 
 export function NoteSheet() {
   const { t } = useTranslation()
   const { hasNsec, publicKey, isAdmin, adminDecryptionPubkey } = useAuth()
-  const { isOpen, mode, editNoteId, initialCallId, initialText, initialFields, close, onSaved } = useNoteSheet()
+  const { isOpen, mode, editNoteId, initialCallId, initialText, initialFields, close, onSaved } =
+    useNoteSheet()
   const { toast } = useToast()
   const [saving, setSaving] = useState(false)
   const [recentCalls, setRecentCalls] = useState<CallRecord[]>([])
@@ -59,9 +73,13 @@ export function NoteSheet() {
   // Load custom fields and recent calls
   useEffect(() => {
     if (!isOpen) return
-    getCustomFields().then(r => setCustomFields(r.fields)).catch(() => {})
+    getCustomFields()
+      .then((r) => setCustomFields(r.fields))
+      .catch(() => {})
     if (isAdmin) {
-      getCallHistory({ limit: 20 }).then(r => setRecentCalls(r.calls)).catch(() => {})
+      getCallHistory({ limit: 20 })
+        .then((r) => setRecentCalls(r.calls))
+        .catch(() => {})
     }
   }, [isAdmin, isOpen])
 
@@ -79,7 +97,11 @@ export function NoteSheet() {
       }
       if (field.type === 'text' || field.type === 'textarea') {
         const str = (value as string) || ''
-        if (field.validation?.minLength && str.length > 0 && str.length < field.validation.minLength) {
+        if (
+          field.validation?.minLength &&
+          str.length > 0 &&
+          str.length < field.validation.minLength
+        ) {
           errors[field.id] = t('customFields.tooShort', { min: field.validation.minLength })
         }
         if (field.validation?.maxLength && str.length > field.validation.maxLength) {
@@ -108,14 +130,20 @@ export function NoteSheet() {
     try {
       // Build NotePayload with custom field values
       const payload: NotePayload = { text: draft.text }
-      const fieldValues = Object.entries(draft.fields).filter(([, v]) => v !== '' && v !== undefined)
+      const fieldValues = Object.entries(draft.fields).filter(
+        ([, v]) => v !== '' && v !== undefined
+      )
       if (fieldValues.length > 0) {
         payload.fields = Object.fromEntries(fieldValues)
       }
       // V2 per-note ephemeral key encryption (forward secrecy)
       const authorPub = publicKey
       const adminPub = adminDecryptionPubkey || authorPub // fallback to self if admin decryption pubkey not available
-      const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(payload, authorPub, [adminPub])
+      const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(
+        payload,
+        authorPub,
+        [adminPub]
+      )
 
       if (mode === 'edit' && editNoteId) {
         await updateNote(editNoteId, { encryptedContent, authorEnvelope, adminEnvelopes })
@@ -143,15 +171,22 @@ export function NoteSheet() {
   const modKey = isMac ? '\u2318' : 'Ctrl'
 
   // Filter fields based on role visibility
-  const visibleFields = customFields.filter(f => isAdmin || f.visibleToVolunteers)
+  const visibleFields = customFields.filter((f) => isAdmin || f.visibleToVolunteers)
 
   return (
-    <Sheet open={isOpen} onOpenChange={open => { if (!open) close() }}>
-      <SheetContent side="right" className="sm:max-w-[480px] flex flex-col" onKeyDown={handleKeyDown}>
+    <Sheet
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) close()
+      }}
+    >
+      <SheetContent
+        side="right"
+        className="sm:max-w-[480px] flex flex-col"
+        onKeyDown={handleKeyDown}
+      >
         <SheetHeader>
-          <SheetTitle>
-            {mode === 'edit' ? t('notes.editNote') : t('notes.newNote')}
-          </SheetTitle>
+          <SheetTitle>{mode === 'edit' ? t('notes.editNote') : t('notes.newNote')}</SheetTitle>
           <SheetDescription className="flex items-center gap-1">
             <Lock className="h-3 w-3" />
             {t('notes.encryptionNote')}
@@ -163,7 +198,9 @@ export function NoteSheet() {
           <div className="space-y-2">
             <Label htmlFor="sheet-call-id">{t('notes.callId')}</Label>
             {initialCallId && mode === 'new' ? (
-              <Badge variant="secondary" className="text-sm">{initialCallId.slice(0, 24)}</Badge>
+              <Badge variant="secondary" className="text-sm">
+                {initialCallId.slice(0, 24)}
+              </Badge>
             ) : recentCalls.length > 0 ? (
               <Select
                 value={draft.callId || undefined}
@@ -179,7 +216,7 @@ export function NoteSheet() {
                   <SelectValue placeholder={t('notes.selectCall')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {recentCalls.map(call => (
+                  {recentCalls.map((call) => (
                     <SelectItem key={call.id} value={call.id}>
                       {call.callerNumber} — {new Date(call.startedAt).toLocaleString()}
                     </SelectItem>
@@ -191,7 +228,7 @@ export function NoteSheet() {
               <Input
                 id="sheet-call-id"
                 value={draft.callId}
-                onChange={e => draft.setCallId(e.target.value)}
+                onChange={(e) => draft.setCallId(e.target.value)}
                 placeholder={t('notes.callIdPlaceholder')}
                 disabled={mode === 'edit'}
               />
@@ -202,17 +239,26 @@ export function NoteSheet() {
           {visibleFields.length > 0 && (
             <div className="space-y-3 rounded-lg border border-border p-3">
               <p className="text-xs font-medium text-muted-foreground">{t('customFields.title')}</p>
-              {visibleFields.map(field => {
+              {visibleFields.map((field) => {
                 const disabled = !isAdmin && !field.editableByVolunteers
                 const error = validationErrors[field.id]
                 const value = draft.fields[field.id]
                 return (
                   <div key={field.id} className="space-y-1.5">
-                    <Label htmlFor={`field-${field.id}`} className="flex items-center gap-1.5 text-sm">
+                    <Label
+                      htmlFor={`field-${field.id}`}
+                      className="flex items-center gap-1.5 text-sm"
+                    >
                       {field.label}
                       {field.required && <span className="text-destructive">*</span>}
                     </Label>
-                    {renderFieldInput(field, value, (v) => draft.setFieldValue(field.id, v), disabled, t)}
+                    {renderFieldInput(
+                      field,
+                      value,
+                      (v) => draft.setFieldValue(field.id, v),
+                      disabled,
+                      t
+                    )}
                     {error && <p className="text-xs text-destructive">{error}</p>}
                   </div>
                 )
@@ -222,15 +268,16 @@ export function NoteSheet() {
 
           {/* Note textarea */}
           <div className="space-y-2">
-            <Label htmlFor="sheet-note-text">{mode === 'edit' ? t('notes.editNote') : t('notes.newNote')}</Label>
+            <Label htmlFor="sheet-note-text">
+              {mode === 'edit' ? t('notes.editNote') : t('notes.newNote')}
+            </Label>
             <textarea
               id="sheet-note-text"
               value={draft.text}
-              onChange={e => draft.setText(e.target.value)}
+              onChange={(e) => draft.setText(e.target.value)}
               placeholder={t('notes.notePlaceholder')}
               rows={8}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-y min-h-[120px]"
-              autoFocus
             />
           </div>
 
@@ -245,16 +292,17 @@ export function NoteSheet() {
 
         <SheetFooter className="border-t border-border">
           <div className="flex items-center gap-2 w-full">
-            <Button onClick={handleSave} disabled={saving || !draft.text.trim() || (!draft.callId.trim() && mode === 'new')}>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !draft.text.trim() || (!draft.callId.trim() && mode === 'new')}
+            >
               <Save className="h-4 w-4" />
               {saving ? t('common.loading') : t('common.save')}
             </Button>
             <Button variant="outline" onClick={close}>
               {t('common.cancel')}
             </Button>
-            <span className="ml-auto text-xs text-muted-foreground">
-              {modKey}+Enter
-            </span>
+            <span className="ml-auto text-xs text-muted-foreground">{modKey}+Enter</span>
           </div>
         </SheetFooter>
       </SheetContent>
@@ -267,7 +315,7 @@ function renderFieldInput(
   value: string | number | boolean | undefined,
   onChange: (v: string | number | boolean) => void,
   disabled: boolean,
-  t: (key: string) => string,
+  t: (key: string) => string
 ) {
   const id = `field-${field.id}`
   switch (field.type) {
@@ -276,7 +324,7 @@ function renderFieldInput(
         <Input
           id={id}
           value={(value as string) || ''}
-          onChange={e => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           maxLength={field.validation?.maxLength}
         />
@@ -287,7 +335,7 @@ function renderFieldInput(
           id={id}
           type="number"
           value={value !== undefined ? String(value) : ''}
-          onChange={e => onChange(e.target.value ? Number(e.target.value) : '')}
+          onChange={(e) => onChange(e.target.value ? Number(e.target.value) : '')}
           disabled={disabled}
           min={field.validation?.min}
           max={field.validation?.max}
@@ -298,7 +346,7 @@ function renderFieldInput(
         <textarea
           id={id}
           value={(value as string) || ''}
-          onChange={e => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           rows={3}
           maxLength={field.validation?.maxLength}
@@ -308,27 +356,20 @@ function renderFieldInput(
     case 'checkbox':
       return (
         <div className="flex items-center gap-2">
-          <Switch
-            id={id}
-            checked={!!value}
-            onCheckedChange={onChange}
-            disabled={disabled}
-          />
+          <Switch id={id} checked={!!value} onCheckedChange={onChange} disabled={disabled} />
         </div>
       )
     case 'select':
       return (
-        <Select
-          value={(value as string) || undefined}
-          onValueChange={onChange}
-          disabled={disabled}
-        >
+        <Select value={(value as string) || undefined} onValueChange={onChange} disabled={disabled}>
           <SelectTrigger id={id}>
             <SelectValue placeholder={t('customFields.selectOption')} />
           </SelectTrigger>
           <SelectContent>
-            {field.options?.map(opt => (
-              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+            {field.options?.map((opt) => (
+              <SelectItem key={opt} value={opt}>
+                {opt}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>

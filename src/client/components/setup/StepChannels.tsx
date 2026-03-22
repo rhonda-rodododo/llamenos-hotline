@@ -1,20 +1,13 @@
-import { useTranslation } from 'react-i18next'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
 import {
-  CHANNEL_SECURITY,
   CHANNEL_LABELS,
+  CHANNEL_SECURITY,
   type ChannelType,
   type TransportSecurity,
 } from '@shared/types'
-import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import {
-  Phone,
-  MessageSquare,
-  Globe,
-  Shield,
-  FileText,
-  Check,
-} from 'lucide-react'
+import { Check, FileText, Globe, MessageSquare, Phone, Shield } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { SetupData } from './SetupWizard'
 
 interface Props {
@@ -31,25 +24,50 @@ interface ChannelInfo {
 }
 
 const CHANNELS: ChannelInfo[] = [
-  { type: 'voice', icon: Phone, descriptionKey: 'setup.channelVoiceDesc', requiresKey: 'setup.channelVoiceReq' },
-  { type: 'sms', icon: MessageSquare, descriptionKey: 'setup.channelSmsDesc', requiresKey: 'setup.channelSmsReq' },
-  { type: 'whatsapp', icon: Globe, descriptionKey: 'setup.channelWhatsappDesc', requiresKey: 'setup.channelWhatsappReq' },
-  { type: 'signal', icon: Shield, descriptionKey: 'setup.channelSignalDesc', requiresKey: 'setup.channelSignalReq' },
-  { type: 'reports', icon: FileText, descriptionKey: 'setup.channelReportsDesc', requiresKey: 'setup.channelReportsReq' },
+  {
+    type: 'voice',
+    icon: Phone,
+    descriptionKey: 'setup.channelVoiceDesc',
+    requiresKey: 'setup.channelVoiceReq',
+  },
+  {
+    type: 'sms',
+    icon: MessageSquare,
+    descriptionKey: 'setup.channelSmsDesc',
+    requiresKey: 'setup.channelSmsReq',
+  },
+  {
+    type: 'whatsapp',
+    icon: Globe,
+    descriptionKey: 'setup.channelWhatsappDesc',
+    requiresKey: 'setup.channelWhatsappReq',
+  },
+  {
+    type: 'signal',
+    icon: Shield,
+    descriptionKey: 'setup.channelSignalDesc',
+    requiresKey: 'setup.channelSignalReq',
+  },
+  {
+    type: 'reports',
+    icon: FileText,
+    descriptionKey: 'setup.channelReportsDesc',
+    requiresKey: 'setup.channelReportsReq',
+  },
 ]
 
 const SECURITY_BADGE_STYLES: Record<TransportSecurity, string> = {
-  'e2ee': 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+  e2ee: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
   'e2ee-to-bridge': 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
   'provider-encrypted': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
-  'none': 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+  none: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
 }
 
 const SECURITY_LABEL_KEYS: Record<TransportSecurity, string> = {
-  'e2ee': 'setup.securityE2ee',
+  e2ee: 'setup.securityE2ee',
   'e2ee-to-bridge': 'setup.securityE2eeBridge',
   'provider-encrypted': 'setup.securityProvider',
-  'none': 'setup.securityNone',
+  none: 'setup.securityNone',
 }
 
 export function StepChannels({ data, onChange, headingRef }: Props) {
@@ -58,7 +76,7 @@ export function StepChannels({ data, onChange, headingRef }: Props) {
   function toggleChannel(channel: ChannelType) {
     const current = data.selectedChannels
     const next = current.includes(channel)
-      ? current.filter(c => c !== channel)
+      ? current.filter((c) => c !== channel)
       : [...current, channel]
     onChange({ selectedChannels: next })
   }
@@ -66,12 +84,14 @@ export function StepChannels({ data, onChange, headingRef }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 ref={headingRef} tabIndex={-1} className="text-lg font-semibold outline-none">{t('setup.channelsTitle')}</h2>
+        <h2 ref={headingRef} tabIndex={-1} className="text-lg font-semibold outline-none">
+          {t('setup.channelsTitle')}
+        </h2>
         <p className="text-sm text-muted-foreground mt-1">{t('setup.channelsDescription')}</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {CHANNELS.map(channel => {
+        {CHANNELS.map((channel) => {
           const selected = data.selectedChannels.includes(channel.type)
           const security = CHANNEL_SECURITY[channel.type]
           const Icon = channel.icon
@@ -79,15 +99,19 @@ export function StepChannels({ data, onChange, headingRef }: Props) {
           return (
             <Card
               key={channel.type}
+              // biome-ignore lint/a11y/useSemanticElements: Card is a styled wrapper component, not a native element — button semantics via role/tabIndex are intentional
               role="button"
               tabIndex={0}
               aria-pressed={selected}
               onClick={() => toggleChannel(channel.type)}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleChannel(channel.type) } }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  toggleChannel(channel.type)
+                }
+              }}
               className={`cursor-pointer p-4 transition-all ${
-                selected
-                  ? 'border-primary ring-2 ring-primary/20'
-                  : 'hover:border-primary/50'
+                selected ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary/50'
               }`}
             >
               <div className="flex items-start justify-between">
@@ -117,7 +141,9 @@ export function StepChannels({ data, onChange, headingRef }: Props) {
       </div>
 
       {data.selectedChannels.length === 0 && (
-        <p role="alert" className="text-sm text-destructive">{t('setup.selectOneChannel')}</p>
+        <p role="alert" className="text-sm text-destructive">
+          {t('setup.selectOneChannel')}
+        </p>
       )}
     </div>
   )

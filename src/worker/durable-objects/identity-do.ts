@@ -1,9 +1,16 @@
-import { DurableObject } from 'cloudflare:workers'
-import type { Env, Volunteer, InviteCode, WebAuthnCredential, WebAuthnSettings, ServerSession } from '../types'
-import { DORouter } from '../lib/do-router'
-import { runMigrations } from '../../shared/migrations/runner'
-import { migrations } from '../../shared/migrations'
+import { DurableObject } from '#cloudflare-workers'
 import { DEMO_ACCOUNTS } from '../../shared/demo-accounts'
+import { migrations } from '../../shared/migrations'
+import { runMigrations } from '../../shared/migrations/runner'
+import { DORouter } from '../lib/do-router'
+import type {
+  Env,
+  InviteCode,
+  ServerSession,
+  Volunteer,
+  WebAuthnCredential,
+  WebAuthnSettings,
+} from '../types'
 
 /**
  * IdentityDO — manages people and auth:
@@ -46,22 +53,30 @@ export class IdentityDO extends DurableObject<Env> {
       if (!pubkey) return new Response('Missing pubkey', { status: 400 })
       return this.getWebAuthnCredentials(pubkey)
     })
-    this.router.post('/webauthn/credentials', async (req) => this.addWebAuthnCredential(await req.json()))
+    this.router.post('/webauthn/credentials', async (req) =>
+      this.addWebAuthnCredential(await req.json())
+    )
     this.router.delete('/webauthn/credentials/:credId', (req, { credId }) => {
       const pubkey = new URL(req.url).searchParams.get('pubkey')
       if (!pubkey) return new Response('Missing pubkey', { status: 400 })
       return this.deleteWebAuthnCredential(pubkey, credId)
     })
-    this.router.post('/webauthn/credentials/update-counter', async (req) => this.updateWebAuthnCounter(await req.json()))
+    this.router.post('/webauthn/credentials/update-counter', async (req) =>
+      this.updateWebAuthnCounter(await req.json())
+    )
     this.router.get('/webauthn/all-credentials', () => this.getAllWebAuthnCredentials())
 
     // --- WebAuthn Challenges ---
-    this.router.post('/webauthn/challenge', async (req) => this.storeWebAuthnChallenge(await req.json()))
+    this.router.post('/webauthn/challenge', async (req) =>
+      this.storeWebAuthnChallenge(await req.json())
+    )
     this.router.get('/webauthn/challenge/:id', (_req, { id }) => this.getWebAuthnChallenge(id))
 
     // --- WebAuthn Settings ---
     this.router.get('/settings/webauthn', () => this.getWebAuthnSettings())
-    this.router.patch('/settings/webauthn', async (req) => this.updateWebAuthnSettings(await req.json()))
+    this.router.patch('/settings/webauthn', async (req) =>
+      this.updateWebAuthnSettings(await req.json())
+    )
 
     // --- Server Sessions ---
     this.router.post('/sessions/create', async (req) => this.createSession(await req.json()))
@@ -72,7 +87,9 @@ export class IdentityDO extends DurableObject<Env> {
       if (!pubkey) return new Response('Missing pubkey', { status: 400 })
       return this.revokeAllSessions(pubkey)
     })
-    this.router.delete('/sessions/revoke-all/:pubkey', (_req, { pubkey }) => this.revokeAllSessions(pubkey))
+    this.router.delete('/sessions/revoke-all/:pubkey', (_req, { pubkey }) =>
+      this.revokeAllSessions(pubkey)
+    )
 
     // --- Device Provisioning ---
     this.router.post('/provision/rooms', async (req) => this.createProvisionRoom(await req.json()))
@@ -82,7 +99,8 @@ export class IdentityDO extends DurableObject<Env> {
       return this.getProvisionRoom(id, token)
     })
     this.router.post('/provision/rooms/:id/payload', async (req, { id }) =>
-      this.setProvisionPayload(id, await req.json()))
+      this.setProvisionPayload(id, await req.json())
+    )
 
     // --- Admin Bootstrap ---
     this.router.get('/has-admin', () => this.hasAdmin())
@@ -118,7 +136,7 @@ export class IdentityDO extends DurableObject<Env> {
 
     const adminPubkey = this.env.ADMIN_PUBKEY
     const skipAdminSeed = await this.ctx.storage.get<boolean>('_skipAdminSeed')
-    const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
+    const volunteers = (await this.ctx.storage.get<Record<string, Volunteer>>('volunteers')) || {}
     if (adminPubkey && !skipAdminSeed && !volunteers[adminPubkey]) {
       volunteers[adminPubkey] = {
         pubkey: adminPubkey,
@@ -214,9 +232,9 @@ export class IdentityDO extends DurableObject<Env> {
   // --- Admin Bootstrap Methods ---
 
   private async hasAdmin(): Promise<Response> {
-    const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
-    const hasAdmin = Object.values(volunteers).some(v =>
-      v.active && v.roles.includes('role-super-admin')
+    const volunteers = (await this.ctx.storage.get<Record<string, Volunteer>>('volunteers')) || {}
+    const hasAdmin = Object.values(volunteers).some(
+      (v) => v.active && v.roles.includes('role-super-admin')
     )
     return Response.json({ hasAdmin })
   }
@@ -224,10 +242,10 @@ export class IdentityDO extends DurableObject<Env> {
   private async bootstrapAdmin(data: { pubkey: string }): Promise<Response> {
     // Epic 258 H18: Wrap in storage transaction for atomicity to prevent race conditions
     const result = await this.ctx.storage.transaction(async (txn) => {
-      const volunteers = await txn.get<Record<string, Volunteer>>('volunteers') || {}
+      const volunteers = (await txn.get<Record<string, Volunteer>>('volunteers')) || {}
       // One-shot: reject if any super-admin already exists
-      const adminExists = Object.values(volunteers).some(v =>
-        v.active && v.roles.includes('role-super-admin')
+      const adminExists = Object.values(volunteers).some(
+        (v) => v.active && v.roles.includes('role-super-admin')
       )
       if (adminExists) {
         return { error: 'Admin already exists', status: 403 as const }
@@ -262,14 +280,14 @@ export class IdentityDO extends DurableObject<Env> {
   // --- Volunteer Methods ---
 
   private async getVolunteers(): Promise<Response> {
-    const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
+    const volunteers = (await this.ctx.storage.get<Record<string, Volunteer>>('volunteers')) || {}
     return Response.json({
-      volunteers: Object.values(volunteers).map(v => ({ ...v, encryptedSecretKey: undefined })),
+      volunteers: Object.values(volunteers).map((v) => ({ ...v, encryptedSecretKey: undefined })),
     })
   }
 
   private async getVolunteer(pubkey: string): Promise<Response> {
-    const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
+    const volunteers = (await this.ctx.storage.get<Record<string, Volunteer>>('volunteers')) || {}
     const vol = volunteers[pubkey]
     if (!vol) return new Response('Not found', { status: 404 })
     return Response.json({ ...vol, encryptedSecretKey: undefined })
@@ -283,7 +301,7 @@ export class IdentityDO extends DurableObject<Env> {
     roles?: string[]
     encryptedSecretKey: string
   }): Promise<Response> {
-    const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
+    const volunteers = (await this.ctx.storage.get<Record<string, Volunteer>>('volunteers')) || {}
     const volunteer: Volunteer = {
       pubkey: data.pubkey,
       name: data.name,
@@ -305,13 +323,23 @@ export class IdentityDO extends DurableObject<Env> {
   }
 
   private static readonly VOLUNTEER_SAFE_FIELDS = new Set([
-    'name', 'phone', 'spokenLanguages', 'uiLanguage', 'profileCompleted',
-    'transcriptionEnabled', 'onBreak', 'callPreference',
+    'name',
+    'phone',
+    'spokenLanguages',
+    'uiLanguage',
+    'profileCompleted',
+    'transcriptionEnabled',
+    'onBreak',
+    'callPreference',
     // Note: supportedMessagingChannels and messagingEnabled are admin-only fields
   ])
 
-  private async updateVolunteer(pubkey: string, data: Partial<Volunteer>, isAdmin = false): Promise<Response> {
-    const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
+  private async updateVolunteer(
+    pubkey: string,
+    data: Partial<Volunteer>,
+    isAdmin = false
+  ): Promise<Response> {
+    const volunteers = (await this.ctx.storage.get<Record<string, Volunteer>>('volunteers')) || {}
     const vol = volunteers[pubkey]
     if (!vol) return new Response('Not found', { status: 404 })
 
@@ -321,7 +349,7 @@ export class IdentityDO extends DurableObject<Env> {
       const safeData: Partial<Volunteer> = {}
       for (const key of Object.keys(data) as Array<keyof Volunteer>) {
         if (IdentityDO.VOLUNTEER_SAFE_FIELDS.has(key)) {
-          (safeData as Record<string, unknown>)[key] = data[key]
+          ;(safeData as Record<string, unknown>)[key] = data[key]
         }
       }
       Object.assign(vol, safeData, { pubkey })
@@ -332,7 +360,7 @@ export class IdentityDO extends DurableObject<Env> {
   }
 
   private async deleteVolunteer(pubkey: string): Promise<Response> {
-    const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
+    const volunteers = (await this.ctx.storage.get<Record<string, Volunteer>>('volunteers')) || {}
     delete volunteers[pubkey]
     await this.ctx.storage.put('volunteers', volunteers)
     return Response.json({ ok: true })
@@ -341,12 +369,17 @@ export class IdentityDO extends DurableObject<Env> {
   // --- Invite Methods ---
 
   private async getInvites(): Promise<Response> {
-    const invites = await this.ctx.storage.get<InviteCode[]>('invites') || []
-    return Response.json({ invites: invites.filter(i => !i.usedAt) })
+    const invites = (await this.ctx.storage.get<InviteCode[]>('invites')) || []
+    return Response.json({ invites: invites.filter((i) => !i.usedAt) })
   }
 
-  private async createInvite(data: { name: string; phone: string; roleIds: string[]; createdBy: string }): Promise<Response> {
-    const invites = await this.ctx.storage.get<InviteCode[]>('invites') || []
+  private async createInvite(data: {
+    name: string
+    phone: string
+    roleIds: string[]
+    createdBy: string
+  }): Promise<Response> {
+    const invites = (await this.ctx.storage.get<InviteCode[]>('invites')) || []
     const code = crypto.randomUUID()
     const invite: InviteCode = {
       code,
@@ -363,26 +396,30 @@ export class IdentityDO extends DurableObject<Env> {
   }
 
   private async validateInvite(code: string): Promise<Response> {
-    const invites = await this.ctx.storage.get<InviteCode[]>('invites') || []
-    const invite = invites.find(i => i.code === code)
+    const invites = (await this.ctx.storage.get<InviteCode[]>('invites')) || []
+    const invite = invites.find((i) => i.code === code)
     if (!invite) return Response.json({ valid: false, error: 'not_found' })
     if (invite.usedAt) return Response.json({ valid: false, error: 'already_used' })
-    if (new Date(invite.expiresAt) < new Date()) return Response.json({ valid: false, error: 'expired' })
+    if (new Date(invite.expiresAt) < new Date())
+      return Response.json({ valid: false, error: 'expired' })
     return Response.json({ valid: true, name: invite.name, roleIds: invite.roleIds })
   }
 
   private async redeemInvite(data: { code: string; pubkey: string }): Promise<Response> {
-    const invites = await this.ctx.storage.get<InviteCode[]>('invites') || []
-    const invite = invites.find(i => i.code === data.code)
-    if (!invite) return new Response(JSON.stringify({ error: 'Invalid invite code' }), { status: 400 })
-    if (invite.usedAt) return new Response(JSON.stringify({ error: 'Invite already used' }), { status: 400 })
-    if (new Date(invite.expiresAt) < new Date()) return new Response(JSON.stringify({ error: 'Invite expired' }), { status: 400 })
+    const invites = (await this.ctx.storage.get<InviteCode[]>('invites')) || []
+    const invite = invites.find((i) => i.code === data.code)
+    if (!invite)
+      return new Response(JSON.stringify({ error: 'Invalid invite code' }), { status: 400 })
+    if (invite.usedAt)
+      return new Response(JSON.stringify({ error: 'Invite already used' }), { status: 400 })
+    if (new Date(invite.expiresAt) < new Date())
+      return new Response(JSON.stringify({ error: 'Invite expired' }), { status: 400 })
 
     invite.usedAt = new Date().toISOString()
     invite.usedBy = data.pubkey
     await this.ctx.storage.put('invites', invites)
 
-    const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
+    const volunteers = (await this.ctx.storage.get<Record<string, Volunteer>>('volunteers')) || {}
     const volunteer: Volunteer = {
       pubkey: data.pubkey,
       name: invite.name,
@@ -404,21 +441,28 @@ export class IdentityDO extends DurableObject<Env> {
   }
 
   private async revokeInvite(code: string): Promise<Response> {
-    const invites = await this.ctx.storage.get<InviteCode[]>('invites') || []
-    await this.ctx.storage.put('invites', invites.filter(i => i.code !== code))
+    const invites = (await this.ctx.storage.get<InviteCode[]>('invites')) || []
+    await this.ctx.storage.put(
+      'invites',
+      invites.filter((i) => i.code !== code)
+    )
     return Response.json({ ok: true })
   }
 
   // --- WebAuthn Credential Methods ---
 
   private async getWebAuthnCredentials(pubkey: string): Promise<Response> {
-    const creds = await this.ctx.storage.get<WebAuthnCredential[]>(`webauthn:creds:${pubkey}`) || []
+    const creds =
+      (await this.ctx.storage.get<WebAuthnCredential[]>(`webauthn:creds:${pubkey}`)) || []
     return Response.json({ credentials: creds })
   }
 
-  private async addWebAuthnCredential(data: { pubkey: string; credential: WebAuthnCredential }): Promise<Response> {
+  private async addWebAuthnCredential(data: {
+    pubkey: string
+    credential: WebAuthnCredential
+  }): Promise<Response> {
     const key = `webauthn:creds:${data.pubkey}`
-    const creds = await this.ctx.storage.get<WebAuthnCredential[]>(key) || []
+    const creds = (await this.ctx.storage.get<WebAuthnCredential[]>(key)) || []
     creds.push(data.credential)
     await this.ctx.storage.put(key, creds)
     return Response.json({ ok: true })
@@ -426,17 +470,23 @@ export class IdentityDO extends DurableObject<Env> {
 
   private async deleteWebAuthnCredential(pubkey: string, credId: string): Promise<Response> {
     const key = `webauthn:creds:${pubkey}`
-    const creds = await this.ctx.storage.get<WebAuthnCredential[]>(key) || []
-    const filtered = creds.filter(c => c.id !== credId)
-    if (filtered.length === creds.length) return new Response('Credential not found', { status: 404 })
+    const creds = (await this.ctx.storage.get<WebAuthnCredential[]>(key)) || []
+    const filtered = creds.filter((c) => c.id !== credId)
+    if (filtered.length === creds.length)
+      return new Response('Credential not found', { status: 404 })
     await this.ctx.storage.put(key, filtered)
     return Response.json({ ok: true })
   }
 
-  private async updateWebAuthnCounter(data: { pubkey: string; credId: string; counter: number; lastUsedAt: string }): Promise<Response> {
+  private async updateWebAuthnCounter(data: {
+    pubkey: string
+    credId: string
+    counter: number
+    lastUsedAt: string
+  }): Promise<Response> {
     const key = `webauthn:creds:${data.pubkey}`
-    const creds = await this.ctx.storage.get<WebAuthnCredential[]>(key) || []
-    const cred = creds.find(c => c.id === data.credId)
+    const creds = (await this.ctx.storage.get<WebAuthnCredential[]>(key)) || []
+    const cred = creds.find((c) => c.id === data.credId)
     if (!cred) return new Response('Credential not found', { status: 404 })
     cred.counter = data.counter
     cred.lastUsedAt = data.lastUsedAt
@@ -445,10 +495,11 @@ export class IdentityDO extends DurableObject<Env> {
   }
 
   private async getAllWebAuthnCredentials(): Promise<Response> {
-    const volunteers = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
+    const volunteers = (await this.ctx.storage.get<Record<string, Volunteer>>('volunteers')) || {}
     const allCreds: Array<WebAuthnCredential & { ownerPubkey: string }> = []
     for (const pubkey of Object.keys(volunteers)) {
-      const creds = await this.ctx.storage.get<WebAuthnCredential[]>(`webauthn:creds:${pubkey}`) || []
+      const creds =
+        (await this.ctx.storage.get<WebAuthnCredential[]>(`webauthn:creds:${pubkey}`)) || []
       for (const c of creds) {
         allCreds.push({ ...c, ownerPubkey: pubkey })
       }
@@ -479,7 +530,7 @@ export class IdentityDO extends DurableObject<Env> {
   // --- WebAuthn Settings Methods ---
 
   private async getWebAuthnSettings(): Promise<Response> {
-    const settings = await this.ctx.storage.get<WebAuthnSettings>('webauthnSettings') || {
+    const settings = (await this.ctx.storage.get<WebAuthnSettings>('webauthnSettings')) || {
       requireForAdmins: false,
       requireForVolunteers: false,
     }
@@ -487,7 +538,7 @@ export class IdentityDO extends DurableObject<Env> {
   }
 
   private async updateWebAuthnSettings(data: Partial<WebAuthnSettings>): Promise<Response> {
-    const current = await this.ctx.storage.get<WebAuthnSettings>('webauthnSettings') || {
+    const current = (await this.ctx.storage.get<WebAuthnSettings>('webauthnSettings')) || {
       requireForAdmins: false,
       requireForVolunteers: false,
     }
@@ -501,7 +552,9 @@ export class IdentityDO extends DurableObject<Env> {
   private async createSession(data: { pubkey: string }): Promise<Response> {
     const tokenBytes = new Uint8Array(32)
     crypto.getRandomValues(tokenBytes)
-    const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('')
+    const token = Array.from(tokenBytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
 
     const session: ServerSession = {
       token,
@@ -523,7 +576,7 @@ export class IdentityDO extends DurableObject<Env> {
     // Sliding expiry: extend session if more than 1 hour until expiry has been consumed.
     // This keeps active volunteers logged in during their shift without requiring re-auth.
     const SESSION_DURATION_MS = 8 * 60 * 60 * 1000
-    const RENEWAL_THRESHOLD_MS = SESSION_DURATION_MS - (1 * 60 * 60 * 1000) // renew after 1h of use
+    const RENEWAL_THRESHOLD_MS = SESSION_DURATION_MS - 1 * 60 * 60 * 1000 // renew after 1h of use
     const remaining = new Date(session.expiresAt).getTime() - Date.now()
     if (remaining < RENEWAL_THRESHOLD_MS) {
       session.expiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString()
@@ -556,7 +609,9 @@ export class IdentityDO extends DurableObject<Env> {
     const roomId = crypto.randomUUID()
     const tokenBytes = new Uint8Array(16)
     crypto.getRandomValues(tokenBytes)
-    const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('')
+    const token = Array.from(tokenBytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
 
     const room: ProvisionRoom = {
       ephemeralPubkey: data.ephemeralPubkey,
@@ -591,12 +646,15 @@ export class IdentityDO extends DurableObject<Env> {
     return Response.json({ status: 'waiting', ephemeralPubkey: room.ephemeralPubkey })
   }
 
-  private async setProvisionPayload(id: string, data: {
-    token: string
-    encryptedNsec: string
-    primaryPubkey: string
-    senderPubkey: string
-  }): Promise<Response> {
+  private async setProvisionPayload(
+    id: string,
+    data: {
+      token: string
+      encryptedNsec: string
+      primaryPubkey: string
+      senderPubkey: string
+    }
+  ): Promise<Response> {
     const room = await this.ctx.storage.get<ProvisionRoom>(`provision:${id}`)
     if (!room) return new Response('Room not found', { status: 404 })
     if (room.token !== data.token) return new Response('Invalid token', { status: 403 })
@@ -613,13 +671,17 @@ export class IdentityDO extends DurableObject<Env> {
 
   // --- Hub Role Methods ---
 
-  private async setHubRole(data: { pubkey: string; hubId: string; roleIds: string[] }): Promise<Response> {
-    const vols = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
+  private async setHubRole(data: {
+    pubkey: string
+    hubId: string
+    roleIds: string[]
+  }): Promise<Response> {
+    const vols = (await this.ctx.storage.get<Record<string, Volunteer>>('volunteers')) || {}
     const vol = vols[data.pubkey]
     if (!vol) return Response.json({ error: 'Volunteer not found' }, { status: 404 })
 
     const hubRoles = vol.hubRoles || []
-    const idx = hubRoles.findIndex(hr => hr.hubId === data.hubId)
+    const idx = hubRoles.findIndex((hr) => hr.hubId === data.hubId)
     if (idx >= 0) {
       hubRoles[idx].roleIds = data.roleIds
     } else {
@@ -632,11 +694,11 @@ export class IdentityDO extends DurableObject<Env> {
   }
 
   private async removeHubRole(data: { pubkey: string; hubId: string }): Promise<Response> {
-    const vols = await this.ctx.storage.get<Record<string, Volunteer>>('volunteers') || {}
+    const vols = (await this.ctx.storage.get<Record<string, Volunteer>>('volunteers')) || {}
     const vol = vols[data.pubkey]
     if (!vol) return Response.json({ error: 'Volunteer not found' }, { status: 404 })
 
-    vol.hubRoles = (vol.hubRoles || []).filter(hr => hr.hubId !== data.hubId)
+    vol.hubRoles = (vol.hubRoles || []).filter((hr) => hr.hubId !== data.hubId)
     vols[data.pubkey] = vol
     await this.ctx.storage.put('volunteers', vols)
     return Response.json({ volunteer: vol })

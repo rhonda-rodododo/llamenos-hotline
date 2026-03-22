@@ -1,11 +1,11 @@
-import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
-import { updateSpamSettings, type SpamSettings } from '@/lib/api'
 import { SettingsSection } from '@/components/settings-section'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { ShieldAlert, Bot, Timer } from 'lucide-react'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { type SpamSettings, updateSpamSettings } from '@/lib/api'
+import { useToast } from '@/lib/toast'
+import { Bot, ShieldAlert, Timer } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   settings: SpamSettings
@@ -16,7 +16,14 @@ interface Props {
   statusSummary?: string
 }
 
-export function SpamSection({ settings, onChange, onConfirmToggle, expanded, onToggle, statusSummary }: Props) {
+export function SpamSection({
+  settings,
+  onChange,
+  onConfirmToggle,
+  expanded,
+  onToggle,
+  statusSummary,
+}: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
 
@@ -68,7 +75,7 @@ export function SpamSection({ settings, onChange, onConfirmToggle, expanded, onT
               value={settings.maxCallsPerMinute}
               onChange={async (e) => {
                 try {
-                  const val = parseInt(e.target.value) || 3
+                  const val = Number.parseInt(e.target.value) || 3
                   const res = await updateSpamSettings({ maxCallsPerMinute: val })
                   onChange(res)
                 } catch {
@@ -87,7 +94,7 @@ export function SpamSection({ settings, onChange, onConfirmToggle, expanded, onT
               value={settings.blockDurationMinutes}
               onChange={async (e) => {
                 try {
-                  const val = parseInt(e.target.value) || 30
+                  const val = Number.parseInt(e.target.value) || 30
                   const res = await updateSpamSettings({ blockDurationMinutes: val })
                   onChange(res)
                 } catch {

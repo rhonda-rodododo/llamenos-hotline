@@ -1,29 +1,23 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useNavigate } from '@tanstack/react-router'
-import { useAuth } from '@/lib/auth'
-import { useToast } from '@/lib/toast'
-import {
-  updateSetupState,
-  completeSetup,
-  seedDemoData,
-  getConfig,
-  setActiveHub,
-} from '@/lib/api'
-import * as keyManager from '@/lib/key-manager'
-import type { ChannelType } from '@shared/types'
-import type { TelephonyProviderConfig, WhatsAppConfig, SignalConfig } from '@shared/types'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { ArrowLeft, ArrowRight, SkipForward, KeyRound } from 'lucide-react'
 import { LogoMark } from '@/components/logo-mark'
 import { PinInput } from '@/components/pin-input'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { completeSetup, getConfig, seedDemoData, setActiveHub, updateSetupState } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import * as keyManager from '@/lib/key-manager'
+import { useToast } from '@/lib/toast'
+import type { ChannelType } from '@shared/types'
+import type { SignalConfig, TelephonyProviderConfig, WhatsAppConfig } from '@shared/types'
+import { useNavigate } from '@tanstack/react-router'
+import { ArrowLeft, ArrowRight, KeyRound, SkipForward } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AdminBootstrap } from './AdminBootstrap'
-import { StepIdentity } from './StepIdentity'
 import { StepChannels } from './StepChannels'
+import { StepIdentity } from './StepIdentity'
+import { StepInvite } from './StepInvite'
 import { StepProviders } from './StepProviders'
 import { StepSettings } from './StepSettings'
-import { StepInvite } from './StepInvite'
 import { StepSummary } from './StepSummary'
 
 const TOTAL_STEPS = 6
@@ -88,7 +82,7 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape' && step > 0) {
         e.preventDefault()
-        setStep(s => s - 1)
+        setStep((s) => s - 1)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -116,14 +110,17 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
   }
 
   const updateData = useCallback((patch: Partial<SetupData>) => {
-    setData(prev => ({ ...prev, ...patch }))
+    setData((prev) => ({ ...prev, ...patch }))
   }, [])
 
   const canProceed = useCallback(() => {
     switch (step) {
-      case 0: return data.hotlineName.trim().length > 0
-      case 1: return data.selectedChannels.length > 0
-      default: return true
+      case 0:
+        return data.hotlineName.trim().length > 0
+      case 1:
+        return data.selectedChannels.length > 0
+      default:
+        return true
     }
   }, [step, data.hotlineName, data.selectedChannels])
 
@@ -135,7 +132,7 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
         selectedChannels: data.selectedChannels,
         completedSteps: Array.from({ length: step + 1 }, (_, i) => String(i)),
       })
-      setStep(s => s + 1)
+      setStep((s) => s + 1)
     } catch {
       toast(t('setup.saveFailed'), 'error')
     } finally {
@@ -144,11 +141,11 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
   }
 
   function handleBack() {
-    if (step > 0) setStep(s => s - 1)
+    if (step > 0) setStep((s) => s - 1)
   }
 
   function handleSkip() {
-    if (step < TOTAL_STEPS - 1) setStep(s => s + 1)
+    if (step < TOTAL_STEPS - 1) setStep((s) => s + 1)
   }
 
   async function handleComplete({ demoMode }: { demoMode: boolean }) {
@@ -166,7 +163,10 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
           }
           await seedDemoData()
         } catch {
-          toast(t('setup.demoSeedFailed', { defaultValue: 'Sample data partially created' }), 'error')
+          toast(
+            t('setup.demoSeedFailed', { defaultValue: 'Sample data partially created' }),
+            'error'
+          )
         }
       }
       toast(t('setup.complete'), 'success')
@@ -194,7 +194,9 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
         <div className="px-6 pt-6">
           <div className="flex items-center gap-2 mb-4">
             <LogoMark size="sm" />
-            <h1 className="text-xl font-bold">{t('setup.bootstrap.title', { defaultValue: 'Create Admin Account' })}</h1>
+            <h1 className="text-xl font-bold">
+              {t('setup.bootstrap.title', { defaultValue: 'Create Admin Account' })}
+            </h1>
           </div>
         </div>
         <div className="px-6 py-6">
@@ -220,7 +222,9 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
                 <KeyRound className="h-6 w-6 text-primary" />
               </div>
-              <h2 className="text-xl font-bold">{t('pin.unlockTitle', { defaultValue: 'Enter your PIN' })}</h2>
+              <h2 className="text-xl font-bold">
+                {t('pin.unlockTitle', { defaultValue: 'Enter your PIN' })}
+              </h2>
               <p className="text-sm text-muted-foreground mt-1">
                 {t('setup.pinRequired', { defaultValue: 'Enter your PIN to continue setup.' })}
               </p>
@@ -233,8 +237,16 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
               error={!!pinError}
               autoFocus
             />
-            {pinError && <p role="alert" className="text-center text-sm text-destructive">{pinError}</p>}
-            {pinLoading && <p role="status" className="text-center text-sm text-muted-foreground">{t('common.loading')}</p>}
+            {pinError && (
+              <p role="alert" className="text-center text-sm text-destructive">
+                {pinError}
+              </p>
+            )}
+            {pinLoading && (
+              <p role="status" className="text-center text-sm text-muted-foreground">
+                {t('common.loading')}
+              </p>
+            )}
           </div>
         </div>
       </Card>
@@ -281,12 +293,27 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
 
       {/* Step content */}
       <div className="px-6 py-6">
-        {step === 0 && <StepIdentity data={data} onChange={updateData} headingRef={stepHeadingRef} />}
-        {step === 1 && <StepChannels data={data} onChange={updateData} headingRef={stepHeadingRef} />}
-        {step === 2 && <StepProviders data={data} onChange={updateData} headingRef={stepHeadingRef} />}
-        {step === 3 && <StepSettings data={data} onChange={updateData} headingRef={stepHeadingRef} />}
+        {step === 0 && (
+          <StepIdentity data={data} onChange={updateData} headingRef={stepHeadingRef} />
+        )}
+        {step === 1 && (
+          <StepChannels data={data} onChange={updateData} headingRef={stepHeadingRef} />
+        )}
+        {step === 2 && (
+          <StepProviders data={data} onChange={updateData} headingRef={stepHeadingRef} />
+        )}
+        {step === 3 && (
+          <StepSettings data={data} onChange={updateData} headingRef={stepHeadingRef} />
+        )}
         {step === 4 && <StepInvite headingRef={stepHeadingRef} />}
-        {step === 5 && <StepSummary data={data} onComplete={handleComplete} saving={saving} headingRef={stepHeadingRef} />}
+        {step === 5 && (
+          <StepSummary
+            data={data}
+            onComplete={handleComplete}
+            saving={saving}
+            headingRef={stepHeadingRef}
+          />
+        )}
       </div>
 
       {/* Navigation */}

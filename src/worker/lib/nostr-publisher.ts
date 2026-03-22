@@ -9,13 +9,13 @@
  * Callers provide EventTemplates; the publisher signs and publishes.
  */
 
-import { finalizeEvent, getPublicKey } from 'nostr-tools/pure'
-import type { EventTemplate, VerifiedEvent } from 'nostr-tools/core'
-import { hexToBytes } from '@noble/hashes/utils.js'
+import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { hkdf } from '@noble/hashes/hkdf.js'
 import { sha256 } from '@noble/hashes/sha2.js'
-import { utf8ToBytes } from '@noble/ciphers/utils.js'
+import { hexToBytes } from '@noble/hashes/utils.js'
 import { LABEL_SERVER_NOSTR_KEY, LABEL_SERVER_NOSTR_KEY_INFO } from '@shared/crypto-labels'
+import type { EventTemplate, VerifiedEvent } from 'nostr-tools/core'
+import { finalizeEvent, getPublicKey } from 'nostr-tools/pure'
 
 /**
  * NostrPublisher interface — all platform implementations must satisfy this.
@@ -40,14 +40,17 @@ export interface NostrPublisher {
  *
  * Returns { secretKey, pubkey } where pubkey is hex x-only (32 bytes).
  */
-export function deriveServerKeypair(serverSecret: string): { secretKey: Uint8Array; pubkey: string } {
+export function deriveServerKeypair(serverSecret: string): {
+  secretKey: Uint8Array
+  pubkey: string
+} {
   const secretBytes = hexToBytes(serverSecret)
   const secretKey = hkdf(
     sha256,
     secretBytes,
     utf8ToBytes(LABEL_SERVER_NOSTR_KEY),
     utf8ToBytes(LABEL_SERVER_NOSTR_KEY_INFO),
-    32,
+    32
   )
   const pubkey = getPublicKey(secretKey)
   return { secretKey, pubkey }
@@ -74,7 +77,7 @@ export class CFNostrPublisher implements NostrPublisher {
 
   constructor(
     private readonly relayBinding: { fetch(request: Request): Promise<Response> },
-    serverSecret: string,
+    serverSecret: string
   ) {
     const keypair = deriveServerKeypair(serverSecret)
     this.secretKey = keypair.secretKey
@@ -84,11 +87,13 @@ export class CFNostrPublisher implements NostrPublisher {
   async publish(template: EventTemplate): Promise<void> {
     const event = signServerEvent(template, this.secretKey)
 
-    const res = await this.relayBinding.fetch(new Request('http://relay/publish', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(event),
-    }))
+    const res = await this.relayBinding.fetch(
+      new Request('http://relay/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(event),
+      })
+    )
 
     if (!res.ok) {
       const text = await res.text().catch(() => 'unknown error')
@@ -124,7 +129,7 @@ export class NodeNostrPublisher implements NostrPublisher {
 
   constructor(
     private readonly relayUrl: string,
-    serverSecret: string,
+    serverSecret: string
   ) {
     const keypair = deriveServerKeypair(serverSecret)
     this.secretKey = keypair.secretKey
@@ -248,15 +253,18 @@ export class NodeNostrPublisher implements NostrPublisher {
   private handleNIP42Auth(challenge: string): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
 
-    const authEvent = finalizeEvent({
-      kind: 22242,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [
-        ['relay', this.relayUrl],
-        ['challenge', challenge],
-      ],
-      content: '',
-    }, this.secretKey)
+    const authEvent = finalizeEvent(
+      {
+        kind: 22242,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['relay', this.relayUrl],
+          ['challenge', challenge],
+        ],
+        content: '',
+      },
+      this.secretKey
+    )
 
     this.ws.send(JSON.stringify(['AUTH', authEvent]))
     this.authenticated = true
@@ -276,7 +284,7 @@ export class NodeNostrPublisher implements NostrPublisher {
     if (this.closed || this.reconnectTimer) return
 
     this.reconnectAttempts++
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30_000)
+    const delay = Math.min(1000 * 2 ** this.reconnectAttempts, 30_000)
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null

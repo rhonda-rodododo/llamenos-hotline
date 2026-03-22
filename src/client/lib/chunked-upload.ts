@@ -1,5 +1,5 @@
-import { initUpload, uploadChunk, completeUpload, getUploadStatus } from './api'
 import type { FileKeyEnvelope, UploadInit } from '@shared/types'
+import { completeUpload, getUploadStatus, initUpload, uploadChunk } from './api'
 
 const DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024 // 5MB
 
@@ -59,7 +59,7 @@ export async function resumeUpload(
   uploadId: string,
   encryptedContent: Uint8Array,
   chunkSize: number = DEFAULT_CHUNK_SIZE,
-  onProgress?: (completed: number, total: number) => void,
+  onProgress?: (completed: number, total: number) => void
 ): Promise<UploadResult> {
   const status = await getUploadStatus(uploadId)
 

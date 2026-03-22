@@ -1,25 +1,22 @@
+import { DEFAULT_LANGUAGE, IVR_LANGUAGES } from '../../shared/languages'
+import { IVR_PROMPTS, getPrompt, getVoicemailThanks } from '../../shared/voice-prompts'
 import type {
-  TelephonyAdapter,
-  IncomingCallParams,
-  CaptchaResponseParams,
+  AudioUrlMap,
   CallAnsweredParams,
+  CaptchaResponseParams,
+  IncomingCallParams,
   LanguageMenuParams,
   RingVolunteersParams,
-  VoicemailParams,
+  TelephonyAdapter,
   TelephonyResponse,
-  AudioUrlMap,
+  VoicemailParams,
   WebhookCallInfo,
-  WebhookDigits,
   WebhookCallStatus,
+  WebhookDigits,
   WebhookQueueResult,
   WebhookQueueWait,
   WebhookRecordingStatus,
 } from './adapter'
-import {
-  DEFAULT_LANGUAGE,
-  IVR_LANGUAGES,
-} from '../../shared/languages'
-import { IVR_PROMPTS, getPrompt, getVoicemailThanks } from '../../shared/voice-prompts'
 
 /**
  * Plivo voice language codes, keyed by ISO 639-1.
@@ -57,7 +54,12 @@ function play(url: string): string {
 }
 
 /** Build Speak or Play based on custom audio availability */
-function sayOrPlay(promptKey: string, lang: string, audioUrls?: AudioUrlMap, textOverride?: string): string {
+function sayOrPlay(
+  promptKey: string,
+  lang: string,
+  audioUrls?: AudioUrlMap,
+  textOverride?: string
+): string {
   const audioUrl = audioUrls?.[`${promptKey}:${lang}`]
   if (audioUrl) return play(audioUrl)
   const text = textOverride ?? getPrompt(promptKey, lang)
@@ -65,7 +67,12 @@ function sayOrPlay(promptKey: string, lang: string, audioUrls?: AudioUrlMap, tex
 }
 
 function escapeXml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }
 
 /** Build XML-escaped hub query param suffix for Plivo XML callback URLs */
@@ -114,7 +121,7 @@ export class PlivoAdapter implements TelephonyAdapter {
     return fetch(`https://api.plivo.com/v1/Account/${this.authId}${path}`, {
       ...init,
       headers: {
-        'Authorization': 'Basic ' + btoa(`${this.authId}:${this.authToken}`),
+        Authorization: `Basic ${btoa(`${this.authId}:${this.authToken}`)}`,
         'Content-Type': 'application/json',
         ...init.headers,
       },
@@ -124,7 +131,7 @@ export class PlivoAdapter implements TelephonyAdapter {
   async handleLanguageMenu(params: LanguageMenuParams): Promise<TelephonyResponse> {
     const enabled = params.enabledLanguages
     const hp = hubXmlParam(params.hubId)
-    const activeLanguages = IVR_LANGUAGES.filter(code => enabled.includes(code))
+    const activeLanguages = IVR_LANGUAGES.filter((code) => enabled.includes(code))
 
     if (activeLanguages.length <= 1) {
       const lang = activeLanguages[0] || DEFAULT_LANGUAGE
@@ -138,7 +145,9 @@ export class PlivoAdapter implements TelephonyAdapter {
       const prompt = IVR_PROMPTS[langCode]
       if (!prompt) return ''
       return speak(prompt, langCode)
-    }).filter(Boolean).join('\n      ')
+    })
+      .filter(Boolean)
+      .join('\n      ')
 
     return this.plivoXml(`
       <GetDigits numDigits="1" action="/api/telephony/language-selected${params.hubId ? `?hub=${escapeXml(encodeURIComponent(params.hubId))}` : ''}" method="POST" timeout="8" redirect="true">
@@ -170,7 +179,7 @@ export class PlivoAdapter implements TelephonyAdapter {
         <GetDigits numDigits="4" action="/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" timeout="10" redirect="true">
           ${greetingXml}
           ${captchaXml}
-          ${speak(digits.split('').join(', ') + '.', lang)}
+          ${speak(`${digits.split('').join(', ')}.`, lang)}
         </GetDigits>
         ${speak(getPrompt('captchaTimeout', lang), lang)}
         <Hangup/>
@@ -209,10 +218,15 @@ export class PlivoAdapter implements TelephonyAdapter {
     `)
   }
 
-  async handleWaitMusic(lang: string, audioUrls?: AudioUrlMap, queueTime?: number, queueTimeout?: number): Promise<TelephonyResponse> {
+  async handleWaitMusic(
+    lang: string,
+    audioUrls?: AudioUrlMap,
+    queueTime?: number,
+    queueTimeout?: number
+  ): Promise<TelephonyResponse> {
     if (queueTime !== undefined && queueTime >= (queueTimeout ?? 90)) {
       // End the wait — caller will be redirected to voicemail
-      return this.plivoXml(`<Hangup/>`)
+      return this.plivoXml('<Hangup/>')
     }
 
     const waitXml = sayOrPlay('waitMessage', lang, audioUrls)
@@ -268,7 +282,7 @@ export class PlivoAdapter implements TelephonyAdapter {
         })
 
         if (res.ok) {
-          const data = await res.json() as { request_uuid: string }
+          const data = (await res.json()) as { request_uuid: string }
           return data.request_uuid
         }
         throw new Error(`Failed to call ${vol.pubkey}`)
@@ -287,10 +301,8 @@ export class PlivoAdapter implements TelephonyAdapter {
   async cancelRinging(callSids: string[], exceptSid?: string): Promise<void> {
     await Promise.allSettled(
       callSids
-        .filter(sid => sid !== exceptSid)
-        .map(sid =>
-          this.plivoApi(`/Call/${sid}/`, { method: 'DELETE' })
-        )
+        .filter((sid) => sid !== exceptSid)
+        .map((sid) => this.plivoApi(`/Call/${sid}/`, { method: 'DELETE' }))
     )
   }
 
@@ -313,7 +325,7 @@ export class PlivoAdapter implements TelephonyAdapter {
     for (const key of sortedKeys) {
       dataString += key + params.get(key)
     }
-    dataString += '.' + nonce
+    dataString += `.${nonce}`
 
     const encoder = new TextEncoder()
     const key = await crypto.subtle.importKey(
@@ -342,13 +354,13 @@ export class PlivoAdapter implements TelephonyAdapter {
     const res = await this.plivoApi(`/Recording/?call_uuid=${callSid}`, { method: 'GET' })
     if (!res.ok) return null
 
-    const data = await res.json() as { objects?: Array<{ recording_url: string }> }
+    const data = (await res.json()) as { objects?: Array<{ recording_url: string }> }
     if (!data.objects?.length) return null
 
     const recordingUrl = data.objects[0].recording_url
     const audioRes = await fetch(recordingUrl, {
       headers: {
-        'Authorization': 'Basic ' + btoa(`${this.authId}:${this.authToken}`),
+        Authorization: `Basic ${btoa(`${this.authId}:${this.authToken}`)}`,
       },
     })
     if (!audioRes.ok) return null
@@ -359,7 +371,7 @@ export class PlivoAdapter implements TelephonyAdapter {
     // Plivo recording URL is a full URL
     const audioRes = await fetch(recordingSid, {
       headers: {
-        'Authorization': 'Basic ' + btoa(`${this.authId}:${this.authToken}`),
+        Authorization: `Basic ${btoa(`${this.authId}:${this.authToken}`)}`,
       },
     })
     if (!audioRes.ok) return null
@@ -414,7 +426,7 @@ export class PlivoAdapter implements TelephonyAdapter {
   async parseQueueWaitWebhook(request: Request): Promise<WebhookQueueWait> {
     const form = await request.clone().formData()
     return {
-      queueTime: parseInt((form.get('ConferenceDuration') as string) || '0', 10),
+      queueTime: Number.parseInt((form.get('ConferenceDuration') as string) || '0', 10),
     }
   }
 

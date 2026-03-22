@@ -1,7 +1,7 @@
-import { Component, type ReactNode, type ErrorInfo } from 'react'
-import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, RotateCcw } from 'lucide-react'
+import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -56,7 +56,8 @@ function ErrorFallback({ error, onReset }: { error: Error; onReset: () => void }
         </h3>
         <p className="mt-1 text-sm text-muted-foreground">
           {t('error.boundary.description', {
-            defaultValue: 'An unexpected error occurred. You can try again or navigate to another page.',
+            defaultValue:
+              'An unexpected error occurred. You can try again or navigate to another page.',
           })}
         </p>
         <pre className="mt-3 max-w-md overflow-auto rounded bg-muted p-2 text-left text-xs">
