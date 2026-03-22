@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, integer, unique } from 'drizzle-orm/pg-core'
 import { jsonb } from '../bun-jsonb'
 
 export const blasts = pgTable('blasts', {
@@ -15,16 +15,20 @@ export const blasts = pgTable('blasts', {
   sentAt: timestamp('sent_at', { withTimezone: true }),
 })
 
-export const subscribers = pgTable('subscribers', {
-  id: text('id').primaryKey(),
-  hubId: text('hub_id').notNull().default('global'),
-  phoneNumber: text('phone_number').notNull(),
-  channel: text('channel').notNull(),
-  active: boolean('active').notNull().default(true),
-  token: text('token'), // for preference management links
-  metadata: jsonb<Record<string, unknown>>()('metadata').notNull().default({}),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-})
+export const subscribers = pgTable(
+  'subscribers',
+  {
+    id: text('id').primaryKey(),
+    hubId: text('hub_id').notNull().default('global'),
+    phoneNumber: text('phone_number').notNull(),
+    channel: text('channel').notNull(),
+    active: boolean('active').notNull().default(true),
+    token: text('token'), // for preference management links
+    metadata: jsonb<Record<string, unknown>>()('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.hubId, table.channel, table.phoneNumber)],
+)
 
 export const blastDeliveries = pgTable('blast_deliveries', {
   id: text('id').primaryKey(),

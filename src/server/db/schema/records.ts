@@ -48,7 +48,7 @@ export const noteEnvelopes = pgTable('note_envelopes', {
   authorPubkey: text('author_pubkey').notNull(),
   encryptedContent: text('encrypted_content').notNull(),
   ephemeralPubkey: text('ephemeral_pubkey'),
-  authorEnvelope: jsonb<Record<string, unknown>>()('author_envelope'),
+  authorEnvelope: jsonb<RecipientEnvelope>()('author_envelope'),
   adminEnvelopes: jsonb<RecipientEnvelope[]>()('admin_envelopes').notNull().default([]),
   replyCount: integer('reply_count').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

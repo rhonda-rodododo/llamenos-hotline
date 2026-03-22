@@ -8,8 +8,8 @@ let _db: ReturnType<typeof createDatabase> | null = null
 export function createDatabase(url: string) {
   const client = new SQL({
     url,
-    max: parseInt(process.env.PG_POOL_SIZE ?? '10'),
-    idleTimeout: parseInt(process.env.PG_IDLE_TIMEOUT ?? '30'),
+    max: Number(process.env.PG_POOL_SIZE) || 10,
+    idleTimeout: Number(process.env.PG_IDLE_TIMEOUT) || 30,
     connectionTimeout: 30,
   })
   return drizzle({ client, schema })

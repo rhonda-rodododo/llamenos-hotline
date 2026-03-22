@@ -1,22 +1,26 @@
-import { pgTable, text, timestamp, boolean, integer } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, integer, unique } from 'drizzle-orm/pg-core'
 import { jsonb } from '../bun-jsonb'
 import type { RecipientEnvelope } from '../../../shared/types'
 
-export const conversations = pgTable('conversations', {
-  id: text('id').primaryKey(),
-  hubId: text('hub_id').notNull().default('global'),
-  channelType: text('channel_type').notNull(), // 'sms' | 'whatsapp' | 'signal' | 'rcs' | 'web'
-  contactIdentifierHash: text('contact_identifier_hash').notNull(),
-  contactLast4: text('contact_last4'),
-  externalId: text('external_id'), // provider's thread/contact ID
-  assignedTo: text('assigned_to'), // volunteer pubkey
-  status: text('status').notNull().default('active'), // 'active' | 'waiting' | 'closed'
-  metadata: jsonb<Record<string, unknown>>()('metadata').notNull().default({}),
-  messageCount: integer('message_count').notNull().default(0),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  lastMessageAt: timestamp('last_message_at', { withTimezone: true }).notNull().defaultNow(),
-})
+export const conversations = pgTable(
+  'conversations',
+  {
+    id: text('id').primaryKey(),
+    hubId: text('hub_id').notNull().default('global'),
+    channelType: text('channel_type').notNull(), // 'sms' | 'whatsapp' | 'signal' | 'rcs' | 'web'
+    contactIdentifierHash: text('contact_identifier_hash').notNull(),
+    contactLast4: text('contact_last4'),
+    externalId: text('external_id'), // provider's thread/contact ID
+    assignedTo: text('assigned_to'), // volunteer pubkey
+    status: text('status').notNull().default('active'), // 'active' | 'waiting' | 'closed'
+    metadata: jsonb<Record<string, unknown>>()('metadata').notNull().default({}),
+    messageCount: integer('message_count').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    lastMessageAt: timestamp('last_message_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.hubId, table.channelType, table.contactIdentifierHash)],
+)
 
 export const messageEnvelopes = pgTable('message_envelopes', {
   id: text('id').primaryKey(),
