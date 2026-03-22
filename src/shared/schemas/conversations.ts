@@ -38,7 +38,7 @@ export const EncryptedMessageSchema = z.object({
   hasAttachments: z.boolean(),
   attachmentIds: z.array(z.string()),
   externalId: z.string().optional(),
-  status: z.string(),
+  status: z.enum(['pending', 'sent', 'failed', 'read']),
   deliveredAt: z.iso.datetime().optional(),
   readAt: z.iso.datetime().optional(),
   failureReason: z.string().optional(),
