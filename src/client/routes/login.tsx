@@ -288,6 +288,7 @@ function LoginPage() {
                 <Button
                   variant="outline"
                   className="w-full"
+                  data-testid="passkey-login-btn"
                   onClick={handlePasskeyLogin}
                   disabled={isLoading || passkeyLoading}
                 >
