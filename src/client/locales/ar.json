@@ -1232,6 +1232,10 @@
     "deleteHubConfirm": "سيؤدي هذا إلى حذف \"{{name}}\" وجميع بياناته نهائيًا. اكتب اسم المحور للتأكيد.",
     "deleteHubNameLabel": "اكتب اسم المحور للتأكيد",
     "hubDeleted": "تم حذف المحور بنجاح",
-    "deleteHubActiveCallsError": "لا يمكن حذف محور به مكالمات نشطة"
+    "deleteHubActiveCallsError": "لا يمكن حذف محور به مكالمات نشطة",
+    "archive": "أرشفة",
+    "archiveHub": "أرشفة المركز",
+    "archiveHubConfirm": "هل أنت متأكد من أنك تريد أرشفة \"{{name}}\"؟ المراكز المؤرشفة مخفية من العمليات النشطة.",
+    "hubArchived": "تمت أرشفة المركز بنجاح"
   }
 }

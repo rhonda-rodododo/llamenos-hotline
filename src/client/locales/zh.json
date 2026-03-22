@@ -1232,6 +1232,10 @@
     "deleteHubConfirm": "这将永久删除\"{{name}}\"及其所有数据。请输入Hub名称以确认。",
     "deleteHubNameLabel": "输入Hub名称以确认",
     "hubDeleted": "Hub已成功删除",
-    "deleteHubActiveCallsError": "无法删除有正在进行通话的Hub"
+    "deleteHubActiveCallsError": "无法删除有正在进行通话的Hub",
+    "archive": "归档",
+    "archiveHub": "归档中心",
+    "archiveHubConfirm": "确定要归档\"{{name}}\"吗？已归档的中心将从活动操作中隐藏。",
+    "hubArchived": "中心归档成功"
   }
 }

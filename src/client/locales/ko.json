@@ -1232,6 +1232,10 @@
     "deleteHubConfirm": "\"{{name}}\"과 모든 데이터를 영구적으로 삭제합니다. 확인을 위해 허브 이름을 입력하세요.",
     "deleteHubNameLabel": "확인을 위해 허브 이름을 입력하세요",
     "hubDeleted": "허브가 성공적으로 삭제되었습니다",
-    "deleteHubActiveCallsError": "활성 통화가 있는 허브는 삭제할 수 없습니다"
+    "deleteHubActiveCallsError": "활성 통화가 있는 허브는 삭제할 수 없습니다",
+    "archive": "보관",
+    "archiveHub": "허브 보관",
+    "archiveHubConfirm": "\"{{name}}\"을(를) 보관하시겠습니까? 보관된 허브는 활성 운영에서 숨겨집니다.",
+    "hubArchived": "허브가 성공적으로 보관되었습니다"
   }
 }

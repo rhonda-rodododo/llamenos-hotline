@@ -21,6 +21,7 @@
     "lint:fix": "biome check --write src/",
     "format": "biome format --write src/",
     "typecheck": "bunx tsc --noEmit",
+    "check:locales": "bun run scripts/check-locales.ts",
     "bootstrap-admin": "bun run scripts/bootstrap-admin.ts",
     "test": "bunx playwright test",
     "test:unit": "bun test tests/unit/",

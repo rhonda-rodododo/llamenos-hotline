@@ -1232,6 +1232,10 @@
     "deleteHubConfirm": "Esto eliminará permanentemente \"{{name}}\" y todos sus datos. Escribe el nombre del hub para confirmar.",
     "deleteHubNameLabel": "Escribe el nombre del hub para confirmar",
     "hubDeleted": "Hub eliminado exitosamente",
-    "deleteHubActiveCallsError": "No se puede eliminar un hub con llamadas activas"
+    "deleteHubActiveCallsError": "No se puede eliminar un hub con llamadas activas",
+    "archive": "Archivar",
+    "archiveHub": "Archivar Hub",
+    "archiveHubConfirm": "¿Está seguro de que desea archivar \"{{name}}\"? Los hubs archivados se ocultan de las operaciones activas.",
+    "hubArchived": "Hub archivado correctamente"
   }
 }
