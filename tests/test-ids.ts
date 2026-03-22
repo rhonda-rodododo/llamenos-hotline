@@ -71,6 +71,15 @@ export const TestIds = {
   RECORDING_PLAYER: 'recording-player',
   RECORDING_PLAY_BTN: 'recording-play-btn',
 
+  // ============ Dashboard / Active Calls ============
+  INCOMING_CALLS_CARD: 'incoming-calls-card',
+  INCOMING_CALL_ITEM: 'incoming-call-item',
+  ANSWER_CALL_BTN: 'answer-call-btn',
+  ACTIVE_CALL_PANEL: 'active-call-panel',
+  NOTE_TEXTAREA: 'note-textarea',
+  SAVE_NOTE_BTN: 'save-note-btn',
+  HANGUP_CALL_BTN: 'hangup-call-btn',
+
   // ============ Reports ============
   REPORT_LIST: 'report-list',
   REPORT_CARD: 'report-card',

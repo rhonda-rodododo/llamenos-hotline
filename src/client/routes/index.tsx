@@ -246,7 +246,10 @@ function DashboardPage() {
 
       {/* Incoming calls (ringing) — hidden when on break */}
       {ringingCalls.length > 0 && !currentCall && !onBreak && (
-        <Card className="border-green-500 bg-green-50 dark:border-green-600 dark:bg-green-950/20">
+        <Card
+          data-testid="incoming-calls-card"
+          className="border-green-500 bg-green-50 dark:border-green-600 dark:bg-green-950/20"
+        >
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
               <PhoneIncoming className="h-5 w-5" />
@@ -257,12 +260,14 @@ function DashboardPage() {
             {ringingCalls.map((call) => (
               <div
                 key={call.id}
+                data-testid="incoming-call-item"
                 className="flex items-center justify-between rounded-lg bg-green-100 px-4 py-3 dark:bg-green-950/30"
               >
                 <div>
                   <p className="font-medium">{t('calls.incoming')}</p>
                 </div>
                 <Button
+                  data-testid="answer-call-btn"
                   onClick={() => answerCall(call.id)}
                   className="animate-pulse bg-green-600 hover:bg-green-700"
                 >
@@ -467,7 +472,10 @@ function ActiveCallPanel({
   }
 
   return (
-    <Card className="border-2 border-blue-500 bg-blue-50 dark:border-blue-600 dark:bg-blue-950/20">
+    <Card
+      data-testid="active-call-panel"
+      className="border-2 border-blue-500 bg-blue-50 dark:border-blue-600 dark:bg-blue-950/20"
+    >
       <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -500,6 +508,7 @@ function ActiveCallPanel({
             {t('notes.newNote')}
           </label>
           <textarea
+            data-testid="note-textarea"
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
             placeholder={t('notes.notePlaceholder')}
@@ -507,7 +516,12 @@ function ActiveCallPanel({
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <div className="flex items-center gap-2">
-            <Button onClick={handleSaveNote} disabled={saving || !noteText.trim()} size="sm">
+            <Button
+              data-testid="save-note-btn"
+              onClick={handleSaveNote}
+              disabled={saving || !noteText.trim()}
+              size="sm"
+            >
               <Save className="h-3.5 w-3.5" />
               {saving ? t('common.loading') : t('common.save')}
             </Button>
@@ -568,7 +582,7 @@ function ActiveCallPanel({
         {/* Call actions */}
         <div className="flex flex-wrap gap-2 border-t border-border pt-4">
           <WebRtcCallControls />
-          <Button variant="destructive" onClick={handleHangup}>
+          <Button data-testid="hangup-call-btn" variant="destructive" onClick={handleHangup}>
             <PhoneOff className="h-4 w-4" />
             {t('calls.hangUp')}
           </Button>
