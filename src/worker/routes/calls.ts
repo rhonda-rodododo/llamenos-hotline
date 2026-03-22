@@ -101,7 +101,7 @@ calls.post('/:callId/spam', requirePermission('calls:answer'), async (c) => {
   return c.json({ ok: true })
 })
 
-// Recording playback — admin or answering volunteer
+// Permission checked inside handler: admin (calls:read-recording) or assigned volunteer
 calls.get('/:callId/recording', async (c) => {
   const callId = c.req.param('callId')
   const services = c.get('services')

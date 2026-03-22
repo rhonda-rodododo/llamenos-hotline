@@ -85,7 +85,7 @@ messaging.post('/:channel/webhook', async (c) => {
   // Try to parse as status update first (if adapter supports it)
   if (adapter.parseStatusWebhook) {
     try {
-      const statusUpdate = await adapter.parseStatusWebhook(c.req.raw)
+      const statusUpdate = await adapter.parseStatusWebhook(c.req.raw.clone() as Request)
       if (statusUpdate) {
         // This is a status update — find the message by externalId and update its status
         await handleStatusUpdate(services, hubId, statusUpdate, c.env)
@@ -182,18 +182,14 @@ messaging.post('/:channel/webhook', async (c) => {
 
   // Auto-assignment for new conversations
   if (isNew && conversation.status === 'waiting') {
-    c.executionCtx.waitUntil(
-      tryAutoAssign(services, c.env, conversation.id, channel, hId)
-    )
+    tryAutoAssign(services, c.env, conversation.id, channel, hId).catch((err) => console.error('[background]', err))
   }
 
   // Audit the incoming message (no PII — only hashed identifier)
-  c.executionCtx.waitUntil(
-    services.records.addAuditEntry(hId, 'messageReceived', 'system', {
-      channel,
-      senderHash: incoming.senderIdentifierHash,
-    })
-  )
+  services.records.addAuditEntry(hId, 'messageReceived', 'system', {
+    channel,
+    senderHash: incoming.senderIdentifierHash,
+  }).catch((err) => console.error('[background]', err))
 
   // Return 200 to acknowledge webhook (providers expect fast acknowledgment)
   return c.json({ ok: true })
