@@ -304,6 +304,10 @@ export async function updateNote(
   })
 }
 
+export async function getNote(id: string) {
+  return request<{ note: EncryptedNote }>(hp(`/notes/${id}`))
+}
+
 // --- Calls ---
 
 export async function listActiveCalls() {
@@ -324,6 +328,12 @@ export async function getCallHistory(params?: {
   if (params?.dateFrom) qs.set('dateFrom', params.dateFrom)
   if (params?.dateTo) qs.set('dateTo', params.dateTo)
   return request<{ calls: CallRecord[]; total: number }>(hp(`/calls/history?${qs}`))
+}
+
+export async function getCallDetail(callId: string) {
+  return request<{ call: CallRecord; notes: EncryptedNote[]; auditEntries: AuditLogEntry[] }>(
+    hp(`/calls/${callId}/detail`)
+  )
 }
 
 // --- Call Actions (REST) ---
@@ -364,6 +374,38 @@ export async function getCallRecording(callId: string): Promise<ArrayBuffer> {
   }
   onApiActivity?.()
   return res.arrayBuffer()
+}
+
+// --- Analytics (admin only) ---
+
+export interface CallVolumeDay {
+  date: string
+  count: number
+  answered: number
+  voicemail: number
+}
+
+export interface CallHourBucket {
+  hour: number
+  count: number
+}
+
+export interface VolunteerStatEntry {
+  pubkey: string
+  callsAnswered: number
+  avgDuration: number
+}
+
+export async function getCallAnalytics(days: 7 | 30) {
+  return request<{ days: number; data: CallVolumeDay[] }>(hp(`/analytics/calls?days=${days}`))
+}
+
+export async function getCallHoursAnalytics() {
+  return request<{ days: number; data: CallHourBucket[] }>(hp('/analytics/hours'))
+}
+
+export async function getVolunteerStats() {
+  return request<{ days: number; data: VolunteerStatEntry[] }>(hp('/analytics/volunteers'))
 }
 
 // --- Volunteer Presence (admin only) ---
@@ -1425,4 +1467,83 @@ export async function getMyHubKeyEnvelope(
   } catch {
     return null
   }
+}
+
+// --- GDPR ---
+
+export interface GdprConsentStatus {
+  hasConsented: boolean
+  consentVersion: string | null
+  consentedAt: string | null
+  currentPlatformVersion: string
+}
+
+export interface GdprErasureRequest {
+  pubkey: string
+  requestedAt: string
+  executeAt: string
+  status: 'pending' | 'cancelled' | 'executed'
+}
+
+export interface RetentionSettings {
+  callRecordsDays: number
+  notesDays: number
+  messagesDays: number
+  auditLogDays: number
+}
+
+export async function getConsentStatus(): Promise<GdprConsentStatus> {
+  return request<GdprConsentStatus>('/gdpr/consent')
+}
+
+export async function submitConsent(version: string): Promise<void> {
+  await request<{ ok: true }>('/gdpr/consent', {
+    method: 'POST',
+    body: JSON.stringify({ version }),
+  })
+}
+
+export async function downloadMyData(): Promise<void> {
+  const sessionToken = sessionStorage.getItem('llamenos-session-token')
+  const headers: Record<string, string> = {}
+  if (sessionToken) {
+    headers.Authorization = `Session ${sessionToken}`
+  }
+  const res = await fetch('/api/gdpr/export', { headers })
+  if (!res.ok) throw new ApiError(res.status, await res.text())
+  const blob = await res.blob()
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `llamenos-export-${date}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+export async function getMyErasureRequest(): Promise<GdprErasureRequest | null> {
+  const { request: req } = await request<{ request: GdprErasureRequest | null }>('/gdpr/me/erasure')
+  return req
+}
+
+export async function requestAccountErasure(): Promise<GdprErasureRequest> {
+  const { request: req } = await request<{ request: GdprErasureRequest }>('/gdpr/me', {
+    method: 'DELETE',
+  })
+  return req
+}
+
+export async function cancelAccountErasure(): Promise<void> {
+  await request<{ ok: true }>('/gdpr/me/cancel', { method: 'DELETE' })
+}
+
+export async function getRetentionSettings(): Promise<RetentionSettings> {
+  return request<RetentionSettings>('/settings/retention')
+}
+
+export async function updateRetentionSettings(data: Partial<RetentionSettings>): Promise<RetentionSettings> {
+  return request<RetentionSettings>('/settings/retention', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
 }

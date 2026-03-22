@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "Análises",
+      "callVolume": "Volume de chamadas",
+      "callVolume7d": "Volume de chamadas — Últimos 7 dias",
+      "callVolume30d": "Volume de chamadas — Últimos 30 dias",
+      "peakHours": "Horas de pico",
+      "teamPerformance": "Desempenho da equipe",
+      "answered": "Atendidas",
+      "voicemail": "Caixa postal",
+      "unanswered": "Não atendidas",
+      "noData": "Sem dados para este período"
+    }
   },
   "calls": {
     "incoming": "Chamada Recebida",
@@ -137,7 +149,15 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "detail": {
+      "title": "Detalhe da Chamada",
+      "metadata": "Informações da Chamada",
+      "notes": "Notas",
+      "recording": "Gravação",
+      "audit": "Trilha de Auditoria",
+      "notFound": "Chamada não encontrada"
+    }
   },
   "callSettings": {
     "title": "Configurações de Chamada",
@@ -179,7 +199,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "Detalhes da Nota",
+      "forbidden": "Você não tem permissão para ver esta nota",
+      "notFound": "Nota não encontrada",
+      "callContext": "Da chamada",
+      "viewCall": "Ver detalhe da chamada",
+      "editFromCallPage": "Editar da página de detalhe da chamada"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -202,7 +229,9 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated"
+    "updated": "Note updated",
+    "permalink": "Ver",
+    "viewPermalink": "Ver Nota"
   },
   "transcription": {
     "title": "Transcrição",

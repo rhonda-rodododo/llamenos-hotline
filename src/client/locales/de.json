@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "Analysen",
+      "callVolume": "Anrufvolumen",
+      "callVolume7d": "Anrufvolumen — Letzte 7 Tage",
+      "callVolume30d": "Anrufvolumen — Letzte 30 Tage",
+      "peakHours": "Stoßzeiten",
+      "teamPerformance": "Team-Leistung",
+      "answered": "Beantwortet",
+      "voicemail": "Voicemail",
+      "unanswered": "Unbeantwortet",
+      "noData": "Keine Daten für diesen Zeitraum"
+    }
   },
   "calls": {
     "incoming": "Eingehender Anruf",
@@ -137,7 +149,15 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "detail": {
+      "title": "Anruf-Details",
+      "metadata": "Anrufinformationen",
+      "notes": "Notizen",
+      "recording": "Aufnahme",
+      "audit": "Prüfprotokoll",
+      "notFound": "Anruf nicht gefunden"
+    }
   },
   "callSettings": {
     "title": "Anrufeinstellungen",
@@ -179,7 +199,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "Notiz-Details",
+      "forbidden": "Sie haben keine Berechtigung, diese Notiz anzusehen",
+      "notFound": "Notiz nicht gefunden",
+      "callContext": "Aus dem Anruf",
+      "viewCall": "Anruf-Details anzeigen",
+      "editFromCallPage": "Von der Anruf-Details-Seite bearbeiten"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -202,7 +229,9 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated"
+    "updated": "Note updated",
+    "permalink": "Ansehen",
+    "viewPermalink": "Notiz ansehen"
   },
   "transcription": {
     "title": "Transkription",

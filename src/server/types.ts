@@ -550,6 +550,19 @@ export interface CallRecordFilters {
   dateTo?: string
 }
 
+// Analytics types
+export interface CallVolumeDay {
+  date: string
+  count: number
+  answered: number
+  voicemail: number
+}
+
+export interface CallHourBucket {
+  hour: number
+  count: number
+}
+
 export interface CreateNoteData {
   id?: string
   hubId?: string

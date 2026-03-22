@@ -11,6 +11,8 @@ import type {
   BanEntry,
   BulkBanData,
   CallRecordFilters,
+  CallVolumeDay,
+  CallHourBucket,
   CreateBanData,
   CreateCallRecordData,
   CreateNoteData,
@@ -479,6 +481,95 @@ export class RecordsService {
     const total = entries.length
     const start = (page - 1) * limit
     return { entries: entries.slice(start, start + limit), total }
+  }
+
+  // ------------------------------------------------------------------ Analytics
+
+  async getCallVolumeByDay(hubId: string | undefined, days: 7 | 30): Promise<CallVolumeDay[]> {
+    const hId = hubId ?? 'global'
+    const since = new Date()
+    since.setDate(since.getDate() - days)
+    since.setUTCHours(0, 0, 0, 0)
+
+    const rows = await this.db
+      .select({
+        date: sql<string>`DATE(${callRecords.startedAt})`.as('date'),
+        count: sql<number>`COUNT(*)::int`.as('count'),
+        answered: sql<number>`SUM(CASE WHEN ${callRecords.status} = 'completed' AND NOT ${callRecords.hasVoicemail} THEN 1 ELSE 0 END)::int`.as('answered'),
+        voicemail: sql<number>`SUM(CASE WHEN ${callRecords.hasVoicemail} THEN 1 ELSE 0 END)::int`.as('voicemail'),
+      })
+      .from(callRecords)
+      .where(and(eq(callRecords.hubId, hId), gte(callRecords.startedAt, since)))
+      .groupBy(sql`DATE(${callRecords.startedAt})`)
+      .orderBy(sql`DATE(${callRecords.startedAt}) ASC`)
+
+    return rows.map((r) => ({
+      date: r.date,
+      count: Number(r.count),
+      answered: Number(r.answered),
+      voicemail: Number(r.voicemail),
+    }))
+  }
+
+  async getCallHourDistribution(
+    hubId: string | undefined,
+    days: 30
+  ): Promise<CallHourBucket[]> {
+    const hId = hubId ?? 'global'
+    const since = new Date()
+    since.setDate(since.getDate() - days)
+    since.setUTCHours(0, 0, 0, 0)
+
+    const rows = await this.db
+      .select({
+        hour: sql<number>`EXTRACT(HOUR FROM ${callRecords.startedAt})::int`.as('hour'),
+        count: sql<number>`COUNT(*)::int`.as('count'),
+      })
+      .from(callRecords)
+      .where(and(eq(callRecords.hubId, hId), gte(callRecords.startedAt, since)))
+      .groupBy(sql`EXTRACT(HOUR FROM ${callRecords.startedAt})`)
+      .orderBy(sql`EXTRACT(HOUR FROM ${callRecords.startedAt}) ASC`)
+
+    // Fill all 24 hours, defaulting to 0
+    const map = new Map<number, number>()
+    for (const r of rows) {
+      map.set(Number(r.hour), Number(r.count))
+    }
+    return Array.from({ length: 24 }, (_, h) => ({ hour: h, count: map.get(h) ?? 0 }))
+  }
+
+  async getVolunteerCallStats(
+    hubId: string | undefined,
+    days: 30
+  ): Promise<Array<{ pubkey: string; callsAnswered: number; avgDuration: number }>> {
+    const hId = hubId ?? 'global'
+    const since = new Date()
+    since.setDate(since.getDate() - days)
+    since.setUTCHours(0, 0, 0, 0)
+
+    // NOTE: answeredBy (volunteer pubkey) is stored inside encrypted content for privacy.
+    // We can only do volunteer-level stats from the audit log where callAnswered events record actorPubkey.
+    const rows = await this.db
+      .select({
+        actorPubkey: auditLog.actorPubkey,
+        callsAnswered: sql<number>`COUNT(*)::int`.as('calls_answered'),
+      })
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.hubId, hId),
+          eq(auditLog.event, 'callAnswered'),
+          gte(auditLog.createdAt, since)
+        )
+      )
+      .groupBy(auditLog.actorPubkey)
+      .orderBy(sql`COUNT(*) DESC`)
+
+    return rows.map((r) => ({
+      pubkey: r.actorPubkey,
+      callsAnswered: Number(r.callsAnswered),
+      avgDuration: 0, // Duration is encrypted; not available without decryption
+    }))
   }
 
   // ------------------------------------------------------------------ Private helpers
