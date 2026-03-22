@@ -1,5 +1,5 @@
-import { Hono } from 'hono'
 import type { KeyEnvelope, RecipientEnvelope } from '@shared/types'
+import { Hono } from 'hono'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 

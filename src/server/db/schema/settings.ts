@@ -20,7 +20,7 @@ export const hubKeys = pgTable(
     pubkey: text('pubkey').notNull(),
     encryptedKey: text('encrypted_key').notNull(),
   },
-  (table) => [primaryKey({ columns: [table.hubId, table.pubkey] })],
+  (table) => [primaryKey({ columns: [table.hubId, table.pubkey] })]
 )
 
 export const roles = pgTable('roles', {
@@ -104,7 +104,7 @@ export const ivrAudio = pgTable(
     mimeType: text('mime_type').notNull().default('audio/mpeg'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [primaryKey({ columns: [table.hubId, table.promptType, table.language] })],
+  (table) => [primaryKey({ columns: [table.hubId, table.promptType, table.language] })]
 )
 
 export const setupState = pgTable('setup_state', {

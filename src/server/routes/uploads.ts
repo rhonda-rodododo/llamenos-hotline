@@ -120,7 +120,7 @@ uploads.post('/:id/complete', async (c) => {
         completedChunks: record.completedChunks,
         totalChunks: record.totalChunks,
       },
-      400,
+      400
     )
   }
 

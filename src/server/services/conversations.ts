@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
-import { conversations, messageEnvelopes } from '../db/schema'
 import type { Database } from '../db'
+import { conversations, messageEnvelopes } from '../db/schema'
 import { AppError } from '../lib/errors'
 import type {
   Conversation,
@@ -16,7 +16,9 @@ export class ConversationService {
 
   // ------------------------------------------------------------------ Conversations
 
-  async listConversations(filters: ConversationFilters): Promise<{ conversations: Conversation[]; total: number }> {
+  async listConversations(
+    filters: ConversationFilters
+  ): Promise<{ conversations: Conversation[]; total: number }> {
     const hId = filters.hubId ?? 'global'
     const conditions: ReturnType<typeof eq>[] = [eq(conversations.hubId, hId)]
 
@@ -45,11 +47,7 @@ export class ConversationService {
   }
 
   async getConversation(id: string): Promise<Conversation | null> {
-    const rows = await this.db
-      .select()
-      .from(conversations)
-      .where(eq(conversations.id, id))
-      .limit(1)
+    const rows = await this.db.select().from(conversations).where(eq(conversations.id, id)).limit(1)
     return rows[0] ? this.#rowToConversation(rows[0]) : null
   }
 
@@ -74,7 +72,11 @@ export class ConversationService {
         lastMessageAt: now,
       })
       .onConflictDoUpdate({
-        target: [conversations.hubId, conversations.channelType, conversations.contactIdentifierHash],
+        target: [
+          conversations.hubId,
+          conversations.channelType,
+          conversations.contactIdentifierHash,
+        ],
         set: {
           updatedAt: now,
           ...(data.externalId ? { externalId: data.externalId } : {}),
@@ -91,7 +93,7 @@ export class ConversationService {
       status: string
       assignedTo: string | null
       metadata: Record<string, unknown>
-    }>,
+    }>
   ): Promise<Conversation> {
     const existing = await this.getConversation(id)
     if (!existing) throw new AppError(404, 'Conversation not found')
@@ -109,7 +111,11 @@ export class ConversationService {
     return this.#rowToConversation(row)
   }
 
-  async findByExternalId(hubId: string, channelType: string, externalId: string): Promise<Conversation | null> {
+  async findByExternalId(
+    hubId: string,
+    channelType: string,
+    externalId: string
+  ): Promise<Conversation | null> {
     const rows = await this.db
       .select()
       .from(conversations)
@@ -117,14 +123,16 @@ export class ConversationService {
         and(
           eq(conversations.hubId, hubId),
           eq(conversations.channelType, channelType),
-          eq(conversations.externalId, externalId),
-        ),
+          eq(conversations.externalId, externalId)
+        )
       )
       .limit(1)
     return rows[0] ? this.#rowToConversation(rows[0]) : null
   }
 
-  async getConversationStats(hubId?: string): Promise<{ total: number; waiting: number; active: number; closed: number }> {
+  async getConversationStats(
+    hubId?: string
+  ): Promise<{ total: number; waiting: number; active: number; closed: number }> {
     const hId = hubId ?? 'global'
     const rows = await this.db
       .select({ status: conversations.status })
@@ -141,8 +149,8 @@ export class ConversationService {
 
   async getMessages(
     conversationId: string,
-    page: number = 1,
-    limit: number = 50,
+    page = 1,
+    limit = 50
   ): Promise<{ messages: EncryptedMessage[]; total: number }> {
     const rows = await this.db
       .select()
@@ -191,7 +199,7 @@ export class ConversationService {
 
   async updateMessageStatus(
     id: string,
-    data: { status: string; deliveredAt?: Date; readAt?: Date; failureReason?: string },
+    data: { status: string; deliveredAt?: Date; readAt?: Date; failureReason?: string }
   ): Promise<void> {
     await this.db
       .update(messageEnvelopes)

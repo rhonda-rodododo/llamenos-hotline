@@ -96,7 +96,10 @@ blasts.patch('/:id', async (c) => {
   const id = c.req.param('id')
   const services = c.get('services')
   const body = await c.req.json()
-  const updated = await services.blasts.updateBlast(id, body as Parameters<typeof services.blasts.updateBlast>[1])
+  const updated = await services.blasts.updateBlast(
+    id,
+    body as Parameters<typeof services.blasts.updateBlast>[1]
+  )
   return c.json(updated)
 })
 
@@ -152,7 +155,8 @@ blasts.get('/settings', async (c) => {
   const config = await services.settings.getMessagingConfig(hubId ?? undefined)
   // Expose blast-relevant settings only
   return c.json({
-    subscribeKeyword: (config as typeof config & { subscribeKeyword?: string }).subscribeKeyword ?? 'JOIN',
+    subscribeKeyword:
+      (config as typeof config & { subscribeKeyword?: string }).subscribeKeyword ?? 'JOIN',
     autoRespond: (config as typeof config & { autoRespond?: boolean }).autoRespond ?? false,
   })
 })

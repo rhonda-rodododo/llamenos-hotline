@@ -12,13 +12,13 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { migrate } from 'drizzle-orm/bun-sql/migrator'
 import { Hono } from 'hono'
 import { initDb } from './db'
-import { createServices } from './services'
+import { loadEnv } from './env'
 import { closeNostrPublisher } from './lib/adapters'
+import { createBlobStorage } from './lib/blob-storage'
 import { errorHandler } from './middleware/error'
 import { servicesMiddleware } from './middleware/services'
-import { loadEnv } from './env'
+import { createServices } from './services'
 import type { BlobStorage } from './types'
-import { createBlobStorage } from './lib/blob-storage'
 
 async function main() {
   console.log('[llamenos] Starting server...')

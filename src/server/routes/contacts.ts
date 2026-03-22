@@ -131,9 +131,7 @@ contacts.get('/:hash', async (c) => {
   ])
 
   // Filter conversations by contactIdentifierHash
-  const conversations = allConvs.conversations.filter(
-    (conv) => conv.contactIdentifierHash === hash
-  )
+  const conversations = allConvs.conversations.filter((conv) => conv.contactIdentifierHash === hash)
 
   return c.json({ notes: contactNotes, conversations })
 })

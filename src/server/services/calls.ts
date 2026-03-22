@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
-import { activeCalls, callLegs, callTokens } from '../db/schema'
 import type { Database } from '../db'
+import { activeCalls, callLegs, callTokens } from '../db/schema'
 import { AppError } from '../lib/errors'
 import type {
   ActiveCall,
@@ -18,10 +18,7 @@ export class CallService {
 
   async getActiveCalls(hubId?: string): Promise<ActiveCall[]> {
     const hId = hubId ?? 'global'
-    const rows = await this.db
-      .select()
-      .from(activeCalls)
-      .where(eq(activeCalls.hubId, hId))
+    const rows = await this.db.select().from(activeCalls).where(eq(activeCalls.hubId, hId))
     return rows.map((r) => this.#rowToActiveCall(r))
   }
 
@@ -53,8 +50,12 @@ export class CallService {
 
   async updateActiveCall(
     callSid: string,
-    data: Partial<{ status: string; assignedPubkey: string | null; metadata: Record<string, unknown> }>,
-    hubId?: string,
+    data: Partial<{
+      status: string
+      assignedPubkey: string | null
+      metadata: Record<string, unknown>
+    }>,
+    hubId?: string
   ): Promise<ActiveCall> {
     const hId = hubId ?? 'global'
     const existing = await this.getActiveCall(callSid, hId)
@@ -141,11 +142,7 @@ export class CallService {
   }
 
   async validateCallToken(token: string): Promise<CallTokenPayload> {
-    const rows = await this.db
-      .select()
-      .from(callTokens)
-      .where(eq(callTokens.token, token))
-      .limit(1)
+    const rows = await this.db.select().from(callTokens).where(eq(callTokens.token, token)).limit(1)
     const row = rows[0]
     if (!row) throw new AppError(401, 'Invalid call token')
     if (row.expiresAt < new Date()) {

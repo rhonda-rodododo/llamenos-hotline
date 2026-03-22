@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
-import { blastDeliveries, blasts, subscribers } from '../db/schema'
 import type { Database } from '../db'
+import { blastDeliveries, blasts, subscribers } from '../db/schema'
 import { AppError } from '../lib/errors'
 import type {
   Blast,
@@ -46,7 +46,12 @@ export class BlastService {
     return this.#rowToBlast(row)
   }
 
-  async updateBlast(id: string, data: Partial<CreateBlastData & { totalCount: number; sentCount: number; failedCount: number; sentAt: Date }>): Promise<Blast> {
+  async updateBlast(
+    id: string,
+    data: Partial<
+      CreateBlastData & { totalCount: number; sentCount: number; failedCount: number; sentAt: Date }
+    >
+  ): Promise<Blast> {
     const existing = await this.getBlast(id)
     if (!existing) throw new AppError(404, 'Blast not found')
 
@@ -83,7 +88,11 @@ export class BlastService {
     return rows[0] ? this.#rowToSubscriber(rows[0]) : null
   }
 
-  async findSubscriberByPhone(phone: string, channel: string, hubId?: string): Promise<Subscriber | null> {
+  async findSubscriberByPhone(
+    phone: string,
+    channel: string,
+    hubId?: string
+  ): Promise<Subscriber | null> {
     const hId = hubId ?? 'global'
     const rows = await this.db
       .select()
@@ -92,8 +101,8 @@ export class BlastService {
         and(
           eq(subscribers.hubId, hId),
           eq(subscribers.channel, channel),
-          eq(subscribers.phoneNumber, phone),
-        ),
+          eq(subscribers.phoneNumber, phone)
+        )
       )
       .limit(1)
     return rows[0] ? this.#rowToSubscriber(rows[0]) : null
@@ -153,7 +162,9 @@ export class BlastService {
     await this.db.delete(subscribers).where(eq(subscribers.id, id))
   }
 
-  async getSubscriberStats(hubId?: string): Promise<{ total: number; active: number; inactive: number }> {
+  async getSubscriberStats(
+    hubId?: string
+  ): Promise<{ total: number; active: number; inactive: number }> {
     const hId = hubId ?? 'global'
     const rows = await this.db
       .select({ active: subscribers.active })
@@ -182,7 +193,7 @@ export class BlastService {
 
   async updateDelivery(
     id: string,
-    data: { status: string; error?: string; sentAt?: Date },
+    data: { status: string; error?: string; sentAt?: Date }
   ): Promise<BlastDelivery> {
     const [row] = await this.db
       .update(blastDeliveries)

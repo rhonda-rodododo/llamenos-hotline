@@ -140,7 +140,12 @@ settings.patch('/webauthn', requirePermission('settings:manage'), async (c) => {
   const updated = await services.identity.updateWebAuthnSettings(
     body as Parameters<typeof services.identity.updateWebAuthnSettings>[0]
   )
-  await services.records.addAuditEntry(hubId ?? 'global', 'webauthnSettingsUpdated', pubkey, body as Record<string, unknown>)
+  await services.records.addAuditEntry(
+    hubId ?? 'global',
+    'webauthnSettingsUpdated',
+    pubkey,
+    body as Record<string, unknown>
+  )
   return c.json(updated)
 })
 
@@ -152,24 +157,20 @@ settings.get('/telephony-provider', requirePermission('settings:manage-telephony
   return c.json(config)
 })
 
-settings.patch(
-  '/telephony-provider',
-  requirePermission('settings:manage-telephony'),
-  async (c) => {
-    const services = c.get('services')
-    const hubId = c.get('hubId')
-    const pubkey = c.get('pubkey')
-    const body = await c.req.json()
-    const updated = await services.settings.updateTelephonyProvider(
-      body as Parameters<typeof services.settings.updateTelephonyProvider>[0],
-      hubId ?? undefined
-    )
-    await services.records.addAuditEntry(hubId ?? 'global', 'telephonyProviderChanged', pubkey, {
-      type: (body as { type?: string }).type,
-    })
-    return c.json(updated)
-  }
-)
+settings.patch('/telephony-provider', requirePermission('settings:manage-telephony'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const pubkey = c.get('pubkey')
+  const body = await c.req.json()
+  const updated = await services.settings.updateTelephonyProvider(
+    body as Parameters<typeof services.settings.updateTelephonyProvider>[0],
+    hubId ?? undefined
+  )
+  await services.records.addAuditEntry(hubId ?? 'global', 'telephonyProviderChanged', pubkey, {
+    type: (body as { type?: string }).type,
+  })
+  return c.json(updated)
+})
 
 settings.post(
   '/telephony-provider/test',
