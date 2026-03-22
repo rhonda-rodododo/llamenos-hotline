@@ -1,11 +1,17 @@
 import {
   type ActiveCall,
+  type CallHourBucket,
+  type CallVolumeDay,
   type Volunteer,
   type VolunteerPresence,
+  type VolunteerStatEntry,
   addBan,
   createNote,
+  getCallAnalytics,
+  getCallHoursAnalytics,
   getCallsTodayCount,
   getVolunteerPresence,
+  getVolunteerStats,
   listVolunteers,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
@@ -16,16 +22,22 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { CallHoursChart } from '@/components/dashboard/call-hours-chart'
+import { CallVolumeChart } from '@/components/dashboard/call-volume-chart'
+import { VolunteerStatsTable } from '@/components/dashboard/volunteer-stats-table'
 import { GettingStartedChecklist } from '@/components/getting-started'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { WebRtcCallControls, WebRtcStatus } from '@/components/webrtc-call'
 import { useToast } from '@/lib/toast'
 import {
   Activity,
   AlertTriangle,
   BarChart3,
+  ChevronDown,
+  ChevronRight,
   Clock,
   Coffee,
   LayoutDashboard,
@@ -37,6 +49,7 @@ import {
   PhoneOff,
   Save,
   ShieldBan,
+  TrendingUp,
   Users,
 } from 'lucide-react'
 
@@ -55,6 +68,15 @@ function DashboardPage() {
   const [callsToday, setCallsToday] = useState<number | null>(null)
   const [presence, setPresence] = useState<VolunteerPresence[]>([])
   const [volunteers, setVolunteers] = useState<Volunteer[]>([])
+
+  // Analytics state (lazy-loaded when section expands)
+  const [analyticsOpen, setAnalyticsOpen] = useState(false)
+  const [analyticsLoaded, setAnalyticsLoaded] = useState(false)
+  const [analyticsDays, setAnalyticsDays] = useState<7 | 30>(7)
+  const [callVolumeData, setCallVolumeData] = useState<CallVolumeDay[]>([])
+  const [callHoursData, setCallHoursData] = useState<CallHourBucket[]>([])
+  const [volunteerStatsData, setVolunteerStatsData] = useState<VolunteerStatEntry[]>([])
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -94,6 +116,25 @@ function DashboardPage() {
       clearInterval(interval)
     }
   }, [isAuthenticated, isAdmin])
+
+  // Fetch analytics data lazily when the section is opened
+  useEffect(() => {
+    if (!isAdmin || !analyticsOpen) return
+    setAnalyticsLoading(true)
+    Promise.all([
+      getCallAnalytics(analyticsDays),
+      getCallHoursAnalytics(),
+      getVolunteerStats(),
+    ])
+      .then(([vol, hours, stats]) => {
+        setCallVolumeData(vol.data)
+        setCallHoursData(hours.data)
+        setVolunteerStatsData(stats.data)
+        setAnalyticsLoaded(true)
+      })
+      .catch(() => {})
+      .finally(() => setAnalyticsLoading(false))
+  }, [isAdmin, analyticsOpen, analyticsDays])
 
   if (!isAuthenticated) return null
 
@@ -326,6 +367,56 @@ function DashboardPage() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Analytics section (admin only, collapsible, lazy-loaded) */}
+      {isAdmin && (
+        <Collapsible open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader
+                className="cursor-pointer border-b hover:bg-muted/30"
+                data-testid="analytics-section-trigger"
+              >
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  {t('dashboard.analytics.title')}
+                  {analyticsOpen ? (
+                    <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+                  )}
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-8 pt-4">
+                {/* Call Volume Chart */}
+                <div>
+                  <h3 className="mb-3 text-sm font-medium">{t('dashboard.analytics.callVolume')}</h3>
+                  <CallVolumeChart
+                    data={callVolumeData}
+                    loading={analyticsLoading}
+                    days={analyticsDays}
+                    onDaysChange={(d) => setAnalyticsDays(d)}
+                  />
+                </div>
+
+                {/* Peak Hours Chart */}
+                <div>
+                  <h3 className="mb-3 text-sm font-medium">{t('dashboard.analytics.peakHours')}</h3>
+                  <CallHoursChart data={callHoursData} loading={analyticsLoading && !analyticsLoaded} />
+                </div>
+
+                {/* Team Performance Table */}
+                <div>
+                  <h3 className="mb-3 text-sm font-medium">{t('dashboard.analytics.teamPerformance')}</h3>
+                  <VolunteerStatsTable data={volunteerStatsData} loading={analyticsLoading && !analyticsLoaded} />
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       )}
 
       {isAdmin && (

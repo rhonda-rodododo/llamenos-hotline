@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "विश्लेषण",
+      "callVolume": "कॉल वॉल्यूम",
+      "callVolume7d": "कॉल वॉल्यूम — पिछले 7 दिन",
+      "callVolume30d": "कॉल वॉल्यूम — पिछले 30 दिन",
+      "peakHours": "पीक घंटे",
+      "teamPerformance": "टीम प्रदर्शन",
+      "answered": "उत्तरित",
+      "voicemail": "वॉयसमेल",
+      "unanswered": "अनुत्तरित",
+      "noData": "इस अवधि के लिए कोई डेटा नहीं"
+    }
   },
   "calls": {
     "incoming": "आने वाली कॉल",
@@ -137,7 +149,15 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "detail": {
+      "title": "कॉल विवरण",
+      "metadata": "कॉल जानकारी",
+      "notes": "नोट्स",
+      "recording": "रिकॉर्डिंग",
+      "audit": "ऑडिट ट्रेल",
+      "notFound": "कॉल नहीं मिली"
+    }
   },
   "callSettings": {
     "title": "कॉल सेटिंग्स",
@@ -179,7 +199,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "नोट विवरण",
+      "forbidden": "आपको इस नोट को देखने की अनुमति नहीं है",
+      "notFound": "नोट नहीं मिला",
+      "callContext": "कॉल से",
+      "viewCall": "कॉल विवरण देखें",
+      "editFromCallPage": "कॉल विवरण पृष्ठ से संपादित करें"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -202,7 +229,9 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated"
+    "updated": "Note updated",
+    "permalink": "देखें",
+    "viewPermalink": "नोट देखें"
   },
   "transcription": {
     "title": "ट्रांसक्रिप्शन",

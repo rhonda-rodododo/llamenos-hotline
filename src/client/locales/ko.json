@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "분석",
+      "callVolume": "통화량",
+      "callVolume7d": "통화량 — 최근 7일",
+      "callVolume30d": "통화량 — 최근 30일",
+      "peakHours": "피크 시간",
+      "teamPerformance": "팀 성과",
+      "answered": "응답됨",
+      "voicemail": "음성 메일",
+      "unanswered": "미응답",
+      "noData": "이 기간에 대한 데이터 없음"
+    }
   },
   "calls": {
     "incoming": "수신 전화",
@@ -137,7 +149,15 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "detail": {
+      "title": "통화 상세",
+      "metadata": "통화 정보",
+      "notes": "메모",
+      "recording": "녹음",
+      "audit": "감사 기록",
+      "notFound": "통화를 찾을 수 없음"
+    }
   },
   "callSettings": {
     "title": "통화 설정",
@@ -179,7 +199,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "메모 상세",
+      "forbidden": "이 메모를 볼 권한이 없습니다",
+      "notFound": "메모를 찾을 수 없음",
+      "callContext": "통화에서",
+      "viewCall": "통화 상세 보기",
+      "editFromCallPage": "통화 상세 페이지에서 편집"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -202,7 +229,9 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated"
+    "updated": "Note updated",
+    "permalink": "보기",
+    "viewPermalink": "메모 보기"
   },
   "transcription": {
     "title": "전사",

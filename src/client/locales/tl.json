@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "Analytics",
+      "callVolume": "Dami ng Tawag",
+      "callVolume7d": "Dami ng Tawag — Huling 7 Araw",
+      "callVolume30d": "Dami ng Tawag — Huling 30 Araw",
+      "peakHours": "Oras ng Pinakamataas",
+      "teamPerformance": "Pagganap ng Koponan",
+      "answered": "Nasagot",
+      "voicemail": "Voicemail",
+      "unanswered": "Hindi Nasagot",
+      "noData": "Walang datos para sa panahong ito"
+    }
   },
   "calls": {
     "incoming": "Papasok na Tawag",
@@ -137,7 +149,15 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "detail": {
+      "title": "Detalye ng Tawag",
+      "metadata": "Impormasyon ng Tawag",
+      "notes": "Mga Tala",
+      "recording": "Rekording",
+      "audit": "Talaan ng Audit",
+      "notFound": "Hindi nahanap ang tawag"
+    }
   },
   "callSettings": {
     "title": "Mga Setting ng Tawag",
@@ -179,7 +199,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "Detalye ng Tala",
+      "forbidden": "Wala kang pahintulot na tingnan ang talang ito",
+      "notFound": "Hindi nahanap ang tala",
+      "callContext": "Mula sa tawag",
+      "viewCall": "Tingnan ang detalye ng tawag",
+      "editFromCallPage": "I-edit mula sa pahina ng detalye ng tawag"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -202,7 +229,9 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated"
+    "updated": "Note updated",
+    "permalink": "Tingnan",
+    "viewPermalink": "Tingnan ang Tala"
   },
   "transcription": {
     "title": "Transkripsyon",

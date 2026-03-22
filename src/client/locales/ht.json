@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "Analitik",
+      "callVolume": "Volim Rele",
+      "callVolume7d": "Volim Rele — 7 Dènyè Jou",
+      "callVolume30d": "Volim Rele — 30 Dènyè Jou",
+      "peakHours": "Lè Pik",
+      "teamPerformance": "Pèfòmans Ekip",
+      "answered": "Reponn",
+      "voicemail": "Mesaj Vwa",
+      "unanswered": "Pa Reponn",
+      "noData": "Pa gen done pou peryòd sa a"
+    }
   },
   "calls": {
     "incoming": "Apèl Antre",
@@ -137,7 +149,15 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "detail": {
+      "title": "Detay Apèl la",
+      "metadata": "Enfòmasyon Apèl",
+      "notes": "Nòt",
+      "recording": "Anrejistreman",
+      "audit": "Jounal Odit",
+      "notFound": "Apèl pa jwenn"
+    }
   },
   "callSettings": {
     "title": "Paramèt Apèl",
@@ -179,7 +199,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "Detay Nòt la",
+      "forbidden": "Ou pa gen pèmisyon pou wè nòt sa a",
+      "notFound": "Nòt pa jwenn",
+      "callContext": "Soti nan apèl",
+      "viewCall": "Wè detay apèl la",
+      "editFromCallPage": "Modifye nan paj detay apèl la"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -202,7 +229,9 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated"
+    "updated": "Note updated",
+    "permalink": "Wè",
+    "viewPermalink": "Wè Nòt"
   },
   "transcription": {
     "title": "Transkripsyon",

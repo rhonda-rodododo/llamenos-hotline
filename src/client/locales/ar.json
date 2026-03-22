@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "التحليلات",
+      "callVolume": "حجم المكالمات",
+      "callVolume7d": "حجم المكالمات — آخر 7 أيام",
+      "callVolume30d": "حجم المكالمات — آخر 30 يومًا",
+      "peakHours": "ساعات الذروة",
+      "teamPerformance": "أداء الفريق",
+      "answered": "مُجاب",
+      "voicemail": "البريد الصوتي",
+      "unanswered": "غير مُجاب",
+      "noData": "لا توجد بيانات لهذه الفترة"
+    }
   },
   "calls": {
     "incoming": "مكالمة واردة",
@@ -137,7 +149,15 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "detail": {
+      "title": "تفاصيل المكالمة",
+      "metadata": "معلومات المكالمة",
+      "notes": "الملاحظات",
+      "recording": "التسجيل",
+      "audit": "سجل التدقيق",
+      "notFound": "المكالمة غير موجودة"
+    }
   },
   "callSettings": {
     "title": "إعدادات المكالمات",
@@ -179,7 +199,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "تفاصيل الملاحظة",
+      "forbidden": "ليس لديك إذن لعرض هذه الملاحظة",
+      "notFound": "الملاحظة غير موجودة",
+      "callContext": "من المكالمة",
+      "viewCall": "عرض تفاصيل المكالمة",
+      "editFromCallPage": "تحرير من صفحة تفاصيل المكالمة"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -202,7 +229,9 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated"
+    "updated": "Note updated",
+    "permalink": "عرض",
+    "viewPermalink": "عرض الملاحظة"
   },
   "transcription": {
     "title": "النسخ",

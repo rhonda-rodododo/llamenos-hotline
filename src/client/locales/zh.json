@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "分析",
+      "callVolume": "通话量",
+      "callVolume7d": "通话量 — 最近7天",
+      "callVolume30d": "通话量 — 最近30天",
+      "peakHours": "高峰时段",
+      "teamPerformance": "团队表现",
+      "answered": "已接听",
+      "voicemail": "语音信箱",
+      "unanswered": "未接听",
+      "noData": "此时段无数据"
+    }
   },
   "calls": {
     "incoming": "来电",
@@ -137,7 +149,15 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "detail": {
+      "title": "通话详情",
+      "metadata": "通话信息",
+      "notes": "记录",
+      "recording": "录音",
+      "audit": "审计追踪",
+      "notFound": "未找到通话"
+    }
   },
   "callSettings": {
     "title": "通话设置",
@@ -179,7 +199,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "记录详情",
+      "forbidden": "您没有权限查看此记录",
+      "notFound": "记录未找到",
+      "callContext": "来自通话",
+      "viewCall": "查看通话详情",
+      "editFromCallPage": "从通话详情页面编辑"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -202,7 +229,9 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated"
+    "updated": "Note updated",
+    "permalink": "查看",
+    "viewPermalink": "查看记录"
   },
   "transcription": {
     "title": "转录",

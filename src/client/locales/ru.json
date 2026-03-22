@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "Аналитика",
+      "callVolume": "Объём звонков",
+      "callVolume7d": "Объём звонков — последние 7 дней",
+      "callVolume30d": "Объём звонков — последние 30 дней",
+      "peakHours": "Часы пик",
+      "teamPerformance": "Производительность команды",
+      "answered": "Отвечено",
+      "voicemail": "Голосовая почта",
+      "unanswered": "Без ответа",
+      "noData": "Нет данных за этот период"
+    }
   },
   "calls": {
     "incoming": "Входящий звонок",
@@ -137,7 +149,15 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "detail": {
+      "title": "Детали звонка",
+      "metadata": "Информация о звонке",
+      "notes": "Заметки",
+      "recording": "Запись",
+      "audit": "Журнал аудита",
+      "notFound": "Звонок не найден"
+    }
   },
   "callSettings": {
     "title": "Настройки звонков",
@@ -179,7 +199,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "Детали заметки",
+      "forbidden": "У вас нет разрешения на просмотр этой заметки",
+      "notFound": "Заметка не найдена",
+      "callContext": "Из звонка",
+      "viewCall": "Просмотр деталей звонка",
+      "editFromCallPage": "Редактировать со страницы деталей звонка"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -202,7 +229,9 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated"
+    "updated": "Note updated",
+    "permalink": "Посмотреть",
+    "viewPermalink": "Посмотреть заметку"
   },
   "transcription": {
     "title": "Транскрипция",

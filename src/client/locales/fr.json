@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "Analyses",
+      "callVolume": "Volume d'appels",
+      "callVolume7d": "Volume d'appels — 7 derniers jours",
+      "callVolume30d": "Volume d'appels — 30 derniers jours",
+      "peakHours": "Heures de pointe",
+      "teamPerformance": "Performance de l'équipe",
+      "answered": "Répondus",
+      "voicemail": "Messagerie vocale",
+      "unanswered": "Sans réponse",
+      "noData": "Aucune donnée pour cette période"
+    }
   },
   "calls": {
     "incoming": "Appel entrant",
@@ -137,7 +149,15 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "detail": {
+      "title": "Détail de l'appel",
+      "metadata": "Informations sur l'appel",
+      "notes": "Notes",
+      "recording": "Enregistrement",
+      "audit": "Journal d'audit",
+      "notFound": "Appel introuvable"
+    }
   },
   "callSettings": {
     "title": "Paramètres d'appel",
@@ -179,7 +199,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "Détails de la note",
+      "forbidden": "Vous n'avez pas l'autorisation de voir cette note",
+      "notFound": "Note introuvable",
+      "callContext": "De l'appel",
+      "viewCall": "Voir le détail de l'appel",
+      "editFromCallPage": "Modifier depuis la page de détail de l'appel"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -202,7 +229,9 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated"
+    "updated": "Note updated",
+    "permalink": "Voir",
+    "viewPermalink": "Voir la note"
   },
   "transcription": {
     "title": "Transcription",

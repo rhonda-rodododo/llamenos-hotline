@@ -115,29 +115,29 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "Analytics",
+      "callVolume": "Call Volume",
+      "callVolume7d": "Call Volume — Last 7 Days",
+      "callVolume30d": "Call Volume — Last 30 Days",
+      "peakHours": "Peak Hours",
+      "teamPerformance": "Team Performance",
+      "answered": "Answered",
+      "voicemail": "Voicemail",
+      "unanswered": "Unanswered",
+      "noData": "No data for this period"
+    }
   },
   "calls": {
-    "incoming": "Incoming Call",
-    "active": "Active Call",
-    "ended": "Call Ended",
-    "duration": "Duration",
-    "caller": "Caller",
-    "unknown": "Unknown Number",
-    "answer": "Answer",
-    "hangUp": "Hang Up",
-    "mute": "Mute",
-    "unmute": "Unmute",
-    "hold": "Hold",
-    "resume": "Resume",
-    "transferToVoicemail": "Send to Voicemail",
-    "reportSpam": "Report as Spam",
-    "banned": "This number is banned",
-    "addNote": "Add Note",
-    "recording": "Recording",
-    "transcription": "Transcription",
-    "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "detail": {
+      "title": "Call Detail",
+      "metadata": "Call Information",
+      "notes": "Notes",
+      "recording": "Recording",
+      "audit": "Audit Trail",
+      "notFound": "Call not found"
+    }
   },
   "callSettings": {
     "title": "Call Settings",
@@ -179,7 +179,16 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "Note Details",
+      "forbidden": "You do not have permission to view this note",
+      "notFound": "Note not found",
+      "callContext": "From call",
+      "viewCall": "View call detail",
+      "editFromCallPage": "Edit from the call detail page"
+    },
+    "permalink": "View",
+    "viewPermalink": "View Note",
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",

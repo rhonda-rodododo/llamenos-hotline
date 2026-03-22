@@ -7,6 +7,7 @@ import { errorHandler } from './middleware/error'
 import { hubContext } from './middleware/hub'
 import { securityHeaders } from './middleware/security-headers'
 import { checkPermission } from './middleware/permission-guard'
+import analyticsRoutes from './routes/analytics'
 import auditRoutes from './routes/audit'
 import authRoutes from './routes/auth'
 import bansRoutes from './routes/bans'
@@ -15,6 +16,7 @@ import callsRoutes from './routes/calls'
 import configRoutes from './routes/config'
 import contactsRoutes from './routes/contacts'
 import conversationsRoutes from './routes/conversations'
+import gdprRoutes from './routes/gdpr'
 import devRoutes from './routes/dev'
 import filesRoutes from './routes/files'
 import healthRoutes from './routes/health'
@@ -136,6 +138,8 @@ authenticated.use('/bans/*', requireHubOrSuperAdmin)
 authenticated.use('/bans', requireHubOrSuperAdmin)
 authenticated.use('/notes/*', requireHubOrSuperAdmin)
 authenticated.use('/notes', requireHubOrSuperAdmin)
+authenticated.use('/analytics/*', requireHubOrSuperAdmin)
+authenticated.use('/analytics', requireHubOrSuperAdmin)
 authenticated.use('/calls/*', requireHubOrSuperAdmin)
 authenticated.use('/calls', requireHubOrSuperAdmin)
 authenticated.use('/audit/*', requireHubOrSuperAdmin)
@@ -148,6 +152,7 @@ authenticated.use('/blasts/*', requireHubOrSuperAdmin)
 authenticated.use('/blasts', requireHubOrSuperAdmin)
 authenticated.use('/contacts/*', requireHubOrSuperAdmin)
 authenticated.use('/contacts', requireHubOrSuperAdmin)
+authenticated.route('/analytics', analyticsRoutes)
 authenticated.route('/shifts', shiftsRoutes)
 authenticated.route('/bans', bansRoutes)
 authenticated.route('/notes', notesRoutes)
@@ -163,10 +168,12 @@ authenticated.route('/setup', setupRoutes)
 authenticated.route('/hubs', hubRoutes)
 authenticated.route('/blasts', blastsRoutes)
 authenticated.route('/contacts', contactsRoutes)
+authenticated.route('/gdpr', gdprRoutes)
 
 // Hub-scoped authenticated routes
 const hubScoped = new Hono<AppEnv>()
 hubScoped.use('*', hubContext)
+hubScoped.route('/analytics', analyticsRoutes)
 hubScoped.route('/shifts', shiftsRoutes)
 hubScoped.route('/bans', bansRoutes)
 hubScoped.route('/notes', notesRoutes)

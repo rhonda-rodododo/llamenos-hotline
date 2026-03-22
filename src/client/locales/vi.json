@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "Phân tích",
+      "callVolume": "Khối lượng cuộc gọi",
+      "callVolume7d": "Khối lượng cuộc gọi — 7 ngày qua",
+      "callVolume30d": "Khối lượng cuộc gọi — 30 ngày qua",
+      "peakHours": "Giờ cao điểm",
+      "teamPerformance": "Hiệu suất nhóm",
+      "answered": "Đã trả lời",
+      "voicemail": "Hộp thư thoại",
+      "unanswered": "Chưa trả lời",
+      "noData": "Không có dữ liệu cho khoảng thời gian này"
+    }
   },
   "calls": {
     "incoming": "Cuộc gọi đến",
@@ -137,7 +149,15 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "detail": {
+      "title": "Chi Tiết Cuộc Gọi",
+      "metadata": "Thông Tin Cuộc Gọi",
+      "notes": "Ghi Chú",
+      "recording": "Ghi Âm",
+      "audit": "Nhật Ký Kiểm Toán",
+      "notFound": "Không tìm thấy cuộc gọi"
+    }
   },
   "callSettings": {
     "title": "Cài đặt cuộc gọi",
@@ -179,7 +199,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "Chi Tiết Ghi Chú",
+      "forbidden": "Bạn không có quyền xem ghi chú này",
+      "notFound": "Không tìm thấy ghi chú",
+      "callContext": "Từ cuộc gọi",
+      "viewCall": "Xem chi tiết cuộc gọi",
+      "editFromCallPage": "Chỉnh sửa từ trang chi tiết cuộc gọi"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -202,7 +229,9 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated"
+    "updated": "Note updated",
+    "permalink": "Xem",
+    "viewPermalink": "Xem Ghi Chú"
   },
   "transcription": {
     "title": "Phiên âm",

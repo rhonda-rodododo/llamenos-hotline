@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "Análisis",
+      "callVolume": "Volumen de llamadas",
+      "callVolume7d": "Volumen de llamadas — Últimos 7 días",
+      "callVolume30d": "Volumen de llamadas — Últimos 30 días",
+      "peakHours": "Horas pico",
+      "teamPerformance": "Rendimiento del equipo",
+      "answered": "Contestadas",
+      "voicemail": "Buzón de voz",
+      "unanswered": "Sin contestar",
+      "noData": "Sin datos para este período"
+    }
   },
   "calls": {
     "incoming": "Llamada Entrante",
@@ -137,7 +149,15 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "detail": {
+      "title": "Detalle de Llamada",
+      "metadata": "Información de Llamada",
+      "notes": "Notas",
+      "recording": "Grabación",
+      "audit": "Registro de Auditoría",
+      "notFound": "Llamada no encontrada"
+    }
   },
   "callSettings": {
     "title": "Configuración de Llamadas",
@@ -179,7 +199,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "Detalles de Nota",
+      "forbidden": "No tienes permiso para ver esta nota",
+      "notFound": "Nota no encontrada",
+      "callContext": "De la llamada",
+      "viewCall": "Ver detalle de llamada",
+      "editFromCallPage": "Editar desde la página de detalle de llamada"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -202,7 +229,9 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated"
+    "updated": "Note updated",
+    "permalink": "Ver",
+    "viewPermalink": "Ver Nota"
   },
   "transcription": {
     "title": "Transcripción",
