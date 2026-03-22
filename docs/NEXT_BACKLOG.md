@@ -192,7 +192,7 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 ### Critical Security — Execute First
 
 - [x] **Security Hardening v2 Audit Backport** (`2026-03-22-security-hardening-v2-backport-plan.md`) — CRIT-H1 hub key membership check (verify first), HIGH-W1 relay key scoping, HIGH-W3 raw phone in audit log, HIGH-W4 dev endpoint 403→404, HIGH-W5 Twilio SID validation, MED-W1 cross-hub global routes, MED-W2 ban-by-phone admin-only, code quality fixes (empty catch blocks, offline queue race, `as any`, hardcoded CORS), workflow permissions least-privilege
-- [ ] **Volunteer PII Enforcement** (`2026-03-22-volunteer-pii-enforcement-plan.md`) — TypeScript-enforced `projectVolunteer()` with discriminated union (`view: 'public'|'self'|'admin'`), correct E.164 `maskPhone()`, covers all volunteer-returning endpoints including `PATCH /:targetPubkey`
+- [x] **Volunteer PII Enforcement** (`2026-03-22-volunteer-pii-enforcement-plan.md`) — TypeScript-enforced `projectVolunteer()` with discriminated union (`view: 'public'|'self'|'admin'`), correct E.164 `maskPhone()`, covers all volunteer-returning endpoints including `PATCH /:targetPubkey`
 
 ### Platform & CI/CD
 

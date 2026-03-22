@@ -1,5 +1,15 @@
 # Completed Backlog
 
+## 2026-03-22: Volunteer PII Enforcement (`cf-removal` worktree)
+
+- [x] Created `src/server/lib/volunteer-projector.ts` — discriminated-union view types (`VolunteerAdminView`, `VolunteerSelfView`, `VolunteerPublicView`) + `projectVolunteer()` + `maskPhone()`
+- [x] Applied projection to all volunteer-returning endpoints: GET /api/volunteers, new GET /api/volunteers/:pubkey, POST /api/volunteers, PATCH /volunteers/:pubkey
+- [x] Admin `?unmask=true` on GET /:pubkey with audit trail; non-admins get public view regardless
+- [x] `/auth/me` includes masked phone (own self-view)
+- [x] Client updated: PIN challenge → `?unmask=true` fetch; removed client-side double-masking
+- [x] E2E tests in `tests/volunteer-pii.spec.ts` (6 scenarios)
+- [x] Fixed `tests/security-hardening.spec.ts` audit field names (`event`/`details` not `action`/`context`)
+
 ## 2026-03-22: Security Hardening v2 Audit Backport (`cf-removal` worktree)
 
 - [x] **HIGH-W1**: Removed global `serverEventKeyHex` from `/auth/me` — hub keys delivered via per-hub ECIES; global relay key must not be returned to all authenticated users
