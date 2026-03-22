@@ -15,8 +15,8 @@ function checkResetSecret(c: { env: { DEV_RESET_SECRET?: string; E2E_TEST_SECRET
 }
 
 dev.post('/test-reset', async (c) => {
-  // Full reset: development only — too destructive for staging
-  if (c.env.ENVIRONMENT !== 'development') {
+  // Full reset: development and demo only — too destructive for staging
+  if (c.env.ENVIRONMENT !== 'development' && c.env.ENVIRONMENT !== 'demo') {
     return c.json({ error: 'Not Found' }, 404)
   }
   if (!checkResetSecret(c)) {
@@ -35,8 +35,8 @@ dev.post('/test-reset', async (c) => {
 // Reset to a truly fresh state — no admin, no ADMIN_PUBKEY effect
 // Used for testing in-browser admin bootstrap
 dev.post('/test-reset-no-admin', async (c) => {
-  // Full reset without admin: development only
-  if (c.env.ENVIRONMENT !== 'development') {
+  // Full reset without admin: development and demo only
+  if (c.env.ENVIRONMENT !== 'development' && c.env.ENVIRONMENT !== 'demo') {
     return c.json({ error: 'Not Found' }, 404)
   }
   if (!checkResetSecret(c)) {

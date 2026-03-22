@@ -100,8 +100,8 @@ bun run dev                              # Vite dev server (frontend only)
 bun run dev:worker                       # Wrangler dev server (Worker + DOs)
 bun run dev:docker                       # Start Docker backing services (v1 port offsets)
 bun run build                            # Vite build → dist/client/
-bun run deploy                           # Deploy EVERYTHING (app + marketing site)
-bun run deploy:demo                      # Deploy app Worker only
+bun run deploy                           # Deploy marketing site to Cloudflare Pages
+bun run deploy:cloudflare                # Deploy app Worker to CF Workers (manual/optional)
 bun run deploy:site                      # Deploy marketing site only (cd site && ...)
 bunx playwright test                     # Run all E2E tests
 bunx playwright test tests/smoke.spec.ts # Run a single test file
@@ -112,7 +112,9 @@ bun run bootstrap-admin                  # Generate admin keypair
 PLAYWRIGHT_WORKERS=3 bunx playwright test    # Run with 3 workers (after isolation verified)
 ```
 
-**Deployment rules — NEVER run `wrangler pages deploy` or `wrangler deploy` directly.** Always use the root `package.json` scripts (`bun run deploy`, `bun run deploy:demo`, `bun run deploy:site`). Running `wrangler pages deploy dist` from the wrong directory will deploy the Vite app build to Pages instead of the Astro site, breaking the marketing site with 404s.
+**Deployment rules — NEVER run `wrangler pages deploy` or `wrangler deploy` directly.** Always use the root `package.json` scripts (`bun run deploy`, `bun run deploy:cloudflare`, `bun run deploy:site`). Running `wrangler pages deploy dist` from the wrong directory will deploy the Vite app build to Pages instead of the Astro site, breaking the marketing site with 404s.
+
+**Primary demo deployment is VPS-based via Ansible.** Use `cd deploy/ansible && just deploy-demo` to deploy the demo instance. CF Workers (`bun run deploy:cloudflare`) is a manual-only secondary option. See `deploy/ansible/justfile` for all Ansible commands and `deploy/ansible/demo_vars.example.yml` for demo configuration.
 
 **Key config files**: `wrangler.jsonc` (Worker + DO bindings), `playwright.config.ts`, `.dev.vars` (Twilio creds + ADMIN_PUBKEY, gitignored)
 
