@@ -13,6 +13,7 @@ import { PwaInstallBanner } from '@/components/pwa-install-banner'
 import { useAuth } from '@/lib/auth'
 import { useConfig, useHasMessaging } from '@/lib/config'
 import { useCalls, useShiftStatus } from '@/lib/hooks'
+import { getHubKeyForId } from '@/lib/hub-key-cache'
 import * as keyManager from '@/lib/key-manager'
 import { NostrProvider } from '@/lib/nostr/context'
 import { useTheme } from '@/lib/theme'
@@ -204,11 +205,11 @@ function NostrWrappedLayout() {
     }
   }, [])
 
-  // Hub key not yet available at this layer — will be provided by hub-key-manager
-  // when Epic 76.2 hub key distribution is wired in. For now, return null
-  // which means Nostr events won't be decrypted (REST polling still works).
-  const getHubKey = useCallback((): Uint8Array | null => {
-    return null
+  // Hub key cache is populated by auth.tsx after login/unlock.
+  // Returns the correct per-hub symmetric key for Nostr event decryption.
+  // Falls back gracefully to null (REST polling still works) if key not loaded.
+  const getHubKey = useCallback((hubId: string): Uint8Array | null => {
+    return getHubKeyForId(hubId)
   }, [])
 
   return (

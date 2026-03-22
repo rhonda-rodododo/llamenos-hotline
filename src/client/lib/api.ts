@@ -137,6 +137,7 @@ export async function getMe() {
   return request<{
     pubkey: string
     roles: string[]
+    hubRoles: { hubId: string; roleIds: string[] }[]
     permissions: string[]
     primaryRole: { id: string; name: string; slug: string } | null
     name: string
@@ -1397,4 +1398,27 @@ export async function archiveHub(id: string): Promise<void> {
     method: 'PATCH',
     body: JSON.stringify({ status: 'archived' }),
   })
+}
+
+export async function deleteHub(id: string): Promise<void> {
+  await request<{ ok: true }>(`/hubs/${id}`, { method: 'DELETE' })
+}
+
+export interface HubKeyEnvelope {
+  pubkey: string
+  wrappedKey: string
+  ephemeralPubkey: string
+}
+
+export async function getMyHubKeyEnvelope(
+  hubId: string
+): Promise<HubKeyEnvelope | null> {
+  try {
+    const { envelope } = await request<{ envelope: HubKeyEnvelope }>(
+      `/hubs/${hubId}/key`
+    )
+    return envelope
+  } catch {
+    return null
+  }
 }

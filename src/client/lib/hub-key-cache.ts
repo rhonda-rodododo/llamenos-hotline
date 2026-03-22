@@ -1,0 +1,60 @@
+/**
+ * Hub Key Cache
+ *
+ * Fetches and caches per-hub symmetric keys for Nostr event decryption.
+ * Each hub has a 32-byte key distributed as ECIES-wrapped envelopes.
+ * After login, call `loadHubKeysForUser()` to populate the cache.
+ *
+ * The cache is module-level (not React state) so it survives component
+ * re-renders and can be accessed from the RelayManager callback.
+ */
+
+import { getMyHubKeyEnvelope } from './api'
+import { type KeyEnvelope } from './crypto'
+import { unwrapHubKey } from './hub-key-manager'
+
+const hubKeyCache = new Map<string, Uint8Array>()
+
+/**
+ * Retrieve a hub key by hub ID. Returns null if not yet loaded or decryption failed.
+ */
+export function getHubKeyForId(hubId: string): Uint8Array | null {
+  return hubKeyCache.get(hubId) ?? null
+}
+
+/**
+ * Fetch hub key envelopes for all given hub IDs and decrypt them using the
+ * member's private key. Populates the module-level cache.
+ *
+ * Called after successful authentication. Errors on individual hubs are
+ * silently ignored — the cache will simply lack that hub's key, and Nostr
+ * decryption will fall back to REST polling for that hub.
+ */
+export async function loadHubKeysForUser(
+  hubIds: string[],
+  secretKey: Uint8Array
+): Promise<void> {
+  if (!hubIds.length) return
+
+  hubKeyCache.clear()
+
+  await Promise.allSettled(
+    hubIds.map(async (hubId) => {
+      try {
+        const envelope = await getMyHubKeyEnvelope(hubId)
+        if (!envelope) return
+        const hubKey = unwrapHubKey(envelope as KeyEnvelope, secretKey)
+        hubKeyCache.set(hubId, hubKey)
+      } catch {
+        // Hub key unavailable or decryption failed — skip; REST polling covers this hub
+      }
+    })
+  )
+}
+
+/**
+ * Clear the cache — called on sign-out or key lock.
+ */
+export function clearHubKeyCache(): void {
+  hubKeyCache.clear()
+}

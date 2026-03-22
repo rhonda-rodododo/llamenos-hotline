@@ -29,8 +29,8 @@ interface NostrProviderProps {
   isAuthenticated: boolean
   /** Returns the user's Nostr secret key (32 bytes) or null if locked */
   getSecretKey: () => Uint8Array | null
-  /** Returns the hub symmetric key or null if unavailable */
-  getHubKey: () => Uint8Array | null
+  /** Returns the hub symmetric key for a given hubId, or null if unavailable */
+  getHubKey: (hubId: string) => Uint8Array | null
 }
 
 export function NostrProvider({
@@ -75,7 +75,7 @@ export function NostrProvider({
       relayUrl: wsUrl,
       serverPubkey,
       getSecretKey: () => getSecretKeyRef.current(),
-      getHubKey: () => getHubKeyRef.current(),
+      getHubKey: (hubId: string) => getHubKeyRef.current(hubId),
       onStateChange: setState,
     })
 

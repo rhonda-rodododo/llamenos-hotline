@@ -6,7 +6,7 @@ import {
   KIND_MESSAGE_NEW,
   KIND_PRESENCE_UPDATE,
 } from '@shared/nostr-events'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   type ActiveCall,
   type Conversation,
@@ -18,8 +18,9 @@ import {
   listActiveCalls,
   listConversations,
 } from './api'
+import { useAuth } from './auth'
 import { useConfig } from './config'
-import { useNostrSubscription } from './nostr/hooks'
+import { useMultiHubNostrSubscription, useNostrSubscription } from './nostr/hooks'
 import type { LlamenosEvent } from './nostr/types'
 import { startRinging, stopRinging } from './notifications'
 
@@ -42,11 +43,20 @@ export function useCalls() {
   const [calls, setCalls] = useState<ActiveCall[]>([])
   const [currentCall, setCurrentCall] = useState<ActiveCall | null>(null)
   const { currentHubId } = useConfig()
+  const { hubRoles } = useAuth()
   const currentCallRef = useRef(currentCall)
   currentCallRef.current = currentCall
 
-  // --- Nostr subscription for real-time call events ---
-  useNostrSubscription(currentHubId, CALL_KINDS, (_event, content: LlamenosEvent) => {
+  // Subscribe to ALL user hubs so calls ring regardless of which hub is active.
+  // REST polling (every 15s) acts as a safety net for missed events.
+  const allHubIds = useMemo(
+    () => (hubRoles ?? []).map((hr) => hr.hubId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [(hubRoles ?? []).map((hr) => hr.hubId).join(',')]
+  )
+
+  // --- Nostr subscription for real-time call events (all hubs) ---
+  useMultiHubNostrSubscription(allHubIds, CALL_KINDS, (_event, content: LlamenosEvent) => {
     switch (content.type) {
       case 'call:ring': {
         const call = content as LlamenosEvent & {
