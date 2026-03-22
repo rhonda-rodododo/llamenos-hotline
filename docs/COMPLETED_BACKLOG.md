@@ -7,6 +7,13 @@
 - [x] Added `rollback-demo` recipe to `deploy/ansible/justfile`: `just rollback-demo v1.2.3`
 - **Operator action required**: set `CF_API_TOKEN` + `CF_ACCOUNT_ID` GitHub secrets for the `cloudflare-pages` environment to enable site auto-deploy
 
+## 2026-03-22: MinIO Init + Systemd Service (`cf-removal` worktree)
+
+- [x] Created `deploy/scripts/init-minio.sh`: idempotent (bucket, lifecycle rules, least-privilege IAM user)
+- [x] Ansible runs init-minio.sh after each deploy; `llamenos.service.j2` systemd template; auto-start on reboot
+- [x] App now uses `MINIO_APP_USER`/`MINIO_APP_PASSWORD` instead of root credentials; falls back to root in dev
+- [x] Fixed `/api/health` storage check: calls `HeadBucketCommand` against MinIO (was CF-only `R2_BUCKET` check)
+
 ## 2026-03-22: PostgreSQL Backup & Recovery (`cf-removal` worktree)
 
 - [x] Existing backup role audited — `age` encryption, rclone upload, GFS retention already implemented
