@@ -274,7 +274,7 @@ export class SettingsService {
           .from(hubs)
           .where(eq(hubs.id, row.hubId))
           .limit(1)
-        if (hubRows[0]) return hubRows[0] as unknown as Hub
+        if (hubRows[0]) return this.#rowToHub(hubRows[0])
       }
     }
     return null
@@ -630,24 +630,37 @@ export class SettingsService {
 
   async getHubs(): Promise<Hub[]> {
     const rows = await this.db.select().from(hubs)
-    return rows as unknown as Hub[]
+    return rows.map((r) => this.#rowToHub(r))
   }
 
   async getHub(id: string): Promise<Hub | null> {
     const rows = await this.db.select().from(hubs).where(eq(hubs.id, id)).limit(1)
-    return rows[0] ? (rows[0] as unknown as Hub) : null
+    return rows[0] ? this.#rowToHub(rows[0]) : null
   }
 
   async createHub(data: CreateHubData): Promise<Hub> {
+    const slug =
+      data.slug?.trim() ||
+      data.name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+    const now = new Date()
     const [row] = await this.db
       .insert(hubs)
       .values({
         id: data.id || crypto.randomUUID(),
         name: data.name,
-        nostrPubkey: null,
+        slug,
+        description: data.description ?? null,
+        status: data.status ?? 'active',
+        phoneNumber: data.phoneNumber ?? null,
+        createdBy: data.createdBy,
+        createdAt: now,
+        updatedAt: now,
       })
       .returning()
-    return row as unknown as Hub
+    return this.#rowToHub(row)
   }
 
   async updateHub(id: string, data: Partial<Hub>): Promise<Hub> {
@@ -655,16 +668,25 @@ export class SettingsService {
     if (!rows[0]) throw new AppError(404, 'Hub not found')
     const [row] = await this.db
       .update(hubs)
-      .set({ name: data.name ?? rows[0].name })
+      .set({
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.phoneNumber !== undefined && { phoneNumber: data.phoneNumber }),
+        ...(data.status !== undefined && { status: data.status }),
+        updatedAt: new Date(),
+      })
       .where(eq(hubs.id, id))
       .returning()
-    return row as unknown as Hub
+    return this.#rowToHub(row)
   }
 
   async archiveHub(id: string): Promise<void> {
     const rows = await this.db.select().from(hubs).where(eq(hubs.id, id)).limit(1)
     if (!rows[0]) throw new AppError(404, 'Hub not found')
-    throw new AppError(501, 'Hub archiving not yet implemented — schema migration pending')
+    await this.db
+      .update(hubs)
+      .set({ status: 'archived', updatedAt: new Date() })
+      .where(eq(hubs.id, id))
   }
 
   // ------------------------------------------------------------------ Hub Key Envelopes
@@ -747,6 +769,20 @@ export class SettingsService {
       description: '',
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.createdAt.toISOString(),
+    }
+  }
+
+  #rowToHub(r: typeof hubs.$inferSelect): Hub {
+    return {
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      description: r.description ?? undefined,
+      status: r.status as Hub['status'],
+      phoneNumber: r.phoneNumber ?? undefined,
+      createdBy: r.createdBy,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
     }
   }
 }
