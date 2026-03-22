@@ -47,23 +47,24 @@ export async function verifyAuthToken(
 
 export async function authenticateRequest(
   request: Request,
-  identityDO: { fetch(req: Request): Promise<Response> }
+  identity: {
+    validateSession(token: string): Promise<ServerSession>
+    getVolunteer(pubkey: string): Promise<Volunteer | null>
+  }
 ): Promise<{ pubkey: string; volunteer: Volunteer } | null> {
   const authHeader = request.headers.get('Authorization')
 
   // Try session token auth first (WebAuthn-based sessions)
   const sessionToken = parseSessionHeader(authHeader)
   if (sessionToken) {
-    const sessionRes = await identityDO.fetch(
-      new Request(`http://do/sessions/validate/${sessionToken}`)
-    )
-    if (!sessionRes.ok) return null
-    const session = (await sessionRes.json()) as ServerSession
-    // Look up volunteer
-    const volRes = await identityDO.fetch(new Request(`http://do/volunteer/${session.pubkey}`))
-    if (!volRes.ok) return null
-    const volunteer = (await volRes.json()) as Volunteer
-    return { pubkey: session.pubkey, volunteer }
+    try {
+      const session = await identity.validateSession(sessionToken)
+      const volunteer = await identity.getVolunteer(session.pubkey)
+      if (!volunteer) return null
+      return { pubkey: session.pubkey, volunteer }
+    } catch {
+      return null
+    }
   }
 
   // Fall back to Schnorr signature auth
@@ -72,9 +73,8 @@ export async function authenticateRequest(
   const url = new URL(request.url)
   if (!(await verifyAuthToken(auth, request.method, url.pathname))) return null
 
-  // Look up volunteer in identity DO
-  const res = await identityDO.fetch(new Request(`http://do/volunteer/${auth.pubkey}`))
-  if (!res.ok) return null
-  const volunteer = (await res.json()) as Volunteer
+  // Look up volunteer via identity service
+  const volunteer = await identity.getVolunteer(auth.pubkey)
+  if (!volunteer) return null
   return { pubkey: auth.pubkey, volunteer }
 }

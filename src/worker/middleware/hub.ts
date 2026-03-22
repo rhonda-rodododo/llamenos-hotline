@@ -1,6 +1,5 @@
 import type { Context, Next } from 'hono'
 import { permissionGranted, resolveHubPermissions } from '../../shared/permissions'
-import { getDOs } from '../lib/do-access'
 import type { AppEnv } from '../types'
 
 /**
@@ -17,9 +16,9 @@ export async function hubContext(c: Context<AppEnv>, next: Next): Promise<Respon
   const allRoles = c.get('allRoles')
 
   // Verify hub exists
-  const dos = getDOs(c.env)
-  const hubRes = await dos.settings.fetch(new Request(`http://do/settings/hub/${hubId}`))
-  if (!hubRes.ok) {
+  const services = c.get('services')
+  const hub = await services.settings.getHub(hubId)
+  if (!hub) {
     return c.json({ error: 'Hub not found' }, 404)
   }
 

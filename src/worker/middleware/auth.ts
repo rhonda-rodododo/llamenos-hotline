@@ -2,19 +2,17 @@ import { createMiddleware } from 'hono/factory'
 import type { Role } from '../../shared/permissions'
 import { resolvePermissions } from '../../shared/permissions'
 import { authenticateRequest } from '../lib/auth'
-import { getDOs } from '../lib/do-access'
 import type { AppEnv } from '../types'
 
 export const auth = createMiddleware<AppEnv>(async (c, next) => {
-  const dos = getDOs(c.env)
-  const authResult = await authenticateRequest(c.req.raw, dos.identity)
+  const services = c.get('services')
+  const authResult = await authenticateRequest(c.req.raw, services.identity)
   if (!authResult) {
     return c.json({ error: 'Unauthorized' }, 401)
   }
 
-  // Load all roles from SettingsDO (cached per-request)
-  const rolesRes = await dos.settings.fetch(new Request('http://do/settings/roles'))
-  const allRoles: Role[] = rolesRes.ok ? ((await rolesRes.json()) as any).roles : []
+  // Load all roles from SettingsService (cached per-request)
+  const allRoles: Role[] = await services.settings.listRoles()
 
   // Resolve effective permissions from user's role IDs
   const permissions = resolvePermissions(authResult.volunteer.roles, allRoles)
