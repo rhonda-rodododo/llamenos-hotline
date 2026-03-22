@@ -154,6 +154,9 @@ export const TestIds = {
   ERROR_MESSAGE: 'error-message',
   SUCCESS_TOAST: 'success-toast',
   IMPORT_CSV: 'import-csv',
+
+  // ============ PWA / Offline ============
+  OFFLINE_BANNER: 'offline-banner',
 } as const
 
 export type TestId = (typeof TestIds)[keyof typeof TestIds]
