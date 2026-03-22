@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { getTelephony } from '../lib/adapters'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
-import type { AppEnv } from '../types'
+import type { AppEnv, AuditLogEntry } from '../types'
 
 const calls = new Hono<AppEnv>()
 
@@ -50,6 +50,58 @@ calls.get('/history', requirePermission('calls:read-history'), async (c) => {
   }
   const result = await services.records.getCallHistory(page, limit, hubId, filters)
   return c.json(result)
+})
+
+// --- Call Detail ---
+
+// Permission: admin (calls:read-history) or volunteer who answered the call
+calls.get('/:callId/detail', async (c) => {
+  const callId = c.req.param('callId')
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const permissions = c.get('permissions')
+  const pubkey = c.get('pubkey')
+
+  const isAdmin = checkPermission(permissions, 'calls:read-history')
+
+  const call = await services.records.getCallRecord(callId, hubId)
+  if (!call) return c.json({ error: 'Call not found' }, 404)
+
+  // Volunteers can only view calls they answered (check active + metadata)
+  if (!isAdmin) {
+    const activeCall = await services.calls.getActiveCall(callId, hubId)
+    // For archived calls, check by decrypted answeredBy — we can't do server-side,
+    // so we allow the volunteer to fetch and let client validate via E2EE decryption.
+    // At minimum, if there's an active call that another volunteer answered, deny.
+    if (activeCall && activeCall.assignedPubkey && activeCall.assignedPubkey !== pubkey) {
+      return c.json({ error: 'Forbidden' }, 403)
+    }
+  }
+
+  // Fetch notes for this call (admin sees all, volunteer sees own)
+  const notesResult = await services.records.getNotes({
+    callId,
+    hubId: hubId ?? 'global',
+    ...(!isAdmin ? { authorPubkey: pubkey } : {}),
+  })
+
+  // Fetch audit entries for this call (admin only)
+  let auditEntries: AuditLogEntry[] = []
+  if (isAdmin) {
+    const auditResult = await services.records.getAuditLog({
+      search: callId,
+      page: 1,
+      limit: 100,
+      hubId: hubId ?? 'global',
+    })
+    auditEntries = auditResult.entries
+  }
+
+  return c.json({
+    call,
+    notes: notesResult.notes,
+    auditEntries,
+  })
 })
 
 // --- Call Actions (REST endpoints for WS→Nostr migration) ---

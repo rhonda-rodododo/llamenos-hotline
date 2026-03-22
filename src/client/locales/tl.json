@@ -1266,5 +1266,67 @@
     "archiveHub": "I-archive ang Hub",
     "archiveHubConfirm": "Sigurado ka bang gusto mong i-archive ang \"{{name}}\"? Ang mga archived na hub ay itinago mula sa mga aktibong operasyon.",
     "hubArchived": "Matagumpay na na-archive ang hub"
+  },
+  "consent": {
+    "title": "Acordo de Processamento de Dados",
+    "subtitle": "Bitte lesen und akzeptieren Sie vor dem Fortfahren",
+    "intro": "Before you can access the hotline system, you must agree to how your data is collected and used.",
+    "dataCollected": {
+      "title": "What we collect",
+      "accountInfo": "Account information (name, public key, languages)",
+      "callNotes": "Encrypted call notes and conversation records",
+      "sessions": "Login session metadata",
+      "auditLog": "Activity audit log"
+    },
+    "howWeProtect": {
+      "title": "How we protect your data",
+      "e2ee": "Call notes are end-to-end encrypted — the server cannot read them",
+      "noPlaintext": "Sensitive personal information is never stored in plaintext",
+      "retention": "Data is automatically deleted after the configured retention period"
+    },
+    "yourRights": {
+      "title": "Your rights (GDPR)",
+      "access": "Right to access: Download all your data from Settings",
+      "portability": "Right to portability: Export your data as JSON",
+      "erasure": "Right to erasure: Request account deletion from Settings"
+    },
+    "gdprNote": "This platform is operated in compliance with EU GDPR.",
+    "version": "Privacy policy version: {{version}}",
+    "scrollToRead": "Scrollen Sie zum Lesen, bevor Sie zustimmen",
+    "agree": "Concordo com os termos de processamento de dados",
+    "submitting": "Submitting..."
+  },
+  "gdpr": {
+    "title": "Datenschutz & Daten",
+    "exportTitle": "Download My Data",
+    "exportDescription": "Download a copy of all your data stored in this system (GDPR Article 20).",
+    "exportButton": "Baixar meus dados",
+    "exportLoading": "Preparing export...",
+    "exportError": "Failed to export data",
+    "erasureTitle": "Request Account Deletion",
+    "erasureDescription": "Permanently delete your account and all associated personal data. This action has a 72-hour review period.",
+    "erasureWarning": "The following will be permanently deleted:",
+    "erasureWarningItems": {
+      "profile": "Your profile and account information",
+      "sessions": "All login sessions and WebAuthn credentials",
+      "notes": "All call notes authored by you",
+      "shifts": "Shift assignments",
+      "auditEntries": "Audit log entries will be anonymized"
+    },
+    "erasurePinRequired": "Enter your PIN to confirm",
+    "erasureButton": "Solicitar exclusão de conta",
+    "erasureRequested": "Account deletion requested",
+    "erasureCountdown": "Your account will be deleted in {{hours}} hours",
+    "erasureCancelButton": "Cancel deletion request",
+    "erasureCancelled": "Deletion request cancelled",
+    "erasureConfirm": "Confirm deletion",
+    "retentionTitle": "Data Retention",
+    "retentionDescription": "Configure how long different types of data are kept.",
+    "retentionCallRecords": "Call records (days)",
+    "retentionNotes": "Call notes (days)",
+    "retentionMessages": "Messages (days)",
+    "retentionAuditLog": "Audit log (days)",
+    "retentionSaved": "Retention settings saved",
+    "retentionSaveError": "Failed to save retention settings"
   }
 }

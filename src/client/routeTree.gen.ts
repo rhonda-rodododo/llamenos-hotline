@@ -28,6 +28,8 @@ import { Route as BansRouteImport } from './routes/bans'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VolunteersPubkeyRouteImport } from './routes/volunteers_.$pubkey'
+import { Route as NotesNoteIdRouteImport } from './routes/notes.$noteId'
+import { Route as CallsCallIdRouteImport } from './routes/calls.$callId'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminHubsRouteImport } from './routes/admin/hubs'
 
@@ -126,6 +128,16 @@ const VolunteersPubkeyRoute = VolunteersPubkeyRouteImport.update({
   path: '/volunteers/$pubkey',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotesNoteIdRoute = NotesNoteIdRouteImport.update({
+  id: '/$noteId',
+  path: '/$noteId',
+  getParentRoute: () => NotesRoute,
+} as any)
+const CallsCallIdRoute = CallsCallIdRouteImport.update({
+  id: '/$callId',
+  path: '/$callId',
+  getParentRoute: () => CallsRoute,
+} as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/admin/settings',
   path: '/admin/settings',
@@ -142,12 +154,12 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AuditRoute
   '/bans': typeof BansRoute
   '/blasts': typeof BlastsRoute
-  '/calls': typeof CallsRoute
+  '/calls': typeof CallsRouteWithChildren
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
   '/login': typeof LoginRoute
-  '/notes': typeof NotesRoute
+  '/notes': typeof NotesRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/preferences': typeof PreferencesRoute
   '/profile-setup': typeof ProfileSetupRoute
@@ -158,6 +170,8 @@ export interface FileRoutesByFullPath {
   '/volunteers': typeof VolunteersRoute
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/calls/$callId': typeof CallsCallIdRoute
+  '/notes/$noteId': typeof NotesNoteIdRoute
   '/volunteers/$pubkey': typeof VolunteersPubkeyRoute
 }
 export interface FileRoutesByTo {
@@ -165,12 +179,12 @@ export interface FileRoutesByTo {
   '/audit': typeof AuditRoute
   '/bans': typeof BansRoute
   '/blasts': typeof BlastsRoute
-  '/calls': typeof CallsRoute
+  '/calls': typeof CallsRouteWithChildren
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
   '/login': typeof LoginRoute
-  '/notes': typeof NotesRoute
+  '/notes': typeof NotesRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/preferences': typeof PreferencesRoute
   '/profile-setup': typeof ProfileSetupRoute
@@ -181,6 +195,8 @@ export interface FileRoutesByTo {
   '/volunteers': typeof VolunteersRoute
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/calls/$callId': typeof CallsCallIdRoute
+  '/notes/$noteId': typeof NotesNoteIdRoute
   '/volunteers/$pubkey': typeof VolunteersPubkeyRoute
 }
 export interface FileRoutesById {
@@ -189,12 +205,12 @@ export interface FileRoutesById {
   '/audit': typeof AuditRoute
   '/bans': typeof BansRoute
   '/blasts': typeof BlastsRoute
-  '/calls': typeof CallsRoute
+  '/calls': typeof CallsRouteWithChildren
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
   '/login': typeof LoginRoute
-  '/notes': typeof NotesRoute
+  '/notes': typeof NotesRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/preferences': typeof PreferencesRoute
   '/profile-setup': typeof ProfileSetupRoute
@@ -205,6 +221,8 @@ export interface FileRoutesById {
   '/volunteers': typeof VolunteersRoute
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/calls/$callId': typeof CallsCallIdRoute
+  '/notes/$noteId': typeof NotesNoteIdRoute
   '/volunteers_/$pubkey': typeof VolunteersPubkeyRoute
 }
 export interface FileRouteTypes {
@@ -230,6 +248,8 @@ export interface FileRouteTypes {
     | '/volunteers'
     | '/admin/hubs'
     | '/admin/settings'
+    | '/calls/$callId'
+    | '/notes/$noteId'
     | '/volunteers/$pubkey'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -253,6 +273,8 @@ export interface FileRouteTypes {
     | '/volunteers'
     | '/admin/hubs'
     | '/admin/settings'
+    | '/calls/$callId'
+    | '/notes/$noteId'
     | '/volunteers/$pubkey'
   id:
     | '__root__'
@@ -276,6 +298,8 @@ export interface FileRouteTypes {
     | '/volunteers'
     | '/admin/hubs'
     | '/admin/settings'
+    | '/calls/$callId'
+    | '/notes/$noteId'
     | '/volunteers_/$pubkey'
   fileRoutesById: FileRoutesById
 }
@@ -284,12 +308,12 @@ export interface RootRouteChildren {
   AuditRoute: typeof AuditRoute
   BansRoute: typeof BansRoute
   BlastsRoute: typeof BlastsRoute
-  CallsRoute: typeof CallsRoute
+  CallsRoute: typeof CallsRouteWithChildren
   ConversationsRoute: typeof ConversationsRoute
   HelpRoute: typeof HelpRoute
   LinkDeviceRoute: typeof LinkDeviceRoute
   LoginRoute: typeof LoginRoute
-  NotesRoute: typeof NotesRoute
+  NotesRoute: typeof NotesRouteWithChildren
   OnboardingRoute: typeof OnboardingRoute
   PreferencesRoute: typeof PreferencesRoute
   ProfileSetupRoute: typeof ProfileSetupRoute
@@ -438,6 +462,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VolunteersPubkeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notes/$noteId': {
+      id: '/notes/$noteId'
+      path: '/$noteId'
+      fullPath: '/notes/$noteId'
+      preLoaderRoute: typeof NotesNoteIdRouteImport
+      parentRoute: typeof NotesRoute
+    }
+    '/calls/$callId': {
+      id: '/calls/$callId'
+      path: '/$callId'
+      fullPath: '/calls/$callId'
+      preLoaderRoute: typeof CallsCallIdRouteImport
+      parentRoute: typeof CallsRoute
+    }
     '/admin/settings': {
       id: '/admin/settings'
       path: '/admin/settings'
@@ -455,17 +493,37 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface CallsRouteChildren {
+  CallsCallIdRoute: typeof CallsCallIdRoute
+}
+
+const CallsRouteChildren: CallsRouteChildren = {
+  CallsCallIdRoute: CallsCallIdRoute,
+}
+
+const CallsRouteWithChildren = CallsRoute._addFileChildren(CallsRouteChildren)
+
+interface NotesRouteChildren {
+  NotesNoteIdRoute: typeof NotesNoteIdRoute
+}
+
+const NotesRouteChildren: NotesRouteChildren = {
+  NotesNoteIdRoute: NotesNoteIdRoute,
+}
+
+const NotesRouteWithChildren = NotesRoute._addFileChildren(NotesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditRoute: AuditRoute,
   BansRoute: BansRoute,
   BlastsRoute: BlastsRoute,
-  CallsRoute: CallsRoute,
+  CallsRoute: CallsRouteWithChildren,
   ConversationsRoute: ConversationsRoute,
   HelpRoute: HelpRoute,
   LinkDeviceRoute: LinkDeviceRoute,
   LoginRoute: LoginRoute,
-  NotesRoute: NotesRoute,
+  NotesRoute: NotesRouteWithChildren,
   OnboardingRoute: OnboardingRoute,
   PreferencesRoute: PreferencesRoute,
   ProfileSetupRoute: ProfileSetupRoute,

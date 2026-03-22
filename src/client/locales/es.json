@@ -1266,5 +1266,67 @@
     "archiveHub": "Archivar Hub",
     "archiveHubConfirm": "¿Está seguro de que desea archivar \"{{name}}\"? Los hubs archivados se ocultan de las operaciones activas.",
     "hubArchived": "Hub archivado correctamente"
+  },
+  "consent": {
+    "title": "Acuerdo de Procesamiento de Datos",
+    "subtitle": "Por favor, lea y acepte antes de continuar",
+    "intro": "Antes de acceder al sistema, debe aceptar cómo se recopilan y utilizan sus datos.",
+    "dataCollected": {
+      "title": "Qué recopilamos",
+      "accountInfo": "Información de cuenta (nombre, clave pública, idiomas)",
+      "callNotes": "Notas de llamadas y registros de conversaciones cifrados",
+      "sessions": "Metadatos de sesión de inicio de sesión",
+      "auditLog": "Registro de actividad"
+    },
+    "howWeProtect": {
+      "title": "Cómo protegemos sus datos",
+      "e2ee": "Las notas de llamadas están cifradas de extremo a extremo",
+      "noPlaintext": "La información personal sensible nunca se almacena en texto plano",
+      "retention": "Los datos se eliminan automáticamente tras el período de retención"
+    },
+    "yourRights": {
+      "title": "Sus derechos (RGPD)",
+      "access": "Derecho de acceso: Descargue todos sus datos desde Configuración",
+      "portability": "Derecho de portabilidad: Exporte sus datos en JSON",
+      "erasure": "Derecho de supresión: Solicite la eliminación desde Configuración"
+    },
+    "gdprNote": "Esta plataforma opera en cumplimiento del RGPD de la UE.",
+    "version": "Versión de la política de privacidad: {{version}}",
+    "scrollToRead": "Desplácese para leer antes de aceptar",
+    "agree": "Acepto los términos de procesamiento de datos",
+    "submitting": "Enviando..."
+  },
+  "gdpr": {
+    "title": "Privacidad y Datos",
+    "exportTitle": "Descargar Mis Datos",
+    "exportDescription": "Descargue una copia de todos sus datos (RGPD Art. 20).",
+    "exportButton": "Descargar mis datos",
+    "exportLoading": "Preparando exportación...",
+    "exportError": "Error al exportar datos",
+    "erasureTitle": "Solicitar Eliminación de Cuenta",
+    "erasureDescription": "Elimina permanentemente su cuenta. Período de revisión de 72 horas.",
+    "erasureWarning": "Lo siguiente se eliminará permanentemente:",
+    "erasureWarningItems": {
+      "profile": "Su perfil e información de cuenta",
+      "sessions": "Todas las sesiones e credenciales WebAuthn",
+      "notes": "Todas las notas de llamadas creadas por usted",
+      "shifts": "Asignaciones de turno",
+      "auditEntries": "Las entradas de auditoría serán anonimizadas"
+    },
+    "erasurePinRequired": "Ingrese su PIN para confirmar",
+    "erasureButton": "Solicitar eliminación de cuenta",
+    "erasureRequested": "Eliminación de cuenta solicitada",
+    "erasureCountdown": "Su cuenta se eliminará en {{hours}} horas",
+    "erasureCancelButton": "Cancelar solicitud de eliminación",
+    "erasureCancelled": "Solicitud de eliminación cancelada",
+    "erasureConfirm": "Confirmar eliminación",
+    "retentionTitle": "Retención de Datos",
+    "retentionDescription": "Configure por cuánto tiempo se conservan los datos.",
+    "retentionCallRecords": "Registros de llamadas (días)",
+    "retentionNotes": "Notas de llamadas (días)",
+    "retentionMessages": "Mensajes (días)",
+    "retentionAuditLog": "Registro de auditoría (días)",
+    "retentionSaved": "Configuración de retención guardada",
+    "retentionSaveError": "Error al guardar la configuración"
   }
 }

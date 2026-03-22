@@ -244,8 +244,14 @@ function CallHistoryPage() {
           ) : (
             <div className="divide-y divide-border">
               {calls.map((call) => (
-                <div key={call.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-                  <div className="min-w-0 flex-1 sm:flex-none sm:w-48">
+                <div key={call.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6 hover:bg-muted/30 transition-colors" data-testid="call-history-row">
+                  <Link
+                    to="/calls/$callId"
+                    params={{ callId: call.id }}
+                    search={{ page: 1, q: '', dateFrom: '', dateTo: '' }}
+                    className="min-w-0 flex-1 sm:flex-none sm:w-48 block"
+                    data-testid="call-detail-link"
+                  >
                     {call.status === 'unanswered' ? (
                       <div className="flex items-center gap-1.5">
                         <PhoneMissed className="h-3.5 w-3.5 shrink-0 text-destructive" />
@@ -268,7 +274,7 @@ function CallHistoryPage() {
                         ***{call.callerLast4}
                       </code>
                     )}
-                  </div>
+                  </Link>
                   {call.duration !== undefined && (
                     <Badge variant="outline" className="gap-1">
                       <Clock className="h-3 w-3" />
