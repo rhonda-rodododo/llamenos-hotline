@@ -5,7 +5,7 @@
 # Usage:
 #   bun run dev:docker        # start dev services
 #   bun run dev:docker:down   # stop dev services
-#   bun run start:bun         # run app locally against these services
+#   bun run dev:server        # run app locally against these services
 
 services:
   postgres:

@@ -12,11 +12,11 @@ Llámenos is a secure crisis response hotline webapp. Callers dial a phone numbe
 
 - **Runtime/Package Manager**: Bun (runs TypeScript natively — no bundling step for server)
 - **Frontend**: Vite + TanStack Router (SPA, no SSR) + shadcn/ui (component installer)
-- **Backend**: Bun + Hono + PostgreSQL (primary self-hosted) / Cloudflare Workers + Durable Objects (demo/CF deploy only)
+- **Backend**: Bun + Hono + PostgreSQL (self-hosted via Docker/Ansible)
 - **Telephony**: Twilio via a `TelephonyAdapter` interface (designed for future provider swaps, e.g. SIP trunks)
 - **Auth**: Nostr keypairs (BIP-340 Schnorr signatures) + WebAuthn session tokens for multi-device support
 - **i18n**: Built-in from day one — all user-facing strings must be translatable
-- **Deployment**: Cloudflare (Workers, DOs, Tunnels), billed to EU/GDPR-compatible account
+- **Deployment**: VPS (Ansible/Docker), EU/GDPR-compatible hosting
 - **Testing**: E2E only via Playwright — no unit tests
 - **PWA**: Service worker via vite-plugin-pwa + Workbox; manifest uses generic name "Hotline" for security
 
@@ -47,12 +47,15 @@ src/
     components/     # App components + ui/ (shadcn primitives)
     lib/            # Client utilities (auth, crypto, ws, i18n, hooks)
     locales/        # 13 locale JSON files (en, es, zh, tl, vi, ar, fr, ht, ko, ru, hi, pt, de)
-  worker/           # Cloudflare Worker backend
-    api/            # REST API handlers
-    durable-objects/ # 6 DOs: IdentityDO, SettingsDO, RecordsDO, ShiftManagerDO, CallRouterDO, ConversationDO
+  server/           # Bun/Hono backend
+    routes/         # REST API route handlers
+    services/       # Business logic services (replacing Durable Objects)
     telephony/      # TelephonyAdapter interface + 5 adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk)
     messaging/      # MessagingAdapter interface + SMS, WhatsApp, Signal adapters
-    lib/            # Server utilities (auth, crypto, webauthn, do-router)
+    lib/            # Server utilities (auth, crypto, webauthn)
+    db/             # Drizzle ORM schema + migrations
+    server.ts       # Entry point
+    app.ts          # Hono app wiring
   shared/           # Cross-boundary types and config (@shared alias)
     types.ts        # Shared types (CustomFieldDefinition, NotePayload, etc.)
     languages.ts    # Centralized language config (codes, labels, Twilio voice IDs)
@@ -61,20 +64,20 @@ src/
 
 **Path aliases** (tsconfig.json + vite.config.ts):
 - `@/*` → `./src/client/*`
-- `@worker/*` → `./src/worker/*`
+- `@server/*` → `./src/server/*`
 - `@shared/*` → `./src/shared/*`
 
 ## Key Technical Patterns
 
 - **TelephonyAdapter**: Abstract interface for 5 voice providers (Twilio, SignalWire, Vonage, Plivo, Asterisk). All telephony logic goes through this adapter — never call provider APIs directly from business logic.
-- **MessagingAdapter**: Abstract interface for text messaging channels (SMS, WhatsApp, Signal). Inbound webhooks route to ConversationDO.
+- **MessagingAdapter**: Abstract interface for text messaging channels (SMS, WhatsApp, Signal). Inbound webhooks route to ConversationService.
 - **Parallel ringing**: All on-shift, non-busy volunteers ring simultaneously. First pickup terminates other calls.
 - **Shift routing**: Automated, recurring schedule with ring groups. Fallback group if no schedule is defined.
-- **Durable Objects**: Six singletons accessed via `idFromName()` — IdentityDO, SettingsDO, RecordsDO, ShiftManagerDO, CallRouterDO, ConversationDO. Routed via `DORouter` (lightweight method+path router).
+- **Service layer**: Seven PostgreSQL-backed services (IdentityService, SettingsService, RecordsService, ShiftManagerService, CallRouterService, ConversationService, AuditService) replace the former Durable Objects. Drizzle ORM manages schema and migrations.
 - **E2EE notes**: Per-note forward secrecy — unique random key per note, wrapped via ECIES for each reader. Dual-encrypted: one copy for volunteer, one for each admin (multi-admin envelopes).
 - **E2EE messaging**: Per-message envelope encryption — random symmetric key, ECIES-wrapped for assigned volunteer + each admin. Server encrypts inbound on webhook receipt, discards plaintext immediately.
 - **Key management**: PIN-encrypted local key store (`key-manager.ts`). nsec held in closure only, zeroed on lock. Device linking via ephemeral ECDH provisioning rooms.
-- **Nostr relay real-time**: Ephemeral kind 20001 events via strfry (self-hosted) or Nosflare (CF). All event content encrypted with hub key. Generic tags (`["t", "llamenos:event"]`) — relay cannot distinguish event types.
+- **Nostr relay real-time**: Ephemeral kind 20001 events via strfry (self-hosted). All event content encrypted with hub key. Generic tags (`["t", "llamenos:event"]`) — relay cannot distinguish event types.
 - **Hub key distribution**: Random 32 bytes (`crypto.getRandomValues`), ECIES-wrapped individually per member via `LABEL_HUB_KEY_WRAP`. Rotation on member departure excludes departed member.
 - **Client-side transcription**: WASM Whisper via `@huggingface/transformers` ONNX runtime. AudioWorklet ring buffer → Web Worker isolation. Audio never leaves the browser.
 - **Reproducible builds**: `Dockerfile.build` with `SOURCE_DATE_EPOCH`, content-hashed filenames. `CHECKSUMS.txt` in GitHub Releases. SLSA provenance. Verification via `scripts/verify-build.sh`.
@@ -97,15 +100,16 @@ src/
 ```bash
 bun install                              # Install dependencies
 bun run dev                              # Vite dev server (frontend only)
-bun run dev:worker                       # Wrangler dev server (Worker + DOs)
+bun run dev:server                       # Bun watch server (localhost:3000)
 bun run dev:docker                       # Start backing services (postgres, minio, strfry) for local dev
 bun run dev:docker:down                  # Stop dev backing services
+bun run migrate                          # Apply pending Drizzle migrations
+bun run migrate:generate                 # Generate SQL migration files from schema changes
 bun run build                            # Vite build → dist/client/
 bun run lint                             # Biome lint check
 bun run lint:fix                         # Biome lint auto-fix
-bun run start:bun                        # Start Bun server locally (after dev:docker)
-bun run deploy                           # Deploy EVERYTHING (app + marketing site)
-bun run deploy:cloudflare                # Deploy app Worker to Cloudflare only
+bun run start                            # Start Bun server (production)
+bun run deploy                           # Deploy marketing site
 bun run deploy:site                      # Deploy marketing site only (cd site && ...)
 bunx playwright test                     # Run all E2E tests
 bunx playwright test tests/smoke.spec.ts # Run a single test file
@@ -120,13 +124,13 @@ PLAYWRIGHT_WORKERS=3 bunx playwright test    # Run with 3 workers (after isolati
 - v2 (llamenos): postgres:5432, minio:9000/9001, strfry:7777
 - v1 (llamenos-hotline): postgres:5433, minio:9002/9003, strfry:7778
 
-**Deployment rules — NEVER run `wrangler pages deploy` or `wrangler deploy` directly.** Always use the root `package.json` scripts (`bun run deploy`, `bun run deploy:cloudflare`, `bun run deploy:site`). Running `wrangler pages deploy dist` from the wrong directory will deploy the Vite app build to Pages instead of the Astro site, breaking the marketing site with 404s.
+**Deployment rules — NEVER run `wrangler pages deploy` directly** (site deploy only). Always use `bun run deploy:site` which runs from the `site/` directory via Astro. Running it from the root would deploy the wrong build.
 
-**Primary demo deployment is VPS-based via Ansible.** Use `cd deploy/ansible && just deploy-demo` to deploy the demo instance. CF Workers (`bun run deploy:cloudflare`) is a manual-only secondary option. See `deploy/ansible/justfile` for all Ansible commands and `deploy/ansible/demo_vars.example.yml` for demo configuration.
+**Primary demo deployment is VPS-based via Ansible.** Use `cd deploy/ansible && just deploy-demo` to deploy the demo instance. See `deploy/ansible/justfile` for all Ansible commands and `deploy/ansible/demo_vars.example.yml` for demo configuration.
 
-**Key config files**: `wrangler.jsonc` (Worker + DO bindings), `playwright.config.ts`, `.dev.vars` (Twilio creds + ADMIN_PUBKEY, gitignored)
+**Key config files**: `playwright.config.ts`, `.env` (DATABASE_URL, HMAC_SECRET, Twilio creds + ADMIN_PUBKEY, gitignored)
 
-**Local E2E tests**: Copy `.dev.vars.local.example` to `.dev.vars.local`, fill in your values, then start backing services before running wrangler dev.
+**Local E2E tests**: Copy `.dev.vars.local.example` to `.dev.vars.local`, fill in your values, then start backing services with `bun run dev:docker` before running `bun run dev:server`.
 
 ## Claude Code Working Style
 
