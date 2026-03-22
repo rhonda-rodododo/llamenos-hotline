@@ -121,6 +121,7 @@ auth.get('/me', async (c) => {
   return c.json({
     pubkey: volunteer.pubkey,
     roles: volunteer.roles,
+    hubRoles: volunteer.hubRoles ?? [],
     permissions,
     primaryRole: primaryRole
       ? { id: primaryRole.id, name: primaryRole.name, slug: primaryRole.slug }

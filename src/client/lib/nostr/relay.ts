@@ -19,7 +19,7 @@ export interface RelayManagerOptions {
   relayUrl: string
   serverPubkey: string
   getSecretKey: () => Uint8Array | null
-  getHubKey: () => Uint8Array | null
+  getHubKey: (hubId: string) => Uint8Array | null
   onStateChange?: (state: RelayState) => void
 }
 
@@ -40,7 +40,7 @@ export class RelayManager {
   private serverPubkey: string
   private relayUrl: string
   private getSecretKey: () => Uint8Array | null
-  private getHubKey: () => Uint8Array | null
+  private getHubKey: (hubId: string) => Uint8Array | null
   private onStateChange?: (state: RelayState) => void
   private subscriptions = new Map<string, Subscription>()
   private pendingSubscriptions: Subscription[] = []
@@ -276,8 +276,12 @@ export class RelayManager {
     // Deduplication
     if (!this.deduplicator.isNew(event)) return
 
-    // Try to decrypt content with hub key
-    const hubKey = this.getHubKey()
+    // Route to all matching subscribers — look up hub ID first to get the right key
+    const hubId = event.tags.find((t) => t[0] === 'd')?.[1]
+    if (!hubId) return
+
+    // Try to decrypt content with the hub-specific key
+    const hubKey = this.getHubKey(hubId)
     let content: LlamenosEvent | null = null
 
     if (hubKey) {
@@ -286,10 +290,6 @@ export class RelayManager {
     }
 
     if (!content) return
-
-    // Route to all matching subscribers
-    const hubId = event.tags.find((t) => t[0] === 'd')?.[1]
-    if (!hubId) return
 
     for (const sub of this.subscriptions.values()) {
       if (sub.hubId === hubId && sub.kinds.includes(event.kind)) {

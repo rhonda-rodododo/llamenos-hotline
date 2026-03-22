@@ -17,6 +17,7 @@ import {
   updateMyAvailability,
 } from './api'
 import { createAuthToken, keyPairFromNsec } from './crypto'
+import { clearHubKeyCache, loadHubKeysForUser } from './hub-key-cache'
 import * as keyManager from './key-manager'
 import { hasStoredKey } from './key-store'
 import { loginWithPasskey as webauthnLogin } from './webauthn'
@@ -25,6 +26,7 @@ interface AuthState {
   isKeyUnlocked: boolean
   publicKey: string | null
   roles: string[]
+  hubRoles: { hubId: string; roleIds: string[] }[]
   permissions: string[]
   primaryRoleName: string | null
   name: string | null
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isKeyUnlocked: false,
     publicKey: null,
     roles: [],
+    hubRoles: [],
     permissions: [],
     primaryRoleName: null,
     name: null,
@@ -157,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             isKeyUnlocked: keyManager.isUnlocked(),
             publicKey: me.pubkey,
             roles: me.roles || [],
+            hubRoles: me.hubRoles ?? [],
             permissions: me.permissions || [],
             primaryRoleName: me.primaryRole?.name || null,
             name: me.name,
@@ -186,10 +190,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       getMe()
         .then((me) => {
           lastApiActivity.current = Date.now()
+          const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
+          const secretKey = keyManager.getSecretKey()
+          if (secretKey) loadHubKeysForUser(hubIds, secretKey)
           setState({
             isKeyUnlocked: true,
             publicKey: me.pubkey,
             roles: me.roles || [],
+            hubRoles: me.hubRoles ?? [],
             permissions: me.permissions || [],
             primaryRoleName: me.primaryRole?.name || null,
             name: me.name,
@@ -230,10 +238,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await login(parsed.pubkey, parsed.timestamp, parsed.token)
       const me = await getMe()
       lastApiActivity.current = Date.now()
+      const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
+      loadHubKeysForUser(hubIds, keyPair.secretKey)
       setState({
         isKeyUnlocked: keyManager.isUnlocked(),
         publicKey: keyPair.publicKey,
         roles: me.roles || [],
+        hubRoles: me.hubRoles ?? [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,
         name: me.name,
@@ -267,10 +278,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await getMe()
       lastApiActivity.current = Date.now()
+      const secretKey = keyManager.getSecretKey()
+      if (secretKey) {
+        const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
+        loadHubKeysForUser(hubIds, secretKey)
+      }
       setState({
         isKeyUnlocked: true,
         publicKey: pubkey,
         roles: me.roles || [],
+        hubRoles: me.hubRoles ?? [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,
         name: me.name,
@@ -310,6 +327,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isKeyUnlocked: false, // No nsec available — crypto locked
         publicKey: pubkey,
         roles: me.roles || [],
+        hubRoles: me.hubRoles ?? [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,
         name: me.name,
@@ -405,6 +423,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Revoke server-side session token before clearing local state
     apiLogout()
     keyManager.lock()
+    clearHubKeyCache()
     sessionStorage.removeItem('llamenos-session-token')
     // Clean up encrypted drafts from localStorage
     const draftKeys = Object.keys(localStorage).filter((k) => k.startsWith('llamenos-draft:'))
@@ -413,6 +432,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isKeyUnlocked: false,
       publicKey: null,
       roles: [],
+      hubRoles: [],
       permissions: [],
       primaryRoleName: null,
       name: null,

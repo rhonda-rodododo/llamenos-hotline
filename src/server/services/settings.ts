@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { IVR_LANGUAGES } from '../../shared/languages'
 import { DEFAULT_ROLES } from '../../shared/permissions'
 import type { Role } from '../../shared/permissions'
@@ -13,22 +13,40 @@ import type {
 import { DEFAULT_MESSAGING_CONFIG, DEFAULT_SETUP_STATE } from '../../shared/types'
 import type { Database } from '../db'
 import {
+  activeCalls,
+  activeShifts,
+  auditLog,
+  bans,
+  blastDeliveries,
+  blasts,
+  callLegs,
+  callRecords,
   callSettings,
+  callTokens,
   captchaState,
+  conversations,
   customFieldDefinitions,
   fallbackGroup,
+  fileRecords,
   hubKeys,
   hubs,
   ivrAudio,
   ivrLanguages,
+  messageEnvelopes,
   messagingConfig,
+  noteEnvelopes,
   rateLimitCounters,
   reportCategories,
+  ringGroups,
   roles,
   setupState,
+  shiftOverrides,
+  shiftSchedules,
   spamSettings,
+  subscribers,
   telephonyConfig,
   transcriptionSettings,
+  volunteers,
 } from '../db/schema'
 import { AppError } from '../lib/errors'
 import type {
@@ -695,6 +713,89 @@ export class SettingsService {
       .update(hubs)
       .set({ status: 'archived', updatedAt: new Date() })
       .where(eq(hubs.id, id))
+  }
+
+  /**
+   * Cascade-delete a hub and all hub-scoped data.
+   *
+   * Order matters: delete children before parents to avoid FK violations.
+   * Runs inside a single transaction for atomicity.
+   */
+  async deleteHub(id: string): Promise<void> {
+    const rows = await this.db.select().from(hubs).where(eq(hubs.id, id)).limit(1)
+    if (!rows[0]) throw new AppError(404, 'Hub not found')
+
+    await this.db.transaction(async (tx) => {
+      // --- Settings singletons (hub-scoped) ---
+      await tx.delete(spamSettings).where(eq(spamSettings.hubId, id))
+      await tx.delete(transcriptionSettings).where(eq(transcriptionSettings.hubId, id))
+      await tx.delete(callSettings).where(eq(callSettings.hubId, id))
+      await tx.delete(messagingConfig).where(eq(messagingConfig.hubId, id))
+      await tx.delete(telephonyConfig).where(eq(telephonyConfig.hubId, id))
+      await tx.delete(setupState).where(eq(setupState.hubId, id))
+      await tx.delete(fallbackGroup).where(eq(fallbackGroup.hubId, id))
+      await tx.delete(customFieldDefinitions).where(eq(customFieldDefinitions.hubId, id))
+      await tx.delete(ivrLanguages).where(eq(ivrLanguages.hubId, id))
+      await tx.delete(ivrAudio).where(eq(ivrAudio.hubId, id))
+      await tx.delete(reportCategories).where(eq(reportCategories.hubId, id))
+      await tx.delete(hubKeys).where(eq(hubKeys.hubId, id))
+
+      // --- Shift data ---
+      await tx.delete(shiftSchedules).where(eq(shiftSchedules.hubId, id))
+      await tx.delete(shiftOverrides).where(eq(shiftOverrides.hubId, id))
+      await tx.delete(ringGroups).where(eq(ringGroups.hubId, id))
+      await tx.delete(activeShifts).where(eq(activeShifts.hubId, id))
+
+      // --- Call data ---
+      await tx.delete(callTokens).where(eq(callTokens.hubId, id))
+      await tx.delete(callLegs).where(eq(callLegs.hubId, id))
+      await tx.delete(activeCalls).where(eq(activeCalls.hubId, id))
+
+      // --- Records data ---
+      await tx.delete(bans).where(eq(bans.hubId, id))
+      await tx.delete(auditLog).where(eq(auditLog.hubId, id))
+      await tx.delete(callRecords).where(eq(callRecords.hubId, id))
+      await tx.delete(noteEnvelopes).where(eq(noteEnvelopes.hubId, id))
+
+      // --- Blasts (delete deliveries via blastId before blasts) ---
+      const hubBlasts = await tx
+        .select({ id: blasts.id })
+        .from(blasts)
+        .where(eq(blasts.hubId, id))
+      if (hubBlasts.length > 0) {
+        const blastIds = hubBlasts.map((b) => b.id)
+        await tx.delete(blastDeliveries).where(inArray(blastDeliveries.blastId, blastIds))
+      }
+      await tx.delete(subscribers).where(eq(subscribers.hubId, id))
+      await tx.delete(blasts).where(eq(blasts.hubId, id))
+
+      // --- Conversations + messages + file records ---
+      const hubConvs = await tx
+        .select({ id: conversations.id })
+        .from(conversations)
+        .where(eq(conversations.hubId, id))
+      if (hubConvs.length > 0) {
+        const convIds = hubConvs.map((c) => c.id)
+        await tx.delete(messageEnvelopes).where(inArray(messageEnvelopes.conversationId, convIds))
+        await tx.delete(fileRecords).where(inArray(fileRecords.conversationId, convIds))
+      }
+      await tx.delete(conversations).where(eq(conversations.hubId, id))
+
+      // --- Remove hub from volunteers' hubRoles JSONB arrays ---
+      await tx.execute(
+        sql`UPDATE volunteers
+          SET hub_roles = COALESCE(
+            (SELECT jsonb_agg(elem)
+             FROM jsonb_array_elements(hub_roles) AS elem
+             WHERE elem->>'hubId' != ${id}),
+            '[]'::jsonb
+          )
+          WHERE hub_roles @> ${JSON.stringify([{ hubId: id }])}::jsonb`
+      )
+
+      // --- Finally delete the hub record ---
+      await tx.delete(hubs).where(eq(hubs.id, id))
+    })
   }
 
   // ------------------------------------------------------------------ Hub Key Envelopes

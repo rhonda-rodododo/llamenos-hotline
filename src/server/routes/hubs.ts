@@ -100,6 +100,28 @@ routes.patch('/:hubId', requirePermission('system:manage-hubs'), async (c) => {
   }
 })
 
+// Delete hub (super admin only — cascades all hub data)
+routes.delete('/:hubId', requirePermission('system:manage-hubs'), async (c) => {
+  const hubId = c.req.param('hubId')
+  const services = c.get('services')
+
+  // Safety gate: refuse if there are active calls on this hub
+  const hubCalls = await services.calls.getActiveCalls(hubId)
+  if (hubCalls.some((call) => call.status === 'ringing' || call.status === 'in-progress')) {
+    return c.json({ error: 'Cannot delete hub with active calls in progress' }, 409)
+  }
+
+  try {
+    await services.settings.deleteHub(hubId)
+    return c.json({ ok: true })
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('not found')) {
+      return c.json({ error: 'Hub not found' }, 404)
+    }
+    return c.json({ error: 'Failed to delete hub' }, 500)
+  }
+})
+
 // Add member to hub
 routes.post('/:hubId/members', requirePermission('volunteers:manage-roles'), async (c) => {
   const hubId = c.req.param('hubId')
