@@ -13,11 +13,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { type Hub, createHub, listHubs, updateHub } from '@/lib/api'
+import { type Hub, archiveHub, createHub, listHubs, updateHub } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { createFileRoute } from '@tanstack/react-router'
-import { Building2, Pencil, Phone, Plus } from 'lucide-react'
+import { Archive, Building2, Pencil, Phone, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -33,6 +33,7 @@ function HubsPage() {
   const [loading, setLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editingHub, setEditingHub] = useState<Hub | null>(null)
+  const [archivingHub, setArchivingHub] = useState<Hub | null>(null)
 
   useEffect(() => {
     loadHubs()
@@ -90,7 +91,12 @@ function HubsPage() {
           ) : (
             <div className="divide-y divide-border">
               {hubs.map((hub) => (
-                <HubRow key={hub.id} hub={hub} onEdit={() => setEditingHub(hub)} />
+                <HubRow
+                  key={hub.id}
+                  hub={hub}
+                  onEdit={() => setEditingHub(hub)}
+                  onArchive={() => setArchivingHub(hub)}
+                />
               ))}
             </div>
           )}
@@ -121,11 +127,24 @@ function HubsPage() {
           }}
         />
       )}
+
+      {/* Archive hub dialog */}
+      <ArchiveHubDialog
+        open={!!archivingHub}
+        onOpenChange={(open) => {
+          if (!open) setArchivingHub(null)
+        }}
+        hub={archivingHub}
+        onArchived={(id) => {
+          setHubs((prev) => prev.filter((h) => h.id !== id))
+          setArchivingHub(null)
+        }}
+      />
     </div>
   )
 }
 
-function HubRow({ hub, onEdit }: { hub: Hub; onEdit: () => void }) {
+function HubRow({ hub, onEdit, onArchive }: { hub: Hub; onEdit: () => void; onArchive: () => void }) {
   const { t } = useTranslation()
 
   const statusColors: Record<Hub['status'], string> = {
@@ -135,7 +154,7 @@ function HubRow({ hub, onEdit }: { hub: Hub; onEdit: () => void }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
+    <div data-testid="hub-row" className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
           <Building2 className="h-4 w-4" />
@@ -167,6 +186,17 @@ function HubRow({ hub, onEdit }: { hub: Hub; onEdit: () => void }) {
           <Pencil className="h-3 w-3" />
           {t('common.edit')}
         </Button>
+        {hub.status !== 'archived' && (
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={onArchive}
+            className="text-destructive hover:text-destructive"
+          >
+            <Archive className="h-3 w-3" />
+            {t('hubs.archive')}
+          </Button>
+        )}
       </div>
     </div>
   )
@@ -385,6 +415,70 @@ function EditHubDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ArchiveHubDialog({
+  open,
+  onOpenChange,
+  hub,
+  onArchived,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  hub: Hub | null
+  onArchived: (hubId: string) => void
+}) {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const [saving, setSaving] = useState(false)
+
+  if (!hub) return null
+
+  async function handleConfirm() {
+    if (!hub) return
+    setSaving(true)
+    try {
+      await archiveHub(hub.id)
+      onArchived(hub.id)
+      onOpenChange(false)
+      toast(t('hubs.hubArchived'), 'success')
+    } catch {
+      toast(t('common.error'), 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('hubs.archiveHub')}</DialogTitle>
+          <DialogDescription>
+            {t('hubs.archiveHubConfirm', { name: hub.name })}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={handleConfirm}
+            disabled={saving}
+          >
+            {saving ? t('common.loading') : t('hubs.archiveHub')}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
