@@ -200,6 +200,7 @@ messaging.post('/:channel/webhook', async (c) => {
 
 /**
  * Handle a delivery status update for a previously-sent message.
+ * Updates the message's deliveryStatus in the DB and publishes a Nostr event.
  */
 async function handleStatusUpdate(
   services: Services,
@@ -207,30 +208,38 @@ async function handleStatusUpdate(
   statusUpdate: MessageStatusUpdate,
   env: AppEnv['Bindings']
 ): Promise<void> {
-  // Find the message by externalId and update its status
-  // Note: ConversationService.updateMessageStatus takes an id (internal), not externalId
-  // For now we log the update; a full implementation would index by externalId
+  if (!statusUpdate.externalId) return
+
+  // Update the message delivery status in DB by providerMessageId
   try {
-    if (statusUpdate.externalId) {
-      // Publish status update to Nostr relay so clients can react
-      const publisher = getNostrPublisher(env)
-      publisher
-        .publish({
-          kind: KIND_MESSAGE_NEW,
-          created_at: Math.floor(Date.now() / 1000),
-          tags: [
-            ['d', 'global'],
-            ['t', 'llamenos:event'],
-          ],
-          content: JSON.stringify({
-            type: 'message:status',
-            externalId: statusUpdate.externalId,
-            status: statusUpdate.status,
-            timestamp: statusUpdate.timestamp,
-          }),
-        })
-        .catch(() => {})
-    }
+    await services.conversations.updateMessageDeliveryByExternalId(statusUpdate.externalId, {
+      deliveryStatus: statusUpdate.status,
+      deliveryError: statusUpdate.failureReason,
+    })
+  } catch (err) {
+    console.error('[messaging] Failed to update message delivery status:', err)
+  }
+
+  // Publish status update to Nostr relay so clients can react in real-time
+  try {
+    const publisher = getNostrPublisher(env)
+    publisher
+      .publish({
+        kind: KIND_MESSAGE_NEW,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['d', hubId ?? 'global'],
+          ['t', 'llamenos:event'],
+        ],
+        content: JSON.stringify({
+          type: 'message:status',
+          externalId: statusUpdate.externalId,
+          status: statusUpdate.status,
+          timestamp: statusUpdate.timestamp,
+          ...(statusUpdate.failureReason ? { failureReason: statusUpdate.failureReason } : {}),
+        }),
+      })
+      .catch(() => {})
   } catch {
     // Nostr not configured
   }

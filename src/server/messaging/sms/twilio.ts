@@ -101,12 +101,19 @@ export class TwilioSMSAdapter implements MessagingAdapter {
   }
 
   async sendMessage(params: SendMessageParams): Promise<SendResult> {
-    const body = new URLSearchParams({
+    const formParams: Record<string, string> = {
       To: params.recipientIdentifier,
       From: this.phoneNumber,
       Body: params.body,
-    })
+    }
 
+    // Add status callback URL if BASE_URL is configured
+    const baseUrl = process.env['BASE_URL']
+    if (baseUrl) {
+      formParams['StatusCallback'] = `${baseUrl}/api/messaging/sms/webhook`
+    }
+
+    const body = new URLSearchParams(formParams)
     const res = await this.twilioMessagesApi(body)
     if (res.ok) {
       const data = (await res.json()) as { sid: string }
@@ -121,13 +128,20 @@ export class TwilioSMSAdapter implements MessagingAdapter {
   }
 
   async sendMediaMessage(params: SendMediaParams): Promise<SendResult> {
-    const body = new URLSearchParams({
+    const formParams: Record<string, string> = {
       To: params.recipientIdentifier,
       From: this.phoneNumber,
       Body: params.body,
       MediaUrl: params.mediaUrl,
-    })
+    }
 
+    // Add status callback URL if BASE_URL is configured
+    const baseUrl = process.env['BASE_URL']
+    if (baseUrl) {
+      formParams['StatusCallback'] = `${baseUrl}/api/messaging/sms/webhook`
+    }
+
+    const body = new URLSearchParams(formParams)
     const res = await this.twilioMessagesApi(body)
     if (res.ok) {
       const data = (await res.json()) as { sid: string }

@@ -1,5 +1,5 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
-import type { RecipientEnvelope } from '../../shared/types'
+import type { MessageDeliveryStatus, RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
 import { conversations, messageEnvelopes } from '../db/schema'
 import { AppError } from '../lib/errors'
@@ -167,6 +167,8 @@ export class ConversationService {
     const id = crypto.randomUUID()
     const now = new Date()
 
+    const deliveryStatus = data.deliveryStatus ?? (data.status === 'sent' ? 'sent' : data.status === 'delivered' ? 'delivered' : data.status === 'failed' ? 'failed' : 'pending')
+
     const [row] = await this.db
       .insert(messageEnvelopes)
       .values({
@@ -180,6 +182,10 @@ export class ConversationService {
         attachmentIds: data.attachmentIds ?? [],
         externalId: data.externalId ?? null,
         status: data.status ?? 'pending',
+        deliveryStatus,
+        deliveryStatusUpdatedAt: now,
+        providerMessageId: data.providerMessageId ?? data.externalId ?? null,
+        deliveryError: data.deliveryError ?? null,
         createdAt: now,
       })
       .returning()
@@ -210,6 +216,35 @@ export class ConversationService {
         ...(data.failureReason ? { failureReason: data.failureReason } : {}),
       })
       .where(eq(messageEnvelopes.id, id))
+  }
+
+  /**
+   * Update delivery status for a message identified by its provider message ID (externalId).
+   * Called from status callback webhooks.
+   */
+  async updateMessageDeliveryByExternalId(
+    providerMessageId: string,
+    data: {
+      deliveryStatus: MessageDeliveryStatus
+      deliveryError?: string
+    }
+  ): Promise<boolean> {
+    const now = new Date()
+    const result = await this.db
+      .update(messageEnvelopes)
+      .set({
+        deliveryStatus: data.deliveryStatus,
+        deliveryStatusUpdatedAt: now,
+        ...(data.deliveryError !== undefined ? { deliveryError: data.deliveryError } : {}),
+        // Also update legacy fields for compatibility
+        status: data.deliveryStatus,
+        ...(data.deliveryStatus === 'delivered' ? { deliveredAt: now } : {}),
+        ...(data.deliveryStatus === 'read' ? { readAt: now } : {}),
+        ...(data.deliveryError ? { failureReason: data.deliveryError } : {}),
+      })
+      .where(eq(messageEnvelopes.providerMessageId, providerMessageId))
+      .returning({ id: messageEnvelopes.id })
+    return result.length > 0
   }
 
   // ------------------------------------------------------------------ Private helpers
@@ -244,6 +279,10 @@ export class ConversationService {
       attachmentIds: r.attachmentIds as string[],
       externalId: r.externalId,
       status: r.status,
+      deliveryStatus: r.deliveryStatus as MessageDeliveryStatus,
+      deliveryStatusUpdatedAt: r.deliveryStatusUpdatedAt,
+      providerMessageId: r.providerMessageId,
+      deliveryError: r.deliveryError,
       deliveredAt: r.deliveredAt,
       readAt: r.readAt,
       failureReason: r.failureReason,
