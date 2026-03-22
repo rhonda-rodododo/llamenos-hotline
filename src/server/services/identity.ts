@@ -1,4 +1,4 @@
-import { and, eq, lt } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import {
   inviteCodes,
   provisionRooms,
@@ -221,12 +221,8 @@ export class IdentityService {
     const rows = await this.db
       .select()
       .from(inviteCodes)
-      .where(lt(inviteCodes.usedAt, new Date(0)))
-    // Get all non-used (usedAt is null)
-    const all = await this.db.select().from(inviteCodes)
-    return all
-      .filter((r) => r.usedAt === null)
-      .map((r) => this.#rowToInvite(r))
+      .where(isNull(inviteCodes.usedAt))
+    return rows.map((r) => this.#rowToInvite(r))
   }
 
   async createInvite(data: CreateInviteData): Promise<InviteCode> {
@@ -376,16 +372,13 @@ export class IdentityService {
   }
 
   async getWebAuthnChallenge(id: string): Promise<string> {
-    const rows = await this.db
-      .select()
-      .from(webauthnChallenges)
+    // Atomic DELETE ... RETURNING to avoid TOCTOU race between select and delete
+    const [row] = await this.db
+      .delete(webauthnChallenges)
       .where(eq(webauthnChallenges.id, id))
-      .limit(1)
-    const row = rows[0]
+      .returning()
     if (!row) throw new AppError(404, 'Challenge not found')
-    // Delete on read (one-shot)
-    await this.db.delete(webauthnChallenges).where(eq(webauthnChallenges.id, id))
-    if (row.expiresAt < new Date()) throw new AppError(410, 'Challenge expired')
+    if (new Date(row.expiresAt) < new Date()) throw new AppError(410, 'Challenge expired')
     return row.challenge
   }
 
@@ -515,29 +508,31 @@ export class IdentityService {
   }
 
   async getProvisionRoom(id: string, token: string): Promise<ProvisionRoomStatus> {
-    const rows = await this.db
-      .select()
-      .from(provisionRooms)
-      .where(eq(provisionRooms.roomId, id))
-      .limit(1)
-    const row = rows[0]
-    if (!row) throw new AppError(404, 'Room not found')
-    if (row.token !== token) throw new AppError(403, 'Invalid token')
-    if (row.expiresAt < new Date()) {
-      await this.db.delete(provisionRooms).where(eq(provisionRooms.roomId, id))
-      return { status: 'expired' }
-    }
-    if (row.encryptedNsec) {
-      // Consume payload on read
-      await this.db.delete(provisionRooms).where(eq(provisionRooms.roomId, id))
-      return {
-        status: 'ready',
-        ephemeralPubkey: row.ephemeralPubkey,
-        encryptedNsec: row.encryptedNsec,
-        primaryPubkey: row.primaryPubkey ?? undefined,
+    // Use a transaction to atomically verify token + consume payload, avoiding TOCTOU race
+    const result = await this.db.transaction(async (tx) => {
+      const [room] = await tx
+        .select()
+        .from(provisionRooms)
+        .where(and(eq(provisionRooms.roomId, id), eq(provisionRooms.token, token)))
+      if (!room) return null
+      if (new Date(room.expiresAt) < new Date()) {
+        await tx.delete(provisionRooms).where(eq(provisionRooms.roomId, id))
+        return { status: 'expired' as const }
       }
-    }
-    return { status: 'waiting', ephemeralPubkey: row.ephemeralPubkey }
+      if (room.encryptedNsec) {
+        // Atomically consume the payload — delete inside the same transaction
+        await tx.delete(provisionRooms).where(eq(provisionRooms.roomId, id))
+        return {
+          status: 'ready' as const,
+          ephemeralPubkey: room.ephemeralPubkey,
+          encryptedNsec: room.encryptedNsec,
+          primaryPubkey: room.primaryPubkey ?? undefined,
+        }
+      }
+      return { status: 'waiting' as const, ephemeralPubkey: room.ephemeralPubkey }
+    })
+    if (!result) throw new AppError(404, 'Provision room not found or expired')
+    return result as ProvisionRoomStatus
   }
 
   async setProvisionPayload(id: string, data: SetProvisionPayloadData): Promise<void> {
