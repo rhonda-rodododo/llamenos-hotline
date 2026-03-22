@@ -87,6 +87,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
 
   postgres:
     image: postgres:17-alpine@sha256:3430fe182f5065a6ea505c3d432d2c7fff18fbab954df8f277c1dbf4c70124af

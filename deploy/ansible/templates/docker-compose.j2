@@ -56,6 +56,8 @@ services:
       resources:
         limits:
           memory: 512M
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
 
   postgres:
     image: {{ postgres_image }}
@@ -205,6 +207,30 @@ services:
       start_period: 10s
     security_opt:
       - no-new-privileges:true
+
+{% if watchtower_enabled | default(false) %}
+  # ── Optional: Watchtower (Auto-Updates) ─────────────────────
+
+  watchtower:
+    image: {{ watchtower_image | default('containrrr/watchtower:1.7.1') }}
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_POLL_INTERVAL={{ watchtower_poll_interval | default(86400) }}
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_LOG_LEVEL=${WATCHTOWER_LOG_LEVEL:-info}
+      - REPO_USER=${GHCR_USERNAME:-}
+      - REPO_PASS=${GHCR_TOKEN:-}
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+{% endif %}
 
 {% if 'signal' in compose_profiles %}
   # ── Optional: Signal Messaging ──────────────────────────────
