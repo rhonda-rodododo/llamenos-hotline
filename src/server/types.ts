@@ -214,6 +214,9 @@ export interface InviteCode {
   expiresAt: string
   usedAt?: string
   usedBy?: string
+  recipientPhoneHash?: string
+  deliveryChannel?: string
+  deliverySentAt?: string
 }
 
 export interface WebAuthnCredential {

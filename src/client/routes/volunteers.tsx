@@ -4,6 +4,12 @@ import { PinChallengeDialog } from '@/components/pin-challenge-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -15,16 +21,19 @@ import {
 } from '@/components/ui/select'
 import {
   type InviteCode,
+  type InviteDeliveryChannel,
   type RoleDefinition,
   type Volunteer,
   createInvite,
   createVolunteer,
   deleteVolunteer,
+  getAvailableInviteChannels,
   getVolunteerUnmasked,
   listInvites,
   listRoles,
   listVolunteers,
   revokeInvite,
+  sendInvite,
   updateVolunteer,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
@@ -33,12 +42,15 @@ import { useToast } from '@/lib/toast'
 import { usePinChallenge } from '@/lib/use-pin-challenge'
 import { createFileRoute } from '@tanstack/react-router'
 import {
+  AlertTriangle,
   Coffee,
   Copy,
   Eye,
   EyeOff,
   Key,
   Mail,
+  MessageCircle,
+  Send,
   Shield,
   ShieldCheck,
   Trash2,
@@ -57,6 +69,19 @@ function maskedPhone(phone: string) {
   return phone.slice(0, 3) + '\u2022'.repeat(phone.length - 5) + phone.slice(-2)
 }
 
+function channelLabel(channel: string): string {
+  switch (channel) {
+    case 'signal':
+      return 'Signal'
+    case 'whatsapp':
+      return 'WhatsApp'
+    case 'sms':
+      return 'SMS'
+    default:
+      return channel
+  }
+}
+
 function VolunteersPage() {
   const { t } = useTranslation()
   const { isAdmin } = useAuth()
@@ -69,6 +94,12 @@ function VolunteersPage() {
   const [generatedNsec, setGeneratedNsec] = useState<string | null>(null)
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sendInviteForCode, setSendInviteForCode] = useState<string | null>(null)
+  const [availableChannels, setAvailableChannels] = useState<{
+    signal: boolean
+    whatsapp: boolean
+    sms: boolean
+  } | null>(null)
 
   useEffect(() => {
     loadData()
@@ -76,14 +107,16 @@ function VolunteersPage() {
 
   async function loadData() {
     try {
-      const [volRes, invRes, rolesRes] = await Promise.all([
+      const [volRes, invRes, rolesRes, channelsRes] = await Promise.all([
         listVolunteers(),
         listInvites(),
         listRoles(),
+        getAvailableInviteChannels().catch(() => ({ signal: false, whatsapp: false, sms: false })),
       ])
       setVolunteers(volRes.volunteers)
       setInvites(invRes.invites)
       setRoles(rolesRes.roles)
+      setAvailableChannels(channelsRes)
     } catch {
       toast(t('common.error'), 'error')
     } finally {
@@ -224,6 +257,7 @@ function VolunteersPage() {
           onCreated={(invite) => {
             setInvites((prev) => [...prev, invite])
             setInviteLink(`${window.location.origin}/onboarding?code=${invite.code}`)
+            setSendInviteForCode(invite.code)
             setShowInviteForm(false)
           }}
           onCancel={() => setShowInviteForm(false)}
@@ -257,34 +291,81 @@ function VolunteersPage() {
               {invites.map((invite) => (
                 <div
                   key={invite.code}
-                  className="flex items-center justify-between px-4 py-3 sm:px-6"
+                  className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-medium">{invite.name}</p>
                     <p className="text-xs text-muted-foreground">{maskedPhone(invite.phone)}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {invite.deliverySentAt
+                        ? t('volunteers.inviteSentVia', {
+                            channel: channelLabel(invite.deliveryChannel ?? ''),
+                            date: new Date(invite.deliverySentAt).toLocaleDateString(),
+                          })
+                        : t('volunteers.inviteNotSent')}
+                    </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        await revokeInvite(invite.code)
-                        setInvites((prev) => prev.filter((i) => i.code !== invite.code))
-                        toast(t('volunteers.inviteRevoked'), 'success')
-                      } catch {
-                        toast(t('common.error'), 'error')
-                      }
-                    }}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <X className="h-3 w-3" />
-                    {t('volunteers.revokeInvite')}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSendInviteForCode(invite.code)
+                      }}
+                      data-testid={`send-invite-btn-${invite.code}`}
+                    >
+                      <Send className="h-3 w-3" />
+                      {t('volunteers.sendInvite')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await revokeInvite(invite.code)
+                          setInvites((prev) => prev.filter((i) => i.code !== invite.code))
+                          toast(t('volunteers.inviteRevoked'), 'success')
+                        } catch {
+                          toast(t('common.error'), 'error')
+                        }
+                      }}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                      {t('volunteers.revokeInvite')}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Send invite dialog */}
+      {sendInviteForCode && (
+        <SendInviteDialog
+          inviteCode={sendInviteForCode}
+          availableChannels={availableChannels ?? { signal: false, whatsapp: false, sms: false }}
+          onSent={(channel) => {
+            setInvites((prev) =>
+              prev.map((i) =>
+                i.code === sendInviteForCode
+                  ? { ...i, deliveryChannel: channel, deliverySentAt: new Date().toISOString() }
+                  : i
+              )
+            )
+            setSendInviteForCode(null)
+            toast(t('volunteers.inviteSentSuccess', { channel: channelLabel(channel) }), 'success')
+          }}
+          onCopyLink={() => {
+            const link = `${window.location.origin}/onboarding?code=${sendInviteForCode}`
+            navigator.clipboard.writeText(link)
+            toast(t('common.success'), 'success')
+            setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), 30000)
+          }}
+          onClose={() => setSendInviteForCode(null)}
+        />
       )}
 
       {/* Volunteers list */}
@@ -681,5 +762,183 @@ function VolunteerRow({
         onCancel={pinChallenge.handleCancel}
       />
     </div>
+  )
+}
+
+/**
+ * SendInviteDialog — lets admin deliver an invite link via Signal, WhatsApp, or SMS.
+ * Signal is the preferred channel. SMS requires insecure acknowledgment.
+ * "Copy invite link" is always available as a manual fallback.
+ */
+function SendInviteDialog({
+  inviteCode,
+  availableChannels,
+  onSent,
+  onCopyLink,
+  onClose,
+}: {
+  inviteCode: string
+  availableChannels: { signal: boolean; whatsapp: boolean; sms: boolean }
+  onSent: (channel: InviteDeliveryChannel) => void
+  onCopyLink: () => void
+  onClose: () => void
+}) {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const [phone, setPhone] = useState('')
+  const [channel, setChannel] = useState<InviteDeliveryChannel>('signal')
+  const [acknowledgedInsecure, setAcknowledgedInsecure] = useState(false)
+  const [sending, setSending] = useState(false)
+
+  const hasAnyChannel = availableChannels.signal || availableChannels.whatsapp || availableChannels.sms
+
+  // Default to the best available channel
+  const defaultChannel: InviteDeliveryChannel = availableChannels.signal
+    ? 'signal'
+    : availableChannels.whatsapp
+      ? 'whatsapp'
+      : 'sms'
+
+  const [selectedChannel, setSelectedChannel] = useState<InviteDeliveryChannel>(defaultChannel)
+
+  async function handleSend() {
+    if (!isValidE164(phone)) {
+      toast(t('volunteers.invalidPhone'), 'error')
+      return
+    }
+    if (selectedChannel === 'sms' && !acknowledgedInsecure) {
+      toast(t('volunteers.smsAcknowledgeRequired'), 'error')
+      return
+    }
+    setSending(true)
+    try {
+      await sendInvite(inviteCode, {
+        recipientPhone: phone,
+        channel: selectedChannel,
+        acknowledgedInsecure: selectedChannel === 'sms' ? acknowledgedInsecure : undefined,
+      })
+      onSent(selectedChannel)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('common.error')
+      toast(message, 'error')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4 text-primary" />
+            {t('volunteers.sendInviteTitle')}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {hasAnyChannel ? (
+            <>
+              {/* Phone number */}
+              <div className="space-y-2">
+                <Label htmlFor="send-phone">{t('volunteers.phone')}</Label>
+                <PhoneInput
+                  id="send-phone"
+                  value={phone}
+                  onChange={setPhone}
+                  required
+                  data-testid="send-invite-phone"
+                />
+              </div>
+
+              {/* Channel selector */}
+              <div className="space-y-2">
+                <Label htmlFor="send-channel">{t('volunteers.inviteChannel')}</Label>
+                <Select
+                  value={selectedChannel}
+                  onValueChange={(v) => setSelectedChannel(v as InviteDeliveryChannel)}
+                >
+                  <SelectTrigger id="send-channel" data-testid="send-invite-channel">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableChannels.signal && (
+                      <SelectItem value="signal">Signal</SelectItem>
+                    )}
+                    {availableChannels.whatsapp && (
+                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                    )}
+                    {availableChannels.sms && (
+                      <SelectItem value="sms">SMS</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* SMS insecure warning */}
+              {selectedChannel === 'sms' && (
+                <div className="rounded-lg border border-amber-400/50 bg-amber-50 p-3 dark:border-amber-600/50 dark:bg-amber-950/10">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <p className="text-xs text-amber-800 dark:text-amber-300">
+                      {t('volunteers.smsInsecureWarning')}
+                    </p>
+                  </div>
+                  <label className="mt-2 flex cursor-pointer items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={acknowledgedInsecure}
+                      onChange={(e) => setAcknowledgedInsecure(e.target.checked)}
+                      data-testid="sms-acknowledge-checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
+                    />
+                    <span className="text-xs text-amber-800 dark:text-amber-300">
+                      {t('volunteers.smsAcknowledge')}
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleSend}
+                  disabled={sending || (selectedChannel === 'sms' && !acknowledgedInsecure)}
+                  data-testid="send-invite-submit"
+                  className="flex-1"
+                >
+                  <Send className="h-4 w-4" />
+                  {sending ? t('common.loading') : t('volunteers.sendInvite')}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={onCopyLink}
+                  data-testid="copy-invite-link-btn"
+                >
+                  <Copy className="h-4 w-4" />
+                  {t('volunteers.copyLink')}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">{t('volunteers.noChannelsConfigured')}</p>
+              <Button
+                variant="outline"
+                onClick={onCopyLink}
+                className="w-full"
+                data-testid="copy-invite-link-btn"
+              >
+                <Copy className="h-4 w-4" />
+                {t('volunteers.copyLink')}
+              </Button>
+            </div>
+          )}
+
+          <Button variant="ghost" size="sm" onClick={onClose} className="w-full">
+            {t('common.close')}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

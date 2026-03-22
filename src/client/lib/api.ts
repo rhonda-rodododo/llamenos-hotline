@@ -546,6 +546,28 @@ export async function revokeInvite(code: string) {
   return request<{ ok: true }>(`/invites/${code}`, { method: 'DELETE' })
 }
 
+export type InviteDeliveryChannel = 'signal' | 'whatsapp' | 'sms'
+
+export async function getAvailableInviteChannels() {
+  return request<{ signal: boolean; whatsapp: boolean; sms: boolean }>(
+    '/invites/available-channels'
+  )
+}
+
+export async function sendInvite(
+  code: string,
+  data: {
+    recipientPhone: string
+    channel: InviteDeliveryChannel
+    acknowledgedInsecure?: boolean
+  }
+) {
+  return request<{ sent: boolean; channel: InviteDeliveryChannel }>(`/invites/${code}/send`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
 export async function validateInvite(code: string) {
   const res = await fetch(`${API_BASE}/invites/validate/${code}`)
   return res.json() as Promise<{
@@ -851,6 +873,9 @@ export interface InviteCode {
   createdAt: string
   expiresAt: string
   usedAt?: string
+  recipientPhoneHash?: string
+  deliveryChannel?: string
+  deliverySentAt?: string
 }
 
 // --- Conversations ---

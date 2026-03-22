@@ -4,6 +4,7 @@ import { hashIP } from '../lib/crypto'
 import { isValidE164 } from '../lib/helpers'
 import { auth as authMiddleware } from '../middleware/auth'
 import { requirePermission } from '../middleware/permission-guard'
+import { InviteDeliveryService, type InviteDeliveryChannel } from '../services/invite-delivery-service'
 import type { AppEnv } from '../types'
 
 const invites = new Hono<AppEnv>()
@@ -67,6 +68,26 @@ invites.get('/', authMiddleware, requirePermission('invites:read'), async (c) =>
   return c.json({ invites: inviteList })
 })
 
+/**
+ * GET /api/invites/available-channels
+ * Returns which messaging channels are configured for invite delivery.
+ * Signal > WhatsApp > SMS — always prefer encrypted channels.
+ */
+invites.get(
+  '/available-channels',
+  authMiddleware,
+  requirePermission('invites:create'),
+  async (c) => {
+    const services = c.get('services')
+    const config = await services.settings.getMessagingConfig()
+    return c.json({
+      signal: config.enabledChannels.includes('signal') && !!config.signal,
+      whatsapp: config.enabledChannels.includes('whatsapp') && !!config.whatsapp,
+      sms: config.enabledChannels.includes('sms') && !!config.sms?.enabled,
+    })
+  }
+)
+
 invites.post('/', authMiddleware, requirePermission('invites:create'), async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
@@ -78,6 +99,110 @@ invites.post('/', authMiddleware, requirePermission('invites:create'), async (c)
   await services.records.addAuditEntry('global', 'inviteCreated', pubkey, { name: body.name })
   return c.json(invite, 201)
 })
+
+/**
+ * POST /api/invites/:code/send
+ * Deliver invite link via a secure messaging channel.
+ *
+ * Requires:
+ * - Valid, unexpired invite code
+ * - E.164 phone number
+ * - Explicit acknowledgedInsecure: true for SMS channel
+ *
+ * Phone stored as HMAC hash only — never in plaintext.
+ */
+invites.post(
+  '/:code/send',
+  authMiddleware,
+  requirePermission('invites:create'),
+  async (c) => {
+    const services = c.get('services')
+    const pubkey = c.get('pubkey')
+    const code = c.req.param('code')
+
+    const body = (await c.req.json()) as {
+      recipientPhone: string
+      channel: InviteDeliveryChannel
+      acknowledgedInsecure?: boolean
+    }
+
+    // Validate channel value
+    const validChannels: InviteDeliveryChannel[] = ['signal', 'whatsapp', 'sms']
+    if (!validChannels.includes(body.channel)) {
+      return c.json({ error: 'Invalid channel. Must be signal, whatsapp, or sms.' }, 422)
+    }
+
+    // Validate phone format
+    if (!body.recipientPhone || !isValidE164(body.recipientPhone)) {
+      return c.json(
+        { error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' },
+        422
+      )
+    }
+
+    // SMS requires explicit insecure acknowledgment — it is not end-to-end encrypted
+    if (body.channel === 'sms' && !body.acknowledgedInsecure) {
+      return c.json(
+        {
+          error:
+            'SMS is not end-to-end encrypted. Set acknowledgedInsecure: true to proceed.',
+          requiresAcknowledgment: true,
+        },
+        422
+      )
+    }
+
+    // Validate invite exists and is not expired or already used
+    const validation = await services.identity.validateInvite(code)
+    if (!validation.valid) {
+      const status = validation.error === 'expired' ? 410 : 404
+      return c.json({ error: validation.error }, status)
+    }
+
+    // Look up full invite to get expiresAt
+    const inviteList = await services.identity.getInvites()
+    const invite = inviteList.find((i) => i.code === code)
+    if (!invite) {
+      return c.json({ error: 'Invite not found' }, 404)
+    }
+
+    const appUrl =
+      c.env.APP_URL || `${new URL(c.req.url).protocol}//${new URL(c.req.url).host}`
+
+    const deliveryService = new InviteDeliveryService(services.settings)
+
+    let deliveryResult: Awaited<ReturnType<typeof deliveryService.sendInvite>>
+    try {
+      deliveryResult = await deliveryService.sendInvite({
+        recipientPhone: body.recipientPhone,
+        inviteCode: code,
+        channel: body.channel,
+        expiresAt: new Date(invite.expiresAt),
+        appUrl,
+        hmacSecret: c.env.HMAC_SECRET,
+      })
+    } catch (err) {
+      return c.json(
+        { error: err instanceof Error ? err.message : 'Failed to send invite' },
+        502
+      )
+    }
+
+    // Record delivery metadata — phone as HMAC hash, never plaintext
+    await services.identity.updateInviteDelivery(code, {
+      recipientPhoneHash: deliveryResult.recipientPhoneHash,
+      deliveryChannel: deliveryResult.channel,
+      deliverySentAt: new Date(),
+    })
+
+    await services.records.addAuditEntry('global', 'inviteSent', pubkey, {
+      code,
+      channel: deliveryResult.channel,
+    })
+
+    return c.json({ sent: true, channel: deliveryResult.channel })
+  }
+)
 
 invites.delete('/:code', authMiddleware, requirePermission('invites:revoke'), async (c) => {
   const services = c.get('services')

@@ -1,4 +1,4 @@
-import { boolean, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core'
 import { jsonb } from '../bun-jsonb'
 
 export const volunteers = pgTable('volunteers', {
@@ -57,6 +57,9 @@ export const inviteCodes = pgTable('invite_codes', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
   usedBy: text('used_by'),
+  recipientPhoneHash: text('recipient_phone_hash'),
+  deliveryChannel: varchar('delivery_channel', { length: 16 }),
+  deliverySentAt: timestamp('delivery_sent_at', { withTimezone: true }),
 })
 
 export const provisionRooms = pgTable('provision_rooms', {

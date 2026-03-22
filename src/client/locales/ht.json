@@ -372,7 +372,18 @@
     "noActivity": "No recent activity",
     "notFound": "Volunteer not found",
     "recentActivity": "Recent Activity",
-    "unnamed": "Unnamed Volunteer"
+    "unnamed": "Unnamed Volunteer",
+    "sendInvite": "Send invite",
+    "sendInviteTitle": "Send Invite Link",
+    "inviteChannel": "Send via",
+    "inviteNotSent": "Not sent — copy link to share manually",
+    "inviteSentVia": "Sent via {{channel}} on {{date}}",
+    "inviteSentSuccess": "Invite sent via {{channel}}",
+    "smsInsecureWarning": "SMS is not end-to-end encrypted. Use Signal or WhatsApp if possible.",
+    "smsAcknowledge": "I understand SMS is not end-to-end encrypted and accept the risk.",
+    "smsAcknowledgeRequired": "You must acknowledge the security warning before sending via SMS.",
+    "copyLink": "Copy link",
+    "noChannelsConfigured": "No messaging channels are configured. Copy the link to share manually."
   },
   "webauthn": {
     "title": "Kle aksè",
