@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
-import { getNostrPublisher } from '../../server/lib/adapters'
+import { getNostrPublisher } from '../lib/adapters'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 

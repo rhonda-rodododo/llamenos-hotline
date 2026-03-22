@@ -3,7 +3,7 @@
  * Sends audio to a faster-whisper container via OpenAI-compatible API.
  * Implements the TranscriptionService interface.
  */
-import type { TranscriptionService } from '../types'
+import type { TranscriptionService } from '../../platform/types'
 
 /**
  * Validate that the Whisper URL points to a trusted internal host.

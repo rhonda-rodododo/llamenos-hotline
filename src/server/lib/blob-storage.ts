@@ -8,7 +8,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
-import type { BlobStorage } from '../types'
+import type { BlobStorage } from '../../platform/types'
 
 export function createBlobStorage(opts?: {
   endpoint?: string

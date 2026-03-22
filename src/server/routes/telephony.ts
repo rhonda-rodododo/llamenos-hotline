@@ -4,10 +4,10 @@ import {
   detectLanguageFromPhone,
   languageFromDigit,
 } from '../../shared/languages'
-import { getTelephony } from '../../server/lib/adapters'
-import { maybeTranscribe, transcribeVoicemail } from '../../server/lib/transcription-manager'
-import { startParallelRinging } from '../../server/lib/ringing'
-import type { Services } from '../../server/services'
+import { getTelephony } from '../lib/adapters'
+import { maybeTranscribe, transcribeVoicemail } from '../lib/transcription-manager'
+import { startParallelRinging } from '../lib/ringing'
+import type { Services } from '../services'
 import { hashPhone } from '../lib/crypto'
 import { telephonyResponse } from '../lib/helpers'
 import type { AppEnv } from '../types'

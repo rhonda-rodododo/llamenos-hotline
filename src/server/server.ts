@@ -11,11 +11,11 @@ import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { migrate } from 'drizzle-orm/bun-sql/migrator'
 import { Hono } from 'hono'
-import { initDb } from '../../server/db'
-import { createServices } from '../../server/services'
-import { closeNostrPublisher } from '../../server/lib/adapters'
-import { errorHandler } from '../../server/middleware/error'
-import { servicesMiddleware } from '../../server/middleware/services'
+import { initDb } from './db'
+import { createServices } from './services'
+import { closeNostrPublisher } from './lib/adapters'
+import { errorHandler } from './middleware/error'
+import { servicesMiddleware } from './middleware/services'
 import { loadEnv } from './env'
 
 async function main() {
@@ -33,7 +33,7 @@ async function main() {
 
   const services = createServices(db)
 
-  const { default: workerApp } = await import('../../worker/app')
+  const { default: serverApp } = await import('./app')
 
   // Create a top-level Hono app
   const app = new Hono()
@@ -47,9 +47,9 @@ async function main() {
 
   app.use('*', servicesMiddleware(services))
 
-  // Mount the worker app routes
+  // Mount the server app routes
   // biome-ignore lint/suspicious/noExplicitAny: cross-platform mount
-  app.route('/', workerApp as any)
+  app.route('/', serverApp as any)
 
   app.onError(errorHandler)
 

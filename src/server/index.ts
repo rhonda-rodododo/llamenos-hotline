@@ -1,7 +1,13 @@
 import app from './app'
-import { createDatabase } from '../server/db'
-import { createServices } from '../server/services'
+import { createDatabase } from './db'
+import { createServices } from './services'
 import type { Env } from './types'
+
+// CF Workers types — this file is the CF Workers entry point (deleted in Phase 7)
+// biome-ignore lint: CF Workers stubs until DO layer is removed
+type ScheduledEvent = { scheduledTime: number; cron: string }
+// biome-ignore lint: CF Workers stubs until DO layer is removed
+type ExecutionContext = { waitUntil(promise: Promise<unknown>): void; passThroughOnException(): void }
 
 export default {
   fetch: app.fetch,

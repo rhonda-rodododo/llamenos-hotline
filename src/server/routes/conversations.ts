@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
 import { canClaimChannel, getClaimableChannels } from '../../shared/permissions'
 import type { MessagingChannelType } from '../../shared/types'
-import { getMessagingAdapter, getNostrPublisher } from '../../server/lib/adapters'
+import { getMessagingAdapter, getNostrPublisher } from '../lib/adapters'
 import { checkPermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
