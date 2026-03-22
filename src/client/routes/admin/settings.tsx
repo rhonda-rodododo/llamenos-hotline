@@ -3,6 +3,7 @@ import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-s
 import { IvrLanguagesSection } from '@/components/admin-settings/ivr-languages-section'
 import { PasskeyPolicySection } from '@/components/admin-settings/passkey-policy-section'
 import { RCSChannelSection } from '@/components/admin-settings/rcs-channel-section'
+import { RetentionSection } from '@/components/admin-settings/retention-section'
 import { RolesSection } from '@/components/admin-settings/roles-section'
 import { SignalChannelSection } from '@/components/admin-settings/signal-channel-section'
 import { SpamSection } from '@/components/admin-settings/spam-section'
@@ -15,16 +16,19 @@ import {
   type CallSettings,
   type CustomFieldDefinition,
   type IvrAudioRecording,
+  type RetentionSettings,
   type SpamSettings,
   type TelephonyProviderConfig,
   getCallSettings,
   getCustomFields,
   getIvrLanguages,
   getMessagingConfig,
+  getRetentionSettings,
   getSpamSettings,
   getTelephonyProvider,
   getTranscriptionSettings,
   listIvrAudio,
+  updateRetentionSettings,
   updateSpamSettings,
   updateTranscriptionSettings,
 } from '@/lib/api'
@@ -67,6 +71,7 @@ function AdminSettingsPage() {
     type: 'twilio',
   })
   const [messagingConfig, setMessagingConfig] = useState<MessagingConfig | null>(null)
+  const [retentionSettings, setRetentionSettings] = useState<RetentionSettings | null>(null)
 
   const { expanded, toggleSection } = usePersistedExpanded(
     'settings-expanded:/admin/settings',
@@ -102,6 +107,9 @@ function AdminSettingsPage() {
         .catch(() => {}),
       getMessagingConfig()
         .then(setMessagingConfig)
+        .catch(() => {}),
+      getRetentionSettings()
+        .then(setRetentionSettings)
         .catch(() => {}),
     ])
       .catch(() => toast(t('common.error'), 'error'))
@@ -313,6 +321,15 @@ function AdminSettingsPage() {
               ? t('common.configured', { defaultValue: 'Configured' })
               : t('settings.notConfigured', { defaultValue: 'Not configured' })
           }
+        />
+      )}
+
+      {retentionSettings && (
+        <RetentionSection
+          settings={retentionSettings}
+          onChange={setRetentionSettings}
+          expanded={expanded.has('retention')}
+          onToggle={(open) => toggleSection('retention', open)}
         />
       )}
 

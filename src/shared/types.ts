@@ -145,6 +145,12 @@ export interface EncryptedMetaItem {
   ephemeralPubkey: string
 }
 
+/** Value stored in NotePayload.fields for a file custom field. */
+export interface FileFieldValue {
+  /** References FileRecord.id — used to fetch envelopes, metadata, and content. */
+  fileId: string
+}
+
 export interface FileRecord {
   id: string
   conversationId: string
@@ -158,6 +164,9 @@ export interface FileRecord {
   completedChunks: number
   createdAt: string
   completedAt?: string
+  /** Optional context binding — set after the parent record (note, report, etc.) is saved. */
+  contextType?: 'conversation' | 'note' | 'report' | 'custom_field'
+  contextId?: string // noteId or reportId
 }
 
 export interface UploadInit {
@@ -166,12 +175,15 @@ export interface UploadInit {
   conversationId: string
   recipientEnvelopes: FileKeyEnvelope[]
   encryptedMetadata: EncryptedMetaItem[]
+  /** Optional context binding — can be provided at init time or later via PATCH /context. */
+  contextType?: 'conversation' | 'note' | 'report' | 'custom_field'
+  contextId?: string
 }
 
 /** What gets encrypted before storage — replaces plain text */
 export interface NotePayload {
   text: string
-  fields?: Record<string, string | number | boolean>
+  fields?: Record<string, string | number | boolean | FileFieldValue>
 }
 
 export const MAX_CUSTOM_FIELDS = 20
@@ -389,6 +401,39 @@ export interface EnabledChannels {
   signal: boolean
   rcs: boolean
   reports: boolean
+}
+
+// --- GDPR ---
+
+/** The current platform consent version string. Bump this date to require re-consent. */
+export const CONSENT_VERSION = '2026-03-22'
+
+export interface RetentionSettings {
+  callRecordsDays: number // 30–3650, default 365
+  notesDays: number // 30–3650, default 365
+  messagesDays: number // 30–3650, default 180
+  auditLogDays: number // 365–3650, default 1825
+}
+
+export const DEFAULT_RETENTION_SETTINGS: RetentionSettings = {
+  callRecordsDays: 365,
+  notesDays: 365,
+  messagesDays: 180,
+  auditLogDays: 1825,
+}
+
+export interface GdprConsentStatus {
+  hasConsented: boolean
+  consentVersion: string | null
+  consentedAt: string | null
+  currentPlatformVersion: string
+}
+
+export interface GdprErasureRequest {
+  pubkey: string
+  requestedAt: string
+  executeAt: string
+  status: 'pending' | 'cancelled' | 'executed'
 }
 
 // --- Hub Types ---

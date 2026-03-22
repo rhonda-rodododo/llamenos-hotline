@@ -407,6 +407,26 @@ settings.delete('/roles/:id', requirePermission('system:manage-roles'), async (c
   return c.json({ ok: true })
 })
 
+// --- Data Retention settings ---
+settings.get('/retention', requirePermission('settings:manage'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  return c.json(await services.gdpr.getRetentionSettings(hubId ?? undefined))
+})
+
+settings.put('/retention', requirePermission('settings:manage'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const pubkey = c.get('pubkey')
+  const body = await c.req.json<Record<string, unknown>>()
+  const updated = await services.gdpr.updateRetentionSettings(
+    body as Parameters<typeof services.gdpr.updateRetentionSettings>[0],
+    hubId ?? undefined
+  )
+  await services.records.addAuditEntry(hubId ?? 'global', 'retentionSettingsUpdated', pubkey, {})
+  return c.json(updated)
+})
+
 // --- Permissions catalog ---
 settings.get('/permissions', requirePermission('system:manage-roles'), async (c) => {
   const { PERMISSION_CATALOG, getPermissionsByDomain } = await import('../../shared/permissions')

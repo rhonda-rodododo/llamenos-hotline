@@ -6,8 +6,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import {
+  cancelAccountErasure,
+  downloadMyData,
+  getMyErasureRequest,
   getTranscriptionSettings,
   getWebRtcStatus,
+  requestAccountErasure,
   updateMyProfile,
   updateMyTranscriptionPreference,
 } from '@/lib/api'
@@ -50,6 +54,7 @@ import {
   PhoneCall,
   Plus,
   Settings2,
+  ShieldCheck,
   Smartphone,
   Trash2,
   User,
@@ -526,7 +531,149 @@ function SettingsPage() {
         </div>
         <NotificationPermissionStatus />
       </SettingsSection>
+
+      {/* Privacy & Data */}
+      <GdprSection />
     </div>
+  )
+}
+
+function GdprSection() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const [exportLoading, setExportLoading] = useState(false)
+  const [erasureRequest, setErasureRequest] = useState<{
+    pubkey: string
+    requestedAt: string
+    executeAt: string
+    status: 'pending' | 'cancelled' | 'executed'
+  } | null>(null)
+  const [erasureLoading, setErasureLoading] = useState(false)
+  const [erasureChecked, setErasureChecked] = useState(false)
+  const { expanded, toggleSection } = usePersistedExpanded('settings-expanded:/settings/gdpr', [])
+
+  useEffect(() => {
+    getMyErasureRequest()
+      .then((req) => setErasureRequest(req))
+      .catch(() => {})
+      .finally(() => setErasureChecked(true))
+  }, [])
+
+  async function handleExport() {
+    setExportLoading(true)
+    try {
+      await downloadMyData()
+    } catch {
+      toast(t('gdpr.exportError'), 'error')
+    } finally {
+      setExportLoading(false)
+    }
+  }
+
+  async function handleRequestErasure() {
+    setErasureLoading(true)
+    try {
+      const req = await requestAccountErasure()
+      setErasureRequest(req)
+      toast(t('gdpr.erasureRequested'), 'success')
+    } catch {
+      toast(t('common.error'), 'error')
+    } finally {
+      setErasureLoading(false)
+    }
+  }
+
+  async function handleCancelErasure() {
+    setErasureLoading(true)
+    try {
+      await cancelAccountErasure()
+      setErasureRequest(null)
+      toast(t('gdpr.erasureCancelled'), 'success')
+    } catch {
+      toast(t('common.error'), 'error')
+    } finally {
+      setErasureLoading(false)
+    }
+  }
+
+  const hoursUntilErasure = erasureRequest
+    ? Math.max(0, Math.round((new Date(erasureRequest.executeAt).getTime() - Date.now()) / 3_600_000))
+    : 0
+
+  return (
+    <SettingsSection
+      id="privacy"
+      title={t('gdpr.title')}
+      description={t('gdpr.exportDescription')}
+      icon={<ShieldCheck className="h-5 w-5 text-muted-foreground" />}
+      expanded={expanded.has('privacy')}
+      onToggle={(open) => toggleSection('privacy', open)}
+    >
+      {/* Data Export */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium">{t('gdpr.exportTitle')}</h3>
+        <p className="text-xs text-muted-foreground">{t('gdpr.exportDescription')}</p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          disabled={exportLoading}
+          data-testid="gdpr-export-button"
+        >
+          {exportLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {t('gdpr.exportLoading')}
+            </>
+          ) : (
+            t('gdpr.exportButton')
+          )}
+        </Button>
+      </div>
+
+      <div className="border-t border-border pt-4 space-y-2">
+        <h3 className="text-sm font-medium text-destructive">{t('gdpr.erasureTitle')}</h3>
+        {erasureChecked && erasureRequest && erasureRequest.status === 'pending' ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+            <p className="text-sm text-destructive">
+              {t('gdpr.erasureCountdown', { hours: hoursUntilErasure })}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCancelErasure}
+              disabled={erasureLoading}
+              data-testid="gdpr-cancel-erasure-button"
+            >
+              {t('gdpr.erasureCancelButton')}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">{t('gdpr.erasureDescription')}</p>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p className="font-medium">{t('gdpr.erasureWarning')}</p>
+              <ul className="list-inside list-disc space-y-0.5 pl-2">
+                <li>{t('gdpr.erasureWarningItems.profile')}</li>
+                <li>{t('gdpr.erasureWarningItems.sessions')}</li>
+                <li>{t('gdpr.erasureWarningItems.notes')}</li>
+                <li>{t('gdpr.erasureWarningItems.shifts')}</li>
+                <li>{t('gdpr.erasureWarningItems.auditEntries')}</li>
+              </ul>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleRequestErasure}
+              disabled={erasureLoading}
+              data-testid="gdpr-request-erasure-button"
+            >
+              {t('gdpr.erasureButton')}
+            </Button>
+          </div>
+        )}
+      </div>
+    </SettingsSection>
   )
 }
 

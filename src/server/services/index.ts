@@ -4,6 +4,7 @@ import { BlastService } from './blasts'
 import { CallService } from './calls'
 import { ConversationService } from './conversations'
 import { FilesService } from './files'
+import { GdprService } from './gdpr'
 import { IdentityService } from './identity'
 import { RecordsService } from './records'
 import { SettingsService } from './settings'
@@ -14,6 +15,7 @@ export type {
   CallService,
   ConversationService,
   FilesService,
+  GdprService,
   IdentityService,
   RecordsService,
   SettingsService,
@@ -29,6 +31,7 @@ export interface Services {
   conversations: ConversationService
   blasts: BlastService
   files: FilesService
+  gdpr: GdprService
 }
 
 export function createServices(db: Database, blob: BlobStorage | null = null): Services {
@@ -41,5 +44,6 @@ export function createServices(db: Database, blob: BlobStorage | null = null): S
     conversations: new ConversationService(db),
     blasts: new BlastService(db),
     files: new FilesService(db, blob),
+    gdpr: new GdprService(db),
   }
 }
