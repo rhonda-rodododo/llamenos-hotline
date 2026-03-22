@@ -12,7 +12,7 @@ import type {
 } from '../types'
 
 export class BlastService {
-  constructor(private readonly db: Database) {}
+  constructor(protected readonly db: Database) {}
 
   // ------------------------------------------------------------------ Blasts
 

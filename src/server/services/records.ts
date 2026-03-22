@@ -21,7 +21,7 @@ import type {
 } from '../types'
 
 export class RecordsService {
-  constructor(private readonly db: Database) {}
+  constructor(protected readonly db: Database) {}
 
   // ------------------------------------------------------------------ Bans
 
