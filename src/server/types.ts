@@ -1,5 +1,22 @@
-import type { BlobStorage, TranscriptionService } from '../platform/types'
 import type { KeyEnvelope, MessagingChannelType, RecipientEnvelope } from '../shared/types'
+
+/**
+ * S3-compatible blob storage (R2 / MinIO).
+ */
+export interface BlobStorage {
+  put(key: string, body: ReadableStream | ArrayBuffer | Uint8Array | string): Promise<void>
+  get(
+    key: string
+  ): Promise<{ body: ReadableStream; size: number; arrayBuffer(): Promise<ArrayBuffer> } | null>
+  delete(key: string): Promise<void>
+}
+
+/**
+ * Transcription service (self-hosted Whisper).
+ */
+export interface TranscriptionService {
+  run(model: string, input: { audio: number[] }): Promise<{ text: string }>
+}
 import type { Services } from './services'
 
 /**
