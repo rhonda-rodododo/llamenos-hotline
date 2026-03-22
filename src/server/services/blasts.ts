@@ -236,6 +236,12 @@ export class BlastService {
     }
   }
 
+  async resetForTest(): Promise<void> {
+    await this.db.delete(blastDeliveries)
+    await this.db.delete(blasts)
+    await this.db.delete(subscribers)
+  }
+
   #rowToDelivery(r: typeof blastDeliveries.$inferSelect): BlastDelivery {
     return {
       id: r.id,

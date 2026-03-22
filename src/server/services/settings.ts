@@ -714,6 +714,28 @@ export class SettingsService {
     }
   }
 
+  async resetForTest(): Promise<void> {
+    // Clear runtime state only — preserve system roles (they are code defaults, not user data)
+    await this.db.delete(captchaState)
+    await this.db.delete(rateLimitCounters)
+    await this.db.delete(hubKeys)
+    await this.db.delete(hubs)
+    await this.db.delete(ivrAudio)
+    await this.db.delete(reportCategories)
+    await this.db.delete(customFieldDefinitions)
+    await this.db.delete(fallbackGroup)
+    // Reset settings to defaults by deleting stored overrides
+    await this.db.delete(spamSettings)
+    await this.db.delete(transcriptionSettings)
+    await this.db.delete(callSettings)
+    await this.db.delete(ivrLanguages)
+    await this.db.delete(messagingConfig)
+    await this.db.delete(telephonyConfig)
+    await this.db.delete(setupState)
+    // Delete all roles — DEFAULT_ROLES are re-seeded on first use via getRole/listRoles
+    await this.db.delete(roles)
+  }
+
   #rowToRole(r: typeof roles.$inferSelect): Role {
     return {
       id: r.id,
