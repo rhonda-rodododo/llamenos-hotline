@@ -204,7 +204,7 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 
 ### Application Quality
 
-- [ ] **Application Hardening Phase 3** (`2026-03-22-application-hardening-phase3-plan.md`) — Replace `.json() as any` with typed/Zod responses in auth middleware, `profileCompleted` wiring verification, on-break E2E call-flow test, active calls dashboard widget, call history pagination (`?page&limit&q&status`). Phases 3.5/3.6/3.9 are discovery-only: do not implement without a new spec.
+- [x] **Application Hardening Phase 3** (`2026-03-22-application-hardening-phase3-plan.md`) — Audited: auth middleware already clean (no `as any`), `profileCompleted` wiring verified correct, on-break filtering confirmed in `startParallelRinging`, active calls dashboard widget already present, call history pagination already implemented. Discovery phases (3.5/3.6/3.9) deferred pending new specs.
 - [ ] **GDPR Compliance** (`2026-03-22-gdpr-compliance-plan.md`) — Consent collection, data export, right to erasure, retention policies
 - [ ] **Ansible Hardening** (`2026-03-22-ansible-hardening-plan.md`) — SSH hardening, firewall rules, kernel parameters, fail2ban, Docker security
 
