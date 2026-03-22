@@ -1,5 +1,16 @@
 # Completed Backlog
 
+## 2026-03-22: Drizzle Schema Corrections (`cf-removal` worktree)
+
+- [x] **Subscribers privacy refactor**: `phoneNumber`/`channel`/`active`/`token`/`metadata` → `identifierHash` (HMAC-SHA256), `channels` JSONB array, `status` enum, `preferenceToken`, `tags`, `language`, `doubleOptInConfirmed`, `subscribedAt`; unique constraint on `(hubId, identifierHash)`
+- [x] **Blasts refactor**: `channel`/`totalCount`/`sentCount`/`failedCount` → `targetChannels`/`targetTags`/`targetLanguages` JSONB arrays + `stats` JSONB (`BlastStats` interface)
+- [x] **blast_deliveries**: added `channelType` and `deliveredAt`
+- [x] **New tables**: `blast_settings`, `note_replies`, `gdpr_consents`, `gdpr_erasure_requests`, `retention_settings`, `geocoding_config`
+- [x] **Existing table additions**: `hubs.allowSuperAdminAccess`, `hub_keys.ephemeralPubkey`+`createdAt`, `customFieldDefinitions.context`, `file_records.hubId`
+- [x] **Migration 0003_schema_corrections.sql**: written manually (drizzle-kit requires interactive TTY for column rename resolution); journal updated
+- [x] **Service/route updates**: `BlastService`, `routes/blasts.ts`, `messaging/router.ts`, `/api/messaging/preferences` endpoints updated to new schema
+- [x] **Types updated**: `Blast`, `Subscriber`, `CreateBlastData`, `CreateSubscriberData`, `BlastDelivery`, `CreateDeliveryData`, `BlastStats`, `SubscriberChannel` in `server/types.ts`
+
 ## 2026-03-22: CI VPS Auto-Deploy (`cf-removal` worktree)
 
 - [x] Created `.github/workflows/auto-deploy-demo.yml`: triggers on `release:published`, waits up to 10 min for Docker image in GHCR, deploys via Ansible with `llamenos_image` override (correct variable name — not `image_tag`), verifies `/api/health` endpoint post-deploy
