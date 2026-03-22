@@ -945,6 +945,39 @@ jobs:
             CHECKSUMS.txt
             CHECKSUMS.txt.asc
 
+  # ─── Deploy Marketing Site to Cloudflare Pages ───────────────
+  # Deploys the Astro marketing site when site/ files change on main.
+  # Also runs after version bump (release commits touch CHANGELOG.md, not site/,
+  # so site deploys are driven purely by site/ file changes).
+  deploy-site:
+    needs: [build, changes]
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.site == 'true'
+    runs-on: ubuntu-latest
+    environment: cloudflare-pages
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download site build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: site-build
+          path: site/dist/
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3  # SHA pinned by Dependabot
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          command: pages deploy site/dist --project-name=llamenos-site --branch=main
+
   # ─── CI Status Gate ─────────────────────────────────────────
   # Single status check for branch protection rules.
   # All required jobs must pass for PRs to be mergeable.
