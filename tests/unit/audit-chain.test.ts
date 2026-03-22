@@ -7,7 +7,8 @@ import { auditLog } from '../../src/server/db/schema'
 import { eq } from 'drizzle-orm'
 
 const TEST_DB_URL = process.env.TEST_DATABASE_URL ?? 'postgres://llamenos:llamenos@localhost:5433/llamenos_test'
-const TEST_HUB = 'test-hub-audit'
+// Use a unique prefix per test run so parallel file-level execution never shares data
+const RUN_PREFIX = `test-hub-audit-${crypto.randomUUID().slice(0, 8)}`
 
 let db: ReturnType<typeof createDatabase>
 let service: RecordsService
@@ -16,33 +17,35 @@ beforeAll(async () => {
   db = createDatabase(TEST_DB_URL)
   await migrate(db, { migrationsFolder: path.resolve(import.meta.dir, '../../drizzle/migrations') })
   service = new RecordsService(db)
-  // Clean up any prior test data for this hub
-  await db.delete(auditLog).where(eq(auditLog.hubId, TEST_HUB))
 })
 
 afterAll(async () => {
-  await db.delete(auditLog).where(eq(auditLog.hubId, TEST_HUB))
+  // Clean up all entries with our run prefix (handles all hub IDs used in this run)
+  const { sql } = await import('drizzle-orm')
+  await db.delete(auditLog).where(sql`${auditLog.hubId} LIKE ${RUN_PREFIX + '%'}`)
 })
 
 describe('audit-chain', () => {
   test('first entry has no previousEntryHash', async () => {
-    const entry = await service.addAuditEntry(TEST_HUB, 'test.event.1', 'pubkey-a', { x: 1 })
+    const hub = `${RUN_PREFIX}-t1`
+    const entry = await service.addAuditEntry(hub, 'test.event.1', 'pubkey-a', { x: 1 })
     expect(entry.previousEntryHash).toBeUndefined()
     expect(entry.entryHash).toBeString()
     expect(entry.entryHash!.length).toBe(64) // 32 bytes hex
   })
 
   test('second entry previousEntryHash equals first entryHash', async () => {
-    const first = await service.addAuditEntry(TEST_HUB, 'test.event.chain-1', 'pubkey-a')
-    const second = await service.addAuditEntry(TEST_HUB, 'test.event.chain-2', 'pubkey-a')
+    const hub = `${RUN_PREFIX}-t2`
+    const first = await service.addAuditEntry(hub, 'test.event.chain-1', 'pubkey-a')
+    const second = await service.addAuditEntry(hub, 'test.event.chain-2', 'pubkey-a')
     expect(second.previousEntryHash).toBe(first.entryHash)
   })
 
   test('chain of 3 entries links correctly', async () => {
-    await db.delete(auditLog).where(eq(auditLog.hubId, TEST_HUB))
-    const e1 = await service.addAuditEntry(TEST_HUB, 'event.1', 'pubkey-x')
-    const e2 = await service.addAuditEntry(TEST_HUB, 'event.2', 'pubkey-x')
-    const e3 = await service.addAuditEntry(TEST_HUB, 'event.3', 'pubkey-x')
+    const hub = `${RUN_PREFIX}-t3`
+    const e1 = await service.addAuditEntry(hub, 'event.1', 'pubkey-x')
+    const e2 = await service.addAuditEntry(hub, 'event.2', 'pubkey-x')
+    const e3 = await service.addAuditEntry(hub, 'event.3', 'pubkey-x')
 
     expect(e1.previousEntryHash).toBeUndefined()
     expect(e2.previousEntryHash).toBe(e1.entryHash)
@@ -50,7 +53,7 @@ describe('audit-chain', () => {
   })
 
   test('tampered entry breaks hash chain verification', async () => {
-    await db.delete(auditLog).where(eq(auditLog.hubId, TEST_HUB))
+    const hub = `${RUN_PREFIX}-t4`
     const e1 = await service.addAuditEntry(TEST_HUB, 'event.real', 'pubkey-y', { safe: true })
     const e2 = await service.addAuditEntry(TEST_HUB, 'event.after', 'pubkey-y')
 
