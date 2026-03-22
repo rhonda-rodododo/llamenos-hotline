@@ -1,6 +1,7 @@
 import { AriClient } from './ari-client'
 import { WebhookSender } from './webhook-sender'
 import { CommandHandler } from './command-handler'
+import { PjsipConfigurator } from './pjsip-configurator'
 import type { BridgeConfig } from './types'
 
 /** Load configuration from environment variables */
@@ -28,6 +29,9 @@ function loadConfig(): BridgeConfig {
     bridgeSecret,
     bridgePort,
     stasisApp,
+    sipProvider: process.env.SIP_PROVIDER,
+    sipUsername: process.env.SIP_USERNAME,
+    sipPassword: process.env.SIP_PASSWORD,
   }
 }
 
@@ -35,6 +39,10 @@ async function main(): Promise<void> {
   console.log('[bridge] Starting Asterisk ARI Bridge...')
 
   const config = loadConfig()
+
+  // SIP auto-config state — reported on /health
+  let sipConfigured = false
+  let sipConfigSkipped = false
 
   // Initialize components
   const ari = new AriClient(config)
@@ -68,6 +76,8 @@ async function main(): Promise<void> {
         return Response.json({
           status: 'ok',
           uptime: process.uptime(),
+          sipConfigured,
+          sipConfigSkipped,
           ...status,
         })
       }
@@ -265,6 +275,21 @@ async function main(): Promise<void> {
     console.log('[bridge] Asterisk info:', JSON.stringify(info).substring(0, 200))
   } catch (err) {
     console.warn('[bridge] Could not fetch Asterisk info (will retry on reconnect):', err)
+  }
+
+  // Auto-configure PJSIP SIP trunk if credentials are provided
+  if (config.sipProvider && config.sipUsername && config.sipPassword) {
+    try {
+      const pjsip = new PjsipConfigurator(ari)
+      await pjsip.configure(config.sipProvider, config.sipUsername, config.sipPassword)
+      sipConfigured = true
+    } catch (err) {
+      console.error('[bridge] PJSIP auto-config failed:', err)
+      // Non-fatal — bridge can still handle calls if pjsip.conf was pre-configured
+    }
+  } else {
+    console.log('[bridge] SIP env vars not set — skipping PJSIP auto-config')
+    sipConfigSkipped = true
   }
 
   console.log('[bridge] Asterisk ARI Bridge is running')

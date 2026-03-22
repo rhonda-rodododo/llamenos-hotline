@@ -353,6 +353,31 @@ export class AriClient {
     return this.request('GET', '/asterisk/info')
   }
 
+  /**
+   * Write a dynamic config object via ARI.
+   * PUT /ari/asterisk/config/dynamic/{configClass}/{objectType}/{id}
+   * Idempotent — overwrites any existing object with the same id.
+   */
+  async configureDynamic(
+    configClass: string,
+    objectType: string,
+    id: string,
+    fields: Record<string, string>,
+  ): Promise<void> {
+    const body = {
+      fields: Object.entries(fields).map(([attribute, value]) => ({ attribute, value })),
+    }
+    await this.request('PUT', `/asterisk/config/dynamic/${configClass}/${objectType}/${id}`, body)
+  }
+
+  /**
+   * Reload an Asterisk module via ARI.
+   * POST /ari/asterisk/modules/{moduleName}
+   */
+  async reloadModule(moduleName: string): Promise<void> {
+    await this.request('POST', `/asterisk/modules/${moduleName}`)
+  }
+
   /** List active channels */
   async listChannels(): Promise<AriChannel[]> {
     return this.request<AriChannel[]>('GET', '/channels')
