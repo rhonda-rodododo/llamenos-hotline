@@ -1,16 +1,6 @@
-import { type Page, type APIRequestContext, expect } from '@playwright/test'
-
-// Augment Window with the authed fetch helper injected by test setup
-declare global {
-  interface Window {
-    __authedFetch?: (url: string, options?: RequestInit) => Promise<Response>
-  }
-}
-import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
-import { utf8ToBytes } from '@noble/ciphers/utils.js'
-import { bytesToHex } from '@noble/hashes/utils.js'
-import { getPublicKey, nip19 } from 'nostr-tools'
-import { TestIds } from './test-ids'
+import { type Page, expect } from '@playwright/test'
+import { TestIds } from '../test-ids'
+import { preloadEncryptedKey } from './crypto'
 
 export const ADMIN_NSEC = 'nsec174zsa94n3e7t0ugfldh9tgkkzmaxhalr78uxt9phjq3mmn6d6xas5jdffh'
 export const TEST_PIN = '123456'
@@ -34,68 +24,15 @@ export const Timeouts = {
   ASYNC_SETTLE: 1500,
 } as const
 
-// Re-export TestIds for convenience
-export { TestIds } from './test-ids'
-
-// Re-export page object utilities
-export * from './pages/index'
-
-/**
- * Pre-compute an encrypted key blob in Node.js (Playwright runtime) and inject
- * it into the browser's localStorage. Uses the same PBKDF2 + XChaCha20-Poly1305
- * format as key-store.ts so the app can decrypt it with the test PIN.
- */
-async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promise<void> {
-  const encoder = new TextEncoder()
-  const pinBytes = encoder.encode(pin)
-  const salt = crypto.getRandomValues(new Uint8Array(16))
-
-  const keyMaterial = await crypto.subtle.importKey('raw', pinBytes, 'PBKDF2', false, ['deriveBits'])
-  const derivedBits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 600_000 },
-    keyMaterial,
-    256,
-  )
-  const kek = new Uint8Array(derivedBits)
-
-  const nonce = crypto.getRandomValues(new Uint8Array(24))
-  const cipher = xchacha20poly1305(kek, nonce)
-  const ciphertext = cipher.encrypt(utf8ToBytes(nsec))
-
-  const decoded = nip19.decode(nsec)
-  if (decoded.type !== 'nsec') throw new Error('Invalid nsec')
-  const pubkey = getPublicKey(decoded.data)
-  const hashInput = encoder.encode(`llamenos:keyid:${pubkey}`)
-  const pubkeyHashBuf = await crypto.subtle.digest('SHA-256', hashInput)
-  const pubkeyHash = bytesToHex(new Uint8Array(pubkeyHashBuf)).slice(0, 16)
-
-  const data = {
-    salt: bytesToHex(salt),
-    iterations: 600_000,
-    nonce: bytesToHex(nonce),
-    ciphertext: bytesToHex(ciphertext),
-    pubkey: pubkeyHash,
-  }
-
-  await page.evaluate(
-    ({ key, value }) => localStorage.setItem(key, value),
-    { key: 'llamenos-encrypted-key', value: JSON.stringify(data) },
-  )
-}
-
 /**
  * Enter a PIN into the PinInput component.
  * Uses keyboard typing since the component auto-advances focus on each digit.
  */
 export async function enterPin(page: Page, pin: string) {
-  // Focus the first PIN digit input
   const firstDigit = page.locator('input[aria-label="PIN digit 1"]')
   await firstDigit.waitFor({ state: 'visible', timeout: 10000 })
   await firstDigit.click()
-  // Type each digit — PinInput handles focus advance automatically
   await page.keyboard.type(pin, { delay: 50 })
-  // If PIN is shorter than the input length (e.g., 6 digits in 8-box input),
-  // press Enter to submit early (supported when >= minLength)
   await page.keyboard.press('Enter')
 }
 
@@ -105,12 +42,10 @@ export async function enterPin(page: Page, pin: string) {
  * Otherwise, re-authenticates via PIN entry first.
  */
 export async function navigateAfterLogin(page: Page, url: string): Promise<void> {
-  // Check if we're already authenticated (sidebar Dashboard link visible)
   const dashboardLink = page.getByRole('link', { name: 'Dashboard' })
   const isAuthenticated = await dashboardLink.isVisible({ timeout: 1000 }).catch(() => false)
 
   if (!isAuthenticated) {
-    // Need to re-authenticate — full page load clears in-memory keyManager
     await page.goto('/login')
     await page.waitForLoadState('domcontentloaded')
 
@@ -121,11 +56,9 @@ export async function navigateAfterLogin(page: Page, url: string): Promise<void>
       await enterPin(page, TEST_PIN)
     }
 
-    // Wait for the authenticated layout
     await dashboardLink.waitFor({ state: 'visible', timeout: 30000 })
   }
 
-  // SPA navigation via TanStack Router (no page reload, keeps auth state)
   const parsed = new URL(url, 'http://localhost')
   const searchParams = Object.fromEntries(parsed.searchParams.entries())
   await page.evaluate(({ pathname, search }) => {
@@ -138,17 +71,11 @@ export async function navigateAfterLogin(page: Page, url: string): Promise<void>
     }
   }, { pathname: parsed.pathname, search: searchParams })
   await page.waitForURL(u => u.toString().includes(parsed.pathname), { timeout: Timeouts.NAVIGATION })
-
-  // Allow route component to mount and initial API calls to complete
   await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 }
 
 /**
  * Re-enter PIN after a page.reload() when user is already authenticated.
- * The reload clears keyManager, so the encrypted key in localStorage triggers
- * the PIN screen. After entering PIN the app redirects to /.
- * If currentPath is provided, the helper then navigates back to that path
- * via the sidebar or page.goto as appropriate.
  */
 export async function reenterPinAfterReload(page: Page): Promise<void> {
   const pinInput = page.locator('input[aria-label="PIN digit 1"]')
@@ -182,13 +109,11 @@ export async function loginAsVolunteer(page: Page, nsec: string) {
   await page.reload()
   await enterPin(page, TEST_PIN)
   await page.waitForURL(url => !url.toString().includes('/login'), { timeout: Timeouts.API })
-  // Short delay for initial API calls to complete
   await page.waitForTimeout(Timeouts.UI_SETTLE)
 }
 
 /**
  * Login using direct nsec entry (recovery path).
- * Useful for first-time login tests when no stored key exists.
  */
 export async function loginWithNsec(page: Page, nsec: string) {
   await page.goto('/login')
@@ -237,53 +162,4 @@ export async function completeProfileSetup(page: Page) {
 export function uniquePhone(): string {
   const suffix = Date.now().toString().slice(-7)
   return `+1555${suffix}`
-}
-
-const TEST_RESET_SECRET = process.env.DEV_RESET_SECRET || 'test-reset-secret'
-
-/**
- * Create a test hub via the authed API using the admin session baked into `page`.
- * Returns the new hub's ID.
- *
- * Usage: call in `test.beforeAll`, pair with `deleteTestHub` in `test.afterAll`
- * to get a fully isolated hub for each test file.
- *
- * Requires window.__authedFetch to be injected (see multi-hub.spec.ts beforeEach pattern).
- */
-export async function createTestHub(page: Page, name: string): Promise<string> {
-  const created = await page.evaluate(async (hubName: string) => {
-    const fetch = window.__authedFetch ?? window.fetch
-    const res = await fetch('/api/hubs', {
-      method: 'POST',
-      body: JSON.stringify({ name: hubName }),
-    })
-    if (!res.ok) throw new Error(`createTestHub failed: ${res.status} ${await res.text()}`)
-    return res.json()
-  }, name)
-  return created.hub.id
-}
-
-/**
- * Delete a test hub via the authed API.
- * Safe to call even if the hub was already deleted (404 is ignored).
- *
- * Requires window.__authedFetch to be injected (see multi-hub.spec.ts beforeEach pattern).
- */
-export async function deleteTestHub(page: Page, hubId: string): Promise<void> {
-  await page.evaluate(async (id: string) => {
-    const fetch = window.__authedFetch ?? window.fetch
-    const res = await fetch(`/api/hubs/${id}`, { method: 'DELETE' })
-    if (!res.ok && res.status !== 404) {
-      throw new Error(`deleteTestHub failed: ${res.status} ${await res.text()}`)
-    }
-  }, hubId)
-}
-
-export async function resetTestState(request: APIRequestContext) {
-  const res = await request.post('/api/test-reset', {
-    headers: { 'X-Test-Secret': TEST_RESET_SECRET },
-  })
-  if (!res.ok()) {
-    throw new Error(`test-reset failed with status ${res.status()}: ${await res.text()}`)
-  }
 }
