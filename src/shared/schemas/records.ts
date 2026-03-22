@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const BanEntrySchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   hubId: z.string(),
   phone: z.string(),
   reason: z.string(),
@@ -18,7 +18,7 @@ export const CreateBanSchema = z.object({
 export type CreateBanInput = z.infer<typeof CreateBanSchema>
 
 export const AuditLogEntrySchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   hubId: z.string(),
   event: z.string(),
   actorPubkey: z.string(),
@@ -37,7 +37,7 @@ export const RecipientEnvelopeSchema = z.object({
 export type RecipientEnvelope = z.infer<typeof RecipientEnvelopeSchema>
 
 export const EncryptedNoteSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   hubId: z.string(),
   callId: z.string().optional(),
   conversationId: z.string().optional(),
@@ -66,7 +66,7 @@ export const CreateNoteSchema = z.object({
 export type CreateNoteInput = z.infer<typeof CreateNoteSchema>
 
 export const EncryptedCallRecordSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   hubId: z.string(),
   callerLast4: z.string().optional(),
   startedAt: z.iso.datetime(),
