@@ -184,3 +184,49 @@ Architecture overview: [`docs/architecture/E2EE_ARCHITECTURE.md`](architecture/E
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
 - [x] Marketing site + docs at llamenos-hotline.com (Astro + Cloudflare Pages)
+
+## Platform Hardening Sprint (2026-03-22) — Specs + Plans Ready
+
+All items below have a design spec and implementation plan in `docs/superpowers/`. Agents should pick up plans from `docs/superpowers/plans/` and follow the `superpowers:executing-plans` skill.
+
+### Critical Security — Execute First
+
+- [ ] **Security Hardening v2 Audit Backport** (`2026-03-22-security-hardening-v2-backport-plan.md`) — CRIT-H1 hub key membership check (verify first), HIGH-W1 relay key scoping, HIGH-W3 raw phone in audit log, HIGH-W4 dev endpoint 403→404, HIGH-W5 Twilio SID validation, MED-W1 cross-hub global routes, MED-W2 ban-by-phone admin-only, code quality fixes (empty catch blocks, offline queue race, `as any`, hardcoded CORS), workflow permissions least-privilege
+- [ ] **Volunteer PII Enforcement** (`2026-03-22-volunteer-pii-enforcement-plan.md`) — TypeScript-enforced `projectVolunteer()` with discriminated union (`view: 'public'|'self'|'admin'`), correct E.164 `maskPhone()`, covers all volunteer-returning endpoints including `PATCH /:targetPubkey`
+
+### Platform & CI/CD
+
+- [ ] **CI Pipeline Hardening** (`2026-03-22-ci-security-hardening-plan.md`) — GPG signing for releases (CHECKSUMS.txt.asc uploaded to GitHub Release), gitleaks secret scanning, Dependabot for bun/cargo/actions, SECURITY.md, workflow permissions per-job
+- [ ] **CI VPS Auto-Deploy** (`2026-03-22-ci-vps-auto-deploy-plan.md`) — `auto-deploy-demo.yml` triggers on `release:published`, polls for Docker image in GHCR (fails hard if image never appears), Ansible composite action, `image_tag` passed through to role
+- [ ] **Ops: PostgreSQL Backup & Recovery** (`2026-03-22-ops-backup-recovery-plan.md`) — `age`-encrypted backups to S3, GFS retention (7 daily/4 weekly/3 monthly), systemd timer replaces existing cron job, health endpoint backup freshness check
+- [ ] **Ops: MinIO Init + Systemd Service** (`2026-03-22-minio-init-systemd-plan.md`) — idempotent `init-minio.sh` (bucket creation, lifecycle policies, dedicated IAM user), `llamenos.service` systemd unit for reboot recovery
+- [ ] **CF Removal / Drizzle Migration** (`2026-03-22-cf-removal-drizzle-migration-plan.md`) — active in `.worktrees/cf-removal`; apply 7 blocking schema fixes from `2026-03-22-drizzle-schema-completeness-addendum.md` first
+
+### Application Quality
+
+- [ ] **Application Hardening Phase 3** (`2026-03-22-application-hardening-phase3-plan.md`) — Replace `.json() as any` with typed/Zod responses in auth middleware, `profileCompleted` wiring verification, on-break E2E call-flow test, active calls dashboard widget, call history pagination (`?page&limit&q&status`). Phases 3.5/3.6/3.9 are discovery-only: do not implement without a new spec.
+- [ ] **GDPR Compliance** (`2026-03-22-gdpr-compliance-plan.md`) — Consent collection, data export, right to erasure, retention policies
+- [ ] **Ansible Hardening** (`2026-03-22-ansible-hardening-plan.md`) — SSH hardening, firewall rules, kernel parameters, fail2ban, Docker security
+
+### Test Coverage
+
+> Implement shared helpers first (`tests/helpers/` migration from flat `tests/helpers.ts`) — prerequisite for all suites.
+
+- [ ] **Shared Test Helpers** — rename `tests/helpers.ts` → `tests/helpers/index.ts`, update all imports, add `tests/helpers/auth.ts`, `call-simulator.ts`, `crypto.ts`, `db.ts`
+- [ ] **Call Flow Tests** (`2026-03-22-call-flow-tests-plan.md`) — ring → answer → note → hangup → voicemail fallback → parallel ringing. Inbound webhook is two-step: `POST /api/telephony/incoming` then `POST /api/telephony/language-selected`.
+- [ ] **E2EE Verification Tests** (`2026-03-22-e2ee-verification-tests-plan.md`) — Server stores ciphertext only; `window.__llamenos_test_crypto` hook (VITE_TEST_MODE guard); multi-envelope decryption; forward secrecy
+- [ ] **Nostr Relay Tests** (`2026-03-22-nostr-relay-tests-plan.md`) — `call:ring` event published and encrypted; hub key extracted via `window.__llamenos_test_hub_key`; REST polling fallback
+- [ ] **Spam Mitigation Tests** (`2026-03-22-spam-mitigation-tests-plan.md`) — Ban enforcement, rate limiting, CAPTCHA toggle (correct/wrong digits), priority: ban > rate-limit > CAPTCHA
+- [ ] **PWA Offline Tests** (`2026-03-22-pwa-offline-tests-plan.md`) — SW registration, offline banner, API not cached, queue sends on reconnect
+- [ ] **WebAuthn Registration Tests** (`2026-03-22-webauthn-registration-tests-plan.md`) — Virtual authenticator via CDP, passkey register/login, multi-device, session revocation
+- [ ] **i18n Locale Tests** (`2026-03-22-i18n-locale-tests-plan.md`) — All 13 locales, RTL Arabic, dynamic locale file comparison (no hardcoded strings), `scripts/check-locales.ts` with nested key traversal
+- [ ] **Provider Simulation Suite** — *(spec needed first)* Comprehensive webhook/callback simulation for all 5 telephony adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk) and all messaging adapters (Twilio SMS, WhatsApp Business, Signal). Must research each provider's actual sandbox tooling, webhook payload formats, status callback schemas, error conditions, and signature validation before writing the spec. Do not implement without completed research and approved spec.
+
+### Features (Lower Priority — v1 Gap Filling)
+
+- [ ] **Missing Pages** (`2026-03-22-missing-pages-plan.md`) — `/calls/:callId` detail page (new API endpoint needed), `/settings` profile section completion, `/notes/:noteId` permalink (new API endpoint needed). Requires `GET /api/calls/:callId` and `GET /api/notes/:noteId` to be added first.
+- [ ] **Message Delivery Status** (`2026-03-22-message-delivery-status-plan.md`) — Add `deliveryStatusUpdatedAt` field (existing fields mostly present), ensure Twilio StatusCallback URL set on outbound send, add status icon UI
+- [ ] **Report Types System** (`2026-03-22-report-types-system-plan.md`) — Named report types per hub, `report_type_id` on `conversations` table (not a separate table), field binding via `reportTypeIds[]`, client-side field exclusion before encryption, partial unique index for `is_default`
+- [ ] **Invite Delivery** (`2026-03-22-invite-email-delivery-plan.md`) — Signal > WhatsApp > SMS (no email), `HMAC_PHONE_PREFIX` phone hash storage, `conversationId` made optional in `SendMessageParams` prerequisite
+- [ ] **Dashboard Analytics** (`2026-03-22-dashboard-analytics-plan.md`) — `recharts` lazy-loaded, `calls:read-history` permission gate, volunteer stats resolved client-side from pubkey (no server-side name resolution), separate `volunteer_call_counts` counter table
+- [ ] **File Field Type** (`2026-03-22-file-field-type-plan.md`) — New `'file'` custom field type extending existing chunked upload + `FileKeyEnvelope` system. `PATCH /api/uploads/:id/context` binds file to note after save. Uses `LABEL_FILE_KEY` + `LABEL_FILE_METADATA`.
