@@ -9,17 +9,29 @@ import path from 'node:path'
  */
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
+import { migrate } from 'drizzle-orm/bun-sql/migrator'
 import { Hono } from 'hono'
-import { createNodeEnv } from './env'
+import { initDb } from '../../server/db'
+import { createServices } from '../../server/services'
+import { errorHandler } from '../../server/middleware/error'
+import { servicesMiddleware } from '../../server/middleware/services'
+import { loadEnv } from './env'
 
 async function main() {
-  console.log('[llamenos] Starting Node.js server...')
+  console.log('[llamenos] Starting server...')
 
-  // Create the Node.js environment with shimmed bindings
-  const env = await createNodeEnv()
-  console.log('[llamenos] Environment initialized')
+  const env = loadEnv()
 
-  // Import the app after setting PLATFORM
+  if (!env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required')
+  }
+
+  const db = initDb(env.DATABASE_URL)
+  await migrate(db, { migrationsFolder: path.resolve(process.cwd(), 'drizzle', 'migrations') })
+  console.log('[llamenos] Migrations applied')
+
+  const services = createServices(db)
+
   const { default: workerApp } = await import('../../worker/app')
 
   // Create a top-level Hono app
@@ -27,14 +39,20 @@ async function main() {
 
   // Inject env bindings into every request via middleware
   app.use('*', async (c, next) => {
-    // Hono on CF Workers provides env via c.env
-    // On Node.js, we inject it manually
-    ;(c as any).env = env
+    // biome-ignore lint/suspicious/noExplicitAny: env injection into Hono context
+    Object.assign((c as any).env ?? {}, env);
+    // biome-ignore lint/suspicious/noExplicitAny: env injection into Hono context
+    (c as any).env = env
     await next()
   })
 
+  app.use('*', servicesMiddleware(services))
+
   // Mount the worker app routes
+  // biome-ignore lint/suspicious/noExplicitAny: cross-platform mount
   app.route('/', workerApp as any)
+
+  app.onError(errorHandler)
 
   // Static file serving (replaces CF ASSETS binding)
   // The worker app's catch-all calls next() when ASSETS is null,
@@ -45,7 +63,7 @@ async function main() {
   // SPA fallback — serve index.html for all unmatched routes
   app.use('*', serveStatic({ root: staticDir, path: '/index.html' }))
 
-  const port = Number.parseInt(process.env.PORT || '3000')
+  const port = Number(process.env.PORT) || 3000
   const server = serve(
     {
       fetch: app.fetch,
@@ -57,16 +75,13 @@ async function main() {
   )
 
   // Graceful shutdown
-  const shutdown = async () => {
+  const shutdown = () => {
     console.log('[llamenos] Shutting down...')
-    const { stopAlarmPoller } = await import('./storage/alarm-poller')
-    const { closePool } = await import('./storage/postgres-pool')
-    stopAlarmPoller()
-    await closePool()
 
-    // Close Nostr publisher WebSocket
+    // Close Nostr publisher WebSocket if active
     try {
-      const { getNostrPublisher } = await import('../../worker/lib/do-access')
+      const { getNostrPublisher } = require('../../worker/lib/do-access')
+      // biome-ignore lint/suspicious/noExplicitAny: runtime shutdown call
       getNostrPublisher(env as any).close()
     } catch {}
 

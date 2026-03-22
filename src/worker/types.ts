@@ -1,36 +1,17 @@
 import type { BlobStorage, TranscriptionService } from '../platform/types'
 import type { KeyEnvelope, MessagingChannelType, RecipientEnvelope } from '../shared/types'
+import type { Services } from '../server/services'
 
 /**
  * Environment bindings.
  *
  * On Cloudflare Workers: these are real CF bindings (DurableObjectNamespace, Ai, R2Bucket, Fetcher).
- * On Node.js: these are shims from src/platform/node/ that implement the same method signatures.
+ * On Node.js (Drizzle path): DO namespace fields are not used — services are injected via middleware.
  *
  * We use structural typing — the interfaces only require the methods we actually call.
  */
 
-/** Minimal DurableObjectStub — only .fetch() is used */
-export interface DOStub {
-  fetch(request: Request): Promise<Response>
-}
-
-/** Minimal DurableObjectNamespace — only .idFromName() and .get() are used */
-export interface DONamespace {
-  idFromName(name: string): { toString(): string }
-  get(id: { toString(): string }): DOStub
-}
-
 export interface Env {
-  // Durable Object namespaces (CF: DurableObjectNamespace, Node: shim)
-  CALL_ROUTER: DONamespace
-  SHIFT_MANAGER: DONamespace
-  IDENTITY_DO: DONamespace
-  SETTINGS_DO: DONamespace
-  RECORDS_DO: DONamespace
-  CONVERSATION_DO: DONamespace
-  BLAST_DO: DONamespace
-
   // Transcription (CF: Ai binding, Node: Whisper HTTP client)
   AI: TranscriptionService
 
@@ -39,9 +20,6 @@ export interface Env {
 
   // Blob storage (CF: R2Bucket, Node: MinIO S3 client)
   R2_BUCKET: BlobStorage
-
-  // Nostr relay service binding (CF: Fetcher to Nosflare, Node: null)
-  NOSFLARE?: { fetch(request: Request): Promise<Response> }
 
   // Plain env vars / secrets (same on both platforms)
   TWILIO_ACCOUNT_SID: string
@@ -55,7 +33,7 @@ export interface Env {
   E2E_TEST_SECRET?: string
   DEV_RESET_SECRET?: string
 
-  // Demo mode (CF Cron Trigger resets all DOs on schedule)
+  // Demo mode
   DEMO_MODE?: string // "true" to enable
   DEMO_RESET_CRON?: string // Human-readable schedule label (e.g., "every 4 hours")
 
@@ -74,6 +52,9 @@ export interface Env {
 
   // Push notifications (Epic 86) — FCM (Android)
   FCM_SERVICE_ACCOUNT_KEY?: string // Google Cloud service account JSON
+
+  // DATABASE_URL for Drizzle connection (Node.js only)
+  DATABASE_URL?: string
 }
 
 /** @deprecated Use roles array + permission system instead */
@@ -368,5 +349,7 @@ export type AppEnv = {
     hubId?: string
     /** Hub-scoped permissions (resolved for the current hub) */
     hubPermissions?: string[]
+    /** Injected service instances (Node.js / Drizzle path) */
+    services?: Services
   }
 }

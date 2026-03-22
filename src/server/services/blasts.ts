@@ -99,6 +99,15 @@ export class BlastService {
     return rows[0] ? this.#rowToSubscriber(rows[0]) : null
   }
 
+  async getSubscriberByToken(token: string): Promise<Subscriber | null> {
+    const rows = await this.db
+      .select()
+      .from(subscribers)
+      .where(eq(subscribers.token, token))
+      .limit(1)
+    return rows[0] ? this.#rowToSubscriber(rows[0]) : null
+  }
+
   async createSubscriber(data: CreateSubscriberData): Promise<Subscriber> {
     const id = crypto.randomUUID()
     const [row] = await this.db

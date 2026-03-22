@@ -14,8 +14,33 @@ import { PlivoAdapter } from '../telephony/plivo'
 import { SignalWireAdapter } from '../telephony/signalwire'
 import { TwilioAdapter } from '../telephony/twilio'
 import { VonageAdapter } from '../telephony/vonage'
-import type { DOStub, Env } from '../types'
+import type { Env } from '../types'
 import { type NostrPublisher, createNostrPublisher } from './nostr-publisher'
+
+/** Minimal DurableObjectStub — only .fetch() is used */
+export interface DOStub {
+  fetch(request: Request): Promise<Response>
+}
+
+/** Minimal DurableObjectNamespace — only .idFromName() and .get() are used */
+export interface DONamespace {
+  idFromName(name: string): { toString(): string }
+  get(id: { toString(): string }): DOStub
+}
+
+/**
+ * Extended env with DO namespace bindings (CF Workers only).
+ * Phase 5 will remove these once all routes are migrated to services.
+ */
+export type EnvWithDOs = Env & {
+  CALL_ROUTER: DONamespace
+  SHIFT_MANAGER: DONamespace
+  IDENTITY_DO: DONamespace
+  SETTINGS_DO: DONamespace
+  RECORDS_DO: DONamespace
+  CONVERSATION_DO: DONamespace
+  BLAST_DO: DONamespace
+}
 
 const IDENTITY_ID = 'global-identity'
 const SETTINGS_ID = 'global-settings'
@@ -36,14 +61,15 @@ export interface DurableObjects {
 }
 
 export function getDOs(env: Env): DurableObjects {
+  const e = env as EnvWithDOs
   return {
-    identity: env.IDENTITY_DO.get(env.IDENTITY_DO.idFromName(IDENTITY_ID)),
-    settings: env.SETTINGS_DO.get(env.SETTINGS_DO.idFromName(SETTINGS_ID)),
-    records: env.RECORDS_DO.get(env.RECORDS_DO.idFromName(RECORDS_ID)),
-    shifts: env.SHIFT_MANAGER.get(env.SHIFT_MANAGER.idFromName(SHIFT_ID)),
-    calls: env.CALL_ROUTER.get(env.CALL_ROUTER.idFromName(CALL_ID)),
-    conversations: env.CONVERSATION_DO.get(env.CONVERSATION_DO.idFromName(CONVERSATION_ID)),
-    blasts: env.BLAST_DO.get(env.BLAST_DO.idFromName(BLAST_ID)),
+    identity: e.IDENTITY_DO.get(e.IDENTITY_DO.idFromName(IDENTITY_ID)),
+    settings: e.SETTINGS_DO.get(e.SETTINGS_DO.idFromName(SETTINGS_ID)),
+    records: e.RECORDS_DO.get(e.RECORDS_DO.idFromName(RECORDS_ID)),
+    shifts: e.SHIFT_MANAGER.get(e.SHIFT_MANAGER.idFromName(SHIFT_ID)),
+    calls: e.CALL_ROUTER.get(e.CALL_ROUTER.idFromName(CALL_ID)),
+    conversations: e.CONVERSATION_DO.get(e.CONVERSATION_DO.idFromName(CONVERSATION_ID)),
+    blasts: e.BLAST_DO.get(e.BLAST_DO.idFromName(BLAST_ID)),
   }
 }
 
@@ -70,12 +96,13 @@ export function getScopedDOs(env: Env, hubId?: string): DurableObjects {
 }
 
 export function getHubDOs(env: Env, hubId: string): HubDurableObjects {
+  const e = env as EnvWithDOs
   return {
-    records: env.RECORDS_DO.get(env.RECORDS_DO.idFromName(hubId)),
-    shifts: env.SHIFT_MANAGER.get(env.SHIFT_MANAGER.idFromName(hubId)),
-    calls: env.CALL_ROUTER.get(env.CALL_ROUTER.idFromName(hubId)),
-    conversations: env.CONVERSATION_DO.get(env.CONVERSATION_DO.idFromName(hubId)),
-    blasts: env.BLAST_DO.get(env.BLAST_DO.idFromName(hubId)),
+    records: e.RECORDS_DO.get(e.RECORDS_DO.idFromName(hubId)),
+    shifts: e.SHIFT_MANAGER.get(e.SHIFT_MANAGER.idFromName(hubId)),
+    calls: e.CALL_ROUTER.get(e.CALL_ROUTER.idFromName(hubId)),
+    conversations: e.CONVERSATION_DO.get(e.CONVERSATION_DO.idFromName(hubId)),
+    blasts: e.BLAST_DO.get(e.BLAST_DO.idFromName(hubId)),
   }
 }
 
