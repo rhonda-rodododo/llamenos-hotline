@@ -777,7 +777,23 @@
       "maxLength": "最大长度"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "file": {
+      "upload": "Choose file or drag & drop",
+      "uploading": "Uploading...",
+      "download": "Download",
+      "remove": "Remove",
+      "tooLarge": "File too large (max {{max}} MB)",
+      "invalidType": "File type not allowed",
+      "unavailable": "File unavailable",
+      "allowedTypes": "Allowed file types",
+      "allowedTypesHint": "Hold Ctrl/Cmd to select multiple",
+      "mimeImages": "Images",
+      "mimePDF": "PDF",
+      "mimeAudio": "Audio",
+      "mimeAny": "Any file type",
+      "maxSizeMB": "Max file size (MB)"
+    }
   },
   "volunteerProfile": {
     "joined": "加入于",
@@ -1328,5 +1344,15 @@
     "retentionAuditLog": "审计日志（天）",
     "retentionSaved": "保留设置已保存",
     "retentionSaveError": "保存保留设置失败"
+  },
+  "conversations": {
+    "status": {
+      "pending": "待发送",
+      "sent": "已发送",
+      "delivered": "已送达",
+      "read": "已读",
+      "failed": "发送失败",
+      "failedTooltip": "失败：{{error}}"
+    }
   }
 }

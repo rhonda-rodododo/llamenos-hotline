@@ -1,6 +1,14 @@
-import { boolean, integer, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
+import { boolean, integer, pgEnum, pgTable, text, timestamp, unique, varchar } from 'drizzle-orm/pg-core'
 import type { EncryptedMetaItem, FileKeyEnvelope, RecipientEnvelope } from '../../../shared/types'
 import { jsonb } from '../bun-jsonb'
+
+export const messageDeliveryStatusEnum = pgEnum('message_delivery_status', [
+  'pending',
+  'sent',
+  'delivered',
+  'read',
+  'failed',
+])
 
 export const conversations = pgTable(
   'conversations',
@@ -33,6 +41,10 @@ export const messageEnvelopes = pgTable('message_envelopes', {
   attachmentIds: jsonb<string[]>()('attachment_ids').notNull().default([]),
   externalId: text('external_id'),
   status: text('status').notNull().default('pending'),
+  deliveryStatus: messageDeliveryStatusEnum('delivery_status').notNull().default('pending'),
+  deliveryStatusUpdatedAt: timestamp('delivery_status_updated_at', { withTimezone: true }),
+  providerMessageId: varchar('provider_message_id', { length: 128 }),
+  deliveryError: text('delivery_error'),
   deliveredAt: timestamp('delivered_at', { withTimezone: true }),
   readAt: timestamp('read_at', { withTimezone: true }),
   failureReason: text('failure_reason'),

@@ -777,7 +777,23 @@
       "maxLength": "Longè Maks"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "file": {
+      "upload": "Choose file or drag & drop",
+      "uploading": "Uploading...",
+      "download": "Download",
+      "remove": "Remove",
+      "tooLarge": "File too large (max {{max}} MB)",
+      "invalidType": "File type not allowed",
+      "unavailable": "File unavailable",
+      "allowedTypes": "Allowed file types",
+      "allowedTypesHint": "Hold Ctrl/Cmd to select multiple",
+      "mimeImages": "Images",
+      "mimePDF": "PDF",
+      "mimeAudio": "Audio",
+      "mimeAny": "Any file type",
+      "maxSizeMB": "Max file size (MB)"
+    }
   },
   "volunteerProfile": {
     "joined": "Te antre",
@@ -1328,5 +1344,15 @@
     "retentionAuditLog": "Audit log (days)",
     "retentionSaved": "Retention settings saved",
     "retentionSaveError": "Failed to save retention settings"
+  },
+  "conversations": {
+    "status": {
+      "pending": "Annatant",
+      "sent": "Voye",
+      "delivered": "Delivre",
+      "read": "Li",
+      "failed": "Echwe",
+      "failedTooltip": "Echwe: {{error}}"
+    }
   }
 }

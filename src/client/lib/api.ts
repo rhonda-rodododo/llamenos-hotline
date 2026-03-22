@@ -895,6 +895,9 @@ export interface ConversationMessage {
   attachmentIds?: string[]
   // Delivery status tracking (Epic 71)
   status?: MessageDeliveryStatus
+  deliveryStatus?: MessageDeliveryStatus
+  deliveryStatusUpdatedAt?: string
+  deliveryError?: string
   deliveredAt?: string
   readAt?: string
   failureReason?: string
@@ -1199,6 +1202,17 @@ export async function shareFile(
   return request<{ ok: true }>(`/files/${fileId}/share`, {
     method: 'POST',
     body: JSON.stringify(data),
+  })
+}
+
+export async function bindUploadContext(
+  uploadId: string,
+  contextType: 'note' | 'report' | 'custom_field',
+  contextId: string
+) {
+  return request<{ ok: true }>(`/uploads/${uploadId}/context`, {
+    method: 'PATCH',
+    body: JSON.stringify({ contextType, contextId }),
   })
 }
 

@@ -1,4 +1,4 @@
-import type { KeyEnvelope, MessagingChannelType, RecipientEnvelope } from '../shared/types'
+import type { KeyEnvelope, MessageDeliveryStatus, MessagingChannelType, RecipientEnvelope } from '../shared/types'
 
 /**
  * S3-compatible blob storage (R2 / MinIO).
@@ -265,7 +265,7 @@ export interface Conversation {
   lastMessageAt: Date
 }
 
-export type MessageDeliveryStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed'
+export type { MessageDeliveryStatus } from '../shared/types'
 
 /**
  * Encrypted message using the envelope pattern (Epic 74).
@@ -285,6 +285,10 @@ export interface EncryptedMessage {
   attachmentIds?: string[]
   externalId?: string | null
   status: string
+  deliveryStatus: MessageDeliveryStatus
+  deliveryStatusUpdatedAt?: Date | null
+  providerMessageId?: string | null
+  deliveryError?: string | null
   deliveredAt?: Date | null
   readAt?: Date | null
   failureReason?: string | null
@@ -766,6 +770,9 @@ export interface CreateMessageData {
   attachmentIds?: string[]
   externalId?: string
   status?: string
+  deliveryStatus?: MessageDeliveryStatus
+  providerMessageId?: string
+  deliveryError?: string
 }
 
 // -------------------------------------------------------------------

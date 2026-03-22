@@ -227,6 +227,7 @@ export function CustomFieldsSection({
                 <option value="select">{t('customFields.types.select')}</option>
                 <option value="checkbox">{t('customFields.types.checkbox')}</option>
                 <option value="textarea">{t('customFields.types.textarea')}</option>
+                <option value="file">{t('customFields.types.file')}</option>
               </select>
             </div>
           </div>
@@ -352,6 +353,53 @@ export function CustomFieldsSection({
                       },
                     }))
                   }
+                />
+              </div>
+            </div>
+          )}
+
+          {/* File type options */}
+          {editing.type === 'file' && (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>{t('customFields.file.allowedTypes')}</Label>
+                <select
+                  multiple
+                  data-testid="file-allowed-types"
+                  value={editing.allowedMimeTypes ?? []}
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.selectedOptions).map((o) => o.value)
+                    setEditing((prev) => ({ ...prev!, allowedMimeTypes: selected }))
+                  }}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  size={4}
+                >
+                  <option value="image/*">{t('customFields.file.mimeImages')}</option>
+                  <option value="application/pdf">{t('customFields.file.mimePDF')}</option>
+                  <option value="audio/*">{t('customFields.file.mimeAudio')}</option>
+                  <option value="*/*">{t('customFields.file.mimeAny')}</option>
+                </select>
+                <p className="text-xs text-muted-foreground">{t('customFields.file.allowedTypesHint')}</p>
+              </div>
+              <div className="space-y-1">
+                <Label>{t('customFields.file.maxSizeMB')}</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={
+                    editing.maxFileSize !== undefined
+                      ? Math.round(editing.maxFileSize / (1024 * 1024))
+                      : 10
+                  }
+                  onChange={(e) => {
+                    const mb = Number(e.target.value)
+                    setEditing((prev) => ({
+                      ...prev!,
+                      maxFileSize: mb > 0 ? mb * 1024 * 1024 : undefined,
+                    }))
+                  }}
+                  placeholder="10"
                 />
               </div>
             </div>

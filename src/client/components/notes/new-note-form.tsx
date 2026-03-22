@@ -11,16 +11,19 @@ import {
 } from '@/components/ui/select'
 import type { CallRecord, CustomFieldDefinition } from '@/lib/api'
 import { useCalls } from '@/lib/hooks'
+import type { FileFieldValue } from '@shared/types'
 import { PhoneCall, Save, StickyNote } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CustomFieldInputs } from './custom-field-inputs'
 
+type FieldValue = string | number | boolean | FileFieldValue
+
 interface Props {
   recentCalls: CallRecord[]
   customFieldDefs: CustomFieldDefinition[]
   saving: boolean
-  onSave: (callId: string, text: string, fields: Record<string, string | number | boolean>) => void
+  onSave: (callId: string, text: string, fields: Record<string, FieldValue>) => void
   onCancel: () => void
 }
 
@@ -29,7 +32,7 @@ export function NewNoteForm({ recentCalls, customFieldDefs, saving, onSave, onCa
   const { currentCall } = useCalls()
   const [callId, setCallId] = useState('')
   const [text, setText] = useState('')
-  const [fields, setFields] = useState<Record<string, string | number | boolean>>({})
+  const [fields, setFields] = useState<Record<string, FieldValue>>({})
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: callId intentionally omitted — only set once when currentCall first arrives
   useEffect(() => {

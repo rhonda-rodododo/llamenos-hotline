@@ -777,7 +777,23 @@
       "maxLength": "Longitud Máx"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "file": {
+      "upload": "Choose file or drag & drop",
+      "uploading": "Uploading...",
+      "download": "Download",
+      "remove": "Remove",
+      "tooLarge": "File too large (max {{max}} MB)",
+      "invalidType": "File type not allowed",
+      "unavailable": "File unavailable",
+      "allowedTypes": "Allowed file types",
+      "allowedTypesHint": "Hold Ctrl/Cmd to select multiple",
+      "mimeImages": "Images",
+      "mimePDF": "PDF",
+      "mimeAudio": "Audio",
+      "mimeAny": "Any file type",
+      "maxSizeMB": "Max file size (MB)"
+    }
   },
   "volunteerProfile": {
     "joined": "Se unió",
@@ -1328,5 +1344,15 @@
     "retentionAuditLog": "Registro de auditoría (días)",
     "retentionSaved": "Configuración de retención guardada",
     "retentionSaveError": "Error al guardar la configuración"
+  },
+  "conversations": {
+    "status": {
+      "pending": "Pendiente",
+      "sent": "Enviado",
+      "delivered": "Entregado",
+      "read": "Leído",
+      "failed": "Fallido",
+      "failedTooltip": "Error: {{error}}"
+    }
   }
 }

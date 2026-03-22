@@ -1,16 +1,19 @@
 import { Button } from '@/components/ui/button'
 import type { CustomFieldDefinition } from '@/lib/api'
+import type { FileFieldValue } from '@shared/types'
 import { Save, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CustomFieldInputs } from './custom-field-inputs'
 
+type FieldValue = string | number | boolean | FileFieldValue
+
 interface Props {
   text: string
-  fields: Record<string, string | number | boolean>
+  fields: Record<string, FieldValue>
   customFieldDefs: CustomFieldDefinition[]
   saving: boolean
-  onSave: (text: string, fields: Record<string, string | number | boolean>) => void
+  onSave: (text: string, fields: Record<string, FieldValue>) => void
   onCancel: () => void
 }
 
