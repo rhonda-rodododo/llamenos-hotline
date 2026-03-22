@@ -1,5 +1,15 @@
 # Completed Backlog
 
+## 2026-03-22: Application Hardening Phase 3 Audit (`cf-removal` worktree)
+
+All Phase 3 items verified already implemented — no code changes required:
+- [x] Auth middleware: no `as any` casts (uses typed service calls, not raw DO fetches)
+- [x] `profileCompleted` wiring: profile-setup form sends `{ profileCompleted: true }`, root guard redirects based on it, subsequent logins skip setup gate
+- [x] On-break filtering: `startParallelRinging` filters `!v.onBreak` before telephony ring
+- [x] Active calls dashboard widget: already shows ongoing calls with volunteer name
+- [x] Call history pagination: `?page&limit&search&dateFrom&dateTo` all implemented
+- Discovery phases 3.5/3.6/3.9 (call transfer, note replies, auto-assignment): deferred pending specs
+
 ## 2026-03-22: Volunteer PII Enforcement (`cf-removal` worktree)
 
 - [x] Created `src/server/lib/volunteer-projector.ts` — discriminated-union view types (`VolunteerAdminView`, `VolunteerSelfView`, `VolunteerPublicView`) + `projectVolunteer()` + `maskPhone()`
