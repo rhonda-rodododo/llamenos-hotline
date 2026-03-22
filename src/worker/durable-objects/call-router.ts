@@ -23,9 +23,13 @@ import { KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_PRESENCE_UP
 export class CallRouterDO extends DurableObject<Env> {
   private migrated = false
   private router: DORouter
+  /** The hub ID this DO instance is managing (derived from idFromName key). */
+  private readonly hubId: string
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
+    // ctx.id.name is the string passed to idFromName() — e.g. 'global-calls' or a hub UUID
+    this.hubId = ctx.id.name ?? 'global-calls'
     this.router = new DORouter()
 
     this.router.get('/calls/active', () => this.getActiveCalls())
@@ -432,7 +436,7 @@ export class CallRouterDO extends DurableObject<Env> {
 
     let onShiftPubkeys: string[] = []
     try {
-      const shiftDO = this.env.SHIFT_MANAGER.get(this.env.SHIFT_MANAGER.idFromName('global-shifts'))
+      const shiftDO = this.env.SHIFT_MANAGER.get(this.env.SHIFT_MANAGER.idFromName(this.hubId))
       const shiftRes = await shiftDO.fetch(new Request('http://do/current-volunteers'))
       if (shiftRes.ok) {
         const data = await shiftRes.json() as { volunteers?: string[] }
@@ -480,7 +484,7 @@ export class CallRouterDO extends DurableObject<Env> {
   private publishNostrEvent(kind: number, content: Record<string, unknown>): void {
     try {
       const publisher = getNostrPublisher(this.env)
-      const hubTag = 'global'
+      const hubTag = this.hubId
 
       // Encrypt event content if server secret is available
       let eventContent: string
@@ -514,7 +518,7 @@ export class CallRouterDO extends DurableObject<Env> {
 
     let onShiftCount = 0
     try {
-      const shiftDO = this.env.SHIFT_MANAGER.get(this.env.SHIFT_MANAGER.idFromName('global-shifts'))
+      const shiftDO = this.env.SHIFT_MANAGER.get(this.env.SHIFT_MANAGER.idFromName(this.hubId))
       const shiftRes = await shiftDO.fetch(new Request('http://do/current-volunteers'))
       if (shiftRes.ok) {
         const data = await shiftRes.json() as { volunteers?: string[] }

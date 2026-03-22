@@ -133,11 +133,20 @@ routes.delete('/:hubId/members/:pubkey', requirePermission('volunteers:manage-ro
 
 // --- Hub Key Management ---
 
-// Get my hub key envelope (any hub member)
+// Get my hub key envelope (any hub member — membership required)
 routes.get('/:hubId/key', async (c) => {
   const hubId = c.req.param('hubId')
   const pubkey = c.get('pubkey')
+  const volunteer = c.get('volunteer')
+  const permissions = c.get('permissions')
   const dos = getDOs(c.env)
+
+  // Enforce hub membership — only members and super-admins may fetch hub key envelopes
+  const isSuperAdmin = checkPermission(permissions, '*')
+  const isMember = (volunteer.hubRoles || []).some(hr => hr.hubId === hubId)
+  if (!isSuperAdmin && !isMember) {
+    return c.json({ error: 'Access denied' }, 403)
+  }
 
   const res = await dos.settings.fetch(new Request(`http://do/settings/hub/${hubId}/key`))
   if (!res.ok) return c.json({ error: 'Hub not found' }, 404)

@@ -7,8 +7,8 @@ import { audit } from '../services/audit'
 
 const bans = new Hono<AppEnv>()
 
-// Any authenticated user with bans:report can report/ban
-bans.post('/', requirePermission('bans:report'), async (c) => {
+// Any authenticated user with bans:create can create a ban
+bans.post('/', requirePermission('bans:create'), async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
   const pubkey = c.get('pubkey')
   const body = await c.req.json() as { phone: string; reason: string }
