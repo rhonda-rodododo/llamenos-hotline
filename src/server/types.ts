@@ -20,12 +20,8 @@ export interface TranscriptionService {
 import type { Services } from './services'
 
 /**
- * Environment bindings.
- *
- * On Cloudflare Workers: these are real CF bindings (DurableObjectNamespace, Ai, R2Bucket, Fetcher).
- * On Node.js (Drizzle path): DO namespace fields are not used — services are injected via middleware.
- *
- * We use structural typing — the interfaces only require the methods we actually call.
+ * Environment bindings available on the Hono context (c.env).
+ * Injected at startup by server.ts via middleware.
  */
 
 export interface Env {
