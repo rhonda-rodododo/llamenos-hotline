@@ -7,6 +7,18 @@
 - [x] Added `rollback-demo` recipe to `deploy/ansible/justfile`: `just rollback-demo v1.2.3`
 - **Operator action required**: set `CF_API_TOKEN` + `CF_ACCOUNT_ID` GitHub secrets for the `cloudflare-pages` environment to enable site auto-deploy
 
+## 2026-03-22: PostgreSQL Backup & Recovery (`cf-removal` worktree)
+
+- [x] Existing backup role audited — `age` encryption, rclone upload, GFS retention already implemented
+- [x] Fixed `test-restore.yml` table validation: replaced old CF DO tables (`kv_store`, `alarms`) with current Drizzle tables (`volunteers`, `active_calls`)
+- [x] Added `backup/defaults/main.yml` documenting all role variables
+- [x] Backup script now writes `.status.json` after each run; mounted into app container
+- [x] `GET /api/health` now includes `backup.lastSuccessAt`, `lastSizeBytes`, and `file` when available
+- [x] Added `playbooks/restore.yml`: disaster recovery playbook (stop app, age decrypt, restore, verify, restart)
+- [x] Added `deploy/scripts/restore-postgres.sh`: manual restore script for ops use
+- [x] Created `docs/ops/restore-runbook.md`: full restore procedures, monthly test cadence, integrity checks
+- [x] Added justfile recipes: `backup-demo`, `test-restore-demo`, `restore-demo backup_file`
+
 ## 2026-03-22: CI Security Hardening (`cf-removal` worktree)
 
 - [x] GPG signing step in `release` job: imports `RELEASE_GPG_PRIVATE_KEY` secret, signs `CHECKSUMS.txt`, uploads `CHECKSUMS.txt.asc` to GitHub Release (gated on secret presence)
