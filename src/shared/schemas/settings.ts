@@ -1,23 +1,31 @@
 import { z } from 'zod'
 
 export const HubSchema = z.object({
-  id: z.uuid(),
+  id: z.string(),
   name: z.string(),
-  nostrPubkey: z.string().optional(),
+  slug: z.string(),
+  description: z.string().optional(),
+  status: z.enum(['active', 'suspended', 'archived']),
+  phoneNumber: z.string().optional(),
+  createdBy: z.string(),
   createdAt: z.iso.datetime(),
-  status: z.enum(['active', 'suspended', 'archived']).optional(),
+  updatedAt: z.iso.datetime(),
 })
 export type Hub = z.infer<typeof HubSchema>
 
 export const CreateHubSchema = z.object({
   name: z.string().min(1).max(100),
-  nostrPubkey: z.string().optional(),
+  slug: z.string().min(1).max(100).optional(),
+  description: z.string().max(500).optional(),
+  phoneNumber: z.string().optional(),
 })
 export type CreateHubInput = z.infer<typeof CreateHubSchema>
 
 export const UpdateHubSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  nostrPubkey: z.string().optional(),
+  description: z.string().max(500).optional(),
+  phoneNumber: z.string().optional(),
+  status: z.enum(['active', 'suspended', 'archived']).optional(),
 })
 export type UpdateHubInput = z.infer<typeof UpdateHubSchema>
 
