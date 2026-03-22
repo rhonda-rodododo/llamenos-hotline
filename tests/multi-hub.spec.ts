@@ -192,6 +192,41 @@ test.describe('Multi-hub architecture', () => {
     expect(removeResult.ok).toBe(true)
   })
 
+  test('admin can archive a hub via the UI', async ({ page }) => {
+    // Create a hub via the API so the test doesn't depend on prior state
+    const hubName = `archive-test-${Date.now()}`
+    const created = await page.evaluate(async (name: string) => {
+      const res = await window.__authedFetch('/api/hubs', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      })
+      return res.json()
+    }, hubName)
+    expect(created).toHaveProperty('hub')
+
+    // Navigate to the hub management page
+    await page.goto('/admin/hubs')
+    await page.waitForLoadState('networkidle')
+
+    // Confirm the hub appears in the active list
+    await expect(page.getByText(hubName)).toBeVisible()
+
+    // Click the Archive button for this hub's row
+    const hubRow = page.locator('[data-testid="hub-row"]').filter({ hasText: hubName })
+    await hubRow.getByRole('button', { name: /archive/i }).click()
+
+    // Confirmation dialog should appear
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await expect(page.getByRole('dialog')).toContainText(hubName)
+
+    // Confirm the archive action (click the destructive Archive Hub button in dialog)
+    await page.getByRole('button', { name: /archive hub/i }).last().click()
+
+    // Dialog should close and hub should no longer appear in the active list
+    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await expect(page.getByText(hubName)).not.toBeVisible()
+  })
+
   test('hub-scoped data is isolated', async ({ page }) => {
     // Create two hubs
     const hub1 = await page.evaluate(async () => {
