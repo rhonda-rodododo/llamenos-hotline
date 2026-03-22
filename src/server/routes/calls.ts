@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { getTelephony } from '../../server/lib/adapters'
+import { getTelephony } from '../lib/adapters'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 

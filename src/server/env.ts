@@ -1,6 +1,6 @@
 import fs from 'node:fs'
-import { createBlobStorage } from './blob-storage'
-import { createTranscriptionService } from './transcription'
+import { createBlobStorage } from './lib/blob-storage'
+import { createTranscriptionService } from './lib/transcription'
 
 /**
  * Read a secret from /run/secrets/ (Docker secrets) or fall back to env var.

@@ -1,5 +1,5 @@
 import type { Services } from '../services'
-import type { Env } from '../../worker/types'
+import type { Env } from '../types'
 import { getTelephony } from './adapters'
 
 export async function startParallelRinging(
