@@ -342,11 +342,15 @@ export class IdentityService {
 
   async updateWebAuthnCounter(data: UpdateWebAuthnCounterData): Promise<void> {
     const rows = await this.db
-      .select({ id: webauthnCredentials.id })
+      .select({ id: webauthnCredentials.id, counter: webauthnCredentials.counter })
       .from(webauthnCredentials)
       .where(and(eq(webauthnCredentials.pubkey, data.pubkey), eq(webauthnCredentials.id, data.credId)))
       .limit(1)
-    if (!rows[0]) throw new AppError(404, 'Credential not found')
+    const existing = rows[0]
+    if (!existing) throw new AppError(404, 'Credential not found')
+    if (data.counter <= Number(existing.counter)) {
+      throw new AppError(409, 'Counter replay detected — possible authenticator replay attack')
+    }
     await this.db
       .update(webauthnCredentials)
       .set({ counter: String(data.counter), lastUsedAt: new Date(data.lastUsedAt) })
