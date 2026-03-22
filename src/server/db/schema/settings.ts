@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 import { jsonb } from '../bun-jsonb'
 
 export const hubs = pgTable('hubs', {
@@ -8,11 +8,15 @@ export const hubs = pgTable('hubs', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const hubKeys = pgTable('hub_keys', {
-  hubId: text('hub_id').notNull(),
-  pubkey: text('pubkey').notNull(),
-  encryptedKey: text('encrypted_key').notNull(),
-})
+export const hubKeys = pgTable(
+  'hub_keys',
+  {
+    hubId: text('hub_id').notNull(),
+    pubkey: text('pubkey').notNull(),
+    encryptedKey: text('encrypted_key').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.hubId, table.pubkey] })],
+)
 
 export const roles = pgTable('roles', {
   id: text('id').primaryKey(),
@@ -85,14 +89,18 @@ export const rateLimitCounters = pgTable('rate_limit_counters', {
   windowStart: timestamp('window_start', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const ivrAudio = pgTable('ivr_audio', {
-  hubId: text('hub_id').notNull().default('global'),
-  promptType: text('prompt_type').notNull(),
-  language: text('language').notNull(),
-  audioData: text('audio_data').notNull(), // base64-encoded audio
-  mimeType: text('mime_type').notNull().default('audio/mpeg'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-})
+export const ivrAudio = pgTable(
+  'ivr_audio',
+  {
+    hubId: text('hub_id').notNull().default('global'),
+    promptType: text('prompt_type').notNull(),
+    language: text('language').notNull(),
+    audioData: text('audio_data').notNull(), // base64-encoded audio
+    mimeType: text('mime_type').notNull().default('audio/mpeg'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.hubId, table.promptType, table.language] })],
+)
 
 export const setupState = pgTable('setup_state', {
   hubId: text('hub_id').primaryKey().default('global'),
