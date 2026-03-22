@@ -1,0 +1,140 @@
+---
+# Preflight Validation Playbook
+#
+# Validates all required variables before any server changes are made.
+# Fails fast with a descriptive error if any required var is missing or invalid.
+#
+# This playbook is imported by setup.yml, harden.yml, and deploy.yml.
+# It is safe to run in --check mode (no changes made).
+
+- name: Preflight variable validation
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Assert domain is set
+      ansible.builtin.assert:
+        that:
+          - domain is defined
+          - domain | length > 0
+          - domain != "hotline.yourdomain.org"
+        fail_msg: >
+          REQUIRED: 'domain' must be set to your actual domain name.
+          Example: domain: hotline.example.org
+        success_msg: "domain: {{ domain }}"
+
+    - name: Assert acme_email is set
+      ansible.builtin.assert:
+        that:
+          - acme_email is defined
+          - acme_email | length > 0
+          - acme_email != "admin@yourdomain.org"
+        fail_msg: >
+          REQUIRED: 'acme_email' must be set to your actual email address for Let's Encrypt.
+          Example: acme_email: admin@example.org
+        success_msg: "acme_email: {{ acme_email }}"
+
+    - name: Assert deploy_user is set
+      ansible.builtin.assert:
+        that:
+          - deploy_user is defined
+          - deploy_user | length > 0
+        fail_msg: >
+          REQUIRED: 'deploy_user' must be set to the non-root user that runs the application.
+          Example: deploy_user: deploy
+        success_msg: "deploy_user: {{ deploy_user }}"
+
+    - name: Assert llamenos_image is set
+      ansible.builtin.assert:
+        that:
+          - llamenos_image is defined
+          - llamenos_image | length > 0
+        fail_msg: >
+          REQUIRED: 'llamenos_image' must be set to the Docker image for the Llamenos app.
+          Example: llamenos_image: ghcr.io/llamenos/llamenos:0.20.0
+        success_msg: "llamenos_image: {{ llamenos_image }}"
+
+    - name: Assert admin_pubkey is a valid 64-character hex string
+      ansible.builtin.assert:
+        that:
+          - admin_pubkey is defined
+          - admin_pubkey | length == 64
+          - admin_pubkey | regex_search('^[0-9a-f]{64}$')
+        fail_msg: >
+          REQUIRED: 'admin_pubkey' must be a 64-character lowercase hex string (Nostr public key).
+          Generate one with: bun run bootstrap-admin
+        success_msg: "admin_pubkey: {{ admin_pubkey[:8] }}... (64 chars)"
+
+    - name: Assert admin_decryption_pubkey is a valid 64-character hex string
+      ansible.builtin.assert:
+        that:
+          - admin_decryption_pubkey is defined
+          - admin_decryption_pubkey | length == 64
+          - admin_decryption_pubkey | regex_search('^[0-9a-f]{64}$')
+        fail_msg: >
+          REQUIRED: 'admin_decryption_pubkey' must be a 64-character lowercase hex string.
+          Generate one with: bun run bootstrap-admin
+        success_msg: "admin_decryption_pubkey: {{ admin_decryption_pubkey[:8] }}... (64 chars)"
+
+    - name: Assert hmac_secret meets minimum length
+      ansible.builtin.assert:
+        that:
+          - hmac_secret is defined
+          - hmac_secret | length >= 32
+        fail_msg: >
+          REQUIRED: 'hmac_secret' must be at least 32 characters long.
+          Generate one with: openssl rand -hex 32
+        success_msg: "hmac_secret: [set, {{ hmac_secret | length }} chars]"
+
+    - name: Assert server_nostr_secret is a valid 64-character hex string
+      ansible.builtin.assert:
+        that:
+          - server_nostr_secret is defined
+          - server_nostr_secret | length == 64
+          - server_nostr_secret | regex_search('^[0-9a-f]{64}$')
+        fail_msg: >
+          REQUIRED: 'server_nostr_secret' must be exactly 64 lowercase hex characters.
+          Generate one with: openssl rand -hex 32
+        success_msg: "server_nostr_secret: [set, 64 chars]"
+
+    - name: Assert pg_password meets minimum length
+      ansible.builtin.assert:
+        that:
+          - pg_password is defined
+          - pg_password | length >= 16
+        fail_msg: >
+          REQUIRED: 'pg_password' must be at least 16 characters long.
+          Generate one with: openssl rand -base64 24
+        success_msg: "pg_password: [set, {{ pg_password | length }} chars]"
+
+    - name: Assert minio_access_key is set
+      ansible.builtin.assert:
+        that:
+          - minio_access_key is defined
+          - minio_access_key | length > 0
+        fail_msg: >
+          REQUIRED: 'minio_access_key' must be set.
+          Generate one with: openssl rand -base64 24
+        success_msg: "minio_access_key: [set]"
+
+    - name: Assert minio_secret_key meets minimum length
+      ansible.builtin.assert:
+        that:
+          - minio_secret_key is defined
+          - minio_secret_key | length >= 16
+        fail_msg: >
+          REQUIRED: 'minio_secret_key' must be at least 16 characters long.
+          Generate one with: openssl rand -base64 24
+        success_msg: "minio_secret_key: [set, {{ minio_secret_key | length }} chars]"
+
+    - name: Warn if SSH is open to the world
+      ansible.builtin.debug:
+        msg: >
+          WARNING: ssh_allowed_cidrs includes '0.0.0.0/0' — SSH is open to the entire internet.
+          Restrict this to your admin IP addresses for maximum security.
+          Example: ssh_allowed_cidrs: ["203.0.113.1/32"]
+      when: "'0.0.0.0/0' in (ssh_allowed_cidrs | default([]))"
+
+    - name: Preflight checks passed
+      ansible.builtin.debug:
+        msg: "All required variables are present and valid. Proceeding with deployment."

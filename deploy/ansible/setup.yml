@@ -19,6 +19,9 @@
         file: vars.yml
       tags: always
 
+- name: Validate required variables
+  ansible.builtin.import_playbook: playbooks/preflight.yml
+
 - name: Harden server
   ansible.builtin.import_playbook: playbooks/harden.yml
   tags:

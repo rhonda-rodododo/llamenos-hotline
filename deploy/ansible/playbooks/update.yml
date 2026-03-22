@@ -3,11 +3,11 @@
 #
 # Performs a safe rolling update:
 # 1. Run backup before updating
-# 2. Record current image digests for rollback
+# 2. Record current llamenos image digest for rollback
 # 3. Pull new images
 # 4. Restart services with docker compose
 # 5. Wait for health check
-# 6. Rollback to previous images on failure
+# 6. Rollback to previous digest on failure via docker-compose.rollback.yml override
 #
 # Usage:
 #   ansible-playbook playbooks/update.yml --ask-vault-pass
@@ -24,21 +24,21 @@
         name: backup
       tags: [backup, update]
 
-    - name: Record current image digests for rollback
+    - name: Record current llamenos image digest for rollback
       ansible.builtin.shell: |
-        cd {{ app_dir }}
-        docker compose images --format json 2>/dev/null || echo "[]"
-      register: pre_update_images
+        docker inspect --format '{{ '{{' }}.Image{{ '}}' }}' llamenos-app 2>/dev/null || echo ""
+      register: pre_update_digest
       changed_when: false
       tags: [update]
 
-    - name: Save rollback state
+    - name: Save rollback digest to file
       ansible.builtin.copy:
-        content: "{{ pre_update_images.stdout }}"
-        dest: "{{ app_dir }}/.rollback-images.json"
+        content: "{{ pre_update_digest.stdout | trim }}"
+        dest: "{{ app_dir }}/.rollback-image"
         owner: "{{ deploy_user }}"
         group: "{{ deploy_group }}"
         mode: "0600"
+      when: pre_update_digest.stdout | trim | length > 0
       tags: [update]
 
     - name: Pull latest images
@@ -77,27 +77,44 @@
       block:
         - name: Log rollback reason
           ansible.builtin.debug:
-            msg: "Health check failed after update. Rolling back to previous images."
+            msg: "Health check failed after update. Rolling back to previous image digest."
+
+        - name: Read saved rollback digest
+          ansible.builtin.slurp:
+            src: "{{ app_dir }}/.rollback-image"
+          register: rollback_digest_file
+          ignore_errors: true
+
+        - name: Write docker-compose rollback override
+          ansible.builtin.copy:
+            content: |
+              services:
+                app:
+                  image: "{{ rollback_digest_file.content | b64decode | trim }}"
+            dest: "{{ app_dir }}/docker-compose.rollback.yml"
+            owner: "{{ deploy_user }}"
+            group: "{{ deploy_group }}"
+            mode: "0600"
+          when: rollback_digest_file is succeeded and rollback_digest_file.content | b64decode | trim | length > 0
 
         - name: Stop failed deployment
           community.docker.docker_compose_v2:
             project_src: "{{ app_dir }}"
             state: stopped
 
-        - name: Restore previous images from rollback state
+        - name: Restart with rollback image override
           ansible.builtin.shell: |
             cd {{ app_dir }}
-            # Re-tag previous images if available
-            if [ -f .rollback-images.json ]; then
-              echo "Rollback state found. Restarting with previous configuration."
-            fi
+            docker compose -f docker-compose.yml -f docker-compose.rollback.yml up -d
           changed_when: true
+          when: rollback_digest_file is succeeded and rollback_digest_file.content | b64decode | trim | length > 0
 
-        - name: Start services with previous configuration
+        - name: Restart without override (no saved digest)
           community.docker.docker_compose_v2:
             project_src: "{{ app_dir }}"
             state: present
             recreate: always
+          when: rollback_digest_file is failed or rollback_digest_file.content | b64decode | trim | length == 0
 
         - name: Verify rollback health
           ansible.builtin.uri:
@@ -109,16 +126,29 @@
           delay: 5
           until: rollback_health.status == 200
 
+        - name: Clean up rollback override file
+          ansible.builtin.file:
+            path: "{{ app_dir }}/docker-compose.rollback.yml"
+            state: absent
+
         - name: Fail with rollback notice
           ansible.builtin.fail:
             msg: >
-              Update failed and has been rolled back. The previous version is running.
+              Update failed and has been rolled back to the previous image digest.
+              The previous version is running.
               Check application logs with: docker compose -f {{ app_dir }}/docker-compose.yml logs app
 
     - name: Update completed successfully
       when: health_check is succeeded
       ansible.builtin.debug:
         msg: "Update completed. Health check passed. Application is running at https://{{ domain }}"
+      tags: [update]
+
+    - name: Clean up rollback state file after successful update
+      ansible.builtin.file:
+        path: "{{ app_dir }}/.rollback-image"
+        state: absent
+      when: health_check is succeeded
       tags: [update]
 
     - name: Clean up old images

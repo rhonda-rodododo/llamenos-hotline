@@ -27,3 +27,7 @@ all:
       # SSH port (will be changed to ssh_port after hardening)
       # Set this to 22 for the first run, then change to match ssh_port
       ansible_port: 22
+
+      # Use local connection for CI dry-run validation (no real SSH needed)
+      # Remove this line in your production inventory.yml
+      ansible_connection: local

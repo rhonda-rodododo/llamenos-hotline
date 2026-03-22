@@ -13,11 +13,21 @@
 #   ansible-playbook playbooks/harden.yml --ask-vault-pass
 #   ansible-playbook playbooks/harden.yml --ask-vault-pass --check --diff
 
+- name: Load configuration variables
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Include vars file
+      ansible.builtin.include_vars:
+        file: ../vars.yml
+      tags: always
+
+- name: Validate required variables
+  ansible.builtin.import_playbook: preflight.yml
+
 - name: Harden server
   hosts: all
   become: true
-  vars_files:
-    - ../vars.yml
   roles:
     - role: common
       tags: [common, harden]
