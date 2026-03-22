@@ -1,5 +1,4 @@
 import { Hono } from 'hono'
-import { getScopedDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
@@ -8,36 +7,57 @@ contacts.use('*', requirePermission('contacts:view'))
 
 // GET /contacts — list contacts with note counts
 contacts.get('/', async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const page = c.req.query('page') || '1'
-  const limit = c.req.query('limit') || '50'
-  const params = new URLSearchParams({ page, limit })
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const page = Number.parseInt(c.req.query('page') || '1', 10)
+  const limit = Number.parseInt(c.req.query('limit') || '50', 10)
 
-  // Get contact data from RecordsDO (notes with contactHash)
-  const notesRes = await dos.records.fetch(new Request(`http://do/contacts?${params}`))
-  if (!notesRes.ok) return notesRes
+  // Get contact data from RecordsService (notes with contactHash)
+  const { contacts: noteContacts, total } = await services.records.getContacts(
+    page,
+    limit,
+    hubId ?? undefined
+  )
 
-  const { contacts: noteContacts, total } = (await notesRes.json()) as {
-    contacts: { contactHash: string; firstSeen: string; lastSeen: string; noteCount: number }[]
-    total: number
-  }
+  // Enrich with conversation data (get all conversations and group by contactIdentifierHash)
+  const { conversations: allConvs } = await services.conversations.listConversations({
+    hubId: hubId ?? 'global',
+    limit: 1000,
+  })
 
-  // Enrich with conversation data from ConversationDO
-  const convRes = await dos.conversations.fetch(new Request('http://do/contacts'))
-  const convData = convRes.ok
-    ? ((await convRes.json()) as {
-        contacts: Record<
-          string,
-          {
-            last4?: string
-            conversationCount: number
-            reportCount: number
-            firstSeen: string
-            lastSeen: string
-          }
-        >
+  const convByHash = new Map<
+    string,
+    {
+      last4?: string
+      conversationCount: number
+      reportCount: number
+      firstSeen: string
+      lastSeen: string
+    }
+  >()
+
+  for (const conv of allConvs) {
+    const hash = conv.contactIdentifierHash
+    const isReport = (conv.metadata as Record<string, unknown>)?.type === 'report'
+    const existing = convByHash.get(hash)
+    if (existing) {
+      existing.conversationCount += isReport ? 0 : 1
+      existing.reportCount += isReport ? 1 : 0
+      const convTime = conv.lastMessageAt.toISOString()
+      if (convTime > existing.lastSeen) existing.lastSeen = convTime
+      if (conv.createdAt.toISOString() < existing.firstSeen)
+        existing.firstSeen = conv.createdAt.toISOString()
+      if (conv.contactLast4 && !existing.last4) existing.last4 = conv.contactLast4 ?? undefined
+    } else {
+      convByHash.set(hash, {
+        last4: conv.contactLast4 ?? undefined,
+        conversationCount: isReport ? 0 : 1,
+        reportCount: isReport ? 1 : 0,
+        firstSeen: conv.createdAt.toISOString(),
+        lastSeen: conv.lastMessageAt.toISOString(),
       })
-    : { contacts: {} }
+    }
+  }
 
   // Merge data
   const merged = new Map<
@@ -66,7 +86,7 @@ contacts.get('/', async (c) => {
     })
   }
 
-  for (const [hash, cd] of Object.entries(convData.contacts)) {
+  for (const [hash, cd] of convByHash.entries()) {
     const existing = merged.get(hash)
     if (existing) {
       existing.last4 = cd.last4
@@ -97,22 +117,25 @@ contacts.get('/', async (c) => {
 
 // GET /contacts/:hash — unified timeline for a contact
 contacts.get('/:hash', async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const hash = c.req.param('hash')
 
-  // Parallel fetch from RecordsDO (notes) and ConversationDO (conversations)
-  const [notesRes, convsRes] = await Promise.all([
-    dos.records.fetch(new Request(`http://do/contacts/${hash}`)),
-    dos.conversations.fetch(new Request(`http://do/contacts/${hash}`)),
+  // Parallel fetch from RecordsService (notes) and ConversationService (conversations by hash)
+  const [contactNotes, allConvs] = await Promise.all([
+    services.records.getContactNotes(hash, hubId ?? undefined),
+    services.conversations.listConversations({
+      hubId: hubId ?? 'global',
+      limit: 1000,
+    }),
   ])
 
-  const notes = notesRes.ok ? ((await notesRes.json()) as { notes: unknown[] }).notes : []
+  // Filter conversations by contactIdentifierHash
+  const conversations = allConvs.conversations.filter(
+    (conv) => conv.contactIdentifierHash === hash
+  )
 
-  const conversations = convsRes.ok
-    ? ((await convsRes.json()) as { conversations: unknown[] }).conversations
-    : []
-
-  return c.json({ notes, conversations })
+  return c.json({ notes: contactNotes, conversations })
 })
 
 export default contacts

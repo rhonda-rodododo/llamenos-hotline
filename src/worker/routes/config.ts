@@ -1,27 +1,22 @@
 import { Hono } from 'hono'
-import type { EnabledChannels, Hub, SetupState } from '../../shared/types'
+import type { Hub } from '../../shared/types'
 import { BUILD_COMMIT, BUILD_TIME, BUILD_VERSION } from '../lib/build-constants'
-import { getDOs } from '../lib/do-access'
 import { deriveServerKeypair } from '../lib/nostr-publisher'
 import type { AppEnv } from '../types'
 
 const config = new Hono<AppEnv>()
 
 config.get('/', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
 
   // Fetch enabled channels to include in config
-  const channelsRes = await dos.settings.fetch(new Request('http://do/settings/enabled-channels'))
-  const channels = (await channelsRes.json()) as EnabledChannels
+  const channels = await services.settings.getEnabledChannels()
 
   // Get phone number from telephony provider config or env
   let hotlineNumber = c.env.TWILIO_PHONE_NUMBER || ''
   try {
-    const provRes = await dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
-    if (provRes.ok) {
-      const prov = (await provRes.json()) as { phoneNumber?: string } | null
-      if (prov?.phoneNumber) hotlineNumber = prov.phoneNumber
-    }
+    const prov = await services.settings.getTelephonyProvider()
+    if (prov?.phoneNumber) hotlineNumber = prov.phoneNumber
   } catch {
     /* ignore */
   }
@@ -31,12 +26,9 @@ config.get('/', async (c) => {
   let demoMode = false
   const envDemoMode = c.env.DEMO_MODE === 'true'
   try {
-    const setupRes = await dos.settings.fetch(new Request('http://do/settings/setup'))
-    if (setupRes.ok) {
-      const setupState = (await setupRes.json()) as SetupState & { demoMode?: boolean }
-      setupCompleted = setupState.setupCompleted
-      demoMode = envDemoMode || (setupState.demoMode ?? false)
-    }
+    const setupState = await services.settings.getSetupState()
+    setupCompleted = setupState.setupCompleted
+    demoMode = envDemoMode || ((setupState as typeof setupState & { demoMode?: boolean }).demoMode ?? false)
   } catch {
     // If env var forces demo mode, still set it even on fetch failure
     demoMode = envDemoMode
@@ -45,9 +37,7 @@ config.get('/', async (c) => {
   // Check if bootstrap is needed (no admin exists)
   let needsBootstrap = false
   try {
-    const adminCheckRes = await dos.identity.fetch(new Request('http://do/has-admin'))
-    const { hasAdmin } = (await adminCheckRes.json()) as { hasAdmin: boolean }
-    needsBootstrap = !hasAdmin
+    needsBootstrap = !(await services.identity.hasAdmin())
   } catch {
     /* default to false */
   }
@@ -56,13 +46,10 @@ config.get('/', async (c) => {
   let hubs: Hub[] = []
   let defaultHubId: string | undefined
   try {
-    const hubsRes = await dos.settings.fetch(new Request('http://do/settings/hubs'))
-    if (hubsRes.ok) {
-      const hubsData = (await hubsRes.json()) as { hubs: Hub[] }
-      hubs = hubsData.hubs.filter((h) => h.status === 'active')
-      if (hubs.length === 1) {
-        defaultHubId = hubs[0].id
-      }
+    const allHubs = await services.settings.getHubs()
+    hubs = allHubs.filter((h) => h.status === 'active')
+    if (hubs.length === 1) {
+      defaultHubId = hubs[0].id
     }
   } catch {
     /* default to empty */

@@ -480,4 +480,13 @@ export class RecordsService {
       replyCount: r.replyCount,
     }
   }
+
+  // ------------------------------------------------------------------ Test Reset
+
+  async resetForTest(): Promise<void> {
+    await this.db.delete(auditLog)
+    await this.db.delete(bans)
+    await this.db.delete(callRecords)
+    await this.db.delete(noteEnvelopes)
+  }
 }
