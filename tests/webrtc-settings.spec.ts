@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, enterPin, TEST_PIN, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, enterPin, resetTestState, TEST_PIN, navigateAfterLogin } from './helpers'
 
 test.describe('WebRTC & Call Preference Settings', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetTestState(request)
     await loginAsAdmin(page)
   })
 

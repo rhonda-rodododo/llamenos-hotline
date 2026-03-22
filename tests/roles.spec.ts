@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, completeProfileSetup, uniquePhone } from './helpers'
+import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, completeProfileSetup, resetTestState, uniquePhone } from './helpers'
 
 /**
  * Helper to make authenticated API calls from the browser context.
@@ -41,7 +41,9 @@ test.describe('Role Management API', () => {
 
   let customRoleId: string
 
-
+  test.beforeAll(async ({ request }) => {
+    await resetTestState(request)
+  })
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)

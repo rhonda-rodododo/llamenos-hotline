@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin } from './helpers'
+import { loginAsAdmin, resetTestState } from './helpers'
 
 test.describe('Device linking — /link-device page', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetTestState(request)
     // Ensure no stored key so the page doesn't redirect to /login
     await page.addInitScript(() => localStorage.removeItem('llamenos-encrypted-key'))
   })

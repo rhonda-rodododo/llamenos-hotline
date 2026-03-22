@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test'
+import { resetTestState } from './helpers'
 
 test.describe('Login page — no stored key (recovery view)', () => {
+  test.beforeEach(async ({ request }) => {
+    await resetTestState(request)
+  })
+
   test('shows nsec input and Log in button', async ({ page }) => {
     await page.goto('/login')
     await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()

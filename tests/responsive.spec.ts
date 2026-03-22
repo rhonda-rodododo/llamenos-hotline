@@ -1,7 +1,11 @@
 import { test, expect, devices } from '@playwright/test'
-import { loginAsAdmin } from './helpers'
+import { loginAsAdmin, resetTestState } from './helpers'
 
 test.use(devices['Pixel 7'])
+
+test.beforeEach(async ({ request }) => {
+  await resetTestState(request)
+})
 
 test('mobile viewport shows hamburger menu', async ({ page }) => {
   await loginAsAdmin(page)

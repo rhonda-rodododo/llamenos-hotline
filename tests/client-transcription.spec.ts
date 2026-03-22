@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, navigateAfterLogin, resetTestState } from './helpers'
 
 test.describe('Client-side transcription settings', () => {
+  test.beforeEach(async ({ request }) => {
+    await resetTestState(request)
+  })
+
   test('can enable and configure client-side transcription', async ({ page }) => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/settings?section=transcription')

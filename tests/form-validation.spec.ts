@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, uniquePhone } from './helpers'
+import { loginAsAdmin, resetTestState, uniquePhone } from './helpers'
 
 test.describe('Form validation', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetTestState(request)
     await loginAsAdmin(page)
   })
 

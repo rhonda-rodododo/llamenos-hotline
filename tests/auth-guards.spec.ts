@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { TEST_PIN, enterPin, loginAsAdmin } from './helpers'
+import { TEST_PIN, enterPin, loginAsAdmin, resetTestState } from './helpers'
 
 test.describe('Auth guards', () => {
+  test.beforeEach(async ({ request }) => {
+    await resetTestState(request)
+  })
+
   test('unauthenticated user is redirected to login from /', async ({ page }) => {
     await page.goto('/')
     await expect(page).toHaveURL(/\/login/)

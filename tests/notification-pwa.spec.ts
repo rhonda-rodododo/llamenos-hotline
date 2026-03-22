@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin } from './helpers'
+import { loginAsAdmin, resetTestState } from './helpers'
 
 test.describe('Notification prompt banner', () => {
+  test.beforeEach(async ({ request }) => {
+    await resetTestState(request)
+  })
+
   test('shows notification banner when permission is default', async ({ page }) => {
     // Mock Notification API as 'default' permission
     await page.addInitScript(() => {

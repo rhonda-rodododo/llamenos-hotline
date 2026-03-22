@@ -1,10 +1,14 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, navigateAfterLogin, resetTestState } from './helpers'
 
 test.describe('Conversations — no channels configured', () => {
   // These tests only apply when no messaging channels are enabled.
   // In demo mode or after setup wizard, channels are typically already enabled.
   // Skip if channels are already configured.
+
+  test.beforeEach(async ({ request }) => {
+    await resetTestState(request)
+  })
 
   test('no messaging channels shows empty state on /conversations', async ({ page }) => {
     await loginAsAdmin(page)

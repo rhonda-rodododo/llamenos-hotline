@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, completeProfileSetup, uniquePhone, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, completeProfileSetup, resetTestState, uniquePhone, navigateAfterLogin } from './helpers'
 
 /**
  * E2E tests for Epics 68-73: Two-way Messaging
@@ -48,6 +48,10 @@ test.describe('Epic 68: Messaging Channel Permissions', () => {
 
   let volunteerNsec: string
   let restrictedVolunteerNsec: string
+
+  test.beforeAll(async ({ request }) => {
+    await resetTestState(request)
+  })
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage()

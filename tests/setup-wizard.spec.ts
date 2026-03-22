@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, uniquePhone, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, resetTestState, uniquePhone, navigateAfterLogin } from './helpers'
 
 test.describe('Setup Wizard', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetTestState(request)
     await loginAsAdmin(page)
   })
 

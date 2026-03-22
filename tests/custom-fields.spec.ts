@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { loginAsAdmin } from './helpers'
+import { loginAsAdmin, resetTestState } from './helpers'
 
 /** Expand the Custom Note Fields section (idempotent — won't collapse if already open) */
 async function expandCustomFields(page: Page) {
@@ -17,6 +17,10 @@ async function expandCustomFields(page: Page) {
 test.describe('Custom Note Fields', () => {
   // Tests depend on each other's state (empty state → add → delete)
   test.describe.configure({ mode: 'serial' })
+
+  test.beforeAll(async ({ request }) => {
+    await resetTestState(request)
+  })
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)

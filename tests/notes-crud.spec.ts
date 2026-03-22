@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin } from './helpers'
+import { loginAsAdmin, resetTestState } from './helpers'
 
 test.describe('Notes CRUD', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetTestState(request)
     await loginAsAdmin(page)
     await page.getByRole('link', { name: 'Notes' }).click()
     await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()

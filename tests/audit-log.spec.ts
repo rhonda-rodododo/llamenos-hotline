@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, dismissNsecCard, uniquePhone, completeProfileSetup, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, dismissNsecCard, resetTestState, uniquePhone, completeProfileSetup, navigateAfterLogin } from './helpers'
 
 test.describe('Audit log', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetTestState(request)
     await loginAsAdmin(page)
   })
 

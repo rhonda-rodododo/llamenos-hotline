@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, navigateAfterLogin, resetTestState } from './helpers'
 
 test.describe('Message Blasts', () => {
+  test.beforeEach(async ({ request }) => {
+    await resetTestState(request)
+  })
+
   test('blasts page loads for admin', async ({ page }) => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/blasts')
