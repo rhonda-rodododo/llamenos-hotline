@@ -1,8 +1,8 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
-import { getCallRecording } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { Play, Pause, AlertCircle, Loader2 } from 'lucide-react'
+import { getCallRecording } from '@/lib/api'
+import { AlertCircle, Loader2, Pause, Play } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface RecordingPlayerProps {
   callId: string
@@ -60,9 +60,13 @@ export function RecordingPlayer({ callId }: RecordingPlayerProps) {
   }, [])
 
   // Auto-play once blob URL is set after initial fetch
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only trigger on blobUrl change; playing/loading guard prevents double-play
   useEffect(() => {
     if (blobUrl && audioRef.current && !playing && loading === false) {
-      audioRef.current.play().then(() => setPlaying(true)).catch(() => {})
+      audioRef.current
+        .play()
+        .then(() => setPlaying(true))
+        .catch(() => {})
     }
   }, [blobUrl])
 
@@ -94,11 +98,7 @@ export function RecordingPlayer({ callId }: RecordingPlayerProps) {
         ) : (
           <Play className="h-4 w-4" />
         )}
-        {loading
-          ? t('recording.loading')
-          : playing
-            ? t('recording.pause')
-            : t('recording.play')}
+        {loading ? t('recording.loading') : playing ? t('recording.pause') : t('recording.play')}
       </Button>
       {blobUrl && (
         <audio
@@ -108,7 +108,9 @@ export function RecordingPlayer({ callId }: RecordingPlayerProps) {
           onPause={() => setPlaying(false)}
           onPlay={() => setPlaying(true)}
           className="hidden"
-        />
+        >
+          <track kind="captions" />
+        </audio>
       )}
     </div>
   )

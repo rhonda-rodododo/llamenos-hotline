@@ -1,13 +1,13 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
-import { testWhatsAppConnection } from '@/lib/api'
-import type { WhatsAppConfig } from '@shared/types'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Check, Loader2, Copy } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { testWhatsAppConnection } from '@/lib/api'
+import { useToast } from '@/lib/toast'
+import type { WhatsAppConfig } from '@shared/types'
+import { Check, Copy, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { SetupData } from './SetupWizard'
 
 interface Props {
@@ -65,18 +65,25 @@ export function WhatsAppProviderForm({ data, onChange }: Props) {
 
       {/* Integration mode */}
       <div className="grid grid-cols-2 gap-2">
-        {(['twilio', 'direct'] as const).map(m => (
+        {(['twilio', 'direct'] as const).map((m) => (
           <Card
             key={m}
             role="button"
             tabIndex={0}
             onClick={() => update({ integrationMode: m })}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); update({ integrationMode: m }) } }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                update({ integrationMode: m })
+              }
+            }}
             className={`cursor-pointer p-3 text-center text-xs transition-all ${
               mode === m ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary/50'
             }`}
           >
-            <span className="font-medium">{t(`setup.whatsapp${m === 'twilio' ? 'Twilio' : 'Direct'}`)}</span>
+            <span className="font-medium">
+              {t(`setup.whatsapp${m === 'twilio' ? 'Twilio' : 'Direct'}`)}
+            </span>
             {mode === m && <Check className="mx-auto mt-1 h-3 w-3 text-primary" />}
           </Card>
         ))}
@@ -90,24 +97,41 @@ export function WhatsAppProviderForm({ data, onChange }: Props) {
         <div className="space-y-3">
           <div className="space-y-1">
             <Label>{t('setup.whatsappPhoneNumberId')}</Label>
-            <Input value={config.phoneNumberId || ''} onChange={e => update({ phoneNumberId: e.target.value })} />
+            <Input
+              value={config.phoneNumberId || ''}
+              onChange={(e) => update({ phoneNumberId: e.target.value })}
+            />
           </div>
           <div className="space-y-1">
             <Label>{t('setup.whatsappBusinessAccountId')}</Label>
-            <Input value={config.businessAccountId || ''} onChange={e => update({ businessAccountId: e.target.value })} />
+            <Input
+              value={config.businessAccountId || ''}
+              onChange={(e) => update({ businessAccountId: e.target.value })}
+            />
           </div>
           <div className="space-y-1">
             <Label>{t('setup.whatsappAccessToken')}</Label>
-            <Input type="password" value={config.accessToken || ''} onChange={e => update({ accessToken: e.target.value })} />
+            <Input
+              type="password"
+              value={config.accessToken || ''}
+              onChange={(e) => update({ accessToken: e.target.value })}
+            />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label>{t('setup.whatsappVerifyToken')}</Label>
-              <Input value={config.verifyToken || ''} onChange={e => update({ verifyToken: e.target.value })} />
+              <Input
+                value={config.verifyToken || ''}
+                onChange={(e) => update({ verifyToken: e.target.value })}
+              />
             </div>
             <div className="space-y-1">
               <Label>{t('setup.whatsappAppSecret')}</Label>
-              <Input type="password" value={config.appSecret || ''} onChange={e => update({ appSecret: e.target.value })} />
+              <Input
+                type="password"
+                value={config.appSecret || ''}
+                onChange={(e) => update({ appSecret: e.target.value })}
+              />
             </div>
           </div>
         </div>
@@ -115,9 +139,15 @@ export function WhatsAppProviderForm({ data, onChange }: Props) {
 
       {/* Test result */}
       {testResult && (
-        <div className={`rounded-lg border p-3 ${testResult.ok ? 'border-green-500/30 bg-green-500/10' : 'border-destructive/30 bg-destructive/10'}`}>
-          <p className={`text-xs ${testResult.ok ? 'text-green-700 dark:text-green-400' : 'text-destructive'}`}>
-            {testResult.ok ? t('telephonyProvider.testSuccess') : `${t('telephonyProvider.testFailed')}: ${testResult.error || ''}`}
+        <div
+          className={`rounded-lg border p-3 ${testResult.ok ? 'border-green-500/30 bg-green-500/10' : 'border-destructive/30 bg-destructive/10'}`}
+        >
+          <p
+            className={`text-xs ${testResult.ok ? 'text-green-700 dark:text-green-400' : 'text-destructive'}`}
+          >
+            {testResult.ok
+              ? t('telephonyProvider.testSuccess')
+              : `${t('telephonyProvider.testFailed')}: ${testResult.error || ''}`}
           </p>
         </div>
       )}
@@ -127,7 +157,9 @@ export function WhatsAppProviderForm({ data, onChange }: Props) {
         <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
           <div className="flex-1">
             <p className="text-xs font-medium">{t('setup.webhookUrl')}</p>
-            <code className="text-xs text-muted-foreground">{window.location.origin}/telephony/whatsapp</code>
+            <code className="text-xs text-muted-foreground">
+              {window.location.origin}/telephony/whatsapp
+            </code>
           </div>
           <Button variant="ghost" size="sm" onClick={copyWebhookUrl}>
             <Copy className="h-3.5 w-3.5" />

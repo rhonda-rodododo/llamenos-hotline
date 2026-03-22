@@ -1,21 +1,4 @@
-import * as React from 'react'
-import { useState, useCallback, forwardRef } from 'react'
-import { useTranslation } from 'react-i18next'
-import PhoneInputPrimitive, {
-  getCountryCallingCode,
-  isValidPhoneNumber,
-  type Country,
-  type Value,
-} from 'react-phone-number-input'
-import flags from 'react-phone-number-input/flags'
-import { CheckIcon, ChevronsUpDown } from 'lucide-react'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 import {
   Command,
   CommandEmpty,
@@ -24,7 +7,20 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
+import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { CheckIcon, ChevronsUpDown } from 'lucide-react'
+import type * as React from 'react'
+import { forwardRef, useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import PhoneInputPrimitive, {
+  getCountryCallingCode,
+  isValidPhoneNumber,
+  type Country,
+  type Value,
+} from 'react-phone-number-input'
+import flags from 'react-phone-number-input/flags'
 
 const E164_REGEX = /^\+\d{7,15}$/
 
@@ -43,12 +39,8 @@ function getValidationState(value: string): ValidationState {
 
 const InputComponent = forwardRef<HTMLInputElement, React.ComponentProps<'input'>>(
   ({ className, ...props }, ref) => (
-    <Input
-      ref={ref}
-      className={cn('rounded-s-none rounded-e-lg', className)}
-      {...props}
-    />
-  ),
+    <Input ref={ref} className={cn('rounded-s-none rounded-e-lg', className)} {...props} />
+  )
 )
 InputComponent.displayName = 'PhoneInputField'
 
@@ -70,13 +62,25 @@ interface CountrySelectProps {
   onChange: (country: Country) => void
 }
 
-function CountrySelect({ disabled, value: selectedCountry, options, onChange }: CountrySelectProps) {
+function CountrySelect({
+  disabled,
+  value: selectedCountry,
+  options,
+  onChange,
+}: CountrySelectProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const { t } = useTranslation()
 
   return (
-    <Popover open={open} modal onOpenChange={(o) => { setOpen(o); if (o) setSearch('') }}>
+    <Popover
+      open={open}
+      modal
+      onOpenChange={(o) => {
+        setOpen(o)
+        if (o) setSearch('')
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -85,7 +89,9 @@ function CountrySelect({ disabled, value: selectedCountry, options, onChange }: 
           disabled={disabled}
         >
           <FlagComponent country={selectedCountry} countryName={selectedCountry} />
-          <ChevronsUpDown className={cn('-mr-2 size-4 opacity-50', disabled ? 'hidden' : 'opacity-100')} />
+          <ChevronsUpDown
+            className={cn('-mr-2 size-4 opacity-50', disabled ? 'hidden' : 'opacity-100')}
+          />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">
@@ -98,25 +104,30 @@ function CountrySelect({ disabled, value: selectedCountry, options, onChange }: 
           <CommandList className="max-h-[300px]">
             <CommandEmpty>{t('phone.noCountry', 'No country found.')}</CommandEmpty>
             <CommandGroup>
-              {options.filter(o => o.value).map(({ value, label }) => (
-                <CommandItem
-                  key={value}
-                  className="gap-2"
-                  onSelect={() => {
-                    onChange(value as Country)
-                    setOpen(false)
-                  }}
-                >
-                  <FlagComponent country={value!} countryName={label} />
-                  <span className="flex-1 text-sm">{label}</span>
-                  <span className="text-sm text-foreground/50">
-                    +{getCountryCallingCode(value!)}
-                  </span>
-                  <CheckIcon
-                    className={cn('ml-auto size-4', value === selectedCountry ? 'opacity-100' : 'opacity-0')}
-                  />
-                </CommandItem>
-              ))}
+              {options
+                .filter((o) => o.value)
+                .map(({ value, label }) => (
+                  <CommandItem
+                    key={value}
+                    className="gap-2"
+                    onSelect={() => {
+                      onChange(value as Country)
+                      setOpen(false)
+                    }}
+                  >
+                    <FlagComponent country={value!} countryName={label} />
+                    <span className="flex-1 text-sm">{label}</span>
+                    <span className="text-sm text-foreground/50">
+                      +{getCountryCallingCode(value!)}
+                    </span>
+                    <CheckIcon
+                      className={cn(
+                        'ml-auto size-4',
+                        value === selectedCountry ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                  </CommandItem>
+                ))}
             </CommandGroup>
           </CommandList>
         </Command>
@@ -155,10 +166,7 @@ export function PhoneInput({
   const showInvalid = touched && validationState === 'invalid'
 
   return (
-    <div
-      className={cn('space-y-1', className)}
-      onBlur={() => setTouched(true)}
-    >
+    <div className={cn('space-y-1', className)} onBlur={() => setTouched(true)}>
       <PhoneInputPrimitive
         className="flex"
         international
@@ -176,12 +184,8 @@ export function PhoneInput({
       {showValid && (
         <p className="text-xs text-green-600 dark:text-green-400">{t('phone.valid')}</p>
       )}
-      {showInvalid && (
-        <p className="text-xs text-destructive">{t('phone.invalid')}</p>
-      )}
-      {!touched && !value && (
-        <p className="text-xs text-muted-foreground">{t('phone.hint')}</p>
-      )}
+      {showInvalid && <p className="text-xs text-destructive">{t('phone.invalid')}</p>}
+      {!touched && !value && <p className="text-xs text-muted-foreground">{t('phone.hint')}</p>}
     </div>
   )
 }

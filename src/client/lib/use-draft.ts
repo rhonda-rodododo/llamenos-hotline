@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { encryptDraft, decryptDraft } from './crypto'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { decryptDraft, encryptDraft } from './crypto'
 import * as keyManager from './key-manager'
 
 type FieldValues = Record<string, string | number | boolean>
@@ -43,26 +43,29 @@ export function useDraft(key: string) {
   }, [storageKey])
 
   // Persist helper
-  const persist = useCallback((t: string, cId: string, f: FieldValues) => {
-    if (!keyManager.isUnlocked()) return
-    const hasFields = Object.keys(f).length > 0
-    if (!t && !cId && !hasFields) {
-      localStorage.removeItem(storageKey)
-      setSavedAt(null)
-      return
-    }
-    try {
-      const secretKey = keyManager.getSecretKey()
-      const now = Date.now()
-      const data: DraftData = { text: t, callId: cId, fields: f, savedAt: now }
-      const encrypted = encryptDraft(JSON.stringify(data), secretKey)
-      localStorage.setItem(storageKey, encrypted)
-      setSavedAt(now)
-      setIsDirty(false)
-    } catch {
-      // Key locked during persist — ignore
-    }
-  }, [storageKey])
+  const persist = useCallback(
+    (t: string, cId: string, f: FieldValues) => {
+      if (!keyManager.isUnlocked()) return
+      const hasFields = Object.keys(f).length > 0
+      if (!t && !cId && !hasFields) {
+        localStorage.removeItem(storageKey)
+        setSavedAt(null)
+        return
+      }
+      try {
+        const secretKey = keyManager.getSecretKey()
+        const now = Date.now()
+        const data: DraftData = { text: t, callId: cId, fields: f, savedAt: now }
+        const encrypted = encryptDraft(JSON.stringify(data), secretKey)
+        localStorage.setItem(storageKey, encrypted)
+        setSavedAt(now)
+        setIsDirty(false)
+      } catch {
+        // Key locked during persist — ignore
+      }
+    },
+    [storageKey]
+  )
 
   // Debounced save on text/callId/fields change
   useEffect(() => {
@@ -93,7 +96,7 @@ export function useDraft(key: string) {
   }, [])
 
   const setFieldValue = useCallback((fieldId: string, value: string | number | boolean) => {
-    setFields(prev => ({ ...prev, [fieldId]: value }))
+    setFields((prev) => ({ ...prev, [fieldId]: value }))
     setIsDirty(true)
   }, [])
 

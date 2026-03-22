@@ -1,24 +1,29 @@
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { LANGUAGE_MAP } from '@shared/languages'
+import {
+  CHANNEL_LABELS,
+  CHANNEL_SECURITY,
+  type ChannelType,
+  type TransportSecurity,
+} from '@shared/types'
+import {
+  AlertCircle,
+  Check,
+  Database,
+  FileText,
+  Globe,
+  Loader2,
+  MessageSquare,
+  Phone,
+  Rocket,
+  Shield,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CHANNEL_LABELS, CHANNEL_SECURITY, type ChannelType, type TransportSecurity } from '@shared/types'
-import { LANGUAGE_MAP } from '@shared/languages'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import {
-  Phone,
-  MessageSquare,
-  Globe,
-  Shield,
-  FileText,
-  Check,
-  AlertCircle,
-  Rocket,
-  Loader2,
-  Database,
-} from 'lucide-react'
 import type { SetupData } from './SetupWizard'
 
 interface Props {
@@ -65,7 +70,9 @@ export function StepSummary({ data, onComplete, saving, headingRef }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 ref={headingRef} tabIndex={-1} className="text-lg font-semibold outline-none">{t('setup.summaryTitle')}</h2>
+        <h2 ref={headingRef} tabIndex={-1} className="text-lg font-semibold outline-none">
+          {t('setup.summaryTitle')}
+        </h2>
         <p className="text-sm text-muted-foreground mt-1">{t('setup.summaryDescription')}</p>
       </div>
 
@@ -85,7 +92,9 @@ export function StepSummary({ data, onComplete, saving, headingRef }: Props) {
           )}
           <div className="flex justify-between">
             <span className="text-muted-foreground">{t('setup.primaryLanguage')}</span>
-            <span className="font-medium">{langConfig ? `${langConfig.flag} ${langConfig.label}` : data.language}</span>
+            <span className="font-medium">
+              {langConfig ? `${langConfig.flag} ${langConfig.label}` : data.language}
+            </span>
           </div>
         </div>
       </Card>
@@ -97,7 +106,7 @@ export function StepSummary({ data, onComplete, saving, headingRef }: Props) {
           <p className="text-sm text-muted-foreground">{t('setup.noChannelsSelected')}</p>
         ) : (
           <div className="space-y-2">
-            {data.selectedChannels.map(channel => {
+            {data.selectedChannels.map((channel) => {
               const status = getChannelStatus(channel)
               const Icon = CHANNEL_ICONS[channel] || MessageSquare
               return (
@@ -106,11 +115,18 @@ export function StepSummary({ data, onComplete, saving, headingRef }: Props) {
                     <Icon className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">{CHANNEL_LABELS[channel]}</span>
                   </div>
-                  <Badge variant="outline" className={`text-[10px] border-0 ${STATUS_STYLES[status]}`}>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] border-0 ${STATUS_STYLES[status]}`}
+                  >
                     {status === 'configured' ? (
-                      <><Check className="h-3 w-3" /> {t('setup.configured')}</>
+                      <>
+                        <Check className="h-3 w-3" /> {t('setup.configured')}
+                      </>
                     ) : (
-                      <><AlertCircle className="h-3 w-3" /> {t('setup.pending')}</>
+                      <>
+                        <AlertCircle className="h-3 w-3" /> {t('setup.pending')}
+                      </>
                     )}
                   </Badge>
                 </div>
@@ -121,7 +137,10 @@ export function StepSummary({ data, onComplete, saving, headingRef }: Props) {
       </Card>
 
       {/* Settings summary */}
-      {(data.selectedChannels.includes('voice') || data.selectedChannels.includes('sms') || data.selectedChannels.includes('whatsapp') || data.selectedChannels.includes('signal')) && (
+      {(data.selectedChannels.includes('voice') ||
+        data.selectedChannels.includes('sms') ||
+        data.selectedChannels.includes('whatsapp') ||
+        data.selectedChannels.includes('signal')) && (
         <Card className="p-4">
           <h3 className="text-sm font-semibold mb-3">{t('setup.stepSettings')}</h3>
           <div className="space-y-2 text-sm">
@@ -133,11 +152,15 @@ export function StepSummary({ data, onComplete, saving, headingRef }: Props) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{t('setup.voicemailEnabled')}</span>
-                  <span className="font-medium">{data.voiceSettings.voicemailEnabled ? t('common.yes') : t('common.no')}</span>
+                  <span className="font-medium">
+                    {data.voiceSettings.voicemailEnabled ? t('common.yes') : t('common.no')}
+                  </span>
                 </div>
               </>
             )}
-            {(data.selectedChannels.includes('sms') || data.selectedChannels.includes('whatsapp') || data.selectedChannels.includes('signal')) && (
+            {(data.selectedChannels.includes('sms') ||
+              data.selectedChannels.includes('whatsapp') ||
+              data.selectedChannels.includes('signal')) && (
               <>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{t('setup.inactivityTimeout')}</span>
@@ -157,28 +180,39 @@ export function StepSummary({ data, onComplete, saving, headingRef }: Props) {
       <Card className="p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="space-y-1">
-            <Label htmlFor="demo-mode" className="flex items-center gap-1.5 font-medium cursor-pointer">
+            <Label
+              htmlFor="demo-mode"
+              className="flex items-center gap-1.5 font-medium cursor-pointer"
+            >
               <Database className="h-4 w-4 text-muted-foreground" />
               {t('setup.demoMode', { defaultValue: 'Populate with sample data' })}
             </Label>
             <p className="text-xs text-muted-foreground">
-              {t('setup.demoModeDescription', { defaultValue: 'Creates sample volunteer accounts, shifts, and ban entries for testing and demos. Demo account credentials will be shown on the login page.' })}
+              {t('setup.demoModeDescription', {
+                defaultValue:
+                  'Creates sample volunteer accounts, shifts, and ban entries for testing and demos. Demo account credentials will be shown on the login page.',
+              })}
             </p>
           </div>
-          <Switch
-            id="demo-mode"
-            checked={demoMode}
-            onCheckedChange={setDemoMode}
-          />
+          <Switch id="demo-mode" checked={demoMode} onCheckedChange={setDemoMode} />
         </div>
       </Card>
 
       {/* Launch button */}
-      <Button onClick={() => onComplete({ demoMode })} disabled={saving} className="w-full" size="lg">
+      <Button
+        onClick={() => onComplete({ demoMode })}
+        disabled={saving}
+        className="w-full"
+        size="lg"
+      >
         {saving ? (
-          <><Loader2 className="h-4 w-4 animate-spin" /> {t('common.loading')}</>
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" /> {t('common.loading')}
+          </>
         ) : (
-          <><Rocket className="h-4 w-4" /> {t('setup.goToDashboard')}</>
+          <>
+            <Rocket className="h-4 w-4" /> {t('setup.goToDashboard')}
+          </>
         )}
       </Button>
     </div>

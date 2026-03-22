@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
-import type { AppEnv } from '../types'
 import { getScopedDOs } from '../lib/do-access'
+import type { AppEnv } from '../types'
 
 const blasts = new Hono<AppEnv>()
 
@@ -18,7 +18,9 @@ blasts.get('/subscribers', async (c) => {
 blasts.delete('/subscribers/:id', async (c) => {
   const id = c.req.param('id')
   const dos = getScopedDOs(c.env, c.get('hubId'))
-  const res = await dos.blasts.fetch(new Request(`http://do/subscribers/${id}`, { method: 'DELETE' }))
+  const res = await dos.blasts.fetch(
+    new Request(`http://do/subscribers/${id}`, { method: 'DELETE' })
+  )
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
 
@@ -31,11 +33,13 @@ blasts.get('/subscribers/stats', async (c) => {
 blasts.post('/subscribers/import', async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
   const body = await c.req.text()
-  const res = await dos.blasts.fetch(new Request('http://do/subscribers/import', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  }))
+  const res = await dos.blasts.fetch(
+    new Request('http://do/subscribers/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    })
+  )
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
 
@@ -49,11 +53,13 @@ blasts.get('/', async (c) => {
 blasts.post('/', async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
   const body = await c.req.text()
-  const res = await dos.blasts.fetch(new Request('http://do/blasts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  }))
+  const res = await dos.blasts.fetch(
+    new Request('http://do/blasts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    })
+  )
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
 
@@ -68,11 +74,13 @@ blasts.patch('/:id', async (c) => {
   const id = c.req.param('id')
   const dos = getScopedDOs(c.env, c.get('hubId'))
   const body = await c.req.text()
-  const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  }))
+  const res = await dos.blasts.fetch(
+    new Request(`http://do/blasts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    })
+  )
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
 
@@ -94,18 +102,22 @@ blasts.post('/:id/schedule', async (c) => {
   const id = c.req.param('id')
   const dos = getScopedDOs(c.env, c.get('hubId'))
   const body = await c.req.text()
-  const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}/schedule`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  }))
+  const res = await dos.blasts.fetch(
+    new Request(`http://do/blasts/${id}/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    })
+  )
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
 
 blasts.post('/:id/cancel', async (c) => {
   const id = c.req.param('id')
   const dos = getScopedDOs(c.env, c.get('hubId'))
-  const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}/cancel`, { method: 'POST' }))
+  const res = await dos.blasts.fetch(
+    new Request(`http://do/blasts/${id}/cancel`, { method: 'POST' })
+  )
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
 
@@ -119,11 +131,13 @@ blasts.get('/settings', async (c) => {
 blasts.patch('/settings', async (c) => {
   const dos = getScopedDOs(c.env, c.get('hubId'))
   const body = await c.req.text()
-  const res = await dos.blasts.fetch(new Request('http://do/blast-settings', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  }))
+  const res = await dos.blasts.fetch(
+    new Request('http://do/blast-settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    })
+  )
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
 

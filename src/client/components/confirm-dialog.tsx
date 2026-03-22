@@ -1,5 +1,3 @@
-import { useState, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -9,6 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { type ReactNode, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -53,7 +53,12 @@ export function ConfirmDialog({
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <DialogFooter>
-          <Button data-testid="confirm-dialog-cancel" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button
+            data-testid="confirm-dialog-cancel"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+          >
             {cancelLabel || t('common.cancel')}
           </Button>
           <Button
@@ -62,7 +67,7 @@ export function ConfirmDialog({
             onClick={handleConfirm}
             disabled={loading}
           >
-            {loading ? t('common.loading') : (confirmLabel || t('common.confirm'))}
+            {loading ? t('common.loading') : confirmLabel || t('common.confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -3,7 +3,7 @@
  * These provide the minimal type surface our DO code actually uses.
  */
 
-import type { StorageApi, DOContext } from '../types'
+import type { DOContext, StorageApi } from '../types'
 
 declare global {
   /**

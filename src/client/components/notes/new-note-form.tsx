@@ -1,13 +1,19 @@
-import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import type { CustomFieldDefinition, CallRecord } from '@/lib/api'
-import { useCalls } from '@/lib/hooks'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { StickyNote, Save, PhoneCall } from 'lucide-react'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import type { CallRecord, CustomFieldDefinition } from '@/lib/api'
+import { useCalls } from '@/lib/hooks'
+import { PhoneCall, Save, StickyNote } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { CustomFieldInputs } from './custom-field-inputs'
 
 interface Props {
@@ -25,6 +31,7 @@ export function NewNoteForm({ recentCalls, customFieldDefs, saving, onSave, onCa
   const [text, setText] = useState('')
   const [fields, setFields] = useState<Record<string, string | number | boolean>>({})
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: callId intentionally omitted — only set once when currentCall first arrives
   useEffect(() => {
     if (currentCall && !callId) setCallId(currentCall.id)
   }, [currentCall])
@@ -53,7 +60,7 @@ export function NewNoteForm({ recentCalls, customFieldDefs, saving, onSave, onCa
                 <SelectValue placeholder={t('notes.selectCall')} />
               </SelectTrigger>
               <SelectContent>
-                {recentCalls.map(call => (
+                {recentCalls.map((call) => (
                   <SelectItem key={call.id} value={call.id}>
                     {call.callerNumber} — {new Date(call.startedAt).toLocaleString()}
                   </SelectItem>
@@ -66,14 +73,14 @@ export function NewNoteForm({ recentCalls, customFieldDefs, saving, onSave, onCa
               id="call-id"
               data-testid="note-call-id"
               value={callId}
-              onChange={e => setCallId(e.target.value)}
+              onChange={(e) => setCallId(e.target.value)}
               placeholder={t('notes.callIdPlaceholder')}
             />
           )}
           {callId === '__manual' && (
             <Input
               value=""
-              onChange={e => setCallId(e.target.value)}
+              onChange={(e) => setCallId(e.target.value)}
               placeholder={t('notes.callIdPlaceholder')}
             />
           )}
@@ -89,7 +96,7 @@ export function NewNoteForm({ recentCalls, customFieldDefs, saving, onSave, onCa
           <textarea
             data-testid="note-content"
             value={text}
-            onChange={e => setText(e.target.value)}
+            onChange={(e) => setText(e.target.value)}
             placeholder={t('notes.notePlaceholder')}
             rows={4}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -102,7 +109,11 @@ export function NewNoteForm({ recentCalls, customFieldDefs, saving, onSave, onCa
           idPrefix="new-field"
         />
         <div className="flex gap-2">
-          <Button data-testid="form-save-btn" onClick={handleSave} disabled={saving || !text.trim() || !callId.trim() || callId === '__manual'}>
+          <Button
+            data-testid="form-save-btn"
+            onClick={handleSave}
+            disabled={saving || !text.trim() || !callId.trim() || callId === '__manual'}
+          >
             <Save className="h-4 w-4" />
             {saving ? t('common.loading') : t('common.save')}
           </Button>

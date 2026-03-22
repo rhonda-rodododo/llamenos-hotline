@@ -1,15 +1,19 @@
 import { Hono } from 'hono'
-import type { AppEnv } from '../types'
-import { getDOs, getScopedDOs, getTelephony, getHubTelephony } from '../lib/do-access'
-import type { DurableObjects } from '../lib/do-access'
-import type { TelephonyAdapter } from '../telephony/adapter'
-import type { Env } from '../types'
-import { buildAudioUrlMap, telephonyResponse } from '../lib/helpers'
+import {
+  DEFAULT_LANGUAGE,
+  detectLanguageFromPhone,
+  languageFromDigit,
+} from '../../shared/languages'
 import { hashPhone } from '../lib/crypto'
-import { detectLanguageFromPhone, languageFromDigit, DEFAULT_LANGUAGE } from '../../shared/languages'
+import { getDOs, getHubTelephony, getScopedDOs, getTelephony } from '../lib/do-access'
+import type { DurableObjects } from '../lib/do-access'
+import { buildAudioUrlMap, telephonyResponse } from '../lib/helpers'
 import { audit } from '../services/audit'
 import { startParallelRinging } from '../services/ringing'
 import { maybeTranscribe, transcribeVoicemail } from '../services/transcription'
+import type { TelephonyAdapter } from '../telephony/adapter'
+import type { AppEnv } from '../types'
+import type { Env } from '../types'
 
 const telephony = new Hono<AppEnv>()
 
@@ -23,7 +27,11 @@ function getHubContext(env: Env, url: URL): { hubId: string | undefined; dos: Du
   return { hubId, dos }
 }
 
-async function getAdapter(env: Env, hubId: string | undefined, dos: DurableObjects): Promise<TelephonyAdapter | null> {
+async function getAdapter(
+  env: Env,
+  hubId: string | undefined,
+  dos: DurableObjects
+): Promise<TelephonyAdapter | null> {
   return hubId ? getHubTelephony(env, hubId) : getTelephony(env, dos)
 }
 
@@ -41,13 +49,18 @@ telephony.use('*', async (c, next) => {
 
   // If no telephony provider is configured, return a helpful error
   if (!adapter) {
-    return c.json({
-      error: 'Telephony is not configured. Set up a voice provider in Admin Settings or the Setup Wizard.',
-    }, 404)
+    return c.json(
+      {
+        error:
+          'Telephony is not configured. Set up a voice provider in Admin Settings or the Setup Wizard.',
+      },
+      404
+    )
   }
 
   const isDev = env.ENVIRONMENT === 'development'
-  const isLocal = isDev && (c.req.header('CF-Connecting-IP') === '127.0.0.1' || url.hostname === 'localhost')
+  const isLocal =
+    isDev && (c.req.header('CF-Connecting-IP') === '127.0.0.1' || url.hostname === 'localhost')
   if (!isLocal) {
     const isValid = await adapter.validateWebhook(c.req.raw)
     if (!isValid) {
@@ -63,8 +76,12 @@ telephony.post('/incoming', async (c) => {
   // Start with global DOs to parse the webhook and look up the hub
   const globalDos = getDOs(c.env)
   const globalAdapter = (await getTelephony(c.env, globalDos))!
-  const { callSid, callerNumber, calledNumber } = await globalAdapter.parseIncomingWebhook(c.req.raw)
-  console.log(`[telephony] /incoming callSid=${callSid} caller=***${callerNumber.slice(-4)} called=${calledNumber || 'unknown'}`)
+  const { callSid, callerNumber, calledNumber } = await globalAdapter.parseIncomingWebhook(
+    c.req.raw
+  )
+  console.log(
+    `[telephony] /incoming callSid=${callSid} caller=***${callerNumber.slice(-4)} called=${calledNumber || 'unknown'}`
+  )
 
   // Look up which hub owns the called phone number
   let hubId: string | undefined
@@ -73,7 +90,7 @@ telephony.post('/incoming', async (c) => {
       new Request(`http://do/settings/hub-by-phone/${encodeURIComponent(calledNumber)}`)
     )
     if (hubRes.ok) {
-      const { hub } = await hubRes.json() as { hub: { id: string } }
+      const { hub } = (await hubRes.json()) as { hub: { id: string } }
       hubId = hub.id
       console.log(`[telephony] /incoming resolved hub=${hubId} for calledNumber=${calledNumber}`)
     }
@@ -83,14 +100,16 @@ telephony.post('/incoming', async (c) => {
   const dos = hubId ? getScopedDOs(c.env, hubId) : globalDos
   const adapter = hubId ? ((await getHubTelephony(c.env, hubId)) ?? globalAdapter) : globalAdapter
 
-  const banCheck = await dos.records.fetch(new Request(`http://do/bans/check/${encodeURIComponent(callerNumber)}`))
-  const { banned } = await banCheck.json() as { banned: boolean }
+  const banCheck = await dos.records.fetch(
+    new Request(`http://do/bans/check/${encodeURIComponent(callerNumber)}`)
+  )
+  const { banned } = (await banCheck.json()) as { banned: boolean }
   if (banned) {
     return telephonyResponse(adapter.rejectCall())
   }
 
   const ivrRes = await dos.settings.fetch(new Request('http://do/settings/ivr-languages'))
-  const { enabledLanguages } = await ivrRes.json() as { enabledLanguages: string[] }
+  const { enabledLanguages } = (await ivrRes.json()) as { enabledLanguages: string[] }
 
   const response = await adapter.handleLanguageMenu({
     callSid,
@@ -121,15 +140,24 @@ telephony.post('/language-selected', async (c) => {
   }
 
   const spamRes = await dos.settings.fetch(new Request('http://do/settings/spam'))
-  const spamSettings = await spamRes.json() as { voiceCaptchaEnabled: boolean; rateLimitEnabled: boolean; maxCallsPerMinute: number }
+  const spamSettings = (await spamRes.json()) as {
+    voiceCaptchaEnabled: boolean
+    rateLimitEnabled: boolean
+    maxCallsPerMinute: number
+  }
 
   let rateLimited = false
   if (spamSettings.rateLimitEnabled) {
-    const rlRes = await dos.settings.fetch(new Request('http://do/rate-limit/check', {
-      method: 'POST',
-      body: JSON.stringify({ key: `phone:${hashPhone(callerNumber, c.env.HMAC_SECRET)}`, maxPerMinute: spamSettings.maxCallsPerMinute }),
-    }))
-    const rlData = await rlRes.json() as { limited: boolean }
+    const rlRes = await dos.settings.fetch(
+      new Request('http://do/rate-limit/check', {
+        method: 'POST',
+        body: JSON.stringify({
+          key: `phone:${hashPhone(callerNumber, c.env.HMAC_SECRET)}`,
+          maxPerMinute: spamSettings.maxCallsPerMinute,
+        }),
+      })
+    )
+    const rlData = (await rlRes.json()) as { limited: boolean }
     rateLimited = rlData.limited
   }
 
@@ -140,10 +168,12 @@ telephony.post('/language-selected', async (c) => {
     crypto.getRandomValues(buf)
     captchaDigits = String(1000 + (((buf[0] << 8) | buf[1]) % 9000))
     // Store expected digits server-side (not in callback URL)
-    await dos.settings.fetch(new Request('http://do/captcha/store', {
-      method: 'POST',
-      body: JSON.stringify({ callSid, expected: captchaDigits }),
-    }))
+    await dos.settings.fetch(
+      new Request('http://do/captcha/store', {
+        method: 'POST',
+        body: JSON.stringify({ callSid, expected: captchaDigits }),
+      })
+    )
   }
 
   const audioUrls = await buildAudioUrlMap(dos.settings, new URL(c.req.url).origin)
@@ -161,7 +191,9 @@ telephony.post('/language-selected', async (c) => {
 
   if (!rateLimited && !spamSettings.voiceCaptchaEnabled) {
     const origin = new URL(c.req.url).origin
-    console.log(`[telephony] /language-selected starting parallel ringing callSid=${callSid} origin=${origin} hub=${hubId || 'global'}`)
+    console.log(
+      `[telephony] /language-selected starting parallel ringing callSid=${callSid} origin=${origin} hub=${hubId || 'global'}`
+    )
     c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, c.env, dos, hubId))
   }
 
@@ -178,13 +210,21 @@ telephony.post('/captcha', async (c) => {
   const callerLang = url.searchParams.get('lang') || DEFAULT_LANGUAGE
 
   // Look up expected digits from server-side storage (not URL params)
-  const captchaRes = await dos.settings.fetch(new Request(`http://do/captcha/verify`, {
-    method: 'POST',
-    body: JSON.stringify({ callSid, digits }),
-  }))
-  const { match, expected } = await captchaRes.json() as { match: boolean; expected: string }
+  const captchaRes = await dos.settings.fetch(
+    new Request('http://do/captcha/verify', {
+      method: 'POST',
+      body: JSON.stringify({ callSid, digits }),
+    })
+  )
+  const { match, expected } = (await captchaRes.json()) as { match: boolean; expected: string }
 
-  const response = await adapter.handleCaptchaResponse({ callSid, digits, expectedDigits: expected, callerLanguage: callerLang, hubId })
+  const response = await adapter.handleCaptchaResponse({
+    callSid,
+    digits,
+    expectedDigits: expected,
+    callerLanguage: callerLang,
+    hubId,
+  })
 
   if (match) {
     const origin = new URL(c.req.url).origin
@@ -202,24 +242,33 @@ telephony.post('/volunteer-answer', async (c) => {
   const parentCallSid = url.searchParams.get('parentCallSid') || ''
   const pubkey = url.searchParams.get('pubkey') || ''
 
-  await dos.calls.fetch(new Request(`http://do/calls/${parentCallSid}/answer`, {
-    method: 'POST',
-    body: JSON.stringify({ pubkey }),
-  }))
+  await dos.calls.fetch(
+    new Request(`http://do/calls/${parentCallSid}/answer`, {
+      method: 'POST',
+      body: JSON.stringify({ pubkey }),
+    })
+  )
 
   const [volInfoRes, activeCallsRes] = await Promise.all([
     dos.identity.fetch(new Request(`http://do/volunteer/${pubkey}`)),
     dos.calls.fetch(new Request('http://do/calls/active')),
   ])
-  const volInfo = volInfoRes.ok ? await volInfoRes.json() as { name?: string } : {}
-  const { calls: activeCalls } = await activeCallsRes.json() as { calls: Array<{ id: string; callerLast4?: string }> }
-  const callRecord = activeCalls.find(call => call.id === parentCallSid)
+  const volInfo = volInfoRes.ok ? ((await volInfoRes.json()) as { name?: string }) : {}
+  const { calls: activeCalls } = (await activeCallsRes.json()) as {
+    calls: Array<{ id: string; callerLast4?: string }>
+  }
+  const callRecord = activeCalls.find((call) => call.id === parentCallSid)
   await audit(dos.records, 'callAnswered', pubkey, {
     callerLast4: callRecord?.callerLast4 || '',
   })
 
   const origin = new URL(c.req.url).origin
-  const response = await adapter.handleCallAnswered({ parentCallSid, callbackUrl: origin, volunteerPubkey: pubkey, hubId })
+  const response = await adapter.handleCallAnswered({
+    parentCallSid,
+    callbackUrl: origin,
+    volunteerPubkey: pubkey,
+    hubId,
+  })
   return telephonyResponse(response)
 })
 
@@ -231,17 +280,28 @@ telephony.post('/call-status', async (c) => {
   const { status: callStatus } = await adapter.parseCallStatusWebhook(c.req.raw)
   const parentCallSid = url.searchParams.get('parentCallSid') || ''
 
-  console.log(`[call-status] status=${callStatus} parentCallSid=${parentCallSid} hub=${hubId || 'global'}`)
+  console.log(
+    `[call-status] status=${callStatus} parentCallSid=${parentCallSid} hub=${hubId || 'global'}`
+  )
 
-  if (callStatus === 'completed' || callStatus === 'busy' || callStatus === 'no-answer' || callStatus === 'failed') {
+  if (
+    callStatus === 'completed' ||
+    callStatus === 'busy' ||
+    callStatus === 'no-answer' ||
+    callStatus === 'failed'
+  ) {
     const pubkey = url.searchParams.get('pubkey') || ''
     if (callStatus === 'completed') {
       const preCallRes = await dos.calls.fetch(new Request('http://do/calls/active'))
-      const { calls: preCalls } = await preCallRes.json() as { calls: Array<{ id: string; callerLast4?: string; startedAt: string }> }
-      const preCall = preCalls.find(call => call.id === parentCallSid)
+      const { calls: preCalls } = (await preCallRes.json()) as {
+        calls: Array<{ id: string; callerLast4?: string; startedAt: string }>
+      }
+      const preCall = preCalls.find((call) => call.id === parentCallSid)
       console.log(`[call-status] ending call ${parentCallSid}, found in active: ${!!preCall}`)
 
-      const endRes = await dos.calls.fetch(new Request(`http://do/calls/${parentCallSid}/end`, { method: 'POST' }))
+      const endRes = await dos.calls.fetch(
+        new Request(`http://do/calls/${parentCallSid}/end`, { method: 'POST' })
+      )
       console.log(`[call-status] end result: ${endRes.status}`)
 
       // Only audit if we actually ended the call (not already ended by /call-recording)
@@ -266,13 +326,20 @@ telephony.all('/wait-music', async (c) => {
   const { hubId, dos } = getHubContext(c.env, url)
   const adapter = (await getAdapter(c.env, hubId, dos))!
   const lang = url.searchParams.get('lang') || DEFAULT_LANGUAGE
-  const queueTime = c.req.method === 'POST'
-    ? (await adapter.parseQueueWaitWebhook(c.req.raw)).queueTime
-    : 0
+  const queueTime =
+    c.req.method === 'POST' ? (await adapter.parseQueueWaitWebhook(c.req.raw)).queueTime : 0
   const audioUrls = await buildAudioUrlMap(dos.settings, new URL(c.req.url).origin)
   const callSettingsRes = await dos.settings.fetch(new Request('http://do/settings/call'))
-  const callSettings = await callSettingsRes.json() as { queueTimeoutSeconds: number; voicemailMaxSeconds: number }
-  const response = await adapter.handleWaitMusic(lang, audioUrls, queueTime, callSettings.queueTimeoutSeconds)
+  const callSettings = (await callSettingsRes.json()) as {
+    queueTimeoutSeconds: number
+    voicemailMaxSeconds: number
+  }
+  const response = await adapter.handleWaitMusic(
+    lang,
+    audioUrls,
+    queueTime,
+    callSettings.queueTimeoutSeconds
+  )
   return telephonyResponse(response)
 })
 
@@ -296,7 +363,10 @@ telephony.post('/queue-exit', async (c) => {
     const audioUrls = await buildAudioUrlMap(dos.settings, new URL(c.req.url).origin)
     const origin = new URL(c.req.url).origin
     const callSettingsRes = await dos.settings.fetch(new Request('http://do/settings/call'))
-    const callSettings = await callSettingsRes.json() as { queueTimeoutSeconds: number; voicemailMaxSeconds: number }
+    const callSettings = (await callSettingsRes.json()) as {
+      queueTimeoutSeconds: number
+      voicemailMaxSeconds: number
+    }
     const response = await adapter.handleVoicemail({
       callSid,
       callerLanguage: lang,
@@ -332,12 +402,16 @@ telephony.post('/call-recording', async (c) => {
   if (recordingStatus === 'completed' && parentCallSid) {
     // Get call info before ending (for audit)
     const activeRes = await dos.calls.fetch(new Request('http://do/calls/active'))
-    const { calls: activeCalls } = await activeRes.json() as { calls: Array<{ id: string; callerLast4?: string; startedAt: string }> }
-    const callRecord = activeCalls.find(call => call.id === parentCallSid)
+    const { calls: activeCalls } = (await activeRes.json()) as {
+      calls: Array<{ id: string; callerLast4?: string; startedAt: string }>
+    }
+    const callRecord = activeCalls.find((call) => call.id === parentCallSid)
 
     // Recording completed means the bridge ended — end the call in the DO
     // (safety net in case /call-status doesn't fire)
-    const endRes = await dos.calls.fetch(new Request(`http://do/calls/${parentCallSid}/end`, { method: 'POST' }))
+    const endRes = await dos.calls.fetch(
+      new Request(`http://do/calls/${parentCallSid}/end`, { method: 'POST' })
+    )
     console.log(`[call-recording] ended call ${parentCallSid}: ${endRes.status}`)
 
     if (pubkey) {
@@ -348,14 +422,14 @@ telephony.post('/call-recording', async (c) => {
 
     if (recordingSid) {
       // Persist recording SID on the call record so the recording playback endpoint can find it
-      await dos.calls.fetch(new Request(`http://do/calls/${parentCallSid}/metadata`, {
-        method: 'PATCH',
-        body: JSON.stringify({ recordingSid, hasRecording: true }),
-      }))
-
-      c.executionCtx.waitUntil(
-        maybeTranscribe(parentCallSid, recordingSid, pubkey, c.env, dos)
+      await dos.calls.fetch(
+        new Request(`http://do/calls/${parentCallSid}/metadata`, {
+          method: 'PATCH',
+          body: JSON.stringify({ recordingSid, hasRecording: true }),
+        })
       )
+
+      c.executionCtx.waitUntil(maybeTranscribe(parentCallSid, recordingSid, pubkey, c.env, dos))
     }
   }
 
@@ -371,11 +445,19 @@ telephony.post('/voicemail-recording', async (c) => {
   const callSid = url.searchParams.get('callSid') || ''
 
   if (recordingStatus === 'completed') {
-    await dos.calls.fetch(new Request(`http://do/calls/${callSid}/voicemail`, {
-      method: 'POST',
-    }))
+    await dos.calls.fetch(
+      new Request(`http://do/calls/${callSid}/voicemail`, {
+        method: 'POST',
+      })
+    )
 
-    await audit(dos.records, 'voicemailReceived', 'system', { callSid }, { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET })
+    await audit(
+      dos.records,
+      'voicemailReceived',
+      'system',
+      { callSid },
+      { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET }
+    )
 
     c.executionCtx.waitUntil(transcribeVoicemail(callSid, c.env, dos))
   }

@@ -1,11 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import type { ConversationMessage } from '@/lib/api'
+import type { MessageDeliveryStatus } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptMessage } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
-import type { ConversationMessage } from '@/lib/api'
-import { Lock, ArrowDown, ArrowUp, Loader2, Check, CheckCheck, Clock, AlertCircle } from 'lucide-react'
-import type { MessageDeliveryStatus } from '@/lib/api'
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  Check,
+  CheckCheck,
+  Clock,
+  Loader2,
+  Lock,
+} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface ConversationThreadProps {
   conversationId: string
@@ -13,7 +22,11 @@ interface ConversationThreadProps {
   isLoading: boolean
 }
 
-export function ConversationThread({ conversationId, messages, isLoading }: ConversationThreadProps) {
+export function ConversationThread({
+  conversationId,
+  messages,
+  isLoading,
+}: ConversationThreadProps) {
   const { t } = useTranslation()
   const { hasNsec, publicKey } = useAuth()
   const [decryptedContent, setDecryptedContent] = useState<Map<string, string>>(new Map())
@@ -35,7 +48,7 @@ export function ConversationThread({ conversationId, messages, isLoading }: Conv
           msg.encryptedContent,
           msg.readerEnvelopes,
           secretKey,
-          publicKey,
+          publicKey
         )
         if (plaintext !== null) {
           newDecrypted.set(msg.id, plaintext)
@@ -44,14 +57,15 @@ export function ConversationThread({ conversationId, messages, isLoading }: Conv
     }
 
     setDecryptedContent(newDecrypted)
-  }, [messages, hasNsec, publicKey])
+  }, [messages, publicKey])
 
   // Auto-scroll to bottom when new messages arrive
+  // biome-ignore lint/correctness/useExhaustiveDependencies: messages is used as a trigger to run this effect when new messages arrive
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages.length])
+  }, [messages])
 
   // Track scroll position to show/hide scroll-down button
   function handleScroll() {
@@ -68,7 +82,11 @@ export function ConversationThread({ conversationId, messages, isLoading }: Conv
 
   function resolveSecretKey(): Uint8Array | null {
     if (keyManager.isUnlocked()) {
-      try { return keyManager.getSecretKey() } catch { return null }
+      try {
+        return keyManager.getSecretKey()
+      } catch {
+        return null
+      }
     }
     return null
   }
@@ -138,10 +156,7 @@ export function ConversationThread({ conversationId, messages, isLoading }: Conv
           const isEncrypted = text === undefined
 
           return (
-            <div
-              key={msg.id}
-              className={`flex ${isInbound ? 'justify-start' : 'justify-end'}`}
-            >
+            <div key={msg.id} className={`flex ${isInbound ? 'justify-start' : 'justify-end'}`}>
               <div
                 className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
                   isInbound
@@ -151,7 +166,9 @@ export function ConversationThread({ conversationId, messages, isLoading }: Conv
               >
                 <p className="text-sm whitespace-pre-wrap break-words">
                   {isEncrypted ? (
-                    <span className="italic text-muted-foreground">{t('conversations.encrypted', '[Encrypted]')}</span>
+                    <span className="italic text-muted-foreground">
+                      {t('conversations.encrypted', '[Encrypted]')}
+                    </span>
                   ) : (
                     text
                   )}
@@ -169,7 +186,10 @@ export function ConversationThread({ conversationId, messages, isLoading }: Conv
                     <>
                       <StatusIcon status={msg.status} />
                       {msg.status === 'failed' && msg.failureReason && (
-                        <span className="text-red-400 truncate max-w-[100px]" title={msg.failureReason}>
+                        <span
+                          className="text-red-400 truncate max-w-[100px]"
+                          title={msg.failureReason}
+                        >
                           {t('conversations.failed', 'Failed')}
                         </span>
                       )}
@@ -185,6 +205,7 @@ export function ConversationThread({ conversationId, messages, isLoading }: Conv
       {/* Scroll to bottom button */}
       {showScrollDown && (
         <button
+          type="button"
           onClick={scrollToBottom}
           className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-background border border-border shadow-md p-2 hover:bg-muted transition-colors"
           aria-label={t('conversations.scrollToBottom', 'Scroll to bottom')}

@@ -1,20 +1,29 @@
 import { Hono } from 'hono'
-import type { AppEnv } from '../types'
-import { getScopedDOs, getNostrPublisher } from '../lib/do-access'
-import { requirePermission, checkPermission } from '../middleware/permission-guard'
+import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
+import { getNostrPublisher, getScopedDOs } from '../lib/do-access'
+import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
-import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '../../shared/nostr-events'
+import type { AppEnv } from '../types'
 
 /** Publish a report/conversation event to the Nostr relay */
-function publishReportEvent(env: AppEnv['Bindings'], kind: number, content: Record<string, unknown>) {
+function publishReportEvent(
+  env: AppEnv['Bindings'],
+  kind: number,
+  content: Record<string, unknown>
+) {
   try {
     const publisher = getNostrPublisher(env)
-    publisher.publish({
-      kind,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [['d', 'global'], ['t', 'llamenos:event']],
-      content: JSON.stringify(content),
-    }).catch(() => {})
+    publisher
+      .publish({
+        kind,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['d', 'global'],
+          ['t', 'llamenos:event'],
+        ],
+        content: JSON.stringify(content),
+      })
+      .catch(() => {})
   } catch {
     // Nostr not configured
   }
@@ -30,8 +39,8 @@ reports.get('/', async (c) => {
 
   const status = c.req.query('status') || ''
   const category = c.req.query('category') || ''
-  const page = parseInt(c.req.query('page') || '1', 10)
-  const limit = Math.min(parseInt(c.req.query('limit') || '50', 10), 100)
+  const page = Number.parseInt(c.req.query('page') || '1', 10)
+  const limit = Math.min(Number.parseInt(c.req.query('limit') || '50', 10), 100)
 
   const qs = new URLSearchParams({
     type: 'report',
@@ -63,7 +72,7 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
   const pubkey = c.get('pubkey')
   const dos = getScopedDOs(c.env, c.get('hubId'))
 
-  const body = await c.req.json() as {
+  const body = (await c.req.json()) as {
     title: string
     category?: string
     // First message content (envelope-encrypted)
@@ -78,7 +87,7 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
   // Create the conversation with report metadata
   const conversationData = {
     channelType: 'web',
-    contactIdentifierHash: pubkey,  // Reporter is the "contact"
+    contactIdentifierHash: pubkey, // Reporter is the "contact"
     status: 'waiting',
     metadata: {
       type: 'report',
@@ -87,27 +96,31 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
     },
   }
 
-  const convRes = await dos.conversations.fetch(new Request('http://do/conversations', {
-    method: 'POST',
-    body: JSON.stringify(conversationData),
-  }))
+  const convRes = await dos.conversations.fetch(
+    new Request('http://do/conversations', {
+      method: 'POST',
+      body: JSON.stringify(conversationData),
+    })
+  )
 
   if (!convRes.ok) {
     return c.json({ error: 'Failed to create report' }, 500)
   }
 
-  const conversation = await convRes.json() as { id: string }
+  const conversation = (await convRes.json()) as { id: string }
 
   // Add the initial message
-  const msgRes = await dos.conversations.fetch(new Request(`http://do/conversations/${conversation.id}/messages`, {
-    method: 'POST',
-    body: JSON.stringify({
-      direction: 'inbound',
-      authorPubkey: pubkey,
-      encryptedContent: body.encryptedContent,
-      readerEnvelopes: body.readerEnvelopes,
-    }),
-  }))
+  const msgRes = await dos.conversations.fetch(
+    new Request(`http://do/conversations/${conversation.id}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({
+        direction: 'inbound',
+        authorPubkey: pubkey,
+        encryptedContent: body.encryptedContent,
+        readerEnvelopes: body.readerEnvelopes,
+      }),
+    })
+  )
 
   if (!msgRes.ok) {
     return c.json({ error: 'Failed to add report message' }, 500)
@@ -140,7 +153,11 @@ reports.get('/:id', async (c) => {
     return c.json({ error: 'Report not found' }, 404)
   }
 
-  const report = await res.json() as { contactIdentifierHash: string; assignedTo?: string; metadata?: { type?: string } }
+  const report = (await res.json()) as {
+    contactIdentifierHash: string
+    assignedTo?: string
+    metadata?: { type?: string }
+  }
 
   // Verify it's actually a report
   if (report.metadata?.type !== 'report') {
@@ -178,7 +195,11 @@ reports.get('/:id/messages', async (c) => {
     return c.json({ error: 'Report not found' }, 404)
   }
 
-  const report = await convRes.json() as { contactIdentifierHash: string; assignedTo?: string; metadata?: { type?: string } }
+  const report = (await convRes.json()) as {
+    contactIdentifierHash: string
+    assignedTo?: string
+    metadata?: { type?: string }
+  }
 
   if (report.metadata?.type !== 'report') {
     return c.json({ error: 'Not a report' }, 404)
@@ -197,10 +218,12 @@ reports.get('/:id/messages', async (c) => {
     }
   }
 
-  const limit = Math.min(parseInt(c.req.query('limit') || '100', 10), 200)
-  const page = parseInt(c.req.query('page') || '1', 10)
+  const limit = Math.min(Number.parseInt(c.req.query('limit') || '100', 10), 200)
+  const page = Number.parseInt(c.req.query('page') || '1', 10)
 
-  const msgRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}/messages?limit=${limit}&page=${page}`))
+  const msgRes = await dos.conversations.fetch(
+    new Request(`http://do/conversations/${id}/messages?limit=${limit}&page=${page}`)
+  )
   return new Response(msgRes.body, msgRes)
 })
 
@@ -217,7 +240,11 @@ reports.post('/:id/messages', async (c) => {
     return c.json({ error: 'Report not found' }, 404)
   }
 
-  const report = await convRes.json() as { contactIdentifierHash: string; assignedTo?: string; metadata?: { type?: string } }
+  const report = (await convRes.json()) as {
+    contactIdentifierHash: string
+    assignedTo?: string
+    metadata?: { type?: string }
+  }
 
   if (report.metadata?.type !== 'report') {
     return c.json({ error: 'Not a report' }, 404)
@@ -237,7 +264,7 @@ reports.post('/:id/messages', async (c) => {
     }
   }
 
-  const body = await c.req.json() as {
+  const body = (await c.req.json()) as {
     encryptedContent: string
     readerEnvelopes: import('../types').MessageKeyEnvelope[]
     attachmentIds?: string[]
@@ -246,17 +273,19 @@ reports.post('/:id/messages', async (c) => {
   const isReporter = report.contactIdentifierHash === pubkey
   const direction = isReporter ? 'inbound' : 'outbound'
 
-  const msgRes = await dos.conversations.fetch(new Request(`http://do/conversations/${id}/messages`, {
-    method: 'POST',
-    body: JSON.stringify({
-      direction,
-      authorPubkey: pubkey,
-      encryptedContent: body.encryptedContent,
-      readerEnvelopes: body.readerEnvelopes,
-      hasAttachments: (body.attachmentIds?.length ?? 0) > 0,
-      attachmentIds: body.attachmentIds,
-    }),
-  }))
+  const msgRes = await dos.conversations.fetch(
+    new Request(`http://do/conversations/${id}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({
+        direction,
+        authorPubkey: pubkey,
+        encryptedContent: body.encryptedContent,
+        readerEnvelopes: body.readerEnvelopes,
+        hasAttachments: (body.attachmentIds?.length ?? 0) > 0,
+        attachmentIds: body.attachmentIds,
+      }),
+    })
+  )
 
   if (!msgRes.ok) {
     return c.json({ error: 'Failed to send message' }, 500)
@@ -278,13 +307,15 @@ reports.post('/:id/assign', requirePermission('reports:assign'), async (c) => {
   const id = c.req.param('id')
   const pubkey = c.get('pubkey')
 
-  const body = await c.req.json() as { assignedTo: string }
+  const body = (await c.req.json()) as { assignedTo: string }
   const dos = getScopedDOs(c.env, c.get('hubId'))
 
-  const res = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ assignedTo: body.assignedTo, status: 'active' }),
-  }))
+  const res = await dos.conversations.fetch(
+    new Request(`http://do/conversations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ assignedTo: body.assignedTo, status: 'active' }),
+    })
+  )
 
   if (!res.ok) {
     return c.json({ error: 'Failed to assign report' }, 500)
@@ -308,12 +339,14 @@ reports.patch('/:id', requirePermission('reports:update'), async (c) => {
   const pubkey = c.get('pubkey')
   const dos = getScopedDOs(c.env, c.get('hubId'))
 
-  const body = await c.req.json() as { status?: string }
+  const body = (await c.req.json()) as { status?: string }
 
-  const res = await dos.conversations.fetch(new Request(`http://do/conversations/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(body),
-  }))
+  const res = await dos.conversations.fetch(
+    new Request(`http://do/conversations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+  )
 
   if (!res.ok) {
     return c.json({ error: 'Failed to update report' }, 500)
@@ -346,7 +379,11 @@ reports.get('/:id/files', async (c) => {
     return c.json({ error: 'Report not found' }, 404)
   }
 
-  const report = await convRes.json() as { contactIdentifierHash: string; assignedTo?: string; metadata?: { type?: string } }
+  const report = (await convRes.json()) as {
+    contactIdentifierHash: string
+    assignedTo?: string
+    metadata?: { type?: string }
+  }
 
   if (report.metadata?.type !== 'report') {
     return c.json({ error: 'Not a report' }, 404)
@@ -365,7 +402,9 @@ reports.get('/:id/files', async (c) => {
     }
   }
 
-  const filesRes = await dos.conversations.fetch(new Request(`http://do/files?conversationId=${id}`))
+  const filesRes = await dos.conversations.fetch(
+    new Request(`http://do/files?conversationId=${id}`)
+  )
   if (!filesRes.ok) {
     return c.json({ files: [] })
   }

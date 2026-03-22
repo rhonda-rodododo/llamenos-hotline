@@ -1,9 +1,9 @@
-import { useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { useAuth } from './auth'
-import { useNoteSheet } from './note-sheet-context'
-import { getRingingCallIds, getCurrentCallId } from './call-state'
+import { useEffect } from 'react'
 import { answerCall, hangupCall } from './api'
+import { useAuth } from './auth'
+import { getCurrentCallId, getRingingCallIds } from './call-state'
+import { useNoteSheet } from './note-sheet-context'
 import { stopRinging } from './notifications'
 
 function isInputFocused(): boolean {
@@ -49,7 +49,9 @@ export function useKeyboardShortcuts() {
         navigate({ to: '/notes', search: { page: 1, callId: '', search: '' } })
         // Focus the search input after navigation
         setTimeout(() => {
-          const input = document.querySelector('[data-slot="sheet-content"] input, .pl-9') as HTMLInputElement | null
+          const input = document.querySelector(
+            '[data-slot="sheet-content"] input, .pl-9'
+          ) as HTMLInputElement | null
           input?.focus()
         }, 100)
         return

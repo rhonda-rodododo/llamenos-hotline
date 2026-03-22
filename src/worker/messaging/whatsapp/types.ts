@@ -260,8 +260,8 @@ export interface MetaMediaUrlResponse {
 export interface TwilioWhatsAppInbound {
   MessageSid: string
   AccountSid: string
-  From: string     // e.g., "whatsapp:+15551234567"
-  To: string       // e.g., "whatsapp:+15559876543"
+  From: string // e.g., "whatsapp:+15551234567"
+  To: string // e.g., "whatsapp:+15559876543"
   Body: string
   NumMedia: string
   MediaUrl0?: string

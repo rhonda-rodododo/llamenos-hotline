@@ -37,9 +37,27 @@ export const LANGUAGES: LanguageConfig[] = [
     label: 'Español',
     flag: 'ES',
     phonePrefixes: [
-      '+52',  '+34',  '+54',  '+56',  '+57',  '+58',  '+51',  '+53',
-      '+591', '+593', '+595', '+598', '+502', '+503', '+504', '+505',
-      '+506', '+507', '+809', '+829', '+849',
+      '+52',
+      '+34',
+      '+54',
+      '+56',
+      '+57',
+      '+58',
+      '+51',
+      '+53',
+      '+591',
+      '+593',
+      '+595',
+      '+598',
+      '+502',
+      '+503',
+      '+504',
+      '+505',
+      '+506',
+      '+507',
+      '+809',
+      '+829',
+      '+849',
     ],
   },
   {
@@ -47,7 +65,7 @@ export const LANGUAGES: LanguageConfig[] = [
     label: '中文',
     flag: '中',
     phonePrefixes: [
-      '+86',  // China
+      '+86', // China
       '+886', // Taiwan
       '+852', // Hong Kong
       '+853', // Macau
@@ -70,7 +88,7 @@ export const LANGUAGES: LanguageConfig[] = [
     label: 'العربية',
     flag: 'ع',
     phonePrefixes: [
-      '+20',  // Egypt
+      '+20', // Egypt
       '+212', // Morocco
       '+213', // Algeria
       '+216', // Tunisia
@@ -94,8 +112,8 @@ export const LANGUAGES: LanguageConfig[] = [
     label: 'Français',
     flag: 'FR',
     phonePrefixes: [
-      '+33',  // France
-      '+32',  // Belgium
+      '+33', // France
+      '+32', // Belgium
       '+225', // Côte d'Ivoire
       '+221', // Senegal
       '+243', // DR Congo
@@ -119,7 +137,7 @@ export const LANGUAGES: LanguageConfig[] = [
     label: 'Русский',
     flag: 'RU',
     phonePrefixes: [
-      '+7',   // Russia & Kazakhstan
+      '+7', // Russia & Kazakhstan
       '+380', // Ukraine (many speak Russian)
       '+375', // Belarus
     ],
@@ -136,7 +154,7 @@ export const LANGUAGES: LanguageConfig[] = [
     label: 'Português',
     flag: 'PT',
     phonePrefixes: [
-      '+55',  // Brazil
+      '+55', // Brazil
       '+351', // Portugal
       '+244', // Angola
       '+258', // Mozambique
@@ -145,10 +163,13 @@ export const LANGUAGES: LanguageConfig[] = [
 ]
 
 /** Map of code -> config for quick lookup */
-export const LANGUAGE_MAP = Object.fromEntries(LANGUAGES.map(l => [l.code, l])) as Record<string, LanguageConfig>
+export const LANGUAGE_MAP = Object.fromEntries(LANGUAGES.map((l) => [l.code, l])) as Record<
+  string,
+  LanguageConfig
+>
 
 /** All supported language codes */
-export const LANGUAGE_CODES = LANGUAGES.map(l => l.code)
+export const LANGUAGE_CODES = LANGUAGES.map((l) => l.code)
 
 /** Default / fallback language */
 export const DEFAULT_LANGUAGE = 'en'
@@ -158,9 +179,7 @@ export const DEFAULT_LANGUAGE = 'en'
  * Digit assignment: index 0 → '1', index 1 → '2', ..., index 8 → '9', index 9 → '0'.
  * Languages not in this list rely on phone-prefix auto-detection.
  */
-export const IVR_LANGUAGES: string[] = [
-  'es', 'en', 'zh', 'tl', 'vi', 'ar', 'fr', 'ht', 'ko', 'ru',
-]
+export const IVR_LANGUAGES: string[] = ['es', 'en', 'zh', 'tl', 'vi', 'ar', 'fr', 'ht', 'ko', 'ru']
 
 /** Convert IVR array index to phone digit string */
 export function ivrIndexToDigit(index: number): string {
@@ -171,7 +190,7 @@ export function ivrIndexToDigit(index: number): string {
 
 /** Look up language code from a caller's digit press. Returns undefined for invalid digits. */
 export function languageFromDigit(digit: string): string | undefined {
-  const index = digit === '0' ? 9 : parseInt(digit, 10) - 1
+  const index = digit === '0' ? 9 : Number.parseInt(digit, 10) - 1
   if (index >= 0 && index < IVR_LANGUAGES.length) return IVR_LANGUAGES[index]
   return undefined
 }

@@ -1,14 +1,21 @@
-import { useEffect, useState, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useNavigate } from '@tanstack/react-router'
-import { useConfig } from '@/lib/config'
-import { listVolunteers, listShifts } from '@/lib/api'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { listShifts, listVolunteers } from '@/lib/api'
+import { useConfig } from '@/lib/config'
+import { useNavigate } from '@tanstack/react-router'
 import {
-  CheckCircle2, Circle, Rocket, Users, Clock, Phone, FileText,
-  ChevronDown, X,
+  CheckCircle2,
+  ChevronDown,
+  Circle,
+  Clock,
+  FileText,
+  Phone,
+  Rocket,
+  Users,
+  X,
 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface ChecklistItem {
   id: string
@@ -50,28 +57,36 @@ export function GettingStartedChecklist() {
         {
           id: 'setup',
           label: t('gettingStarted.setupWizard', { defaultValue: 'Complete setup wizard' }),
-          description: t('gettingStarted.setupWizardDesc', { defaultValue: 'Configure your hotline name, channels, and providers.' }),
+          description: t('gettingStarted.setupWizardDesc', {
+            defaultValue: 'Configure your hotline name, channels, and providers.',
+          }),
           done: setupCompleted,
           href: '/setup',
         },
         {
           id: 'volunteers',
           label: t('gettingStarted.inviteVolunteers', { defaultValue: 'Invite volunteers' }),
-          description: t('gettingStarted.inviteVolunteersDesc', { defaultValue: 'Add team members who will answer calls and respond to reports.' }),
+          description: t('gettingStarted.inviteVolunteersDesc', {
+            defaultValue: 'Add team members who will answer calls and respond to reports.',
+          }),
           done: hasVolunteers,
           href: '/volunteers',
         },
         {
           id: 'shifts',
           label: t('gettingStarted.createShifts', { defaultValue: 'Create shift schedule' }),
-          description: t('gettingStarted.createShiftsDesc', { defaultValue: 'Set up recurring shifts so calls are routed to available volunteers.' }),
+          description: t('gettingStarted.createShiftsDesc', {
+            defaultValue: 'Set up recurring shifts so calls are routed to available volunteers.',
+          }),
           done: hasShifts,
           href: '/shifts',
         },
         {
           id: 'provider',
           label: t('gettingStarted.configureProvider', { defaultValue: 'Configure telephony' }),
-          description: t('gettingStarted.configureProviderDesc', { defaultValue: 'Set up your telephony provider to enable voice calls and SMS.' }),
+          description: t('gettingStarted.configureProviderDesc', {
+            defaultValue: 'Set up your telephony provider to enable voice calls and SMS.',
+          }),
           done: !!hotlineNumber,
           href: '/admin/settings',
         },
@@ -82,7 +97,9 @@ export function GettingStartedChecklist() {
         checklist.push({
           id: 'reports',
           label: t('gettingStarted.enableReports', { defaultValue: 'Reports channel ready' }),
-          description: t('gettingStarted.enableReportsDesc', { defaultValue: 'The reports channel is enabled. Reporters can submit encrypted reports.' }),
+          description: t('gettingStarted.enableReportsDesc', {
+            defaultValue: 'The reports channel is enabled. Reporters can submit encrypted reports.',
+          }),
           done: true,
           href: '/reports',
         })
@@ -99,12 +116,14 @@ export function GettingStartedChecklist() {
     setDismissed(true)
     try {
       localStorage.setItem('getting-started-dismissed', 'true')
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [])
 
   if (dismissed || loading) return null
 
-  const completedCount = items.filter(i => i.done).length
+  const completedCount = items.filter((i) => i.done).length
   const allDone = completedCount === items.length
 
   // Don't show if everything is done
@@ -122,10 +141,17 @@ export function GettingStartedChecklist() {
             </span>
           </CardTitle>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon-xs" onClick={() => setCollapsed(prev => !prev)}>
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+            <Button variant="ghost" size="icon-xs" onClick={() => setCollapsed((prev) => !prev)}>
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${collapsed ? '-rotate-90' : ''}`}
+              />
             </Button>
-            <Button variant="ghost" size="icon-xs" onClick={handleDismiss} aria-label={t('common.close')}>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={handleDismiss}
+              aria-label={t('common.close')}
+            >
               <X className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -141,17 +167,13 @@ export function GettingStartedChecklist() {
       {!collapsed && (
         <CardContent className="pt-0">
           <div className="space-y-2">
-            {items.map(item => (
-              <div
+            {items.map((item) => (
+              <button
                 key={item.id}
-                role="button"
-                tabIndex={0}
+                type="button"
                 onClick={() => navigate({ to: item.href })}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate({ to: item.href }) } }}
-                className={`flex cursor-pointer items-start gap-3 rounded-md px-3 py-2.5 transition-colors ${
-                  item.done
-                    ? 'opacity-60'
-                    : 'hover:bg-primary/10'
+                className={`flex w-full cursor-pointer items-start gap-3 rounded-md px-3 py-2.5 text-left transition-colors ${
+                  item.done ? 'opacity-60' : 'hover:bg-primary/10'
                 }`}
               >
                 {item.done ? (
@@ -165,7 +187,7 @@ export function GettingStartedChecklist() {
                   </p>
                   <p className="text-xs text-muted-foreground">{item.description}</p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </CardContent>

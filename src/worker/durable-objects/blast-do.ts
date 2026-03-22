@@ -1,13 +1,19 @@
-import { DurableObject } from 'cloudflare:workers'
-import type { Env } from '../types'
-import type { MessagingChannelType, Subscriber, Blast, BlastSettings, BlastContent } from '../../shared/types'
-import { DEFAULT_BLAST_SETTINGS } from '../../shared/types'
-import { DORouter } from '../lib/do-router'
+import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { hmac } from '@noble/hashes/hmac.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
-import { utf8ToBytes } from '@noble/ciphers/utils.js'
+import { DurableObject } from '#cloudflare-workers'
 import { HMAC_PREFERENCE_TOKEN, HMAC_SUBSCRIBER } from '../../shared/crypto-labels'
+import type {
+  Blast,
+  BlastContent,
+  BlastSettings,
+  MessagingChannelType,
+  Subscriber,
+} from '../../shared/types'
+import { DEFAULT_BLAST_SETTINGS } from '../../shared/types'
+import { DORouter } from '../lib/do-router'
+import type { Env } from '../types'
 
 /**
  * BlastDO — manages subscriber lists and broadcast messaging.
@@ -27,12 +33,18 @@ export class BlastDO extends DurableObject<Env> {
     this.router = new DORouter()
 
     // --- Subscribers ---
-    this.router.post('/subscribers/keyword', async (req) => this.handleSubscriberKeyword(await req.json()))
+    this.router.post('/subscribers/keyword', async (req) =>
+      this.handleSubscriberKeyword(await req.json())
+    )
     this.router.get('/subscribers', (req) => this.listSubscribers(req))
     this.router.get('/subscribers/stats', () => this.getSubscriberStats())
     this.router.post('/subscribers/import', async (req) => this.importSubscribers(await req.json()))
-    this.router.post('/subscribers/validate-token', async (req) => this.validatePreferenceToken(await req.json()))
-    this.router.patch('/subscribers/update-preferences', async (req) => this.updateSubscriberPreferences(await req.json()))
+    this.router.post('/subscribers/validate-token', async (req) =>
+      this.validatePreferenceToken(await req.json())
+    )
+    this.router.patch('/subscribers/update-preferences', async (req) =>
+      this.updateSubscriberPreferences(await req.json())
+    )
     this.router.delete('/subscribers/:id', (_req, { id }) => this.deleteSubscriber(id))
 
     // --- Blasts ---
@@ -42,7 +54,9 @@ export class BlastDO extends DurableObject<Env> {
     this.router.patch('/blasts/:id', async (req, { id }) => this.updateBlast(id, await req.json()))
     this.router.delete('/blasts/:id', (_req, { id }) => this.deleteBlast(id))
     this.router.post('/blasts/:id/send', (_req, { id }) => this.sendBlast(id))
-    this.router.post('/blasts/:id/schedule', async (req, { id }) => this.scheduleBlast(id, await req.json()))
+    this.router.post('/blasts/:id/schedule', async (req, { id }) =>
+      this.scheduleBlast(id, await req.json())
+    )
     this.router.post('/blasts/:id/cancel', (_req, { id }) => this.cancelBlast(id))
 
     // --- Blast Settings ---
@@ -72,7 +86,7 @@ export class BlastDO extends DurableObject<Env> {
   }
 
   private async getBlastSettingsData(): Promise<BlastSettings> {
-    return await this.ctx.storage.get<BlastSettings>('blast-settings') || DEFAULT_BLAST_SETTINGS
+    return (await this.ctx.storage.get<BlastSettings>('blast-settings')) || DEFAULT_BLAST_SETTINGS
   }
 
   private async getAllSubscribers(): Promise<Subscriber[]> {
@@ -89,7 +103,10 @@ export class BlastDO extends DurableObject<Env> {
     const settings = await this.getBlastSettingsData()
     const normalizedKeyword = data.keyword.toUpperCase()
 
-    if (normalizedKeyword === settings.unsubscribeKeyword.toUpperCase() || normalizedKeyword === 'STOP') {
+    if (
+      normalizedKeyword === settings.unsubscribeKeyword.toUpperCase() ||
+      normalizedKeyword === 'STOP'
+    ) {
       // Find subscriber by identifierHash
       const existing = await this.ctx.storage.get<Subscriber>(`subscribers:${data.identifierHash}`)
       if (existing) {
@@ -104,7 +121,7 @@ export class BlastDO extends DurableObject<Env> {
       if (existing) {
         // Re-subscribe
         existing.status = 'active'
-        const hasChannel = existing.channels.some(ch => ch.type === data.channel)
+        const hasChannel = existing.channels.some((ch) => ch.type === data.channel)
         if (!hasChannel) {
           existing.channels.push({ type: data.channel, verified: true })
         }
@@ -129,7 +146,10 @@ export class BlastDO extends DurableObject<Env> {
 
       await this.ctx.storage.put(`subscribers:${data.identifierHash}`, subscriber)
       // Write preference token index for constant-time lookup
-      await this.ctx.storage.put(`preferenceToken:${subscriber.preferenceToken}`, data.identifierHash)
+      await this.ctx.storage.put(
+        `preferenceToken:${subscriber.preferenceToken}`,
+        data.identifierHash
+      )
       await this.addToChannelIndex(data.channel, subscriber.id)
 
       return Response.json({
@@ -142,19 +162,25 @@ export class BlastDO extends DurableObject<Env> {
     return Response.json({ action: 'ignored' })
   }
 
-  private async addToChannelIndex(channel: MessagingChannelType, subscriberId: string): Promise<void> {
+  private async addToChannelIndex(
+    channel: MessagingChannelType,
+    subscriberId: string
+  ): Promise<void> {
     const key = `subscriber-index:channel:${channel}`
-    const ids = await this.ctx.storage.get<string[]>(key) || []
+    const ids = (await this.ctx.storage.get<string[]>(key)) || []
     if (!ids.includes(subscriberId)) {
       ids.push(subscriberId)
       await this.ctx.storage.put(key, ids)
     }
   }
 
-  private async removeFromChannelIndex(channel: MessagingChannelType, subscriberId: string): Promise<void> {
+  private async removeFromChannelIndex(
+    channel: MessagingChannelType,
+    subscriberId: string
+  ): Promise<void> {
     const key = `subscriber-index:channel:${channel}`
-    const ids = await this.ctx.storage.get<string[]>(key) || []
-    const filtered = ids.filter(id => id !== subscriberId)
+    const ids = (await this.ctx.storage.get<string[]>(key)) || []
+    const filtered = ids.filter((id) => id !== subscriberId)
     await this.ctx.storage.put(key, filtered)
   }
 
@@ -163,23 +189,25 @@ export class BlastDO extends DurableObject<Env> {
     const tag = url.searchParams.get('tag')
     const channel = url.searchParams.get('channel') as MessagingChannelType | null
     const status = url.searchParams.get('status') as Subscriber['status'] | null
-    const page = parseInt(url.searchParams.get('page') || '1')
-    const limit = parseInt(url.searchParams.get('limit') || '50')
+    const page = Number.parseInt(url.searchParams.get('page') || '1')
+    const limit = Number.parseInt(url.searchParams.get('limit') || '50')
 
     let subscribers = await this.getAllSubscribers()
 
     if (tag) {
-      subscribers = subscribers.filter(s => s.tags.includes(tag))
+      subscribers = subscribers.filter((s) => s.tags.includes(tag))
     }
     if (channel) {
-      subscribers = subscribers.filter(s => s.channels.some(ch => ch.type === channel))
+      subscribers = subscribers.filter((s) => s.channels.some((ch) => ch.type === channel))
     }
     if (status) {
-      subscribers = subscribers.filter(s => s.status === status)
+      subscribers = subscribers.filter((s) => s.status === status)
     }
 
     // Sort by subscribedAt, newest first
-    subscribers.sort((a, b) => new Date(b.subscribedAt).getTime() - new Date(a.subscribedAt).getTime())
+    subscribers.sort(
+      (a, b) => new Date(b.subscribedAt).getTime() - new Date(a.subscribedAt).getTime()
+    )
 
     const start = (page - 1) * limit
     return Response.json({
@@ -190,7 +218,7 @@ export class BlastDO extends DurableObject<Env> {
 
   private async deleteSubscriber(id: string): Promise<Response> {
     const subscribers = await this.getAllSubscribers()
-    const subscriber = subscribers.find(s => s.id === id)
+    const subscriber = subscribers.find((s) => s.id === id)
     if (!subscriber) return new Response('Subscriber not found', { status: 404 })
 
     // Remove from channel indexes
@@ -237,20 +265,24 @@ export class BlastDO extends DurableObject<Env> {
     for (const entry of data.subscribers) {
       // Generate identifier hash using HMAC with server secret (consistent with hashPhone pattern)
       const identifierHash = bytesToHex(
-        hmac(sha256, hexToBytes(this.env.HMAC_SECRET), utf8ToBytes(`${HMAC_SUBSCRIBER}${entry.identifier}`))
+        hmac(
+          sha256,
+          hexToBytes(this.env.HMAC_SECRET),
+          utf8ToBytes(`${HMAC_SUBSCRIBER}${entry.identifier}`)
+        )
       )
 
       const existing = await this.ctx.storage.get<Subscriber>(`subscribers:${identifierHash}`)
       if (existing) {
         // Add channel if not present
-        const hasChannel = existing.channels.some(ch => ch.type === entry.channel)
+        const hasChannel = existing.channels.some((ch) => ch.type === entry.channel)
         if (!hasChannel) {
           existing.channels.push({ type: entry.channel, verified: false })
           await this.ctx.storage.put(`subscribers:${identifierHash}`, existing)
           await this.addToChannelIndex(entry.channel, existing.id)
         }
         if (entry.tags) {
-          const newTags = entry.tags.filter(t => !existing.tags.includes(t))
+          const newTags = entry.tags.filter((t) => !existing.tags.includes(t))
           if (newTags.length > 0) {
             existing.tags.push(...newTags)
             await this.ctx.storage.put(`subscribers:${identifierHash}`, existing)
@@ -373,7 +405,12 @@ export class BlastDO extends DurableObject<Env> {
     return Response.json(blast)
   }
 
-  private async updateBlast(id: string, data: Partial<Pick<Blast, 'name' | 'content' | 'targetChannels' | 'targetTags' | 'targetLanguages'>>): Promise<Response> {
+  private async updateBlast(
+    id: string,
+    data: Partial<
+      Pick<Blast, 'name' | 'content' | 'targetChannels' | 'targetTags' | 'targetLanguages'>
+    >
+  ): Promise<Response> {
     const blast = await this.ctx.storage.get<Blast>(`blasts:${id}`)
     if (!blast) return new Response('Blast not found', { status: 404 })
     if (blast.status !== 'draft') {
@@ -395,7 +432,9 @@ export class BlastDO extends DurableObject<Env> {
     const blast = await this.ctx.storage.get<Blast>(`blasts:${id}`)
     if (!blast) return new Response('Blast not found', { status: 404 })
     if (blast.status !== 'draft') {
-      return new Response(JSON.stringify({ error: 'Can only delete draft blasts' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Can only delete draft blasts' }), {
+        status: 400,
+      })
     }
 
     await this.ctx.storage.delete(`blasts:${id}`)
@@ -408,7 +447,9 @@ export class BlastDO extends DurableObject<Env> {
     const blast = await this.ctx.storage.get<Blast>(`blasts:${id}`)
     if (!blast) return new Response('Blast not found', { status: 404 })
     if (blast.status !== 'draft' && blast.status !== 'scheduled') {
-      return new Response(JSON.stringify({ error: 'Blast is not in a sendable state' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Blast is not in a sendable state' }), {
+        status: 400,
+      })
     }
 
     // Enforce maxBlastsPerDay limit
@@ -427,27 +468,23 @@ export class BlastDO extends DurableObject<Env> {
 
     // Gather target subscribers
     let subscribers = await this.getAllSubscribers()
-    subscribers = subscribers.filter(s => s.status === 'active')
+    subscribers = subscribers.filter((s) => s.status === 'active')
 
     // Filter by target channels
     if (blast.targetChannels.length > 0) {
-      subscribers = subscribers.filter(s =>
-        s.channels.some(ch => blast.targetChannels.includes(ch.type) && ch.verified)
+      subscribers = subscribers.filter((s) =>
+        s.channels.some((ch) => blast.targetChannels.includes(ch.type) && ch.verified)
       )
     }
 
     // Filter by tags
     if (blast.targetTags.length > 0) {
-      subscribers = subscribers.filter(s =>
-        blast.targetTags.some(tag => s.tags.includes(tag))
-      )
+      subscribers = subscribers.filter((s) => blast.targetTags.some((tag) => s.tags.includes(tag)))
     }
 
     // Filter by languages
     if (blast.targetLanguages.length > 0) {
-      subscribers = subscribers.filter(s =>
-        blast.targetLanguages.includes(s.language)
-      )
+      subscribers = subscribers.filter((s) => blast.targetLanguages.includes(s.language))
     }
 
     blast.status = 'sending'
@@ -462,7 +499,9 @@ export class BlastDO extends DurableObject<Env> {
     // Schedule alarm to begin processing
     try {
       await this.ctx.storage.setAlarm(Date.now() + 100)
-    } catch { /* alarm already set */ }
+    } catch {
+      /* alarm already set */
+    }
 
     return Response.json(blast)
   }
@@ -471,12 +510,16 @@ export class BlastDO extends DurableObject<Env> {
     const blast = await this.ctx.storage.get<Blast>(`blasts:${id}`)
     if (!blast) return new Response('Blast not found', { status: 404 })
     if (blast.status !== 'draft') {
-      return new Response(JSON.stringify({ error: 'Can only schedule draft blasts' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Can only schedule draft blasts' }), {
+        status: 400,
+      })
     }
 
     const scheduledTime = new Date(data.scheduledAt).getTime()
-    if (isNaN(scheduledTime) || scheduledTime <= Date.now()) {
-      return new Response(JSON.stringify({ error: 'scheduledAt must be a future date' }), { status: 400 })
+    if (Number.isNaN(scheduledTime) || scheduledTime <= Date.now()) {
+      return new Response(JSON.stringify({ error: 'scheduledAt must be a future date' }), {
+        status: 400,
+      })
     }
 
     blast.status = 'scheduled'
@@ -487,7 +530,9 @@ export class BlastDO extends DurableObject<Env> {
     // Schedule alarm for the blast time
     try {
       await this.ctx.storage.setAlarm(scheduledTime)
-    } catch { /* alarm already set — alarm handler checks for due blasts */ }
+    } catch {
+      /* alarm already set — alarm handler checks for due blasts */
+    }
 
     return Response.json(blast)
   }
@@ -496,7 +541,10 @@ export class BlastDO extends DurableObject<Env> {
     const blast = await this.ctx.storage.get<Blast>(`blasts:${id}`)
     if (!blast) return new Response('Blast not found', { status: 404 })
     if (blast.status !== 'scheduled' && blast.status !== 'sending') {
-      return new Response(JSON.stringify({ error: 'Can only cancel scheduled or sending blasts' }), { status: 400 })
+      return new Response(
+        JSON.stringify({ error: 'Can only cancel scheduled or sending blasts' }),
+        { status: 400 }
+      )
     }
 
     blast.status = 'cancelled'
@@ -580,11 +628,13 @@ export class BlastDO extends DurableObject<Env> {
 
     // Re-schedule alarm if there are active or scheduled blasts
     const hasActive = (await this.ctx.storage.list<boolean>({ prefix: 'blast-active:' })).size > 0
-    const hasScheduled = [...allBlasts.values()].some(b => b.status === 'scheduled')
+    const hasScheduled = [...allBlasts.values()].some((b) => b.status === 'scheduled')
     if (hasActive || hasScheduled) {
       try {
         await this.ctx.storage.setAlarm(Date.now() + 5 * 60 * 1000)
-      } catch { /* alarm already set */ }
+      } catch {
+        /* alarm already set */
+      }
     }
   }
 }

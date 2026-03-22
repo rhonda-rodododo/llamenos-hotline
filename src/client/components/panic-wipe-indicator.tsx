@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
 import { initPanicWipe } from '@/lib/panic-wipe'
+import { useEffect, useState } from 'react'
 
 /**
  * Full-screen red flash overlay shown during panic wipe.

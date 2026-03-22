@@ -16,11 +16,11 @@ const STORAGE_KEY = 'llamenos-encrypted-key'
 const PBKDF2_ITERATIONS = 600_000
 
 export interface EncryptedKeyData {
-  salt: string       // hex, 16 bytes
+  salt: string // hex, 16 bytes
   iterations: number
-  nonce: string      // hex, 24 bytes (XChaCha20)
+  nonce: string // hex, 24 bytes (XChaCha20)
   ciphertext: string // hex
-  pubkey: string     // truncated SHA-256 hash of pubkey (not plaintext) for identification
+  pubkey: string // truncated SHA-256 hash of pubkey (not plaintext) for identification
 }
 
 /**
@@ -33,7 +33,7 @@ async function deriveKEK(pin: string, salt: Uint8Array): Promise<Uint8Array> {
     pinBytes.buffer as ArrayBuffer,
     'PBKDF2',
     false,
-    ['deriveBits'],
+    ['deriveBits']
   )
   const derived = await crypto.subtle.deriveBits(
     {
@@ -43,7 +43,7 @@ async function deriveKEK(pin: string, salt: Uint8Array): Promise<Uint8Array> {
       iterations: PBKDF2_ITERATIONS,
     },
     keyMaterial,
-    256, // 32 bytes
+    256 // 32 bytes
   )
   return new Uint8Array(derived)
 }
@@ -65,9 +65,9 @@ export async function storeEncryptedKey(nsec: string, pin: string, pubkey: strin
 
   // Hash pubkey for identification — never store plaintext pubkey alongside encrypted key
   const hashInput = utf8ToBytes(`${HMAC_KEYID_PREFIX}${pubkey}`)
-  const pubkeyHash = bytesToHex(new Uint8Array(
-    await crypto.subtle.digest('SHA-256', hashInput.buffer as ArrayBuffer)
-  )).slice(0, 16)
+  const pubkeyHash = bytesToHex(
+    new Uint8Array(await crypto.subtle.digest('SHA-256', hashInput.buffer as ArrayBuffer))
+  ).slice(0, 16)
 
   const data: EncryptedKeyData = {
     salt: bytesToHex(salt),

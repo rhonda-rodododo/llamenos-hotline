@@ -1,29 +1,29 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useToast } from '@/lib/toast'
-import { generateKeyPair, createAuthToken } from '@/lib/crypto'
-import { isValidPin } from '@/lib/key-store'
-import * as keyManager from '@/lib/key-manager'
-import { bootstrapAdmin } from '@/lib/api'
-import { createBackup, generateRecoveryKey, downloadBackupFile } from '@/lib/backup'
-import { setLanguage } from '@/lib/i18n'
-import { LANGUAGES } from '@shared/languages'
+import { LogoMark } from '@/components/logo-mark'
 import { PinInput } from '@/components/pin-input'
 import { Button } from '@/components/ui/button'
-import { LogoMark } from '@/components/logo-mark'
+import { bootstrapAdmin } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { createBackup, downloadBackupFile, generateRecoveryKey } from '@/lib/backup'
+import { createAuthToken, generateKeyPair } from '@/lib/crypto'
+import { setLanguage } from '@/lib/i18n'
+import * as keyManager from '@/lib/key-manager'
+import { isValidPin } from '@/lib/key-store'
+import { useToast } from '@/lib/toast'
+import { LANGUAGES } from '@shared/languages'
 import {
-  Globe,
-  KeyRound,
-  ShieldCheck,
-  ArrowRight,
+  AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   Check,
   Copy,
   Download,
-  AlertTriangle,
+  Globe,
+  KeyRound,
   Loader2,
+  ShieldCheck,
 } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 type BootstrapStep = 'welcome' | 'pin' | 'generating' | 'backup' | 'complete'
 
@@ -188,7 +188,10 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
               {t('setup.bootstrap.welcomeTitle', { defaultValue: 'Welcome to your hotline' })}
             </h2>
             <p className="text-muted-foreground">
-              {t('setup.bootstrap.welcomeDescription', { defaultValue: "Let's create your admin account. Your cryptographic identity is generated in your browser — the server never sees your private key." })}
+              {t('setup.bootstrap.welcomeDescription', {
+                defaultValue:
+                  "Let's create your admin account. Your cryptographic identity is generated in your browser — the server never sees your private key.",
+              })}
             </p>
           </div>
 
@@ -210,8 +213,11 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
                   role="radio"
                   aria-checked={uiLang === lang.code}
                   tabIndex={uiLang === lang.code ? 0 : -1}
-                  onClick={() => { setUiLang(lang.code); setLanguage(lang.code) }}
-                  onKeyDown={e => handleLangKeyDown(e, index)}
+                  onClick={() => {
+                    setUiLang(lang.code)
+                    setLanguage(lang.code)
+                  }}
+                  onKeyDown={(e) => handleLangKeyDown(e, index)}
                   className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${
                     uiLang === lang.code
                       ? 'border-primary bg-primary/10 text-primary font-medium'
@@ -248,7 +254,9 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
           </div>
 
           {error && (
-            <p role="alert" className="text-sm text-destructive text-center">{error}</p>
+            <p role="alert" className="text-sm text-destructive text-center">
+              {error}
+            </p>
           )}
 
           <PinInput
@@ -259,13 +267,20 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
             autoFocus
           />
           {pinError && (
-            <p role="alert" className="text-center text-sm text-destructive">{pinError}</p>
+            <p role="alert" className="text-center text-sm text-destructive">
+              {pinError}
+            </p>
           )}
           {pinStep === 'confirm' && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => { setPinStep('create'); setPin1(''); setPin2(''); setPinError('') }}
+              onClick={() => {
+                setPinStep('create')
+                setPin1('')
+                setPin2('')
+                setPinError('')
+              }}
               className="w-full"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -273,12 +288,7 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
             </Button>
           )}
           {pinStep === 'create' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setStep('welcome')}
-              className="w-full"
-            >
+            <Button variant="ghost" size="sm" onClick={() => setStep('welcome')} className="w-full">
               <ArrowLeft className="h-4 w-4" />
               {t('common.back')}
             </Button>
@@ -287,9 +297,15 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
       )}
 
       {step === 'generating' && (
-        <div role="status" aria-live="polite" className="flex flex-col items-center justify-center py-12 gap-3">
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex flex-col items-center justify-center py-12 gap-3"
+        >
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">{t('setup.bootstrap.generating', { defaultValue: 'Creating your admin account...' })}</p>
+          <p className="text-muted-foreground">
+            {t('setup.bootstrap.generating', { defaultValue: 'Creating your admin account...' })}
+          </p>
         </div>
       )}
 
@@ -299,21 +315,32 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <ShieldCheck className="h-6 w-6 text-primary" />
             </div>
-            <h2 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-bold outline-none">{t('onboarding.backupTitle')}</h2>
-            <p className="text-sm text-muted-foreground mt-1">{t('onboarding.backupDescription')}</p>
+            <h2 ref={stepHeadingRef} tabIndex={-1} className="text-xl font-bold outline-none">
+              {t('onboarding.backupTitle')}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {t('onboarding.backupDescription')}
+            </p>
           </div>
 
           {/* Recovery key display */}
           <div className="space-y-2">
             <p className="text-sm font-medium">{t('onboarding.recoveryKey')}</p>
             <div className="flex items-center gap-2">
-              <code data-testid="recovery-key" className="flex-1 break-all rounded-md bg-muted px-3 py-2 text-sm font-mono tracking-wider">
+              <code
+                data-testid="recovery-key"
+                className="flex-1 break-all rounded-md bg-muted px-3 py-2 text-sm font-mono tracking-wider"
+              >
                 {recoveryKeyStr}
               </code>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => { navigator.clipboard.writeText(recoveryKeyStr); toast(t('common.success'), 'success'); setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), 30000) }}
+                onClick={() => {
+                  navigator.clipboard.writeText(recoveryKeyStr)
+                  toast(t('common.success'), 'success')
+                  setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), 30000)
+                }}
                 aria-label={t('a11y.copyToClipboard')}
               >
                 <Copy className="h-3.5 w-3.5" />
@@ -346,7 +373,7 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
             <input
               type="checkbox"
               checked={backupAcknowledged}
-              onChange={e => setBackupAcknowledged(e.target.checked)}
+              onChange={(e) => setBackupAcknowledged(e.target.checked)}
               className="mt-0.5 h-4 w-4 rounded border-input accent-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
             <span className="text-sm">{t('onboarding.backupAcknowledge')}</span>
@@ -369,8 +396,14 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-950/20">
             <Check className="h-6 w-6 text-green-600 dark:text-green-400" />
           </div>
-          <p className="text-lg font-medium">{t('setup.bootstrap.complete', { defaultValue: 'Admin account created!' })}</p>
-          <p className="text-sm text-muted-foreground">{t('setup.bootstrap.completeSub', { defaultValue: "Now let's configure your hotline." })}</p>
+          <p className="text-lg font-medium">
+            {t('setup.bootstrap.complete', { defaultValue: 'Admin account created!' })}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {t('setup.bootstrap.completeSub', {
+              defaultValue: "Now let's configure your hotline.",
+            })}
+          </p>
         </div>
       )}
     </div>

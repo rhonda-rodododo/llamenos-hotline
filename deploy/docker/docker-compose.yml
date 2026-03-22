@@ -1,7 +1,7 @@
 # Llamenos Self-Hosted Docker Compose
 #
 # Core services (always start):
-#   app      - Llamenos application (Node.js)
+#   app      - Llamenos application (Bun)
 #   postgres - PostgreSQL database
 #   caddy    - Reverse proxy with automatic TLS
 #   minio    - S3-compatible blob storage
@@ -35,6 +35,10 @@ services:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-dev}
+        BUILD_COMMIT: ${BUILD_COMMIT:-local}
+        BUILD_TIME: ${BUILD_TIME:-}
     restart: unless-stopped
     read_only: true
     tmpfs:

@@ -1,12 +1,12 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { RouterProvider, createRouter } from '@tanstack/react-router'
-import { routeTree } from './routeTree.gen'
 import { AuthProvider } from '@/lib/auth'
 import { ConfigProvider } from '@/lib/config'
+import { NoteSheetProvider } from '@/lib/note-sheet-context'
 import { ThemeProvider } from '@/lib/theme'
 import { ToastProvider } from '@/lib/toast'
-import { NoteSheetProvider } from '@/lib/note-sheet-context'
+import { RouterProvider, createRouter } from '@tanstack/react-router'
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { routeTree } from './routeTree.gen'
 import '@/lib/i18n'
 import '@/app.css'
 
@@ -21,7 +21,7 @@ declare global {
 }
 if (typeof window !== 'undefined') {
   window.__TEST_ROUTER = router
-  import('./lib/key-manager').then(km => {
+  import('./lib/key-manager').then((km) => {
     window.__TEST_KEY_MANAGER = km
   })
 }
@@ -45,5 +45,5 @@ createRoot(document.getElementById('root')!).render(
         </ToastProvider>
       </ConfigProvider>
     </ThemeProvider>
-  </StrictMode>,
+  </StrictMode>
 )

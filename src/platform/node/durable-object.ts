@@ -2,7 +2,7 @@
  * DurableObject shim for Node.js — provides the same base class API
  * as cloudflare:workers DurableObject, backed by PostgreSQL.
  */
-import type { StorageApi, DOContext } from '../types'
+import type { DOContext, StorageApi } from '../types'
 import { PostgresStorage } from './storage/postgres-storage'
 
 /** All storage instances, keyed by namespace — used by alarm poller */
@@ -65,11 +65,12 @@ export class DurableObject<Env = unknown> {
   private _storage: PostgresStorage
   private _wsManager: WebSocketManager
 
-  constructor(ctx: DOContext, env: Env) {
-    this.ctx = ctx
+  // biome-ignore lint/suspicious/noExplicitAny: ctx may be DurableObjectState (CF) or DOContext (Node shim) — both are valid at runtime
+  constructor(ctx: any, env: Env) {
+    this.ctx = ctx as DOContext
     this.env = env
-    this._storage = (ctx as any)._storage
-    this._wsManager = (ctx as any)._wsManager
+    this._storage = ctx._storage
+    this._wsManager = ctx._wsManager
 
     // Wire alarm callback to the instance's alarm() method
     if (this._storage) {
@@ -113,7 +114,10 @@ function sanitize(s: string): string {
 /**
  * Create a DurableObject context for a given class name and instance ID.
  */
-export function createDOContext(className: string, instanceId: string): DOContext & { _storage: PostgresStorage; _wsManager: WebSocketManager } {
+export function createDOContext(
+  className: string,
+  instanceId: string
+): DOContext & { _storage: PostgresStorage; _wsManager: WebSocketManager } {
   const safeClass = sanitize(className)
   const safeId = sanitize(instanceId)
   if (!safeClass || !safeId) {
@@ -168,7 +172,7 @@ export interface DONamespaceWithInstance {
 export function createDONamespace<T extends DurableObject>(
   DOClass: new (ctx: DOContext, env: unknown) => T,
   className: string,
-  env: unknown,
+  env: unknown
 ): DONamespaceWithInstance {
   const instances = new Map<string, T>()
 

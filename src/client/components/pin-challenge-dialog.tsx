@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
 import { PinInput } from '@/components/pin-input'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { ShieldCheck } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 const MAX_ATTEMPTS = 3
 
@@ -34,6 +34,7 @@ export function PinChallengeDialog({
   const [verifying, setVerifying] = useState(false)
 
   // Reset PIN when dialog opens or after failed attempt
+  // biome-ignore lint/correctness/useExhaustiveDependencies: attempts triggers reset after each failed PIN attempt
   useEffect(() => {
     if (open) {
       setPin('')
@@ -50,16 +51,19 @@ export function PinChallengeDialog({
   const remainingAttempts = MAX_ATTEMPTS - attempts
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onCancel() }}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) onCancel()
+      }}
+    >
       <DialogContent showCloseButton={false} data-testid="pin-challenge-dialog">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
             <DialogTitle>{t('pinChallenge.title')}</DialogTitle>
           </div>
-          <DialogDescription>
-            {t('pinChallenge.description')}
-          </DialogDescription>
+          <DialogDescription>{t('pinChallenge.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="py-4">
@@ -74,7 +78,10 @@ export function PinChallengeDialog({
           />
 
           {error && (
-            <p className="mt-3 text-center text-sm text-destructive" data-testid="pin-challenge-error">
+            <p
+              className="mt-3 text-center text-sm text-destructive"
+              data-testid="pin-challenge-error"
+            >
               {t('pinChallenge.wrongPin', { remaining: remainingAttempts })}
             </p>
           )}

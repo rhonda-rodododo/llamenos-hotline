@@ -1,12 +1,18 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
-import { listIvrAudio, uploadIvrAudio, deleteIvrAudio, getIvrAudioUrl, type IvrAudioRecording } from '@/lib/api'
+import { AudioRecorder } from '@/components/audio-recorder'
 import { SettingsSection } from '@/components/settings-section'
 import { Badge } from '@/components/ui/badge'
-import { Volume2 } from 'lucide-react'
-import { AudioRecorder } from '@/components/audio-recorder'
+import {
+  type IvrAudioRecording,
+  deleteIvrAudio,
+  getIvrAudioUrl,
+  listIvrAudio,
+  uploadIvrAudio,
+} from '@/lib/api'
+import { useToast } from '@/lib/toast'
 import { LANGUAGE_MAP } from '@shared/languages'
+import { Volume2 } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   ivrEnabled: string[]
@@ -17,9 +23,22 @@ interface Props {
   statusSummary?: string
 }
 
-const PROMPT_TYPES = ['greeting', 'pleaseHold', 'waitMessage', 'rateLimited', 'captchaPrompt'] as const
+const PROMPT_TYPES = [
+  'greeting',
+  'pleaseHold',
+  'waitMessage',
+  'rateLimited',
+  'captchaPrompt',
+] as const
 
-export function VoicePromptsSection({ ivrEnabled, recordings, onRecordingsChange, expanded, onToggle, statusSummary }: Props) {
+export function VoicePromptsSection({
+  ivrEnabled,
+  recordings,
+  onRecordingsChange,
+  expanded,
+  onToggle,
+  statusSummary,
+}: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [audioSaving, setAudioSaving] = useState<string | null>(null)
@@ -35,21 +54,27 @@ export function VoicePromptsSection({ ivrEnabled, recordings, onRecordingsChange
       basePath="/admin/settings"
       statusSummary={statusSummary}
     >
-      {PROMPT_TYPES.map(promptType => (
+      {PROMPT_TYPES.map((promptType) => (
         <div key={promptType} className="space-y-2">
           <h4 className="text-sm font-medium">{t(`ivrAudio.prompt.${promptType}`)}</h4>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {ivrEnabled.map(langCode => {
+            {ivrEnabled.map((langCode) => {
               const lang = LANGUAGE_MAP[langCode]
               if (!lang) return null
-              const existing = recordings.find(r => r.promptType === promptType && r.language === langCode)
+              const existing = recordings.find(
+                (r) => r.promptType === promptType && r.language === langCode
+              )
               const key = `${promptType}:${langCode}`
               return (
                 <div key={key} className="rounded-lg border border-border p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium">{lang.flag} {lang.label}</span>
+                    <span className="text-xs font-medium">
+                      {lang.flag} {lang.label}
+                    </span>
                     {existing && (
-                      <Badge variant="secondary" className="text-[10px]">{t('ivrAudio.uploaded')}</Badge>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {t('ivrAudio.uploaded')}
+                      </Badge>
                     )}
                   </div>
                   <AudioRecorder
@@ -67,18 +92,26 @@ export function VoicePromptsSection({ ivrEnabled, recordings, onRecordingsChange
                         setAudioSaving(null)
                       }
                     }}
-                    onDelete={existing ? async () => {
-                      setAudioSaving(key)
-                      try {
-                        await deleteIvrAudio(promptType, langCode)
-                        onRecordingsChange(recordings.filter(r => !(r.promptType === promptType && r.language === langCode)))
-                        toast(t('common.success'), 'success')
-                      } catch {
-                        toast(t('common.error'), 'error')
-                      } finally {
-                        setAudioSaving(null)
-                      }
-                    } : undefined}
+                    onDelete={
+                      existing
+                        ? async () => {
+                            setAudioSaving(key)
+                            try {
+                              await deleteIvrAudio(promptType, langCode)
+                              onRecordingsChange(
+                                recordings.filter(
+                                  (r) => !(r.promptType === promptType && r.language === langCode)
+                                )
+                              )
+                              toast(t('common.success'), 'success')
+                            } catch {
+                              toast(t('common.error'), 'error')
+                            } finally {
+                              setAudioSaving(null)
+                            }
+                          }
+                        : undefined
+                    }
                   />
                   {audioSaving === key && (
                     <p className="text-xs text-muted-foreground">{t('common.loading')}</p>

@@ -1,15 +1,15 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
+import { LogoMark } from '@/components/logo-mark'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { updateMyProfile } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 import { setLanguage } from '@/lib/i18n'
 import { useToast } from '@/lib/toast'
 import { LANGUAGES } from '@shared/languages'
-import { Globe, Languages, ArrowRight, Check } from 'lucide-react'
-import { LogoMark } from '@/components/logo-mark'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { ArrowRight, Check, Globe, Languages } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/profile-setup')({
   component: ProfileSetupPage,
@@ -32,10 +32,8 @@ function ProfileSetupPage() {
   }, [profileCompleted, navigate])
 
   function toggleSpokenLang(code: string) {
-    setSpokenLangs(prev =>
-      prev.includes(code)
-        ? prev.filter(l => l !== code)
-        : [...prev, code]
+    setSpokenLangs((prev) =>
+      prev.includes(code) ? prev.filter((l) => l !== code) : [...prev, code]
     )
   }
 
@@ -72,11 +70,7 @@ function ProfileSetupPage() {
             <LogoMark size="xl" />
           </div>
           <CardTitle className="text-2xl">{t('profile.welcome')}</CardTitle>
-          {name && (
-            <CardDescription>
-              {t('profile.setupDescription', { name })}
-            </CardDescription>
-          )}
+          {name && <CardDescription>{t('profile.setupDescription', { name })}</CardDescription>}
         </CardHeader>
 
         <CardContent className="space-y-6">
@@ -87,7 +81,7 @@ function ProfileSetupPage() {
               {t('profile.uiLanguage')}
             </div>
             <div className="flex flex-wrap gap-2">
-              {LANGUAGES.map(lang => (
+              {LANGUAGES.map((lang) => (
                 <button
                   key={lang.code}
                   onClick={() => {
@@ -114,11 +108,9 @@ function ProfileSetupPage() {
               <Languages className="h-4 w-4 text-muted-foreground" />
               {t('profile.spokenLanguages')}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t('profile.spokenLanguagesHelp')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('profile.spokenLanguagesHelp')}</p>
             <div className="flex flex-wrap gap-2">
-              {LANGUAGES.map(lang => (
+              {LANGUAGES.map((lang) => (
                 <button
                   key={lang.code}
                   onClick={() => toggleSpokenLang(lang.code)}
@@ -142,7 +134,9 @@ function ProfileSetupPage() {
             className="w-full"
             size="lg"
           >
-            {saving ? t('common.loading') : (
+            {saving ? (
+              t('common.loading')
+            ) : (
               <>
                 {t('profile.getStarted')}
                 <ArrowRight className="h-4 w-4" />

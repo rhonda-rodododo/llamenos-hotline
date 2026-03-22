@@ -1,40 +1,62 @@
-import { createFileRoute, useSearch } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useEffect, useState, useRef } from 'react'
+import { PhoneInput } from '@/components/phone-input'
+import { SettingsSection, usePersistedExpanded } from '@/components/settings-section'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
-  updateMyTranscriptionPreference,
-  updateMyProfile,
   getTranscriptionSettings,
   getWebRtcStatus,
+  updateMyProfile,
+  updateMyTranscriptionPreference,
 } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 import * as keyManager from '@/lib/key-manager'
-import { nip19 } from 'nostr-tools'
-import { useToast } from '@/lib/toast'
-import { Settings2, Mic, Bell, User, Globe, Fingerprint, KeyRound, Trash2, Plus, Phone, Monitor, PhoneCall, Smartphone, Loader2, CheckCircle2 } from 'lucide-react'
-import { isWebAuthnAvailable, registerCredential, listCredentials, deleteCredential, type WebAuthnCredentialInfo } from '@/lib/webauthn'
-import { PhoneInput } from '@/components/phone-input'
-import {
-  getProvisioningRoom,
-  encryptNsecForDevice,
-  sendProvisionedKey,
-  computeSASForPrimaryDevice,
-} from '@/lib/provisioning'
 import { getNotificationPrefs, setNotificationPrefs } from '@/lib/notifications'
-import { useNotificationPermission } from '@/lib/use-notification-permission'
-import { LANGUAGES } from '@shared/languages'
-import { SettingsSection, usePersistedExpanded } from '@/components/settings-section'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import {
+  computeSASForPrimaryDevice,
+  encryptNsecForDevice,
+  getProvisioningRoom,
+  sendProvisionedKey,
+} from '@/lib/provisioning'
+import { useToast } from '@/lib/toast'
 import {
   TranscriptionManager,
+  type TranscriptionModel,
   getClientTranscriptionSettings,
   setClientTranscriptionSettings,
-  type TranscriptionModel,
 } from '@/lib/transcription'
+import { useNotificationPermission } from '@/lib/use-notification-permission'
+import {
+  type WebAuthnCredentialInfo,
+  deleteCredential,
+  isWebAuthnAvailable,
+  listCredentials,
+  registerCredential,
+} from '@/lib/webauthn'
+import { LANGUAGES } from '@shared/languages'
+import { createFileRoute, useSearch } from '@tanstack/react-router'
+import {
+  Bell,
+  CheckCircle2,
+  Fingerprint,
+  Globe,
+  KeyRound,
+  Loader2,
+  Mic,
+  Monitor,
+  Phone,
+  PhoneCall,
+  Plus,
+  Settings2,
+  Smartphone,
+  Trash2,
+  User,
+} from 'lucide-react'
+import { nip19 } from 'nostr-tools'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/settings')({
   component: SettingsPage,
@@ -46,7 +68,14 @@ export const Route = createFileRoute('/settings')({
 function SettingsPage() {
   const { t } = useTranslation()
   const { section } = useSearch({ from: '/settings' })
-  const { transcriptionEnabled, name: authName, spokenLanguages, callPreference, refreshProfile, publicKey } = useAuth()
+  const {
+    transcriptionEnabled,
+    name: authName,
+    spokenLanguages,
+    callPreference,
+    refreshProfile,
+    publicKey,
+  } = useAuth()
   const { toast } = useToast()
   const [myTranscription, setMyTranscription] = useState(transcriptionEnabled)
   const [notifPrefs, setNotifPrefs] = useState(getNotificationPrefs)
@@ -56,14 +85,16 @@ function SettingsPage() {
   const [webauthnLabel, setWebauthnLabel] = useState('')
   const [webauthnRegistering, setWebauthnRegistering] = useState(false)
   const webauthnAvailable = isWebAuthnAvailable()
-  const [currentCallPref, setCurrentCallPref] = useState<'phone' | 'browser' | 'both'>(callPreference)
+  const [currentCallPref, setCurrentCallPref] = useState<'phone' | 'browser' | 'both'>(
+    callPreference
+  )
   const [webrtcAvailable, setWebrtcAvailable] = useState(false)
 
   // Collapsible state — persisted in sessionStorage, profile expanded by default
   const { expanded, toggleSection } = usePersistedExpanded(
     'settings-expanded:/settings',
     ['profile', 'key-backup'],
-    section || undefined,
+    section || undefined
   )
   const scrolledRef = useRef(false)
 
@@ -79,16 +110,24 @@ function SettingsPage() {
 
   useEffect(() => {
     const promises: Promise<void>[] = [
-      getTranscriptionSettings().then(r => {
-        setCanOptOut(r.allowVolunteerOptOut)
-      }).catch(() => {}),
-      getWebRtcStatus().then(r => {
-        setWebrtcAvailable(r.available)
-      }).catch(() => {}),
+      getTranscriptionSettings()
+        .then((r) => {
+          setCanOptOut(r.allowVolunteerOptOut)
+        })
+        .catch(() => {}),
+      getWebRtcStatus()
+        .then((r) => {
+          setWebrtcAvailable(r.available)
+        })
+        .catch(() => {}),
     ]
     // Load WebAuthn credentials for all users
     if (webauthnAvailable) {
-      promises.push(listCredentials().then(setWebauthnCreds).catch(() => {}))
+      promises.push(
+        listCredentials()
+          .then(setWebauthnCreds)
+          .catch(() => {})
+      )
     }
     Promise.all(promises)
       .catch(() => toast(t('common.error'), 'error'))
@@ -162,16 +201,12 @@ function SettingsPage() {
             <Input
               id="profile-name"
               value={profileName}
-              onChange={e => setProfileName(e.target.value)}
+              onChange={(e) => setProfileName(e.target.value)}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="profile-phone">{t('profileSettings.phoneNumber')}</Label>
-            <PhoneInput
-              id="profile-phone"
-              value={profilePhone}
-              onChange={setProfilePhone}
-            />
+            <PhoneInput id="profile-phone" value={profilePhone} onChange={setProfilePhone} />
           </div>
         </div>
 
@@ -182,9 +217,7 @@ function SettingsPage() {
           </div>
         )}
 
-        {profileError && (
-          <p className="text-sm text-destructive">{profileError}</p>
-        )}
+        {profileError && <p className="text-sm text-destructive">{profileError}</p>}
 
         {/* Spoken languages */}
         <div className="space-y-2">
@@ -194,16 +227,14 @@ function SettingsPage() {
           </div>
           <p className="text-xs text-muted-foreground">{t('profile.spokenLanguagesHelp')}</p>
           <div className="flex flex-wrap gap-2">
-            {LANGUAGES.map(lang => {
+            {LANGUAGES.map((lang) => {
               const selected = selectedLanguages.includes(lang.code)
               return (
                 <button
                   key={lang.code}
                   onClick={() => {
-                    setSelectedLanguages(prev =>
-                      selected
-                        ? prev.filter(c => c !== lang.code)
-                        : [...prev, lang.code]
+                    setSelectedLanguages((prev) =>
+                      selected ? prev.filter((c) => c !== lang.code) : [...prev, lang.code]
                     )
                   }}
                   className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${
@@ -220,9 +251,7 @@ function SettingsPage() {
           </div>
         </div>
 
-        <Button onClick={handleUpdateProfile}>
-          {t('profileSettings.updateProfile')}
-        </Button>
+        <Button onClick={handleUpdateProfile}>{t('profileSettings.updateProfile')}</Button>
       </SettingsSection>
 
       {/* Key Backup */}
@@ -235,10 +264,15 @@ function SettingsPage() {
         onToggle={(open) => toggleSection('key-backup', open)}
       >
         <p className="text-sm text-muted-foreground">
-          {t('profileSettings.keyBackupNote', { defaultValue: 'Download a backup from the onboarding flow or use your recovery key to restore access on a new device.' })}
+          {t('profileSettings.keyBackupNote', {
+            defaultValue:
+              'Download a backup from the onboarding flow or use your recovery key to restore access on a new device.',
+          })}
         </p>
         <p className="text-xs text-muted-foreground">
-          {npub ? `${t('profileSettings.publicKey', { defaultValue: 'Public key' })}: ${npub.slice(0, 16)}...` : ''}
+          {npub
+            ? `${t('profileSettings.publicKey', { defaultValue: 'Public key' })}: ${npub.slice(0, 16)}...`
+            : ''}
         </p>
       </SettingsSection>
 
@@ -268,18 +302,20 @@ function SettingsPage() {
             <p className="text-sm text-muted-foreground">{t('webauthn.noKeys')}</p>
           ) : (
             <div className="space-y-2">
-              {webauthnCreds.map(cred => (
-                <div key={cred.id} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+              {webauthnCreds.map((cred) => (
+                <div
+                  key={cred.id}
+                  className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
+                >
                   <div className="space-y-0.5">
                     <p className="text-sm font-medium">{cred.label}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="outline" className="text-[10px]">
-                        {cred.backedUp
-                          ? t('webauthn.syncedPasskey')
-                          : t('webauthn.singleDevice')
-                        }
+                        {cred.backedUp ? t('webauthn.syncedPasskey') : t('webauthn.singleDevice')}
                       </Badge>
-                      <span>{t('webauthn.lastUsed')}: {new Date(cred.lastUsedAt).toLocaleDateString()}</span>
+                      <span>
+                        {t('webauthn.lastUsed')}: {new Date(cred.lastUsedAt).toLocaleDateString()}
+                      </span>
                     </div>
                   </div>
                   <Button
@@ -288,7 +324,7 @@ function SettingsPage() {
                     onClick={async () => {
                       try {
                         await deleteCredential(cred.id)
-                        setWebauthnCreds(prev => prev.filter(c => c.id !== cred.id))
+                        setWebauthnCreds((prev) => prev.filter((c) => c.id !== cred.id))
                         toast(t('common.success'), 'success')
                       } catch {
                         toast(t('common.error'), 'error')
@@ -305,7 +341,7 @@ function SettingsPage() {
           <div className="flex gap-2">
             <Input
               value={webauthnLabel}
-              onChange={e => setWebauthnLabel(e.target.value)}
+              onChange={(e) => setWebauthnLabel(e.target.value)}
               placeholder={t('webauthn.label')}
               className="flex-1"
             />
@@ -377,16 +413,29 @@ function SettingsPage() {
         onToggle={(open) => toggleSection('call-preference', open)}
       >
         {!webrtcAvailable && (
-          <p className="text-sm text-muted-foreground">
-            {t('settings.webrtcNotConfigured')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('settings.webrtcNotConfigured')}</p>
         )}
         <div className="space-y-2">
-          {([
-            { value: 'phone' as const, icon: Phone, label: t('settings.callPrefPhone'), desc: t('settings.callPrefPhoneDesc') },
-            { value: 'browser' as const, icon: Monitor, label: t('settings.callPrefBrowser'), desc: t('settings.callPrefBrowserDesc') },
-            { value: 'both' as const, icon: PhoneCall, label: t('settings.callPrefBoth'), desc: t('settings.callPrefBothDesc') },
-          ]).map(option => (
+          {[
+            {
+              value: 'phone' as const,
+              icon: Phone,
+              label: t('settings.callPrefPhone'),
+              desc: t('settings.callPrefPhoneDesc'),
+            },
+            {
+              value: 'browser' as const,
+              icon: Monitor,
+              label: t('settings.callPrefBrowser'),
+              desc: t('settings.callPrefBrowserDesc'),
+            },
+            {
+              value: 'both' as const,
+              icon: PhoneCall,
+              label: t('settings.callPrefBoth'),
+              desc: t('settings.callPrefBothDesc'),
+            },
+          ].map((option) => (
             <button
               key={option.value}
               disabled={option.value !== 'phone' && !webrtcAvailable}
@@ -409,13 +458,19 @@ function SettingsPage() {
                     : 'border-border hover:border-primary/50'
               }`}
             >
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                currentCallPref === option.value ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-              }`}>
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                  currentCallPref === option.value
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
                 <option.icon className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <p className={`text-sm font-medium ${currentCallPref === option.value ? 'text-primary' : ''}`}>
+                <p
+                  className={`text-sm font-medium ${currentCallPref === option.value ? 'text-primary' : ''}`}
+                >
                   {option.label}
                 </p>
                 <p className="text-xs text-muted-foreground">{option.desc}</p>
@@ -453,7 +508,9 @@ function SettingsPage() {
         <div className="flex items-center justify-between rounded-lg border border-border p-4">
           <div className="space-y-0.5">
             <Label>{t('settings.browserNotifications')}</Label>
-            <p className="text-xs text-muted-foreground">{t('settings.browserNotificationsDescription')}</p>
+            <p className="text-xs text-muted-foreground">
+              {t('settings.browserNotificationsDescription')}
+            </p>
           </div>
           <Switch
             checked={notifPrefs.browserNotificationsEnabled}
@@ -499,7 +556,10 @@ function NotificationPermissionStatus() {
           )}
           {permission === 'default' && (
             <>
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20">
+              <Badge
+                variant="outline"
+                className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
+              >
                 {t('notifications.default')}
               </Badge>
               <Button size="sm" variant="outline" onClick={() => requestPermission()}>
@@ -508,7 +568,10 @@ function NotificationPermissionStatus() {
             </>
           )}
           {permission === 'denied' && (
-            <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20">
+            <Badge
+              variant="outline"
+              className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20"
+            >
               {t('notifications.denied')}
             </Badge>
           )}
@@ -527,7 +590,9 @@ function LinkDeviceSection() {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [linkCode, setLinkCode] = useState('')
-  const [status, setStatus] = useState<'idle' | 'linking' | 'verify-sas' | 'success' | 'error'>('idle')
+  const [status, setStatus] = useState<'idle' | 'linking' | 'verify-sas' | 'success' | 'error'>(
+    'idle'
+  )
   const [statusMessage, setStatusMessage] = useState('')
   const [sasCode, setSasCode] = useState('')
 
@@ -580,7 +645,7 @@ function LinkDeviceSection() {
       const provisionPath = `/api/provision/rooms/${roomId}/payload`
       const authToken = keyManager.createAuthToken(Date.now(), 'POST', provisionPath)
       await sendProvisionedKey(roomId, token, encrypted, publicKey, {
-        'Authorization': `Bearer ${authToken}`,
+        Authorization: `Bearer ${authToken}`,
       })
 
       setStatus('verify-sas')
@@ -603,20 +668,22 @@ function LinkDeviceSection() {
               <Input
                 id="link-code"
                 value={linkCode}
-                onChange={e => setLinkCode(e.target.value)}
+                onChange={(e) => setLinkCode(e.target.value)}
                 placeholder={t('deviceLink.codePlaceholder')}
                 className="font-mono"
                 data-testid="link-code-input"
               />
-              <Button onClick={handleLinkDevice} disabled={!linkCode.trim()} data-testid="link-device-button">
+              <Button
+                onClick={handleLinkDevice}
+                disabled={!linkCode.trim()}
+                data-testid="link-device-button"
+              >
                 <Smartphone className="h-4 w-4" />
                 {t('deviceLink.link')}
               </Button>
             </div>
           </div>
-          {status === 'error' && (
-            <p className="text-sm text-destructive">{statusMessage}</p>
-          )}
+          {status === 'error' && <p className="text-sm text-destructive">{statusMessage}</p>}
         </div>
       ) : status === 'linking' ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -626,11 +693,22 @@ function LinkDeviceSection() {
       ) : status === 'verify-sas' ? (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">{statusMessage}</p>
-          <div className="rounded-lg border-2 border-primary/20 bg-primary/5 p-4 text-center" data-testid="primary-sas-code">
+          <div
+            className="rounded-lg border-2 border-primary/20 bg-primary/5 p-4 text-center"
+            data-testid="primary-sas-code"
+          >
             <p className="text-xs text-muted-foreground mb-1">{t('deviceLink.securityCode')}</p>
             <p className="text-3xl font-mono font-bold tracking-[0.3em]">{sasCode}</p>
           </div>
-          <Button variant="outline" className="w-full" onClick={() => { setStatus('idle'); setLinkCode(''); setSasCode('') }}>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setStatus('idle')
+              setLinkCode('')
+              setSasCode('')
+            }}
+          >
             {t('common.done')}
           </Button>
         </div>
@@ -689,7 +767,7 @@ function ClientTranscriptionSettings() {
               <div className="space-y-2">
                 <Label className="text-sm">{t('transcription.model')}</Label>
                 <div className="space-y-1.5">
-                  {models.map(m => (
+                  {models.map((m) => (
                     <button
                       key={m.value}
                       onClick={() => update({ model: m.value })}
@@ -711,8 +789,12 @@ function ClientTranscriptionSettings() {
               <div className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2">
                 <Mic className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">{t('transcription.localMicOnly')}</p>
-                  <p className="text-xs text-muted-foreground">{t('transcription.localMicOnlyDescription')}</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {t('transcription.localMicOnly')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('transcription.localMicOnlyDescription')}
+                  </p>
                 </div>
               </div>
             </>

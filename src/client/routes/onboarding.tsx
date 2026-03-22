@@ -1,21 +1,31 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useConfig } from '@/lib/config'
-import { validateInvite, redeemInvite } from '@/lib/api'
-import { generateKeyPair } from '@/lib/crypto'
-import { isValidPin } from '@/lib/key-store'
-import * as keyManager from '@/lib/key-manager'
-import { createBackup, generateRecoveryKey, downloadBackupFile } from '@/lib/backup'
-import { useToast } from '@/lib/toast'
-import { setLanguage } from '@/lib/i18n'
-import { LANGUAGES } from '@shared/languages'
+import { LogoMark } from '@/components/logo-mark'
 import { PinInput } from '@/components/pin-input'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Globe, KeyRound, ShieldCheck, ArrowRight, ArrowLeft, Check, Copy, Download, AlertTriangle } from 'lucide-react'
-import { LogoMark } from '@/components/logo-mark'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { redeemInvite, validateInvite } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { createBackup, downloadBackupFile, generateRecoveryKey } from '@/lib/backup'
+import { useConfig } from '@/lib/config'
+import { generateKeyPair } from '@/lib/crypto'
+import { setLanguage } from '@/lib/i18n'
+import * as keyManager from '@/lib/key-manager'
+import { isValidPin } from '@/lib/key-store'
+import { useToast } from '@/lib/toast'
+import { LANGUAGES } from '@shared/languages'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Copy,
+  Download,
+  Globe,
+  KeyRound,
+  ShieldCheck,
+} from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/onboarding')({
   component: OnboardingPage,
@@ -87,22 +97,26 @@ function OnboardingPage() {
       setErrorMsg(t('onboarding.noCode'))
       return
     }
-    validateInvite(inviteCode).then(result => {
-      if (result.valid) {
-        setInviteData({ name: result.name!, roleIds: result.roleIds || ['role-volunteer'] })
-        setStep('welcome')
-      } else {
+    validateInvite(inviteCode)
+      .then((result) => {
+        if (result.valid) {
+          setInviteData({ name: result.name!, roleIds: result.roleIds || ['role-volunteer'] })
+          setStep('welcome')
+        } else {
+          setStep('error')
+          setErrorMsg(
+            result.error === 'expired'
+              ? t('onboarding.expired')
+              : result.error === 'already_used'
+                ? t('onboarding.alreadyUsed')
+                : t('onboarding.invalidCode')
+          )
+        }
+      })
+      .catch(() => {
         setStep('error')
-        setErrorMsg(
-          result.error === 'expired' ? t('onboarding.expired') :
-          result.error === 'already_used' ? t('onboarding.alreadyUsed') :
-          t('onboarding.invalidCode')
-        )
-      }
-    }).catch(() => {
-      setStep('error')
-      setErrorMsg(t('onboarding.invalidCode'))
-    })
+        setErrorMsg(t('onboarding.invalidCode'))
+      })
   }, [inviteCode])
 
   function handlePinComplete(enteredPin: string) {
@@ -239,8 +253,11 @@ function OnboardingPage() {
                       role="radio"
                       aria-checked={uiLang === lang.code}
                       tabIndex={uiLang === lang.code ? 0 : -1}
-                      onClick={() => { setUiLang(lang.code); setLanguage(lang.code) }}
-                      onKeyDown={e => handleLangKeyDown(e, index)}
+                      onClick={() => {
+                        setUiLang(lang.code)
+                        setLanguage(lang.code)
+                      }}
+                      onKeyDown={(e) => handleLangKeyDown(e, index)}
                       className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${
                         uiLang === lang.code
                           ? 'border-primary bg-primary/10 text-primary font-medium'
@@ -285,13 +302,20 @@ function OnboardingPage() {
                 autoFocus
               />
               {pinError && (
-                <p role="alert" className="text-center text-sm text-destructive">{pinError}</p>
+                <p role="alert" className="text-center text-sm text-destructive">
+                  {pinError}
+                </p>
               )}
               {pinStep === 'confirm' && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => { setPinStep('create'); setPin1(''); setPin2(''); setPinError('') }}
+                  onClick={() => {
+                    setPinStep('create')
+                    setPin1('')
+                    setPin2('')
+                    setPinError('')
+                  }}
                   className="w-full"
                 >
                   <ArrowLeft className="h-4 w-4" />
@@ -325,13 +349,20 @@ function OnboardingPage() {
               <div className="space-y-2">
                 <p className="text-sm font-medium">{t('onboarding.recoveryKey')}</p>
                 <div className="flex items-center gap-2">
-                  <code data-testid="recovery-key" className="flex-1 break-all rounded-md bg-muted px-3 py-2 text-sm font-mono tracking-wider">
+                  <code
+                    data-testid="recovery-key"
+                    className="flex-1 break-all rounded-md bg-muted px-3 py-2 text-sm font-mono tracking-wider"
+                  >
                     {recoveryKeyStr}
                   </code>
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => { navigator.clipboard.writeText(recoveryKeyStr); toast(t('common.success'), 'success'); setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), 30000) }}
+                    onClick={() => {
+                      navigator.clipboard.writeText(recoveryKeyStr)
+                      toast(t('common.success'), 'success')
+                      setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), 30000)
+                    }}
                     aria-label={t('a11y.copyToClipboard')}
                   >
                     <Copy className="h-3.5 w-3.5" />
@@ -364,7 +395,7 @@ function OnboardingPage() {
                 <input
                   type="checkbox"
                   checked={backupAcknowledged}
-                  onChange={e => setBackupAcknowledged(e.target.checked)}
+                  onChange={(e) => setBackupAcknowledged(e.target.checked)}
                   className="mt-0.5 h-4 w-4 rounded border-input accent-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
                 <span className="text-sm">{t('onboarding.backupAcknowledge')}</span>

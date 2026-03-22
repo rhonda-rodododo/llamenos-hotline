@@ -1,22 +1,18 @@
-import type {
-  MessagingAdapter,
-  IncomingMessage,
-  SendMessageParams,
-  SendMediaParams,
-  SendResult,
-  ChannelStatus,
-  MessageStatusUpdate,
-} from '../adapter'
-import type { MessageDeliveryStatus } from '../../types'
 import type { WhatsAppConfig } from '../../../shared/types'
-import type {
-  MetaWebhookPayload,
-  MetaInboundMessage,
-  TwilioWhatsAppInbound,
-} from './types'
-import { MetaDirectClient } from './meta-client'
-import { TwilioWhatsAppClient } from './twilio-client'
 import { hashPhone } from '../../lib/crypto'
+import type { MessageDeliveryStatus } from '../../types'
+import type {
+  ChannelStatus,
+  IncomingMessage,
+  MessageStatusUpdate,
+  MessagingAdapter,
+  SendMediaParams,
+  SendMessageParams,
+  SendResult,
+} from '../adapter'
+import { MetaDirectClient } from './meta-client'
+import type { TwilioWhatsAppClient } from './twilio-client'
+import type { MetaInboundMessage, MetaWebhookPayload, TwilioWhatsAppInbound } from './types'
 
 /** Union type for the underlying client */
 type WhatsAppClient = MetaDirectClient | TwilioWhatsAppClient
@@ -45,23 +41,26 @@ export class WhatsAppAdapter implements MessagingAdapter {
     this.integrationMode = config.integrationMode
 
     if (config.integrationMode === 'direct') {
-      if (!config.phoneNumberId || !config.businessAccountId || !config.accessToken || !config.appSecret) {
+      if (
+        !config.phoneNumberId ||
+        !config.businessAccountId ||
+        !config.accessToken ||
+        !config.appSecret
+      ) {
         throw new Error(
-          'WhatsApp direct mode requires phoneNumberId, businessAccountId, accessToken, and appSecret',
+          'WhatsApp direct mode requires phoneNumberId, businessAccountId, accessToken, and appSecret'
         )
       }
       this.client = new MetaDirectClient(
         config.phoneNumberId,
         config.businessAccountId,
         config.accessToken,
-        config.appSecret,
+        config.appSecret
       )
     } else {
       // Twilio mode -- credentials come from the telephony provider config,
       // not the WhatsApp config itself. The factory handles proper construction.
-      throw new Error(
-        'Twilio WhatsApp mode must be constructed via createWhatsAppAdapter factory',
-      )
+      throw new Error('Twilio WhatsApp mode must be constructed via createWhatsAppAdapter factory')
     }
   }
 
@@ -71,7 +70,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
   static createWithTwilioClient(
     config: WhatsAppConfig,
     client: TwilioWhatsAppClient,
-    hmacSecret: string,
+    hmacSecret: string
   ): WhatsAppAdapter {
     const adapter = Object.create(WhatsAppAdapter.prototype) as WhatsAppAdapter
     Object.defineProperty(adapter, 'channelType', { value: 'whatsapp' as const })
@@ -106,10 +105,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
     try {
       if (this.integrationMode === 'direct') {
         const metaClient = this.client as MetaDirectClient
-        const res = await metaClient.sendTextMessage(
-          params.recipientIdentifier,
-          params.body,
-        )
+        const res = await metaClient.sendTextMessage(params.recipientIdentifier, params.body)
         return {
           success: true,
           externalId: res.messages[0]?.id,
@@ -117,10 +113,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
       }
 
       const twilioClient = this.client as TwilioWhatsAppClient
-      const res = await twilioClient.sendTextMessage(
-        params.recipientIdentifier,
-        params.body,
-      )
+      const res = await twilioClient.sendTextMessage(params.recipientIdentifier, params.body)
       return {
         success: true,
         externalId: res.sid,
@@ -143,7 +136,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
         const res = await metaClient.sendMediaMessage(
           params.recipientIdentifier,
           params.mediaUrl,
-          params.mediaType,
+          params.mediaType
         )
         return {
           success: true,
@@ -156,7 +149,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
         params.recipientIdentifier,
         params.mediaUrl,
         params.mediaType,
-        params.body || undefined,
+        params.body || undefined
       )
       return {
         success: true,
@@ -203,7 +196,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
   // --- Private: Meta Cloud API parsing ---
 
   private async parseMetaWebhook(request: Request): Promise<IncomingMessage> {
-    const payload = await request.clone().json() as MetaWebhookPayload
+    const payload = (await request.clone().json()) as MetaWebhookPayload
 
     const entry = payload.entry[0]
     if (!entry) {
@@ -234,7 +227,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
       body,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       mediaTypes: mediaTypes.length > 0 ? mediaTypes : undefined,
-      timestamp: new Date(parseInt(msg.timestamp, 10) * 1000).toISOString(),
+      timestamp: new Date(Number.parseInt(msg.timestamp, 10) * 1000).toISOString(),
       metadata: {
         ...(contact?.profile.name ? { profileName: contact.profile.name } : {}),
         ...(contact?.wa_id ? { waId: contact.wa_id } : {}),
@@ -306,7 +299,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
 
       case 'contacts':
         if (msg.contacts && msg.contacts.length > 0) {
-          const names = msg.contacts.map(c => c.name.formatted_name)
+          const names = msg.contacts.map((c) => c.name.formatted_name)
           body = `Shared contact(s): ${names.join(', ')}`
         }
         break
@@ -348,7 +341,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
    */
   private async parseMetaStatusWebhook(request: Request): Promise<MessageStatusUpdate | null> {
     try {
-      const payload = await request.clone().json() as MetaWebhookPayload
+      const payload = (await request.clone().json()) as MetaWebhookPayload
 
       const entry = payload.entry?.[0]
       if (!entry) return null
@@ -364,10 +357,10 @@ export class WhatsAppAdapter implements MessagingAdapter {
 
       // Map Meta status to our normalized status
       const statusMap: Record<string, MessageDeliveryStatus> = {
-        'sent': 'sent',
-        'delivered': 'delivered',
-        'read': 'read',
-        'failed': 'failed',
+        sent: 'sent',
+        delivered: 'delivered',
+        read: 'read',
+        failed: 'failed',
       }
 
       const normalizedStatus = statusMap[status.status]
@@ -377,11 +370,12 @@ export class WhatsAppAdapter implements MessagingAdapter {
         externalId: status.id,
         status: normalizedStatus,
         timestamp: status.timestamp
-          ? new Date(parseInt(status.timestamp, 10) * 1000).toISOString()
+          ? new Date(Number.parseInt(status.timestamp, 10) * 1000).toISOString()
           : new Date().toISOString(),
-        failureReason: normalizedStatus === 'failed' && status.errors?.length
-          ? status.errors[0].message || status.errors[0].title
-          : undefined,
+        failureReason:
+          normalizedStatus === 'failed' && status.errors?.length
+            ? status.errors[0].message || status.errors[0].title
+            : undefined,
       }
     } catch {
       return null
@@ -405,13 +399,13 @@ export class WhatsAppAdapter implements MessagingAdapter {
 
       // Map Twilio status to our normalized status
       const statusMap: Record<string, MessageDeliveryStatus> = {
-        'queued': 'pending',
-        'sending': 'pending',
-        'sent': 'sent',
-        'delivered': 'delivered',
-        'read': 'read',
-        'undelivered': 'failed',
-        'failed': 'failed',
+        queued: 'pending',
+        sending: 'pending',
+        sent: 'sent',
+        delivered: 'delivered',
+        read: 'read',
+        undelivered: 'failed',
+        failed: 'failed',
       }
 
       const status = statusMap[messageStatus.toLowerCase()]
@@ -421,9 +415,10 @@ export class WhatsAppAdapter implements MessagingAdapter {
         externalId: messageSid,
         status,
         timestamp: new Date().toISOString(),
-        failureReason: status === 'failed' && (errorMessage || errorCode)
-          ? `${errorCode || 'ERR'}: ${errorMessage || 'Message delivery failed'}`
-          : undefined,
+        failureReason:
+          status === 'failed' && (errorMessage || errorCode)
+            ? `${errorCode || 'ERR'}: ${errorMessage || 'Message delivery failed'}`
+            : undefined,
       }
     } catch {
       return null
@@ -457,7 +452,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
     // Collect media attachments
     const mediaUrls: string[] = []
     const mediaTypes: string[] = []
-    const numMedia = parseInt(data.NumMedia || '0', 10)
+    const numMedia = Number.parseInt(data.NumMedia || '0', 10)
 
     for (let i = 0; i < numMedia && i < 3; i++) {
       const urlKey = `MediaUrl${i}` as keyof TwilioWhatsAppInbound

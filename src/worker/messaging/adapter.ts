@@ -30,12 +30,12 @@ export interface MessagingAdapter {
 
 export interface IncomingMessage {
   channelType: MessagingChannelType
-  externalId: string              // provider's message ID
-  senderIdentifier: string        // phone number, WhatsApp ID, Signal UUID
-  senderIdentifierHash: string    // hashed for storage
-  body?: string                   // text content (plaintext from transport)
-  mediaUrls?: string[]            // attachment URLs from provider
-  mediaTypes?: string[]           // MIME types of attachments
+  externalId: string // provider's message ID
+  senderIdentifier: string // phone number, WhatsApp ID, Signal UUID
+  senderIdentifierHash: string // hashed for storage
+  body?: string // text content (plaintext from transport)
+  mediaUrls?: string[] // attachment URLs from provider
+  mediaTypes?: string[] // MIME types of attachments
   timestamp: string
   metadata?: Record<string, string>
 }
@@ -68,8 +68,8 @@ export interface ChannelStatus {
  * Used to update message delivery status in ConversationDO.
  */
 export interface MessageStatusUpdate {
-  externalId: string           // provider's message ID
+  externalId: string // provider's message ID
   status: MessageDeliveryStatus
   timestamp: string
-  failureReason?: string       // error message if status is 'failed'
+  failureReason?: string // error message if status is 'failed'
 }

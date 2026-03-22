@@ -11,7 +11,7 @@ import { MIGRATION_VERSION_KEY } from './types'
 export async function runMigrations(
   storage: MigrationStorage,
   migrations: Migration[],
-  namespace?: string,
+  namespace?: string
 ): Promise<void> {
   if (migrations.length === 0) return
 
@@ -19,7 +19,7 @@ export async function runMigrations(
 
   // Sort by version ascending (defensive — registry should already be sorted)
   const sorted = [...migrations].sort((a, b) => a.version - b.version)
-  const pending = sorted.filter(m => m.version > currentVersion)
+  const pending = sorted.filter((m) => m.version > currentVersion)
 
   if (pending.length === 0) return
 

@@ -1,25 +1,22 @@
+import { DEFAULT_LANGUAGE, IVR_LANGUAGES } from '../../shared/languages'
+import { IVR_PROMPTS, getPrompt, getVoicemailThanks } from '../../shared/voice-prompts'
 import type {
-  TelephonyAdapter,
-  IncomingCallParams,
-  CaptchaResponseParams,
+  AudioUrlMap,
   CallAnsweredParams,
+  CaptchaResponseParams,
+  IncomingCallParams,
   LanguageMenuParams,
   RingVolunteersParams,
-  VoicemailParams,
+  TelephonyAdapter,
   TelephonyResponse,
-  AudioUrlMap,
+  VoicemailParams,
   WebhookCallInfo,
-  WebhookDigits,
   WebhookCallStatus,
+  WebhookDigits,
   WebhookQueueResult,
   WebhookQueueWait,
   WebhookRecordingStatus,
 } from './adapter'
-import {
-  DEFAULT_LANGUAGE,
-  IVR_LANGUAGES,
-} from '../../shared/languages'
-import { IVR_PROMPTS, getPrompt, getVoicemailThanks } from '../../shared/voice-prompts'
 
 /**
  * Vonage voice language codes, keyed by ISO 639-1.
@@ -56,7 +53,13 @@ function stream(url: string, bargeIn = false): Record<string, unknown> {
 }
 
 /** Build a talk or stream action depending on custom audio */
-function sayOrStream(promptKey: string, lang: string, audioUrls?: AudioUrlMap, textOverride?: string, bargeIn = false): Record<string, unknown> {
+function sayOrStream(
+  promptKey: string,
+  lang: string,
+  audioUrls?: AudioUrlMap,
+  textOverride?: string,
+  bargeIn = false
+): Record<string, unknown> {
   const audioUrl = audioUrls?.[`${promptKey}:${lang}`]
   if (audioUrl) return stream(audioUrl, bargeIn)
   const text = textOverride ?? getPrompt(promptKey, lang)
@@ -87,7 +90,13 @@ export class VonageAdapter implements TelephonyAdapter {
   // Private key stored as string (PEM format)
   private privateKey?: string
 
-  constructor(apiKey: string, apiSecret: string, applicationId: string, phoneNumber: string, privateKey?: string) {
+  constructor(
+    apiKey: string,
+    apiSecret: string,
+    applicationId: string,
+    phoneNumber: string,
+    privateKey?: string
+  ) {
     this.apiKey = apiKey
     this.apiSecret = apiSecret
     this.applicationId = applicationId
@@ -109,7 +118,7 @@ export class VonageAdapter implements TelephonyAdapter {
     return fetch(`https://api.nexmo.com${path}`, {
       ...init,
       headers: {
-        'Authorization': `Basic ${auth}`,
+        Authorization: `Basic ${auth}`,
         'Content-Type': 'application/json',
         ...init.headers,
       },
@@ -119,7 +128,7 @@ export class VonageAdapter implements TelephonyAdapter {
   async handleLanguageMenu(params: LanguageMenuParams): Promise<TelephonyResponse> {
     const enabled = params.enabledLanguages
     const hp = hubQP(params.hubId)
-    const activeLanguages = IVR_LANGUAGES.filter(code => enabled.includes(code))
+    const activeLanguages = IVR_LANGUAGES.filter((code) => enabled.includes(code))
 
     if (activeLanguages.length <= 1) {
       const lang = activeLanguages[0] || DEFAULT_LANGUAGE
@@ -132,7 +141,7 @@ export class VonageAdapter implements TelephonyAdapter {
         {
           action: 'notify',
           payload: { lang, auto: true },
-          eventUrl: ['/api/telephony/language-selected?auto=1&forceLang=' + lang + hp],
+          eventUrl: [`/api/telephony/language-selected?auto=1&forceLang=${lang}${hp}`],
           eventMethod: 'POST',
         },
       ])
@@ -152,7 +161,7 @@ export class VonageAdapter implements TelephonyAdapter {
         action: 'input',
         type: ['dtmf'],
         dtmf: { maxDigits: 1, timeOut: 8 },
-        eventUrl: ['/api/telephony/language-selected' + hubQPFirst(params.hubId)],
+        eventUrl: [`/api/telephony/language-selected${hubQPFirst(params.hubId)}`],
         eventMethod: 'POST',
       },
       ...talkActions,
@@ -173,7 +182,7 @@ export class VonageAdapter implements TelephonyAdapter {
     if (params.voiceCaptchaEnabled && params.captchaDigits) {
       const digits = params.captchaDigits
       const captchaAction = sayOrStream('captchaPrompt', lang, params.audioUrls, undefined, true)
-      const digitsTalk = talk(digits.split('').join(', ') + '.', lang, true)
+      const digitsTalk = talk(`${digits.split('').join(', ')}.`, lang, true)
 
       return this.ncco([
         greetingAction,
@@ -198,7 +207,7 @@ export class VonageAdapter implements TelephonyAdapter {
         name: params.callSid,
         startOnEnter: false,
         endOnExit: false,
-        musicOnHoldUrl: ['/api/telephony/wait-music?lang=' + lang + hp],
+        musicOnHoldUrl: [`/api/telephony/wait-music?lang=${lang}${hp}`],
       },
     ])
   }
@@ -215,7 +224,7 @@ export class VonageAdapter implements TelephonyAdapter {
           name: params.callSid,
           startOnEnter: false,
           endOnExit: false,
-          musicOnHoldUrl: ['/api/telephony/wait-music?lang=' + lang + hp],
+          musicOnHoldUrl: [`/api/telephony/wait-music?lang=${lang}${hp}`],
         },
       ])
     }
@@ -232,13 +241,20 @@ export class VonageAdapter implements TelephonyAdapter {
         startOnEnter: true,
         endOnExit: true,
         record: true,
-        eventUrl: [`${params.callbackUrl}/api/telephony/call-recording?parentCallSid=${params.parentCallSid}&pubkey=${params.volunteerPubkey}${hp}`],
+        eventUrl: [
+          `${params.callbackUrl}/api/telephony/call-recording?parentCallSid=${params.parentCallSid}&pubkey=${params.volunteerPubkey}${hp}`,
+        ],
         eventMethod: 'POST',
       },
     ])
   }
 
-  async handleWaitMusic(lang: string, audioUrls?: AudioUrlMap, queueTime?: number, queueTimeout?: number): Promise<TelephonyResponse> {
+  async handleWaitMusic(
+    lang: string,
+    audioUrls?: AudioUrlMap,
+    queueTime?: number,
+    queueTimeout?: number
+  ): Promise<TelephonyResponse> {
     if (queueTime !== undefined && queueTime >= (queueTimeout ?? 90)) {
       // Signal to leave the conversation/queue
       return this.ncco([])
@@ -249,7 +265,9 @@ export class VonageAdapter implements TelephonyAdapter {
       waitAction,
       {
         action: 'stream',
-        streamUrl: ['https://com.twilio.music.soft-rock.s3.amazonaws.com/_ghost_-_promo_2_sample_pack.mp3'],
+        streamUrl: [
+          'https://com.twilio.music.soft-rock.s3.amazonaws.com/_ghost_-_promo_2_sample_pack.mp3',
+        ],
       },
     ])
   }
@@ -266,7 +284,9 @@ export class VonageAdapter implements TelephonyAdapter {
         endOnKey: '#',
         beepStart: true,
         timeOut: params.maxRecordingSeconds ?? 120,
-        eventUrl: [`${params.callbackUrl}/api/telephony/voicemail-recording?callSid=${params.callSid}${hp}`],
+        eventUrl: [
+          `${params.callbackUrl}/api/telephony/voicemail-recording?callSid=${params.callSid}${hp}`,
+        ],
         eventMethod: 'POST',
       },
       talk(getVoicemailThanks(lang), lang),
@@ -293,9 +313,13 @@ export class VonageAdapter implements TelephonyAdapter {
         const body = {
           to: [{ type: 'phone', number: vol.phone.replace('+', '') }],
           from: { type: 'phone', number: this.phoneNumber.replace('+', '') },
-          answer_url: [`${params.callbackUrl}/api/telephony/volunteer-answer?parentCallSid=${params.callSid}&pubkey=${vol.pubkey}${hubParam}`],
+          answer_url: [
+            `${params.callbackUrl}/api/telephony/volunteer-answer?parentCallSid=${params.callSid}&pubkey=${vol.pubkey}${hubParam}`,
+          ],
           answer_method: 'POST',
-          event_url: [`${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${vol.pubkey}${hubParam}`],
+          event_url: [
+            `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${vol.pubkey}${hubParam}`,
+          ],
           event_method: 'POST',
           ringing_timer: 30,
           machine_detection: 'hangup',
@@ -307,7 +331,7 @@ export class VonageAdapter implements TelephonyAdapter {
         })
 
         if (res.ok) {
-          const data = await res.json() as { uuid: string }
+          const data = (await res.json()) as { uuid: string }
           return data.uuid
         }
         throw new Error(`Failed to call ${vol.pubkey}`)
@@ -326,8 +350,8 @@ export class VonageAdapter implements TelephonyAdapter {
   async cancelRinging(callSids: string[], exceptSid?: string): Promise<void> {
     await Promise.allSettled(
       callSids
-        .filter(sid => sid !== exceptSid)
-        .map(sid =>
+        .filter((sid) => sid !== exceptSid)
+        .map((sid) =>
           this.vonageApi(`/v1/calls/${sid}`, {
             method: 'PUT',
             body: JSON.stringify({ action: 'hangup' }),
@@ -346,8 +370,8 @@ export class VonageAdapter implements TelephonyAdapter {
     // to prevent replay attacks even when a valid signature is present
     const timestamp = url.searchParams.get('timestamp')
     if (!timestamp) return false
-    const ts = parseInt(timestamp, 10)
-    if (isNaN(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false
+    const ts = Number.parseInt(timestamp, 10)
+    if (Number.isNaN(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false
 
     const sig = url.searchParams.get('sig')
     if (!sig) return false
@@ -372,7 +396,7 @@ export class VonageAdapter implements TelephonyAdapter {
     )
     const signed = await crypto.subtle.sign('HMAC', key, encoder.encode(sigInput))
     const expected = Array.from(new Uint8Array(signed))
-      .map(b => b.toString(16).padStart(2, '0'))
+      .map((b) => b.toString(16).padStart(2, '0'))
       .join('')
 
     // Constant-time comparison
@@ -392,11 +416,11 @@ export class VonageAdapter implements TelephonyAdapter {
     const res = await this.vonageApi(`/v1/calls/${callSid}`, { method: 'GET' })
     if (!res.ok) return null
 
-    const data = await res.json() as { recording_url?: string }
+    const data = (await res.json()) as { recording_url?: string }
     if (!data.recording_url) return null
 
     const audioRes = await fetch(data.recording_url, {
-      headers: { 'Authorization': `Basic ${btoa(`${this.apiKey}:${this.apiSecret}`)}` },
+      headers: { Authorization: `Basic ${btoa(`${this.apiKey}:${this.apiSecret}`)}` },
     })
     if (!audioRes.ok) return null
     return audioRes.arrayBuffer()
@@ -405,7 +429,7 @@ export class VonageAdapter implements TelephonyAdapter {
   async getRecordingAudio(recordingSid: string): Promise<ArrayBuffer | null> {
     // Vonage recording URLs are full URLs, not SIDs
     const audioRes = await fetch(recordingSid, {
-      headers: { 'Authorization': `Basic ${btoa(`${this.apiKey}:${this.apiSecret}`)}` },
+      headers: { Authorization: `Basic ${btoa(`${this.apiKey}:${this.apiSecret}`)}` },
     })
     if (!audioRes.ok) return null
     return audioRes.arrayBuffer()
@@ -415,7 +439,7 @@ export class VonageAdapter implements TelephonyAdapter {
   // Vonage sends webhooks as JSON (not form data like Twilio)
 
   async parseIncomingWebhook(request: Request): Promise<WebhookCallInfo> {
-    const data = await request.clone().json() as Record<string, string>
+    const data = (await request.clone().json()) as Record<string, string>
     return {
       callSid: data.uuid || data.conversation_uuid || '',
       callerNumber: data.from || '',
@@ -424,7 +448,7 @@ export class VonageAdapter implements TelephonyAdapter {
   }
 
   async parseLanguageWebhook(request: Request): Promise<WebhookCallInfo & WebhookDigits> {
-    const data = await request.clone().json() as Record<string, unknown>
+    const data = (await request.clone().json()) as Record<string, unknown>
     const dtmf = data.dtmf as Record<string, string> | undefined
     return {
       callSid: (data.uuid || data.conversation_uuid || '') as string,
@@ -434,7 +458,7 @@ export class VonageAdapter implements TelephonyAdapter {
   }
 
   async parseCaptchaWebhook(request: Request): Promise<WebhookDigits & { callerNumber: string }> {
-    const data = await request.clone().json() as Record<string, unknown>
+    const data = (await request.clone().json()) as Record<string, unknown>
     const dtmf = data.dtmf as Record<string, string> | undefined
     return {
       digits: dtmf?.digits || '',
@@ -443,7 +467,7 @@ export class VonageAdapter implements TelephonyAdapter {
   }
 
   async parseCallStatusWebhook(request: Request): Promise<WebhookCallStatus> {
-    const data = await request.clone().json() as Record<string, string>
+    const data = (await request.clone().json()) as Record<string, string>
     const STATUS_MAP: Record<string, WebhookCallStatus['status']> = {
       started: 'initiated',
       ringing: 'ringing',
@@ -460,14 +484,14 @@ export class VonageAdapter implements TelephonyAdapter {
   }
 
   async parseQueueWaitWebhook(request: Request): Promise<WebhookQueueWait> {
-    const data = await request.clone().json() as Record<string, string>
+    const data = (await request.clone().json()) as Record<string, string>
     return {
-      queueTime: parseInt(data.duration || '0', 10),
+      queueTime: Number.parseInt(data.duration || '0', 10),
     }
   }
 
   async parseQueueExitWebhook(request: Request): Promise<WebhookQueueResult> {
-    const data = await request.clone().json() as Record<string, string>
+    const data = (await request.clone().json()) as Record<string, string>
     const status = data.status || ''
     if (status === 'answered') return { result: 'bridged' }
     if (status === 'completed') return { result: 'hangup' }
@@ -475,7 +499,7 @@ export class VonageAdapter implements TelephonyAdapter {
   }
 
   async parseRecordingWebhook(request: Request): Promise<WebhookRecordingStatus> {
-    const data = await request.clone().json() as Record<string, string>
+    const data = (await request.clone().json()) as Record<string, string>
     return {
       status: data.recording_url ? 'completed' : 'failed',
       recordingSid: data.recording_url || undefined,
@@ -484,9 +508,7 @@ export class VonageAdapter implements TelephonyAdapter {
   }
 
   handleVoicemailComplete(lang: string): TelephonyResponse {
-    return this.ncco([
-      talk(getVoicemailThanks(lang), lang),
-    ])
+    return this.ncco([talk(getVoicemailThanks(lang), lang)])
   }
 
   emptyResponse(): TelephonyResponse {

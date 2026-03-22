@@ -3,10 +3,10 @@
  * Implements the BlobStorage interface using @aws-sdk/client-s3.
  */
 import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
 } from '@aws-sdk/client-s3'
 import type { BlobStorage } from '../types'
 
@@ -21,7 +21,9 @@ export function createBlobStorage(opts?: {
   const accessKeyId = opts?.accessKeyId || process.env.MINIO_ACCESS_KEY
   const secretAccessKey = opts?.secretAccessKey || process.env.MINIO_SECRET_KEY
   if (!accessKeyId || !secretAccessKey) {
-    throw new Error('MinIO credentials required: set MINIO_ACCESS_KEY and MINIO_SECRET_KEY environment variables')
+    throw new Error(
+      'MinIO credentials required: set MINIO_ACCESS_KEY and MINIO_SECRET_KEY environment variables'
+    )
   }
   const bucket = opts?.bucket || process.env.MINIO_BUCKET || 'llamenos-files'
   const region = opts?.region || 'us-east-1'
@@ -34,7 +36,10 @@ export function createBlobStorage(opts?: {
   })
 
   return {
-    async put(key: string, body: ReadableStream | ArrayBuffer | Uint8Array | string): Promise<void> {
+    async put(
+      key: string,
+      body: ReadableStream | ArrayBuffer | Uint8Array | string
+    ): Promise<void> {
       let bodyBytes: Uint8Array | string
       if (body instanceof ArrayBuffer) {
         bodyBytes = new Uint8Array(body)
@@ -60,19 +65,25 @@ export function createBlobStorage(opts?: {
         }
       }
 
-      await client.send(new PutObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        Body: bodyBytes,
-      }))
-    },
-
-    async get(key: string): Promise<{ body: ReadableStream; size: number; arrayBuffer(): Promise<ArrayBuffer> } | null> {
-      try {
-        const result = await client.send(new GetObjectCommand({
+      await client.send(
+        new PutObjectCommand({
           Bucket: bucket,
           Key: key,
-        }))
+          Body: bodyBytes,
+        })
+      )
+    },
+
+    async get(
+      key: string
+    ): Promise<{ body: ReadableStream; size: number; arrayBuffer(): Promise<ArrayBuffer> } | null> {
+      try {
+        const result = await client.send(
+          new GetObjectCommand({
+            Bucket: bucket,
+            Key: key,
+          })
+        )
 
         if (!result.Body) return null
 
@@ -91,7 +102,7 @@ export function createBlobStorage(opts?: {
           async arrayBuffer() {
             return bodyBytes.buffer.slice(
               bodyBytes.byteOffset,
-              bodyBytes.byteOffset + bodyBytes.byteLength,
+              bodyBytes.byteOffset + bodyBytes.byteLength
             ) as ArrayBuffer
           },
         }
@@ -102,10 +113,12 @@ export function createBlobStorage(opts?: {
     },
 
     async delete(key: string): Promise<void> {
-      await client.send(new DeleteObjectCommand({
-        Bucket: bucket,
-        Key: key,
-      }))
+      await client.send(
+        new DeleteObjectCommand({
+          Bucket: bucket,
+          Key: key,
+        })
+      )
     },
   }
 }

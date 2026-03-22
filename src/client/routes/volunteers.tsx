@@ -1,33 +1,51 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useEffect, useState } from 'react'
-import {
-  listVolunteers,
-  createVolunteer,
-  updateVolunteer,
-  deleteVolunteer,
-  listInvites,
-  createInvite,
-  revokeInvite,
-  listRoles,
-  type Volunteer,
-  type InviteCode,
-  type RoleDefinition,
-} from '@/lib/api'
-import { generateKeyPair } from '@/lib/crypto'
-import { useToast } from '@/lib/toast'
-import { UserPlus, Shield, ShieldCheck, Trash2, Key, Copy, Coffee, Eye, EyeOff, Mail, X } from 'lucide-react'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { PhoneInput, isValidE164 } from '@/components/phone-input'
 import { PinChallengeDialog } from '@/components/pin-challenge-dialog'
-import { usePinChallenge } from '@/lib/use-pin-challenge'
-import { Button } from '@/components/ui/button'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PhoneInput, isValidE164 } from '@/components/phone-input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  type InviteCode,
+  type RoleDefinition,
+  type Volunteer,
+  createInvite,
+  createVolunteer,
+  deleteVolunteer,
+  listInvites,
+  listRoles,
+  listVolunteers,
+  revokeInvite,
+  updateVolunteer,
+} from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { generateKeyPair } from '@/lib/crypto'
+import { useToast } from '@/lib/toast'
+import { usePinChallenge } from '@/lib/use-pin-challenge'
+import { createFileRoute } from '@tanstack/react-router'
+import {
+  Coffee,
+  Copy,
+  Eye,
+  EyeOff,
+  Key,
+  Mail,
+  Shield,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+  X,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/volunteers')({
   component: VolunteersPage,
@@ -57,7 +75,11 @@ function VolunteersPage() {
 
   async function loadData() {
     try {
-      const [volRes, invRes, rolesRes] = await Promise.all([listVolunteers(), listInvites(), listRoles()])
+      const [volRes, invRes, rolesRes] = await Promise.all([
+        listVolunteers(),
+        listInvites(),
+        listRoles(),
+      ])
       setVolunteers(volRes.volunteers)
       setInvites(invRes.invites)
       setRoles(rolesRes.roles)
@@ -80,11 +102,23 @@ function VolunteersPage() {
           <h1 className="text-xl font-bold sm:text-2xl">{t('volunteers.title')}</h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => { setShowInviteForm(true); setInviteLink(null) }}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowInviteForm(true)
+              setInviteLink(null)
+            }}
+          >
             <Mail className="h-4 w-4" />
             {t('volunteers.inviteVolunteer')}
           </Button>
-          <Button data-testid="volunteer-add-btn" onClick={() => { setShowAddForm(true); setGeneratedNsec(null) }}>
+          <Button
+            data-testid="volunteer-add-btn"
+            onClick={() => {
+              setShowAddForm(true)
+              setGeneratedNsec(null)
+            }}
+          >
             <UserPlus className="h-4 w-4" />
             {t('volunteers.addVolunteer')}
           </Button>
@@ -98,22 +132,40 @@ function VolunteersPage() {
             <div className="flex items-start gap-2">
               <Key className="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
               <div>
-                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">{t('volunteers.inviteGenerated')}</p>
-                <p className="mt-0.5 text-xs text-yellow-600 dark:text-yellow-400/80">{t('volunteers.secretKeyWarning')}</p>
+                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
+                  {t('volunteers.inviteGenerated')}
+                </p>
+                <p className="mt-0.5 text-xs text-yellow-600 dark:text-yellow-400/80">
+                  {t('volunteers.secretKeyWarning')}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <code data-testid="volunteer-nsec-code" className="flex-1 break-all rounded-md bg-background px-3 py-2 text-xs">{generatedNsec}</code>
+              <code
+                data-testid="volunteer-nsec-code"
+                className="flex-1 break-all rounded-md bg-background px-3 py-2 text-xs"
+              >
+                {generatedNsec}
+              </code>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => { navigator.clipboard.writeText(generatedNsec); toast(t('common.success'), 'success'); setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), 30000) }}
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedNsec)
+                  toast(t('common.success'), 'success')
+                  setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), 30000)
+                }}
                 aria-label={t('a11y.copyToClipboard')}
               >
                 <Copy className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <Button variant="ghost" size="sm" data-testid="dismiss-nsec" onClick={() => setGeneratedNsec(null)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid="dismiss-nsec"
+              onClick={() => setGeneratedNsec(null)}
+            >
               {t('common.close')}
             </Button>
           </CardContent>
@@ -127,22 +179,37 @@ function VolunteersPage() {
             <div className="flex items-start gap-2">
               <Mail className="mt-0.5 h-4 w-4 text-green-600 dark:text-green-400" />
               <div>
-                <p className="text-sm font-medium text-green-800 dark:text-green-300">{t('volunteers.inviteCreated')}</p>
-                <p className="mt-0.5 text-xs text-green-600 dark:text-green-400/80">{t('volunteers.inviteLinkLabel')}</p>
+                <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                  {t('volunteers.inviteCreated')}
+                </p>
+                <p className="mt-0.5 text-xs text-green-600 dark:text-green-400/80">
+                  {t('volunteers.inviteLinkLabel')}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <code className="flex-1 break-all rounded-md bg-background px-3 py-2 text-xs">{inviteLink}</code>
+              <code className="flex-1 break-all rounded-md bg-background px-3 py-2 text-xs">
+                {inviteLink}
+              </code>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => { navigator.clipboard.writeText(inviteLink); toast(t('common.success'), 'success'); setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), 30000) }}
+                onClick={() => {
+                  navigator.clipboard.writeText(inviteLink)
+                  toast(t('common.success'), 'success')
+                  setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), 30000)
+                }}
                 aria-label={t('a11y.copyToClipboard')}
               >
                 <Copy className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <Button variant="ghost" size="sm" data-testid="dismiss-invite" onClick={() => setInviteLink(null)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid="dismiss-invite"
+              onClick={() => setInviteLink(null)}
+            >
               {t('common.close')}
             </Button>
           </CardContent>
@@ -154,7 +221,7 @@ function VolunteersPage() {
         <InviteForm
           roles={roles}
           onCreated={(invite) => {
-            setInvites(prev => [...prev, invite])
+            setInvites((prev) => [...prev, invite])
             setInviteLink(`${window.location.origin}/onboarding?code=${invite.code}`)
             setShowInviteForm(false)
           }}
@@ -167,7 +234,7 @@ function VolunteersPage() {
         <AddVolunteerForm
           roles={roles}
           onCreated={(vol, nsec) => {
-            setVolunteers(prev => [...prev, vol])
+            setVolunteers((prev) => [...prev, vol])
             setGeneratedNsec(nsec)
             setShowAddForm(false)
           }}
@@ -186,8 +253,11 @@ function VolunteersPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border">
-              {invites.map(invite => (
-                <div key={invite.code} className="flex items-center justify-between px-4 py-3 sm:px-6">
+              {invites.map((invite) => (
+                <div
+                  key={invite.code}
+                  className="flex items-center justify-between px-4 py-3 sm:px-6"
+                >
                   <div>
                     <p className="text-sm font-medium">{invite.name}</p>
                     <p className="text-xs text-muted-foreground">{maskedPhone(invite.phone)}</p>
@@ -198,7 +268,7 @@ function VolunteersPage() {
                     onClick={async () => {
                       try {
                         await revokeInvite(invite.code)
-                        setInvites(prev => prev.filter(i => i.code !== invite.code))
+                        setInvites((prev) => prev.filter((i) => i.code !== invite.code))
                         toast(t('volunteers.inviteRevoked'), 'success')
                       } catch {
                         toast(t('common.error'), 'error')
@@ -236,16 +306,18 @@ function VolunteersPage() {
             <div className="p-8 text-center text-muted-foreground">{t('common.noData')}</div>
           ) : (
             <div data-testid="volunteer-list" className="divide-y divide-border">
-              {volunteers.map(vol => (
+              {volunteers.map((vol) => (
                 <VolunteerRow
                   key={vol.pubkey}
                   volunteer={vol}
                   roles={roles}
                   onUpdate={(updated) => {
-                    setVolunteers(prev => prev.map(v => v.pubkey === updated.pubkey ? updated : v))
+                    setVolunteers((prev) =>
+                      prev.map((v) => (v.pubkey === updated.pubkey ? updated : v))
+                    )
                   }}
                   onDelete={() => {
-                    setVolunteers(prev => prev.filter(v => v.pubkey !== vol.pubkey))
+                    setVolunteers((prev) => prev.filter((v) => v.pubkey !== vol.pubkey))
                   }}
                 />
               ))}
@@ -257,7 +329,11 @@ function VolunteersPage() {
   )
 }
 
-function InviteForm({ roles, onCreated, onCancel }: {
+function InviteForm({
+  roles,
+  onCreated,
+  onCancel,
+}: {
   roles: RoleDefinition[]
   onCreated: (invite: InviteCode) => void
   onCancel: () => void
@@ -303,18 +379,13 @@ function InviteForm({ roles, onCreated, onCancel }: {
               <Input
                 id="invite-name"
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="invite-phone">{t('volunteers.phone')}</Label>
-              <PhoneInput
-                id="invite-phone"
-                value={phone}
-                onChange={setPhone}
-                required
-              />
+              <PhoneInput id="invite-phone" value={phone} onChange={setPhone} required />
             </div>
           </div>
           <div className="space-y-2">
@@ -324,8 +395,10 @@ function InviteForm({ roles, onCreated, onCancel }: {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {roles.map(role => (
-                  <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -344,7 +417,11 @@ function InviteForm({ roles, onCreated, onCancel }: {
   )
 }
 
-function AddVolunteerForm({ roles, onCreated, onCancel }: {
+function AddVolunteerForm({
+  roles,
+  onCreated,
+  onCancel,
+}: {
   roles: RoleDefinition[]
   onCreated: (vol: Volunteer, nsec: string) => void
   onCancel: () => void
@@ -365,7 +442,12 @@ function AddVolunteerForm({ roles, onCreated, onCancel }: {
     setSaving(true)
     try {
       const keyPair = generateKeyPair()
-      const res = await createVolunteer({ name, phone, roleIds: [roleId], pubkey: keyPair.publicKey })
+      const res = await createVolunteer({
+        name,
+        phone,
+        roleIds: [roleId],
+        pubkey: keyPair.publicKey,
+      })
       onCreated(res.volunteer, keyPair.nsec)
       toast(t('volunteers.volunteerAdded'), 'success')
     } catch {
@@ -391,18 +473,13 @@ function AddVolunteerForm({ roles, onCreated, onCancel }: {
               <Input
                 id="vol-name"
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="vol-phone">{t('volunteers.phone')}</Label>
-              <PhoneInput
-                id="vol-phone"
-                value={phone}
-                onChange={setPhone}
-                required
-              />
+              <PhoneInput id="vol-phone" value={phone} onChange={setPhone} required />
             </div>
           </div>
           <div className="space-y-2">
@@ -412,8 +489,10 @@ function AddVolunteerForm({ roles, onCreated, onCancel }: {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {roles.map(role => (
-                  <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -422,7 +501,12 @@ function AddVolunteerForm({ roles, onCreated, onCancel }: {
             <Button data-testid="form-save-btn" type="submit" disabled={saving}>
               {saving ? t('common.loading') : t('common.save')}
             </Button>
-            <Button data-testid="form-cancel-btn" type="button" variant="outline" onClick={onCancel}>
+            <Button
+              data-testid="form-cancel-btn"
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+            >
               {t('common.cancel')}
             </Button>
           </div>
@@ -432,7 +516,12 @@ function AddVolunteerForm({ roles, onCreated, onCancel }: {
   )
 }
 
-function VolunteerRow({ volunteer, roles, onUpdate, onDelete }: {
+function VolunteerRow({
+  volunteer,
+  roles,
+  onUpdate,
+  onDelete,
+}: {
   volunteer: Volunteer
   roles: RoleDefinition[]
   onUpdate: (vol: Volunteer) => void
@@ -445,7 +534,7 @@ function VolunteerRow({ volunteer, roles, onUpdate, onDelete }: {
   const pinChallenge = usePinChallenge()
 
   const primaryRoleId = volunteer.roles[0] || 'role-volunteer'
-  const primaryRole = roles.find(r => r.id === primaryRoleId)
+  const primaryRole = roles.find((r) => r.id === primaryRoleId)
   const isAdminRole = primaryRoleId === 'role-super-admin' || primaryRoleId === 'role-hub-admin'
 
   async function changeRole(newRoleId: string) {
@@ -477,13 +566,21 @@ function VolunteerRow({ volunteer, roles, onUpdate, onDelete }: {
   }
 
   return (
-    <div data-testid={`volunteer-row-${volunteer.pubkey.slice(0, 8)}`} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
+    <div
+      data-testid={`volunteer-row-${volunteer.pubkey.slice(0, 8)}`}
+      className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6"
+    >
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
           {volunteer.name.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">{volunteer.name} <span className="font-mono text-xs text-muted-foreground">({volunteer.pubkey.slice(0, 8)})</span></p>
+          <p className="text-sm font-medium">
+            {volunteer.name}{' '}
+            <span className="font-mono text-xs text-muted-foreground">
+              ({volunteer.pubkey.slice(0, 8)})
+            </span>
+          </p>
           {volunteer.phone && (
             <p className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
               {showPhone ? volunteer.phone : maskedPhone(volunteer.phone)}
@@ -514,33 +611,51 @@ function VolunteerRow({ volunteer, roles, onUpdate, onDelete }: {
           )}
         </Badge>
         <button onClick={toggleActive} aria-pressed={volunteer.active}>
-          <Badge variant="outline" className={
-            volunteer.active
-              ? 'border-green-500/50 text-green-700 dark:text-green-400'
-              : 'border-red-500/50 text-red-700 dark:text-red-400'
-          }>
+          <Badge
+            variant="outline"
+            className={
+              volunteer.active
+                ? 'border-green-500/50 text-green-700 dark:text-green-400'
+                : 'border-red-500/50 text-red-700 dark:text-red-400'
+            }
+          >
             {volunteer.active ? t('volunteers.active') : t('volunteers.inactive')}
           </Badge>
         </button>
         {volunteer.onBreak && (
-          <Badge variant="outline" className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400">
+          <Badge
+            variant="outline"
+            className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400"
+          >
             <Coffee className="h-3 w-3" />
             {t('dashboard.onBreak')}
           </Badge>
         )}
         <div className="flex items-center gap-1">
           <Select value={primaryRoleId} onValueChange={changeRole}>
-            <SelectTrigger className="h-7 w-auto gap-1 border-none bg-transparent px-2 text-xs shadow-none" aria-label={t('volunteers.changeRole')}>
+            <SelectTrigger
+              className="h-7 w-auto gap-1 border-none bg-transparent px-2 text-xs shadow-none"
+              aria-label={t('volunteers.changeRole')}
+            >
               <Shield className="h-3 w-3" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {roles.map(role => (
-                <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+              {roles.map((role) => (
+                <SelectItem key={role.id} value={role.id}>
+                  {role.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button data-testid="volunteer-delete-btn" variant="ghost" size="icon-xs" onClick={() => setShowDeleteConfirm(true)} className="text-destructive hover:text-destructive" aria-label={t('a11y.deleteItem')}>
+          <Button
+            data-testid="volunteer-delete-btn"
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="text-destructive hover:text-destructive"
+            aria-label={t('a11y.deleteItem')}
+          >
             <Trash2 className="h-3 w-3" />
           </Button>
         </div>

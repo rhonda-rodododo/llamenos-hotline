@@ -1,12 +1,12 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
-import { testSignalBridge } from '@/lib/api'
-import type { SignalConfig } from '@shared/types'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { Loader2, Copy } from 'lucide-react'
+import { testSignalBridge } from '@/lib/api'
+import { useToast } from '@/lib/toast'
+import type { SignalConfig } from '@shared/types'
+import { Copy, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { SetupData } from './SetupWizard'
 
 interface Props {
@@ -59,7 +59,7 @@ export function SignalProviderForm({ data, onChange }: Props) {
           <Label>{t('setup.signalBridgeUrl')}</Label>
           <Input
             value={config.bridgeUrl || ''}
-            onChange={e => update({ bridgeUrl: e.target.value })}
+            onChange={(e) => update({ bridgeUrl: e.target.value })}
             placeholder="https://signal-bridge.internal:8080"
           />
         </div>
@@ -68,7 +68,7 @@ export function SignalProviderForm({ data, onChange }: Props) {
           <Input
             type="password"
             value={config.bridgeApiKey || ''}
-            onChange={e => update({ bridgeApiKey: e.target.value })}
+            onChange={(e) => update({ bridgeApiKey: e.target.value })}
           />
         </div>
         <div className="space-y-1">
@@ -76,14 +76,14 @@ export function SignalProviderForm({ data, onChange }: Props) {
           <Input
             type="password"
             value={config.webhookSecret || ''}
-            onChange={e => update({ webhookSecret: e.target.value })}
+            onChange={(e) => update({ webhookSecret: e.target.value })}
           />
         </div>
         <div className="space-y-1">
           <Label>{t('setup.signalRegisteredNumber')}</Label>
           <Input
             value={config.registeredNumber || ''}
-            onChange={e => update({ registeredNumber: e.target.value })}
+            onChange={(e) => update({ registeredNumber: e.target.value })}
             placeholder="+12125551234"
           />
         </div>
@@ -91,9 +91,15 @@ export function SignalProviderForm({ data, onChange }: Props) {
 
       {/* Test result */}
       {testResult && (
-        <div className={`rounded-lg border p-3 ${testResult.ok ? 'border-green-500/30 bg-green-500/10' : 'border-destructive/30 bg-destructive/10'}`}>
-          <p className={`text-xs ${testResult.ok ? 'text-green-700 dark:text-green-400' : 'text-destructive'}`}>
-            {testResult.ok ? t('telephonyProvider.testSuccess') : `${t('telephonyProvider.testFailed')}: ${testResult.error || ''}`}
+        <div
+          className={`rounded-lg border p-3 ${testResult.ok ? 'border-green-500/30 bg-green-500/10' : 'border-destructive/30 bg-destructive/10'}`}
+        >
+          <p
+            className={`text-xs ${testResult.ok ? 'text-green-700 dark:text-green-400' : 'text-destructive'}`}
+          >
+            {testResult.ok
+              ? t('telephonyProvider.testSuccess')
+              : `${t('telephonyProvider.testFailed')}: ${testResult.error || ''}`}
           </p>
         </div>
       )}
@@ -103,7 +109,9 @@ export function SignalProviderForm({ data, onChange }: Props) {
         <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
           <div className="flex-1">
             <p className="text-xs font-medium">{t('setup.webhookUrl')}</p>
-            <code className="text-xs text-muted-foreground">{window.location.origin}/telephony/signal</code>
+            <code className="text-xs text-muted-foreground">
+              {window.location.origin}/telephony/signal
+            </code>
           </div>
           <Button variant="ghost" size="sm" onClick={copyWebhookUrl}>
             <Copy className="h-3.5 w-3.5" />
@@ -111,7 +119,12 @@ export function SignalProviderForm({ data, onChange }: Props) {
         </div>
       )}
 
-      <Button variant="outline" size="sm" onClick={handleTest} disabled={testing || !config.bridgeUrl}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleTest}
+        disabled={testing || !config.bridgeUrl}
+      >
         {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
         {testing ? t('telephonyProvider.testing') : t('telephonyProvider.testConnection')}
       </Button>

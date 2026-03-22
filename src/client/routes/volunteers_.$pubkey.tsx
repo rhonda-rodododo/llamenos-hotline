@@ -1,39 +1,39 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useEffect, useState, useMemo } from 'react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
-  listVolunteers,
-  listAuditLog,
-  listShifts,
-  updateVolunteer,
-  type Volunteer,
   type AuditLogEntry,
   type Shift,
+  type Volunteer,
+  listAuditLog,
+  listShifts,
+  listVolunteers,
+  updateVolunteer,
 } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
+import { LANGUAGES } from '@shared/languages'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import {
   ArrowLeft,
-  ScrollText,
-  Clock,
-  Shield,
-  ShieldCheck,
-  Coffee,
   ChevronLeft,
   ChevronRight,
-  User,
-  Phone,
+  Clock,
+  Coffee,
   Eye,
   EyeOff,
   MessageSquare,
+  Phone,
+  ScrollText,
+  Shield,
+  ShieldCheck,
+  User,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { LANGUAGES } from '@shared/languages'
+import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 const MESSAGING_CHANNELS = ['sms', 'whatsapp', 'signal', 'rcs', 'web'] as const
 
@@ -41,7 +41,15 @@ export const Route = createFileRoute('/volunteers_/$pubkey')({
   component: VolunteerProfilePage,
 })
 
-const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const
+const DAY_KEYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const
 
 function VolunteerProfilePage() {
   const { t } = useTranslation()
@@ -61,14 +69,13 @@ function VolunteerProfilePage() {
 
   // Load volunteer + shifts
   useEffect(() => {
-    Promise.all([
-      listVolunteers(),
-      listShifts(),
-    ]).then(([volRes, shiftRes]) => {
-      const vol = volRes.volunteers.find(v => v.pubkey === pubkey) || null
-      setVolunteer(vol)
-      setShifts(shiftRes.shifts)
-    }).catch(() => {})
+    Promise.all([listVolunteers(), listShifts()])
+      .then(([volRes, shiftRes]) => {
+        const vol = volRes.volunteers.find((v) => v.pubkey === pubkey) || null
+        setVolunteer(vol)
+        setShifts(shiftRes.shifts)
+      })
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [pubkey])
 
@@ -76,14 +83,17 @@ function VolunteerProfilePage() {
   useEffect(() => {
     setAuditLoading(true)
     listAuditLog({ page: auditPage, limit: auditLimit, actorPubkey: pubkey })
-      .then(r => { setAuditEntries(r.entries); setAuditTotal(r.total) })
+      .then((r) => {
+        setAuditEntries(r.entries)
+        setAuditTotal(r.total)
+      })
       .catch(() => {})
       .finally(() => setAuditLoading(false))
   }, [pubkey, auditPage])
 
   const assignedShifts = useMemo(
-    () => shifts.filter(s => s.volunteerPubkeys.includes(pubkey)),
-    [shifts, pubkey],
+    () => shifts.filter((s) => s.volunteerPubkeys.includes(pubkey)),
+    [shifts, pubkey]
   )
 
   if (!isAdmin) {
@@ -103,13 +113,14 @@ function VolunteerProfilePage() {
   if (!volunteer) {
     return (
       <div className="space-y-4">
-        <Link to="/volunteers" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          to="/volunteers"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" />
           {t('nav.volunteers')}
         </Link>
-        <div className="py-8 text-center text-muted-foreground">
-          {t('common.noData')}
-        </div>
+        <div className="py-8 text-center text-muted-foreground">{t('common.noData')}</div>
       </div>
     )
   }
@@ -121,12 +132,15 @@ function VolunteerProfilePage() {
     return phone.slice(0, 3) + '\u2022'.repeat(phone.length - 5) + phone.slice(-2)
   }
 
-  const langMap = new Map(LANGUAGES.map(l => [l.code, l]))
+  const langMap = new Map(LANGUAGES.map((l) => [l.code, l]))
 
   return (
     <div className="space-y-6">
       {/* Back link */}
-      <Link to="/volunteers" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        to="/volunteers"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" />
         {t('nav.volunteers')}
       </Link>
@@ -144,22 +158,40 @@ function VolunteerProfilePage() {
                 <code className="text-xs text-muted-foreground">{volunteer.pubkey}</code>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Badge variant={volunteer.roles.includes('role-super-admin') || volunteer.roles.includes('role-hub-admin') ? 'default' : 'secondary'}>
-                  {volunteer.roles.includes('role-super-admin') || volunteer.roles.includes('role-hub-admin') ? (
-                    <><ShieldCheck className="h-3 w-3" /> {t('volunteers.roleAdmin')}</>
+                <Badge
+                  variant={
+                    volunteer.roles.includes('role-super-admin') ||
+                    volunteer.roles.includes('role-hub-admin')
+                      ? 'default'
+                      : 'secondary'
+                  }
+                >
+                  {volunteer.roles.includes('role-super-admin') ||
+                  volunteer.roles.includes('role-hub-admin') ? (
+                    <>
+                      <ShieldCheck className="h-3 w-3" /> {t('volunteers.roleAdmin')}
+                    </>
                   ) : (
-                    <><Shield className="h-3 w-3" /> {t('volunteers.roleVolunteer')}</>
+                    <>
+                      <Shield className="h-3 w-3" /> {t('volunteers.roleVolunteer')}
+                    </>
                   )}
                 </Badge>
-                <Badge variant="outline" className={
-                  volunteer.active
-                    ? 'border-green-500/50 text-green-700 dark:text-green-400'
-                    : 'border-red-500/50 text-red-700 dark:text-red-400'
-                }>
+                <Badge
+                  variant="outline"
+                  className={
+                    volunteer.active
+                      ? 'border-green-500/50 text-green-700 dark:text-green-400'
+                      : 'border-red-500/50 text-red-700 dark:text-red-400'
+                  }
+                >
                   {volunteer.active ? t('volunteers.active') : t('volunteers.inactive')}
                 </Badge>
                 {volunteer.onBreak && (
-                  <Badge variant="outline" className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400">
+                  <Badge
+                    variant="outline"
+                    className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400"
+                  >
                     <Coffee className="h-3 w-3" />
                     {t('dashboard.onBreak')}
                   </Badge>
@@ -171,13 +203,17 @@ function VolunteerProfilePage() {
                   <span className="font-mono text-xs">
                     {showPhone ? volunteer.phone : maskedPhone(volunteer.phone)}
                   </span>
-                  <button onClick={() => setShowPhone(!showPhone)} className="text-muted-foreground hover:text-foreground">
+                  <button
+                    onClick={() => setShowPhone(!showPhone)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
                     {showPhone ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                   </button>
                 </span>
                 <span className="flex items-center gap-1.5">
                   <User className="h-3.5 w-3.5" />
-                  {t('volunteerProfile.joined')} {new Date(volunteer.createdAt).toLocaleDateString()}
+                  {t('volunteerProfile.joined')}{' '}
+                  {new Date(volunteer.createdAt).toLocaleDateString()}
                 </span>
               </div>
             </div>
@@ -200,18 +236,20 @@ function VolunteerProfilePage() {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {assignedShifts.map(shift => (
+              {assignedShifts.map((shift) => (
                 <div key={shift.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
                   <span className="text-sm font-medium">{shift.name}</span>
                   <span className="text-xs text-muted-foreground">
                     {shift.startTime} – {shift.endTime}
                   </span>
                   <div className="flex flex-wrap gap-1">
-                    {shift.days.sort((a, b) => a - b).map(d => (
-                      <Badge key={d} variant="outline" className="text-[10px]">
-                        {t(`shifts.days.${DAY_KEYS[d]}`)}
-                      </Badge>
-                    ))}
+                    {shift.days
+                      .sort((a, b) => a - b)
+                      .map((d) => (
+                        <Badge key={d} variant="outline" className="text-[10px]">
+                          {t(`shifts.days.${DAY_KEYS[d]}`)}
+                        </Badge>
+                      ))}
                   </div>
                 </div>
               ))}
@@ -269,8 +307,11 @@ function VolunteerProfilePage() {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {auditEntries.map(entry => (
-                <div key={entry.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 sm:px-6">
+              {auditEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex flex-wrap items-center gap-3 px-4 py-2.5 sm:px-6"
+                >
                   <span className="w-full text-xs text-muted-foreground whitespace-nowrap sm:w-32 sm:shrink-0">
                     {new Date(entry.createdAt).toLocaleString()}
                   </span>
@@ -294,16 +335,18 @@ function VolunteerProfilePage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setAuditPage(p => Math.max(1, p - 1))}
+              onClick={() => setAuditPage((p) => Math.max(1, p - 1))}
               disabled={auditPage === 1}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-xs text-muted-foreground">{auditPage} / {auditTotalPages}</span>
+            <span className="text-xs text-muted-foreground">
+              {auditPage} / {auditTotalPages}
+            </span>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setAuditPage(p => Math.min(auditTotalPages, p + 1))}
+              onClick={() => setAuditPage((p) => Math.min(auditTotalPages, p + 1))}
               disabled={auditPage === auditTotalPages}
             >
               <ChevronRight className="h-4 w-4" />
@@ -326,9 +369,7 @@ function MessagingChannelsCard({
 }) {
   const { t } = useTranslation()
   const [enabled, setEnabled] = useState(volunteer.messagingEnabled !== false)
-  const [channels, setChannels] = useState<string[]>(
-    volunteer.supportedMessagingChannels || []
-  )
+  const [channels, setChannels] = useState<string[]>(volunteer.supportedMessagingChannels || [])
   const [dirty, setDirty] = useState(false)
 
   const channelLabels: Record<string, string> = {
@@ -340,10 +381,8 @@ function MessagingChannelsCard({
   }
 
   function toggleChannel(ch: string) {
-    setChannels(prev => {
-      const next = prev.includes(ch)
-        ? prev.filter(c => c !== ch)
-        : [...prev, ch]
+    setChannels((prev) => {
+      const next = prev.includes(ch) ? prev.filter((c) => c !== ch) : [...prev, ch]
       setDirty(true)
       return next
     })
@@ -361,9 +400,7 @@ function MessagingChannelsCard({
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
           {t('volunteerProfile.messagingChannels')}
         </CardTitle>
-        <CardDescription>
-          {t('volunteerProfile.messagingChannelsDescription')}
-        </CardDescription>
+        <CardDescription>{t('volunteerProfile.messagingChannelsDescription')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Messaging Enabled Toggle */}
@@ -374,11 +411,7 @@ function MessagingChannelsCard({
               {t('volunteerProfile.messagingEnabledDescription')}
             </p>
           </div>
-          <Switch
-            id="messaging-enabled"
-            checked={enabled}
-            onCheckedChange={handleEnabledChange}
-          />
+          <Switch id="messaging-enabled" checked={enabled} onCheckedChange={handleEnabledChange} />
         </div>
 
         {/* Channel Selection */}
@@ -386,7 +419,7 @@ function MessagingChannelsCard({
           <div className="space-y-3">
             <Label>{t('volunteerProfile.selectChannels')}</Label>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {MESSAGING_CHANNELS.map(ch => (
+              {MESSAGING_CHANNELS.map((ch) => (
                 <label
                   key={ch}
                   className="flex cursor-pointer items-center gap-2 rounded-md border border-border p-3 hover:bg-muted/50"
@@ -409,10 +442,7 @@ function MessagingChannelsCard({
 
         {/* Save Button */}
         {dirty && (
-          <Button
-            onClick={() => onSave(channels, enabled)}
-            disabled={saving}
-          >
+          <Button onClick={() => onSave(channels, enabled)} disabled={saving}>
             {saving ? t('common.loading') : t('common.save')}
           </Button>
         )}

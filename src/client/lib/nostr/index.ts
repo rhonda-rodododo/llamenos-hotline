@@ -7,7 +7,12 @@
 
 export { RelayManager } from './relay'
 export type { RelayManagerOptions } from './relay'
-export { EventDeduplicator, createHubEvent, validateLlamenosEvent, parseLlamenosContent } from './events'
+export {
+  EventDeduplicator,
+  createHubEvent,
+  validateLlamenosEvent,
+  parseLlamenosContent,
+} from './events'
 export type {
   LlamenosEvent,
   CallRingEvent,

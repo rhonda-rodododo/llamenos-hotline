@@ -14,11 +14,11 @@ export type TranscriptionModel = 'tiny' | 'tiny.en' | 'base' | 'base.en'
 
 export type TranscriptionStatus =
   | 'idle'
-  | 'loading'        // Model downloading/initializing
-  | 'ready'          // Model loaded, waiting to start
-  | 'capturing'      // Audio capture active, transcribing chunks
-  | 'finalizing'     // Final chunk processing
-  | 'done'           // Transcript ready
+  | 'loading' // Model downloading/initializing
+  | 'ready' // Model loaded, waiting to start
+  | 'capturing' // Audio capture active, transcribing chunks
+  | 'finalizing' // Final chunk processing
+  | 'done' // Transcript ready
   | 'error'
 
 export interface TranscriptionProgress {
@@ -83,10 +83,9 @@ export class TranscriptionManager {
 
     try {
       // Create Web Worker — Vite handles the URL transform for worker imports
-      this.worker = new Worker(
-        new URL('./transcription-worker.ts', import.meta.url),
-        { type: 'module' },
-      )
+      this.worker = new Worker(new URL('./transcription-worker.ts', import.meta.url), {
+        type: 'module',
+      })
 
       // Set up message handler
       this.worker.onmessage = (event) => this.handleWorkerMessage(event.data)
@@ -97,13 +96,16 @@ export class TranscriptionManager {
 
       // Initialize the model in the worker
       await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Model initialization timed out')), 300_000) // 5 min for download
-        const originalHandler = this.worker!.onmessage
+        const timeout = setTimeout(
+          () => reject(new Error('Model initialization timed out')),
+          300_000
+        ) // 5 min for download
+        const originalHandler = this.worker?.onmessage
         this.worker!.onmessage = (event) => {
           const msg = event.data
           if (msg.type === 'ready') {
             clearTimeout(timeout)
-            this.worker!.onmessage = originalHandler
+            this.worker!.onmessage = originalHandler ?? null
             resolve()
           } else if (msg.type === 'error') {
             clearTimeout(timeout)
@@ -114,7 +116,7 @@ export class TranscriptionManager {
           }
         }
 
-        this.worker!.postMessage({
+        this.worker?.postMessage({
           type: 'init',
           model: this.options.model || 'tiny.en',
           language: this.options.language || 'en',
@@ -153,10 +155,7 @@ export class TranscriptionManager {
       // Load AudioWorklet processor
       await this.audioContext.audioWorklet.addModule('/worklets/audio-capture-worklet.js')
 
-      this.captureNode = new AudioWorkletNode(
-        this.audioContext,
-        'audio-capture-processor',
-      )
+      this.captureNode = new AudioWorkletNode(this.audioContext, 'audio-capture-processor')
 
       // Handle audio chunks from worklet → forward to transcription worker
       this.captureNode.port.onmessage = (event: MessageEvent) => {
@@ -169,7 +168,7 @@ export class TranscriptionManager {
               audio: event.data.data.buffer,
               chunkIndex: chunk,
             },
-            [event.data.data.buffer], // Transfer ownership
+            [event.data.data.buffer] // Transfer ownership
           )
         }
       }
@@ -202,7 +201,7 @@ export class TranscriptionManager {
     this.captureNode?.port.postMessage({ type: 'stop' })
 
     // Stop microphone
-    this.mediaStream?.getTracks().forEach(track => track.stop())
+    this.mediaStream?.getTracks().forEach((track) => track.stop())
 
     // Wait for all pending transcription chunks to complete
     if (this.pendingChunks.size > 0) {
@@ -233,7 +232,7 @@ export class TranscriptionManager {
   async dispose(): Promise<void> {
     // Stop audio capture
     this.captureNode?.port.postMessage({ type: 'stop' })
-    this.mediaStream?.getTracks().forEach(track => track.stop())
+    this.mediaStream?.getTracks().forEach((track) => track.stop())
 
     if (this.audioContext && this.audioContext.state !== 'closed') {
       await this.audioContext.close()
@@ -243,7 +242,7 @@ export class TranscriptionManager {
     if (this.worker) {
       this.worker.postMessage({ type: 'finalize' })
       // Give it a moment to clean up, then terminate
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 500))
       this.worker.terminate()
     }
 
@@ -287,7 +286,11 @@ export class TranscriptionManager {
         if (msg.chunkIndex !== undefined) {
           this.pendingChunks.delete(msg.chunkIndex as number)
           // If finalizing and this was the last pending chunk, resolve with what we have
-          if (this.status === 'finalizing' && this.pendingChunks.size === 0 && this.finalizeResolve) {
+          if (
+            this.status === 'finalizing' &&
+            this.pendingChunks.size === 0 &&
+            this.finalizeResolve
+          ) {
             this.finalizeResolve(this.getTranscript())
             this.finalizeResolve = null
           }

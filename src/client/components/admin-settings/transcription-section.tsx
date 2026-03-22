@@ -1,10 +1,10 @@
-import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
-import { updateTranscriptionSettings } from '@/lib/api'
 import { SettingsSection } from '@/components/settings-section'
-import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { updateTranscriptionSettings } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 import { Mic } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   globalEnabled: boolean
@@ -17,7 +17,15 @@ interface Props {
   statusSummary?: string
 }
 
-export function TranscriptionSection({ globalEnabled, allowOptOut, onOptOutChange, onConfirmToggle, expanded, onToggle, statusSummary }: Props) {
+export function TranscriptionSection({
+  globalEnabled,
+  allowOptOut,
+  onOptOutChange,
+  onConfirmToggle,
+  expanded,
+  onToggle,
+  statusSummary,
+}: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
 
@@ -45,7 +53,9 @@ export function TranscriptionSection({ globalEnabled, allowOptOut, onOptOutChang
       <div className="flex items-center justify-between rounded-lg border border-border p-4">
         <div className="space-y-0.5">
           <Label>{t('transcription.allowOptOut')}</Label>
-          <p className="text-xs text-muted-foreground">{t('transcription.allowOptOutDescription')}</p>
+          <p className="text-xs text-muted-foreground">
+            {t('transcription.allowOptOutDescription')}
+          </p>
         </div>
         <Switch
           checked={allowOptOut}

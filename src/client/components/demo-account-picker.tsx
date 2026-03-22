@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
 import * as keyManager from '@/lib/key-manager'
-import { Shield, Users, UserCog, FileText, LogIn, Info } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { FileText, Info, LogIn, Shield, UserCog, Users } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 const DEMO_PIN = '000000'
 
@@ -87,11 +87,14 @@ export function DemoAccountPicker() {
             return (
               <button
                 key={account.pubkey}
+                type="button"
                 onClick={() => handleDemoLogin(account.nsec, account.pubkey)}
                 disabled={loadingPubkey !== null}
                 className="flex w-full items-center gap-3 rounded-md border bg-card p-2.5 text-left transition-colors hover:bg-accent disabled:opacity-50"
               >
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${colorClass}`}>
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${colorClass}`}
+                >
                   <Icon className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">

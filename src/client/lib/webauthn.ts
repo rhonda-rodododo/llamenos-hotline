@@ -3,7 +3,12 @@
  * Uses @simplewebauthn/browser for browser API interaction.
  */
 
-import { startRegistration, startAuthentication, type PublicKeyCredentialCreationOptionsJSON, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
+import {
+  type PublicKeyCredentialCreationOptionsJSON,
+  type PublicKeyCredentialRequestOptionsJSON,
+  startAuthentication,
+  startRegistration,
+} from '@simplewebauthn/browser'
 import * as keyManager from './key-manager'
 
 const API_BASE = '/api'
@@ -12,13 +17,13 @@ function getAuthHeaders(method: string, path: string): Record<string, string> {
   // Prefer session token if available
   const sessionToken = sessionStorage.getItem('llamenos-session-token')
   if (sessionToken) {
-    return { 'Authorization': `Session ${sessionToken}` }
+    return { Authorization: `Session ${sessionToken}` }
   }
   // Use key manager for Schnorr auth if unlocked
   if (keyManager.isUnlocked()) {
     try {
       const token = keyManager.createAuthToken(Date.now(), method, `${API_BASE}${path}`)
-      return { 'Authorization': `Bearer ${token}` }
+      return { Authorization: `Bearer ${token}` }
     } catch {
       return {}
     }
@@ -30,9 +35,11 @@ function getAuthHeaders(method: string, path: string): Record<string, string> {
  * Check if WebAuthn is supported in this browser.
  */
 export function isWebAuthnAvailable(): boolean {
-  return typeof window !== 'undefined' &&
+  return (
+    typeof window !== 'undefined' &&
     !!window.PublicKeyCredential &&
     typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function'
+  )
 }
 
 /**
@@ -48,7 +55,8 @@ export async function registerCredential(label: string): Promise<void> {
     body: JSON.stringify({ label }),
   })
   if (!optionsRes.ok) throw new Error('Failed to get registration options')
-  const { challengeId, ...optionsJSON } = await optionsRes.json() as PublicKeyCredentialCreationOptionsJSON & { challengeId: string }
+  const { challengeId, ...optionsJSON } =
+    (await optionsRes.json()) as PublicKeyCredentialCreationOptionsJSON & { challengeId: string }
 
   // 2. Create credential via browser WebAuthn API
   const attestation = await startRegistration({ optionsJSON })
@@ -74,7 +82,8 @@ export async function loginWithPasskey(): Promise<{ token: string; pubkey: strin
     headers: { 'Content-Type': 'application/json' },
   })
   if (!optionsRes.ok) throw new Error('Failed to get authentication options')
-  const { challengeId, ...optionsJSON } = await optionsRes.json() as PublicKeyCredentialRequestOptionsJSON & { challengeId: string }
+  const { challengeId, ...optionsJSON } =
+    (await optionsRes.json()) as PublicKeyCredentialRequestOptionsJSON & { challengeId: string }
 
   // 2. Authenticate via browser WebAuthn API
   const assertion = await startAuthentication({ optionsJSON })
@@ -104,7 +113,7 @@ export async function listCredentials(): Promise<WebAuthnCredentialInfo[]> {
   const headers = getAuthHeaders('GET', '/webauthn/credentials')
   const res = await fetch(`${API_BASE}/webauthn/credentials`, { headers })
   if (!res.ok) throw new Error('Failed to list credentials')
-  const data = await res.json() as { credentials: WebAuthnCredentialInfo[] }
+  const data = (await res.json()) as { credentials: WebAuthnCredentialInfo[] }
   return data.credentials
 }
 

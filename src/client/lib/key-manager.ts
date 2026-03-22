@@ -10,8 +10,8 @@
  */
 
 import { getPublicKey, nip19 } from 'nostr-tools'
-import { decryptStoredKey, storeEncryptedKey, hasStoredKey, clearStoredKey } from './key-store'
 import { createAuthToken as _createAuthToken } from './crypto'
+import { clearStoredKey, decryptStoredKey, hasStoredKey, storeEncryptedKey } from './key-store'
 
 // --- Private state (closure-scoped, never exported) ---
 let secretKey: Uint8Array | null = null
@@ -19,8 +19,8 @@ let publicKey: string | null = null
 
 // --- Auto-lock ---
 let idleTimer: ReturnType<typeof setTimeout> | null = null
-let lockCallbacks: Set<() => void> = new Set()
-let unlockCallbacks: Set<() => void> = new Set()
+const lockCallbacks: Set<() => void> = new Set()
+const unlockCallbacks: Set<() => void> = new Set()
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 let autoLockDisabled = false
 
@@ -41,10 +41,12 @@ function getLockDelay(): number {
   try {
     const stored = localStorage.getItem(LOCK_DELAY_KEY)
     if (stored) {
-      const ms = parseInt(stored, 10)
+      const ms = Number.parseInt(stored, 10)
       if (ms >= 0 && ms <= 600_000) return ms // 0 = immediate, max 10 min
     }
-  } catch { /* localStorage unavailable */ }
+  } catch {
+    /* localStorage unavailable */
+  }
   return DEFAULT_LOCK_DELAY_MS
 }
 
@@ -93,7 +95,7 @@ export async function unlock(pin: string): Promise<string | null> {
     secretKey = decoded.data
     publicKey = getPublicKey(secretKey)
     resetIdleTimer()
-    unlockCallbacks.forEach(cb => cb())
+    unlockCallbacks.forEach((cb) => cb())
     return publicKey
   } catch {
     return null
@@ -113,7 +115,7 @@ export function lock() {
     clearTimeout(idleTimer)
     idleTimer = null
   }
-  lockCallbacks.forEach(cb => cb())
+  lockCallbacks.forEach((cb) => cb())
 }
 
 /**
@@ -129,7 +131,7 @@ export async function importKey(nsec: string, pin: string): Promise<string> {
   secretKey = sk
   publicKey = pk
   resetIdleTimer()
-  unlockCallbacks.forEach(cb => cb())
+  unlockCallbacks.forEach((cb) => cb())
   return pk
 }
 

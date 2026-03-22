@@ -8,8 +8,8 @@ export { ConversationDO } from './durable-objects/conversation-do'
 export { BlastDO } from './durable-objects/blast-do'
 
 import app from './app'
-import type { Env } from './types'
 import { getDOs } from './lib/do-access'
+import type { Env } from './types'
 
 export default {
   fetch: app.fetch,
