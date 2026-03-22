@@ -45,6 +45,15 @@ Pre-launch checklist for self-hosted Llamenos instances. Complete all items befo
 - [ ] Structured JSON logs visible in `docker compose logs`
 - [ ] Log rotation configured (≤50MB per file, ≤5 files)
 
+## Auto-Updates (Watchtower)
+
+- [ ] Watchtower container is running (`docker compose ps watchtower`)
+- [ ] Watchtower log shows it found the app container (`docker compose logs watchtower`)
+- [ ] GHCR credentials set if using a private registry (`GHCR_USERNAME` + `GHCR_TOKEN` in `.env`)
+- [ ] `WATCHTOWER_POLL_INTERVAL` set to an acceptable cadence for your deployment policy
+- [ ] Docker socket mount understood — review security implications if running hardened
+- [ ] Old images cleaned up after update (`WATCHTOWER_CLEANUP=true`)
+
 ## Backups
 
 - [ ] Automated daily backups configured and running
