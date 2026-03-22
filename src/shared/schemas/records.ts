@@ -1,0 +1,83 @@
+import { z } from 'zod'
+
+export const BanEntrySchema = z.object({
+  id: z.string(),
+  hubId: z.string(),
+  phone: z.string(),
+  reason: z.string(),
+  bannedBy: z.string(),
+  createdAt: z.string().datetime(),
+})
+export type BanEntry = z.infer<typeof BanEntrySchema>
+
+export const CreateBanSchema = z.object({
+  phone: z.string(),
+  reason: z.string(),
+  bannedBy: z.string(),
+})
+export type CreateBanInput = z.infer<typeof CreateBanSchema>
+
+export const AuditLogEntrySchema = z.object({
+  id: z.string(),
+  hubId: z.string(),
+  event: z.string(),
+  actorPubkey: z.string(),
+  details: z.record(z.string(), z.unknown()),
+  previousEntryHash: z.string().optional(),
+  entryHash: z.string().optional(),
+  createdAt: z.string().datetime(),
+})
+export type AuditLogEntry = z.infer<typeof AuditLogEntrySchema>
+
+export const RecipientEnvelopeSchema = z.object({
+  pubkey: z.string(),
+  wrappedKey: z.string(),
+  ephemeralPubkey: z.string(),
+})
+export type RecipientEnvelope = z.infer<typeof RecipientEnvelopeSchema>
+
+export const EncryptedNoteSchema = z.object({
+  id: z.string(),
+  hubId: z.string(),
+  callId: z.string().optional(),
+  conversationId: z.string().optional(),
+  contactHash: z.string().optional(),
+  authorPubkey: z.string(),
+  encryptedContent: z.string(),
+  ephemeralPubkey: z.string().optional(),
+  authorEnvelope: RecipientEnvelopeSchema.optional(),
+  adminEnvelopes: z.array(RecipientEnvelopeSchema),
+  replyCount: z.number().int(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+})
+export type EncryptedNote = z.infer<typeof EncryptedNoteSchema>
+
+export const CreateNoteSchema = z.object({
+  hubId: z.string().optional(),
+  callId: z.string().optional(),
+  conversationId: z.string().optional(),
+  authorPubkey: z.string(),
+  encryptedContent: z.string(),
+  ephemeralPubkey: z.string().optional(),
+  authorEnvelope: RecipientEnvelopeSchema.optional(),
+  adminEnvelopes: z.array(RecipientEnvelopeSchema),
+})
+export type CreateNoteInput = z.infer<typeof CreateNoteSchema>
+
+export const EncryptedCallRecordSchema = z.object({
+  id: z.string(),
+  hubId: z.string(),
+  callerLast4: z.string().optional(),
+  startedAt: z.string().datetime(),
+  endedAt: z.string().datetime().optional(),
+  duration: z.number().int().optional(),
+  status: z.string(),
+  hasTranscription: z.boolean(),
+  hasVoicemail: z.boolean(),
+  hasRecording: z.boolean(),
+  recordingSid: z.string().optional(),
+  encryptedContent: z.string().optional(),
+  adminEnvelopes: z.array(RecipientEnvelopeSchema),
+})
+export type EncryptedCallRecord = z.infer<typeof EncryptedCallRecordSchema>

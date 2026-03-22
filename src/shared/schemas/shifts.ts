@@ -1,0 +1,70 @@
+import { z } from 'zod'
+
+export const ShiftScheduleSchema = z.object({
+  id: z.string(),
+  hubId: z.string(),
+  name: z.string(),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/),
+  days: z.array(z.number().int().min(0).max(6)),
+  volunteerPubkeys: z.array(z.string()),
+  ringGroupId: z.string().optional(),
+  createdAt: z.string().datetime(),
+})
+export type ShiftSchedule = z.infer<typeof ShiftScheduleSchema>
+
+export const CreateShiftScheduleSchema = z.object({
+  name: z.string().min(1).max(100),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/),
+  days: z.array(z.number().int().min(0).max(6)),
+  volunteerPubkeys: z.array(z.string()),
+  ringGroupId: z.string().optional(),
+  hubId: z.string().optional(),
+})
+export type CreateShiftScheduleInput = z.infer<typeof CreateShiftScheduleSchema>
+
+export const UpdateShiftScheduleSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  days: z.array(z.number().int().min(0).max(6)).optional(),
+  volunteerPubkeys: z.array(z.string()).optional(),
+  ringGroupId: z.string().optional(),
+  hubId: z.string().optional(),
+})
+export type UpdateShiftScheduleInput = z.infer<typeof UpdateShiftScheduleSchema>
+
+export const RingGroupSchema = z.object({
+  id: z.string(),
+  hubId: z.string(),
+  name: z.string(),
+  volunteerPubkeys: z.array(z.string()),
+  createdAt: z.string().datetime(),
+})
+export type RingGroup = z.infer<typeof RingGroupSchema>
+
+export const CreateRingGroupSchema = z.object({
+  name: z.string().min(1).max(100),
+  volunteerPubkeys: z.array(z.string()),
+  hubId: z.string().optional(),
+})
+export type CreateRingGroupInput = z.infer<typeof CreateRingGroupSchema>
+
+export const ActiveShiftSchema = z.object({
+  pubkey: z.string(),
+  hubId: z.string(),
+  startedAt: z.string().datetime(),
+  ringGroupId: z.string().optional(),
+})
+export type ActiveShift = z.infer<typeof ActiveShiftSchema>
+
+export const ShiftOverrideSchema = z.object({
+  id: z.string(),
+  hubId: z.string(),
+  scheduleId: z.string().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  type: z.enum(['cancel', 'substitute']),
+  volunteerPubkeys: z.array(z.string()).optional(),
+})
+export type ShiftOverride = z.infer<typeof ShiftOverrideSchema>
