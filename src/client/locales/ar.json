@@ -1226,6 +1226,12 @@
     "selectHub": "Select hub",
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
-    "urlPlaceholder": "https://hub.example.com"
+    "urlPlaceholder": "https://hub.example.com",
+    "delete": "حذف",
+    "deleteHub": "حذف المحور",
+    "deleteHubConfirm": "سيؤدي هذا إلى حذف \"{{name}}\" وجميع بياناته نهائيًا. اكتب اسم المحور للتأكيد.",
+    "deleteHubNameLabel": "اكتب اسم المحور للتأكيد",
+    "hubDeleted": "تم حذف المحور بنجاح",
+    "deleteHubActiveCallsError": "لا يمكن حذف محور به مكالمات نشطة"
   }
 }

@@ -1226,6 +1226,12 @@
     "selectHub": "Select hub",
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
-    "urlPlaceholder": "https://hub.example.com"
+    "urlPlaceholder": "https://hub.example.com",
+    "delete": "Xóa",
+    "deleteHub": "Xóa Hub",
+    "deleteHubConfirm": "Thao tác này sẽ xóa vĩnh viễn \"{{name}}\" và tất cả dữ liệu của nó. Nhập tên hub để xác nhận.",
+    "deleteHubNameLabel": "Nhập tên hub để xác nhận",
+    "hubDeleted": "Đã xóa hub thành công",
+    "deleteHubActiveCallsError": "Không thể xóa hub có cuộc gọi đang hoạt động"
   }
 }

@@ -1226,6 +1226,12 @@
     "selectHub": "Select hub",
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
-    "urlPlaceholder": "https://hub.example.com"
+    "urlPlaceholder": "https://hub.example.com",
+    "delete": "삭제",
+    "deleteHub": "허브 삭제",
+    "deleteHubConfirm": "\"{{name}}\"과 모든 데이터를 영구적으로 삭제합니다. 확인을 위해 허브 이름을 입력하세요.",
+    "deleteHubNameLabel": "확인을 위해 허브 이름을 입력하세요",
+    "hubDeleted": "허브가 성공적으로 삭제되었습니다",
+    "deleteHubActiveCallsError": "활성 통화가 있는 허브는 삭제할 수 없습니다"
   }
 }
