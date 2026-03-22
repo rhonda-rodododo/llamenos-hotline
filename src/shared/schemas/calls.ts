@@ -6,7 +6,7 @@ export const ActiveCallSchema = z.object({
   callerNumber: z.string(),
   status: z.enum(['ringing', 'in-progress', 'completed']),
   assignedPubkey: z.string().optional(),
-  startedAt: z.string().datetime(),
+  startedAt: z.iso.datetime(),
   metadata: z.record(z.string(), z.unknown()),
 })
 export type ActiveCall = z.infer<typeof ActiveCallSchema>
@@ -18,7 +18,7 @@ export const CallLegSchema = z.object({
   volunteerPubkey: z.string(),
   phone: z.string().optional(),
   status: z.string(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 })
 export type CallLeg = z.infer<typeof CallLegSchema>
 
@@ -27,7 +27,7 @@ export const CallTokenSchema = z.object({
   callSid: z.string(),
   hubId: z.string(),
   pubkey: z.string(),
-  expiresAt: z.string().datetime(),
-  createdAt: z.string().datetime(),
+  expiresAt: z.iso.datetime(),
+  createdAt: z.iso.datetime(),
 })
 export type CallToken = z.infer<typeof CallTokenSchema>

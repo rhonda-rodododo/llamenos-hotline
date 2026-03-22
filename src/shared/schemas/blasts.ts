@@ -10,8 +10,8 @@ export const BlastSchema = z.object({
   totalCount: z.number().int(),
   sentCount: z.number().int(),
   failedCount: z.number().int(),
-  createdAt: z.string().datetime(),
-  sentAt: z.string().datetime().optional(),
+  createdAt: z.iso.datetime(),
+  sentAt: z.iso.datetime().optional(),
 })
 export type Blast = z.infer<typeof BlastSchema>
 
@@ -31,7 +31,7 @@ export const SubscriberSchema = z.object({
   active: z.boolean(),
   token: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 })
 export type Subscriber = z.infer<typeof SubscriberSchema>
 
@@ -50,6 +50,6 @@ export const BlastDeliverySchema = z.object({
   subscriberId: z.string(),
   status: z.enum(['pending', 'sent', 'failed']),
   error: z.string().optional(),
-  sentAt: z.string().datetime().optional(),
+  sentAt: z.iso.datetime().optional(),
 })
 export type BlastDelivery = z.infer<typeof BlastDeliverySchema>

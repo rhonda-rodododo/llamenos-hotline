@@ -17,7 +17,7 @@ export const VolunteerSchema = z.object({
   callPreference: z.enum(['phone', 'browser', 'both']),
   supportedMessagingChannels: z.array(z.string()).optional(),
   messagingEnabled: z.boolean().optional(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 })
 export type Volunteer = z.infer<typeof VolunteerSchema>
 
@@ -60,9 +60,9 @@ export const InviteCodeSchema = z.object({
   phone: z.string(),
   roleIds: z.array(z.string()),
   createdBy: z.string(),
-  createdAt: z.string().datetime(),
-  expiresAt: z.string().datetime(),
-  usedAt: z.string().datetime().optional(),
+  createdAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime(),
+  usedAt: z.iso.datetime().optional(),
   usedBy: z.string().optional(),
 })
 export type InviteCode = z.infer<typeof InviteCodeSchema>
@@ -81,7 +81,7 @@ export type CreateInviteInput = z.infer<typeof CreateInviteSchema>
 export const ServerSessionSchema = z.object({
   token: z.string(),
   pubkey: z.string(),
-  createdAt: z.string().datetime(),
-  expiresAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime(),
 })
 export type ServerSession = z.infer<typeof ServerSessionSchema>

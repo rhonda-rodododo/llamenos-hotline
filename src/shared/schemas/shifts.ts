@@ -9,7 +9,7 @@ export const ShiftScheduleSchema = z.object({
   days: z.array(z.number().int().min(0).max(6)),
   volunteerPubkeys: z.array(z.string()),
   ringGroupId: z.string().optional(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 })
 export type ShiftSchedule = z.infer<typeof ShiftScheduleSchema>
 
@@ -40,7 +40,7 @@ export const RingGroupSchema = z.object({
   hubId: z.string(),
   name: z.string(),
   volunteerPubkeys: z.array(z.string()),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 })
 export type RingGroup = z.infer<typeof RingGroupSchema>
 
@@ -54,7 +54,7 @@ export type CreateRingGroupInput = z.infer<typeof CreateRingGroupSchema>
 export const ActiveShiftSchema = z.object({
   pubkey: z.string(),
   hubId: z.string(),
-  startedAt: z.string().datetime(),
+  startedAt: z.iso.datetime(),
   ringGroupId: z.string().optional(),
 })
 export type ActiveShift = z.infer<typeof ActiveShiftSchema>
