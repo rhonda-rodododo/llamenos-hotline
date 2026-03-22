@@ -191,4 +191,12 @@ export class CallService {
       createdAt: r.createdAt,
     }
   }
+
+  // ------------------------------------------------------------------ Test Reset
+
+  async resetForTest(): Promise<void> {
+    await this.db.delete(activeCalls)
+    await this.db.delete(callLegs)
+    await this.db.delete(callTokens)
+  }
 }

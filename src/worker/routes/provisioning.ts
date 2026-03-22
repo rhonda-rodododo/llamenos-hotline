@@ -1,7 +1,5 @@
 import { Hono } from 'hono'
 import { hashIP } from '../lib/crypto'
-import { getDOs } from '../lib/do-access'
-import { checkRateLimit } from '../lib/helpers'
 import { auth } from '../middleware/auth'
 import type { AppEnv } from '../types'
 
@@ -19,25 +17,22 @@ const provisioning = new Hono<AppEnv>()
 
 // Create provisioning room (public — new device has no auth yet)
 provisioning.post('/rooms', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const body = (await c.req.json()) as { ephemeralPubkey: string }
   if (!body.ephemeralPubkey || body.ephemeralPubkey.length < 60) {
     return c.json({ error: 'Invalid ephemeral pubkey' }, 400)
   }
-  return dos.identity.fetch(
-    new Request('http://do/provision/rooms', {
-      method: 'POST',
-      body: JSON.stringify({ ephemeralPubkey: body.ephemeralPubkey }),
-    })
-  )
+  const result = await services.identity.createProvisionRoom({
+    ephemeralPubkey: body.ephemeralPubkey,
+  })
+  return c.json(result, 201)
 })
 
 // Get room status (public — new device polls this, rate limited)
 provisioning.get('/rooms/:id', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const clientIp = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown'
-  const limited = await checkRateLimit(
-    dos.settings,
+  const limited = await services.settings.checkRateLimit(
     `provision:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
     30
   )
@@ -45,12 +40,17 @@ provisioning.get('/rooms/:id', async (c) => {
   const id = c.req.param('id')
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Missing token' }, 400)
-  return dos.identity.fetch(new Request(`http://do/provision/rooms/${id}?token=${token}`))
+  try {
+    const result = await services.identity.getProvisionRoom(id, token)
+    return c.json(result)
+  } catch {
+    return c.json({ error: 'Room not found or expired' }, 404)
+  }
 })
 
 // Send encrypted payload (authenticated — primary device)
 provisioning.post('/rooms/:id/payload', auth, async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const id = c.req.param('id')
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as {
@@ -61,12 +61,18 @@ provisioning.post('/rooms/:id/payload', auth, async (c) => {
   if (!body.token || !body.encryptedNsec || !body.primaryPubkey) {
     return c.json({ error: 'Missing fields' }, 400)
   }
-  return dos.identity.fetch(
-    new Request(`http://do/provision/rooms/${id}/payload`, {
-      method: 'POST',
-      body: JSON.stringify({ ...body, senderPubkey: pubkey }),
+  try {
+    await services.identity.setProvisionPayload(id, {
+      token: body.token,
+      encryptedNsec: body.encryptedNsec,
+      primaryPubkey: body.primaryPubkey,
+      senderPubkey: pubkey,
     })
-  )
+    return c.json({ ok: true })
+  } catch (err) {
+    const status = err instanceof Error && err.message.includes('expired') ? 410 : 404
+    return c.json({ error: err instanceof Error ? err.message : 'Room not found' }, status)
+  }
 })
 
 export default provisioning

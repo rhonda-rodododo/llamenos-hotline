@@ -243,4 +243,11 @@ export class ConversationService {
       createdAt: r.createdAt,
     }
   }
+
+  // ------------------------------------------------------------------ Test Reset
+
+  async resetForTest(): Promise<void> {
+    await this.db.delete(messageEnvelopes)
+    await this.db.delete(conversations)
+  }
 }

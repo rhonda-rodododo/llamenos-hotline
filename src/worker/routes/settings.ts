@@ -1,160 +1,175 @@
 import { Hono } from 'hono'
-import { getDOs } from '../lib/do-access'
 import { validateExternalUrl } from '../lib/ssrf-guard'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
-import { audit } from '../services/audit'
 import type { AppEnv } from '../types'
 
 const settings = new Hono<AppEnv>()
 
 // --- Transcription settings: readable by all authenticated, writable by settings:manage ---
 settings.get('/transcription', async (c) => {
-  const dos = getDOs(c.env)
-  return dos.settings.fetch(new Request('http://do/settings/transcription'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const data = await services.settings.getTranscriptionSettings(hubId ?? undefined)
+  return c.json(data)
 })
 
 settings.patch('/transcription', requirePermission('settings:manage-transcription'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
-  const res = await dos.settings.fetch(
-    new Request('http://do/settings/transcription', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
+  const updated = await services.settings.updateTranscriptionSettings(
+    body as Parameters<typeof services.settings.updateTranscriptionSettings>[0],
+    hubId ?? undefined
   )
-  if (res.ok)
-    await audit(dos.records, 'transcriptionToggled', pubkey, body as Record<string, unknown>)
-  return res
+  await services.records.addAuditEntry(
+    hubId ?? 'global',
+    'transcriptionToggled',
+    pubkey,
+    body as Record<string, unknown>
+  )
+  return c.json(updated)
 })
 
 // --- Custom fields: readable by all authenticated (filtered by permissions), writable by admin ---
 settings.get('/custom-fields', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const permissions = c.get('permissions')
   const canManageFields = checkPermission(permissions, 'settings:manage-fields')
-  return dos.settings.fetch(
-    new Request(`http://do/settings/custom-fields?role=${canManageFields ? 'admin' : 'volunteer'}`)
+  const fields = await services.settings.getCustomFields(
+    canManageFields ? 'admin' : 'volunteer',
+    hubId ?? undefined
   )
+  return c.json(fields)
 })
 
 settings.put('/custom-fields', requirePermission('settings:manage-fields'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
-  const res = await dos.settings.fetch(
-    new Request('http://do/settings/custom-fields', {
-      method: 'PUT',
-      body: JSON.stringify(body),
-    })
+  const updated = await services.settings.updateCustomFields(
+    body as Parameters<typeof services.settings.updateCustomFields>[0],
+    hubId ?? undefined
   )
-  if (res.ok) await audit(dos.records, 'customFieldsUpdated', pubkey, {})
-  return res
+  await services.records.addAuditEntry(hubId ?? 'global', 'customFieldsUpdated', pubkey, {})
+  return c.json(updated)
 })
 
 // --- All remaining settings: require specific permissions ---
 settings.get('/spam', requirePermission('settings:manage-spam'), async (c) => {
-  const dos = getDOs(c.env)
-  return dos.settings.fetch(new Request('http://do/settings/spam'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  return c.json(await services.settings.getSpamSettings(hubId ?? undefined))
 })
 
 settings.patch('/spam', requirePermission('settings:manage-spam'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
-  const res = await dos.settings.fetch(
-    new Request('http://do/settings/spam', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
+  const updated = await services.settings.updateSpamSettings(
+    body as Parameters<typeof services.settings.updateSpamSettings>[0],
+    hubId ?? undefined
   )
-  if (res.ok)
-    await audit(dos.records, 'spamMitigationToggled', pubkey, body as Record<string, unknown>)
-  return res
+  await services.records.addAuditEntry(
+    hubId ?? 'global',
+    'spamMitigationToggled',
+    pubkey,
+    body as Record<string, unknown>
+  )
+  return c.json(updated)
 })
 
 settings.get('/call', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
-  return dos.settings.fetch(new Request('http://do/settings/call'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  return c.json(await services.settings.getCallSettings(hubId ?? undefined))
 })
 
 settings.patch('/call', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
-  const res = await dos.settings.fetch(
-    new Request('http://do/settings/call', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
+  const updated = await services.settings.updateCallSettings(
+    body as Parameters<typeof services.settings.updateCallSettings>[0],
+    hubId ?? undefined
   )
-  if (res.ok)
-    await audit(dos.records, 'callSettingsUpdated', pubkey, body as Record<string, unknown>)
-  return res
+  await services.records.addAuditEntry(
+    hubId ?? 'global',
+    'callSettingsUpdated',
+    pubkey,
+    body as Record<string, unknown>
+  )
+  return c.json(updated)
 })
 
 settings.get('/ivr-languages', requirePermission('settings:manage-ivr'), async (c) => {
-  const dos = getDOs(c.env)
-  return dos.settings.fetch(new Request('http://do/settings/ivr-languages'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  return c.json(await services.settings.getIvrLanguages(hubId ?? undefined))
 })
 
 settings.patch('/ivr-languages', requirePermission('settings:manage-ivr'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
-  const res = await dos.settings.fetch(
-    new Request('http://do/settings/ivr-languages', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
+  const updated = await services.settings.updateIvrLanguages(body as string[], hubId ?? undefined)
+  await services.records.addAuditEntry(
+    hubId ?? 'global',
+    'ivrLanguagesUpdated',
+    pubkey,
+    body as Record<string, unknown>
   )
-  if (res.ok)
-    await audit(dos.records, 'ivrLanguagesUpdated', pubkey, body as Record<string, unknown>)
-  return res
+  return c.json(updated)
 })
 
 settings.get('/webauthn', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
-  return dos.identity.fetch(new Request('http://do/settings/webauthn'))
+  const services = c.get('services')
+  return c.json(await services.identity.getWebAuthnSettings())
 })
 
 settings.patch('/webauthn', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
-  const res = await dos.identity.fetch(
-    new Request('http://do/settings/webauthn', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
+  const updated = await services.identity.updateWebAuthnSettings(
+    body as Parameters<typeof services.identity.updateWebAuthnSettings>[0]
   )
-  if (res.ok)
-    await audit(dos.records, 'webauthnSettingsUpdated', pubkey, body as Record<string, unknown>)
-  return res
+  await services.records.addAuditEntry(hubId ?? 'global', 'webauthnSettingsUpdated', pubkey, body as Record<string, unknown>)
+  return c.json(updated)
 })
 
 // --- Telephony Provider settings ---
 settings.get('/telephony-provider', requirePermission('settings:manage-telephony'), async (c) => {
-  const dos = getDOs(c.env)
-  return dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const config = await services.settings.getTelephonyProvider(hubId ?? undefined)
+  return c.json(config)
 })
 
-settings.patch('/telephony-provider', requirePermission('settings:manage-telephony'), async (c) => {
-  const dos = getDOs(c.env)
-  const pubkey = c.get('pubkey')
-  const body = await c.req.json()
-  const res = await dos.settings.fetch(
-    new Request('http://do/settings/telephony-provider', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
-  )
-  if (res.ok)
-    await audit(dos.records, 'telephonyProviderChanged', pubkey, {
+settings.patch(
+  '/telephony-provider',
+  requirePermission('settings:manage-telephony'),
+  async (c) => {
+    const services = c.get('services')
+    const hubId = c.get('hubId')
+    const pubkey = c.get('pubkey')
+    const body = await c.req.json()
+    const updated = await services.settings.updateTelephonyProvider(
+      body as Parameters<typeof services.settings.updateTelephonyProvider>[0],
+      hubId ?? undefined
+    )
+    await services.records.addAuditEntry(hubId ?? 'global', 'telephonyProviderChanged', pubkey, {
       type: (body as { type?: string }).type,
     })
-  return res
-})
+    return c.json(updated)
+  }
+)
 
 settings.post(
   '/telephony-provider/test',
@@ -241,67 +256,84 @@ settings.post(
 
 // --- Messaging config ---
 settings.get('/messaging', requirePermission('settings:manage-messaging'), async (c) => {
-  const dos = getDOs(c.env)
-  return dos.settings.fetch(new Request('http://do/settings/messaging'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  return c.json(await services.settings.getMessagingConfig(hubId ?? undefined))
 })
 
 settings.patch('/messaging', requirePermission('settings:manage-messaging'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
-  const res = await dos.settings.fetch(
-    new Request('http://do/settings/messaging', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
+  const updated = await services.settings.updateMessagingConfig(
+    body as Parameters<typeof services.settings.updateMessagingConfig>[0],
+    hubId ?? undefined
   )
-  if (res.ok)
-    await audit(dos.records, 'messagingConfigUpdated', pubkey, body as Record<string, unknown>)
-  return res
+  await services.records.addAuditEntry(
+    hubId ?? 'global',
+    'messagingConfigUpdated',
+    pubkey,
+    body as Record<string, unknown>
+  )
+  return c.json(updated)
 })
 
 // --- Setup state ---
 settings.get('/setup', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
-  return dos.settings.fetch(new Request('http://do/settings/setup'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  return c.json(await services.settings.getSetupState(hubId ?? undefined))
 })
 
 settings.patch('/setup', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
-  const res = await dos.settings.fetch(
-    new Request('http://do/settings/setup', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
+  const updated = await services.settings.updateSetupState(
+    body as Parameters<typeof services.settings.updateSetupState>[0],
+    hubId ?? undefined
   )
-  if (res.ok) await audit(dos.records, 'setupStateUpdated', pubkey, body as Record<string, unknown>)
-  return res
+  await services.records.addAuditEntry(
+    hubId ?? 'global',
+    'setupStateUpdated',
+    pubkey,
+    body as Record<string, unknown>
+  )
+  return c.json(updated)
 })
 
 settings.get('/ivr-audio', requirePermission('settings:manage-ivr'), async (c) => {
-  const dos = getDOs(c.env)
-  return dos.settings.fetch(new Request('http://do/settings/ivr-audio'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  return c.json(await services.settings.getIvrAudioList(hubId ?? undefined))
 })
 
 settings.put(
   '/ivr-audio/:promptType/:language',
   requirePermission('settings:manage-ivr'),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
+    const hubId = c.get('hubId')
     const pubkey = c.get('pubkey')
     const promptType = c.req.param('promptType')
     const language = c.req.param('language')
-    const body = await c.req.arrayBuffer()
-    const res = await dos.settings.fetch(
-      new Request(`http://do/settings/ivr-audio/${promptType}/${language}`, {
-        method: 'PUT',
-        body,
-      })
-    )
-    if (res.ok) await audit(dos.records, 'ivrAudioUploaded', pubkey, { promptType, language })
-    return res
+    const rawBuffer = await c.req.arrayBuffer()
+    const audioData = btoa(String.fromCharCode(...new Uint8Array(rawBuffer)))
+    const mimeType = c.req.header('content-type') || 'audio/wav'
+    await services.settings.upsertIvrAudio({
+      hubId: hubId ?? 'global',
+      promptType,
+      language,
+      audioData,
+      mimeType,
+    })
+    await services.records.addAuditEntry(hubId ?? 'global', 'ivrAudioUploaded', pubkey, {
+      promptType,
+      language,
+    })
+    return c.json({ ok: true })
   }
 )
 
@@ -309,65 +341,63 @@ settings.delete(
   '/ivr-audio/:promptType/:language',
   requirePermission('settings:manage-ivr'),
   async (c) => {
-    const dos = getDOs(c.env)
+    const services = c.get('services')
+    const hubId = c.get('hubId')
     const pubkey = c.get('pubkey')
     const promptType = c.req.param('promptType')
     const language = c.req.param('language')
-    const res = await dos.settings.fetch(
-      new Request(`http://do/settings/ivr-audio/${promptType}/${language}`, {
-        method: 'DELETE',
-      })
-    )
-    if (res.ok) await audit(dos.records, 'ivrAudioDeleted', pubkey, { promptType, language })
-    return res
+    await services.settings.deleteIvrAudio(promptType, language, hubId ?? undefined)
+    await services.records.addAuditEntry(hubId ?? 'global', 'ivrAudioDeleted', pubkey, {
+      promptType,
+      language,
+    })
+    return c.json({ ok: true })
   }
 )
 
 // --- Roles (PBAC) ---
 settings.get('/roles', async (c) => {
-  const dos = getDOs(c.env)
-  return dos.settings.fetch(new Request('http://do/settings/roles'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  return c.json(await services.settings.listRoles(hubId ?? undefined))
 })
 
 settings.post('/roles', requirePermission('system:manage-roles'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
-  const res = await dos.settings.fetch(
-    new Request('http://do/settings/roles', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    })
+  const role = await services.settings.createRole(
+    body as Parameters<typeof services.settings.createRole>[0]
   )
-  if (res.ok)
-    await audit(dos.records, 'roleCreated', pubkey, { name: (body as { name?: string }).name })
-  return res
+  await services.records.addAuditEntry(hubId ?? 'global', 'roleCreated', pubkey, {
+    name: (body as { name?: string }).name,
+  })
+  return c.json(role, 201)
 })
 
 settings.patch('/roles/:id', requirePermission('system:manage-roles'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const id = c.req.param('id')
   const body = await c.req.json()
-  const res = await dos.settings.fetch(
-    new Request(`http://do/settings/roles/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
+  const role = await services.settings.updateRole(
+    id,
+    body as Parameters<typeof services.settings.updateRole>[1]
   )
-  if (res.ok) await audit(dos.records, 'roleUpdated', pubkey, { roleId: id })
-  return res
+  await services.records.addAuditEntry(hubId ?? 'global', 'roleUpdated', pubkey, { roleId: id })
+  return c.json(role)
 })
 
 settings.delete('/roles/:id', requirePermission('system:manage-roles'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const id = c.req.param('id')
-  const res = await dos.settings.fetch(
-    new Request(`http://do/settings/roles/${id}`, { method: 'DELETE' })
-  )
-  if (res.ok) await audit(dos.records, 'roleDeleted', pubkey, { roleId: id })
-  return res
+  await services.settings.deleteRole(id)
+  await services.records.addAuditEntry(hubId ?? 'global', 'roleDeleted', pubkey, { roleId: id })
+  return c.json({ ok: true })
 })
 
 // --- Permissions catalog ---

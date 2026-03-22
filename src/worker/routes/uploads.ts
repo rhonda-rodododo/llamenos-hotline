@@ -1,8 +1,6 @@
 import { Hono } from 'hono'
-import type { FileRecord, UploadInit } from '../../shared/types'
-import { getDOs } from '../lib/do-access'
+import type { UploadInit } from '../../shared/types'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
-import { audit } from '../services/audit'
 import type { AppEnv } from '../types'
 
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024 // 100 MB
@@ -12,10 +10,13 @@ const uploads = new Hono<AppEnv>()
 uploads.use('*', requirePermission('files:upload'))
 
 // Initialize an upload — returns uploadId and chunk upload URLs
+// NOTE: File record tracking (completedChunks etc.) is stored in R2 object metadata
+// since the file_records table has not yet been added to the Drizzle schema.
 uploads.post('/init', async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as UploadInit
-  const dos = getDOs(c.env)
 
   if (!body.totalSize || !body.totalChunks || !body.conversationId) {
     return c.json({ error: 'Missing required fields: totalSize, totalChunks, conversationId' }, 400)
@@ -29,9 +30,14 @@ uploads.post('/init', async (c) => {
     return c.json({ error: 'Too many chunks (max 10000)' }, 400)
   }
 
+  if (!c.env.R2_BUCKET) {
+    return c.json({ error: 'File storage not configured' }, 503)
+  }
+
   const uploadId = crypto.randomUUID()
 
-  const fileRecord: FileRecord = {
+  // Store upload manifest in R2 as a JSON object (no DB file_records table yet)
+  const manifest = {
     id: uploadId,
     conversationId: body.conversationId,
     uploadedBy: pubkey,
@@ -44,19 +50,9 @@ uploads.post('/init', async (c) => {
     createdAt: new Date().toISOString(),
   }
 
-  // Store file record in ConversationDO
-  const res = await dos.conversations.fetch(
-    new Request('http://do/files', {
-      method: 'POST',
-      body: JSON.stringify(fileRecord),
-    })
-  )
+  await c.env.R2_BUCKET.put(`files/${uploadId}/manifest`, JSON.stringify(manifest))
 
-  if (!res.ok) {
-    return c.json({ error: 'Failed to initialize upload' }, 500)
-  }
-
-  await audit(dos.records, 'fileUploadStarted', pubkey, {
+  await services.records.addAuditEntry(hubId ?? 'global', 'fileUploadStarted', pubkey, {
     uploadId,
     conversationId: body.conversationId,
     totalSize: body.totalSize,
@@ -77,14 +73,21 @@ uploads.put('/:id/chunks/:chunkIndex', async (c) => {
     return c.json({ error: 'Invalid chunk index' }, 400)
   }
 
+  if (!c.env.R2_BUCKET) {
+    return c.json({ error: 'File storage not configured' }, 503)
+  }
+
   // Verify ownership before accepting chunk
-  const dos = getDOs(c.env)
-  const ownerRes = await dos.conversations.fetch(new Request(`http://do/files/${uploadId}`))
-  if (!ownerRes.ok) {
+  const manifestObj = await c.env.R2_BUCKET.get(`files/${uploadId}/manifest`)
+  if (!manifestObj) {
     return c.json({ error: 'Upload not found' }, 404)
   }
-  const fileRecord = (await ownerRes.json()) as FileRecord
-  if (fileRecord.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
+  const manifest = JSON.parse(new TextDecoder().decode(await manifestObj.arrayBuffer())) as {
+    uploadedBy: string
+    totalChunks: number
+    completedChunks: number
+  }
+  if (manifest.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
@@ -101,51 +104,53 @@ uploads.put('/:id/chunks/:chunkIndex', async (c) => {
   const r2Key = `files/${uploadId}/chunk-${String(chunkIndex).padStart(6, '0')}`
   await c.env.R2_BUCKET.put(r2Key, body)
 
-  // Update completion count in ConversationDO
-  const res = await dos.conversations.fetch(
-    new Request(`http://do/files/${uploadId}/chunk-complete`, {
-      method: 'POST',
-      body: JSON.stringify({ chunkIndex }),
-    })
-  )
+  // Update manifest with incremented chunk count
+  const updatedManifest = { ...manifest, completedChunks: manifest.completedChunks + 1 }
+  await c.env.R2_BUCKET.put(`files/${uploadId}/manifest`, JSON.stringify(updatedManifest))
 
-  if (!res.ok) {
-    return c.json({ error: 'Failed to record chunk' }, 500)
-  }
-
-  const result = (await res.json()) as { completedChunks: number; totalChunks: number }
   return c.json({
     chunkIndex,
-    completedChunks: result.completedChunks,
-    totalChunks: result.totalChunks,
+    completedChunks: updatedManifest.completedChunks,
+    totalChunks: manifest.totalChunks,
   })
 })
 
 // Complete an upload — assembles chunks
 uploads.post('/:id/complete', async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const uploadId = c.req.param('id')
-  const dos = getDOs(c.env)
+
+  if (!c.env.R2_BUCKET) {
+    return c.json({ error: 'File storage not configured' }, 503)
+  }
 
   // Verify all chunks are uploaded
-  const statusRes = await dos.conversations.fetch(new Request(`http://do/files/${uploadId}`))
-  if (!statusRes.ok) {
+  const manifestObj = await c.env.R2_BUCKET.get(`files/${uploadId}/manifest`)
+  if (!manifestObj) {
     return c.json({ error: 'Upload not found' }, 404)
   }
 
-  const fileRecord = (await statusRes.json()) as FileRecord
+  const manifest = JSON.parse(new TextDecoder().decode(await manifestObj.arrayBuffer())) as {
+    uploadedBy: string
+    totalChunks: number
+    completedChunks: number
+    recipientEnvelopes: unknown[]
+    encryptedMetadata: unknown[]
+  }
 
-  if (fileRecord.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
+  if (manifest.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  if (fileRecord.completedChunks < fileRecord.totalChunks) {
+  if (manifest.completedChunks < manifest.totalChunks) {
     return c.json(
       {
         error: 'Not all chunks uploaded',
-        completedChunks: fileRecord.completedChunks,
-        totalChunks: fileRecord.totalChunks,
+        completedChunks: manifest.completedChunks,
+        totalChunks: manifest.totalChunks,
       },
       400
     )
@@ -153,7 +158,7 @@ uploads.post('/:id/complete', async (c) => {
 
   // Concatenate chunks into a single R2 object
   const chunks: Uint8Array[] = []
-  for (let i = 0; i < fileRecord.totalChunks; i++) {
+  for (let i = 0; i < manifest.totalChunks; i++) {
     const r2Key = `files/${uploadId}/chunk-${String(i).padStart(6, '0')}`
     const obj = await c.env.R2_BUCKET.get(r2Key)
     if (!obj) {
@@ -163,7 +168,7 @@ uploads.post('/:id/complete', async (c) => {
   }
 
   // Write assembled file
-  const totalLen = chunks.reduce((s, c) => s + c.length, 0)
+  const totalLen = chunks.reduce((s, chunk) => s + chunk.length, 0)
   const assembled = new Uint8Array(totalLen)
   let offset = 0
   for (const chunk of chunks) {
@@ -176,31 +181,28 @@ uploads.post('/:id/complete', async (c) => {
   // Store envelopes and metadata in R2
   await c.env.R2_BUCKET.put(
     `files/${uploadId}/envelopes`,
-    JSON.stringify(fileRecord.recipientEnvelopes)
+    JSON.stringify(manifest.recipientEnvelopes)
   )
   await c.env.R2_BUCKET.put(
     `files/${uploadId}/metadata`,
-    JSON.stringify(fileRecord.encryptedMetadata)
+    JSON.stringify(manifest.encryptedMetadata)
   )
 
   // Clean up individual chunks
-  for (let i = 0; i < fileRecord.totalChunks; i++) {
+  for (let i = 0; i < manifest.totalChunks; i++) {
     const r2Key = `files/${uploadId}/chunk-${String(i).padStart(6, '0')}`
     await c.env.R2_BUCKET.delete(r2Key)
   }
 
-  // Mark file as complete
-  const completeRes = await dos.conversations.fetch(
-    new Request(`http://do/files/${uploadId}/complete`, {
-      method: 'POST',
-    })
+  // Mark manifest as complete
+  await c.env.R2_BUCKET.put(
+    `files/${uploadId}/manifest`,
+    JSON.stringify({ ...manifest, status: 'complete' })
   )
 
-  if (!completeRes.ok) {
-    return c.json({ error: 'Failed to complete upload' }, 500)
-  }
-
-  await audit(dos.records, 'fileUploadCompleted', pubkey, { uploadId })
+  await services.records.addAuditEntry(hubId ?? 'global', 'fileUploadCompleted', pubkey, {
+    uploadId,
+  })
 
   return c.json({ fileId: uploadId, status: 'complete' })
 })
@@ -210,24 +212,35 @@ uploads.get('/:id/status', async (c) => {
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const uploadId = c.req.param('id')
-  const dos = getDOs(c.env)
 
-  const res = await dos.conversations.fetch(new Request(`http://do/files/${uploadId}`))
-  if (!res.ok) {
+  if (!c.env.R2_BUCKET) {
+    return c.json({ error: 'File storage not configured' }, 503)
+  }
+
+  const manifestObj = await c.env.R2_BUCKET.get(`files/${uploadId}/manifest`)
+  if (!manifestObj) {
     return c.json({ error: 'Upload not found' }, 404)
   }
 
-  const fileRecord = (await res.json()) as FileRecord
+  const manifest = JSON.parse(new TextDecoder().decode(await manifestObj.arrayBuffer())) as {
+    id: string
+    uploadedBy: string
+    status: string
+    completedChunks: number
+    totalChunks: number
+    totalSize: number
+  }
+
   // Only allow the uploader or users with download-all to check status
-  if (fileRecord.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
+  if (manifest.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
     return c.json({ error: 'Upload not found' }, 404)
   }
   return c.json({
-    uploadId: fileRecord.id,
-    status: fileRecord.status,
-    completedChunks: fileRecord.completedChunks,
-    totalChunks: fileRecord.totalChunks,
-    totalSize: fileRecord.totalSize,
+    uploadId: manifest.id,
+    status: manifest.status,
+    completedChunks: manifest.completedChunks,
+    totalChunks: manifest.totalChunks,
+    totalSize: manifest.totalSize,
   })
 })
 

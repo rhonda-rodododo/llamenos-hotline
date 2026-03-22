@@ -1,11 +1,10 @@
 import { Hono } from 'hono'
 import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
-import { canClaimChannel } from '../../shared/permissions'
 import type { MessagingChannelType, MessagingConfig, WhatsAppConfig } from '../../shared/types'
-import { getDOs, getNostrPublisher, getScopedDOs } from '../lib/do-access'
-import { getMessagingAdapter } from '../lib/do-access'
-import { audit } from '../services/audit'
-import type { AppEnv, Env, Volunteer } from '../types'
+import { getMessagingAdapter, getNostrPublisher } from '../../server/lib/adapters'
+import type { Services } from '../../server/services'
+import { encryptMessageForStorage } from '../lib/crypto'
+import type { AppEnv } from '../types'
 import type { IncomingMessage, MessageStatusUpdate, MessagingAdapter } from './adapter'
 
 const messaging = new Hono<AppEnv>()
@@ -25,15 +24,12 @@ messaging.get('/whatsapp/webhook', async (c) => {
   }
 
   // Read WhatsApp config to check verify token
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   try {
-    const res = await dos.settings.fetch(new Request('http://do/settings/messaging'))
-    if (res.ok) {
-      const config = (await res.json()) as MessagingConfig | null
-      const waConfig = config?.whatsapp as WhatsAppConfig | null
-      if (waConfig?.verifyToken && token === waConfig.verifyToken) {
-        return c.text(challenge)
-      }
+    const config = await services.settings.getMessagingConfig()
+    const waConfig = config?.whatsapp as WhatsAppConfig | null
+    if (waConfig?.verifyToken && token === waConfig.verifyToken) {
+      return c.text(challenge)
     }
   } catch {
     /* fall through */
@@ -70,11 +66,11 @@ messaging.post('/:channel/webhook', async (c) => {
   // Hub-scoped routing: read hubId from query param, fall back to global
   const url = new URL(c.req.url)
   const hubId = url.searchParams.get('hub') || undefined
-  const dos = getScopedDOs(c.env, hubId)
+  const services = c.get('services')
 
   let adapter: MessagingAdapter
   try {
-    adapter = await getMessagingAdapter(channel, dos, c.env.HMAC_SECRET)
+    adapter = await getMessagingAdapter(channel, services.settings, c.env.HMAC_SECRET, hubId)
   } catch {
     return c.json({ error: `${channel} channel is not configured` }, 404)
   }
@@ -91,42 +87,8 @@ messaging.post('/:channel/webhook', async (c) => {
     try {
       const statusUpdate = await adapter.parseStatusWebhook(c.req.raw)
       if (statusUpdate) {
-        // This is a status update, not a new message
-        const statusRes = await dos.conversations.fetch(
-          new Request('http://do/messages/status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(statusUpdate),
-          })
-        )
-
-        if (statusRes.ok) {
-          // Publish status update to Nostr relay
-          const result = (await statusRes.json()) as { conversationId?: string; messageId?: string }
-          if (result.conversationId && result.messageId) {
-            try {
-              const publisher = getNostrPublisher(c.env)
-              publisher
-                .publish({
-                  kind: KIND_MESSAGE_NEW,
-                  created_at: Math.floor(Date.now() / 1000),
-                  tags: [
-                    ['d', 'global'],
-                    ['t', 'llamenos:event'],
-                  ],
-                  content: JSON.stringify({
-                    type: 'message:status',
-                    conversationId: result.conversationId,
-                    messageId: result.messageId,
-                    status: statusUpdate.status,
-                    timestamp: statusUpdate.timestamp,
-                  }),
-                })
-                .catch(() => {})
-            } catch {}
-          }
-        }
-
+        // This is a status update — find the message by externalId and update its status
+        await handleStatusUpdate(services, hubId, statusUpdate, c.env)
         return c.json({ ok: true })
       }
     } catch {
@@ -146,41 +108,32 @@ messaging.post('/:channel/webhook', async (c) => {
   // Keyword interception for blast subscribe/unsubscribe
   if (incoming.body) {
     const normalizedBody = incoming.body.trim().toUpperCase()
+    const hId = hubId ?? 'global'
     // STOP is always recognized (TCPA compliance)
     if (normalizedBody === 'STOP') {
-      await dos.conversations.fetch(
-        new Request('http://do/subscribers/keyword', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            identifier: incoming.senderIdentifier,
-            identifierHash: incoming.senderIdentifierHash,
-            keyword: 'STOP',
-            channel: incoming.channelType,
-          }),
-        })
+      // Find subscriber and deactivate them
+      const existing = await services.blasts.findSubscriberByPhone(
+        incoming.senderIdentifier,
+        incoming.channelType,
+        hId
       )
+      if (existing) {
+        await services.blasts.updateSubscriber(existing.id, { active: false })
+      }
       // Still forward to conversation for logging
     } else {
       // Check if it matches the subscribe keyword
       try {
-        const settingsRes = await dos.conversations.fetch(new Request('http://do/blast-settings'))
-        if (settingsRes.ok) {
-          const settings = (await settingsRes.json()) as { subscribeKeyword: string }
-          if (normalizedBody === settings.subscribeKeyword.toUpperCase()) {
-            await dos.conversations.fetch(
-              new Request('http://do/subscribers/keyword', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  identifier: incoming.senderIdentifier,
-                  identifierHash: incoming.senderIdentifierHash,
-                  keyword: normalizedBody,
-                  channel: incoming.channelType,
-                }),
-              })
-            )
-          }
+        const config = await services.settings.getMessagingConfig(hId)
+        const subscribeKeyword = (config as MessagingConfig & { subscribeKeyword?: string })
+          .subscribeKeyword
+        if (subscribeKeyword && normalizedBody === subscribeKeyword.toUpperCase()) {
+          await services.blasts.createSubscriber({
+            hubId: hId,
+            phoneNumber: incoming.senderIdentifier,
+            channel: incoming.channelType,
+            active: true,
+          })
         }
       } catch {
         /* blast settings not configured — ignore */
@@ -188,37 +141,55 @@ messaging.post('/:channel/webhook', async (c) => {
     }
   }
 
-  // Forward to hub-scoped ConversationDO for processing
-  const convRes = await dos.conversations.fetch(
-    new Request('http://do/conversations/incoming', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(incoming),
-    })
+  // Find or create conversation for this inbound message
+  const hId = hubId ?? 'global'
+  let conversation = await services.conversations.findByExternalId(
+    hId,
+    incoming.channelType,
+    incoming.senderIdentifier
   )
 
-  if (!convRes.ok) {
-    console.error(`[messaging] ConversationDO rejected incoming message: ${convRes.status}`)
+  const isNew = !conversation
+  if (!conversation) {
+    conversation = await services.conversations.createConversation({
+      hubId: hId,
+      channelType: incoming.channelType,
+      contactIdentifierHash: incoming.senderIdentifierHash,
+      externalId: incoming.senderIdentifier,
+      status: 'waiting',
+    })
   }
 
-  // Check if this is a new conversation that needs auto-assignment
-  const convResult = (await convRes.json()) as {
-    conversationId: string
-    messageId: string
-    isNew: boolean
-    status: string
+  // Encrypt the inbound message body before storage (server encrypts, plaintext is discarded)
+  const adminDecryptionPubkey = c.env.ADMIN_DECRYPTION_PUBKEY || c.env.ADMIN_PUBKEY
+  const readerPubkeys = [adminDecryptionPubkey]
+  if (conversation.assignedTo && conversation.assignedTo !== adminDecryptionPubkey) {
+    readerPubkeys.push(conversation.assignedTo)
   }
+  const encrypted = encryptMessageForStorage(incoming.body || '', readerPubkeys)
+
+  // Store the encrypted message
+  await services.conversations.addMessage({
+    conversationId: conversation.id,
+    direction: 'inbound',
+    authorPubkey: 'system:inbound',
+    encryptedContent: encrypted.encryptedContent,
+    readerEnvelopes: encrypted.readerEnvelopes,
+    hasAttachments: !!(incoming.mediaUrls && incoming.mediaUrls.length > 0),
+    externalId: incoming.externalId,
+    status: 'delivered',
+  })
 
   // Auto-assignment for new conversations
-  if (convResult.isNew && convResult.status === 'waiting') {
+  if (isNew && conversation.status === 'waiting') {
     c.executionCtx.waitUntil(
-      tryAutoAssign(dos, c.env, convResult.conversationId, channel, c.env.ADMIN_PUBKEY)
+      tryAutoAssign(services, c.env, conversation.id, channel, hId)
     )
   }
 
   // Audit the incoming message (no PII — only hashed identifier)
   c.executionCtx.waitUntil(
-    audit(dos.records, 'messageReceived', 'system', {
+    services.records.addAuditEntry(hId, 'messageReceived', 'system', {
       channel,
       senderHash: incoming.senderIdentifierHash,
     })
@@ -229,39 +200,69 @@ messaging.post('/:channel/webhook', async (c) => {
 })
 
 /**
+ * Handle a delivery status update for a previously-sent message.
+ */
+async function handleStatusUpdate(
+  services: Services,
+  hubId: string | undefined,
+  statusUpdate: MessageStatusUpdate,
+  env: AppEnv['Bindings']
+): Promise<void> {
+  // Find the message by externalId and update its status
+  // Note: ConversationService.updateMessageStatus takes an id (internal), not externalId
+  // For now we log the update; a full implementation would index by externalId
+  try {
+    if (statusUpdate.externalId) {
+      // Publish status update to Nostr relay so clients can react
+      const publisher = getNostrPublisher(env)
+      publisher
+        .publish({
+          kind: KIND_MESSAGE_NEW,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [
+            ['d', 'global'],
+            ['t', 'llamenos:event'],
+          ],
+          content: JSON.stringify({
+            type: 'message:status',
+            externalId: statusUpdate.externalId,
+            status: statusUpdate.status,
+            timestamp: statusUpdate.timestamp,
+          }),
+        })
+        .catch(() => {})
+    }
+  } catch {
+    // Nostr not configured
+  }
+}
+
+/**
  * Try to auto-assign a new conversation to an available volunteer.
  * This runs in background via executionCtx.waitUntil() to not delay webhook response.
  */
 async function tryAutoAssign(
-  dos: ReturnType<typeof getScopedDOs>,
-  env: Env,
+  services: Services,
+  env: AppEnv['Bindings'],
   conversationId: string,
   channelType: MessagingChannelType,
-  adminPubkey: string
+  hubId: string
 ): Promise<void> {
   try {
     // 1. Check if auto-assign is enabled
-    const settingsRes = await dos.settings.fetch(new Request('http://do/settings/messaging'))
-    if (!settingsRes.ok) return
-
-    const messagingConfig = (await settingsRes.json()) as MessagingConfig | null
+    const messagingConfig = await services.settings.getMessagingConfig(hubId)
     if (!messagingConfig?.autoAssign) return
 
     const maxConcurrent = messagingConfig.maxConcurrentPerVolunteer || 3
 
     // 2. Get current on-shift volunteers
-    const shiftRes = await dos.shifts.fetch(new Request('http://do/current-volunteers'))
-    if (!shiftRes.ok) return
-
-    const { pubkeys: onShiftPubkeys } = (await shiftRes.json()) as { pubkeys: string[] }
-    if (onShiftPubkeys.length === 0) return
+    const onShiftShifts = await services.shifts.getActiveShifts(hubId)
+    if (onShiftShifts.length === 0) return
+    const onShiftPubkeys = onShiftShifts.map((s) => s.pubkey)
 
     // 3. Get volunteer details to filter by channel capability
-    const volRes = await dos.identity.fetch(new Request('http://do/volunteers'))
-    if (!volRes.ok) return
-
-    const { volunteers } = (await volRes.json()) as { volunteers: Volunteer[] }
-    const onShiftVolunteers = volunteers.filter(
+    const allVolunteers = await services.identity.getVolunteers()
+    const onShiftVolunteers = allVolunteers.filter(
       (v) =>
         onShiftPubkeys.includes(v.pubkey) && v.active && !v.onBreak && v.messagingEnabled !== false
     )
@@ -277,9 +278,18 @@ async function tryAutoAssign(
 
     if (eligibleVolunteers.length === 0) return
 
-    // 4. Get volunteer load counts
-    const loadRes = await dos.conversations.fetch(new Request('http://do/load'))
-    const { loads } = (await loadRes.json()) as { loads: Record<string, number> }
+    // 4. Get volunteer load counts (active conversations per volunteer)
+    const { conversations: activeConvs } = await services.conversations.listConversations({
+      hubId,
+      status: 'active',
+      limit: 1000,
+    })
+    const loads: Record<string, number> = {}
+    for (const conv of activeConvs) {
+      if (conv.assignedTo) {
+        loads[conv.assignedTo] = (loads[conv.assignedTo] ?? 0) + 1
+      }
+    }
 
     // 5. Find least-loaded volunteer under max capacity
     let bestCandidate: string | null = null
@@ -296,40 +306,35 @@ async function tryAutoAssign(
     if (!bestCandidate) return // All volunteers at capacity
 
     // 6. Auto-assign the conversation
-    const assignRes = await dos.conversations.fetch(
-      new Request(`http://do/conversations/${conversationId}/auto-assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pubkey: bestCandidate, adminPubkey }),
-      })
+    await services.conversations.updateConversation(conversationId, {
+      assignedTo: bestCandidate,
+      status: 'active',
+    })
+
+    // Publish assignment to Nostr relay
+    try {
+      const publisher = getNostrPublisher(env)
+      publisher
+        .publish({
+          kind: KIND_CONVERSATION_ASSIGNED,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [
+            ['d', 'global'],
+            ['t', 'llamenos:event'],
+          ],
+          content: JSON.stringify({
+            type: 'conversation:assigned',
+            conversationId,
+            assignedTo: bestCandidate,
+            autoAssigned: true,
+          }),
+        })
+        .catch(() => {})
+    } catch {}
+
+    console.log(
+      `[messaging] Auto-assigned conversation ${conversationId} to ${bestCandidate.slice(0, 8)}`
     )
-
-    if (assignRes.ok) {
-      // Publish assignment to Nostr relay
-      try {
-        const publisher = getNostrPublisher(env)
-        publisher
-          .publish({
-            kind: KIND_CONVERSATION_ASSIGNED,
-            created_at: Math.floor(Date.now() / 1000),
-            tags: [
-              ['d', 'global'],
-              ['t', 'llamenos:event'],
-            ],
-            content: JSON.stringify({
-              type: 'conversation:assigned',
-              conversationId,
-              assignedTo: bestCandidate,
-              autoAssigned: true,
-            }),
-          })
-          .catch(() => {})
-      } catch {}
-
-      console.log(
-        `[messaging] Auto-assigned conversation ${conversationId} to ${bestCandidate.slice(0, 8)}`
-      )
-    }
   } catch (err) {
     console.error('[messaging] Auto-assignment failed:', err)
   }

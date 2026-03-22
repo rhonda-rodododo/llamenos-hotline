@@ -1,84 +1,74 @@
 import { Hono } from 'hono'
-import { getDOs } from '../lib/do-access'
 import { validateExternalUrl } from '../lib/ssrf-guard'
 import { requirePermission } from '../middleware/permission-guard'
-import { audit } from '../services/audit'
 import type { AppEnv } from '../types'
 
 const setup = new Hono<AppEnv>()
 
 // Get setup state (any authenticated user — used for redirect logic)
 setup.get('/state', async (c) => {
-  const dos = getDOs(c.env)
-  const res = await dos.settings.fetch(new Request('http://do/settings/setup'))
-  return new Response(res.body, res)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const state = await services.settings.getSetupState(hubId ?? undefined)
+  return c.json(state)
 })
 
 // Update setup state (admin only)
 setup.patch('/state', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
-  const res = await dos.settings.fetch(
-    new Request('http://do/settings/setup', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
+  const updated = await services.settings.updateSetupState(
+    body as Parameters<typeof services.settings.updateSetupState>[0],
+    hubId ?? undefined
   )
-  if (res.ok) await audit(dos.records, 'setupStateUpdated', pubkey, body as Record<string, unknown>)
-  return new Response(res.body, res)
+  await services.records.addAuditEntry(
+    hubId ?? 'global',
+    'setupStateUpdated',
+    pubkey,
+    body as Record<string, unknown>
+  )
+  return c.json(updated)
 })
 
 // Complete setup (admin only) — also creates default hub if none exists
 setup.post('/complete', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = (await c.req.json().catch(() => ({}))) as { demoMode?: boolean }
 
   // Create default hub if none exists
   try {
-    const hubsRes = await dos.settings.fetch(new Request('http://do/settings/hubs'))
-    const hubsData = hubsRes.ok ? ((await hubsRes.json()) as { hubs: unknown[] }) : { hubs: [] }
-    if (hubsData.hubs.length === 0) {
+    const existingHubs = await services.settings.getHubs()
+    if (existingHubs.length === 0) {
       const hotlineName = c.env.HOTLINE_NAME || 'Hotline'
-      const defaultHub = {
+      const newHub = await services.settings.createHub({
         id: crypto.randomUUID(),
         name: hotlineName,
-        slug: hotlineName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        status: 'active',
-        phoneNumber: c.env.TWILIO_PHONE_NUMBER || '',
         createdBy: pubkey,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-      await dos.settings.fetch(
-        new Request('http://do/settings/hubs', {
-          method: 'POST',
-          body: JSON.stringify(defaultHub),
-        })
-      )
+      })
       // Assign admin to the default hub with all roles
-      await dos.identity.fetch(
-        new Request('http://do/identity/hub-role', {
-          method: 'POST',
-          body: JSON.stringify({ pubkey, hubId: defaultHub.id, roleIds: ['role-super-admin'] }),
-        })
-      )
+      await services.identity.setHubRole({
+        pubkey,
+        hubId: newHub.id,
+        roleIds: ['role-super-admin'],
+      })
     }
   } catch {
     // Non-fatal — hub creation failing shouldn't block setup completion
   }
 
-  const res = await dos.settings.fetch(
-    new Request('http://do/settings/setup', {
-      method: 'PATCH',
-      body: JSON.stringify({ setupCompleted: true, demoMode: body.demoMode ?? false }),
-    })
+  const updated = await services.settings.updateSetupState(
+    { setupCompleted: true, demoMode: body.demoMode ?? false },
+    hubId ?? undefined
   )
 
-  if (res.ok)
-    await audit(dos.records, 'setupCompleted', pubkey, { demoMode: body.demoMode ?? false })
-  return new Response(res.body, res)
+  await services.records.addAuditEntry(hubId ?? 'global', 'setupCompleted', pubkey, {
+    demoMode: body.demoMode ?? false,
+  })
+  return c.json(updated)
 })
 
 // Test Signal bridge connection

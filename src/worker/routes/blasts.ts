@@ -1,144 +1,172 @@
 import { Hono } from 'hono'
-import { getScopedDOs } from '../lib/do-access'
 import type { AppEnv } from '../types'
 
 const blasts = new Hono<AppEnv>()
 
-// Forward all blast routes to BlastDO
-// These are hub-scoped and require authentication (handled by middleware in app.ts)
+// These routes are hub-scoped and require authentication (handled by middleware in app.ts)
 
 // --- Subscribers ---
 blasts.get('/subscribers', async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const url = new URL(c.req.url)
-  const res = await dos.blasts.fetch(new Request(`http://do/subscribers${url.search}`))
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const subscribers = await services.blasts.listSubscribers(hubId ?? undefined)
+  return c.json({ subscribers })
 })
 
 blasts.delete('/subscribers/:id', async (c) => {
   const id = c.req.param('id')
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const res = await dos.blasts.fetch(
-    new Request(`http://do/subscribers/${id}`, { method: 'DELETE' })
-  )
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  await services.blasts.deleteSubscriber(id)
+  return c.json({ ok: true })
 })
 
 blasts.get('/subscribers/stats', async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const res = await dos.blasts.fetch(new Request('http://do/subscribers/stats'))
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const stats = await services.blasts.getSubscriberStats(hubId ?? undefined)
+  return c.json(stats)
 })
 
 blasts.post('/subscribers/import', async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const body = await c.req.text()
-  const res = await dos.blasts.fetch(
-    new Request('http://do/subscribers/import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    })
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const body = (await c.req.json()) as Array<{
+    phoneNumber: string
+    channel: string
+    active?: boolean
+    token?: string
+    metadata?: Record<string, unknown>
+  }>
+  if (!Array.isArray(body)) {
+    return c.json({ error: 'Expected array of subscribers' }, 400)
+  }
+  const results = await Promise.allSettled(
+    body.map((sub) =>
+      services.blasts.createSubscriber({
+        hubId: hubId ?? 'global',
+        phoneNumber: sub.phoneNumber,
+        channel: sub.channel,
+        active: sub.active ?? true,
+        token: sub.token,
+        metadata: sub.metadata,
+      })
+    )
   )
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const imported = results.filter((r) => r.status === 'fulfilled').length
+  const failed = results.filter((r) => r.status === 'rejected').length
+  return c.json({ imported, failed })
 })
 
 // --- Blasts ---
 blasts.get('/', async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const res = await dos.blasts.fetch(new Request('http://do/blasts'))
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const blastList = await services.blasts.listBlasts(hubId ?? undefined)
+  return c.json({ blasts: blastList })
 })
 
 blasts.post('/', async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const body = await c.req.text()
-  const res = await dos.blasts.fetch(
-    new Request('http://do/blasts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    })
-  )
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const body = (await c.req.json()) as {
+    name: string
+    channel: string
+    content?: string
+    status?: string
+  }
+  const blast = await services.blasts.createBlast({
+    hubId: hubId ?? 'global',
+    name: body.name,
+    channel: body.channel,
+    content: body.content,
+    status: body.status,
+  })
+  return c.json(blast, 201)
 })
 
 blasts.get('/:id', async (c) => {
   const id = c.req.param('id')
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}`))
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  const blast = await services.blasts.getBlast(id)
+  if (!blast) return c.json({ error: 'Blast not found' }, 404)
+  return c.json(blast)
 })
 
 blasts.patch('/:id', async (c) => {
   const id = c.req.param('id')
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const body = await c.req.text()
-  const res = await dos.blasts.fetch(
-    new Request(`http://do/blasts/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    })
-  )
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  const body = await c.req.json()
+  const updated = await services.blasts.updateBlast(id, body as Parameters<typeof services.blasts.updateBlast>[1])
+  return c.json(updated)
 })
 
 blasts.delete('/:id', async (c) => {
   const id = c.req.param('id')
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}`, { method: 'DELETE' }))
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  await services.blasts.deleteBlast(id)
+  return c.json({ ok: true })
 })
 
 blasts.post('/:id/send', async (c) => {
   const id = c.req.param('id')
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const res = await dos.blasts.fetch(new Request(`http://do/blasts/${id}/send`, { method: 'POST' }))
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  const blast = await services.blasts.getBlast(id)
+  if (!blast) return c.json({ error: 'Blast not found' }, 404)
+  if (blast.status !== 'draft' && blast.status !== 'scheduled') {
+    return c.json({ error: 'Blast cannot be sent in its current state' }, 400)
+  }
+  // Mark as sent — actual message delivery is handled by a background worker/cron
+  const updated = await services.blasts.updateBlast(id, {
+    status: 'sending',
+    sentAt: new Date(),
+  })
+  return c.json(updated)
 })
 
 blasts.post('/:id/schedule', async (c) => {
   const id = c.req.param('id')
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const body = await c.req.text()
-  const res = await dos.blasts.fetch(
-    new Request(`http://do/blasts/${id}/schedule`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    })
-  )
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  const body = (await c.req.json()) as { scheduledAt?: string }
+  const blast = await services.blasts.getBlast(id)
+  if (!blast) return c.json({ error: 'Blast not found' }, 404)
+  const updated = await services.blasts.updateBlast(id, {
+    status: 'scheduled',
+    ...(body.scheduledAt ? { sentAt: new Date(body.scheduledAt) } : {}),
+  })
+  return c.json(updated)
 })
 
 blasts.post('/:id/cancel', async (c) => {
   const id = c.req.param('id')
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const res = await dos.blasts.fetch(
-    new Request(`http://do/blasts/${id}/cancel`, { method: 'POST' })
-  )
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  const blast = await services.blasts.getBlast(id)
+  if (!blast) return c.json({ error: 'Blast not found' }, 404)
+  const updated = await services.blasts.updateBlast(id, { status: 'cancelled' })
+  return c.json(updated)
 })
 
-// --- Settings ---
+// --- Settings (blast subscribe/unsubscribe keywords, stored in MessagingConfig) ---
 blasts.get('/settings', async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const res = await dos.blasts.fetch(new Request('http://do/blast-settings'))
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const config = await services.settings.getMessagingConfig(hubId ?? undefined)
+  // Expose blast-relevant settings only
+  return c.json({
+    subscribeKeyword: (config as typeof config & { subscribeKeyword?: string }).subscribeKeyword ?? 'JOIN',
+    autoRespond: (config as typeof config & { autoRespond?: boolean }).autoRespond ?? false,
+  })
 })
 
 blasts.patch('/settings', async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const body = await c.req.text()
-  const res = await dos.blasts.fetch(
-    new Request('http://do/blast-settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    })
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const body = await c.req.json()
+  // Merge blast settings into MessagingConfig
+  const updated = await services.settings.updateMessagingConfig(
+    body as Parameters<typeof services.settings.updateMessagingConfig>[0],
+    hubId ?? undefined
   )
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  return c.json(updated)
 })
 
 export default blasts

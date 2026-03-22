@@ -370,4 +370,12 @@ export class ShiftService {
       ringGroupId: r.ringGroupId,
     }
   }
+
+  // ------------------------------------------------------------------ Test Reset
+
+  async resetForTest(): Promise<void> {
+    await this.db.delete(activeShifts)
+    await this.db.delete(shiftOverrides)
+    // Preserve schedules and ring groups — they are configuration, not runtime data
+  }
 }

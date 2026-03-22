@@ -1,5 +1,4 @@
 import { Hono } from 'hono'
-import { getDOs } from '../lib/do-access'
 import type { AppEnv } from '../types'
 
 const dev = new Hono<AppEnv>()
@@ -25,13 +24,12 @@ dev.post('/test-reset', async (c) => {
   if (!checkResetSecret(c)) {
     return c.json({ error: 'Forbidden' }, 403)
   }
-  const dos = getDOs(c.env)
-  await dos.identity.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.settings.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.records.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.shifts.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.calls.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' }))
+  const services = c.get('services')
+  await services.identity.resetForTest()
+  await services.records.resetForTest()
+  await services.shifts.resetForTest()
+  await services.calls.resetForTest()
+  await services.conversations.resetForTest()
   return c.json({ ok: true })
 })
 
@@ -45,21 +43,19 @@ dev.post('/test-reset-no-admin', async (c) => {
   if (!checkResetSecret(c)) {
     return c.json({ error: 'Forbidden' }, 403)
   }
-  const dos = getDOs(c.env)
-  // Reset all DOs (ensureInit re-creates admin from ADMIN_PUBKEY)
-  await dos.identity.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.settings.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.records.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.shifts.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.calls.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' }))
-  // Set _skipAdminSeed flag and delete admin so bootstrap tests see needsBootstrap=true
-  // This persists across DO eviction/restart, unlike in-memory flags
-  await dos.identity.fetch(new Request('http://do/test-skip-admin-seed', { method: 'POST' }))
+  const services = c.get('services')
+  await services.identity.resetForTest()
+  await services.records.resetForTest()
+  await services.shifts.resetForTest()
+  await services.calls.resetForTest()
+  await services.conversations.resetForTest()
+  // Delete the admin volunteer so bootstrap tests see needsBootstrap=true
   if (c.env.ADMIN_PUBKEY) {
-    await dos.identity.fetch(
-      new Request(`http://do/volunteers/${c.env.ADMIN_PUBKEY}`, { method: 'DELETE' })
-    )
+    try {
+      await services.identity.deleteVolunteer(c.env.ADMIN_PUBKEY)
+    } catch {
+      // May not exist
+    }
   }
   return c.json({ ok: true })
 })
@@ -79,11 +75,11 @@ dev.post('/test-reset-records', async (c) => {
   if (isDev && !checkResetSecret(c)) {
     return c.json({ error: 'Forbidden' }, 403)
   }
-  const dos = getDOs(c.env)
-  await dos.records.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.shifts.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.calls.fetch(new Request('http://do/reset', { method: 'POST' }))
-  await dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' }))
+  const services = c.get('services')
+  await services.records.resetForTest()
+  await services.shifts.resetForTest()
+  await services.calls.resetForTest()
+  await services.conversations.resetForTest()
   return c.json({ ok: true })
 })
 
