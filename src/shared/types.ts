@@ -139,17 +139,19 @@ export interface FileKeyEnvelope {
   ephemeralPubkey: string
 }
 
+export interface EncryptedMetaItem {
+  pubkey: string
+  encryptedContent: string
+  ephemeralPubkey: string
+}
+
 export interface FileRecord {
   id: string
   conversationId: string
   messageId?: string
   uploadedBy: string // pubkey of uploader
   recipientEnvelopes: FileKeyEnvelope[]
-  encryptedMetadata: Array<{
-    pubkey: string
-    encryptedContent: string
-    ephemeralPubkey: string
-  }>
+  encryptedMetadata: EncryptedMetaItem[]
   totalSize: number // encrypted size in bytes
   totalChunks: number
   status: 'uploading' | 'complete' | 'failed'
@@ -163,11 +165,7 @@ export interface UploadInit {
   totalChunks: number
   conversationId: string
   recipientEnvelopes: FileKeyEnvelope[]
-  encryptedMetadata: Array<{
-    pubkey: string
-    encryptedContent: string
-    ephemeralPubkey: string
-  }>
+  encryptedMetadata: EncryptedMetaItem[]
 }
 
 /** What gets encrypted before storage — replaces plain text */
