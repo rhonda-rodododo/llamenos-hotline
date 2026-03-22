@@ -210,6 +210,8 @@ export const CUSTOM_FIELD_CONTEXT_LABELS: Record<CustomFieldContext, string> = {
 
 // --- Messaging Channel Types ---
 
+export type MessageDeliveryStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed'
+
 export type MessagingChannelType = 'sms' | 'whatsapp' | 'signal' | 'rcs'
 
 /** All possible channel types including voice and reports */

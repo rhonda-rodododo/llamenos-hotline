@@ -1,3 +1,4 @@
+import { FileFieldInput } from '@/components/custom-fields/file-field-input'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -8,10 +9,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import type { CustomFieldDefinition } from '@shared/types'
+import type { CustomFieldDefinition, FileFieldValue } from '@shared/types'
 import { useTranslation } from 'react-i18next'
 
-type FieldValue = string | number | boolean
+type FieldValue = string | number | boolean | FileFieldValue
 
 interface Props {
   fields: CustomFieldDefinition[]
@@ -173,6 +174,15 @@ function renderFieldInput(
             ))}
           </SelectContent>
         </Select>
+      )
+    case 'file':
+      return (
+        <FileFieldInput
+          definition={field}
+          value={value as FileFieldValue | undefined}
+          onChange={(v) => onChange(v as FieldValue)}
+          disabled={disabled}
+        />
       )
     default:
       return null

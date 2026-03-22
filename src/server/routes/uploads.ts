@@ -17,7 +17,9 @@ uploads.post('/init', async (c) => {
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as UploadInit
 
-  if (!body.totalSize || !body.totalChunks || !body.conversationId) {
+  // conversationId is required for conversation/message attachments but optional for custom_field uploads
+  const isCustomField = body.contextType === 'custom_field'
+  if (!body.totalSize || !body.totalChunks || (!body.conversationId && !isCustomField)) {
     return c.json({ error: 'Missing required fields: totalSize, totalChunks, conversationId' }, 400)
   }
 
@@ -37,13 +39,15 @@ uploads.post('/init', async (c) => {
 
   await services.files.createFileRecord({
     id: uploadId,
-    conversationId: body.conversationId,
+    conversationId: body.conversationId ?? '',
     uploadedBy: pubkey,
     recipientEnvelopes: body.recipientEnvelopes ?? [],
     encryptedMetadata: body.encryptedMetadata ?? [],
     totalSize: body.totalSize,
     totalChunks: body.totalChunks,
     status: 'uploading',
+    contextType: body.contextType,
+    contextId: body.contextId,
   })
 
   await services.records.addAuditEntry(hubId ?? 'global', 'fileUploadStarted', pubkey, {
@@ -188,6 +192,51 @@ uploads.get('/:id/status', async (c) => {
     totalChunks: record.totalChunks,
     totalSize: record.totalSize,
   })
+})
+
+// Bind an upload to a parent record (note, report, etc.) after it's been saved
+uploads.patch('/:id/context', async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const pubkey = c.get('pubkey')
+  const uploadId = c.req.param('id')
+
+  const body = (await c.req.json()) as {
+    contextId: string
+    contextType: 'note' | 'report' | 'custom_field'
+  }
+
+  if (
+    !body.contextId ||
+    !body.contextType ||
+    !['note', 'report', 'custom_field'].includes(body.contextType)
+  ) {
+    return c.json({ error: 'Missing or invalid contextId / contextType' }, 400)
+  }
+
+  const record = await services.files.getFileRecord(uploadId)
+  if (!record) {
+    return c.json({ error: 'Upload not found' }, 404)
+  }
+
+  // Only the uploader can bind context
+  if (record.uploadedBy !== pubkey) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  if (record.status !== 'complete') {
+    return c.json({ error: 'Upload must be complete before binding context' }, 409)
+  }
+
+  await services.files.updateContext(uploadId, body.contextType, body.contextId)
+
+  await services.records.addAuditEntry(hubId ?? 'global', 'fileContextBound', pubkey, {
+    fileId: uploadId,
+    contextType: body.contextType,
+    contextId: body.contextId,
+  })
+
+  return c.json({ ok: true })
 })
 
 export default uploads

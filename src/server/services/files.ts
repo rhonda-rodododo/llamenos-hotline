@@ -35,6 +35,8 @@ export class FilesService {
         status: data.status,
         completedChunks: 0,
         createdAt: now,
+        contextType: data.contextType ?? null,
+        contextId: data.contextId ?? null,
       })
       .returning()
     return this.#rowToFileRecord(row)
@@ -141,6 +143,8 @@ export class FilesService {
       completedChunks: r.completedChunks,
       createdAt: r.createdAt.toISOString(),
       completedAt: r.completedAt?.toISOString(),
+      contextType: (r.contextType as FileRecord['contextType']) ?? undefined,
+      contextId: r.contextId ?? undefined,
     }
   }
 
