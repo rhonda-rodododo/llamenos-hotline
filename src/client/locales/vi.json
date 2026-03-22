@@ -1232,6 +1232,10 @@
     "deleteHubConfirm": "Thao tác này sẽ xóa vĩnh viễn \"{{name}}\" và tất cả dữ liệu của nó. Nhập tên hub để xác nhận.",
     "deleteHubNameLabel": "Nhập tên hub để xác nhận",
     "hubDeleted": "Đã xóa hub thành công",
-    "deleteHubActiveCallsError": "Không thể xóa hub có cuộc gọi đang hoạt động"
+    "deleteHubActiveCallsError": "Không thể xóa hub có cuộc gọi đang hoạt động",
+    "archive": "Lưu trữ",
+    "archiveHub": "Lưu trữ Hub",
+    "archiveHubConfirm": "Bạn có chắc muốn lưu trữ \"{{name}}\"? Các hub đã lưu trữ sẽ bị ẩn khỏi các hoạt động hiện tại.",
+    "hubArchived": "Hub đã được lưu trữ thành công"
   }
 }

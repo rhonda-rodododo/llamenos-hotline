@@ -1232,6 +1232,10 @@
     "deleteHubConfirm": "Sa pral efase pèmanantman \"{{name}}\" ak tout done l yo. Tape non hub la pou konfime.",
     "deleteHubNameLabel": "Tape non hub la pou konfime",
     "hubDeleted": "Hub efase avèk siksè",
-    "deleteHubActiveCallsError": "Paka efase yon hub ki gen apèl aktif"
+    "deleteHubActiveCallsError": "Paka efase yon hub ki gen apèl aktif",
+    "archive": "Achive",
+    "archiveHub": "Achive Hub la",
+    "archiveHubConfirm": "Èske w sèten ou vle achive \"{{name}}\" ? Hub ki achive yo kache nan operasyon aktif yo.",
+    "hubArchived": "Hub la achive avèk siksè"
   }
 }
