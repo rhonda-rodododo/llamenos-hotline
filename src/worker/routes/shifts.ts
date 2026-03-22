@@ -1,76 +1,73 @@
 import { Hono } from 'hono'
-import { getScopedDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
-import { audit } from '../services/audit'
 import type { AppEnv } from '../types'
 
 const shifts = new Hono<AppEnv>()
 
 // All authenticated users can check their shift status
 shifts.get('/my-status', async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
-  return dos.shifts.fetch(new Request(`http://do/my-status?pubkey=${pubkey}`))
+  const status = await services.shifts.getVolunteerStatus(pubkey, hubId)
+  return c.json(status)
 })
 
 // --- Permission-gated routes ---
 
 shifts.get('/fallback', requirePermission('shifts:manage-fallback'), async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  return dos.settings.fetch(new Request('http://do/fallback'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const fallback = await services.settings.getFallbackGroup(hubId)
+  return c.json({ volunteers: fallback })
 })
 
 shifts.put('/fallback', requirePermission('shifts:manage-fallback'), async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  return dos.settings.fetch(
-    new Request('http://do/fallback', {
-      method: 'PUT',
-      body: JSON.stringify(await c.req.json()),
-    })
-  )
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const body = (await c.req.json()) as { volunteers: string[] }
+  await services.settings.setFallbackGroup(body.volunteers || [], hubId)
+  return c.json({ ok: true })
 })
 
 shifts.get('/', requirePermission('shifts:read'), async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  return dos.shifts.fetch(new Request('http://do/shifts'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const schedules = await services.shifts.getSchedules(hubId)
+  return c.json({ shifts: schedules })
 })
 
 shifts.post('/', requirePermission('shifts:create'), async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
-  const res = await dos.shifts.fetch(
-    new Request('http://do/shifts', {
-      method: 'POST',
-      body: JSON.stringify(await c.req.json()),
-    })
-  )
-  if (res.ok) await audit(dos.records, 'shiftCreated', pubkey)
-  return res
+  const body = await c.req.json()
+  const schedule = await services.shifts.createSchedule({ ...body, hubId: hubId ?? 'global' })
+  await services.records.addAuditEntry(hubId ?? 'global', 'shiftCreated', pubkey)
+  return c.json(schedule, 201)
 })
 
 shifts.patch('/:id', requirePermission('shifts:update'), async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const id = c.req.param('id')
   if (id === 'fallback') return c.json({ error: 'Not Found' }, 404)
-  const res = await dos.shifts.fetch(
-    new Request(`http://do/shifts/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(await c.req.json()),
-    })
-  )
-  if (res.ok) await audit(dos.records, 'shiftEdited', pubkey, { shiftId: id })
-  return res
+  const body = await c.req.json()
+  const updated = await services.shifts.updateSchedule(id, body)
+  await services.records.addAuditEntry(hubId ?? 'global', 'shiftEdited', pubkey, { shiftId: id })
+  return c.json(updated)
 })
 
 shifts.delete('/:id', requirePermission('shifts:delete'), async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const id = c.req.param('id')
   if (id === 'fallback') return c.json({ error: 'Not Found' }, 404)
-  const res = await dos.shifts.fetch(new Request(`http://do/shifts/${id}`, { method: 'DELETE' }))
-  if (res.ok) await audit(dos.records, 'shiftDeleted', pubkey, { shiftId: id })
-  return res
+  await services.shifts.deleteSchedule(id)
+  await services.records.addAuditEntry(hubId ?? 'global', 'shiftDeleted', pubkey, { shiftId: id })
+  return c.json({ ok: true })
 })
 
 export default shifts
