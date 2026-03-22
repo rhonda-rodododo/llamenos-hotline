@@ -160,6 +160,10 @@ export async function listVolunteers() {
   return request<{ volunteers: Volunteer[] }>('/volunteers')
 }
 
+export async function getVolunteerUnmasked(pubkey: string) {
+  return request<Volunteer & { phone: string }>(`/volunteers/${pubkey}?unmask=true`)
+}
+
 export async function createVolunteer(data: {
   name: string
   phone: string
