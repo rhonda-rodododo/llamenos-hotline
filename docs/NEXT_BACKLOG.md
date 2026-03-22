@@ -213,13 +213,13 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 > Implement shared helpers first (`tests/helpers/` migration from flat `tests/helpers.ts`) — prerequisite for all suites.
 
 - [x] **Shared Test Helpers** — `tests/helpers/` directory: `auth.ts` (login helpers), `crypto.ts` (key preloading), `db.ts` (resetTestState, createTestHub, deleteTestHub), `call-simulator.ts` (simulateInboundCall, simulateCallAnswered, simulateCallHungUp, simulateVoicemail, waitForCallState); `index.ts` re-exports all; existing `from './helpers'` imports resolve transparently
-- [ ] **Call Flow Tests** (`2026-03-22-call-flow-tests-plan.md`) — ring → answer → note → hangup → voicemail fallback → parallel ringing. Inbound webhook is two-step: `POST /api/telephony/incoming` then `POST /api/telephony/language-selected`.
-- [ ] **E2EE Verification Tests** (`2026-03-22-e2ee-verification-tests-plan.md`) — Server stores ciphertext only; `window.__llamenos_test_crypto` hook (VITE_TEST_MODE guard); multi-envelope decryption; forward secrecy
+- [x] **Call Flow Tests** (`2026-03-22-call-flow-tests-plan.md`) — ring → answer → note → hangup → voicemail fallback → parallel ringing. Inbound webhook is two-step: `POST /telephony/incoming` then `POST /telephony/language-selected`. Fixed telephony routing (top-level /telephony/* not /api/telephony/*), updated playwright.config.ts to use bun server, added data-testid to dashboard call elements.
+- [x] **E2EE Verification Tests** (`2026-03-22-e2ee-verification-tests-plan.md`) — Server stores ciphertext only; `window.__llamenos_test_crypto` hook (VITE_TEST_MODE guard); multi-envelope decryption; forward secrecy
 - [ ] **Nostr Relay Tests** (`2026-03-22-nostr-relay-tests-plan.md`) — `call:ring` event published and encrypted; hub key extracted via `window.__llamenos_test_hub_key`; REST polling fallback
-- [ ] **Spam Mitigation Tests** (`2026-03-22-spam-mitigation-tests-plan.md`) — Ban enforcement, rate limiting, CAPTCHA toggle (correct/wrong digits), priority: ban > rate-limit > CAPTCHA
+- [x] **Spam Mitigation Tests** (`2026-03-22-spam-mitigation-tests-plan.md`) — Ban enforcement, rate limiting, CAPTCHA toggle (correct/wrong digits), priority: ban > rate-limit > CAPTCHA
 - [ ] **PWA Offline Tests** (`2026-03-22-pwa-offline-tests-plan.md`) — SW registration, offline banner, API not cached, queue sends on reconnect
 - [ ] **WebAuthn Registration Tests** (`2026-03-22-webauthn-registration-tests-plan.md`) — Virtual authenticator via CDP, passkey register/login, multi-device, session revocation
-- [ ] **i18n Locale Tests** (`2026-03-22-i18n-locale-tests-plan.md`) — All 13 locales, RTL Arabic, dynamic locale file comparison (no hardcoded strings), `scripts/check-locales.ts` with nested key traversal
+- [x] **i18n Locale Tests** (`2026-03-22-i18n-locale-tests-plan.md`) — All 13 locales, RTL Arabic, dynamic locale file comparison (no hardcoded strings), `scripts/check-locales.ts` with nested key traversal
 - [ ] **Provider Simulation Suite** — *(spec needed first)* Comprehensive webhook/callback simulation for all 5 telephony adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk) and all messaging adapters (Twilio SMS, WhatsApp Business, Signal). Must research each provider's actual sandbox tooling, webhook payload formats, status callback schemas, error conditions, and signature validation before writing the spec. Do not implement without completed research and approved spec.
 
 ### Features (Lower Priority — v1 Gap Filling)
