@@ -3,6 +3,7 @@ import { getPrimaryRole } from '../../shared/permissions'
 import { verifyAuthToken } from '../lib/auth'
 import { hashIP } from '../lib/crypto'
 import { isValidE164 } from '../lib/helpers'
+import { maskPhone } from '../lib/volunteer-projector'
 import { auth as authMiddleware } from '../middleware/auth'
 import { checkPermission } from '../middleware/permission-guard'
 import type { AppEnv, WebAuthnCredential } from '../types'
@@ -119,6 +120,8 @@ auth.get('/me', async (c) => {
       ? { id: primaryRole.id, name: primaryRole.name, slug: primaryRole.slug }
       : null,
     name: volunteer.name,
+    // PII: phone always masked in self-view (client shows masked; unmask via PIN challenge + ?unmask=true on /volunteers/:pubkey)
+    phone: maskPhone(volunteer.phone),
     transcriptionEnabled: volunteer.transcriptionEnabled,
     spokenLanguages: volunteer.spokenLanguages || ['en'],
     uiLanguage: volunteer.uiLanguage || 'en',

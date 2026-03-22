@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { isValidE164 } from '../lib/helpers'
-import { requirePermission } from '../middleware/permission-guard'
+import { projectVolunteer } from '../lib/volunteer-projector'
+import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
 const volunteers = new Hono<AppEnv>()
@@ -8,8 +9,33 @@ volunteers.use('*', requirePermission('volunteers:read'))
 
 volunteers.get('/', async (c) => {
   const services = c.get('services')
+  const requestorPubkey = c.get('pubkey')
+  const permissions = c.get('permissions')
+  const isAdmin = checkPermission(permissions, 'settings:manage')
+
   const vols = await services.identity.getVolunteers()
-  return c.json({ volunteers: vols })
+  return c.json({ volunteers: vols.map((v) => projectVolunteer(v, requestorPubkey, isAdmin)) })
+})
+
+volunteers.get('/:targetPubkey', async (c) => {
+  const services = c.get('services')
+  const requestorPubkey = c.get('pubkey')
+  const permissions = c.get('permissions')
+  const isAdmin = checkPermission(permissions, 'settings:manage')
+  const targetPubkey = c.req.param('targetPubkey')
+
+  const volunteer = await services.identity.getVolunteer(targetPubkey)
+  if (!volunteer) return c.json({ error: 'Not found' }, 404)
+
+  // ?unmask=true: admin-only; creates audit entry
+  const unmask = isAdmin && c.req.query('unmask') === 'true'
+  if (unmask) {
+    await services.records.addAuditEntry('global', 'phoneUnmasked', requestorPubkey, {
+      target: targetPubkey,
+    })
+  }
+
+  return c.json(projectVolunteer(volunteer, requestorPubkey, isAdmin, unmask))
 })
 
 volunteers.post('/', requirePermission('volunteers:create'), async (c) => {
@@ -44,7 +70,8 @@ volunteers.post('/', requirePermission('volunteers:create'), async (c) => {
     roles: body.roleIds,
   })
 
-  return c.json(volunteer, 201)
+  // Return admin view for the creator (always an admin)
+  return c.json({ volunteer: projectVolunteer(volunteer, pubkey, true) }, 201)
 })
 
 volunteers.patch('/:targetPubkey', requirePermission('volunteers:update'), async (c) => {
@@ -70,7 +97,7 @@ volunteers.patch('/:targetPubkey', requirePermission('volunteers:update'), async
     await services.identity.revokeAllSessions(targetPubkey)
   }
 
-  return c.json(updated)
+  return c.json({ volunteer: projectVolunteer(updated, pubkey, true) })
 })
 
 volunteers.delete('/:targetPubkey', requirePermission('volunteers:delete'), async (c) => {

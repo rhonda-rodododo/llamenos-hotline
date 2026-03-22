@@ -8,6 +8,7 @@ import {
   type AuditLogEntry,
   type Shift,
   type Volunteer,
+  getVolunteerUnmasked,
   listAuditLog,
   listShifts,
   listVolunteers,
@@ -63,7 +64,7 @@ function VolunteerProfilePage() {
   const [auditPage, setAuditPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [auditLoading, setAuditLoading] = useState(true)
-  const [showPhone, setShowPhone] = useState(false)
+  const [unmaskedPhone, setUnmaskedPhone] = useState<string | null>(null)
   const [savingChannels, setSavingChannels] = useState(false)
   const auditLimit = 20
 
@@ -126,11 +127,6 @@ function VolunteerProfilePage() {
   }
 
   const auditTotalPages = Math.ceil(auditTotal / auditLimit)
-
-  function maskedPhone(phone: string) {
-    if (!phone || phone.length < 6) return phone
-    return phone.slice(0, 3) + '\u2022'.repeat(phone.length - 5) + phone.slice(-2)
-  }
 
   const langMap = new Map(LANGUAGES.map((l) => [l.code, l]))
 
@@ -201,13 +197,20 @@ function VolunteerProfilePage() {
                 <span className="flex items-center gap-1.5">
                   <Phone className="h-3.5 w-3.5" />
                   <span className="font-mono text-xs">
-                    {showPhone ? volunteer.phone : maskedPhone(volunteer.phone)}
+                    {unmaskedPhone ?? volunteer.phone}
                   </span>
                   <button
-                    onClick={() => setShowPhone(!showPhone)}
+                    onClick={async () => {
+                      if (unmaskedPhone) {
+                        setUnmaskedPhone(null)
+                      } else {
+                        const vol = await getVolunteerUnmasked(volunteer.pubkey)
+                        setUnmaskedPhone(vol.phone)
+                      }
+                    }}
                     className="text-muted-foreground hover:text-foreground"
                   >
-                    {showPhone ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    {unmaskedPhone ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                   </button>
                 </span>
                 <span className="flex items-center gap-1.5">

@@ -96,16 +96,16 @@ test.describe('Security hardening', () => {
       return res.json()
     }, hubId)
 
-    const banEntry = (auditResult.entries as Array<{ action: string; context?: Record<string, unknown> }>)
-      .find((e) => e.action === 'numberBanned')
+    const banEntry = (auditResult.entries as Array<{ event: string; details?: Record<string, unknown> }>)
+      .find((e) => e.event === 'numberBanned')
 
     expect(banEntry).toBeDefined()
     // Audit entry must NOT contain plaintext phone
     expect(JSON.stringify(banEntry)).not.toContain(testPhone)
     // Audit entry MUST contain a phoneHash field (hex HMAC)
-    expect(banEntry?.context).toHaveProperty('phoneHash')
-    expect(typeof banEntry?.context?.phoneHash).toBe('string')
-    expect((banEntry?.context?.phoneHash as string).length).toBe(64) // SHA-256 hex
+    expect(banEntry?.details).toHaveProperty('phoneHash')
+    expect(typeof banEntry?.details?.phoneHash).toBe('string')
+    expect((banEntry?.details?.phoneHash as string).length).toBe(64) // SHA-256 hex
   })
 
   // ─── HIGH-W5: Twilio account SID format validation ────────────────────────

@@ -20,6 +20,7 @@ import {
   createInvite,
   createVolunteer,
   deleteVolunteer,
+  getVolunteerUnmasked,
   listInvites,
   listRoles,
   listVolunteers,
@@ -530,7 +531,7 @@ function VolunteerRow({
   const { t } = useTranslation()
   const { toast } = useToast()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [showPhone, setShowPhone] = useState(false)
+  const [unmaskedPhone, setUnmaskedPhone] = useState<string | null>(null)
   const pinChallenge = usePinChallenge()
 
   const primaryRoleId = volunteer.roles[0] || 'role-volunteer'
@@ -583,20 +584,23 @@ function VolunteerRow({
           </p>
           {volunteer.phone && (
             <p className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
-              {showPhone ? volunteer.phone : maskedPhone(volunteer.phone)}
+              {unmaskedPhone ?? volunteer.phone}
               <button
                 onClick={async () => {
-                  if (showPhone) {
-                    setShowPhone(false)
+                  if (unmaskedPhone) {
+                    setUnmaskedPhone(null)
                   } else {
                     const ok = await pinChallenge.requirePin()
-                    if (ok) setShowPhone(true)
+                    if (ok) {
+                      const vol = await getVolunteerUnmasked(volunteer.pubkey)
+                      setUnmaskedPhone(vol.phone)
+                    }
                   }
                 }}
                 className="text-muted-foreground hover:text-foreground"
                 data-testid="toggle-phone-visibility"
               >
-                {showPhone ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                {unmaskedPhone ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               </button>
             </p>
           )}
@@ -665,7 +669,7 @@ function VolunteerRow({
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
         title={t('volunteers.removeVolunteer')}
-        description={`${volunteer.name} (${maskedPhone(volunteer.phone)})`}
+        description={`${volunteer.name} (${volunteer.phone})`}
         confirmLabel={t('common.delete')}
         onConfirm={handleDelete}
       />
