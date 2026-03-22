@@ -50,6 +50,8 @@ export const customFieldDefinitions = pgTable('custom_field_definitions', {
   showInVolunteerView: boolean('show_in_volunteer_view').notNull().default(false),
   /** Context distinguishes where this field appears */
   context: text('context').notNull().default('notes'), // 'notes' | 'conversations' | 'reports' | 'all'
+  /** IDs of report types that show this field. Empty array = shown for all types (when context includes 'reports'). */
+  reportTypeIds: jsonb<string[]>()('report_type_ids').notNull().default([]),
   order: integer('order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })

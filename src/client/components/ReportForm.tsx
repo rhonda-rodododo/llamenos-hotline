@@ -16,7 +16,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
-import { createReport, getReportCategories } from '@/lib/api'
+import { createReport, getReportCategories, listReportTypes } from '@/lib/api'
+import type { ReportType } from '@shared/types'
 import { useAuth } from '@/lib/auth'
 import { encryptMessage } from '@/lib/crypto'
 import { useToast } from '@/lib/toast'
@@ -37,20 +38,34 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
 
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('')
+  const [reportTypeId, setReportTypeId] = useState<string>('')
   const [body, setBody] = useState('')
   const [categories, setCategories] = useState<string[]>([])
+  const [reportTypes, setReportTypes] = useState<ReportType[]>([])
   const [submitting, setSubmitting] = useState(false)
+
+  const activeReportTypes = reportTypes.filter((rt) => !rt.archivedAt)
 
   useEffect(() => {
     if (!open) return
     getReportCategories()
       .then(({ categories: cats }) => setCategories(cats))
       .catch(() => setCategories([]))
+    listReportTypes()
+      .then(({ reportTypes: types }) => {
+        const active = types.filter((rt) => !rt.archivedAt)
+        setReportTypes(types)
+        // Pre-select default type if one exists
+        const defaultType = active.find((rt) => rt.isDefault)
+        if (defaultType) setReportTypeId(defaultType.id)
+      })
+      .catch(() => setReportTypes([]))
   }, [open])
 
   const resetForm = useCallback(() => {
     setTitle('')
     setCategory('')
+    setReportTypeId('')
     setBody('')
   }, [])
 
@@ -82,6 +97,7 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
       const report = await createReport({
         title: title.trim(),
         category: category || undefined,
+        reportTypeId: reportTypeId || undefined,
         encryptedContent: encrypted.encryptedContent,
         readerEnvelopes: encrypted.readerEnvelopes,
       })
@@ -99,6 +115,7 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
     title,
     body,
     category,
+    reportTypeId,
     hasNsec,
     publicKey,
     adminDecryptionPubkey,
@@ -138,6 +155,37 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
               maxLength={200}
             />
           </div>
+
+          {activeReportTypes.length > 0 && (
+            <div className="space-y-2">
+              <Label data-testid="report-type-label">
+                {t('reports.type.label', { defaultValue: 'Report Type' })}
+              </Label>
+              <Select
+                value={reportTypeId}
+                onValueChange={setReportTypeId}
+                disabled={submitting}
+              >
+                <SelectTrigger className="w-full" data-testid="report-type-select">
+                  <SelectValue
+                    placeholder={t('reports.type.placeholder', { defaultValue: 'Select a report type' })}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeReportTypes.map((rt) => (
+                    <SelectItem key={rt.id} value={rt.id} data-testid={`report-type-option-${rt.id}`}>
+                      {rt.name}
+                      {rt.isDefault && (
+                        <span className="ml-1.5 text-xs text-muted-foreground">
+                          ({t('settings.reportTypes.default', { defaultValue: 'Default' })})
+                        </span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {categories.length > 0 && (
             <div className="space-y-2">

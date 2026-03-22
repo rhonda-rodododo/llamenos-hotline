@@ -79,6 +79,7 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
   const body = (await c.req.json()) as {
     title: string
     category?: string
+    reportTypeId?: string
     // First message content (envelope-encrypted)
     encryptedContent: string
     readerEnvelopes: import('../types').MessageKeyEnvelope[]
@@ -86,6 +87,14 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
 
   if (!body.encryptedContent || !body.readerEnvelopes?.length) {
     return c.json({ error: 'Report content is required' }, 400)
+  }
+
+  // Validate reportTypeId belongs to this hub if provided
+  if (body.reportTypeId) {
+    const reportType = await services.reportTypes.getReportType(hubId ?? 'global', body.reportTypeId)
+    if (!reportType || reportType.archivedAt) {
+      return c.json({ error: 'Invalid or archived report type' }, 400)
+    }
   }
 
   // Create the conversation with report metadata
@@ -99,6 +108,7 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
       reportTitle: body.title,
       reportCategory: body.category,
     },
+    reportTypeId: body.reportTypeId,
   })
 
   // Add the initial message

@@ -1,5 +1,6 @@
 import { CallSettingsSection } from '@/components/admin-settings/call-settings-section'
 import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-section'
+import { ReportTypesSection } from '@/components/admin-settings/report-types-section'
 import { IvrLanguagesSection } from '@/components/admin-settings/ivr-languages-section'
 import { PasskeyPolicySection } from '@/components/admin-settings/passkey-policy-section'
 import { RCSChannelSection } from '@/components/admin-settings/rcs-channel-section'
@@ -28,6 +29,7 @@ import {
   getTelephonyProvider,
   getTranscriptionSettings,
   listIvrAudio,
+  listReportTypes,
   updateRetentionSettings,
   updateSpamSettings,
   updateTranscriptionSettings,
@@ -36,7 +38,7 @@ import { type WebAuthnSettings, getWebAuthnSettings } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { IVR_LANGUAGES } from '@shared/languages'
-import type { MessagingConfig } from '@shared/types'
+import type { MessagingConfig, ReportType } from '@shared/types'
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 import { Settings2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -72,6 +74,7 @@ function AdminSettingsPage() {
   })
   const [messagingConfig, setMessagingConfig] = useState<MessagingConfig | null>(null)
   const [retentionSettings, setRetentionSettings] = useState<RetentionSettings | null>(null)
+  const [reportTypesList, setReportTypesList] = useState<ReportType[]>([])
 
   const { expanded, toggleSection } = usePersistedExpanded(
     'settings-expanded:/admin/settings',
@@ -110,6 +113,9 @@ function AdminSettingsPage() {
         .catch(() => {}),
       getRetentionSettings()
         .then(setRetentionSettings)
+        .catch(() => {}),
+      listReportTypes()
+        .then((r) => setReportTypesList(r.reportTypes))
         .catch(() => {}),
     ])
       .catch(() => toast(t('common.error'), 'error'))
@@ -283,6 +289,19 @@ function AdminSettingsPage() {
         expanded={expanded.has('custom-fields')}
         onToggle={(open) => toggleSection('custom-fields', open)}
         statusSummary={customFieldsStatus}
+      />
+
+      <ReportTypesSection
+        reportTypes={reportTypesList}
+        customFields={customFieldDefs}
+        onChange={setReportTypesList}
+        expanded={expanded.has('report-types')}
+        onToggle={(open) => toggleSection('report-types', open)}
+        statusSummary={
+          reportTypesList.filter((rt) => !rt.archivedAt).length > 0
+            ? `${reportTypesList.filter((rt) => !rt.archivedAt).length} ${t('settings.reportTypes.typesCount', { defaultValue: 'types' })}`
+            : t('common.none', { defaultValue: 'None' })
+        }
       />
 
       {spam && (

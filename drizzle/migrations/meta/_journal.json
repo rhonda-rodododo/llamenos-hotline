@@ -29,6 +29,13 @@
       "when": 1742688000000,
       "tag": "0003_schema_corrections",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1742860800000,
+      "tag": "0006_report_types",
+      "breakpoints": true
     }
   ]
 }

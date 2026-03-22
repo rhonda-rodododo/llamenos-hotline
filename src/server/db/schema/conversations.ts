@@ -22,6 +22,8 @@ export const conversations = pgTable(
     assignedTo: text('assigned_to'), // volunteer pubkey
     status: text('status').notNull().default('active'), // 'active' | 'waiting' | 'closed'
     metadata: jsonb<Record<string, unknown>>()('metadata').notNull().default({}),
+    /** FK to report_types (nullable) — set when channelType='web' and metadata.type='report' */
+    reportTypeId: text('report_type_id'),
     messageCount: integer('message_count').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
