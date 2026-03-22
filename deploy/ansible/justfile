@@ -86,6 +86,20 @@ rollback-demo version *ARGS:
         --extra-vars "llamenos_image=ghcr.io/llamenos/llamenos:{{version}}" \
         {{ARGS}}
 
+# Run an encrypted backup of the demo instance
+backup-demo *ARGS:
+    ansible-playbook playbooks/backup.yml --ask-vault-pass -l demo {{ARGS}}
+
+# Test that the latest demo backup can be restored
+test-restore-demo *ARGS:
+    ansible-playbook playbooks/test-restore.yml --ask-vault-pass -l demo {{ARGS}}
+
+# Restore a specific backup to the demo database (e.g.: just restore-demo s3:bucket/llamenos-20260101-030000.sql.gz.age)
+restore-demo backup_file *ARGS:
+    ansible-playbook playbooks/restore.yml --ask-vault-pass -l demo \
+        --extra-vars "restore_backup_file={{backup_file}}" \
+        {{ARGS}}
+
 # Encrypt the demo vars file
 encrypt-demo-vars:
     ansible-vault encrypt demo_vars.yml

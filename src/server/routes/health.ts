@@ -4,10 +4,26 @@ import type { AppEnv } from '../types'
 
 const health = new Hono<AppEnv>()
 
+interface BackupStatus {
+  lastSuccessAt: string
+  lastSizeBytes: number
+  file: string
+}
+
 interface HealthResult {
   status: 'ok' | 'degraded'
   checks: Record<string, 'ok' | 'failing'>
   details: Record<string, string>
+  backup?: BackupStatus
+}
+
+async function readBackupStatus(): Promise<BackupStatus | undefined> {
+  try {
+    const text = await Bun.file('/var/data/backup-status.json').text()
+    return JSON.parse(text) as BackupStatus
+  } catch {
+    return undefined
+  }
 }
 
 async function runChecks(env: Record<string, unknown>): Promise<HealthResult> {
@@ -48,7 +64,10 @@ async function runChecks(env: Record<string, unknown>): Promise<HealthResult> {
 
 // Full health check — dependency status
 health.get('/', async (c) => {
-  const { status, checks, details } = await runChecks(c.env as unknown as Record<string, unknown>)
+  const [{ status, checks, details }, backup] = await Promise.all([
+    runChecks(c.env as unknown as Record<string, unknown>),
+    readBackupStatus(),
+  ])
   const hasDetails = Object.keys(details).length > 0
 
   return c.json(
@@ -56,6 +75,7 @@ health.get('/', async (c) => {
       status,
       checks,
       ...(hasDetails && { details }),
+      ...(backup && { backup }),
       version: BUILD_VERSION,
       uptime: typeof process !== 'undefined' ? Math.floor(process.uptime()) : undefined,
     },
