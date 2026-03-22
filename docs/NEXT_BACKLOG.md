@@ -196,7 +196,7 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 
 ### Platform & CI/CD
 
-- [ ] **CI Pipeline Hardening** (`2026-03-22-ci-security-hardening-plan.md`) — GPG signing for releases (CHECKSUMS.txt.asc uploaded to GitHub Release), gitleaks secret scanning, Dependabot for bun/cargo/actions, SECURITY.md, workflow permissions per-job
+- [x] **CI Pipeline Hardening** (`2026-03-22-ci-security-hardening-plan.md`) — GPG signing for releases (CHECKSUMS.txt.asc uploaded to GitHub Release), gitleaks secret scanning, Dependabot for bun/cargo/actions, SECURITY.md, workflow permissions per-job. **Operator action required**: generate CI GPG keypair and set RELEASE_GPG_PRIVATE_KEY + RELEASE_GPG_KEY_ID secrets.
 - [ ] **CI VPS Auto-Deploy** (`2026-03-22-ci-vps-auto-deploy-plan.md`) — `auto-deploy-demo.yml` triggers on `release:published`, polls for Docker image in GHCR (fails hard if image never appears), Ansible composite action, `image_tag` passed through to role
 - [ ] **Ops: PostgreSQL Backup & Recovery** (`2026-03-22-ops-backup-recovery-plan.md`) — `age`-encrypted backups to S3, GFS retention (7 daily/4 weekly/3 monthly), systemd timer replaces existing cron job, health endpoint backup freshness check
 - [ ] **Ops: MinIO Init + Systemd Service** (`2026-03-22-minio-init-systemd-plan.md`) — idempotent `init-minio.sh` (bucket creation, lifecycle policies, dedicated IAM user), `llamenos.service` systemd unit for reboot recovery
