@@ -1,5 +1,12 @@
 # Completed Backlog
 
+## 2026-03-22: CI VPS Auto-Deploy (`cf-removal` worktree)
+
+- [x] Created `.github/workflows/auto-deploy-demo.yml`: triggers on `release:published`, waits up to 10 min for Docker image in GHCR, deploys via Ansible with `llamenos_image` override (correct variable name — not `image_tag`), verifies `/api/health` endpoint post-deploy
+- [x] Added `deploy-site` job to `ci.yml`: deploys Astro marketing site to Cloudflare Pages when `site/` files change on main branch; uses `cloudflare/wrangler-action@v3` (Dependabot will pin SHA)
+- [x] Added `rollback-demo` recipe to `deploy/ansible/justfile`: `just rollback-demo v1.2.3`
+- **Operator action required**: set `CF_API_TOKEN` + `CF_ACCOUNT_ID` GitHub secrets for the `cloudflare-pages` environment to enable site auto-deploy
+
 ## 2026-03-22: CI Security Hardening (`cf-removal` worktree)
 
 - [x] GPG signing step in `release` job: imports `RELEASE_GPG_PRIVATE_KEY` secret, signs `CHECKSUMS.txt`, uploads `CHECKSUMS.txt.asc` to GitHub Release (gated on secret presence)
