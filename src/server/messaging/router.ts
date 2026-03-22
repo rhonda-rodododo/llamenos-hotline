@@ -112,13 +112,12 @@ messaging.post('/:channel/webhook', async (c) => {
     // STOP is always recognized (TCPA compliance)
     if (normalizedBody === 'STOP') {
       // Find subscriber and deactivate them
-      const existing = await services.blasts.findSubscriberByPhone(
-        incoming.senderIdentifier,
-        incoming.channelType,
+      const existing = await services.blasts.findSubscriberByHash(
+        incoming.senderIdentifierHash,
         hId
       )
       if (existing) {
-        await services.blasts.updateSubscriber(existing.id, { active: false })
+        await services.blasts.updateSubscriber(existing.id, { status: 'unsubscribed' })
       }
       // Still forward to conversation for logging
     } else {
@@ -130,9 +129,9 @@ messaging.post('/:channel/webhook', async (c) => {
         if (subscribeKeyword && normalizedBody === subscribeKeyword.toUpperCase()) {
           await services.blasts.createSubscriber({
             hubId: hId,
-            phoneNumber: incoming.senderIdentifier,
-            channel: incoming.channelType,
-            active: true,
+            identifierHash: incoming.senderIdentifierHash,
+            channels: [{ type: incoming.channelType as 'sms' | 'whatsapp' | 'signal' | 'rcs', verified: false }],
+            status: 'active',
           })
         }
       } catch {
