@@ -1,0 +1,32 @@
+---
+# Backup role defaults
+#
+# Override these in vars.yml (or demo_vars.yml) as needed.
+
+# Enable/disable automated backups
+backup_enabled: true
+
+# age public key for encrypting backups.
+# Generate: age-keygen -o backup-key.txt
+# Store private key offline (org security officer).
+# Paste the public key (age1...) here.
+backup_age_public_key: ""
+
+# Path to the age private key on the Ansible controller.
+# Only needed for test-restore and restore operations.
+# Never committed to version control.
+backup_age_private_key_path: ""
+
+# Retention policy (Grandfather-Father-Son)
+backup_retain_daily: 7
+backup_retain_weekly: 4
+backup_retain_monthly: 3
+
+# Backup schedule (UTC): daily at 03:00
+backup_cron_hour: "3"
+backup_cron_minute: "0"
+
+# rclone remote for off-site backup storage.
+# Configure rclone on the host first: rclone config
+# Examples: "s3:llamenos-backups", "b2:llamenos-backups"
+backup_rclone_remote: ""

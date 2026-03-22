@@ -81,30 +81,30 @@
           docker exec -i llamenos-restore-test psql -U llamenos -d llamenos
       register: restore_result
 
-    - name: Validate kv_store table exists
+    - name: Validate volunteers table exists
       ansible.builtin.command:
         cmd: >
           docker exec llamenos-restore-test
           psql -U llamenos -d llamenos -t -c
-          "SELECT COUNT(*) FROM kv_store"
-      register: kv_count
-      failed_when: kv_count.rc != 0
+          "SELECT COUNT(*) FROM volunteers"
+      register: volunteer_count
+      failed_when: volunteer_count.rc != 0
 
-    - name: Validate alarms table exists
+    - name: Validate active_calls table exists
       ansible.builtin.command:
         cmd: >
           docker exec llamenos-restore-test
           psql -U llamenos -d llamenos -t -c
-          "SELECT COUNT(*) FROM alarms"
-      register: alarms_count
-      failed_when: alarms_count.rc != 0
+          "SELECT COUNT(*) FROM active_calls"
+      register: calls_count
+      failed_when: calls_count.rc != 0
 
     - name: Display restore results
       ansible.builtin.debug:
         msg: |
           Restore test PASSED
-          - kv_store rows: {{ kv_count.stdout | trim }}
-          - alarms rows: {{ alarms_count.stdout | trim }}
+          - volunteers rows: {{ volunteer_count.stdout | trim }}
+          - active_calls rows: {{ calls_count.stdout | trim }}
           - Backup file: {{ latest_backup }}
 
   always:

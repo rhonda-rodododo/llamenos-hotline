@@ -1,0 +1,118 @@
+---
+# Restore Playbook
+#
+# Restores the PostgreSQL database from a specific backup file.
+# USE ONLY during disaster recovery — this overwrites production data.
+#
+# Usage:
+#   just restore-demo s3:bucket/llamenos-20260101-030000.sql.gz.age
+#   ansible-playbook playbooks/restore.yml --ask-vault-pass -l demo \
+#     -e restore_backup_file=s3:bucket/llamenos-20260101-030000.sql.gz.age
+#
+# Required variables:
+#   restore_backup_file     — path or rclone remote path to backup file
+#   backup_age_private_key_path — path on the Ansible controller to age private key file
+
+- name: Restore PostgreSQL from backup
+  hosts: llamenos
+  become: true
+  become_user: "{{ deploy_user }}"
+
+  tasks:
+    - name: Confirm restore_backup_file is set
+      ansible.builtin.assert:
+        that: restore_backup_file is defined and restore_backup_file | length > 0
+        fail_msg: "restore_backup_file must be specified (e.g. -e restore_backup_file=...)"
+
+    - name: Confirm age private key path is set
+      ansible.builtin.assert:
+        that: backup_age_private_key_path is defined and backup_age_private_key_path | length > 0
+        fail_msg: "backup_age_private_key_path must be set to the path of the age private key (held offline)"
+
+    - name: Print restore warning
+      ansible.builtin.debug:
+        msg: |
+          !!! DISASTER RECOVERY MODE !!!
+          Restoring: {{ restore_backup_file }}
+          Target database will be overwritten.
+
+    - name: Create temp directory for restore
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: llamenos-restore-
+      register: restore_tmpdir
+
+    - name: Stop app container before restore
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        services: [app]
+        state: stopped
+
+    - name: Fetch backup from remote (if rclone remote)
+      ansible.builtin.command:
+        cmd: "rclone copy {{ restore_backup_file }} {{ restore_tmpdir.path }}/"
+      when: ':' in restore_backup_file
+      register: rclone_fetch
+      changed_when: true
+
+    - name: Use local backup file (if local path)
+      ansible.builtin.copy:
+        src: "{{ restore_backup_file }}"
+        dest: "{{ restore_tmpdir.path }}/{{ restore_backup_file | basename }}"
+        remote_src: true
+      when: ':' not in restore_backup_file
+
+    - name: Set local backup path
+      ansible.builtin.set_fact:
+        local_backup: "{{ restore_tmpdir.path }}/{{ restore_backup_file | basename }}"
+
+    - name: Copy age private key to remote
+      ansible.builtin.copy:
+        src: "{{ backup_age_private_key_path }}"
+        dest: "{{ restore_tmpdir.path }}/backup-key.txt"
+        mode: "0600"
+      when: local_backup | regex_search('\\.age$')
+
+    - name: Decrypt backup with age
+      ansible.builtin.command:
+        cmd: "age -d -i {{ restore_tmpdir.path }}/backup-key.txt -o {{ restore_tmpdir.path }}/dump.sql.gz {{ local_backup }}"
+      when: local_backup | regex_search('\\.age$')
+      register: age_decrypt
+      changed_when: true
+
+    - name: Restore to PostgreSQL via Docker
+      ansible.builtin.shell: |
+        gunzip -c {{ restore_tmpdir.path }}/dump.sql.gz | \
+          docker compose -f {{ app_dir }}/docker-compose.yml exec -T postgres \
+          psql -U llamenos -d llamenos
+      register: restore_result
+      changed_when: true
+
+    - name: Verify volunteers table exists
+      ansible.builtin.command:
+        cmd: >
+          docker compose -f {{ app_dir }}/docker-compose.yml exec -T postgres
+          psql -U llamenos -d llamenos -t -c
+          "SELECT COUNT(*) FROM volunteers"
+      register: volunteer_count
+      failed_when: volunteer_count.rc != 0
+
+    - name: Display restore result
+      ansible.builtin.debug:
+        msg: |
+          Restore COMPLETE
+          - volunteers rows: {{ volunteer_count.stdout | trim }}
+          Restart the app container to clear stale in-memory state.
+
+    - name: Restart app container
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        services: [app]
+        state: started
+
+  always:
+    - name: Clean up temp directory
+      ansible.builtin.file:
+        path: "{{ restore_tmpdir.path }}"
+        state: absent
+      when: restore_tmpdir is defined
