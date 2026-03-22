@@ -4,7 +4,7 @@ export const HubSchema = z.object({
   id: z.string(),
   name: z.string(),
   nostrPubkey: z.string().optional(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
   status: z.enum(['active', 'suspended', 'archived']).optional(),
 })
 export type Hub = z.infer<typeof HubSchema>
@@ -28,7 +28,7 @@ export const RoleSchema = z.object({
   slug: z.string(),
   permissions: z.array(z.string()),
   isDefault: z.boolean(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 })
 export type Role = z.infer<typeof RoleSchema>
 
@@ -57,7 +57,7 @@ export const CustomFieldDefinitionSchema = z.object({
   required: z.boolean(),
   showInVolunteerView: z.boolean(),
   order: z.number().int(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 })
 export type CustomFieldDefinition = z.infer<typeof CustomFieldDefinitionSchema>
 

@@ -6,7 +6,7 @@ export const BanEntrySchema = z.object({
   phone: z.string(),
   reason: z.string(),
   bannedBy: z.string(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 })
 export type BanEntry = z.infer<typeof BanEntrySchema>
 
@@ -25,7 +25,7 @@ export const AuditLogEntrySchema = z.object({
   details: z.record(z.string(), z.unknown()),
   previousEntryHash: z.string().optional(),
   entryHash: z.string().optional(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 })
 export type AuditLogEntry = z.infer<typeof AuditLogEntrySchema>
 
@@ -48,8 +48,8 @@ export const EncryptedNoteSchema = z.object({
   authorEnvelope: RecipientEnvelopeSchema.optional(),
   adminEnvelopes: z.array(RecipientEnvelopeSchema),
   replyCount: z.number().int(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
 })
 export type EncryptedNote = z.infer<typeof EncryptedNoteSchema>
 
@@ -69,8 +69,8 @@ export const EncryptedCallRecordSchema = z.object({
   id: z.string(),
   hubId: z.string(),
   callerLast4: z.string().optional(),
-  startedAt: z.string().datetime(),
-  endedAt: z.string().datetime().optional(),
+  startedAt: z.iso.datetime(),
+  endedAt: z.iso.datetime().optional(),
   duration: z.number().int().optional(),
   status: z.string(),
   hasTranscription: z.boolean(),

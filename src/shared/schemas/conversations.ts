@@ -12,9 +12,9 @@ export const ConversationSchema = z.object({
   status: z.enum(['active', 'waiting', 'closed']),
   metadata: z.record(z.string(), z.unknown()),
   messageCount: z.number().int(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-  lastMessageAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  lastMessageAt: z.iso.datetime(),
 })
 export type Conversation = z.infer<typeof ConversationSchema>
 
@@ -39,10 +39,10 @@ export const EncryptedMessageSchema = z.object({
   attachmentIds: z.array(z.string()),
   externalId: z.string().optional(),
   status: z.string(),
-  deliveredAt: z.string().datetime().optional(),
-  readAt: z.string().datetime().optional(),
+  deliveredAt: z.iso.datetime().optional(),
+  readAt: z.iso.datetime().optional(),
   failureReason: z.string().optional(),
   retryCount: z.number().int(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 })
 export type EncryptedMessage = z.infer<typeof EncryptedMessageSchema>
