@@ -32,6 +32,23 @@ export function deriveServerEventKey(serverSecret: string): Uint8Array {
 }
 
 /**
+ * Decrypt event content from Nostr relay.
+ * Returns parsed object, or null on failure (wrong key, corrupted data).
+ */
+export function decryptHubEvent(packed: string, eventKey: Uint8Array): Record<string, unknown> | null {
+  try {
+    const data = hexToBytes(packed)
+    const nonce = data.slice(0, 24)
+    const ciphertext = data.slice(24)
+    const cipher = xchacha20poly1305(eventKey, nonce)
+    const plaintext = cipher.decrypt(ciphertext)
+    return JSON.parse(new TextDecoder().decode(plaintext)) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+/**
  * Encrypt event content for Nostr relay publication.
  * Returns hex-encoded nonce || ciphertext.
  */
