@@ -107,6 +107,12 @@ export const PERMISSION_CATALOG = {
   'files:download-all': 'Download any file',
   'files:share': 'Re-encrypt/share files with others',
 
+  // GDPR
+  'gdpr:consent': 'Record and check own data processing consent',
+  'gdpr:export': 'Export own data (GDPR data portability)',
+  'gdpr:erase-self': 'Request erasure of own account',
+  'gdpr:admin': 'Admin-level GDPR operations (export/erase any user)',
+
   // System (super-admin only)
   'system:manage-roles': 'Create/edit/delete custom roles',
   'system:manage-hubs': 'Create/manage hubs',
@@ -228,6 +234,9 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'reports:send-message',
       'files:upload',
       'files:download-own',
+      'gdpr:consent',
+      'gdpr:export',
+      'gdpr:erase-self',
     ],
     isDefault: true,
     isSystem: false,

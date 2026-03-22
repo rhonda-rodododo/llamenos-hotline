@@ -1,3 +1,4 @@
+import { ConsentGate } from '@/components/consent-gate'
 import { permissionGranted } from '@shared/permissions'
 import {
   type ReactNode,
@@ -470,7 +471,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hasNsec: state.isKeyUnlocked,
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      <ConsentGate isKeyUnlocked={state.isKeyUnlocked}>{children}</ConsentGate>
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth(): AuthContextValue {

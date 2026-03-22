@@ -72,6 +72,20 @@ export class FilesService {
     return this.#rowToFileRecord(row)
   }
 
+  async updateContext(
+    id: string,
+    contextType: 'conversation' | 'note' | 'report' | 'custom_field',
+    contextId: string
+  ): Promise<FileRecord> {
+    const [row] = await this.db
+      .update(fileRecords)
+      .set({ contextType, contextId })
+      .where(eq(fileRecords.id, id))
+      .returning()
+    if (!row) throw new AppError(404, 'Upload not found')
+    return this.#rowToFileRecord(row)
+  }
+
   async failUpload(id: string): Promise<void> {
     await this.db.update(fileRecords).set({ status: 'failed' }).where(eq(fileRecords.id, id))
   }

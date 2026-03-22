@@ -15,6 +15,7 @@ import { initDb } from './db'
 import { loadEnv } from './env'
 import { closeNostrPublisher } from './lib/adapters'
 import { createBlobStorage } from './lib/blob-storage'
+import { scheduleRetentionPurge } from './jobs/retention-purge'
 import { errorHandler } from './middleware/error'
 import { servicesMiddleware } from './middleware/services'
 import { createServices } from './services'
@@ -77,6 +78,10 @@ async function main() {
   }
 
   const services = createServices(db, blob)
+
+  // Schedule daily retention purge at 03:00 UTC
+  scheduleRetentionPurge(services)
+  console.log('[llamenos] Data retention purge scheduled')
 
   const { default: serverApp } = await import('./app')
 

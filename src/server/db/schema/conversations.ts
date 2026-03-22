@@ -54,4 +54,7 @@ export const fileRecords = pgTable('file_records', {
   completedChunks: integer('completed_chunks').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp('completed_at', { withTimezone: true }),
+  // Optional context binding — set after the parent record (note/report/etc.) is saved
+  contextType: text('context_type'), // 'conversation' | 'note' | 'report' | 'custom_field'
+  contextId: text('context_id'),
 })
