@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
 import { conversations, messageEnvelopes } from '../db/schema'
 import type { Database } from '../db'
@@ -176,11 +176,11 @@ export class ConversationService {
       })
       .returning()
 
-    // Increment conversation message count
+    // Atomically increment conversation message count to avoid race condition
     await this.db
       .update(conversations)
       .set({
-        messageCount: await this.#getMessageCount(data.conversationId),
+        messageCount: sql`${conversations.messageCount} + 1`,
         lastMessageAt: now,
         updatedAt: now,
       })
@@ -205,14 +205,6 @@ export class ConversationService {
   }
 
   // ------------------------------------------------------------------ Private helpers
-
-  async #getMessageCount(conversationId: string): Promise<number> {
-    const rows = await this.db
-      .select({ id: messageEnvelopes.id })
-      .from(messageEnvelopes)
-      .where(eq(messageEnvelopes.conversationId, conversationId))
-    return rows.length
-  }
 
   #rowToConversation(r: typeof conversations.$inferSelect): Conversation {
     return {

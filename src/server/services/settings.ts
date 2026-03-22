@@ -473,34 +473,27 @@ export class SettingsService {
 
   async checkRateLimit(key: string, maxPerMinute: number): Promise<boolean> {
     const now = new Date()
-    const windowStartCutoff = new Date(now.getTime() - 60_000)
+    const windowStart = new Date(Math.floor(now.getTime() / 60000) * 60000) // floor to current minute
 
-    const rows = await this.db
-      .select()
-      .from(rateLimitCounters)
-      .where(eq(rateLimitCounters.key, key))
-      .limit(1)
-    const row = rows[0]
+    const [result] = await this.db
+      .insert(rateLimitCounters)
+      .values({ key, count: 1, windowStart })
+      .onConflictDoUpdate({
+        target: rateLimitCounters.key,
+        set: {
+          count: sql`CASE WHEN ${rateLimitCounters.windowStart} < ${windowStart}
+            THEN 1
+            ELSE ${rateLimitCounters.count} + 1
+          END`,
+          windowStart: sql`CASE WHEN ${rateLimitCounters.windowStart} < ${windowStart}
+            THEN ${windowStart}
+            ELSE ${rateLimitCounters.windowStart}
+          END`,
+        },
+      })
+      .returning()
 
-    let count = 1
-    if (!row || row.windowStart < windowStartCutoff) {
-      // Start a new window
-      await this.db
-        .insert(rateLimitCounters)
-        .values({ key, count: 1, windowStart: now })
-        .onConflictDoUpdate({
-          target: rateLimitCounters.key,
-          set: { count: 1, windowStart: now },
-        })
-    } else {
-      count = row.count + 1
-      await this.db
-        .update(rateLimitCounters)
-        .set({ count })
-        .where(eq(rateLimitCounters.key, key))
-    }
-
-    return count > maxPerMinute
+    return result.count > maxPerMinute
   }
 
   // ------------------------------------------------------------------ CAPTCHA
@@ -547,7 +540,7 @@ export class SettingsService {
       : await this.db.select().from(roles).where(sql`${roles.hubId} IS NULL`)
 
     if (rows.length === 0) {
-      // Seed default roles on first call
+      // Seed default roles on first call — use onConflictDoNothing to make concurrent first-calls idempotent
       const now = new Date()
       const seeded = await this.db
         .insert(roles)
@@ -562,7 +555,15 @@ export class SettingsService {
             createdAt: now,
           })),
         )
+        .onConflictDoNothing()
         .returning()
+      // Re-fetch in case another concurrent request already seeded (returning() may be empty)
+      if (seeded.length === 0) {
+        const refetched = hId
+          ? await this.db.select().from(roles).where(eq(roles.hubId, hId))
+          : await this.db.select().from(roles).where(sql`${roles.hubId} IS NULL`)
+        return refetched.map((r) => this.#rowToRole(r))
+      }
       return seeded.map((r) => this.#rowToRole(r))
     }
     return rows.map((r) => this.#rowToRole(r))
@@ -601,9 +602,9 @@ export class SettingsService {
     const rows = await this.db.select().from(roles).where(eq(roles.id, id)).limit(1)
     const role = rows[0]
     if (!role) throw new AppError(404, 'Role not found')
-    // System roles cannot be modified
-    if (role.isDefault && role.id.startsWith('role-super-admin')) {
-      throw new AppError(403, 'Cannot modify system roles')
+    // Super-admin role cannot be modified
+    if (role.id === 'role-super-admin') {
+      throw new AppError(403, 'Cannot modify the super-admin role')
     }
 
     const [updated] = await this.db
@@ -663,11 +664,7 @@ export class SettingsService {
   async archiveHub(id: string): Promise<void> {
     const rows = await this.db.select().from(hubs).where(eq(hubs.id, id)).limit(1)
     if (!rows[0]) throw new AppError(404, 'Hub not found')
-    // Hub table doesn't have a status column; just mark name with [archived] prefix for now
-    await this.db
-      .update(hubs)
-      .set({ name: `[archived] ${rows[0].name}` })
-      .where(eq(hubs.id, id))
+    throw new AppError(501, 'Hub archiving not yet implemented — schema migration pending')
   }
 
   // ------------------------------------------------------------------ Hub Key Envelopes
