@@ -5,13 +5,12 @@ import type { AppEnv } from '../types'
 
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024 // 100 MB
 const MAX_CHUNK_SIZE = 10 * 1024 * 1024 // 10 MB
+const MAX_CHUNKS = 10000
 
 const uploads = new Hono<AppEnv>()
 uploads.use('*', requirePermission('files:upload'))
 
-// Initialize an upload — returns uploadId and chunk upload URLs
-// NOTE: File record tracking (completedChunks etc.) is stored in R2 object metadata
-// since the file_records table has not yet been added to the Drizzle schema.
+// Initialize an upload — creates a file record and returns uploadId
 uploads.post('/init', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
@@ -26,31 +25,26 @@ uploads.post('/init', async (c) => {
     return c.json({ error: `File too large (max ${MAX_UPLOAD_SIZE / 1024 / 1024}MB)` }, 400)
   }
 
-  if (body.totalChunks > 10000) {
+  if (body.totalChunks > MAX_CHUNKS) {
     return c.json({ error: 'Too many chunks (max 10000)' }, 400)
   }
 
-  if (!c.env.R2_BUCKET) {
+  if (!services.files.hasBlob) {
     return c.json({ error: 'File storage not configured' }, 503)
   }
 
   const uploadId = crypto.randomUUID()
 
-  // Store upload manifest in R2 as a JSON object (no DB file_records table yet)
-  const manifest = {
+  await services.files.createFileRecord({
     id: uploadId,
     conversationId: body.conversationId,
     uploadedBy: pubkey,
-    recipientEnvelopes: body.recipientEnvelopes || [],
-    encryptedMetadata: body.encryptedMetadata || [],
+    recipientEnvelopes: body.recipientEnvelopes ?? [],
+    encryptedMetadata: body.encryptedMetadata ?? [],
     totalSize: body.totalSize,
     totalChunks: body.totalChunks,
     status: 'uploading',
-    completedChunks: 0,
-    createdAt: new Date().toISOString(),
-  }
-
-  await c.env.R2_BUCKET.put(`files/${uploadId}/manifest`, JSON.stringify(manifest))
+  })
 
   await services.records.addAuditEntry(hubId ?? 'global', 'fileUploadStarted', pubkey, {
     uploadId,
@@ -66,6 +60,7 @@ uploads.post('/init', async (c) => {
 uploads.put('/:id/chunks/:chunkIndex', async (c) => {
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
+  const services = c.get('services')
   const uploadId = c.req.param('id')
   const chunkIndex = Number.parseInt(c.req.param('chunkIndex'), 10)
 
@@ -73,25 +68,19 @@ uploads.put('/:id/chunks/:chunkIndex', async (c) => {
     return c.json({ error: 'Invalid chunk index' }, 400)
   }
 
-  if (!c.env.R2_BUCKET) {
-    return c.json({ error: 'File storage not configured' }, 503)
-  }
-
-  // Verify ownership before accepting chunk
-  const manifestObj = await c.env.R2_BUCKET.get(`files/${uploadId}/manifest`)
-  if (!manifestObj) {
+  const record = await services.files.getFileRecord(uploadId)
+  if (!record) {
     return c.json({ error: 'Upload not found' }, 404)
   }
-  const manifest = JSON.parse(new TextDecoder().decode(await manifestObj.arrayBuffer())) as {
-    uploadedBy: string
-    totalChunks: number
-    completedChunks: number
-  }
-  if (manifest.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
+
+  if (record.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  // Store chunk directly in R2
+  if (chunkIndex >= record.totalChunks) {
+    return c.json({ error: `Chunk index out of range (total: ${record.totalChunks})` }, 400)
+  }
+
   const body = await c.req.arrayBuffer()
   if (!body || body.byteLength === 0) {
     return c.json({ error: 'Empty chunk' }, 400)
@@ -101,18 +90,10 @@ uploads.put('/:id/chunks/:chunkIndex', async (c) => {
     return c.json({ error: `Chunk too large (max ${MAX_CHUNK_SIZE / 1024 / 1024}MB)` }, 400)
   }
 
-  const r2Key = `files/${uploadId}/chunk-${String(chunkIndex).padStart(6, '0')}`
-  await c.env.R2_BUCKET.put(r2Key, body)
+  await services.files.putChunk(uploadId, chunkIndex, body)
+  const { completedChunks, totalChunks } = await services.files.incrementChunk(uploadId)
 
-  // Update manifest with incremented chunk count
-  const updatedManifest = { ...manifest, completedChunks: manifest.completedChunks + 1 }
-  await c.env.R2_BUCKET.put(`files/${uploadId}/manifest`, JSON.stringify(updatedManifest))
-
-  return c.json({
-    chunkIndex,
-    completedChunks: updatedManifest.completedChunks,
-    totalChunks: manifest.totalChunks,
-  })
+  return c.json({ chunkIndex, completedChunks, totalChunks })
 })
 
 // Complete an upload — assembles chunks
@@ -123,82 +104,57 @@ uploads.post('/:id/complete', async (c) => {
   const permissions = c.get('permissions')
   const uploadId = c.req.param('id')
 
-  if (!c.env.R2_BUCKET) {
-    return c.json({ error: 'File storage not configured' }, 503)
-  }
-
-  // Verify all chunks are uploaded
-  const manifestObj = await c.env.R2_BUCKET.get(`files/${uploadId}/manifest`)
-  if (!manifestObj) {
+  const record = await services.files.getFileRecord(uploadId)
+  if (!record) {
     return c.json({ error: 'Upload not found' }, 404)
   }
 
-  const manifest = JSON.parse(new TextDecoder().decode(await manifestObj.arrayBuffer())) as {
-    uploadedBy: string
-    totalChunks: number
-    completedChunks: number
-    recipientEnvelopes: unknown[]
-    encryptedMetadata: unknown[]
-  }
-
-  if (manifest.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
+  if (record.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  if (manifest.completedChunks < manifest.totalChunks) {
+  if (record.completedChunks < record.totalChunks) {
     return c.json(
       {
         error: 'Not all chunks uploaded',
-        completedChunks: manifest.completedChunks,
-        totalChunks: manifest.totalChunks,
+        completedChunks: record.completedChunks,
+        totalChunks: record.totalChunks,
       },
-      400
+      400,
     )
   }
 
-  // Concatenate chunks into a single R2 object
-  const chunks: Uint8Array[] = []
-  for (let i = 0; i < manifest.totalChunks; i++) {
-    const r2Key = `files/${uploadId}/chunk-${String(i).padStart(6, '0')}`
-    const obj = await c.env.R2_BUCKET.get(r2Key)
-    if (!obj) {
+  // Assemble chunks into a single buffer
+  const chunkArrays: Uint8Array[] = []
+  for (let i = 0; i < record.totalChunks; i++) {
+    const chunkData = await services.files.getChunk(uploadId, i)
+    if (!chunkData) {
+      await services.files.failUpload(uploadId)
       return c.json({ error: `Missing chunk ${i}` }, 500)
     }
-    chunks.push(new Uint8Array(await obj.arrayBuffer()))
+    chunkArrays.push(new Uint8Array(chunkData))
   }
 
-  // Write assembled file
-  const totalLen = chunks.reduce((s, chunk) => s + chunk.length, 0)
+  const totalLen = chunkArrays.reduce((s, chunk) => s + chunk.length, 0)
   const assembled = new Uint8Array(totalLen)
   let offset = 0
-  for (const chunk of chunks) {
+  for (const chunk of chunkArrays) {
     assembled.set(chunk, offset)
     offset += chunk.length
   }
 
-  await c.env.R2_BUCKET.put(`files/${uploadId}/content`, assembled)
+  // Store assembled content
+  await services.files.putAssembled(uploadId, assembled)
 
-  // Store envelopes and metadata in R2
-  await c.env.R2_BUCKET.put(
-    `files/${uploadId}/envelopes`,
-    JSON.stringify(manifest.recipientEnvelopes)
-  )
-  await c.env.R2_BUCKET.put(
-    `files/${uploadId}/metadata`,
-    JSON.stringify(manifest.encryptedMetadata)
-  )
+  // Write blob copies of envelopes and metadata for backward compat
+  await services.files.storeEnvelopesBlob(uploadId, record.recipientEnvelopes)
+  await services.files.storeMetadataBlob(uploadId, record.encryptedMetadata)
 
   // Clean up individual chunks
-  for (let i = 0; i < manifest.totalChunks; i++) {
-    const r2Key = `files/${uploadId}/chunk-${String(i).padStart(6, '0')}`
-    await c.env.R2_BUCKET.delete(r2Key)
-  }
+  await services.files.deleteAllChunks(uploadId, record.totalChunks)
 
-  // Mark manifest as complete
-  await c.env.R2_BUCKET.put(
-    `files/${uploadId}/manifest`,
-    JSON.stringify({ ...manifest, status: 'complete' })
-  )
+  // Mark DB record as complete
+  await services.files.completeUpload(uploadId)
 
   await services.records.addAuditEntry(hubId ?? 'global', 'fileUploadCompleted', pubkey, {
     uploadId,
@@ -211,36 +167,25 @@ uploads.post('/:id/complete', async (c) => {
 uploads.get('/:id/status', async (c) => {
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
+  const services = c.get('services')
   const uploadId = c.req.param('id')
 
-  if (!c.env.R2_BUCKET) {
-    return c.json({ error: 'File storage not configured' }, 503)
-  }
-
-  const manifestObj = await c.env.R2_BUCKET.get(`files/${uploadId}/manifest`)
-  if (!manifestObj) {
+  const record = await services.files.getFileRecord(uploadId)
+  if (!record) {
     return c.json({ error: 'Upload not found' }, 404)
-  }
-
-  const manifest = JSON.parse(new TextDecoder().decode(await manifestObj.arrayBuffer())) as {
-    id: string
-    uploadedBy: string
-    status: string
-    completedChunks: number
-    totalChunks: number
-    totalSize: number
   }
 
   // Only allow the uploader or users with download-all to check status
-  if (manifest.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
+  if (record.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
     return c.json({ error: 'Upload not found' }, 404)
   }
+
   return c.json({
-    uploadId: manifest.id,
-    status: manifest.status,
-    completedChunks: manifest.completedChunks,
-    totalChunks: manifest.totalChunks,
-    totalSize: manifest.totalSize,
+    uploadId: record.id,
+    status: record.status,
+    completedChunks: record.completedChunks,
+    totalChunks: record.totalChunks,
+    totalSize: record.totalSize,
   })
 })
 
