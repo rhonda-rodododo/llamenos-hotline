@@ -305,6 +305,7 @@ function SettingsPage() {
               {webauthnCreds.map((cred) => (
                 <div
                   key={cred.id}
+                  data-testid="passkey-credential-row"
                   className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
                 >
                   <div className="space-y-0.5">
@@ -321,6 +322,7 @@ function SettingsPage() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    data-testid="passkey-delete-btn"
                     onClick={async () => {
                       try {
                         await deleteCredential(cred.id)
@@ -340,12 +342,14 @@ function SettingsPage() {
 
           <div className="flex gap-2">
             <Input
+              data-testid="passkey-label-input"
               value={webauthnLabel}
               onChange={(e) => setWebauthnLabel(e.target.value)}
               placeholder={t('webauthn.label')}
               className="flex-1"
             />
             <Button
+              data-testid="passkey-register-btn"
               onClick={async () => {
                 if (!webauthnLabel.trim()) return
                 setWebauthnRegistering(true)

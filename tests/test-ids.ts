@@ -157,6 +157,13 @@ export const TestIds = {
 
   // ============ PWA / Offline ============
   OFFLINE_BANNER: 'offline-banner',
+
+  // ============ WebAuthn / Passkeys ============
+  PASSKEY_LABEL_INPUT: 'passkey-label-input',
+  PASSKEY_REGISTER_BTN: 'passkey-register-btn',
+  PASSKEY_CREDENTIAL_ROW: 'passkey-credential-row',
+  PASSKEY_DELETE_BTN: 'passkey-delete-btn',
+  PASSKEY_LOGIN_BTN: 'passkey-login-btn',
 } as const
 
 export type TestId = (typeof TestIds)[keyof typeof TestIds]
