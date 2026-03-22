@@ -1,6 +1,4 @@
 import { Hono } from 'hono'
-import type { TelephonyProviderConfig } from '../../shared/types'
-import { getDOs } from '../lib/do-access'
 import { generateWebRtcToken, isWebRtcConfigured } from '../telephony/webrtc-tokens'
 import type { AppEnv } from '../types'
 
@@ -12,7 +10,7 @@ const webrtc = new Hono<AppEnv>()
  * Requires: provider config with webrtcEnabled=true and appropriate credentials.
  */
 webrtc.get('/webrtc-token', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const volunteer = c.get('volunteer')
 
@@ -26,11 +24,7 @@ webrtc.get('/webrtc-token', async (c) => {
   }
 
   // Get provider config
-  const res = await dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
-  if (!res.ok) {
-    return c.json({ error: 'No telephony provider configured' }, 404)
-  }
-  const config = (await res.json()) as TelephonyProviderConfig | null
+  const config = await services.settings.getTelephonyProvider()
   if (!config || !isWebRtcConfigured(config)) {
     return c.json(
       {
@@ -57,12 +51,8 @@ webrtc.get('/webrtc-token', async (c) => {
  * Check whether WebRTC is available for the current provider.
  */
 webrtc.get('/webrtc-status', async (c) => {
-  const dos = getDOs(c.env)
-  const res = await dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
-  if (!res.ok) {
-    return c.json({ available: false, provider: null })
-  }
-  const config = (await res.json()) as TelephonyProviderConfig | null
+  const services = c.get('services')
+  const config = await services.settings.getTelephonyProvider()
   return c.json({
     available: isWebRtcConfigured(config),
     provider: config?.type ?? null,

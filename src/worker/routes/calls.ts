@@ -1,44 +1,55 @@
 import { Hono } from 'hono'
-import { getScopedDOs, getTelephony } from '../lib/do-access'
+import { getTelephony } from '../../server/lib/adapters'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
-import type { AppEnv, CallRecord } from '../types'
+import type { AppEnv } from '../types'
 
 const calls = new Hono<AppEnv>()
 
 calls.get('/active', requirePermission('calls:read-active'), async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const permissions = c.get('permissions')
   const canSeeFullInfo = checkPermission(permissions, 'calls:read-active-full')
-  const res = await dos.calls.fetch(new Request('http://do/calls/active'))
+  const activeCalls = await services.calls.getActiveCalls(hubId)
   if (!canSeeFullInfo) {
-    const data = (await res.json()) as {
-      calls: Array<{ callerNumber: string; [key: string]: unknown }>
-    }
-    data.calls = data.calls.map((call) => ({ ...call, callerNumber: '[redacted]' }))
-    return c.json(data)
+    return c.json({
+      calls: activeCalls.map((call) => ({ ...call, callerNumber: '[redacted]' })),
+    })
   }
-  return res
+  return c.json({ calls: activeCalls })
 })
 
 calls.get('/today-count', requirePermission('calls:read-active'), async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  return dos.calls.fetch(new Request('http://do/calls/today-count'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const count = await services.records.getCallsTodayCount(hubId)
+  return c.json({ count })
 })
 
 calls.get('/presence', requirePermission('calls:read-presence'), async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  return dos.calls.fetch(new Request('http://do/calls/presence'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const activeCalls = await services.calls.getActiveCalls(hubId)
+  const onShift = await services.shifts.getActiveShifts(hubId)
+  return c.json({
+    activeCalls: activeCalls.length,
+    onShift: onShift.length,
+    volunteers: onShift.map((s) => s.pubkey),
+  })
 })
 
 calls.get('/history', requirePermission('calls:read-history'), async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const params = new URLSearchParams()
-  params.set('page', c.req.query('page') || '1')
-  params.set('limit', c.req.query('limit') || '50')
-  if (c.req.query('search')) params.set('search', c.req.query('search')!)
-  if (c.req.query('dateFrom')) params.set('dateFrom', c.req.query('dateFrom')!)
-  if (c.req.query('dateTo')) params.set('dateTo', c.req.query('dateTo')!)
-  return dos.calls.fetch(new Request(`http://do/calls/history?${params}`))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const page = Number.parseInt(c.req.query('page') || '1', 10)
+  const limit = Number.parseInt(c.req.query('limit') || '50', 10)
+  const filters = {
+    ...(c.req.query('search') ? { search: c.req.query('search')! } : {}),
+    ...(c.req.query('dateFrom') ? { dateFrom: c.req.query('dateFrom')! } : {}),
+    ...(c.req.query('dateTo') ? { dateTo: c.req.query('dateTo')! } : {}),
+  }
+  const result = await services.records.getCallHistory(page, limit, hubId, filters)
+  return c.json(result)
 })
 
 // --- Call Actions (REST endpoints for WS→Nostr migration) ---
@@ -47,93 +58,87 @@ calls.get('/history', requirePermission('calls:read-history'), async (c) => {
 calls.post('/:callId/answer', requirePermission('calls:answer'), async (c) => {
   const callId = c.req.param('callId')
   const pubkey = c.get('pubkey')
-  const dos = getScopedDOs(c.env, c.get('hubId'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
 
-  const res = await dos.calls.fetch(
-    new Request(`http://do/calls/${callId}/answer`, {
-      method: 'POST',
-      body: JSON.stringify({ pubkey }),
-    })
-  )
+  const existing = await services.calls.getActiveCall(callId, hubId)
+  if (!existing) return c.json({ error: 'Call not found' }, 404)
+  if (existing.assignedPubkey) return c.json({ error: 'Call already answered' }, 409)
 
-  if (res.status === 409) return c.json({ error: 'Call already answered' }, 409)
-  if (!res.ok) return c.json({ error: 'Failed to answer call' }, 500)
-  return res
+  const updated = await services.calls.updateActiveCall(callId, { assignedPubkey: pubkey, status: 'in-progress' }, hubId)
+  return c.json({ call: updated })
 })
 
 // Hang up an active call (volunteer who answered it)
 calls.post('/:callId/hangup', requirePermission('calls:answer'), async (c) => {
   const callId = c.req.param('callId')
   const pubkey = c.get('pubkey')
-  const dos = getScopedDOs(c.env, c.get('hubId'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
 
   // Verify the volunteer answered this call
-  const callRes = await dos.calls.fetch(new Request(`http://do/calls/${callId}`))
-  if (!callRes.ok) return c.json({ error: 'Call not found' }, 404)
-  const { call } = (await callRes.json()) as { call: CallRecord }
-  if (call.answeredBy !== pubkey) return c.json({ error: 'Not your call' }, 403)
+  const call = await services.calls.getActiveCall(callId, hubId)
+  if (!call) return c.json({ error: 'Call not found' }, 404)
+  if (call.assignedPubkey !== pubkey) return c.json({ error: 'Not your call' }, 403)
 
-  const res = await dos.calls.fetch(
-    new Request(`http://do/calls/${callId}/end`, {
-      method: 'POST',
-    })
-  )
-
-  if (!res.ok) return c.json({ error: 'Failed to hang up call' }, 500)
-  return res
+  await services.calls.deleteActiveCall(callId, hubId)
+  return c.json({ ok: true })
 })
 
 // Report a call as spam (volunteer who answered it)
 calls.post('/:callId/spam', requirePermission('calls:answer'), async (c) => {
   const callId = c.req.param('callId')
   const pubkey = c.get('pubkey')
-  const dos = getScopedDOs(c.env, c.get('hubId'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
 
   // Verify the volunteer answered this call
-  const callRes = await dos.calls.fetch(new Request(`http://do/calls/${callId}`))
-  if (!callRes.ok) return c.json({ error: 'Call not found' }, 404)
-  const { call } = (await callRes.json()) as { call: CallRecord }
-  if (call.answeredBy !== pubkey) return c.json({ error: 'Not your call' }, 403)
+  const call = await services.calls.getActiveCall(callId, hubId)
+  if (!call) return c.json({ error: 'Call not found' }, 404)
+  if (call.assignedPubkey !== pubkey) return c.json({ error: 'Not your call' }, 403)
 
-  const res = await dos.calls.fetch(
-    new Request(`http://do/calls/${callId}/spam`, {
-      method: 'POST',
-      body: JSON.stringify({ pubkey }),
-    })
-  )
-
-  if (!res.ok) return c.json({ error: 'Failed to report spam' }, 500)
-  return res
+  await services.calls.updateActiveCall(callId, { status: 'spam', metadata: { ...call.metadata, reportedSpam: true, reportedBy: pubkey } }, hubId)
+  return c.json({ ok: true })
 })
 
 // Recording playback — admin or answering volunteer
 calls.get('/:callId/recording', async (c) => {
   const callId = c.req.param('callId')
-  const dos = getScopedDOs(c.env, c.get('hubId'))
+  const services = c.get('services')
+  const hubId = c.get('hubId')
   const permissions = c.get('permissions')
   const pubkey = c.get('pubkey')
 
   // Fetch the call record to verify permission and get recordingSid
-  const callRes = await dos.calls.fetch(new Request(`http://do/calls/${callId}`))
-  if (!callRes.ok) return c.json({ error: 'Call not found' }, 404)
-  const { call } = (await callRes.json()) as { call: CallRecord }
+  const callRecord = await services.records.getCallRecord(callId, hubId)
+  if (!callRecord) return c.json({ error: 'Call not found' }, 404)
 
-  if (!call.recordingSid || !call.hasRecording) {
+  if (!callRecord.recordingSid || !callRecord.hasRecording) {
     return c.json({ error: 'No recording available for this call' }, 404)
   }
 
   // Permission check: admin (calls:read-recording) or the volunteer who answered
   const isAdmin = checkPermission(permissions, 'calls:read-recording')
-  const isAnsweringVolunteer = call.answeredBy === pubkey
-  if (!isAdmin && !isAnsweringVolunteer) {
-    return c.json({ error: 'Forbidden' }, 403)
+  // Note: answeredBy is in encrypted content; for permission check we use the active call's assignedPubkey
+  // If the call record is archived, the metadata is encrypted — admin check is the safe fallback
+  if (!isAdmin) {
+    // Check active calls for current assignment
+    const activeCall = await services.calls.getActiveCall(callId, hubId)
+    const isAnsweringVolunteer = activeCall?.assignedPubkey === pubkey
+    if (!isAnsweringVolunteer) {
+      return c.json({ error: 'Forbidden' }, 403)
+    }
   }
 
   // Fetch recording audio from the telephony provider on demand
-  const adapter = await getTelephony(c.env, dos)
+  const adapter = await getTelephony(services.settings, hubId, {
+    TWILIO_ACCOUNT_SID: c.env.TWILIO_ACCOUNT_SID,
+    TWILIO_AUTH_TOKEN: c.env.TWILIO_AUTH_TOKEN,
+    TWILIO_PHONE_NUMBER: c.env.TWILIO_PHONE_NUMBER,
+  })
   if (!adapter) return c.json({ error: 'Telephony provider not configured' }, 503)
 
-  const audio = await adapter.getRecordingAudio(call.recordingSid)
+  const audio = await adapter.getRecordingAudio(callRecord.recordingSid)
   if (!audio) return c.json({ error: 'Recording not available from provider' }, 404)
 
   return new Response(audio, {
@@ -147,9 +152,11 @@ calls.get('/:callId/recording', async (c) => {
 
 // Diagnostic endpoint
 calls.get('/debug', requirePermission('calls:debug'), async (c) => {
-  const dos = getScopedDOs(c.env, c.get('hubId'))
-  const res = await dos.calls.fetch(new Request('http://do/calls/debug'))
-  return res
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const activeCalls = await services.calls.getActiveCalls(hubId)
+  const legs = await Promise.all(activeCalls.map((call) => services.calls.getCallLegs(call.callSid, hubId)))
+  return c.json({ activeCalls, legs: legs.flat() })
 })
 
 export default calls
