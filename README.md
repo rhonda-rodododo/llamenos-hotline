@@ -1,8 +1,10 @@
-# Llamenos
+# Llámenos (v1)
 
 A secure, self-hosted crisis response platform. Supports voice calls, SMS, WhatsApp, and Signal — all routed to on-shift volunteers. Volunteers log encrypted notes and manage conversations in a webapp. Admins manage shifts, volunteers, channels, and ban lists. Reporters can submit encrypted reports through a dedicated portal.
 
 Built for organizations that need to protect the identity of callers, reporters, and volunteers against well-funded adversaries.
+
+A more sophisticated Llámenos v2 (aka [Llámenos Platform](https://github.com/rhonda-rodododo/llamenos-platform)) is under development, however we will be continuing to support Llámenos Hotline (v1) as a robust application into 2027, and provide a migration path once the v2 platform lands in app stores.
 
 ## Screenshots
 
