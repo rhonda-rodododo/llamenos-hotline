@@ -5,11 +5,11 @@ import {
   languageFromDigit,
 } from '../../shared/languages'
 import { getTelephony } from '../lib/adapters'
-import { maybeTranscribe, transcribeVoicemail } from '../lib/transcription-manager'
-import { startParallelRinging } from '../lib/ringing'
-import type { Services } from '../services'
 import { hashPhone } from '../lib/crypto'
 import { telephonyResponse } from '../lib/helpers'
+import { startParallelRinging } from '../lib/ringing'
+import { maybeTranscribe, transcribeVoicemail } from '../lib/transcription-manager'
+import type { Services } from '../services'
 import type { AppEnv } from '../types'
 import type { Env } from '../types'
 
@@ -104,11 +104,12 @@ telephony.post('/incoming', async (c) => {
   }
 
   // Use hub-scoped adapter for subsequent operations
-  const adapter = await getTelephony(services.settings, hubId, {
-    TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
-    TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
-    TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
-  }) ?? globalAdapter
+  const adapter =
+    (await getTelephony(services.settings, hubId, {
+      TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
+      TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
+    })) ?? globalAdapter
 
   const banned = await services.records.isBanned(callerNumber, hubId)
   if (banned) {
@@ -190,7 +191,9 @@ telephony.post('/language-selected', async (c) => {
     console.log(
       `[telephony] /language-selected starting parallel ringing callSid=${callSid} origin=${origin} hub=${hubId || 'global'}`
     )
-    startParallelRinging(callSid, callerNumber, origin, env, services, hubId).catch((err) => console.error('[background]', err))
+    startParallelRinging(callSid, callerNumber, origin, env, services, hubId).catch((err) =>
+      console.error('[background]', err)
+    )
   }
 
   return telephonyResponse(response)
@@ -225,7 +228,9 @@ telephony.post('/captcha', async (c) => {
 
   if (match) {
     const origin = new URL(c.req.url).origin
-    startParallelRinging(callSid, callerNumber, origin, env, services, hubId).catch((err) => console.error('[background]', err))
+    startParallelRinging(callSid, callerNumber, origin, env, services, hubId).catch((err) =>
+      console.error('[background]', err)
+    )
   }
 
   return telephonyResponse(response)
@@ -246,7 +251,11 @@ telephony.post('/volunteer-answer', async (c) => {
   const parentCallSid = url.searchParams.get('parentCallSid') || ''
   const pubkey = url.searchParams.get('pubkey') || ''
 
-  await services.calls.updateActiveCall(parentCallSid, { assignedPubkey: pubkey, status: 'in-progress' }, hubId)
+  await services.calls.updateActiveCall(
+    parentCallSid,
+    { assignedPubkey: pubkey, status: 'in-progress' },
+    hubId
+  )
 
   const [volInfo, activeCalls] = await Promise.all([
     services.identity.getVolunteer(pubkey),
@@ -450,7 +459,9 @@ telephony.post('/call-recording', async (c) => {
         })
       }
 
-      maybeTranscribe(parentCallSid, recordingSid, pubkey, env, services).catch((err) => console.error('[background]', err))
+      maybeTranscribe(parentCallSid, recordingSid, pubkey, env, services).catch((err) =>
+        console.error('[background]', err)
+      )
     }
   }
 

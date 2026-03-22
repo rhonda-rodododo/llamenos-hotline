@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, primaryKey } from 'drizzle-orm/pg-core'
+import { boolean, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 import { jsonb } from '../bun-jsonb'
 
 export const shiftSchedules = pgTable('shift_schedules', {
@@ -6,7 +6,7 @@ export const shiftSchedules = pgTable('shift_schedules', {
   hubId: text('hub_id').notNull().default('global'),
   name: text('name').notNull(),
   startTime: text('start_time').notNull(), // HH:MM
-  endTime: text('end_time').notNull(),     // HH:MM
+  endTime: text('end_time').notNull(), // HH:MM
   days: jsonb<number[]>()('days').notNull().default([]), // 0=Sun, 6=Sat
   volunteerPubkeys: jsonb<string[]>()('volunteer_pubkeys').notNull().default([]),
   ringGroupId: text('ring_group_id'),
@@ -39,5 +39,5 @@ export const activeShifts = pgTable(
     startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
     ringGroupId: text('ring_group_id'),
   },
-  (table) => [primaryKey({ columns: [table.pubkey, table.hubId] })],
+  (table) => [primaryKey({ columns: [table.pubkey, table.hubId] })]
 )

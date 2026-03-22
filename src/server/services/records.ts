@@ -2,8 +2,8 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
-import { auditLog, bans, callRecords, noteEnvelopes } from '../db/schema'
 import type { Database } from '../db'
+import { auditLog, bans, callRecords, noteEnvelopes } from '../db/schema'
 import { AppError } from '../lib/errors'
 import type {
   AuditFilters,
@@ -64,7 +64,7 @@ export class RecordsService {
         phone,
         reason: data.reason,
         bannedBy: data.bannedBy,
-      })),
+      }))
     )
     return newPhones.length
   }
@@ -118,12 +118,11 @@ export class RecordsService {
     return rows[0] ? this.#rowToCallRecord(rows[0]) : null
   }
 
-  async updateCallRecord(id: string, data: Partial<CreateCallRecordData>): Promise<EncryptedCallRecord> {
-    const rows = await this.db
-      .select()
-      .from(callRecords)
-      .where(eq(callRecords.id, id))
-      .limit(1)
+  async updateCallRecord(
+    id: string,
+    data: Partial<CreateCallRecordData>
+  ): Promise<EncryptedCallRecord> {
+    const rows = await this.db.select().from(callRecords).where(eq(callRecords.id, id)).limit(1)
     if (!rows[0]) throw new AppError(404, 'Call record not found')
     const [row] = await this.db
       .update(callRecords)
@@ -136,7 +135,9 @@ export class RecordsService {
         ...(data.hasRecording !== undefined ? { hasRecording: data.hasRecording } : {}),
         ...(data.recordingSid !== undefined ? { recordingSid: data.recordingSid } : {}),
         ...(data.encryptedContent !== undefined ? { encryptedContent: data.encryptedContent } : {}),
-        ...(data.adminEnvelopes !== undefined ? { adminEnvelopes: data.adminEnvelopes as RecipientEnvelope[] } : {}),
+        ...(data.adminEnvelopes !== undefined
+          ? { adminEnvelopes: data.adminEnvelopes as RecipientEnvelope[] }
+          : {}),
       })
       .where(eq(callRecords.id, id))
       .returning()
@@ -147,7 +148,7 @@ export class RecordsService {
     page: number,
     limit: number,
     hubId?: string,
-    filters?: CallRecordFilters,
+    filters?: CallRecordFilters
   ): Promise<{ calls: EncryptedCallRecord[]; total: number }> {
     const hId = hubId ?? 'global'
 
@@ -173,7 +174,7 @@ export class RecordsService {
     if (filters?.search) {
       const q = filters.search.toLowerCase()
       filtered = filtered.filter(
-        (c) => c.callerLast4?.includes(q) || c.id.toLowerCase().includes(q),
+        (c) => c.callerLast4?.includes(q) || c.id.toLowerCase().includes(q)
       )
     }
 
@@ -220,11 +221,7 @@ export class RecordsService {
   }
 
   async updateNote(id: string, data: UpdateNoteData): Promise<EncryptedNote> {
-    const rows = await this.db
-      .select()
-      .from(noteEnvelopes)
-      .where(eq(noteEnvelopes.id, id))
-      .limit(1)
+    const rows = await this.db.select().from(noteEnvelopes).where(eq(noteEnvelopes.id, id)).limit(1)
     if (!rows[0]) throw new AppError(404, 'Note not found')
     if (rows[0].authorPubkey !== data.authorPubkey) throw new AppError(403, 'Forbidden')
 
@@ -279,15 +276,18 @@ export class RecordsService {
   }
 
   async getNote(id: string): Promise<EncryptedNote | null> {
-    const rows = await this.db
-      .select()
-      .from(noteEnvelopes)
-      .where(eq(noteEnvelopes.id, id))
-      .limit(1)
+    const rows = await this.db.select().from(noteEnvelopes).where(eq(noteEnvelopes.id, id)).limit(1)
     return rows[0] ? this.#rowToNote(rows[0]) : null
   }
 
-  async getContacts(page: number, limit: number, hubId?: string): Promise<{ contacts: Array<{ contactHash: string; firstSeen: string; lastSeen: string; noteCount: number }>; total: number }> {
+  async getContacts(
+    page: number,
+    limit: number,
+    hubId?: string
+  ): Promise<{
+    contacts: Array<{ contactHash: string; firstSeen: string; lastSeen: string; noteCount: number }>
+    total: number
+  }> {
     const hId = hubId ?? 'global'
     const rows = await this.db
       .select()
@@ -295,7 +295,10 @@ export class RecordsService {
       .where(and(eq(noteEnvelopes.hubId, hId), sql`${noteEnvelopes.contactHash} IS NOT NULL`))
       .orderBy(asc(noteEnvelopes.createdAt))
 
-    const contactMap = new Map<string, { contactHash: string; firstSeen: string; lastSeen: string; noteCount: number }>()
+    const contactMap = new Map<
+      string,
+      { contactHash: string; firstSeen: string; lastSeen: string; noteCount: number }
+    >()
     for (const row of rows) {
       if (!row.contactHash) continue
       const createdAt = row.createdAt.toISOString()
@@ -315,7 +318,7 @@ export class RecordsService {
     }
 
     const contacts = Array.from(contactMap.values()).sort(
-      (a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime(),
+      (a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
     )
     const total = contacts.length
     const start = (page - 1) * limit
@@ -338,7 +341,7 @@ export class RecordsService {
     hubId: string,
     event: string,
     actorPubkey: string,
-    details?: Record<string, unknown>,
+    details?: Record<string, unknown>
   ): Promise<AuditLogEntry> {
     const hId = hubId ?? 'global'
     const now = new Date()
@@ -407,13 +410,46 @@ export class RecordsService {
 
     // Event type category filtering (in-memory)
     const eventCategories: Record<string, string[]> = {
-      authentication: ['login', 'logout', 'sessionCreated', 'sessionExpired', 'passkeyRegistered', 'deviceLinked'],
-      volunteers: ['volunteerAdded', 'volunteerRemoved', 'volunteerRoleChanged', 'volunteerActivated', 'volunteerDeactivated', 'volunteerOnBreak', 'volunteerOffBreak', 'inviteCreated', 'inviteRedeemed'],
+      authentication: [
+        'login',
+        'logout',
+        'sessionCreated',
+        'sessionExpired',
+        'passkeyRegistered',
+        'deviceLinked',
+      ],
+      volunteers: [
+        'volunteerAdded',
+        'volunteerRemoved',
+        'volunteerRoleChanged',
+        'volunteerActivated',
+        'volunteerDeactivated',
+        'volunteerOnBreak',
+        'volunteerOffBreak',
+        'inviteCreated',
+        'inviteRedeemed',
+      ],
       calls: ['callAnswered', 'callEnded', 'callMissed', 'spamReported', 'voicemailReceived'],
-      settings: ['settingsUpdated', 'telephonyConfigured', 'transcriptionToggled', 'ivrUpdated', 'customFieldsUpdated', 'spamSettingsUpdated', 'callSettingsUpdated'],
+      settings: [
+        'settingsUpdated',
+        'telephonyConfigured',
+        'transcriptionToggled',
+        'ivrUpdated',
+        'customFieldsUpdated',
+        'spamSettingsUpdated',
+        'callSettingsUpdated',
+      ],
       shifts: ['shiftCreated', 'shiftUpdated', 'shiftDeleted'],
       notes: ['noteCreated', 'noteUpdated'],
-      messaging: ['messageSent', 'conversationClaimed', 'conversationClosed', 'conversationUpdated', 'reportCreated', 'reportAssigned', 'reportUpdated'],
+      messaging: [
+        'messageSent',
+        'conversationClaimed',
+        'conversationClosed',
+        'conversationUpdated',
+        'reportCreated',
+        'reportAssigned',
+        'reportUpdated',
+      ],
     }
 
     let entries = rows.map((r) => ({
@@ -436,7 +472,7 @@ export class RecordsService {
         (e) =>
           e.event.toLowerCase().includes(lower) ||
           e.actorPubkey.toLowerCase().includes(lower) ||
-          JSON.stringify(e.details).toLowerCase().includes(lower),
+          JSON.stringify(e.details).toLowerCase().includes(lower)
       )
     }
 
@@ -475,7 +511,9 @@ export class RecordsService {
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
       ephemeralPubkey: r.ephemeralPubkey ?? undefined,
-      authorEnvelope: r.authorEnvelope as { wrappedKey: string; ephemeralPubkey: string } | undefined,
+      authorEnvelope: r.authorEnvelope as
+        | { wrappedKey: string; ephemeralPubkey: string }
+        | undefined,
       adminEnvelopes: (r.adminEnvelopes as RecipientEnvelope[]) ?? undefined,
       replyCount: r.replyCount,
     }

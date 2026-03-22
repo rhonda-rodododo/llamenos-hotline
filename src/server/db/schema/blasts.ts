@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer, unique } from 'drizzle-orm/pg-core'
+import { boolean, integer, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
 import { jsonb } from '../bun-jsonb'
 
 export const blasts = pgTable('blasts', {
@@ -27,7 +27,7 @@ export const subscribers = pgTable(
     metadata: jsonb<Record<string, unknown>>()('metadata').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [unique().on(table.hubId, table.channel, table.phoneNumber)],
+  (table) => [unique().on(table.hubId, table.channel, table.phoneNumber)]
 )
 
 export const blastDeliveries = pgTable('blast_deliveries', {

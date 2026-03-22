@@ -2,8 +2,8 @@ import { Hono } from 'hono'
 import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
 import type { MessagingChannelType, MessagingConfig, WhatsAppConfig } from '../../shared/types'
 import { getMessagingAdapter, getNostrPublisher } from '../lib/adapters'
-import type { Services } from '../services'
 import { encryptMessageForStorage } from '../lib/crypto'
+import type { Services } from '../services'
 import type { AppEnv } from '../types'
 import type { IncomingMessage, MessageStatusUpdate, MessagingAdapter } from './adapter'
 
@@ -182,14 +182,18 @@ messaging.post('/:channel/webhook', async (c) => {
 
   // Auto-assignment for new conversations
   if (isNew && conversation.status === 'waiting') {
-    tryAutoAssign(services, c.env, conversation.id, channel, hId).catch((err) => console.error('[background]', err))
+    tryAutoAssign(services, c.env, conversation.id, channel, hId).catch((err) =>
+      console.error('[background]', err)
+    )
   }
 
   // Audit the incoming message (no PII — only hashed identifier)
-  services.records.addAuditEntry(hId, 'messageReceived', 'system', {
-    channel,
-    senderHash: incoming.senderIdentifierHash,
-  }).catch((err) => console.error('[background]', err))
+  services.records
+    .addAuditEntry(hId, 'messageReceived', 'system', {
+      channel,
+      senderHash: incoming.senderIdentifierHash,
+    })
+    .catch((err) => console.error('[background]', err))
 
   // Return 200 to acknowledge webhook (providers expect fast acknowledgment)
   return c.json({ ok: true })

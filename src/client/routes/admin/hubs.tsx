@@ -144,7 +144,11 @@ function HubsPage() {
   )
 }
 
-function HubRow({ hub, onEdit, onArchive }: { hub: Hub; onEdit: () => void; onArchive: () => void }) {
+function HubRow({
+  hub,
+  onEdit,
+  onArchive,
+}: { hub: Hub; onEdit: () => void; onArchive: () => void }) {
   const { t } = useTranslation()
 
   const statusColors: Record<Hub['status'], string> = {
@@ -154,7 +158,10 @@ function HubRow({ hub, onEdit, onArchive }: { hub: Hub; onEdit: () => void; onAr
   }
 
   return (
-    <div data-testid="hub-row" className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
+    <div
+      data-testid="hub-row"
+      className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6"
+    >
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
           <Building2 className="h-4 w-4" />
@@ -457,9 +464,7 @@ function ArchiveHubDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('hubs.archiveHub')}</DialogTitle>
-          <DialogDescription>
-            {t('hubs.archiveHubConfirm', { name: hub.name })}
-          </DialogDescription>
+          <DialogDescription>{t('hubs.archiveHubConfirm', { name: hub.name })}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button
@@ -470,12 +475,7 @@ function ArchiveHubDialog({
           >
             {t('common.cancel')}
           </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={handleConfirm}
-            disabled={saving}
-          >
+          <Button type="button" variant="destructive" onClick={handleConfirm} disabled={saving}>
             {saving ? t('common.loading') : t('hubs.archiveHub')}
           </Button>
         </DialogFooter>

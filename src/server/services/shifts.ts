@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
-import { activeShifts, ringGroups, shiftOverrides, shiftSchedules } from '../db/schema'
 import type { Database } from '../db'
+import { activeShifts, ringGroups, shiftOverrides, shiftSchedules } from '../db/schema'
 import { AppError } from '../lib/errors'
 import type {
   ActiveShift,
@@ -24,10 +24,7 @@ export class ShiftService {
 
   async getSchedules(hubId?: string): Promise<ShiftSchedule[]> {
     const hId = hubId ?? 'global'
-    const rows = await this.db
-      .select()
-      .from(shiftSchedules)
-      .where(eq(shiftSchedules.hubId, hId))
+    const rows = await this.db.select().from(shiftSchedules).where(eq(shiftSchedules.hubId, hId))
     return rows.map((r) => this.#rowToSchedule(r))
   }
 
@@ -89,10 +86,7 @@ export class ShiftService {
 
   async getOverrides(hubId?: string): Promise<ShiftOverride[]> {
     const hId = hubId ?? 'global'
-    const rows = await this.db
-      .select()
-      .from(shiftOverrides)
-      .where(eq(shiftOverrides.hubId, hId))
+    const rows = await this.db.select().from(shiftOverrides).where(eq(shiftOverrides.hubId, hId))
     return rows.map((r) => this.#rowToOverride(r))
   }
 
@@ -120,10 +114,7 @@ export class ShiftService {
 
   async getRingGroups(hubId?: string): Promise<RingGroup[]> {
     const hId = hubId ?? 'global'
-    const rows = await this.db
-      .select()
-      .from(ringGroups)
-      .where(eq(ringGroups.hubId, hId))
+    const rows = await this.db.select().from(ringGroups).where(eq(ringGroups.hubId, hId))
     return rows.map((r) => this.#rowToRingGroup(r))
   }
 
@@ -142,11 +133,7 @@ export class ShiftService {
   }
 
   async updateRingGroup(id: string, data: Partial<CreateRingGroupData>): Promise<RingGroup> {
-    const rows = await this.db
-      .select()
-      .from(ringGroups)
-      .where(eq(ringGroups.id, id))
-      .limit(1)
+    const rows = await this.db.select().from(ringGroups).where(eq(ringGroups.id, id)).limit(1)
     if (!rows[0]) throw new AppError(404, 'Ring group not found')
     const [row] = await this.db
       .update(ringGroups)
@@ -195,10 +182,7 @@ export class ShiftService {
 
   async getActiveShifts(hubId?: string): Promise<ActiveShift[]> {
     const hId = hubId ?? 'global'
-    const rows = await this.db
-      .select()
-      .from(activeShifts)
-      .where(eq(activeShifts.hubId, hId))
+    const rows = await this.db.select().from(activeShifts).where(eq(activeShifts.hubId, hId))
     return rows.map((r) => this.#rowToActiveShift(r))
   }
 
@@ -273,8 +257,12 @@ export class ShiftService {
 
   async getVolunteerStatus(
     pubkey: string,
-    hubId?: string,
-  ): Promise<{ onShift: boolean; currentShift: { name: string; startTime: string; endTime: string } | null; nextShift: { name: string; startTime: string; endTime: string; day: number } | null }> {
+    hubId?: string
+  ): Promise<{
+    onShift: boolean
+    currentShift: { name: string; startTime: string; endTime: string } | null
+    nextShift: { name: string; startTime: string; endTime: string; day: number } | null
+  }> {
     const hId = hubId ?? 'global'
     const schedules = await this.getSchedules(hId)
     const myShifts = schedules.filter((s) => s.volunteerPubkeys.includes(pubkey))
@@ -315,7 +303,12 @@ export class ShiftService {
           if (minutesAway > 0 && minutesAway < bestMinutesAway) {
             if (currentShift && shift.name === currentShift.name && daysAway === 0) continue
             bestMinutesAway = minutesAway
-            nextShift = { name: shift.name, startTime: shift.startTime, endTime: shift.endTime, day }
+            nextShift = {
+              name: shift.name,
+              startTime: shift.startTime,
+              endTime: shift.endTime,
+              day,
+            }
           }
         }
       }

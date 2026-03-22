@@ -10,10 +10,8 @@ import type {
   SetupState,
   TelephonyProviderConfig,
 } from '../../shared/types'
-import {
-  DEFAULT_MESSAGING_CONFIG,
-  DEFAULT_SETUP_STATE,
-} from '../../shared/types'
+import { DEFAULT_MESSAGING_CONFIG, DEFAULT_SETUP_STATE } from '../../shared/types'
+import type { Database } from '../db'
 import {
   callSettings,
   captchaState,
@@ -32,7 +30,6 @@ import {
   telephonyConfig,
   transcriptionSettings,
 } from '../db/schema'
-import type { Database } from '../db'
 import { AppError } from '../lib/errors'
 import type {
   CallSettings,
@@ -99,7 +96,7 @@ export class SettingsService {
 
   async updateTranscriptionSettings(
     data: Partial<TranscriptionSettings>,
-    hubId?: string,
+    hubId?: string
   ): Promise<TranscriptionSettings> {
     const hId = hubId ?? 'global'
     const current = await this.getTranscriptionSettings(hId)
@@ -194,21 +191,20 @@ export class SettingsService {
           .from(customFieldDefinitions)
           .where(sql`${customFieldDefinitions.hubId} IS NULL`)
 
-    const fields = rows
-      .sort((a, b) => a.order - b.order)
-      .map((r) => this.#rowToCustomField(r))
+    const fields = rows.sort((a, b) => a.order - b.order).map((r) => this.#rowToCustomField(r))
 
     return role !== 'admin' ? fields.filter((f) => f.visibleToVolunteers) : fields
   }
 
-  async updateCustomFields(fields: CustomFieldDefinition[], hubId?: string): Promise<CustomFieldDefinition[]> {
+  async updateCustomFields(
+    fields: CustomFieldDefinition[],
+    hubId?: string
+  ): Promise<CustomFieldDefinition[]> {
     const hId = hubId ?? null
 
     // Delete existing
     if (hId) {
-      await this.db
-        .delete(customFieldDefinitions)
-        .where(eq(customFieldDefinitions.hubId, hId))
+      await this.db.delete(customFieldDefinitions).where(eq(customFieldDefinitions.hubId, hId))
     } else {
       await this.db
         .delete(customFieldDefinitions)
@@ -230,7 +226,7 @@ export class SettingsService {
           required: f.required,
           showInVolunteerView: f.visibleToVolunteers,
           order: i,
-        })),
+        }))
       )
       .returning()
     return rows.map((r) => this.#rowToCustomField(r))
@@ -249,7 +245,10 @@ export class SettingsService {
     return rows[0].config as unknown as TelephonyProviderConfig
   }
 
-  async updateTelephonyProvider(config: TelephonyProviderConfig, hubId?: string): Promise<TelephonyProviderConfig> {
+  async updateTelephonyProvider(
+    config: TelephonyProviderConfig,
+    hubId?: string
+  ): Promise<TelephonyProviderConfig> {
     const hId = hubId ?? 'global'
     const configRecord = config as unknown as Record<string, unknown>
     await this.db
@@ -269,11 +268,7 @@ export class SettingsService {
       const cfg = row.config as Record<string, unknown>
       if (cfg.phoneNumber === phone) {
         // Look up the hub
-        const hubRows = await this.db
-          .select()
-          .from(hubs)
-          .where(eq(hubs.id, row.hubId))
-          .limit(1)
+        const hubRows = await this.db.select().from(hubs).where(eq(hubs.id, row.hubId)).limit(1)
         if (hubRows[0]) return this.#rowToHub(hubRows[0])
       }
     }
@@ -295,7 +290,11 @@ export class SettingsService {
     return rows
   }
 
-  async getIvrAudio(promptType: string, language: string, hubId?: string): Promise<IvrAudioEntry | null> {
+  async getIvrAudio(
+    promptType: string,
+    language: string,
+    hubId?: string
+  ): Promise<IvrAudioEntry | null> {
     const hId = hubId ?? 'global'
     const rows = await this.db
       .select()
@@ -304,8 +303,8 @@ export class SettingsService {
         and(
           eq(ivrAudio.hubId, hId),
           eq(ivrAudio.promptType, promptType),
-          eq(ivrAudio.language, language),
-        ),
+          eq(ivrAudio.language, language)
+        )
       )
       .limit(1)
     if (!rows[0]) return null
@@ -340,8 +339,8 @@ export class SettingsService {
         and(
           eq(ivrAudio.hubId, hId),
           eq(ivrAudio.promptType, promptType),
-          eq(ivrAudio.language, language),
-        ),
+          eq(ivrAudio.language, language)
+        )
       )
   }
 
@@ -358,7 +357,10 @@ export class SettingsService {
     return rows[0].config as unknown as MessagingConfig
   }
 
-  async updateMessagingConfig(data: Partial<MessagingConfig>, hubId?: string): Promise<MessagingConfig> {
+  async updateMessagingConfig(
+    data: Partial<MessagingConfig>,
+    hubId?: string
+  ): Promise<MessagingConfig> {
     const hId = hubId ?? 'global'
     const current = await this.getMessagingConfig(hId)
     const updated = { ...current, ...data }
@@ -377,11 +379,7 @@ export class SettingsService {
 
   async getSetupState(hubId?: string): Promise<SetupState> {
     const hId = hubId ?? 'global'
-    const rows = await this.db
-      .select()
-      .from(setupState)
-      .where(eq(setupState.hubId, hId))
-      .limit(1)
+    const rows = await this.db.select().from(setupState).where(eq(setupState.hubId, hId)).limit(1)
     if (!rows[0]) return { ...DEFAULT_SETUP_STATE }
     return rows[0].state as unknown as SetupState
   }
@@ -430,7 +428,14 @@ export class SettingsService {
       .from(reportCategories)
       .where(eq(reportCategories.hubId, hId))
       .limit(1)
-    return (rows[0]?.categories as string[]) ?? ['Incident Report', 'Field Observation', 'Evidence', 'Other']
+    return (
+      (rows[0]?.categories as string[]) ?? [
+        'Incident Report',
+        'Field Observation',
+        'Evidence',
+        'Other',
+      ]
+    )
   }
 
   async updateReportCategories(categories: string[], hubId?: string): Promise<string[]> {
@@ -509,7 +514,10 @@ export class SettingsService {
       })
   }
 
-  async verifyCaptcha(callSid: string, digits: string): Promise<{ match: boolean; expected: string }> {
+  async verifyCaptcha(
+    callSid: string,
+    digits: string
+  ): Promise<{ match: boolean; expected: string }> {
     const rows = await this.db
       .select()
       .from(captchaState)
@@ -553,7 +561,7 @@ export class SettingsService {
             permissions: r.permissions,
             isDefault: r.isDefault,
             createdAt: now,
-          })),
+          }))
         )
         .onConflictDoNothing()
         .returning()
@@ -577,7 +585,7 @@ export class SettingsService {
       .where(
         hubId
           ? and(eq(roles.slug, data.slug), eq(roles.hubId, hubId))
-          : and(eq(roles.slug, data.slug), sql`${roles.hubId} IS NULL`),
+          : and(eq(roles.slug, data.slug), sql`${roles.hubId} IS NULL`)
       )
       .limit(1)
     if (existing[0]) throw new AppError(409, `Role slug "${data.slug}" already exists`)
@@ -702,7 +710,11 @@ export class SettingsService {
 
   async setHubKeyEnvelopes(hubId: string, envelopes: HubKeyEntry[]): Promise<void> {
     // Verify hub exists
-    const hubRows = await this.db.select({ id: hubs.id }).from(hubs).where(eq(hubs.id, hubId)).limit(1)
+    const hubRows = await this.db
+      .select({ id: hubs.id })
+      .from(hubs)
+      .where(eq(hubs.id, hubId))
+      .limit(1)
     if (!hubRows[0]) throw new AppError(404, 'Hub not found')
 
     // Replace all envelopes for this hub
@@ -713,7 +725,7 @@ export class SettingsService {
           hubId,
           pubkey: e.pubkey,
           encryptedKey: e.wrappedKey,
-        })),
+        }))
       )
     }
   }

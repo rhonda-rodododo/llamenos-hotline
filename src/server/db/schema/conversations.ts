@@ -1,6 +1,6 @@
-import { pgTable, text, timestamp, boolean, integer, unique } from 'drizzle-orm/pg-core'
+import { boolean, integer, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
+import type { EncryptedMetaItem, FileKeyEnvelope, RecipientEnvelope } from '../../../shared/types'
 import { jsonb } from '../bun-jsonb'
-import type { RecipientEnvelope, FileKeyEnvelope, EncryptedMetaItem } from '../../../shared/types'
 
 export const conversations = pgTable(
   'conversations',
@@ -19,7 +19,7 @@ export const conversations = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     lastMessageAt: timestamp('last_message_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [unique().on(table.hubId, table.channelType, table.contactIdentifierHash)],
+  (table) => [unique().on(table.hubId, table.channelType, table.contactIdentifierHash)]
 )
 
 export const messageEnvelopes = pgTable('message_envelopes', {

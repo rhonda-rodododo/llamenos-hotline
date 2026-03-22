@@ -65,7 +65,11 @@ calls.post('/:callId/answer', requirePermission('calls:answer'), async (c) => {
   if (!existing) return c.json({ error: 'Call not found' }, 404)
   if (existing.assignedPubkey) return c.json({ error: 'Call already answered' }, 409)
 
-  const updated = await services.calls.updateActiveCall(callId, { assignedPubkey: pubkey, status: 'in-progress' }, hubId)
+  const updated = await services.calls.updateActiveCall(
+    callId,
+    { assignedPubkey: pubkey, status: 'in-progress' },
+    hubId
+  )
   return c.json({ call: updated })
 })
 
@@ -97,7 +101,11 @@ calls.post('/:callId/spam', requirePermission('calls:answer'), async (c) => {
   if (!call) return c.json({ error: 'Call not found' }, 404)
   if (call.assignedPubkey !== pubkey) return c.json({ error: 'Not your call' }, 403)
 
-  await services.calls.updateActiveCall(callId, { status: 'spam', metadata: { ...call.metadata, reportedSpam: true, reportedBy: pubkey } }, hubId)
+  await services.calls.updateActiveCall(
+    callId,
+    { status: 'spam', metadata: { ...call.metadata, reportedSpam: true, reportedBy: pubkey } },
+    hubId
+  )
   return c.json({ ok: true })
 })
 
@@ -155,7 +163,9 @@ calls.get('/debug', requirePermission('calls:debug'), async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const activeCalls = await services.calls.getActiveCalls(hubId)
-  const legs = await Promise.all(activeCalls.map((call) => services.calls.getCallLegs(call.callSid, hubId)))
+  const legs = await Promise.all(
+    activeCalls.map((call) => services.calls.getCallLegs(call.callSid, hubId))
+  )
   return c.json({ activeCalls, legs: legs.flat() })
 })
 

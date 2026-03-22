@@ -1,4 +1,6 @@
 import { and, eq, isNull } from 'drizzle-orm'
+import type { MessagingChannelType } from '../../shared/types'
+import type { Database } from '../db'
 import {
   inviteCodes,
   provisionRooms,
@@ -8,7 +10,6 @@ import {
   webauthnCredentials,
   webauthnSettings,
 } from '../db/schema'
-import type { Database } from '../db'
 import { AppError } from '../lib/errors'
 import type {
   AddWebAuthnCredentialData,
@@ -24,7 +25,6 @@ import type {
   UpdateVolunteerData,
   UpdateWebAuthnCounterData,
 } from '../types'
-import type { MessagingChannelType } from '../../shared/types'
 import type {
   InviteCode,
   ServerSession,
@@ -88,7 +88,7 @@ export class IdentityService {
   async updateVolunteer(
     pubkey: string,
     data: UpdateVolunteerData,
-    isAdmin = false,
+    isAdmin = false
   ): Promise<Volunteer> {
     const existing = await this.getVolunteer(pubkey)
     if (!existing) throw new AppError(404, 'Volunteer not found')
@@ -218,10 +218,7 @@ export class IdentityService {
   // ------------------------------------------------------------------ Invites
 
   async getInvites(): Promise<InviteCode[]> {
-    const rows = await this.db
-      .select()
-      .from(inviteCodes)
-      .where(isNull(inviteCodes.usedAt))
+    const rows = await this.db.select().from(inviteCodes).where(isNull(inviteCodes.usedAt))
     return rows.map((r) => this.#rowToInvite(r))
   }
 
@@ -242,12 +239,10 @@ export class IdentityService {
     return this.#rowToInvite(row)
   }
 
-  async validateInvite(code: string): Promise<{ valid: boolean; error?: string; name?: string; roleIds?: string[] }> {
-    const rows = await this.db
-      .select()
-      .from(inviteCodes)
-      .where(eq(inviteCodes.code, code))
-      .limit(1)
+  async validateInvite(
+    code: string
+  ): Promise<{ valid: boolean; error?: string; name?: string; roleIds?: string[] }> {
+    const rows = await this.db.select().from(inviteCodes).where(eq(inviteCodes.code, code)).limit(1)
     const row = rows[0]
     if (!row) return { valid: false, error: 'not_found' }
     if (row.usedAt !== null) return { valid: false, error: 'already_used' }
@@ -344,7 +339,9 @@ export class IdentityService {
     const rows = await this.db
       .select({ id: webauthnCredentials.id, counter: webauthnCredentials.counter })
       .from(webauthnCredentials)
-      .where(and(eq(webauthnCredentials.pubkey, data.pubkey), eq(webauthnCredentials.id, data.credId)))
+      .where(
+        and(eq(webauthnCredentials.pubkey, data.pubkey), eq(webauthnCredentials.id, data.credId))
+      )
       .limit(1)
     const existing = rows[0]
     if (!existing) throw new AppError(404, 'Credential not found')
@@ -354,7 +351,9 @@ export class IdentityService {
     await this.db
       .update(webauthnCredentials)
       .set({ counter: String(data.counter), lastUsedAt: new Date(data.lastUsedAt) })
-      .where(and(eq(webauthnCredentials.pubkey, data.pubkey), eq(webauthnCredentials.id, data.credId)))
+      .where(
+        and(eq(webauthnCredentials.pubkey, data.pubkey), eq(webauthnCredentials.id, data.credId))
+      )
   }
 
   // ------------------------------------------------------------------ WebAuthn Challenges
@@ -492,7 +491,9 @@ export class IdentityService {
 
   // ------------------------------------------------------------------ Provision Rooms
 
-  async createProvisionRoom(data: CreateProvisionRoomData): Promise<{ roomId: string; token: string }> {
+  async createProvisionRoom(
+    data: CreateProvisionRoomData
+  ): Promise<{ roomId: string; token: string }> {
     const roomId = crypto.randomUUID()
     const tokenBytes = new Uint8Array(16)
     crypto.getRandomValues(tokenBytes)
@@ -590,8 +591,10 @@ export class IdentityService {
       uiLanguage: r.uiLanguage,
       profileCompleted: r.profileCompleted,
       onBreak: r.onBreak,
-      callPreference: (r.callPreference as 'phone' | 'browser' | 'both'),
-      supportedMessagingChannels: r.supportedMessagingChannels as MessagingChannelType[] | undefined,
+      callPreference: r.callPreference as 'phone' | 'browser' | 'both',
+      supportedMessagingChannels: r.supportedMessagingChannels as
+        | MessagingChannelType[]
+        | undefined,
       messagingEnabled: r.messagingEnabled ?? undefined,
     }
   }
@@ -623,4 +626,3 @@ export class IdentityService {
     }
   }
 }
-

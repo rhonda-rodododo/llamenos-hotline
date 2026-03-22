@@ -5,9 +5,7 @@ export const VolunteerSchema = z.object({
   name: z.string(),
   phone: z.string().optional(),
   roles: z.array(z.string()),
-  hubRoles: z
-    .array(z.object({ hubId: z.string(), roleIds: z.array(z.string()) }))
-    .optional(),
+  hubRoles: z.array(z.object({ hubId: z.string(), roleIds: z.array(z.string()) })).optional(),
   active: z.boolean(),
   transcriptionEnabled: z.boolean(),
   spokenLanguages: z.array(z.string()),

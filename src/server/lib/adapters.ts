@@ -7,19 +7,19 @@
 
 import type { MessagingChannelType, TelephonyProviderConfig } from '../../shared/types'
 import { AppError } from '../lib/errors'
+import { type NostrPublisher, createNostrPublisher } from '../lib/nostr-publisher'
 import type { MessagingAdapter } from '../messaging/adapter'
 import { createRCSAdapter } from '../messaging/rcs/factory'
 import { createSignalAdapter } from '../messaging/signal/factory'
 import { createSMSAdapter } from '../messaging/sms/factory'
 import { createWhatsAppAdapter } from '../messaging/whatsapp/factory'
+import type { SettingsService } from '../services/settings'
 import type { TelephonyAdapter } from '../telephony/adapter'
 import { AsteriskAdapter } from '../telephony/asterisk'
 import { PlivoAdapter } from '../telephony/plivo'
 import { SignalWireAdapter } from '../telephony/signalwire'
 import { TwilioAdapter } from '../telephony/twilio'
 import { VonageAdapter } from '../telephony/vonage'
-import { type NostrPublisher, createNostrPublisher } from '../lib/nostr-publisher'
-import type { SettingsService } from '../services/settings'
 
 let cachedPublisher: NostrPublisher | null = null
 
@@ -79,7 +79,8 @@ export async function getMessagingAdapter(
       if (!config.sms?.enabled) throw new Error('SMS is not enabled')
       // SMS reuses telephony provider credentials
       const telConfig = hubId
-        ? (await settings.getTelephonyProvider(hubId)) ?? (await settings.getTelephonyProvider(undefined))
+        ? ((await settings.getTelephonyProvider(hubId)) ??
+          (await settings.getTelephonyProvider(undefined)))
         : await settings.getTelephonyProvider(undefined)
       if (!telConfig) throw new Error('SMS requires a configured telephony provider')
       return createSMSAdapter(telConfig, config.sms, hmacSecret)
@@ -140,7 +141,10 @@ function createAdapterFromConfig(config: TelephonyProviderConfig): TelephonyAdap
     }
     case 'signalwire': {
       if (!config.accountSid || !config.authToken || !config.signalwireSpace)
-        throw new AppError(500, 'SignalWire config missing accountSid, authToken, or signalwireSpace')
+        throw new AppError(
+          500,
+          'SignalWire config missing accountSid, authToken, or signalwireSpace'
+        )
       return new SignalWireAdapter(
         config.accountSid,
         config.authToken,
@@ -166,7 +170,10 @@ function createAdapterFromConfig(config: TelephonyProviderConfig): TelephonyAdap
     }
     case 'asterisk': {
       if (!config.ariUrl || !config.ariUsername || !config.ariPassword || !config.bridgeCallbackUrl)
-        throw new AppError(500, 'Asterisk config missing ariUrl, ariUsername, ariPassword, or bridgeCallbackUrl')
+        throw new AppError(
+          500,
+          'Asterisk config missing ariUrl, ariUsername, ariPassword, or bridgeCallbackUrl'
+        )
       return new AsteriskAdapter(
         config.ariUrl,
         config.ariUsername,

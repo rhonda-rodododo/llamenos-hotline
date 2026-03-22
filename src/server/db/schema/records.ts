@@ -1,6 +1,6 @@
-import { pgTable, text, timestamp, integer, boolean } from 'drizzle-orm/pg-core'
-import { jsonb } from '../bun-jsonb'
+import { boolean, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import type { RecipientEnvelope } from '../../../shared/types'
+import { jsonb } from '../bun-jsonb'
 
 export const bans = pgTable('bans', {
   id: text('id').primaryKey(),

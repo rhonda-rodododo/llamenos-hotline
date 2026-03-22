@@ -1,14 +1,14 @@
 import { eq, sql } from 'drizzle-orm'
-import type { FileKeyEnvelope, FileRecord, EncryptedMetaItem } from '../../shared/types'
-import { fileRecords } from '../db/schema'
+import type { EncryptedMetaItem, FileKeyEnvelope, FileRecord } from '../../shared/types'
 import type { Database } from '../db'
-import type { BlobStorage } from '../types'
+import { fileRecords } from '../db/schema'
 import { AppError } from '../lib/errors'
+import type { BlobStorage } from '../types'
 
 export class FilesService {
   constructor(
     protected readonly db: Database,
-    private readonly blob: BlobStorage | null,
+    private readonly blob: BlobStorage | null
   ) {}
 
   get hasBlob(): boolean {
@@ -18,7 +18,7 @@ export class FilesService {
   // ------------------------------------------------------------------ DB: FileRecord CRUD
 
   async createFileRecord(
-    data: Omit<FileRecord, 'completedChunks' | 'createdAt' | 'completedAt'>,
+    data: Omit<FileRecord, 'completedChunks' | 'createdAt' | 'completedAt'>
   ): Promise<FileRecord> {
     const now = new Date()
     const [row] = await this.db
@@ -41,11 +41,7 @@ export class FilesService {
   }
 
   async getFileRecord(id: string): Promise<FileRecord | null> {
-    const rows = await this.db
-      .select()
-      .from(fileRecords)
-      .where(eq(fileRecords.id, id))
-      .limit(1)
+    const rows = await this.db.select().from(fileRecords).where(eq(fileRecords.id, id)).limit(1)
     return rows[0] ? this.#rowToFileRecord(rows[0]) : null
   }
 
@@ -77,10 +73,7 @@ export class FilesService {
   }
 
   async failUpload(id: string): Promise<void> {
-    await this.db
-      .update(fileRecords)
-      .set({ status: 'failed' })
-      .where(eq(fileRecords.id, id))
+    await this.db.update(fileRecords).set({ status: 'failed' }).where(eq(fileRecords.id, id))
   }
 
   async getFilesByConversation(conversationId: string): Promise<FileRecord[]> {
@@ -94,7 +87,7 @@ export class FilesService {
   async addRecipientEnvelope(
     id: string,
     envelope: FileKeyEnvelope,
-    meta: EncryptedMetaItem,
+    meta: EncryptedMetaItem
   ): Promise<void> {
     // Use a row-level lock to prevent concurrent share operations from racing
     // and silently losing E2EE key material (lost-update on JSONB append).
@@ -142,12 +135,14 @@ export class FilesService {
   async resetForTest(): Promise<void> {
     if (this.blob) {
       // Clean up blob objects before removing DB records so we don't orphan blobs
-      const rows = await this.db.select({ id: fileRecords.id, totalChunks: fileRecords.totalChunks }).from(fileRecords)
+      const rows = await this.db
+        .select({ id: fileRecords.id, totalChunks: fileRecords.totalChunks })
+        .from(fileRecords)
       await Promise.all(
         rows.flatMap((r) => [
           this.deleteAssembled(r.id).catch(() => {}),
           this.deleteAllChunks(r.id, r.totalChunks).catch(() => {}),
-        ]),
+        ])
       )
     }
     await this.db.delete(fileRecords)
@@ -182,7 +177,7 @@ export class FilesService {
         Array.from({ length: end - i }, (_, j) => {
           const key = `files/${uploadId}/chunk-${String(i + j).padStart(6, '0')}`
           return blob.delete(key)
-        }),
+        })
       )
     }
   }

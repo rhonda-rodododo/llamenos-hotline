@@ -28,7 +28,8 @@ config.get('/', async (c) => {
   try {
     const setupState = await services.settings.getSetupState()
     setupCompleted = setupState.setupCompleted
-    demoMode = envDemoMode || ((setupState as typeof setupState & { demoMode?: boolean }).demoMode ?? false)
+    demoMode =
+      envDemoMode || ((setupState as typeof setupState & { demoMode?: boolean }).demoMode ?? false)
   } catch {
     // If env var forces demo mode, still set it even on fetch failure
     demoMode = envDemoMode
