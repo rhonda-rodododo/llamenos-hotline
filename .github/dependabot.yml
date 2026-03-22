@@ -1,0 +1,38 @@
+version: 2
+updates:
+  # Node.js / Bun dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      noble-crypto:
+        patterns: ["@noble/*"]
+      tanstack:
+        patterns: ["@tanstack/*"]
+      radix-ui:
+        patterns: ["@radix-ui/*"]
+      hono:
+        patterns: ["hono", "@hono/*"]
+    ignore:
+      # Only auto-update patch versions for core framework deps
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "hono"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "drizzle-orm"
+        update-types: ["version-update:semver-major"]
+
+  # Docker base images (Dockerfile, compose files)
+  - package-ecosystem: "docker"
+    directory: "/deploy/docker"
+    schedule:
+      interval: "weekly"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
