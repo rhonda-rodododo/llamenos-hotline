@@ -13,6 +13,7 @@ import { migrate } from 'drizzle-orm/bun-sql/migrator'
 import { Hono } from 'hono'
 import { initDb } from '../../server/db'
 import { createServices } from '../../server/services'
+import { getNostrPublisher } from '../../server/lib/adapters'
 import { errorHandler } from '../../server/middleware/error'
 import { servicesMiddleware } from '../../server/middleware/services'
 import { loadEnv } from './env'
@@ -80,9 +81,7 @@ async function main() {
 
     // Close Nostr publisher WebSocket if active
     try {
-      const { getNostrPublisher } = require('../../worker/lib/do-access')
-      // biome-ignore lint/suspicious/noExplicitAny: runtime shutdown call
-      getNostrPublisher(env as any).close()
+      getNostrPublisher(env).close()
     } catch {}
 
     server.close(() => {

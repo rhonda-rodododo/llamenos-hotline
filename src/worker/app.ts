@@ -66,7 +66,6 @@ api.get('/messaging/preferences', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
   const services = c.get('services')
-  if (!services) return c.json({ error: 'Services not available' }, 503)
   const subscriber = await services.blasts.getSubscriberByToken(token)
   if (!subscriber) return c.json({ error: 'Invalid token' }, 404)
   return c.json({
@@ -81,7 +80,6 @@ api.patch('/messaging/preferences', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
   const services = c.get('services')
-  if (!services) return c.json({ error: 'Services not available' }, 503)
   const subscriber = await services.blasts.getSubscriberByToken(token)
   if (!subscriber) return c.json({ error: 'Invalid token' }, 404)
   const body = await c.req.json<{ active?: boolean; metadata?: Record<string, unknown> }>()
@@ -99,14 +97,13 @@ api.patch('/messaging/preferences', async (c) => {
 
 // Public IVR audio serve (Twilio fetches during calls)
 api.get('/ivr-audio/:promptType/:language', async (c) => {
-  const services = c.get('services')
   const promptType = c.req.param('promptType')
   const language = c.req.param('language')
   // Validate path params to prevent injection
   if (!/^[a-z_-]+$/.test(promptType) || !/^[a-z]{2,5}(-[A-Z]{2})?$/.test(language)) {
     return c.json({ error: 'Invalid parameters' }, 400)
   }
-  if (!services) return c.json({ error: 'Services not available' }, 503)
+  const services = c.get('services')
   const audio = await services.settings.getIvrAudio(promptType, language)
   if (!audio) return c.json({ error: 'Audio not found' }, 404)
   return new Response(audio.audioData, {
@@ -156,14 +153,5 @@ app.route('/api', api)
 
 // Static assets with security headers
 app.use('*', securityHeaders)
-app.all('*', async (c, next) => {
-  if (!c.env.ASSETS) {
-    // Node.js mode — let the outer app's serveStatic handle static files
-    await next()
-    return
-  }
-  const assetResponse = await c.env.ASSETS.fetch(c.req.raw)
-  return assetResponse
-})
 
 export default app
