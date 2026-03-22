@@ -40,6 +40,18 @@ backup *ARGS:
 check *ARGS:
     ansible-playbook setup.yml --check --diff --ask-vault-pass {{ARGS}}
 
+# Validate playbooks without making changes (CI-safe, uses example inventory and vars)
+validate *ARGS:
+    ansible-lint .
+    ansible-playbook setup.yml --check --diff \
+        -i inventory.example.yml \
+        --extra-vars "@vars.example.yml" \
+        {{ARGS}}
+
+# Show what would change on the server (requires vault password)
+dry-run *ARGS:
+    ansible-playbook setup.yml --check --diff --ask-vault-pass {{ARGS}}
+
 # Encrypt the vars file with Ansible Vault
 encrypt-vars:
     ansible-vault encrypt vars.yml
