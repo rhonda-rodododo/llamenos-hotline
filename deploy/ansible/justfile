@@ -60,6 +60,22 @@ ping:
 facts:
     ansible all -m setup --ask-vault-pass
 
+# Deploy or update the demo instance
+deploy-demo *ARGS:
+    ansible-playbook playbooks/deploy-demo.yml --ask-vault-pass {{ARGS}}
+
+# Reset demo data on demand
+reset-demo *ARGS:
+    ansible-playbook playbooks/reset-demo.yml --ask-vault-pass {{ARGS}}
+
+# Encrypt the demo vars file
+encrypt-demo-vars:
+    ansible-vault encrypt demo_vars.yml
+
+# Edit encrypted demo vars file
+edit-demo-vars:
+    ansible-vault edit demo_vars.yml
+
 # Generate secrets for a new deployment
 generate-secrets:
     #!/usr/bin/env bash

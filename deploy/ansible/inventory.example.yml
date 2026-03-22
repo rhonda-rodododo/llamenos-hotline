@@ -1,29 +1,21 @@
 # Llamenos Ansible Inventory
 #
-# Copy this file to inventory.yml and fill in your server details.
-#
-# Usage:
-#   cp inventory.example.yml inventory.yml
-#   $EDITOR inventory.yml
-#   just setup-all
-#
-# For multiple servers (e.g., staging + production), create separate
-# inventory files and pass them with -i:
-#   ansible-playbook -i inventory-staging.yml setup.yml
-
+# For production: cp inventory.example.yml inventory.yml && edit
+# For demo: cp inventory.example.yml inventory-demo.yml && edit
 all:
-  hosts:
-    llamenos:
-      # Your VPS IP address or hostname
-      ansible_host: 203.0.113.10
-
-      # SSH user created during initial VPS setup
-      # This user must have sudo access
-      ansible_user: deploy
-
-      # Path to your SSH private key
-      ansible_ssh_private_key_file: ~/.ssh/llamenos_deploy
-
-      # SSH port (will be changed to ssh_port after hardening)
-      # Set this to 22 for the first run, then change to match ssh_port
-      ansible_port: 22
+  children:
+    production:
+      hosts:
+        llamenos:
+          ansible_host: 203.0.113.10
+          ansible_user: deploy
+          ansible_ssh_private_key_file: ~/.ssh/llamenos_deploy
+          ansible_port: 22
+          ansible_connection: local  # CI dry-run only
+    demo:
+      hosts:
+        demo-vps:
+          ansible_host: 5.6.7.8
+          ansible_user: deploy
+          ansible_ssh_private_key_file: ~/.ssh/llamenos_demo_deploy
+          ansible_port: 22
