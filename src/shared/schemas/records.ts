@@ -79,5 +79,6 @@ export const EncryptedCallRecordSchema = z.object({
   recordingSid: z.string().optional(),
   encryptedContent: z.string().optional(),
   adminEnvelopes: z.array(RecipientEnvelopeSchema),
+  createdAt: z.iso.datetime(),
 })
 export type EncryptedCallRecord = z.infer<typeof EncryptedCallRecordSchema>
