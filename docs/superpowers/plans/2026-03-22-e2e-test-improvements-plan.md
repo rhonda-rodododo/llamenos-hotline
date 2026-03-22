@@ -228,7 +228,7 @@ Local default stays at 1 until isolation is verified. Enable via `PLAYWRIGHT_WOR
 
 ## Step 7 — Create `.dev.vars.local.example`
 
-**File to create:** `/home/rikki/projects/llamenos-hotline/.dev.vars.local.example`
+**File to create:** `~/projects/llamenos-hotline/.dev.vars.local.example`
 
 ```
 # Local dev vars — used when running wrangler dev against Docker backend

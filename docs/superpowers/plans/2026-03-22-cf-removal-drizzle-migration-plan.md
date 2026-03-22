@@ -80,7 +80,7 @@ volunteers.get('/', async (c) => {
 - [ ] **1.1 Install dependencies**
 
   ```bash
-  cd /home/rikki/projects/llamenos-hotline
+  cd ~/projects/llamenos-hotline
   bun add drizzle-orm
   bun add -d drizzle-kit
   ```
@@ -440,12 +440,16 @@ volunteers.get('/', async (c) => {
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   })
 
-  export const activeShifts = pgTable('active_shifts', {
-    pubkey: text('pubkey').notNull(),
-    hubId: text('hub_id').notNull().default('global'),
-    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
-    ringGroupId: text('ring_group_id'),
-  })
+  export const activeShifts = pgTable(
+    'active_shifts',
+    {
+      pubkey: text('pubkey').notNull(),
+      hubId: text('hub_id').notNull().default('global'),
+      startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+      ringGroupId: text('ring_group_id'),
+    },
+    (table) => [primaryKey({ columns: [table.pubkey, table.hubId] })],
+  )
   ```
 
 - [ ] **1.8 Create `src/server/db/schema/calls.ts`**
@@ -1585,7 +1589,7 @@ volunteers.get('/', async (c) => {
 - [ ] **6.1 Git move the directory**
 
   ```bash
-  cd /home/rikki/projects/llamenos-hotline
+  cd ~/projects/llamenos-hotline
   git mv src/worker src/server
   ```
 
