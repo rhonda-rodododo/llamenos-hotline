@@ -339,4 +339,10 @@ export interface BridgeConfig {
   bridgePort: number
   /** Stasis application name */
   stasisApp: string
+  /** SIP trunk provider hostname (e.g. sip.twilio.com). When present, PJSIP is auto-configured at startup. */
+  sipProvider?: string
+  /** SIP trunk username */
+  sipUsername?: string
+  /** SIP trunk password */
+  sipPassword?: string
 }
