@@ -47,7 +47,7 @@ import type {
 } from '../types'
 
 export class SettingsService {
-  constructor(private readonly db: Database) {}
+  constructor(protected readonly db: Database) {}
 
   // ------------------------------------------------------------------ Spam Settings
 
@@ -471,7 +471,7 @@ export class SettingsService {
 
   // ------------------------------------------------------------------ Rate Limiting
 
-  async checkRateLimit(key: string, maxPerMinute: number): Promise<{ limited: boolean }> {
+  async checkRateLimit(key: string, maxPerMinute: number): Promise<boolean> {
     const now = new Date()
     const windowStartCutoff = new Date(now.getTime() - 60_000)
 
@@ -500,7 +500,7 @@ export class SettingsService {
         .where(eq(rateLimitCounters.key, key))
     }
 
-    return { limited: count > maxPerMinute }
+    return count > maxPerMinute
   }
 
   // ------------------------------------------------------------------ CAPTCHA

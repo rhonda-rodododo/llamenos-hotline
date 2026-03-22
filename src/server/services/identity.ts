@@ -1,5 +1,4 @@
 import { and, eq, lt } from 'drizzle-orm'
-import { DEFAULT_ROLES } from '../../shared/permissions'
 import {
   inviteCodes,
   provisionRooms,
@@ -47,7 +46,7 @@ const VOLUNTEER_SAFE_FIELDS = new Set([
 ])
 
 export class IdentityService {
-  constructor(private readonly db: Database) {}
+  constructor(protected readonly db: Database) {}
 
   // ------------------------------------------------------------------ Volunteers
 
@@ -626,5 +625,3 @@ export class IdentityService {
   }
 }
 
-// Ensure DEFAULT_ROLES is used (avoids unused import warning if settings seeding is done there)
-void DEFAULT_ROLES

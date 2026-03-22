@@ -18,7 +18,7 @@ function isValidTimeFormat(time: string): boolean {
 }
 
 export class ShiftService {
-  constructor(private readonly db: Database) {}
+  constructor(protected readonly db: Database) {}
 
   // ------------------------------------------------------------------ Schedules
 
@@ -203,17 +203,19 @@ export class ShiftService {
   }
 
   /**
-   * Get the set of volunteer pubkeys who should currently be on shift.
-   * Combines schedule-based shifts with active shifts.
+   * Get the effective set of volunteer pubkeys who should currently be on shift.
+   * Applies schedule overrides (cancel/substitute) and filters to only clocked-in volunteers.
    */
-  async getCurrentVolunteers(hubId?: string): Promise<string[]> {
+  async getEffectiveVolunteers(hubId?: string): Promise<string[]> {
     const hId = hubId ?? 'global'
     const schedules = await this.getSchedules(hId)
     const now = new Date()
     const currentDay = now.getUTCDay()
     const currentTime = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`
+    const todayStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`
 
-    const active = new Set<string>()
+    // Build a map of schedule id → volunteer pubkeys for active schedules right now
+    const activeScheduleVolunteers = new Map<string, string[]>()
     for (const shift of schedules) {
       if (!shift.days.includes(currentDay)) continue
       const startsBeforeEnds = shift.startTime <= shift.endTime
@@ -225,12 +227,48 @@ export class ShiftService {
         isActive = currentTime >= shift.startTime || currentTime < shift.endTime
       }
       if (isActive) {
-        for (const pubkey of shift.volunteerPubkeys) {
-          active.add(pubkey)
+        activeScheduleVolunteers.set(shift.id, [...shift.volunteerPubkeys])
+      }
+    }
+
+    // Apply today's overrides
+    const overrides = await this.getOverrides(hId)
+    const todayOverrides = overrides.filter((o) => o.date === todayStr)
+    for (const override of todayOverrides) {
+      if (override.scheduleId) {
+        // Override targets a specific schedule
+        if (override.type === 'cancel') {
+          activeScheduleVolunteers.delete(override.scheduleId)
+        } else if (override.type === 'substitute' && override.volunteerPubkeys) {
+          if (activeScheduleVolunteers.has(override.scheduleId)) {
+            activeScheduleVolunteers.set(override.scheduleId, override.volunteerPubkeys)
+          }
+        }
+      } else {
+        // Override targets all schedules (global cancel/substitute for the day)
+        if (override.type === 'cancel') {
+          activeScheduleVolunteers.clear()
+        } else if (override.type === 'substitute' && override.volunteerPubkeys) {
+          for (const schedId of activeScheduleVolunteers.keys()) {
+            activeScheduleVolunteers.set(schedId, override.volunteerPubkeys)
+          }
         }
       }
     }
-    return Array.from(active)
+
+    // Collect all schedule-assigned volunteers
+    const scheduledSet = new Set<string>()
+    for (const pubkeys of activeScheduleVolunteers.values()) {
+      for (const pubkey of pubkeys) {
+        scheduledSet.add(pubkey)
+      }
+    }
+
+    // Filter to only those who are actually clocked in (in activeShifts)
+    const clocked = await this.getActiveShifts(hId)
+    const clockedSet = new Set(clocked.map((s) => s.pubkey))
+
+    return Array.from(scheduledSet).filter((pk) => clockedSet.has(pk))
   }
 
   async getVolunteerStatus(
