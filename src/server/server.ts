@@ -28,6 +28,27 @@ async function main() {
   if (!env.DATABASE_URL) {
     throw new Error('DATABASE_URL is required')
   }
+  if (env.DATABASE_URL !== env.DATABASE_URL.trim()) {
+    throw new Error('DATABASE_URL must not contain leading/trailing whitespace')
+  }
+  if (!env.HMAC_SECRET) {
+    throw new Error('HMAC_SECRET is required')
+  }
+  if (env.HMAC_SECRET !== env.HMAC_SECRET.trim()) {
+    throw new Error('HMAC_SECRET must not contain leading/trailing whitespace')
+  }
+  if (!env.ADMIN_PUBKEY) {
+    throw new Error('ADMIN_PUBKEY is required')
+  }
+  if (env.ADMIN_PUBKEY !== env.ADMIN_PUBKEY.trim()) {
+    throw new Error('ADMIN_PUBKEY must not contain leading/trailing whitespace')
+  }
+  if (!/^[0-9a-f]{64}$/i.test(env.ADMIN_PUBKEY)) {
+    throw new Error('ADMIN_PUBKEY must be a 64-character hex string (x-only Nostr pubkey)')
+  }
+  if (env.SERVER_NOSTR_SECRET && !/^[0-9a-f]{64}$/i.test(env.SERVER_NOSTR_SECRET)) {
+    throw new Error('SERVER_NOSTR_SECRET must be exactly 64 lowercase hex characters')
+  }
 
   const db = initDb(env.DATABASE_URL)
   await migrate(db, { migrationsFolder: path.resolve(process.cwd(), 'drizzle', 'migrations') })

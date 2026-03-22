@@ -234,6 +234,51 @@ export function uniquePhone(): string {
 
 const TEST_RESET_SECRET = process.env.DEV_RESET_SECRET || 'test-reset-secret'
 
+/**
+ * Create a test hub via the authed API using the admin session baked into `page`.
+ * Returns the new hub's ID.
+ *
+ * Usage: call in `test.beforeAll`, pair with `deleteTestHub` in `test.afterAll`
+ * to get a fully isolated hub for each test file.
+ */
+export async function createTestHub(page: Page, name: string): Promise<string> {
+  const created = await page.evaluate(async (hubName: string) => {
+    const km = (window as any).__TEST_KEY_MANAGER
+    const token = km?.isUnlocked()
+      ? km.createAuthToken(Date.now(), 'POST', '/api/hubs')
+      : null
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const res = await fetch('/api/hubs', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ name: hubName }),
+    })
+    if (!res.ok) throw new Error(`createTestHub failed: ${res.status} ${await res.text()}`)
+    return res.json()
+  }, name)
+  return created.hub.id
+}
+
+/**
+ * Delete a test hub via the authed API, waiting for the cascade to complete.
+ * Asserts the hub is gone (404) after deletion.
+ */
+export async function deleteTestHub(page: Page, hubId: string): Promise<void> {
+  await page.evaluate(async (id: string) => {
+    const km = (window as any).__TEST_KEY_MANAGER
+    const token = km?.isUnlocked()
+      ? km.createAuthToken(Date.now(), 'DELETE', `/api/hubs/${id}`)
+      : null
+    const headers: Record<string, string> = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const res = await fetch(`/api/hubs/${id}`, { method: 'DELETE', headers })
+    if (!res.ok && res.status !== 404) {
+      throw new Error(`deleteTestHub failed: ${res.status} ${await res.text()}`)
+    }
+  }, hubId)
+}
+
 export async function resetTestState(request: APIRequestContext) {
   const res = await request.post('/api/test-reset', {
     headers: { 'X-Test-Secret': TEST_RESET_SECRET },
