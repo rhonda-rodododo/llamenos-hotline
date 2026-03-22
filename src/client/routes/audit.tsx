@@ -326,10 +326,12 @@ function AuditDetails({ entry }: { entry: AuditLogEntry }) {
 
   const callerLast4 = details.callerLast4 as string | undefined
   const duration = details.duration as number | undefined
+  const noteId = details.noteId as string | undefined
 
   const isCallEvent =
     entry.event === 'callAnswered' || entry.event === 'callEnded' || entry.event === 'callMissed'
   const isVoicemail = entry.event === 'voicemailReceived'
+  const isNoteEvent = entry.event === 'noteCreated' || entry.event === 'noteEdited' || entry.event === 'noteReplyCreated'
 
   if (isCallEvent) {
     return (
@@ -351,6 +353,19 @@ function AuditDetails({ entry }: { entry: AuditLogEntry }) {
   if (isVoicemail) {
     return (
       <span className="flex-1 text-xs text-muted-foreground">{t('callHistory.hasVoicemail')}</span>
+    )
+  }
+
+  if (isNoteEvent && noteId) {
+    return (
+      <Link
+        to="/notes/$noteId"
+        params={{ noteId }}
+        search={{ page: 1, callId: '', search: '' }}
+        className="flex-1 text-xs text-primary hover:underline"
+      >
+        {t('notes.viewPermalink')}
+      </Link>
     )
   }
 

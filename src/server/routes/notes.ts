@@ -52,10 +52,32 @@ notes.post('/', requirePermission('notes:create'), async (c) => {
     hubId: hubId ?? 'global',
   })
   await services.records.addAuditEntry(hubId ?? 'global', 'noteCreated', pubkey, {
+    noteId: note.id,
     callId: body.callId,
     conversationId: body.conversationId,
   })
   return c.json(note, 201)
+})
+
+// --- Note Permalink (GET /notes/:noteId) ---
+
+notes.get('/:id', async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const pubkey = c.get('pubkey')
+  const permissions = c.get('permissions')
+  const id = c.req.param('id')
+
+  const canReadAll = checkPermission(permissions, 'notes:read-all')
+  const note = await services.records.getNote(id)
+  if (!note) return c.json({ error: 'Note not found' }, 404)
+
+  // Volunteers can only view their own notes
+  if (!canReadAll && note.authorPubkey !== pubkey) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  return c.json({ note })
 })
 
 notes.patch('/:id', requirePermission('notes:update-own'), async (c) => {

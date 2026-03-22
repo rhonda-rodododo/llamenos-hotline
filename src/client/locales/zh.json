@@ -1266,5 +1266,67 @@
     "archiveHub": "归档中心",
     "archiveHubConfirm": "确定要归档\"{{name}}\"吗？已归档的中心将从活动操作中隐藏。",
     "hubArchived": "中心归档成功"
+  },
+  "consent": {
+    "title": "数据处理协议",
+    "subtitle": "请在继续之前阅读并接受",
+    "intro": "在访问系统之前，您必须同意我们如何收集和使用您的数据。",
+    "dataCollected": {
+      "title": "我们收集的内容",
+      "accountInfo": "账户信息（姓名、公钥、语言）",
+      "callNotes": "加密的通话记录和对话记录",
+      "sessions": "登录会话元数据",
+      "auditLog": "活动审计日志"
+    },
+    "howWeProtect": {
+      "title": "我们如何保护您的数据",
+      "e2ee": "通话记录经过端对端加密——服务器无法读取",
+      "noPlaintext": "敏感个人信息从不以明文存储",
+      "retention": "数据在配置的保留期后自动删除"
+    },
+    "yourRights": {
+      "title": "您的权利（GDPR）",
+      "access": "访问权：从设置中下载您的所有数据",
+      "portability": "可携带权：以JSON格式导出您的数据",
+      "erasure": "删除权：从设置中请求删除账户"
+    },
+    "gdprNote": "本平台依据欧盟GDPR合规运营。",
+    "version": "隐私政策版本：{{version}}",
+    "scrollToRead": "滚动阅读后再同意",
+    "agree": "我同意数据处理条款",
+    "submitting": "提交中..."
+  },
+  "gdpr": {
+    "title": "隐私与数据",
+    "exportTitle": "下载我的数据",
+    "exportDescription": "下载系统中存储的所有数据副本（GDPR第20条）。",
+    "exportButton": "下载我的数据",
+    "exportLoading": "正在准备导出...",
+    "exportError": "导出数据失败",
+    "erasureTitle": "请求删除账户",
+    "erasureDescription": "永久删除您的账户和所有相关个人数据。此操作有72小时审查期。",
+    "erasureWarning": "以下内容将被永久删除：",
+    "erasureWarningItems": {
+      "profile": "您的个人资料和账户信息",
+      "sessions": "所有登录会话和WebAuthn凭证",
+      "notes": "您创作的所有通话记录",
+      "shifts": "班次分配",
+      "auditEntries": "审计日志条目将被匿名化"
+    },
+    "erasurePinRequired": "输入您的PIN码确认",
+    "erasureButton": "请求删除账户",
+    "erasureRequested": "账户删除请求已提交",
+    "erasureCountdown": "您的账户将在{{hours}}小时后删除",
+    "erasureCancelButton": "取消删除请求",
+    "erasureCancelled": "删除请求已取消",
+    "erasureConfirm": "确认删除",
+    "retentionTitle": "数据保留",
+    "retentionDescription": "配置不同类型数据的保留时长。",
+    "retentionCallRecords": "通话记录（天）",
+    "retentionNotes": "通话记录（天）",
+    "retentionMessages": "消息（天）",
+    "retentionAuditLog": "审计日志（天）",
+    "retentionSaved": "保留设置已保存",
+    "retentionSaveError": "保存保留设置失败"
   }
 }
