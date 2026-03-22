@@ -17,6 +17,8 @@ import { closeNostrPublisher } from './lib/adapters'
 import { errorHandler } from './middleware/error'
 import { servicesMiddleware } from './middleware/services'
 import { loadEnv } from './env'
+import type { BlobStorage } from './types'
+import { createBlobStorage } from './lib/blob-storage'
 
 async function main() {
   console.log('[llamenos] Starting server...')
@@ -31,7 +33,15 @@ async function main() {
   await migrate(db, { migrationsFolder: path.resolve(process.cwd(), 'drizzle', 'migrations') })
   console.log('[llamenos] Migrations applied')
 
-  const services = createServices(db)
+  let blob: BlobStorage | null = null
+  try {
+    blob = createBlobStorage()
+    console.log('[llamenos] MinIO blob storage connected')
+  } catch {
+    console.warn('[llamenos] MinIO not configured — file upload/download routes will return 503')
+  }
+
+  const services = createServices(db, blob)
 
   const { default: serverApp } = await import('./app')
 

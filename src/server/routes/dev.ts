@@ -30,6 +30,7 @@ dev.post('/test-reset', async (c) => {
   await services.shifts.resetForTest()
   await services.calls.resetForTest()
   await services.conversations.resetForTest()
+  await services.files.resetForTest()
   return c.json({ ok: true })
 })
 
@@ -49,6 +50,7 @@ dev.post('/test-reset-no-admin', async (c) => {
   await services.shifts.resetForTest()
   await services.calls.resetForTest()
   await services.conversations.resetForTest()
+  await services.files.resetForTest()
   // Delete the admin volunteer so bootstrap tests see needsBootstrap=true
   if (c.env.ADMIN_PUBKEY) {
     try {
@@ -80,6 +82,7 @@ dev.post('/test-reset-records', async (c) => {
   await services.shifts.resetForTest()
   await services.calls.resetForTest()
   await services.conversations.resetForTest()
+  await services.files.resetForTest()
   return c.json({ ok: true })
 })
 
