@@ -1,10 +1,8 @@
-import { bytesToHex } from '@noble/hashes/utils.js'
 import { Hono } from 'hono'
 import { getPrimaryRole } from '../../shared/permissions'
 import { verifyAuthToken } from '../lib/auth'
 import { hashIP } from '../lib/crypto'
 import { isValidE164 } from '../lib/helpers'
-import { deriveServerEventKey } from '../lib/hub-event-crypto'
 import { auth as authMiddleware } from '../middleware/auth'
 import { checkPermission } from '../middleware/permission-guard'
 import type { AppEnv, WebAuthnCredential } from '../types'
@@ -112,12 +110,6 @@ auth.get('/me', async (c) => {
 
   const primaryRole = getPrimaryRole(volunteer.roles, allRoles)
 
-  // Derive server event key for client-side decryption of encrypted relay events (Epic 252)
-  // Moved here from /api/config to keep it behind authentication (Epic 258 C2)
-  const serverEventKeyHex = c.env.SERVER_NOSTR_SECRET
-    ? bytesToHex(deriveServerEventKey(c.env.SERVER_NOSTR_SECRET))
-    : undefined
-
   return c.json({
     pubkey: volunteer.pubkey,
     roles: volunteer.roles,
@@ -137,7 +129,8 @@ auth.get('/me', async (c) => {
     webauthnRegistered: webauthnCreds.length > 0,
     // H17: Removed adminPubkey (signing key identity) — only decryption pubkey needed
     adminDecryptionPubkey: c.env.ADMIN_DECRYPTION_PUBKEY || c.env.ADMIN_PUBKEY,
-    serverEventKeyHex,
+    // HIGH-W1: Global server event key removed — hub keys delivered via per-hub ECIES
+    // envelopes (GET /api/hubs/:hubId/key). Clients use hub-key-cache.ts for decryption.
   })
 })
 

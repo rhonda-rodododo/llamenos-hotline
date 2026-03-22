@@ -195,10 +195,16 @@ settings.post(
       const testHeaders: Record<string, string> = {}
 
       switch (body.type) {
-        case 'twilio':
-          testUrl = `https://api.twilio.com/2010-04-01/Accounts/${body.accountSid}.json`
+        case 'twilio': {
+          // HIGH-W5: Validate SID format before URL construction to prevent path traversal
+          if (!body.accountSid || !/^AC[a-f0-9]{32}$/.test(body.accountSid)) {
+            return Response.json({ ok: false, error: 'Invalid Twilio Account SID format' }, { status: 400 })
+          }
+          const safeSid = encodeURIComponent(body.accountSid)
+          testUrl = `https://api.twilio.com/2010-04-01/Accounts/${safeSid}.json`
           testHeaders.Authorization = `Basic ${btoa(`${body.accountSid}:${body.authToken}`)}`
           break
+        }
         case 'signalwire': {
           if (!body.signalwireSpace || !/^[a-zA-Z0-9_-]+$/.test(body.signalwireSpace)) {
             return Response.json(

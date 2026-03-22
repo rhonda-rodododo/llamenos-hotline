@@ -3,25 +3,16 @@ import type { AppEnv } from '../types'
 
 const dev = new Hono<AppEnv>()
 
-/**
- * Secondary gate: if DEV_RESET_SECRET is set, require X-Test-Secret header.
- * Protects against accidental ENVIRONMENT=development in production.
- */
-function checkResetSecret(c: {
-  env: { DEV_RESET_SECRET?: string; E2E_TEST_SECRET?: string }
-  req: { header(name: string): string | undefined }
-}): boolean {
-  const secret = c.env.DEV_RESET_SECRET || c.env.E2E_TEST_SECRET
-  if (!secret) return false // No secret configured — deny by default
-  return c.req.header('X-Test-Secret') === secret
-}
-
 dev.post('/test-reset', async (c) => {
   // Full reset: development and demo only — too destructive for staging
   if (c.env.ENVIRONMENT !== 'development' && c.env.ENVIRONMENT !== 'demo') {
     return c.json({ error: 'Not Found' }, 404)
   }
-  if (!checkResetSecret(c)) {
+  // HIGH-W4: When secret is not configured, return 404 (hide endpoint existence).
+  // When secret IS configured but header is wrong, return 403 (endpoint known, access denied).
+  const secret = c.env.DEV_RESET_SECRET || c.env.E2E_TEST_SECRET
+  if (!secret) return c.json({ error: 'Not Found' }, 404)
+  if (c.req.header('X-Test-Secret') !== secret) {
     return c.json({ error: 'Forbidden' }, 403)
   }
   const services = c.get('services')
@@ -41,7 +32,9 @@ dev.post('/test-reset-no-admin', async (c) => {
   if (c.env.ENVIRONMENT !== 'development' && c.env.ENVIRONMENT !== 'demo') {
     return c.json({ error: 'Not Found' }, 404)
   }
-  if (!checkResetSecret(c)) {
+  const secret = c.env.DEV_RESET_SECRET || c.env.E2E_TEST_SECRET
+  if (!secret) return c.json({ error: 'Not Found' }, 404)
+  if (c.req.header('X-Test-Secret') !== secret) {
     return c.json({ error: 'Forbidden' }, 403)
   }
   const services = c.get('services')
@@ -74,8 +67,12 @@ dev.post('/test-reset-records', async (c) => {
   if (!isDev && !isStaging) {
     return c.json({ error: 'Not Found' }, 404)
   }
-  if (isDev && !checkResetSecret(c)) {
-    return c.json({ error: 'Forbidden' }, 403)
+  if (isDev) {
+    const secret = c.env.DEV_RESET_SECRET || c.env.E2E_TEST_SECRET
+    if (!secret) return c.json({ error: 'Not Found' }, 404)
+    if (c.req.header('X-Test-Secret') !== secret) {
+      return c.json({ error: 'Forbidden' }, 403)
+    }
   }
   const services = c.get('services')
   await services.records.resetForTest()

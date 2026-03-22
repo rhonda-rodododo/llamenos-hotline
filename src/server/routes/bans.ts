@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { hashPhone } from '../lib/crypto'
 import { isValidE164 } from '../lib/helpers'
 import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
@@ -16,7 +17,8 @@ bans.post('/', requirePermission('bans:create'), async (c) => {
   }
   const ban = await services.records.addBan({ ...body, bannedBy: pubkey, hubId: hubId ?? 'global' })
   await services.records.addAuditEntry(hubId ?? 'global', 'numberBanned', pubkey, {
-    phone: body.phone,
+    // HIGH-W3: Store HMAC hash of phone, never plaintext, per DATA_CLASSIFICATION rules
+    phoneHash: hashPhone(body.phone, c.env.HMAC_SECRET),
   })
   return c.json(ban, 201)
 })

@@ -1,10 +1,12 @@
 import { Hono } from 'hono'
+import { createMiddleware } from 'hono/factory'
 import messagingRoutes from './messaging/router'
 import { auth } from './middleware/auth'
 import { cors } from './middleware/cors'
 import { errorHandler } from './middleware/error'
 import { hubContext } from './middleware/hub'
 import { securityHeaders } from './middleware/security-headers'
+import { checkPermission } from './middleware/permission-guard'
 import auditRoutes from './routes/audit'
 import authRoutes from './routes/auth'
 import bansRoutes from './routes/bans'
@@ -111,10 +113,41 @@ api.get('/ivr-audio/:promptType/:language', async (c) => {
   })
 })
 
+/**
+ * MED-W1: Require hub context for non-super-admin requests on global resource routes.
+ * Super-admins may access global routes without a hub ID (cross-hub visibility is intentional).
+ * All other users must go through hub-scoped routes (/api/hubs/:hubId/...).
+ */
+const requireHubOrSuperAdmin = createMiddleware<AppEnv>(async (c, next) => {
+  if (c.get('hubId')) return next()
+  const permissions = c.get('permissions')
+  if (checkPermission(permissions, '*')) return next()
+  return c.json({ error: 'Hub context required. Use /api/hubs/:hubId/... endpoints.' }, 400)
+})
+
 // Authenticated routes
 const authenticated = new Hono<AppEnv>()
 authenticated.use('*', auth)
 authenticated.route('/volunteers', volunteersRoutes)
+// Resource routes shared with hub-scoped router: require hub context for non-super-admins
+authenticated.use('/shifts/*', requireHubOrSuperAdmin)
+authenticated.use('/shifts', requireHubOrSuperAdmin)
+authenticated.use('/bans/*', requireHubOrSuperAdmin)
+authenticated.use('/bans', requireHubOrSuperAdmin)
+authenticated.use('/notes/*', requireHubOrSuperAdmin)
+authenticated.use('/notes', requireHubOrSuperAdmin)
+authenticated.use('/calls/*', requireHubOrSuperAdmin)
+authenticated.use('/calls', requireHubOrSuperAdmin)
+authenticated.use('/audit/*', requireHubOrSuperAdmin)
+authenticated.use('/audit', requireHubOrSuperAdmin)
+authenticated.use('/conversations/*', requireHubOrSuperAdmin)
+authenticated.use('/conversations', requireHubOrSuperAdmin)
+authenticated.use('/reports/*', requireHubOrSuperAdmin)
+authenticated.use('/reports', requireHubOrSuperAdmin)
+authenticated.use('/blasts/*', requireHubOrSuperAdmin)
+authenticated.use('/blasts', requireHubOrSuperAdmin)
+authenticated.use('/contacts/*', requireHubOrSuperAdmin)
+authenticated.use('/contacts', requireHubOrSuperAdmin)
 authenticated.route('/shifts', shiftsRoutes)
 authenticated.route('/bans', bansRoutes)
 authenticated.route('/notes', notesRoutes)

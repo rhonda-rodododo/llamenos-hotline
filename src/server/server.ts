@@ -50,6 +50,20 @@ async function main() {
     throw new Error('SERVER_NOSTR_SECRET must be exactly 64 lowercase hex characters')
   }
 
+  // Phase 4: Startup diagnostics for optional env vars
+  if (!env.APP_URL) {
+    console.warn('[llamenos] ⚠  APP_URL not set — invite links and webhooks may use wrong base URL')
+  }
+  if (!env.CORS_ALLOWED_ORIGINS) {
+    console.warn('[llamenos] ⚠  CORS_ALLOWED_ORIGINS not set — only built-in origins allowed (localhost in dev)')
+  }
+  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) {
+    console.warn('[llamenos] ⚠  Twilio credentials missing — telephony features disabled')
+  }
+  if (!env.NOSTR_RELAY_URL) {
+    console.warn('[llamenos] ⚠  NOSTR_RELAY_URL not set — real-time relay events degraded')
+  }
+
   const db = initDb(env.DATABASE_URL)
   await migrate(db, { migrationsFolder: path.resolve(process.cwd(), 'drizzle', 'migrations') })
   console.log('[llamenos] Migrations applied')
