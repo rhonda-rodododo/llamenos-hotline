@@ -1,0 +1,6 @@
+---
+profile: production
+warn_list:
+  - yaml[line-length]
+  - name[casing]
+skip_list: []

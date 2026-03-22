@@ -10,11 +10,21 @@
 # Usage:
 #   ansible-playbook playbooks/deploy.yml --ask-vault-pass
 
+- name: Load configuration variables
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Include vars file
+      ansible.builtin.include_vars:
+        file: ../vars.yml
+      tags: always
+
+- name: Validate required variables
+  ansible.builtin.import_playbook: preflight.yml
+
 - name: Deploy Llamenos
   hosts: all
   become: true
-  vars_files:
-    - ../vars.yml
   roles:
     - role: docker
       tags: [docker, deploy]
