@@ -51,3 +51,30 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  watchtower:
+    image: containrrr/watchtower:1.7.1
+    restart: unless-stopped
+    volumes:
+      # Allows Watchtower to manage Docker containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Optional: mount host Docker config for GHCR auth (alternative to env vars)
+      # - /root/.docker/config.json:/config.json:ro
+    environment:
+      # Only watch containers with the watchtower.enable=true label
+      - WATCHTOWER_LABEL_ENABLE=true
+      # Check interval (seconds). 86400 = every 24 hours.
+      - WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-86400}
+      # Remove old images after updating
+      - WATCHTOWER_CLEANUP=true
+      # Log level: info | debug | warn | error | trace
+      - WATCHTOWER_LOG_LEVEL=${WATCHTOWER_LOG_LEVEL:-info}
+      # GHCR authentication (if image is private)
+      # Watchtower reads standard Docker registry env vars:
+      - REPO_USER=${GHCR_USERNAME:-}
+      - REPO_PASS=${GHCR_TOKEN:-}
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
