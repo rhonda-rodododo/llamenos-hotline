@@ -6,6 +6,7 @@
  */
 
 import type { MessagingChannelType, TelephonyProviderConfig } from '../../shared/types'
+import { AppError } from '../lib/errors'
 import type { MessagingAdapter } from '../../worker/messaging/adapter'
 import { createRCSAdapter } from '../../worker/messaging/rcs/factory'
 import { createSignalAdapter } from '../../worker/messaging/signal/factory'
@@ -116,41 +117,68 @@ export function getNostrPublisher(env: {
   return cachedPublisher
 }
 
+/** Close and reset the cached Nostr publisher (call on graceful shutdown). */
+export function closeNostrPublisher(): void {
+  if (cachedPublisher) {
+    try {
+      cachedPublisher.close()
+    } catch {}
+    cachedPublisher = null
+  }
+}
+
 /**
  * Create adapter from saved config.
  * Supports Twilio, SignalWire, Vonage, Plivo, and Asterisk (self-hosted).
  */
 function createAdapterFromConfig(config: TelephonyProviderConfig): TelephonyAdapter {
   switch (config.type) {
-    case 'twilio':
-      return new TwilioAdapter(config.accountSid!, config.authToken!, config.phoneNumber)
-    case 'signalwire':
+    case 'twilio': {
+      if (!config.accountSid || !config.authToken)
+        throw new AppError(500, 'Twilio config missing accountSid or authToken')
+      return new TwilioAdapter(config.accountSid, config.authToken, config.phoneNumber)
+    }
+    case 'signalwire': {
+      if (!config.accountSid || !config.authToken || !config.signalwireSpace)
+        throw new AppError(500, 'SignalWire config missing accountSid, authToken, or signalwireSpace')
       return new SignalWireAdapter(
-        config.accountSid!,
-        config.authToken!,
+        config.accountSid,
+        config.authToken,
         config.phoneNumber,
-        config.signalwireSpace!
+        config.signalwireSpace
       )
-    case 'vonage':
+    }
+    case 'vonage': {
+      if (!config.apiKey || !config.apiSecret || !config.applicationId)
+        throw new AppError(500, 'Vonage config missing apiKey, apiSecret, or applicationId')
       return new VonageAdapter(
-        config.apiKey!,
-        config.apiSecret!,
-        config.applicationId!,
+        config.apiKey,
+        config.apiSecret,
+        config.applicationId,
         config.phoneNumber,
         config.privateKey
       )
-    case 'plivo':
-      return new PlivoAdapter(config.authId!, config.authToken!, config.phoneNumber)
-    case 'asterisk':
+    }
+    case 'plivo': {
+      if (!config.authId || !config.authToken)
+        throw new AppError(500, 'Plivo config missing authId or authToken')
+      return new PlivoAdapter(config.authId, config.authToken, config.phoneNumber)
+    }
+    case 'asterisk': {
+      if (!config.ariUrl || !config.ariUsername || !config.ariPassword || !config.bridgeCallbackUrl)
+        throw new AppError(500, 'Asterisk config missing ariUrl, ariUsername, ariPassword, or bridgeCallbackUrl')
       return new AsteriskAdapter(
-        config.ariUrl!,
-        config.ariUsername!,
-        config.ariPassword!,
+        config.ariUrl,
+        config.ariUsername,
+        config.ariPassword,
         config.phoneNumber,
-        config.bridgeCallbackUrl!,
-        config.ariPassword! // Bridge secret uses ARI password as shared secret
+        config.bridgeCallbackUrl,
+        config.ariPassword // Bridge secret uses ARI password as shared secret
       )
-    default:
-      return new TwilioAdapter(config.accountSid!, config.authToken!, config.phoneNumber)
+    }
+    default: {
+      const exhaustive: never = config.type
+      throw new AppError(500, `Unknown telephony provider: ${exhaustive}`)
+    }
   }
 }
