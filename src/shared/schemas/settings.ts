@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const HubSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   name: z.string(),
   nostrPubkey: z.string().optional(),
   createdAt: z.iso.datetime(),
@@ -22,7 +22,7 @@ export const UpdateHubSchema = z.object({
 export type UpdateHubInput = z.infer<typeof UpdateHubSchema>
 
 export const RoleSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   hubId: z.string().optional(),
   name: z.string(),
   slug: z.string(),
@@ -48,7 +48,7 @@ export const UpdateRoleSchema = z.object({
 export type UpdateRoleInput = z.infer<typeof UpdateRoleSchema>
 
 export const CustomFieldDefinitionSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   hubId: z.string().optional(),
   fieldName: z.string(),
   label: z.string(),

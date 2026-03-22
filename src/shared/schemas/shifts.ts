@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const ShiftScheduleSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   hubId: z.string(),
   name: z.string(),
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
@@ -36,7 +36,7 @@ export const UpdateShiftScheduleSchema = z.object({
 export type UpdateShiftScheduleInput = z.infer<typeof UpdateShiftScheduleSchema>
 
 export const RingGroupSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   hubId: z.string(),
   name: z.string(),
   volunteerPubkeys: z.array(z.string()),
@@ -60,7 +60,7 @@ export const ActiveShiftSchema = z.object({
 export type ActiveShift = z.infer<typeof ActiveShiftSchema>
 
 export const ShiftOverrideSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   hubId: z.string(),
   scheduleId: z.string().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

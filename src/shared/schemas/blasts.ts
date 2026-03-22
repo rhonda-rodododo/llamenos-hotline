@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const BlastSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   hubId: z.string(),
   name: z.string(),
   channel: z.enum(['sms', 'whatsapp', 'signal']),
@@ -24,7 +24,7 @@ export const CreateBlastSchema = z.object({
 export type CreateBlastInput = z.infer<typeof CreateBlastSchema>
 
 export const SubscriberSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   hubId: z.string(),
   phoneNumber: z.string(),
   channel: z.string(),
@@ -45,7 +45,7 @@ export const CreateSubscriberSchema = z.object({
 export type CreateSubscriberInput = z.infer<typeof CreateSubscriberSchema>
 
 export const BlastDeliverySchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   blastId: z.string(),
   subscriberId: z.string(),
   status: z.enum(['pending', 'sent', 'failed']),

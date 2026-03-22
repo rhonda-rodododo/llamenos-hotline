@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { RecipientEnvelopeSchema } from './records'
 
 export const ConversationSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   hubId: z.string(),
   channelType: z.enum(['sms', 'whatsapp', 'signal', 'rcs', 'web']),
   contactIdentifierHash: z.string(),
@@ -29,7 +29,7 @@ export const CreateConversationSchema = z.object({
 export type CreateConversationInput = z.infer<typeof CreateConversationSchema>
 
 export const EncryptedMessageSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   conversationId: z.string(),
   direction: z.enum(['inbound', 'outbound']),
   authorPubkey: z.string(),
