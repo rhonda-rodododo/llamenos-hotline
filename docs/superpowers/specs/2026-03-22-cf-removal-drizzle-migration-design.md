@@ -167,32 +167,52 @@ Schema files live in `src/server/db/schema/` — one file per domain. Drizzle-ki
 
 ### Database setup
 
+Uses Bun's native SQL driver (not `node-postgres` or `postgres.js`) — matching V2's setup exactly:
+
 ```typescript
 // src/server/db/index.ts
-import { drizzle } from 'drizzle-orm/bun-sqlite'
-// or for PostgreSQL:
-import { drizzle } from 'drizzle-orm/node-postgres'
+import { SQL } from 'bun'
+import { drizzle } from 'drizzle-orm/bun-sql'
 import * as schema from './schema'
 
-export const db = drizzle(process.env.DATABASE_URL!, { schema })
-export type Database = typeof db
-```
+let _db: ReturnType<typeof createDatabase> | null = null
 
-PostgreSQL is used in all environments (dev, staging, prod). `drizzle-orm/node-postgres` with the `pg` driver, or `drizzle-orm/postgres-js` with `postgres.js` — to be confirmed against the V2 reference implementation.
+export function createDatabase(url: string) {
+  const client = new SQL({
+    url,
+    max: parseInt(process.env.PG_POOL_SIZE ?? '10'),
+    idleTimeout: parseInt(process.env.PG_IDLE_TIMEOUT ?? '30'),
+    connectionTimeout: 30,
+  })
+  return drizzle({ client, schema })
+}
+
+export function getDb() {
+  if (!_db) throw new Error('Database not initialized — call initDb() first')
+  return _db
+}
+
+export function initDb(url: string) {
+  _db = createDatabase(url)
+  return _db
+}
+
+export type Database = ReturnType<typeof createDatabase>
+```
 
 ### Custom JSONB type
 
-To prevent double-serialization (Drizzle stringifying an already-stringified object), a custom column type wraps JSONB:
+Bun's native SQL driver serializes objects to JSONB natively — calling `JSON.stringify` in `toDriver` causes double-serialization (objects stored as escaped JSON strings instead of JSONB objects). The custom type omits `toDriver` and passes values through `fromDriver` unchanged:
 
 ```typescript
 // src/server/db/bun-jsonb.ts
 import { customType } from 'drizzle-orm/pg-core'
 
 export const jsonb = <T>() =>
-  customType<{ data: T; driverData: string }>({
+  customType<{ data: T; driverData: T }>({
     dataType() { return 'jsonb' },
-    toDriver(value: T): string { return JSON.stringify(value) },
-    fromDriver(value: string): T { return typeof value === 'string' ? JSON.parse(value) : value },
+    // No toDriver — Bun SQL handles object → JSONB natively
+    fromDriver(value: T): T { return value },
   })
 ```
 
@@ -205,6 +225,8 @@ Used for encrypted envelope columns (`encryptedData`, `keyEnvelopes`) and config
 import { defineConfig } from 'drizzle-kit'
 
 export default defineConfig({
+  // Using index.ts re-export rather than glob (*.ts) — either works,
+  // but explicit re-export avoids drizzle-kit scanning non-schema files.
   schema: './src/server/db/schema/index.ts',
   out: './drizzle/migrations',
   dialect: 'postgresql',
@@ -258,7 +280,7 @@ All types are derived via `z.infer<>` — no manual `interface` duplication. Exi
 
 ## Hono Context
 
-`AppEnv.Variables` gains a `services: Services` field. A services middleware (registered once at app startup) injects `createServices(db)` into every request context. Route handlers access services via `c.get('services')`. Hub-scoped methods receive `hubId` explicitly from `c.get('hubId')`.
+`AppEnv.Variables` gains a `services: Services` field. Services are created **once at startup** (not per-request) and closed over in the middleware — matching V2's pattern. This avoids allocating seven class instances on every request while keeping services stateless and testable.
 
 ```typescript
 // src/server/types.ts
@@ -272,25 +294,62 @@ export type AppEnv = {
     allRoles: Role[]
     hubId?: string
     hubPermissions?: string[]
-    services: Services           // injected by services middleware
+    services: Services           // singleton, injected at startup
   }
 }
 ```
 
 ```typescript
-// src/server/middleware/services.ts
-import { createMiddleware } from 'hono/factory'
-import { createServices } from '../services'
-import { db } from '../db'
-import type { AppEnv } from '../types'
+// src/server/server.ts (startup wiring — simplified)
+const db = initDb(env.DATABASE_URL)
+const services = createServices(db)   // created once
 
-export const servicesMiddleware = createMiddleware<AppEnv>(async (c, next) => {
-  c.set('services', createServices(db))
+const app = createApp()
+app.use('*', async (c, next) => {
+  c.set('services', services)         // reference shared singleton
   await next()
 })
 ```
 
 The hub middleware is retained but updated: instead of calling `dos.settings.fetch(new Request(...))`, it calls `c.get('services').settings.getHub(hubId)`. The resolved `hubId` continues to be set on context and passed explicitly to service methods.
+
+---
+
+## Adapter Factories (getTelephony / getMessagingAdapter / getNostrPublisher)
+
+`src/worker/lib/do-access.ts` currently exports three adapter factory functions beyond `getDOs`:
+- `getTelephony(env, dos)` / `getHubTelephony(env, hubId)` — reads telephony config from SettingsDO, instantiates the correct `TelephonyAdapter`
+- `getMessagingAdapter(channel, dos, hmacSecret)` — reads messaging config from SettingsDO, instantiates the correct `MessagingAdapter`
+- `getNostrPublisher(env)` — creates `CFNostrPublisher` (CF service binding) or `NodeNostrPublisher`
+
+These are used in `src/server/routes/telephony.ts`, `src/server/messaging/router.ts`, `src/server/lib/nostr-events.ts`, `src/server/routes/conversations.ts`, and `src/server/routes/reports.ts`.
+
+After `do-access.ts` is deleted, these factories move to `src/server/lib/adapters.ts`:
+- `getTelephony(settings: SettingsService, hubId?: string)` — calls `settings.getTelephonyConfig(hubId)` then dispatches to the correct adapter
+- `getMessagingAdapter(channel, settings: SettingsService, hmacSecret)` — same pattern
+- `getNostrPublisher(env)` — `CFNostrPublisher` is deleted (CF service binding removed); only `NodeNostrPublisher` remains
+
+All call sites are updated to import from `src/server/lib/adapters.ts` and pass the `settings` service instead of `env` + DO stubs.
+
+---
+
+## Existing `src/worker/services/` Files
+
+Three existing service files in `src/worker/services/` (not DO classes) use DO access and must be migrated:
+
+- `audit.ts` — currently calls `records.fetch(new Request('http://do/audit', ...))`. Absorbed into `RecordsService` (audit log methods move there) or becomes a thin wrapper calling `services.records.addAuditEntry(...)` directly.
+- `ringing.ts` — calls `dos.shifts.fetch(...)`, `dos.settings.fetch(...)`, `dos.calls.fetch(...)`, `dos.identity.fetch(...)`. Refactored to receive a `Services` object and call service methods directly. Moved to `src/server/lib/ringing.ts`.
+- `transcription.ts` — calls `dos.settings.fetch(...)` and `dos.identity.fetch(...)`. Refactored to take `settings: SettingsService` and `identity: IdentityService` as constructor/function params. Moved to `src/server/lib/transcription-manager.ts`.
+
+These files are listed explicitly in the Files Created/Modified table.
+
+---
+
+## Demo Reset Scheduler
+
+`src/worker/index.ts` currently has a `scheduled()` CF Cron Trigger handler that resets all 7 DOs every 4 hours when `DEMO_MODE=true`. After `wrangler.jsonc` and `src/worker/index.ts` are deleted, this is replaced by:
+
+**Host cron** (already provisioned by the CF → VPS Demo Migration workstream): the Ansible demo role installs a crontab entry (`0 */4 * * *`) that calls `POST /api/test-reset` with `X-Test-Secret`. No application-level scheduler is needed — the reset endpoint already exists in `src/server/routes/dev.ts` and works for `ENVIRONMENT=demo`. The `scheduled()` export is simply deleted; the host cron takes over.
 
 ---
 
@@ -323,7 +382,7 @@ The hub middleware is retained but updated: instead of calling `dos.settings.fet
 
 - `dev:worker` — wrangler dev, no longer needed
 - `deploy:cloudflare` / `deploy:demo` / `deploy:next` — CF Worker deploy targets
-- `build:node` / `start:node` — esbuild bundle step; replaced by `bun run dev:server` and direct `bun` execution in Docker
+- `build:node` / `start:bun` — esbuild bundle step and old platform entrypoint; replaced by `bun run dev:server` pointing at `src/server/server.ts`
 - `dev:tunnel` — CF Tunnel script
 
 ### Removed root dependencies
@@ -364,23 +423,27 @@ No data migration is needed — there are no production instances and no data to
 
 ### Programmatic migration on boot
 
-`src/server/server.ts` runs `migrate()` on startup so dev and production always stay in sync without a separate manual step:
+`src/server/server.ts` runs `migrate()` on startup using the `bun-sql` migrator (matching the driver):
 
 ```typescript
 // src/server/server.ts (simplified)
-import { migrate } from 'drizzle-orm/node-postgres/migrator'
-import { db } from './db'
+import { migrate } from 'drizzle-orm/bun-sql/migrator'
+import { initDb } from './db'
 
 async function main() {
+  const db = initDb(process.env.DATABASE_URL!)
   // Run pending migrations before accepting traffic
   await migrate(db, { migrationsFolder: './drizzle/migrations' })
 
-  const app = createApp()
+  const services = createServices(db)
+  const app = createApp(services)
   serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 3000) })
 }
 
 main()
 ```
+
+The `bun run migrate` script (`bunx drizzle-kit migrate`) is also available for running migrations manually (e.g., in CI before the E2E job, or during local dev before starting the server). The startup `migrate()` call is the safety net that ensures production and Docker deployments never lag behind schema. Both paths use the same `drizzle/migrations/` folder and are idempotent.
 
 Drizzle-kit generates SQL migrations from schema file diffs via `bun run migrate:generate`. Migrations are committed to the repository and applied deterministically in CI and production.
 
@@ -430,7 +493,12 @@ Drizzle-kit generates SQL migrations from schema file diffs via `bun run migrate
 | Modify | `src/server/middleware/hub.ts` | Replace `getDOs(c.env).settings.fetch(...)` with `c.get('services').settings.getHub(hubId)` |
 | Modify | `src/server/middleware/auth.ts` | Replace DO access with service calls |
 | Modify | `src/server/routes/*.ts` | All 25 route files: replace `getDOs(c.env)` pattern with `c.get('services')` |
-| Modify | `src/server/app.ts` | Register `servicesMiddleware`; remove DO namespace imports |
+| Modify | `src/server/messaging/router.ts` | Replace `getScopedDOs`, `getMessagingAdapter`, `getNostrPublisher` with service calls and `src/server/lib/adapters.ts` |
+| Modify | `src/server/app.ts` | Register services singleton in startup; remove DO namespace imports |
+| Create | `src/server/lib/adapters.ts` | `getTelephony`, `getMessagingAdapter`, `getNostrPublisher` (CF variant deleted) |
+| Rename/Modify | `src/worker/services/ringing.ts` → `src/server/lib/ringing.ts` | Replace DO access with `Services` dependency |
+| Rename/Modify | `src/worker/services/transcription.ts` → `src/server/lib/transcription-manager.ts` | Replace DO access with service params |
+| Delete/Absorb | `src/worker/services/audit.ts` | Audit log methods absorbed into `RecordsService` |
 | Modify | `src/shared/types.ts` | Remove types superseded by Zod schemas; retain crypto/telephony structural types |
 | Modify | `tsconfig.json` | Rename `@worker/*` alias to `@server/*`; remove `@cloudflare/workers-types` |
 | Modify | `vite.config.ts` | Update path alias `@worker` → `@server` |
