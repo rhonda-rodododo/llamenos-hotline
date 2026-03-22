@@ -906,6 +906,20 @@ jobs:
             dist/client/**/*.js
             dist/client/**/*.css
 
+      - name: Sign CHECKSUMS.txt with GPG
+        if: env.RELEASE_GPG_PRIVATE_KEY != ''
+        env:
+          RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+          RELEASE_GPG_KEY_ID: ${{ secrets.RELEASE_GPG_KEY_ID }}
+        run: |
+          echo "$RELEASE_GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "${RELEASE_GPG_KEY_ID}:6:" | gpg --import-ownertrust
+          gpg --batch --armor \
+              --local-user "$RELEASE_GPG_KEY_ID" \
+              --detach-sign CHECKSUMS.txt
+          echo "GPG signature created: CHECKSUMS.txt.asc"
+          gpg --verify CHECKSUMS.txt.asc CHECKSUMS.txt
+
       - name: Install git-cliff
         run: |
           curl -sSfL https://github.com/orhun/git-cliff/releases/download/v2.7.0/git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz -o /tmp/git-cliff.tar.gz
@@ -929,6 +943,7 @@ jobs:
           prerelease: false
           files: |
             CHECKSUMS.txt
+            CHECKSUMS.txt.asc
 
   # ─── CI Status Gate ─────────────────────────────────────────
   # Single status check for branch protection rules.

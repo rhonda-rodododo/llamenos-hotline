@@ -1,0 +1,23 @@
+title = "Llamenos Hotline Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[[rules]]
+# Allow test nsec key embedded in demo-mode code
+id = "llamenos-test-nsec"
+description = "Test nsec keys used in demo mode (explicitly allowed)"
+regex = '''nsec174zsa94n3e7t0ugfldh9tgkkzmaxhalr78uxt9phjq3mmn6d6xas5jdffh'''
+
+[allowlist]
+description = "Global allowlist for known safe patterns"
+regexes = [
+  # Test/demo nsec key (intentionally embedded in demo-mode code)
+  "nsec174zsa94n3e7t0ugfldh9tgkkzmaxhalr78uxt9phjq3mmn6d6xas5jdffh",
+]
+paths = [
+  # Drizzle migration snapshots may contain hashed values
+  "drizzle/migrations/.*\\.sql",
+  # Test fixtures and snapshots
+  "tests/.*\\.snap",
+]
