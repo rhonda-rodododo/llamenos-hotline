@@ -212,7 +212,7 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 
 > Implement shared helpers first (`tests/helpers/` migration from flat `tests/helpers.ts`) — prerequisite for all suites.
 
-- [ ] **Shared Test Helpers** — rename `tests/helpers.ts` → `tests/helpers/index.ts`, update all imports, add `tests/helpers/auth.ts`, `call-simulator.ts`, `crypto.ts`, `db.ts`
+- [x] **Shared Test Helpers** — `tests/helpers/` directory: `auth.ts` (login helpers), `crypto.ts` (key preloading), `db.ts` (resetTestState, createTestHub, deleteTestHub), `call-simulator.ts` (simulateInboundCall, simulateCallAnswered, simulateCallHungUp, simulateVoicemail, waitForCallState); `index.ts` re-exports all; existing `from './helpers'` imports resolve transparently
 - [ ] **Call Flow Tests** (`2026-03-22-call-flow-tests-plan.md`) — ring → answer → note → hangup → voicemail fallback → parallel ringing. Inbound webhook is two-step: `POST /api/telephony/incoming` then `POST /api/telephony/language-selected`.
 - [ ] **E2EE Verification Tests** (`2026-03-22-e2ee-verification-tests-plan.md`) — Server stores ciphertext only; `window.__llamenos_test_crypto` hook (VITE_TEST_MODE guard); multi-envelope decryption; forward secrecy
 - [ ] **Nostr Relay Tests** (`2026-03-22-nostr-relay-tests-plan.md`) — `call:ring` event published and encrypted; hub key extracted via `window.__llamenos_test_hub_key`; REST polling fallback

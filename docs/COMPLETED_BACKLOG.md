@@ -1,5 +1,11 @@
 # Completed Backlog
 
+## 2026-03-22: Shared Test Helpers (`cf-removal` worktree)
+
+- [x] Refactored `tests/helpers.ts` into `tests/helpers/` directory: `auth.ts`, `crypto.ts`, `db.ts`, `call-simulator.ts`, `index.ts`
+- [x] New `call-simulator.ts` adds: `simulateInboundCall`, `simulateCallAnswered`, `simulateCallHungUp`, `simulateVoicemail`, `waitForCallState` — prerequisites for call-flow tests
+- [x] All 47 existing spec files continue to work without import changes (TypeScript directory resolution)
+
 ## 2026-03-22: Drizzle Schema Corrections (`cf-removal` worktree)
 
 - [x] **Subscribers privacy refactor**: `phoneNumber`/`channel`/`active`/`token`/`metadata` → `identifierHash` (HMAC-SHA256), `channels` JSONB array, `status` enum, `preferenceToken`, `tags`, `language`, `doubleOptInConfirmed`, `subscribedAt`; unique constraint on `(hubId, identifierHash)`
