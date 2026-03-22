@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { hashIP } from '../lib/crypto'
-import { getDOs } from '../lib/do-access'
-import { checkRateLimit, uint8ArrayToBase64URL } from '../lib/helpers'
+import { uint8ArrayToBase64URL } from '../lib/helpers'
 import {
   generateAuthOptions,
   generateRegOptions,
@@ -9,7 +8,6 @@ import {
   verifyRegResponse,
 } from '../lib/webauthn'
 import { auth as authMiddleware } from '../middleware/auth'
-import { audit } from '../services/audit'
 import type { AppEnv, WebAuthnCredential } from '../types'
 
 const webauthn = new Hono<AppEnv>()
@@ -17,83 +15,57 @@ const webauthn = new Hono<AppEnv>()
 // --- Public login routes (no auth) ---
 
 webauthn.post('/login/options', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   // Rate limit WebAuthn login attempts to prevent challenge flooding
   const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-  const limited = await checkRateLimit(
-    dos.settings,
+  const limited = await services.settings.checkRateLimit(
     `webauthn:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
     10
   )
   if (limited) return c.json({ error: 'Too many requests. Try again later.' }, 429)
   const rpID = new URL(c.req.url).hostname
-  const allCredsRes = await dos.identity.fetch(new Request('http://do/webauthn/all-credentials'))
-  const { credentials } = (await allCredsRes.json()) as {
-    credentials: Array<WebAuthnCredential & { ownerPubkey: string }>
-  }
+  const credentials = await services.identity.getAllWebAuthnCredentials()
   const options = await generateAuthOptions(credentials, rpID)
   const challengeId = crypto.randomUUID()
-  await dos.identity.fetch(
-    new Request('http://do/webauthn/challenge', {
-      method: 'POST',
-      body: JSON.stringify({ id: challengeId, challenge: options.challenge }),
-    })
-  )
+  await services.identity.storeWebAuthnChallenge({ id: challengeId, challenge: options.challenge })
   return c.json({ ...options, challengeId })
 })
 
 webauthn.post('/login/verify', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   // Rate limit verification attempts
   const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-  const verifyLimited = await checkRateLimit(
-    dos.settings,
+  const verifyLimited = await services.settings.checkRateLimit(
     `webauthn-verify:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
     10
   )
   if (verifyLimited) return c.json({ error: 'Too many requests. Try again later.' }, 429)
-  const body = (await c.req.json()) as { assertion: any; challengeId: string }
+  const body = (await c.req.json()) as { assertion: unknown; challengeId: string }
   const origin = new URL(c.req.url).origin
   const rpID = new URL(c.req.url).hostname
-  const challengeRes = await dos.identity.fetch(
-    new Request(`http://do/webauthn/challenge/${body.challengeId}`)
-  )
-  if (!challengeRes.ok) return c.json({ error: 'Invalid or expired challenge' }, 400)
-  const { challenge } = (await challengeRes.json()) as { challenge: string }
-  const allCredsRes = await dos.identity.fetch(new Request('http://do/webauthn/all-credentials'))
-  const { credentials } = (await allCredsRes.json()) as {
-    credentials: Array<WebAuthnCredential & { ownerPubkey: string }>
+  let challenge: string
+  try {
+    challenge = await services.identity.getWebAuthnChallenge(body.challengeId)
+  } catch {
+    return c.json({ error: 'Invalid or expired challenge' }, 400)
   }
-  const matched = credentials.find((cr) => cr.id === body.assertion.id)
+  const credentials = await services.identity.getAllWebAuthnCredentials()
+  const assertion = body.assertion as { id: string }
+  const matched = credentials.find((cr) => cr.id === assertion.id)
   if (!matched) return c.json({ error: 'Unknown credential' }, 401)
   try {
-    const verification = await verifyAuthResponse(body.assertion, matched, challenge, origin, rpID)
+    const verification = await verifyAuthResponse(assertion, matched, challenge, origin, rpID)
     if (!verification.verified) return c.json({ error: 'Verification failed' }, 401)
-    await dos.identity.fetch(
-      new Request('http://do/webauthn/credentials/update-counter', {
-        method: 'POST',
-        body: JSON.stringify({
-          pubkey: matched.ownerPubkey,
-          credId: matched.id,
-          counter: verification.authenticationInfo.newCounter,
-          lastUsedAt: new Date().toISOString(),
-        }),
-      })
-    )
-    const sessionRes = await dos.identity.fetch(
-      new Request('http://do/sessions/create', {
-        method: 'POST',
-        body: JSON.stringify({ pubkey: matched.ownerPubkey }),
-      })
-    )
-    const session = (await sessionRes.json()) as { token: string; pubkey: string }
-    await audit(
-      dos.records,
-      'webauthnLogin',
-      matched.ownerPubkey,
-      { credId: matched.id },
-      { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET }
-    )
+    await services.identity.updateWebAuthnCounter({
+      pubkey: matched.ownerPubkey,
+      credId: matched.id,
+      counter: verification.authenticationInfo.newCounter,
+      lastUsedAt: new Date().toISOString(),
+    })
+    const session = await services.identity.createSession({ pubkey: matched.ownerPubkey })
+    await services.records.addAuditEntry('global', 'webauthnLogin', matched.ownerPubkey, {
+      credId: matched.id,
+    })
     return c.json({ token: session.token, pubkey: session.pubkey })
   } catch {
     return c.json({ error: 'Verification failed' }, 401)
@@ -106,40 +78,34 @@ webauthn.use('/credentials', authMiddleware)
 webauthn.use('/credentials/*', authMiddleware)
 
 webauthn.post('/register/options', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const volunteer = c.get('volunteer')
   const body = (await c.req.json()) as { label: string }
   const rpID = new URL(c.req.url).hostname
   const rpName = c.env.HOTLINE_NAME || 'Hotline'
-  const credsRes = await dos.identity.fetch(
-    new Request(`http://do/webauthn/credentials?pubkey=${pubkey}`)
-  )
-  const { credentials: existing } = (await credsRes.json()) as { credentials: WebAuthnCredential[] }
+  const existing: WebAuthnCredential[] = await services.identity.getWebAuthnCredentials(pubkey)
   const options = await generateRegOptions({ pubkey, name: volunteer.name }, existing, rpID, rpName)
   const challengeId = crypto.randomUUID()
-  await dos.identity.fetch(
-    new Request('http://do/webauthn/challenge', {
-      method: 'POST',
-      body: JSON.stringify({ id: challengeId, challenge: options.challenge }),
-    })
-  )
+  await services.identity.storeWebAuthnChallenge({ id: challengeId, challenge: options.challenge })
   return c.json({ ...options, challengeId })
 })
 
 webauthn.post('/register/verify', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const body = (await c.req.json()) as { attestation: any; label: string; challengeId: string }
+  const body = (await c.req.json()) as { attestation: unknown; label: string; challengeId: string }
   const origin = new URL(c.req.url).origin
   const rpID = new URL(c.req.url).hostname
-  const challengeRes = await dos.identity.fetch(
-    new Request(`http://do/webauthn/challenge/${body.challengeId}`)
-  )
-  if (!challengeRes.ok) return c.json({ error: 'Invalid or expired challenge' }, 400)
-  const { challenge } = (await challengeRes.json()) as { challenge: string }
+  let challenge: string
   try {
-    const verification = await verifyRegResponse(body.attestation, challenge, origin, rpID)
+    challenge = await services.identity.getWebAuthnChallenge(body.challengeId)
+  } catch {
+    return c.json({ error: 'Invalid or expired challenge' }, 400)
+  }
+  try {
+    const attestation = body.attestation as { response?: { transports?: string[] } }
+    const verification = await verifyRegResponse(attestation, challenge, origin, rpID)
     if (!verification.verified || !verification.registrationInfo)
       return c.json({ error: 'Verification failed' }, 400)
     const { credential: regCred, credentialBackedUp } = verification.registrationInfo
@@ -147,25 +113,17 @@ webauthn.post('/register/verify', async (c) => {
       id: regCred.id,
       publicKey: uint8ArrayToBase64URL(regCred.publicKey),
       counter: regCred.counter,
-      transports: body.attestation.response?.transports || [],
+      transports: attestation.response?.transports || [],
       backedUp: credentialBackedUp,
       label: body.label || 'Passkey',
       createdAt: new Date().toISOString(),
       lastUsedAt: new Date().toISOString(),
     }
-    await dos.identity.fetch(
-      new Request('http://do/webauthn/credentials', {
-        method: 'POST',
-        body: JSON.stringify({ pubkey, credential: newCred }),
-      })
-    )
-    await audit(
-      dos.records,
-      'webauthnRegistered',
-      pubkey,
-      { credId: newCred.id, label: body.label },
-      { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET }
-    )
+    await services.identity.addWebAuthnCredential({ pubkey, credential: newCred })
+    await services.records.addAuditEntry('global', 'webauthnRegistered', pubkey, {
+      credId: newCred.id,
+      label: body.label,
+    })
     return c.json({ ok: true })
   } catch {
     return c.json({ error: 'Verification failed' }, 400)
@@ -173,12 +131,9 @@ webauthn.post('/register/verify', async (c) => {
 })
 
 webauthn.get('/credentials', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const credsRes = await dos.identity.fetch(
-    new Request(`http://do/webauthn/credentials?pubkey=${pubkey}`)
-  )
-  const { credentials } = (await credsRes.json()) as { credentials: WebAuthnCredential[] }
+  const credentials: WebAuthnCredential[] = await services.identity.getWebAuthnCredentials(pubkey)
   return c.json({
     credentials: credentials.map((cr) => ({
       id: cr.id,
@@ -191,24 +146,17 @@ webauthn.get('/credentials', async (c) => {
 })
 
 webauthn.delete('/credentials/:credId', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const credId = decodeURIComponent(c.req.param('credId'))
   if (!credId) return c.json({ error: 'Invalid credential ID' }, 400)
-  const res = await dos.identity.fetch(
-    new Request(`http://do/webauthn/credentials/${encodeURIComponent(credId)}?pubkey=${pubkey}`, {
-      method: 'DELETE',
-    })
-  )
-  if (res.ok)
-    await audit(
-      dos.records,
-      'webauthnDeleted',
-      pubkey,
-      { credId },
-      { request: c.req.raw, hmacSecret: c.env.HMAC_SECRET }
-    )
-  return res
+  try {
+    await services.identity.deleteWebAuthnCredential(pubkey, credId)
+    await services.records.addAuditEntry('global', 'webauthnDeleted', pubkey, { credId })
+    return c.json({ ok: true })
+  } catch {
+    return c.json({ error: 'Credential not found' }, 404)
+  }
 })
 
 export default webauthn

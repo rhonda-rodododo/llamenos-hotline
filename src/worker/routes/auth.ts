@@ -3,25 +3,22 @@ import { Hono } from 'hono'
 import { getPrimaryRole } from '../../shared/permissions'
 import { verifyAuthToken } from '../lib/auth'
 import { hashIP } from '../lib/crypto'
-import { getDOs } from '../lib/do-access'
-import { checkRateLimit, isValidE164 } from '../lib/helpers'
+import { isValidE164 } from '../lib/helpers'
 import { deriveServerEventKey } from '../lib/hub-event-crypto'
 import { auth as authMiddleware } from '../middleware/auth'
 import { checkPermission } from '../middleware/permission-guard'
-import { audit } from '../services/audit'
 import type { AppEnv, WebAuthnCredential } from '../types'
 
 const auth = new Hono<AppEnv>()
 
 // --- Login (no auth) ---
 auth.post('/login', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
 
   // Rate limit login attempts by IP (skip in development for testing)
   if (c.env.ENVIRONMENT !== 'development') {
     const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-    const limited = await checkRateLimit(
-      dos.settings,
+    const limited = await services.settings.checkRateLimit(
       `auth:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
       10
     )
@@ -43,21 +40,19 @@ auth.post('/login', async (c) => {
   )
   if (!isValid) return c.json({ error: 'Invalid credentials' }, 401)
 
-  const res = await dos.identity.fetch(new Request(`http://do/volunteer/${body.pubkey}`))
-  if (!res.ok) return c.json({ error: 'Invalid credentials' }, 401)
-  const volunteer = (await res.json()) as { roles: string[] }
+  const volunteer = await services.identity.getVolunteer(body.pubkey)
+  if (!volunteer) return c.json({ error: 'Invalid credentials' }, 401)
   return c.json({ ok: true, roles: volunteer.roles })
 })
 
 // --- Bootstrap (no auth — one-shot admin registration) ---
 auth.post('/bootstrap', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
 
   // Rate limit by IP
   if (c.env.ENVIRONMENT !== 'development') {
     const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-    const limited = await checkRateLimit(
-      dos.settings,
+    const limited = await services.settings.checkRateLimit(
       `bootstrap:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
       5
     )
@@ -81,20 +76,15 @@ auth.post('/bootstrap', async (c) => {
   if (!isValid) return c.json({ error: 'Invalid signature' }, 401)
 
   // Check if admin already exists
-  const checkRes = await dos.identity.fetch(new Request('http://do/has-admin'))
-  const { hasAdmin } = (await checkRes.json()) as { hasAdmin: boolean }
+  const hasAdmin = await services.identity.hasAdmin()
   if (hasAdmin) {
     return c.json({ error: 'Admin already exists' }, 403)
   }
 
   // Create the admin
-  const bootstrapRes = await dos.identity.fetch(
-    new Request('http://do/bootstrap', {
-      method: 'POST',
-      body: JSON.stringify({ pubkey: body.pubkey }),
-    })
-  )
-  if (!bootstrapRes.ok) {
+  try {
+    await services.identity.bootstrapAdmin(body.pubkey)
+  } catch {
     return c.json({ error: 'Bootstrap failed' }, 500)
   }
 
@@ -106,23 +96,14 @@ auth.use('/me', authMiddleware)
 auth.use('/me/*', authMiddleware)
 
 auth.get('/me', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const volunteer = c.get('volunteer')
   const permissions = c.get('permissions')
   const allRoles = c.get('allRoles')
 
-  const credsRes = await dos.identity.fetch(
-    new Request(`http://do/webauthn/credentials?pubkey=${pubkey}`)
-  )
-  const { credentials: webauthnCreds } = (await credsRes.json()) as {
-    credentials: WebAuthnCredential[]
-  }
-  const settingsRes = await dos.identity.fetch(new Request('http://do/settings/webauthn'))
-  const webauthnSettings = (await settingsRes.json()) as {
-    requireForAdmins: boolean
-    requireForVolunteers: boolean
-  }
+  const webauthnCreds: WebAuthnCredential[] = await services.identity.getWebAuthnCredentials(pubkey)
+  const webauthnSettings = await services.identity.getWebAuthnSettings()
 
   const isAdmin = checkPermission(permissions, 'settings:manage')
   const webauthnRequired = isAdmin
@@ -160,22 +141,20 @@ auth.get('/me', async (c) => {
 })
 
 auth.post('/me/logout', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const authHeader = c.req.header('Authorization') || ''
   // Revoke the session token if using session-based auth
   if (authHeader.startsWith('Session ')) {
     const token = authHeader.slice(8).trim()
-    await dos.identity.fetch(
-      new Request(`http://do/sessions/revoke/${token}`, { method: 'DELETE' })
-    )
+    await services.identity.revokeSession(token)
   }
-  await audit(dos.records, 'logout', pubkey)
+  await services.records.addAuditEntry('global', 'logout', pubkey)
   return c.json({ ok: true })
 })
 
 auth.patch('/me/profile', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as {
     name?: string
@@ -188,52 +167,39 @@ auth.patch('/me/profile', async (c) => {
   if (body.phone && !isValidE164(body.phone)) {
     return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
   }
-  await dos.identity.fetch(
-    new Request(`http://do/volunteers/${pubkey}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
-  )
+  await services.identity.updateVolunteer(pubkey, body)
   return c.json({ ok: true })
 })
 
 auth.patch('/me/availability', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as { onBreak: boolean }
-  await dos.identity.fetch(
-    new Request(`http://do/volunteers/${pubkey}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ onBreak: body.onBreak }),
-    })
+  await services.identity.updateVolunteer(pubkey, { onBreak: body.onBreak })
+  await services.records.addAuditEntry(
+    'global',
+    body.onBreak ? 'volunteerOnBreak' : 'volunteerAvailable',
+    pubkey
   )
-  await audit(dos.records, body.onBreak ? 'volunteerOnBreak' : 'volunteerAvailable', pubkey)
   return c.json({ ok: true })
 })
 
 auth.patch('/me/transcription', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const body = (await c.req.json()) as { enabled: boolean }
   // If volunteer is trying to disable, check if admin allows opt-out
   if (!body.enabled && !checkPermission(permissions, 'settings:manage-transcription')) {
-    const transRes = await dos.settings.fetch(new Request('http://do/settings/transcription'))
-    const transSettings = (await transRes.json()) as {
-      globalEnabled: boolean
-      allowVolunteerOptOut: boolean
-    }
+    const transSettings = await services.settings.getTranscriptionSettings()
     if (!transSettings.allowVolunteerOptOut) {
       return c.json({ error: 'Transcription opt-out is not allowed' }, 403)
     }
   }
-  await dos.identity.fetch(
-    new Request(`http://do/volunteers/${pubkey}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ transcriptionEnabled: body.enabled }),
-    })
-  )
-  await audit(dos.records, 'transcriptionToggled', pubkey, { enabled: body.enabled })
+  await services.identity.updateVolunteer(pubkey, { transcriptionEnabled: body.enabled })
+  await services.records.addAuditEntry('global', 'transcriptionToggled', pubkey, {
+    enabled: body.enabled,
+  })
   return c.json({ ok: true })
 })
 
