@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, enterPin, TEST_PIN } from './helpers'
+import { loginAsAdmin, navigateAfterLogin, enterPin, resetTestState, TEST_PIN } from './helpers'
 
 test.describe('PIN Challenge (Re-auth Step-up)', () => {
+  test.beforeEach(async ({ request }) => {
+    await resetTestState(request)
+  })
+
   test('phone unmask on volunteers page requires PIN', async ({ page }) => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/volunteers')

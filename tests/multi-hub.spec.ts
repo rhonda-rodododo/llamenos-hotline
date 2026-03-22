@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin } from './helpers'
+import { loginAsAdmin, resetTestState } from './helpers'
 
 // Helper type for the authed fetch on window
 declare global {
@@ -11,6 +11,10 @@ declare global {
 test.describe('Multi-hub architecture', () => {
   // Tests must run in order — later tests create hubs that affect UI state
   test.describe.configure({ mode: 'serial' })
+
+  test.beforeAll(async ({ request }) => {
+    await resetTestState(request)
+  })
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)

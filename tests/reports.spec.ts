@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, uniquePhone, logout } from './helpers'
+import { loginAsAdmin, loginAsVolunteer, resetTestState, uniquePhone, logout } from './helpers'
 
 /**
  * Navigate to the Reports page via sidebar link (SPA navigation).
@@ -98,6 +98,10 @@ async function createReporterInvite(page: Page, reporterName: string): Promise<s
 }
 
 test.describe('Reports feature', () => {
+  test.beforeAll(async ({ request }) => {
+    await resetTestState(request)
+  })
+
   test.describe('Admin reports management', () => {
     // Tests depend on each other's server-side state (create → claim → close → filter)
     test.describe.configure({ mode: 'serial' })

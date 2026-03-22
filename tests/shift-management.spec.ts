@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, createVolunteerAndGetNsec, dismissNsecCard, uniquePhone } from './helpers'
+import { loginAsAdmin, createVolunteerAndGetNsec, dismissNsecCard, resetTestState, uniquePhone } from './helpers'
 
 test.describe('Shift management', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetTestState(request)
     await loginAsAdmin(page)
     await page.getByRole('link', { name: 'Shifts' }).click()
     await expect(page.getByRole('heading', { name: /shift schedule/i })).toBeVisible()

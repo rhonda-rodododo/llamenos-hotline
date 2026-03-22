@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { loginAsAdmin } from './helpers'
+import { loginAsAdmin, resetTestState } from './helpers'
 
 /**
  * End-to-end: custom fields defined in admin settings → used in notes forms.
@@ -9,6 +9,10 @@ import { loginAsAdmin } from './helpers'
 test.describe('Custom Fields in Notes', () => {
   // Tests depend on each other's server-side state (field from test 1, note from test 2, etc.)
   test.describe.configure({ mode: 'serial' })
+
+  test.beforeAll(async ({ request }) => {
+    await resetTestState(request)
+  })
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)

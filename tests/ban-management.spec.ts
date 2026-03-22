@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, uniquePhone, completeProfileSetup, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, resetTestState, uniquePhone, completeProfileSetup, navigateAfterLogin } from './helpers'
 
 test.describe('Ban management', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetTestState(request)
     await loginAsAdmin(page)
     await page.getByRole('link', { name: 'Ban List' }).click()
     await expect(page.getByRole('heading', { name: /ban list/i })).toBeVisible()

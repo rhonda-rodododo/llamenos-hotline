@@ -98,6 +98,7 @@ src/
 bun install                              # Install dependencies
 bun run dev                              # Vite dev server (frontend only)
 bun run dev:worker                       # Wrangler dev server (Worker + DOs)
+bun run dev:docker                       # Start Docker backing services (v1 port offsets)
 bun run build                            # Vite build → dist/client/
 bun run deploy                           # Deploy EVERYTHING (app + marketing site)
 bun run deploy:demo                      # Deploy app Worker only
@@ -107,11 +108,15 @@ bunx playwright test tests/smoke.spec.ts # Run a single test file
 bun run test:ui                          # Playwright UI mode
 bun run typecheck                        # Type check (tsc --noEmit)
 bun run bootstrap-admin                  # Generate admin keypair
+./scripts/test-local.sh                  # Run E2E tests against Docker backend
+PLAYWRIGHT_WORKERS=3 bunx playwright test    # Run with 3 workers (after isolation verified)
 ```
 
 **Deployment rules — NEVER run `wrangler pages deploy` or `wrangler deploy` directly.** Always use the root `package.json` scripts (`bun run deploy`, `bun run deploy:demo`, `bun run deploy:site`). Running `wrangler pages deploy dist` from the wrong directory will deploy the Vite app build to Pages instead of the Astro site, breaking the marketing site with 404s.
 
 **Key config files**: `wrangler.jsonc` (Worker + DO bindings), `playwright.config.ts`, `.dev.vars` (Twilio creds + ADMIN_PUBKEY, gitignored)
+
+**Local E2E tests**: Copy `.dev.vars.local.example` to `.dev.vars.local`, fill in your values, then start backing services before running wrangler dev.
 
 ## Claude Code Working Style
 

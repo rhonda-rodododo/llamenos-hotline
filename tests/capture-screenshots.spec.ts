@@ -13,6 +13,7 @@
 
 import { test, expect } from '@playwright/test'
 import { type Page } from '@playwright/test'
+import { resetTestState } from './helpers'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
@@ -208,6 +209,10 @@ test.describe('Screenshot Capture', () => {
     if (!fs.existsSync(SCREENSHOT_DIR)) {
       fs.mkdirSync(SCREENSHOT_DIR, { recursive: true })
     }
+  })
+
+  test.beforeEach(async ({ request }) => {
+    await resetTestState(request)
   })
 
   test('capture all documentation screenshots', async ({ page }) => {

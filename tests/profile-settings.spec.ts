@@ -1,8 +1,12 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, completeProfileSetup, uniquePhone, enterPin, TEST_PIN, navigateAfterLogin } from './helpers'
+import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, completeProfileSetup, resetTestState, uniquePhone, enterPin, TEST_PIN, navigateAfterLogin } from './helpers'
 
 test.describe('Profile self-service', () => {
   let volunteerNsec: string
+
+  test.beforeAll(async ({ request }) => {
+    await resetTestState(request)
+  })
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage()

@@ -1,8 +1,12 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, uniquePhone } from './helpers'
+import { loginAsAdmin, resetTestState, uniquePhone } from './helpers'
 
 test.describe('Invite-based onboarding', () => {
   let inviteLink: string
+
+  test.beforeEach(async ({ request }) => {
+    await resetTestState(request)
+  })
 
   test('admin creates invite and volunteer completes onboarding', async ({ page }) => {
     // --- Step 1: Admin creates invite ---
