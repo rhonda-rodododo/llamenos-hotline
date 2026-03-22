@@ -14,18 +14,15 @@ async function runChecks(env: Record<string, unknown>): Promise<HealthResult> {
   const checks: Record<string, 'ok' | 'failing'> = {}
   const details: Record<string, string> = {}
 
-  // PostgreSQL check (Node.js self-hosted only — CF Workers use Durable Objects)
-  const isNode = typeof process !== 'undefined' && process.env?.PLATFORM === 'node'
-  if (isNode) {
-    try {
-      const { getPool } = await import('../../platform/node/storage/postgres-pool')
-      const sql = getPool()
-      await sql`SELECT 1`
-      checks.postgres = 'ok'
-    } catch (err) {
-      checks.postgres = 'failing'
-      details.postgres = err instanceof Error ? err.message : 'Connection failed'
-    }
+  // PostgreSQL check — verify DB connection via Drizzle
+  try {
+    const { getDb } = await import('../db')
+    const db = getDb()
+    await db.execute('SELECT 1')
+    checks.postgres = 'ok'
+  } catch (err) {
+    checks.postgres = 'failing'
+    details.postgres = err instanceof Error ? err.message : 'Connection failed'
   }
 
   // Blob storage check (R2 on CF, MinIO on Node.js)
