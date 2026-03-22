@@ -294,6 +294,23 @@ export class IdentityService {
     await this.db.delete(inviteCodes).where(eq(inviteCodes.code, code))
   }
 
+  async updateInviteDelivery(
+    code: string,
+    data: { recipientPhoneHash: string; deliveryChannel: string; deliverySentAt: Date }
+  ): Promise<InviteCode> {
+    const [row] = await this.db
+      .update(inviteCodes)
+      .set({
+        recipientPhoneHash: data.recipientPhoneHash,
+        deliveryChannel: data.deliveryChannel,
+        deliverySentAt: data.deliverySentAt,
+      })
+      .where(eq(inviteCodes.code, code))
+      .returning()
+    if (!row) throw new AppError(404, 'Invite not found')
+    return this.#rowToInvite(row)
+  }
+
   // ------------------------------------------------------------------ WebAuthn Credentials
 
   async getWebAuthnCredentials(pubkey: string): Promise<WebAuthnCredential[]> {
@@ -610,6 +627,9 @@ export class IdentityService {
       expiresAt: r.expiresAt.toISOString(),
       usedAt: r.usedAt?.toISOString(),
       usedBy: r.usedBy ?? undefined,
+      recipientPhoneHash: r.recipientPhoneHash ?? undefined,
+      deliveryChannel: r.deliveryChannel ?? undefined,
+      deliverySentAt: r.deliverySentAt?.toISOString() ?? undefined,
     }
   }
 

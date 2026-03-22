@@ -36,6 +36,13 @@
       "when": 1742860800000,
       "tag": "0006_report_types",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1742947200000,
+      "tag": "0007_invite_delivery",
+      "breakpoints": true
     }
   ]
 }
