@@ -1,15 +1,10 @@
+import { MessageStatusIcon } from '@/components/MessageStatusIcon'
 import type { ConversationMessage } from '@/lib/api'
-import type { MessageDeliveryStatus } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptMessage } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
 import {
-  AlertCircle,
   ArrowDown,
-  ArrowUp,
-  Check,
-  CheckCheck,
-  Clock,
   Loader2,
   Lock,
 } from 'lucide-react'
@@ -110,23 +105,6 @@ export function ConversationThread({
     })
   }
 
-  function StatusIcon({ status }: { status?: MessageDeliveryStatus }) {
-    switch (status) {
-      case 'pending':
-        return <Clock className="h-3 w-3" />
-      case 'sent':
-        return <Check className="h-3 w-3" />
-      case 'delivered':
-        return <CheckCheck className="h-3 w-3" />
-      case 'read':
-        return <CheckCheck className="h-3 w-3 text-blue-400" />
-      case 'failed':
-        return <AlertCircle className="h-3 w-3 text-red-400" />
-      default:
-        return <Check className="h-3 w-3" />
-    }
-  }
-
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
@@ -184,15 +162,19 @@ export function ConversationThread({
                     <ArrowDown className="h-3 w-3" />
                   ) : (
                     <>
-                      <StatusIcon status={msg.status} />
-                      {msg.status === 'failed' && msg.failureReason && (
-                        <span
-                          className="text-red-400 truncate max-w-[100px]"
-                          title={msg.failureReason}
-                        >
-                          {t('conversations.failed', 'Failed')}
-                        </span>
-                      )}
+                      <MessageStatusIcon
+                        status={msg.deliveryStatus ?? msg.status}
+                        error={msg.deliveryError ?? msg.failureReason}
+                      />
+                      {(msg.deliveryStatus === 'failed' || msg.status === 'failed') &&
+                        (msg.deliveryError ?? msg.failureReason) && (
+                          <span
+                            className="text-red-400 truncate max-w-[100px]"
+                            title={msg.deliveryError ?? msg.failureReason ?? undefined}
+                          >
+                            {t('conversations.failed', 'Failed')}
+                          </span>
+                        )}
                     </>
                   )}
                 </div>
