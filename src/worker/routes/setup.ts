@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
-import type { AppEnv } from '../types'
 import { getDOs } from '../lib/do-access'
+import { validateExternalUrl } from '../lib/ssrf-guard'
 import { requirePermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
-import { validateExternalUrl } from '../lib/ssrf-guard'
+import type { AppEnv } from '../types'
 
 const setup = new Hono<AppEnv>()
 
@@ -19,10 +19,12 @@ setup.patch('/state', requirePermission('settings:manage'), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
-  const res = await dos.settings.fetch(new Request('http://do/settings/setup', {
-    method: 'PATCH',
-    body: JSON.stringify(body),
-  }))
+  const res = await dos.settings.fetch(
+    new Request('http://do/settings/setup', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+  )
   if (res.ok) await audit(dos.records, 'setupStateUpdated', pubkey, body as Record<string, unknown>)
   return new Response(res.body, res)
 })
@@ -31,12 +33,12 @@ setup.patch('/state', requirePermission('settings:manage'), async (c) => {
 setup.post('/complete', requirePermission('settings:manage'), async (c) => {
   const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
-  const body = await c.req.json().catch(() => ({})) as { demoMode?: boolean }
+  const body = (await c.req.json().catch(() => ({}))) as { demoMode?: boolean }
 
   // Create default hub if none exists
   try {
     const hubsRes = await dos.settings.fetch(new Request('http://do/settings/hubs'))
-    const hubsData = hubsRes.ok ? await hubsRes.json() as { hubs: unknown[] } : { hubs: [] }
+    const hubsData = hubsRes.ok ? ((await hubsRes.json()) as { hubs: unknown[] }) : { hubs: [] }
     if (hubsData.hubs.length === 0) {
       const hotlineName = c.env.HOTLINE_NAME || 'Hotline'
       const defaultHub = {
@@ -49,32 +51,39 @@ setup.post('/complete', requirePermission('settings:manage'), async (c) => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }
-      await dos.settings.fetch(new Request('http://do/settings/hubs', {
-        method: 'POST',
-        body: JSON.stringify(defaultHub),
-      }))
+      await dos.settings.fetch(
+        new Request('http://do/settings/hubs', {
+          method: 'POST',
+          body: JSON.stringify(defaultHub),
+        })
+      )
       // Assign admin to the default hub with all roles
-      await dos.identity.fetch(new Request('http://do/identity/hub-role', {
-        method: 'POST',
-        body: JSON.stringify({ pubkey, hubId: defaultHub.id, roleIds: ['role-super-admin'] }),
-      }))
+      await dos.identity.fetch(
+        new Request('http://do/identity/hub-role', {
+          method: 'POST',
+          body: JSON.stringify({ pubkey, hubId: defaultHub.id, roleIds: ['role-super-admin'] }),
+        })
+      )
     }
   } catch {
     // Non-fatal — hub creation failing shouldn't block setup completion
   }
 
-  const res = await dos.settings.fetch(new Request('http://do/settings/setup', {
-    method: 'PATCH',
-    body: JSON.stringify({ setupCompleted: true, demoMode: body.demoMode ?? false }),
-  }))
+  const res = await dos.settings.fetch(
+    new Request('http://do/settings/setup', {
+      method: 'PATCH',
+      body: JSON.stringify({ setupCompleted: true, demoMode: body.demoMode ?? false }),
+    })
+  )
 
-  if (res.ok) await audit(dos.records, 'setupCompleted', pubkey, { demoMode: body.demoMode ?? false })
+  if (res.ok)
+    await audit(dos.records, 'setupCompleted', pubkey, { demoMode: body.demoMode ?? false })
   return new Response(res.body, res)
 })
 
 // Test Signal bridge connection
 setup.post('/test/signal', requirePermission('settings:manage-messaging'), async (c) => {
-  const body = await c.req.json() as { bridgeUrl: string; bridgeApiKey: string }
+  const body = (await c.req.json()) as { bridgeUrl: string; bridgeApiKey: string }
 
   if (!body.bridgeUrl) {
     return c.json({ ok: false, error: 'Bridge URL is required' }, 400)
@@ -89,7 +98,7 @@ setup.post('/test/signal', requirePermission('settings:manage-messaging'), async
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 10000)
     const headers: Record<string, string> = {}
-    if (body.bridgeApiKey) headers['Authorization'] = `Bearer ${body.bridgeApiKey}`
+    if (body.bridgeApiKey) headers.Authorization = `Bearer ${body.bridgeApiKey}`
 
     const res = await fetch(`${body.bridgeUrl}/v1/about`, {
       headers,
@@ -109,7 +118,7 @@ setup.post('/test/signal', requirePermission('settings:manage-messaging'), async
 
 // Test WhatsApp connection (direct Meta API)
 setup.post('/test/whatsapp', requirePermission('settings:manage-messaging'), async (c) => {
-  const body = await c.req.json() as { phoneNumberId: string; accessToken: string }
+  const body = (await c.req.json()) as { phoneNumberId: string; accessToken: string }
 
   if (!body.phoneNumberId || !body.accessToken) {
     return c.json({ ok: false, error: 'Phone Number ID and Access Token are required' }, 400)
@@ -121,7 +130,7 @@ setup.post('/test/whatsapp', requirePermission('settings:manage-messaging'), asy
     const res = await fetch(
       `https://graph.facebook.com/v18.0/${encodeURIComponent(body.phoneNumberId)}`,
       {
-        headers: { 'Authorization': `Bearer ${body.accessToken}` },
+        headers: { Authorization: `Bearer ${body.accessToken}` },
         signal: controller.signal,
       }
     )

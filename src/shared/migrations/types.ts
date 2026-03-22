@@ -6,7 +6,7 @@
 export interface MigrationStorage {
   get<T = unknown>(key: string): Promise<T | undefined>
   put(key: string, value: unknown): Promise<void>
-  delete(key: string): Promise<void | boolean>
+  delete(key: string): Promise<undefined | boolean>
   list(options?: { prefix?: string }): Promise<Map<string, unknown>>
 }
 

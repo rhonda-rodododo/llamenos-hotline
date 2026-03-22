@@ -1,36 +1,36 @@
 import { Hono } from 'hono'
-import type { AppEnv } from './types'
-import { cors } from './middleware/cors'
-import { securityHeaders } from './middleware/security-headers'
-import { auth } from './middleware/auth'
-import configRoutes from './routes/config'
-import devRoutes from './routes/dev'
-import authRoutes from './routes/auth'
-import webauthnRoutes from './routes/webauthn'
-import volunteersRoutes from './routes/volunteers'
-import invitesRoutes from './routes/invites'
-import shiftsRoutes from './routes/shifts'
-import bansRoutes from './routes/bans'
-import notesRoutes from './routes/notes'
-import callsRoutes from './routes/calls'
-import auditRoutes from './routes/audit'
-import settingsRoutes from './routes/settings'
-import telephonyRoutes from './routes/telephony'
-import webrtcRoutes from './routes/webrtc'
-import messagingRoutes from './messaging/router'
-import conversationsRoutes from './routes/conversations'
-import uploadsRoutes from './routes/uploads'
-import filesRoutes from './routes/files'
-import reportsRoutes from './routes/reports'
-import setupRoutes from './routes/setup'
-import provisioningRoutes from './routes/provisioning'
-import hubRoutes from './routes/hubs'
-import blastsRoutes from './routes/blasts'
-import contactsRoutes from './routes/contacts'
-import healthRoutes from './routes/health'
-import metricsRoutes from './routes/metrics'
-import { hubContext } from './middleware/hub'
 import { getDOs } from './lib/do-access'
+import messagingRoutes from './messaging/router'
+import { auth } from './middleware/auth'
+import { cors } from './middleware/cors'
+import { hubContext } from './middleware/hub'
+import { securityHeaders } from './middleware/security-headers'
+import auditRoutes from './routes/audit'
+import authRoutes from './routes/auth'
+import bansRoutes from './routes/bans'
+import blastsRoutes from './routes/blasts'
+import callsRoutes from './routes/calls'
+import configRoutes from './routes/config'
+import contactsRoutes from './routes/contacts'
+import conversationsRoutes from './routes/conversations'
+import devRoutes from './routes/dev'
+import filesRoutes from './routes/files'
+import healthRoutes from './routes/health'
+import hubRoutes from './routes/hubs'
+import invitesRoutes from './routes/invites'
+import metricsRoutes from './routes/metrics'
+import notesRoutes from './routes/notes'
+import provisioningRoutes from './routes/provisioning'
+import reportsRoutes from './routes/reports'
+import settingsRoutes from './routes/settings'
+import setupRoutes from './routes/setup'
+import shiftsRoutes from './routes/shifts'
+import telephonyRoutes from './routes/telephony'
+import uploadsRoutes from './routes/uploads'
+import volunteersRoutes from './routes/volunteers'
+import webauthnRoutes from './routes/webauthn'
+import webrtcRoutes from './routes/webrtc'
+import type { AppEnv } from './types'
 
 const app = new Hono<AppEnv>()
 
@@ -64,11 +64,13 @@ api.get('/messaging/preferences', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
   const dos = getDOs(c.env)
-  const res = await dos.blasts.fetch(new Request('http://do/subscribers/validate-token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-  }))
+  const res = await dos.blasts.fetch(
+    new Request('http://do/subscribers/validate-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
+  )
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
 
@@ -77,11 +79,13 @@ api.patch('/messaging/preferences', async (c) => {
   if (!token) return c.json({ error: 'Token required' }, 400)
   const dos = getDOs(c.env)
   const body = await c.req.text()
-  const res = await dos.blasts.fetch(new Request('http://do/subscribers/update-preferences', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, ...JSON.parse(body) }),
-  }))
+  const res = await dos.blasts.fetch(
+    new Request('http://do/subscribers/update-preferences', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, ...JSON.parse(body) }),
+    })
+  )
   return new Response(res.body, { status: res.status, headers: res.headers })
 })
 

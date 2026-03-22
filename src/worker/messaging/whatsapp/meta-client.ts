@@ -1,9 +1,9 @@
 import type {
-  MetaSendTextRequest,
-  MetaSendMediaRequest,
-  MetaSendTemplateRequest,
-  MetaSendResponse,
   MetaMediaUrlResponse,
+  MetaSendMediaRequest,
+  MetaSendResponse,
+  MetaSendTemplateRequest,
+  MetaSendTextRequest,
   MetaTemplateComponent,
 } from './types'
 import { MIME_TO_META_TYPE } from './types'
@@ -26,7 +26,7 @@ export class MetaDirectClient {
     phoneNumberId: string,
     businessAccountId: string,
     accessToken: string,
-    appSecret: string,
+    appSecret: string
   ) {
     this.phoneNumberId = phoneNumberId
     this.businessAccountId = businessAccountId
@@ -55,10 +55,17 @@ export class MetaDirectClient {
   async sendMediaMessage(
     to: string,
     mediaUrl: string,
-    mediaType: string,
+    mediaType: string
   ): Promise<MetaSendResponse> {
     const metaType = MIME_TO_META_TYPE[mediaType]
-    if (!metaType || metaType === 'text' || metaType === 'location' || metaType === 'contacts' || metaType === 'reaction' || metaType === 'interactive') {
+    if (
+      !metaType ||
+      metaType === 'text' ||
+      metaType === 'location' ||
+      metaType === 'contacts' ||
+      metaType === 'reaction' ||
+      metaType === 'interactive'
+    ) {
       throw new Error(`Unsupported media type for WhatsApp: ${mediaType}`)
     }
 
@@ -118,7 +125,7 @@ export class MetaDirectClient {
     to: string,
     templateName: string,
     languageCode: string,
-    components?: MetaTemplateComponent[],
+    components?: MetaTemplateComponent[]
   ): Promise<MetaSendResponse> {
     const payload: MetaSendTemplateRequest = {
       messaging_product: 'whatsapp',
@@ -149,7 +156,7 @@ export class MetaDirectClient {
       throw new Error(`Failed to get media URL for ${mediaId}: ${urlRes.status} ${errorText}`)
     }
 
-    const mediaInfo = await urlRes.json() as MetaMediaUrlResponse
+    const mediaInfo = (await urlRes.json()) as MetaMediaUrlResponse
 
     // Step 2: Download the actual media binary
     const mediaRes = await fetch(mediaInfo.url, {
@@ -188,12 +195,12 @@ export class MetaDirectClient {
       encoder.encode(this.appSecret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
-      ['sign'],
+      ['sign']
     )
 
     const signature = await crypto.subtle.sign('HMAC', key, rawBody)
     const computedHex = Array.from(new Uint8Array(signature))
-      .map(b => b.toString(16).padStart(2, '0'))
+      .map((b) => b.toString(16).padStart(2, '0'))
       .join('')
 
     // Constant-time comparison to prevent timing attacks
@@ -212,36 +219,35 @@ export class MetaDirectClient {
    */
   async checkHealth(): Promise<{ ok: boolean; error?: string }> {
     try {
-      const res = await fetch(
-        `${GRAPH_API_BASE}/${this.phoneNumberId}`,
-        { headers: { Authorization: `Bearer ${this.accessToken}` } },
-      )
+      const res = await fetch(`${GRAPH_API_BASE}/${this.phoneNumberId}`, {
+        headers: { Authorization: `Bearer ${this.accessToken}` },
+      })
       if (res.ok) {
         return { ok: true }
       }
       const body = await res.text()
       return { ok: false, error: `Meta API returned ${res.status}: ${body}` }
     } catch (err) {
-      return { ok: false, error: `Meta API unreachable: ${err instanceof Error ? err.message : String(err)}` }
+      return {
+        ok: false,
+        error: `Meta API unreachable: ${err instanceof Error ? err.message : String(err)}`,
+      }
     }
   }
 
   // --- Private helpers ---
 
   private async postMessage(
-    payload: MetaSendTextRequest | MetaSendMediaRequest | MetaSendTemplateRequest,
+    payload: MetaSendTextRequest | MetaSendMediaRequest | MetaSendTemplateRequest
   ): Promise<MetaSendResponse> {
-    const res = await fetch(
-      `${GRAPH_API_BASE}/${this.phoneNumberId}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+    const res = await fetch(`${GRAPH_API_BASE}/${this.phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
       },
-    )
+      body: JSON.stringify(payload),
+    })
 
     if (!res.ok) {
       const errorBody = await res.text()

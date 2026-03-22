@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
+import { BUILD_VERSION } from '../lib/build-constants'
 import type { AppEnv } from '../types'
-
-declare const __BUILD_VERSION__: string
 
 const health = new Hono<AppEnv>()
 
@@ -19,7 +18,7 @@ async function runChecks(env: Record<string, unknown>): Promise<HealthResult> {
   const isNode = typeof process !== 'undefined' && process.env?.PLATFORM === 'node'
   if (isNode) {
     try {
-      const { getPool } = await import('../../../src/platform/node/storage/postgres-pool')
+      const { getPool } = await import('../../platform/node/storage/postgres-pool')
       const sql = getPool()
       await sql`SELECT 1`
       checks.postgres = 'ok'
@@ -46,7 +45,7 @@ async function runChecks(env: Record<string, unknown>): Promise<HealthResult> {
     details.relay = 'NOSTR_RELAY_URL not configured'
   }
 
-  const status = Object.values(checks).every(v => v === 'ok') ? 'ok' : 'degraded'
+  const status = Object.values(checks).every((v) => v === 'ok') ? 'ok' : 'degraded'
   return { status, checks, details }
 }
 
@@ -55,13 +54,16 @@ health.get('/', async (c) => {
   const { status, checks, details } = await runChecks(c.env as unknown as Record<string, unknown>)
   const hasDetails = Object.keys(details).length > 0
 
-  return c.json({
-    status,
-    checks,
-    ...(hasDetails && { details }),
-    version: typeof __BUILD_VERSION__ !== 'undefined' ? __BUILD_VERSION__ : 'dev',
-    uptime: typeof process !== 'undefined' ? Math.floor(process.uptime()) : undefined,
-  }, status === 'ok' ? 200 : 503)
+  return c.json(
+    {
+      status,
+      checks,
+      ...(hasDetails && { details }),
+      version: BUILD_VERSION,
+      uptime: typeof process !== 'undefined' ? Math.floor(process.uptime()) : undefined,
+    },
+    status === 'ok' ? 200 : 503
+  )
 })
 
 // Kubernetes liveness probe — process is alive, always returns 200
@@ -72,12 +74,15 @@ health.get('/ready', async (c) => {
   const { status, checks, details } = await runChecks(c.env as unknown as Record<string, unknown>)
   const hasDetails = Object.keys(details).length > 0
 
-  return c.json({
-    status,
-    checks,
-    ...(hasDetails && { details }),
-    version: typeof __BUILD_VERSION__ !== 'undefined' ? __BUILD_VERSION__ : 'dev',
-  }, status === 'ok' ? 200 : 503)
+  return c.json(
+    {
+      status,
+      checks,
+      ...(hasDetails && { details }),
+      version: BUILD_VERSION,
+    },
+    status === 'ok' ? 200 : 503
+  )
 })
 
 export default health

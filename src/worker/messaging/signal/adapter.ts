@@ -1,19 +1,19 @@
-import type {
-  MessagingAdapter,
-  IncomingMessage,
-  SendMessageParams,
-  SendMediaParams,
-  SendResult,
-  ChannelStatus,
-} from '../adapter'
 import type { SignalConfig } from '../../../shared/types'
+import { hashPhone } from '../../lib/crypto'
 import type {
-  SignalWebhookPayload,
+  ChannelStatus,
+  IncomingMessage,
+  MessagingAdapter,
+  SendMediaParams,
+  SendMessageParams,
+  SendResult,
+} from '../adapter'
+import type {
+  SignalAboutResponse,
   SignalSendRequest,
   SignalSendResponse,
-  SignalAboutResponse,
+  SignalWebhookPayload,
 } from './types'
-import { hashPhone } from '../../lib/crypto'
 
 /**
  * SignalAdapter — MessagingAdapter implementation for the Signal channel.
@@ -70,19 +70,19 @@ export class SignalAdapter implements MessagingAdapter {
     // Build metadata from available envelope fields
     const metadata: Record<string, string> = {}
     if (source) {
-      metadata['source'] = source
+      metadata.source = source
     }
     if (sourceUuid) {
-      metadata['sourceUuid'] = sourceUuid
+      metadata.sourceUuid = sourceUuid
     }
     if (envelope.sourceName) {
-      metadata['sourceName'] = envelope.sourceName
+      metadata.sourceName = envelope.sourceName
     }
     if (envelope.sourceDevice !== undefined) {
-      metadata['sourceDevice'] = String(envelope.sourceDevice)
+      metadata.sourceDevice = String(envelope.sourceDevice)
     }
     if (dataMessage?.groupInfo) {
-      metadata['groupId'] = dataMessage.groupInfo.groupId
+      metadata.groupId = dataMessage.groupInfo.groupId
     }
 
     return {
@@ -132,7 +132,7 @@ export class SignalAdapter implements MessagingAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.bridgeApiKey}`,
+          Authorization: `Bearer ${this.bridgeApiKey}`,
         },
         body: JSON.stringify(sendRequest),
       })
@@ -191,7 +191,7 @@ export class SignalAdapter implements MessagingAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.bridgeApiKey}`,
+          Authorization: `Bearer ${this.bridgeApiKey}`,
         },
         body: JSON.stringify(sendRequest),
       })
@@ -225,7 +225,7 @@ export class SignalAdapter implements MessagingAdapter {
       const response = await fetch(`${this.bridgeUrl}/v1/about`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${this.bridgeApiKey}`,
+          Authorization: `Bearer ${this.bridgeApiKey}`,
         },
       })
 

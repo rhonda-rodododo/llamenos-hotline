@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
-import type { AppEnv } from '../types'
-import type { FileRecord, FileKeyEnvelope } from '../../shared/types'
+import type { FileKeyEnvelope, FileRecord } from '../../shared/types'
 import { getDOs } from '../lib/do-access'
-import { requirePermission, checkPermission } from '../middleware/permission-guard'
+import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
+import type { AppEnv } from '../types'
 
 const files = new Hono<AppEnv>()
 
@@ -20,15 +20,16 @@ files.get('/:id/content', async (c) => {
     return c.json({ error: 'File not found' }, 404)
   }
 
-  const fileRecord = await recordRes.json() as FileRecord
+  const fileRecord = (await recordRes.json()) as FileRecord
   if (fileRecord.status !== 'complete') {
     return c.json({ error: 'File upload not complete' }, 400)
   }
 
   // Verify the requester has an envelope (is an authorized recipient)
-  const hasAccess = checkPermission(permissions, 'files:download-all') ||
+  const hasAccess =
+    checkPermission(permissions, 'files:download-all') ||
     fileRecord.uploadedBy === pubkey ||
-    fileRecord.recipientEnvelopes.some(e => e.pubkey === pubkey)
+    fileRecord.recipientEnvelopes.some((e) => e.pubkey === pubkey)
 
   if (!hasAccess) {
     return c.json({ error: 'Forbidden' }, 403)
@@ -60,11 +61,12 @@ files.get('/:id/envelopes', async (c) => {
     return c.json({ error: 'File not found' }, 404)
   }
 
-  const fileRecord = await recordRes.json() as FileRecord
+  const fileRecord = (await recordRes.json()) as FileRecord
 
-  const hasAccess = checkPermission(permissions, 'files:download-all') ||
+  const hasAccess =
+    checkPermission(permissions, 'files:download-all') ||
     fileRecord.uploadedBy === pubkey ||
-    fileRecord.recipientEnvelopes.some(e => e.pubkey === pubkey)
+    fileRecord.recipientEnvelopes.some((e) => e.pubkey === pubkey)
 
   if (!hasAccess) {
     return c.json({ error: 'Forbidden' }, 403)
@@ -75,7 +77,7 @@ files.get('/:id/envelopes', async (c) => {
     return c.json({ envelopes: fileRecord.recipientEnvelopes })
   }
 
-  const myEnvelope = fileRecord.recipientEnvelopes.find(e => e.pubkey === pubkey)
+  const myEnvelope = fileRecord.recipientEnvelopes.find((e) => e.pubkey === pubkey)
   return c.json({ envelopes: myEnvelope ? [myEnvelope] : [] })
 })
 
@@ -91,11 +93,12 @@ files.get('/:id/metadata', async (c) => {
     return c.json({ error: 'File not found' }, 404)
   }
 
-  const fileRecord = await recordRes.json() as FileRecord
+  const fileRecord = (await recordRes.json()) as FileRecord
 
-  const hasAccess = checkPermission(permissions, 'files:download-all') ||
+  const hasAccess =
+    checkPermission(permissions, 'files:download-all') ||
     fileRecord.uploadedBy === pubkey ||
-    fileRecord.recipientEnvelopes.some(e => e.pubkey === pubkey)
+    fileRecord.recipientEnvelopes.some((e) => e.pubkey === pubkey)
 
   if (!hasAccess) {
     return c.json({ error: 'Forbidden' }, 403)
@@ -106,7 +109,7 @@ files.get('/:id/metadata', async (c) => {
     return c.json({ metadata: fileRecord.encryptedMetadata })
   }
 
-  const myMeta = fileRecord.encryptedMetadata.find(m => m.pubkey === pubkey)
+  const myMeta = fileRecord.encryptedMetadata.find((m) => m.pubkey === pubkey)
   return c.json({ metadata: myMeta ? [myMeta] : [] })
 })
 
@@ -115,25 +118,31 @@ files.post('/:id/share', requirePermission('files:share'), async (c) => {
   const fileId = c.req.param('id')
   const pubkey = c.get('pubkey')
 
-  const body = await c.req.json() as {
+  const body = (await c.req.json()) as {
     envelope: FileKeyEnvelope
     encryptedMetadata: { pubkey: string; encryptedContent: string; ephemeralPubkey: string }
   }
 
-  if (!body.envelope?.pubkey || !body.envelope?.encryptedFileKey || !body.envelope?.ephemeralPubkey) {
+  if (
+    !body.envelope?.pubkey ||
+    !body.envelope?.encryptedFileKey ||
+    !body.envelope?.ephemeralPubkey
+  ) {
     return c.json({ error: 'Invalid envelope' }, 400)
   }
 
   const dos = getDOs(c.env)
 
   // Add the new envelope to the file record
-  const res = await dos.conversations.fetch(new Request(`http://do/files/${fileId}/share`, {
-    method: 'POST',
-    body: JSON.stringify({
-      envelope: body.envelope,
-      encryptedMetadata: body.encryptedMetadata,
-    }),
-  }))
+  const res = await dos.conversations.fetch(
+    new Request(`http://do/files/${fileId}/share`, {
+      method: 'POST',
+      body: JSON.stringify({
+        envelope: body.envelope,
+        encryptedMetadata: body.encryptedMetadata,
+      }),
+    })
+  )
 
   if (!res.ok) {
     return c.json({ error: 'Failed to share file' }, 500)

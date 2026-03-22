@@ -1,9 +1,9 @@
-import type { AuthPayload, Env, Volunteer, ServerSession } from '../types'
+import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { schnorr } from '@noble/curves/secp256k1.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { hexToBytes } from '@noble/hashes/utils.js'
-import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { AUTH_PREFIX } from '@shared/crypto-labels'
+import type { AuthPayload, Env, ServerSession, Volunteer } from '../types'
 
 const TOKEN_MAX_AGE_MS = 5 * 60 * 1000 // 5 minutes
 
@@ -29,7 +29,11 @@ export function validateToken(auth: AuthPayload): boolean {
   return true
 }
 
-export async function verifyAuthToken(auth: AuthPayload, method?: string, path?: string): Promise<boolean> {
+export async function verifyAuthToken(
+  auth: AuthPayload,
+  method?: string,
+  path?: string
+): Promise<boolean> {
   if (!validateToken(auth)) return false
   if (!method || !path) return false // method+path binding is required
   try {
@@ -50,13 +54,15 @@ export async function authenticateRequest(
   // Try session token auth first (WebAuthn-based sessions)
   const sessionToken = parseSessionHeader(authHeader)
   if (sessionToken) {
-    const sessionRes = await identityDO.fetch(new Request(`http://do/sessions/validate/${sessionToken}`))
+    const sessionRes = await identityDO.fetch(
+      new Request(`http://do/sessions/validate/${sessionToken}`)
+    )
     if (!sessionRes.ok) return null
-    const session = await sessionRes.json() as ServerSession
+    const session = (await sessionRes.json()) as ServerSession
     // Look up volunteer
-    const volRes = await identityDO.fetch(new Request('http://do/volunteer/' + session.pubkey))
+    const volRes = await identityDO.fetch(new Request(`http://do/volunteer/${session.pubkey}`))
     if (!volRes.ok) return null
-    const volunteer = await volRes.json() as Volunteer
+    const volunteer = (await volRes.json()) as Volunteer
     return { pubkey: session.pubkey, volunteer }
   }
 
@@ -67,8 +73,8 @@ export async function authenticateRequest(
   if (!(await verifyAuthToken(auth, request.method, url.pathname))) return null
 
   // Look up volunteer in identity DO
-  const res = await identityDO.fetch(new Request('http://do/volunteer/' + auth.pubkey))
+  const res = await identityDO.fetch(new Request(`http://do/volunteer/${auth.pubkey}`))
   if (!res.ok) return null
-  const volunteer = await res.json() as Volunteer
+  const volunteer = (await res.json()) as Volunteer
   return { pubkey: auth.pubkey, volunteer }
 }

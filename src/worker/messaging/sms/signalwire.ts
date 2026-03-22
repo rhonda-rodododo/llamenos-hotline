@@ -9,7 +9,13 @@ import { TwilioSMSAdapter } from './twilio'
 export class SignalWireSMSAdapter extends TwilioSMSAdapter {
   private space: string
 
-  constructor(accountSid: string, authToken: string, phoneNumber: string, space: string, hmacSecret: string) {
+  constructor(
+    accountSid: string,
+    authToken: string,
+    phoneNumber: string,
+    space: string,
+    hmacSecret: string
+  ) {
     super(accountSid, authToken, phoneNumber, hmacSecret)
     this.space = space
   }
@@ -20,8 +26,8 @@ export class SignalWireSMSAdapter extends TwilioSMSAdapter {
 
   override async validateWebhook(request: Request): Promise<boolean> {
     // SignalWire may send either X-SignalWire-Signature or X-Twilio-Signature
-    const signature = request.headers.get('X-SignalWire-Signature')
-      || request.headers.get('X-Twilio-Signature')
+    const signature =
+      request.headers.get('X-SignalWire-Signature') || request.headers.get('X-Twilio-Signature')
     if (!signature) return false
 
     const url = new URL(request.url)
@@ -59,18 +65,15 @@ export class SignalWireSMSAdapter extends TwilioSMSAdapter {
 
   override async getChannelStatus(): Promise<ChannelStatus> {
     try {
-      const res = await fetch(
-        `${this.getApiBaseUrl()}.json`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': 'Basic ' + btoa(`${this.accountSid}:${this.authToken}`),
-          },
-        }
-      )
+      const res = await fetch(`${this.getApiBaseUrl()}.json`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Basic ${btoa(`${this.accountSid}:${this.authToken}`)}`,
+        },
+      })
 
       if (res.ok) {
-        const data = await res.json() as { status?: string; friendly_name?: string }
+        const data = (await res.json()) as { status?: string; friendly_name?: string }
         return {
           connected: true,
           details: {

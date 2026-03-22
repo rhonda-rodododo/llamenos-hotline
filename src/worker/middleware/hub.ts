@@ -1,13 +1,13 @@
 import type { Context, Next } from 'hono'
-import type { AppEnv } from '../types'
-import { getDOs } from '../lib/do-access'
 import { permissionGranted, resolveHubPermissions } from '../../shared/permissions'
+import { getDOs } from '../lib/do-access'
+import type { AppEnv } from '../types'
 
 /**
  * Hub middleware: extracts hubId from URL params, validates the user
  * has access to the hub, and sets hub context on the request.
  */
-export async function hubContext(c: Context<AppEnv>, next: Next): Promise<Response | void> {
+export async function hubContext(c: Context<AppEnv>, next: Next): Promise<Response | undefined> {
   const hubId = c.req.param('hubId')
   if (!hubId) {
     return c.json({ error: 'Hub ID required' }, 400)
@@ -28,7 +28,7 @@ export async function hubContext(c: Context<AppEnv>, next: Next): Promise<Respon
     volunteer.roles,
     volunteer.hubRoles || [],
     allRoles,
-    hubId,
+    hubId
   )
 
   // Must have at least one permission in this hub (or be super admin)
@@ -54,7 +54,7 @@ export function checkHubPermission(hubPermissions: string[], required: string): 
  * Must be used after hubContext middleware.
  */
 export function requireHubPermission(...required: string[]) {
-  return async (c: Context<AppEnv>, next: Next): Promise<Response | void> => {
+  return async (c: Context<AppEnv>, next: Next): Promise<Response | undefined> => {
     const hubPermissions = c.get('hubPermissions')
     if (!hubPermissions) {
       return c.json({ error: 'Hub context required' }, 400)

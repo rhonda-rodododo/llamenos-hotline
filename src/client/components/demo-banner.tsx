@@ -1,13 +1,13 @@
+import { useConfig } from '@/lib/config'
+import { ExternalLink, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X, ExternalLink } from 'lucide-react'
-import { useConfig } from '@/lib/config'
 
 export function DemoBanner() {
   const { t } = useTranslation()
   const { demoResetSchedule } = useConfig()
-  const [dismissed, setDismissed] = useState(() =>
-    sessionStorage.getItem('demo-banner-dismissed') === 'true'
+  const [dismissed, setDismissed] = useState(
+    () => sessionStorage.getItem('demo-banner-dismissed') === 'true'
   )
 
   if (dismissed) return null
@@ -22,15 +22,16 @@ export function DemoBanner() {
         schedule: demoResetSchedule,
         defaultValue: "You're exploring the Ll\u00e1menos demo. Data resets {{schedule}}.",
       })
-    : t('demo.bannerText', { defaultValue: "You're exploring the Ll\u00e1menos demo. Data resets daily." })
+    : t('demo.bannerText', {
+        defaultValue: "You're exploring the Ll\u00e1menos demo. Data resets daily.",
+      })
 
   return (
     <div className="flex items-center justify-between gap-2 border-b border-primary/20 bg-primary/5 px-4 py-2 text-sm">
       <p className="flex items-center gap-2 text-muted-foreground">
         <span className="shrink-0 text-base">&#10024;</span>
         <span>
-          {resetText}
-          {' '}
+          {resetText}{' '}
           <a
             href="https://llamenos-hotline.com/docs/getting-started"
             target="_blank"
@@ -43,6 +44,7 @@ export function DemoBanner() {
         </span>
       </p>
       <button
+        type="button"
         onClick={handleDismiss}
         className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
         aria-label={t('common.dismiss', { defaultValue: 'Dismiss' })}

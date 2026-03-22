@@ -1,8 +1,8 @@
-import { DurableObject } from 'cloudflare:workers'
-import type { Env, Shift } from '../types'
-import { DORouter } from '../lib/do-router'
-import { runMigrations } from '../../shared/migrations/runner'
+import { DurableObject } from '#cloudflare-workers'
 import { migrations } from '../../shared/migrations'
+import { runMigrations } from '../../shared/migrations/runner'
+import { DORouter } from '../lib/do-router'
+import type { Env, Shift } from '../types'
 
 /** Validate HH:MM format (00:00–23:59) */
 function isValidTimeFormat(time: string): boolean {
@@ -49,15 +49,18 @@ export class ShiftManagerDO extends DurableObject<Env> {
   }
 
   private async getShifts(): Promise<Response> {
-    const shifts = await this.ctx.storage.get<Shift[]>('shifts') || []
+    const shifts = (await this.ctx.storage.get<Shift[]>('shifts')) || []
     return Response.json({ shifts })
   }
 
   private async createShift(data: Omit<Shift, 'id' | 'createdAt'>): Promise<Response> {
     if (!isValidTimeFormat(data.startTime) || !isValidTimeFormat(data.endTime)) {
-      return Response.json({ error: 'Invalid time format — expected HH:MM (00:00–23:59)' }, { status: 400 })
+      return Response.json(
+        { error: 'Invalid time format — expected HH:MM (00:00–23:59)' },
+        { status: 400 }
+      )
     }
-    const shifts = await this.ctx.storage.get<Shift[]>('shifts') || []
+    const shifts = (await this.ctx.storage.get<Shift[]>('shifts')) || []
     const shift: Shift = {
       ...data,
       id: crypto.randomUUID(),
@@ -69,12 +72,17 @@ export class ShiftManagerDO extends DurableObject<Env> {
   }
 
   private async updateShift(id: string, data: Partial<Shift>): Promise<Response> {
-    if ((data.startTime && !isValidTimeFormat(data.startTime)) ||
-        (data.endTime && !isValidTimeFormat(data.endTime))) {
-      return Response.json({ error: 'Invalid time format — expected HH:MM (00:00–23:59)' }, { status: 400 })
+    if (
+      (data.startTime && !isValidTimeFormat(data.startTime)) ||
+      (data.endTime && !isValidTimeFormat(data.endTime))
+    ) {
+      return Response.json(
+        { error: 'Invalid time format — expected HH:MM (00:00–23:59)' },
+        { status: 400 }
+      )
     }
-    const shifts = await this.ctx.storage.get<Shift[]>('shifts') || []
-    const idx = shifts.findIndex(s => s.id === id)
+    const shifts = (await this.ctx.storage.get<Shift[]>('shifts')) || []
+    const idx = shifts.findIndex((s) => s.id === id)
     if (idx === -1) return new Response('Not found', { status: 404 })
     shifts[idx] = { ...shifts[idx], ...data, id } // Don't change id
     await this.ctx.storage.put('shifts', shifts)
@@ -82,8 +90,11 @@ export class ShiftManagerDO extends DurableObject<Env> {
   }
 
   private async deleteShift(id: string): Promise<Response> {
-    const shifts = await this.ctx.storage.get<Shift[]>('shifts') || []
-    await this.ctx.storage.put('shifts', shifts.filter(s => s.id !== id))
+    const shifts = (await this.ctx.storage.get<Shift[]>('shifts')) || []
+    await this.ctx.storage.put(
+      'shifts',
+      shifts.filter((s) => s.id !== id)
+    )
     return Response.json({ ok: true })
   }
 
@@ -92,7 +103,7 @@ export class ShiftManagerDO extends DurableObject<Env> {
    * Based on current time and day of week.
    */
   private async getCurrentVolunteers(): Promise<Response> {
-    const shifts = await this.ctx.storage.get<Shift[]>('shifts') || []
+    const shifts = (await this.ctx.storage.get<Shift[]>('shifts')) || []
     const now = new Date()
     const currentDay = now.getUTCDay()
     const currentTime = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`
@@ -130,13 +141,13 @@ export class ShiftManagerDO extends DurableObject<Env> {
    * - Their next upcoming shift (if any)
    */
   private async getMyStatus(pubkey: string): Promise<Response> {
-    const shifts = await this.ctx.storage.get<Shift[]>('shifts') || []
+    const shifts = (await this.ctx.storage.get<Shift[]>('shifts')) || []
     const now = new Date()
     const currentDay = now.getUTCDay()
     const currentTime = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`
 
     // Find shifts that include this volunteer
-    const myShifts = shifts.filter(s => s.volunteerPubkeys.includes(pubkey))
+    const myShifts = shifts.filter((s) => s.volunteerPubkeys.includes(pubkey))
 
     // Find current active shift
     let currentShift: { name: string; startTime: string; endTime: string } | null = null
@@ -158,13 +169,13 @@ export class ShiftManagerDO extends DurableObject<Env> {
     // Find next upcoming shift
     let nextShift: { name: string; startTime: string; endTime: string; day: number } | null = null
     if (myShifts.length > 0) {
-      let bestMinutesAway = Infinity
+      let bestMinutesAway = Number.POSITIVE_INFINITY
       const currentMinutes = now.getUTCHours() * 60 + now.getUTCMinutes()
 
       for (const shift of myShifts) {
         for (const day of shift.days) {
-          const shiftHours = parseInt(shift.startTime.split(':')[0])
-          const shiftMins = parseInt(shift.startTime.split(':')[1])
+          const shiftHours = Number.parseInt(shift.startTime.split(':')[0])
+          const shiftMins = Number.parseInt(shift.startTime.split(':')[1])
           const shiftMinutes = shiftHours * 60 + shiftMins
 
           let daysAway = day - currentDay
@@ -176,7 +187,12 @@ export class ShiftManagerDO extends DurableObject<Env> {
             // Skip if this is the currently active shift
             if (currentShift && shift.name === currentShift.name && daysAway === 0) continue
             bestMinutesAway = minutesAway
-            nextShift = { name: shift.name, startTime: shift.startTime, endTime: shift.endTime, day }
+            nextShift = {
+              name: shift.name,
+              startTime: shift.startTime,
+              endTime: shift.endTime,
+              day,
+            }
           }
         }
       }

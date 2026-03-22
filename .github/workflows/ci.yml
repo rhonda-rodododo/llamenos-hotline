@@ -2,7 +2,7 @@
 #
 # On every push to main:
 #   1. Detect changed files — skip E2E/version/deploy for docs-only changes
-#   2. Build & validate (typecheck, vite build with Tauri IPC mocks, esbuild, site build)
+#   2. Build & validate (lint, typecheck, vite build, site build)
 #   3. E2E tests against Docker Compose backend + Vite dev server
 #   5. Auto-determine version bump from conventional commits
 #   6. Bump version, generate changelog, commit + tag
@@ -91,9 +91,29 @@ jobs:
             echo "App/infra files changed — E2E tests required"
           fi
 
+  # ─── Lint ──────────────────────────────────────────────────
+  lint:
+    needs: changes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bunx biome check src/
+
   # ─── Build & Validate ──────────────────────────────────────
   build:
-    needs: changes
+    needs: [changes, lint]
     runs-on: ubuntu-latest
 
     steps:
@@ -121,13 +141,10 @@ jobs:
       - name: Build frontend (with Tauri IPC mocks for test builds)
         run: PLAYWRIGHT_TEST=true bun run build
 
-      - name: Build Node.js server
-        run: bun run build:node
-
       - name: Compute build checksums (Epic 79)
         run: |
           cd dist
-          find client server -type f -exec sha256sum {} \; | sort > ../CHECKSUMS.txt
+          find client -type f -exec sha256sum {} \; | sort > ../CHECKSUMS.txt
           cd ..
           sha256sum bun.lockb >> CHECKSUMS.txt
           echo "$(wc -l < CHECKSUMS.txt) files checksummed"
@@ -507,6 +524,9 @@ jobs:
             "BRIDGE_SECRET=ci-test-bridge-secret" \
             "ARI_PASSWORD=ci-test-ari-password" \
             "SERVER_NOSTR_SECRET=$(openssl rand -hex 32)" \
+            "BUILD_VERSION=${{ github.ref_name }}" \
+            "BUILD_COMMIT=${{ github.sha }}" \
+            "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             > deploy/docker/.env
 
       - name: Build and start Docker Compose
@@ -588,6 +608,9 @@ jobs:
             "BRIDGE_SECRET=ci-test-bridge-secret" \
             "ARI_PASSWORD=ci-test-ari-password" \
             "SERVER_NOSTR_SECRET=$(openssl rand -hex 32)" \
+            "BUILD_VERSION=${{ github.ref_name }}" \
+            "BUILD_COMMIT=${{ github.sha }}" \
+            "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             > deploy/docker/.env
 
       - name: Build and start Docker Compose

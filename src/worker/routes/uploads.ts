@@ -1,12 +1,12 @@
 import { Hono } from 'hono'
-import type { AppEnv } from '../types'
 import type { FileRecord, UploadInit } from '../../shared/types'
 import { getDOs } from '../lib/do-access'
-import { requirePermission, checkPermission } from '../middleware/permission-guard'
+import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { audit } from '../services/audit'
+import type { AppEnv } from '../types'
 
-const MAX_UPLOAD_SIZE = 100 * 1024 * 1024  // 100 MB
-const MAX_CHUNK_SIZE = 10 * 1024 * 1024    // 10 MB
+const MAX_UPLOAD_SIZE = 100 * 1024 * 1024 // 100 MB
+const MAX_CHUNK_SIZE = 10 * 1024 * 1024 // 10 MB
 
 const uploads = new Hono<AppEnv>()
 uploads.use('*', requirePermission('files:upload'))
@@ -14,7 +14,7 @@ uploads.use('*', requirePermission('files:upload'))
 // Initialize an upload — returns uploadId and chunk upload URLs
 uploads.post('/init', async (c) => {
   const pubkey = c.get('pubkey')
-  const body = await c.req.json() as UploadInit
+  const body = (await c.req.json()) as UploadInit
   const dos = getDOs(c.env)
 
   if (!body.totalSize || !body.totalChunks || !body.conversationId) {
@@ -45,10 +45,12 @@ uploads.post('/init', async (c) => {
   }
 
   // Store file record in ConversationDO
-  const res = await dos.conversations.fetch(new Request('http://do/files', {
-    method: 'POST',
-    body: JSON.stringify(fileRecord),
-  }))
+  const res = await dos.conversations.fetch(
+    new Request('http://do/files', {
+      method: 'POST',
+      body: JSON.stringify(fileRecord),
+    })
+  )
 
   if (!res.ok) {
     return c.json({ error: 'Failed to initialize upload' }, 500)
@@ -69,9 +71,9 @@ uploads.put('/:id/chunks/:chunkIndex', async (c) => {
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const uploadId = c.req.param('id')
-  const chunkIndex = parseInt(c.req.param('chunkIndex'), 10)
+  const chunkIndex = Number.parseInt(c.req.param('chunkIndex'), 10)
 
-  if (isNaN(chunkIndex) || chunkIndex < 0) {
+  if (Number.isNaN(chunkIndex) || chunkIndex < 0) {
     return c.json({ error: 'Invalid chunk index' }, 400)
   }
 
@@ -81,7 +83,7 @@ uploads.put('/:id/chunks/:chunkIndex', async (c) => {
   if (!ownerRes.ok) {
     return c.json({ error: 'Upload not found' }, 404)
   }
-  const fileRecord = await ownerRes.json() as FileRecord
+  const fileRecord = (await ownerRes.json()) as FileRecord
   if (fileRecord.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
     return c.json({ error: 'Forbidden' }, 403)
   }
@@ -100,17 +102,23 @@ uploads.put('/:id/chunks/:chunkIndex', async (c) => {
   await c.env.R2_BUCKET.put(r2Key, body)
 
   // Update completion count in ConversationDO
-  const res = await dos.conversations.fetch(new Request(`http://do/files/${uploadId}/chunk-complete`, {
-    method: 'POST',
-    body: JSON.stringify({ chunkIndex }),
-  }))
+  const res = await dos.conversations.fetch(
+    new Request(`http://do/files/${uploadId}/chunk-complete`, {
+      method: 'POST',
+      body: JSON.stringify({ chunkIndex }),
+    })
+  )
 
   if (!res.ok) {
     return c.json({ error: 'Failed to record chunk' }, 500)
   }
 
-  const result = await res.json() as { completedChunks: number; totalChunks: number }
-  return c.json({ chunkIndex, completedChunks: result.completedChunks, totalChunks: result.totalChunks })
+  const result = (await res.json()) as { completedChunks: number; totalChunks: number }
+  return c.json({
+    chunkIndex,
+    completedChunks: result.completedChunks,
+    totalChunks: result.totalChunks,
+  })
 })
 
 // Complete an upload — assembles chunks
@@ -126,18 +134,21 @@ uploads.post('/:id/complete', async (c) => {
     return c.json({ error: 'Upload not found' }, 404)
   }
 
-  const fileRecord = await statusRes.json() as FileRecord
+  const fileRecord = (await statusRes.json()) as FileRecord
 
   if (fileRecord.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
   if (fileRecord.completedChunks < fileRecord.totalChunks) {
-    return c.json({
-      error: 'Not all chunks uploaded',
-      completedChunks: fileRecord.completedChunks,
-      totalChunks: fileRecord.totalChunks,
-    }, 400)
+    return c.json(
+      {
+        error: 'Not all chunks uploaded',
+        completedChunks: fileRecord.completedChunks,
+        totalChunks: fileRecord.totalChunks,
+      },
+      400
+    )
   }
 
   // Concatenate chunks into a single R2 object
@@ -163,8 +174,14 @@ uploads.post('/:id/complete', async (c) => {
   await c.env.R2_BUCKET.put(`files/${uploadId}/content`, assembled)
 
   // Store envelopes and metadata in R2
-  await c.env.R2_BUCKET.put(`files/${uploadId}/envelopes`, JSON.stringify(fileRecord.recipientEnvelopes))
-  await c.env.R2_BUCKET.put(`files/${uploadId}/metadata`, JSON.stringify(fileRecord.encryptedMetadata))
+  await c.env.R2_BUCKET.put(
+    `files/${uploadId}/envelopes`,
+    JSON.stringify(fileRecord.recipientEnvelopes)
+  )
+  await c.env.R2_BUCKET.put(
+    `files/${uploadId}/metadata`,
+    JSON.stringify(fileRecord.encryptedMetadata)
+  )
 
   // Clean up individual chunks
   for (let i = 0; i < fileRecord.totalChunks; i++) {
@@ -173,9 +190,11 @@ uploads.post('/:id/complete', async (c) => {
   }
 
   // Mark file as complete
-  const completeRes = await dos.conversations.fetch(new Request(`http://do/files/${uploadId}/complete`, {
-    method: 'POST',
-  }))
+  const completeRes = await dos.conversations.fetch(
+    new Request(`http://do/files/${uploadId}/complete`, {
+      method: 'POST',
+    })
+  )
 
   if (!completeRes.ok) {
     return c.json({ error: 'Failed to complete upload' }, 500)
@@ -198,7 +217,7 @@ uploads.get('/:id/status', async (c) => {
     return c.json({ error: 'Upload not found' }, 404)
   }
 
-  const fileRecord = await res.json() as FileRecord
+  const fileRecord = (await res.json()) as FileRecord
   // Only allow the uploader or users with download-all to check status
   if (fileRecord.uploadedBy !== pubkey && !checkPermission(permissions, 'files:download-all')) {
     return c.json({ error: 'Upload not found' }, 404)

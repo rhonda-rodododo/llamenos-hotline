@@ -1,12 +1,17 @@
-import { DurableObject } from 'cloudflare:workers'
-import type { Env, CallRecord, EncryptedCallRecord, CallRecordMetadata } from '../types'
-import { hashPhone, encryptCallRecordForStorage } from '../lib/crypto'
-import { DORouter } from '../lib/do-router'
-import { runMigrations } from '../../shared/migrations/runner'
+import { DurableObject } from '#cloudflare-workers'
 import { migrations } from '../../shared/migrations'
+import { runMigrations } from '../../shared/migrations/runner'
+import {
+  KIND_CALL_RING,
+  KIND_CALL_UPDATE,
+  KIND_CALL_VOICEMAIL,
+  KIND_PRESENCE_UPDATE,
+} from '../../shared/nostr-events'
+import { encryptCallRecordForStorage, hashPhone } from '../lib/crypto'
 import { getNostrPublisher } from '../lib/do-access'
+import { DORouter } from '../lib/do-router'
 import { deriveServerEventKey, encryptHubEvent } from '../lib/hub-event-crypto'
-import { KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_PRESENCE_UPDATE } from '../../shared/nostr-events'
+import type { CallRecord, CallRecordMetadata, EncryptedCallRecord, Env } from '../types'
 
 /**
  * CallRouterDO — manages real-time call state.
@@ -33,8 +38,8 @@ export class CallRouterDO extends DurableObject<Env> {
     this.router.get('/calls/today-count', () => this.getCallsTodayCount())
     this.router.get('/calls/history', async (req) => {
       const url = new URL(req.url)
-      const page = parseInt(url.searchParams.get('page') || '1')
-      const limit = parseInt(url.searchParams.get('limit') || '50')
+      const page = Number.parseInt(url.searchParams.get('page') || '1')
+      const limit = Number.parseInt(url.searchParams.get('limit') || '50')
       const search = url.searchParams.get('search') || undefined
       const dateFrom = url.searchParams.get('dateFrom') || undefined
       const dateTo = url.searchParams.get('dateTo') || undefined
@@ -42,47 +47,62 @@ export class CallRouterDO extends DurableObject<Env> {
     })
     this.router.get('/calls/:callId', async (_req, { callId }) => this.getCallById(callId))
     this.router.post('/calls/incoming', async (req) => this.handleIncomingCall(await req.json()))
-    this.router.post('/calls/:callId/answer', async (req, { callId }) => this.handleCallAnswered(callId, await req.json()))
+    this.router.post('/calls/:callId/answer', async (req, { callId }) =>
+      this.handleCallAnswered(callId, await req.json())
+    )
     this.router.post('/calls/:callId/end', (_req, { callId }) => this.handleCallEnded(callId))
-    this.router.post('/calls/:callId/voicemail', (_req, { callId }) => this.handleVoicemailLeft(callId))
-    this.router.patch('/calls/:callId/metadata', async (req, { callId }) => this.handleUpdateMetadata(callId, await req.json()))
-    this.router.post('/calls/:callId/spam', async (req, { callId }) => this.handleReportSpam(callId, await req.json()))
+    this.router.post('/calls/:callId/voicemail', (_req, { callId }) =>
+      this.handleVoicemailLeft(callId)
+    )
+    this.router.patch('/calls/:callId/metadata', async (req, { callId }) =>
+      this.handleUpdateMetadata(callId, await req.json())
+    )
+    this.router.post('/calls/:callId/spam', async (req, { callId }) =>
+      this.handleReportSpam(callId, await req.json())
+    )
     this.router.get('/calls/debug', async () => {
-      const activeCalls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
-      const historyRecords = await this.ctx.storage.list<EncryptedCallRecord>({ prefix: 'callrecord:' })
+      const activeCalls = (await this.ctx.storage.get<CallRecord[]>('activeCalls')) || []
+      const historyRecords = await this.ctx.storage.list<EncryptedCallRecord>({
+        prefix: 'callrecord:',
+      })
       return Response.json({
         activeCount: activeCalls.length,
         historyCount: historyRecords.size,
-        activeCalls: activeCalls.map(c => ({
+        activeCalls: activeCalls.map((c) => ({
           id: c.id,
           status: c.status,
           startedAt: c.startedAt,
           answeredBy: c.answeredBy,
           callerLast4: c.callerLast4,
         })),
-        recentHistory: Array.from(historyRecords.values()).slice(0, 5).map(c => ({
-          id: c.id,
-          status: c.status,
-          startedAt: c.startedAt,
-          endedAt: c.endedAt,
-          duration: c.duration,
-          callerLast4: c.callerLast4,
-          hasTranscription: c.hasTranscription,
-          hasVoicemail: c.hasVoicemail,
-        })),
+        recentHistory: Array.from(historyRecords.values())
+          .slice(0, 5)
+          .map((c) => ({
+            id: c.id,
+            status: c.status,
+            startedAt: c.startedAt,
+            endedAt: c.endedAt,
+            duration: c.duration,
+            callerLast4: c.callerLast4,
+            hasTranscription: c.hasTranscription,
+            hasVoicemail: c.hasVoicemail,
+          })),
       })
     })
 
     // Broadcast endpoint — publishes to Nostr relay.
     this.router.post('/broadcast', async (req) => {
-      const message = await req.json() as Record<string, unknown>
+      const message = (await req.json()) as Record<string, unknown>
       this.publishNostrEvent(KIND_CALL_UPDATE, message)
       return Response.json({ ok: true })
     })
 
     // Targeted broadcast — publishes to Nostr (target filtering is client-side)
     this.router.post('/broadcast/targeted', async (req) => {
-      const { message } = await req.json() as { pubkeys: string[]; message: Record<string, unknown> }
+      const { message } = (await req.json()) as {
+        pubkeys: string[]
+        message: Record<string, unknown>
+      }
       this.publishNostrEvent(KIND_CALL_UPDATE, message)
       return Response.json({ ok: true })
     })
@@ -125,9 +145,10 @@ export class CallRouterDO extends DurableObject<Env> {
       callerNumber: call.callerNumber,
     }
 
-    const { encryptedContent, adminEnvelopes } = adminPubkeys.length > 0
-      ? encryptCallRecordForStorage({ ...metadata }, adminPubkeys)
-      : { encryptedContent: '', adminEnvelopes: [] }
+    const { encryptedContent, adminEnvelopes } =
+      adminPubkeys.length > 0
+        ? encryptCallRecordForStorage({ ...metadata }, adminPubkeys)
+        : { encryptedContent: '', adminEnvelopes: [] }
 
     const encrypted: EncryptedCallRecord = {
       id: call.id,
@@ -150,11 +171,9 @@ export class CallRouterDO extends DurableObject<Env> {
 
   /** Get the set of pubkeys currently on an active call */
   private async getOnCallPubkeys(): Promise<Set<string>> {
-    const calls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
+    const calls = (await this.ctx.storage.get<CallRecord[]>('activeCalls')) || []
     return new Set(
-      calls
-        .filter(c => c.answeredBy && c.status === 'in-progress')
-        .map(c => c.answeredBy!)
+      calls.filter((c) => c.answeredBy && c.status === 'in-progress').map((c) => c.answeredBy!)
     )
   }
 
@@ -162,8 +181,8 @@ export class CallRouterDO extends DurableObject<Env> {
 
   private async getCallById(callId: string): Promise<Response> {
     // Search active calls first, then per-record history
-    const activeCalls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
-    const activeCall = activeCalls.find(c => c.id === callId)
+    const activeCalls = (await this.ctx.storage.get<CallRecord[]>('activeCalls')) || []
+    const activeCall = activeCalls.find((c) => c.id === callId)
     if (activeCall) return Response.json({ call: activeCall })
 
     const encrypted = await this.ctx.storage.get<EncryptedCallRecord>(`callrecord:${callId}`)
@@ -195,7 +214,7 @@ export class CallRouterDO extends DurableObject<Env> {
     }
 
     // Store active call
-    const activeCalls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
+    const activeCalls = (await this.ctx.storage.get<CallRecord[]>('activeCalls')) || []
     activeCalls.push(call)
     await this.ctx.storage.put('activeCalls', activeCalls)
 
@@ -211,8 +230,8 @@ export class CallRouterDO extends DurableObject<Env> {
   }
 
   private async handleCallAnswered(callId: string, data: { pubkey: string }): Promise<Response> {
-    const activeCalls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
-    const call = activeCalls.find(c => c.id === callId)
+    const activeCalls = (await this.ctx.storage.get<CallRecord[]>('activeCalls')) || []
+    const call = activeCalls.find((c) => c.id === callId)
     if (!call) return new Response('Call not found', { status: 404 })
 
     call.answeredBy = data.pubkey
@@ -234,8 +253,8 @@ export class CallRouterDO extends DurableObject<Env> {
   }
 
   private async handleCallEnded(callId: string): Promise<Response> {
-    const activeCalls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
-    const callIdx = activeCalls.findIndex(c => c.id === callId)
+    const activeCalls = (await this.ctx.storage.get<CallRecord[]>('activeCalls')) || []
+    const callIdx = activeCalls.findIndex((c) => c.id === callId)
     if (callIdx === -1) return new Response('Call not found', { status: 404 })
 
     const call = activeCalls[callIdx]
@@ -265,8 +284,8 @@ export class CallRouterDO extends DurableObject<Env> {
 
   private async handleVoicemailLeft(callId: string): Promise<Response> {
     // Move from active calls to history as 'unanswered' with voicemail
-    const activeCalls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
-    const callIdx = activeCalls.findIndex(c => c.id === callId)
+    const activeCalls = (await this.ctx.storage.get<CallRecord[]>('activeCalls')) || []
+    const callIdx = activeCalls.findIndex((c) => c.id === callId)
 
     let call: CallRecord
     if (callIdx !== -1) {
@@ -307,13 +326,17 @@ export class CallRouterDO extends DurableObject<Env> {
     return Response.json({ call: encrypted })
   }
 
-  private async handleUpdateMetadata(callId: string, data: Record<string, unknown>): Promise<Response> {
+  private async handleUpdateMetadata(
+    callId: string,
+    data: Record<string, unknown>
+  ): Promise<Response> {
     // Search active calls first
-    const activeCalls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
-    const activeCall = activeCalls.find(c => c.id === callId)
+    const activeCalls = (await this.ctx.storage.get<CallRecord[]>('activeCalls')) || []
+    const activeCall = activeCalls.find((c) => c.id === callId)
 
     if (activeCall) {
-      if (data.hasTranscription !== undefined) activeCall.hasTranscription = Boolean(data.hasTranscription)
+      if (data.hasTranscription !== undefined)
+        activeCall.hasTranscription = Boolean(data.hasTranscription)
       if (data.hasVoicemail !== undefined) activeCall.hasVoicemail = Boolean(data.hasVoicemail)
       if (data.recordingSid !== undefined) activeCall.recordingSid = String(data.recordingSid)
       if (data.hasRecording !== undefined) activeCall.hasRecording = Boolean(data.hasRecording)
@@ -325,7 +348,8 @@ export class CallRouterDO extends DurableObject<Env> {
     const encrypted = await this.ctx.storage.get<EncryptedCallRecord>(`callrecord:${callId}`)
     if (encrypted) {
       // Update plaintext metadata fields (not inside encrypted content)
-      if (data.hasTranscription !== undefined) encrypted.hasTranscription = Boolean(data.hasTranscription)
+      if (data.hasTranscription !== undefined)
+        encrypted.hasTranscription = Boolean(data.hasTranscription)
       if (data.hasVoicemail !== undefined) encrypted.hasVoicemail = Boolean(data.hasVoicemail)
       if (data.recordingSid !== undefined) encrypted.recordingSid = String(data.recordingSid)
       if (data.hasRecording !== undefined) encrypted.hasRecording = Boolean(data.hasRecording)
@@ -337,8 +361,8 @@ export class CallRouterDO extends DurableObject<Env> {
   }
 
   private async handleReportSpam(callId: string, data: { pubkey: string }): Promise<Response> {
-    const activeCalls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
-    const call = activeCalls.find(c => c.id === callId)
+    const activeCalls = (await this.ctx.storage.get<CallRecord[]>('activeCalls')) || []
+    const call = activeCalls.find((c) => c.id === callId)
     // Return the caller number so the API can add it to the ban list
     return Response.json({
       callId,
@@ -355,7 +379,7 @@ export class CallRouterDO extends DurableObject<Env> {
   }
 
   private async getActiveCallsList(): Promise<CallRecord[]> {
-    const calls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
+    const calls = (await this.ctx.storage.get<CallRecord[]>('activeCalls')) || []
     const now = Date.now()
     const RINGING_TTL = 3 * 60 * 1000
     const IN_PROGRESS_TTL = 2 * 60 * 60 * 1000
@@ -365,8 +389,10 @@ export class CallRouterDO extends DurableObject<Env> {
 
     for (const c of calls) {
       const age = now - new Date(c.startedAt).getTime()
-      if ((c.status === 'ringing' && age > RINGING_TTL) ||
-          (c.status === 'in-progress' && age > IN_PROGRESS_TTL)) {
+      if (
+        (c.status === 'ringing' && age > RINGING_TTL) ||
+        (c.status === 'in-progress' && age > IN_PROGRESS_TTL)
+      ) {
         stale.push(c)
       } else {
         active.push(c)
@@ -378,9 +404,9 @@ export class CallRouterDO extends DurableObject<Env> {
       for (const call of stale) {
         call.status = call.status === 'ringing' ? 'unanswered' : 'completed'
         call.endedAt = call.endedAt || new Date().toISOString()
-        call.duration = call.duration || Math.floor(
-          (new Date(call.endedAt).getTime() - new Date(call.startedAt).getTime()) / 1000
-        )
+        call.duration =
+          call.duration ||
+          Math.floor((new Date(call.endedAt).getTime() - new Date(call.startedAt).getTime()) / 1000)
         await this.storeEncryptedCallRecord(call)
       }
       await this.ctx.storage.put('activeCalls', active)
@@ -392,7 +418,7 @@ export class CallRouterDO extends DurableObject<Env> {
   private async getCallHistory(
     page: number,
     limit: number,
-    filters?: { search?: string; dateFrom?: string; dateTo?: string },
+    filters?: { search?: string; dateFrom?: string; dateTo?: string }
   ): Promise<Response> {
     // Fetch all per-record history entries
     const records = await this.ctx.storage.list<EncryptedCallRecord>({ prefix: 'callrecord:' })
@@ -404,18 +430,15 @@ export class CallRouterDO extends DurableObject<Env> {
     // Filter by callerLast4 (only plaintext-searchable field)
     if (filters?.search) {
       const q = filters.search.toLowerCase()
-      history = history.filter(c =>
-        (c.callerLast4 && c.callerLast4.includes(q)) ||
-        c.id.toLowerCase().includes(q)
-      )
+      history = history.filter((c) => c.callerLast4?.includes(q) || c.id.toLowerCase().includes(q))
     }
     if (filters?.dateFrom) {
       const from = new Date(filters.dateFrom).getTime()
-      history = history.filter(c => new Date(c.startedAt).getTime() >= from)
+      history = history.filter((c) => new Date(c.startedAt).getTime() >= from)
     }
     if (filters?.dateTo) {
       const to = new Date(filters.dateTo).getTime() + 86_400_000 // end of day
-      history = history.filter(c => new Date(c.startedAt).getTime() <= to)
+      history = history.filter((c) => new Date(c.startedAt).getTime() <= to)
     }
 
     const start = (page - 1) * limit
@@ -435,7 +458,7 @@ export class CallRouterDO extends DurableObject<Env> {
       const shiftDO = this.env.SHIFT_MANAGER.get(this.env.SHIFT_MANAGER.idFromName('global-shifts'))
       const shiftRes = await shiftDO.fetch(new Request('http://do/current-volunteers'))
       if (shiftRes.ok) {
-        const data = await shiftRes.json() as { volunteers?: string[] }
+        const data = (await shiftRes.json()) as { volunteers?: string[] }
         onShiftPubkeys = Array.isArray(data.volunteers) ? data.volunteers : []
       }
     } catch {
@@ -454,13 +477,13 @@ export class CallRouterDO extends DurableObject<Env> {
   }
 
   private async getCallsTodayCount(): Promise<Response> {
-    const activeCalls = await this.ctx.storage.get<CallRecord[]>('activeCalls') || []
+    const activeCalls = (await this.ctx.storage.get<CallRecord[]>('activeCalls')) || []
     const todayStart = new Date()
     todayStart.setUTCHours(0, 0, 0, 0)
     const todayMs = todayStart.getTime()
 
     // Count active calls from today
-    const activeToday = activeCalls.filter(c => new Date(c.startedAt).getTime() >= todayMs).length
+    const activeToday = activeCalls.filter((c) => new Date(c.startedAt).getTime() >= todayMs).length
 
     // Count history records from today (per-record storage)
     const records = await this.ctx.storage.list<EncryptedCallRecord>({ prefix: 'callrecord:' })
@@ -493,17 +516,19 @@ export class CallRouterDO extends DurableObject<Env> {
         eventContent = JSON.stringify(content)
       }
 
-      publisher.publish({
-        kind,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [
-          ['d', hubTag],
-          ['t', 'llamenos:event'],
-        ],
-        content: eventContent,
-      }).catch(err => {
-        console.error('[nostr] Failed to publish event:', err)
-      })
+      publisher
+        .publish({
+          kind,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [
+            ['d', hubTag],
+            ['t', 'llamenos:event'],
+          ],
+          content: eventContent,
+        })
+        .catch((err) => {
+          console.error('[nostr] Failed to publish event:', err)
+        })
     } catch {
       // Nostr not configured — silently skip
     }
@@ -517,7 +542,7 @@ export class CallRouterDO extends DurableObject<Env> {
       const shiftDO = this.env.SHIFT_MANAGER.get(this.env.SHIFT_MANAGER.idFromName('global-shifts'))
       const shiftRes = await shiftDO.fetch(new Request('http://do/current-volunteers'))
       if (shiftRes.ok) {
-        const data = await shiftRes.json() as { volunteers?: string[] }
+        const data = (await shiftRes.json()) as { volunteers?: string[] }
         onShiftCount = Array.isArray(data.volunteers) ? data.volunteers.length : 0
       }
     } catch {}

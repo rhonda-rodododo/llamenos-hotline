@@ -1,4 +1,4 @@
-import { useRef, useEffect, type KeyboardEvent } from 'react'
+import { type KeyboardEvent, useEffect, useRef } from 'react'
 
 interface PinInputProps {
   length?: number
@@ -104,17 +104,20 @@ export function PinInput({
     <div className="flex items-center justify-center gap-2" data-testid="pin-input">
       {Array.from({ length }).map((_, i) => (
         <input
+          // biome-ignore lint/suspicious/noArrayIndexKey: PIN digit inputs are fixed positional slots — index key is correct
           key={i}
-          ref={el => { inputRefs.current[i] = el }}
+          ref={(el) => {
+            inputRefs.current[i] = el
+          }}
           type="password"
           inputMode="numeric"
           maxLength={1}
           value={digits[i] || ''}
           disabled={disabled}
-          onInput={e => handleInput(i, (e.target as HTMLInputElement).value.slice(-1))}
-          onKeyDown={e => handleKeyDown(i, e)}
+          onInput={(e) => handleInput(i, (e.target as HTMLInputElement).value.slice(-1))}
+          onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
-          onFocus={e => e.target.select()}
+          onFocus={(e) => e.target.select()}
           className={`h-12 w-10 rounded-lg border text-center text-lg font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-ring sm:h-14 sm:w-12 sm:text-xl ${
             error
               ? 'border-destructive bg-destructive/5 focus:ring-destructive/50'

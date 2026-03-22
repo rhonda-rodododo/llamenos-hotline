@@ -47,11 +47,14 @@ export function performPanicWipe(): void {
     // Clear IndexedDB databases
     try {
       if (typeof indexedDB !== 'undefined') {
-        indexedDB.databases?.().then(dbs => {
-          dbs.forEach(db => {
-            if (db.name) indexedDB.deleteDatabase(db.name)
+        indexedDB
+          .databases?.()
+          .then((dbs) => {
+            dbs.forEach((db) => {
+              if (db.name) indexedDB.deleteDatabase(db.name)
+            })
           })
-        }).catch(() => {})
+          .catch(() => {})
       }
     } catch {
       // IndexedDB may be unavailable
@@ -59,9 +62,12 @@ export function performPanicWipe(): void {
 
     // Unregister service workers
     try {
-      navigator.serviceWorker?.getRegistrations().then(registrations => {
-        registrations.forEach(reg => reg.unregister())
-      }).catch(() => {})
+      navigator.serviceWorker
+        ?.getRegistrations()
+        .then((registrations) => {
+          registrations.forEach((reg) => reg.unregister())
+        })
+        .catch(() => {})
     } catch {
       // SW API may be unavailable
     }
@@ -81,7 +87,7 @@ function handleKeyDown(e: KeyboardEvent): void {
   escapeTimes.push(now)
 
   // Remove taps outside the window
-  escapeTimes = escapeTimes.filter(t => now - t <= WINDOW_MS)
+  escapeTimes = escapeTimes.filter((t) => now - t <= WINDOW_MS)
 
   if (escapeTimes.length >= REQUIRED_TAPS) {
     escapeTimes = []

@@ -1,12 +1,12 @@
 import { Hono } from 'hono'
-import type { AppEnv, Env, Volunteer } from '../types'
+import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
+import { canClaimChannel } from '../../shared/permissions'
 import type { MessagingChannelType, MessagingConfig, WhatsAppConfig } from '../../shared/types'
-import type { MessagingAdapter, IncomingMessage, MessageStatusUpdate } from './adapter'
-import { getDOs, getScopedDOs, getNostrPublisher } from '../lib/do-access'
+import { getDOs, getNostrPublisher, getScopedDOs } from '../lib/do-access'
 import { getMessagingAdapter } from '../lib/do-access'
 import { audit } from '../services/audit'
-import { canClaimChannel } from '../../shared/permissions'
-import { KIND_MESSAGE_NEW, KIND_CONVERSATION_ASSIGNED } from '../../shared/nostr-events'
+import type { AppEnv, Env, Volunteer } from '../types'
+import type { IncomingMessage, MessageStatusUpdate, MessagingAdapter } from './adapter'
 
 const messaging = new Hono<AppEnv>()
 
@@ -29,13 +29,15 @@ messaging.get('/whatsapp/webhook', async (c) => {
   try {
     const res = await dos.settings.fetch(new Request('http://do/settings/messaging'))
     if (res.ok) {
-      const config = await res.json() as MessagingConfig | null
+      const config = (await res.json()) as MessagingConfig | null
       const waConfig = config?.whatsapp as WhatsAppConfig | null
       if (waConfig?.verifyToken && token === waConfig.verifyToken) {
         return c.text(challenge)
       }
     }
-  } catch { /* fall through */ }
+  } catch {
+    /* fall through */
+  }
 
   return c.text('Forbidden', 403)
 })
@@ -90,30 +92,37 @@ messaging.post('/:channel/webhook', async (c) => {
       const statusUpdate = await adapter.parseStatusWebhook(c.req.raw)
       if (statusUpdate) {
         // This is a status update, not a new message
-        const statusRes = await dos.conversations.fetch(new Request('http://do/messages/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(statusUpdate),
-        }))
+        const statusRes = await dos.conversations.fetch(
+          new Request('http://do/messages/status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(statusUpdate),
+          })
+        )
 
         if (statusRes.ok) {
           // Publish status update to Nostr relay
-          const result = await statusRes.json() as { conversationId?: string; messageId?: string }
+          const result = (await statusRes.json()) as { conversationId?: string; messageId?: string }
           if (result.conversationId && result.messageId) {
             try {
               const publisher = getNostrPublisher(c.env)
-              publisher.publish({
-                kind: KIND_MESSAGE_NEW,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [['d', 'global'], ['t', 'llamenos:event']],
-                content: JSON.stringify({
-                  type: 'message:status',
-                  conversationId: result.conversationId,
-                  messageId: result.messageId,
-                  status: statusUpdate.status,
-                  timestamp: statusUpdate.timestamp,
-                }),
-              }).catch(() => {})
+              publisher
+                .publish({
+                  kind: KIND_MESSAGE_NEW,
+                  created_at: Math.floor(Date.now() / 1000),
+                  tags: [
+                    ['d', 'global'],
+                    ['t', 'llamenos:event'],
+                  ],
+                  content: JSON.stringify({
+                    type: 'message:status',
+                    conversationId: result.conversationId,
+                    messageId: result.messageId,
+                    status: statusUpdate.status,
+                    timestamp: statusUpdate.timestamp,
+                  }),
+                })
+                .catch(() => {})
             } catch {}
           }
         }
@@ -139,53 +148,61 @@ messaging.post('/:channel/webhook', async (c) => {
     const normalizedBody = incoming.body.trim().toUpperCase()
     // STOP is always recognized (TCPA compliance)
     if (normalizedBody === 'STOP') {
-      await dos.conversations.fetch(new Request('http://do/subscribers/keyword', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identifier: incoming.senderIdentifier,
-          identifierHash: incoming.senderIdentifierHash,
-          keyword: 'STOP',
-          channel: incoming.channelType,
-        }),
-      }))
+      await dos.conversations.fetch(
+        new Request('http://do/subscribers/keyword', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            identifier: incoming.senderIdentifier,
+            identifierHash: incoming.senderIdentifierHash,
+            keyword: 'STOP',
+            channel: incoming.channelType,
+          }),
+        })
+      )
       // Still forward to conversation for logging
     } else {
       // Check if it matches the subscribe keyword
       try {
         const settingsRes = await dos.conversations.fetch(new Request('http://do/blast-settings'))
         if (settingsRes.ok) {
-          const settings = await settingsRes.json() as { subscribeKeyword: string }
+          const settings = (await settingsRes.json()) as { subscribeKeyword: string }
           if (normalizedBody === settings.subscribeKeyword.toUpperCase()) {
-            await dos.conversations.fetch(new Request('http://do/subscribers/keyword', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                identifier: incoming.senderIdentifier,
-                identifierHash: incoming.senderIdentifierHash,
-                keyword: normalizedBody,
-                channel: incoming.channelType,
-              }),
-            }))
+            await dos.conversations.fetch(
+              new Request('http://do/subscribers/keyword', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  identifier: incoming.senderIdentifier,
+                  identifierHash: incoming.senderIdentifierHash,
+                  keyword: normalizedBody,
+                  channel: incoming.channelType,
+                }),
+              })
+            )
           }
         }
-      } catch { /* blast settings not configured — ignore */ }
+      } catch {
+        /* blast settings not configured — ignore */
+      }
     }
   }
 
   // Forward to hub-scoped ConversationDO for processing
-  const convRes = await dos.conversations.fetch(new Request('http://do/conversations/incoming', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(incoming),
-  }))
+  const convRes = await dos.conversations.fetch(
+    new Request('http://do/conversations/incoming', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(incoming),
+    })
+  )
 
   if (!convRes.ok) {
     console.error(`[messaging] ConversationDO rejected incoming message: ${convRes.status}`)
   }
 
   // Check if this is a new conversation that needs auto-assignment
-  const convResult = await convRes.json() as {
+  const convResult = (await convRes.json()) as {
     conversationId: string
     messageId: string
     isNew: boolean
@@ -227,7 +244,7 @@ async function tryAutoAssign(
     const settingsRes = await dos.settings.fetch(new Request('http://do/settings/messaging'))
     if (!settingsRes.ok) return
 
-    const messagingConfig = await settingsRes.json() as MessagingConfig | null
+    const messagingConfig = (await settingsRes.json()) as MessagingConfig | null
     if (!messagingConfig?.autoAssign) return
 
     const maxConcurrent = messagingConfig.maxConcurrentPerVolunteer || 3
@@ -236,23 +253,21 @@ async function tryAutoAssign(
     const shiftRes = await dos.shifts.fetch(new Request('http://do/current-volunteers'))
     if (!shiftRes.ok) return
 
-    const { pubkeys: onShiftPubkeys } = await shiftRes.json() as { pubkeys: string[] }
+    const { pubkeys: onShiftPubkeys } = (await shiftRes.json()) as { pubkeys: string[] }
     if (onShiftPubkeys.length === 0) return
 
     // 3. Get volunteer details to filter by channel capability
     const volRes = await dos.identity.fetch(new Request('http://do/volunteers'))
     if (!volRes.ok) return
 
-    const { volunteers } = await volRes.json() as { volunteers: Volunteer[] }
-    const onShiftVolunteers = volunteers.filter(v =>
-      onShiftPubkeys.includes(v.pubkey) &&
-      v.active &&
-      !v.onBreak &&
-      v.messagingEnabled !== false
+    const { volunteers } = (await volRes.json()) as { volunteers: Volunteer[] }
+    const onShiftVolunteers = volunteers.filter(
+      (v) =>
+        onShiftPubkeys.includes(v.pubkey) && v.active && !v.onBreak && v.messagingEnabled !== false
     )
 
     // Filter by channel capability
-    const eligibleVolunteers = onShiftVolunteers.filter(v => {
+    const eligibleVolunteers = onShiftVolunteers.filter((v) => {
       // If no channels specified, volunteer can handle all
       if (!v.supportedMessagingChannels || v.supportedMessagingChannels.length === 0) {
         return true
@@ -264,11 +279,11 @@ async function tryAutoAssign(
 
     // 4. Get volunteer load counts
     const loadRes = await dos.conversations.fetch(new Request('http://do/load'))
-    const { loads } = await loadRes.json() as { loads: Record<string, number> }
+    const { loads } = (await loadRes.json()) as { loads: Record<string, number> }
 
     // 5. Find least-loaded volunteer under max capacity
     let bestCandidate: string | null = null
-    let lowestLoad = Infinity
+    let lowestLoad = Number.POSITIVE_INFINITY
 
     for (const vol of eligibleVolunteers) {
       const currentLoad = loads[vol.pubkey] || 0
@@ -293,20 +308,27 @@ async function tryAutoAssign(
       // Publish assignment to Nostr relay
       try {
         const publisher = getNostrPublisher(env)
-        publisher.publish({
-          kind: KIND_CONVERSATION_ASSIGNED,
-          created_at: Math.floor(Date.now() / 1000),
-          tags: [['d', 'global'], ['t', 'llamenos:event']],
-          content: JSON.stringify({
-            type: 'conversation:assigned',
-            conversationId,
-            assignedTo: bestCandidate,
-            autoAssigned: true,
-          }),
-        }).catch(() => {})
+        publisher
+          .publish({
+            kind: KIND_CONVERSATION_ASSIGNED,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [
+              ['d', 'global'],
+              ['t', 'llamenos:event'],
+            ],
+            content: JSON.stringify({
+              type: 'conversation:assigned',
+              conversationId,
+              assignedTo: bestCandidate,
+              autoAssigned: true,
+            }),
+          })
+          .catch(() => {})
       } catch {}
 
-      console.log(`[messaging] Auto-assigned conversation ${conversationId} to ${bestCandidate.slice(0, 8)}`)
+      console.log(
+        `[messaging] Auto-assigned conversation ${conversationId} to ${bestCandidate.slice(0, 8)}`
+      )
     }
   } catch (err) {
     console.error('[messaging] Auto-assignment failed:', err)

@@ -1,11 +1,11 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { createFileRoute } from '@tanstack/react-router'
 import { Bell } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/preferences')({
   component: PreferencesPage,
@@ -34,21 +34,24 @@ function PreferencesPage() {
       return
     }
     fetch(`/api/messaging/preferences?token=${encodeURIComponent(search.token)}`)
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => setSubscriber(data as SubscriberPrefs))
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => setSubscriber(data as SubscriberPrefs))
       .catch(() => setError(t('preferences.invalidToken')))
       .finally(() => setLoading(false))
   }, [search.token, t])
 
   async function handleUpdate(updates: Record<string, unknown>) {
     try {
-      const res = await fetch(`/api/messaging/preferences?token=${encodeURIComponent(search.token)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      })
+      const res = await fetch(
+        `/api/messaging/preferences?token=${encodeURIComponent(search.token)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        }
+      )
       if (res.ok) {
-        const updated = await res.json() as SubscriberPrefs
+        const updated = (await res.json()) as SubscriberPrefs
         setSubscriber(updated)
       }
     } catch {
@@ -56,8 +59,14 @@ function PreferencesPage() {
     }
   }
 
-  if (loading) return <div className="flex h-screen items-center justify-center text-muted-foreground">{t('common.loading')}</div>
-  if (error) return <div className="flex h-screen items-center justify-center text-destructive">{error}</div>
+  if (loading)
+    return (
+      <div className="flex h-screen items-center justify-center text-muted-foreground">
+        {t('common.loading')}
+      </div>
+    )
+  if (error)
+    return <div className="flex h-screen items-center justify-center text-destructive">{error}</div>
   if (!subscriber) return null
 
   return (
@@ -71,12 +80,17 @@ function PreferencesPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3">
-            {subscriber.channels.map(ch => (
-              <div key={ch.type} className="flex items-center justify-between rounded-lg border border-border p-3">
+            {subscriber.channels.map((ch) => (
+              <div
+                key={ch.type}
+                className="flex items-center justify-between rounded-lg border border-border p-3"
+              >
                 <Label>{ch.type.toUpperCase()}</Label>
                 <Switch
                   checked={ch.verified}
-                  onCheckedChange={(checked) => handleUpdate({ channel: ch.type, enabled: checked })}
+                  onCheckedChange={(checked) =>
+                    handleUpdate({ channel: ch.type, enabled: checked })
+                  }
                 />
               </div>
             ))}

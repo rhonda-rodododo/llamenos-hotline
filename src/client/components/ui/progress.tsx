@@ -1,13 +1,13 @@
-import * as React from "react"
+import type * as React from 'react'
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils'
 
 function Progress({
   className,
   value = 0,
   max = 100,
   ...props
-}: React.ComponentProps<"div"> & { value?: number; max?: number }) {
+}: React.ComponentProps<'div'> & { value?: number; max?: number }) {
   const percentage = Math.min(100, Math.max(0, (value / max) * 100))
 
   return (
@@ -17,10 +17,7 @@ function Progress({
       aria-valuenow={value}
       aria-valuemin={0}
       aria-valuemax={max}
-      className={cn(
-        "bg-primary/20 relative h-2 w-full overflow-hidden rounded-full",
-        className
-      )}
+      className={cn('bg-primary/20 relative h-2 w-full overflow-hidden rounded-full', className)}
       {...props}
     >
       <div

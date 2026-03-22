@@ -2,8 +2,8 @@
  * Nostr event creation, validation, and deduplication.
  */
 
+import type { EventTemplate, Event as NostrEvent, VerifiedEvent } from 'nostr-tools/core'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
-import type { EventTemplate, VerifiedEvent, Event as NostrEvent } from 'nostr-tools/core'
 import type { LlamenosEvent } from './types'
 
 /** Max age for event deduplication (5 minutes) */
@@ -65,7 +65,7 @@ export function createHubEvent(
   hubId: string,
   kind: number,
   encryptedContent: string,
-  secretKey: Uint8Array,
+  secretKey: Uint8Array
 ): VerifiedEvent {
   const template: EventTemplate = {
     kind,
@@ -84,8 +84,8 @@ export function createHubEvent(
  */
 export function validateLlamenosEvent(event: NostrEvent): boolean {
   if (!verifyEvent(event)) return false
-  const hasDTag = event.tags.some(t => t[0] === 'd')
-  const hasTTag = event.tags.some(t => t[0] === 't' && t[1] === 'llamenos:event')
+  const hasDTag = event.tags.some((t) => t[0] === 'd')
+  const hasTTag = event.tags.some((t) => t[0] === 't' && t[1] === 'llamenos:event')
   return hasDTag && hasTTag
 }
 

@@ -1,27 +1,27 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNostrSubscription } from './nostr/hooks'
-import { useConfig } from './config'
-import { startRinging, stopRinging } from './notifications'
-import {
-  getMyShiftStatus,
-  listActiveCalls,
-  listConversations,
-  answerCall as apiAnswerCall,
-  hangupCall as apiHangupCall,
-  reportCallSpam as apiReportSpam,
-  type ActiveCall,
-  type ShiftStatus,
-  type Conversation,
-} from './api'
 import {
   KIND_CALL_RING,
   KIND_CALL_UPDATE,
   KIND_CALL_VOICEMAIL,
-  KIND_MESSAGE_NEW,
   KIND_CONVERSATION_ASSIGNED,
+  KIND_MESSAGE_NEW,
   KIND_PRESENCE_UPDATE,
 } from '@shared/nostr-events'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  type ActiveCall,
+  type Conversation,
+  type ShiftStatus,
+  answerCall as apiAnswerCall,
+  hangupCall as apiHangupCall,
+  reportCallSpam as apiReportSpam,
+  getMyShiftStatus,
+  listActiveCalls,
+  listConversations,
+} from './api'
+import { useConfig } from './config'
+import { useNostrSubscription } from './nostr/hooks'
 import type { LlamenosEvent } from './nostr/types'
+import { startRinging, stopRinging } from './notifications'
 
 /** All call-related Nostr event kinds */
 const CALL_KINDS = [KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_PRESENCE_UPDATE]
@@ -49,33 +49,44 @@ export function useCalls() {
   useNostrSubscription(currentHubId, CALL_KINDS, (_event, content: LlamenosEvent) => {
     switch (content.type) {
       case 'call:ring': {
-        const call = content as LlamenosEvent & { callId: string; callerLast4?: string; startedAt: string }
-        setCalls(prev => {
-          if (prev.some(c => c.id === call.callId)) return prev
-          return [...prev, {
-            id: call.callId,
-            callerNumber: '[redacted]',
-            callerLast4: call.callerLast4,
-            answeredBy: null,
-            startedAt: call.startedAt,
-            status: 'ringing' as const,
-            hasTranscription: false,
-            hasVoicemail: false,
-          }]
+        const call = content as LlamenosEvent & {
+          callId: string
+          callerLast4?: string
+          startedAt: string
+        }
+        setCalls((prev) => {
+          if (prev.some((c) => c.id === call.callId)) return prev
+          return [
+            ...prev,
+            {
+              id: call.callId,
+              callerNumber: '[redacted]',
+              callerLast4: call.callerLast4,
+              answeredBy: null,
+              startedAt: call.startedAt,
+              status: 'ringing' as const,
+              hasTranscription: false,
+              hasVoicemail: false,
+            },
+          ]
         })
         startRinging('Incoming Call!')
         break
       }
       case 'call:update': {
-        const update = content as LlamenosEvent & { callId: string; status: ActiveCall['status']; answeredBy?: string }
-        setCalls(prev => {
+        const update = content as LlamenosEvent & {
+          callId: string
+          status: ActiveCall['status']
+          answeredBy?: string
+        }
+        setCalls((prev) => {
           if (update.status === 'completed') {
-            return prev.filter(c => c.id !== update.callId)
+            return prev.filter((c) => c.id !== update.callId)
           }
-          return prev.map(c =>
+          return prev.map((c) =>
             c.id === update.callId
               ? { ...c, status: update.status, answeredBy: update.answeredBy ?? c.answeredBy }
-              : c,
+              : c
           )
         })
         if (update.status === 'in-progress' || update.status === 'completed') {
@@ -86,14 +97,22 @@ export function useCalls() {
           if (update.status === 'completed') {
             setCurrentCall(null)
           } else {
-            setCurrentCall(prev => prev ? { ...prev, status: update.status, answeredBy: update.answeredBy ?? prev.answeredBy } : prev)
+            setCurrentCall((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    status: update.status,
+                    answeredBy: update.answeredBy ?? prev.answeredBy,
+                  }
+                : prev
+            )
           }
         }
         break
       }
       case 'voicemail:new': {
         const vm = content as LlamenosEvent & { callId: string }
-        setCalls(prev => prev.filter(c => c.id !== vm.callId))
+        setCalls((prev) => prev.filter((c) => c.id !== vm.callId))
         stopRinging()
         break
       }
@@ -108,14 +127,20 @@ export function useCalls() {
       listActiveCalls()
         .then(({ calls: polledCalls }) => {
           if (!mounted) return
-          setCalls(prev => {
-            const prevIds = prev.map(c => `${c.id}:${c.status}`).sort().join(',')
-            const newIds = polledCalls.map(c => `${c.id}:${c.status}`).sort().join(',')
+          setCalls((prev) => {
+            const prevIds = prev
+              .map((c) => `${c.id}:${c.status}`)
+              .sort()
+              .join(',')
+            const newIds = polledCalls
+              .map((c) => `${c.id}:${c.status}`)
+              .sort()
+              .join(',')
             return prevIds === newIds ? prev : polledCalls
           })
-          setCurrentCall(prev => {
+          setCurrentCall((prev) => {
             if (!prev) return prev
-            return polledCalls.some(c => c.id === prev.id) ? prev : null
+            return polledCalls.some((c) => c.id === prev.id) ? prev : null
           })
         })
         .catch(() => {})
@@ -123,24 +148,30 @@ export function useCalls() {
 
     poll() // Seed initial state on mount
     const interval = setInterval(poll, 15_000)
-    return () => { mounted = false; clearInterval(interval) }
+    return () => {
+      mounted = false
+      clearInterval(interval)
+    }
   }, [])
 
   // --- Call actions via REST ---
 
-  const answerCall = useCallback(async (callId: string) => {
-    stopRinging()
-    const call = calls.find(c => c.id === callId)
-    if (call) {
-      setCurrentCall({ ...call, status: 'in-progress' })
-    }
-    try {
-      await apiAnswerCall(callId)
-    } catch {
-      // Revert optimistic update on failure
-      setCurrentCall(null)
-    }
-  }, [calls])
+  const answerCall = useCallback(
+    async (callId: string) => {
+      stopRinging()
+      const call = calls.find((c) => c.id === callId)
+      if (call) {
+        setCurrentCall({ ...call, status: 'in-progress' })
+      }
+      try {
+        await apiAnswerCall(callId)
+      } catch {
+        // Revert optimistic update on failure
+        setCurrentCall(null)
+      }
+    },
+    [calls]
+  )
 
   const hangupCall = useCallback(async (callId: string) => {
     setCurrentCall(null)
@@ -166,8 +197,8 @@ export function useCalls() {
     answerCall,
     hangupCall,
     reportSpam,
-    ringingCalls: calls.filter(c => c.status === 'ringing'),
-    activeCalls: calls.filter(c => c.status === 'in-progress'),
+    ringingCalls: calls.filter((c) => c.status === 'ringing'),
+    activeCalls: calls.filter((c) => c.status === 'in-progress'),
   }
 }
 
@@ -175,7 +206,11 @@ export function useCalls() {
  * Hook to fetch and periodically refresh the current user's shift status.
  */
 export function useShiftStatus() {
-  const [status, setStatus] = useState<ShiftStatus>({ onShift: false, currentShift: null, nextShift: null })
+  const [status, setStatus] = useState<ShiftStatus>({
+    onShift: false,
+    currentShift: null,
+    nextShift: null,
+  })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -183,13 +218,23 @@ export function useShiftStatus() {
 
     function fetch() {
       getMyShiftStatus()
-        .then(s => { if (mounted) { setStatus(s); setLoading(false) } })
-        .catch(() => { if (mounted) setLoading(false) })
+        .then((s) => {
+          if (mounted) {
+            setStatus(s)
+            setLoading(false)
+          }
+        })
+        .catch(() => {
+          if (mounted) setLoading(false)
+        })
     }
 
     fetch()
     const interval = setInterval(fetch, 60_000) // Refresh every 60s
-    return () => { mounted = false; clearInterval(interval) }
+    return () => {
+      mounted = false
+      clearInterval(interval)
+    }
   }, [])
 
   return { ...status, loading }
@@ -213,32 +258,38 @@ export function useConversations() {
         // We don't have the full conversation object from the event —
         // trigger a re-fetch on the next poll cycle. For now, add a stub
         // that will be replaced by the poll.
-        setConversations(prev => {
-          if (prev.some(c => c.id === conversationId)) return prev
+        setConversations((prev) => {
+          if (prev.some((c) => c.id === conversationId)) return prev
           // Return unchanged — the poll will pick up the full object
           return prev
         })
         break
       }
       case 'conversation:assigned': {
-        const { conversationId, assignedTo } = content as LlamenosEvent & { conversationId: string; assignedTo: string }
-        setConversations(prev =>
-          prev.map(c => c.id === conversationId ? { ...c, assignedTo, status: 'active' as const } : c),
+        const { conversationId, assignedTo } = content as LlamenosEvent & {
+          conversationId: string
+          assignedTo: string
+        }
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === conversationId ? { ...c, assignedTo, status: 'active' as const } : c
+          )
         )
         break
       }
       case 'conversation:closed': {
         const { conversationId } = content as LlamenosEvent & { conversationId: string }
-        setConversations(prev => prev.filter(c => c.id !== conversationId))
+        setConversations((prev) => prev.filter((c) => c.id !== conversationId))
         break
       }
       case 'message:new': {
         const { conversationId } = content as LlamenosEvent & { conversationId: string }
-        setConversations(prev =>
-          prev.map(c => c.id === conversationId
-            ? { ...c, lastMessageAt: new Date().toISOString(), messageCount: c.messageCount + 1 }
-            : c,
-          ),
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === conversationId
+              ? { ...c, lastMessageAt: new Date().toISOString(), messageCount: c.messageCount + 1 }
+              : c
+          )
         )
         break
       }
@@ -257,11 +308,14 @@ export function useConversations() {
     }
     poll()
     const interval = setInterval(poll, 30_000)
-    return () => { mounted = false; clearInterval(interval) }
+    return () => {
+      mounted = false
+      clearInterval(interval)
+    }
   }, [])
 
-  const waitingConversations = conversations.filter(c => c.status === 'waiting')
-  const activeConversations = conversations.filter(c => c.status === 'active')
+  const waitingConversations = conversations.filter((c) => c.status === 'waiting')
+  const activeConversations = conversations.filter((c) => c.status === 'active')
 
   return {
     conversations,

@@ -49,7 +49,7 @@ function isInternalIPv4(ip: string): boolean {
   if (parts.length !== 4) return false
 
   const octets = parts.map(Number)
-  if (octets.some(o => isNaN(o) || o < 0 || o > 255)) return false
+  if (octets.some((o) => Number.isNaN(o) || o < 0 || o > 255)) return false
 
   const [a, b] = octets
 

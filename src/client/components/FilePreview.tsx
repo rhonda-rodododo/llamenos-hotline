@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
+import { Button } from '@/components/ui/button'
 import { downloadFile, getFileEnvelopes, getFileMetadata } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 import { decryptFile, decryptFileMetadata } from '@/lib/file-crypto'
 import * as keyManager from '@/lib/key-manager'
-import { FileIcon, ImageIcon, VideoIcon, Music, Download, Loader2, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import type { EncryptedFileMetadata, FileKeyEnvelope } from '@shared/types'
+import { AlertCircle, Download, FileIcon, ImageIcon, Loader2, Music, VideoIcon } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface FilePreviewProps {
   fileId: string
@@ -20,7 +20,11 @@ function formatFileSize(bytes: number): string {
 
 function resolveSecretKey(): Uint8Array | null {
   if (keyManager.isUnlocked()) {
-    try { return keyManager.getSecretKey() } catch { return null }
+    try {
+      return keyManager.getSecretKey()
+    } catch {
+      return null
+    }
   }
   return null
 }
@@ -33,6 +37,7 @@ export function FilePreview({ fileId }: FilePreviewProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [metadata, setMetadata] = useState<EncryptedFileMetadata | null>(null)
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: hasNsec triggers re-run when key lock state changes
   useEffect(() => {
     let mounted = true
     let objectUrl: string | null = null
@@ -40,7 +45,8 @@ export function FilePreview({ fileId }: FilePreviewProps) {
     async function loadAndDecrypt() {
       const secretKey = resolveSecretKey()
       if (!secretKey) {
-        if (mounted) setError(t('reports.noKeyAvailable', { defaultValue: 'Encryption key not available' }))
+        if (mounted)
+          setError(t('reports.noKeyAvailable', { defaultValue: 'Encryption key not available' }))
         if (mounted) setLoading(false)
         return
       }
@@ -58,7 +64,7 @@ export function FilePreview({ fileId }: FilePreviewProps) {
         const myPubkey = publicKey
         let envelope: FileKeyEnvelope | undefined
         if (myPubkey) {
-          envelope = envelopes.find(e => e.pubkey === myPubkey)
+          envelope = envelopes.find((e) => e.pubkey === myPubkey)
         }
         if (!envelope && envelopes.length > 0) {
           envelope = envelopes[0]
@@ -71,9 +77,13 @@ export function FilePreview({ fileId }: FilePreviewProps) {
 
         // Decrypt metadata first to get MIME type
         let decryptedMeta: EncryptedFileMetadata | null = null
-        const myMetadata = metadataList.find(m => m.pubkey === myPubkey) || metadataList[0]
+        const myMetadata = metadataList.find((m) => m.pubkey === myPubkey) || metadataList[0]
         if (myMetadata) {
-          decryptedMeta = decryptFileMetadata(myMetadata.encryptedContent, myMetadata.ephemeralPubkey, secretKey)
+          decryptedMeta = decryptFileMetadata(
+            myMetadata.encryptedContent,
+            myMetadata.ephemeralPubkey,
+            secretKey
+          )
           if (decryptedMeta && mounted) {
             setMetadata(decryptedMeta)
           }
@@ -125,7 +135,8 @@ export function FilePreview({ fileId }: FilePreviewProps) {
   if (!blobUrl) return null
 
   const mimeType = metadata?.mimeType || ''
-  const fileName = metadata?.originalName || t('reports.unknownFile', { defaultValue: 'Encrypted file' })
+  const fileName =
+    metadata?.originalName || t('reports.unknownFile', { defaultValue: 'Encrypted file' })
   const fileSize = metadata?.size ? formatFileSize(metadata.size) : ''
 
   const handleDownload = () => {
@@ -146,7 +157,12 @@ export function FilePreview({ fileId }: FilePreviewProps) {
           alt={fileName}
           className="max-h-64 max-w-full rounded-md border border-border object-contain"
         />
-        <FileInfo fileName={fileName} fileSize={fileSize} onDownload={handleDownload} icon={<ImageIcon className="h-3.5 w-3.5" />} />
+        <FileInfo
+          fileName={fileName}
+          fileSize={fileSize}
+          onDownload={handleDownload}
+          icon={<ImageIcon className="h-3.5 w-3.5" />}
+        />
       </div>
     )
   }
@@ -160,9 +176,17 @@ export function FilePreview({ fileId }: FilePreviewProps) {
           controls
           className="max-h-64 max-w-full rounded-md border border-border"
         >
-          {t('reports.videoNotSupported', { defaultValue: 'Your browser does not support video playback.' })}
+          <track kind="captions" />
+          {t('reports.videoNotSupported', {
+            defaultValue: 'Your browser does not support video playback.',
+          })}
         </video>
-        <FileInfo fileName={fileName} fileSize={fileSize} onDownload={handleDownload} icon={<VideoIcon className="h-3.5 w-3.5" />} />
+        <FileInfo
+          fileName={fileName}
+          fileSize={fileSize}
+          onDownload={handleDownload}
+          icon={<VideoIcon className="h-3.5 w-3.5" />}
+        />
       </div>
     )
   }
@@ -172,20 +196,38 @@ export function FilePreview({ fileId }: FilePreviewProps) {
     return (
       <div className="space-y-1">
         <audio src={blobUrl} controls className="w-full">
-          {t('reports.audioNotSupported', { defaultValue: 'Your browser does not support audio playback.' })}
+          <track kind="captions" />
+          {t('reports.audioNotSupported', {
+            defaultValue: 'Your browser does not support audio playback.',
+          })}
         </audio>
-        <FileInfo fileName={fileName} fileSize={fileSize} onDownload={handleDownload} icon={<Music className="h-3.5 w-3.5" />} />
+        <FileInfo
+          fileName={fileName}
+          fileSize={fileSize}
+          onDownload={handleDownload}
+          icon={<Music className="h-3.5 w-3.5" />}
+        />
       </div>
     )
   }
 
   // Generic download link (PDF, docs, etc.)
   return (
-    <FileInfo fileName={fileName} fileSize={fileSize} onDownload={handleDownload} icon={<FileIcon className="h-3.5 w-3.5" />} />
+    <FileInfo
+      fileName={fileName}
+      fileSize={fileSize}
+      onDownload={handleDownload}
+      icon={<FileIcon className="h-3.5 w-3.5" />}
+    />
   )
 }
 
-function FileInfo({ fileName, fileSize, onDownload, icon }: {
+function FileInfo({
+  fileName,
+  fileSize,
+  onDownload,
+  icon,
+}: {
   fileName: string
   fileSize: string
   onDownload: () => void
@@ -200,7 +242,12 @@ function FileInfo({ fileName, fileSize, onDownload, icon }: {
         <p className="truncate text-xs font-medium text-foreground">{fileName}</p>
         {fileSize && <p className="text-[10px] text-muted-foreground">{fileSize}</p>}
       </div>
-      <Button variant="ghost" size="icon-xs" onClick={onDownload} aria-label={t('reports.download', { defaultValue: 'Download' })}>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={onDownload}
+        aria-label={t('reports.download', { defaultValue: 'Download' })}
+      >
         <Download className="h-3.5 w-3.5" />
       </Button>
     </div>

@@ -24,17 +24,17 @@ import { RECOVERY_SALT } from '@shared/crypto-labels'
 const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 
 interface EncryptedBlock {
-  s: string  // salt (hex)
-  i: number  // PBKDF2 iterations
-  n: string  // nonce (hex)
-  c: string  // ciphertext (hex)
+  s: string // salt (hex)
+  i: number // PBKDF2 iterations
+  n: string // nonce (hex)
+  c: string // ciphertext (hex)
 }
 
 export interface BackupFile {
   v: 1
-  id: string         // truncated SHA-256(pubkey), first 6 hex chars
-  t: number          // unix timestamp (seconds), rounded to nearest hour
-  d: EncryptedBlock  // PIN-encrypted nsec
+  id: string // truncated SHA-256(pubkey), first 6 hex chars
+  t: number // unix timestamp (seconds), rounded to nearest hour
+  d: EncryptedBlock // PIN-encrypted nsec
   r?: EncryptedBlock // recovery-key-encrypted nsec
 }
 
@@ -58,13 +58,16 @@ export function generateRecoveryKey(): string {
   if (bits > 0) {
     base32 += BASE32_CHARS[(buffer << (5 - bits)) & 0x1f]
   }
-  return base32.match(/.{1,4}/g)!.join('-')
+  return base32.match(/.{1,4}/g)?.join('-') ?? base32
 }
 
 /**
  * Derive a KEK from a recovery key using PBKDF2.
  */
-async function deriveFromRecoveryKey(recoveryKey: string, perBackupSalt?: Uint8Array): Promise<Uint8Array> {
+async function deriveFromRecoveryKey(
+  recoveryKey: string,
+  perBackupSalt?: Uint8Array
+): Promise<Uint8Array> {
   const normalized = recoveryKey.replace(/-/g, '').toUpperCase()
   const keyBytes = utf8ToBytes(normalized)
   const salt = perBackupSalt ?? utf8ToBytes(RECOVERY_SALT)
@@ -73,7 +76,7 @@ async function deriveFromRecoveryKey(recoveryKey: string, perBackupSalt?: Uint8A
     keyBytes.buffer as ArrayBuffer,
     'PBKDF2',
     false,
-    ['deriveBits'],
+    ['deriveBits']
   )
   const derived = await crypto.subtle.deriveBits(
     {
@@ -83,7 +86,7 @@ async function deriveFromRecoveryKey(recoveryKey: string, perBackupSalt?: Uint8A
       iterations: 100_000,
     },
     keyMaterial,
-    256,
+    256
   )
   return new Uint8Array(derived)
 }
@@ -98,7 +101,7 @@ async function deriveFromPin(pin: string, salt: Uint8Array): Promise<Uint8Array>
     pinBytes.buffer as ArrayBuffer,
     'PBKDF2',
     false,
-    ['deriveBits'],
+    ['deriveBits']
   )
   const derived = await crypto.subtle.deriveBits(
     {
@@ -108,7 +111,7 @@ async function deriveFromPin(pin: string, salt: Uint8Array): Promise<Uint8Array>
       iterations: 600_000,
     },
     keyMaterial,
-    256,
+    256
   )
   return new Uint8Array(derived)
 }
@@ -146,7 +149,7 @@ function truncatedPubkeyId(pubkey: string): string {
 function roundToHour(date: Date): number {
   const ms = date.getTime()
   const hourMs = 3_600_000
-  return Math.round(ms / hourMs) * hourMs / 1000
+  return (Math.round(ms / hourMs) * hourMs) / 1000
 }
 
 /**
@@ -156,7 +159,7 @@ export async function createBackup(
   nsec: string,
   pin: string,
   pubkey: string,
-  recoveryKey: string,
+  recoveryKey: string
 ): Promise<BackupFile> {
   const salt = new Uint8Array(16)
   crypto.getRandomValues(salt)
@@ -190,7 +193,10 @@ export async function createBackup(
 /**
  * Restore nsec from a backup file using PIN.
  */
-export async function restoreFromBackupWithPin(backup: BackupFile, pin: string): Promise<string | null> {
+export async function restoreFromBackupWithPin(
+  backup: BackupFile,
+  pin: string
+): Promise<string | null> {
   const salt = hexToBytes(backup.d.s)
   const kek = await deriveFromPin(pin, salt)
   return decrypt(backup.d.n, backup.d.c, kek)
@@ -199,7 +205,10 @@ export async function restoreFromBackupWithPin(backup: BackupFile, pin: string):
 /**
  * Restore nsec from a backup file using recovery key.
  */
-export async function restoreFromBackupWithRecoveryKey(backup: BackupFile, recoveryKey: string): Promise<string | null> {
+export async function restoreFromBackupWithRecoveryKey(
+  backup: BackupFile,
+  recoveryKey: string
+): Promise<string | null> {
   if (!backup.r) return null
   const perBackupSalt = backup.r.s ? hexToBytes(backup.r.s) : undefined
   const rKek = await deriveFromRecoveryKey(recoveryKey, perBackupSalt)
@@ -217,7 +226,8 @@ export function downloadBackupFile(backup: BackupFile): void {
   const a = document.createElement('a')
   a.href = url
   const randomSuffix = Array.from(crypto.getRandomValues(new Uint8Array(4)))
-    .map(b => b.toString(16).padStart(2, '0')).join('')
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
   a.download = `backup-${randomSuffix}.json`
   a.click()
   URL.revokeObjectURL(url)

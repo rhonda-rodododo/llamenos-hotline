@@ -8,7 +8,7 @@ export interface RBMWebhookPayload {
   message?: RBMUserMessage
   event?: RBMUserEvent
   agentId: string
-  senderId: string   // User's phone number (E.164)
+  senderId: string // User's phone number (E.164)
 }
 
 export interface RBMUserMessage {

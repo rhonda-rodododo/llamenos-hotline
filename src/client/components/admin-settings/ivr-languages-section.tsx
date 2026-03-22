@@ -1,11 +1,11 @@
-import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
-import { updateIvrLanguages } from '@/lib/api'
 import { SettingsSection } from '@/components/settings-section'
-import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { Phone } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { updateIvrLanguages } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 import { IVR_LANGUAGES, LANGUAGE_MAP, ivrIndexToDigit } from '@shared/languages'
+import { Phone } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   enabled: string[]
@@ -15,7 +15,13 @@ interface Props {
   statusSummary?: string
 }
 
-export function IvrLanguagesSection({ enabled, onChange, expanded, onToggle, statusSummary }: Props) {
+export function IvrLanguagesSection({
+  enabled,
+  onChange,
+  expanded,
+  onToggle,
+  statusSummary,
+}: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
 
@@ -37,7 +43,10 @@ export function IvrLanguagesSection({ enabled, onChange, expanded, onToggle, sta
           const isEnabled = enabled.includes(code)
           const isLastEnabled = isEnabled && enabled.length === 1
           return (
-            <div key={code} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+            <div
+              key={code}
+              className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
+            >
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs font-mono">
                   {ivrIndexToDigit(index)}
@@ -48,9 +57,7 @@ export function IvrLanguagesSection({ enabled, onChange, expanded, onToggle, sta
                 checked={isEnabled}
                 disabled={isLastEnabled}
                 onCheckedChange={async (checked) => {
-                  const next = checked
-                    ? [...enabled, code]
-                    : enabled.filter(c => c !== code)
+                  const next = checked ? [...enabled, code] : enabled.filter((c) => c !== code)
                   try {
                     const res = await updateIvrLanguages({ enabledLanguages: next })
                     onChange(res.enabledLanguages)

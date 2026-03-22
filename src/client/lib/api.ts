@@ -4,19 +4,21 @@ const API_BASE = '/api'
 
 // Auth expiry callback — set by AuthProvider to handle 401s reactively
 let onAuthExpired: (() => void) | null = null
-export function setOnAuthExpired(cb: (() => void) | null) { onAuthExpired = cb }
+export function setOnAuthExpired(cb: (() => void) | null) {
+  onAuthExpired = cb
+}
 
 function getAuthHeaders(method: string, apiPath: string): Record<string, string> {
   // Prefer session token if available (WebAuthn-based sessions)
   const sessionToken = sessionStorage.getItem('llamenos-session-token')
   if (sessionToken) {
-    return { 'Authorization': `Session ${sessionToken}` }
+    return { Authorization: `Session ${sessionToken}` }
   }
   // Use key manager for Schnorr auth if unlocked
   if (keyManager.isUnlocked()) {
     try {
       const token = keyManager.createAuthToken(Date.now(), method, `${API_BASE}${apiPath}`)
-      return { 'Authorization': `Bearer ${token}` }
+      return { Authorization: `Bearer ${token}` }
     } catch {
       return {}
     }
@@ -26,7 +28,9 @@ function getAuthHeaders(method: string, apiPath: string): Record<string, string>
 
 // Activity tracking callback — set by AuthProvider
 let onApiActivity: (() => void) | null = null
-export function setOnApiActivity(cb: (() => void) | null) { onApiActivity = cb }
+export function setOnApiActivity(cb: (() => void) | null) {
+  onApiActivity = cb
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const method = ((options.method as string) || 'GET').toUpperCase()
@@ -52,7 +56,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export class ApiError extends Error {
-  constructor(public status: number, public body: string) {
+  constructor(
+    public status: number,
+    public body: string
+  ) {
     super(`API error ${status}: ${body}`)
     this.name = 'ApiError'
   }
@@ -61,8 +68,12 @@ export class ApiError extends Error {
 // --- Hub context for hub-scoped API calls ---
 
 let activeHubId: string | null = null
-export function setActiveHub(id: string | null) { activeHubId = id }
-export function getActiveHub(): string | null { return activeHubId }
+export function setActiveHub(id: string | null) {
+  activeHubId = id
+}
+export function getActiveHub(): string | null {
+  return activeHubId
+}
 
 /** Prefix a path with the active hub scope. No-op when no hub is active. */
 function hp(path: string): string {
@@ -73,7 +84,13 @@ function hp(path: string): string {
 
 export async function getConfig() {
   const res = await fetch(`${API_BASE}/config`)
-  if (!res.ok) return { hotlineName: 'Hotline', hotlineNumber: '', channels: undefined, setupCompleted: undefined }
+  if (!res.ok)
+    return {
+      hotlineName: 'Hotline',
+      hotlineNumber: '',
+      channels: undefined,
+      setupCompleted: undefined,
+    }
   return res.json() as Promise<{
     hotlineName: string
     hotlineNumber: string
@@ -117,7 +134,23 @@ export async function logout() {
 }
 
 export async function getMe() {
-  return request<{ pubkey: string; roles: string[]; permissions: string[]; primaryRole: { id: string; name: string; slug: string } | null; name: string; transcriptionEnabled: boolean; spokenLanguages: string[]; uiLanguage: string; profileCompleted: boolean; onBreak: boolean; callPreference: 'phone' | 'browser' | 'both'; webauthnRequired: boolean; webauthnRegistered: boolean; adminPubkey: string; adminDecryptionPubkey: string }>('/auth/me')
+  return request<{
+    pubkey: string
+    roles: string[]
+    permissions: string[]
+    primaryRole: { id: string; name: string; slug: string } | null
+    name: string
+    transcriptionEnabled: boolean
+    spokenLanguages: string[]
+    uiLanguage: string
+    profileCompleted: boolean
+    onBreak: boolean
+    callPreference: 'phone' | 'browser' | 'both'
+    webauthnRequired: boolean
+    webauthnRegistered: boolean
+    adminPubkey: string
+    adminDecryptionPubkey: string
+  }>('/auth/me')
 }
 
 // --- Volunteers (admin only) ---
@@ -126,21 +159,29 @@ export async function listVolunteers() {
   return request<{ volunteers: Volunteer[] }>('/volunteers')
 }
 
-export async function createVolunteer(data: { name: string; phone: string; roleIds: string[]; pubkey: string }) {
+export async function createVolunteer(data: {
+  name: string
+  phone: string
+  roleIds: string[]
+  pubkey: string
+}) {
   return request<{ volunteer: Volunteer }>('/volunteers', {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
-export async function updateVolunteer(pubkey: string, data: Partial<{
-  name: string
-  phone: string
-  roles: string[]
-  active: boolean
-  supportedMessagingChannels: string[]
-  messagingEnabled: boolean
-}>) {
+export async function updateVolunteer(
+  pubkey: string,
+  data: Partial<{
+    name: string
+    phone: string
+    roles: string[]
+    active: boolean
+    supportedMessagingChannels: string[]
+    messagingEnabled: boolean
+  }>
+) {
   return request<{ volunteer: Volunteer }>(`/volunteers/${pubkey}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -244,11 +285,14 @@ export async function createNote(data: {
   })
 }
 
-export async function updateNote(id: string, data: {
-  encryptedContent: string
-  authorEnvelope?: { wrappedKey: string; ephemeralPubkey: string }
-  adminEnvelopes?: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
-}) {
+export async function updateNote(
+  id: string,
+  data: {
+    encryptedContent: string
+    authorEnvelope?: { wrappedKey: string; ephemeralPubkey: string }
+    adminEnvelopes?: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
+  }
+) {
   return request<{ note: EncryptedNote }>(hp(`/notes/${id}`), {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -261,7 +305,13 @@ export async function listActiveCalls() {
   return request<{ calls: ActiveCall[] }>(hp('/calls/active'))
 }
 
-export async function getCallHistory(params?: { page?: number; limit?: number; search?: string; dateFrom?: string; dateTo?: string }) {
+export async function getCallHistory(params?: {
+  page?: number
+  limit?: number
+  search?: string
+  dateFrom?: string
+  dateTo?: string
+}) {
   const qs = new URLSearchParams()
   if (params?.page) qs.set('page', String(params.page))
   if (params?.limit) qs.set('limit', String(params.limit))
@@ -282,7 +332,10 @@ export async function hangupCall(callId: string) {
 }
 
 export async function reportCallSpam(callId: string) {
-  return request<{ callId: string; callerNumber: string | null; reportedBy: string }>(hp(`/calls/${callId}/spam`), { method: 'POST' })
+  return request<{ callId: string; callerNumber: string | null; reportedBy: string }>(
+    hp(`/calls/${callId}/spam`),
+    { method: 'POST' }
+  )
 }
 
 // --- Calls Today ---
@@ -383,14 +436,22 @@ export async function updateIvrLanguages(data: { enabledLanguages: string[] }) {
 // --- Transcription Settings ---
 
 export async function getTranscriptionSettings() {
-  return request<{ globalEnabled: boolean; allowVolunteerOptOut: boolean }>('/settings/transcription')
+  return request<{ globalEnabled: boolean; allowVolunteerOptOut: boolean }>(
+    '/settings/transcription'
+  )
 }
 
-export async function updateTranscriptionSettings(data: { globalEnabled?: boolean; allowVolunteerOptOut?: boolean }) {
-  return request<{ globalEnabled: boolean; allowVolunteerOptOut: boolean }>('/settings/transcription', {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  })
+export async function updateTranscriptionSettings(data: {
+  globalEnabled?: boolean
+  allowVolunteerOptOut?: boolean
+}) {
+  return request<{ globalEnabled: boolean; allowVolunteerOptOut: boolean }>(
+    '/settings/transcription',
+    {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }
+  )
 }
 
 export async function updateMyTranscriptionPreference(enabled: boolean) {
@@ -400,7 +461,14 @@ export async function updateMyTranscriptionPreference(enabled: boolean) {
   })
 }
 
-export async function updateMyProfile(data: { name?: string; phone?: string; spokenLanguages?: string[]; uiLanguage?: string; profileCompleted?: boolean; callPreference?: 'phone' | 'browser' | 'both' }) {
+export async function updateMyProfile(data: {
+  name?: string
+  phone?: string
+  spokenLanguages?: string[]
+  uiLanguage?: string
+  profileCompleted?: boolean
+  callPreference?: 'phone' | 'browser' | 'both'
+}) {
   return request<{ ok: true }>('/auth/me/profile', {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -433,7 +501,12 @@ export async function revokeInvite(code: string) {
 
 export async function validateInvite(code: string) {
   const res = await fetch(`${API_BASE}/invites/validate/${code}`)
-  return res.json() as Promise<{ valid: boolean; name?: string; roleIds?: string[]; error?: string }>
+  return res.json() as Promise<{
+    valid: boolean
+    name?: string
+    roleIds?: string[]
+    error?: string
+  }>
 }
 
 export async function redeemInvite(code: string, pubkey: string, secretKey?: Uint8Array) {
@@ -491,7 +564,9 @@ export async function uploadIvrAudio(promptType: string, language: string, audio
 }
 
 export async function deleteIvrAudio(promptType: string, language: string) {
-  return request<{ ok: true }>(`/settings/ivr-audio/${promptType}/${language}`, { method: 'DELETE' })
+  return request<{ ok: true }>(`/settings/ivr-audio/${promptType}/${language}`, {
+    method: 'DELETE',
+  })
 }
 
 export function getIvrAudioUrl(promptType: string, language: string) {
@@ -530,7 +605,9 @@ export async function updateTelephonyProvider(config: TelephonyProviderConfig) {
   })
 }
 
-export async function testTelephonyProvider(config: Partial<TelephonyProviderConfig> & { type: string }) {
+export async function testTelephonyProvider(
+  config: Partial<TelephonyProviderConfig> & { type: string }
+) {
   return request<{ ok: boolean; error?: string }>('/settings/telephony-provider/test', {
     method: 'POST',
     body: JSON.stringify(config),
@@ -583,14 +660,22 @@ export async function listRoles() {
   return request<{ roles: RoleDefinition[] }>('/settings/roles')
 }
 
-export async function createRole(data: { name: string; slug: string; permissions: string[]; description: string }) {
+export async function createRole(data: {
+  name: string
+  slug: string
+  permissions: string[]
+  description: string
+}) {
   return request<{ role: RoleDefinition }>('/settings/roles', {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
-export async function updateRole(id: string, data: Partial<{ name: string; permissions: string[]; description: string }>) {
+export async function updateRole(
+  id: string,
+  data: Partial<{ name: string; permissions: string[]; description: string }>
+) {
   return request<{ role: RoleDefinition }>(`/settings/roles/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -624,16 +709,16 @@ export interface Volunteer {
   onBreak: boolean
   callPreference: 'phone' | 'browser' | 'both'
   // Messaging capabilities (Epic 68)
-  supportedMessagingChannels?: string[]  // SMS, WhatsApp, Signal, RCS (empty = all)
-  messagingEnabled?: boolean  // Whether volunteer can handle messaging conversations
+  supportedMessagingChannels?: string[] // SMS, WhatsApp, Signal, RCS (empty = all)
+  messagingEnabled?: boolean // Whether volunteer can handle messaging conversations
 }
 
 export interface Shift {
   id: string
   name: string
-  startTime: string   // HH:mm
-  endTime: string     // HH:mm
-  days: number[]      // 0=Sunday, 1=Monday, ..., 6=Saturday
+  startTime: string // HH:mm
+  endTime: string // HH:mm
+  days: number[] // 0=Sunday, 1=Monday, ..., 6=Saturday
   volunteerPubkeys: string[]
   createdAt: string
 }
@@ -747,9 +832,9 @@ export type MessageDeliveryStatus = 'pending' | 'sent' | 'delivered' | 'read' | 
 
 /** ECIES-wrapped message key for a specific reader. */
 export interface MessageKeyEnvelope {
-  pubkey: string           // reader's x-only pubkey (hex)
-  wrappedKey: string       // hex: nonce(24) + ciphertext(48)
-  ephemeralPubkey: string  // hex: compressed 33-byte ephemeral pubkey
+  pubkey: string // reader's x-only pubkey (hex)
+  wrappedKey: string // hex: nonce(24) + ciphertext(48)
+  ephemeralPubkey: string // hex: compressed 33-byte ephemeral pubkey
 }
 
 export interface ConversationMessage {
@@ -757,8 +842,8 @@ export interface ConversationMessage {
   conversationId: string
   direction: 'inbound' | 'outbound'
   authorPubkey: string
-  encryptedContent: string         // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
-  readerEnvelopes: MessageKeyEnvelope[]  // per-reader ECIES-wrapped message keys
+  encryptedContent: string // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
+  readerEnvelopes: MessageKeyEnvelope[] // per-reader ECIES-wrapped message keys
   hasAttachments: boolean
   attachmentIds?: string[]
   // Delivery status tracking (Epic 71)
@@ -794,18 +879,26 @@ export async function getConversation(id: string) {
   return request<Conversation>(hp(`/conversations/${id}`))
 }
 
-export async function getConversationMessages(id: string, params?: { page?: number; limit?: number }) {
+export async function getConversationMessages(
+  id: string,
+  params?: { page?: number; limit?: number }
+) {
   const qs = new URLSearchParams()
   if (params?.page) qs.set('page', String(params.page))
   if (params?.limit) qs.set('limit', String(params.limit))
-  return request<{ messages: ConversationMessage[]; total: number }>(hp(`/conversations/${id}/messages?${qs}`))
+  return request<{ messages: ConversationMessage[]; total: number }>(
+    hp(`/conversations/${id}/messages?${qs}`)
+  )
 }
 
-export async function sendConversationMessage(id: string, data: {
-  encryptedContent: string
-  readerEnvelopes: MessageKeyEnvelope[]
-  plaintextForSending?: string
-}) {
+export async function sendConversationMessage(
+  id: string,
+  data: {
+    encryptedContent: string
+    readerEnvelopes: MessageKeyEnvelope[]
+    plaintextForSending?: string
+  }
+) {
   return request<ConversationMessage>(hp(`/conversations/${id}/messages`), {
     method: 'POST',
     body: JSON.stringify(data),
@@ -816,7 +909,10 @@ export async function claimConversation(id: string) {
   return request<Conversation>(hp(`/conversations/${id}/claim`), { method: 'POST' })
 }
 
-export async function updateConversation(id: string, data: { status?: string; assignedTo?: string }) {
+export async function updateConversation(
+  id: string,
+  data: { status?: string; assignedTo?: string }
+) {
   return request<Conversation>(hp(`/conversations/${id}`), {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -824,7 +920,9 @@ export async function updateConversation(id: string, data: { status?: string; as
 }
 
 export async function getConversationStats() {
-  return request<{ waiting: number; active: number; closed: number; today: number; total: number }>(hp('/conversations/stats'))
+  return request<{ waiting: number; active: number; closed: number; today: number; total: number }>(
+    hp('/conversations/stats')
+  )
 }
 
 export async function getVolunteerLoads() {
@@ -904,7 +1002,12 @@ export interface Report extends Conversation {
   }
 }
 
-export async function listReports(params?: { status?: string; category?: string; page?: number; limit?: number }) {
+export async function listReports(params?: {
+  status?: string
+  category?: string
+  page?: number
+  limit?: number
+}) {
   const qs = new URLSearchParams()
   if (params?.status) qs.set('status', params.status)
   if (params?.category) qs.set('category', params.category)
@@ -933,14 +1036,19 @@ export async function getReportMessages(id: string, params?: { page?: number; li
   const qs = new URLSearchParams()
   if (params?.page) qs.set('page', String(params.page))
   if (params?.limit) qs.set('limit', String(params.limit))
-  return request<{ messages: ConversationMessage[]; total: number }>(hp(`/reports/${id}/messages?${qs}`))
+  return request<{ messages: ConversationMessage[]; total: number }>(
+    hp(`/reports/${id}/messages?${qs}`)
+  )
 }
 
-export async function sendReportMessage(id: string, data: {
-  encryptedContent: string
-  readerEnvelopes: MessageKeyEnvelope[]
-  attachmentIds?: string[]
-}) {
+export async function sendReportMessage(
+  id: string,
+  data: {
+    encryptedContent: string
+    readerEnvelopes: MessageKeyEnvelope[]
+    attachmentIds?: string[]
+  }
+) {
   return request<ConversationMessage>(hp(`/reports/${id}/messages`), {
     method: 'POST',
     body: JSON.stringify(data),
@@ -997,11 +1105,18 @@ export async function uploadChunk(uploadId: string, chunkIndex: number, data: Ar
 }
 
 export async function completeUpload(uploadId: string) {
-  return request<{ fileId: string; status: string }>(`/uploads/${uploadId}/complete`, { method: 'POST' })
+  return request<{ fileId: string; status: string }>(`/uploads/${uploadId}/complete`, {
+    method: 'POST',
+  })
 }
 
 export async function getUploadStatus(uploadId: string) {
-  return request<{ uploadId: string; status: string; completedChunks: number; totalChunks: number }>(`/uploads/${uploadId}/status`)
+  return request<{
+    uploadId: string
+    status: string
+    completedChunks: number
+    totalChunks: number
+  }>(`/uploads/${uploadId}/status`)
 }
 
 export async function downloadFile(fileId: string): Promise<ArrayBuffer> {
@@ -1016,17 +1131,24 @@ export async function downloadFile(fileId: string): Promise<ArrayBuffer> {
 }
 
 export async function getFileEnvelopes(fileId: string) {
-  return request<{ envelopes: import('@shared/types').FileKeyEnvelope[] }>(`/files/${fileId}/envelopes`)
+  return request<{ envelopes: import('@shared/types').FileKeyEnvelope[] }>(
+    `/files/${fileId}/envelopes`
+  )
 }
 
 export async function getFileMetadata(fileId: string) {
-  return request<{ metadata: Array<{ pubkey: string; encryptedContent: string; ephemeralPubkey: string }> }>(`/files/${fileId}/metadata`)
+  return request<{
+    metadata: Array<{ pubkey: string; encryptedContent: string; ephemeralPubkey: string }>
+  }>(`/files/${fileId}/metadata`)
 }
 
-export async function shareFile(fileId: string, data: {
-  envelope: import('@shared/types').FileKeyEnvelope
-  encryptedMetadata: { pubkey: string; encryptedContent: string; ephemeralPubkey: string }
-}) {
+export async function shareFile(
+  fileId: string,
+  data: {
+    envelope: import('@shared/types').FileKeyEnvelope
+    encryptedMetadata: { pubkey: string; encryptedContent: string; ephemeralPubkey: string }
+  }
+) {
   return request<{ ok: true }>(`/files/${fileId}/share`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1039,7 +1161,7 @@ export async function seedDemoData() {
   const { DEMO_ACCOUNTS } = await import('@shared/demo-accounts')
 
   // Create demo volunteers (admin is already created via ADMIN_PUBKEY)
-  const nonAdminAccounts = DEMO_ACCOUNTS.filter(a => !a.roleIds.includes('role-super-admin'))
+  const nonAdminAccounts = DEMO_ACCOUNTS.filter((a) => !a.roleIds.includes('role-super-admin'))
   for (const account of nonAdminAccounts) {
     try {
       await createVolunteer({
@@ -1048,18 +1170,22 @@ export async function seedDemoData() {
         roleIds: account.roleIds,
         pubkey: account.pubkey,
       })
-    } catch { /* may already exist */ }
+    } catch {
+      /* may already exist */
+    }
   }
 
   // Deactivate Fatima (inactive volunteer demo)
-  const fatima = DEMO_ACCOUNTS.find(a => a.name === 'Fatima Al-Rashid')
+  const fatima = DEMO_ACCOUNTS.find((a) => a.name === 'Fatima Al-Rashid')
   if (fatima) {
     try {
       await request(`/volunteers/${fatima.pubkey}`, {
         method: 'PATCH',
         body: JSON.stringify({ active: false }),
       })
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   // Mark all demo profiles as completed and set browser call preference
@@ -1073,21 +1199,46 @@ export async function seedDemoData() {
           spokenLanguages: account.spokenLanguages,
         }),
       })
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   // Create shifts
-  const maria = DEMO_ACCOUNTS.find(a => a.name === 'Maria Santos')!
-  const james = DEMO_ACCOUNTS.find(a => a.name === 'James Chen')!
+  const maria = DEMO_ACCOUNTS.find((a) => a.name === 'Maria Santos')!
+  const james = DEMO_ACCOUNTS.find((a) => a.name === 'James Chen')!
   const shifts = [
-    { name: 'Morning Team', startTime: '08:00', endTime: '16:00', days: [1, 2, 3, 4, 5], volunteerPubkeys: [maria.pubkey, james.pubkey], createdAt: new Date().toISOString() },
-    { name: 'Evening Team', startTime: '16:00', endTime: '23:59', days: [1, 2, 3, 4, 5], volunteerPubkeys: [maria.pubkey], createdAt: new Date().toISOString() },
-    { name: 'Weekend Coverage', startTime: '10:00', endTime: '18:00', days: [0, 6], volunteerPubkeys: [james.pubkey], createdAt: new Date().toISOString() },
+    {
+      name: 'Morning Team',
+      startTime: '08:00',
+      endTime: '16:00',
+      days: [1, 2, 3, 4, 5],
+      volunteerPubkeys: [maria.pubkey, james.pubkey],
+      createdAt: new Date().toISOString(),
+    },
+    {
+      name: 'Evening Team',
+      startTime: '16:00',
+      endTime: '23:59',
+      days: [1, 2, 3, 4, 5],
+      volunteerPubkeys: [maria.pubkey],
+      createdAt: new Date().toISOString(),
+    },
+    {
+      name: 'Weekend Coverage',
+      startTime: '10:00',
+      endTime: '18:00',
+      days: [0, 6],
+      volunteerPubkeys: [james.pubkey],
+      createdAt: new Date().toISOString(),
+    },
   ]
   for (const shift of shifts) {
     try {
       await createShift(shift)
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   // Add sample bans
@@ -1098,16 +1249,22 @@ export async function seedDemoData() {
   for (const ban of bans) {
     try {
       await addBan(ban)
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }
 
 // --- Blasts ---
 
-import type { Subscriber, Blast, BlastContent, BlastSettings } from '@shared/types'
+import type { Blast, BlastContent, BlastSettings, Subscriber } from '@shared/types'
 export type { Subscriber, Blast, BlastContent, BlastSettings }
 
-export async function listSubscribers(params?: { tag?: string; channel?: string; status?: string }) {
+export async function listSubscribers(params?: {
+  tag?: string
+  channel?: string
+  status?: string
+}) {
   const searchParams = new URLSearchParams()
   if (params?.tag) searchParams.set('tag', params.tag)
   if (params?.channel) searchParams.set('channel', params.channel)
@@ -1116,7 +1273,9 @@ export async function listSubscribers(params?: { tag?: string; channel?: string;
   return request<{ subscribers: Subscriber[] }>(hp(`/blasts/subscribers${qs ? `?${qs}` : ''}`))
 }
 
-export async function importSubscribers(data: { subscribers: Array<{ identifier: string; channel: string; tags?: string[]; language?: string }> }) {
+export async function importSubscribers(data: {
+  subscribers: Array<{ identifier: string; channel: string; tags?: string[]; language?: string }>
+}) {
   return request<{ imported: number; skipped: number }>(hp('/blasts/subscribers/import'), {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1128,14 +1287,25 @@ export async function removeSubscriber(id: string) {
 }
 
 export async function getSubscriberStats() {
-  return request<{ total: number; active: number; paused: number; byChannel: Record<string, number> }>(hp('/blasts/subscribers/stats'))
+  return request<{
+    total: number
+    active: number
+    paused: number
+    byChannel: Record<string, number>
+  }>(hp('/blasts/subscribers/stats'))
 }
 
 export async function listBlasts() {
   return request<{ blasts: Blast[] }>(hp('/blasts'))
 }
 
-export async function createBlast(data: { name: string; content: BlastContent; targetChannels: string[]; targetTags?: string[]; targetLanguages?: string[] }) {
+export async function createBlast(data: {
+  name: string
+  content: BlastContent
+  targetChannels: string[]
+  targetTags?: string[]
+  targetLanguages?: string[]
+}) {
   return request<{ blast: Blast }>(hp('/blasts'), {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1188,7 +1358,12 @@ export async function listHubs() {
   return request<{ hubs: Hub[] }>('/hubs')
 }
 
-export async function createHub(data: { name: string; slug?: string; description?: string; phoneNumber?: string }) {
+export async function createHub(data: {
+  name: string
+  slug?: string
+  description?: string
+  phoneNumber?: string
+}) {
   return request<{ hub: Hub }>('/hubs', {
     method: 'POST',
     body: JSON.stringify(data),

@@ -18,7 +18,7 @@ export async function initPostgresPool(): Promise<ReturnType<typeof postgres>> {
     throw new Error('DATABASE_URL environment variable is required')
   }
 
-  const poolSize = parseInt(process.env.PG_POOL_SIZE || '10', 10)
+  const poolSize = Number.parseInt(process.env.PG_POOL_SIZE || '10', 10)
 
   pool = postgres(databaseUrl, {
     max: poolSize,

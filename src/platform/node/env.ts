@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import { createBlobStorage } from './blob-storage'
 /**
  * Node.js environment shim — creates an Env object that matches
  * the Cloudflare Workers Env interface, using local implementations.
@@ -9,12 +11,10 @@
  * - Secrets → process.env or /run/secrets/ files
  */
 import { createDONamespace, storageInstances } from './durable-object'
-import { createBlobStorage } from './blob-storage'
-import { createTranscriptionService } from './transcription'
-import { initPostgresPool, getPool } from './storage/postgres-pool'
 import { startAlarmPoller } from './storage/alarm-poller'
+import { getPool, initPostgresPool } from './storage/postgres-pool'
 import { runStartupMigrations } from './storage/startup-migrations'
-import fs from 'node:fs'
+import { createTranscriptionService } from './transcription'
 
 /**
  * Read a secret from /run/secrets/ (Docker secrets) or fall back to env var.

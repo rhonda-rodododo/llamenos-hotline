@@ -10,9 +10,9 @@ Llámenos is a secure crisis response hotline webapp. Callers dial a phone numbe
 
 ## Tech Stack
 
-- **Runtime/Package Manager**: Bun
+- **Runtime/Package Manager**: Bun (runs TypeScript natively — no bundling step for server)
 - **Frontend**: Vite + TanStack Router (SPA, no SSR) + shadcn/ui (component installer)
-- **Backend**: Cloudflare Workers + Durable Objects (cloud) / Node.js + PostgreSQL (self-hosted)
+- **Backend**: Bun + Hono + PostgreSQL (primary self-hosted) / Cloudflare Workers + Durable Objects (demo/CF deploy only)
 - **Telephony**: Twilio via a `TelephonyAdapter` interface (designed for future provider swaps, e.g. SIP trunks)
 - **Auth**: Nostr keypairs (BIP-340 Schnorr signatures) + WebAuthn session tokens for multi-device support
 - **i18n**: Built-in from day one — all user-facing strings must be translatable
@@ -98,9 +98,14 @@ src/
 bun install                              # Install dependencies
 bun run dev                              # Vite dev server (frontend only)
 bun run dev:worker                       # Wrangler dev server (Worker + DOs)
+bun run dev:docker                       # Start backing services (postgres, minio, strfry) for local dev
+bun run dev:docker:down                  # Stop dev backing services
 bun run build                            # Vite build → dist/client/
+bun run lint                             # Biome lint check
+bun run lint:fix                         # Biome lint auto-fix
+bun run start:bun                        # Start Bun server locally (after dev:docker)
 bun run deploy                           # Deploy EVERYTHING (app + marketing site)
-bun run deploy:demo                      # Deploy app Worker only
+bun run deploy:cloudflare                # Deploy app Worker to Cloudflare only
 bun run deploy:site                      # Deploy marketing site only (cd site && ...)
 bunx playwright test                     # Run all E2E tests
 bunx playwright test tests/smoke.spec.ts # Run a single test file
@@ -109,7 +114,11 @@ bun run typecheck                        # Type check (tsc --noEmit)
 bun run bootstrap-admin                  # Generate admin keypair
 ```
 
-**Deployment rules — NEVER run `wrangler pages deploy` or `wrangler deploy` directly.** Always use the root `package.json` scripts (`bun run deploy`, `bun run deploy:demo`, `bun run deploy:site`). Running `wrangler pages deploy dist` from the wrong directory will deploy the Vite app build to Pages instead of the Astro site, breaking the marketing site with 404s.
+**Local Dev Port Offsets** (v1 uses offsets to avoid conflicts with llamenos v2 at ~/projects/llamenos):
+- v2 (llamenos): postgres:5432, minio:9000/9001, strfry:7777
+- v1 (llamenos-hotline): postgres:5433, minio:9002/9003, strfry:7778
+
+**Deployment rules — NEVER run `wrangler pages deploy` or `wrangler deploy` directly.** Always use the root `package.json` scripts (`bun run deploy`, `bun run deploy:cloudflare`, `bun run deploy:site`). Running `wrangler pages deploy dist` from the wrong directory will deploy the Vite app build to Pages instead of the Astro site, breaking the marketing site with 404s.
 
 **Key config files**: `wrangler.jsonc` (Worker + DO bindings), `playwright.config.ts`, `.dev.vars` (Twilio creds + ADMIN_PUBKEY, gitignored)
 

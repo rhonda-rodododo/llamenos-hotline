@@ -1,6 +1,3 @@
-import { useTranslation } from 'react-i18next'
-import { setLanguage } from '@/lib/i18n'
-import { LANGUAGES, LANGUAGE_MAP } from '@shared/languages'
 import {
   Select,
   SelectContent,
@@ -8,9 +5,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { setLanguage } from '@/lib/i18n'
+import { LANGUAGES, LANGUAGE_MAP } from '@shared/languages'
 import { Globe } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
-export function LanguageSelect({ size = 'default', fullWidth = false }: { size?: 'sm' | 'default'; fullWidth?: boolean }) {
+export function LanguageSelect({
+  size = 'default',
+  fullWidth = false,
+}: { size?: 'sm' | 'default'; fullWidth?: boolean }) {
   const { i18n, t } = useTranslation()
   const current = LANGUAGE_MAP[i18n.language]
 
@@ -22,12 +25,10 @@ export function LanguageSelect({ size = 'default', fullWidth = false }: { size?:
         aria-label={t('a11y.switchToLanguage', { language: current?.label ?? 'English' })}
       >
         <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-        <SelectValue>
-          {current ? `${current.flag} ${current.label}` : 'EN English'}
-        </SelectValue>
+        <SelectValue>{current ? `${current.flag} ${current.label}` : 'EN English'}</SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {LANGUAGES.map(lang => (
+        {LANGUAGES.map((lang) => (
           <SelectItem key={lang.code} value={lang.code}>
             <span className="font-medium">{lang.flag}</span> {lang.label}
           </SelectItem>

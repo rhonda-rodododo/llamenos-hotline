@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
+import { type ReactNode, createContext, useCallback, useContext, useState } from 'react'
 
 interface Toast {
   id: string
@@ -21,21 +21,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
     const id = crypto.randomUUID()
-    setToasts(prev => [...prev, { id, message, type }])
+    setToasts((prev) => [...prev, { id, message, type }])
     setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id))
+      setToasts((prev) => prev.filter((t) => t.id !== id))
     }, 4000)
   }, [])
 
   const dismiss = useCallback((id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id))
+    setToasts((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
   return (
     <ToastContext.Provider value={{ toast: addToast }}>
       {children}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2" aria-live="polite">
-        {toasts.map(t => (
+        {toasts.map((t) => (
           <div
             key={t.id}
             role={t.type === 'error' ? 'alert' : 'status'}
@@ -53,7 +53,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               className="ml-2 rounded p-0.5 opacity-60 hover:opacity-100 transition-opacity"
               aria-label="Dismiss"
             >
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
             </button>
           </div>
         ))}

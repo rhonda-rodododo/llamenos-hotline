@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
-import type { AppEnv, CallRecord } from '../types'
 import { getScopedDOs, getTelephony } from '../lib/do-access'
-import { requirePermission, checkPermission } from '../middleware/permission-guard'
+import { checkPermission, requirePermission } from '../middleware/permission-guard'
+import type { AppEnv, CallRecord } from '../types'
 
 const calls = new Hono<AppEnv>()
 
@@ -11,8 +11,10 @@ calls.get('/active', requirePermission('calls:read-active'), async (c) => {
   const canSeeFullInfo = checkPermission(permissions, 'calls:read-active-full')
   const res = await dos.calls.fetch(new Request('http://do/calls/active'))
   if (!canSeeFullInfo) {
-    const data = await res.json() as { calls: Array<{ callerNumber: string; [key: string]: unknown }> }
-    data.calls = data.calls.map(call => ({ ...call, callerNumber: '[redacted]' }))
+    const data = (await res.json()) as {
+      calls: Array<{ callerNumber: string; [key: string]: unknown }>
+    }
+    data.calls = data.calls.map((call) => ({ ...call, callerNumber: '[redacted]' }))
     return c.json(data)
   }
   return res
@@ -47,10 +49,12 @@ calls.post('/:callId/answer', requirePermission('calls:answer'), async (c) => {
   const pubkey = c.get('pubkey')
   const dos = getScopedDOs(c.env, c.get('hubId'))
 
-  const res = await dos.calls.fetch(new Request(`http://do/calls/${callId}/answer`, {
-    method: 'POST',
-    body: JSON.stringify({ pubkey }),
-  }))
+  const res = await dos.calls.fetch(
+    new Request(`http://do/calls/${callId}/answer`, {
+      method: 'POST',
+      body: JSON.stringify({ pubkey }),
+    })
+  )
 
   if (res.status === 409) return c.json({ error: 'Call already answered' }, 409)
   if (!res.ok) return c.json({ error: 'Failed to answer call' }, 500)
@@ -66,12 +70,14 @@ calls.post('/:callId/hangup', requirePermission('calls:answer'), async (c) => {
   // Verify the volunteer answered this call
   const callRes = await dos.calls.fetch(new Request(`http://do/calls/${callId}`))
   if (!callRes.ok) return c.json({ error: 'Call not found' }, 404)
-  const { call } = await callRes.json() as { call: CallRecord }
+  const { call } = (await callRes.json()) as { call: CallRecord }
   if (call.answeredBy !== pubkey) return c.json({ error: 'Not your call' }, 403)
 
-  const res = await dos.calls.fetch(new Request(`http://do/calls/${callId}/end`, {
-    method: 'POST',
-  }))
+  const res = await dos.calls.fetch(
+    new Request(`http://do/calls/${callId}/end`, {
+      method: 'POST',
+    })
+  )
 
   if (!res.ok) return c.json({ error: 'Failed to hang up call' }, 500)
   return res
@@ -86,13 +92,15 @@ calls.post('/:callId/spam', requirePermission('calls:answer'), async (c) => {
   // Verify the volunteer answered this call
   const callRes = await dos.calls.fetch(new Request(`http://do/calls/${callId}`))
   if (!callRes.ok) return c.json({ error: 'Call not found' }, 404)
-  const { call } = await callRes.json() as { call: CallRecord }
+  const { call } = (await callRes.json()) as { call: CallRecord }
   if (call.answeredBy !== pubkey) return c.json({ error: 'Not your call' }, 403)
 
-  const res = await dos.calls.fetch(new Request(`http://do/calls/${callId}/spam`, {
-    method: 'POST',
-    body: JSON.stringify({ pubkey }),
-  }))
+  const res = await dos.calls.fetch(
+    new Request(`http://do/calls/${callId}/spam`, {
+      method: 'POST',
+      body: JSON.stringify({ pubkey }),
+    })
+  )
 
   if (!res.ok) return c.json({ error: 'Failed to report spam' }, 500)
   return res
@@ -108,7 +116,7 @@ calls.get('/:callId/recording', async (c) => {
   // Fetch the call record to verify permission and get recordingSid
   const callRes = await dos.calls.fetch(new Request(`http://do/calls/${callId}`))
   if (!callRes.ok) return c.json({ error: 'Call not found' }, 404)
-  const { call } = await callRes.json() as { call: CallRecord }
+  const { call } = (await callRes.json()) as { call: CallRecord }
 
   if (!call.recordingSid || !call.hasRecording) {
     return c.json({ error: 'No recording available for this call' }, 404)

@@ -1,5 +1,3 @@
-import { useTranslation } from 'react-i18next'
-import { LANGUAGES } from '@shared/languages'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -9,7 +7,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { LANGUAGES } from '@shared/languages'
 import { Building2, Globe, Type } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { SetupData } from './SetupWizard'
 
 interface Props {
@@ -24,7 +24,9 @@ export function StepIdentity({ data, onChange, headingRef }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 ref={headingRef} tabIndex={-1} className="text-lg font-semibold outline-none">{t('setup.identityTitle')}</h2>
+        <h2 ref={headingRef} tabIndex={-1} className="text-lg font-semibold outline-none">
+          {t('setup.identityTitle')}
+        </h2>
         <p className="text-sm text-muted-foreground mt-1">{t('setup.identityDescription')}</p>
       </div>
 
@@ -38,7 +40,7 @@ export function StepIdentity({ data, onChange, headingRef }: Props) {
           <Input
             id="hotline-name"
             value={data.hotlineName}
-            onChange={e => onChange({ hotlineName: e.target.value })}
+            onChange={(e) => onChange({ hotlineName: e.target.value })}
             placeholder={t('setup.hotlineNamePlaceholder')}
             aria-required="true"
             autoFocus
@@ -51,12 +53,14 @@ export function StepIdentity({ data, onChange, headingRef }: Props) {
           <Label htmlFor="org-name" className="flex items-center gap-1.5">
             <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
             {t('setup.organization')}
-            <span className="text-xs text-muted-foreground font-normal">({t('setup.optional')})</span>
+            <span className="text-xs text-muted-foreground font-normal">
+              ({t('setup.optional')})
+            </span>
           </Label>
           <Input
             id="org-name"
             value={data.organization}
-            onChange={e => onChange({ organization: e.target.value })}
+            onChange={(e) => onChange({ organization: e.target.value })}
             placeholder={t('setup.organizationPlaceholder')}
           />
         </div>
@@ -67,12 +71,12 @@ export function StepIdentity({ data, onChange, headingRef }: Props) {
             <Globe className="h-3.5 w-3.5 text-muted-foreground" />
             {t('setup.primaryLanguage')}
           </Label>
-          <Select value={data.language} onValueChange={v => onChange({ language: v })}>
+          <Select value={data.language} onValueChange={(v) => onChange({ language: v })}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {LANGUAGES.map(lang => (
+              {LANGUAGES.map((lang) => (
                 <SelectItem key={lang.code} value={lang.code}>
                   <span className="font-medium">{lang.flag}</span> {lang.label}
                 </SelectItem>

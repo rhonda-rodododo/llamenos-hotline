@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>
@@ -8,8 +8,8 @@ interface BeforeInstallPromptEvent extends Event {
 export function usePwaInstall() {
   const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null)
   const [canInstall, setCanInstall] = useState(false)
-  const [isInstalled, setIsInstalled] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches
+  const [isInstalled, setIsInstalled] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches
   )
 
   useEffect(() => {

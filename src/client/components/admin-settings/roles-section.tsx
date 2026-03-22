@@ -1,33 +1,33 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
-import {
-  listRoles,
-  createRole,
-  updateRole,
-  deleteRole,
-  getPermissionsCatalog,
-  type RoleDefinition,
-} from '@/lib/api'
-import { SettingsSection } from '@/components/settings-section'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { SettingsSection } from '@/components/settings-section'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  ShieldCheck,
-  Lock,
-  Pencil,
-  Trash2,
-  Plus,
-  Save,
-  X,
+  type RoleDefinition,
+  createRole,
+  deleteRole,
+  getPermissionsCatalog,
+  listRoles,
+  updateRole,
+} from '@/lib/api'
+import { useToast } from '@/lib/toast'
+import { cn } from '@/lib/utils'
+import {
   ChevronDown,
   ChevronRight,
+  Lock,
+  Pencil,
+  Plus,
+  Save,
+  ShieldCheck,
+  Trash2,
+  X,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   expanded: boolean
@@ -57,7 +57,12 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
 
   // Editing state: role ID being edited, or 'new' for create mode
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState<RoleFormData>({ name: '', slug: '', description: '', permissions: [] })
+  const [form, setForm] = useState<RoleFormData>({
+    name: '',
+    slug: '',
+    description: '',
+    permissions: [],
+  })
   const [saving, setSaving] = useState(false)
 
   // Delete confirmation
@@ -68,10 +73,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
 
   const loadData = useCallback(async () => {
     try {
-      const [rolesRes, catalogRes] = await Promise.all([
-        listRoles(),
-        getPermissionsCatalog(),
-      ])
+      const [rolesRes, catalogRes] = await Promise.all([listRoles(), getPermissionsCatalog()])
       setRoles(rolesRes.roles)
       setCatalog(catalogRes)
     } catch {
@@ -103,7 +105,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     if (catalog) {
       const domainsWithSelections = new Set<string>()
       for (const [domain, perms] of Object.entries(catalog.byDomain)) {
-        if (perms.some(p => role.permissions.includes(p.key))) {
+        if (perms.some((p) => role.permissions.includes(p.key))) {
           domainsWithSelections.add(domain)
         }
       }
@@ -118,10 +120,10 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
   }
 
   function togglePermission(key: string) {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
       permissions: prev.permissions.includes(key)
-        ? prev.permissions.filter(p => p !== key)
+        ? prev.permissions.filter((p) => p !== key)
         : [...prev.permissions, key],
     }))
   }
@@ -130,22 +132,21 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     if (!catalog) return
     const domainPerms = catalog.byDomain[domain]
     if (!domainPerms) return
-    const domainKeys = domainPerms.map(p => p.key)
-    const allSelected = domainKeys.every(k => form.permissions.includes(k))
+    const domainKeys = domainPerms.map((p) => p.key)
+    const allSelected = domainKeys.every((k) => form.permissions.includes(k))
 
-    setForm(prev => {
+    setForm((prev) => {
       if (allSelected) {
-        return { ...prev, permissions: prev.permissions.filter(p => !domainKeys.includes(p)) }
-      } else {
-        const existing = new Set(prev.permissions)
-        domainKeys.forEach(k => existing.add(k))
-        return { ...prev, permissions: Array.from(existing) }
+        return { ...prev, permissions: prev.permissions.filter((p) => !domainKeys.includes(p)) }
       }
+      const existing = new Set(prev.permissions)
+      for (const k of domainKeys) existing.add(k)
+      return { ...prev, permissions: Array.from(existing) }
     })
   }
 
   function toggleDomainExpanded(domain: string) {
-    setExpandedDomains(prev => {
+    setExpandedDomains((prev) => {
       const next = new Set(prev)
       if (next.has(domain)) next.delete(domain)
       else next.add(domain)
@@ -173,7 +174,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
           description: form.description.trim(),
           permissions: form.permissions,
         })
-        setRoles(prev => [...prev, res.role])
+        setRoles((prev) => [...prev, res.role])
         toast(t('roles.created', { defaultValue: 'Role created' }), 'success')
       } else if (editingId) {
         const res = await updateRole(editingId, {
@@ -181,7 +182,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
           description: form.description.trim(),
           permissions: form.permissions,
         })
-        setRoles(prev => prev.map(r => r.id === editingId ? res.role : r))
+        setRoles((prev) => prev.map((r) => (r.id === editingId ? res.role : r)))
         toast(t('roles.updated', { defaultValue: 'Role updated' }), 'success')
       }
       cancelEdit()
@@ -196,7 +197,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     if (!deleteTarget) return
     try {
       await deleteRole(deleteTarget.id)
-      setRoles(prev => prev.filter(r => r.id !== deleteTarget.id))
+      setRoles((prev) => prev.filter((r) => r.id !== deleteTarget.id))
       toast(t('roles.deleted', { defaultValue: 'Role deleted' }), 'success')
       if (editingId === deleteTarget.id) cancelEdit()
     } catch {
@@ -208,8 +209,8 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     if (!catalog) return 'none'
     const domainPerms = catalog.byDomain[domain]
     if (!domainPerms?.length) return 'none'
-    const domainKeys = domainPerms.map(p => p.key)
-    const selectedCount = domainKeys.filter(k => form.permissions.includes(k)).length
+    const domainKeys = domainPerms.map((p) => p.key)
+    const selectedCount = domainKeys.filter((k) => form.permissions.includes(k)).length
     if (selectedCount === 0) return 'none'
     if (selectedCount === domainKeys.length) return 'all'
     return 'some'
@@ -228,7 +229,9 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     <SettingsSection
       id="roles"
       title={t('roles.title', { defaultValue: 'Roles & Permissions' })}
-      description={t('roles.description', { defaultValue: 'Define roles and assign permissions to control access across your hotline.' })}
+      description={t('roles.description', {
+        defaultValue: 'Define roles and assign permissions to control access across your hotline.',
+      })}
       icon={<ShieldCheck className="h-5 w-5 text-muted-foreground" />}
       expanded={expanded}
       onToggle={onToggle}
@@ -237,7 +240,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     >
       {/* Role list */}
       <div className="space-y-2">
-        {roles.map(role => (
+        {roles.map((role) => (
           <div
             key={role.id}
             className={cn(
@@ -264,7 +267,8 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">{role.description}</p>
               )}
               <p className="text-xs text-muted-foreground mt-0.5">
-                {role.permissions.length} {t('roles.permissionCount', { defaultValue: 'permissions' })}
+                {role.permissions.length}{' '}
+                {t('roles.permissionCount', { defaultValue: 'permissions' })}
               </p>
             </div>
 
@@ -315,9 +319,9 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
               <Label>{t('roles.name', { defaultValue: 'Name' })}</Label>
               <Input
                 value={form.name}
-                onChange={e => {
+                onChange={(e) => {
                   const name = e.target.value
-                  setForm(prev => ({
+                  setForm((prev) => ({
                     ...prev,
                     name,
                     ...(editingId === 'new' ? { slug: autoSlug(name) } : {}),
@@ -332,7 +336,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
                 <Label>{t('roles.slug', { defaultValue: 'Slug' })}</Label>
                 <Input
                   value={form.slug}
-                  onChange={e => setForm(prev => ({ ...prev, slug: e.target.value }))}
+                  onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
                   placeholder={t('roles.slugPlaceholder', { defaultValue: 'e.g. team-lead' })}
                   maxLength={50}
                 />
@@ -344,8 +348,10 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
             <Label>{t('roles.descriptionLabel', { defaultValue: 'Description' })}</Label>
             <Textarea
               value={form.description}
-              onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
-              placeholder={t('roles.descriptionPlaceholder', { defaultValue: 'Brief description of this role...' })}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder={t('roles.descriptionPlaceholder', {
+                defaultValue: 'Brief description of this role...',
+              })}
               rows={2}
               maxLength={200}
             />
@@ -379,7 +385,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
                     <input
                       type="checkbox"
                       checked={domainState === 'all'}
-                      ref={el => {
+                      ref={(el) => {
                         if (el) el.indeterminate = domainState === 'some'
                       }}
                       onChange={(e) => {
@@ -391,13 +397,13 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
                     />
                     <span className="text-sm font-medium flex-1">{formatDomainName(domain)}</span>
                     <Badge variant="outline" className="text-[10px]">
-                      {perms.filter(p => form.permissions.includes(p.key)).length}/{perms.length}
+                      {perms.filter((p) => form.permissions.includes(p.key)).length}/{perms.length}
                     </Badge>
                   </button>
 
                   {isExpanded && (
                     <div className="border-t border-border px-3 py-2 space-y-1">
-                      {perms.map(perm => (
+                      {perms.map((perm) => (
                         <label
                           key={perm.key}
                           className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted/30 cursor-pointer transition-colors"
@@ -419,10 +425,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
           </div>
 
           <div className="flex gap-2">
-            <Button
-              disabled={saving || !form.name.trim()}
-              onClick={handleSave}
-            >
+            <Button disabled={saving || !form.name.trim()} onClick={handleSave}>
               <Save className="h-4 w-4" />
               {saving
                 ? t('common.loading', { defaultValue: 'Loading...' })
@@ -447,7 +450,9 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
       {/* Delete confirmation dialog */}
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
         title={t('roles.deleteTitle', { defaultValue: 'Delete Role' })}
         description={
           deleteTarget

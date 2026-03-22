@@ -1,9 +1,24 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
-import { keyPairFromNsec, createAuthToken } from './crypto'
+import { permissionGranted } from '@shared/permissions'
+import {
+  type ReactNode,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
+import {
+  logout as apiLogout,
+  getMe,
+  login,
+  setOnApiActivity,
+  setOnAuthExpired,
+  updateMyAvailability,
+} from './api'
+import { createAuthToken, keyPairFromNsec } from './crypto'
 import * as keyManager from './key-manager'
 import { hasStoredKey } from './key-store'
-import { getMe, login, logout as apiLogout, updateMyAvailability, setOnAuthExpired, setOnApiActivity } from './api'
-import { permissionGranted } from '@shared/permissions'
 import { loginWithPasskey as webauthnLogin } from './webauthn'
 
 interface AuthState {
@@ -73,32 +88,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Track API activity — called after each successful request
   const markActivity = useCallback(() => {
     lastApiActivity.current = Date.now()
-    setState(s => s.sessionExpiring ? { ...s, sessionExpiring: false } : s)
+    setState((s) => (s.sessionExpiring ? { ...s, sessionExpiring: false } : s))
   }, [])
 
   // Listen for key manager lock/unlock events
   useEffect(() => {
     const unsubLock = keyManager.onLock(() => {
-      setState(s => ({ ...s, isKeyUnlocked: false }))
+      setState((s) => ({ ...s, isKeyUnlocked: false }))
     })
     const unsubUnlock = keyManager.onUnlock(() => {
-      setState(s => ({
+      setState((s) => ({
         ...s,
         isKeyUnlocked: true,
         publicKey: keyManager.getPublicKeyHex(),
       }))
     })
-    return () => { unsubLock(); unsubUnlock() }
+    return () => {
+      unsubLock()
+      unsubUnlock()
+    }
   }, [])
 
   // Register auth expiry callback — called by api.ts when a 401 is received
   useEffect(() => {
     setOnAuthExpired(() => {
-      setState(s => ({
+      setState((s) => ({
         ...s,
         sessionExpired: true,
         sessionExpiring: false,
-        ...(s.isKeyUnlocked ? {} : { roles: [], permissions: [], primaryRoleName: null, name: null }),
+        ...(s.isKeyUnlocked
+          ? {}
+          : { roles: [], permissions: [], primaryRoleName: null, name: null }),
       }))
     })
     return () => setOnAuthExpired(null)
@@ -119,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const elapsed = Date.now() - lastApiActivity.current
       const WARN_THRESHOLD = 30 * 60 * 1000 // 30 minutes
       if (elapsed >= WARN_THRESHOLD && !state.sessionExpired) {
-        setState(s => ({ ...s, sessionExpiring: true }))
+        setState((s) => ({ ...s, sessionExpiring: true }))
       }
     }, 60_000)
     return () => clearInterval(interval)
@@ -156,7 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         .catch(() => {
           sessionStorage.removeItem('llamenos-session-token')
-          setState(s => ({ ...s, isLoading: false }))
+          setState((s) => ({ ...s, isLoading: false }))
         })
       return
     }
@@ -189,19 +209,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         .catch(() => {
           keyManager.lock()
-          setState(s => ({ ...s, isLoading: false }))
+          setState((s) => ({ ...s, isLoading: false }))
         })
       return
     }
-    setState(s => ({ ...s, isLoading: false }))
+    setState((s) => ({ ...s, isLoading: false }))
   }, [])
 
   // Sign in with nsec (import flow — onboarding/recovery only)
   const signIn = useCallback(async (nsec: string) => {
-    setState(s => ({ ...s, isLoading: true, error: null }))
+    setState((s) => ({ ...s, isLoading: true, error: null }))
     const keyPair = keyPairFromNsec(nsec)
     if (!keyPair) {
-      setState(s => ({ ...s, isLoading: false, error: 'Invalid secret key' }))
+      setState((s) => ({ ...s, isLoading: false, error: 'Invalid secret key' }))
       return
     }
     try {
@@ -231,7 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionExpired: false,
       })
     } catch (err) {
-      setState(s => ({
+      setState((s) => ({
         ...s,
         isLoading: false,
         error: err instanceof Error ? err.message : 'Login failed',
@@ -279,7 +299,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signInWithPasskey = useCallback(async () => {
-    setState(s => ({ ...s, isLoading: true, error: null }))
+    setState((s) => ({ ...s, isLoading: true, error: null }))
     try {
       const { token, pubkey } = await webauthnLogin()
       // Store session token (not nsec — user doesn't have it)
@@ -307,7 +327,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionExpired: false,
       })
     } catch (err) {
-      setState(s => ({
+      setState((s) => ({
         ...s,
         isLoading: false,
         error: err instanceof Error ? err.message : 'Passkey login failed',
@@ -319,7 +339,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await getMe()
       lastApiActivity.current = Date.now()
-      setState(s => ({
+      setState((s) => ({
         ...s,
         name: me.name,
         roles: me.roles || [],
@@ -346,7 +366,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await getMe()
       lastApiActivity.current = Date.now()
-      setState(s => ({
+      setState((s) => ({
         ...s,
         name: me.name,
         roles: me.roles || [],
@@ -366,7 +386,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }))
     } catch {
       // Renewal failed — session truly expired
-      setState(s => ({ ...s, sessionExpired: true, sessionExpiring: false }))
+      setState((s) => ({ ...s, sessionExpired: true, sessionExpiring: false }))
     }
   }, [])
 
@@ -374,7 +394,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const newValue = !state.onBreak
     try {
       await updateMyAvailability(newValue)
-      setState(s => ({ ...s, onBreak: newValue }))
+      setState((s) => ({ ...s, onBreak: newValue }))
     } catch {
       // ignore — toast handled by caller
       throw new Error('Failed to update availability')
@@ -387,8 +407,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     keyManager.lock()
     sessionStorage.removeItem('llamenos-session-token')
     // Clean up encrypted drafts from localStorage
-    const draftKeys = Object.keys(localStorage).filter(k => k.startsWith('llamenos-draft:'))
-    draftKeys.forEach(k => localStorage.removeItem(k))
+    const draftKeys = Object.keys(localStorage).filter((k) => k.startsWith('llamenos-draft:'))
+    draftKeys.forEach((k) => localStorage.removeItem(k))
     setState({
       isKeyUnlocked: false,
       publicKey: null,
@@ -411,7 +431,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const hasSessionToken = typeof window !== 'undefined' && !!sessionStorage.getItem('llamenos-session-token')
+  const hasSessionToken =
+    typeof window !== 'undefined' && !!sessionStorage.getItem('llamenos-session-token')
 
   const value: AuthContextValue = {
     ...state,

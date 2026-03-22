@@ -18,10 +18,11 @@ interface ReportLike {
 export function verifyReportAccess(
   report: ReportLike,
   pubkey: string,
-  permissions: string[],
+  permissions: string[]
 ): boolean {
   if (checkPermission(permissions, 'reports:read-all')) return true
-  if (checkPermission(permissions, 'reports:read-assigned') && report.assignedTo === pubkey) return true
+  if (checkPermission(permissions, 'reports:read-assigned') && report.assignedTo === pubkey)
+    return true
   if (report.contactIdentifierHash === pubkey) return true
   return false
 }

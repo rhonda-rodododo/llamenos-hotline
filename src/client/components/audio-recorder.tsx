@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Mic, Square, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface AudioRecorderProps {
   onRecorded: (blob: Blob) => void
@@ -41,7 +41,7 @@ export function AudioRecorder({ onRecorded, existingUrl, onDelete }: AudioRecord
         const blob = new Blob(chunks.current, { type: recorder.mimeType })
         setRecordedBlob(blob)
         onRecorded(blob)
-        stream.getTracks().forEach(track => track.stop())
+        for (const track of stream.getTracks()) track.stop()
       }
 
       mediaRecorder.current = recorder
@@ -50,7 +50,7 @@ export function AudioRecorder({ onRecorded, existingUrl, onDelete }: AudioRecord
       setDuration(0)
 
       timerRef.current = setInterval(() => {
-        setDuration(d => {
+        setDuration((d) => {
           if (d >= 59) {
             stopRecording()
             return 60
@@ -101,13 +101,20 @@ export function AudioRecorder({ onRecorded, existingUrl, onDelete }: AudioRecord
           </Button>
         )}
         {(existingUrl || recordedBlob) && onDelete && (
-          <Button size="sm" variant="ghost" onClick={handleDelete} aria-label={t('ivrAudio.delete')}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleDelete}
+            aria-label={t('ivrAudio.delete')}
+          >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
       {previewUrl && (
-        <audio controls src={previewUrl} className="h-8 w-full" />
+        <audio controls src={previewUrl} className="h-8 w-full">
+          <track kind="captions" />
+        </audio>
       )}
     </div>
   )

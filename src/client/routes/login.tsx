@@ -1,24 +1,47 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState, useRef } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useConfig } from '@/lib/config'
-import { useTheme } from '@/lib/theme'
-import { isValidNsec } from '@/lib/crypto'
-import { hasStoredKey } from '@/lib/key-store'
-import { readBackupFile, restoreFromBackupWithPin, restoreFromBackupWithRecoveryKey } from '@/lib/backup'
-import * as keyManager from '@/lib/key-manager'
-import { isWebAuthnAvailable } from '@/lib/webauthn'
 import { DemoAccountPicker } from '@/components/demo-account-picker'
-import { KeyRound, LogIn, Shield, Sun, Moon, Monitor, Fingerprint, Key, Smartphone, Upload, ArrowRight } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
-import { LogoMark } from '@/components/logo-mark'
 import { LanguageSelect } from '@/components/language-select'
+import { LogoMark } from '@/components/logo-mark'
 import { PinInput } from '@/components/pin-input'
 import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { useAuth } from '@/lib/auth'
+import {
+  readBackupFile,
+  restoreFromBackupWithPin,
+  restoreFromBackupWithRecoveryKey,
+} from '@/lib/backup'
+import { useConfig } from '@/lib/config'
+import { isValidNsec } from '@/lib/crypto'
+import * as keyManager from '@/lib/key-manager'
+import { hasStoredKey } from '@/lib/key-store'
+import { useTheme } from '@/lib/theme'
+import { isWebAuthnAvailable } from '@/lib/webauthn'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
+import {
+  ArrowRight,
+  Fingerprint,
+  Key,
+  KeyRound,
+  LogIn,
+  Monitor,
+  Moon,
+  Shield,
+  Smartphone,
+  Sun,
+  Upload,
+} from 'lucide-react'
+import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -80,7 +103,11 @@ function LoginPage() {
 
   function handlePinWipe() {
     keyManager.wipeKey()
-    setValidationError(t('lock.keyWiped', { defaultValue: 'Key wiped after too many failed attempts. Please restore from backup.' }))
+    setValidationError(
+      t('lock.keyWiped', {
+        defaultValue: 'Key wiped after too many failed attempts. Please restore from backup.',
+      })
+    )
     setShowRecovery(true)
   }
 
@@ -152,7 +179,11 @@ function LoginPage() {
     }
 
     if (!nsecResult) {
-      setValidationError(t('auth.decryptFailed', { defaultValue: 'Failed to decrypt backup. Check your PIN or recovery key.' }))
+      setValidationError(
+        t('auth.decryptFailed', {
+          defaultValue: 'Failed to decrypt backup. Check your PIN or recovery key.',
+        })
+      )
       return
     }
 
@@ -200,8 +231,12 @@ function LoginPage() {
             <div className="mx-auto mb-3">
               <LogoMark size="xl" className="animate-in fade-in zoom-in duration-700" />
             </div>
-            <CardTitle className="text-2xl">{t('auth.loginTitle', { name: hotlineName })}</CardTitle>
-            <CardDescription>{t('pin.enterPin', { defaultValue: 'Enter your PIN to unlock' })}</CardDescription>
+            <CardTitle className="text-2xl">
+              {t('auth.loginTitle', { name: hotlineName })}
+            </CardTitle>
+            <CardDescription>
+              {t('pin.enterPin', { defaultValue: 'Enter your PIN to unlock' })}
+            </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
@@ -209,7 +244,13 @@ function LoginPage() {
             <div className="flex items-center justify-center gap-2">
               <LanguageSelect size="sm" />
               <span className="h-4 w-px bg-border" />
-              {([['system', Monitor], ['light', Sun], ['dark', Moon]] as const).map(([value, Icon]) => (
+              {(
+                [
+                  ['system', Monitor],
+                  ['light', Sun],
+                  ['dark', Moon],
+                ] as const
+              ).map(([value, Icon]) => (
                 <Button
                   key={value}
                   variant={theme === value ? 'secondary' : 'ghost'}
@@ -239,7 +280,9 @@ function LoginPage() {
                     <span className="w-full border-t border-border" />
                   </div>
                   <div className="relative flex justify-center text-xs">
-                    <span className="bg-card px-2 text-muted-foreground">{t('common.or', { defaultValue: 'or' })}</span>
+                    <span className="bg-card px-2 text-muted-foreground">
+                      {t('common.or', { defaultValue: 'or' })}
+                    </span>
                   </div>
                 </div>
                 <Button
@@ -248,7 +291,9 @@ function LoginPage() {
                   onClick={handlePasskeyLogin}
                   disabled={isLoading || passkeyLoading}
                 >
-                  {passkeyLoading ? t('webauthn.signingIn', { defaultValue: 'Signing in...' }) : (
+                  {passkeyLoading ? (
+                    t('webauthn.signingIn', { defaultValue: 'Signing in...' })
+                  ) : (
                     <>
                       <Fingerprint className="h-4 w-4" />
                       {t('webauthn.signInWithPasskey', { defaultValue: 'Sign in with passkey' })}
@@ -296,7 +341,12 @@ function LoginPage() {
               <LogoMark size="xl" className="animate-in fade-in zoom-in duration-700" />
             </div>
             <CardTitle className="text-2xl">{hotlineName}</CardTitle>
-            <CardDescription>{t('setup.bootstrap.noAdminMessage', { defaultValue: 'No admin account configured yet. Complete the setup wizard to get started.' })}</CardDescription>
+            <CardDescription>
+              {t('setup.bootstrap.noAdminMessage', {
+                defaultValue:
+                  'No admin account configured yet. Complete the setup wizard to get started.',
+              })}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Link to="/setup">
@@ -336,7 +386,13 @@ function LoginPage() {
           <div className="flex items-center justify-center gap-2">
             <LanguageSelect size="sm" />
             <span className="h-4 w-px bg-border" />
-            {([['system', Monitor], ['light', Sun], ['dark', Moon]] as const).map(([value, Icon]) => (
+            {(
+              [
+                ['system', Monitor],
+                ['light', Sun],
+                ['dark', Moon],
+              ] as const
+            ).map(([value, Icon]) => (
               <Button
                 key={value}
                 variant={theme === value ? 'secondary' : 'ghost'}
@@ -365,8 +421,11 @@ function LoginPage() {
                   <div
                     className="flex cursor-pointer items-center gap-3 rounded-lg border-2 border-dashed border-border p-4 transition-colors hover:border-primary/50"
                     onClick={() => fileInputRef.current?.click()}
-                    onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-primary') }}
-                    onDragLeave={e => e.currentTarget.classList.remove('border-primary')}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      e.currentTarget.classList.add('border-primary')
+                    }}
+                    onDragLeave={(e) => e.currentTarget.classList.remove('border-primary')}
                     onDrop={handleDrop}
                   >
                     <Upload className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -374,22 +433,36 @@ function LoginPage() {
                       {selectedFileName ? (
                         <span className="font-medium text-foreground">{selectedFileName}</span>
                       ) : (
-                        <span className="text-muted-foreground">{t('auth.dropOrChoose', { defaultValue: 'Drop a backup file or click to browse' })}</span>
+                        <span className="text-muted-foreground">
+                          {t('auth.dropOrChoose', {
+                            defaultValue: 'Drop a backup file or click to browse',
+                          })}
+                        </span>
                       )}
                     </span>
-                    <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".json"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
                   </div>
                 </div>
               )}
 
               {recoveryStep === 'decrypt' && backupFile && (
                 <div className="space-y-3">
-                  <p className="text-sm font-medium">{t('recovery.decryptBackup', { defaultValue: 'Decrypt your backup' })}</p>
+                  <p className="text-sm font-medium">
+                    {t('recovery.decryptBackup', { defaultValue: 'Decrypt your backup' })}
+                  </p>
                   <div className="space-y-2">
-                    <Label>{t('recovery.enterRecoveryKey', { defaultValue: 'Recovery Key' })}</Label>
+                    <Label>
+                      {t('recovery.enterRecoveryKey', { defaultValue: 'Recovery Key' })}
+                    </Label>
                     <Input
                       value={recoveryKey}
-                      onChange={e => setRecoveryKey(e.target.value)}
+                      onChange={(e) => setRecoveryKey(e.target.value)}
                       placeholder="XXXX-XXXX-XXXX-..."
                       autoComplete="off"
                     />
@@ -399,7 +472,9 @@ function LoginPage() {
                       <span className="w-full border-t border-border" />
                     </div>
                     <div className="relative flex justify-center text-xs">
-                      <span className="bg-card px-2 text-muted-foreground">{t('common.or', { defaultValue: 'or' })}</span>
+                      <span className="bg-card px-2 text-muted-foreground">
+                        {t('common.or', { defaultValue: 'or' })}
+                      </span>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -408,13 +483,17 @@ function LoginPage() {
                       type="password"
                       inputMode="numeric"
                       value={recoveryPin}
-                      onChange={e => setRecoveryPin(e.target.value)}
+                      onChange={(e) => setRecoveryPin(e.target.value)}
                       placeholder="••••••••"
                       maxLength={8}
                       autoComplete="off"
                     />
                   </div>
-                  <Button onClick={handleBackupDecrypt} className="w-full" disabled={!recoveryKey.trim() && !recoveryPin.trim()}>
+                  <Button
+                    onClick={handleBackupDecrypt}
+                    className="w-full"
+                    disabled={!recoveryKey.trim() && !recoveryPin.trim()}
+                  >
                     {t('recovery.decrypt', { defaultValue: 'Decrypt' })}
                   </Button>
                 </div>
@@ -429,8 +508,13 @@ function LoginPage() {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {newPinStep === 'create'
-                      ? t('pin.createDescription', { defaultValue: 'Choose a 6-8 digit PIN to protect your key on this device.' })
-                      : t('pin.confirmDescription', { defaultValue: 'Enter the same PIN again to confirm.' })}
+                      ? t('pin.createDescription', {
+                          defaultValue:
+                            'Choose a 6-8 digit PIN to protect your key on this device.',
+                        })
+                      : t('pin.confirmDescription', {
+                          defaultValue: 'Enter the same PIN again to confirm.',
+                        })}
                   </p>
                   <PinInput
                     value={newPinStep === 'create' ? newPin1 : newPin2}
@@ -453,7 +537,9 @@ function LoginPage() {
                   <span className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="bg-card px-2 text-muted-foreground">{t('common.or', { defaultValue: 'or' })}</span>
+                  <span className="bg-card px-2 text-muted-foreground">
+                    {t('common.or', { defaultValue: 'or' })}
+                  </span>
                 </div>
               </div>
 
@@ -473,7 +559,9 @@ function LoginPage() {
                   />
                 </div>
                 <Button type="submit" disabled={isLoading} className="w-full">
-                  {isLoading ? t('common.loading') : (
+                  {isLoading ? (
+                    t('common.loading')
+                  ) : (
                     <>
                       <LogIn className="h-4 w-4" />
                       {t('auth.login')}
@@ -492,7 +580,9 @@ function LoginPage() {
                   <span className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="bg-card px-2 text-muted-foreground">{t('common.or', { defaultValue: 'or' })}</span>
+                  <span className="bg-card px-2 text-muted-foreground">
+                    {t('common.or', { defaultValue: 'or' })}
+                  </span>
                 </div>
               </div>
               <Button
@@ -501,7 +591,9 @@ function LoginPage() {
                 onClick={handlePasskeyLogin}
                 disabled={isLoading || passkeyLoading}
               >
-                {passkeyLoading ? t('webauthn.signingIn', { defaultValue: 'Signing in...' }) : (
+                {passkeyLoading ? (
+                  t('webauthn.signingIn', { defaultValue: 'Signing in...' })
+                ) : (
                   <>
                     <Fingerprint className="h-4 w-4" />
                     {t('webauthn.signInWithPasskey', { defaultValue: 'Sign in with passkey' })}
@@ -527,7 +619,10 @@ function LoginPage() {
               variant="ghost"
               size="sm"
               className="w-full"
-              onClick={() => { setShowRecovery(false); setValidationError('') }}
+              onClick={() => {
+                setShowRecovery(false)
+                setValidationError('')
+              }}
             >
               {t('common.back')}
             </Button>
@@ -548,7 +643,10 @@ function LoginPage() {
 }
 
 /** Inline PIN entry (not a full-screen overlay) for the login page */
-function PinUnlockInline({ onUnlock, onWipe }: { onUnlock: (pin: string) => Promise<boolean>; onWipe: () => void }) {
+function PinUnlockInline({
+  onUnlock,
+  onWipe,
+}: { onUnlock: (pin: string) => Promise<boolean>; onWipe: () => void }) {
   const { t } = useTranslation()
   const [pin, setPin] = useState('')
   const [error, setError] = useState(false)
@@ -585,11 +683,16 @@ function PinUnlockInline({ onUnlock, onWipe }: { onUnlock: (pin: string) => Prom
         autoFocus
       />
       {error && (
-        <p className="text-center text-sm text-destructive">{t('lock.wrongPin', { defaultValue: 'Wrong PIN' })}</p>
+        <p className="text-center text-sm text-destructive">
+          {t('lock.wrongPin', { defaultValue: 'Wrong PIN' })}
+        </p>
       )}
       {failedAttempts > 0 && remainingAttempts <= 5 && (
         <p className="text-center text-xs text-muted-foreground">
-          {t('lock.attemptsRemaining', { count: remainingAttempts, defaultValue: '{{count}} attempts remaining' })}
+          {t('lock.attemptsRemaining', {
+            count: remainingAttempts,
+            defaultValue: '{{count}} attempts remaining',
+          })}
         </p>
       )}
     </div>

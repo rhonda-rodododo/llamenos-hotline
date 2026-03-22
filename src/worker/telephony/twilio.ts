@@ -1,25 +1,22 @@
+import { DEFAULT_LANGUAGE, IVR_LANGUAGES } from '../../shared/languages'
+import { IVR_PROMPTS, getPrompt, getVoicemailThanks } from '../../shared/voice-prompts'
 import type {
-  TelephonyAdapter,
-  IncomingCallParams,
-  CaptchaResponseParams,
+  AudioUrlMap,
   CallAnsweredParams,
+  CaptchaResponseParams,
+  IncomingCallParams,
   LanguageMenuParams,
   RingVolunteersParams,
-  VoicemailParams,
+  TelephonyAdapter,
   TelephonyResponse,
-  AudioUrlMap,
+  VoicemailParams,
   WebhookCallInfo,
-  WebhookDigits,
   WebhookCallStatus,
+  WebhookDigits,
   WebhookQueueResult,
   WebhookQueueWait,
   WebhookRecordingStatus,
 } from './adapter'
-import {
-  DEFAULT_LANGUAGE,
-  IVR_LANGUAGES,
-} from '../../shared/languages'
-import { IVR_PROMPTS, getPrompt, getVoicemailThanks } from '../../shared/voice-prompts'
 
 /**
  * Twilio TwiML voice language codes, keyed by ISO 639-1 language code.
@@ -49,14 +46,23 @@ function getTwilioVoice(lang: string): string {
   return VOICE_CODES[lang] ?? VOICE_CODES[DEFAULT_LANGUAGE]
 }
 
-
 /** Escape XML special characters for safe TwiML embedding */
 function escapeXml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }
 
 /** Generate TwiML: <Play> if custom audio exists, <Say> fallback */
-function sayOrPlay(promptKey: string, lang: string, audioUrls?: AudioUrlMap, text?: string): string {
+function sayOrPlay(
+  promptKey: string,
+  lang: string,
+  audioUrls?: AudioUrlMap,
+  text?: string
+): string {
   const audioUrl = audioUrls?.[`${promptKey}:${lang}`]
   if (audioUrl) {
     return `<Play>${escapeXml(audioUrl)}</Play>`
@@ -94,7 +100,7 @@ export class TwilioAdapter implements TelephonyAdapter {
     const enabled = params.enabledLanguages
     const hp = hubXmlParam(params.hubId)
     // Filter IVR languages to only those enabled by admin
-    const activeLanguages = IVR_LANGUAGES.filter(code => enabled.includes(code))
+    const activeLanguages = IVR_LANGUAGES.filter((code) => enabled.includes(code))
 
     // If only 1 language enabled, skip the menu entirely
     if (activeLanguages.length <= 1) {
@@ -113,7 +119,9 @@ export class TwilioAdapter implements TelephonyAdapter {
       const prompt = IVR_PROMPTS[langCode]
       if (!prompt) return ''
       return `<Say language="${voice}">${prompt}</Say>`
-    }).filter(Boolean).join('\n      ')
+    })
+      .filter(Boolean)
+      .join('\n      ')
 
     return this.twiml(`
       <Response>
@@ -201,10 +209,15 @@ export class TwilioAdapter implements TelephonyAdapter {
     `)
   }
 
-  async handleWaitMusic(lang: string, audioUrls?: AudioUrlMap, queueTime?: number, queueTimeout?: number): Promise<TelephonyResponse> {
+  async handleWaitMusic(
+    lang: string,
+    audioUrls?: AudioUrlMap,
+    queueTime?: number,
+    queueTimeout?: number
+  ): Promise<TelephonyResponse> {
     // After timeout in queue with no answer, leave queue → triggers voicemail
     if (queueTime !== undefined && queueTime >= (queueTimeout ?? 90)) {
-      return this.twiml(`<Response><Leave/></Response>`)
+      return this.twiml('<Response><Leave/></Response>')
     }
 
     const waitTwiml = sayOrPlay('waitMessage', lang, audioUrls)
@@ -266,7 +279,7 @@ export class TwilioAdapter implements TelephonyAdapter {
         })
 
         if (res.ok) {
-          const data = await res.json() as { sid: string }
+          const data = (await res.json()) as { sid: string }
           return data.sid
         }
         throw new Error(`Failed to call ${vol.pubkey}`)
@@ -285,8 +298,8 @@ export class TwilioAdapter implements TelephonyAdapter {
   async cancelRinging(callSids: string[], exceptSid?: string): Promise<void> {
     await Promise.allSettled(
       callSids
-        .filter(sid => sid !== exceptSid)
-        .map(sid =>
+        .filter((sid) => sid !== exceptSid)
+        .map((sid) =>
           this.twilioApi(`/Calls/${sid}.json`, {
             method: 'POST',
             body: new URLSearchParams({ Status: 'completed' }),
@@ -337,32 +350,26 @@ export class TwilioAdapter implements TelephonyAdapter {
     })
     if (!res.ok) return null
 
-    const data = await res.json() as { recordings?: Array<{ sid: string }> }
+    const data = (await res.json()) as { recordings?: Array<{ sid: string }> }
     if (!data.recordings?.length) return null
 
     const recordingSid = data.recordings[0].sid
-    const audioRes = await fetch(
-      `${this.getRecordingBaseUrl()}/Recordings/${recordingSid}.wav`,
-      {
-        headers: {
-          'Authorization': 'Basic ' + btoa(`${this.accountSid}:${this.authToken}`),
-        },
-      }
-    )
+    const audioRes = await fetch(`${this.getRecordingBaseUrl()}/Recordings/${recordingSid}.wav`, {
+      headers: {
+        Authorization: `Basic ${btoa(`${this.accountSid}:${this.authToken}`)}`,
+      },
+    })
 
     if (!audioRes.ok) return null
     return audioRes.arrayBuffer()
   }
 
   async getRecordingAudio(recordingSid: string): Promise<ArrayBuffer | null> {
-    const audioRes = await fetch(
-      `${this.getRecordingBaseUrl()}/Recordings/${recordingSid}.wav`,
-      {
-        headers: {
-          'Authorization': 'Basic ' + btoa(`${this.accountSid}:${this.authToken}`),
-        },
-      }
-    )
+    const audioRes = await fetch(`${this.getRecordingBaseUrl()}/Recordings/${recordingSid}.wav`, {
+      headers: {
+        Authorization: `Basic ${btoa(`${this.accountSid}:${this.authToken}`)}`,
+      },
+    })
     if (!audioRes.ok) return null
     return audioRes.arrayBuffer()
   }
@@ -414,7 +421,7 @@ export class TwilioAdapter implements TelephonyAdapter {
   async parseQueueWaitWebhook(request: Request): Promise<WebhookQueueWait> {
     const form = await request.clone().formData()
     return {
-      queueTime: parseInt((form.get('QueueTime') as string) || '0', 10),
+      queueTime: Number.parseInt((form.get('QueueTime') as string) || '0', 10),
     }
   }
 
@@ -422,11 +429,11 @@ export class TwilioAdapter implements TelephonyAdapter {
     const form = await request.clone().formData()
     const raw = form.get('QueueResult') as string
     const RESULT_MAP: Record<string, WebhookQueueResult['result']> = {
-      'leave': 'leave',
+      leave: 'leave',
       'queue-full': 'queue-full',
-      'error': 'error',
-      'bridged': 'bridged',
-      'hangup': 'hangup',
+      error: 'error',
+      bridged: 'bridged',
+      hangup: 'hangup',
     }
     return { result: RESULT_MAP[raw] ?? 'error' }
   }
@@ -475,18 +482,15 @@ export class TwilioAdapter implements TelephonyAdapter {
   }
 
   protected async twilioApi(path: string, init: RequestInit): Promise<Response> {
-    return fetch(
-      `${this.getApiBaseUrl()}${path}`,
-      {
-        ...init,
-        headers: {
-          'Authorization': 'Basic ' + btoa(`${this.accountSid}:${this.authToken}`),
-          ...(init.body instanceof URLSearchParams
-            ? { 'Content-Type': 'application/x-www-form-urlencoded' }
-            : {}),
-          ...init.headers,
-        },
-      }
-    )
+    return fetch(`${this.getApiBaseUrl()}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Basic ${btoa(`${this.accountSid}:${this.authToken}`)}`,
+        ...(init.body instanceof URLSearchParams
+          ? { 'Content-Type': 'application/x-www-form-urlencoded' }
+          : {}),
+        ...init.headers,
+      },
+    })
   }
 }

@@ -1,13 +1,13 @@
-import type {
-  MessagingAdapter,
-  IncomingMessage,
-  SendMessageParams,
-  SendMediaParams,
-  SendResult,
-  ChannelStatus,
-} from '../adapter'
 import type { MessagingChannelType } from '../../../shared/types'
 import { hashPhone } from '../../lib/crypto'
+import type {
+  ChannelStatus,
+  IncomingMessage,
+  MessagingAdapter,
+  SendMediaParams,
+  SendMessageParams,
+  SendResult,
+} from '../adapter'
 
 /**
  * PlivoSMSAdapter -- Plivo SMS implementation of MessagingAdapter.
@@ -79,7 +79,7 @@ export class PlivoSMSAdapter implements MessagingAdapter {
     for (const key of sortedKeys) {
       dataString += key + params.get(key)
     }
-    dataString += '.' + nonce
+    dataString += `.${nonce}`
 
     const encoder = new TextEncoder()
     const key = await crypto.subtle.importKey(
@@ -117,12 +117,12 @@ export class PlivoSMSAdapter implements MessagingAdapter {
       })
 
       if (res.ok) {
-        const data = await res.json() as PlivoMessageResponse
+        const data = (await res.json()) as PlivoMessageResponse
         const messageUuid = data.message_uuid?.[0]
         return { success: true, externalId: messageUuid }
       }
 
-      const errorData = await res.json().catch(() => null) as { error?: string } | null
+      const errorData = (await res.json().catch(() => null)) as { error?: string } | null
       return {
         success: false,
         error: errorData?.error ?? `Plivo SMS API returned ${res.status}`,
@@ -151,12 +151,12 @@ export class PlivoSMSAdapter implements MessagingAdapter {
       })
 
       if (res.ok) {
-        const data = await res.json() as PlivoMessageResponse
+        const data = (await res.json()) as PlivoMessageResponse
         const messageUuid = data.message_uuid?.[0]
         return { success: true, externalId: messageUuid }
       }
 
-      const errorData = await res.json().catch(() => null) as { error?: string } | null
+      const errorData = (await res.json().catch(() => null)) as { error?: string } | null
       return {
         success: false,
         error: errorData?.error ?? `Plivo MMS API returned ${res.status}`,
@@ -174,7 +174,7 @@ export class PlivoSMSAdapter implements MessagingAdapter {
       const res = await this.plivoApi('/', { method: 'GET' })
 
       if (res.ok) {
-        const data = await res.json() as { cash_credits?: string; account_type?: string }
+        const data = (await res.json()) as { cash_credits?: string; account_type?: string }
         return {
           connected: true,
           details: {
@@ -202,17 +202,14 @@ export class PlivoSMSAdapter implements MessagingAdapter {
   // --- Helpers ---
 
   private async plivoApi(path: string, init: RequestInit): Promise<Response> {
-    return fetch(
-      `https://api.plivo.com/v1/Account/${this.authId}${path}`,
-      {
-        ...init,
-        headers: {
-          'Authorization': 'Basic ' + btoa(`${this.authId}:${this.authToken}`),
-          'Content-Type': 'application/json',
-          ...init.headers,
-        },
-      }
-    )
+    return fetch(`https://api.plivo.com/v1/Account/${this.authId}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Basic ${btoa(`${this.authId}:${this.authToken}`)}`,
+        'Content-Type': 'application/json',
+        ...init.headers,
+      },
+    })
   }
 }
 

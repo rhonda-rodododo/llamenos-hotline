@@ -1,10 +1,15 @@
-import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
-import { sha256 } from '@noble/hashes/sha2.js'
-import { hmac } from '@noble/hashes/hmac.js'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
-import { LABEL_MESSAGE, LABEL_CALL_META, HMAC_PHONE_PREFIX, HMAC_IP_PREFIX } from '@shared/crypto-labels'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
+import { hmac } from '@noble/hashes/hmac.js'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
+import {
+  HMAC_IP_PREFIX,
+  HMAC_PHONE_PREFIX,
+  LABEL_CALL_META,
+  LABEL_MESSAGE,
+} from '@shared/crypto-labels'
 import type { MessageKeyEnvelope } from '../types'
 
 /**
@@ -36,13 +41,13 @@ export function hashIP(ip: string, secret: string): string {
 function eciesWrapKeyServer(
   key: Uint8Array,
   recipientPubkeyHex: string,
-  label: string,
+  label: string
 ): { wrappedKey: string; ephemeralPubkey: string } {
   const ephemeralSecret = new Uint8Array(32)
   crypto.getRandomValues(ephemeralSecret)
   const ephemeralPublicKey = secp256k1.getPublicKey(ephemeralSecret, true)
 
-  const recipientCompressed = hexToBytes('02' + recipientPubkeyHex)
+  const recipientCompressed = hexToBytes(`02${recipientPubkeyHex}`)
   const shared = secp256k1.getSharedSecret(ephemeralSecret, recipientCompressed)
   const sharedX = shared.slice(1, 33)
 
@@ -81,7 +86,7 @@ function eciesWrapKeyServer(
  */
 export function encryptMessageForStorage(
   plaintext: string,
-  readerPubkeys: string[],
+  readerPubkeys: string[]
 ): { encryptedContent: string; readerEnvelopes: MessageKeyEnvelope[] } {
   // Generate random per-message symmetric key
   const messageKey = new Uint8Array(32)
@@ -98,7 +103,7 @@ export function encryptMessageForStorage(
 
   return {
     encryptedContent: bytesToHex(packed),
-    readerEnvelopes: readerPubkeys.map(pk => ({
+    readerEnvelopes: readerPubkeys.map((pk) => ({
       pubkey: pk,
       ...eciesWrapKeyServer(messageKey, pk, LABEL_MESSAGE),
     })),
@@ -116,7 +121,7 @@ export function encryptMessageForStorage(
  */
 export function encryptCallRecordForStorage(
   metadata: Record<string, unknown>,
-  adminPubkeys: string[],
+  adminPubkeys: string[]
 ): { encryptedContent: string; adminEnvelopes: MessageKeyEnvelope[] } {
   const recordKey = new Uint8Array(32)
   crypto.getRandomValues(recordKey)
@@ -132,7 +137,7 @@ export function encryptCallRecordForStorage(
 
   return {
     encryptedContent: bytesToHex(packed),
-    adminEnvelopes: adminPubkeys.map(pk => ({
+    adminEnvelopes: adminPubkeys.map((pk) => ({
       pubkey: pk,
       ...eciesWrapKeyServer(recordKey, pk, LABEL_CALL_META),
     })),

@@ -6,9 +6,9 @@
  * transcription results are posted back.
  */
 import {
-  env,
-  type AutomaticSpeechRecognitionPipeline,
   type AutomaticSpeechRecognitionOutput,
+  type AutomaticSpeechRecognitionPipeline,
+  env,
 } from '@huggingface/transformers'
 
 // Force single-threaded WASM — avoids SharedArrayBuffer / COEP requirement
@@ -40,9 +40,9 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
         // Map our model names to HF Hub model IDs
         // Use onnx-community models which have proper quantized ONNX exports
         const modelMap: Record<string, string> = {
-          'tiny': 'onnx-community/whisper-tiny',
+          tiny: 'onnx-community/whisper-tiny',
           'tiny.en': 'onnx-community/whisper-tiny.en',
-          'base': 'onnx-community/whisper-base',
+          base: 'onnx-community/whisper-base',
           'base.en': 'onnx-community/whisper-base.en',
         }
 
@@ -51,32 +51,31 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
 
         // Dynamic import to avoid TypeScript union explosion from pipeline() overloads
         const { pipeline } = await import('@huggingface/transformers')
-        transcriber = await (pipeline as (
-          task: string,
-          model: string,
-          options: Record<string, unknown>,
-        ) => Promise<AutomaticSpeechRecognitionPipeline>)(
-          'automatic-speech-recognition',
-          modelId,
-          {
-            dtype: 'q8',  // 8-bit quantized — best balance of size and quality for WASM
-            device: 'wasm',
-            progress_callback: (progress: { status: string; file?: string; progress?: number }) => {
-              self.postMessage({
-                type: 'progress',
-                status: progress.status,
-                file: progress.file,
-                progress: progress.progress,
-              })
-            },
+        transcriber = await (
+          pipeline as (
+            task: string,
+            model: string,
+            options: Record<string, unknown>
+          ) => Promise<AutomaticSpeechRecognitionPipeline>
+        )('automatic-speech-recognition', modelId, {
+          dtype: 'q8', // 8-bit quantized — best balance of size and quality for WASM
+          device: 'wasm',
+          progress_callback: (progress: { status: string; file?: string; progress?: number }) => {
+            self.postMessage({
+              type: 'progress',
+              status: progress.status,
+              file: progress.file,
+              progress: progress.progress,
+            })
           },
-        )
+        })
 
         self.postMessage({ type: 'ready' })
       } catch (error) {
         self.postMessage({
           type: 'error',
-          error: error instanceof Error ? error.message : 'Failed to initialize transcription model',
+          error:
+            error instanceof Error ? error.message : 'Failed to initialize transcription model',
         })
       }
       break
@@ -95,12 +94,12 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       try {
         const audio = new Float32Array(msg.audio)
 
-        const result = await transcriber(audio, {
+        const result = (await transcriber(audio, {
           language: modelLanguage === 'auto' ? undefined : modelLanguage,
           return_timestamps: true,
           chunk_length_s: 30,
           stride_length_s: 5,
-        }) as AutomaticSpeechRecognitionOutput
+        })) as AutomaticSpeechRecognitionOutput
 
         self.postMessage({
           type: 'chunk_result',
@@ -121,7 +120,9 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
     case 'finalize': {
       // Dispose of the pipeline to free memory (~89MB)
       if (transcriber) {
-        await (transcriber as AutomaticSpeechRecognitionPipeline & { dispose?: () => Promise<void> }).dispose?.()
+        await (
+          transcriber as AutomaticSpeechRecognitionPipeline & { dispose?: () => Promise<void> }
+        ).dispose?.()
         transcriber = null
       }
       self.postMessage({ type: 'finalized' })

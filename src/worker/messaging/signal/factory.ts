@@ -1,5 +1,5 @@
-import type { MessagingAdapter } from '../adapter'
 import type { SignalConfig } from '../../../shared/types'
+import type { MessagingAdapter } from '../adapter'
 import { SignalAdapter } from './adapter'
 
 /**
@@ -7,7 +7,12 @@ import { SignalAdapter } from './adapter'
  * Throws if any required configuration fields are missing.
  */
 export function createSignalAdapter(config: SignalConfig, hmacSecret: string): MessagingAdapter {
-  if (!config.bridgeUrl || !config.bridgeApiKey || !config.webhookSecret || !config.registeredNumber) {
+  if (
+    !config.bridgeUrl ||
+    !config.bridgeApiKey ||
+    !config.webhookSecret ||
+    !config.registeredNumber
+  ) {
     throw new Error('Signal bridge configuration is incomplete')
   }
   return new SignalAdapter(config, hmacSecret)

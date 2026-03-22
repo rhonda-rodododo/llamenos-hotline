@@ -1,13 +1,30 @@
-import { DurableObject } from 'cloudflare:workers'
-import type { Env, SpamSettings, CallSettings } from '../types'
-import type { CustomFieldDefinition, TelephonyProviderConfig, MessagingConfig, SetupState, EnabledChannels, Hub } from '../../shared/types'
-import { MAX_CUSTOM_FIELDS, MAX_SELECT_OPTIONS, MAX_FIELD_NAME_LENGTH, MAX_FIELD_LABEL_LENGTH, MAX_OPTION_LENGTH, FIELD_NAME_REGEX, PROVIDER_REQUIRED_FIELDS, DEFAULT_MESSAGING_CONFIG, DEFAULT_SETUP_STATE } from '../../shared/types'
+import { DurableObject } from '#cloudflare-workers'
 import { IVR_LANGUAGES } from '../../shared/languages'
-import { DORouter } from '../lib/do-router'
-import { runMigrations } from '../../shared/migrations/runner'
 import { migrations } from '../../shared/migrations'
+import { runMigrations } from '../../shared/migrations/runner'
 import type { Role } from '../../shared/permissions'
 import { DEFAULT_ROLES } from '../../shared/permissions'
+import type {
+  CustomFieldDefinition,
+  EnabledChannels,
+  Hub,
+  MessagingConfig,
+  SetupState,
+  TelephonyProviderConfig,
+} from '../../shared/types'
+import {
+  DEFAULT_MESSAGING_CONFIG,
+  DEFAULT_SETUP_STATE,
+  FIELD_NAME_REGEX,
+  MAX_CUSTOM_FIELDS,
+  MAX_FIELD_LABEL_LENGTH,
+  MAX_FIELD_NAME_LENGTH,
+  MAX_OPTION_LENGTH,
+  MAX_SELECT_OPTIONS,
+  PROVIDER_REQUIRED_FIELDS,
+} from '../../shared/types'
+import { DORouter } from '../lib/do-router'
+import type { CallSettings, Env, SpamSettings } from '../types'
 
 /**
  * SettingsDO — manages system configuration:
@@ -34,35 +51,51 @@ export class SettingsDO extends DurableObject<Env> {
     this.router.get('/settings/spam', () => this.getSpamSettings())
     this.router.patch('/settings/spam', async (req) => this.updateSpamSettings(await req.json()))
     this.router.get('/settings/transcription', () => this.getTranscriptionSettings())
-    this.router.patch('/settings/transcription', async (req) => this.updateTranscriptionSettings(await req.json()))
+    this.router.patch('/settings/transcription', async (req) =>
+      this.updateTranscriptionSettings(await req.json())
+    )
     this.router.get('/settings/call', () => this.getCallSettings())
     this.router.patch('/settings/call', async (req) => this.updateCallSettings(await req.json()))
     this.router.get('/settings/ivr-languages', () => this.getIvrLanguages())
-    this.router.patch('/settings/ivr-languages', async (req) => this.updateIvrLanguages(await req.json()))
+    this.router.patch('/settings/ivr-languages', async (req) =>
+      this.updateIvrLanguages(await req.json())
+    )
 
     // --- Custom Fields ---
     this.router.get('/settings/custom-fields', (req) => {
       const role = new URL(req.url).searchParams.get('role') || 'admin'
       return this.getCustomFields(role)
     })
-    this.router.put('/settings/custom-fields', async (req) => this.updateCustomFields(await req.json()))
+    this.router.put('/settings/custom-fields', async (req) =>
+      this.updateCustomFields(await req.json())
+    )
 
     // --- Telephony Provider ---
     this.router.get('/settings/telephony-provider', () => this.getTelephonyProvider())
-    this.router.patch('/settings/telephony-provider', async (req) => this.updateTelephonyProvider(await req.json()))
+    this.router.patch('/settings/telephony-provider', async (req) =>
+      this.updateTelephonyProvider(await req.json())
+    )
 
     // --- IVR Audio ---
     this.router.get('/settings/ivr-audio', () => this.getIvrAudioList())
-    this.router.put('/settings/ivr-audio/:promptType/:language', async (req, { promptType, language }) =>
-      this.uploadIvrAudio(promptType, language, await req.arrayBuffer()))
+    this.router.put(
+      '/settings/ivr-audio/:promptType/:language',
+      async (req, { promptType, language }) =>
+        this.uploadIvrAudio(promptType, language, await req.arrayBuffer())
+    )
     this.router.get('/settings/ivr-audio/:promptType/:language', (_req, { promptType, language }) =>
-      this.getIvrAudio(promptType, language))
-    this.router.delete('/settings/ivr-audio/:promptType/:language', (_req, { promptType, language }) =>
-      this.deleteIvrAudio(promptType, language))
+      this.getIvrAudio(promptType, language)
+    )
+    this.router.delete(
+      '/settings/ivr-audio/:promptType/:language',
+      (_req, { promptType, language }) => this.deleteIvrAudio(promptType, language)
+    )
 
     // --- Messaging Config ---
     this.router.get('/settings/messaging', () => this.getMessagingConfig())
-    this.router.patch('/settings/messaging', async (req) => this.updateMessagingConfig(await req.json()))
+    this.router.patch('/settings/messaging', async (req) =>
+      this.updateMessagingConfig(await req.json())
+    )
 
     // --- Setup State ---
     this.router.get('/settings/setup', () => this.getSetupState())
@@ -73,7 +106,9 @@ export class SettingsDO extends DurableObject<Env> {
 
     // --- Report Categories ---
     this.router.get('/settings/report-categories', () => this.getReportCategories())
-    this.router.put('/settings/report-categories', async (req) => this.updateReportCategories(await req.json()))
+    this.router.put('/settings/report-categories', async (req) =>
+      this.updateReportCategories(await req.json())
+    )
 
     // --- Fallback Group ---
     this.router.get('/fallback', () => this.getFallbackGroup())
@@ -82,7 +117,9 @@ export class SettingsDO extends DurableObject<Env> {
     // --- Roles ---
     this.router.get('/settings/roles', () => this.getRoles())
     this.router.post('/settings/roles', async (req) => this.createRole(await req.json()))
-    this.router.patch('/settings/roles/:id', async (req, { id }) => this.updateRole(id, await req.json()))
+    this.router.patch('/settings/roles/:id', async (req, { id }) =>
+      this.updateRole(id, await req.json())
+    )
     this.router.delete('/settings/roles/:id', (_req, { id }) => this.deleteRole(id))
 
     // --- Rate Limiting ---
@@ -96,17 +133,27 @@ export class SettingsDO extends DurableObject<Env> {
     this.router.get('/settings/hubs', () => this.getHubs())
     this.router.post('/settings/hubs', async (req) => this.createHub(await req.json()))
     this.router.get('/settings/hub/:id', (_req, { id }) => this.getHub(id))
-    this.router.patch('/settings/hub/:id', async (req, { id }) => this.updateHub(id, await req.json()))
+    this.router.patch('/settings/hub/:id', async (req, { id }) =>
+      this.updateHub(id, await req.json())
+    )
     this.router.delete('/settings/hub/:id', (_req, { id }) => this.archiveHub(id))
     this.router.get('/settings/hub/:id/settings', (_req, { id }) => this.getHubSettings(id))
-    this.router.put('/settings/hub/:id/settings', async (req, { id }) => this.updateHubSettings(id, await req.json()))
-    this.router.get('/settings/hub/:hubId/telephony-provider', (_req, { hubId }) => this.getHubTelephonyProvider(hubId))
-    this.router.put('/settings/hub/:hubId/telephony-provider', async (req, { hubId }) => this.setHubTelephonyProvider(hubId, await req.json()))
+    this.router.put('/settings/hub/:id/settings', async (req, { id }) =>
+      this.updateHubSettings(id, await req.json())
+    )
+    this.router.get('/settings/hub/:hubId/telephony-provider', (_req, { hubId }) =>
+      this.getHubTelephonyProvider(hubId)
+    )
+    this.router.put('/settings/hub/:hubId/telephony-provider', async (req, { hubId }) =>
+      this.setHubTelephonyProvider(hubId, await req.json())
+    )
     this.router.get('/settings/hub-by-phone/:phone', (_req, { phone }) => this.getHubByPhone(phone))
 
     // --- Hub Key Management ---
     this.router.get('/settings/hub/:id/key', (_req, { id }) => this.getHubKeyEnvelopes(id))
-    this.router.put('/settings/hub/:id/key', async (req, { id }) => this.setHubKeyEnvelopes(id, await req.json()))
+    this.router.put('/settings/hub/:id/key', async (req, { id }) =>
+      this.setHubKeyEnvelopes(id, await req.json())
+    )
 
     // --- Test Reset (demo mode only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
@@ -132,7 +179,7 @@ export class SettingsDO extends DurableObject<Env> {
         blockDurationMinutes: 30,
       })
     }
-    if (await this.ctx.storage.get('transcriptionEnabled') === undefined) {
+    if ((await this.ctx.storage.get('transcriptionEnabled')) === undefined) {
       await this.ctx.storage.put('transcriptionEnabled', true)
     }
     if (!(await this.ctx.storage.get('fallbackGroup'))) {
@@ -150,7 +197,7 @@ export class SettingsDO extends DurableObject<Env> {
     // Seed default roles if not present
     if (!(await this.ctx.storage.get<Role[]>('roles'))) {
       const now = new Date().toISOString()
-      const roles: Role[] = DEFAULT_ROLES.map(r => ({
+      const roles: Role[] = DEFAULT_ROLES.map((r) => ({
         ...r,
         createdAt: now,
         updatedAt: now,
@@ -195,7 +242,7 @@ export class SettingsDO extends DurableObject<Env> {
     const rlKeys = await this.ctx.storage.list({ prefix: 'ratelimit:' })
     for (const [key, value] of rlKeys) {
       const timestamps = value as number[]
-      const recent = timestamps.filter(t => now - t < 60_000)
+      const recent = timestamps.filter((t) => now - t < 60_000)
       if (recent.length === 0) {
         await this.ctx.storage.delete(key)
       } else {
@@ -221,17 +268,21 @@ export class SettingsDO extends DurableObject<Env> {
   // --- IVR Languages ---
 
   private async getIvrLanguages(): Promise<Response> {
-    const languages = await this.ctx.storage.get<string[]>('ivrLanguages') || [...IVR_LANGUAGES]
+    const languages = (await this.ctx.storage.get<string[]>('ivrLanguages')) || [...IVR_LANGUAGES]
     return Response.json({ enabledLanguages: languages })
   }
 
   private async updateIvrLanguages(data: { enabledLanguages: string[] }): Promise<Response> {
     if (!Array.isArray(data.enabledLanguages) || data.enabledLanguages.length === 0) {
-      return new Response(JSON.stringify({ error: 'At least one language must be enabled' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'At least one language must be enabled' }), {
+        status: 400,
+      })
     }
-    const valid = data.enabledLanguages.filter(code => IVR_LANGUAGES.includes(code))
+    const valid = data.enabledLanguages.filter((code) => IVR_LANGUAGES.includes(code))
     if (valid.length === 0) {
-      return new Response(JSON.stringify({ error: 'No valid IVR language codes provided' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'No valid IVR language codes provided' }), {
+        status: 400,
+      })
     }
     await this.ctx.storage.put('ivrLanguages', valid)
     return Response.json({ enabledLanguages: valid })
@@ -241,11 +292,19 @@ export class SettingsDO extends DurableObject<Env> {
 
   private async getTranscriptionSettings(): Promise<Response> {
     const enabled = await this.ctx.storage.get<boolean>('transcriptionEnabled')
-    const allowVolunteerOptOut = await this.ctx.storage.get<boolean>('allowVolunteerTranscriptionOptOut')
-    return Response.json({ globalEnabled: enabled ?? true, allowVolunteerOptOut: allowVolunteerOptOut ?? false })
+    const allowVolunteerOptOut = await this.ctx.storage.get<boolean>(
+      'allowVolunteerTranscriptionOptOut'
+    )
+    return Response.json({
+      globalEnabled: enabled ?? true,
+      allowVolunteerOptOut: allowVolunteerOptOut ?? false,
+    })
   }
 
-  private async updateTranscriptionSettings(data: { globalEnabled?: boolean; allowVolunteerOptOut?: boolean }): Promise<Response> {
+  private async updateTranscriptionSettings(data: {
+    globalEnabled?: boolean
+    allowVolunteerOptOut?: boolean
+  }): Promise<Response> {
     if (data.globalEnabled !== undefined) {
       await this.ctx.storage.put('transcriptionEnabled', data.globalEnabled)
     }
@@ -253,14 +312,19 @@ export class SettingsDO extends DurableObject<Env> {
       await this.ctx.storage.put('allowVolunteerTranscriptionOptOut', data.allowVolunteerOptOut)
     }
     const enabled = await this.ctx.storage.get<boolean>('transcriptionEnabled')
-    const allowVolunteerOptOut = await this.ctx.storage.get<boolean>('allowVolunteerTranscriptionOptOut')
-    return Response.json({ globalEnabled: enabled ?? true, allowVolunteerOptOut: allowVolunteerOptOut ?? false })
+    const allowVolunteerOptOut = await this.ctx.storage.get<boolean>(
+      'allowVolunteerTranscriptionOptOut'
+    )
+    return Response.json({
+      globalEnabled: enabled ?? true,
+      allowVolunteerOptOut: allowVolunteerOptOut ?? false,
+    })
   }
 
   // --- Call Settings ---
 
   private async getCallSettings(): Promise<Response> {
-    const settings = await this.ctx.storage.get<CallSettings>('callSettings') || {
+    const settings = (await this.ctx.storage.get<CallSettings>('callSettings')) || {
       queueTimeoutSeconds: 90,
       voicemailMaxSeconds: 120,
     }
@@ -268,14 +332,20 @@ export class SettingsDO extends DurableObject<Env> {
   }
 
   private async updateCallSettings(data: Partial<CallSettings>): Promise<Response> {
-    const current = await this.ctx.storage.get<CallSettings>('callSettings') || {
+    const current = (await this.ctx.storage.get<CallSettings>('callSettings')) || {
       queueTimeoutSeconds: 90,
       voicemailMaxSeconds: 120,
     }
     const clamp = (v: number) => Math.max(30, Math.min(300, v))
     const updated: CallSettings = {
-      queueTimeoutSeconds: data.queueTimeoutSeconds !== undefined ? clamp(data.queueTimeoutSeconds) : current.queueTimeoutSeconds,
-      voicemailMaxSeconds: data.voicemailMaxSeconds !== undefined ? clamp(data.voicemailMaxSeconds) : current.voicemailMaxSeconds,
+      queueTimeoutSeconds:
+        data.queueTimeoutSeconds !== undefined
+          ? clamp(data.queueTimeoutSeconds)
+          : current.queueTimeoutSeconds,
+      voicemailMaxSeconds:
+        data.voicemailMaxSeconds !== undefined
+          ? clamp(data.voicemailMaxSeconds)
+          : current.voicemailMaxSeconds,
     }
     await this.ctx.storage.put('callSettings', updated)
     return Response.json(updated)
@@ -284,7 +354,7 @@ export class SettingsDO extends DurableObject<Env> {
   // --- Fallback Group ---
 
   private async getFallbackGroup(): Promise<Response> {
-    const group = await this.ctx.storage.get<string[]>('fallbackGroup') || []
+    const group = (await this.ctx.storage.get<string[]>('fallbackGroup')) || []
     return Response.json({ volunteers: group })
   }
 
@@ -301,17 +371,24 @@ export class SettingsDO extends DurableObject<Env> {
       return Response.json({ error: 'Invalid rate limit key' }, { status: 400 })
     }
     if (!Number.isInteger(data.maxPerMinute) || data.maxPerMinute < 1 || data.maxPerMinute > 1000) {
-      return Response.json({ error: 'maxPerMinute must be an integer between 1 and 1000' }, { status: 400 })
+      return Response.json(
+        { error: 'maxPerMinute must be an integer between 1 and 1000' },
+        { status: 400 }
+      )
     }
 
     const storageKey = `ratelimit:${data.key}`
     const now = Date.now()
     const windowMs = 60_000
-    const timestamps = await this.ctx.storage.get<number[]>(storageKey) || []
-    const recent = timestamps.filter(t => now - t < windowMs)
+    const timestamps = (await this.ctx.storage.get<number[]>(storageKey)) || []
+    const recent = timestamps.filter((t) => now - t < windowMs)
     recent.push(now)
     await this.ctx.storage.put(storageKey, recent)
-    try { await this.ctx.storage.setAlarm(now + windowMs + 1000) } catch { /* alarm already set */ }
+    try {
+      await this.ctx.storage.setAlarm(now + windowMs + 1000)
+    } catch {
+      /* alarm already set */
+    }
     const limited = recent.length >= data.maxPerMinute
     return Response.json({ limited })
   }
@@ -319,54 +396,88 @@ export class SettingsDO extends DurableObject<Env> {
   // --- Custom Fields ---
 
   private async getCustomFields(role: string): Promise<Response> {
-    let fields = await this.ctx.storage.get<CustomFieldDefinition[]>('customFields') || []
+    let fields = (await this.ctx.storage.get<CustomFieldDefinition[]>('customFields')) || []
     if (role !== 'admin') {
-      fields = fields.filter(f => f.visibleToVolunteers)
+      fields = fields.filter((f) => f.visibleToVolunteers)
     }
     return Response.json({ fields })
   }
 
   private async updateCustomFields(data: unknown): Promise<Response> {
     if (!data || !Array.isArray((data as { fields?: unknown }).fields)) {
-      return new Response(JSON.stringify({ error: 'Invalid request: fields array required' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Invalid request: fields array required' }), {
+        status: 400,
+      })
     }
     const fields = (data as { fields: CustomFieldDefinition[] }).fields
 
     if (fields.length > MAX_CUSTOM_FIELDS) {
-      return new Response(JSON.stringify({ error: `Maximum ${MAX_CUSTOM_FIELDS} custom fields` }), { status: 400 })
+      return new Response(JSON.stringify({ error: `Maximum ${MAX_CUSTOM_FIELDS} custom fields` }), {
+        status: 400,
+      })
     }
 
     const names = new Set<string>()
     for (const field of fields) {
       if (!field.name || !field.label || !field.type) {
-        return new Response(JSON.stringify({ error: 'Each field must have name, label, and type' }), { status: 400 })
+        return new Response(
+          JSON.stringify({ error: 'Each field must have name, label, and type' }),
+          { status: 400 }
+        )
       }
       if (!FIELD_NAME_REGEX.test(field.name)) {
-        return new Response(JSON.stringify({ error: `Invalid field name: ${field.name}. Use alphanumeric and underscores only.` }), { status: 400 })
+        return new Response(
+          JSON.stringify({
+            error: `Invalid field name: ${field.name}. Use alphanumeric and underscores only.`,
+          }),
+          { status: 400 }
+        )
       }
       if (field.name.length > MAX_FIELD_NAME_LENGTH) {
-        return new Response(JSON.stringify({ error: `Field name too long: ${field.name}` }), { status: 400 })
+        return new Response(JSON.stringify({ error: `Field name too long: ${field.name}` }), {
+          status: 400,
+        })
       }
       if (field.label.length > MAX_FIELD_LABEL_LENGTH) {
-        return new Response(JSON.stringify({ error: `Field label too long (max ${MAX_FIELD_LABEL_LENGTH} chars)` }), { status: 400 })
+        return new Response(
+          JSON.stringify({ error: `Field label too long (max ${MAX_FIELD_LABEL_LENGTH} chars)` }),
+          { status: 400 }
+        )
       }
       if (names.has(field.name)) {
-        return new Response(JSON.stringify({ error: `Duplicate field name: ${field.name}` }), { status: 400 })
+        return new Response(JSON.stringify({ error: `Duplicate field name: ${field.name}` }), {
+          status: 400,
+        })
       }
       names.add(field.name)
       if (!['text', 'number', 'select', 'checkbox', 'textarea', 'file'].includes(field.type)) {
-        return new Response(JSON.stringify({ error: `Invalid field type: ${field.type}` }), { status: 400 })
+        return new Response(JSON.stringify({ error: `Invalid field type: ${field.type}` }), {
+          status: 400,
+        })
       }
       if (field.type === 'select') {
         if (!field.options || field.options.length === 0) {
-          return new Response(JSON.stringify({ error: `Select field "${field.name}" must have options` }), { status: 400 })
+          return new Response(
+            JSON.stringify({ error: `Select field "${field.name}" must have options` }),
+            { status: 400 }
+          )
         }
         if (field.options.length > MAX_SELECT_OPTIONS) {
-          return new Response(JSON.stringify({ error: `Too many options for "${field.name}" (max ${MAX_SELECT_OPTIONS})` }), { status: 400 })
+          return new Response(
+            JSON.stringify({
+              error: `Too many options for "${field.name}" (max ${MAX_SELECT_OPTIONS})`,
+            }),
+            { status: 400 }
+          )
         }
         for (const opt of field.options) {
           if (typeof opt !== 'string' || opt.length > MAX_OPTION_LENGTH) {
-            return new Response(JSON.stringify({ error: `Option too long in "${field.name}" (max ${MAX_OPTION_LENGTH} chars)` }), { status: 400 })
+            return new Response(
+              JSON.stringify({
+                error: `Option too long in "${field.name}" (max ${MAX_OPTION_LENGTH} chars)`,
+              }),
+              { status: 400 }
+            )
           }
         }
       }
@@ -377,7 +488,12 @@ export class SettingsDO extends DurableObject<Env> {
       ...f,
       order: i,
       // Migrate legacy 'both' to 'all'
-      context: (f.context as string) === 'both' ? 'all' : (validContexts.includes(f.context) ? f.context : 'all'),
+      context:
+        (f.context as string) === 'both'
+          ? 'all'
+          : validContexts.includes(f.context)
+            ? f.context
+            : 'all',
     }))
     await this.ctx.storage.put('customFields', normalized)
     return Response.json({ fields: normalized })
@@ -391,15 +507,22 @@ export class SettingsDO extends DurableObject<Env> {
   }
 
   private async updateMessagingConfig(data: Partial<MessagingConfig>): Promise<Response> {
-    const current = await this.ctx.storage.get<MessagingConfig>('messagingConfig') || { ...DEFAULT_MESSAGING_CONFIG }
+    const current = (await this.ctx.storage.get<MessagingConfig>('messagingConfig')) || {
+      ...DEFAULT_MESSAGING_CONFIG,
+    }
     const updated = { ...current, ...data }
 
     // Validate
     if (updated.inactivityTimeout < 5 || updated.inactivityTimeout > 1440) {
-      return new Response(JSON.stringify({ error: 'Inactivity timeout must be between 5 and 1440 minutes' }), { status: 400 })
+      return new Response(
+        JSON.stringify({ error: 'Inactivity timeout must be between 5 and 1440 minutes' }),
+        { status: 400 }
+      )
     }
     if (updated.maxConcurrentPerVolunteer < 1 || updated.maxConcurrentPerVolunteer > 20) {
-      return new Response(JSON.stringify({ error: 'Max concurrent must be between 1 and 20' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Max concurrent must be between 1 and 20' }), {
+        status: 400,
+      })
     }
 
     await this.ctx.storage.put('messagingConfig', updated)
@@ -414,7 +537,9 @@ export class SettingsDO extends DurableObject<Env> {
   }
 
   private async updateSetupState(data: Partial<SetupState>): Promise<Response> {
-    const current = await this.ctx.storage.get<SetupState>('setupState') || { ...DEFAULT_SETUP_STATE }
+    const current = (await this.ctx.storage.get<SetupState>('setupState')) || {
+      ...DEFAULT_SETUP_STATE,
+    }
     const updated = { ...current, ...data }
     await this.ctx.storage.put('setupState', updated)
     return Response.json(updated)
@@ -428,9 +553,9 @@ export class SettingsDO extends DurableObject<Env> {
     const setupState = await this.ctx.storage.get<SetupState>('setupState')
 
     // Voice is enabled if a telephony provider is configured OR env vars are set
-    const voiceEnabled = !!telephonyConfig || (
+    const voiceEnabled =
+      !!telephonyConfig ||
       !!(this.env.TWILIO_ACCOUNT_SID && this.env.TWILIO_AUTH_TOKEN && this.env.TWILIO_PHONE_NUMBER)
-    )
 
     const channels: EnabledChannels = {
       voice: voiceEnabled,
@@ -447,7 +572,12 @@ export class SettingsDO extends DurableObject<Env> {
   // --- Report Categories ---
 
   private async getReportCategories(): Promise<Response> {
-    const categories = await this.ctx.storage.get<string[]>('reportCategories') || ['Incident Report', 'Field Observation', 'Evidence', 'Other']
+    const categories = (await this.ctx.storage.get<string[]>('reportCategories')) || [
+      'Incident Report',
+      'Field Observation',
+      'Evidence',
+      'Other',
+    ]
     return Response.json({ categories })
   }
 
@@ -477,16 +607,22 @@ export class SettingsDO extends DurableObject<Env> {
     }
     const validTypes = ['twilio', 'signalwire', 'vonage', 'plivo', 'asterisk']
     if (!validTypes.includes(config.type)) {
-      return new Response(JSON.stringify({ error: `Invalid provider type: ${config.type}` }), { status: 400 })
+      return new Response(JSON.stringify({ error: `Invalid provider type: ${config.type}` }), {
+        status: 400,
+      })
     }
     const required = PROVIDER_REQUIRED_FIELDS[config.type]
     for (const field of required) {
       if (!config[field]) {
-        return new Response(JSON.stringify({ error: `Missing required field: ${field}` }), { status: 400 })
+        return new Response(JSON.stringify({ error: `Missing required field: ${field}` }), {
+          status: 400,
+        })
       }
     }
     if (config.phoneNumber && !/^\+\d{7,15}$/.test(config.phoneNumber)) {
-      return new Response(JSON.stringify({ error: 'Phone number must be in E.164 format' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Phone number must be in E.164 format' }), {
+        status: 400,
+      })
     }
     await this.ctx.storage.put('telephonyProvider', config)
     return Response.json(config)
@@ -494,15 +630,28 @@ export class SettingsDO extends DurableObject<Env> {
 
   // --- IVR Audio ---
 
-  private static readonly VALID_PROMPT_TYPES = ['greeting', 'pleaseHold', 'waitMessage', 'rateLimited', 'captchaPrompt']
+  private static readonly VALID_PROMPT_TYPES = [
+    'greeting',
+    'pleaseHold',
+    'waitMessage',
+    'rateLimited',
+    'captchaPrompt',
+  ]
   private static readonly MAX_AUDIO_SIZE = 1_048_576
 
   private async getIvrAudioList(): Promise<Response> {
-    const meta = await this.ctx.storage.get<Array<{ promptType: string; language: string; size: number; uploadedAt: string }>>('ivrAudioMeta') || []
+    const meta =
+      (await this.ctx.storage.get<
+        Array<{ promptType: string; language: string; size: number; uploadedAt: string }>
+      >('ivrAudioMeta')) || []
     return Response.json({ recordings: meta })
   }
 
-  private async uploadIvrAudio(promptType: string, language: string, data: ArrayBuffer): Promise<Response> {
+  private async uploadIvrAudio(
+    promptType: string,
+    language: string,
+    data: ArrayBuffer
+  ): Promise<Response> {
     if (!SettingsDO.VALID_PROMPT_TYPES.includes(promptType)) {
       return new Response(JSON.stringify({ error: 'Invalid prompt type' }), { status: 400 })
     }
@@ -516,9 +665,17 @@ export class SettingsDO extends DurableObject<Env> {
     const key = `ivr-audio:${promptType}:${language}`
     await this.ctx.storage.put(key, new Uint8Array(data))
 
-    const meta = await this.ctx.storage.get<Array<{ promptType: string; language: string; size: number; uploadedAt: string }>>('ivrAudioMeta') || []
-    const existing = meta.findIndex(m => m.promptType === promptType && m.language === language)
-    const entry = { promptType, language, size: data.byteLength, uploadedAt: new Date().toISOString() }
+    const meta =
+      (await this.ctx.storage.get<
+        Array<{ promptType: string; language: string; size: number; uploadedAt: string }>
+      >('ivrAudioMeta')) || []
+    const existing = meta.findIndex((m) => m.promptType === promptType && m.language === language)
+    const entry = {
+      promptType,
+      language,
+      size: data.byteLength,
+      uploadedAt: new Date().toISOString(),
+    }
     if (existing >= 0) {
       meta[existing] = entry
     } else {
@@ -544,15 +701,21 @@ export class SettingsDO extends DurableObject<Env> {
   private async deleteIvrAudio(promptType: string, language: string): Promise<Response> {
     const key = `ivr-audio:${promptType}:${language}`
     await this.ctx.storage.delete(key)
-    const meta = await this.ctx.storage.get<Array<{ promptType: string; language: string; size: number; uploadedAt: string }>>('ivrAudioMeta') || []
-    await this.ctx.storage.put('ivrAudioMeta', meta.filter(m => !(m.promptType === promptType && m.language === language)))
+    const meta =
+      (await this.ctx.storage.get<
+        Array<{ promptType: string; language: string; size: number; uploadedAt: string }>
+      >('ivrAudioMeta')) || []
+    await this.ctx.storage.put(
+      'ivrAudioMeta',
+      meta.filter((m) => !(m.promptType === promptType && m.language === language))
+    )
     return Response.json({ ok: true })
   }
 
   // --- Roles CRUD ---
 
   private async getRoles(): Promise<Response> {
-    const roles = await this.ctx.storage.get<Role[]>('roles') || []
+    const roles = (await this.ctx.storage.get<Role[]>('roles')) || []
     return Response.json({ roles })
   }
 
@@ -562,14 +725,22 @@ export class SettingsDO extends DurableObject<Env> {
     }
     const { name, slug, permissions, description } = data as Partial<Role>
     if (!name || !slug || !permissions || !description) {
-      return new Response(JSON.stringify({ error: 'name, slug, permissions, and description are required' }), { status: 400 })
+      return new Response(
+        JSON.stringify({ error: 'name, slug, permissions, and description are required' }),
+        { status: 400 }
+      )
     }
     if (!/^[a-z0-9-]+$/.test(slug)) {
-      return new Response(JSON.stringify({ error: 'slug must be lowercase alphanumeric with hyphens' }), { status: 400 })
+      return new Response(
+        JSON.stringify({ error: 'slug must be lowercase alphanumeric with hyphens' }),
+        { status: 400 }
+      )
     }
-    const roles = await this.ctx.storage.get<Role[]>('roles') || []
-    if (roles.some(r => r.slug === slug)) {
-      return new Response(JSON.stringify({ error: `Role slug "${slug}" already exists` }), { status: 409 })
+    const roles = (await this.ctx.storage.get<Role[]>('roles')) || []
+    if (roles.some((r) => r.slug === slug)) {
+      return new Response(JSON.stringify({ error: `Role slug "${slug}" already exists` }), {
+        status: 409,
+      })
     }
     const now = new Date().toISOString()
     const role: Role = {
@@ -589,9 +760,10 @@ export class SettingsDO extends DurableObject<Env> {
   }
 
   private async updateRole(id: string, data: unknown): Promise<Response> {
-    const roles = await this.ctx.storage.get<Role[]>('roles') || []
-    const idx = roles.findIndex(r => r.id === id)
-    if (idx === -1) return new Response(JSON.stringify({ error: 'Role not found' }), { status: 404 })
+    const roles = (await this.ctx.storage.get<Role[]>('roles')) || []
+    const idx = roles.findIndex((r) => r.id === id)
+    if (idx === -1)
+      return new Response(JSON.stringify({ error: 'Role not found' }), { status: 404 })
 
     const role = roles[idx]
     if (role.isSystem) {
@@ -610,14 +782,17 @@ export class SettingsDO extends DurableObject<Env> {
   }
 
   private async deleteRole(id: string): Promise<Response> {
-    const roles = await this.ctx.storage.get<Role[]>('roles') || []
-    const role = roles.find(r => r.id === id)
+    const roles = (await this.ctx.storage.get<Role[]>('roles')) || []
+    const role = roles.find((r) => r.id === id)
     if (!role) return new Response(JSON.stringify({ error: 'Role not found' }), { status: 404 })
     if (role.isDefault) {
       return new Response(JSON.stringify({ error: 'Cannot delete default roles' }), { status: 403 })
     }
 
-    await this.ctx.storage.put('roles', roles.filter(r => r.id !== id))
+    await this.ctx.storage.put(
+      'roles',
+      roles.filter((r) => r.id !== id)
+    )
     return Response.json({ ok: true })
   }
 
@@ -628,7 +803,11 @@ export class SettingsDO extends DurableObject<Env> {
     // Store with creation time for expiry
     await this.ctx.storage.put(key, { expected: data.expected, createdAt: Date.now() })
     // Schedule cleanup alarm
-    try { await this.ctx.storage.setAlarm(Date.now() + 5 * 60 * 1000) } catch { /* alarm already set */ }
+    try {
+      await this.ctx.storage.setAlarm(Date.now() + 5 * 60 * 1000)
+    } catch {
+      /* alarm already set */
+    }
     return Response.json({ ok: true })
   }
 
@@ -660,14 +839,14 @@ export class SettingsDO extends DurableObject<Env> {
   // --- Hub Registry Methods ---
 
   private async getHubs(): Promise<Response> {
-    const hubs = await this.ctx.storage.get<Hub[]>('hubs') || []
+    const hubs = (await this.ctx.storage.get<Hub[]>('hubs')) || []
     return Response.json({ hubs })
   }
 
   private async createHub(hub: Hub): Promise<Response> {
-    const hubs = await this.ctx.storage.get<Hub[]>('hubs') || []
+    const hubs = (await this.ctx.storage.get<Hub[]>('hubs')) || []
     // Check slug uniqueness
-    if (hubs.some(h => h.slug === hub.slug)) {
+    if (hubs.some((h) => h.slug === hub.slug)) {
       return Response.json({ error: 'Hub slug already exists' }, { status: 409 })
     }
     hubs.push(hub)
@@ -676,15 +855,15 @@ export class SettingsDO extends DurableObject<Env> {
   }
 
   private async getHub(id: string): Promise<Response> {
-    const hubs = await this.ctx.storage.get<Hub[]>('hubs') || []
-    const hub = hubs.find(h => h.id === id)
+    const hubs = (await this.ctx.storage.get<Hub[]>('hubs')) || []
+    const hub = hubs.find((h) => h.id === id)
     if (!hub) return Response.json({ error: 'Not found' }, { status: 404 })
     return Response.json({ hub })
   }
 
   private async updateHub(id: string, data: Partial<Hub>): Promise<Response> {
-    const hubs = await this.ctx.storage.get<Hub[]>('hubs') || []
-    const idx = hubs.findIndex(h => h.id === id)
+    const hubs = (await this.ctx.storage.get<Hub[]>('hubs')) || []
+    const idx = hubs.findIndex((h) => h.id === id)
     if (idx === -1) return Response.json({ error: 'Not found' }, { status: 404 })
     hubs[idx] = { ...hubs[idx], ...data, updatedAt: new Date().toISOString() }
     await this.ctx.storage.put('hubs', hubs)
@@ -692,8 +871,8 @@ export class SettingsDO extends DurableObject<Env> {
   }
 
   private async archiveHub(id: string): Promise<Response> {
-    const hubs = await this.ctx.storage.get<Hub[]>('hubs') || []
-    const idx = hubs.findIndex(h => h.id === id)
+    const hubs = (await this.ctx.storage.get<Hub[]>('hubs')) || []
+    const idx = hubs.findIndex((h) => h.id === id)
     if (idx === -1) return Response.json({ error: 'Not found' }, { status: 404 })
     hubs[idx].status = 'archived'
     hubs[idx].updatedAt = new Date().toISOString()
@@ -702,15 +881,23 @@ export class SettingsDO extends DurableObject<Env> {
   }
 
   private async getHubSettings(hubId: string): Promise<Response> {
-    const settings = await this.ctx.storage.get<Record<string, unknown>>(`hub:${hubId}:settings`) || {}
+    const settings =
+      (await this.ctx.storage.get<Record<string, unknown>>(`hub:${hubId}:settings`)) || {}
     return Response.json(settings)
   }
 
   /** Allowlist of valid hub settings keys — reject unknown keys before merging */
   private static readonly ALLOWED_HUB_SETTINGS = new Set([
-    'hubName', 'timezone', 'language', 'welcomeMessage',
-    'emergencyMessage', 'maxConcurrentCalls', 'nostrRelayUrl',
-    'callSettings', 'spamSettings', 'transcriptionEnabled',
+    'hubName',
+    'timezone',
+    'language',
+    'welcomeMessage',
+    'emergencyMessage',
+    'maxConcurrentCalls',
+    'nostrRelayUrl',
+    'callSettings',
+    'spamSettings',
+    'transcriptionEnabled',
   ])
 
   private async updateHubSettings(hubId: string, data: Record<string, unknown>): Promise<Response> {
@@ -721,7 +908,8 @@ export class SettingsDO extends DurableObject<Env> {
         sanitized[key] = data[key]
       }
     }
-    const existing = await this.ctx.storage.get<Record<string, unknown>>(`hub:${hubId}:settings`) || {}
+    const existing =
+      (await this.ctx.storage.get<Record<string, unknown>>(`hub:${hubId}:settings`)) || {}
     const merged = { ...existing, ...sanitized }
     await this.ctx.storage.put(`hub:${hubId}:settings`, merged)
     return Response.json(merged)
@@ -743,24 +931,30 @@ export class SettingsDO extends DurableObject<Env> {
     }
     const validTypes = ['twilio', 'signalwire', 'vonage', 'plivo', 'asterisk']
     if (!validTypes.includes(typed.type)) {
-      return new Response(JSON.stringify({ error: `Invalid provider type: ${typed.type}` }), { status: 400 })
+      return new Response(JSON.stringify({ error: `Invalid provider type: ${typed.type}` }), {
+        status: 400,
+      })
     }
     const required = PROVIDER_REQUIRED_FIELDS[typed.type]
     for (const field of required) {
       if (!typed[field]) {
-        return new Response(JSON.stringify({ error: `Missing required field: ${field}` }), { status: 400 })
+        return new Response(JSON.stringify({ error: `Missing required field: ${field}` }), {
+          status: 400,
+        })
       }
     }
     if (typed.phoneNumber && !/^\+\d{7,15}$/.test(typed.phoneNumber)) {
-      return new Response(JSON.stringify({ error: 'Phone number must be in E.164 format' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Phone number must be in E.164 format' }), {
+        status: 400,
+      })
     }
     await this.ctx.storage.put(`hub:${hubId}:telephony-provider`, typed)
     return Response.json({ ok: true })
   }
 
   private async getHubByPhone(phone: string): Promise<Response> {
-    const hubs = await this.ctx.storage.get<Hub[]>('hubs') || []
-    const hub = hubs.find(h => h.phoneNumber === phone && h.status === 'active')
+    const hubs = (await this.ctx.storage.get<Hub[]>('hubs')) || []
+    const hub = hubs.find((h) => h.phoneNumber === phone && h.status === 'active')
     if (!hub) return Response.json({ error: 'No hub for this number' }, { status: 404 })
     return Response.json({ hub })
   }
@@ -772,7 +966,10 @@ export class SettingsDO extends DurableObject<Env> {
    * Each member gets an envelope they can unwrap with their secret key.
    */
   private async getHubKeyEnvelopes(hubId: string): Promise<Response> {
-    const envelopes = await this.ctx.storage.get<{ pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]>(`hub-key:${hubId}`) || []
+    const envelopes =
+      (await this.ctx.storage.get<
+        { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
+      >(`hub-key:${hubId}`)) || []
     return Response.json({ envelopes })
   }
 
@@ -780,12 +977,15 @@ export class SettingsDO extends DurableObject<Env> {
    * Store hub key envelopes (admin operation — replaces all envelopes for the hub).
    * Used during initial key generation and key rotation.
    */
-  private async setHubKeyEnvelopes(hubId: string, data: {
-    envelopes: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
-  }): Promise<Response> {
+  private async setHubKeyEnvelopes(
+    hubId: string,
+    data: {
+      envelopes: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
+    }
+  ): Promise<Response> {
     // Validate hub exists
-    const hubs = await this.ctx.storage.get<Hub[]>('hubs') || []
-    const hub = hubs.find(h => h.id === hubId)
+    const hubs = (await this.ctx.storage.get<Hub[]>('hubs')) || []
+    const hub = hubs.find((h) => h.id === hubId)
     if (!hub) return new Response('Hub not found', { status: 404 })
 
     await this.ctx.storage.put(`hub-key:${hubId}`, data.envelopes)

@@ -1,24 +1,24 @@
-import type {
-  MessagingAdapter,
-  IncomingMessage,
-  SendMessageParams,
-  SendMediaParams,
-  SendResult,
-  ChannelStatus,
-} from '../adapter'
 import type { MessagingChannelType } from '../../../shared/types'
 import { hashPhone } from '../../lib/crypto'
+import type {
+  ChannelStatus,
+  IncomingMessage,
+  MessagingAdapter,
+  SendMediaParams,
+  SendMessageParams,
+  SendResult,
+} from '../adapter'
 
 /**
  * Vonage SMS webhook payload structure.
  * Vonage sends inbound SMS as JSON with these fields.
  */
 interface VonageInboundSMS {
-  msisdn: string       // sender phone number (no + prefix)
-  to: string           // destination number
-  text?: string        // message body
-  messageId: string    // Vonage message ID
-  type: string         // 'text', 'unicode', etc.
+  msisdn: string // sender phone number (no + prefix)
+  to: string // destination number
+  text?: string // message body
+  messageId: string // Vonage message ID
+  type: string // 'text', 'unicode', etc.
   timestamp?: string
   keyword?: string
   'message-timestamp'?: string
@@ -45,7 +45,7 @@ export class VonageSMSAdapter implements MessagingAdapter {
   }
 
   async parseIncomingMessage(request: Request): Promise<IncomingMessage> {
-    const data = await request.clone().json() as VonageInboundSMS
+    const data = (await request.clone().json()) as VonageInboundSMS
 
     // Vonage uses msisdn (no + prefix) -- normalize to E.164
     const senderNumber = data.msisdn.startsWith('+') ? data.msisdn : `+${data.msisdn}`
@@ -81,7 +81,7 @@ export class VonageSMSAdapter implements MessagingAdapter {
     )
     const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(body))
     const expected = Array.from(new Uint8Array(sig))
-      .map(b => b.toString(16).padStart(2, '0'))
+      .map((b) => b.toString(16).padStart(2, '0'))
       .join('')
 
     // Constant-time comparison to prevent timing attacks
@@ -114,7 +114,7 @@ export class VonageSMSAdapter implements MessagingAdapter {
       })
 
       if (res.ok) {
-        const data = await res.json() as VonageSMSResponse
+        const data = (await res.json()) as VonageSMSResponse
         const message = data.messages?.[0]
         if (message && message.status === '0') {
           return { success: true, externalId: message['message-id'] }
@@ -156,20 +156,24 @@ export class VonageSMSAdapter implements MessagingAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Basic ' + btoa(`${this.apiKey}:${this.apiSecret}`),
+          Authorization: `Basic ${btoa(`${this.apiKey}:${this.apiSecret}`)}`,
         },
         body: JSON.stringify(body),
       })
 
       if (res.ok) {
-        const data = await res.json() as { message_uuid?: string }
+        const data = (await res.json()) as { message_uuid?: string }
         return { success: true, externalId: data.message_uuid }
       }
 
-      const errorData = await res.json().catch(() => null) as { title?: string; detail?: string } | null
+      const errorData = (await res.json().catch(() => null)) as {
+        title?: string
+        detail?: string
+      } | null
       return {
         success: false,
-        error: errorData?.detail ?? errorData?.title ?? `Vonage Messages API returned ${res.status}`,
+        error:
+          errorData?.detail ?? errorData?.title ?? `Vonage Messages API returned ${res.status}`,
       }
     } catch (err) {
       return {
@@ -188,7 +192,7 @@ export class VonageSMSAdapter implements MessagingAdapter {
       )
 
       if (res.ok) {
-        const data = await res.json() as { value?: number; autoReload?: boolean }
+        const data = (await res.json()) as { value?: number; autoReload?: boolean }
         return {
           connected: true,
           details: {

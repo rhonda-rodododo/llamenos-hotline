@@ -1,6 +1,6 @@
 import { createMiddleware } from 'hono/factory'
-import type { AppEnv } from '../types'
 import { permissionGranted } from '../../shared/permissions'
+import type { AppEnv } from '../types'
 
 /**
  * Middleware that requires the authenticated user to have ALL specified permissions.
