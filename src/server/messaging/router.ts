@@ -75,11 +75,17 @@ messaging.post('/:channel/webhook', async (c) => {
     return c.json({ error: `${channel} channel is not configured` }, 404)
   }
 
-  // Validate webhook signature
-  const isValid = await adapter.validateWebhook(c.req.raw)
-  if (!isValid) {
-    console.error(`[messaging] Webhook signature FAILED for ${channel}`)
-    return new Response('Forbidden', { status: 403 })
+  // Dev bypass: skip signature validation for localhost simulation POSTs
+  const isDev = c.env.ENVIRONMENT === 'development'
+  const isLocal =
+    isDev && (c.req.header('CF-Connecting-IP') === '127.0.0.1' || url.hostname === 'localhost')
+
+  if (!isLocal) {
+    const isValid = await adapter.validateWebhook(c.req.raw)
+    if (!isValid) {
+      console.error(`[messaging] Webhook signature FAILED for ${channel}`)
+      return new Response('Forbidden', { status: 403 })
+    }
   }
 
   // Try to parse as status update first (if adapter supports it)
