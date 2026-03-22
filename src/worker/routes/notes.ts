@@ -101,12 +101,14 @@ notes.post('/:id/replies', requirePermission('notes:reply'), async (c) => {
   const body = (await c.req.json()) as {
     encryptedContent: string
     readerEnvelopes: RecipientEnvelope[]
+    authorEnvelope?: KeyEnvelope
   }
   // Get parent note for context
   const parent = await services.records.getNote(id)
   if (!parent) return c.json({ error: 'Parent note not found' }, 404)
   const reply = await services.records.createNote({
     encryptedContent: body.encryptedContent,
+    authorEnvelope: body.authorEnvelope,
     adminEnvelopes: body.readerEnvelopes,
     authorPubkey: pubkey,
     callId: parent.callId,

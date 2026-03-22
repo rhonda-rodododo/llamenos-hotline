@@ -133,11 +133,12 @@ telephony.post('/language-selected', async (c) => {
   const hubId = getHubId(url)
   const services = c.get('services')
   const env = c.env
-  const adapter = (await getTelephony(services.settings, hubId, {
+  const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
-  }))!
+  })
+  if (!adapter) return c.json({ error: 'Telephony not configured' }, 503)
   const { callSid, callerNumber, digits } = await adapter.parseLanguageWebhook(c.req.raw)
   const isAuto = url.searchParams.get('auto') === '1'
 
@@ -189,7 +190,7 @@ telephony.post('/language-selected', async (c) => {
     console.log(
       `[telephony] /language-selected starting parallel ringing callSid=${callSid} origin=${origin} hub=${hubId || 'global'}`
     )
-    c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, env, services, hubId))
+    startParallelRinging(callSid, callerNumber, origin, env, services, hubId).catch((err) => console.error('[background]', err))
   }
 
   return telephonyResponse(response)
@@ -201,11 +202,12 @@ telephony.post('/captcha', async (c) => {
   const hubId = getHubId(url)
   const services = c.get('services')
   const env = c.env
-  const adapter = (await getTelephony(services.settings, hubId, {
+  const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
-  }))!
+  })
+  if (!adapter) return c.json({ error: 'Telephony not configured' }, 503)
   const { digits, callerNumber } = await adapter.parseCaptchaWebhook(c.req.raw)
   const callSid = url.searchParams.get('callSid') || ''
   const callerLang = url.searchParams.get('lang') || DEFAULT_LANGUAGE
@@ -223,7 +225,7 @@ telephony.post('/captcha', async (c) => {
 
   if (match) {
     const origin = new URL(c.req.url).origin
-    c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, env, services, hubId))
+    startParallelRinging(callSid, callerNumber, origin, env, services, hubId).catch((err) => console.error('[background]', err))
   }
 
   return telephonyResponse(response)
@@ -235,11 +237,12 @@ telephony.post('/volunteer-answer', async (c) => {
   const hubId = getHubId(url)
   const services = c.get('services')
   const env = c.env
-  const adapter = (await getTelephony(services.settings, hubId, {
+  const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
-  }))!
+  })
+  if (!adapter) return c.json({ error: 'Telephony not configured' }, 503)
   const parentCallSid = url.searchParams.get('parentCallSid') || ''
   const pubkey = url.searchParams.get('pubkey') || ''
 
@@ -272,11 +275,12 @@ telephony.post('/call-status', async (c) => {
   const hubId = getHubId(url)
   const services = c.get('services')
   const env = c.env
-  const adapter = (await getTelephony(services.settings, hubId, {
+  const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
-  }))!
+  })
+  if (!adapter) return c.json({ error: 'Telephony not configured' }, 503)
   const { status: callStatus } = await adapter.parseCallStatusWebhook(c.req.raw)
   const parentCallSid = url.searchParams.get('parentCallSid') || ''
 
@@ -323,11 +327,12 @@ telephony.all('/wait-music', async (c) => {
   const hubId = getHubId(url)
   const services = c.get('services')
   const env = c.env
-  const adapter = (await getTelephony(services.settings, hubId, {
+  const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
-  }))!
+  })
+  if (!adapter) return c.json({ error: 'Telephony not configured' }, 503)
   const lang = url.searchParams.get('lang') || DEFAULT_LANGUAGE
   const queueTime =
     c.req.method === 'POST' ? (await adapter.parseQueueWaitWebhook(c.req.raw)).queueTime : 0
@@ -348,11 +353,12 @@ telephony.post('/queue-exit', async (c) => {
   const hubId = getHubId(url)
   const services = c.get('services')
   const env = c.env
-  const adapter = (await getTelephony(services.settings, hubId, {
+  const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
-  }))!
+  })
+  if (!adapter) return c.json({ error: 'Telephony not configured' }, 503)
   const { result: queueResult } = await adapter.parseQueueExitWebhook(c.req.raw)
   const callSid = url.searchParams.get('callSid') || ''
   const lang = url.searchParams.get('lang') || DEFAULT_LANGUAGE
@@ -388,11 +394,12 @@ telephony.post('/voicemail-complete', async (c) => {
   const hubId = getHubId(url)
   const services = c.get('services')
   const env = c.env
-  const adapter = (await getTelephony(services.settings, hubId, {
+  const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
-  }))!
+  })
+  if (!adapter) return c.json({ error: 'Telephony not configured' }, 503)
   const lang = url.searchParams.get('lang') || DEFAULT_LANGUAGE
   return telephonyResponse(adapter.handleVoicemailComplete(lang))
 })
@@ -403,11 +410,12 @@ telephony.post('/call-recording', async (c) => {
   const hubId = getHubId(url)
   const services = c.get('services')
   const env = c.env
-  const adapter = (await getTelephony(services.settings, hubId, {
+  const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
-  }))!
+  })
+  if (!adapter) return c.json({ error: 'Telephony not configured' }, 503)
   const { status: recordingStatus, recordingSid } = await adapter.parseRecordingWebhook(c.req.raw)
   const parentCallSid = url.searchParams.get('parentCallSid') || ''
   const pubkey = url.searchParams.get('pubkey') || ''
@@ -442,7 +450,7 @@ telephony.post('/call-recording', async (c) => {
         })
       }
 
-      c.executionCtx.waitUntil(maybeTranscribe(parentCallSid, recordingSid, pubkey, env, services))
+      maybeTranscribe(parentCallSid, recordingSid, pubkey, env, services).catch((err) => console.error('[background]', err))
     }
   }
 
@@ -455,11 +463,12 @@ telephony.post('/voicemail-recording', async (c) => {
   const hubId = getHubId(url)
   const services = c.get('services')
   const env = c.env
-  const adapter = (await getTelephony(services.settings, hubId, {
+  const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
-  }))!
+  })
+  if (!adapter) return c.json({ error: 'Telephony not configured' }, 503)
   const { status: recordingStatus } = await adapter.parseRecordingWebhook(c.req.raw)
   const callSid = url.searchParams.get('callSid') || ''
 
@@ -468,7 +477,7 @@ telephony.post('/voicemail-recording', async (c) => {
     await services.records.addAuditEntry(hubId ?? 'global', 'voicemailReceived', 'system', {
       callSid,
     })
-    c.executionCtx.waitUntil(transcribeVoicemail(callSid, env, services))
+    transcribeVoicemail(callSid, env, services).catch((err) => console.error('[background]', err))
   }
 
   return telephonyResponse(adapter.emptyResponse())

@@ -60,16 +60,14 @@ invites.post('/redeem', async (c) => {
 })
 
 // --- Authenticated routes (require invites permissions) ---
-invites.use('/', authMiddleware, requirePermission('invites:read'))
-invites.use('/:code', authMiddleware, requirePermission('invites:read'))
 
-invites.get('/', async (c) => {
+invites.get('/', authMiddleware, requirePermission('invites:read'), async (c) => {
   const services = c.get('services')
   const inviteList = await services.identity.getInvites()
   return c.json({ invites: inviteList })
 })
 
-invites.post('/', requirePermission('invites:create'), async (c) => {
+invites.post('/', authMiddleware, requirePermission('invites:create'), async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as { name: string; phone: string; roleIds: string[] }
@@ -81,7 +79,7 @@ invites.post('/', requirePermission('invites:create'), async (c) => {
   return c.json(invite, 201)
 })
 
-invites.delete('/:code', requirePermission('invites:revoke'), async (c) => {
+invites.delete('/:code', authMiddleware, requirePermission('invites:revoke'), async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const code = c.req.param('code')
