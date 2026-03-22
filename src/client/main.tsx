@@ -17,6 +17,11 @@ declare global {
   interface Window {
     __TEST_ROUTER: typeof router
     __TEST_KEY_MANAGER: typeof import('./lib/key-manager')
+    __llamenos_test_crypto: {
+      encryptNoteV2: typeof import('./lib/crypto').encryptNoteV2
+      decryptNoteV2: typeof import('./lib/crypto').decryptNoteV2
+      decryptMessage: typeof import('./lib/crypto').decryptMessage
+    }
   }
 }
 if (typeof window !== 'undefined') {
@@ -24,6 +29,12 @@ if (typeof window !== 'undefined') {
   import('./lib/key-manager').then((km) => {
     window.__TEST_KEY_MANAGER = km
   })
+  // E2EE crypto helpers for Playwright test verification (dev/test builds only)
+  if (import.meta.env.DEV) {
+    import('./lib/crypto').then(({ encryptNoteV2, decryptNoteV2, decryptMessage }) => {
+      window.__llamenos_test_crypto = { encryptNoteV2, decryptNoteV2, decryptMessage }
+    })
+  }
 }
 
 declare module '@tanstack/react-router' {
