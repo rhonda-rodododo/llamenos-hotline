@@ -20,9 +20,7 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
 const isNode = typeof process !== 'undefined' && process.env?.PLATFORM === 'node'
 
 // Minimum log level — configurable via LOG_LEVEL env var
-const minLevel: LogLevel = isNode
-  ? (process.env.LOG_LEVEL as LogLevel) || 'info'
-  : 'info'
+const minLevel: LogLevel = isNode ? (process.env.LOG_LEVEL as LogLevel) || 'info' : 'info'
 
 interface LogEntry {
   level: LogLevel
@@ -43,9 +41,9 @@ function emit(entry: LogEntry): void {
     // Structured JSON output for log aggregators
     const line = JSON.stringify(entry)
     if (entry.level === 'error') {
-      process.stderr.write(line + '\n')
+      process.stderr.write(`${line}\n`)
     } else {
-      process.stdout.write(line + '\n')
+      process.stdout.write(`${line}\n`)
     }
   } else {
     // CF Workers — use console methods (CF adds structure)
@@ -53,10 +51,18 @@ function emit(entry: LogEntry): void {
     const prefix = `[${component}]`
     const hasExtra = Object.keys(extra).length > 1 // ts is always there
     switch (level) {
-      case 'debug': console.debug(prefix, msg, ...(hasExtra ? [extra] : [])); break
-      case 'info':  console.log(prefix, msg, ...(hasExtra ? [extra] : [])); break
-      case 'warn':  console.warn(prefix, msg, ...(hasExtra ? [extra] : [])); break
-      case 'error': console.error(prefix, msg, ...(hasExtra ? [extra] : [])); break
+      case 'debug':
+        console.debug(prefix, msg, ...(hasExtra ? [extra] : []))
+        break
+      case 'info':
+        console.log(prefix, msg, ...(hasExtra ? [extra] : []))
+        break
+      case 'warn':
+        console.warn(prefix, msg, ...(hasExtra ? [extra] : []))
+        break
+      case 'error':
+        console.error(prefix, msg, ...(hasExtra ? [extra] : []))
+        break
     }
   }
 }

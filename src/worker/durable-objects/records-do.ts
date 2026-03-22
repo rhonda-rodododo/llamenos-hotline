@@ -1,9 +1,9 @@
-import { DurableObject } from 'cloudflare:workers'
-import type { Env, BanEntry, EncryptedNote, EncryptedMessage, AuditLogEntry } from '../types'
+import { DurableObject } from '#cloudflare-workers'
+import { migrations } from '../../shared/migrations'
+import { runMigrations } from '../../shared/migrations/runner'
 import { hashAuditEntry } from '../lib/crypto'
 import { DORouter } from '../lib/do-router'
-import { runMigrations } from '../../shared/migrations/runner'
-import { migrations } from '../../shared/migrations'
+import type { AuditLogEntry, BanEntry, EncryptedMessage, EncryptedNote, Env } from '../types'
 
 /**
  * RecordsDO — manages operational data:
@@ -38,22 +38,30 @@ export class RecordsDO extends DurableObject<Env> {
       const callId = url.searchParams.get('callId')
       const conversationId = url.searchParams.get('conversationId')
       const contactHash = url.searchParams.get('contactHash')
-      const page = url.searchParams.get('page') ? parseInt(url.searchParams.get('page')!) : undefined
-      const limit = url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!) : undefined
+      const page = url.searchParams.get('page')
+        ? Number.parseInt(url.searchParams.get('page')!)
+        : undefined
+      const limit = url.searchParams.get('limit')
+        ? Number.parseInt(url.searchParams.get('limit')!)
+        : undefined
       return this.getNotes(authorPubkey, callId, conversationId, contactHash, page, limit)
     })
     this.router.post('/notes', async (req) => this.createNoteEntry(await req.json()))
-    this.router.patch('/notes/:id', async (req, { id }) => this.updateNoteEntry(id, await req.json()))
+    this.router.patch('/notes/:id', async (req, { id }) =>
+      this.updateNoteEntry(id, await req.json())
+    )
 
     // --- Note Replies (Epic 123) ---
     this.router.get('/notes/:id/replies', (_req, { id }) => this.getNoteReplies(id))
-    this.router.post('/notes/:id/replies', async (req, { id }) => this.addNoteReply(id, await req.json()))
+    this.router.post('/notes/:id/replies', async (req, { id }) =>
+      this.addNoteReply(id, await req.json())
+    )
 
     // --- Contacts (Epic 123) ---
     this.router.get('/contacts', (req) => {
       const url = new URL(req.url)
-      const page = parseInt(url.searchParams.get('page') || '1')
-      const limit = parseInt(url.searchParams.get('limit') || '50')
+      const page = Number.parseInt(url.searchParams.get('page') || '1')
+      const limit = Number.parseInt(url.searchParams.get('limit') || '50')
       return this.getContacts(page, limit)
     })
     this.router.get('/contacts/:hash', (_req, { hash }) => this.getContactNotes(hash))
@@ -61,8 +69,8 @@ export class RecordsDO extends DurableObject<Env> {
     // --- Audit Log ---
     this.router.get('/audit', (req) => {
       const url = new URL(req.url)
-      const page = parseInt(url.searchParams.get('page') || '1')
-      const limit = parseInt(url.searchParams.get('limit') || '50')
+      const page = Number.parseInt(url.searchParams.get('page') || '1')
+      const limit = Number.parseInt(url.searchParams.get('limit') || '50')
       const actorPubkey = url.searchParams.get('actorPubkey') || undefined
       const eventType = url.searchParams.get('eventType') || undefined
       const dateFrom = url.searchParams.get('dateFrom') || undefined
@@ -93,12 +101,16 @@ export class RecordsDO extends DurableObject<Env> {
   // --- Ban Methods ---
 
   private async getBans(): Promise<Response> {
-    const bans = await this.ctx.storage.get<BanEntry[]>('bans') || []
+    const bans = (await this.ctx.storage.get<BanEntry[]>('bans')) || []
     return Response.json({ bans })
   }
 
-  private async addBan(data: { phone: string; reason: string; bannedBy: string }): Promise<Response> {
-    const bans = await this.ctx.storage.get<BanEntry[]>('bans') || []
+  private async addBan(data: {
+    phone: string
+    reason: string
+    bannedBy: string
+  }): Promise<Response> {
+    const bans = (await this.ctx.storage.get<BanEntry[]>('bans')) || []
     const ban: BanEntry = {
       phone: data.phone,
       reason: data.reason,
@@ -110,9 +122,13 @@ export class RecordsDO extends DurableObject<Env> {
     return Response.json({ ban })
   }
 
-  private async bulkAddBans(data: { phones: string[]; reason: string; bannedBy: string }): Promise<Response> {
-    const bans = await this.ctx.storage.get<BanEntry[]>('bans') || []
-    const existing = new Set(bans.map(b => b.phone))
+  private async bulkAddBans(data: {
+    phones: string[]
+    reason: string
+    bannedBy: string
+  }): Promise<Response> {
+    const bans = (await this.ctx.storage.get<BanEntry[]>('bans')) || []
+    const existing = new Set(bans.map((b) => b.phone))
     let count = 0
     for (const phone of data.phones) {
       if (!existing.has(phone)) {
@@ -130,23 +146,29 @@ export class RecordsDO extends DurableObject<Env> {
   }
 
   private async removeBan(phone: string): Promise<Response> {
-    const bans = await this.ctx.storage.get<BanEntry[]>('bans') || []
-    await this.ctx.storage.put('bans', bans.filter(b => b.phone !== phone))
+    const bans = (await this.ctx.storage.get<BanEntry[]>('bans')) || []
+    await this.ctx.storage.put(
+      'bans',
+      bans.filter((b) => b.phone !== phone)
+    )
     return Response.json({ ok: true })
   }
 
   private async checkBan(phone: string): Promise<Response> {
-    const bans = await this.ctx.storage.get<BanEntry[]>('bans') || []
-    const banned = bans.some(b => b.phone === phone)
+    const bans = (await this.ctx.storage.get<BanEntry[]>('bans')) || []
+    const banned = bans.some((b) => b.phone === phone)
     return Response.json({ banned })
   }
 
   // --- Note Methods (per-note storage) ---
 
   private async getNotes(
-    authorPubkey: string | null, callId: string | null,
-    conversationId?: string | null, contactHash?: string | null,
-    page?: number, limit?: number,
+    authorPubkey: string | null,
+    callId: string | null,
+    conversationId?: string | null,
+    contactHash?: string | null,
+    page?: number,
+    limit?: number
   ): Promise<Response> {
     const noteMap = await this.ctx.storage.list<EncryptedNote>({ prefix: 'note:' })
     let notes = Array.from(noteMap.values())
@@ -161,16 +183,16 @@ export class RecordsDO extends DurableObject<Env> {
 
     let filtered = notes
     if (authorPubkey) {
-      filtered = filtered.filter(n => n.authorPubkey === authorPubkey)
+      filtered = filtered.filter((n) => n.authorPubkey === authorPubkey)
     }
     if (callId) {
-      filtered = filtered.filter(n => n.callId === callId)
+      filtered = filtered.filter((n) => n.callId === callId)
     }
     if (conversationId) {
-      filtered = filtered.filter(n => n.conversationId === conversationId)
+      filtered = filtered.filter((n) => n.conversationId === conversationId)
     }
     if (contactHash) {
-      filtered = filtered.filter(n => n.contactHash === contactHash)
+      filtered = filtered.filter((n) => n.contactHash === contactHash)
     }
     filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
@@ -183,8 +205,12 @@ export class RecordsDO extends DurableObject<Env> {
   }
 
   private async createNoteEntry(data: {
-    callId?: string; conversationId?: string; contactHash?: string
-    authorPubkey: string; encryptedContent: string; ephemeralPubkey?: string
+    callId?: string
+    conversationId?: string
+    contactHash?: string
+    authorPubkey: string
+    encryptedContent: string
+    ephemeralPubkey?: string
     authorEnvelope?: { wrappedKey: string; ephemeralPubkey: string }
     adminEnvelopes?: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
   }): Promise<Response> {
@@ -206,17 +232,21 @@ export class RecordsDO extends DurableObject<Env> {
     return Response.json({ note })
   }
 
-  private async updateNoteEntry(id: string, data: {
-    encryptedContent: string; authorPubkey: string
-    authorEnvelope?: { wrappedKey: string; ephemeralPubkey: string }
-    adminEnvelopes?: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
-  }): Promise<Response> {
+  private async updateNoteEntry(
+    id: string,
+    data: {
+      encryptedContent: string
+      authorPubkey: string
+      authorEnvelope?: { wrappedKey: string; ephemeralPubkey: string }
+      adminEnvelopes?: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
+    }
+  ): Promise<Response> {
     let note = await this.ctx.storage.get<EncryptedNote>(`note:${id}`)
 
     // Fallback: check legacy array storage
     if (!note) {
       const legacyNotes = await this.ctx.storage.get<EncryptedNote[]>('notes')
-      note = legacyNotes?.find(n => n.id === id)
+      note = legacyNotes?.find((n) => n.id === id)
     }
 
     if (!note) return new Response('Not found', { status: 404 })
@@ -236,15 +266,18 @@ export class RecordsDO extends DurableObject<Env> {
   private async getNoteReplies(noteId: string): Promise<Response> {
     const note = await this.ctx.storage.get<EncryptedNote>(`note:${noteId}`)
     if (!note) return new Response('Note not found', { status: 404 })
-    const replies = await this.ctx.storage.get<EncryptedMessage[]>(`note-replies:${noteId}`) || []
+    const replies = (await this.ctx.storage.get<EncryptedMessage[]>(`note-replies:${noteId}`)) || []
     return Response.json({ replies })
   }
 
-  private async addNoteReply(noteId: string, data: {
-    authorPubkey: string
-    encryptedContent: string
-    readerEnvelopes: import('../../shared/types').RecipientEnvelope[]
-  }): Promise<Response> {
+  private async addNoteReply(
+    noteId: string,
+    data: {
+      authorPubkey: string
+      encryptedContent: string
+      readerEnvelopes: import('../../shared/types').RecipientEnvelope[]
+    }
+  ): Promise<Response> {
     const note = await this.ctx.storage.get<EncryptedNote>(`note:${noteId}`)
     if (!note) return new Response('Note not found', { status: 404 })
 
@@ -259,7 +292,7 @@ export class RecordsDO extends DurableObject<Env> {
       createdAt: new Date().toISOString(),
     }
 
-    const replies = await this.ctx.storage.get<EncryptedMessage[]>(`note-replies:${noteId}`) || []
+    const replies = (await this.ctx.storage.get<EncryptedMessage[]>(`note-replies:${noteId}`)) || []
     replies.push(reply)
     await this.ctx.storage.put(`note-replies:${noteId}`, replies)
 
@@ -278,12 +311,15 @@ export class RecordsDO extends DurableObject<Env> {
     const notes = Array.from(noteMap.values())
 
     // Build contact summaries from notes that have contactHash
-    const contactMap = new Map<string, {
-      contactHash: string
-      firstSeen: string
-      lastSeen: string
-      noteCount: number
-    }>()
+    const contactMap = new Map<
+      string,
+      {
+        contactHash: string
+        firstSeen: string
+        lastSeen: string
+        noteCount: number
+      }
+    >()
 
     for (const note of notes) {
       if (!note.contactHash) continue
@@ -302,8 +338,9 @@ export class RecordsDO extends DurableObject<Env> {
       }
     }
 
-    const contacts = Array.from(contactMap.values())
-      .sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())
+    const contacts = Array.from(contactMap.values()).sort(
+      (a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
+    )
 
     const total = contacts.length
     const start = (page - 1) * limit
@@ -314,7 +351,7 @@ export class RecordsDO extends DurableObject<Env> {
   private async getContactNotes(contactHash: string): Promise<Response> {
     const noteMap = await this.ctx.storage.list<EncryptedNote>({ prefix: 'note:' })
     const notes = Array.from(noteMap.values())
-      .filter(n => n.contactHash === contactHash)
+      .filter((n) => n.contactHash === contactHash)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     return Response.json({ notes })
   }
@@ -328,7 +365,7 @@ export class RecordsDO extends DurableObject<Env> {
     eventType?: string,
     dateFrom?: string,
     dateTo?: string,
-    search?: string,
+    search?: string
   ): Promise<Response> {
     const entryMap = await this.ctx.storage.list<AuditLogEntry>({ prefix: 'audit:' })
     // Filter out chain pointer key (audit:_lastHash is a string, not an entry)
@@ -345,40 +382,76 @@ export class RecordsDO extends DurableObject<Env> {
 
     // Event type category mapping
     const eventCategories: Record<string, string[]> = {
-      authentication: ['login', 'logout', 'sessionCreated', 'sessionExpired', 'passkeyRegistered', 'deviceLinked'],
-      volunteers: ['volunteerAdded', 'volunteerRemoved', 'volunteerRoleChanged', 'volunteerActivated', 'volunteerDeactivated', 'volunteerOnBreak', 'volunteerOffBreak', 'inviteCreated', 'inviteRedeemed'],
+      authentication: [
+        'login',
+        'logout',
+        'sessionCreated',
+        'sessionExpired',
+        'passkeyRegistered',
+        'deviceLinked',
+      ],
+      volunteers: [
+        'volunteerAdded',
+        'volunteerRemoved',
+        'volunteerRoleChanged',
+        'volunteerActivated',
+        'volunteerDeactivated',
+        'volunteerOnBreak',
+        'volunteerOffBreak',
+        'inviteCreated',
+        'inviteRedeemed',
+      ],
       calls: ['callAnswered', 'callEnded', 'callMissed', 'spamReported', 'voicemailReceived'],
-      settings: ['settingsUpdated', 'telephonyConfigured', 'transcriptionToggled', 'ivrUpdated', 'customFieldsUpdated', 'spamSettingsUpdated', 'callSettingsUpdated'],
+      settings: [
+        'settingsUpdated',
+        'telephonyConfigured',
+        'transcriptionToggled',
+        'ivrUpdated',
+        'customFieldsUpdated',
+        'spamSettingsUpdated',
+        'callSettingsUpdated',
+      ],
       shifts: ['shiftCreated', 'shiftUpdated', 'shiftDeleted'],
       notes: ['noteCreated', 'noteUpdated'],
-      messaging: ['messageSent', 'conversationClaimed', 'conversationClosed', 'conversationUpdated', 'reportCreated', 'reportAssigned', 'reportUpdated'],
+      messaging: [
+        'messageSent',
+        'conversationClaimed',
+        'conversationClosed',
+        'conversationUpdated',
+        'reportCreated',
+        'reportAssigned',
+        'reportUpdated',
+      ],
     }
 
     const fromTime = dateFrom ? new Date(dateFrom).getTime() : undefined
-    const toTime = dateTo ? new Date(dateTo + 'T23:59:59.999Z').getTime() : undefined
+    const toTime = dateTo ? new Date(`${dateTo}T23:59:59.999Z`).getTime() : undefined
 
     let filtered = entries
 
-    if (actorPubkey) filtered = filtered.filter(e => e.actorPubkey === actorPubkey)
+    if (actorPubkey) filtered = filtered.filter((e) => e.actorPubkey === actorPubkey)
 
     if (eventType && eventCategories[eventType]) {
       const allowedEvents = eventCategories[eventType]
-      filtered = filtered.filter(e => allowedEvents.includes(e.event))
+      filtered = filtered.filter((e) => allowedEvents.includes(e.event))
     }
 
-    if (fromTime) filtered = filtered.filter(e => new Date(e.createdAt).getTime() >= fromTime)
-    if (toTime) filtered = filtered.filter(e => new Date(e.createdAt).getTime() <= toTime)
+    if (fromTime) filtered = filtered.filter((e) => new Date(e.createdAt).getTime() >= fromTime)
+    if (toTime) filtered = filtered.filter((e) => new Date(e.createdAt).getTime() <= toTime)
 
     if (search) {
       const lower = search.toLowerCase()
-      filtered = filtered.filter(e =>
-        e.event.toLowerCase().includes(lower) ||
-        e.actorPubkey.toLowerCase().includes(lower) ||
-        JSON.stringify(e.details).toLowerCase().includes(lower)
+      filtered = filtered.filter(
+        (e) =>
+          e.event.toLowerCase().includes(lower) ||
+          e.actorPubkey.toLowerCase().includes(lower) ||
+          JSON.stringify(e.details).toLowerCase().includes(lower)
       )
     }
 
-    const sorted = filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    const sorted = filtered.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
     const start = (page - 1) * limit
     return Response.json({
       entries: sorted.slice(start, start + limit),
@@ -386,14 +459,18 @@ export class RecordsDO extends DurableObject<Env> {
     })
   }
 
-  private async addAuditEntry(data: { event: string; actorPubkey: string; details: Record<string, unknown> }): Promise<Response> {
+  private async addAuditEntry(data: {
+    event: string
+    actorPubkey: string
+    details: Record<string, unknown>
+  }): Promise<Response> {
     // Validate actorPubkey format: must be 'system' or a 64-char hex string
     if (data.actorPubkey !== 'system' && !/^[0-9a-f]{64}$/.test(data.actorPubkey)) {
       return Response.json({ error: 'Invalid actorPubkey format' }, { status: 400 })
     }
 
     // Get the last entry's hash for chain linking
-    const lastHash = await this.ctx.storage.get<string>('audit:_lastHash') || ''
+    const lastHash = (await this.ctx.storage.get<string>('audit:_lastHash')) || ''
 
     const entry: AuditLogEntry = {
       id: crypto.randomUUID(),

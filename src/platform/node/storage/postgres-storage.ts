@@ -1,9 +1,9 @@
+import type { JSONValue } from 'postgres'
 /**
  * PostgreSQL-backed storage implementing StorageApi.
  * Uses advisory locks to emulate CF's single-writer DO guarantee.
  */
 import type { StorageApi } from '../../types'
-import type { JSONValue } from 'postgres'
 import { getPool } from './postgres-pool'
 /**
  * postgres.js TransactionSql loses call signatures through Omit<>.
@@ -43,7 +43,7 @@ export class PostgresStorage implements StorageApi {
     return rows[0].value as T
   }
 
-  async put(key: string, value: unknown): Promise<void> {
+  async put<T = unknown>(key: string, value: T): Promise<void> {
     const sql = getPool()
     await sql.begin(async (tx: any) => {
       // Advisory lock scoped to transaction — serializes writes per namespace
@@ -57,12 +57,13 @@ export class PostgresStorage implements StorageApi {
     })
   }
 
-  async delete(key: string): Promise<void> {
+  async delete(key: string): Promise<boolean | undefined> {
     const sql = getPool()
-    await sql`
+    const result = await sql`
       DELETE FROM kv_store
       WHERE namespace = ${this.namespace} AND key = ${key}
     `
+    return result.count > 0
   }
 
   async deleteAll(): Promise<void> {
@@ -74,17 +75,17 @@ export class PostgresStorage implements StorageApi {
     })
   }
 
-  async list(options?: { prefix?: string }): Promise<Map<string, unknown>> {
+  async list<T = unknown>(options?: { prefix?: string }): Promise<Map<string, T>> {
     const sql = getPool()
-    const result = new Map<string, unknown>()
+    const result = new Map<string, T>()
 
-    let rows
+    let rows: Array<{ key: string; value: unknown }>
     if (options?.prefix) {
       // Escape LIKE wildcards
       const escaped = options.prefix.replace(/[%_\\]/g, '\\$&')
       rows = await sql`
         SELECT key, value FROM kv_store
-        WHERE namespace = ${this.namespace} AND key LIKE ${escaped + '%'}
+        WHERE namespace = ${this.namespace} AND key LIKE ${`${escaped}%`}
       `
     } else {
       rows = await sql`
@@ -94,7 +95,7 @@ export class PostgresStorage implements StorageApi {
     }
 
     for (const row of rows) {
-      result.set(row.key, row.value)
+      result.set(row.key, row.value as T)
     }
     return result
   }
@@ -141,7 +142,7 @@ export class PostgresStorage implements StorageApi {
           if (rows.length === 0) return undefined
           return rows[0].value as V
         },
-        async put(key: string, value: unknown): Promise<void> {
+        async put<T = unknown>(key: string, value: T): Promise<void> {
           await tx`
             INSERT INTO kv_store (namespace, key, value)
             VALUES (${namespace}, ${key}, ${sql.json(value as JSONValue)})
@@ -149,28 +150,30 @@ export class PostgresStorage implements StorageApi {
             DO UPDATE SET value = EXCLUDED.value
           `
         },
-        async delete(key: string): Promise<void> {
-          await tx`DELETE FROM kv_store WHERE namespace = ${namespace} AND key = ${key}`
+        async delete(key: string): Promise<boolean | undefined> {
+          const result =
+            await tx`DELETE FROM kv_store WHERE namespace = ${namespace} AND key = ${key}`
+          return result.count > 0
         },
         async deleteAll(): Promise<void> {
           await tx`DELETE FROM kv_store WHERE namespace = ${namespace}`
           await tx`DELETE FROM alarms WHERE namespace = ${namespace}`
         },
-        async list(options?: { prefix?: string }): Promise<Map<string, unknown>> {
-          const result = new Map<string, unknown>()
-          let rows
+        async list<V = unknown>(options?: { prefix?: string }): Promise<Map<string, V>> {
+          const result = new Map<string, V>()
+          let rows: Array<{ key: string; value: unknown }>
           if (options?.prefix) {
             const escaped = options.prefix.replace(/[%_\\]/g, '\\$&')
             rows = await tx`
               SELECT key, value FROM kv_store
-              WHERE namespace = ${namespace} AND key LIKE ${escaped + '%'}
+              WHERE namespace = ${namespace} AND key LIKE ${`${escaped}%`}
             `
           } else {
             rows = await tx`
               SELECT key, value FROM kv_store WHERE namespace = ${namespace}
             `
           }
-          for (const row of rows) result.set(row.key, row.value)
+          for (const row of rows) result.set(row.key, row.value as V)
           return result
         },
         async setAlarm(scheduledTime: number | Date): Promise<void> {

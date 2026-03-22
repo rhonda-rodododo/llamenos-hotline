@@ -1,30 +1,45 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useToast } from '@/lib/toast'
-import { useState, useEffect, useCallback } from 'react'
-import {
-  listReports,
-  getReportMessages,
-  sendReportMessage,
-  assignReport,
-  updateReport,
-  type Report,
-  type ConversationMessage,
-} from '@/lib/api'
-import { encryptMessage, decryptMessage } from '@/lib/crypto'
-import * as keyManager from '@/lib/key-manager'
-import { ReportForm } from '@/components/ReportForm'
 import { FilePreview } from '@/components/FilePreview'
 import { FileUpload } from '@/components/FileUpload'
-import { Button } from '@/components/ui/button'
+import { ReportForm } from '@/components/ReportForm'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
-  FileText, Plus, Lock, Send, Loader2, Clock,
-  CheckCircle2, AlertCircle, UserCheck, X, Paperclip,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  type ConversationMessage,
+  type Report,
+  assignReport,
+  getReportMessages,
+  listReports,
+  sendReportMessage,
+  updateReport,
+} from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { decryptMessage, encryptMessage } from '@/lib/crypto'
+import * as keyManager from '@/lib/key-manager'
+import { useToast } from '@/lib/toast'
+import { createFileRoute } from '@tanstack/react-router'
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Loader2,
+  Lock,
+  Paperclip,
+  Plus,
+  Send,
+  UserCheck,
+  X,
 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/reports')({
   component: ReportsPage,
@@ -47,7 +62,7 @@ function ReportsPage() {
   const [sending, setSending] = useState(false)
   const [showFileUpload, setShowFileUpload] = useState(false)
 
-  const selectedReport = reports.find(r => r.id === selectedId)
+  const selectedReport = reports.find((r) => r.id === selectedId)
 
   // Fetch reports
   useEffect(() => {
@@ -58,7 +73,9 @@ function ReportsPage() {
 
     listReports(params)
       .then(({ conversations }) => setReports(conversations))
-      .catch(() => toast(t('reports.loadError', { defaultValue: 'Failed to load reports' }), 'error'))
+      .catch(() =>
+        toast(t('reports.loadError', { defaultValue: 'Failed to load reports' }), 'error')
+      )
       .finally(() => setLoading(false))
   }, [statusFilter, categoryFilter, t, toast])
 
@@ -77,11 +94,16 @@ function ReportsPage() {
 
   // Load messages when report is selected
   useEffect(() => {
-    if (!selectedId) { setMessages([]); return }
+    if (!selectedId) {
+      setMessages([])
+      return
+    }
     setMessagesLoading(true)
     getReportMessages(selectedId, { limit: 100 })
       .then(({ messages: msgs }) => setMessages(msgs))
-      .catch(() => toast(t('reports.messagesError', { defaultValue: 'Failed to load messages' }), 'error'))
+      .catch(() =>
+        toast(t('reports.messagesError', { defaultValue: 'Failed to load messages' }), 'error')
+      )
       .finally(() => setMessagesLoading(false))
   }, [selectedId, t, toast])
 
@@ -96,27 +118,37 @@ function ReportsPage() {
     return () => clearInterval(interval)
   }, [selectedId])
 
-  const handleAssign = useCallback(async (reportId: string) => {
-    if (!publicKey) return
-    try {
-      await assignReport(reportId, publicKey)
-      setReports(prev => prev.map(r => r.id === reportId ? { ...r, assignedTo: publicKey, status: 'active' } : r))
-      toast(t('reports.assigned', { defaultValue: 'Report assigned to you' }))
-    } catch {
-      toast(t('reports.assignError', { defaultValue: 'Failed to assign report' }), 'error')
-    }
-  }, [publicKey, toast, t])
+  const handleAssign = useCallback(
+    async (reportId: string) => {
+      if (!publicKey) return
+      try {
+        await assignReport(reportId, publicKey)
+        setReports((prev) =>
+          prev.map((r) =>
+            r.id === reportId ? { ...r, assignedTo: publicKey, status: 'active' } : r
+          )
+        )
+        toast(t('reports.assigned', { defaultValue: 'Report assigned to you' }))
+      } catch {
+        toast(t('reports.assignError', { defaultValue: 'Failed to assign report' }), 'error')
+      }
+    },
+    [publicKey, toast, t]
+  )
 
-  const handleClose = useCallback(async (reportId: string) => {
-    try {
-      await updateReport(reportId, { status: 'closed' })
-      setReports(prev => prev.filter(r => r.id !== reportId))
-      if (selectedId === reportId) setSelectedId(null)
-      toast(t('reports.closed', { defaultValue: 'Report closed' }))
-    } catch {
-      toast(t('reports.closeError', { defaultValue: 'Failed to close report' }), 'error')
-    }
-  }, [selectedId, toast, t])
+  const handleClose = useCallback(
+    async (reportId: string) => {
+      try {
+        await updateReport(reportId, { status: 'closed' })
+        setReports((prev) => prev.filter((r) => r.id !== reportId))
+        if (selectedId === reportId) setSelectedId(null)
+        toast(t('reports.closed', { defaultValue: 'Report closed' }))
+      } catch {
+        toast(t('reports.closeError', { defaultValue: 'Failed to close report' }), 'error')
+      }
+    },
+    [selectedId, toast, t]
+  )
 
   const handleSendReply = useCallback(async () => {
     if (!selectedId || !replyText.trim() || !hasNsec || !publicKey) return
@@ -134,7 +166,7 @@ function ReportsPage() {
         encryptedContent: encrypted.encryptedContent,
         readerEnvelopes: encrypted.readerEnvelopes,
       })
-      setMessages(prev => [msg, ...prev])
+      setMessages((prev) => [msg, ...prev])
       setReplyText('')
     } catch {
       toast(t('reports.sendError', { defaultValue: 'Failed to send message' }), 'error')
@@ -143,29 +175,35 @@ function ReportsPage() {
     }
   }, [selectedId, replyText, hasNsec, publicKey, adminDecryptionPubkey, toast, t])
 
-  const handleFileUploadComplete = useCallback(async (fileIds: string[]) => {
-    if (!selectedId || !hasNsec || !publicKey) return
-    try {
-      // Build reader list: current user + admin decryption pubkey
-      const readerPubkeys = [publicKey]
-      if (adminDecryptionPubkey && adminDecryptionPubkey !== publicKey) {
-        readerPubkeys.push(adminDecryptionPubkey)
+  const handleFileUploadComplete = useCallback(
+    async (fileIds: string[]) => {
+      if (!selectedId || !hasNsec || !publicKey) return
+      try {
+        // Build reader list: current user + admin decryption pubkey
+        const readerPubkeys = [publicKey]
+        if (adminDecryptionPubkey && adminDecryptionPubkey !== publicKey) {
+          readerPubkeys.push(adminDecryptionPubkey)
+        }
+
+        const placeholder = t('reports.filesAttached', {
+          defaultValue: '[Files attached]',
+          count: fileIds.length,
+        })
+        const encrypted = encryptMessage(placeholder, readerPubkeys)
+
+        const msg = await sendReportMessage(selectedId, {
+          encryptedContent: encrypted.encryptedContent,
+          readerEnvelopes: encrypted.readerEnvelopes,
+          attachmentIds: fileIds,
+        })
+        setMessages((prev) => [msg, ...prev])
+        setShowFileUpload(false)
+      } catch {
+        toast(t('reports.sendError', { defaultValue: 'Failed to send message' }), 'error')
       }
-
-      const placeholder = t('reports.filesAttached', { defaultValue: '[Files attached]', count: fileIds.length })
-      const encrypted = encryptMessage(placeholder, readerPubkeys)
-
-      const msg = await sendReportMessage(selectedId, {
-        encryptedContent: encrypted.encryptedContent,
-        readerEnvelopes: encrypted.readerEnvelopes,
-        attachmentIds: fileIds,
-      })
-      setMessages(prev => [msg, ...prev])
-      setShowFileUpload(false)
-    } catch {
-      toast(t('reports.sendError', { defaultValue: 'Failed to send message' }), 'error')
-    }
-  }, [selectedId, hasNsec, publicKey, adminDecryptionPubkey, toast, t])
+    },
+    [selectedId, hasNsec, publicKey, adminDecryptionPubkey, toast, t]
+  )
 
   const handleReportCreated = useCallback((reportId: string) => {
     // Refresh reports list and select the new one
@@ -184,7 +222,9 @@ function ReportsPage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <FileText className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold sm:text-2xl">{t('reports.title', { defaultValue: 'Reports' })}</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">
+            {t('reports.title', { defaultValue: 'Reports' })}
+          </h1>
         </div>
         <Button size="sm" onClick={() => setShowForm(true)}>
           <Plus className="h-3.5 w-3.5" />
@@ -196,9 +236,13 @@ function ReportsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <FileText className="mb-3 h-10 w-10 text-muted-foreground/40" />
-            <p className="text-muted-foreground">{t('reports.noReports', { defaultValue: 'No reports' })}</p>
+            <p className="text-muted-foreground">
+              {t('reports.noReports', { defaultValue: 'No reports' })}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {t('reports.noReportsHint', { defaultValue: 'Reports submitted by volunteers and reporters will appear here.' })}
+              {t('reports.noReportsHint', {
+                defaultValue: 'Reports submitted by volunteers and reporters will appear here.',
+              })}
             </p>
           </CardContent>
         </Card>
@@ -221,10 +265,18 @@ function ReportsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">{t('reports.allStatuses', { defaultValue: 'All statuses' })}</SelectItem>
-                      <SelectItem value="waiting">{t('reports.statusWaiting', { defaultValue: 'Waiting' })}</SelectItem>
-                      <SelectItem value="active">{t('reports.statusActive', { defaultValue: 'Active' })}</SelectItem>
-                      <SelectItem value="closed">{t('reports.statusClosed', { defaultValue: 'Closed' })}</SelectItem>
+                      <SelectItem value="all">
+                        {t('reports.allStatuses', { defaultValue: 'All statuses' })}
+                      </SelectItem>
+                      <SelectItem value="waiting">
+                        {t('reports.statusWaiting', { defaultValue: 'Waiting' })}
+                      </SelectItem>
+                      <SelectItem value="active">
+                        {t('reports.statusActive', { defaultValue: 'Active' })}
+                      </SelectItem>
+                      <SelectItem value="closed">
+                        {t('reports.statusClosed', { defaultValue: 'Closed' })}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -232,7 +284,9 @@ function ReportsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">{t('reports.allCategories', { defaultValue: 'All categories' })}</SelectItem>
+                      <SelectItem value="all">
+                        {t('reports.allCategories', { defaultValue: 'All categories' })}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -245,7 +299,7 @@ function ReportsPage() {
               </div>
             ) : (
               <div className="p-2 space-y-1.5">
-                {reports.map(report => (
+                {reports.map((report) => (
                   <ReportCard
                     key={report.id}
                     report={report}
@@ -273,40 +327,45 @@ function ReportsPage() {
                 isAdmin={isAdmin}
                 hasPermission={hasPermission}
                 showFileUpload={showFileUpload}
-                onToggleFileUpload={() => setShowFileUpload(prev => !prev)}
+                onToggleFileUpload={() => setShowFileUpload((prev) => !prev)}
                 onFileUploadComplete={handleFileUploadComplete}
               />
             ) : (
               <div className="flex flex-1 flex-col items-center justify-center text-muted-foreground">
                 <FileText className="h-10 w-10 mb-3" />
-                <p>{t('reports.selectReport', { defaultValue: 'Select a report to view details' })}</p>
+                <p>
+                  {t('reports.selectReport', { defaultValue: 'Select a report to view details' })}
+                </p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      <ReportForm
-        open={showForm}
-        onOpenChange={setShowForm}
-        onCreated={handleReportCreated}
-      />
+      <ReportForm open={showForm} onOpenChange={setShowForm} onCreated={handleReportCreated} />
     </div>
   )
 }
 
-function ReportCard({ report, isSelected, onSelect }: {
+function ReportCard({
+  report,
+  isSelected,
+  onSelect,
+}: {
   report: Report
   isSelected: boolean
   onSelect: (id: string) => void
 }) {
   const { t } = useTranslation()
 
-  const statusIcon = report.status === 'active'
-    ? <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
-    : report.status === 'waiting'
-      ? <span className="inline-block h-2.5 w-2.5 rounded-full bg-yellow-500" />
-      : <span className="inline-block h-2.5 w-2.5 rounded-full bg-gray-400" />
+  const statusIcon =
+    report.status === 'active' ? (
+      <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
+    ) : report.status === 'waiting' ? (
+      <span className="inline-block h-2.5 w-2.5 rounded-full bg-yellow-500" />
+    ) : (
+      <span className="inline-block h-2.5 w-2.5 rounded-full bg-gray-400" />
+    )
 
   const relativeTime = formatRelativeTime(report.lastMessageAt, t)
 
@@ -323,7 +382,8 @@ function ReportCard({ report, isSelected, onSelect }: {
       <div className="flex items-center gap-2">
         {statusIcon}
         <span className="truncate text-sm font-medium text-foreground flex-1">
-          {report.metadata?.reportTitle || t('reports.untitled', { defaultValue: 'Untitled Report' })}
+          {report.metadata?.reportTitle ||
+            t('reports.untitled', { defaultValue: 'Untitled Report' })}
         </span>
         <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
           <Clock className="h-3 w-3" />
@@ -344,7 +404,22 @@ function ReportCard({ report, isSelected, onSelect }: {
   )
 }
 
-function ReportDetail({ report, messages, messagesLoading, replyText, onReplyChange, onSend, sending, onAssign, onClose, isAdmin, hasPermission, showFileUpload, onToggleFileUpload, onFileUploadComplete }: {
+function ReportDetail({
+  report,
+  messages,
+  messagesLoading,
+  replyText,
+  onReplyChange,
+  onSend,
+  sending,
+  onAssign,
+  onClose,
+  isAdmin,
+  hasPermission,
+  showFileUpload,
+  onToggleFileUpload,
+  onFileUploadComplete,
+}: {
   report: Report
   messages: ConversationMessage[]
   messagesLoading: boolean
@@ -373,7 +448,11 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
 
     let secretKey: Uint8Array | null = null
     if (hasNsec) {
-      try { secretKey = keyManager.getSecretKey() } catch { /* locked */ }
+      try {
+        secretKey = keyManager.getSecretKey()
+      } catch {
+        /* locked */
+      }
     }
     if (!secretKey) return
 
@@ -385,7 +464,7 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
           msg.encryptedContent,
           msg.readerEnvelopes,
           secretKey,
-          publicKey,
+          publicKey
         )
         if (plaintext !== null) {
           decrypted.set(msg.id, plaintext)
@@ -405,7 +484,8 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">
-            {report.metadata?.reportTitle || t('reports.untitled', { defaultValue: 'Untitled Report' })}
+            {report.metadata?.reportTitle ||
+              t('reports.untitled', { defaultValue: 'Untitled Report' })}
           </p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Lock className="h-3 w-3" />
@@ -428,7 +508,12 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
             </Button>
           )}
           {report.status === 'active' && isAdmin && (
-            <Button size="sm" variant="outline" data-testid="close-report" onClick={() => onClose(report.id)}>
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="close-report"
+              onClick={() => onClose(report.id)}
+            >
               <X className="h-3.5 w-3.5" />
               {t('reports.closeReport', { defaultValue: 'Close' })}
             </Button>
@@ -448,37 +533,43 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
             {t('reports.noMessages', { defaultValue: 'No messages yet' })}
           </div>
         ) : (
-          messages.map(msg => {
+          messages.map((msg) => {
             const isInbound = msg.direction === 'inbound'
             const text = decryptedContent.get(msg.id)
 
             return (
               <div key={msg.id} className={`flex ${isInbound ? 'justify-start' : 'justify-end'}`}>
-                <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
-                  isInbound
-                    ? 'bg-muted text-foreground rounded-bl-md'
-                    : 'bg-primary text-primary-foreground rounded-br-md'
-                }`}>
+                <div
+                  className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
+                    isInbound
+                      ? 'bg-muted text-foreground rounded-bl-md'
+                      : 'bg-primary text-primary-foreground rounded-br-md'
+                  }`}
+                >
                   <p className="text-sm whitespace-pre-wrap break-words">
                     {text === undefined ? (
                       <span className="italic text-muted-foreground">
                         {t('reports.encrypted', { defaultValue: '[Encrypted]' })}
                       </span>
-                    ) : text}
+                    ) : (
+                      text
+                    )}
                   </p>
 
                   {/* Inline file attachments */}
                   {msg.hasAttachments && msg.attachmentIds && msg.attachmentIds.length > 0 && (
                     <div className="mt-2 space-y-2">
-                      {msg.attachmentIds.map(fileId => (
+                      {msg.attachmentIds.map((fileId) => (
                         <FilePreview key={fileId} fileId={fileId} />
                       ))}
                     </div>
                   )}
 
-                  <div className={`mt-1 flex items-center gap-1.5 text-xs ${
-                    isInbound ? 'text-muted-foreground' : 'text-primary-foreground/70'
-                  }`}>
+                  <div
+                    className={`mt-1 flex items-center gap-1.5 text-xs ${
+                      isInbound ? 'text-muted-foreground' : 'text-primary-foreground/70'
+                    }`}
+                  >
                     <Lock className="h-3 w-3" />
                     <span>{formatTimestamp(msg.createdAt)}</span>
                   </div>
@@ -505,7 +596,9 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
         <div className="border-t border-border bg-background px-4 py-3">
           <div className="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
             <Lock className="h-3 w-3" />
-            <span>{t('notes.encryptionNote', { defaultValue: 'Notes are encrypted end-to-end' })}</span>
+            <span>
+              {t('notes.encryptionNote', { defaultValue: 'Notes are encrypted end-to-end' })}
+            </span>
           </div>
           <div className="flex items-end gap-2">
             <Button
@@ -519,8 +612,13 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
             </Button>
             <textarea
               value={replyText}
-              onChange={e => onReplyChange(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); onSend() } }}
+              onChange={(e) => onReplyChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault()
+                  onSend()
+                }
+              }}
               placeholder={t('reports.replyPlaceholder', { defaultValue: 'Type your reply...' })}
               rows={1}
               className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -532,7 +630,11 @@ function ReportDetail({ report, messages, messagesLoading, replyText, onReplyCha
               aria-label={t('common.submit')}
               className="shrink-0"
             >
-              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {sending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
@@ -567,7 +669,6 @@ function ReportStatusBadge({ status }: { status: string }) {
   )
 }
 
-
 function formatTimestamp(iso: string): string {
   const date = new Date(iso)
   const now = new Date()
@@ -587,7 +688,10 @@ function formatTimestamp(iso: string): string {
   })
 }
 
-function formatRelativeTime(iso: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
+function formatRelativeTime(
+  iso: string,
+  t: (key: string, opts?: Record<string, unknown>) => string
+): string {
   const now = Date.now()
   const then = new Date(iso).getTime()
   const diffMs = now - then
@@ -598,10 +702,12 @@ function formatRelativeTime(iso: string, t: (key: string, opts?: Record<string, 
   if (seconds < 60) return t('conversations.justNow', { defaultValue: 'just now' })
 
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return t('conversations.minutesAgo', { count: minutes, defaultValue: '{{count}}m ago' })
+  if (minutes < 60)
+    return t('conversations.minutesAgo', { count: minutes, defaultValue: '{{count}}m ago' })
 
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return t('conversations.hoursAgo', { count: hours, defaultValue: '{{count}}h ago' })
+  if (hours < 24)
+    return t('conversations.hoursAgo', { count: hours, defaultValue: '{{count}}h ago' })
 
   const days = Math.floor(hours / 24)
   return t('conversations.daysAgo', { count: days, defaultValue: '{{count}}d ago' })

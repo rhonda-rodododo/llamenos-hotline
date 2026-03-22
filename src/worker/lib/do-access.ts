@@ -1,17 +1,21 @@
-import type { Env, DOStub } from '../types'
-import type { TelephonyAdapter } from '../telephony/adapter'
+import type {
+  MessagingChannelType,
+  MessagingConfig,
+  TelephonyProviderConfig,
+} from '../../shared/types'
 import type { MessagingAdapter } from '../messaging/adapter'
-import { type NostrPublisher, createNostrPublisher } from './nostr-publisher'
-import type { TelephonyProviderConfig, MessagingChannelType, MessagingConfig } from '../../shared/types'
-import { TwilioAdapter } from '../telephony/twilio'
-import { SignalWireAdapter } from '../telephony/signalwire'
-import { VonageAdapter } from '../telephony/vonage'
-import { PlivoAdapter } from '../telephony/plivo'
-import { AsteriskAdapter } from '../telephony/asterisk'
+import { createRCSAdapter } from '../messaging/rcs/factory'
+import { createSignalAdapter } from '../messaging/signal/factory'
 import { createSMSAdapter } from '../messaging/sms/factory'
 import { createWhatsAppAdapter } from '../messaging/whatsapp/factory'
-import { createSignalAdapter } from '../messaging/signal/factory'
-import { createRCSAdapter } from '../messaging/rcs/factory'
+import type { TelephonyAdapter } from '../telephony/adapter'
+import { AsteriskAdapter } from '../telephony/asterisk'
+import { PlivoAdapter } from '../telephony/plivo'
+import { SignalWireAdapter } from '../telephony/signalwire'
+import { TwilioAdapter } from '../telephony/twilio'
+import { VonageAdapter } from '../telephony/vonage'
+import type { DOStub, Env } from '../types'
+import { type NostrPublisher, createNostrPublisher } from './nostr-publisher'
 
 const IDENTITY_ID = 'global-identity'
 const SETTINGS_ID = 'global-settings'
@@ -80,11 +84,14 @@ export function getHubDOs(env: Env, hubId: string): HubDurableObjects {
  * Reads config from SettingsDO; falls back to env vars for Twilio.
  * Returns null if no telephony provider is configured (telephony is optional).
  */
-export async function getTelephony(env: Env, dos: DurableObjects): Promise<TelephonyAdapter | null> {
+export async function getTelephony(
+  env: Env,
+  dos: DurableObjects
+): Promise<TelephonyAdapter | null> {
   try {
     const res = await dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
     if (res.ok) {
-      const config = await res.json() as TelephonyProviderConfig | null
+      const config = (await res.json()) as TelephonyProviderConfig | null
       if (config) {
         return createAdapterFromConfig(config)
       }
@@ -108,9 +115,11 @@ export async function getTelephony(env: Env, dos: DurableObjects): Promise<Telep
 export async function getHubTelephony(env: Env, hubId: string): Promise<TelephonyAdapter | null> {
   const dos = getDOs(env)
   try {
-    const res = await dos.settings.fetch(new Request(`http://do/settings/hub/${hubId}/telephony-provider`))
+    const res = await dos.settings.fetch(
+      new Request(`http://do/settings/hub/${hubId}/telephony-provider`)
+    )
     if (res.ok) {
-      const config = await res.json() as TelephonyProviderConfig | null
+      const config = (await res.json()) as TelephonyProviderConfig | null
       if (config) return createAdapterFromConfig(config)
     }
   } catch {
@@ -126,12 +135,12 @@ export async function getHubTelephony(env: Env, hubId: string): Promise<Telephon
 export async function getMessagingAdapter(
   channel: MessagingChannelType,
   dos: DurableObjects,
-  hmacSecret: string,
+  hmacSecret: string
 ): Promise<MessagingAdapter> {
   const res = await dos.settings.fetch(new Request('http://do/settings/messaging'))
   if (!res.ok) throw new Error('Messaging config not found')
 
-  const config = await res.json() as MessagingConfig | null
+  const config = (await res.json()) as MessagingConfig | null
   if (!config || !config.enabledChannels.includes(channel)) {
     throw new Error(`${channel} channel is not enabled`)
   }
@@ -142,7 +151,7 @@ export async function getMessagingAdapter(
       // SMS reuses telephony provider credentials
       const telRes = await dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
       if (!telRes.ok) throw new Error('SMS requires a configured telephony provider')
-      const telConfig = await telRes.json() as TelephonyProviderConfig | null
+      const telConfig = (await telRes.json()) as TelephonyProviderConfig | null
       if (!telConfig) throw new Error('SMS requires a configured telephony provider')
       return createSMSAdapter(telConfig, config.sms, hmacSecret)
     }
@@ -188,9 +197,20 @@ function createAdapterFromConfig(config: TelephonyProviderConfig): TelephonyAdap
     case 'twilio':
       return new TwilioAdapter(config.accountSid!, config.authToken!, config.phoneNumber)
     case 'signalwire':
-      return new SignalWireAdapter(config.accountSid!, config.authToken!, config.phoneNumber, config.signalwireSpace!)
+      return new SignalWireAdapter(
+        config.accountSid!,
+        config.authToken!,
+        config.phoneNumber,
+        config.signalwireSpace!
+      )
     case 'vonage':
-      return new VonageAdapter(config.apiKey!, config.apiSecret!, config.applicationId!, config.phoneNumber, config.privateKey)
+      return new VonageAdapter(
+        config.apiKey!,
+        config.apiSecret!,
+        config.applicationId!,
+        config.phoneNumber,
+        config.privateKey
+      )
     case 'plivo':
       return new PlivoAdapter(config.authId!, config.authToken!, config.phoneNumber)
     case 'asterisk':
@@ -200,7 +220,7 @@ function createAdapterFromConfig(config: TelephonyProviderConfig): TelephonyAdap
         config.ariPassword!,
         config.phoneNumber,
         config.bridgeCallbackUrl!,
-        config.ariPassword!, // Bridge secret uses ARI password as shared secret
+        config.ariPassword! // Bridge secret uses ARI password as shared secret
       )
     default:
       return new TwilioAdapter(config.accountSid!, config.authToken!, config.phoneNumber)

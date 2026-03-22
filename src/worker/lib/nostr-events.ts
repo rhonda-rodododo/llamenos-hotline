@@ -6,7 +6,11 @@ import { deriveServerEventKey, encryptHubEvent } from './hub-event-crypto'
 let cachedEventKey: Uint8Array | null = null
 
 /** Publish an event to the Nostr relay for real-time sync. Content is encrypted if SERVER_NOSTR_SECRET is set. */
-export function publishNostrEvent(env: AppEnv['Bindings'], kind: number, content: Record<string, unknown>): void {
+export function publishNostrEvent(
+  env: AppEnv['Bindings'],
+  kind: number,
+  content: Record<string, unknown>
+): void {
   try {
     const publisher = getNostrPublisher(env)
 
@@ -21,12 +25,17 @@ export function publishNostrEvent(env: AppEnv['Bindings'], kind: number, content
       eventContent = JSON.stringify(content)
     }
 
-    publisher.publish({
-      kind,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [['d', 'global'], ['t', 'llamenos:event']],
-      content: eventContent,
-    }).catch(() => {})
+    publisher
+      .publish({
+        kind,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['d', 'global'],
+          ['t', 'llamenos:event'],
+        ],
+        content: eventContent,
+      })
+      .catch(() => {})
   } catch {
     // Nostr not configured
   }

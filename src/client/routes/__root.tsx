@@ -1,49 +1,49 @@
-import { createRootRoute, Outlet, Link, useNavigate, useLocation } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useConfig, useHasMessaging } from '@/lib/config'
-import { useTheme } from '@/lib/theme'
-import { useEffect, useState, useCallback, type ReactNode } from 'react'
-import { NostrProvider } from '@/lib/nostr/context'
-import { useCalls, useShiftStatus } from '@/lib/hooks'
-import * as keyManager from '@/lib/key-manager'
 import { CommandPalette, triggerCommandPalette } from '@/components/command-palette'
+import { DemoBanner } from '@/components/demo-banner'
+import { ErrorBoundary } from '@/components/error-boundary'
+import { HubSwitcher } from '@/components/hub-switcher'
 import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog'
-import { NoteSheet } from '@/components/note-sheet'
-import { useKeyboardShortcuts } from '@/lib/use-keyboard-shortcuts'
 import { LanguageSelect } from '@/components/language-select'
 import { LogoMark } from '@/components/logo-mark'
-import { DemoBanner } from '@/components/demo-banner'
+import { NoteSheet } from '@/components/note-sheet'
 import { NotificationPromptBanner } from '@/components/notification-prompt-banner'
-import { PwaInstallBanner } from '@/components/pwa-install-banner'
-import { PanicWipeIndicator } from '@/components/panic-wipe-indicator'
-import { ErrorBoundary } from '@/components/error-boundary'
 import { OfflineBanner } from '@/components/offline-banner'
-import { HubSwitcher } from '@/components/hub-switcher'
+import { PanicWipeIndicator } from '@/components/panic-wipe-indicator'
+import { PwaInstallBanner } from '@/components/pwa-install-banner'
+import { useAuth } from '@/lib/auth'
+import { useConfig, useHasMessaging } from '@/lib/config'
+import { useCalls, useShiftStatus } from '@/lib/hooks'
+import * as keyManager from '@/lib/key-manager'
+import { NostrProvider } from '@/lib/nostr/context'
+import { useTheme } from '@/lib/theme'
+import { useKeyboardShortcuts } from '@/lib/use-keyboard-shortcuts'
+import { Link, Outlet, createRootRoute, useLocation, useNavigate } from '@tanstack/react-router'
 import {
-  LayoutDashboard,
-  StickyNote,
-  Clock,
-  Users,
-  ShieldBan,
-  PhoneIncoming,
-  MessageSquare,
-  ScrollText,
-  Settings,
-  LogOut,
-  FileText,
   Building2,
-  PhoneCall,
-  Sun,
-  Moon,
-  Monitor,
-  Menu,
-  X,
-  Search,
-  HelpCircle,
-  Megaphone,
+  Clock,
   Contact,
+  FileText,
+  HelpCircle,
+  LayoutDashboard,
+  LogOut,
+  Megaphone,
+  Menu,
+  MessageSquare,
+  Monitor,
+  Moon,
+  PhoneCall,
+  PhoneIncoming,
+  ScrollText,
+  Search,
+  Settings,
+  ShieldBan,
+  StickyNote,
+  Sun,
+  Users,
+  X,
 } from 'lucide-react'
+import { type ReactNode, useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -51,7 +51,16 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   const { t } = useTranslation()
-  const { isAuthenticated, isAdmin, signOut, name, isLoading, profileCompleted, hasPermission, primaryRoleName } = useAuth()
+  const {
+    isAuthenticated,
+    isAdmin,
+    signOut,
+    name,
+    isLoading,
+    profileCompleted,
+    hasPermission,
+    primaryRoleName,
+  } = useAuth()
   const { hotlineName, needsBootstrap, demoMode, isLoading: configLoading } = useConfig()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
@@ -61,7 +70,15 @@ function RootLayout() {
 
   useEffect(() => {
     // Wait for both auth and config to finish loading before redirecting
-    if (!isLoading && !configLoading && !isAuthenticated && location.pathname !== '/login' && location.pathname !== '/onboarding' && location.pathname !== '/link-device' && location.pathname !== '/setup') {
+    if (
+      !isLoading &&
+      !configLoading &&
+      !isAuthenticated &&
+      location.pathname !== '/login' &&
+      location.pathname !== '/onboarding' &&
+      location.pathname !== '/link-device' &&
+      location.pathname !== '/setup'
+    ) {
       // If no admin exists, redirect to setup wizard (which includes bootstrap)
       if (needsBootstrap) {
         navigate({ to: '/setup' })
@@ -76,21 +93,33 @@ function RootLayout() {
   }, [isLoading, configLoading, isAuthenticated, location.pathname, navigate, needsBootstrap])
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated && (location.pathname === '/login')) {
+    if (!isLoading && isAuthenticated && location.pathname === '/login') {
       navigate({ to: profileCompleted ? '/' : '/profile-setup' })
     }
   }, [isLoading, isAuthenticated, location.pathname, navigate, profileCompleted])
 
   // Redirect to profile setup if not completed (skip during setup wizard)
   useEffect(() => {
-    if (!isLoading && isAuthenticated && !profileCompleted && location.pathname !== '/profile-setup' && location.pathname !== '/login' && location.pathname !== '/setup') {
+    if (
+      !isLoading &&
+      isAuthenticated &&
+      !profileCompleted &&
+      location.pathname !== '/profile-setup' &&
+      location.pathname !== '/login' &&
+      location.pathname !== '/setup'
+    ) {
       navigate({ to: '/profile-setup' })
     }
   }, [isLoading, isAuthenticated, profileCompleted, location.pathname, navigate])
 
   // Redirect away from profile setup once completed
   useEffect(() => {
-    if (!isLoading && isAuthenticated && profileCompleted && location.pathname === '/profile-setup') {
+    if (
+      !isLoading &&
+      isAuthenticated &&
+      profileCompleted &&
+      location.pathname === '/profile-setup'
+    ) {
       navigate({ to: '/' })
     }
   }, [isLoading, isAuthenticated, profileCompleted, location.pathname, navigate])
@@ -112,7 +141,14 @@ function RootLayout() {
   } else if (!isAuthenticated || !profileCompleted) {
     // Only render Outlet for public routes — prevent protected route components
     // from mounting and making API calls before the redirect effect fires
-    const publicPaths = ['/login', '/onboarding', '/profile-setup', '/setup', '/link-device', '/preferences']
+    const publicPaths = [
+      '/login',
+      '/onboarding',
+      '/profile-setup',
+      '/setup',
+      '/link-device',
+      '/preferences',
+    ]
     if (!publicPaths.includes(location.pathname)) {
       content = (
         <div className="flex h-screen items-center justify-center">
@@ -137,14 +173,20 @@ function RootLayout() {
     <>
       <PanicWipeIndicator />
       <OfflineBanner />
-      <ErrorBoundary scope="root">
-        {content}
-      </ErrorBoundary>
+      <ErrorBoundary scope="root">{content}</ErrorBoundary>
     </>
   )
 }
 
-const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const
+const DAY_NAMES = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const
 
 /**
  * Wraps AuthenticatedLayout with NostrProvider for relay connectivity.
@@ -184,7 +226,16 @@ function NostrWrappedLayout() {
 
 function AuthenticatedLayout() {
   const { t } = useTranslation()
-  const { isAdmin, signOut, name, sessionExpiring, sessionExpired, renewSession, hasPermission, primaryRoleName } = useAuth()
+  const {
+    isAdmin,
+    signOut,
+    name,
+    sessionExpiring,
+    sessionExpired,
+    renewSession,
+    hasPermission,
+    primaryRoleName,
+  } = useAuth()
   const { hotlineName, hotlineNumber, channels, demoMode } = useConfig()
   const hasMessaging = useHasMessaging()
   const { theme, setTheme } = useTheme()
@@ -203,7 +254,10 @@ function AuthenticatedLayout() {
   return (
     <div className="flex h-screen">
       {/* Skip link */}
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
+      >
         {t('a11y.skipToContent')}
       </a>
 
@@ -216,14 +270,21 @@ function AuthenticatedLayout() {
       )}
 
       {/* Sidebar */}
-      <nav data-testid="nav-sidebar" className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-sidebar-border bg-sidebar transition-transform md:static md:visible md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full invisible'}`}>
+      <nav
+        data-testid="nav-sidebar"
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-sidebar-border bg-sidebar transition-transform md:static md:visible md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full invisible'}`}
+      >
         <div className="border-b border-sidebar-border px-4 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <LogoMark size="sm" />
               <p className="text-lg font-bold text-sidebar-foreground">{hotlineName}</p>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="md:hidden text-muted-foreground hover:text-foreground" aria-label={t('a11y.closeSidebar')}>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden text-muted-foreground hover:text-foreground"
+              aria-label={t('a11y.closeSidebar')}
+            >
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -243,20 +304,23 @@ function AuthenticatedLayout() {
                 <div className="flex items-center gap-1.5 rounded-md bg-blue-500/10 px-2 py-1">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
                   <PhoneCall className="h-3 w-3 text-blue-500" />
-                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300">{t('dashboard.onCall')}</span>
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                    {t('dashboard.onCall')}
+                  </span>
                 </div>
               )}
               {/* Shift status indicator */}
               {!currentCall && (
                 <div className="flex items-center gap-1.5 px-2">
-                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${onShift ? 'bg-green-500' : 'bg-gray-400'}`} />
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${onShift ? 'bg-green-500' : 'bg-gray-400'}`}
+                  />
                   <span className="text-xs text-muted-foreground">
                     {onShift && currentShift
                       ? `${currentShift.name} — ${t('shifts.until')} ${currentShift.endTime}`
                       : nextShift
-                        ? `${t('shifts.nextShift')}: ${nextShift.name} ${t('shifts.days.' + DAY_NAMES[nextShift.day])} ${nextShift.startTime}`
-                        : t('shifts.noShiftsAssigned')
-                    }
+                        ? `${t('shifts.nextShift')}: ${nextShift.name} ${t(`shifts.days.${DAY_NAMES[nextShift.day]}`)} ${nextShift.startTime}`
+                        : t('shifts.noShiftsAssigned')}
                   </span>
                 </div>
               )}
@@ -285,8 +349,12 @@ function AuthenticatedLayout() {
             </>
           ) : (
             <>
-              <NavLink to="/" icon={<LayoutDashboard className="h-4 w-4" />}>{t('nav.dashboard')}</NavLink>
-              <NavLink to="/notes" icon={<StickyNote className="h-4 w-4" />}>{t('nav.notes')}</NavLink>
+              <NavLink to="/" icon={<LayoutDashboard className="h-4 w-4" />}>
+                {t('nav.dashboard')}
+              </NavLink>
+              <NavLink to="/notes" icon={<StickyNote className="h-4 w-4" />}>
+                {t('nav.notes')}
+              </NavLink>
               {hasMessaging && (
                 <NavLink to="/conversations" icon={<MessageSquare className="h-4 w-4" />}>
                   {t('nav.conversations', { defaultValue: 'Conversations' })}
@@ -303,9 +371,13 @@ function AuthenticatedLayout() {
                 </NavLink>
               )}
               {isAdmin && (
-                <NavLink to="/calls" icon={<PhoneIncoming className="h-4 w-4" />}>{t('nav.callHistory')}</NavLink>
+                <NavLink to="/calls" icon={<PhoneIncoming className="h-4 w-4" />}>
+                  {t('nav.callHistory')}
+                </NavLink>
               )}
-              <NavLink to="/settings" icon={<Settings className="h-4 w-4" />}>{t('nav.settings')}</NavLink>
+              <NavLink to="/settings" icon={<Settings className="h-4 w-4" />}>
+                {t('nav.settings')}
+              </NavLink>
             </>
           )}
 
@@ -313,32 +385,60 @@ function AuthenticatedLayout() {
             <>
               <div className="my-2 border-t border-sidebar-border" />
               <div data-testid="nav-admin-section">
-              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                {t('nav.admin', { defaultValue: 'Admin' })}
-              </p>
-              <NavLink to="/shifts" icon={<Clock className="h-4 w-4" />}>{t('nav.shifts')}</NavLink>
-              <NavLink to="/volunteers" icon={<Users className="h-4 w-4" />}>{t('nav.volunteers')}</NavLink>
-              <NavLink to="/bans" icon={<ShieldBan className="h-4 w-4" />}>{t('nav.banList')}</NavLink>
-              {hasPermission('contacts:view') && (
-                <NavLink to="/contacts" icon={<Contact className="h-4 w-4" />}>{t('nav.contacts', { defaultValue: 'Contacts' })}</NavLink>
-              )}
-              <NavLink to="/audit" icon={<ScrollText className="h-4 w-4" />}>{t('nav.auditLog')}</NavLink>
-              <NavLink to="/admin/settings" icon={<Settings className="h-4 w-4" />}>{t('nav.hubSettings', { defaultValue: 'Hub Settings' })}</NavLink>
-              {hasPermission('system:manage-hubs') && (
-                <NavLink to="/admin/hubs" icon={<Building2 className="h-4 w-4" />}>{t('nav.hubs', { defaultValue: 'Hubs' })}</NavLink>
-              )}
+                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                  {t('nav.admin', { defaultValue: 'Admin' })}
+                </p>
+                <NavLink to="/shifts" icon={<Clock className="h-4 w-4" />}>
+                  {t('nav.shifts')}
+                </NavLink>
+                <NavLink to="/volunteers" icon={<Users className="h-4 w-4" />}>
+                  {t('nav.volunteers')}
+                </NavLink>
+                <NavLink to="/bans" icon={<ShieldBan className="h-4 w-4" />}>
+                  {t('nav.banList')}
+                </NavLink>
+                {hasPermission('contacts:view') && (
+                  <NavLink to="/contacts" icon={<Contact className="h-4 w-4" />}>
+                    {t('nav.contacts', { defaultValue: 'Contacts' })}
+                  </NavLink>
+                )}
+                <NavLink to="/audit" icon={<ScrollText className="h-4 w-4" />}>
+                  {t('nav.auditLog')}
+                </NavLink>
+                <NavLink to="/admin/settings" icon={<Settings className="h-4 w-4" />}>
+                  {t('nav.hubSettings', { defaultValue: 'Hub Settings' })}
+                </NavLink>
+                {hasPermission('system:manage-hubs') && (
+                  <NavLink to="/admin/hubs" icon={<Building2 className="h-4 w-4" />}>
+                    {t('nav.hubs', { defaultValue: 'Hubs' })}
+                  </NavLink>
+                )}
               </div>
             </>
           )}
-          <NavLink to="/help" icon={<HelpCircle className="h-4 w-4" />}>{t('nav.help', { defaultValue: 'Help' })}</NavLink>
+          <NavLink to="/help" icon={<HelpCircle className="h-4 w-4" />}>
+            {t('nav.help', { defaultValue: 'Help' })}
+          </NavLink>
         </div>
 
         <div className="border-t border-sidebar-border p-3 space-y-1">
           <LanguageSelect size="sm" fullWidth />
           <div className="flex items-center gap-2 rounded-md px-3 py-2">
-            {theme === 'dark' ? <Moon className="h-4 w-4 text-muted-foreground" /> : theme === 'light' ? <Sun className="h-4 w-4 text-muted-foreground" /> : <Monitor className="h-4 w-4 text-muted-foreground" />}
+            {theme === 'dark' ? (
+              <Moon className="h-4 w-4 text-muted-foreground" />
+            ) : theme === 'light' ? (
+              <Sun className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <Monitor className="h-4 w-4 text-muted-foreground" />
+            )}
             <div className="flex gap-0.5">
-              {([['system', Monitor], ['light', Sun], ['dark', Moon]] as const).map(([value, Icon]) => (
+              {(
+                [
+                  ['system', Monitor],
+                  ['light', Sun],
+                  ['dark', Moon],
+                ] as const
+              ).map(([value, Icon]) => (
                 <button
                   key={value}
                   onClick={() => setTheme(value)}
@@ -392,7 +492,11 @@ function AuthenticatedLayout() {
           </div>
         </header>
 
-        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto bg-background p-4 md:p-6">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 overflow-y-auto bg-background p-4 md:p-6"
+        >
           <ErrorBoundary scope="page">
             <Outlet />
           </ErrorBoundary>
@@ -406,7 +510,9 @@ function AuthenticatedLayout() {
       {/* Session expiring warning */}
       {sessionExpiring && !sessionExpired && (
         <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg border border-yellow-500/50 bg-yellow-50 px-4 py-3 shadow-lg dark:bg-yellow-950/90">
-          <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">{t('session.expiringWarning')}</span>
+          <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+            {t('session.expiringWarning')}
+          </span>
           <button
             onClick={() => renewSession()}
             className="rounded-md bg-yellow-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-yellow-700"
@@ -452,7 +558,8 @@ function AuthenticatedLayout() {
 
 function NavLink({ to, children, icon }: { to: string; children: ReactNode; icon?: ReactNode }) {
   const location = useLocation()
-  const isActive = location.pathname === to || (to === '/' ? false : location.pathname.startsWith(to))
+  const isActive =
+    location.pathname === to || (to === '/' ? false : location.pathname.startsWith(to))
   // Generate test ID from route path: "/" -> "nav-dashboard", "/notes" -> "nav-notes", "/admin/settings" -> "nav-admin-settings"
   const testId = `nav-${to === '/' ? 'dashboard' : to.replace(/^\//, '').replace(/\//g, '-')}`
 

@@ -1,9 +1,4 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Check, ChevronsUpDown, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Command,
   CommandEmpty,
@@ -12,7 +7,12 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { Volunteer } from '@/lib/api'
+import { cn } from '@/lib/utils'
+import { Check, ChevronsUpDown, X } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface VolunteerMultiSelectProps {
   volunteers: Volunteer[]
@@ -32,19 +32,17 @@ export function VolunteerMultiSelect({
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
 
-  const selectedVolunteers = volunteers.filter(v => selected.includes(v.pubkey))
+  const selectedVolunteers = volunteers.filter((v) => selected.includes(v.pubkey))
 
   function toggle(pubkey: string) {
     onSelectionChange(
-      selected.includes(pubkey)
-        ? selected.filter(p => p !== pubkey)
-        : [...selected, pubkey]
+      selected.includes(pubkey) ? selected.filter((p) => p !== pubkey) : [...selected, pubkey]
     )
   }
 
   function remove(pubkey: string, e: React.SyntheticEvent) {
     e.stopPropagation()
-    onSelectionChange(selected.filter(p => p !== pubkey))
+    onSelectionChange(selected.filter((p) => p !== pubkey))
   }
 
   return (
@@ -61,13 +59,11 @@ export function VolunteerMultiSelect({
           )}
         >
           {selectedVolunteers.length > 0 ? (
-            selectedVolunteers.map(vol => (
-              <Badge
-                key={vol.pubkey}
-                variant="secondary"
-                className="max-w-[150px] gap-0.5 pr-0.5"
-              >
-                <span className="truncate" title={vol.name}>{vol.name}</span>
+            selectedVolunteers.map((vol) => (
+              <Badge key={vol.pubkey} variant="secondary" className="max-w-[150px] gap-0.5 pr-0.5">
+                <span className="truncate" title={vol.name}>
+                  {vol.name}
+                </span>
                 <span
                   role="button"
                   tabIndex={0}
@@ -94,17 +90,19 @@ export function VolunteerMultiSelect({
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command filter={(value, search) => {
-          const vol = volunteers.find(v => v.pubkey === value)
-          if (!vol) return 0
-          const haystack = `${vol.name} ${vol.phone} ${vol.pubkey}`.toLowerCase()
-          return haystack.includes(search.toLowerCase()) ? 1 : 0
-        }}>
+        <Command
+          filter={(value, search) => {
+            const vol = volunteers.find((v) => v.pubkey === value)
+            if (!vol) return 0
+            const haystack = `${vol.name} ${vol.phone} ${vol.pubkey}`.toLowerCase()
+            return haystack.includes(search.toLowerCase()) ? 1 : 0
+          }}
+        >
           <CommandInput placeholder={t('shifts.searchVolunteers')} />
           <CommandList className="max-h-[200px]">
             <CommandEmpty>{t('shifts.noVolunteersFound')}</CommandEmpty>
             <CommandGroup>
-              {volunteers.map(vol => (
+              {volunteers.map((vol) => (
                 <CommandItem
                   key={vol.pubkey}
                   value={vol.pubkey}

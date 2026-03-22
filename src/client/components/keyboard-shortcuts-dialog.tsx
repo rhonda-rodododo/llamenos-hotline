@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 let openShortcutsDialog: (() => void) | null = null
 
@@ -23,19 +23,22 @@ export function KeyboardShortcutsDialog() {
 
   useEffect(() => {
     openShortcutsDialog = () => setOpen(true)
-    return () => { openShortcutsDialog = null }
+    return () => {
+      openShortcutsDialog = null
+    }
   }, [])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       // Don't trigger when typing in inputs/textareas or when modifier keys are held
       const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+        return
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
       if (e.key === '?') {
         e.preventDefault()
-        setOpen(prev => !prev)
+        setOpen((prev) => !prev)
       }
     }
     document.addEventListener('keydown', onKeyDown)
@@ -61,8 +64,11 @@ export function KeyboardShortcutsDialog() {
           <DialogDescription>{t('shortcuts.description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-1">
-          {shortcuts.map(s => (
-            <div key={s.keys} className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-muted/50">
+          {shortcuts.map((s) => (
+            <div
+              key={s.keys}
+              className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-muted/50"
+            >
               <span className="text-muted-foreground">{s.description}</span>
               <kbd className="inline-flex items-center gap-0.5 rounded border border-border bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
                 {s.keys}

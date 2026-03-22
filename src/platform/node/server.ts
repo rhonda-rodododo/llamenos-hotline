@@ -1,3 +1,4 @@
+import path from 'node:path'
 /**
  * Node.js server entry point.
  * Runs the Hono app with @hono/node-server, serving static files.
@@ -9,7 +10,6 @@
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
-import path from 'node:path'
 import { createNodeEnv } from './env'
 
 async function main() {
@@ -45,13 +45,16 @@ async function main() {
   // SPA fallback — serve index.html for all unmatched routes
   app.use('*', serveStatic({ root: staticDir, path: '/index.html' }))
 
-  const port = parseInt(process.env.PORT || '3000')
-  const server = serve({
-    fetch: app.fetch,
-    port,
-  }, (info) => {
-    console.log(`[llamenos] Server running at http://localhost:${info.port}`)
-  })
+  const port = Number.parseInt(process.env.PORT || '3000')
+  const server = serve(
+    {
+      fetch: app.fetch,
+      port,
+    },
+    (info) => {
+      console.log(`[llamenos] Server running at http://localhost:${info.port}`)
+    }
+  )
 
   // Graceful shutdown
   const shutdown = async () => {

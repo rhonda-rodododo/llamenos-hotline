@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { type ReactNode, createContext, useCallback, useContext, useState } from 'react'
 
 type FieldValues = Record<string, string | number | boolean>
 
@@ -42,23 +42,28 @@ export function NoteSheetProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const openEditNote = useCallback((noteId: string, callId: string, text: string, fields?: FieldValues) => {
-    setState({
-      isOpen: true,
-      mode: 'edit',
-      editNoteId: noteId,
-      initialCallId: callId,
-      initialText: text,
-      initialFields: fields,
-    })
-  }, [])
+  const openEditNote = useCallback(
+    (noteId: string, callId: string, text: string, fields?: FieldValues) => {
+      setState({
+        isOpen: true,
+        mode: 'edit',
+        editNoteId: noteId,
+        initialCallId: callId,
+        initialText: text,
+        initialFields: fields,
+      })
+    },
+    []
+  )
 
   const close = useCallback(() => {
-    setState(s => ({ ...s, isOpen: false }))
+    setState((s) => ({ ...s, isOpen: false }))
   }, [])
 
   return (
-    <NoteSheetContext.Provider value={{ ...state, openNewNote, openEditNote, close, onSaved, setOnSaved }}>
+    <NoteSheetContext.Provider
+      value={{ ...state, openNewNote, openEditNote, close, onSaved, setOnSaved }}
+    >
       {children}
     </NoteSheetContext.Provider>
   )

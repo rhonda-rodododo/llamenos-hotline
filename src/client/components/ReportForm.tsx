@@ -1,16 +1,28 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useToast } from '@/lib/toast'
-import { createReport, getReportCategories } from '@/lib/api'
-import { encryptMessage } from '@/lib/crypto'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Lock, Loader2, Send } from 'lucide-react'
+import { createReport, getReportCategories } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { encryptMessage } from '@/lib/crypto'
+import { useToast } from '@/lib/toast'
+import { Loader2, Lock, Send } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface ReportFormProps {
   open: boolean
@@ -44,7 +56,10 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
 
   const handleSubmit = useCallback(async () => {
     if (!title.trim() || !body.trim()) {
-      toast(t('reports.fillRequired', { defaultValue: 'Please fill in the required fields' }), 'error')
+      toast(
+        t('reports.fillRequired', { defaultValue: 'Please fill in the required fields' }),
+        'error'
+      )
       return
     }
 
@@ -80,7 +95,19 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
     } finally {
       setSubmitting(false)
     }
-  }, [title, body, category, hasNsec, publicKey, adminDecryptionPubkey, toast, t, resetForm, onOpenChange, onCreated])
+  }, [
+    title,
+    body,
+    category,
+    hasNsec,
+    publicKey,
+    adminDecryptionPubkey,
+    toast,
+    t,
+    resetForm,
+    onOpenChange,
+    onCreated,
+  ])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -103,8 +130,10 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
             <Input
               id="report-title"
               value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder={t('reports.titlePlaceholder', { defaultValue: 'Brief description of the report' })}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={t('reports.titlePlaceholder', {
+                defaultValue: 'Brief description of the report',
+              })}
               disabled={submitting}
               maxLength={200}
             />
@@ -115,11 +144,15 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
               <Label>{t('reports.categoryLabel', { defaultValue: 'Category' })}</Label>
               <Select value={category} onValueChange={setCategory} disabled={submitting}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder={t('reports.selectCategory', { defaultValue: 'Select a category' })} />
+                  <SelectValue
+                    placeholder={t('reports.selectCategory', { defaultValue: 'Select a category' })}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -133,8 +166,10 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
             <Textarea
               id="report-body"
               value={body}
-              onChange={e => setBody(e.target.value)}
-              placeholder={t('reports.bodyPlaceholder', { defaultValue: 'Describe the situation in detail...' })}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder={t('reports.bodyPlaceholder', {
+                defaultValue: 'Describe the situation in detail...',
+              })}
               disabled={submitting}
               rows={6}
               className="resize-y"

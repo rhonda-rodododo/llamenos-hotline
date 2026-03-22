@@ -26,7 +26,9 @@ function getPrefs(): NotificationPrefs {
   try {
     const stored = localStorage.getItem(PREFS_KEY)
     if (stored) return JSON.parse(stored)
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { ringtoneEnabled: true, browserNotificationsEnabled: true }
 }
 

@@ -1,14 +1,14 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
 import { SettingsSection } from '@/components/settings-section'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
-import { MessageSquare, Copy, Loader2, CheckCircle2, XCircle } from 'lucide-react'
-import { updateMessagingConfig, testMessagingChannel, type MessagingConfig } from '@/lib/api'
+import { type MessagingConfig, testMessagingChannel, updateMessagingConfig } from '@/lib/api'
+import { useToast } from '@/lib/toast'
+import { CheckCircle2, Copy, Loader2, MessageSquare, XCircle } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface RCSChannelSectionProps {
   config: MessagingConfig
@@ -82,7 +82,9 @@ export function RCSChannelSection({
     <SettingsSection
       id="rcs-channel"
       title={t('rcs.title', { defaultValue: 'RCS Channel' })}
-      description={t('rcs.description', { defaultValue: 'Google RCS Business Messaging for rich messaging experiences.' })}
+      description={t('rcs.description', {
+        defaultValue: 'Google RCS Business Messaging for rich messaging experiences.',
+      })}
       icon={<MessageSquare className="h-5 w-5 text-muted-foreground" />}
       expanded={expanded}
       onToggle={onToggle}
@@ -101,7 +103,9 @@ export function RCSChannelSection({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="rcs-service-key">{t('rcs.serviceAccountKey', { defaultValue: 'Service Account Key (JSON)' })}</Label>
+          <Label htmlFor="rcs-service-key">
+            {t('rcs.serviceAccountKey', { defaultValue: 'Service Account Key (JSON)' })}
+          </Label>
           <textarea
             id="rcs-service-key"
             value={rcs.serviceAccountKey}
@@ -115,11 +119,16 @@ export function RCSChannelSection({
         <div className="space-y-2">
           <Label>{t('rcs.webhookUrl', { defaultValue: 'Webhook URL' })}</Label>
           <div className="flex items-center gap-2">
-            <code className="flex-1 break-all rounded-md bg-muted px-3 py-2 text-xs">{webhookUrl}</code>
+            <code className="flex-1 break-all rounded-md bg-muted px-3 py-2 text-xs">
+              {webhookUrl}
+            </code>
             <Button
               variant="outline"
               size="icon"
-              onClick={() => { navigator.clipboard.writeText(webhookUrl); toast(t('common.success'), 'success') }}
+              onClick={() => {
+                navigator.clipboard.writeText(webhookUrl)
+                toast(t('common.success'), 'success')
+              }}
               aria-label={t('a11y.copyToClipboard')}
             >
               <Copy className="h-3.5 w-3.5" />
@@ -128,7 +137,9 @@ export function RCSChannelSection({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="rcs-webhook-secret">{t('rcs.webhookSecret', { defaultValue: 'Webhook Secret' })}</Label>
+          <Label htmlFor="rcs-webhook-secret">
+            {t('rcs.webhookSecret', { defaultValue: 'Webhook Secret' })}
+          </Label>
           <Input
             id="rcs-webhook-secret"
             type="password"
@@ -142,7 +153,9 @@ export function RCSChannelSection({
           <div className="space-y-0.5">
             <Label>{t('rcs.fallbackToSms', { defaultValue: 'Fallback to SMS' })}</Label>
             <p className="text-xs text-muted-foreground">
-              {t('rcs.fallbackToSmsDesc', { defaultValue: 'Send via SMS when RCS is unavailable for the recipient.' })}
+              {t('rcs.fallbackToSmsDesc', {
+                defaultValue: 'Send via SMS when RCS is unavailable for the recipient.',
+              })}
             </p>
           </div>
           <Switch
@@ -152,7 +165,9 @@ export function RCSChannelSection({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="rcs-auto-response">{t('rcs.autoResponse', { defaultValue: 'Auto-Response' })}</Label>
+          <Label htmlFor="rcs-auto-response">
+            {t('rcs.autoResponse', { defaultValue: 'Auto-Response' })}
+          </Label>
           <Input
             id="rcs-auto-response"
             value={rcs.autoResponse || ''}
@@ -167,7 +182,9 @@ export function RCSChannelSection({
           </Button>
           <Button variant="outline" onClick={handleTest} disabled={testing || !rcs.agentId}>
             {testing ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> {t('telephonyProvider.testing')}</>
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> {t('telephonyProvider.testing')}
+              </>
             ) : (
               t('telephonyProvider.testConnection')
             )}
@@ -175,9 +192,13 @@ export function RCSChannelSection({
           {testResult !== null && (
             <Badge variant="outline" className={testResult ? 'text-green-600' : 'text-red-600'}>
               {testResult ? (
-                <><CheckCircle2 className="h-3 w-3" /> {t('telephonyProvider.testSuccess')}</>
+                <>
+                  <CheckCircle2 className="h-3 w-3" /> {t('telephonyProvider.testSuccess')}
+                </>
               ) : (
-                <><XCircle className="h-3 w-3" /> {t('telephonyProvider.testFailed')}</>
+                <>
+                  <XCircle className="h-3 w-3" /> {t('telephonyProvider.testFailed')}
+                </>
               )}
             </Badge>
           )}

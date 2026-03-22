@@ -1,42 +1,42 @@
-import { createFileRoute, useSearch } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useEffect, useState, useRef } from 'react'
-import {
-  getSpamSettings,
-  updateSpamSettings,
-  getCallSettings,
-  getTranscriptionSettings,
-  updateTranscriptionSettings,
-  getIvrLanguages,
-  listIvrAudio,
-  getCustomFields,
-  getTelephonyProvider,
-  type SpamSettings,
-  type CallSettings,
-  type IvrAudioRecording,
-  type CustomFieldDefinition,
-  type TelephonyProviderConfig,
-  getMessagingConfig,
-} from '@/lib/api'
-import type { MessagingConfig } from '@shared/types'
-import { getWebAuthnSettings, type WebAuthnSettings } from '@/lib/api'
-import { useToast } from '@/lib/toast'
-import { Settings2 } from 'lucide-react'
-import { usePersistedExpanded } from '@/components/settings-section'
-import { IVR_LANGUAGES } from '@shared/languages'
-import { ConfirmDialog } from '@/components/confirm-dialog'
+import { CallSettingsSection } from '@/components/admin-settings/call-settings-section'
+import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-section'
+import { IvrLanguagesSection } from '@/components/admin-settings/ivr-languages-section'
 import { PasskeyPolicySection } from '@/components/admin-settings/passkey-policy-section'
+import { RCSChannelSection } from '@/components/admin-settings/rcs-channel-section'
+import { RolesSection } from '@/components/admin-settings/roles-section'
+import { SignalChannelSection } from '@/components/admin-settings/signal-channel-section'
+import { SpamSection } from '@/components/admin-settings/spam-section'
 import { TelephonyProviderSection } from '@/components/admin-settings/telephony-provider-section'
 import { TranscriptionSection } from '@/components/admin-settings/transcription-section'
-import { IvrLanguagesSection } from '@/components/admin-settings/ivr-languages-section'
-import { CallSettingsSection } from '@/components/admin-settings/call-settings-section'
 import { VoicePromptsSection } from '@/components/admin-settings/voice-prompts-section'
-import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-section'
-import { SpamSection } from '@/components/admin-settings/spam-section'
-import { RolesSection } from '@/components/admin-settings/roles-section'
-import { RCSChannelSection } from '@/components/admin-settings/rcs-channel-section'
-import { SignalChannelSection } from '@/components/admin-settings/signal-channel-section'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { usePersistedExpanded } from '@/components/settings-section'
+import {
+  type CallSettings,
+  type CustomFieldDefinition,
+  type IvrAudioRecording,
+  type SpamSettings,
+  type TelephonyProviderConfig,
+  getCallSettings,
+  getCustomFields,
+  getIvrLanguages,
+  getMessagingConfig,
+  getSpamSettings,
+  getTelephonyProvider,
+  getTranscriptionSettings,
+  listIvrAudio,
+  updateSpamSettings,
+  updateTranscriptionSettings,
+} from '@/lib/api'
+import { type WebAuthnSettings, getWebAuthnSettings } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { useToast } from '@/lib/toast'
+import { IVR_LANGUAGES } from '@shared/languages'
+import type { MessagingConfig } from '@shared/types'
+import { createFileRoute, useSearch } from '@tanstack/react-router'
+import { Settings2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/admin/settings')({
   component: AdminSettingsPage,
@@ -57,17 +57,21 @@ function AdminSettingsPage() {
   const [ivrEnabled, setIvrEnabled] = useState<string[]>([...IVR_LANGUAGES])
   const [ivrAudio, setIvrAudio] = useState<IvrAudioRecording[]>([])
   const [loading, setLoading] = useState(true)
-  const [confirmToggle, setConfirmToggle] = useState<{ key: string; newValue: boolean } | null>(null)
+  const [confirmToggle, setConfirmToggle] = useState<{ key: string; newValue: boolean } | null>(
+    null
+  )
   const [webauthnSettings, setWebauthnSettings] = useState<WebAuthnSettings | null>(null)
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([])
   const [providerConfig, setProviderConfig] = useState<TelephonyProviderConfig | null>(null)
-  const [providerDraft, setProviderDraft] = useState<Partial<TelephonyProviderConfig>>({ type: 'twilio' })
+  const [providerDraft, setProviderDraft] = useState<Partial<TelephonyProviderConfig>>({
+    type: 'twilio',
+  })
   const [messagingConfig, setMessagingConfig] = useState<MessagingConfig | null>(null)
 
   const { expanded, toggleSection } = usePersistedExpanded(
     'settings-expanded:/admin/settings',
     ['passkey-policy'],
-    section || undefined,
+    section || undefined
   )
   const scrolledRef = useRef(false)
 
@@ -76,18 +80,29 @@ function AdminSettingsPage() {
     Promise.all([
       getSpamSettings().then(setSpam),
       getCallSettings().then(setCallSet),
-      getTranscriptionSettings().then(r => {
+      getTranscriptionSettings().then((r) => {
         setGlobalTranscription(r.globalEnabled)
         setAllowVolunteerOptOut(r.allowVolunteerOptOut)
       }),
-      getIvrLanguages().then(r => setIvrEnabled(r.enabledLanguages)),
-      listIvrAudio().then(r => setIvrAudio(r.recordings)),
-      getWebAuthnSettings().then(setWebauthnSettings).catch(() => {}),
-      getCustomFields().then(r => setCustomFieldDefs(r.fields)).catch(() => {}),
-      getTelephonyProvider().then(config => {
-        if (config) { setProviderConfig(config); setProviderDraft(config) }
-      }).catch(() => {}),
-      getMessagingConfig().then(setMessagingConfig).catch(() => {}),
+      getIvrLanguages().then((r) => setIvrEnabled(r.enabledLanguages)),
+      listIvrAudio().then((r) => setIvrAudio(r.recordings)),
+      getWebAuthnSettings()
+        .then(setWebauthnSettings)
+        .catch(() => {}),
+      getCustomFields()
+        .then((r) => setCustomFieldDefs(r.fields))
+        .catch(() => {}),
+      getTelephonyProvider()
+        .then((config) => {
+          if (config) {
+            setProviderConfig(config)
+            setProviderDraft(config)
+          }
+        })
+        .catch(() => {}),
+      getMessagingConfig()
+        .then(setMessagingConfig)
+        .catch(() => {}),
     ])
       .catch(() => toast(t('common.error'), 'error'))
       .finally(() => setLoading(false))
@@ -132,14 +147,18 @@ function AdminSettingsPage() {
   }
 
   const confirmDescriptions: Record<string, string> = {
-    transcription: confirmToggle?.newValue ? t('confirm.transcriptionEnable') : t('confirm.transcriptionDisable'),
+    transcription: confirmToggle?.newValue
+      ? t('confirm.transcriptionEnable')
+      : t('confirm.transcriptionDisable'),
     captcha: confirmToggle?.newValue ? t('confirm.captchaEnable') : t('confirm.captchaDisable'),
-    rateLimit: confirmToggle?.newValue ? t('confirm.rateLimitEnable') : t('confirm.rateLimitDisable'),
+    rateLimit: confirmToggle?.newValue
+      ? t('confirm.rateLimitEnable')
+      : t('confirm.rateLimitDisable'),
   }
 
   // Compute status summaries for collapsed sections
   const passkeyStatus = webauthnSettings
-    ? (webauthnSettings.requireForAdmins && webauthnSettings.requireForVolunteers)
+    ? webauthnSettings.requireForAdmins && webauthnSettings.requireForVolunteers
       ? t('webauthn.requiredAll', { defaultValue: 'Required for all' })
       : webauthnSettings.requireForAdmins
         ? t('webauthn.requiredAdmins', { defaultValue: 'Required for admins' })
@@ -162,9 +181,10 @@ function AdminSettingsPage() {
     ? `${t('settings.queue', { defaultValue: 'Queue' })}: ${callSet.queueTimeoutSeconds || 180}s, ${t('settings.voicemail', { defaultValue: 'VM' })}: ${callSet.voicemailMaxSeconds}s`
     : undefined
 
-  const customFieldsStatus = customFieldDefs.length > 0
-    ? `${customFieldDefs.length} ${t('settings.fields', { defaultValue: 'fields' })}`
-    : t('common.none', { defaultValue: 'None' })
+  const customFieldsStatus =
+    customFieldDefs.length > 0
+      ? `${customFieldDefs.length} ${t('settings.fields', { defaultValue: 'fields' })}`
+      : t('common.none', { defaultValue: 'None' })
 
   const spamStatus = spam
     ? `${t('settings.captcha', { defaultValue: 'CAPTCHA' })}: ${spam.voiceCaptchaEnabled ? t('common.on', { defaultValue: 'on' }) : t('common.off', { defaultValue: 'off' })}, ${t('settings.rateLimit', { defaultValue: 'Rate limit' })}: ${spam.rateLimitEnabled ? t('common.on', { defaultValue: 'on' }) : t('common.off', { defaultValue: 'off' })}`
@@ -242,7 +262,11 @@ function AdminSettingsPage() {
         onRecordingsChange={setIvrAudio}
         expanded={expanded.has('voice-prompts')}
         onToggle={(open) => toggleSection('voice-prompts', open)}
-        statusSummary={ivrAudio.length > 0 ? t('settings.customized', { defaultValue: 'Customized' }) : t('settings.default', { defaultValue: 'Default' })}
+        statusSummary={
+          ivrAudio.length > 0
+            ? t('settings.customized', { defaultValue: 'Customized' })
+            : t('settings.default', { defaultValue: 'Default' })
+        }
       />
 
       <CustomFieldsSection
@@ -270,7 +294,11 @@ function AdminSettingsPage() {
           onConfigChange={setMessagingConfig}
           expanded={expanded.has('rcs-channel')}
           onToggle={(open) => toggleSection('rcs-channel', open)}
-          statusSummary={messagingConfig.rcs ? t('common.configured', { defaultValue: 'Configured' }) : t('settings.notConfigured', { defaultValue: 'Not configured' })}
+          statusSummary={
+            messagingConfig.rcs
+              ? t('common.configured', { defaultValue: 'Configured' })
+              : t('settings.notConfigured', { defaultValue: 'Not configured' })
+          }
         />
       )}
 
@@ -280,13 +308,19 @@ function AdminSettingsPage() {
           onConfigChange={setMessagingConfig}
           expanded={expanded.has('signal-channel')}
           onToggle={(open) => toggleSection('signal-channel', open)}
-          statusSummary={messagingConfig.signal ? t('common.configured', { defaultValue: 'Configured' }) : t('settings.notConfigured', { defaultValue: 'Not configured' })}
+          statusSummary={
+            messagingConfig.signal
+              ? t('common.configured', { defaultValue: 'Configured' })
+              : t('settings.notConfigured', { defaultValue: 'Not configured' })
+          }
         />
       )}
 
       <ConfirmDialog
         open={!!confirmToggle}
-        onOpenChange={(open) => { if (!open) setConfirmToggle(null) }}
+        onOpenChange={(open) => {
+          if (!open) setConfirmToggle(null)
+        }}
         title={confirmToggle ? confirmTitles[confirmToggle.key] : ''}
         description={confirmToggle ? confirmDescriptions[confirmToggle.key] : ''}
         variant="default"

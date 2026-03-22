@@ -1,9 +1,15 @@
-import { useTranslation } from 'react-i18next'
-import type { CustomFieldDefinition } from '@shared/types'
-import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import type { CustomFieldDefinition } from '@shared/types'
+import { useTranslation } from 'react-i18next'
 
 type FieldValue = string | number | boolean
 
@@ -21,7 +27,14 @@ interface Props {
  * disabled state, and proper Switch for checkboxes.
  * Used by NoteSheet, NoteEditForm, ReportForm, and conversation notes.
  */
-export function CustomFieldInputs({ fields, values, onChange, errors, disabled, idPrefix = 'cf' }: Props) {
+export function CustomFieldInputs({
+  fields,
+  values,
+  onChange,
+  errors,
+  disabled,
+  idPrefix = 'cf',
+}: Props) {
   const { t } = useTranslation()
 
   if (fields.length === 0) return null
@@ -33,7 +46,7 @@ export function CustomFieldInputs({ fields, values, onChange, errors, disabled, 
   return (
     <div className="space-y-3 rounded-lg border border-border p-3">
       <p className="text-xs font-medium text-muted-foreground">{t('customFields.title')}</p>
-      {fields.map(field => {
+      {fields.map((field) => {
         const id = `${idPrefix}-${field.id}`
         const value = values[field.id]
         const error = errors?.[field.id]
@@ -43,7 +56,7 @@ export function CustomFieldInputs({ fields, values, onChange, errors, disabled, 
               {field.label}
               {field.required && <span className="text-destructive">*</span>}
             </Label>
-            {renderFieldInput(field, id, value, v => update(field.id, v), disabled, t)}
+            {renderFieldInput(field, id, value, (v) => update(field.id, v), disabled, t)}
             {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
         )
@@ -60,7 +73,7 @@ export function validateCustomFields(
   fields: CustomFieldDefinition[],
   values: Record<string, FieldValue>,
   t: (key: string, opts?: Record<string, unknown>) => string,
-  opts?: { isAdmin?: boolean },
+  opts?: { isAdmin?: boolean }
 ): Record<string, string> {
   const errors: Record<string, string> = {}
   for (const field of fields) {
@@ -73,7 +86,11 @@ export function validateCustomFields(
     }
     if (field.type === 'text' || field.type === 'textarea') {
       const str = (value as string) || ''
-      if (field.validation?.minLength && str.length > 0 && str.length < field.validation.minLength) {
+      if (
+        field.validation?.minLength &&
+        str.length > 0 &&
+        str.length < field.validation.minLength
+      ) {
         errors[field.id] = t('customFields.tooShort', { min: field.validation.minLength })
       }
       if (field.validation?.maxLength && str.length > field.validation.maxLength) {
@@ -99,7 +116,7 @@ function renderFieldInput(
   value: FieldValue | undefined,
   onChange: (v: FieldValue) => void,
   disabled: boolean | undefined,
-  t: (key: string) => string,
+  t: (key: string) => string
 ) {
   switch (field.type) {
     case 'text':
@@ -107,7 +124,7 @@ function renderFieldInput(
         <Input
           id={id}
           value={(value as string) || ''}
-          onChange={e => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           maxLength={field.validation?.maxLength}
         />
@@ -118,7 +135,7 @@ function renderFieldInput(
           id={id}
           type="number"
           value={value !== undefined ? String(value) : ''}
-          onChange={e => onChange(e.target.value ? Number(e.target.value) : '')}
+          onChange={(e) => onChange(e.target.value ? Number(e.target.value) : '')}
           disabled={disabled}
           min={field.validation?.min}
           max={field.validation?.max}
@@ -129,7 +146,7 @@ function renderFieldInput(
         <textarea
           id={id}
           value={(value as string) || ''}
-          onChange={e => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           rows={3}
           maxLength={field.validation?.maxLength}
@@ -139,27 +156,20 @@ function renderFieldInput(
     case 'checkbox':
       return (
         <div className="flex items-center gap-2">
-          <Switch
-            id={id}
-            checked={!!value}
-            onCheckedChange={onChange}
-            disabled={disabled}
-          />
+          <Switch id={id} checked={!!value} onCheckedChange={onChange} disabled={disabled} />
         </div>
       )
     case 'select':
       return (
-        <Select
-          value={(value as string) || undefined}
-          onValueChange={onChange}
-          disabled={disabled}
-        >
+        <Select value={(value as string) || undefined} onValueChange={onChange} disabled={disabled}>
           <SelectTrigger id={id}>
             <SelectValue placeholder={t('customFields.selectOption')} />
           </SelectTrigger>
           <SelectContent>
-            {field.options?.map(opt => (
-              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+            {field.options?.map((opt) => (
+              <SelectItem key={opt} value={opt}>
+                {opt}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>

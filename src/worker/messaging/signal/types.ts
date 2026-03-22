@@ -4,11 +4,11 @@
 
 export interface SignalWebhookPayload {
   envelope: {
-    source: string          // phone number
-    sourceUuid?: string     // Signal UUID
-    sourceName?: string     // profile name
+    source: string // phone number
+    sourceUuid?: string // Signal UUID
+    sourceName?: string // profile name
     sourceDevice?: number
-    timestamp: number       // Unix timestamp in milliseconds
+    timestamp: number // Unix timestamp in milliseconds
     dataMessage?: {
       message?: string
       timestamp: number
@@ -44,8 +44,8 @@ export interface SignalAttachment {
 }
 
 export interface SignalSendRequest {
-  number: string           // sender (bridge registered number)
-  recipients: string[]     // recipient phone numbers
+  number: string // sender (bridge registered number)
+  recipients: string[] // recipient phone numbers
   message?: string
   base64_attachments?: string[]
 }

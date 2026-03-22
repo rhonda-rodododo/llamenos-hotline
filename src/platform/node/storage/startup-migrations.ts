@@ -1,11 +1,11 @@
+import { migrations } from '../../../shared/migrations'
+import { runMigrations } from '../../../shared/migrations/runner'
 /**
  * Run migrations for all existing namespaces at Node.js server startup.
  * Uses advisory locks to prevent concurrent migration across replicas.
  */
 import { getPool } from './postgres-pool'
 import { PostgresStorage } from './postgres-storage'
-import { runMigrations } from '../../../shared/migrations/runner'
-import { migrations } from '../../../shared/migrations'
 
 export async function runStartupMigrations(): Promise<void> {
   if (migrations.length === 0) {

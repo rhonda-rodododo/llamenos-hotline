@@ -1,38 +1,38 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useTheme } from '@/lib/theme'
-import { useNoteSheet } from '@/lib/note-sheet-context'
-import {
-  CommandDialog,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandShortcut,
-} from '@/components/ui/command'
 import { triggerShortcutsDialog } from '@/components/keyboard-shortcuts-dialog'
 import {
-  LayoutDashboard,
-  StickyNote,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from '@/components/ui/command'
+import { useAuth } from '@/lib/auth'
+import { useNoteSheet } from '@/lib/note-sheet-context'
+import { useTheme } from '@/lib/theme'
+import { useNavigate } from '@tanstack/react-router'
+import {
   Clock,
-  Users,
-  ShieldBan,
-  PhoneIncoming,
-  ScrollText,
-  Settings,
-  LogOut,
   Coffee,
-  Sun,
-  Moon,
-  Monitor,
-  Plus,
-  Search,
-  Keyboard,
   HelpCircle,
+  Keyboard,
+  LayoutDashboard,
+  LogOut,
+  Monitor,
+  Moon,
+  PhoneIncoming,
+  Plus,
+  ScrollText,
+  Search,
+  Settings,
+  ShieldBan,
+  StickyNote,
+  Sun,
+  Users,
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 let openCommandPalette: (() => void) | null = null
 
@@ -54,14 +54,16 @@ export function CommandPalette() {
 
   useEffect(() => {
     openCommandPalette = () => setOpen(true)
-    return () => { openCommandPalette = null }
+    return () => {
+      openCommandPalette = null
+    }
   }, [])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        setOpen(prev => !prev)
+        setOpen((prev) => !prev)
       }
     }
     document.addEventListener('keydown', onKeyDown)
@@ -92,12 +94,30 @@ export function CommandPalette() {
           {/* Search shortcuts — shown when user types a query */}
           {searchQuery.trim().length > 1 && (
             <CommandGroup heading={t('common.search')}>
-              <CommandItem onSelect={() => runCommand(() => navigate({ to: '/notes', search: { page: 1, callId: '', search: searchQuery.trim() } }))}>
+              <CommandItem
+                onSelect={() =>
+                  runCommand(() =>
+                    navigate({
+                      to: '/notes',
+                      search: { page: 1, callId: '', search: searchQuery.trim() },
+                    })
+                  )
+                }
+              >
                 <Search className="h-4 w-4" />
                 {t('commandPalette.searchNotes', { query: searchQuery.trim() })}
               </CommandItem>
               {isAdmin && (
-                <CommandItem onSelect={() => runCommand(() => navigate({ to: '/calls', search: { page: 1, q: searchQuery.trim(), dateFrom: '', dateTo: '' } }))}>
+                <CommandItem
+                  onSelect={() =>
+                    runCommand(() =>
+                      navigate({
+                        to: '/calls',
+                        search: { page: 1, q: searchQuery.trim(), dateFrom: '', dateTo: '' },
+                      })
+                    )
+                  }
+                >
                   <Search className="h-4 w-4" />
                   {t('commandPalette.searchCalls', { query: searchQuery.trim() })}
                 </CommandItem>
@@ -111,18 +131,32 @@ export function CommandPalette() {
               <LayoutDashboard className="h-4 w-4" />
               {t('nav.dashboard')}
             </CommandItem>
-            <CommandItem onSelect={() => runCommand(() => navigate({ to: '/notes', search: { page: 1, callId: '', search: '' } }))}>
+            <CommandItem
+              onSelect={() =>
+                runCommand(() =>
+                  navigate({ to: '/notes', search: { page: 1, callId: '', search: '' } })
+                )
+              }
+            >
               <StickyNote className="h-4 w-4" />
               {t('nav.notes')}
               <CommandShortcut>{mod}+Shift+F</CommandShortcut>
             </CommandItem>
-            <CommandItem onSelect={() => runCommand(() => navigate({ to: '/settings', search: { section: '' } }))}>
+            <CommandItem
+              onSelect={() =>
+                runCommand(() => navigate({ to: '/settings', search: { section: '' } }))
+              }
+            >
               <Settings className="h-4 w-4" />
               {t('nav.settings')}
             </CommandItem>
             {isAdmin && (
               <>
-                <CommandItem onSelect={() => runCommand(() => navigate({ to: '/admin/settings', search: { section: '' } }))}>
+                <CommandItem
+                  onSelect={() =>
+                    runCommand(() => navigate({ to: '/admin/settings', search: { section: '' } }))
+                  }
+                >
                   <Settings className="h-4 w-4" />
                   {t('nav.hubSettings', { defaultValue: 'Hub Settings' })}
                 </CommandItem>
@@ -138,7 +172,16 @@ export function CommandPalette() {
                   <ShieldBan className="h-4 w-4" />
                   {t('nav.banList')}
                 </CommandItem>
-                <CommandItem onSelect={() => runCommand(() => navigate({ to: '/calls', search: { page: 1, q: '', dateFrom: '', dateTo: '' } }))}>
+                <CommandItem
+                  onSelect={() =>
+                    runCommand(() =>
+                      navigate({
+                        to: '/calls',
+                        search: { page: 1, q: '', dateFrom: '', dateTo: '' },
+                      })
+                    )
+                  }
+                >
                   <PhoneIncoming className="h-4 w-4" />
                   {t('nav.callHistory')}
                 </CommandItem>
@@ -171,7 +214,14 @@ export function CommandPalette() {
               {t('shortcuts.title')}
               <CommandShortcut>?</CommandShortcut>
             </CommandItem>
-            <CommandItem onSelect={() => runCommand(() => { signOut(); navigate({ to: '/login' }) })}>
+            <CommandItem
+              onSelect={() =>
+                runCommand(() => {
+                  signOut()
+                  navigate({ to: '/login' })
+                })
+              }
+            >
               <LogOut className="h-4 w-4" />
               {t('common.logout')}
             </CommandItem>

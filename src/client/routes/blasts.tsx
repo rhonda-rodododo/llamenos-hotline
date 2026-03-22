@@ -1,17 +1,17 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useState, useEffect } from 'react'
-import { listBlasts, deleteBlast, sendBlast, cancelBlast } from '@/lib/api'
-import type { Blast } from '@/lib/api'
-import { useToast } from '@/lib/toast'
-import { Megaphone, Plus, Send, XCircle, Trash2, Users, Settings2 } from 'lucide-react'
+import { BlastComposer } from '@/components/BlastComposer'
+import { BlastSettingsPanel } from '@/components/BlastSettingsPanel'
+import { SubscriberManager } from '@/components/SubscriberManager'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { BlastComposer } from '@/components/BlastComposer'
-import { SubscriberManager } from '@/components/SubscriberManager'
-import { BlastSettingsPanel } from '@/components/BlastSettingsPanel'
+import { cancelBlast, deleteBlast, listBlasts, sendBlast } from '@/lib/api'
+import type { Blast } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { useToast } from '@/lib/toast'
+import { createFileRoute } from '@tanstack/react-router'
+import { Megaphone, Plus, Send, Settings2, Trash2, Users, XCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/blasts')({
   component: BlastsPage,
@@ -46,7 +46,7 @@ function BlastsPage() {
   async function handleDelete(id: string) {
     try {
       await deleteBlast(id)
-      setBlasts(prev => prev.filter(b => b.id !== id))
+      setBlasts((prev) => prev.filter((b) => b.id !== id))
       if (selectedBlast?.id === id) setSelectedBlast(null)
       toast(t('common.success'), 'success')
     } catch {
@@ -57,7 +57,7 @@ function BlastsPage() {
   async function handleSend(id: string) {
     try {
       const res = await sendBlast(id)
-      setBlasts(prev => prev.map(b => b.id === id ? res.blast : b))
+      setBlasts((prev) => prev.map((b) => (b.id === id ? res.blast : b)))
       setSelectedBlast(res.blast)
       toast(t('blasts.sent'), 'success')
     } catch {
@@ -68,7 +68,7 @@ function BlastsPage() {
   async function handleCancel(id: string) {
     try {
       const res = await cancelBlast(id)
-      setBlasts(prev => prev.map(b => b.id === id ? res.blast : b))
+      setBlasts((prev) => prev.map((b) => (b.id === id ? res.blast : b)))
       setSelectedBlast(res.blast)
       toast(t('common.success'), 'success')
     } catch {
@@ -129,7 +129,12 @@ function BlastsPage() {
             {t('common.settings')}
           </Button>
           {hasPermission('blasts:send') && (
-            <Button onClick={() => { setShowComposer(true); setSelectedBlast(null) }}>
+            <Button
+              onClick={() => {
+                setShowComposer(true)
+                setSelectedBlast(null)
+              }}
+            >
               <Plus className="h-4 w-4" />
               {t('blasts.newBlast')}
             </Button>
@@ -148,13 +153,18 @@ function BlastsPage() {
               {loading ? (
                 <div className="p-4 text-center text-muted-foreground">{t('common.loading')}</div>
               ) : blasts.length === 0 ? (
-                <div className="p-6 text-center text-muted-foreground" data-testid="no-blasts">{t('blasts.noBlasts')}</div>
+                <div className="p-6 text-center text-muted-foreground" data-testid="no-blasts">
+                  {t('blasts.noBlasts')}
+                </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {blasts.map(blast => (
+                  {blasts.map((blast) => (
                     <button
                       key={blast.id}
-                      onClick={() => { setSelectedBlast(blast); setShowComposer(false) }}
+                      onClick={() => {
+                        setSelectedBlast(blast)
+                        setShowComposer(false)
+                      }}
                       className={`w-full px-4 py-3 text-left transition-colors hover:bg-accent ${
                         selectedBlast?.id === blast.id ? 'bg-accent' : ''
                       }`}
@@ -166,11 +176,18 @@ function BlastsPage() {
                         </Badge>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground truncate">
-                        {blast.content.text.slice(0, 60)}{blast.content.text.length > 60 ? '...' : ''}
+                        {blast.content.text.slice(0, 60)}
+                        {blast.content.text.length > 60 ? '...' : ''}
                       </p>
                       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{blast.stats.totalRecipients} {t('blasts.recipients')}</span>
-                        {blast.stats.sent > 0 && <span>{blast.stats.sent} {t('blasts.sentCount')}</span>}
+                        <span>
+                          {blast.stats.totalRecipients} {t('blasts.recipients')}
+                        </span>
+                        {blast.stats.sent > 0 && (
+                          <span>
+                            {blast.stats.sent} {t('blasts.sentCount')}
+                          </span>
+                        )}
                       </div>
                     </button>
                   ))}
@@ -185,7 +202,7 @@ function BlastsPage() {
           {showComposer ? (
             <BlastComposer
               onCreated={(blast) => {
-                setBlasts(prev => [blast, ...prev])
+                setBlasts((prev) => [blast, ...prev])
                 setShowComposer(false)
                 setSelectedBlast(blast)
               }}
@@ -232,7 +249,11 @@ function BlastsPage() {
                         <Send className="h-4 w-4" />
                         {t('blasts.sendNow')}
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(selectedBlast.id)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(selectedBlast.id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                         {t('common.delete')}
                       </Button>

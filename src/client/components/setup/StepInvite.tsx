@@ -1,11 +1,7 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
-import { createInvite, type InviteCode } from '@/lib/api'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -13,7 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { UserPlus, Copy, Loader2, Check } from 'lucide-react'
+import { type InviteCode, createInvite } from '@/lib/api'
+import { useToast } from '@/lib/toast'
+import { Check, Copy, Loader2, UserPlus } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   headingRef?: React.RefObject<HTMLHeadingElement | null>
@@ -33,8 +33,12 @@ export function StepInvite({ headingRef }: Props = {}) {
     if (!name.trim() || !phone.trim()) return
     setGenerating(true)
     try {
-      const { invite } = await createInvite({ name: name.trim(), phone: phone.trim(), roleIds: [roleId] })
-      setInvites(prev => [invite, ...prev])
+      const { invite } = await createInvite({
+        name: name.trim(),
+        phone: phone.trim(),
+        roleIds: [roleId],
+      })
+      setInvites((prev) => [invite, ...prev])
       setName('')
       setPhone('')
       toast(t('setup.inviteCreated'), 'success')
@@ -56,7 +60,9 @@ export function StepInvite({ headingRef }: Props = {}) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 ref={headingRef} tabIndex={-1} className="text-lg font-semibold outline-none">{t('setup.inviteTitle')}</h2>
+        <h2 ref={headingRef} tabIndex={-1} className="text-lg font-semibold outline-none">
+          {t('setup.inviteTitle')}
+        </h2>
         <p className="text-sm text-muted-foreground mt-1">{t('setup.inviteDescription')}</p>
       </div>
 
@@ -72,7 +78,7 @@ export function StepInvite({ headingRef }: Props = {}) {
             <Label>{t('volunteers.name')}</Label>
             <Input
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
               placeholder={t('setup.namePlaceholder')}
             />
           </div>
@@ -80,7 +86,7 @@ export function StepInvite({ headingRef }: Props = {}) {
             <Label>{t('volunteers.phone')}</Label>
             <Input
               value={phone}
-              onChange={e => setPhone(e.target.value)}
+              onChange={(e) => setPhone(e.target.value)}
               placeholder="+12125551234"
             />
           </div>
@@ -105,7 +111,11 @@ export function StepInvite({ headingRef }: Props = {}) {
           aria-busy={generating}
           className="w-full"
         >
-          {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+          {generating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <UserPlus className="h-4 w-4" />
+          )}
           {generating ? t('common.loading') : t('setup.generateInvite')}
         </Button>
       </div>
@@ -115,7 +125,7 @@ export function StepInvite({ headingRef }: Props = {}) {
         <div className="space-y-3">
           <h3 className="text-sm font-semibold">{t('setup.generatedInvites')}</h3>
           <div className="space-y-2">
-            {invites.map(invite => (
+            {invites.map((invite) => (
               <div
                 key={invite.code}
                 className="flex items-center justify-between rounded-lg border bg-muted/50 p-3"
@@ -124,16 +134,14 @@ export function StepInvite({ headingRef }: Props = {}) {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{invite.name}</span>
                     <Badge variant="outline" className="text-[10px]">
-                      {invite.roleIds?.includes('role-super-admin') ? t('volunteers.roleAdmin') : t('volunteers.roleVolunteer')}
+                      {invite.roleIds?.includes('role-super-admin')
+                        ? t('volunteers.roleAdmin')
+                        : t('volunteers.roleVolunteer')}
                     </Badge>
                   </div>
                   <p className="font-mono text-xs text-muted-foreground">{invite.code}</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyInviteLink(invite.code)}
-                >
+                <Button variant="ghost" size="sm" onClick={() => copyInviteLink(invite.code)}>
                   {copiedCode === invite.code ? (
                     <Check className="h-3.5 w-3.5 text-green-500" />
                   ) : (

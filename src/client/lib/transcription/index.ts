@@ -1,4 +1,9 @@
-export { TranscriptionManager, type TranscriptionModel, type TranscriptionStatus, type TranscriptionProgress } from './transcription-manager'
+export {
+  TranscriptionManager,
+  type TranscriptionModel,
+  type TranscriptionStatus,
+  type TranscriptionProgress,
+} from './transcription-manager'
 export {
   useTranscription,
   getClientTranscriptionSettings,

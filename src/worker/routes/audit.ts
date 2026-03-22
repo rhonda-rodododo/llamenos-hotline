@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
-import type { AppEnv } from '../types'
 import { getScopedDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
+import type { AppEnv } from '../types'
 
 const auditRoutes = new Hono<AppEnv>()
 auditRoutes.use('*', requirePermission('audit:read'))

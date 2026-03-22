@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import { listSubscribers, removeSubscriber, importSubscribers, getSubscriberStats } from '@/lib/api'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { getSubscriberStats, importSubscribers, listSubscribers, removeSubscriber } from '@/lib/api'
 import type { Subscriber } from '@/lib/api'
 import { useToast } from '@/lib/toast'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Trash2, Upload, Users } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface SubscriberStatsData {
   total: number
@@ -30,10 +30,7 @@ export function SubscriberManager() {
 
   async function loadData() {
     try {
-      const [subsRes, statsRes] = await Promise.all([
-        listSubscribers(),
-        getSubscriberStats(),
-      ])
+      const [subsRes, statsRes] = await Promise.all([listSubscribers(), getSubscriberStats()])
       setSubscribers(subsRes.subscribers)
       setStats(statsRes)
     } catch {
@@ -46,7 +43,7 @@ export function SubscriberManager() {
   async function handleRemove(id: string) {
     try {
       await removeSubscriber(id)
-      setSubscribers(prev => prev.filter(s => s.id !== id))
+      setSubscribers((prev) => prev.filter((s) => s.id !== id))
       toast(t('common.success'), 'success')
     } catch {
       toast(t('common.error'), 'error')
@@ -57,9 +54,12 @@ export function SubscriberManager() {
     if (!csvData.trim()) return
     setImporting(true)
     try {
-      const lines = csvData.trim().split('\n').filter(l => l.trim())
-      const subs = lines.map(line => {
-        const [identifier, channel = 'sms', ...tags] = line.split(',').map(s => s.trim())
+      const lines = csvData
+        .trim()
+        .split('\n')
+        .filter((l) => l.trim())
+      const subs = lines.map((line) => {
+        const [identifier, channel = 'sms', ...tags] = line.split(',').map((s) => s.trim())
         return { identifier, channel, tags: tags.length > 0 ? tags : undefined }
       })
       const res = await importSubscribers({ subscribers: subs })
@@ -140,21 +140,35 @@ export function SubscriberManager() {
             <div className="p-6 text-center text-muted-foreground">{t('blasts.noSubscribers')}</div>
           ) : (
             <div className="divide-y divide-border">
-              {subscribers.map(sub => (
+              {subscribers.map((sub) => (
                 <div key={sub.id} className="flex items-center justify-between px-4 py-3">
                   <div>
                     <p className="font-mono text-xs">{sub.identifierHash.slice(0, 16)}...</p>
                     <div className="flex items-center gap-1 mt-1">
-                      {sub.channels.map(ch => (
-                        <Badge key={ch.type} variant="outline" className="text-[10px]">{ch.type.toUpperCase()}</Badge>
+                      {sub.channels.map((ch) => (
+                        <Badge key={ch.type} variant="outline" className="text-[10px]">
+                          {ch.type.toUpperCase()}
+                        </Badge>
                       ))}
-                      {sub.tags.map(tag => (
-                        <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>
+                      {sub.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-[10px]">
+                          {tag}
+                        </Badge>
                       ))}
-                      <Badge variant={sub.status === 'active' ? 'default' : 'outline'} className="text-[10px]">{sub.status}</Badge>
+                      <Badge
+                        variant={sub.status === 'active' ? 'default' : 'outline'}
+                        className="text-[10px]"
+                      >
+                        {sub.status}
+                      </Badge>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon-xs" onClick={() => handleRemove(sub.id)} className="text-destructive">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => handleRemove(sub.id)}
+                    className="text-destructive"
+                  >
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>

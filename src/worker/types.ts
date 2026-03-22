@@ -1,5 +1,5 @@
 import type { BlobStorage, TranscriptionService } from '../platform/types'
-import type { MessagingChannelType, RecipientEnvelope, KeyEnvelope } from '../shared/types'
+import type { KeyEnvelope, MessagingChannelType, RecipientEnvelope } from '../shared/types'
 
 /**
  * Environment bindings.
@@ -56,8 +56,8 @@ export interface Env {
   DEV_RESET_SECRET?: string
 
   // Demo mode (CF Cron Trigger resets all DOs on schedule)
-  DEMO_MODE?: string              // "true" to enable
-  DEMO_RESET_CRON?: string        // Human-readable schedule label (e.g., "every 4 hours")
+  DEMO_MODE?: string // "true" to enable
+  DEMO_RESET_CRON?: string // Human-readable schedule label (e.g., "every 4 hours")
 
   // Server Nostr identity (Epic 76.1) — hex secret for HKDF keypair derivation
   SERVER_NOSTR_SECRET?: string
@@ -68,12 +68,12 @@ export interface Env {
   NOSTR_RELAY_PUBLIC_URL?: string
 
   // Push notifications (Epic 86) — APNs (iOS)
-  APNS_KEY_P8?: string       // Apple Push Notification auth key (PEM format)
-  APNS_KEY_ID?: string       // Key ID from Apple Developer Portal
-  APNS_TEAM_ID?: string      // Apple Developer Team ID
+  APNS_KEY_P8?: string // Apple Push Notification auth key (PEM format)
+  APNS_KEY_ID?: string // Key ID from Apple Developer Portal
+  APNS_TEAM_ID?: string // Apple Developer Team ID
 
   // Push notifications (Epic 86) — FCM (Android)
-  FCM_SERVICE_ACCOUNT_KEY?: string  // Google Cloud service account JSON
+  FCM_SERVICE_ACCOUNT_KEY?: string // Google Cloud service account JSON
 }
 
 /** @deprecated Use roles array + permission system instead */
@@ -83,20 +83,20 @@ export interface Volunteer {
   pubkey: string
   name: string
   phone: string
-  roles: string[]            // Global role IDs (e.g., ['role-super-admin', 'role-volunteer'])
-  hubRoles?: { hubId: string; roleIds: string[] }[]  // Per-hub role assignments
+  roles: string[] // Global role IDs (e.g., ['role-super-admin', 'role-volunteer'])
+  hubRoles?: { hubId: string; roleIds: string[] }[] // Per-hub role assignments
   active: boolean
   createdAt: string
   encryptedSecretKey: string // Admin-encrypted copy of the volunteer's nsec
   transcriptionEnabled: boolean
-  spokenLanguages: string[]  // Languages volunteer can take calls in (e.g. ['en', 'es'])
-  uiLanguage: string         // Preferred UI language
-  profileCompleted: boolean  // Whether first-login setup is done
-  onBreak: boolean           // Temporarily unavailable (still on shift)
-  callPreference: 'phone' | 'browser' | 'both'  // How to receive calls (default: 'phone')
+  spokenLanguages: string[] // Languages volunteer can take calls in (e.g. ['en', 'es'])
+  uiLanguage: string // Preferred UI language
+  profileCompleted: boolean // Whether first-login setup is done
+  onBreak: boolean // Temporarily unavailable (still on shift)
+  callPreference: 'phone' | 'browser' | 'both' // How to receive calls (default: 'phone')
   // Messaging channel capabilities (Epic 68)
-  supportedMessagingChannels?: MessagingChannelType[]  // SMS, WhatsApp, Signal, RCS (empty = all)
-  messagingEnabled?: boolean  // Whether volunteer can handle messaging conversations
+  supportedMessagingChannels?: MessagingChannelType[] // SMS, WhatsApp, Signal, RCS (empty = all)
+  messagingEnabled?: boolean // Whether volunteer can handle messaging conversations
 }
 
 export interface Shift {
@@ -143,19 +143,19 @@ export interface CallRecord {
  */
 export interface EncryptedCallRecord {
   id: string
-  callerLast4?: string           // For display (not sensitive)
-  startedAt: string              // Needed for ordering/pagination
-  endedAt?: string               // Needed for duration display
-  duration?: number              // Acceptable trade-off (no PII)
+  callerLast4?: string // For display (not sensitive)
+  startedAt: string // Needed for ordering/pagination
+  endedAt?: string // Needed for duration display
+  duration?: number // Acceptable trade-off (no PII)
   status: 'completed' | 'unanswered'
   hasTranscription: boolean
   hasVoicemail: boolean
   hasRecording?: boolean
-  recordingSid?: string          // Twilio ID (not PII, server needs to update post-encryption)
+  recordingSid?: string // Twilio ID (not PII, server needs to update post-encryption)
 
   // Envelope-pattern encryption for admin(s)
-  encryptedContent: string       // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
-  adminEnvelopes: RecipientEnvelope[]  // Per-record key wrapped for each admin
+  encryptedContent: string // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
+  adminEnvelopes: RecipientEnvelope[] // Per-record key wrapped for each admin
 }
 
 /**
@@ -163,15 +163,15 @@ export interface EncryptedCallRecord {
  * Only visible after admin decryption.
  */
 export interface CallRecordMetadata {
-  answeredBy: string | null      // Volunteer pubkey
-  callerNumber: string           // HMAC-hashed phone number
+  answeredBy: string | null // Volunteer pubkey
+  callerNumber: string // HMAC-hashed phone number
 }
 
 export interface EncryptedNote {
   id: string
-  callId?: string              // links to a voice call
-  conversationId?: string      // links to a conversation (Epic 123)
-  contactHash?: string         // links to a contact for contact-level view (Epic 123)
+  callId?: string // links to a voice call
+  conversationId?: string // links to a conversation (Epic 123)
+  contactHash?: string // links to a contact for contact-level view (Epic 123)
   authorPubkey: string
   encryptedContent: string
   createdAt: string
@@ -180,7 +180,7 @@ export interface EncryptedNote {
   // V2 per-note ECIES envelopes (forward secrecy)
   authorEnvelope?: KeyEnvelope
   adminEnvelopes?: RecipientEnvelope[]
-  replyCount?: number          // cached count of replies (Epic 123)
+  replyCount?: number // cached count of replies (Epic 123)
 }
 
 export interface AuditLogEntry {
@@ -190,8 +190,8 @@ export interface AuditLogEntry {
   details: Record<string, unknown>
   createdAt: string
   // Tamper detection (Epic 77)
-  previousEntryHash?: string     // SHA-256 of previous entry (chain link)
-  entryHash?: string             // SHA-256 of this entry's content (for chain verification)
+  previousEntryHash?: string // SHA-256 of previous entry (chain link)
+  entryHash?: string // SHA-256 of this entry's content (for chain verification)
 }
 
 export interface SpamSettings {
@@ -202,15 +202,15 @@ export interface SpamSettings {
 }
 
 export interface CallSettings {
-  queueTimeoutSeconds: number   // 30-300, default 90
-  voicemailMaxSeconds: number   // 30-300, default 120
+  queueTimeoutSeconds: number // 30-300, default 90
+  voicemailMaxSeconds: number // 30-300, default 120
 }
 
 export interface InviteCode {
   code: string
   name: string
   phone: string
-  roleIds: string[]          // Role IDs to assign on redemption
+  roleIds: string[] // Role IDs to assign on redemption
   createdBy: string
   createdAt: string
   expiresAt: string
@@ -219,12 +219,12 @@ export interface InviteCode {
 }
 
 export interface WebAuthnCredential {
-  id: string              // Base64URL credential ID
-  publicKey: string       // Base64URL public key bytes
-  counter: number         // Signature counter (clone detection)
-  transports: string[]    // ['internal', 'hybrid', etc.]
-  backedUp: boolean       // Cloud-synced passkey
-  label: string           // User-assigned name ("My Phone")
+  id: string // Base64URL credential ID
+  publicKey: string // Base64URL public key bytes
+  counter: number // Signature counter (clone detection)
+  transports: string[] // ['internal', 'hybrid', etc.]
+  backedUp: boolean // Cloud-synced passkey
+  label: string // User-assigned name ("My Phone")
   createdAt: string
   lastUsedAt: string
 }
@@ -235,10 +235,10 @@ export interface WebAuthnSettings {
 }
 
 export interface ServerSession {
-  token: string           // Random 256-bit hex
-  pubkey: string          // Which user
+  token: string // Random 256-bit hex
+  pubkey: string // Which user
   createdAt: string
-  expiresAt: string       // 8-hour expiry
+  expiresAt: string // 8-hour expiry
 }
 
 export interface AuthPayload {
@@ -254,21 +254,21 @@ export type ConversationStatus = 'active' | 'waiting' | 'closed'
 export interface Conversation {
   id: string
   channelType: MessagingChannelType | 'web'
-  contactIdentifierHash: string   // hashed phone/ID
-  contactLast4?: string           // last 4 digits (admin-only, like callerLast4)
-  assignedTo?: string             // volunteer pubkey
+  contactIdentifierHash: string // hashed phone/ID
+  contactLast4?: string // last 4 digits (admin-only, like callerLast4)
+  assignedTo?: string // volunteer pubkey
   status: ConversationStatus
   createdAt: string
   updatedAt: string
   lastMessageAt: string
   messageCount: number
   metadata?: {
-    linkedCallId?: string         // if conversation started from a call
-    reportId?: string             // if conversation is a report thread
-    type?: 'report'               // report conversations
-    reportTitle?: string          // encrypted
+    linkedCallId?: string // if conversation started from a call
+    reportId?: string // if conversation is a report thread
+    type?: 'report' // report conversations
+    reportTitle?: string // encrypted
     reportCategory?: string
-    customFieldValues?: string    // encrypted JSON of custom field values
+    customFieldValues?: string // encrypted JSON of custom field values
   }
 }
 
@@ -285,20 +285,20 @@ export interface EncryptedMessage {
   id: string
   conversationId: string
   direction: 'inbound' | 'outbound'
-  authorPubkey: string             // volunteer pubkey or 'system:inbound'
-  encryptedContent: string         // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
+  authorPubkey: string // volunteer pubkey or 'system:inbound'
+  encryptedContent: string // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
   // Per-reader key envelopes (ECIES-wrapped message key)
   readerEnvelopes: RecipientEnvelope[]
   hasAttachments: boolean
-  attachmentIds?: string[]         // references to R2 encrypted blobs
+  attachmentIds?: string[] // references to R2 encrypted blobs
   createdAt: string
-  externalId?: string              // provider's message ID
+  externalId?: string // provider's message ID
   // Delivery status tracking (Epic 71)
-  status?: MessageDeliveryStatus   // delivery status (default: 'pending' for outbound)
-  deliveredAt?: string             // ISO timestamp when delivered
-  readAt?: string                  // ISO timestamp when read (if supported)
-  failureReason?: string           // error message for failed messages
-  retryCount?: number              // number of retry attempts
+  status?: MessageDeliveryStatus // delivery status (default: 'pending' for outbound)
+  deliveredAt?: string // ISO timestamp when delivered
+  readAt?: string // ISO timestamp when read (if supported)
+  failureReason?: string // error message for failed messages
+  retryCount?: number // number of retry attempts
 }
 
 /** @deprecated Use RecipientEnvelope from @shared/types instead. */
@@ -309,7 +309,7 @@ export type MessageKeyEnvelope = RecipientEnvelope
 export interface BlastQueueItem {
   subscriberId: string
   channel: MessagingChannelType
-  identifier: string            // actual phone/contact (server-only, not stored)
+  identifier: string // actual phone/contact (server-only, not stored)
   status: 'pending' | 'sent' | 'failed'
   error?: string
   sentAt?: string
@@ -327,7 +327,7 @@ export interface BlastDeliveryQueue {
 export interface DeviceRecord {
   platform: 'ios' | 'android'
   pushToken: string
-  wakeKeyPublic: string      // secp256k1 compressed pubkey (hex) for wake-tier ECIES
+  wakeKeyPublic: string // secp256k1 compressed pubkey (hex) for wake-tier ECIES
   registeredAt: string
   lastSeenAt: string
 }

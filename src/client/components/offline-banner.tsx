@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
 import { WifiOff } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 /**
  * Shows a prominent banner when the browser goes offline.
@@ -30,7 +30,10 @@ export function OfflineBanner() {
       className="flex items-center justify-center gap-2 bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground"
     >
       <WifiOff className="h-4 w-4" />
-      {t('common.offline', { defaultValue: 'You are offline. Calls and messages will not work until connectivity is restored.' })}
+      {t('common.offline', {
+        defaultValue:
+          'You are offline. Calls and messages will not work until connectivity is restored.',
+      })}
     </div>
   )
 }

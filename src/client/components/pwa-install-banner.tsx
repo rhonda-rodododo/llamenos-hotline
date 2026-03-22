@@ -1,16 +1,14 @@
+import { usePwaInstall } from '@/lib/use-pwa-install'
+import { Download, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Download, X } from 'lucide-react'
-import { usePwaInstall } from '@/lib/use-pwa-install'
 
 const DISMISS_KEY = 'llamenos-pwa-install-dismissed'
 
 export function PwaInstallBanner() {
   const { t } = useTranslation()
   const { canInstall, isInstalled, promptInstall } = usePwaInstall()
-  const [dismissed, setDismissed] = useState(() =>
-    localStorage.getItem(DISMISS_KEY) === 'true'
-  )
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === 'true')
 
   if (dismissed || !canInstall || isInstalled) return null
 
@@ -22,12 +20,14 @@ export function PwaInstallBanner() {
       </p>
       <div className="flex items-center gap-2 shrink-0">
         <button
+          type="button"
           onClick={() => promptInstall()}
           className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
         >
           {t('pwa.installButton')}
         </button>
         <button
+          type="button"
           onClick={() => {
             localStorage.setItem(DISMISS_KEY, 'true')
             setDismissed(true)

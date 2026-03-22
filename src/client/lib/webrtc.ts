@@ -17,7 +17,7 @@ export type WebRtcState = 'idle' | 'initializing' | 'ready' | 'ringing' | 'conne
 type StateChangeHandler = (state: WebRtcState, error?: string) => void
 
 let currentState: WebRtcState = 'idle'
-let stateHandlers = new Set<StateChangeHandler>()
+const stateHandlers = new Set<StateChangeHandler>()
 let currentProvider: string | null = null
 let twilioDevice: TwilioDevice | null = null
 let activeConnection: TwilioConnection | null = null
@@ -44,7 +44,7 @@ interface TwilioConnection {
 
 function setState(state: WebRtcState, error?: string) {
   currentState = state
-  stateHandlers.forEach(h => h(state, error))
+  stateHandlers.forEach((h) => h(state, error))
 }
 
 export function onStateChange(handler: StateChangeHandler): () => void {
@@ -101,8 +101,11 @@ async function initTwilioWebRtc(token: string): Promise<void> {
     // Dynamic import — only loads when WebRTC is actually used.
     // Uses a variable to prevent TypeScript from resolving at compile time.
     const sdkModule = '@twilio/voice-sdk'
-    const { Device } = await import(/* @vite-ignore */ sdkModule) as {
-      Device: new (token: string, opts: Record<string, unknown>) => TwilioDevice & { register: () => Promise<void> }
+    const { Device } = (await import(/* @vite-ignore */ sdkModule)) as {
+      Device: new (
+        token: string,
+        opts: Record<string, unknown>
+      ) => TwilioDevice & { register: () => Promise<void> }
     }
     const device = new Device(token, {
       closeProtection: true,

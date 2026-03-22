@@ -10,12 +10,12 @@
  *   // On call end:
  *   const fullText = await stopTranscription()
  */
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   TranscriptionManager,
   type TranscriptionModel,
-  type TranscriptionStatus,
   type TranscriptionProgress,
+  type TranscriptionStatus,
 } from './transcription-manager'
 
 export interface TranscriptionSettings {
@@ -30,11 +30,15 @@ export function getClientTranscriptionSettings(): TranscriptionSettings {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) return JSON.parse(stored) as TranscriptionSettings
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { enabled: false, model: 'tiny.en', language: 'en' }
 }
 
-export function setClientTranscriptionSettings(settings: Partial<TranscriptionSettings>): TranscriptionSettings {
+export function setClientTranscriptionSettings(
+  settings: Partial<TranscriptionSettings>
+): TranscriptionSettings {
   const current = getClientTranscriptionSettings()
   const updated = { ...current, ...settings }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))

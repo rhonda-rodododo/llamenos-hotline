@@ -1,20 +1,20 @@
-import { useEffect, useState, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth'
 import {
-  initWebRtc,
+  type WebRtcState,
+  isMuted as checkMuted,
   destroyWebRtc,
+  getState,
+  initWebRtc,
+  onStateChange,
+  toggleMute,
   acceptCall as webrtcAccept,
   hangupCall as webrtcHangup,
-  toggleMute,
-  isMuted as checkMuted,
-  onStateChange,
-  getState,
-  type WebRtcState,
 } from '@/lib/webrtc'
-import { PhoneCall, PhoneOff, Mic, MicOff, Monitor } from 'lucide-react'
-import { Button } from './ui/button'
+import { Mic, MicOff, Monitor, PhoneCall, PhoneOff } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Badge } from './ui/badge'
+import { Button } from './ui/button'
 
 /**
  * WebRTC status indicator shown in the dashboard header.
@@ -58,15 +58,17 @@ export function WebRtcStatus() {
                 : 'border-border text-muted-foreground'
         }
       >
-        <span className={`h-1.5 w-1.5 rounded-full ${
-          state === 'ready'
-            ? 'bg-green-500'
-            : state === 'connected'
-              ? 'bg-blue-500 animate-pulse'
-              : state === 'error'
-                ? 'bg-destructive'
-                : 'bg-muted-foreground'
-        }`} />
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${
+            state === 'ready'
+              ? 'bg-green-500'
+              : state === 'connected'
+                ? 'bg-blue-500 animate-pulse'
+                : state === 'error'
+                  ? 'bg-destructive'
+                  : 'bg-muted-foreground'
+          }`}
+        />
         {state === 'ready' && t('settings.callPrefBrowser')}
         {state === 'connected' && t('calls.active')}
         {state === 'initializing' && t('common.loading')}
@@ -124,19 +126,11 @@ export function WebRtcCallControls() {
 
   return (
     <div className="flex items-center gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleMute}
-      >
+      <Button variant="outline" size="sm" onClick={handleMute}>
         {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         {muted ? t('calls.unmute') : t('calls.mute')}
       </Button>
-      <Button
-        variant="destructive"
-        size="sm"
-        onClick={handleHangup}
-      >
+      <Button variant="destructive" size="sm" onClick={handleHangup}>
         <PhoneOff className="h-4 w-4" />
         {t('calls.hangUp')}
       </Button>

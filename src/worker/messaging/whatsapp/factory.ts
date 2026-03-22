@@ -1,5 +1,5 @@
-import type { MessagingAdapter } from '../adapter'
 import type { WhatsAppConfig } from '../../../shared/types'
+import type { MessagingAdapter } from '../adapter'
 import { WhatsAppAdapter } from './adapter'
 import { TwilioWhatsAppClient } from './twilio-client'
 
@@ -23,7 +23,7 @@ export interface TwilioCredentials {
 export function createWhatsAppAdapter(
   config: WhatsAppConfig,
   hmacSecret: string,
-  twilioCredentials?: TwilioCredentials,
+  twilioCredentials?: TwilioCredentials
 ): MessagingAdapter {
   if (config.integrationMode === 'direct') {
     return new WhatsAppAdapter(config, hmacSecret)
@@ -31,14 +31,14 @@ export function createWhatsAppAdapter(
 
   if (!twilioCredentials) {
     throw new Error(
-      'Twilio WhatsApp mode requires twilioCredentials (accountSid, authToken, whatsappNumber)',
+      'Twilio WhatsApp mode requires twilioCredentials (accountSid, authToken, whatsappNumber)'
     )
   }
 
   const client = new TwilioWhatsAppClient(
     twilioCredentials.accountSid,
     twilioCredentials.authToken,
-    twilioCredentials.whatsappNumber,
+    twilioCredentials.whatsappNumber
   )
 
   return WhatsAppAdapter.createWithTwilioClient(config, client, hmacSecret)

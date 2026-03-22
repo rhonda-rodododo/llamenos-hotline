@@ -1,9 +1,9 @@
 import { createMiddleware } from 'hono/factory'
-import type { AppEnv } from '../types'
-import { authenticateRequest } from '../lib/auth'
-import { getDOs } from '../lib/do-access'
 import type { Role } from '../../shared/permissions'
 import { resolvePermissions } from '../../shared/permissions'
+import { authenticateRequest } from '../lib/auth'
+import { getDOs } from '../lib/do-access'
+import type { AppEnv } from '../types'
 
 export const auth = createMiddleware<AppEnv>(async (c, next) => {
   const dos = getDOs(c.env)

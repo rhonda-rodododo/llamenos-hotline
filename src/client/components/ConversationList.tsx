@@ -1,8 +1,8 @@
+import { ChannelBadge } from '@/components/ChannelBadge'
+import type { Conversation } from '@/lib/api'
+import { Clock, MessageSquare, User } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Clock, User, MessageSquare } from 'lucide-react'
-import type { Conversation } from '@/lib/api'
-import { ChannelBadge } from '@/components/ChannelBadge'
 
 interface ConversationListProps {
   conversations: Conversation[]
@@ -12,11 +12,7 @@ interface ConversationListProps {
 
 function StatusDot({ status }: { status: Conversation['status'] }) {
   const colorClass =
-    status === 'active'
-      ? 'bg-green-500'
-      : status === 'waiting'
-        ? 'bg-yellow-500'
-        : 'bg-gray-400'
+    status === 'active' ? 'bg-green-500' : status === 'waiting' ? 'bg-yellow-500' : 'bg-gray-400'
 
   return (
     <span
@@ -57,10 +53,12 @@ function ConversationCard({
     if (seconds < 60) return t('conversations.justNow', 'just now')
 
     const minutes = Math.floor(seconds / 60)
-    if (minutes < 60) return t('conversations.minutesAgo', { count: minutes, defaultValue: '{{count}}m ago' })
+    if (minutes < 60)
+      return t('conversations.minutesAgo', { count: minutes, defaultValue: '{{count}}m ago' })
 
     const hours = Math.floor(minutes / 60)
-    if (hours < 24) return t('conversations.hoursAgo', { count: hours, defaultValue: '{{count}}h ago' })
+    if (hours < 24)
+      return t('conversations.hoursAgo', { count: hours, defaultValue: '{{count}}h ago' })
 
     const days = Math.floor(hours / 24)
     return t('conversations.daysAgo', { count: days, defaultValue: '{{count}}d ago' })
@@ -79,9 +77,7 @@ function ConversationCard({
       <div className="flex items-center gap-2">
         <StatusDot status={conversation.status} />
         <ChannelBadge channelType={conversation.channelType} />
-        <span className="font-mono text-sm font-medium text-foreground">
-          {contactDisplay}
-        </span>
+        <span className="font-mono text-sm font-medium text-foreground">{contactDisplay}</span>
         <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
           <Clock className="h-3 w-3" />
           {relativeTime}
@@ -150,7 +146,7 @@ export function ConversationList({ conversations, onSelect, selectedId }: Conver
             </span>
           </h3>
           <div className="space-y-1.5">
-            {waiting.map(conv => (
+            {waiting.map((conv) => (
               <ConversationCard
                 key={conv.id}
                 conversation={conv}
@@ -172,7 +168,7 @@ export function ConversationList({ conversations, onSelect, selectedId }: Conver
             </span>
           </h3>
           <div className="space-y-1.5">
-            {active.map(conv => (
+            {active.map((conv) => (
               <ConversationCard
                 key={conv.id}
                 conversation={conv}

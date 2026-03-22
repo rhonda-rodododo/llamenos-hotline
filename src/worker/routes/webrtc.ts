@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
-import type { AppEnv } from '../types'
 import type { TelephonyProviderConfig } from '../../shared/types'
 import { getDOs } from '../lib/do-access'
 import { generateWebRtcToken, isWebRtcConfigured } from '../telephony/webrtc-tokens'
+import type { AppEnv } from '../types'
 
 const webrtc = new Hono<AppEnv>()
 
@@ -19,7 +19,10 @@ webrtc.get('/webrtc-token', async (c) => {
   // Check volunteer's call preference allows browser calls
   const callPref = volunteer.callPreference ?? 'phone'
   if (callPref === 'phone') {
-    return c.json({ error: 'Call preference is set to phone only. Enable browser calling in settings.' }, 400)
+    return c.json(
+      { error: 'Call preference is set to phone only. Enable browser calling in settings.' },
+      400
+    )
   }
 
   // Get provider config
@@ -27,9 +30,15 @@ webrtc.get('/webrtc-token', async (c) => {
   if (!res.ok) {
     return c.json({ error: 'No telephony provider configured' }, 404)
   }
-  const config = await res.json() as TelephonyProviderConfig | null
+  const config = (await res.json()) as TelephonyProviderConfig | null
   if (!config || !isWebRtcConfigured(config)) {
-    return c.json({ error: 'WebRTC is not configured for the current provider. Admin must enable it in settings.' }, 400)
+    return c.json(
+      {
+        error:
+          'WebRTC is not configured for the current provider. Admin must enable it in settings.',
+      },
+      400
+    )
   }
 
   try {
@@ -53,7 +62,7 @@ webrtc.get('/webrtc-status', async (c) => {
   if (!res.ok) {
     return c.json({ available: false, provider: null })
   }
-  const config = await res.json() as TelephonyProviderConfig | null
+  const config = (await res.json()) as TelephonyProviderConfig | null
   return c.json({
     available: isWebRtcConfigured(config),
     provider: config?.type ?? null,

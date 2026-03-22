@@ -1,17 +1,25 @@
-import { DurableObject } from 'cloudflare:workers'
-import type { Env, Conversation, EncryptedMessage, ConversationStatus } from '../types'
-import type { IncomingMessage, MessageStatusUpdate } from '../messaging/adapter'
-import type { MessagingChannelType, FileRecord, FileKeyEnvelope, Subscriber, Blast, BlastSettings, BlastContent } from '../../shared/types'
-import { DEFAULT_BLAST_SETTINGS } from '../../shared/types'
-import { encryptMessageForStorage, hashPhone } from '../lib/crypto'
-import { DORouter } from '../lib/do-router'
-import { runMigrations } from '../../shared/migrations/runner'
-import { migrations } from '../../shared/migrations'
+import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { hmac } from '@noble/hashes/hmac.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
-import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { HMAC_PREFERENCE_TOKEN, HMAC_SUBSCRIBER } from '@shared/crypto-labels'
+import { DurableObject } from '#cloudflare-workers'
+import { migrations } from '../../shared/migrations'
+import { runMigrations } from '../../shared/migrations/runner'
+import type {
+  Blast,
+  BlastContent,
+  BlastSettings,
+  FileKeyEnvelope,
+  FileRecord,
+  MessagingChannelType,
+  Subscriber,
+} from '../../shared/types'
+import { DEFAULT_BLAST_SETTINGS } from '../../shared/types'
+import { encryptMessageForStorage, hashPhone } from '../lib/crypto'
+import { DORouter } from '../lib/do-router'
+import type { IncomingMessage, MessageStatusUpdate } from '../messaging/adapter'
+import type { Conversation, ConversationStatus, EncryptedMessage, Env } from '../types'
 
 const PAGE_SIZE = 50
 
@@ -38,24 +46,34 @@ export class ConversationDO extends DurableObject<Env> {
     // --- Conversation CRUD ---
     this.router.get('/conversations', (req) => this.listConversations(req))
     this.router.get('/conversations/:id', (_req, { id }) => this.getConversation(id))
-    this.router.patch('/conversations/:id', async (req, { id }) => this.updateConversation(id, await req.json()))
-    this.router.post('/conversations/:id/claim', async (req, { id }) => this.claimConversation(id, await req.json()))
+    this.router.patch('/conversations/:id', async (req, { id }) =>
+      this.updateConversation(id, await req.json())
+    )
+    this.router.post('/conversations/:id/claim', async (req, { id }) =>
+      this.claimConversation(id, await req.json())
+    )
 
     // --- Messages ---
     this.router.get('/conversations/:id/messages', (req, { id }) => this.getMessages(id, req))
-    this.router.post('/conversations/:id/messages', async (req, { id }) => this.addMessage(id, await req.json()))
+    this.router.post('/conversations/:id/messages', async (req, { id }) =>
+      this.addMessage(id, await req.json())
+    )
 
     // --- Create conversation (for reports / web-originated) ---
     this.router.post('/conversations', async (req) => this.createConversation(await req.json()))
 
     // --- Inbound from webhooks ---
-    this.router.post('/conversations/incoming', async (req) => this.handleIncoming(await req.json()))
+    this.router.post('/conversations/incoming', async (req) =>
+      this.handleIncoming(await req.json())
+    )
 
     // --- Message status updates ---
     this.router.post('/messages/status', async (req) => this.updateMessageStatus(await req.json()))
 
     // --- Contact lookup (server-side only, for outbound sends) ---
-    this.router.get('/conversations/:id/contact', async (_req, { id }) => this.getContactIdentifier(id))
+    this.router.get('/conversations/:id/contact', async (_req, { id }) =>
+      this.getContactIdentifier(id)
+    )
 
     // --- Stats ---
     this.router.get('/conversations/stats', () => this.getStats())
@@ -64,17 +82,27 @@ export class ConversationDO extends DurableObject<Env> {
     this.router.post('/files', async (req) => this.createFileRecord(await req.json()))
     this.router.get('/files/:id', (_req, { id }) => this.getFileRecord(id))
     this.router.get('/files', (req) => this.listFileRecords(req))
-    this.router.post('/files/:id/chunk-complete', async (req, { id }) => this.markChunkComplete(id, await req.json()))
+    this.router.post('/files/:id/chunk-complete', async (req, { id }) =>
+      this.markChunkComplete(id, await req.json())
+    )
     this.router.post('/files/:id/complete', async (_req, { id }) => this.markFileComplete(id))
-    this.router.post('/files/:id/share', async (req, { id }) => this.addFileRecipient(id, await req.json()))
+    this.router.post('/files/:id/share', async (req, { id }) =>
+      this.addFileRecipient(id, await req.json())
+    )
 
     // --- Subscribers ---
-    this.router.post('/subscribers/keyword', async (req) => this.handleSubscriberKeyword(await req.json()))
+    this.router.post('/subscribers/keyword', async (req) =>
+      this.handleSubscriberKeyword(await req.json())
+    )
     this.router.get('/subscribers', (req) => this.listSubscribers(req))
     this.router.get('/subscribers/stats', () => this.getSubscriberStats())
     this.router.post('/subscribers/import', async (req) => this.importSubscribers(await req.json()))
-    this.router.post('/subscribers/validate-token', async (req) => this.validatePreferenceToken(await req.json()))
-    this.router.patch('/subscribers/update-preferences', async (req) => this.updateSubscriberPreferences(await req.json()))
+    this.router.post('/subscribers/validate-token', async (req) =>
+      this.validatePreferenceToken(await req.json())
+    )
+    this.router.patch('/subscribers/update-preferences', async (req) =>
+      this.updateSubscriberPreferences(await req.json())
+    )
     this.router.delete('/subscribers/:id', (_req, { id }) => this.deleteSubscriber(id))
 
     // --- Blasts ---
@@ -84,7 +112,9 @@ export class ConversationDO extends DurableObject<Env> {
     this.router.patch('/blasts/:id', async (req, { id }) => this.updateBlast(id, await req.json()))
     this.router.delete('/blasts/:id', (_req, { id }) => this.deleteBlast(id))
     this.router.post('/blasts/:id/send', (_req, { id }) => this.sendBlast(id))
-    this.router.post('/blasts/:id/schedule', async (req, { id }) => this.scheduleBlast(id, await req.json()))
+    this.router.post('/blasts/:id/schedule', async (req, { id }) =>
+      this.scheduleBlast(id, await req.json())
+    )
     this.router.post('/blasts/:id/cancel', (_req, { id }) => this.cancelBlast(id))
 
     // --- Blast Settings ---
@@ -99,7 +129,8 @@ export class ConversationDO extends DurableObject<Env> {
 
     // --- Auto-assignment helper ---
     this.router.post('/conversations/:id/auto-assign', async (req, { id }) =>
-      this.autoAssignConversation(id, await req.json()))
+      this.autoAssignConversation(id, await req.json())
+    )
 
     // --- Test Reset (demo mode only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
@@ -137,24 +168,26 @@ export class ConversationDO extends DurableObject<Env> {
     const status = url.searchParams.get('status') as ConversationStatus | null
     const assignedTo = url.searchParams.get('assignedTo')
     const channel = url.searchParams.get('channel') as MessagingChannelType | null
-    const page = parseInt(url.searchParams.get('page') || '1')
-    const limit = parseInt(url.searchParams.get('limit') || '50')
+    const page = Number.parseInt(url.searchParams.get('page') || '1')
+    const limit = Number.parseInt(url.searchParams.get('limit') || '50')
 
-    let conversations = await this.ctx.storage.get<Conversation[]>('conversations') || []
+    let conversations = (await this.ctx.storage.get<Conversation[]>('conversations')) || []
 
     // Filter
     if (status) {
-      conversations = conversations.filter(c => c.status === status)
+      conversations = conversations.filter((c) => c.status === status)
     }
     if (assignedTo) {
-      conversations = conversations.filter(c => c.assignedTo === assignedTo)
+      conversations = conversations.filter((c) => c.assignedTo === assignedTo)
     }
     if (channel) {
-      conversations = conversations.filter(c => c.channelType === channel)
+      conversations = conversations.filter((c) => c.channelType === channel)
     }
 
     // Sort by last message time, newest first
-    conversations.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime())
+    conversations.sort(
+      (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+    )
 
     const start = (page - 1) * limit
     return Response.json({
@@ -164,15 +197,15 @@ export class ConversationDO extends DurableObject<Env> {
   }
 
   private async getConversation(id: string): Promise<Response> {
-    const conversations = await this.ctx.storage.get<Conversation[]>('conversations') || []
-    const conv = conversations.find(c => c.id === id)
+    const conversations = (await this.ctx.storage.get<Conversation[]>('conversations')) || []
+    const conv = conversations.find((c) => c.id === id)
     if (!conv) return new Response('Conversation not found', { status: 404 })
     return Response.json(conv)
   }
 
   private async updateConversation(id: string, data: Partial<Conversation>): Promise<Response> {
-    const conversations = await this.ctx.storage.get<Conversation[]>('conversations') || []
-    const conv = conversations.find(c => c.id === id)
+    const conversations = (await this.ctx.storage.get<Conversation[]>('conversations')) || []
+    const conv = conversations.find((c) => c.id === id)
     if (!conv) return new Response('Conversation not found', { status: 404 })
 
     const prevStatus = conv.status
@@ -200,11 +233,13 @@ export class ConversationDO extends DurableObject<Env> {
   }
 
   private async claimConversation(id: string, data: { pubkey: string }): Promise<Response> {
-    const conversations = await this.ctx.storage.get<Conversation[]>('conversations') || []
-    const conv = conversations.find(c => c.id === id)
+    const conversations = (await this.ctx.storage.get<Conversation[]>('conversations')) || []
+    const conv = conversations.find((c) => c.id === id)
     if (!conv) return new Response('Conversation not found', { status: 404 })
     if (conv.status !== 'waiting') {
-      return new Response(JSON.stringify({ error: 'Conversation is not in waiting state' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Conversation is not in waiting state' }), {
+        status: 400,
+      })
     }
 
     conv.assignedTo = data.pubkey
@@ -223,10 +258,11 @@ export class ConversationDO extends DurableObject<Env> {
 
   private async getMessages(conversationId: string, req: Request): Promise<Response> {
     const url = new URL(req.url)
-    const page = parseInt(url.searchParams.get('page') || '1')
-    const limit = parseInt(url.searchParams.get('limit') || String(PAGE_SIZE))
+    const page = Number.parseInt(url.searchParams.get('page') || '1')
+    const limit = Number.parseInt(url.searchParams.get('limit') || String(PAGE_SIZE))
 
-    const messages = await this.ctx.storage.get<EncryptedMessage[]>(`messages:${conversationId}`) || []
+    const messages =
+      (await this.ctx.storage.get<EncryptedMessage[]>(`messages:${conversationId}`)) || []
     // Messages are stored newest first; paginate from end
     const start = (page - 1) * limit
     return Response.json({
@@ -236,8 +272,8 @@ export class ConversationDO extends DurableObject<Env> {
   }
 
   private async addMessage(conversationId: string, data: EncryptedMessage): Promise<Response> {
-    const conversations = await this.ctx.storage.get<Conversation[]>('conversations') || []
-    const conv = conversations.find(c => c.id === conversationId)
+    const conversations = (await this.ctx.storage.get<Conversation[]>('conversations')) || []
+    const conv = conversations.find((c) => c.id === conversationId)
     if (!conv) return new Response('Conversation not found', { status: 404 })
 
     const message: EncryptedMessage = {
@@ -249,7 +285,8 @@ export class ConversationDO extends DurableObject<Env> {
       status: data.direction === 'outbound' ? 'pending' : undefined,
     }
 
-    const messages = await this.ctx.storage.get<EncryptedMessage[]>(`messages:${conversationId}`) || []
+    const messages =
+      (await this.ctx.storage.get<EncryptedMessage[]>(`messages:${conversationId}`)) || []
     messages.unshift(message) // newest first
     await this.ctx.storage.put(`messages:${conversationId}`, messages)
 
@@ -287,8 +324,9 @@ export class ConversationDO extends DurableObject<Env> {
     const { conversationId, messageId } = mapping
 
     // Get messages for the conversation
-    const messages = await this.ctx.storage.get<EncryptedMessage[]>(`messages:${conversationId}`) || []
-    const message = messages.find(m => m.id === messageId)
+    const messages =
+      (await this.ctx.storage.get<EncryptedMessage[]>(`messages:${conversationId}`)) || []
+    const message = messages.find((m) => m.id === messageId)
     if (!message) {
       return Response.json({ found: false })
     }
@@ -296,11 +334,11 @@ export class ConversationDO extends DurableObject<Env> {
     // Only update if the new status is "more advanced" than current
     // pending -> sent -> delivered -> read / failed
     const statusOrder: Record<string, number> = {
-      'pending': 0,
-      'sent': 1,
-      'delivered': 2,
-      'read': 3,
-      'failed': 3, // failed is also terminal
+      pending: 0,
+      sent: 1,
+      delivered: 2,
+      read: 3,
+      failed: 3, // failed is also terminal
     }
 
     const currentOrder = statusOrder[message.status || 'pending']
@@ -333,14 +371,15 @@ export class ConversationDO extends DurableObject<Env> {
   // --- Inbound Message Processing ---
 
   private async handleIncoming(incoming: IncomingMessage): Promise<Response> {
-    const conversations = await this.ctx.storage.get<Conversation[]>('conversations') || []
+    const conversations = (await this.ctx.storage.get<Conversation[]>('conversations')) || []
     const now = new Date().toISOString()
 
     // Find existing active/waiting conversation from this sender on this channel
-    let conv = conversations.find(c =>
-      c.channelType === incoming.channelType &&
-      c.contactIdentifierHash === incoming.senderIdentifierHash &&
-      (c.status === 'active' || c.status === 'waiting')
+    let conv = conversations.find(
+      (c) =>
+        c.channelType === incoming.channelType &&
+        c.contactIdentifierHash === incoming.senderIdentifierHash &&
+        (c.status === 'active' || c.status === 'waiting')
     )
 
     if (!conv) {
@@ -391,7 +430,7 @@ export class ConversationDO extends DurableObject<Env> {
       externalId: incoming.externalId,
     }
 
-    const messages = await this.ctx.storage.get<EncryptedMessage[]>(`messages:${conv.id}`) || []
+    const messages = (await this.ctx.storage.get<EncryptedMessage[]>(`messages:${conv.id}`)) || []
     messages.unshift(message)
     await this.ctx.storage.put(`messages:${conv.id}`, messages)
 
@@ -414,7 +453,9 @@ export class ConversationDO extends DurableObject<Env> {
   private async getContactIdentifier(conversationId: string): Promise<Response> {
     const identifier = await this.ctx.storage.get<string>(`contact:${conversationId}`)
     if (!identifier) {
-      return new Response(JSON.stringify({ error: 'No contact identifier stored' }), { status: 404 })
+      return new Response(JSON.stringify({ error: 'No contact identifier stored' }), {
+        status: 404,
+      })
     }
     return Response.json({ identifier })
   }
@@ -422,15 +463,15 @@ export class ConversationDO extends DurableObject<Env> {
   // --- Stats ---
 
   private async getStats(): Promise<Response> {
-    const conversations = await this.ctx.storage.get<Conversation[]>('conversations') || []
-    const waiting = conversations.filter(c => c.status === 'waiting').length
-    const active = conversations.filter(c => c.status === 'active').length
-    const closed = conversations.filter(c => c.status === 'closed').length
+    const conversations = (await this.ctx.storage.get<Conversation[]>('conversations')) || []
+    const waiting = conversations.filter((c) => c.status === 'waiting').length
+    const active = conversations.filter((c) => c.status === 'active').length
+    const closed = conversations.filter((c) => c.status === 'closed').length
 
     const todayStart = new Date()
     todayStart.setUTCHours(0, 0, 0, 0)
     const todayMs = todayStart.getTime()
-    const today = conversations.filter(c => new Date(c.createdAt).getTime() >= todayMs).length
+    const today = conversations.filter((c) => new Date(c.createdAt).getTime() >= todayMs).length
 
     return Response.json({ waiting, active, closed, today, total: conversations.length })
   }
@@ -438,7 +479,7 @@ export class ConversationDO extends DurableObject<Env> {
   // --- Create Conversation (for web-originated / reports) ---
 
   private async createConversation(data: Partial<Conversation>): Promise<Response> {
-    const conversations = await this.ctx.storage.get<Conversation[]>('conversations') || []
+    const conversations = (await this.ctx.storage.get<Conversation[]>('conversations')) || []
     const now = new Date().toISOString()
 
     const conv: Conversation = {
@@ -463,15 +504,15 @@ export class ConversationDO extends DurableObject<Env> {
   // --- File Records ---
 
   private async createFileRecord(data: FileRecord): Promise<Response> {
-    const files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
+    const files = (await this.ctx.storage.get<FileRecord[]>('fileRecords')) || []
     files.push(data)
     await this.ctx.storage.put('fileRecords', files)
     return Response.json(data)
   }
 
   private async getFileRecord(id: string): Promise<Response> {
-    const files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
-    const file = files.find(f => f.id === id)
+    const files = (await this.ctx.storage.get<FileRecord[]>('fileRecords')) || []
+    const file = files.find((f) => f.id === id)
     if (!file) return new Response('File not found', { status: 404 })
     return Response.json(file)
   }
@@ -479,16 +520,16 @@ export class ConversationDO extends DurableObject<Env> {
   private async listFileRecords(req: Request): Promise<Response> {
     const url = new URL(req.url)
     const conversationId = url.searchParams.get('conversationId')
-    let files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
+    let files = (await this.ctx.storage.get<FileRecord[]>('fileRecords')) || []
     if (conversationId) {
-      files = files.filter(f => f.conversationId === conversationId)
+      files = files.filter((f) => f.conversationId === conversationId)
     }
-    return Response.json({ files: files.filter(f => f.status === 'complete') })
+    return Response.json({ files: files.filter((f) => f.status === 'complete') })
   }
 
   private async markChunkComplete(id: string, data: { chunkIndex: number }): Promise<Response> {
-    const files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
-    const file = files.find(f => f.id === id)
+    const files = (await this.ctx.storage.get<FileRecord[]>('fileRecords')) || []
+    const file = files.find((f) => f.id === id)
     if (!file) return new Response('File not found', { status: 404 })
     file.completedChunks = (file.completedChunks || 0) + 1
     await this.ctx.storage.put('fileRecords', files)
@@ -496,8 +537,8 @@ export class ConversationDO extends DurableObject<Env> {
   }
 
   private async markFileComplete(id: string): Promise<Response> {
-    const files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
-    const file = files.find(f => f.id === id)
+    const files = (await this.ctx.storage.get<FileRecord[]>('fileRecords')) || []
+    const file = files.find((f) => f.id === id)
     if (!file) return new Response('File not found', { status: 404 })
     file.status = 'complete'
     file.completedAt = new Date().toISOString()
@@ -505,16 +546,25 @@ export class ConversationDO extends DurableObject<Env> {
     return Response.json(file)
   }
 
-  private async addFileRecipient(id: string, data: { envelope: FileKeyEnvelope; encryptedMetadata: { pubkey: string; encryptedContent: string; ephemeralPubkey: string } }): Promise<Response> {
-    const files = await this.ctx.storage.get<FileRecord[]>('fileRecords') || []
-    const file = files.find(f => f.id === id)
+  private async addFileRecipient(
+    id: string,
+    data: {
+      envelope: FileKeyEnvelope
+      encryptedMetadata: { pubkey: string; encryptedContent: string; ephemeralPubkey: string }
+    }
+  ): Promise<Response> {
+    const files = (await this.ctx.storage.get<FileRecord[]>('fileRecords')) || []
+    const file = files.find((f) => f.id === id)
     if (!file) return new Response('File not found', { status: 404 })
 
     // Add envelope if not already present
-    if (!file.recipientEnvelopes.some(e => e.pubkey === data.envelope.pubkey)) {
+    if (!file.recipientEnvelopes.some((e) => e.pubkey === data.envelope.pubkey)) {
       file.recipientEnvelopes.push(data.envelope)
     }
-    if (data.encryptedMetadata && !file.encryptedMetadata.some(m => m.pubkey === data.encryptedMetadata.pubkey)) {
+    if (
+      data.encryptedMetadata &&
+      !file.encryptedMetadata.some((m) => m.pubkey === data.encryptedMetadata.pubkey)
+    ) {
       file.encryptedMetadata.push(data.encryptedMetadata)
     }
 
@@ -531,7 +581,7 @@ export class ConversationDO extends DurableObject<Env> {
   }
 
   private async getBlastSettingsData(): Promise<BlastSettings> {
-    return await this.ctx.storage.get<BlastSettings>('blast-settings') || DEFAULT_BLAST_SETTINGS
+    return (await this.ctx.storage.get<BlastSettings>('blast-settings')) || DEFAULT_BLAST_SETTINGS
   }
 
   private async getAllSubscribers(): Promise<Subscriber[]> {
@@ -548,7 +598,10 @@ export class ConversationDO extends DurableObject<Env> {
     const settings = await this.getBlastSettingsData()
     const normalizedKeyword = data.keyword.toUpperCase()
 
-    if (normalizedKeyword === settings.unsubscribeKeyword.toUpperCase() || normalizedKeyword === 'STOP') {
+    if (
+      normalizedKeyword === settings.unsubscribeKeyword.toUpperCase() ||
+      normalizedKeyword === 'STOP'
+    ) {
       // Find subscriber by identifierHash
       const existing = await this.ctx.storage.get<Subscriber>(`subscribers:${data.identifierHash}`)
       if (existing) {
@@ -563,7 +616,7 @@ export class ConversationDO extends DurableObject<Env> {
       if (existing) {
         // Re-subscribe
         existing.status = 'active'
-        const hasChannel = existing.channels.some(ch => ch.type === data.channel)
+        const hasChannel = existing.channels.some((ch) => ch.type === data.channel)
         if (!hasChannel) {
           existing.channels.push({ type: data.channel, verified: true })
         }
@@ -599,19 +652,25 @@ export class ConversationDO extends DurableObject<Env> {
     return Response.json({ action: 'ignored' })
   }
 
-  private async addToChannelIndex(channel: MessagingChannelType, subscriberId: string): Promise<void> {
+  private async addToChannelIndex(
+    channel: MessagingChannelType,
+    subscriberId: string
+  ): Promise<void> {
     const key = `subscriber-index:channel:${channel}`
-    const ids = await this.ctx.storage.get<string[]>(key) || []
+    const ids = (await this.ctx.storage.get<string[]>(key)) || []
     if (!ids.includes(subscriberId)) {
       ids.push(subscriberId)
       await this.ctx.storage.put(key, ids)
     }
   }
 
-  private async removeFromChannelIndex(channel: MessagingChannelType, subscriberId: string): Promise<void> {
+  private async removeFromChannelIndex(
+    channel: MessagingChannelType,
+    subscriberId: string
+  ): Promise<void> {
     const key = `subscriber-index:channel:${channel}`
-    const ids = await this.ctx.storage.get<string[]>(key) || []
-    const filtered = ids.filter(id => id !== subscriberId)
+    const ids = (await this.ctx.storage.get<string[]>(key)) || []
+    const filtered = ids.filter((id) => id !== subscriberId)
     await this.ctx.storage.put(key, filtered)
   }
 
@@ -620,23 +679,25 @@ export class ConversationDO extends DurableObject<Env> {
     const tag = url.searchParams.get('tag')
     const channel = url.searchParams.get('channel') as MessagingChannelType | null
     const status = url.searchParams.get('status') as Subscriber['status'] | null
-    const page = parseInt(url.searchParams.get('page') || '1')
-    const limit = parseInt(url.searchParams.get('limit') || '50')
+    const page = Number.parseInt(url.searchParams.get('page') || '1')
+    const limit = Number.parseInt(url.searchParams.get('limit') || '50')
 
     let subscribers = await this.getAllSubscribers()
 
     if (tag) {
-      subscribers = subscribers.filter(s => s.tags.includes(tag))
+      subscribers = subscribers.filter((s) => s.tags.includes(tag))
     }
     if (channel) {
-      subscribers = subscribers.filter(s => s.channels.some(ch => ch.type === channel))
+      subscribers = subscribers.filter((s) => s.channels.some((ch) => ch.type === channel))
     }
     if (status) {
-      subscribers = subscribers.filter(s => s.status === status)
+      subscribers = subscribers.filter((s) => s.status === status)
     }
 
     // Sort by subscribedAt, newest first
-    subscribers.sort((a, b) => new Date(b.subscribedAt).getTime() - new Date(a.subscribedAt).getTime())
+    subscribers.sort(
+      (a, b) => new Date(b.subscribedAt).getTime() - new Date(a.subscribedAt).getTime()
+    )
 
     const start = (page - 1) * limit
     return Response.json({
@@ -647,7 +708,7 @@ export class ConversationDO extends DurableObject<Env> {
 
   private async deleteSubscriber(id: string): Promise<Response> {
     const subscribers = await this.getAllSubscribers()
-    const subscriber = subscribers.find(s => s.id === id)
+    const subscriber = subscribers.find((s) => s.id === id)
     if (!subscriber) return new Response('Subscriber not found', { status: 404 })
 
     // Remove from channel indexes
@@ -695,14 +756,14 @@ export class ConversationDO extends DurableObject<Env> {
       const existing = await this.ctx.storage.get<Subscriber>(`subscribers:${identifierHash}`)
       if (existing) {
         // Add channel if not present
-        const hasChannel = existing.channels.some(ch => ch.type === entry.channel)
+        const hasChannel = existing.channels.some((ch) => ch.type === entry.channel)
         if (!hasChannel) {
           existing.channels.push({ type: entry.channel, verified: false })
           await this.ctx.storage.put(`subscribers:${identifierHash}`, existing)
           await this.addToChannelIndex(entry.channel, existing.id)
         }
         if (entry.tags) {
-          const newTags = entry.tags.filter(t => !existing.tags.includes(t))
+          const newTags = entry.tags.filter((t) => !existing.tags.includes(t))
           if (newTags.length > 0) {
             existing.tags.push(...newTags)
             await this.ctx.storage.put(`subscribers:${identifierHash}`, existing)
@@ -734,7 +795,7 @@ export class ConversationDO extends DurableObject<Env> {
 
   private async validatePreferenceToken(data: { token: string }): Promise<Response> {
     const subscribers = await this.getAllSubscribers()
-    const subscriber = subscribers.find(s => s.preferenceToken === data.token)
+    const subscriber = subscribers.find((s) => s.preferenceToken === data.token)
     if (!subscriber) {
       return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 404 })
     }
@@ -754,7 +815,7 @@ export class ConversationDO extends DurableObject<Env> {
     tags?: string[]
   }): Promise<Response> {
     const subscribers = await this.getAllSubscribers()
-    const subscriber = subscribers.find(s => s.preferenceToken === data.token)
+    const subscriber = subscribers.find((s) => s.preferenceToken === data.token)
     if (!subscriber) {
       return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 404 })
     }
@@ -815,7 +876,12 @@ export class ConversationDO extends DurableObject<Env> {
     return Response.json(blast)
   }
 
-  private async updateBlast(id: string, data: Partial<Pick<Blast, 'name' | 'content' | 'targetChannels' | 'targetTags' | 'targetLanguages'>>): Promise<Response> {
+  private async updateBlast(
+    id: string,
+    data: Partial<
+      Pick<Blast, 'name' | 'content' | 'targetChannels' | 'targetTags' | 'targetLanguages'>
+    >
+  ): Promise<Response> {
     const blast = await this.ctx.storage.get<Blast>(`blasts:${id}`)
     if (!blast) return new Response('Blast not found', { status: 404 })
     if (blast.status !== 'draft') {
@@ -837,7 +903,9 @@ export class ConversationDO extends DurableObject<Env> {
     const blast = await this.ctx.storage.get<Blast>(`blasts:${id}`)
     if (!blast) return new Response('Blast not found', { status: 404 })
     if (blast.status !== 'draft') {
-      return new Response(JSON.stringify({ error: 'Can only delete draft blasts' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Can only delete draft blasts' }), {
+        status: 400,
+      })
     }
 
     await this.ctx.storage.delete(`blasts:${id}`)
@@ -850,32 +918,30 @@ export class ConversationDO extends DurableObject<Env> {
     const blast = await this.ctx.storage.get<Blast>(`blasts:${id}`)
     if (!blast) return new Response('Blast not found', { status: 404 })
     if (blast.status !== 'draft' && blast.status !== 'scheduled') {
-      return new Response(JSON.stringify({ error: 'Blast is not in a sendable state' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Blast is not in a sendable state' }), {
+        status: 400,
+      })
     }
 
     // Gather target subscribers
     let subscribers = await this.getAllSubscribers()
-    subscribers = subscribers.filter(s => s.status === 'active')
+    subscribers = subscribers.filter((s) => s.status === 'active')
 
     // Filter by target channels
     if (blast.targetChannels.length > 0) {
-      subscribers = subscribers.filter(s =>
-        s.channels.some(ch => blast.targetChannels.includes(ch.type) && ch.verified)
+      subscribers = subscribers.filter((s) =>
+        s.channels.some((ch) => blast.targetChannels.includes(ch.type) && ch.verified)
       )
     }
 
     // Filter by tags
     if (blast.targetTags.length > 0) {
-      subscribers = subscribers.filter(s =>
-        blast.targetTags.some(tag => s.tags.includes(tag))
-      )
+      subscribers = subscribers.filter((s) => blast.targetTags.some((tag) => s.tags.includes(tag)))
     }
 
     // Filter by languages
     if (blast.targetLanguages.length > 0) {
-      subscribers = subscribers.filter(s =>
-        blast.targetLanguages.includes(s.language)
-      )
+      subscribers = subscribers.filter((s) => blast.targetLanguages.includes(s.language))
     }
 
     blast.status = 'sending'
@@ -890,7 +956,9 @@ export class ConversationDO extends DurableObject<Env> {
     // Schedule alarm to begin processing
     try {
       await this.ctx.storage.setAlarm(Date.now() + 100)
-    } catch { /* alarm already set */ }
+    } catch {
+      /* alarm already set */
+    }
 
     return Response.json(blast)
   }
@@ -899,12 +967,16 @@ export class ConversationDO extends DurableObject<Env> {
     const blast = await this.ctx.storage.get<Blast>(`blasts:${id}`)
     if (!blast) return new Response('Blast not found', { status: 404 })
     if (blast.status !== 'draft') {
-      return new Response(JSON.stringify({ error: 'Can only schedule draft blasts' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Can only schedule draft blasts' }), {
+        status: 400,
+      })
     }
 
     const scheduledTime = new Date(data.scheduledAt).getTime()
-    if (isNaN(scheduledTime) || scheduledTime <= Date.now()) {
-      return new Response(JSON.stringify({ error: 'scheduledAt must be a future date' }), { status: 400 })
+    if (Number.isNaN(scheduledTime) || scheduledTime <= Date.now()) {
+      return new Response(JSON.stringify({ error: 'scheduledAt must be a future date' }), {
+        status: 400,
+      })
     }
 
     blast.status = 'scheduled'
@@ -915,7 +987,9 @@ export class ConversationDO extends DurableObject<Env> {
     // Schedule alarm for the blast time
     try {
       await this.ctx.storage.setAlarm(scheduledTime)
-    } catch { /* alarm already set — alarm handler checks for due blasts */ }
+    } catch {
+      /* alarm already set — alarm handler checks for due blasts */
+    }
 
     return Response.json(blast)
   }
@@ -924,7 +998,10 @@ export class ConversationDO extends DurableObject<Env> {
     const blast = await this.ctx.storage.get<Blast>(`blasts:${id}`)
     if (!blast) return new Response('Blast not found', { status: 404 })
     if (blast.status !== 'scheduled' && blast.status !== 'sending') {
-      return new Response(JSON.stringify({ error: 'Can only cancel scheduled or sending blasts' }), { status: 400 })
+      return new Response(
+        JSON.stringify({ error: 'Can only cancel scheduled or sending blasts' }),
+        { status: 400 }
+      )
     }
 
     blast.status = 'cancelled'
@@ -959,8 +1036,9 @@ export class ConversationDO extends DurableObject<Env> {
    * Storage key: `volunteer-load:{pubkey}` = number
    */
   private async getVolunteerLoad(pubkey: string): Promise<Response> {
-    const load = await this.ctx.storage.get<number>(`volunteer-load:${pubkey}`) || 0
-    const conversationIds = await this.ctx.storage.get<string[]>(`volunteer-conversations:${pubkey}`) || []
+    const load = (await this.ctx.storage.get<number>(`volunteer-load:${pubkey}`)) || 0
+    const conversationIds =
+      (await this.ctx.storage.get<string[]>(`volunteer-conversations:${pubkey}`)) || []
     return Response.json({ pubkey, load, conversationIds })
   }
 
@@ -984,8 +1062,8 @@ export class ConversationDO extends DurableObject<Env> {
     const loadKey = `volunteer-load:${data.pubkey}`
     const convKey = `volunteer-conversations:${data.pubkey}`
 
-    const currentLoad = await this.ctx.storage.get<number>(loadKey) || 0
-    const conversationIds = await this.ctx.storage.get<string[]>(convKey) || []
+    const currentLoad = (await this.ctx.storage.get<number>(loadKey)) || 0
+    const conversationIds = (await this.ctx.storage.get<string[]>(convKey)) || []
 
     // Avoid double-counting
     if (!conversationIds.includes(data.conversationId)) {
@@ -1004,8 +1082,8 @@ export class ConversationDO extends DurableObject<Env> {
     const loadKey = `volunteer-load:${data.pubkey}`
     const convKey = `volunteer-conversations:${data.pubkey}`
 
-    const currentLoad = await this.ctx.storage.get<number>(loadKey) || 0
-    const conversationIds = await this.ctx.storage.get<string[]>(convKey) || []
+    const currentLoad = (await this.ctx.storage.get<number>(loadKey)) || 0
+    const conversationIds = (await this.ctx.storage.get<string[]>(convKey)) || []
 
     const idx = conversationIds.indexOf(data.conversationId)
     if (idx >= 0) {
@@ -1025,11 +1103,13 @@ export class ConversationDO extends DurableObject<Env> {
     id: string,
     data: { pubkey: string; adminPubkey: string }
   ): Promise<Response> {
-    const conversations = await this.ctx.storage.get<Conversation[]>('conversations') || []
-    const conv = conversations.find(c => c.id === id)
+    const conversations = (await this.ctx.storage.get<Conversation[]>('conversations')) || []
+    const conv = conversations.find((c) => c.id === id)
     if (!conv) return new Response('Conversation not found', { status: 404 })
     if (conv.status !== 'waiting') {
-      return new Response(JSON.stringify({ error: 'Conversation is not in waiting state' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Conversation is not in waiting state' }), {
+        status: 400,
+      })
     }
 
     conv.assignedTo = data.pubkey
@@ -1043,7 +1123,7 @@ export class ConversationDO extends DurableObject<Env> {
 
     // Re-encrypt existing messages for the newly assigned volunteer
     // For inbound messages that were encrypted with admin key, we need to re-encrypt
-    const messages = await this.ctx.storage.get<EncryptedMessage[]>(`messages:${id}`) || []
+    const messages = (await this.ctx.storage.get<EncryptedMessage[]>(`messages:${id}`)) || []
     let changed = false
     for (const msg of messages) {
       if (msg.direction === 'inbound' && msg.authorPubkey === 'system:inbound') {
@@ -1119,7 +1199,7 @@ export class ConversationDO extends DurableObject<Env> {
 
     // --- Auto-close conversations that have been inactive past the timeout ---
     // Timeout is read from settings, default 60 minutes
-    const conversations = await this.ctx.storage.get<Conversation[]>('conversations') || []
+    const conversations = (await this.ctx.storage.get<Conversation[]>('conversations')) || []
     const now = Date.now()
     const timeout = 60 * 60 * 1000 // 60 minutes default
 
@@ -1151,6 +1231,8 @@ export class ConversationDO extends DurableObject<Env> {
     // Schedule next alarm in 5 minutes
     try {
       await this.ctx.storage.setAlarm(now + 5 * 60 * 1000)
-    } catch { /* alarm already set */ }
+    } catch {
+      /* alarm already set */
+    }
   }
 }

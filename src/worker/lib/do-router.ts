@@ -9,12 +9,25 @@ interface Route {
 export class DORouter {
   private routes: Route[] = []
 
-  get(pattern: string, handler: Handler) { this.routes.push({ method: 'GET', segments: pattern.split('/').filter(Boolean), handler }) }
-  post(pattern: string, handler: Handler) { this.routes.push({ method: 'POST', segments: pattern.split('/').filter(Boolean), handler }) }
-  patch(pattern: string, handler: Handler) { this.routes.push({ method: 'PATCH', segments: pattern.split('/').filter(Boolean), handler }) }
-  put(pattern: string, handler: Handler) { this.routes.push({ method: 'PUT', segments: pattern.split('/').filter(Boolean), handler }) }
-  delete(pattern: string, handler: Handler) { this.routes.push({ method: 'DELETE', segments: pattern.split('/').filter(Boolean), handler }) }
-  all(pattern: string, handler: Handler) { for (const m of ['GET','POST','PATCH','PUT','DELETE']) this.routes.push({ method: m, segments: pattern.split('/').filter(Boolean), handler }) }
+  get(pattern: string, handler: Handler) {
+    this.routes.push({ method: 'GET', segments: pattern.split('/').filter(Boolean), handler })
+  }
+  post(pattern: string, handler: Handler) {
+    this.routes.push({ method: 'POST', segments: pattern.split('/').filter(Boolean), handler })
+  }
+  patch(pattern: string, handler: Handler) {
+    this.routes.push({ method: 'PATCH', segments: pattern.split('/').filter(Boolean), handler })
+  }
+  put(pattern: string, handler: Handler) {
+    this.routes.push({ method: 'PUT', segments: pattern.split('/').filter(Boolean), handler })
+  }
+  delete(pattern: string, handler: Handler) {
+    this.routes.push({ method: 'DELETE', segments: pattern.split('/').filter(Boolean), handler })
+  }
+  all(pattern: string, handler: Handler) {
+    for (const m of ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'])
+      this.routes.push({ method: m, segments: pattern.split('/').filter(Boolean), handler })
+  }
 
   async handle(request: Request): Promise<Response> {
     const url = new URL(request.url)

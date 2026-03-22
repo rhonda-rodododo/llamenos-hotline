@@ -1,18 +1,30 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useEffect, useState, useCallback, useMemo } from 'react'
-import { getCallHistory, listVolunteers, type CallRecord, type Volunteer } from '@/lib/api'
-import { useToast } from '@/lib/toast'
-import { decryptCallRecord } from '@/lib/crypto'
-import * as keyManager from '@/lib/key-manager'
-import { PhoneIncoming, ChevronLeft, ChevronRight, Clock, Mic, Search, X, StickyNote, Voicemail, PhoneMissed, Disc } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
-import { Card, CardContent } from '@/components/ui/card'
+import { RecordingPlayer } from '@/components/recording-player'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { RecordingPlayer } from '@/components/recording-player'
+import { type CallRecord, type Volunteer, getCallHistory, listVolunteers } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { decryptCallRecord } from '@/lib/crypto'
+import * as keyManager from '@/lib/key-manager'
+import { useToast } from '@/lib/toast'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Disc,
+  Mic,
+  PhoneIncoming,
+  PhoneMissed,
+  Search,
+  StickyNote,
+  Voicemail,
+  X,
+} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 type CallsSearch = {
   page: number
@@ -56,7 +68,10 @@ function CallHistoryPage() {
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
     })
-      .then(r => { setCalls(r.calls); setTotal(r.total) })
+      .then((r) => {
+        setCalls(r.calls)
+        setTotal(r.total)
+      })
       .catch(() => toast(t('common.error'), 'error'))
       .finally(() => setLoading(false))
   }, [page, q, dateFrom, dateTo])
@@ -72,10 +87,15 @@ function CallHistoryPage() {
     if (!secretKey) return
 
     let changed = false
-    const decrypted = calls.map(call => {
+    const decrypted = calls.map((call) => {
       if (call.answeredBy !== undefined) return call // already decrypted
       if (!call.encryptedContent || !call.adminEnvelopes?.length) return call
-      const meta = decryptCallRecord(call.encryptedContent, call.adminEnvelopes, secretKey, publicKey)
+      const meta = decryptCallRecord(
+        call.encryptedContent,
+        call.adminEnvelopes,
+        secretKey,
+        publicKey
+      )
       if (meta) {
         changed = true
         return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
@@ -86,7 +106,9 @@ function CallHistoryPage() {
   }, [calls, hasNsec, publicKey])
 
   useEffect(() => {
-    listVolunteers().then(r => setVolunteers(r.volunteers)).catch(() => {})
+    listVolunteers()
+      .then((r) => setVolunteers(r.volunteers))
+      .catch(() => {})
   }, [])
 
   const nameMap = useMemo(() => {
@@ -139,42 +161,60 @@ function CallHistoryPage() {
         <CardContent className="py-3">
           <form onSubmit={handleSearch} className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1">
-              <label className="mb-1 block text-xs text-muted-foreground">{t('common.search')}</label>
+              <label className="mb-1 block text-xs text-muted-foreground">
+                {t('common.search')}
+              </label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   data-testid="call-search"
                   value={searchInput}
-                  onChange={e => setSearchInput(e.target.value)}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   placeholder={t('callHistory.searchPlaceholder')}
                   className="pl-9"
                 />
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">{t('callHistory.from')}</label>
+              <label className="mb-1 block text-xs text-muted-foreground">
+                {t('callHistory.from')}
+              </label>
               <Input
                 type="date"
                 value={dateFromInput}
-                onChange={e => setDateFromInput(e.target.value)}
+                onChange={(e) => setDateFromInput(e.target.value)}
                 className="w-full sm:w-36"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">{t('callHistory.to')}</label>
+              <label className="mb-1 block text-xs text-muted-foreground">
+                {t('callHistory.to')}
+              </label>
               <Input
                 type="date"
                 value={dateToInput}
-                onChange={e => setDateToInput(e.target.value)}
+                onChange={(e) => setDateToInput(e.target.value)}
                 className="w-full sm:w-36"
               />
             </div>
             <div className="flex gap-2">
-              <Button data-testid="call-search-btn" type="submit" size="sm" aria-label={t('a11y.searchButton')}>
+              <Button
+                data-testid="call-search-btn"
+                type="submit"
+                size="sm"
+                aria-label={t('a11y.searchButton')}
+              >
                 <Search className="h-4 w-4" />
               </Button>
               {hasFilters && (
-                <Button data-testid="call-clear-filters" type="button" variant="ghost" size="sm" onClick={clearFilters} aria-label={t('a11y.clearFilters')}>
+                <Button
+                  data-testid="call-clear-filters"
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  aria-label={t('a11y.clearFilters')}
+                >
                   <X className="h-4 w-4" />
                 </Button>
               )}
@@ -203,19 +243,23 @@ function CallHistoryPage() {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {calls.map(call => (
+              {calls.map((call) => (
                 <div key={call.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
                   <div className="min-w-0 flex-1 sm:flex-none sm:w-48">
                     {call.status === 'unanswered' ? (
                       <div className="flex items-center gap-1.5">
                         <PhoneMissed className="h-3.5 w-3.5 shrink-0 text-destructive" />
-                        <span className="text-sm font-medium text-destructive">{t('callHistory.unanswered')}</span>
+                        <span className="text-sm font-medium text-destructive">
+                          {t('callHistory.unanswered')}
+                        </span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5">
                         <PhoneIncoming className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                         <span className="text-sm font-medium">
-                          {call.answeredBy ? (nameMap.get(call.answeredBy) || t('volunteers.title')) : '-'}
+                          {call.answeredBy
+                            ? nameMap.get(call.answeredBy) || t('volunteers.title')
+                            : '-'}
                         </span>
                       </div>
                     )}
@@ -253,9 +297,7 @@ function CallHistoryPage() {
                       </Badge>
                     )}
                   </div>
-                  {call.hasRecording && (
-                    <RecordingPlayer callId={call.id} />
-                  )}
+                  {call.hasRecording && <RecordingPlayer callId={call.id} />}
                   <span className="flex-1 text-right text-xs text-muted-foreground">
                     {new Date(call.startedAt).toLocaleString()}
                   </span>
@@ -286,7 +328,9 @@ function CallHistoryPage() {
             <ChevronLeft className="h-4 w-4" />
             {t('common.back')}
           </Button>
-          <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
+          <span className="text-sm text-muted-foreground">
+            {page} / {totalPages}
+          </span>
           <Button
             variant="outline"
             size="sm"

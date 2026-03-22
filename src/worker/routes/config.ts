@@ -1,8 +1,9 @@
 import { Hono } from 'hono'
-import type { AppEnv } from '../types'
+import type { EnabledChannels, Hub, SetupState } from '../../shared/types'
+import { BUILD_COMMIT, BUILD_TIME, BUILD_VERSION } from '../lib/build-constants'
 import { getDOs } from '../lib/do-access'
 import { deriveServerKeypair } from '../lib/nostr-publisher'
-import type { EnabledChannels, Hub, SetupState } from '../../shared/types'
+import type { AppEnv } from '../types'
 
 const config = new Hono<AppEnv>()
 
@@ -11,17 +12,19 @@ config.get('/', async (c) => {
 
   // Fetch enabled channels to include in config
   const channelsRes = await dos.settings.fetch(new Request('http://do/settings/enabled-channels'))
-  const channels = await channelsRes.json() as EnabledChannels
+  const channels = (await channelsRes.json()) as EnabledChannels
 
   // Get phone number from telephony provider config or env
   let hotlineNumber = c.env.TWILIO_PHONE_NUMBER || ''
   try {
     const provRes = await dos.settings.fetch(new Request('http://do/settings/telephony-provider'))
     if (provRes.ok) {
-      const prov = await provRes.json() as { phoneNumber?: string } | null
+      const prov = (await provRes.json()) as { phoneNumber?: string } | null
       if (prov?.phoneNumber) hotlineNumber = prov.phoneNumber
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   // Fetch setup state
   let setupCompleted = true
@@ -30,7 +33,7 @@ config.get('/', async (c) => {
   try {
     const setupRes = await dos.settings.fetch(new Request('http://do/settings/setup'))
     if (setupRes.ok) {
-      const setupState = await setupRes.json() as SetupState & { demoMode?: boolean }
+      const setupState = (await setupRes.json()) as SetupState & { demoMode?: boolean }
       setupCompleted = setupState.setupCompleted
       demoMode = envDemoMode || (setupState.demoMode ?? false)
     }
@@ -43,9 +46,11 @@ config.get('/', async (c) => {
   let needsBootstrap = false
   try {
     const adminCheckRes = await dos.identity.fetch(new Request('http://do/has-admin'))
-    const { hasAdmin } = await adminCheckRes.json() as { hasAdmin: boolean }
+    const { hasAdmin } = (await adminCheckRes.json()) as { hasAdmin: boolean }
     needsBootstrap = !hasAdmin
-  } catch { /* default to false */ }
+  } catch {
+    /* default to false */
+  }
 
   // Fetch active hubs
   let hubs: Hub[] = []
@@ -53,13 +58,15 @@ config.get('/', async (c) => {
   try {
     const hubsRes = await dos.settings.fetch(new Request('http://do/settings/hubs'))
     if (hubsRes.ok) {
-      const hubsData = await hubsRes.json() as { hubs: Hub[] }
-      hubs = hubsData.hubs.filter(h => h.status === 'active')
+      const hubsData = (await hubsRes.json()) as { hubs: Hub[] }
+      hubs = hubsData.hubs.filter((h) => h.status === 'active')
       if (hubs.length === 1) {
         defaultHubId = hubs[0].id
       }
     }
-  } catch { /* default to empty */ }
+  } catch {
+    /* default to empty */
+  }
 
   // Derive server Nostr pubkey for client event verification (Epic 76.1)
   // NOTE: serverEventKeyHex moved to authenticated /api/auth/me endpoint (Epic 258 C2)
@@ -71,8 +78,8 @@ config.get('/', async (c) => {
   // - Explicit env var takes priority (any deployment)
   // - /nostr fallback only for self-hosted (NOSTR_RELAY_URL set = strfry behind Caddy)
   // - CF deployments use NOSFLARE service binding (server-side only, no client WebSocket)
-  const nostrRelayUrl = c.env.NOSTR_RELAY_PUBLIC_URL
-    || (c.env.NOSTR_RELAY_URL ? '/nostr' : undefined)
+  const nostrRelayUrl =
+    c.env.NOSTR_RELAY_PUBLIC_URL || (c.env.NOSTR_RELAY_URL ? '/nostr' : undefined)
 
   return c.json({
     hotlineName: c.env.HOTLINE_NAME || 'Hotline',
@@ -80,7 +87,7 @@ config.get('/', async (c) => {
     channels,
     setupCompleted,
     demoMode,
-    demoResetSchedule: envDemoMode ? (c.env.DEMO_RESET_CRON || null) : null,
+    demoResetSchedule: envDemoMode ? c.env.DEMO_RESET_CRON || null : null,
     needsBootstrap,
     hubs,
     defaultHubId,
@@ -93,9 +100,9 @@ config.get('/', async (c) => {
 // Informational only — trust anchor is CHECKSUMS.txt in GitHub Releases
 config.get('/verify', (c) => {
   return c.json({
-    version: __BUILD_VERSION__,
-    commit: __BUILD_COMMIT__,
-    buildTime: __BUILD_TIME__,
+    version: BUILD_VERSION,
+    commit: BUILD_COMMIT,
+    buildTime: BUILD_TIME,
     verificationUrl: 'https://github.com/rhonda-rodododo/llamenos/releases',
     trustAnchor: 'GitHub Release checksums + SLSA provenance',
   })

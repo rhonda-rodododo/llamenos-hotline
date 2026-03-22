@@ -9,10 +9,10 @@
  */
 export interface StorageApi {
   get<T = unknown>(key: string): Promise<T | undefined>
-  put(key: string, value: unknown): Promise<void>
-  delete(key: string): Promise<void>
+  put<T = unknown>(key: string, value: T): Promise<void>
+  delete(key: string): Promise<boolean | undefined>
   deleteAll(): Promise<void>
-  list(options?: { prefix?: string }): Promise<Map<string, unknown>>
+  list<T = unknown>(options?: { prefix?: string }): Promise<Map<string, T>>
   setAlarm(scheduledTime: number | Date): Promise<void>
   getAlarm(): Promise<number | null>
   deleteAlarm(): Promise<void>
@@ -36,7 +36,9 @@ export interface DOContext {
  */
 export interface BlobStorage {
   put(key: string, body: ReadableStream | ArrayBuffer | Uint8Array | string): Promise<void>
-  get(key: string): Promise<{ body: ReadableStream; size: number; arrayBuffer(): Promise<ArrayBuffer> } | null>
+  get(
+    key: string
+  ): Promise<{ body: ReadableStream; size: number; arrayBuffer(): Promise<ArrayBuffer> } | null>
   delete(key: string): Promise<void>
 }
 

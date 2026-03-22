@@ -9,7 +9,7 @@ import type { TelephonyProviderConfig, TelephonyProviderType } from '../../share
  */
 export async function generateWebRtcToken(
   config: TelephonyProviderConfig,
-  identity: string,
+  identity: string
 ): Promise<{ token: string; provider: TelephonyProviderType }> {
   switch (config.type) {
     case 'twilio':
@@ -49,10 +49,12 @@ export function isWebRtcConfigured(config: TelephonyProviderConfig | null): bool
 
 async function generateTwilioToken(
   config: TelephonyProviderConfig,
-  identity: string,
+  identity: string
 ): Promise<{ token: string; provider: TelephonyProviderType }> {
   if (!config.apiKeySid || !config.apiKeySecret || !config.twimlAppSid || !config.accountSid) {
-    throw new Error('Missing Twilio WebRTC config: apiKeySid, apiKeySecret, twimlAppSid, accountSid')
+    throw new Error(
+      'Missing Twilio WebRTC config: apiKeySid, apiKeySecret, twimlAppSid, accountSid'
+    )
   }
 
   const now = Math.floor(Date.now() / 1000)
@@ -81,7 +83,7 @@ async function generateTwilioToken(
 
 async function generateVonageToken(
   config: TelephonyProviderConfig,
-  identity: string,
+  identity: string
 ): Promise<{ token: string; provider: TelephonyProviderType }> {
   if (!config.applicationId || !config.privateKey) {
     throw new Error('Missing Vonage WebRTC config: applicationId, privateKey')
@@ -119,7 +121,7 @@ async function generateVonageToken(
 
 async function generatePlivoToken(
   config: TelephonyProviderConfig,
-  identity: string,
+  identity: string
 ): Promise<{ token: string; provider: TelephonyProviderType }> {
   if (!config.authId || !config.authToken) {
     throw new Error('Missing Plivo WebRTC config: authId, authToken')
@@ -153,7 +155,7 @@ function base64urlEncodeBytes(bytes: Uint8Array): string {
 async function signJwtHs256(
   header: Record<string, unknown>,
   payload: Record<string, unknown>,
-  secret: string,
+  secret: string
 ): Promise<string> {
   const headerB64 = base64urlEncode(JSON.stringify(header))
   const payloadB64 = base64urlEncode(JSON.stringify(payload))
@@ -164,7 +166,7 @@ async function signJwtHs256(
     new TextEncoder().encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign'],
+    ['sign']
   )
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data))
   const sigB64 = base64urlEncodeBytes(new Uint8Array(sig))
@@ -174,7 +176,7 @@ async function signJwtHs256(
 async function signJwtRs256(
   header: Record<string, unknown>,
   payload: Record<string, unknown>,
-  privateKeyPem: string,
+  privateKeyPem: string
 ): Promise<string> {
   const headerB64 = base64urlEncode(JSON.stringify(header))
   const payloadB64 = base64urlEncode(JSON.stringify(payload))
@@ -185,14 +187,14 @@ async function signJwtRs256(
     .replace(/-----BEGIN (?:RSA )?PRIVATE KEY-----/, '')
     .replace(/-----END (?:RSA )?PRIVATE KEY-----/, '')
     .replace(/\s/g, '')
-  const keyBytes = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0))
+  const keyBytes = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0))
 
   const key = await crypto.subtle.importKey(
     'pkcs8',
     keyBytes,
     { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
     false,
-    ['sign'],
+    ['sign']
   )
   const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(data))
   const sigB64 = base64urlEncodeBytes(new Uint8Array(sig))
@@ -205,8 +207,10 @@ async function hmacSha256(key: string, data: string): Promise<string> {
     new TextEncoder().encode(key),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign'],
+    ['sign']
   )
   const sig = await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(data))
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('')
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
 }

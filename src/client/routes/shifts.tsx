@@ -1,32 +1,40 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/lib/auth'
-import { useEffect, useState } from 'react'
-import {
-  listShifts,
-  createShift,
-  updateShift,
-  deleteShift,
-  listVolunteers,
-  getFallbackGroup,
-  setFallbackGroup,
-  type Shift,
-  type Volunteer,
-} from '@/lib/api'
-import { useToast } from '@/lib/toast'
-import { CalendarPlus, Clock, Users, Pencil, Trash2, LifeBuoy } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { VolunteerMultiSelect } from '@/components/volunteer-multi-select'
+import {
+  type Shift,
+  type Volunteer,
+  createShift,
+  deleteShift,
+  getFallbackGroup,
+  listShifts,
+  listVolunteers,
+  setFallbackGroup,
+  updateShift,
+} from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { useToast } from '@/lib/toast'
+import { createFileRoute } from '@tanstack/react-router'
+import { CalendarPlus, Clock, LifeBuoy, Pencil, Trash2, Users } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/shifts')({
   component: ShiftsPage,
 })
 
-const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const
+const DAY_KEYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const
 
 function ShiftsPage() {
   const { t } = useTranslation()
@@ -41,10 +49,11 @@ function ShiftsPage() {
 
   useEffect(() => {
     Promise.all([
-      listShifts().then(r => setShifts(r.shifts)),
-      listVolunteers().then(r => setVolunteers(r.volunteers)),
-      getFallbackGroup().then(r => setFallback(r.volunteers)),
-    ]).catch(() => toast(t('common.error'), 'error'))
+      listShifts().then((r) => setShifts(r.shifts)),
+      listVolunteers().then((r) => setVolunteers(r.volunteers)),
+      getFallbackGroup().then((r) => setFallback(r.volunteers)),
+    ])
+      .catch(() => toast(t('common.error'), 'error'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -68,7 +77,13 @@ function ShiftsPage() {
           <Clock className="h-6 w-6 text-primary" />
           <h1 className="text-xl font-bold sm:text-2xl">{t('shifts.title')}</h1>
         </div>
-        <Button data-testid="shift-create-btn" onClick={() => { setShowForm(true); setEditingShift(null) }}>
+        <Button
+          data-testid="shift-create-btn"
+          onClick={() => {
+            setShowForm(true)
+            setEditingShift(null)
+          }}
+        >
           <CalendarPlus className="h-4 w-4" />
           {t('shifts.createShift')}
         </Button>
@@ -82,10 +97,10 @@ function ShiftsPage() {
             try {
               if (editingShift) {
                 const res = await updateShift(editingShift.id, data)
-                setShifts(prev => prev.map(s => s.id === editingShift.id ? res.shift : s))
+                setShifts((prev) => prev.map((s) => (s.id === editingShift.id ? res.shift : s)))
               } else {
                 const res = await createShift(data as Omit<Shift, 'id'>)
-                setShifts(prev => [...prev, res.shift])
+                setShifts((prev) => [...prev, res.shift])
               }
               setShowForm(false)
               setEditingShift(null)
@@ -94,7 +109,10 @@ function ShiftsPage() {
               toast(t('common.error'), 'error')
             }
           }}
-          onCancel={() => { setShowForm(false); setEditingShift(null) }}
+          onCancel={() => {
+            setShowForm(false)
+            setEditingShift(null)
+          }}
         />
       )}
 
@@ -126,7 +144,7 @@ function ShiftsPage() {
             </CardContent>
           </Card>
         ) : (
-          shifts.map(shift => (
+          shifts.map((shift) => (
             <Card key={shift.id} data-testid={`shift-card-${shift.id}`}>
               <CardContent>
                 <div className="flex items-start justify-between">
@@ -137,19 +155,28 @@ function ShiftsPage() {
                       {shift.startTime} - {shift.endTime}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {shift.days.map(d => (
+                      {shift.days.map((d) => (
                         <Badge key={d} variant="secondary">
                           {t(`shifts.days.${DAY_KEYS[d]}`)}
                         </Badge>
                       ))}
                     </div>
-                    <p data-testid="shift-volunteer-count" className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <p
+                      data-testid="shift-volunteer-count"
+                      className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"
+                    >
                       <Users className="h-3 w-3" />
                       {shift.volunteerPubkeys.length} {t('shifts.volunteers').toLowerCase()}
                     </p>
                   </div>
                   <div className="flex gap-1">
-                    <Button data-testid="shift-edit-btn" variant="ghost" size="icon-xs" onClick={() => setEditingShift(shift)} aria-label={t('a11y.editItem')}>
+                    <Button
+                      data-testid="shift-edit-btn"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => setEditingShift(shift)}
+                      aria-label={t('a11y.editItem')}
+                    >
                       <Pencil className="h-3 w-3" />
                     </Button>
                     <Button
@@ -161,7 +188,7 @@ function ShiftsPage() {
                       onClick={async () => {
                         try {
                           await deleteShift(shift.id)
-                          setShifts(prev => prev.filter(s => s.id !== shift.id))
+                          setShifts((prev) => prev.filter((s) => s.id !== shift.id))
                         } catch {
                           toast(t('common.error'), 'error')
                         }
@@ -188,7 +215,7 @@ function ShiftsPage() {
         </CardHeader>
         <CardContent>
           <VolunteerMultiSelect
-            volunteers={volunteers.filter(v => v.active)}
+            volunteers={volunteers.filter((v) => v.active)}
             selected={fallback}
             onSelectionChange={handleSaveFallback}
           />
@@ -198,7 +225,12 @@ function ShiftsPage() {
   )
 }
 
-function ShiftForm({ shift, volunteers, onSave, onCancel }: {
+function ShiftForm({
+  shift,
+  volunteers,
+  onSave,
+  onCancel,
+}: {
   shift: Shift | null
   volunteers: Volunteer[]
   onSave: (data: Partial<Shift>) => Promise<void>
@@ -209,7 +241,9 @@ function ShiftForm({ shift, volunteers, onSave, onCancel }: {
   const [startTime, setStartTime] = useState(shift?.startTime || '09:00')
   const [endTime, setEndTime] = useState(shift?.endTime || '17:00')
   const [days, setDays] = useState<number[]>(shift?.days || [1, 2, 3, 4, 5])
-  const [selectedVolunteers, setSelectedVolunteers] = useState<string[]>(shift?.volunteerPubkeys || [])
+  const [selectedVolunteers, setSelectedVolunteers] = useState<string[]>(
+    shift?.volunteerPubkeys || []
+  )
   const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -238,7 +272,7 @@ function ShiftForm({ shift, volunteers, onSave, onCancel }: {
               id="shift-name"
               data-testid="shift-name-input"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
               required
             />
           </div>
@@ -250,7 +284,7 @@ function ShiftForm({ shift, volunteers, onSave, onCancel }: {
                 data-testid="shift-start-time"
                 type="time"
                 value={startTime}
-                onChange={e => setStartTime(e.target.value)}
+                onChange={(e) => setStartTime(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -260,7 +294,7 @@ function ShiftForm({ shift, volunteers, onSave, onCancel }: {
                 data-testid="shift-end-time"
                 type="time"
                 value={endTime}
-                onChange={e => setEndTime(e.target.value)}
+                onChange={(e) => setEndTime(e.target.value)}
               />
             </div>
           </div>
@@ -272,7 +306,11 @@ function ShiftForm({ shift, volunteers, onSave, onCancel }: {
                   key={i}
                   type="button"
                   aria-pressed={days.includes(i)}
-                  onClick={() => setDays(prev => prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i])}
+                  onClick={() =>
+                    setDays((prev) =>
+                      prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i]
+                    )
+                  }
                 >
                   <Badge variant={days.includes(i) ? 'default' : 'outline'}>
                     {t(`shifts.days.${day}`)}
@@ -284,7 +322,7 @@ function ShiftForm({ shift, volunteers, onSave, onCancel }: {
           <div className="space-y-2">
             <Label>{t('shifts.assignVolunteers')}</Label>
             <VolunteerMultiSelect
-              volunteers={volunteers.filter(v => v.active)}
+              volunteers={volunteers.filter((v) => v.active)}
               selected={selectedVolunteers}
               onSelectionChange={setSelectedVolunteers}
               placeholder={t('shifts.searchVolunteers')}
@@ -294,7 +332,12 @@ function ShiftForm({ shift, volunteers, onSave, onCancel }: {
             <Button data-testid="form-save-btn" type="submit" disabled={saving}>
               {saving ? t('common.loading') : t('common.save')}
             </Button>
-            <Button data-testid="form-cancel-btn" type="button" variant="outline" onClick={onCancel}>
+            <Button
+              data-testid="form-cancel-btn"
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+            >
               {t('common.cancel')}
             </Button>
           </div>

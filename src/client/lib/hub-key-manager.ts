@@ -14,10 +14,10 @@
  */
 
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
-import { eciesWrapKey, eciesUnwrapKey, type KeyEnvelope, type RecipientKeyEnvelope } from './crypto'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { LABEL_HUB_KEY_WRAP } from '@shared/crypto-labels'
+import { type KeyEnvelope, type RecipientKeyEnvelope, eciesUnwrapKey, eciesWrapKey } from './crypto'
 
 function randomBytes(n: number): Uint8Array {
   const buf = new Uint8Array(n)
@@ -39,7 +39,7 @@ export function generateHubKey(): Uint8Array {
  */
 export function wrapHubKeyForMember(
   hubKey: Uint8Array,
-  memberPubkeyHex: string,
+  memberPubkeyHex: string
 ): RecipientKeyEnvelope {
   return {
     pubkey: memberPubkeyHex,
@@ -53,18 +53,15 @@ export function wrapHubKeyForMember(
  */
 export function wrapHubKeyForMembers(
   hubKey: Uint8Array,
-  memberPubkeys: string[],
+  memberPubkeys: string[]
 ): RecipientKeyEnvelope[] {
-  return memberPubkeys.map(pk => wrapHubKeyForMember(hubKey, pk))
+  return memberPubkeys.map((pk) => wrapHubKeyForMember(hubKey, pk))
 }
 
 /**
  * Unwrap a hub key from an ECIES envelope using the member's secret key.
  */
-export function unwrapHubKey(
-  envelope: KeyEnvelope,
-  secretKey: Uint8Array,
-): Uint8Array {
+export function unwrapHubKey(envelope: KeyEnvelope, secretKey: Uint8Array): Uint8Array {
   return eciesUnwrapKey(envelope, secretKey, LABEL_HUB_KEY_WRAP)
 }
 
@@ -72,10 +69,7 @@ export function unwrapHubKey(
  * Encrypt arbitrary data with the hub key using XChaCha20-Poly1305.
  * Returns hex: nonce(24) + ciphertext.
  */
-export function encryptForHub(
-  plaintext: string,
-  hubKey: Uint8Array,
-): string {
+export function encryptForHub(plaintext: string, hubKey: Uint8Array): string {
   const nonce = randomBytes(24)
   const cipher = xchacha20poly1305(hubKey, nonce)
   const ciphertext = cipher.encrypt(utf8ToBytes(plaintext))
@@ -90,10 +84,7 @@ export function encryptForHub(
  * Decrypt hub-encrypted data using the hub key.
  * Returns null on decryption failure (wrong key, corrupted data, etc.).
  */
-export function decryptFromHub(
-  packed: string,
-  hubKey: Uint8Array,
-): string | null {
+export function decryptFromHub(packed: string, hubKey: Uint8Array): string | null {
   try {
     const data = hexToBytes(packed)
     const nonce = data.slice(0, 24)
@@ -115,9 +106,10 @@ export function decryptFromHub(
  * 2. Storing the new envelopes server-side
  * 3. Distributing via GET /api/hub/key
  */
-export function rotateHubKey(
-  memberPubkeys: string[],
-): { hubKey: Uint8Array; envelopes: RecipientKeyEnvelope[] } {
+export function rotateHubKey(memberPubkeys: string[]): {
+  hubKey: Uint8Array
+  envelopes: RecipientKeyEnvelope[]
+} {
   const hubKey = generateHubKey()
   const envelopes = wrapHubKeyForMembers(hubKey, memberPubkeys)
   return { hubKey, envelopes }

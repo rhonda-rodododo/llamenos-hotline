@@ -1,18 +1,18 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useToast } from '@/lib/toast'
-import {
-  testTelephonyProvider,
-  updateTelephonyProvider,
-  type TelephonyProviderConfig,
-  type TelephonyProviderType,
-} from '@/lib/api'
-import { TELEPHONY_PROVIDER_LABELS } from '@shared/types'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Check, Loader2, Copy } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  type TelephonyProviderConfig,
+  type TelephonyProviderType,
+  testTelephonyProvider,
+  updateTelephonyProvider,
+} from '@/lib/api'
+import { useToast } from '@/lib/toast'
+import { TELEPHONY_PROVIDER_LABELS } from '@shared/types'
+import { Check, Copy, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { SetupData } from './SetupWizard'
 
 interface Props {
@@ -74,15 +74,22 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
 
       {/* Provider select */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {PROVIDERS.map(type => (
+        {PROVIDERS.map((type) => (
           <Card
             key={type}
             role="button"
             tabIndex={0}
             onClick={() => update({ type })}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); update({ type }) } }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                update({ type })
+              }
+            }}
             className={`cursor-pointer p-3 text-center text-xs transition-all ${
-              selectedType === type ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary/50'
+              selectedType === type
+                ? 'border-primary ring-2 ring-primary/20'
+                : 'hover:border-primary/50'
             }`}
           >
             <span className="font-medium">{TELEPHONY_PROVIDER_LABELS[type]}</span>
@@ -95,23 +102,39 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
       <div className="space-y-3">
         <div className="space-y-1">
           <Label>{t('telephonyProvider.phoneNumber')}</Label>
-          <Input value={provider.phoneNumber || ''} onChange={e => update({ phoneNumber: e.target.value })} placeholder="+12125551234" />
+          <Input
+            value={provider.phoneNumber || ''}
+            onChange={(e) => update({ phoneNumber: e.target.value })}
+            placeholder="+12125551234"
+          />
         </div>
 
         {(selectedType === 'twilio' || selectedType === 'signalwire') && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label>{t('telephonyProvider.accountSid')}</Label>
-              <Input value={provider.accountSid || ''} onChange={e => update({ accountSid: e.target.value })} placeholder="AC..." />
+              <Input
+                value={provider.accountSid || ''}
+                onChange={(e) => update({ accountSid: e.target.value })}
+                placeholder="AC..."
+              />
             </div>
             <div className="space-y-1">
               <Label>{t('telephonyProvider.authToken')}</Label>
-              <Input type="password" value={provider.authToken || ''} onChange={e => update({ authToken: e.target.value })} />
+              <Input
+                type="password"
+                value={provider.authToken || ''}
+                onChange={(e) => update({ authToken: e.target.value })}
+              />
             </div>
             {selectedType === 'signalwire' && (
               <div className="space-y-1 sm:col-span-2">
                 <Label>{t('telephonyProvider.signalwireSpace')}</Label>
-                <Input value={provider.signalwireSpace || ''} onChange={e => update({ signalwireSpace: e.target.value })} placeholder="myspace" />
+                <Input
+                  value={provider.signalwireSpace || ''}
+                  onChange={(e) => update({ signalwireSpace: e.target.value })}
+                  placeholder="myspace"
+                />
               </div>
             )}
           </div>
@@ -121,15 +144,25 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label>{t('telephonyProvider.apiKey')}</Label>
-              <Input value={provider.apiKey || ''} onChange={e => update({ apiKey: e.target.value })} />
+              <Input
+                value={provider.apiKey || ''}
+                onChange={(e) => update({ apiKey: e.target.value })}
+              />
             </div>
             <div className="space-y-1">
               <Label>{t('telephonyProvider.apiSecret')}</Label>
-              <Input type="password" value={provider.apiSecret || ''} onChange={e => update({ apiSecret: e.target.value })} />
+              <Input
+                type="password"
+                value={provider.apiSecret || ''}
+                onChange={(e) => update({ apiSecret: e.target.value })}
+              />
             </div>
             <div className="space-y-1">
               <Label>{t('telephonyProvider.applicationId')}</Label>
-              <Input value={provider.applicationId || ''} onChange={e => update({ applicationId: e.target.value })} />
+              <Input
+                value={provider.applicationId || ''}
+                onChange={(e) => update({ applicationId: e.target.value })}
+              />
             </div>
           </div>
         )}
@@ -138,11 +171,18 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label>{t('telephonyProvider.authId')}</Label>
-              <Input value={provider.authId || ''} onChange={e => update({ authId: e.target.value })} />
+              <Input
+                value={provider.authId || ''}
+                onChange={(e) => update({ authId: e.target.value })}
+              />
             </div>
             <div className="space-y-1">
               <Label>{t('telephonyProvider.authToken')}</Label>
-              <Input type="password" value={provider.authToken || ''} onChange={e => update({ authToken: e.target.value })} />
+              <Input
+                type="password"
+                value={provider.authToken || ''}
+                onChange={(e) => update({ authToken: e.target.value })}
+              />
             </div>
           </div>
         )}
@@ -151,16 +191,27 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
           <>
             <div className="space-y-1">
               <Label>{t('telephonyProvider.ariUrl')}</Label>
-              <Input value={provider.ariUrl || ''} onChange={e => update({ ariUrl: e.target.value })} placeholder="https://asterisk.example.com:8089/ari" />
+              <Input
+                value={provider.ariUrl || ''}
+                onChange={(e) => update({ ariUrl: e.target.value })}
+                placeholder="https://asterisk.example.com:8089/ari"
+              />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>{t('telephonyProvider.ariUsername')}</Label>
-                <Input value={provider.ariUsername || ''} onChange={e => update({ ariUsername: e.target.value })} />
+                <Input
+                  value={provider.ariUsername || ''}
+                  onChange={(e) => update({ ariUsername: e.target.value })}
+                />
               </div>
               <div className="space-y-1">
                 <Label>{t('telephonyProvider.ariPassword')}</Label>
-                <Input type="password" value={provider.ariPassword || ''} onChange={e => update({ ariPassword: e.target.value })} />
+                <Input
+                  type="password"
+                  value={provider.ariPassword || ''}
+                  onChange={(e) => update({ ariPassword: e.target.value })}
+                />
               </div>
             </div>
           </>
@@ -169,9 +220,15 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
 
       {/* Test result */}
       {testResult && (
-        <div className={`rounded-lg border p-3 ${testResult.ok ? 'border-green-500/30 bg-green-500/10' : 'border-destructive/30 bg-destructive/10'}`}>
-          <p className={`text-xs ${testResult.ok ? 'text-green-700 dark:text-green-400' : 'text-destructive'}`}>
-            {testResult.ok ? t('telephonyProvider.testSuccess') : `${t('telephonyProvider.testFailed')}: ${testResult.error || ''}`}
+        <div
+          className={`rounded-lg border p-3 ${testResult.ok ? 'border-green-500/30 bg-green-500/10' : 'border-destructive/30 bg-destructive/10'}`}
+        >
+          <p
+            className={`text-xs ${testResult.ok ? 'text-green-700 dark:text-green-400' : 'text-destructive'}`}
+          >
+            {testResult.ok
+              ? t('telephonyProvider.testSuccess')
+              : `${t('telephonyProvider.testFailed')}: ${testResult.error || ''}`}
           </p>
         </div>
       )}
@@ -181,7 +238,9 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
         <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
           <div className="flex-1">
             <p className="text-xs font-medium">{t('setup.webhookUrl')}</p>
-            <code className="text-xs text-muted-foreground">{window.location.origin}/telephony/voice</code>
+            <code className="text-xs text-muted-foreground">
+              {window.location.origin}/telephony/voice
+            </code>
           </div>
           <Button variant="ghost" size="sm" onClick={copyWebhookUrl}>
             <Copy className="h-3.5 w-3.5" />
@@ -191,7 +250,12 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
 
       {/* Actions */}
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={handleTest} disabled={testing || !provider.phoneNumber}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleTest}
+          disabled={testing || !provider.phoneNumber}
+        >
           {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           {testing ? t('telephonyProvider.testing') : t('telephonyProvider.testConnection')}
         </Button>

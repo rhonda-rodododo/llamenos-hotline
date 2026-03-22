@@ -1,13 +1,13 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { createBlast } from '@/lib/api'
-import type { Blast } from '@/lib/api'
-import { useToast } from '@/lib/toast'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
+import { createBlast } from '@/lib/api'
+import type { Blast } from '@/lib/api'
+import { useToast } from '@/lib/toast'
 import { Save } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface BlastComposerProps {
   onCreated: (blast: Blast) => void
@@ -77,20 +77,25 @@ export function BlastComposer({ onCreated, onCancel }: BlastComposerProps) {
             className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             data-testid="blast-text"
           />
-          <p className="text-xs text-muted-foreground">{text.length} {t('blasts.characters')}</p>
+          <p className="text-xs text-muted-foreground">
+            {text.length} {t('blasts.characters')}
+          </p>
         </div>
 
         <div className="space-y-2">
           <Label>{t('blasts.channels')}</Label>
           <div className="flex flex-wrap gap-2">
-            {channelOptions.map(ch => (
+            {channelOptions.map((ch) => (
               <button
                 key={ch.value}
-                onClick={() => setChannels(prev =>
-                  prev.includes(ch.value)
-                    ? prev.filter(c => c !== ch.value)
-                    : [...prev, ch.value]
-                )}
+                type="button"
+                onClick={() =>
+                  setChannels((prev) =>
+                    prev.includes(ch.value)
+                      ? prev.filter((c) => c !== ch.value)
+                      : [...prev, ch.value]
+                  )
+                }
                 className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
                   channels.includes(ch.value)
                     ? 'border-primary bg-primary/10 text-primary font-medium'

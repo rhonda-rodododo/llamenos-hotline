@@ -22,7 +22,7 @@ export async function checkBridgeHealth(config: SignalConfig): Promise<BridgeHea
     const response = await fetch(`${bridgeUrl}/v1/about`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${config.bridgeApiKey}`,
+        Authorization: `Bearer ${config.bridgeApiKey}`,
       },
     })
 
@@ -69,9 +69,9 @@ export async function checkRegistrationStatus(config: SignalConfig): Promise<{
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${config.bridgeApiKey}`,
+          Authorization: `Bearer ${config.bridgeApiKey}`,
         },
-      },
+      }
     )
 
     if (!response.ok) {

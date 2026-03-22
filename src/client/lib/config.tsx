@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
-import { getConfig, setActiveHub } from './api'
 import type { EnabledChannels, Hub } from '@shared/types'
+import { type ReactNode, createContext, useContext, useEffect, useState } from 'react'
+import { getConfig, setActiveHub } from './api'
 
 interface ConfigContextValue {
   hotlineName: string
@@ -71,13 +71,14 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     getConfig()
-      .then(config => {
+      .then((config) => {
         setHotlineName(config.hotlineName)
         setHotlineNumber(config.hotlineNumber || '')
         if (config.channels) setChannels(config.channels)
         if (config.setupCompleted !== undefined) setSetupCompleted(config.setupCompleted)
         if (config.demoMode) setDemoMode(config.demoMode)
-        if (config.demoResetSchedule !== undefined) setDemoResetSchedule(config.demoResetSchedule ?? null)
+        if (config.demoResetSchedule !== undefined)
+          setDemoResetSchedule(config.demoResetSchedule ?? null)
         setNeedsBootstrap(!!config.needsBootstrap)
         if (config.hubs?.length) {
           setHubs(config.hubs)
@@ -101,11 +102,25 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const isMultiHub = hubs.length > 1
 
   return (
-    <ConfigContext.Provider value={{
-      hotlineName, hotlineNumber, channels, setupCompleted,
-      demoMode, demoResetSchedule, needsBootstrap, isLoading, hubs, defaultHubId, currentHubId,
-      setCurrentHubId, isMultiHub, serverNostrPubkey, nostrRelayUrl,
-    }}>
+    <ConfigContext.Provider
+      value={{
+        hotlineName,
+        hotlineNumber,
+        channels,
+        setupCompleted,
+        demoMode,
+        demoResetSchedule,
+        needsBootstrap,
+        isLoading,
+        hubs,
+        defaultHubId,
+        currentHubId,
+        setCurrentHubId,
+        isMultiHub,
+        serverNostrPubkey,
+        nostrRelayUrl,
+      }}
+    >
       {children}
     </ConfigContext.Provider>
   )
