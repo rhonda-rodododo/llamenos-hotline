@@ -8,6 +8,13 @@
       "when": 1774189088082,
       "tag": "0000_nasty_scrambler",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774231200000,
+      "tag": "0001_hub_schema_fix",
+      "breakpoints": true
     }
   ]
 }

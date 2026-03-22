@@ -4,8 +4,13 @@ import { jsonb } from '../bun-jsonb'
 export const hubs = pgTable('hubs', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  nostrPubkey: text('nostr_pubkey'),
+  slug: text('slug').notNull().default(''),
+  description: text('description'),
+  status: text('status').notNull().default('active'),
+  phoneNumber: text('phone_number'),
+  createdBy: text('created_by').notNull().default(''),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const hubKeys = pgTable(
