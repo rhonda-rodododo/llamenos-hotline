@@ -738,6 +738,7 @@ export class SettingsService {
       await tx.delete(ivrLanguages).where(eq(ivrLanguages.hubId, id))
       await tx.delete(ivrAudio).where(eq(ivrAudio.hubId, id))
       await tx.delete(reportCategories).where(eq(reportCategories.hubId, id))
+      await tx.delete(roles).where(eq(roles.hubId, id))
       await tx.delete(hubKeys).where(eq(hubKeys.hubId, id))
 
       // --- Shift data ---

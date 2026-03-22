@@ -1,12 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { loginAsAdmin, resetTestState } from './helpers'
 
-// Helper type for the authed fetch on window
-declare global {
-  interface Window {
-    __authedFetch: (url: string, options?: RequestInit) => Promise<Response>
-  }
-}
 
 test.describe('Multi-hub architecture', () => {
   // Tests must run in order — later tests create hubs that affect UI state

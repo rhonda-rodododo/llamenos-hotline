@@ -1,4 +1,11 @@
 import { type Page, type APIRequestContext, expect } from '@playwright/test'
+
+// Augment Window with the authed fetch helper injected by test setup
+declare global {
+  interface Window {
+    __authedFetch?: (url: string, options?: RequestInit) => Promise<Response>
+  }
+}
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
@@ -240,18 +247,14 @@ const TEST_RESET_SECRET = process.env.DEV_RESET_SECRET || 'test-reset-secret'
  *
  * Usage: call in `test.beforeAll`, pair with `deleteTestHub` in `test.afterAll`
  * to get a fully isolated hub for each test file.
+ *
+ * Requires window.__authedFetch to be injected (see multi-hub.spec.ts beforeEach pattern).
  */
 export async function createTestHub(page: Page, name: string): Promise<string> {
   const created = await page.evaluate(async (hubName: string) => {
-    const km = (window as any).__TEST_KEY_MANAGER
-    const token = km?.isUnlocked()
-      ? km.createAuthToken(Date.now(), 'POST', '/api/hubs')
-      : null
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    const fetch = window.__authedFetch ?? window.fetch
     const res = await fetch('/api/hubs', {
       method: 'POST',
-      headers,
       body: JSON.stringify({ name: hubName }),
     })
     if (!res.ok) throw new Error(`createTestHub failed: ${res.status} ${await res.text()}`)
@@ -261,18 +264,15 @@ export async function createTestHub(page: Page, name: string): Promise<string> {
 }
 
 /**
- * Delete a test hub via the authed API, waiting for the cascade to complete.
- * Asserts the hub is gone (404) after deletion.
+ * Delete a test hub via the authed API.
+ * Safe to call even if the hub was already deleted (404 is ignored).
+ *
+ * Requires window.__authedFetch to be injected (see multi-hub.spec.ts beforeEach pattern).
  */
 export async function deleteTestHub(page: Page, hubId: string): Promise<void> {
   await page.evaluate(async (id: string) => {
-    const km = (window as any).__TEST_KEY_MANAGER
-    const token = km?.isUnlocked()
-      ? km.createAuthToken(Date.now(), 'DELETE', `/api/hubs/${id}`)
-      : null
-    const headers: Record<string, string> = {}
-    if (token) headers['Authorization'] = `Bearer ${token}`
-    const res = await fetch(`/api/hubs/${id}`, { method: 'DELETE', headers })
+    const fetch = window.__authedFetch ?? window.fetch
+    const res = await fetch(`/api/hubs/${id}`, { method: 'DELETE' })
     if (!res.ok && res.status !== 404) {
       throw new Error(`deleteTestHub failed: ${res.status} ${await res.text()}`)
     }
