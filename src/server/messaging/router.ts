@@ -329,8 +329,12 @@ async function tryAutoAssign(
             autoAssigned: true,
           }),
         })
-        .catch(() => {})
-    } catch {}
+        .catch((err: unknown) => {
+          console.warn('[messaging] Nostr notify for auto-assignment failed:', err)
+        })
+    } catch (err) {
+      console.warn('[messaging] Failed to get Nostr publisher for auto-assignment:', err)
+    }
 
     console.log(
       `[messaging] Auto-assigned conversation ${conversationId} to ${bestCandidate.slice(0, 8)}`

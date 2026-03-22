@@ -52,6 +52,10 @@ export interface Env {
 
   // Server Nostr identity (Epic 76.1) — hex secret for HKDF keypair derivation
   SERVER_NOSTR_SECRET?: string
+  // Phase 2.4: Comma-separated list of additional allowed CORS origins
+  CORS_ALLOWED_ORIGINS?: string
+  // Application URL (used for invite links, webhooks)
+  APP_URL?: string
   // Relay URL for Node.js persistent WebSocket (Docker/self-hosted)
   NOSTR_RELAY_URL?: string
   // Public-facing relay URL for client browser connections (e.g., wss://relay.example.com)
