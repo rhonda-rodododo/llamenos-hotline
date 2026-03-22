@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
-import { getDOs } from './lib/do-access'
 import messagingRoutes from './messaging/router'
 import { auth } from './middleware/auth'
 import { cors } from './middleware/cors'
 import { hubContext } from './middleware/hub'
 import { securityHeaders } from './middleware/security-headers'
+import { errorHandler } from '../server/middleware/error'
 import auditRoutes from './routes/audit'
 import authRoutes from './routes/auth'
 import bansRoutes from './routes/bans'
@@ -33,6 +33,8 @@ import webrtcRoutes from './routes/webrtc'
 import type { AppEnv } from './types'
 
 const app = new Hono<AppEnv>()
+
+app.onError(errorHandler)
 
 // --- API routes: CORS on all /api/* ---
 const api = new Hono<AppEnv>()
@@ -63,42 +65,53 @@ api.route('/messaging', messagingRoutes)
 api.get('/messaging/preferences', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
-  const dos = getDOs(c.env)
-  const res = await dos.blasts.fetch(
-    new Request('http://do/subscribers/validate-token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
-    })
-  )
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  if (!services) return c.json({ error: 'Services not available' }, 503)
+  const subscriber = await services.blasts.getSubscriberByToken(token)
+  if (!subscriber) return c.json({ error: 'Invalid token' }, 404)
+  return c.json({
+    id: subscriber.id,
+    channel: subscriber.channel,
+    active: subscriber.active,
+    metadata: subscriber.metadata,
+  })
 })
 
 api.patch('/messaging/preferences', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
-  const dos = getDOs(c.env)
-  const body = await c.req.text()
-  const res = await dos.blasts.fetch(
-    new Request('http://do/subscribers/update-preferences', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, ...JSON.parse(body) }),
-    })
-  )
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const services = c.get('services')
+  if (!services) return c.json({ error: 'Services not available' }, 503)
+  const subscriber = await services.blasts.getSubscriberByToken(token)
+  if (!subscriber) return c.json({ error: 'Invalid token' }, 404)
+  const body = await c.req.json<{ active?: boolean; metadata?: Record<string, unknown> }>()
+  const updated = await services.blasts.updateSubscriber(subscriber.id, {
+    ...(body.active !== undefined ? { active: body.active } : {}),
+    ...(body.metadata !== undefined ? { metadata: body.metadata } : {}),
+  })
+  return c.json({
+    id: updated.id,
+    channel: updated.channel,
+    active: updated.active,
+    metadata: updated.metadata,
+  })
 })
 
 // Public IVR audio serve (Twilio fetches during calls)
 api.get('/ivr-audio/:promptType/:language', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const promptType = c.req.param('promptType')
   const language = c.req.param('language')
-  // Validate path params to prevent injection into the internal DO URL
+  // Validate path params to prevent injection
   if (!/^[a-z_-]+$/.test(promptType) || !/^[a-z]{2,5}(-[A-Z]{2})?$/.test(language)) {
     return c.json({ error: 'Invalid parameters' }, 400)
   }
-  return dos.settings.fetch(new Request(`http://do/settings/ivr-audio/${promptType}/${language}`))
+  if (!services) return c.json({ error: 'Services not available' }, 503)
+  const audio = await services.settings.getIvrAudio(promptType, language)
+  if (!audio) return c.json({ error: 'Audio not found' }, 404)
+  return new Response(audio.audioData, {
+    headers: { 'Content-Type': audio.mimeType },
+  })
 })
 
 // Authenticated routes

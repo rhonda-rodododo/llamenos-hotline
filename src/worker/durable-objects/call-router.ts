@@ -8,7 +8,7 @@ import {
   KIND_PRESENCE_UPDATE,
 } from '../../shared/nostr-events'
 import { encryptCallRecordForStorage, hashPhone } from '../lib/crypto'
-import { getNostrPublisher } from '../lib/do-access'
+import { type EnvWithDOs, getNostrPublisher } from '../lib/do-access'
 import { DORouter } from '../lib/do-router'
 import { deriveServerEventKey, encryptHubEvent } from '../lib/hub-event-crypto'
 import type { CallRecord, CallRecordMetadata, EncryptedCallRecord, Env } from '../types'
@@ -459,7 +459,8 @@ export class CallRouterDO extends DurableObject<Env> {
 
     let onShiftPubkeys: string[] = []
     try {
-      const shiftDO = this.env.SHIFT_MANAGER.get(this.env.SHIFT_MANAGER.idFromName(this.hubId))
+      const envWithDOs = this.env as EnvWithDOs
+      const shiftDO = envWithDOs.SHIFT_MANAGER.get(envWithDOs.SHIFT_MANAGER.idFromName(this.hubId))
       const shiftRes = await shiftDO.fetch(new Request('http://do/current-volunteers'))
       if (shiftRes.ok) {
         const data = (await shiftRes.json()) as { volunteers?: string[] }
@@ -543,7 +544,8 @@ export class CallRouterDO extends DurableObject<Env> {
 
     let onShiftCount = 0
     try {
-      const shiftDO = this.env.SHIFT_MANAGER.get(this.env.SHIFT_MANAGER.idFromName(this.hubId))
+      const envWithDOs = this.env as EnvWithDOs
+      const shiftDO = envWithDOs.SHIFT_MANAGER.get(envWithDOs.SHIFT_MANAGER.idFromName(this.hubId))
       const shiftRes = await shiftDO.fetch(new Request('http://do/current-volunteers'))
       if (shiftRes.ok) {
         const data = (await shiftRes.json()) as { volunteers?: string[] }

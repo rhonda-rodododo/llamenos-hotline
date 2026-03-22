@@ -1,0 +1,156 @@
+/**
+ * Adapter factories for telephony, messaging, and Nostr publisher.
+ *
+ * Replaces the DO-based factory functions in src/worker/lib/do-access.ts.
+ * Takes service instances instead of DO stubs.
+ */
+
+import type { MessagingChannelType, TelephonyProviderConfig } from '../../shared/types'
+import type { MessagingAdapter } from '../../worker/messaging/adapter'
+import { createRCSAdapter } from '../../worker/messaging/rcs/factory'
+import { createSignalAdapter } from '../../worker/messaging/signal/factory'
+import { createSMSAdapter } from '../../worker/messaging/sms/factory'
+import { createWhatsAppAdapter } from '../../worker/messaging/whatsapp/factory'
+import type { TelephonyAdapter } from '../../worker/telephony/adapter'
+import { AsteriskAdapter } from '../../worker/telephony/asterisk'
+import { PlivoAdapter } from '../../worker/telephony/plivo'
+import { SignalWireAdapter } from '../../worker/telephony/signalwire'
+import { TwilioAdapter } from '../../worker/telephony/twilio'
+import { VonageAdapter } from '../../worker/telephony/vonage'
+import { type NostrPublisher, createNostrPublisher } from '../../worker/lib/nostr-publisher'
+import type { SettingsService } from '../services/settings'
+
+let cachedPublisher: NostrPublisher | null = null
+
+/**
+ * Get a TelephonyAdapter for the given hub (or global config).
+ * Falls back to env-var Twilio credentials if no DB config is found.
+ */
+export async function getTelephony(
+  settings: SettingsService,
+  hubId?: string,
+  env?: {
+    TWILIO_ACCOUNT_SID?: string
+    TWILIO_AUTH_TOKEN?: string
+    TWILIO_PHONE_NUMBER?: string
+  }
+): Promise<TelephonyAdapter | null> {
+  // Try hub-specific config first, then global
+  const hId = hubId ?? undefined
+  let config: TelephonyProviderConfig | null = null
+
+  if (hId) {
+    config = await settings.getTelephonyProvider(hId)
+  }
+  if (!config) {
+    config = await settings.getTelephonyProvider(undefined) // global
+  }
+
+  if (config) {
+    return createAdapterFromConfig(config)
+  }
+
+  // Fall back to env vars (Twilio only)
+  if (env?.TWILIO_ACCOUNT_SID && env?.TWILIO_AUTH_TOKEN && env?.TWILIO_PHONE_NUMBER) {
+    return new TwilioAdapter(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN, env.TWILIO_PHONE_NUMBER)
+  }
+
+  return null
+}
+
+/**
+ * Get a MessagingAdapter for the specified channel.
+ * Throws if the channel is not configured.
+ */
+export async function getMessagingAdapter(
+  channel: MessagingChannelType,
+  settings: SettingsService,
+  hmacSecret: string,
+  hubId?: string
+): Promise<MessagingAdapter> {
+  const config = await settings.getMessagingConfig(hubId)
+  if (!config || !config.enabledChannels.includes(channel)) {
+    throw new Error(`${channel} channel is not enabled`)
+  }
+
+  switch (channel) {
+    case 'sms': {
+      if (!config.sms?.enabled) throw new Error('SMS is not enabled')
+      // SMS reuses telephony provider credentials
+      const telConfig = hubId
+        ? (await settings.getTelephonyProvider(hubId)) ?? (await settings.getTelephonyProvider(undefined))
+        : await settings.getTelephonyProvider(undefined)
+      if (!telConfig) throw new Error('SMS requires a configured telephony provider')
+      return createSMSAdapter(telConfig, config.sms, hmacSecret)
+    }
+    case 'whatsapp': {
+      if (!config.whatsapp) throw new Error('WhatsApp is not configured')
+      return createWhatsAppAdapter(config.whatsapp, hmacSecret)
+    }
+    case 'signal': {
+      if (!config.signal) throw new Error('Signal is not configured')
+      return createSignalAdapter(config.signal, hmacSecret)
+    }
+    case 'rcs': {
+      if (!config.rcs) throw new Error('RCS is not configured')
+      return createRCSAdapter(config.rcs, hmacSecret)
+    }
+    default:
+      throw new Error(`Unknown channel: ${channel}`)
+  }
+}
+
+/**
+ * Get the Nostr event publisher.
+ * Lazily creates and caches the publisher instance.
+ * Returns a NoopNostrPublisher if no relay is configured.
+ */
+export function getNostrPublisher(env: {
+  NOSFLARE?: { fetch(request: Request): Promise<Response> }
+  SERVER_NOSTR_SECRET?: string
+  NOSTR_RELAY_URL?: string
+}): NostrPublisher {
+  if (!cachedPublisher) {
+    cachedPublisher = createNostrPublisher(env)
+  }
+  return cachedPublisher
+}
+
+/**
+ * Create adapter from saved config.
+ * Supports Twilio, SignalWire, Vonage, Plivo, and Asterisk (self-hosted).
+ */
+function createAdapterFromConfig(config: TelephonyProviderConfig): TelephonyAdapter {
+  switch (config.type) {
+    case 'twilio':
+      return new TwilioAdapter(config.accountSid!, config.authToken!, config.phoneNumber)
+    case 'signalwire':
+      return new SignalWireAdapter(
+        config.accountSid!,
+        config.authToken!,
+        config.phoneNumber,
+        config.signalwireSpace!
+      )
+    case 'vonage':
+      return new VonageAdapter(
+        config.apiKey!,
+        config.apiSecret!,
+        config.applicationId!,
+        config.phoneNumber,
+        config.privateKey
+      )
+    case 'plivo':
+      return new PlivoAdapter(config.authId!, config.authToken!, config.phoneNumber)
+    case 'asterisk':
+      return new AsteriskAdapter(
+        config.ariUrl!,
+        config.ariUsername!,
+        config.ariPassword!,
+        config.phoneNumber,
+        config.bridgeCallbackUrl!,
+        config.ariPassword! // Bridge secret uses ARI password as shared secret
+      )
+    default:
+      return new TwilioAdapter(config.accountSid!, config.authToken!, config.phoneNumber)
+  }
+}

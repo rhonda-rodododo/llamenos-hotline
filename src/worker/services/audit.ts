@@ -1,5 +1,5 @@
 import { hashIP } from '../lib/crypto'
-import type { DOStub } from '../types'
+import type { DOStub } from '../lib/do-access'
 
 export async function audit(
   records: DOStub,
