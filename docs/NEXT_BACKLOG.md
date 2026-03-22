@@ -205,8 +205,8 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 ### Application Quality
 
 - [x] **Application Hardening Phase 3** (`2026-03-22-application-hardening-phase3-plan.md`) — Audited: auth middleware already clean (no `as any`), `profileCompleted` wiring verified correct, on-break filtering confirmed in `startParallelRinging`, active calls dashboard widget already present, call history pagination already implemented. Discovery phases (3.5/3.6/3.9) deferred pending new specs.
-- [ ] **GDPR Compliance** (`2026-03-22-gdpr-compliance-plan.md`) — Consent collection, data export, right to erasure, retention policies ⬅ DEV READY
-- [ ] **Ansible Hardening** (`2026-03-22-ansible-hardening-plan.md`) — SSH hardening, firewall rules, kernel parameters, fail2ban, Docker security ⬅ DEV READY
+- [x] **GDPR Compliance** (`2026-03-22-gdpr-compliance-plan.md`) — Consent gate, data export, right to erasure (72h delay), retention purge job, admin UI
+- [x] **Ansible Hardening** (`2026-03-22-ansible-hardening-plan.md`) — Preflight checks, ansible-lint config, digest-based rollback, CI validation job
 
 ### Test Coverage
 
@@ -222,13 +222,11 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 - [x] **i18n Locale Tests** (`2026-03-22-i18n-locale-tests-plan.md`) — All 13 locales, RTL Arabic, dynamic locale file comparison (no hardcoded strings), `scripts/check-locales.ts` with nested key traversal
 - [ ] **Provider Simulation Suite** — *(spec needed first)* Comprehensive webhook/callback simulation for all 5 telephony adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk) and all messaging adapters (Twilio SMS, WhatsApp Business, Signal). Must research each provider's actual sandbox tooling, webhook payload formats, status callback schemas, error conditions, and signature validation before writing the spec. Do not implement without completed research and approved spec.
 
-### Features (Lower Priority — v1 Gap Filling) ⬅ ALL DEV READY
+### Features (Lower Priority — v1 Gap Filling)
 
-All items in this section have a complete design spec and implementation plan. Execute in any order.
-
-- [ ] **Missing Pages** (`2026-03-22-missing-pages-plan.md`) — `/calls/:callId` detail page (new API endpoint needed), `/settings` profile section completion, `/notes/:noteId` permalink (new API endpoint needed). Requires `GET /api/calls/:callId` and `GET /api/notes/:noteId` to be added first.
-- [ ] **Message Delivery Status** (`2026-03-22-message-delivery-status-plan.md`) — Add `deliveryStatusUpdatedAt` field (existing fields mostly present), ensure Twilio StatusCallback URL set on outbound send, add status icon UI
-- [ ] **Report Types System** (`2026-03-22-report-types-system-plan.md`) — Named report types per hub, `report_type_id` on `conversations` table (not a separate table), field binding via `reportTypeIds[]`, client-side field exclusion before encryption, partial unique index for `is_default`
-- [ ] **Invite Delivery** (`2026-03-22-invite-email-delivery-plan.md`) — Signal > WhatsApp > SMS (no email), `HMAC_PHONE_PREFIX` phone hash storage, `conversationId` made optional in `SendMessageParams` prerequisite
-- [ ] **Dashboard Analytics** (`2026-03-22-dashboard-analytics-plan.md`) — `recharts` lazy-loaded, `calls:read-history` permission gate, volunteer stats resolved client-side from pubkey (no server-side name resolution), separate `volunteer_call_counts` counter table
-- [ ] **File Field Type** (`2026-03-22-file-field-type-plan.md`) — New `'file'` custom field type extending existing chunked upload + `FileKeyEnvelope` system. `PATCH /api/uploads/:id/context` binds file to note after save. Uses `LABEL_FILE_KEY` + `LABEL_FILE_METADATA`.
+- [x] **Missing Pages** (`2026-03-22-missing-pages-plan.md`) — `/calls/:callId` detail page, `/notes/:noteId` permalink, settings profile section verified, audit log deep links
+- [x] **Message Delivery Status** (`2026-03-22-message-delivery-status-plan.md`) — DB migration, status callback webhook, `MessageStatusIcon` component, ConversationThread updated
+- [x] **Report Types System** (`2026-03-22-report-types-system-plan.md`) — `report_types` table, `ReportTypeService`, CRUD API, admin settings section, report form type selector
+- [x] **Invite Delivery** (`2026-03-22-invite-email-delivery-plan.md`) — `InviteDeliveryService`, Signal/WhatsApp/SMS send, phone HMAC hash, admin dialog with channel selector and SMS warning
+- [x] **Dashboard Analytics** (`2026-03-22-dashboard-analytics-plan.md`) — recharts charts (call volume, peak hours, team stats), lazy-loaded admin section, analytics API
+- [x] **File Field Type** (`2026-03-22-file-field-type-plan.md`) — E2EE file upload/download, `FileFieldInput`/`FileFieldDisplay` components, `PATCH /api/uploads/:id/context`, admin MIME/size config
