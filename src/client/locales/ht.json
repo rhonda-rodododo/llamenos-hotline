@@ -1226,6 +1226,12 @@
     "selectHub": "Select hub",
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
-    "urlPlaceholder": "https://hub.example.com"
+    "urlPlaceholder": "https://hub.example.com",
+    "delete": "Efase",
+    "deleteHub": "Efase Hub",
+    "deleteHubConfirm": "Sa pral efase pèmanantman \"{{name}}\" ak tout done l yo. Tape non hub la pou konfime.",
+    "deleteHubNameLabel": "Tape non hub la pou konfime",
+    "hubDeleted": "Hub efase avèk siksè",
+    "deleteHubActiveCallsError": "Paka efase yon hub ki gen apèl aktif"
   }
 }

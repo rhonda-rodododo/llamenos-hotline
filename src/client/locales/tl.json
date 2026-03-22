@@ -1226,6 +1226,12 @@
     "selectHub": "Select hub",
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
-    "urlPlaceholder": "https://hub.example.com"
+    "urlPlaceholder": "https://hub.example.com",
+    "delete": "Burahin",
+    "deleteHub": "Burahin ang Hub",
+    "deleteHubConfirm": "Permanenteng mabubura ang \"{{name}}\" at lahat ng datos nito. I-type ang pangalan ng hub para kumpirmahin.",
+    "deleteHubNameLabel": "I-type ang pangalan ng hub para kumpirmahin",
+    "hubDeleted": "Matagumpay na nabura ang hub",
+    "deleteHubActiveCallsError": "Hindi mabubura ang hub na may mga aktibong tawag"
   }
 }

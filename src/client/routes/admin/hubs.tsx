@@ -13,11 +13,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { type Hub, archiveHub, createHub, listHubs, updateHub } from '@/lib/api'
+import { type Hub, archiveHub, createHub, deleteHub, listHubs, updateHub } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { createFileRoute } from '@tanstack/react-router'
-import { Archive, Building2, Pencil, Phone, Plus } from 'lucide-react'
+import { Archive, Building2, Pencil, Phone, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -34,6 +34,7 @@ function HubsPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editingHub, setEditingHub] = useState<Hub | null>(null)
   const [archivingHub, setArchivingHub] = useState<Hub | null>(null)
+  const [deletingHub, setDeletingHub] = useState<Hub | null>(null)
 
   useEffect(() => {
     loadHubs()
@@ -96,6 +97,7 @@ function HubsPage() {
                   hub={hub}
                   onEdit={() => setEditingHub(hub)}
                   onArchive={() => setArchivingHub(hub)}
+                  onDelete={() => setDeletingHub(hub)}
                 />
               ))}
             </div>
@@ -140,6 +142,19 @@ function HubsPage() {
           setArchivingHub(null)
         }}
       />
+
+      {/* Delete hub dialog */}
+      <DeleteHubDialog
+        open={!!deletingHub}
+        onOpenChange={(open) => {
+          if (!open) setDeletingHub(null)
+        }}
+        hub={deletingHub}
+        onDeleted={(id) => {
+          setHubs((prev) => prev.filter((h) => h.id !== id))
+          setDeletingHub(null)
+        }}
+      />
     </div>
   )
 }
@@ -148,7 +163,8 @@ function HubRow({
   hub,
   onEdit,
   onArchive,
-}: { hub: Hub; onEdit: () => void; onArchive: () => void }) {
+  onDelete,
+}: { hub: Hub; onEdit: () => void; onArchive: () => void; onDelete: () => void }) {
   const { t } = useTranslation()
 
   const statusColors: Record<Hub['status'], string> = {
@@ -202,6 +218,18 @@ function HubRow({
           >
             <Archive className="h-3 w-3" />
             {t('hubs.archive')}
+          </Button>
+        )}
+        {hub.status === 'archived' && (
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={onDelete}
+            className="text-destructive hover:text-destructive"
+            data-testid="hub-delete-btn"
+          >
+            <Trash2 className="h-3 w-3" />
+            {t('hubs.delete')}
           </Button>
         )}
       </div>
@@ -422,6 +450,98 @@ function EditHubDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DeleteHubDialog({
+  open,
+  onOpenChange,
+  hub,
+  onDeleted,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  hub: Hub | null
+  onDeleted: (hubId: string) => void
+}) {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const [confirmName, setConfirmName] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  if (!hub) return null
+
+  const canDelete = confirmName === hub.name
+
+  async function handleConfirm() {
+    if (!hub || !canDelete) return
+    setSaving(true)
+    try {
+      await deleteHub(hub.id)
+      onDeleted(hub.id)
+      onOpenChange(false)
+      toast(t('hubs.hubDeleted'), 'success')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : ''
+      if (msg.includes('active calls')) {
+        toast(t('hubs.deleteHubActiveCallsError'), 'error')
+      } else {
+        toast(t('common.error'), 'error')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v)
+        if (!v) setConfirmName('')
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('hubs.deleteHub')}</DialogTitle>
+          <DialogDescription>
+            {t('hubs.deleteHubConfirm', { name: hub.name })}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="delete-hub-confirm">{t('hubs.deleteHubNameLabel')}</Label>
+          <Input
+            id="delete-hub-confirm"
+            value={confirmName}
+            onChange={(e) => setConfirmName(e.target.value)}
+            placeholder={hub.name}
+            data-testid="delete-hub-confirm-input"
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              onOpenChange(false)
+              setConfirmName('')
+            }}
+            disabled={saving}
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={handleConfirm}
+            disabled={saving || !canDelete}
+            data-testid="delete-hub-confirm-btn"
+          >
+            {saving ? t('common.loading') : t('hubs.deleteHub')}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

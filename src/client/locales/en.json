@@ -1161,7 +1161,13 @@
     "archive": "Archive",
     "archiveHub": "Archive Hub",
     "archiveHubConfirm": "Are you sure you want to archive \"{{name}}\"? Archived hubs are hidden from active operations.",
-    "hubArchived": "Hub archived successfully"
+    "hubArchived": "Hub archived successfully",
+    "delete": "Delete",
+    "deleteHub": "Delete Hub",
+    "deleteHubConfirm": "This will permanently delete \"{{name}}\" and all its data. Type the hub name to confirm.",
+    "deleteHubNameLabel": "Type hub name to confirm",
+    "hubDeleted": "Hub deleted successfully",
+    "deleteHubActiveCallsError": "Cannot delete a hub with active calls in progress"
   },
   "blasts": {
     "title": "Message Blasts",

@@ -1226,6 +1226,12 @@
     "selectHub": "Select hub",
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
-    "urlPlaceholder": "https://hub.example.com"
+    "urlPlaceholder": "https://hub.example.com",
+    "delete": "Удалить",
+    "deleteHub": "Удалить Hub",
+    "deleteHubConfirm": "Это навсегда удалит \"{{name}}\" и все его данные. Введите название hub для подтверждения.",
+    "deleteHubNameLabel": "Введите название hub для подтверждения",
+    "hubDeleted": "Hub успешно удалён",
+    "deleteHubActiveCallsError": "Невозможно удалить hub с активными звонками"
   }
 }
