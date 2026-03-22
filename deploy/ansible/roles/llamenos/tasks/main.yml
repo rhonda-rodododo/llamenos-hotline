@@ -24,6 +24,9 @@
     mode: "0750"
   loop:
     - backups
+    - backups/daily
+    - backups/weekly
+    - backups/monthly
     - scripts
 
 - name: Template docker-compose.yml
@@ -76,6 +79,43 @@
   delay: 2
   until: pg_ready.rc == 0
   changed_when: false
+
+- name: Copy init-minio.sh to server
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../deploy/scripts/init-minio.sh"
+    dest: "{{ app_dir }}/scripts/init-minio.sh"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0750"
+
+- name: Initialize MinIO bucket and IAM user
+  ansible.builtin.command: "{{ app_dir }}/scripts/init-minio.sh"
+  become_user: "{{ deploy_user }}"
+  environment:
+    MINIO_URL: "http://localhost:9000"
+    MINIO_ROOT_USER: "{{ minio_access_key }}"
+    MINIO_ROOT_PASSWORD: "{{ minio_secret_key }}"
+    MINIO_BUCKET: "{{ minio_bucket }}"
+    MINIO_APP_USER: "{{ minio_app_user | default('llamenos-app') }}"
+    MINIO_APP_PASSWORD: "{{ minio_app_password }}"
+  register: minio_init
+  changed_when: "'initialized successfully' in minio_init.stdout"
+
+- name: Install systemd service unit
+  ansible.builtin.template:
+    src: llamenos.service.j2
+    dest: /etc/systemd/system/llamenos.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd and restart llamenos
+
+- name: Enable and start llamenos systemd service
+  ansible.builtin.systemd:
+    name: llamenos
+    enabled: true
+    state: started
+    daemon_reload: true
 
 - name: Wait for application health check
   ansible.builtin.uri:

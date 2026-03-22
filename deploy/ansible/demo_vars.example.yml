@@ -91,6 +91,11 @@ minio_access_key: ""
 minio_secret_key: ""
 minio_bucket: llamenos-files
 
+# Dedicated least-privilege IAM user for the app (created by init-minio.sh on deploy)
+# The app uses these credentials instead of root credentials
+minio_app_user: llamenos-app
+minio_app_password: ""  # Generate with: openssl rand -base64 24
+
 # ─── Nostr Relay (Core) ─────────────────────────────────────────
 # Server secret for signing relay events (must be exactly 64 hex chars)
 # Generate with: openssl rand -hex 32 | xxd -p -c 64 (or openssl rand -hex 32)

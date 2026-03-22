@@ -4,3 +4,9 @@
     project_src: "{{ app_dir }}"
     state: restarted
     recreate: always
+
+- name: Reload systemd and restart llamenos
+  ansible.builtin.systemd:
+    name: llamenos
+    state: restarted
+    daemon_reload: true

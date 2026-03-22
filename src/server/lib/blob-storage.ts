@@ -1,10 +1,15 @@
 /**
  * S3-compatible blob storage adapter for MinIO.
  * Implements the BlobStorage interface using @aws-sdk/client-s3.
+ *
+ * Credential priority (production uses least-privilege IAM user):
+ *   1. MINIO_APP_USER / MINIO_APP_PASSWORD — dedicated app IAM user (created by init-minio.sh)
+ *   2. MINIO_ACCESS_KEY / MINIO_SECRET_KEY — root credentials (dev fallback only)
  */
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
@@ -18,11 +23,18 @@ export function createBlobStorage(opts?: {
   region?: string
 }): BlobStorage {
   const endpoint = opts?.endpoint || process.env.MINIO_ENDPOINT || 'http://localhost:9000'
-  const accessKeyId = opts?.accessKeyId || process.env.MINIO_ACCESS_KEY
-  const secretAccessKey = opts?.secretAccessKey || process.env.MINIO_SECRET_KEY
+  // Prefer dedicated app IAM user; fall back to root credentials in dev
+  const accessKeyId =
+    opts?.accessKeyId ||
+    process.env.MINIO_APP_USER ||
+    process.env.MINIO_ACCESS_KEY
+  const secretAccessKey =
+    opts?.secretAccessKey ||
+    process.env.MINIO_APP_PASSWORD ||
+    process.env.MINIO_SECRET_KEY
   if (!accessKeyId || !secretAccessKey) {
     throw new Error(
-      'MinIO credentials required: set MINIO_ACCESS_KEY and MINIO_SECRET_KEY environment variables'
+      'MinIO credentials required: set MINIO_APP_USER/MINIO_APP_PASSWORD (or MINIO_ACCESS_KEY/MINIO_SECRET_KEY for dev)'
     )
   }
   const bucket = opts?.bucket || process.env.MINIO_BUCKET || 'llamenos-files'
