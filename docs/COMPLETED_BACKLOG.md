@@ -1,5 +1,19 @@
 # Completed Backlog
 
+## 2026-03-22: Security Hardening v2 Audit Backport (`cf-removal` worktree)
+
+- [x] **HIGH-W1**: Removed global `serverEventKeyHex` from `/auth/me` — hub keys delivered via per-hub ECIES; global relay key must not be returned to all authenticated users
+- [x] **HIGH-W3**: Audit log `numberBanned` entries now store `phoneHash` (HMAC-SHA256 hex) instead of plaintext phone number
+- [x] **HIGH-W4**: Dev/test reset endpoints return 404 when `DEV_RESET_SECRET` is unset; 403 only when secret is present but wrong (hiding endpoint existence)
+- [x] **HIGH-W5**: Twilio account SID validated against `/^AC[a-f0-9]{32}$/` before URL construction to prevent path traversal
+- [x] **MED-W1**: Added `requireHubOrSuperAdmin` middleware gating all global resource routes — non-super-admins without hub context get 400
+- [x] **MED-W2**: Already enforced — `role-volunteer` lacks `bans:create` permission (verified, no change needed)
+- [x] **CRIT-H1**: Already enforced — hub key endpoint has membership check (verified, no change needed)
+- [x] Phase 2 code quality: Empty catch blocks in `messaging/router.ts` now log warnings; `CORS_ALLOWED_ORIGINS` env var added for runtime-configurable CORS
+- [x] Phase 3: Workflow-level least-privilege `permissions: contents: read` added to CI
+- [x] Phase 4: Startup warnings for missing optional env vars (`APP_URL`, `CORS_ALLOWED_ORIGINS`, Twilio, `NOSTR_RELAY_URL`)
+- [x] E2E tests in `tests/security-hardening.spec.ts` covering all five findings
+
 ## 2026-02-25: Documentation Overhaul (`next` branch)
 
 ### ZK Architecture Documentation
