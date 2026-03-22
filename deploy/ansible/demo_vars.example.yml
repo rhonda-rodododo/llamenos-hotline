@@ -119,6 +119,19 @@ whisper_device: cpu
 # Disable backups on demo instance (data is ephemeral by design)
 backup_enabled: false
 
+# ─── Watchtower (Auto-Updates) ──────────────────────────────────
+# Enable Watchtower to automatically pull new app images.
+# Set to true on instances where unattended rolling updates are acceptable.
+# Leave false on instances requiring explicit deploy approvals.
+watchtower_enabled: false
+
+# Watchtower image (pin to a specific release for reproducibility)
+watchtower_image: containrrr/watchtower:1.7.1
+
+# Check interval in seconds (86400 = 24h, 3600 = 1h).
+# Rendered directly into the generated docker-compose by Ansible — set this var, not an env var.
+watchtower_poll_interval: 86400
+
 # ─── Docker Hardening ───────────────────────────────────────────
 # Enable user namespace remapping for Docker container isolation
 docker_userns_remap: true
