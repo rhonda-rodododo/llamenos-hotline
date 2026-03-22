@@ -1,5 +1,14 @@
 # Completed Backlog
 
+## 2026-03-22: CI Security Hardening (`cf-removal` worktree)
+
+- [x] GPG signing step in `release` job: imports `RELEASE_GPG_PRIVATE_KEY` secret, signs `CHECKSUMS.txt`, uploads `CHECKSUMS.txt.asc` to GitHub Release (gated on secret presence)
+- [x] `verify-build.sh` already handles the signature — no changes needed
+- [x] `gitleaks-action` secret scan on push to main and PRs; `.gitleaks.toml` allowlists demo nsec key
+- [x] `.github/dependabot.yml`: weekly npm (grouped), Docker, GitHub Actions updates; major version bumps for vite/hono/drizzle require review
+- [x] `.github/SECURITY.md`: disclosure policy, 72h acknowledgment SLA, 90-day coordinated disclosure, GPG verification steps, security feature summary
+- **Operator action required**: `gpg --batch --gen-key` (4096-bit RSA), store private key as `RELEASE_GPG_PRIVATE_KEY`, key ID as `RELEASE_GPG_KEY_ID` in GitHub repo secrets, publish fingerprint in SECURITY.md
+
 ## 2026-03-22: Application Hardening Phase 3 Audit (`cf-removal` worktree)
 
 All Phase 3 items verified already implemented — no code changes required:
