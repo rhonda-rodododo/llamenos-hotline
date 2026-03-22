@@ -101,8 +101,13 @@ export function useCalls() {
   })
 
   // --- REST polling fallback (every 15s) ---
+  // Re-runs when currentHubId changes to immediately refresh data for the new hub
   useEffect(() => {
     let mounted = true
+
+    // Clear stale data from the previous hub immediately on switch
+    setCalls([])
+    setCurrentCall(null)
 
     const poll = () => {
       listActiveCalls()
@@ -121,10 +126,10 @@ export function useCalls() {
         .catch(() => {})
     }
 
-    poll() // Seed initial state on mount
+    poll() // Seed initial state on mount / hub switch
     const interval = setInterval(poll, 15_000)
     return () => { mounted = false; clearInterval(interval) }
-  }, [])
+  }, [currentHubId])
 
   // --- Call actions via REST ---
 
