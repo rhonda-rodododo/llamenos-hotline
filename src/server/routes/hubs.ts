@@ -56,7 +56,11 @@ routes.post('/', requirePermission('system:manage-hubs'), async (c) => {
   const hub = await services.settings.createHub({
     id: hubData.id,
     name: hubData.name,
-    createdBy: pubkey,
+    slug: hubData.slug,
+    description: hubData.description,
+    status: hubData.status,
+    phoneNumber: hubData.phoneNumber,
+    createdBy: hubData.createdBy,
   })
 
   return c.json({ hub })
