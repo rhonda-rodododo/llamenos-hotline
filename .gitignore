@@ -38,3 +38,4 @@ apps/desktop/target/
 # Crypto build outputs
 packages/crypto/dist/
 .dev.vars.local
+.worktrees/
