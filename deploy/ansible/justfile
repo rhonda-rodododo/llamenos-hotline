@@ -80,6 +80,12 @@ deploy-demo *ARGS:
 reset-demo *ARGS:
     ansible-playbook playbooks/reset-demo.yml --ask-vault-pass {{ARGS}}
 
+# Roll back demo to a specific image tag (e.g.: just rollback-demo v1.2.3)
+rollback-demo version *ARGS:
+    ansible-playbook playbooks/deploy-demo.yml --ask-vault-pass \
+        --extra-vars "llamenos_image=ghcr.io/llamenos/llamenos:{{version}}" \
+        {{ARGS}}
+
 # Encrypt the demo vars file
 encrypt-demo-vars:
     ansible-vault encrypt demo_vars.yml
