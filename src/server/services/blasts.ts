@@ -5,10 +5,12 @@ import { AppError } from '../lib/errors'
 import type {
   Blast,
   BlastDelivery,
+  BlastStats,
   CreateBlastData,
   CreateDeliveryData,
   CreateSubscriberData,
   Subscriber,
+  SubscriberChannel,
 } from '../types'
 
 export class BlastService {
@@ -35,12 +37,11 @@ export class BlastService {
         id,
         hubId: data.hubId ?? 'global',
         name: data.name,
-        channel: data.channel,
         content: data.content ?? '',
+        targetChannels: data.targetChannels ?? [],
+        targetTags: data.targetTags ?? [],
+        targetLanguages: data.targetLanguages ?? [],
         status: data.status ?? 'draft',
-        totalCount: 0,
-        sentCount: 0,
-        failedCount: 0,
       })
       .returning()
     return this.#rowToBlast(row)
@@ -49,11 +50,15 @@ export class BlastService {
   async updateBlast(
     id: string,
     data: Partial<
-      CreateBlastData & { totalCount: number; sentCount: number; failedCount: number; sentAt: Date }
+      CreateBlastData & { stats: Partial<BlastStats>; sentAt: Date }
     >
   ): Promise<Blast> {
     const existing = await this.getBlast(id)
     if (!existing) throw new AppError(404, 'Blast not found')
+
+    const statsUpdate = data.stats
+      ? { stats: { ...existing.stats, ...data.stats } }
+      : {}
 
     const [row] = await this.db
       .update(blasts)
@@ -61,10 +66,11 @@ export class BlastService {
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.content !== undefined ? { content: data.content } : {}),
         ...(data.status !== undefined ? { status: data.status } : {}),
-        ...(data.totalCount !== undefined ? { totalCount: data.totalCount } : {}),
-        ...(data.sentCount !== undefined ? { sentCount: data.sentCount } : {}),
-        ...(data.failedCount !== undefined ? { failedCount: data.failedCount } : {}),
+        ...(data.targetChannels !== undefined ? { targetChannels: data.targetChannels } : {}),
+        ...(data.targetTags !== undefined ? { targetTags: data.targetTags } : {}),
+        ...(data.targetLanguages !== undefined ? { targetLanguages: data.targetLanguages } : {}),
         ...(data.sentAt !== undefined ? { sentAt: data.sentAt } : {}),
+        ...statsUpdate,
       })
       .where(eq(blasts.id, id))
       .returning()
@@ -88,9 +94,8 @@ export class BlastService {
     return rows[0] ? this.#rowToSubscriber(rows[0]) : null
   }
 
-  async findSubscriberByPhone(
-    phone: string,
-    channel: string,
+  async findSubscriberByHash(
+    identifierHash: string,
     hubId?: string
   ): Promise<Subscriber | null> {
     const hId = hubId ?? 'global'
@@ -100,19 +105,18 @@ export class BlastService {
       .where(
         and(
           eq(subscribers.hubId, hId),
-          eq(subscribers.channel, channel),
-          eq(subscribers.phoneNumber, phone)
+          eq(subscribers.identifierHash, identifierHash)
         )
       )
       .limit(1)
     return rows[0] ? this.#rowToSubscriber(rows[0]) : null
   }
 
-  async getSubscriberByToken(token: string): Promise<Subscriber | null> {
+  async getSubscriberByPreferenceToken(token: string): Promise<Subscriber | null> {
     const rows = await this.db
       .select()
       .from(subscribers)
-      .where(eq(subscribers.token, token))
+      .where(eq(subscribers.preferenceToken, token))
       .limit(1)
     return rows[0] ? this.#rowToSubscriber(rows[0]) : null
   }
@@ -124,18 +128,19 @@ export class BlastService {
       .values({
         id,
         hubId: data.hubId ?? 'global',
-        phoneNumber: data.phoneNumber,
-        channel: data.channel,
-        active: data.active ?? true,
-        token: data.token ?? null,
-        metadata: data.metadata ?? {},
+        identifierHash: data.identifierHash,
+        channels: data.channels ?? [],
+        tags: data.tags ?? [],
+        language: data.language ?? null,
+        status: data.status ?? 'active',
+        preferenceToken: data.preferenceToken ?? crypto.randomUUID(),
       })
       .onConflictDoUpdate({
-        target: [subscribers.hubId, subscribers.channel, subscribers.phoneNumber],
+        target: [subscribers.hubId, subscribers.identifierHash],
         set: {
-          active: data.active ?? true,
-          ...(data.token ? { token: data.token } : {}),
-          ...(data.metadata ? { metadata: data.metadata } : {}),
+          channels: data.channels ?? [],
+          status: data.status ?? 'active',
+          ...(data.preferenceToken ? { preferenceToken: data.preferenceToken } : {}),
         },
       })
       .returning()
@@ -149,9 +154,11 @@ export class BlastService {
     const [row] = await this.db
       .update(subscribers)
       .set({
-        ...(data.active !== undefined ? { active: data.active } : {}),
-        ...(data.token !== undefined ? { token: data.token } : {}),
-        ...(data.metadata !== undefined ? { metadata: data.metadata } : {}),
+        ...(data.status !== undefined ? { status: data.status } : {}),
+        ...(data.preferenceToken !== undefined ? { preferenceToken: data.preferenceToken } : {}),
+        ...(data.channels !== undefined ? { channels: data.channels } : {}),
+        ...(data.tags !== undefined ? { tags: data.tags } : {}),
+        ...(data.language !== undefined ? { language: data.language } : {}),
       })
       .where(eq(subscribers.id, id))
       .returning()
@@ -167,11 +174,11 @@ export class BlastService {
   ): Promise<{ total: number; active: number; inactive: number }> {
     const hId = hubId ?? 'global'
     const rows = await this.db
-      .select({ active: subscribers.active })
+      .select({ status: subscribers.status })
       .from(subscribers)
       .where(eq(subscribers.hubId, hId))
     const total = rows.length
-    const active = rows.filter((r) => r.active).length
+    const active = rows.filter((r) => r.status === 'active').length
     return { total, active, inactive: total - active }
   }
 
@@ -185,6 +192,7 @@ export class BlastService {
         id,
         blastId: data.blastId,
         subscriberId: data.subscriberId,
+        channelType: data.channelType ?? 'sms',
         status: data.status ?? 'pending',
       })
       .returning()
@@ -193,7 +201,7 @@ export class BlastService {
 
   async updateDelivery(
     id: string,
-    data: { status: string; error?: string; sentAt?: Date }
+    data: { status: string; error?: string; sentAt?: Date; deliveredAt?: Date }
   ): Promise<BlastDelivery> {
     const [row] = await this.db
       .update(blastDeliveries)
@@ -201,6 +209,7 @@ export class BlastService {
         status: data.status,
         ...(data.error !== undefined ? { error: data.error } : {}),
         ...(data.sentAt !== undefined ? { sentAt: data.sentAt } : {}),
+        ...(data.deliveredAt !== undefined ? { deliveredAt: data.deliveredAt } : {}),
       })
       .where(eq(blastDeliveries.id, id))
       .returning()
@@ -223,12 +232,12 @@ export class BlastService {
       id: r.id,
       hubId: r.hubId,
       name: r.name,
-      channel: r.channel,
+      targetChannels: r.targetChannels as string[],
+      targetTags: r.targetTags as string[],
+      targetLanguages: r.targetLanguages as string[],
       content: r.content,
       status: r.status,
-      totalCount: r.totalCount,
-      sentCount: r.sentCount,
-      failedCount: r.failedCount,
+      stats: r.stats as BlastStats,
       createdAt: r.createdAt,
       sentAt: r.sentAt,
     }
@@ -238,11 +247,14 @@ export class BlastService {
     return {
       id: r.id,
       hubId: r.hubId,
-      phoneNumber: r.phoneNumber,
-      channel: r.channel,
-      active: r.active,
-      token: r.token,
-      metadata: r.metadata as Record<string, unknown>,
+      identifierHash: r.identifierHash,
+      channels: r.channels as SubscriberChannel[],
+      tags: r.tags as string[],
+      language: r.language,
+      status: r.status,
+      doubleOptInConfirmed: r.doubleOptInConfirmed,
+      subscribedAt: r.subscribedAt,
+      preferenceToken: r.preferenceToken,
       createdAt: r.createdAt,
     }
   }
@@ -258,9 +270,11 @@ export class BlastService {
       id: r.id,
       blastId: r.blastId,
       subscriberId: r.subscriberId,
+      channelType: r.channelType,
       status: r.status,
       error: r.error,
       sentAt: r.sentAt,
+      deliveredAt: r.deliveredAt,
     }
   }
 }

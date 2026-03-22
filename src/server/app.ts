@@ -68,13 +68,14 @@ api.get('/messaging/preferences', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
   const services = c.get('services')
-  const subscriber = await services.blasts.getSubscriberByToken(token)
+  const subscriber = await services.blasts.getSubscriberByPreferenceToken(token)
   if (!subscriber) return c.json({ error: 'Invalid token' }, 404)
   return c.json({
     id: subscriber.id,
-    channel: subscriber.channel,
-    active: subscriber.active,
-    metadata: subscriber.metadata,
+    channels: subscriber.channels,
+    status: subscriber.status,
+    tags: subscriber.tags,
+    language: subscriber.language,
   })
 })
 
@@ -82,18 +83,20 @@ api.patch('/messaging/preferences', async (c) => {
   const token = c.req.query('token')
   if (!token) return c.json({ error: 'Token required' }, 400)
   const services = c.get('services')
-  const subscriber = await services.blasts.getSubscriberByToken(token)
+  const subscriber = await services.blasts.getSubscriberByPreferenceToken(token)
   if (!subscriber) return c.json({ error: 'Invalid token' }, 404)
-  const body = await c.req.json<{ active?: boolean; metadata?: Record<string, unknown> }>()
+  const body = await c.req.json<{ status?: string; language?: string; tags?: string[] }>()
   const updated = await services.blasts.updateSubscriber(subscriber.id, {
-    ...(body.active !== undefined ? { active: body.active } : {}),
-    ...(body.metadata !== undefined ? { metadata: body.metadata } : {}),
+    ...(body.status !== undefined ? { status: body.status } : {}),
+    ...(body.language !== undefined ? { language: body.language } : {}),
+    ...(body.tags !== undefined ? { tags: body.tags } : {}),
   })
   return c.json({
     id: updated.id,
-    channel: updated.channel,
-    active: updated.active,
-    metadata: updated.metadata,
+    channels: updated.channels,
+    status: updated.status,
+    tags: updated.tags,
+    language: updated.language,
   })
 })
 

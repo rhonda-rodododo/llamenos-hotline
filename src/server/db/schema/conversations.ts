@@ -42,6 +42,7 @@ export const messageEnvelopes = pgTable('message_envelopes', {
 
 export const fileRecords = pgTable('file_records', {
   id: text('id').primaryKey(),
+  hubId: text('hub_id').notNull().default('global'),
   conversationId: text('conversation_id').notNull(),
   messageId: text('message_id'),
   uploadedBy: text('uploaded_by').notNull(),

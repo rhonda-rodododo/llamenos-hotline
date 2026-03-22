@@ -759,16 +759,29 @@ export interface CreateMessageData {
 // Blast service types
 // -------------------------------------------------------------------
 
+export interface BlastStats {
+  totalRecipients: number
+  sent: number
+  delivered: number
+  failed: number
+  optedOut: number
+}
+
+export interface SubscriberChannel {
+  type: 'sms' | 'whatsapp' | 'signal' | 'rcs'
+  verified: boolean
+}
+
 export interface Blast {
   id: string
   hubId: string
   name: string
-  channel: string
+  targetChannels: string[]
+  targetTags: string[]
+  targetLanguages: string[]
   content: string
   status: string
-  totalCount: number
-  sentCount: number
-  failedCount: number
+  stats: BlastStats
   createdAt: Date
   sentAt?: Date | null
 }
@@ -776,7 +789,9 @@ export interface Blast {
 export interface CreateBlastData {
   hubId?: string
   name: string
-  channel: string
+  targetChannels?: string[]
+  targetTags?: string[]
+  targetLanguages?: string[]
   content?: string
   status?: string
 }
@@ -784,34 +799,41 @@ export interface CreateBlastData {
 export interface Subscriber {
   id: string
   hubId: string
-  phoneNumber: string
-  channel: string
-  active: boolean
-  token?: string | null
-  metadata: Record<string, unknown>
+  identifierHash: string
+  channels: SubscriberChannel[]
+  tags: string[]
+  language?: string | null
+  status: string
+  doubleOptInConfirmed: boolean
+  subscribedAt: Date
+  preferenceToken: string
   createdAt: Date
 }
 
 export interface CreateSubscriberData {
   hubId?: string
-  phoneNumber: string
-  channel: string
-  active?: boolean
-  token?: string
-  metadata?: Record<string, unknown>
+  identifierHash: string
+  channels?: SubscriberChannel[]
+  tags?: string[]
+  language?: string
+  status?: string
+  preferenceToken?: string
 }
 
 export interface BlastDelivery {
   id: string
   blastId: string
   subscriberId: string
+  channelType: string
   status: string
   error?: string | null
   sentAt?: Date | null
+  deliveredAt?: Date | null
 }
 
 export interface CreateDeliveryData {
   blastId: string
   subscriberId: string
+  channelType?: string
   status?: string
 }

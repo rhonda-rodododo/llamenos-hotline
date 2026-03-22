@@ -31,11 +31,12 @@ blasts.post('/subscribers/import', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const body = (await c.req.json()) as Array<{
-    phoneNumber: string
-    channel: string
-    active?: boolean
-    token?: string
-    metadata?: Record<string, unknown>
+    identifierHash: string
+    channels?: Array<{ type: 'sms' | 'whatsapp' | 'signal' | 'rcs'; verified: boolean }>
+    tags?: string[]
+    language?: string
+    status?: string
+    preferenceToken?: string
   }>
   if (!Array.isArray(body)) {
     return c.json({ error: 'Expected array of subscribers' }, 400)
@@ -44,11 +45,12 @@ blasts.post('/subscribers/import', async (c) => {
     body.map((sub) =>
       services.blasts.createSubscriber({
         hubId: hubId ?? 'global',
-        phoneNumber: sub.phoneNumber,
-        channel: sub.channel,
-        active: sub.active ?? true,
-        token: sub.token,
-        metadata: sub.metadata,
+        identifierHash: sub.identifierHash,
+        channels: sub.channels,
+        tags: sub.tags,
+        language: sub.language,
+        status: sub.status,
+        preferenceToken: sub.preferenceToken,
       })
     )
   )
@@ -70,14 +72,18 @@ blasts.post('/', async (c) => {
   const hubId = c.get('hubId')
   const body = (await c.req.json()) as {
     name: string
-    channel: string
+    targetChannels?: string[]
+    targetTags?: string[]
+    targetLanguages?: string[]
     content?: string
     status?: string
   }
   const blast = await services.blasts.createBlast({
     hubId: hubId ?? 'global',
     name: body.name,
-    channel: body.channel,
+    targetChannels: body.targetChannels,
+    targetTags: body.targetTags,
+    targetLanguages: body.targetLanguages,
     content: body.content,
     status: body.status,
   })

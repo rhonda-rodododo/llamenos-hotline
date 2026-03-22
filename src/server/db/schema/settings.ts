@@ -9,6 +9,8 @@ export const hubs = pgTable('hubs', {
   status: text('status').notNull().default('active'),
   phoneNumber: text('phone_number'),
   createdBy: text('created_by').notNull().default(''),
+  /** Allow super-admin visibility into this hub's data (zero-trust opt-in per hub) */
+  allowSuperAdminAccess: boolean('allow_super_admin_access').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -18,7 +20,11 @@ export const hubKeys = pgTable(
   {
     hubId: text('hub_id').notNull(),
     pubkey: text('pubkey').notNull(),
+    /** ECIES-wrapped hub key for this member */
     encryptedKey: text('encrypted_key').notNull(),
+    /** Ephemeral pubkey used in ECIES encryption (x-only, hex) */
+    ephemeralPubkey: text('ephemeral_pubkey'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.hubId, table.pubkey] })]
 )
@@ -42,6 +48,8 @@ export const customFieldDefinitions = pgTable('custom_field_definitions', {
   options: jsonb<string[]>()('options').notNull().default([]),
   required: boolean('required').notNull().default(false),
   showInVolunteerView: boolean('show_in_volunteer_view').notNull().default(false),
+  /** Context distinguishes where this field appears */
+  context: text('context').notNull().default('notes'), // 'notes' | 'conversations' | 'reports' | 'all'
   order: integer('order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -123,5 +131,36 @@ export const captchaState = pgTable('captcha_state', {
 export const reportCategories = pgTable('report_categories', {
   hubId: text('hub_id').primaryKey().default('global'),
   categories: jsonb<string[]>()('categories').notNull().default([]),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** GDPR consent records — one row per volunteer per consent version */
+export const gdprConsents = pgTable('gdpr_consents', {
+  pubkey: text('pubkey').notNull(),
+  consentVersion: text('consent_version').notNull().default('1.0'),
+  consentedAt: timestamp('consented_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** GDPR erasure requests — scheduled right-to-erasure execution */
+export const gdprErasureRequests = pgTable('gdpr_erasure_requests', {
+  pubkey: text('pubkey').primaryKey(),
+  requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+  /** Scheduled execution time (typically 30 days from request) */
+  executeAt: timestamp('execute_at', { withTimezone: true }).notNull(),
+  status: text('status').notNull().default('pending'), // 'pending' | 'executed' | 'cancelled'
+})
+
+/** Per-hub GDPR retention settings */
+export const retentionSettings = pgTable('retention_settings', {
+  hubId: text('hub_id').primaryKey().default('global'),
+  /** Retention config as JSONB (callRetentionDays, noteRetentionDays, etc.) */
+  settings: jsonb<Record<string, number>>()('settings').notNull().default({}),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Geocoding configuration per hub (for call location display) */
+export const geocodingConfig = pgTable('geocoding_config', {
+  hubId: text('hub_id').primaryKey().default('global'),
+  config: jsonb<Record<string, unknown>>()('config').notNull().default({}),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
