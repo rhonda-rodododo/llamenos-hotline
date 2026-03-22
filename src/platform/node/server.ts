@@ -13,7 +13,7 @@ import { migrate } from 'drizzle-orm/bun-sql/migrator'
 import { Hono } from 'hono'
 import { initDb } from '../../server/db'
 import { createServices } from '../../server/services'
-import { getNostrPublisher } from '../../server/lib/adapters'
+import { closeNostrPublisher } from '../../server/lib/adapters'
 import { errorHandler } from '../../server/middleware/error'
 import { servicesMiddleware } from '../../server/middleware/services'
 import { loadEnv } from './env'
@@ -41,9 +41,7 @@ async function main() {
   // Inject env bindings into every request via middleware
   app.use('*', async (c, next) => {
     // biome-ignore lint/suspicious/noExplicitAny: env injection into Hono context
-    Object.assign((c as any).env ?? {}, env);
-    // biome-ignore lint/suspicious/noExplicitAny: env injection into Hono context
-    (c as any).env = env
+    ;(c as any).env = env
     await next()
   })
 
@@ -79,10 +77,7 @@ async function main() {
   const shutdown = () => {
     console.log('[llamenos] Shutting down...')
 
-    // Close Nostr publisher WebSocket if active
-    try {
-      getNostrPublisher(env).close()
-    } catch {}
+    closeNostrPublisher()
 
     server.close(() => {
       console.log('[llamenos] Server stopped')

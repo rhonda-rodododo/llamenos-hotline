@@ -37,6 +37,10 @@ export async function maybeTranscribe(
     if (result.text) {
       // Envelope encryption: single ciphertext, wrapped key for volunteer + admin
       const adminPubkey = env.ADMIN_DECRYPTION_PUBKEY || env.ADMIN_PUBKEY
+      if (!adminPubkey) {
+        console.error('[transcription] ADMIN_PUBKEY not configured — cannot encrypt transcription')
+        return
+      }
       const readerPubkeys = [volunteerPubkey]
       if (adminPubkey !== volunteerPubkey) readerPubkeys.push(adminPubkey)
 
@@ -87,6 +91,10 @@ export async function transcribeVoicemail(callSid: string, env: Env, services: S
     if (result.text) {
       // Voicemails: envelope encryption for admin only
       const adminPubkey = env.ADMIN_DECRYPTION_PUBKEY || env.ADMIN_PUBKEY
+      if (!adminPubkey) {
+        console.error('[transcription] ADMIN_PUBKEY not configured — cannot encrypt voicemail')
+        return
+      }
       const { encryptedContent, readerEnvelopes } = encryptMessageForStorage(result.text, [
         adminPubkey,
       ])

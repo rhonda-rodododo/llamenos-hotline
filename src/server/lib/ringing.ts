@@ -69,14 +69,18 @@ export async function startParallelRinging(
         TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
         TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
       })
-      if (!adapter) return
-      await adapter.ringVolunteers({
-        callSid,
-        callerNumber,
-        volunteers: toRingPhone,
-        callbackUrl: origin,
-        hubId,
-      })
+      if (!adapter) {
+        console.warn('[ringing] no telephony adapter configured — phone volunteers cannot be rung')
+        // Don't return — browser-only volunteers can still handle the call via WebSocket
+      } else {
+        await adapter.ringVolunteers({
+          callSid,
+          callerNumber,
+          volunteers: toRingPhone,
+          callbackUrl: origin,
+          hubId,
+        })
+      }
     }
   } catch (err) {
     console.error('[ringing] startParallelRinging failed:', err)
