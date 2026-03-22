@@ -1,3 +1,6 @@
+// CF Workers is the optional demo target. Primary deployment is Docker + Ansible.
+// To deploy to CF Workers (manual only): bun run deploy:cloudflare
+// For the primary VPS demo server: see deploy/ansible/justfile → deploy-demo
 {
   "name": "llamenos",
   "main": "src/worker/index.ts",

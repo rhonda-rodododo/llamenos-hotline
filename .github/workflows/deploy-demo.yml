@@ -1,0 +1,80 @@
+name: Deploy Demo
+
+# Manual-only workflow: deploy the Llamenos demo VPS instance via Ansible.
+#
+# Required secrets:
+#   DEMO_INVENTORY_YML       — content of inventory-demo.yml (Ansible inventory)
+#   ANSIBLE_VAULT_PASSWORD   — password for ansible-vault encrypted demo_vars.yml
+#   DEMO_VARS_YML_ENCRYPTED  — content of encrypted demo_vars.yml
+#   DEMO_SSH_PRIVATE_KEY     — SSH private key for the demo VPS deploy user
+
+on:
+  workflow_dispatch:
+    inputs:
+      reset_data:
+        description: "Reset demo data after deploying?"
+        type: boolean
+        default: false
+        required: false
+
+jobs:
+  deploy-demo:
+    name: Deploy to Demo VPS
+    runs-on: ubuntu-latest
+    environment: demo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Ansible
+        run: |
+          pip install ansible
+
+      - name: Install Ansible community.docker collection
+        run: |
+          ansible-galaxy collection install community.docker
+
+      - name: Write Ansible inventory
+        run: |
+          mkdir -p deploy/ansible
+          printf '%s' "${{ secrets.DEMO_INVENTORY_YML }}" > deploy/ansible/inventory-demo.yml
+
+      - name: Write Ansible vault password
+        run: |
+          printf '%s' "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > /tmp/vault-pass
+          chmod 600 /tmp/vault-pass
+
+      - name: Write encrypted demo vars
+        run: |
+          printf '%s' "${{ secrets.DEMO_VARS_YML_ENCRYPTED }}" > deploy/ansible/demo_vars.yml
+
+      - name: Write SSH private key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s' "${{ secrets.DEMO_SSH_PRIVATE_KEY }}" > ~/.ssh/llamenos_demo_deploy
+          chmod 600 ~/.ssh/llamenos_demo_deploy
+          ssh-keyscan -H "$(grep ansible_host deploy/ansible/inventory-demo.yml | head -1 | awk '{print $2}')" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy demo instance
+        working-directory: deploy/ansible
+        run: |
+          ansible-playbook playbooks/deploy-demo.yml \
+            -i inventory-demo.yml \
+            --vault-password-file /tmp/vault-pass
+
+      - name: Reset demo data
+        if: ${{ inputs.reset_data }}
+        working-directory: deploy/ansible
+        run: |
+          ansible-playbook playbooks/reset-demo.yml \
+            -i inventory-demo.yml \
+            --vault-password-file /tmp/vault-pass
+
+      - name: Clean up secrets
+        if: always()
+        run: |
+          rm -f /tmp/vault-pass
+          rm -f ~/.ssh/llamenos_demo_deploy
+          rm -f deploy/ansible/inventory-demo.yml
+          rm -f deploy/ansible/demo_vars.yml

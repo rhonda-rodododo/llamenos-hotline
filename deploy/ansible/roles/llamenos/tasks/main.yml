@@ -88,6 +88,22 @@
   delay: 5
   until: health_check.status == 200
 
+- name: Install demo data reset cron job
+  ansible.builtin.cron:
+    name: "Llamenos demo data reset"
+    minute: "{{ demo_reset_cron.split(' ')[0] }}"
+    hour: "{{ demo_reset_cron.split(' ')[1] }}"
+    day: "{{ demo_reset_cron.split(' ')[2] }}"
+    month: "{{ demo_reset_cron.split(' ')[3] }}"
+    weekday: "{{ demo_reset_cron.split(' ')[4] }}"
+    user: "{{ deploy_user }}"
+    job: >-
+      curl -sf -X POST https://{{ domain }}/api/test-reset
+      -H "X-Test-Secret: {{ dev_reset_secret }}"
+      >> /var/log/llamenos-demo-reset.log 2>&1
+    state: present
+  when: demo_mode | default('') | string == 'true'
+
 - name: Display deployment status
   ansible.builtin.debug:
     msg: |

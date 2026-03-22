@@ -6,7 +6,8 @@
 #   3. E2E tests against Docker Compose backend + Vite dev server
 #   5. Auto-determine version bump from conventional commits
 #   6. Bump version, generate changelog, commit + tag
-#   7. Deploy API to Cloudflare Workers + marketing site to Cloudflare Pages
+#   7. Deploy marketing site to Cloudflare Pages
+#      (App deployment to VPS via Ansible — manual: see deploy/ansible/justfile)
 #   8. Create GitHub Release with changelog
 #   (Desktop app releases are handled by tauri-release.yml)
 #

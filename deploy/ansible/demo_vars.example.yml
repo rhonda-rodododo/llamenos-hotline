@@ -1,0 +1,143 @@
+# Llamenos Demo Instance Configuration
+#
+# Copy this file to demo_vars.yml and fill in your values.
+# Encrypt secrets with: ansible-vault encrypt demo_vars.yml
+#
+# Usage:
+#   cp demo_vars.example.yml demo_vars.yml
+#   $EDITOR demo_vars.yml
+#   ansible-vault encrypt demo_vars.yml
+#   just deploy-demo --ask-vault-pass
+#
+# To edit encrypted demo vars:
+#   ansible-vault edit demo_vars.yml
+
+# ─── Domain & TLS ────────────────────────────────────────────────
+# Your demo domain name (Caddy will auto-provision TLS via Let's Encrypt)
+domain: demo.llamenos-hotline.com
+
+# Email for Let's Encrypt certificate notifications
+acme_email: admin@yourdomain.org
+
+# ─── SSH Hardening ───────────────────────────────────────────────
+# Port to move SSH to (default 22 is heavily targeted by bots)
+ssh_port: 2222
+
+# CIDR ranges allowed to connect via SSH
+# Restrict to your admin IP addresses for maximum security
+ssh_allowed_cidrs:
+  - "0.0.0.0/0"       # WARNING: Replace with your actual IP/32
+
+# ─── Deploy User ─────────────────────────────────────────────────
+# The non-root user that runs the application
+deploy_user: deploy
+deploy_group: deploy
+
+# ─── Application ─────────────────────────────────────────────────
+# Docker image for the Llamenos app
+# Use a specific tag in production (e.g., ghcr.io/llamenos/llamenos:0.20.0)
+llamenos_image: ghcr.io/llamenos/llamenos:latest
+
+# Docker image for Caddy reverse proxy
+caddy_image: caddy:2.9-alpine
+
+# Docker image for PostgreSQL
+postgres_image: postgres:17-alpine
+
+# Docker image for MinIO
+minio_image: minio/minio:RELEASE.2025-01-20T14-49-07Z
+
+# Directory on the host where app files are stored
+app_dir: /opt/llamenos
+
+# Name displayed in the UI (use a generic name for security)
+hotline_name: Hotline
+
+# Application environment — MUST be 'demo' for demo instance
+environment: demo
+
+# Demo mode flag — enables periodic auto-reset and demo UI banners
+demo_mode: "true"
+
+# Secret for authenticating demo reset requests (X-Test-Secret header)
+# Generate with: openssl rand -hex 32
+dev_reset_secret: ""
+
+# Cron schedule for auto-resetting demo data (cron format, UTC)
+# Default: every 4 hours
+demo_reset_cron: "0 */4 * * *"
+
+# Admin public key (generate with: bun run bootstrap-admin)
+# This is the Nostr pubkey of the admin account
+admin_pubkey: ""
+
+# Admin decryption pubkey for E2EE envelope (same as admin_pubkey for most setups)
+admin_decryption_pubkey: ""
+
+# HMAC secret for hashing phone numbers and IPs
+# Generate with: openssl rand -hex 32
+hmac_secret: ""
+
+# ─── PostgreSQL ──────────────────────────────────────────────────
+# Database password (generate with: openssl rand -base64 24)
+pg_password: ""
+
+# Connection pool size
+pg_pool_size: 10
+
+# ─── MinIO (Blob Storage) ───────────────────────────────────────
+# Access credentials (generate with: openssl rand -base64 24)
+minio_access_key: ""
+minio_secret_key: ""
+minio_bucket: llamenos-files
+
+# ─── Nostr Relay (Core) ─────────────────────────────────────────
+# Server secret for signing relay events (must be exactly 64 hex chars)
+# Generate with: openssl rand -hex 32 | xxd -p -c 64 (or openssl rand -hex 32)
+server_nostr_secret: ""
+
+# Relay URL (default: ws://strfry:7777 for the bundled strfry)
+# nostr_relay_url: "ws://strfry:7777"
+
+# ─── Telephony (Twilio) — optional for demo ─────────────────────
+# Leave empty to skip telephony on the demo instance
+twilio_account_sid: ""
+twilio_auth_token: ""
+twilio_phone_number: ""
+
+# ─── Optional Profiles ──────────────────────────────────────────
+# Enable optional Docker Compose profiles
+# Options: transcription, asterisk, signal
+compose_profiles: []
+
+# Whisper transcription settings (only used if 'transcription' profile enabled)
+whisper_image: fedirz/faster-whisper-server:0.4.1
+whisper_model: Systran/faster-whisper-base
+whisper_device: cpu
+
+# ─── Backup ─────────────────────────────────────────────────────
+# Disable backups on demo instance (data is ephemeral by design)
+backup_enabled: false
+
+# ─── Docker Hardening ───────────────────────────────────────────
+# Enable user namespace remapping for Docker container isolation
+docker_userns_remap: true
+
+# ─── Firewall ───────────────────────────────────────────────────
+# Additional ports to open beyond SSH, HTTP, and HTTPS
+firewall_extra_ports: []
+
+# ─── NTP ─────────────────────────────────────────────────────────
+# NTP servers (accurate time is critical for Schnorr token validation)
+ntp_servers:
+  - "0.pool.ntp.org"
+  - "1.pool.ntp.org"
+  - "2.pool.ntp.org"
+  - "3.pool.ntp.org"
+
+# ─── System ─────────────────────────────────────────────────────
+# Timezone for the server
+timezone: UTC
+
+# Locale
+locale: en_US.UTF-8
