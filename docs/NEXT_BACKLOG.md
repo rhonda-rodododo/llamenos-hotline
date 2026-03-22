@@ -205,8 +205,8 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 ### Application Quality
 
 - [x] **Application Hardening Phase 3** (`2026-03-22-application-hardening-phase3-plan.md`) — Audited: auth middleware already clean (no `as any`), `profileCompleted` wiring verified correct, on-break filtering confirmed in `startParallelRinging`, active calls dashboard widget already present, call history pagination already implemented. Discovery phases (3.5/3.6/3.9) deferred pending new specs.
-- [ ] **GDPR Compliance** (`2026-03-22-gdpr-compliance-plan.md`) — Consent collection, data export, right to erasure, retention policies
-- [ ] **Ansible Hardening** (`2026-03-22-ansible-hardening-plan.md`) — SSH hardening, firewall rules, kernel parameters, fail2ban, Docker security
+- [ ] **GDPR Compliance** (`2026-03-22-gdpr-compliance-plan.md`) — Consent collection, data export, right to erasure, retention policies ⬅ DEV READY
+- [ ] **Ansible Hardening** (`2026-03-22-ansible-hardening-plan.md`) — SSH hardening, firewall rules, kernel parameters, fail2ban, Docker security ⬅ DEV READY
 
 ### Test Coverage
 
@@ -222,7 +222,9 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 - [x] **i18n Locale Tests** (`2026-03-22-i18n-locale-tests-plan.md`) — All 13 locales, RTL Arabic, dynamic locale file comparison (no hardcoded strings), `scripts/check-locales.ts` with nested key traversal
 - [ ] **Provider Simulation Suite** — *(spec needed first)* Comprehensive webhook/callback simulation for all 5 telephony adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk) and all messaging adapters (Twilio SMS, WhatsApp Business, Signal). Must research each provider's actual sandbox tooling, webhook payload formats, status callback schemas, error conditions, and signature validation before writing the spec. Do not implement without completed research and approved spec.
 
-### Features (Lower Priority — v1 Gap Filling)
+### Features (Lower Priority — v1 Gap Filling) ⬅ ALL DEV READY
+
+All items in this section have a complete design spec and implementation plan. Execute in any order.
 
 - [ ] **Missing Pages** (`2026-03-22-missing-pages-plan.md`) — `/calls/:callId` detail page (new API endpoint needed), `/settings` profile section completion, `/notes/:noteId` permalink (new API endpoint needed). Requires `GET /api/calls/:callId` and `GET /api/notes/:noteId` to be added first.
 - [ ] **Message Delivery Status** (`2026-03-22-message-delivery-status-plan.md`) — Add `deliveryStatusUpdatedAt` field (existing fields mostly present), ensure Twilio StatusCallback URL set on outbound send, add status icon UI
