@@ -1157,7 +1157,11 @@
     "selectHub": "Select hub",
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
-    "urlPlaceholder": "https://hub.example.com"
+    "urlPlaceholder": "https://hub.example.com",
+    "archive": "Archive",
+    "archiveHub": "Archive Hub",
+    "archiveHubConfirm": "Are you sure you want to archive \"{{name}}\"? Archived hubs are hidden from active operations.",
+    "hubArchived": "Hub archived successfully"
   },
   "blasts": {
     "title": "Message Blasts",

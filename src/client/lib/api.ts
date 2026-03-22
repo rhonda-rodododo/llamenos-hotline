@@ -1391,3 +1391,10 @@ export async function addHubMember(hubId: string, pubkey: string, roleIds: strin
 export async function removeHubMember(hubId: string, pubkey: string) {
   return request<{ ok: true }>(`/hubs/${hubId}/members/${pubkey}`, { method: 'DELETE' })
 }
+
+export async function archiveHub(id: string): Promise<void> {
+  await request<{ hub: Hub }>(`/hubs/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'archived' }),
+  })
+}
