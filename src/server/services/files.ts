@@ -96,15 +96,26 @@ export class FilesService {
     envelope: FileKeyEnvelope,
     meta: EncryptedMetaItem,
   ): Promise<void> {
-    const record = await this.getFileRecord(id)
-    if (!record) throw new AppError(404, 'File not found')
-    await this.db
-      .update(fileRecords)
-      .set({
-        recipientEnvelopes: [...record.recipientEnvelopes, envelope],
-        encryptedMetadata: [...record.encryptedMetadata, meta],
-      })
-      .where(eq(fileRecords.id, id))
+    // Use a row-level lock to prevent concurrent share operations from racing
+    // and silently losing E2EE key material (lost-update on JSONB append).
+    await this.db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({
+          recipientEnvelopes: fileRecords.recipientEnvelopes,
+          encryptedMetadata: fileRecords.encryptedMetadata,
+        })
+        .from(fileRecords)
+        .where(eq(fileRecords.id, id))
+        .for('update')
+      if (!existing) throw new AppError(404, 'File not found')
+      await tx
+        .update(fileRecords)
+        .set({
+          recipientEnvelopes: [...(existing.recipientEnvelopes as FileKeyEnvelope[]), envelope],
+          encryptedMetadata: [...(existing.encryptedMetadata as EncryptedMetaItem[]), meta],
+        })
+        .where(eq(fileRecords.id, id))
+    })
   }
 
   // ------------------------------------------------------------------ Private helpers
@@ -129,6 +140,16 @@ export class FilesService {
   // ------------------------------------------------------------------ Test Reset
 
   async resetForTest(): Promise<void> {
+    if (this.blob) {
+      // Clean up blob objects before removing DB records so we don't orphan blobs
+      const rows = await this.db.select({ id: fileRecords.id, totalChunks: fileRecords.totalChunks }).from(fileRecords)
+      await Promise.all(
+        rows.flatMap((r) => [
+          this.deleteAssembled(r.id).catch(() => {}),
+          this.deleteAllChunks(r.id, r.totalChunks).catch(() => {}),
+        ]),
+      )
+    }
     await this.db.delete(fileRecords)
   }
 
@@ -152,9 +173,17 @@ export class FilesService {
 
   async deleteAllChunks(uploadId: string, totalChunks: number): Promise<void> {
     const blob = this.#requireBlob()
-    for (let i = 0; i < totalChunks; i++) {
-      const key = `files/${uploadId}/chunk-${String(i).padStart(6, '0')}`
-      await blob.delete(key)
+    // Delete in parallel batches of 100 to avoid both sequential latency and
+    // overwhelming the blob store with 10k concurrent requests.
+    const BATCH = 100
+    for (let i = 0; i < totalChunks; i += BATCH) {
+      const end = Math.min(i + BATCH, totalChunks)
+      await Promise.all(
+        Array.from({ length: end - i }, (_, j) => {
+          const key = `files/${uploadId}/chunk-${String(i + j).padStart(6, '0')}`
+          return blob.delete(key)
+        }),
+      )
     }
   }
 

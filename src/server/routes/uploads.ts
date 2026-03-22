@@ -150,11 +150,12 @@ uploads.post('/:id/complete', async (c) => {
   await services.files.storeEnvelopesBlob(uploadId, record.recipientEnvelopes)
   await services.files.storeMetadataBlob(uploadId, record.encryptedMetadata)
 
-  // Clean up individual chunks
-  await services.files.deleteAllChunks(uploadId, record.totalChunks)
-
-  // Mark DB record as complete
+  // Mark DB record as complete FIRST — chunks remain in blob storage and are
+  // recoverable if this DB call fails. Never destroy source data before committing.
   await services.files.completeUpload(uploadId)
+
+  // Delete individual chunks only after the record is durably marked complete
+  await services.files.deleteAllChunks(uploadId, record.totalChunks)
 
   await services.records.addAuditEntry(hubId ?? 'global', 'fileUploadCompleted', pubkey, {
     uploadId,
