@@ -1,20 +1,19 @@
 import { Hono } from 'hono'
-import { getDOs } from '../lib/do-access'
 import { isValidE164 } from '../lib/helpers'
 import { requirePermission } from '../middleware/permission-guard'
-import { audit } from '../services/audit'
 import type { AppEnv } from '../types'
 
 const volunteers = new Hono<AppEnv>()
 volunteers.use('*', requirePermission('volunteers:read'))
 
 volunteers.get('/', async (c) => {
-  const dos = getDOs(c.env)
-  return dos.identity.fetch(new Request('http://do/volunteers'))
+  const services = c.get('services')
+  const vols = await services.identity.getVolunteers()
+  return c.json({ volunteers: vols })
 })
 
 volunteers.post('/', requirePermission('volunteers:create'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as {
     name: string
@@ -32,64 +31,59 @@ volunteers.post('/', requirePermission('volunteers:create'), async (c) => {
     return c.json({ error: 'pubkey is required — generate keypair client-side' }, 400)
   }
 
-  const res = await dos.identity.fetch(
-    new Request('http://do/volunteers', {
-      method: 'POST',
-      body: JSON.stringify({
-        pubkey: newPubkey,
-        name: body.name,
-        phone: body.phone,
-        roles: body.roleIds || ['role-volunteer'],
-        encryptedSecretKey: '',
-      }),
-    })
-  )
+  const volunteer = await services.identity.createVolunteer({
+    pubkey: newPubkey,
+    name: body.name,
+    phone: body.phone,
+    roles: body.roleIds || ['role-volunteer'],
+    encryptedSecretKey: '',
+  })
 
-  if (res.ok) {
-    await audit(dos.records, 'volunteerAdded', pubkey, { target: newPubkey, roles: body.roleIds })
-  }
+  await services.records.addAuditEntry('global', 'volunteerAdded', pubkey, {
+    target: newPubkey,
+    roles: body.roleIds,
+  })
 
-  return res
+  return c.json(volunteer, 201)
 })
 
 volunteers.patch('/:targetPubkey', requirePermission('volunteers:update'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const targetPubkey = c.req.param('targetPubkey')
-  const body = await c.req.json()
-  const res = await dos.identity.fetch(
-    new Request(`http://do/admin/volunteers/${targetPubkey}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
+  const body = (await c.req.json()) as Record<string, unknown>
+
+  const updated = await services.identity.updateVolunteer(
+    targetPubkey,
+    body as Parameters<typeof services.identity.updateVolunteer>[1],
+    true // isAdmin=true for admin update
   )
-  if (res.ok) {
-    const data = body as Record<string, unknown>
-    if (data.roles)
-      await audit(dos.records, 'rolesChanged', pubkey, { target: targetPubkey, roles: data.roles })
-    // Revoke all sessions when deactivating or changing roles
-    if (data.active === false || data.roles) {
-      await dos.identity.fetch(
-        new Request(`http://do/sessions/revoke-all/${targetPubkey}`, { method: 'DELETE' })
-      )
-    }
+
+  if (body.roles) {
+    await services.records.addAuditEntry('global', 'rolesChanged', pubkey, {
+      target: targetPubkey,
+      roles: body.roles,
+    })
   }
-  return res
+  // Revoke all sessions when deactivating or changing roles
+  if (body.active === false || body.roles) {
+    await services.identity.revokeAllSessions(targetPubkey)
+  }
+
+  return c.json(updated)
 })
 
 volunteers.delete('/:targetPubkey', requirePermission('volunteers:delete'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const targetPubkey = c.req.param('targetPubkey')
   // Revoke all sessions before deletion
-  await dos.identity.fetch(
-    new Request(`http://do/sessions/revoke-all/${targetPubkey}`, { method: 'DELETE' })
-  )
-  const res = await dos.identity.fetch(
-    new Request(`http://do/volunteers/${targetPubkey}`, { method: 'DELETE' })
-  )
-  if (res.ok) await audit(dos.records, 'volunteerRemoved', pubkey, { target: targetPubkey })
-  return res
+  await services.identity.revokeAllSessions(targetPubkey)
+  await services.identity.deleteVolunteer(targetPubkey)
+  await services.records.addAuditEntry('global', 'volunteerRemoved', pubkey, {
+    target: targetPubkey,
+  })
+  return c.json({ ok: true })
 })
 
 export default volunteers

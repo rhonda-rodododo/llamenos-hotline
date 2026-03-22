@@ -1,11 +1,9 @@
 import { Hono } from 'hono'
 import { verifyAuthToken } from '../lib/auth'
 import { hashIP } from '../lib/crypto'
-import { getDOs } from '../lib/do-access'
-import { checkRateLimit, isValidE164 } from '../lib/helpers'
+import { isValidE164 } from '../lib/helpers'
 import { auth as authMiddleware } from '../middleware/auth'
 import { requirePermission } from '../middleware/permission-guard'
-import { audit } from '../services/audit'
 import type { AppEnv } from '../types'
 
 const invites = new Hono<AppEnv>()
@@ -13,21 +11,21 @@ const invites = new Hono<AppEnv>()
 // --- Public routes (no auth) ---
 
 invites.get('/validate/:code', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const code = c.req.param('code')
   // Rate limit invite validation to prevent enumeration
   const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-  const limited = await checkRateLimit(
-    dos.settings,
+  const limited = await services.settings.checkRateLimit(
     `invite-validate:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
     5
   )
   if (limited) return c.json({ error: 'Too many requests' }, 429)
-  return dos.identity.fetch(new Request(`http://do/invites/validate/${code}`))
+  const result = await services.identity.validateInvite(code)
+  return c.json(result)
 })
 
 invites.post('/redeem', async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const body = (await c.req.json()) as {
     code: string
     pubkey: string
@@ -51,19 +49,14 @@ invites.post('/redeem', async (c) => {
 
   // Rate limit redemption attempts
   const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-  const limited = await checkRateLimit(
-    dos.settings,
+  const limited = await services.settings.checkRateLimit(
     `invite-redeem:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
     5
   )
   if (limited) return c.json({ error: 'Too many requests' }, 429)
 
-  return dos.identity.fetch(
-    new Request('http://do/invites/redeem', {
-      method: 'POST',
-      body: JSON.stringify({ code: body.code, pubkey: body.pubkey }),
-    })
-  )
+  const volunteer = await services.identity.redeemInvite({ code: body.code, pubkey: body.pubkey })
+  return c.json(volunteer)
 })
 
 // --- Authenticated routes (require invites permissions) ---
@@ -71,36 +64,30 @@ invites.use('/', authMiddleware, requirePermission('invites:read'))
 invites.use('/:code', authMiddleware, requirePermission('invites:read'))
 
 invites.get('/', async (c) => {
-  const dos = getDOs(c.env)
-  return dos.identity.fetch(new Request('http://do/invites'))
+  const services = c.get('services')
+  const inviteList = await services.identity.getInvites()
+  return c.json({ invites: inviteList })
 })
 
 invites.post('/', requirePermission('invites:create'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as { name: string; phone: string; roleIds: string[] }
   if (body.phone && !isValidE164(body.phone)) {
     return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
   }
-  const res = await dos.identity.fetch(
-    new Request('http://do/invites', {
-      method: 'POST',
-      body: JSON.stringify({ ...body, createdBy: pubkey }),
-    })
-  )
-  if (res.ok) await audit(dos.records, 'inviteCreated', pubkey, { name: body.name })
-  return res
+  const invite = await services.identity.createInvite({ ...body, createdBy: pubkey })
+  await services.records.addAuditEntry('global', 'inviteCreated', pubkey, { name: body.name })
+  return c.json(invite, 201)
 })
 
 invites.delete('/:code', requirePermission('invites:revoke'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
   const pubkey = c.get('pubkey')
   const code = c.req.param('code')
-  const res = await dos.identity.fetch(
-    new Request(`http://do/invites/${code}`, { method: 'DELETE' })
-  )
-  if (res.ok) await audit(dos.records, 'inviteRevoked', pubkey, { code })
-  return res
+  await services.identity.revokeInvite(code)
+  await services.records.addAuditEntry('global', 'inviteRevoked', pubkey, { code })
+  return c.json({ ok: true })
 })
 
 export default invites
