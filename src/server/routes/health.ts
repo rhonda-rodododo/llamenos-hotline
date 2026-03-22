@@ -26,7 +26,7 @@ async function readBackupStatus(): Promise<BackupStatus | undefined> {
   }
 }
 
-async function runChecks(env: Record<string, unknown>): Promise<HealthResult> {
+async function runChecks(): Promise<HealthResult> {
   const checks: Record<string, 'ok' | 'failing'> = {}
   const details: Record<string, string> = {}
 
@@ -41,17 +41,37 @@ async function runChecks(env: Record<string, unknown>): Promise<HealthResult> {
     details.postgres = err instanceof Error ? err.message : 'Connection failed'
   }
 
-  // Blob storage check (R2 on CF, MinIO on Node.js)
-  if (env.R2_BUCKET) {
-    checks.storage = 'ok'
-  } else {
+  // Blob storage check — verify MinIO bucket exists and is accessible
+  try {
+    const { HeadBucketCommand, S3Client } = await import('@aws-sdk/client-s3')
+    // MinIO credentials come from process.env (Bun server), not Hono bindings
+    const endpoint = process.env.MINIO_ENDPOINT || 'http://localhost:9000'
+    const accessKeyId = process.env.MINIO_APP_USER || process.env.MINIO_ACCESS_KEY
+    const secretAccessKey = process.env.MINIO_APP_PASSWORD || process.env.MINIO_SECRET_KEY
+    const bucket = process.env.MINIO_BUCKET || 'llamenos-files'
+
+    if (!accessKeyId || !secretAccessKey) {
+      checks.storage = 'failing'
+      details.storage = 'MinIO credentials not configured'
+    } else {
+      const s3 = new S3Client({
+        endpoint,
+        region: 'us-east-1',
+        credentials: { accessKeyId, secretAccessKey },
+        forcePathStyle: true,
+      })
+      await s3.send(new HeadBucketCommand({ Bucket: bucket }))
+      checks.storage = 'ok'
+    }
+  } catch (err) {
     checks.storage = 'failing'
-    details.storage = 'Blob storage not configured'
+    const msg = err instanceof Error ? err.message : String(err)
+    details.storage = msg.includes('NoSuchBucket') ? 'bucket_missing' : 'unreachable'
   }
 
   // Nostr relay configuration check
   // Actual connectivity is verified by strfry's own healthcheck in Docker/K8s
-  if (env.NOSTR_RELAY_URL) {
+  if (process.env.NOSTR_RELAY_URL) {
     checks.relay = 'ok'
   } else {
     checks.relay = 'failing'
@@ -65,7 +85,7 @@ async function runChecks(env: Record<string, unknown>): Promise<HealthResult> {
 // Full health check — dependency status
 health.get('/', async (c) => {
   const [{ status, checks, details }, backup] = await Promise.all([
-    runChecks(c.env as unknown as Record<string, unknown>),
+    runChecks(),
     readBackupStatus(),
   ])
   const hasDetails = Object.keys(details).length > 0
@@ -88,7 +108,7 @@ health.get('/live', (c) => c.json({ status: 'ok' }))
 
 // Kubernetes readiness probe — verifies all dependencies
 health.get('/ready', async (c) => {
-  const { status, checks, details } = await runChecks(c.env as unknown as Record<string, unknown>)
+  const { status, checks, details } = await runChecks()
   const hasDetails = Object.keys(details).length > 0
 
   return c.json(

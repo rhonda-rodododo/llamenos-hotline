@@ -1,0 +1,27 @@
+# Llamenos Hotline Stack — systemd service
+# Managed by Ansible — do not edit manually.
+# Generated: {{ ansible_date_time.iso8601 | default('unknown') }}
+
+[Unit]
+Description=Llamenos Hotline Stack
+Documentation=https://github.com/llamenos/llamenos-hotline
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory={{ app_dir }}
+ExecStart=/usr/bin/docker compose -f {{ app_dir }}/docker-compose.yml up -d --remove-orphans
+ExecStop=/usr/bin/docker compose -f {{ app_dir }}/docker-compose.yml down
+TimeoutStartSec=120
+TimeoutStopSec=60
+Restart=no
+
+# Run as deploy user
+User={{ deploy_user }}
+Group={{ deploy_group }}
+
+[Install]
+WantedBy=multi-user.target
