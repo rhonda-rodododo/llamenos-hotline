@@ -15,6 +15,13 @@
       "when": 1774231200000,
       "tag": "0001_hub_schema_fix",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1742601600000,
+      "tag": "0002_file_records",
+      "breakpoints": true
     }
   ]
 }

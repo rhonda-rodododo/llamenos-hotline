@@ -1,6 +1,6 @@
 import { pgTable, text, timestamp, boolean, integer, unique } from 'drizzle-orm/pg-core'
 import { jsonb } from '../bun-jsonb'
-import type { RecipientEnvelope } from '../../../shared/types'
+import type { RecipientEnvelope, FileKeyEnvelope, EncryptedMetaItem } from '../../../shared/types'
 
 export const conversations = pgTable(
   'conversations',
@@ -38,4 +38,19 @@ export const messageEnvelopes = pgTable('message_envelopes', {
   failureReason: text('failure_reason'),
   retryCount: integer('retry_count').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const fileRecords = pgTable('file_records', {
+  id: text('id').primaryKey(),
+  conversationId: text('conversation_id').notNull(),
+  messageId: text('message_id'),
+  uploadedBy: text('uploaded_by').notNull(),
+  recipientEnvelopes: jsonb<FileKeyEnvelope[]>()('recipient_envelopes').notNull().default([]),
+  encryptedMetadata: jsonb<EncryptedMetaItem[]>()('encrypted_metadata').notNull().default([]),
+  totalSize: integer('total_size').notNull(),
+  totalChunks: integer('total_chunks').notNull(),
+  status: text('status').notNull().default('uploading'), // 'uploading' | 'complete' | 'failed'
+  completedChunks: integer('completed_chunks').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
 })
