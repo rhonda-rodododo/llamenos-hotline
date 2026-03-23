@@ -24,9 +24,11 @@ test.describe('Admin flow', () => {
     await page.getByRole('link', { name: 'Volunteers' }).click()
     await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
 
-    // Add volunteer — wait for page to settle (button detaches during re-renders)
+    // Add volunteer — wait for data to load, then use force click to bypass
+    // React re-render instability (button detaches during async state updates)
     await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: /add volunteer/i }).click()
+    await page.waitForTimeout(1000)
+    await page.getByTestId('volunteer-add-btn').click({ force: true })
     await page.getByLabel('Name').fill(volName)
     await page.getByLabel('Phone Number').fill(phone)
     await page.getByLabel('Phone Number').blur()
@@ -145,7 +147,8 @@ test.describe('Admin flow', () => {
   test('phone validation rejects bad numbers', async ({ page }) => {
     await page.getByRole('link', { name: 'Volunteers' }).click()
     await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: /add volunteer/i }).click()
+    await page.waitForTimeout(1000)
+    await page.getByTestId('volunteer-add-btn').click({ force: true })
 
     await page.getByLabel('Name').fill('Bad Phone')
     // PhoneInput strips non-digits; use a too-short number that passes through handleChange

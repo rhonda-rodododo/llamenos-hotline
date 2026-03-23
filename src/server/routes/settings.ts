@@ -41,7 +41,7 @@ settings.get('/custom-fields', async (c) => {
     canManageFields ? 'admin' : 'volunteer',
     hubId ?? undefined
   )
-  return c.json(fields)
+  return c.json({ fields })
 })
 
 settings.put('/custom-fields', requirePermission('settings:manage-fields'), async (c) => {
@@ -109,7 +109,8 @@ settings.patch('/call', requirePermission('settings:manage'), async (c) => {
 settings.get('/ivr-languages', requirePermission('settings:manage-ivr'), async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
-  return c.json(await services.settings.getIvrLanguages(hubId ?? undefined))
+  const enabledLanguages = await services.settings.getIvrLanguages(hubId ?? undefined)
+  return c.json({ enabledLanguages })
 })
 
 settings.patch('/ivr-languages', requirePermission('settings:manage-ivr'), async (c) => {
@@ -314,7 +315,8 @@ settings.patch('/setup', requirePermission('settings:manage'), async (c) => {
 settings.get('/ivr-audio', requirePermission('settings:manage-ivr'), async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
-  return c.json(await services.settings.getIvrAudioList(hubId ?? undefined))
+  const recordings = await services.settings.getIvrAudioList(hubId ?? undefined)
+  return c.json({ recordings })
 })
 
 settings.put(
@@ -366,7 +368,8 @@ settings.delete(
 settings.get('/roles', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
-  return c.json(await services.settings.listRoles(hubId ?? undefined))
+  const rolesList = await services.settings.listRoles(hubId ?? undefined)
+  return c.json({ roles: rolesList })
 })
 
 settings.post('/roles', requirePermission('system:manage-roles'), async (c) => {

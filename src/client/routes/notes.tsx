@@ -83,7 +83,7 @@ function NotesPage() {
 
   useEffect(() => {
     getCustomFields()
-      .then((r) => setCustomFields(r.fields))
+      .then((r) => setCustomFields(r.fields ?? []))
       .catch(() => {})
     if (isAdmin) {
       getCallHistory({ limit: 100 })
@@ -136,7 +136,7 @@ function NotesPage() {
     setLoading(true)
     listNotes({ callId: callId || undefined, page, limit })
       .then((res) => {
-        const decryptedNotes: DecryptedNote[] = res.notes
+        const decryptedNotes: DecryptedNote[] = (res.notes ?? [])
           .filter((note) => {
             if (note.authorPubkey === 'system:transcription:admin') return isAdmin
             if (note.authorPubkey === 'system:transcription') return !isAdmin

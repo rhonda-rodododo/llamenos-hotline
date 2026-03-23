@@ -89,7 +89,7 @@ function AdminSettingsPage() {
         setGlobalTranscription(r.globalEnabled)
         setAllowVolunteerOptOut(r.allowVolunteerOptOut)
       }),
-      getIvrLanguages().then((r) => setIvrEnabled(r.enabledLanguages)),
+      getIvrLanguages().then((r) => setIvrEnabled(r.enabledLanguages ?? [])),
       listIvrAudio().then((r) => setIvrAudio(r.recordings)),
       getWebAuthnSettings()
         .then(setWebauthnSettings)
