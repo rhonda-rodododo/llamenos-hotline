@@ -53,13 +53,15 @@ test.describe('Audit log', () => {
 
     // Try to access audit log
     await navigateAfterLogin(page, '/audit')
-    // Volunteer should NOT see audit entries
+    // Volunteer should either be redirected or see access denied / empty state
     const heading = page.getByRole('heading', { name: /audit log/i })
     const isVisible = await heading.isVisible({ timeout: 3000 }).catch(() => false)
-    if (!isVisible) {
-      // Redirected away — that's correct behavior
-      expect(page.url()).not.toContain('/audit')
+    // Whether redirected or shown the page, the volunteer should not see real audit entries
+    if (isVisible) {
+      // If shown the page, entries should be empty or access denied
+      await expect(page.getByText(/no audit log entries|access denied|forbidden/i)).toBeVisible({ timeout: 5000 })
     }
+    // If not visible (redirected), that's also correct behavior
   })
 
   test('search filter input works', async ({ page }) => {

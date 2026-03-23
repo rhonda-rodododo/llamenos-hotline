@@ -40,6 +40,7 @@ test.describe('Role Management API', () => {
   test.describe.configure({ mode: 'serial' })
 
   let customRoleId: string
+  let customRoleSlug: string
 
   test.beforeAll(async ({ request }) => {
     await resetTestState(request)
@@ -70,26 +71,29 @@ test.describe('Role Management API', () => {
   })
 
   test('creates a custom role', async ({ page }) => {
+    const suffix = Date.now().toString(36)
     const result = await apiCall(page, 'POST', '/settings/roles', {
-      name: 'Call Monitor',
-      slug: 'call-monitor',
+      name: `Call Monitor ${suffix}`,
+      slug: `call-monitor-${suffix}`,
       permissions: ['calls:read-active', 'calls:read-history', 'calls:read-presence'],
       description: 'Can view call activity but not answer calls',
     })
     expect(result.status).toBe(201)
-    expect(result.body.name).toBe('Call Monitor')
-    expect(result.body.slug).toBe('call-monitor')
+    expect(result.body.name).toBe(`Call Monitor ${suffix}`)
+    expect(result.body.slug).toBe(`call-monitor-${suffix}`)
     expect(result.body.permissions).toEqual(['calls:read-active', 'calls:read-history', 'calls:read-presence'])
     expect(result.body.isDefault).toBe(false)
     expect(result.body.isSystem).toBe(false)
     expect(result.body.id).toMatch(/^role-/)
     customRoleId = result.body.id
+    customRoleSlug = result.body.slug
   })
 
   test('rejects duplicate slug', async ({ page }) => {
+    // Use the slug from the previously created role to test duplicate rejection
     const result = await apiCall(page, 'POST', '/settings/roles', {
       name: 'Call Monitor Dupe',
-      slug: 'call-monitor',
+      slug: customRoleSlug,
       permissions: ['calls:read-active'],
       description: 'Duplicate slug test',
     })
@@ -262,7 +266,7 @@ test.describe('Permission Enforcement', () => {
     // Volunteers don't have system:manage-roles
     const rolesCreateResult = await apiCall(page, 'POST', '/settings/roles', {
       name: 'Hack Role',
-      slug: 'hack-role',
+      slug: `hack-role-${Date.now().toString(36)}`,
       permissions: ['*'],
       description: 'Attempt to escalate privileges',
     })
@@ -384,7 +388,7 @@ test.describe('Custom role with specific permissions', () => {
     // Create a custom role with very specific permissions
     const roleResult = await apiCall(page, 'POST', '/settings/roles', {
       name: 'Shift Viewer',
-      slug: 'shift-viewer',
+      slug: `shift-viewer-${Date.now().toString(36)}`,
       permissions: ['shifts:read', 'bans:read'],
       description: 'Can only view shifts and bans',
     })
@@ -542,7 +546,7 @@ test.describe('Wildcard permission resolution', () => {
     // Create a custom role with domain wildcard (bans:*)
     const roleResult = await apiCall(page, 'POST', '/settings/roles', {
       name: 'Ban Manager',
-      slug: 'ban-manager',
+      slug: `ban-manager-${Date.now().toString(36)}`,
       permissions: ['bans:*'],
       description: 'Full access to ban management',
     })

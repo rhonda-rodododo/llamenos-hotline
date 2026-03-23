@@ -172,7 +172,7 @@ export async function loginAsVolunteer(page: Page, nsec: string) {
   await page.goto('/login')
   await page.evaluate(() => sessionStorage.clear())
   await preloadEncryptedKey(page, nsec, TEST_PIN)
-  await page.reload()
+  await page.reload({ waitUntil: 'domcontentloaded' })
   await enterPin(page, TEST_PIN)
   await page.waitForURL(url => !url.toString().includes('/login'), { timeout: Timeouts.AUTH })
   // Short delay for initial API calls to complete
