@@ -92,6 +92,55 @@ export const PROVIDER_REQUIRED_FIELDS: Record<
   asterisk: ['ariUrl', 'ariUsername', 'ariPassword', 'phoneNumber'],
 }
 
+// --- Geocoding / Location Types ---
+
+export type LocationPrecision = 'none' | 'city' | 'neighborhood' | 'block' | 'exact'
+
+export type LocationResult = {
+  address: string
+  displayName?: string
+  lat: number
+  lon: number
+  countryCode?: string
+}
+
+export type LocationFieldValue = {
+  address: string
+  displayName?: string
+  lat?: number
+  lon?: number
+  source: 'geocoded' | 'gps' | 'manual'
+}
+
+export type GeocodingProvider = 'opencage' | 'geoapify'
+
+export type GeocodingConfig = {
+  provider: GeocodingProvider | null
+  countries: string[]
+  enabled: boolean
+}
+
+export type GeocodingConfigAdmin = GeocodingConfig & { apiKey: string }
+
+export const GEOCODING_PROVIDER_LABELS: Record<GeocodingProvider, string> = {
+  opencage: 'OpenCage',
+  geoapify: 'Geoapify',
+}
+
+export const DEFAULT_GEOCODING_CONFIG: GeocodingConfigAdmin = {
+  provider: null,
+  apiKey: '',
+  countries: [],
+  enabled: false,
+}
+
+// --- Location Field Settings (for custom field definition) ---
+
+export interface LocationFieldSettings {
+  maxPrecision: LocationPrecision
+  allowGps: boolean
+}
+
 // --- Custom Fields ---
 
 export type CustomFieldContext = 'call-notes' | 'conversation-notes' | 'reports' | 'all'
@@ -101,7 +150,7 @@ export interface CustomFieldDefinition {
   id: string // unique UUID
   name: string // internal key (machine-readable, e.g. "severity")
   label: string // display label (e.g. "Severity Rating")
-  type: 'text' | 'number' | 'select' | 'checkbox' | 'textarea' | 'file'
+  type: 'text' | 'number' | 'select' | 'checkbox' | 'textarea' | 'file' | 'location'
   required: boolean
   options?: string[] // for 'select' type only
   validation?: {
@@ -117,6 +166,8 @@ export interface CustomFieldDefinition {
   maxFileSize?: number // bytes, for file type
   allowedMimeTypes?: string[] // e.g., ['image/*', 'application/pdf']
   maxFiles?: number // for multi-file fields (default: 1)
+  // Location field type options
+  locationSettings?: LocationFieldSettings
   order: number
   createdAt: string
 }

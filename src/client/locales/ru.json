@@ -741,7 +741,8 @@
       "select": "Выбор",
       "checkbox": "Флажок",
       "textarea": "Текстовая область",
-      "file": "File"
+      "file": "File",
+      "location": "Местоположение"
     },
     "validation": {
       "min": "Мин",
@@ -750,7 +751,18 @@
       "maxLength": "Макс. длина"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "Настройки местоположения",
+    "maxPrecision": "Максимальная точность",
+    "allowGps": "Разрешить GPS-местоположение",
+    "locationEncryptionNote": "Данные местоположения шифруются вместе с содержимым заметки (нулевое знание)",
+    "precision": {
+      "exact": "Точное (полные координаты)",
+      "block": "Уровень квартала",
+      "neighborhood": "Район (только адрес)",
+      "city": "Уровень города (только адрес)",
+      "none": "Нет (только текст)"
+    }
   },
   "volunteerProfile": {
     "joined": "Присоединился",
@@ -1271,5 +1283,27 @@
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
+  },
+  "locationField": {
+    "placeholder": "Поиск адреса...",
+    "searching": "Поиск...",
+    "noResults": "Результатов нет",
+    "openInMaps": "Открыть на карте",
+    "clearLocation": "Очистить местоположение",
+    "useCurrentLocation": "Использовать текущее местоположение"
+  },
+  "geocoding": {
+    "title": "Геокодирование / Местоположение",
+    "description": "Настройте провайдера геокодирования для включения автозаполнения местоположения в пользовательских полях",
+    "provider": "Провайдер геокодирования",
+    "apiKey": "API-ключ",
+    "apiKeyPlaceholder": "Введите ваш API-ключ",
+    "countries": "Фильтр стран",
+    "countriesPlaceholder": "напр. ru, ua, by",
+    "countriesHelp": "2-буквенные коды стран через запятую. Оставьте пустым для всего мира.",
+    "enabled": "Включить геокодирование",
+    "testConnection": "Тест соединения",
+    "testSuccess": "Соединение успешно ({{latency}}мс)",
+    "testFailed": "Тест соединения не пройден"
   }
 }

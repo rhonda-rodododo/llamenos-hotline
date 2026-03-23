@@ -7,6 +7,8 @@ import { DEFAULT_ROLES } from '../../shared/permissions'
 import type {
   CustomFieldDefinition,
   EnabledChannels,
+  GeocodingConfig,
+  GeocodingConfigAdmin,
   Hub,
   MessagingConfig,
   OAuthState,
@@ -16,6 +18,7 @@ import type {
   TelephonyProviderConfig,
 } from '../../shared/types'
 import {
+  DEFAULT_GEOCODING_CONFIG,
   DEFAULT_MESSAGING_CONFIG,
   DEFAULT_SETUP_STATE,
   FIELD_NAME_REGEX,
@@ -135,6 +138,13 @@ export class SettingsDO extends DurableObject<Env> {
       this.updateRole(id, await req.json())
     )
     this.router.delete('/settings/roles/:id', (_req, { id }) => this.deleteRole(id))
+
+    // --- Geocoding Config ---
+    this.router.get('/settings/geocoding', () => this.getGeocodingConfig())
+    this.router.get('/settings/geocoding/admin', () => this.getGeocodingConfigAdmin())
+    this.router.patch('/settings/geocoding', async (req) =>
+      this.updateGeocodingConfig(await req.json())
+    )
 
     // --- Rate Limiting ---
     this.router.post('/rate-limit/check', async (req) => this.checkRateLimit(await req.json()))
@@ -492,7 +502,11 @@ export class SettingsDO extends DurableObject<Env> {
         })
       }
       names.add(field.name)
-      if (!['text', 'number', 'select', 'checkbox', 'textarea', 'file'].includes(field.type)) {
+      if (
+        !['text', 'number', 'select', 'checkbox', 'textarea', 'file', 'location'].includes(
+          field.type
+        )
+      ) {
         return new Response(JSON.stringify({ error: `Invalid field type: ${field.type}` }), {
           status: 400,
         })
@@ -580,7 +594,6 @@ export class SettingsDO extends DurableObject<Env> {
       SettingsDO.SIGNAL_REGISTRATION_PENDING_KEY
     )
     if (pending && new Date(pending.expiresAt).getTime() < Date.now()) {
-      // TTL expired — clean up and return null
       await this.ctx.storage.delete(SettingsDO.SIGNAL_REGISTRATION_PENDING_KEY)
       return Response.json(null)
     }
@@ -597,6 +610,58 @@ export class SettingsDO extends DurableObject<Env> {
   private async clearSignalRegistrationPending(): Promise<Response> {
     await this.ctx.storage.delete(SettingsDO.SIGNAL_REGISTRATION_PENDING_KEY)
     return Response.json({ ok: true })
+  }
+
+  // --- Geocoding Config ---
+
+  private async getGeocodingConfig(): Promise<Response> {
+    const config =
+      (await this.ctx.storage.get<GeocodingConfigAdmin>('geocodingConfig')) ||
+      DEFAULT_GEOCODING_CONFIG
+    const publicConfig: GeocodingConfig = {
+      provider: config.provider,
+      countries: config.countries,
+      enabled: config.enabled,
+    }
+    return Response.json(publicConfig)
+  }
+
+  private async getGeocodingConfigAdmin(): Promise<Response> {
+    const config =
+      (await this.ctx.storage.get<GeocodingConfigAdmin>('geocodingConfig')) ||
+      DEFAULT_GEOCODING_CONFIG
+    return Response.json(config)
+  }
+
+  private async updateGeocodingConfig(data: Partial<GeocodingConfigAdmin>): Promise<Response> {
+    const current = (await this.ctx.storage.get<GeocodingConfigAdmin>('geocodingConfig')) || {
+      ...DEFAULT_GEOCODING_CONFIG,
+    }
+    const updated: GeocodingConfigAdmin = {
+      ...current,
+      ...data,
+    }
+    if (
+      updated.provider !== null &&
+      updated.provider !== 'opencage' &&
+      updated.provider !== 'geoapify'
+    ) {
+      return new Response(JSON.stringify({ error: 'Invalid geocoding provider' }), { status: 400 })
+    }
+    if (!Array.isArray(updated.countries)) {
+      return new Response(JSON.stringify({ error: 'Countries must be an array' }), { status: 400 })
+    }
+    for (const c of updated.countries) {
+      if (typeof c !== 'string' || !/^[a-z]{2}$/i.test(c)) {
+        return new Response(
+          JSON.stringify({ error: `Invalid country code: ${c}. Use 2-letter ISO codes.` }),
+          { status: 400 }
+        )
+      }
+    }
+    updated.countries = updated.countries.map((c) => c.toLowerCase())
+    await this.ctx.storage.put('geocodingConfig', updated)
+    return Response.json(updated)
   }
 
   // --- Setup State ---

@@ -15,6 +15,7 @@ import contactsRoutes from './routes/contacts'
 import conversationsRoutes from './routes/conversations'
 import devRoutes from './routes/dev'
 import filesRoutes from './routes/files'
+import geocodingRoutes from './routes/geocoding'
 import healthRoutes from './routes/health'
 import hubRoutes from './routes/hubs'
 import invitesRoutes from './routes/invites'
@@ -129,6 +130,7 @@ authenticated.route('/setup/provider', providerSetupRoutes)
 authenticated.route('/hubs', hubRoutes)
 authenticated.route('/blasts', blastsRoutes)
 authenticated.route('/contacts', contactsRoutes)
+authenticated.route('/geocoding', geocodingRoutes)
 
 // Hub-scoped authenticated routes
 const hubScoped = new Hono<AppEnv>()

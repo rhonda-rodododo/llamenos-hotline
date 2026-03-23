@@ -741,7 +741,8 @@
       "select": "선택",
       "checkbox": "체크박스",
       "textarea": "텍스트 영역",
-      "file": "File"
+      "file": "File",
+      "location": "위치"
     },
     "validation": {
       "min": "최소",
@@ -750,7 +751,18 @@
       "maxLength": "최대 길이"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "위치 설정",
+    "maxPrecision": "최대 정밀도",
+    "allowGps": "GPS 위치 허용",
+    "locationEncryptionNote": "위치 데이터는 노트 내용과 함께 암호화됩니다 (제로 지식)",
+    "precision": {
+      "exact": "정확 (전체 좌표)",
+      "block": "블록 수준",
+      "neighborhood": "동네 (주소만)",
+      "city": "도시 수준 (주소만)",
+      "none": "없음 (텍스트만)"
+    }
   },
   "volunteerProfile": {
     "joined": "가입일",
@@ -1271,5 +1283,27 @@
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
+  },
+  "locationField": {
+    "placeholder": "주소 검색...",
+    "searching": "검색 중...",
+    "noResults": "결과 없음",
+    "openInMaps": "지도에서 열기",
+    "clearLocation": "위치 지우기",
+    "useCurrentLocation": "현재 위치 사용"
+  },
+  "geocoding": {
+    "title": "지오코딩 / 위치",
+    "description": "사용자 정의 필드에서 위치 자동완성을 활성화하기 위해 지오코딩 제공업체를 구성합니다",
+    "provider": "지오코딩 제공업체",
+    "apiKey": "API 키",
+    "apiKeyPlaceholder": "API 키를 입력하세요",
+    "countries": "국가 필터",
+    "countriesPlaceholder": "예: kr, us, jp",
+    "countriesHelp": "쉼표로 구분된 2자리 국가 코드. 전 세계는 비워두세요.",
+    "enabled": "지오코딩 활성화",
+    "testConnection": "연결 테스트",
+    "testSuccess": "연결 성공 ({{latency}}ms)",
+    "testFailed": "연결 테스트 실패"
   }
 }

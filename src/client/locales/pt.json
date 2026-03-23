@@ -741,7 +741,8 @@
       "select": "Seleção",
       "checkbox": "Caixa de seleção",
       "textarea": "Área de Texto",
-      "file": "File"
+      "file": "File",
+      "location": "Localização"
     },
     "validation": {
       "min": "Mín",
@@ -750,7 +751,18 @@
       "maxLength": "Comprimento Máx"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "Configurações de localização",
+    "maxPrecision": "Precisão máxima",
+    "allowGps": "Permitir localização GPS",
+    "locationEncryptionNote": "Os dados de localização são criptografados com o conteúdo da nota (conhecimento zero)",
+    "precision": {
+      "exact": "Exata (coordenadas completas)",
+      "block": "Nível de quarteirão",
+      "neighborhood": "Bairro (apenas endereço)",
+      "city": "Nível de cidade (apenas endereço)",
+      "none": "Nenhuma (apenas texto)"
+    }
   },
   "volunteerProfile": {
     "joined": "Entrou em",
@@ -1271,5 +1283,27 @@
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
+  },
+  "locationField": {
+    "placeholder": "Pesquisar um endereço...",
+    "searching": "Pesquisando...",
+    "noResults": "Nenhum resultado",
+    "openInMaps": "Abrir no mapa",
+    "clearLocation": "Limpar localização",
+    "useCurrentLocation": "Usar localização atual"
+  },
+  "geocoding": {
+    "title": "Geocodificação / Localização",
+    "description": "Configure um provedor de geocodificação para habilitar o autocompletar de localização em campos personalizados",
+    "provider": "Provedor de geocodificação",
+    "apiKey": "Chave API",
+    "apiKeyPlaceholder": "Insira sua chave API",
+    "countries": "Filtro de países",
+    "countriesPlaceholder": "ex. br, pt, us",
+    "countriesHelp": "Códigos de país de 2 letras separados por vírgulas. Deixe vazio para mundial.",
+    "enabled": "Habilitar geocodificação",
+    "testConnection": "Testar conexão",
+    "testSuccess": "Conexão bem-sucedida ({{latency}}ms)",
+    "testFailed": "Teste de conexão falhou"
   }
 }
