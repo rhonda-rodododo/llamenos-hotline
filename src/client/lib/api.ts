@@ -589,55 +589,10 @@ export async function updateCustomFields(fields: CustomFieldDefinition[]) {
   })
 }
 
-// --- Geocoding ---
-
-import type { GeocodingConfig, GeocodingConfigAdmin, LocationResult } from '@shared/types'
-export type { GeocodingConfig, GeocodingConfigAdmin, LocationResult } from '@shared/types'
-
-export async function geocodingAutocomplete(query: string, limit = 5) {
-  return request<LocationResult[]>('/geocoding/autocomplete', {
-    method: 'POST',
-    body: JSON.stringify({ query, limit }),
-  })
-}
-
-export async function geocodingGeocode(address: string) {
-  return request<LocationResult | null>('/geocoding/geocode', {
-    method: 'POST',
-    body: JSON.stringify({ address }),
-  })
-}
-
-export async function geocodingReverse(lat: number, lon: number) {
-  return request<LocationResult | null>('/geocoding/reverse', {
-    method: 'POST',
-    body: JSON.stringify({ lat, lon }),
-  })
-}
-
-export async function getGeocodingConfig() {
-  return request<GeocodingConfig>('/geocoding/config')
-}
-
-export async function getGeocodingSettings() {
-  return request<GeocodingConfigAdmin>('/geocoding/settings')
-}
-
-export async function updateGeocodingSettings(config: Partial<GeocodingConfigAdmin>) {
-  return request<GeocodingConfigAdmin>('/geocoding/settings', {
-    method: 'PATCH',
-    body: JSON.stringify(config),
-  })
-}
-
-export async function testGeocodingProvider() {
-  return request<{ ok: boolean; latency: number; error?: string }>('/geocoding/test')
-}
-
 // --- Telephony Provider Settings ---
 
 export type { TelephonyProviderConfig, TelephonyProviderType } from '@shared/types'
-import type { TelephonyProviderConfig } from '@shared/types'
+import type { TelephonyProviderConfig, TelephonyProviderType } from '@shared/types'
 
 export async function getTelephonyProvider() {
   return request<TelephonyProviderConfig | null>('/settings/telephony-provider')
@@ -838,7 +793,6 @@ export interface SpamSettings {
   rateLimitEnabled: boolean
   maxCallsPerMinute: number
   blockDurationMinutes: number
-  captchaMaxAttempts: number
 }
 
 export interface InviteCode {
@@ -1035,40 +989,104 @@ export async function testWhatsAppConnection(data: { phoneNumberId: string; acce
   })
 }
 
-// --- Signal Registration ---
+// --- Provider OAuth & Phone Numbers ---
 
-export interface SignalRegistrationResponse {
-  ok: boolean
-  method: 'sms' | 'voice'
+export interface OAuthStartResponse {
+  stateToken: string
+  provider: string
+  mode: 'oauth' | 'manual'
+  redirectUrl?: string
+  message?: string
+  signupUrl: string
+  docsUrl: string
 }
 
-export interface SignalRegistrationStatus {
-  status: 'idle' | 'pending' | 'complete' | 'failed'
-  method?: 'sms' | 'voice'
-  expiresAt?: string
+export interface OAuthStatusResponse {
+  provider: string
+  status: 'pending' | 'connected' | 'error' | 'expired'
+  accountSid?: string
   error?: string
+  connectedAt?: string
 }
 
-export async function startSignalRegistration(data: {
-  bridgeUrl: string
-  registeredNumber: string
-  useVoice?: boolean
-}) {
-  return request<SignalRegistrationResponse>('/messaging/signal/register', {
+export interface ProviderPhoneNumber {
+  phoneNumber: string
+  friendlyName: string
+  capabilities: { voice: boolean; sms: boolean; mms: boolean }
+  locality?: string
+  region?: string
+  country: string
+}
+
+export interface AvailablePhoneNumber extends ProviderPhoneNumber {
+  monthlyPrice?: string
+}
+
+export interface ProviderCredentials {
+  provider: TelephonyProviderType
+  accountSid?: string
+  authToken?: string
+  signalwireSpace?: string
+  apiKey?: string
+  apiSecret?: string
+  applicationId?: string
+  authId?: string
+  ariUrl?: string
+  ariUsername?: string
+  ariPassword?: string
+}
+
+export async function startProviderOAuth(provider: TelephonyProviderType) {
+  return request<OAuthStartResponse>('/setup/provider/oauth/start', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ provider }),
   })
 }
 
-export async function getSignalRegistrationStatus() {
-  return request<SignalRegistrationStatus>('/messaging/signal/registration-status')
+export async function getProviderOAuthStatus(stateToken: string) {
+  return request<OAuthStatusResponse>(`/setup/provider/oauth/status/${stateToken}`)
 }
 
-export async function verifySignalRegistration(code: string) {
-  return request<{ ok: boolean }>('/messaging/signal/verify', {
+export async function validateProviderCredentials(credentials: ProviderCredentials) {
+  return request<{ ok: boolean; error?: string; accountName?: string }>('/setup/provider/validate', {
     method: 'POST',
-    body: JSON.stringify({ code }),
+    body: JSON.stringify(credentials),
   })
+}
+
+export async function listProviderPhoneNumbers(credentials: ProviderCredentials) {
+  return request<{ numbers: ProviderPhoneNumber[] }>('/setup/provider/phone-numbers', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+}
+
+export async function searchAvailablePhoneNumbers(
+  credentials: ProviderCredentials & { country: string; areaCode?: string; contains?: string }
+) {
+  return request<{ numbers: AvailablePhoneNumber[] }>('/setup/provider/phone-numbers/search', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+}
+
+export async function provisionPhoneNumber(
+  credentials: ProviderCredentials & { phoneNumber: string }
+) {
+  return request<{ ok: boolean; phoneNumber: string; error?: string }>('/setup/provider/phone-numbers/provision', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+}
+
+export async function getWebhookUrls() {
+  return request<{
+    voice: string
+    voiceStatus: string
+    sms: string
+    whatsapp: string
+    signal: string
+  }>('/setup/provider/webhooks')
 }
 
 // --- Reports ---
