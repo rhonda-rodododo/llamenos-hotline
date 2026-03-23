@@ -44,7 +44,7 @@ shifts.post('/', requirePermission('shifts:create'), async (c) => {
   const body = await c.req.json()
   const schedule = await services.shifts.createSchedule({ ...body, hubId: hubId ?? 'global' })
   await services.records.addAuditEntry(hubId ?? 'global', 'shiftCreated', pubkey)
-  return c.json(schedule, 201)
+  return c.json({ shift: schedule }, 201)
 })
 
 shifts.patch('/:id', requirePermission('shifts:update'), async (c) => {
@@ -56,7 +56,7 @@ shifts.patch('/:id', requirePermission('shifts:update'), async (c) => {
   const body = await c.req.json()
   const updated = await services.shifts.updateSchedule(id, hubId ?? 'global', body)
   await services.records.addAuditEntry(hubId ?? 'global', 'shiftEdited', pubkey, { shiftId: id })
-  return c.json(updated)
+  return c.json({ shift: updated })
 })
 
 shifts.delete('/:id', requirePermission('shifts:delete'), async (c) => {

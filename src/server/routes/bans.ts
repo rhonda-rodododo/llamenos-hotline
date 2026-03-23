@@ -20,7 +20,7 @@ bans.post('/', requirePermission('bans:create'), async (c) => {
     // HIGH-W3: Store HMAC hash of phone, never plaintext, per DATA_CLASSIFICATION rules
     phoneHash: hashPhone(body.phone, c.env.HMAC_SECRET),
   })
-  return c.json(ban, 201)
+  return c.json({ ban }, 201)
 })
 
 bans.get('/', requirePermission('bans:read'), async (c) => {

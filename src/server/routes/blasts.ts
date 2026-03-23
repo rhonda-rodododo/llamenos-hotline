@@ -56,7 +56,7 @@ blasts.post('/subscribers/import', async (c) => {
   )
   const imported = results.filter((r) => r.status === 'fulfilled').length
   const failed = results.filter((r) => r.status === 'rejected').length
-  return c.json({ imported, failed })
+  return c.json({ imported, failed, skipped: failed })
 })
 
 // --- Blasts ---
