@@ -16,7 +16,7 @@ Llámenos is a secure crisis response hotline webapp. Callers dial a phone numbe
 - **Telephony**: Twilio via a `TelephonyAdapter` interface (designed for future provider swaps, e.g. SIP trunks)
 - **Auth**: Nostr keypairs (BIP-340 Schnorr signatures) + WebAuthn session tokens for multi-device support
 - **i18n**: Built-in from day one — all user-facing strings must be translatable
-- **Deployment**: Cloudflare (Workers, DOs, Tunnels), billed to EU/GDPR-compatible account
+- **Deployment**: Docker + Ansible on VPS (primary), Cloudflare Workers (manual secondary). EU/GDPR-compatible.
 - **Testing**: E2E only via Playwright — no unit tests
 - **PWA**: Service worker via vite-plugin-pwa + Workbox; manifest uses generic name "Hotline" for security
 
@@ -104,7 +104,7 @@ bun run build                            # Vite build → dist/client/
 bun run lint                             # Biome lint check
 bun run lint:fix                         # Biome lint auto-fix
 bun run start:bun                        # Start Bun server locally (after dev:docker)
-bun run deploy                           # Deploy EVERYTHING (app + marketing site)
+bun run deploy                           # Deploy marketing site to Cloudflare Pages
 bun run deploy:cloudflare                # Deploy app Worker to Cloudflare only
 bun run deploy:site                      # Deploy marketing site only (cd site && ...)
 bunx playwright test                     # Run all E2E tests
