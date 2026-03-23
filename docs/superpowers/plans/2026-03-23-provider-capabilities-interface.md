@@ -161,7 +161,7 @@ export const VonageConfigSchema = BaseProviderSchema.extend({
   type: z.literal('vonage'),
   apiKey: z.string().min(1),
   apiSecret: z.string().min(1),
-  applicationId: z.string().min(1),
+  applicationId: z.string().uuid('Must be a valid UUID'),
   privateKey: z.string().optional(),
 })
 export type VonageConfig = z.infer<typeof VonageConfigSchema>
@@ -357,21 +357,27 @@ export type { TelephonyProviderConfig } from '@shared/schemas/providers'
 
 Remove the old manually-defined `TelephonyProviderConfig` interface (lines 36-77). Any existing imports of `TelephonyProviderConfig` from `types.ts` continue to work via re-export.
 
-- [ ] **Step 6: Update `TelephonyConfigSchema` in `src/shared/schemas/settings.ts` (lines 96-100)**
+- [ ] **Step 6: Audit consumers of `TelephonyConfigSchema` before changing it**
+
+Run: `grep -rn 'TelephonyConfigSchema\|TelephonyConfig\b' src/ --include='*.ts' | grep -v node_modules`
+
+Review each consumer. The old schema has shape `{ provider: string, config: Record<string, unknown> }`. The new schema is a flat discriminated union `{ type: 'twilio', accountSid: ..., ... }`. Any code reading `.provider` or `.config.accountSid` must be updated.
+
+Also audit `PROVIDER_REQUIRED_FIELDS` consumers:
+
+Run: `grep -rn 'PROVIDER_REQUIRED_FIELDS' src/ --include='*.ts'`
+
+Fix all consumers before proceeding. Then update the schema:
 
 ```typescript
-// Before:
-export const TelephonyConfigSchema = z.object({
-  provider: z.string(),
-  config: z.record(z.string(), z.unknown()),
-})
-
-// After:
+// In src/shared/schemas/settings.ts — replace lines 96-100:
 import { TelephonyProviderConfigSchema } from './providers'
 
 export const TelephonyConfigSchema = TelephonyProviderConfigSchema
 export type TelephonyConfig = z.infer<typeof TelephonyConfigSchema>
 ```
+
+Remove `PROVIDER_REQUIRED_FIELDS` from `types.ts` and update all consumers atomically in this step.
 
 - [ ] **Step 7: Fix `createAdapterFromConfig()` switch in `src/server/lib/adapters.ts` (line 188)**
 
@@ -467,11 +473,39 @@ export const TELEPHONY_CAPABILITIES: Record<TelephonyProviderType, ProviderCapab
 }
 ```
 
-- [ ] **Step 2: Commit interface (capabilities files will be stubs until Task 4-9)**
+- [ ] **Step 2: Create stub capability files** so the registry imports resolve and the build doesn't break. Each stub exports a minimal capabilities object that throws on `testConnection()`:
+
+For each provider (`twilio`, `signalwire`, `vonage`, `plivo`, `asterisk`, `telnyx`), create a stub like:
+
+```typescript
+// src/server/telephony/twilio-capabilities.ts (stub — replaced in Task 4)
+import { TwilioConfigSchema } from '@shared/schemas/providers'
+import type { ProviderCapabilities } from './capabilities'
+
+export const twilioCapabilities: ProviderCapabilities = {
+  type: 'twilio',
+  displayName: 'Twilio',
+  description: 'Cloud communications platform',
+  credentialSchema: TwilioConfigSchema,
+  supportsOAuth: true, supportsSms: true, supportsSip: true, supportsWebRtc: true,
+  supportsNumberProvisioning: true, supportsWebhookAutoConfig: true,
+  async testConnection() { throw new Error('Not yet implemented') },
+  getWebhookUrls() { return {} },
+}
+```
+
+Create matching stubs for all 6 providers. Also create stub `src/server/messaging/capabilities.ts`.
+
+- [ ] **Step 3: Run typecheck + build to verify everything compiles**
+
+Run: `bun run typecheck && bun run build`
+Expected: PASS
+
+- [ ] **Step 4: Commit**
 
 ```bash
-git add src/server/telephony/capabilities.ts
-git commit -m "feat: ProviderCapabilities interface and registry"
+git add src/server/telephony/capabilities.ts src/server/telephony/*-capabilities.ts src/server/messaging/capabilities.ts
+git commit -m "feat: ProviderCapabilities interface, registry, and stubs"
 ```
 
 ---
@@ -1108,10 +1142,54 @@ git commit -m "feat: Plivo capabilities with number management and webhook confi
 
 **Files:**
 - Create: `src/server/telephony/asterisk-capabilities.ts`
+- Modify: `src/server/lib/ssrf-guard.ts` (add `validateSelfHostedUrl`)
+
+- [ ] **Step 0: Add `validateSelfHostedUrl()` to ssrf-guard.ts**
+
+This variant allows RFC 1918 private IPs (10.x, 172.16-31.x, 192.168.x) but still blocks loopback (127.x, ::1), link-local (169.254.x, fe80::), and other dangerous ranges. Used for self-hosted services like Asterisk.
+
+```typescript
+// Add to src/server/lib/ssrf-guard.ts
+
+/**
+ * Validate a URL for self-hosted services (Asterisk, etc.).
+ * Allows private/RFC1918 IPs but blocks loopback and link-local.
+ */
+export function validateSelfHostedUrl(url: string, label = 'URL'): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return `Invalid ${label}`
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    return `${label} must use HTTP or HTTPS`
+  }
+  if (isLoopbackOrLinkLocal(parsed.hostname)) {
+    return `${label} must not point to loopback or link-local addresses`
+  }
+  return null
+}
+
+function isLoopbackOrLinkLocal(hostname: string): boolean {
+  const h = hostname.replace(/^\[|\]$/g, '')
+  if (h === 'localhost' || h.endsWith('.localhost') || h === '0.0.0.0') return true
+  if (h === '::1' || h === '::') return true
+  if (h.toLowerCase().startsWith('fe80:')) return true
+  const parts = h.split('.')
+  if (parts.length === 4) {
+    const [a, b] = parts.map(Number)
+    if (a === 127) return true // loopback
+    if (a === 169 && b === 254) return true // link-local
+    if (a === 0) return true // current network
+  }
+  return false
+}
+```
 
 - [ ] **Step 1: Implement Asterisk capabilities**
 
-Asterisk is self-hosted — no number provisioning or webhook auto-config. SSRF protection via `validateExternalUrl()` for the `ariUrl`.
+Asterisk is self-hosted — no number provisioning or webhook auto-config. SSRF protection via `validateSelfHostedUrl()` for the `ariUrl` (allows private IPs, blocks loopback).
 
 ```typescript
 // src/server/telephony/asterisk-capabilities.ts
@@ -1135,8 +1213,10 @@ export const asteriskCapabilities: ProviderCapabilities<AsteriskConfig> = {
 
   async testConnection(config): Promise<ConnectionTestResult> {
     const start = Date.now()
-    // SSRF guard — allow private IPs for self-hosted Asterisk but block loopback/link-local
-    const urlError = validateExternalUrl(config.ariUrl, 'ARI URL')
+    // SSRF guard — Asterisk is self-hosted, so private IPs are legitimate.
+    // Block only loopback (127.x, ::1) and link-local (169.254.x, fe80::).
+    // Use validateSelfHostedUrl() which allows RFC 1918 private ranges.
+    const urlError = validateSelfHostedUrl(config.ariUrl, 'ARI URL')
     if (urlError) return { connected: false, latencyMs: 0, error: urlError, errorType: 'invalid_credentials' }
 
     try {
@@ -1210,7 +1290,7 @@ export const telnyxCapabilities: ProviderCapabilities<TelnyxConfig> = {
     const start = Date.now()
     try {
       const base = (config as any)._testBaseUrl ?? TELNYX_API_BASE
-      const res = await fetch(`${base}/v2/available_phone_numbers?filter[limit]=1&filter[country_code]=US`, {
+      const res = await fetch(`${base}/v2/texml_applications?page[size]=1`, {
         headers: { Authorization: telnyxAuth(config) },
         signal: AbortSignal.timeout(10_000),
       })
@@ -1336,7 +1416,10 @@ git commit -m "feat: Telnyx capabilities (setup/validation only, no runtime adap
 // src/server/messaging/capabilities.ts
 import type { z } from 'zod/v4'
 import type { MessagingChannelType, ConnectionTestResult, WebhookUrlSet, AutoConfigResult } from '@shared/types'
-import { SMSConfigSchema, WhatsAppConfigSchema, SignalBridgeConfigSchema, RCSConfigSchema } from '@shared/schemas/providers'
+import {
+  SMSConfigSchema, WhatsAppConfigSchema, SignalBridgeConfigSchema, RCSConfigSchema,
+  type WhatsAppConfig, type SignalBridgeConfig, type RCSConfig,
+} from '@shared/schemas/providers'
 
 export interface MessagingChannelCapabilities<T = unknown> {
   readonly channelType: MessagingChannelType
@@ -1376,7 +1459,7 @@ const whatsappCapabilities: MessagingChannelCapabilities = {
   credentialSchema: WhatsAppConfigSchema,
   supportsWebhookAutoConfig: false,
 
-  async testConnection(config: any): Promise<ConnectionTestResult> {
+  async testConnection(config: WhatsAppConfig): Promise<ConnectionTestResult> {
     if (config.integrationMode === 'twilio') {
       return { connected: true, latencyMs: 0, accountName: 'Uses Twilio credentials' }
     }
@@ -1411,7 +1494,12 @@ const signalCapabilities: MessagingChannelCapabilities = {
   credentialSchema: SignalBridgeConfigSchema,
   supportsWebhookAutoConfig: false,
 
-  async testConnection(config: any): Promise<ConnectionTestResult> {
+  async testConnection(config: SignalBridgeConfig): Promise<ConnectionTestResult> {
+    // SSRF guard — Signal bridge is external, validate URL
+    const { validateExternalUrl } = await import('../server/lib/ssrf-guard')
+    const urlError = validateExternalUrl(config.bridgeUrl, 'Signal Bridge URL')
+    if (urlError) return { connected: false, latencyMs: 0, error: urlError, errorType: 'invalid_credentials' }
+
     const start = Date.now()
     try {
       const headers: Record<string, string> = {}
@@ -1441,7 +1529,7 @@ const rcsCapabilities: MessagingChannelCapabilities = {
   credentialSchema: RCSConfigSchema,
   supportsWebhookAutoConfig: false,
 
-  async testConnection(config: any): Promise<ConnectionTestResult> {
+  async testConnection(config: RCSConfig): Promise<ConnectionTestResult> {
     const start = Date.now()
     try {
       // Validate by attempting OAuth2 token exchange with service account key
@@ -1474,6 +1562,125 @@ export const MESSAGING_CAPABILITIES: Record<MessagingChannelType, MessagingChann
 ```bash
 git add src/server/messaging/capabilities.ts
 git commit -m "feat: messaging channel capabilities (SMS, WhatsApp, Signal, RCS)"
+```
+
+---
+
+### Task 10.5: Tests for All Provider Capabilities
+
+**Files:**
+- Modify: `tests/provider-capabilities.spec.ts`
+
+- [ ] **Step 1: Add testConnection mock tests for each non-Twilio provider**
+
+Append to `tests/provider-capabilities.spec.ts`. Each test starts a mock HTTP server, calls `testConnection()`, and verifies the result:
+
+```typescript
+// Pattern for each provider — success + failure test
+for (const { name, importPath, configFactory, successResponse } of [
+  {
+    name: 'signalwire',
+    importPath: '../src/server/telephony/signalwire-capabilities',
+    configFactory: (port: number) => ({ type: 'signalwire', phoneNumber: '+15551234567', accountSid: 'test', authToken: 'test', signalwireSpace: 'testspace', _testBaseUrl: `http://127.0.0.1:${port}/api/laml` }),
+    successResponse: { sid: 'test', friendly_name: 'SW Account' },
+  },
+  {
+    name: 'vonage',
+    importPath: '../src/server/telephony/vonage-capabilities',
+    configFactory: (port: number) => ({ type: 'vonage', phoneNumber: '+15551234567', apiKey: 'key', apiSecret: 'secret', applicationId: '550e8400-e29b-41d4-a716-446655440000', _testBaseUrl: `http://127.0.0.1:${port}` }),
+    successResponse: { value: 12.50 },
+  },
+  {
+    name: 'plivo',
+    importPath: '../src/server/telephony/plivo-capabilities',
+    configFactory: (port: number) => ({ type: 'plivo', phoneNumber: '+15551234567', authId: 'test', authToken: 'test', _testBaseUrl: `http://127.0.0.1:${port}` }),
+    successResponse: { account_type: 'standard', cash_credits: '10.00' },
+  },
+  {
+    name: 'telnyx',
+    importPath: '../src/server/telephony/telnyx-capabilities',
+    configFactory: (port: number) => ({ type: 'telnyx', phoneNumber: '+15551234567', apiKey: 'KEY_TEST', _testBaseUrl: `http://127.0.0.1:${port}` }),
+    successResponse: { data: [] },
+  },
+]) {
+  test.describe(`${name} capabilities`, () => {
+    test(`testConnection succeeds`, async () => {
+      const mock = await startMockApi((req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(successResponse))
+      })
+      try {
+        const mod = await import(importPath)
+        const caps = mod[`${name}Capabilities`]
+        const result = await caps.testConnection(configFactory(mock.port))
+        expect(result.connected).toBe(true)
+      } finally { await mock.stop() }
+    })
+
+    test(`testConnection fails with 401`, async () => {
+      const mock = await startMockApi((req, res) => {
+        res.writeHead(401); res.end('Unauthorized')
+      })
+      try {
+        const mod = await import(importPath)
+        const caps = mod[`${name}Capabilities`]
+        const result = await caps.testConnection(configFactory(mock.port))
+        expect(result.connected).toBe(false)
+        expect(result.errorType).toBe('invalid_credentials')
+      } finally { await mock.stop() }
+    })
+  })
+}
+```
+
+- [ ] **Step 2: Add Asterisk test (uses real Docker Asterisk)**
+
+```typescript
+test.describe('asterisk capabilities', () => {
+  test('testConnection against real ARI', async () => {
+    const { asteriskCapabilities } = await import('../src/server/telephony/asterisk-capabilities')
+    const result = await asteriskCapabilities.testConnection({
+      type: 'asterisk',
+      phoneNumber: '+15551234567',
+      ariUrl: 'http://localhost:8089/ari',
+      ariUsername: 'llamenos',
+      ariPassword: 'changeme',
+    })
+    // Skip if Asterisk not running
+    if (!result.connected && result.errorType === 'network_error') return
+    expect(result.connected).toBe(true)
+    expect(result.accountName).toContain('Asterisk')
+  })
+})
+```
+
+- [ ] **Step 3: Add capabilities registry test**
+
+```typescript
+test('TELEPHONY_CAPABILITIES has all provider types', async () => {
+  const { TELEPHONY_CAPABILITIES } = await import('../src/server/telephony/capabilities')
+  expect(Object.keys(TELEPHONY_CAPABILITIES)).toEqual(
+    expect.arrayContaining(['twilio', 'signalwire', 'vonage', 'plivo', 'asterisk', 'telnyx'])
+  )
+  for (const caps of Object.values(TELEPHONY_CAPABILITIES)) {
+    expect(caps.displayName).toBeTruthy()
+    expect(caps.credentialSchema).toBeTruthy()
+    expect(typeof caps.testConnection).toBe('function')
+    expect(typeof caps.getWebhookUrls).toBe('function')
+  }
+})
+```
+
+- [ ] **Step 4: Run all tests**
+
+Run: `bunx playwright test tests/provider-capabilities.spec.ts --project bridge`
+Expected: All PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add tests/provider-capabilities.spec.ts
+git commit -m "test: add testConnection mock tests for all providers + registry test"
 ```
 
 ---
@@ -1556,6 +1763,7 @@ Expected: All tests PASS
 - [ ] **Step 4: Final commit if any loose changes**
 
 ```bash
-git add -A
+git status
+# Stage only the relevant files — do not use git add -A
 git commit -m "feat: provider capabilities interface complete — foundation for auto-registration"
 ```
