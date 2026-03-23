@@ -88,11 +88,17 @@ test.describe('Blast campaign send flow', () => {
 
     const result = await page.evaluate(
       async ({ p1, p2 }: { p1: string; p2: string }) => {
+        // Server expects identifierHash + channels array (privacy: never send raw phone)
+        const hash = async (phone: string) => {
+          const enc = new TextEncoder().encode(phone)
+          const buf = await crypto.subtle.digest('SHA-256', enc)
+          return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+        }
         const res = await window.__authedFetch('/api/blasts/subscribers/import', {
           method: 'POST',
           body: JSON.stringify([
-            { phoneNumber: p1, channel: 'sms', active: true },
-            { phoneNumber: p2, channel: 'sms', active: true },
+            { identifierHash: await hash(p1), channels: [{ type: 'sms', verified: true }] },
+            { identifierHash: await hash(p2), channels: [{ type: 'sms', verified: true }] },
           ]),
         })
         return { status: res.status, data: res.ok ? await res.json() : await res.text() }
@@ -131,14 +137,13 @@ test.describe('Blast campaign send flow', () => {
     const sentData = sent.data as { status?: string; sentAt?: string }
     expect(sentData.status).toBe('sending')
 
-    // Verify the blast list reflects the sending status
-    await navigateAfterLogin(page, '/blasts')
-    await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible()
-    // The blast card or list entry should show "sending" or the blast name
-    await expect(
-      page.getByText(/sending/i).first()
-        .or(page.getByText('Send Test Blast'))
-    ).toBeVisible({ timeout: 10000 })
+    // Verify via API that the blast status is now 'sending'
+    const verify = await page.evaluate(async (blastId: string) => {
+      const res = await window.__authedFetch(`/api/blasts/${blastId}`)
+      return res.ok ? await res.json() : null
+    }, blastData.id as string)
+    expect(verify).not.toBeNull()
+    expect((verify as { status: string }).status).toBe('sending')
   })
 
   test('cannot send a blast that is already in sending state', async ({ page }) => {
