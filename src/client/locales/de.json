@@ -739,7 +739,8 @@
       "select": "Auswahl",
       "checkbox": "Kontrollkästchen",
       "textarea": "Textbereich",
-      "file": "File"
+      "file": "File",
+      "location": "Standort"
     },
     "validation": {
       "min": "Min",
@@ -748,7 +749,18 @@
       "maxLength": "Max. Länge"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "Standorteinstellungen",
+    "maxPrecision": "Maximale Genauigkeit",
+    "allowGps": "GPS-Standort erlauben",
+    "locationEncryptionNote": "Standortdaten werden mit dem Notizinhalt verschlüsselt (Zero-Knowledge)",
+    "precision": {
+      "exact": "Exakt (volle Koordinaten)",
+      "block": "Blockebene",
+      "neighborhood": "Nachbarschaft (nur Adresse)",
+      "city": "Stadtebene (nur Adresse)",
+      "none": "Keine (nur Text)"
+    }
   },
   "volunteerProfile": {
     "joined": "Beigetreten",
@@ -1227,5 +1239,27 @@
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
+  },
+  "locationField": {
+    "placeholder": "Nach einer Adresse suchen...",
+    "searching": "Suche...",
+    "noResults": "Keine Ergebnisse gefunden",
+    "openInMaps": "In Karte öffnen",
+    "clearLocation": "Standort löschen",
+    "useCurrentLocation": "Aktuellen Standort verwenden"
+  },
+  "geocoding": {
+    "title": "Geokodierung / Standort",
+    "description": "Geokodierungsanbieter konfigurieren, um die Standort-Autovervollständigung in benutzerdefinierten Feldern zu aktivieren",
+    "provider": "Geokodierungsanbieter",
+    "apiKey": "API-Schlüssel",
+    "apiKeyPlaceholder": "API-Schlüssel eingeben",
+    "countries": "Länderfilter",
+    "countriesPlaceholder": "z.B. de, at, ch",
+    "countriesHelp": "Kommagetrennte 2-Buchstaben-Ländercodes. Leer lassen für weltweit.",
+    "enabled": "Geokodierung aktivieren",
+    "testConnection": "Verbindung testen",
+    "testSuccess": "Verbindung erfolgreich ({{latency}}ms)",
+    "testFailed": "Verbindungstest fehlgeschlagen"
   }
 }

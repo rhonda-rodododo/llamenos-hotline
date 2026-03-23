@@ -739,7 +739,8 @@
       "select": "下拉选择",
       "checkbox": "复选框",
       "textarea": "文本区域",
-      "file": "File"
+      "file": "File",
+      "location": "位置"
     },
     "validation": {
       "min": "最小值",
@@ -748,7 +749,18 @@
       "maxLength": "最大长度"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "位置设置",
+    "maxPrecision": "最大精度",
+    "allowGps": "允许 GPS 定位",
+    "locationEncryptionNote": "位置数据与笔记内容一起加密（零知识）",
+    "precision": {
+      "exact": "精确（完整坐标）",
+      "block": "街区级别",
+      "neighborhood": "社区（仅地址）",
+      "city": "城市级别（仅地址）",
+      "none": "无（仅文本）"
+    }
   },
   "volunteerProfile": {
     "joined": "加入于",
@@ -1227,5 +1239,27 @@
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
+  },
+  "locationField": {
+    "placeholder": "搜索地址...",
+    "searching": "搜索中...",
+    "noResults": "未找到结果",
+    "openInMaps": "在地图中打开",
+    "clearLocation": "清除位置",
+    "useCurrentLocation": "使用当前位置"
+  },
+  "geocoding": {
+    "title": "地理编码 / 位置",
+    "description": "配置地理编码提供商以在自定义字段中启用位置自动完成",
+    "provider": "地理编码提供商",
+    "apiKey": "API 密钥",
+    "apiKeyPlaceholder": "输入您的 API 密钥",
+    "countries": "国家筛选",
+    "countriesPlaceholder": "例如 cn, us, jp",
+    "countriesHelp": "逗号分隔的 2 字母国家代码。留空表示全球。",
+    "enabled": "启用地理编码",
+    "testConnection": "测试连接",
+    "testSuccess": "连接成功 ({{latency}}ms)",
+    "testFailed": "连接测试失败"
   }
 }
