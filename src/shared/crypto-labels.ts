@@ -119,3 +119,8 @@ export const LABEL_PUSH_FULL = 'llamenos:push-full'
 
 /** HKDF context for contact identifier encryption at rest */
 export const LABEL_CONTACT_ID = 'llamenos:contact-identifier'
+
+// --- Provider Credential Encryption (Epic 48) ---
+
+/** ECIES wrapping of provider OAuth/API credentials stored in SettingsDO */
+export const LABEL_PROVIDER_CREDENTIAL_WRAP = 'llamenos:provider-credential-wrap:v1'

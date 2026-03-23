@@ -115,29 +115,29 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls",
-    "analytics": {
-      "title": "Analytics",
-      "callVolume": "Call Volume",
-      "callVolume7d": "Call Volume — Last 7 Days",
-      "callVolume30d": "Call Volume — Last 30 Days",
-      "peakHours": "Peak Hours",
-      "teamPerformance": "Team Performance",
-      "answered": "Answered",
-      "voicemail": "Voicemail",
-      "unanswered": "Unanswered",
-      "noData": "No data for this period"
-    }
+    "viewCalls": "View Calls"
   },
   "calls": {
-    "detail": {
-      "title": "Call Detail",
-      "metadata": "Call Information",
-      "notes": "Notes",
-      "recording": "Recording",
-      "audit": "Audit Trail",
-      "notFound": "Call not found"
-    }
+    "incoming": "Incoming Call",
+    "active": "Active Call",
+    "ended": "Call Ended",
+    "duration": "Duration",
+    "caller": "Caller",
+    "unknown": "Unknown Number",
+    "answer": "Answer",
+    "hangUp": "Hang Up",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "hold": "Hold",
+    "resume": "Resume",
+    "transferToVoicemail": "Send to Voicemail",
+    "reportSpam": "Report as Spam",
+    "banned": "This number is banned",
+    "addNote": "Add Note",
+    "recording": "Recording",
+    "transcription": "Transcription",
+    "unknownCaller": "Unknown Caller",
+    "voicemail": "Voicemail"
   },
   "callSettings": {
     "title": "Call Settings",
@@ -179,16 +179,7 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": {
-      "title": "Note Details",
-      "forbidden": "You do not have permission to view this note",
-      "notFound": "Note not found",
-      "callContext": "From call",
-      "viewCall": "View call detail",
-      "editFromCallPage": "Edit from the call detail page"
-    },
-    "permalink": "View",
-    "viewPermalink": "View Note",
+    "detail": "Note Details",
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -342,17 +333,6 @@
     "inviteRevoked": "Invite revoked",
     "inviteExpires": "Expires {{date}}",
     "inviteLinkLabel": "Invite link",
-    "sendInvite": "Send invite",
-    "sendInviteTitle": "Send Invite Link",
-    "inviteChannel": "Send via",
-    "inviteNotSent": "Not sent — copy link to share manually",
-    "inviteSentVia": "Sent via {{channel}} on {{date}}",
-    "inviteSentSuccess": "Invite sent via {{channel}}",
-    "smsInsecureWarning": "SMS is not end-to-end encrypted. Use Signal or WhatsApp if possible.",
-    "smsAcknowledge": "I understand SMS is not end-to-end encrypted and accept the risk.",
-    "smsAcknowledgeRequired": "You must acknowledge the security warning before sending via SMS.",
-    "copyLink": "Copy link",
-    "noChannelsConfigured": "No messaging channels are configured. Copy the link to share manually.",
     "add": "Add Volunteer",
     "assignedShifts": "Assigned Shifts",
     "delete": "Remove Volunteer",
@@ -478,7 +458,9 @@
     "rateLimiting": "Rate Limiting",
     "rateLimitingDescription": "Limit repeated calls from the same number",
     "maxCallsPerMinute": "Max calls per minute per number",
-    "blockDuration": "Block duration (minutes)"
+    "blockDuration": "Block duration (minutes)",
+    "captchaMaxAttempts": "Max CAPTCHA attempts",
+    "captchaMaxAttemptsDescription": "Number of attempts before the call is rejected (1-5)"
   },
   "callHistory": {
     "title": "Call History",
@@ -640,27 +622,7 @@
     "transcriptionEnableDesc": "Automatically transcribe your calls",
     "transcriptionManaged": "Managed by admin",
     "version": "Version",
-    "voicemail": "Voicemail",
-    "reportTypes": {
-      "title": "Report Types",
-      "description": "Configure report categories and bind custom fields to each type.",
-      "empty": "No report types defined",
-      "new": "New Report Type",
-      "name": "Name",
-      "namePlaceholder": "e.g. Crisis Report",
-      "description": "Description",
-      "descriptionPlaceholder": "Brief description of when to use this type",
-      "fields": "Bound fields",
-      "default": "Default",
-      "setDefault": "Set as default",
-      "archive": "Archive",
-      "unarchive": "Restore",
-      "archived": "Archived",
-      "archiveConfirm": "Archive this report type? Existing reports will keep their type.",
-      "showArchived": "Show archived",
-      "hideArchived": "Hide archived",
-      "typesCount": "types"
-    }
+    "voicemail": "Voicemail"
   },
   "session": {
     "expiringWarning": "Your session is about to expire.",
@@ -853,7 +815,8 @@
       "select": "Select",
       "checkbox": "Checkbox",
       "textarea": "Text Area",
-      "file": "File"
+      "file": "File",
+      "location": "Location"
     },
     "validation": {
       "min": "Min",
@@ -863,21 +826,16 @@
     },
     "context": "Context",
     "empty": "No custom fields defined",
-    "file": {
-      "upload": "Choose file or drag & drop",
-      "uploading": "Uploading...",
-      "download": "Download",
-      "remove": "Remove",
-      "tooLarge": "File too large (max {{max}} MB)",
-      "invalidType": "File type not allowed",
-      "unavailable": "File unavailable",
-      "allowedTypes": "Allowed file types",
-      "allowedTypesHint": "Hold Ctrl/Cmd to select multiple",
-      "mimeImages": "Images",
-      "mimePDF": "PDF",
-      "mimeAudio": "Audio",
-      "mimeAny": "Any file type",
-      "maxSizeMB": "Max file size (MB)"
+    "locationSettings": "Location Settings",
+    "maxPrecision": "Maximum Precision",
+    "allowGps": "Allow GPS location",
+    "locationEncryptionNote": "Location data is encrypted with note content (zero-knowledge)",
+    "precision": {
+      "exact": "Exact (full coordinates)",
+      "block": "Block level",
+      "neighborhood": "Neighborhood (address only)",
+      "city": "City level (address only)",
+      "none": "None (text only)"
     }
   },
   "volunteerProfile": {
@@ -1009,7 +967,56 @@
     },
     "demoMode": "Populate with sample data",
     "demoModeDescription": "Creates sample volunteer accounts, shifts, and ban entries for testing and demos. Demo account credentials will be shown on the login page.",
-    "demoSeedFailed": "Sample data partially created"
+    "demoSeedFailed": "Sample data partially created",
+    "oauth": {
+      "connecting": "Connecting...",
+      "validating": "Validating...",
+      "connected": "Connected to {{provider}}",
+      "validate": "Validate {{provider}} Credentials",
+      "signUp": "Sign up for {{provider}}",
+      "validationFailed": "Credential validation failed",
+      "connectionFailed": "Connection failed",
+      "enterCredentials": "Enter your credentials above first",
+      "credentialsValid": "{{provider}} credentials verified successfully."
+    },
+    "phoneNumbers": {
+      "existing": "Your Numbers",
+      "buyNew": "Buy New",
+      "refresh": "Refresh numbers",
+      "validateFirst": "Validate your provider credentials to see available phone numbers.",
+      "noExisting": "No phone numbers found in your account. Enter a number manually or buy a new one.",
+      "searchFailed": "Failed to search for available numbers",
+      "provisioned": "Phone number provisioned successfully",
+      "provisionFailed": "Failed to provision phone number",
+      "search": "Search",
+      "provision": "Buy",
+      "voice": "Voice",
+      "sms": "SMS",
+      "countryCode": "Country (ISO)",
+      "areaCode": "Area code"
+    },
+    "webhooks": {
+      "title": "Webhook URLs",
+      "description": "Configure these URLs in your provider's dashboard to receive calls and messages.",
+      "copyAll": "Copy All",
+      "voiceIncoming": "Voice (Incoming)",
+      "voiceStatus": "Voice (Status)",
+      "smsWebhook": "SMS Webhook",
+      "signalWebhook": "Signal Webhook"
+    },
+    "signalE2eeNote": "Signal provides end-to-end encryption to the bridge. Messages are re-encrypted with your hotline's keys before storage.",
+    "signalPrerequisites": "Prerequisites",
+    "signalPrereq1": "A Linux server with Docker installed",
+    "signalPrereq2": "A phone number to register with Signal",
+    "signalPrereq3": "Network access between your hotline server and the bridge",
+    "signalDockerCommand": "Docker Run Command"
+  },
+  "channelSettings": {
+    "title": "Channels & Providers",
+    "description": "Manage which communication channels are enabled for your hotline.",
+    "summary": "Manage channels",
+    "active": "Active",
+    "currentProvider": "Current voice/SMS provider:"
   },
   "reports": {
     "title": "Reports",
@@ -1077,11 +1084,7 @@
     "messages": "Messages",
     "noReportsHint": "No reports yet. Create one to get started.",
     "notFound": "Report not found",
-    "updated": "Report Updated",
-    "type": {
-      "label": "Report Type",
-      "placeholder": "Select a report type"
-    }
+    "updated": "Report Updated"
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",
@@ -1119,7 +1122,13 @@
     "pause": "Pause",
     "loading": "Loading recording...",
     "error": "Failed to load recording",
-    "noRecording": "No recording available"
+    "noRecording": "No recording available",
+    "transcribe": "Transcribe Recording",
+    "transcribing": "Transcribing...",
+    "transcribed": "Transcribed",
+    "transcriptionFailed": "Transcription failed",
+    "transcriptionNotSupported": "Your browser does not support local transcription",
+    "transcribingLocally": "Transcribing locally — audio stays on your device"
   },
   "rcs": {
     "title": "RCS Channel",
@@ -1132,6 +1141,42 @@
     "fallbackToSmsDesc": "Send via SMS when RCS is unavailable for the recipient.",
     "autoResponse": "Auto-Response",
     "channelBadge": "RCS"
+  },
+  "signal": {
+    "title": "Signal Channel",
+    "description": "End-to-end encrypted messaging via Signal bridge.",
+    "e2eeNote": "Signal provides end-to-end encryption to the bridge. Messages are re-encrypted with your hotline's keys before storage.",
+    "bridgeUrl": "Bridge URL",
+    "bridgeApiKey": "Bridge API Key",
+    "webhookUrl": "Webhook URL",
+    "webhookSecret": "Webhook Secret",
+    "registeredNumber": "Registered Number",
+    "autoResponse": "Auto-Response",
+    "security": {
+      "transportLabel": "Transport: Signal (E2EE to bridge, strongest available)",
+      "bridgeDecryptionNotice": "Signal provides strong transport encryption. Messages are decrypted at our self-hosted bridge server (within your infrastructure) for processing, then re-encrypted for storage. The bridge requires ongoing maintenance as Signal updates its protocol."
+    }
+  },
+  "signalRegistration": {
+    "title": "Signal Number Registration",
+    "description": "Register your hotline phone number with Signal. The verification code will be intercepted automatically from your incoming SMS.",
+    "bridgeUrl": "Bridge URL",
+    "registeredNumber": "Phone Number to Register",
+    "useVoice": "Use voice verification (for VoIP numbers)",
+    "registerButton": "Register Signal",
+    "startRegistration": "Register Signal Number",
+    "notConfigured": "Signal number is not yet registered. Register to enable Signal messaging.",
+    "waitingSms": "Waiting for verification SMS...",
+    "waitingSmsDescription": "The verification code will be intercepted automatically from your incoming SMS. This may take a few minutes.",
+    "voiceVerification": "Voice Verification",
+    "voiceDescription": "Enter the 6-digit code from the verification voice call.",
+    "verificationCode": "Verification Code",
+    "connected": "Signal connected",
+    "registrationFailed": "Registration failed",
+    "tryAgain": "Try Again",
+    "alreadyInProgress": "Registration already in progress — wait for it to expire or refresh the page.",
+    "expired": "Registration expired. Please try again.",
+    "verificationFailed": "Verification failed"
   },
   "a11y": {
     "skipToContent": "Skip to content",
@@ -1217,17 +1262,7 @@
     "selectHub": "Select hub",
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
-    "urlPlaceholder": "https://hub.example.com",
-    "archive": "Archive",
-    "archiveHub": "Archive Hub",
-    "archiveHubConfirm": "Are you sure you want to archive \"{{name}}\"? Archived hubs are hidden from active operations.",
-    "hubArchived": "Hub archived successfully",
-    "delete": "Delete",
-    "deleteHub": "Delete Hub",
-    "deleteHubConfirm": "This will permanently delete \"{{name}}\" and all its data. Type the hub name to confirm.",
-    "deleteHubNameLabel": "Type hub name to confirm",
-    "hubDeleted": "Hub deleted successfully",
-    "deleteHubActiveCallsError": "Cannot delete a hub with active calls in progress"
+    "urlPlaceholder": "https://hub.example.com"
   },
   "blasts": {
     "title": "Message Blasts",
@@ -1298,76 +1333,26 @@
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
   },
-  "consent": {
-    "title": "Data Processing Agreement",
-    "subtitle": "Please read and accept before continuing",
-    "intro": "Before you can access the hotline system, you must agree to how your data is collected and used.",
-    "dataCollected": {
-      "title": "What we collect",
-      "accountInfo": "Account information (name, public key, languages)",
-      "callNotes": "Encrypted call notes and conversation records",
-      "sessions": "Login session metadata",
-      "auditLog": "Activity audit log"
-    },
-    "howWeProtect": {
-      "title": "How we protect your data",
-      "e2ee": "Call notes are end-to-end encrypted — the server cannot read them",
-      "noPlaintext": "Sensitive personal information is never stored in plaintext",
-      "retention": "Data is automatically deleted after the configured retention period"
-    },
-    "yourRights": {
-      "title": "Your rights (GDPR)",
-      "access": "Right to access: Download all your data from Settings",
-      "portability": "Right to portability: Export your data as JSON",
-      "erasure": "Right to erasure: Request account deletion from Settings"
-    },
-    "gdprNote": "This platform is operated in compliance with EU GDPR. Your data is processed only for the purpose of operating this crisis response hotline.",
-    "version": "Privacy policy version: {{version}}",
-    "scrollToRead": "Scroll to read before agreeing",
-    "agree": "I agree to the data processing terms",
-    "submitting": "Submitting..."
+  "locationField": {
+    "placeholder": "Search for an address...",
+    "searching": "Searching...",
+    "noResults": "No results found",
+    "openInMaps": "Open in maps",
+    "clearLocation": "Clear location",
+    "useCurrentLocation": "Use current location"
   },
-  "gdpr": {
-    "title": "Privacy & Data",
-    "exportTitle": "Download My Data",
-    "exportDescription": "Download a copy of all your data stored in this system (GDPR Article 20).",
-    "exportButton": "Download my data",
-    "exportLoading": "Preparing export...",
-    "exportError": "Failed to export data",
-    "erasureTitle": "Request Account Deletion",
-    "erasureDescription": "Permanently delete your account and all associated personal data. This action has a 72-hour review period before execution.",
-    "erasureWarning": "The following will be permanently deleted:",
-    "erasureWarningItems": {
-      "profile": "Your profile and account information",
-      "sessions": "All login sessions and WebAuthn credentials",
-      "notes": "All call notes authored by you",
-      "shifts": "Shift assignments",
-      "auditEntries": "Audit log entries will be anonymized"
-    },
-    "erasurePinRequired": "Enter your PIN to confirm",
-    "erasureButton": "Request account deletion",
-    "erasureRequested": "Account deletion requested",
-    "erasureCountdown": "Your account will be deleted in {{hours}} hours",
-    "erasureCancelButton": "Cancel deletion request",
-    "erasureCancelled": "Deletion request cancelled",
-    "erasureConfirm": "Confirm deletion",
-    "retentionTitle": "Data Retention",
-    "retentionDescription": "Configure how long different types of data are kept.",
-    "retentionCallRecords": "Call records (days)",
-    "retentionNotes": "Call notes (days)",
-    "retentionMessages": "Messages (days)",
-    "retentionAuditLog": "Audit log (days)",
-    "retentionSaved": "Retention settings saved",
-    "retentionSaveError": "Failed to save retention settings"
-  },
-  "conversations": {
-    "status": {
-      "pending": "Pending",
-      "sent": "Sent",
-      "delivered": "Delivered",
-      "read": "Read",
-      "failed": "Failed",
-      "failedTooltip": "Failed: {{error}}"
-    }
+  "geocoding": {
+    "title": "Geocoding / Location",
+    "description": "Configure a geocoding provider to enable location autocomplete in custom fields",
+    "provider": "Geocoding Provider",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Enter your API key",
+    "countries": "Country Filter",
+    "countriesPlaceholder": "e.g. us, ca, mx",
+    "countriesHelp": "Comma-separated 2-letter country codes. Leave empty for worldwide.",
+    "enabled": "Enable geocoding",
+    "testConnection": "Test Connection",
+    "testSuccess": "Connection successful ({{latency}}ms)",
+    "testFailed": "Connection test failed"
   }
 }

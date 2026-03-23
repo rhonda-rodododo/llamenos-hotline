@@ -1,19 +1,20 @@
-import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   type TelephonyProviderConfig,
   type TelephonyProviderType,
-  testTelephonyProvider,
   updateTelephonyProvider,
 } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { TELEPHONY_PROVIDER_LABELS } from '@shared/types'
-import { Check, Copy, Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { Check } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { OAuthConnectButton } from './OAuthConnectButton'
+import { PhoneNumberSelector } from './PhoneNumberSelector'
 import type { SetupData } from './SetupWizard'
+import { WebhookConfirmation } from './WebhookConfirmation'
 
 interface Props {
   data: SetupData
@@ -25,8 +26,6 @@ const PROVIDERS: TelephonyProviderType[] = ['twilio', 'signalwire', 'vonage', 'p
 export function VoiceSmsProviderForm({ data, onChange }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const [testing, setTesting] = useState(false)
-  const [testResult, setTestResult] = useState<{ ok: boolean; error?: string } | null>(null)
   const [saving, setSaving] = useState(false)
 
   const provider = data.telephonyProvider || { type: 'twilio' as TelephonyProviderType }
@@ -34,21 +33,24 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
 
   function update(patch: Partial<TelephonyProviderConfig>) {
     onChange({ telephonyProvider: { ...provider, ...patch }, providerValidated: false })
-    setTestResult(null)
   }
 
-  async function handleTest() {
-    setTesting(true)
-    try {
-      const result = await testTelephonyProvider(provider as TelephonyProviderConfig)
-      setTestResult(result)
-      if (result.ok) onChange({ providerValidated: true })
-    } catch (err) {
-      setTestResult({ ok: false, error: String(err) })
-    } finally {
-      setTesting(false)
-    }
-  }
+  const credentials = useMemo(
+    () => ({
+      provider: selectedType,
+      accountSid: provider.accountSid,
+      authToken: provider.authToken,
+      signalwireSpace: provider.signalwireSpace,
+      apiKey: provider.apiKey,
+      apiSecret: provider.apiSecret,
+      applicationId: provider.applicationId,
+      authId: provider.authId,
+      ariUrl: provider.ariUrl,
+      ariUsername: provider.ariUsername,
+      ariPassword: provider.ariPassword,
+    }),
+    [selectedType, provider.accountSid, provider.authToken, provider.signalwireSpace, provider.apiKey, provider.apiSecret, provider.applicationId, provider.authId, provider.ariUrl, provider.ariUsername, provider.ariPassword]
+  )
 
   async function handleSave() {
     setSaving(true)
@@ -62,11 +64,18 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
     }
   }
 
-  function copyWebhookUrl() {
-    const url = `${window.location.origin}/telephony/voice`
-    navigator.clipboard.writeText(url)
-    toast(t('setup.webhookCopied'), 'success')
-  }
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+
+  const webhookUrls = useMemo(() => {
+    const urls = [
+      { label: t('setup.webhooks.voiceIncoming'), url: `${origin}/api/telephony/incoming` },
+      { label: t('setup.webhooks.voiceStatus'), url: `${origin}/api/telephony/status` },
+    ]
+    if (data.selectedChannels.includes('sms')) {
+      urls.push({ label: t('setup.webhooks.smsWebhook'), url: `${origin}/api/messaging/sms/webhook` })
+    }
+    return urls
+  }, [origin, data.selectedChannels, t])
 
   return (
     <div className="space-y-4 rounded-lg border p-4">
@@ -100,15 +109,6 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
 
       {/* Credential fields */}
       <div className="space-y-3">
-        <div className="space-y-1">
-          <Label>{t('telephonyProvider.phoneNumber')}</Label>
-          <Input
-            value={provider.phoneNumber || ''}
-            onChange={(e) => update({ phoneNumber: e.target.value })}
-            placeholder="+12125551234"
-          />
-        </div>
-
         {(selectedType === 'twilio' || selectedType === 'signalwire') && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
@@ -117,6 +117,7 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
                 value={provider.accountSid || ''}
                 onChange={(e) => update({ accountSid: e.target.value })}
                 placeholder="AC..."
+                data-testid="account-sid"
               />
             </div>
             <div className="space-y-1">
@@ -125,6 +126,7 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
                 type="password"
                 value={provider.authToken || ''}
                 onChange={(e) => update({ authToken: e.target.value })}
+                data-testid="auth-token"
               />
             </div>
             {selectedType === 'signalwire' && (
@@ -218,51 +220,45 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
         )}
       </div>
 
-      {/* Test result */}
-      {testResult && (
-        <div
-          className={`rounded-lg border p-3 ${testResult.ok ? 'border-green-500/30 bg-green-500/10' : 'border-destructive/30 bg-destructive/10'}`}
-        >
-          <p
-            className={`text-xs ${testResult.ok ? 'text-green-700 dark:text-green-400' : 'text-destructive'}`}
-          >
-            {testResult.ok
-              ? t('telephonyProvider.testSuccess')
-              : `${t('telephonyProvider.testFailed')}: ${testResult.error || ''}`}
-          </p>
-        </div>
-      )}
+      {/* OAuth Connect / Validate Button */}
+      <OAuthConnectButton
+        provider={selectedType}
+        credentials={credentials}
+        validated={data.providerValidated}
+        onConnected={() => {
+          onChange({ providerValidated: true })
+        }}
+        onError={() => {
+          onChange({ providerValidated: false })
+        }}
+      />
 
-      {/* Webhook URL (shown after validation) */}
+      {/* Phone Number Selector */}
+      <PhoneNumberSelector
+        credentials={credentials}
+        selectedNumber={provider.phoneNumber || ''}
+        onSelect={(phoneNumber) => update({ phoneNumber })}
+        credentialsValid={data.providerValidated}
+      />
+
+      {/* Webhook URLs */}
+      <WebhookConfirmation
+        urls={webhookUrls}
+        visible={data.providerValidated}
+      />
+
+      {/* Save button */}
       {data.providerValidated && (
-        <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
-          <div className="flex-1">
-            <p className="text-xs font-medium">{t('setup.webhookUrl')}</p>
-            <code className="text-xs text-muted-foreground">
-              {window.location.origin}/telephony/voice
-            </code>
-          </div>
-          <Button variant="ghost" size="sm" onClick={copyWebhookUrl}>
-            <Copy className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleTest}
-          disabled={testing || !provider.phoneNumber}
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || !provider.phoneNumber}
+          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          data-testid="save-provider-button"
         >
-          {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-          {testing ? t('telephonyProvider.testing') : t('telephonyProvider.testConnection')}
-        </Button>
-        <Button size="sm" onClick={handleSave} disabled={saving || !data.providerValidated}>
           {saving ? t('common.loading') : t('telephonyProvider.saveProvider')}
-        </Button>
-      </div>
+        </button>
+      )}
     </div>
   )
 }

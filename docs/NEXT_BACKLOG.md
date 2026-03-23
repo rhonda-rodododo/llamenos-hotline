@@ -184,3 +184,71 @@ Architecture overview: [`docs/architecture/E2EE_ARCHITECTURE.md`](architecture/E
 ## Low Priority (Post-Launch)
 - [x] Add call recording playback in notes view (on-demand fetch from telephony provider)
 - [x] Marketing site + docs at llamenos-hotline.com (Astro + Cloudflare Pages)
+
+## Platform Hardening Sprint (2026-03-22) — Specs + Plans Ready
+
+All items below have a design spec and implementation plan in `docs/superpowers/`. Agents should pick up plans from `docs/superpowers/plans/` and follow the `superpowers:executing-plans` skill.
+
+### Critical Security — Execute First
+
+- [x] **Security Hardening v2 Audit Backport** (`2026-03-22-security-hardening-v2-backport-plan.md`) — CRIT-H1 hub key membership check (verify first), HIGH-W1 relay key scoping, HIGH-W3 raw phone in audit log, HIGH-W4 dev endpoint 403→404, HIGH-W5 Twilio SID validation, MED-W1 cross-hub global routes, MED-W2 ban-by-phone admin-only, code quality fixes (empty catch blocks, offline queue race, `as any`, hardcoded CORS), workflow permissions least-privilege
+- [x] **Volunteer PII Enforcement** (`2026-03-22-volunteer-pii-enforcement-plan.md`) — TypeScript-enforced `projectVolunteer()` with discriminated union (`view: 'public'|'self'|'admin'`), correct E.164 `maskPhone()`, covers all volunteer-returning endpoints including `PATCH /:targetPubkey`
+
+### Platform & CI/CD
+
+- [x] **CI Pipeline Hardening** (`2026-03-22-ci-security-hardening-plan.md`) — GPG signing for releases (CHECKSUMS.txt.asc uploaded to GitHub Release), gitleaks secret scanning, Dependabot for bun/cargo/actions, SECURITY.md, workflow permissions per-job. **Operator action required**: generate CI GPG keypair and set RELEASE_GPG_PRIVATE_KEY + RELEASE_GPG_KEY_ID secrets.
+- [x] **CI VPS Auto-Deploy** (`2026-03-22-ci-vps-auto-deploy-plan.md`) — `auto-deploy-demo.yml` triggers on `release:published`, polls for Docker image in GHCR, deploys via Ansible with `llamenos_image` override, health endpoint verification. Site auto-deploy added to `ci.yml` (CF Pages on `site/` changes). `rollback-demo` recipe added to justfile. **Operator action required**: set `CF_API_TOKEN` + `CF_ACCOUNT_ID` secrets for site deploy.
+- [x] **Ops: PostgreSQL Backup & Recovery** (`2026-03-22-ops-backup-recovery-plan.md`) — Audited existing role (already complete); fixed test-restore table names (CF→Drizzle), added backup freshness to `/api/health`, restore.yml playbook, restore-postgres.sh script, docs/ops/restore-runbook.md, justfile recipes (backup-demo, test-restore-demo, restore-demo)
+- [x] **Ops: MinIO Init + Systemd Service** (`2026-03-22-minio-init-systemd-plan.md`) — `init-minio.sh` (bucket, lifecycle rules, llamenos-app IAM user), app now uses MINIO_APP_USER/PASSWORD (least-privilege), health endpoint checks HeadBucket, systemd unit via Ansible (`llamenos.service.j2`)
+- [x] **CF Removal / Drizzle Migration — Schema Corrections** (`2026-03-22-drizzle-schema-completeness-addendum.md`) — Subscribers privacy refactor (identifierHash, channels JSONB, status enum, preferenceToken), blasts (targetChannels/targetTags/targetLanguages arrays, stats JSONB), blast_settings, note_replies, GDPR tables (gdpr_consents, gdpr_erasure_requests, retention_settings), geocoding_config, hubs.allowSuperAdminAccess, hub_keys ephemeralPubkey+createdAt, customFieldDefinitions.context, file_records.hubId. Migration 0003 written manually (drizzle-kit TTY limitation). Updated BlastService, routes, messaging router, preferences endpoints.
+
+### Application Quality
+
+- [x] **Application Hardening Phase 3** (`2026-03-22-application-hardening-phase3-plan.md`) — Audited: auth middleware already clean (no `as any`), `profileCompleted` wiring verified correct, on-break filtering confirmed in `startParallelRinging`, active calls dashboard widget already present, call history pagination already implemented. Discovery phases (3.5/3.6/3.9) deferred pending new specs.
+- [x] **GDPR Compliance** (`2026-03-22-gdpr-compliance-plan.md`) — Consent gate, data export, right to erasure (72h delay), retention purge job, admin UI
+- [x] **Ansible Hardening** (`2026-03-22-ansible-hardening-plan.md`) — Preflight checks, ansible-lint config, digest-based rollback, CI validation job
+
+### Test Coverage
+
+> Implement shared helpers first (`tests/helpers/` migration from flat `tests/helpers.ts`) — prerequisite for all suites.
+
+- [x] **Shared Test Helpers** — `tests/helpers/` directory: `auth.ts` (login helpers), `crypto.ts` (key preloading), `db.ts` (resetTestState, createTestHub, deleteTestHub), `call-simulator.ts` (simulateInboundCall, simulateCallAnswered, simulateCallHungUp, simulateVoicemail, waitForCallState); `index.ts` re-exports all; existing `from './helpers'` imports resolve transparently
+- [x] **Call Flow Tests** (`2026-03-22-call-flow-tests-plan.md`) — ring → answer → note → hangup → voicemail fallback → parallel ringing. Inbound webhook is two-step: `POST /telephony/incoming` then `POST /telephony/language-selected`. Fixed telephony routing (top-level /telephony/* not /api/telephony/*), updated playwright.config.ts to use bun server, added data-testid to dashboard call elements.
+- [x] **E2EE Verification Tests** (`2026-03-22-e2ee-verification-tests-plan.md`) — Server stores ciphertext only; `window.__llamenos_test_crypto` hook (VITE_TEST_MODE guard); multi-envelope decryption; forward secrecy
+- [x] **Nostr Relay Tests** (`2026-03-22-nostr-relay-tests-plan.md`) — `call:ring` event published and encrypted; hub key extracted via `window.__llamenos_test_hub_key`; REST polling fallback
+- [x] **Spam Mitigation Tests** (`2026-03-22-spam-mitigation-tests-plan.md`) — Ban enforcement, rate limiting, CAPTCHA toggle (correct/wrong digits), priority: ban > rate-limit > CAPTCHA
+- [x] **PWA Offline Tests** (`2026-03-22-pwa-offline-tests-plan.md`) — SW registration, offline banner, API not cached, queue sends on reconnect
+- [x] **WebAuthn Registration Tests** (`2026-03-22-webauthn-registration-tests-plan.md`) — Virtual authenticator via CDP, passkey register/login, multi-device, session revocation
+- [x] **i18n Locale Tests** (`2026-03-22-i18n-locale-tests-plan.md`) — All 13 locales, RTL Arabic, dynamic locale file comparison (no hardcoded strings), `scripts/check-locales.ts` with nested key traversal
+- [x] **Provider Simulation Suite** (`2026-03-22-provider-simulation-suite-plan.md`) — Payload factory + proxy simulation endpoints for all 5 telephony providers × 9 events and all 4 messaging channels. Asterisk-first build order. Dev bypass added to messaging router. E2E tests assert 200/404 (not 400/403/500) for all provider × event combinations.
+
+### Features (Lower Priority — v1 Gap Filling)
+
+- [x] **Missing Pages** (`2026-03-22-missing-pages-plan.md`) — `/calls/:callId` detail page, `/notes/:noteId` permalink, settings profile section verified, audit log deep links
+- [x] **Message Delivery Status** (`2026-03-22-message-delivery-status-plan.md`) — DB migration, status callback webhook, `MessageStatusIcon` component, ConversationThread updated
+- [x] **Report Types System** (`2026-03-22-report-types-system-plan.md`) — `report_types` table, `ReportTypeService`, CRUD API, admin settings section, report form type selector
+- [x] **Invite Delivery** (`2026-03-22-invite-email-delivery-plan.md`) — `InviteDeliveryService`, Signal/WhatsApp/SMS send, phone HMAC hash, admin dialog with channel selector and SMS warning
+- [x] **Dashboard Analytics** (`2026-03-22-dashboard-analytics-plan.md`) — recharts charts (call volume, peak hours, team stats), lazy-loaded admin section, analytics API
+- [x] **File Field Type** (`2026-03-22-file-field-type-plan.md`) — E2EE file upload/download, `FileFieldInput`/`FileFieldDisplay` components, `PATCH /api/uploads/:id/context`, admin MIME/size config
+
+### Telephony Automation
+
+- [x] **Asterisk Bridge Auto-Config** (`2026-03-22-asterisk-bridge-auto-config.md`) — PjsipConfigurator writes auth/aor/endpoint/registration via ARI dynamic config API at startup, sorcery.conf for memory wizard, Docker compose + dev offsets, real-Asterisk E2E tests
+- [x] **Provider OAuth Auto-Config** (`2026-03-22-provider-oauth-auto-config.md`) — ProviderSetup module: Twilio/Telnyx OAuth, SignalWire/Vonage/Plivo credential validation, webhook auto-config, SIP trunk provisioning, A2P 10DLC registration
+- [x] **Signal Automated Registration** (`2026-03-22-signal-automated-registration.md`) — SMS interception for Signal verification codes, SettingsDO pending state with TTL, voice fallback manual entry, registration wizard UI
+- [x] **Setup Wizard Provider Module** (`2026-03-22-setup-wizard-provider-module.md`) — OAuthConnectButton, PhoneNumberSelector, WebhookConfirmation, ChannelSettings, setup routes, E2E tests.
+
+### Unreviewed Plans — Pending Triage
+
+> Plans below were created 2026-03-22 but not yet added to the backlog. Status determined by codebase audit.
+
+- [x] **Foundation Tooling** (`2026-03-22-foundation-tooling-plan.md`) — Biome setup, build constants, esbuild removal, Docker SHA pinning, CI lint job, dev:docker scripts.
+- [x] **E2E Test Improvements** (`2026-03-22-e2e-test-improvements-plan.md`) — Test isolation, `resetTestState()` in 34 specs, coverage gaps doc, parallel workers, test-local.sh, .dev.vars.local.example.
+- [x] **CF → VPS Demo Migration** (`2026-03-22-cf-vps-demo-migration-plan.md`) — Ansible role templates (env.j2, docker-compose.j2, caddy.j2), demo cron reset, deploy workflow, justfile recipes.
+- [ ] **Application Hardening** (`2026-03-22-application-hardening-plan.md`) — ~40% done. Environment guards updated. Missing: cross-hub call subscriptions, hub deletion/archiving cascade, per-hub resource isolation audit, v2 backports.
+- [ ] **CF Removal + Drizzle Migration** (`2026-03-22-cf-removal-drizzle-migration-plan.md`) — 0% done. Major architecture migration: Durable Objects → Drizzle/PostgreSQL services. All 7 DOs still active. *Blocks hub-admin-zero-trust and production deployment.*
+- [x] **SLSA Provenance** (`2026-03-22-slsa-provenance-plan.md`) — Dockerfile.build, verify-build.sh, CHECKSUMS.txt, attest-build-provenance, GPG signing step, provenance.json metadata.
+- [x] **Transcription Boundary** (`2026-03-22-transcription-boundary-plan.md`) — CF AI path removed, self-hosted Whisper opt-in, transcribeAudioBuffer(), recording transcribe button, i18n for 13 locales.
+- [x] **Voice CAPTCHA** (`2026-03-22-voice-captcha-plan.md`) — captchaMaxAttempts tracking, retry/fail result flow, digit randomization fix (1-9), admin UI, captchaRetry prompt in 13 languages, E2E tests.
+- [x] **Geocoding Location Fields** (`2026-03-22-geocoding-location-fields-plan.md`) — GeocodingAdapter interface, OpenCage + Geoapify implementations, LocationField component with autocomplete/GPS, admin settings, i18n, E2E tests.
+- [ ] **Hub Admin Zero-Trust Visibility** (`2026-03-22-hub-admin-zero-trust-visibility-plan.md`) — ~20% done. Hub key infrastructure exists. Missing: allowSuperAdminAccess column, service methods, API routes, key rotation, admin UI, E2E tests. *Depends on Drizzle migration.*

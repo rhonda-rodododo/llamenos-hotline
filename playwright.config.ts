@@ -43,6 +43,11 @@ export default defineConfig({
       testMatch: /responsive\.spec\.ts/,
       dependencies: ["setup"],
     },
+    {
+      // Bridge integration tests — no browser, no webserver, no global setup needed
+      name: "bridge",
+      testMatch: /asterisk-.*\.spec\.ts/,
+    },
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined

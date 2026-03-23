@@ -115,19 +115,7 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls",
-    "analytics": {
-      "title": "Análisis",
-      "callVolume": "Volumen de llamadas",
-      "callVolume7d": "Volumen de llamadas — Últimos 7 días",
-      "callVolume30d": "Volumen de llamadas — Últimos 30 días",
-      "peakHours": "Horas pico",
-      "teamPerformance": "Rendimiento del equipo",
-      "answered": "Contestadas",
-      "voicemail": "Buzón de voz",
-      "unanswered": "Sin contestar",
-      "noData": "Sin datos para este período"
-    }
+    "viewCalls": "View Calls"
   },
   "calls": {
     "incoming": "Llamada Entrante",
@@ -149,15 +137,7 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail",
-    "detail": {
-      "title": "Detalle de Llamada",
-      "metadata": "Información de Llamada",
-      "notes": "Notas",
-      "recording": "Grabación",
-      "audit": "Registro de Auditoría",
-      "notFound": "Llamada no encontrada"
-    }
+    "voicemail": "Voicemail"
   },
   "callSettings": {
     "title": "Configuración de Llamadas",
@@ -199,14 +179,7 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": {
-      "title": "Detalles de Nota",
-      "forbidden": "No tienes permiso para ver esta nota",
-      "notFound": "Nota no encontrada",
-      "callContext": "De la llamada",
-      "viewCall": "Ver detalle de llamada",
-      "editFromCallPage": "Editar desde la página de detalle de llamada"
-    },
+    "detail": "Note Details",
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -229,9 +202,7 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated",
-    "permalink": "Ver",
-    "viewPermalink": "Ver Nota"
+    "updated": "Note updated"
   },
   "transcription": {
     "title": "Transcripción",
@@ -372,18 +343,7 @@
     "noActivity": "No recent activity",
     "notFound": "Volunteer not found",
     "recentActivity": "Recent Activity",
-    "unnamed": "Unnamed Volunteer",
-    "sendInvite": "Send invite",
-    "sendInviteTitle": "Send Invite Link",
-    "inviteChannel": "Send via",
-    "inviteNotSent": "Not sent — copy link to share manually",
-    "inviteSentVia": "Sent via {{channel}} on {{date}}",
-    "inviteSentSuccess": "Invite sent via {{channel}}",
-    "smsInsecureWarning": "SMS is not end-to-end encrypted. Use Signal or WhatsApp if possible.",
-    "smsAcknowledge": "I understand SMS is not end-to-end encrypted and accept the risk.",
-    "smsAcknowledgeRequired": "You must acknowledge the security warning before sending via SMS.",
-    "copyLink": "Copy link",
-    "noChannelsConfigured": "No messaging channels are configured. Copy the link to share manually."
+    "unnamed": "Unnamed Volunteer"
   },
   "webauthn": {
     "title": "Claves de acceso",
@@ -660,26 +620,7 @@
     "transcriptionEnableDesc": "Automatically transcribe your calls",
     "transcriptionManaged": "Managed by admin",
     "version": "Version",
-    "voicemail": "Voicemail",
-    "reportTypes": {
-      "title": "Report Types",
-      "description": "Description",
-      "empty": "No report types defined",
-      "new": "New Report Type",
-      "name": "Name",
-      "namePlaceholder": "e.g. Crisis Report",
-      "descriptionPlaceholder": "Brief description of when to use this type",
-      "fields": "Bound fields",
-      "default": "Default",
-      "setDefault": "Set as default",
-      "archive": "Archive",
-      "unarchive": "Restore",
-      "archived": "Archived",
-      "archiveConfirm": "Archive this report type? Existing reports will keep their type.",
-      "showArchived": "Show archived",
-      "hideArchived": "Hide archived",
-      "typesCount": "types"
-    }
+    "voicemail": "Voicemail"
   },
   "session": {
     "expiringWarning": "Tu sesión está a punto de expirar.",
@@ -807,23 +748,7 @@
       "maxLength": "Longitud Máx"
     },
     "context": "Context",
-    "empty": "No custom fields defined",
-    "file": {
-      "upload": "Choose file or drag & drop",
-      "uploading": "Uploading...",
-      "download": "Download",
-      "remove": "Remove",
-      "tooLarge": "File too large (max {{max}} MB)",
-      "invalidType": "File type not allowed",
-      "unavailable": "File unavailable",
-      "allowedTypes": "Allowed file types",
-      "allowedTypesHint": "Hold Ctrl/Cmd to select multiple",
-      "mimeImages": "Images",
-      "mimePDF": "PDF",
-      "mimeAudio": "Audio",
-      "mimeAny": "Any file type",
-      "maxSizeMB": "Max file size (MB)"
-    }
+    "empty": "No custom fields defined"
   },
   "volunteerProfile": {
     "joined": "Se unió",
@@ -1207,7 +1132,49 @@
     },
     "demoMode": "Populate with sample data",
     "demoModeDescription": "Creates sample volunteer accounts, shifts, and ban entries for testing and demos. Demo account credentials will be shown on the login page.",
-    "demoSeedFailed": "Sample data partially created"
+    "demoSeedFailed": "Sample data partially created",
+    "oauth": {
+      "connecting": "Connecting...",
+      "validating": "Validating...",
+      "connected": "Connected to {{provider}}",
+      "validate": "Validate {{provider}} Credentials",
+      "signUp": "Sign up for {{provider}}",
+      "validationFailed": "Credential validation failed",
+      "connectionFailed": "Connection failed",
+      "enterCredentials": "Enter your credentials above first",
+      "credentialsValid": "{{provider}} credentials verified successfully."
+    },
+    "phoneNumbers": {
+      "existing": "Your Numbers",
+      "buyNew": "Buy New",
+      "refresh": "Refresh numbers",
+      "validateFirst": "Validate your provider credentials to see available phone numbers.",
+      "noExisting": "No phone numbers found in your account. Enter a number manually or buy a new one.",
+      "searchFailed": "Failed to search for available numbers",
+      "provisioned": "Phone number provisioned successfully",
+      "provisionFailed": "Failed to provision phone number",
+      "search": "Search",
+      "provision": "Buy",
+      "voice": "Voice",
+      "sms": "SMS",
+      "countryCode": "Country (ISO)",
+      "areaCode": "Area code"
+    },
+    "webhooks": {
+      "title": "Webhook URLs",
+      "description": "Configure these URLs in your provider's dashboard to receive calls and messages.",
+      "copyAll": "Copy All",
+      "voiceIncoming": "Voice (Incoming)",
+      "voiceStatus": "Voice (Status)",
+      "smsWebhook": "SMS Webhook",
+      "signalWebhook": "Signal Webhook"
+    },
+    "signalE2eeNote": "Signal provides end-to-end encryption to the bridge. Messages are re-encrypted with your hotline's keys before storage.",
+    "signalPrerequisites": "Prerequisites",
+    "signalPrereq1": "A Linux server with Docker installed",
+    "signalPrereq2": "A phone number to register with Signal",
+    "signalPrereq3": "Network access between your hotline server and the bridge",
+    "signalDockerCommand": "Docker Run Command"
   },
   "reports": {
     "title": "Reports",
@@ -1275,11 +1242,7 @@
     "messages": "Messages",
     "noReportsHint": "No reports yet. Create one to get started.",
     "notFound": "Report not found",
-    "updated": "Report Updated",
-    "type": {
-      "label": "Report Type",
-      "placeholder": "Select a report type"
-    }
+    "updated": "Report Updated"
   },
   "hubs": {
     "title": "Hub Management",
@@ -1305,88 +1268,13 @@
     "selectHub": "Select hub",
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
-    "urlPlaceholder": "https://hub.example.com",
-    "delete": "Eliminar",
-    "deleteHub": "Eliminar Hub",
-    "deleteHubConfirm": "Esto eliminará permanentemente \"{{name}}\" y todos sus datos. Escribe el nombre del hub para confirmar.",
-    "deleteHubNameLabel": "Escribe el nombre del hub para confirmar",
-    "hubDeleted": "Hub eliminado exitosamente",
-    "deleteHubActiveCallsError": "No se puede eliminar un hub con llamadas activas",
-    "archive": "Archivar",
-    "archiveHub": "Archivar Hub",
-    "archiveHubConfirm": "¿Está seguro de que desea archivar \"{{name}}\"? Los hubs archivados se ocultan de las operaciones activas.",
-    "hubArchived": "Hub archivado correctamente"
+    "urlPlaceholder": "https://hub.example.com"
   },
-  "consent": {
-    "title": "Acuerdo de Procesamiento de Datos",
-    "subtitle": "Por favor, lea y acepte antes de continuar",
-    "intro": "Antes de acceder al sistema, debe aceptar cómo se recopilan y utilizan sus datos.",
-    "dataCollected": {
-      "title": "Qué recopilamos",
-      "accountInfo": "Información de cuenta (nombre, clave pública, idiomas)",
-      "callNotes": "Notas de llamadas y registros de conversaciones cifrados",
-      "sessions": "Metadatos de sesión de inicio de sesión",
-      "auditLog": "Registro de actividad"
-    },
-    "howWeProtect": {
-      "title": "Cómo protegemos sus datos",
-      "e2ee": "Las notas de llamadas están cifradas de extremo a extremo",
-      "noPlaintext": "La información personal sensible nunca se almacena en texto plano",
-      "retention": "Los datos se eliminan automáticamente tras el período de retención"
-    },
-    "yourRights": {
-      "title": "Sus derechos (RGPD)",
-      "access": "Derecho de acceso: Descargue todos sus datos desde Configuración",
-      "portability": "Derecho de portabilidad: Exporte sus datos en JSON",
-      "erasure": "Derecho de supresión: Solicite la eliminación desde Configuración"
-    },
-    "gdprNote": "Esta plataforma opera en cumplimiento del RGPD de la UE.",
-    "version": "Versión de la política de privacidad: {{version}}",
-    "scrollToRead": "Desplácese para leer antes de aceptar",
-    "agree": "Acepto los términos de procesamiento de datos",
-    "submitting": "Enviando..."
-  },
-  "gdpr": {
-    "title": "Privacidad y Datos",
-    "exportTitle": "Descargar Mis Datos",
-    "exportDescription": "Descargue una copia de todos sus datos (RGPD Art. 20).",
-    "exportButton": "Descargar mis datos",
-    "exportLoading": "Preparando exportación...",
-    "exportError": "Error al exportar datos",
-    "erasureTitle": "Solicitar Eliminación de Cuenta",
-    "erasureDescription": "Elimina permanentemente su cuenta. Período de revisión de 72 horas.",
-    "erasureWarning": "Lo siguiente se eliminará permanentemente:",
-    "erasureWarningItems": {
-      "profile": "Su perfil e información de cuenta",
-      "sessions": "Todas las sesiones e credenciales WebAuthn",
-      "notes": "Todas las notas de llamadas creadas por usted",
-      "shifts": "Asignaciones de turno",
-      "auditEntries": "Las entradas de auditoría serán anonimizadas"
-    },
-    "erasurePinRequired": "Ingrese su PIN para confirmar",
-    "erasureButton": "Solicitar eliminación de cuenta",
-    "erasureRequested": "Eliminación de cuenta solicitada",
-    "erasureCountdown": "Su cuenta se eliminará en {{hours}} horas",
-    "erasureCancelButton": "Cancelar solicitud de eliminación",
-    "erasureCancelled": "Solicitud de eliminación cancelada",
-    "erasureConfirm": "Confirmar eliminación",
-    "retentionTitle": "Retención de Datos",
-    "retentionDescription": "Configure por cuánto tiempo se conservan los datos.",
-    "retentionCallRecords": "Registros de llamadas (días)",
-    "retentionNotes": "Notas de llamadas (días)",
-    "retentionMessages": "Mensajes (días)",
-    "retentionAuditLog": "Registro de auditoría (días)",
-    "retentionSaved": "Configuración de retención guardada",
-    "retentionSaveError": "Error al guardar la configuración"
-  },
-  "conversations": {
-    "status": {
-      "pending": "Pendiente",
-      "sent": "Enviado",
-      "delivered": "Entregado",
-      "read": "Leído",
-      "failed": "Fallido",
-      "failedTooltip": "Error: {{error}}"
-    }
+  "channelSettings": {
+    "title": "Channels & Providers",
+    "description": "Manage which communication channels are enabled for your hotline.",
+    "summary": "Manage channels",
+    "active": "Active",
+    "currentProvider": "Current voice/SMS provider:"
   }
 }

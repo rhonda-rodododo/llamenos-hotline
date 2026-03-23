@@ -1,5 +1,91 @@
 # Completed Backlog
 
+## 2026-03-22: Shared Test Helpers (`cf-removal` worktree)
+
+- [x] Refactored `tests/helpers.ts` into `tests/helpers/` directory: `auth.ts`, `crypto.ts`, `db.ts`, `call-simulator.ts`, `index.ts`
+- [x] New `call-simulator.ts` adds: `simulateInboundCall`, `simulateCallAnswered`, `simulateCallHungUp`, `simulateVoicemail`, `waitForCallState` — prerequisites for call-flow tests
+- [x] All 47 existing spec files continue to work without import changes (TypeScript directory resolution)
+
+## 2026-03-22: Drizzle Schema Corrections (`cf-removal` worktree)
+
+- [x] **Subscribers privacy refactor**: `phoneNumber`/`channel`/`active`/`token`/`metadata` → `identifierHash` (HMAC-SHA256), `channels` JSONB array, `status` enum, `preferenceToken`, `tags`, `language`, `doubleOptInConfirmed`, `subscribedAt`; unique constraint on `(hubId, identifierHash)`
+- [x] **Blasts refactor**: `channel`/`totalCount`/`sentCount`/`failedCount` → `targetChannels`/`targetTags`/`targetLanguages` JSONB arrays + `stats` JSONB (`BlastStats` interface)
+- [x] **blast_deliveries**: added `channelType` and `deliveredAt`
+- [x] **New tables**: `blast_settings`, `note_replies`, `gdpr_consents`, `gdpr_erasure_requests`, `retention_settings`, `geocoding_config`
+- [x] **Existing table additions**: `hubs.allowSuperAdminAccess`, `hub_keys.ephemeralPubkey`+`createdAt`, `customFieldDefinitions.context`, `file_records.hubId`
+- [x] **Migration 0003_schema_corrections.sql**: written manually (drizzle-kit requires interactive TTY for column rename resolution); journal updated
+- [x] **Service/route updates**: `BlastService`, `routes/blasts.ts`, `messaging/router.ts`, `/api/messaging/preferences` endpoints updated to new schema
+- [x] **Types updated**: `Blast`, `Subscriber`, `CreateBlastData`, `CreateSubscriberData`, `BlastDelivery`, `CreateDeliveryData`, `BlastStats`, `SubscriberChannel` in `server/types.ts`
+
+## 2026-03-22: CI VPS Auto-Deploy (`cf-removal` worktree)
+
+- [x] Created `.github/workflows/auto-deploy-demo.yml`: triggers on `release:published`, waits up to 10 min for Docker image in GHCR, deploys via Ansible with `llamenos_image` override (correct variable name — not `image_tag`), verifies `/api/health` endpoint post-deploy
+- [x] Added `deploy-site` job to `ci.yml`: deploys Astro marketing site to Cloudflare Pages when `site/` files change on main branch; uses `cloudflare/wrangler-action@v3` (Dependabot will pin SHA)
+- [x] Added `rollback-demo` recipe to `deploy/ansible/justfile`: `just rollback-demo v1.2.3`
+- **Operator action required**: set `CF_API_TOKEN` + `CF_ACCOUNT_ID` GitHub secrets for the `cloudflare-pages` environment to enable site auto-deploy
+
+## 2026-03-22: MinIO Init + Systemd Service (`cf-removal` worktree)
+
+- [x] Created `deploy/scripts/init-minio.sh`: idempotent (bucket, lifecycle rules, least-privilege IAM user)
+- [x] Ansible runs init-minio.sh after each deploy; `llamenos.service.j2` systemd template; auto-start on reboot
+- [x] App now uses `MINIO_APP_USER`/`MINIO_APP_PASSWORD` instead of root credentials; falls back to root in dev
+- [x] Fixed `/api/health` storage check: calls `HeadBucketCommand` against MinIO (was CF-only `R2_BUCKET` check)
+
+## 2026-03-22: PostgreSQL Backup & Recovery (`cf-removal` worktree)
+
+- [x] Existing backup role audited — `age` encryption, rclone upload, GFS retention already implemented
+- [x] Fixed `test-restore.yml` table validation: replaced old CF DO tables (`kv_store`, `alarms`) with current Drizzle tables (`volunteers`, `active_calls`)
+- [x] Added `backup/defaults/main.yml` documenting all role variables
+- [x] Backup script now writes `.status.json` after each run; mounted into app container
+- [x] `GET /api/health` now includes `backup.lastSuccessAt`, `lastSizeBytes`, and `file` when available
+- [x] Added `playbooks/restore.yml`: disaster recovery playbook (stop app, age decrypt, restore, verify, restart)
+- [x] Added `deploy/scripts/restore-postgres.sh`: manual restore script for ops use
+- [x] Created `docs/ops/restore-runbook.md`: full restore procedures, monthly test cadence, integrity checks
+- [x] Added justfile recipes: `backup-demo`, `test-restore-demo`, `restore-demo backup_file`
+
+## 2026-03-22: CI Security Hardening (`cf-removal` worktree)
+
+- [x] GPG signing step in `release` job: imports `RELEASE_GPG_PRIVATE_KEY` secret, signs `CHECKSUMS.txt`, uploads `CHECKSUMS.txt.asc` to GitHub Release (gated on secret presence)
+- [x] `verify-build.sh` already handles the signature — no changes needed
+- [x] `gitleaks-action` secret scan on push to main and PRs; `.gitleaks.toml` allowlists demo nsec key
+- [x] `.github/dependabot.yml`: weekly npm (grouped), Docker, GitHub Actions updates; major version bumps for vite/hono/drizzle require review
+- [x] `.github/SECURITY.md`: disclosure policy, 72h acknowledgment SLA, 90-day coordinated disclosure, GPG verification steps, security feature summary
+- **Operator action required**: `gpg --batch --gen-key` (4096-bit RSA), store private key as `RELEASE_GPG_PRIVATE_KEY`, key ID as `RELEASE_GPG_KEY_ID` in GitHub repo secrets, publish fingerprint in SECURITY.md
+
+## 2026-03-22: Application Hardening Phase 3 Audit (`cf-removal` worktree)
+
+All Phase 3 items verified already implemented — no code changes required:
+- [x] Auth middleware: no `as any` casts (uses typed service calls, not raw DO fetches)
+- [x] `profileCompleted` wiring: profile-setup form sends `{ profileCompleted: true }`, root guard redirects based on it, subsequent logins skip setup gate
+- [x] On-break filtering: `startParallelRinging` filters `!v.onBreak` before telephony ring
+- [x] Active calls dashboard widget: already shows ongoing calls with volunteer name
+- [x] Call history pagination: `?page&limit&search&dateFrom&dateTo` all implemented
+- Discovery phases 3.5/3.6/3.9 (call transfer, note replies, auto-assignment): deferred pending specs
+
+## 2026-03-22: Volunteer PII Enforcement (`cf-removal` worktree)
+
+- [x] Created `src/server/lib/volunteer-projector.ts` — discriminated-union view types (`VolunteerAdminView`, `VolunteerSelfView`, `VolunteerPublicView`) + `projectVolunteer()` + `maskPhone()`
+- [x] Applied projection to all volunteer-returning endpoints: GET /api/volunteers, new GET /api/volunteers/:pubkey, POST /api/volunteers, PATCH /volunteers/:pubkey
+- [x] Admin `?unmask=true` on GET /:pubkey with audit trail; non-admins get public view regardless
+- [x] `/auth/me` includes masked phone (own self-view)
+- [x] Client updated: PIN challenge → `?unmask=true` fetch; removed client-side double-masking
+- [x] E2E tests in `tests/volunteer-pii.spec.ts` (6 scenarios)
+- [x] Fixed `tests/security-hardening.spec.ts` audit field names (`event`/`details` not `action`/`context`)
+
+## 2026-03-22: Security Hardening v2 Audit Backport (`cf-removal` worktree)
+
+- [x] **HIGH-W1**: Removed global `serverEventKeyHex` from `/auth/me` — hub keys delivered via per-hub ECIES; global relay key must not be returned to all authenticated users
+- [x] **HIGH-W3**: Audit log `numberBanned` entries now store `phoneHash` (HMAC-SHA256 hex) instead of plaintext phone number
+- [x] **HIGH-W4**: Dev/test reset endpoints return 404 when `DEV_RESET_SECRET` is unset; 403 only when secret is present but wrong (hiding endpoint existence)
+- [x] **HIGH-W5**: Twilio account SID validated against `/^AC[a-f0-9]{32}$/` before URL construction to prevent path traversal
+- [x] **MED-W1**: Added `requireHubOrSuperAdmin` middleware gating all global resource routes — non-super-admins without hub context get 400
+- [x] **MED-W2**: Already enforced — `role-volunteer` lacks `bans:create` permission (verified, no change needed)
+- [x] **CRIT-H1**: Already enforced — hub key endpoint has membership check (verified, no change needed)
+- [x] Phase 2 code quality: Empty catch blocks in `messaging/router.ts` now log warnings; `CORS_ALLOWED_ORIGINS` env var added for runtime-configurable CORS
+- [x] Phase 3: Workflow-level least-privilege `permissions: contents: read` added to CI
+- [x] Phase 4: Startup warnings for missing optional env vars (`APP_URL`, `CORS_ALLOWED_ORIGINS`, Twilio, `NOSTR_RELAY_URL`)
+- [x] E2E tests in `tests/security-hardening.spec.ts` covering all five findings
+
 ## 2026-02-25: Documentation Overhaul (`next` branch)
 
 ### ZK Architecture Documentation

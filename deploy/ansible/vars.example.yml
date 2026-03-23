@@ -120,6 +120,14 @@ asterisk_image: andrius/asterisk:20
 ari_username: llamenos
 ari_password: ""
 bridge_secret: ""
+# Hotline phone number to receive calls on (E.164, e.g. +12125551234)
+hotline_number: ""
+# SIP trunk credentials for auto-configuration at bridge startup.
+# When all three are set, the bridge writes PJSIP objects via ARI on startup
+# so no manual pjsip.conf editing is needed.
+sip_provider: ""   # e.g. sip.telnyx.com or sip.twilio.com
+sip_username: ""   # SIP username / account SID
+sip_password: ""   # SIP password / auth token
 
 # OPTIONAL: Signal bridge settings (only used if 'signal' profile enabled)
 signal_image: bbernhard/signal-cli-rest-api:0.92

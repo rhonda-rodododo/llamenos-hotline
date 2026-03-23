@@ -137,7 +137,6 @@ export async function getMe() {
   return request<{
     pubkey: string
     roles: string[]
-    hubRoles: { hubId: string; roleIds: string[] }[]
     permissions: string[]
     primaryRole: { id: string; name: string; slug: string } | null
     name: string
@@ -158,10 +157,6 @@ export async function getMe() {
 
 export async function listVolunteers() {
   return request<{ volunteers: Volunteer[] }>('/volunteers')
-}
-
-export async function getVolunteerUnmasked(pubkey: string) {
-  return request<Volunteer & { phone: string }>(`/volunteers/${pubkey}?unmask=true`)
 }
 
 export async function createVolunteer(data: {
@@ -304,10 +299,6 @@ export async function updateNote(
   })
 }
 
-export async function getNote(id: string) {
-  return request<{ note: EncryptedNote }>(hp(`/notes/${id}`))
-}
-
 // --- Calls ---
 
 export async function listActiveCalls() {
@@ -328,12 +319,6 @@ export async function getCallHistory(params?: {
   if (params?.dateFrom) qs.set('dateFrom', params.dateFrom)
   if (params?.dateTo) qs.set('dateTo', params.dateTo)
   return request<{ calls: CallRecord[]; total: number }>(hp(`/calls/history?${qs}`))
-}
-
-export async function getCallDetail(callId: string) {
-  return request<{ call: CallRecord; notes: EncryptedNote[]; auditEntries: AuditLogEntry[] }>(
-    hp(`/calls/${callId}/detail`)
-  )
 }
 
 // --- Call Actions (REST) ---
@@ -374,38 +359,6 @@ export async function getCallRecording(callId: string): Promise<ArrayBuffer> {
   }
   onApiActivity?.()
   return res.arrayBuffer()
-}
-
-// --- Analytics (admin only) ---
-
-export interface CallVolumeDay {
-  date: string
-  count: number
-  answered: number
-  voicemail: number
-}
-
-export interface CallHourBucket {
-  hour: number
-  count: number
-}
-
-export interface VolunteerStatEntry {
-  pubkey: string
-  callsAnswered: number
-  avgDuration: number
-}
-
-export async function getCallAnalytics(days: 7 | 30) {
-  return request<{ days: number; data: CallVolumeDay[] }>(hp(`/analytics/calls?days=${days}`))
-}
-
-export async function getCallHoursAnalytics() {
-  return request<{ days: number; data: CallHourBucket[] }>(hp('/analytics/hours'))
-}
-
-export async function getVolunteerStats() {
-  return request<{ days: number; data: VolunteerStatEntry[] }>(hp('/analytics/volunteers'))
 }
 
 // --- Volunteer Presence (admin only) ---
@@ -546,28 +499,6 @@ export async function revokeInvite(code: string) {
   return request<{ ok: true }>(`/invites/${code}`, { method: 'DELETE' })
 }
 
-export type InviteDeliveryChannel = 'signal' | 'whatsapp' | 'sms'
-
-export async function getAvailableInviteChannels() {
-  return request<{ signal: boolean; whatsapp: boolean; sms: boolean }>(
-    '/invites/available-channels'
-  )
-}
-
-export async function sendInvite(
-  code: string,
-  data: {
-    recipientPhone: string
-    channel: InviteDeliveryChannel
-    acknowledgedInsecure?: boolean
-  }
-) {
-  return request<{ sent: boolean; channel: InviteDeliveryChannel }>(`/invites/${code}/send`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
-}
-
 export async function validateInvite(code: string) {
   const res = await fetch(`${API_BASE}/invites/validate/${code}`)
   return res.json() as Promise<{
@@ -661,7 +592,7 @@ export async function updateCustomFields(fields: CustomFieldDefinition[]) {
 // --- Telephony Provider Settings ---
 
 export type { TelephonyProviderConfig, TelephonyProviderType } from '@shared/types'
-import type { TelephonyProviderConfig } from '@shared/types'
+import type { TelephonyProviderConfig, TelephonyProviderType } from '@shared/types'
 
 export async function getTelephonyProvider() {
   return request<TelephonyProviderConfig | null>('/settings/telephony-provider')
@@ -862,6 +793,7 @@ export interface SpamSettings {
   rateLimitEnabled: boolean
   maxCallsPerMinute: number
   blockDurationMinutes: number
+  captchaMaxAttempts: number
 }
 
 export interface InviteCode {
@@ -873,9 +805,6 @@ export interface InviteCode {
   createdAt: string
   expiresAt: string
   usedAt?: string
-  recipientPhoneHash?: string
-  deliveryChannel?: string
-  deliverySentAt?: string
 }
 
 // --- Conversations ---
@@ -920,9 +849,6 @@ export interface ConversationMessage {
   attachmentIds?: string[]
   // Delivery status tracking (Epic 71)
   status?: MessageDeliveryStatus
-  deliveryStatus?: MessageDeliveryStatus
-  deliveryStatusUpdatedAt?: string
-  deliveryError?: string
   deliveredAt?: string
   readAt?: string
   failureReason?: string
@@ -1064,44 +990,139 @@ export async function testWhatsAppConnection(data: { phoneNumberId: string; acce
   })
 }
 
-// --- Report Types ---
+// --- Provider OAuth & Phone Numbers ---
 
-export type { ReportType, CreateReportTypeInput, UpdateReportTypeInput } from '@shared/types'
-import type { ReportType } from '@shared/types'
-
-export async function listReportTypes() {
-  return request<{ reportTypes: ReportType[] }>(hp('/report-types'))
+export interface OAuthStartResponse {
+  stateToken: string
+  provider: string
+  mode: 'oauth' | 'manual'
+  redirectUrl?: string
+  message?: string
+  signupUrl: string
+  docsUrl: string
 }
 
-export async function createReportType(data: { name: string; description?: string; isDefault?: boolean }) {
-  return request<ReportType>(hp('/report-types'), {
+export interface OAuthStatusResponse {
+  provider: string
+  status: 'pending' | 'connected' | 'error' | 'expired'
+  accountSid?: string
+  error?: string
+  connectedAt?: string
+}
+
+export interface ProviderPhoneNumber {
+  phoneNumber: string
+  friendlyName: string
+  capabilities: { voice: boolean; sms: boolean; mms: boolean }
+  locality?: string
+  region?: string
+  country: string
+}
+
+export interface AvailablePhoneNumber extends ProviderPhoneNumber {
+  monthlyPrice?: string
+}
+
+export interface ProviderCredentials {
+  provider: TelephonyProviderType
+  accountSid?: string
+  authToken?: string
+  signalwireSpace?: string
+  apiKey?: string
+  apiSecret?: string
+  applicationId?: string
+  authId?: string
+  ariUrl?: string
+  ariUsername?: string
+  ariPassword?: string
+}
+
+export async function startProviderOAuth(provider: TelephonyProviderType) {
+  return request<OAuthStartResponse>('/setup/provider/oauth/start', {
+    method: 'POST',
+    body: JSON.stringify({ provider }),
+  })
+}
+
+export async function getProviderOAuthStatus(stateToken: string) {
+  return request<OAuthStatusResponse>(`/setup/provider/oauth/status/${stateToken}`)
+}
+
+export async function validateProviderCredentials(credentials: ProviderCredentials) {
+  return request<{ ok: boolean; error?: string; accountName?: string }>('/setup/provider/validate', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+}
+
+export async function listProviderPhoneNumbers(credentials: ProviderCredentials) {
+  return request<{ numbers: ProviderPhoneNumber[] }>('/setup/provider/phone-numbers', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+}
+
+export async function searchAvailablePhoneNumbers(
+  credentials: ProviderCredentials & { country: string; areaCode?: string; contains?: string }
+) {
+  return request<{ numbers: AvailablePhoneNumber[] }>('/setup/provider/phone-numbers/search', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+}
+
+export async function provisionPhoneNumber(
+  credentials: ProviderCredentials & { phoneNumber: string }
+) {
+  return request<{ ok: boolean; phoneNumber: string; error?: string }>('/setup/provider/phone-numbers/provision', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+}
+
+export async function getWebhookUrls() {
+  return request<{
+    voice: string
+    voiceStatus: string
+    sms: string
+    whatsapp: string
+    signal: string
+  }>('/setup/provider/webhooks')
+}
+
+// --- Signal Registration ---
+
+export interface SignalRegistrationResponse {
+  ok: boolean
+  method: 'sms' | 'voice'
+}
+
+export interface SignalRegistrationStatus {
+  status: 'idle' | 'pending' | 'complete' | 'failed'
+  method?: 'sms' | 'voice'
+  expiresAt?: string
+  error?: string
+}
+
+export async function startSignalRegistration(data: {
+  bridgeUrl: string
+  registeredNumber: string
+  useVoice?: boolean
+}) {
+  return request<SignalRegistrationResponse>('/messaging/signal/register', {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
-export async function updateReportType(id: string, data: { name?: string; description?: string }) {
-  return request<ReportType>(hp(`/report-types/${id}`), {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  })
+export async function getSignalRegistrationStatus() {
+  return request<SignalRegistrationStatus>('/messaging/signal/registration-status')
 }
 
-export async function archiveReportType(id: string) {
-  return request<{ ok: boolean }>(hp(`/report-types/${id}`), {
-    method: 'DELETE',
-  })
-}
-
-export async function unarchiveReportType(id: string) {
-  return request<ReportType>(hp(`/report-types/${id}/unarchive`), {
+export async function verifySignalRegistration(code: string) {
+  return request<{ ok: boolean }>('/messaging/signal/verify', {
     method: 'POST',
-  })
-}
-
-export async function setDefaultReportType(id: string) {
-  return request<ReportType>(hp(`/report-types/${id}/default`), {
-    method: 'POST',
+    body: JSON.stringify({ code }),
   })
 }
 
@@ -1135,7 +1156,6 @@ export async function listReports(params?: {
 export async function createReport(data: {
   title: string
   category?: string
-  reportTypeId?: string
   encryptedContent: string
   readerEnvelopes: MessageKeyEnvelope[]
 }) {
@@ -1269,17 +1289,6 @@ export async function shareFile(
   return request<{ ok: true }>(`/files/${fileId}/share`, {
     method: 'POST',
     body: JSON.stringify(data),
-  })
-}
-
-export async function bindUploadContext(
-  uploadId: string,
-  contextType: 'note' | 'report' | 'custom_field',
-  contextId: string
-) {
-  return request<{ ok: true }>(`/uploads/${uploadId}/context`, {
-    method: 'PATCH',
-    body: JSON.stringify({ contextType, contextId }),
   })
 }
 
@@ -1520,111 +1529,47 @@ export async function removeHubMember(hubId: string, pubkey: string) {
   return request<{ ok: true }>(`/hubs/${hubId}/members/${pubkey}`, { method: 'DELETE' })
 }
 
-export async function archiveHub(id: string): Promise<void> {
-  await request<{ hub: Hub }>(`/hubs/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status: 'archived' }),
-  })
-}
+// --- Geocoding ---
 
-export async function deleteHub(id: string): Promise<void> {
-  await request<{ ok: true }>(`/hubs/${id}`, { method: 'DELETE' })
-}
+import type { GeocodingConfig, GeocodingConfigAdmin, LocationResult } from '@shared/types'
+export type { GeocodingConfig, GeocodingConfigAdmin, LocationResult } from '@shared/types'
 
-export interface HubKeyEnvelope {
-  pubkey: string
-  wrappedKey: string
-  ephemeralPubkey: string
-}
-
-export async function getMyHubKeyEnvelope(
-  hubId: string
-): Promise<HubKeyEnvelope | null> {
-  try {
-    const { envelope } = await request<{ envelope: HubKeyEnvelope }>(
-      `/hubs/${hubId}/key`
-    )
-    return envelope
-  } catch {
-    return null
-  }
-}
-
-// --- GDPR ---
-
-export interface GdprConsentStatus {
-  hasConsented: boolean
-  consentVersion: string | null
-  consentedAt: string | null
-  currentPlatformVersion: string
-}
-
-export interface GdprErasureRequest {
-  pubkey: string
-  requestedAt: string
-  executeAt: string
-  status: 'pending' | 'cancelled' | 'executed'
-}
-
-export interface RetentionSettings {
-  callRecordsDays: number
-  notesDays: number
-  messagesDays: number
-  auditLogDays: number
-}
-
-export async function getConsentStatus(): Promise<GdprConsentStatus> {
-  return request<GdprConsentStatus>('/gdpr/consent')
-}
-
-export async function submitConsent(version: string): Promise<void> {
-  await request<{ ok: true }>('/gdpr/consent', {
+export async function geocodingAutocomplete(query: string, limit = 5) {
+  return request<LocationResult[]>('/geocoding/autocomplete', {
     method: 'POST',
-    body: JSON.stringify({ version }),
+    body: JSON.stringify({ query, limit }),
   })
 }
 
-export async function downloadMyData(): Promise<void> {
-  const sessionToken = sessionStorage.getItem('llamenos-session-token')
-  const headers: Record<string, string> = {}
-  if (sessionToken) {
-    headers.Authorization = `Session ${sessionToken}`
-  }
-  const res = await fetch('/api/gdpr/export', { headers })
-  if (!res.ok) throw new ApiError(res.status, await res.text())
-  const blob = await res.blob()
-  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `llamenos-export-${date}.json`
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-export async function getMyErasureRequest(): Promise<GdprErasureRequest | null> {
-  const { request: req } = await request<{ request: GdprErasureRequest | null }>('/gdpr/me/erasure')
-  return req
-}
-
-export async function requestAccountErasure(): Promise<GdprErasureRequest> {
-  const { request: req } = await request<{ request: GdprErasureRequest }>('/gdpr/me', {
-    method: 'DELETE',
+export async function geocodingGeocode(address: string) {
+  return request<LocationResult | null>('/geocoding/geocode', {
+    method: 'POST',
+    body: JSON.stringify({ address }),
   })
-  return req
 }
 
-export async function cancelAccountErasure(): Promise<void> {
-  await request<{ ok: true }>('/gdpr/me/cancel', { method: 'DELETE' })
-}
-
-export async function getRetentionSettings(): Promise<RetentionSettings> {
-  return request<RetentionSettings>('/settings/retention')
-}
-
-export async function updateRetentionSettings(data: Partial<RetentionSettings>): Promise<RetentionSettings> {
-  return request<RetentionSettings>('/settings/retention', {
-    method: 'PUT',
-    body: JSON.stringify(data),
+export async function geocodingReverse(lat: number, lon: number) {
+  return request<LocationResult | null>('/geocoding/reverse', {
+    method: 'POST',
+    body: JSON.stringify({ lat, lon }),
   })
+}
+
+export async function getGeocodingConfig() {
+  return request<GeocodingConfig>('/geocoding/config')
+}
+
+export async function getGeocodingSettings() {
+  return request<GeocodingConfigAdmin>('/geocoding/settings')
+}
+
+export async function updateGeocodingSettings(config: Partial<GeocodingConfigAdmin>) {
+  return request<GeocodingConfigAdmin>('/geocoding/settings', {
+    method: 'PATCH',
+    body: JSON.stringify(config),
+  })
+}
+
+export async function testGeocodingProvider() {
+  return request<{ ok: boolean; latency: number; error?: string }>('/geocoding/test')
 }

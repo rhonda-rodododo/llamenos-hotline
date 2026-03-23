@@ -2,7 +2,22 @@
 
 **Date:** 2026-03-22
 **Spec:** docs/superpowers/specs/2026-03-22-e2e-test-improvements-design.md
-**Status:** Ready to implement
+**Status:** Complete
+
+---
+
+## Completion Checklist
+
+- [x] Step 2 — Isolation audit grep commands (executed)
+- [x] Step 3 — `docs/TEST_ISOLATION_AUDIT.md` created
+- [x] Step 4 — `resetTestState(request)` added to all 33 mutation specs (34 total with bootstrap)
+- [x] Step 5 — Coverage gap analysis completed
+- [x] Step 5d — `docs/TEST_COVERAGE_GAPS.md` created
+- [x] Step 6 — `playwright.config.ts` updated with `PLAYWRIGHT_WORKERS` env var
+- [x] Step 7 — `.dev.vars.local.example` created; `.dev.vars.local` in `.gitignore`
+- [x] Step 8 — `scripts/test-local.sh` created and executable
+- [x] Step 9 — `CLAUDE.md` updated with new dev commands and local E2E instructions
+- [x] Step 10 — Verification: typecheck passes, no zero-arg `resetTestState()` calls, all mutation specs have resets
 
 ---
 
@@ -228,7 +243,7 @@ Local default stays at 1 until isolation is verified. Enable via `PLAYWRIGHT_WOR
 
 ## Step 7 — Create `.dev.vars.local.example`
 
-**File to create:** `/home/rikki/projects/llamenos-hotline/.dev.vars.local.example`
+**File to create:** `~/projects/llamenos-hotline/.dev.vars.local.example`
 
 ```
 # Local dev vars — used when running wrangler dev against Docker backend

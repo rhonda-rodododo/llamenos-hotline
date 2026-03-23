@@ -1,11 +1,21 @@
 # v1 dev port offsets — avoids conflicts with llamenos v2 (~/projects/llamenos)
 # v2 uses: postgres:5432, minio:9000/9001, strfry:7777
-# v1 uses: postgres:5433, minio:9002/9003, strfry:7778
+# v1 uses: postgres:5433, minio:9002/9003, strfry:7778, asterisk-ari:8089, asterisk-sip:5062
+#
+# Asterisk + bridge are enabled via --profile asterisk in the dev:docker script.
+#
+# The internal network is overridden to allow host port mappings in dev.
+# In production, internal: true keeps backing services off the host network.
 #
 # Usage:
-#   bun run dev:docker        # start dev services
+#   bun run dev:docker        # start all dev services (incl. asterisk)
 #   bun run dev:docker:down   # stop dev services
 #   bun run dev:server        # run app locally against these services
+
+# Override the internal network to allow port mappings on the host
+networks:
+  internal:
+    internal: false
 
 services:
   postgres:
@@ -18,3 +28,32 @@ services:
   strfry:
     ports:
       - "7778:7777"
+
+  # Asterisk PBX — dev port offsets
+  asterisk:
+    ports:
+      - "8089:8088"     # ARI HTTP/WS (offset from default 8088)
+      - "5062:5060/udp" # SIP UDP (offset from default 5060)
+      - "5062:5060/tcp" # SIP TCP
+
+  # ARI bridge — dev-friendly defaults, webhook to local wrangler dev server
+  asterisk-bridge:
+    environment:
+      - ARI_URL=ws://asterisk:8088/ari/events
+      - ARI_REST_URL=http://asterisk:8088/ari
+      - ARI_USERNAME=llamenos
+      - ARI_PASSWORD=changeme
+      - WORKER_WEBHOOK_URL=http://host.docker.internal:8788
+      - BRIDGE_SECRET=dev-bridge-secret
+      - BRIDGE_PORT=3001
+      - HOTLINE_NUMBER=${HOTLINE_NUMBER:-}
+      - SIP_PROVIDER=${SIP_PROVIDER:-}
+      - SIP_USERNAME=${SIP_USERNAME:-}
+      - SIP_PASSWORD=${SIP_PASSWORD:-}
+    ports:
+      - "3001:3001"     # Bridge HTTP API
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      asterisk:
+        condition: service_healthy
