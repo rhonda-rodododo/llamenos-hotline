@@ -260,3 +260,9 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 ### Security Fixes — Pending
 
 - [ ] **Unknown API routes should return 404 instead of 401** — Auth middleware runs before route matching, so unauthenticated requests to non-existent routes get 401 (reveals route doesn't exist but requires auth). Fix: move route matching before auth middleware, or add a catch-all 404 handler after all routes that returns 404 regardless of auth state.
+
+### Pre-Existing Test Failures — Need UI Selector Updates
+
+- [ ] **admin-flow.spec.ts** — 12/15 tests fail. Selectors don't match current UI: "Hub Settings" heading not found (sidebar link text changed), "call notes" heading not found, buttons detach from DOM during re-renders (volunteer add, note new). Needs selector audit against current UI.
+- [ ] **notes-crud.spec.ts** — 6/7 tests fail. Same heading/button selector issues as admin-flow.
+- [ ] **hub-access-control.spec.ts** — 1/4 tests fail. Edit dialog missing `data-testid="hub-access-toggle"` for the access control switch.
