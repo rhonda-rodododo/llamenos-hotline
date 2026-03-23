@@ -458,9 +458,7 @@
     "rateLimiting": "Giới hạn tần suất",
     "rateLimitingDescription": "Giới hạn cuộc gọi lặp lại từ cùng một số",
     "maxCallsPerMinute": "Cuộc gọi tối đa mỗi phút mỗi số",
-    "blockDuration": "Thời gian chặn (phút)",
-    "captchaMaxAttempts": "Số lần thử CAPTCHA tối đa",
-    "captchaMaxAttemptsDescription": "Số lần thử trước khi từ chối cuộc gọi (1-5)"
+    "blockDuration": "Thời gian chặn (phút)"
   },
   "callHistory": {
     "title": "Lịch sử cuộc gọi",
@@ -741,8 +739,7 @@
       "select": "Lựa chọn",
       "checkbox": "Hộp kiểm",
       "textarea": "Vùng văn bản",
-      "file": "File",
-      "location": "Vị trí"
+      "file": "File"
     },
     "validation": {
       "min": "Tối thiểu",
@@ -751,18 +748,7 @@
       "maxLength": "Độ dài tối đa"
     },
     "context": "Context",
-    "empty": "No custom fields defined",
-    "locationSettings": "Cài đặt vị trí",
-    "maxPrecision": "Độ chính xác tối đa",
-    "allowGps": "Cho phép vị trí GPS",
-    "locationEncryptionNote": "Dữ liệu vị trí được mã hóa cùng nội dung ghi chú (không có kiến thức)",
-    "precision": {
-      "exact": "Chính xác (tọa độ đầy đủ)",
-      "block": "Mức khối",
-      "neighborhood": "Khu vực lân cận (chỉ địa chỉ)",
-      "city": "Mức thành phố (chỉ địa chỉ)",
-      "none": "Không (chỉ văn bản)"
-    }
+    "empty": "No custom fields defined"
   },
   "volunteerProfile": {
     "joined": "Tham gia",
@@ -820,13 +806,7 @@
     "pause": "Pause",
     "loading": "Loading recording...",
     "error": "Failed to load recording",
-    "noRecording": "No recording available",
-    "transcribe": "Transcribe Recording",
-    "transcribing": "Transcribing...",
-    "transcribed": "Transcribed",
-    "transcriptionFailed": "Transcription failed",
-    "transcriptionNotSupported": "Your browser does not support local transcription",
-    "transcribingLocally": "Transcribing locally — audio stays on your device"
+    "noRecording": "No recording available"
   },
   "rcs": {
     "title": "RCS Channel",
@@ -839,42 +819,6 @@
     "fallbackToSmsDesc": "Send via SMS when RCS is unavailable for the recipient.",
     "autoResponse": "Auto-Response",
     "channelBadge": "RCS"
-  },
-  "signal": {
-    "title": "Signal Channel",
-    "description": "End-to-end encrypted messaging via Signal bridge.",
-    "e2eeNote": "Signal provides end-to-end encryption to the bridge. Messages are re-encrypted with your hotline's keys before storage.",
-    "bridgeUrl": "Bridge URL",
-    "bridgeApiKey": "Bridge API Key",
-    "webhookUrl": "Webhook URL",
-    "webhookSecret": "Webhook Secret",
-    "registeredNumber": "Registered Number",
-    "autoResponse": "Auto-Response",
-    "security": {
-      "transportLabel": "Transport: Signal (E2EE to bridge, strongest available)",
-      "bridgeDecryptionNotice": "Signal provides strong transport encryption. Messages are decrypted at our self-hosted bridge server (within your infrastructure) for processing, then re-encrypted for storage. The bridge requires ongoing maintenance as Signal updates its protocol."
-    }
-  },
-  "signalRegistration": {
-    "title": "Signal Number Registration",
-    "description": "Register your hotline phone number with Signal. The verification code will be intercepted automatically from your incoming SMS.",
-    "bridgeUrl": "Bridge URL",
-    "registeredNumber": "Phone Number to Register",
-    "useVoice": "Use voice verification (for VoIP numbers)",
-    "registerButton": "Register Signal",
-    "startRegistration": "Register Signal Number",
-    "notConfigured": "Signal number is not yet registered. Register to enable Signal messaging.",
-    "waitingSms": "Waiting for verification SMS...",
-    "waitingSmsDescription": "The verification code will be intercepted automatically from your incoming SMS. This may take a few minutes.",
-    "voiceVerification": "Voice Verification",
-    "voiceDescription": "Enter the 6-digit code from the verification voice call.",
-    "verificationCode": "Verification Code",
-    "connected": "Signal connected",
-    "registrationFailed": "Registration failed",
-    "tryAgain": "Try Again",
-    "alreadyInProgress": "Registration already in progress — wait for it to expire or refresh the page.",
-    "expired": "Registration expired. Please try again.",
-    "verificationFailed": "Verification failed"
   },
   "a11y": {
     "skipToContent": "Chuyển đến nội dung",
@@ -1188,7 +1132,49 @@
     },
     "demoMode": "Populate with sample data",
     "demoModeDescription": "Creates sample volunteer accounts, shifts, and ban entries for testing and demos. Demo account credentials will be shown on the login page.",
-    "demoSeedFailed": "Sample data partially created"
+    "demoSeedFailed": "Sample data partially created",
+    "oauth": {
+      "connecting": "Connecting...",
+      "validating": "Validating...",
+      "connected": "Connected to {{provider}}",
+      "validate": "Validate {{provider}} Credentials",
+      "signUp": "Sign up for {{provider}}",
+      "validationFailed": "Credential validation failed",
+      "connectionFailed": "Connection failed",
+      "enterCredentials": "Enter your credentials above first",
+      "credentialsValid": "{{provider}} credentials verified successfully."
+    },
+    "phoneNumbers": {
+      "existing": "Your Numbers",
+      "buyNew": "Buy New",
+      "refresh": "Refresh numbers",
+      "validateFirst": "Validate your provider credentials to see available phone numbers.",
+      "noExisting": "No phone numbers found in your account. Enter a number manually or buy a new one.",
+      "searchFailed": "Failed to search for available numbers",
+      "provisioned": "Phone number provisioned successfully",
+      "provisionFailed": "Failed to provision phone number",
+      "search": "Search",
+      "provision": "Buy",
+      "voice": "Voice",
+      "sms": "SMS",
+      "countryCode": "Country (ISO)",
+      "areaCode": "Area code"
+    },
+    "webhooks": {
+      "title": "Webhook URLs",
+      "description": "Configure these URLs in your provider's dashboard to receive calls and messages.",
+      "copyAll": "Copy All",
+      "voiceIncoming": "Voice (Incoming)",
+      "voiceStatus": "Voice (Status)",
+      "smsWebhook": "SMS Webhook",
+      "signalWebhook": "Signal Webhook"
+    },
+    "signalE2eeNote": "Signal provides end-to-end encryption to the bridge. Messages are re-encrypted with your hotline's keys before storage.",
+    "signalPrerequisites": "Prerequisites",
+    "signalPrereq1": "A Linux server with Docker installed",
+    "signalPrereq2": "A phone number to register with Signal",
+    "signalPrereq3": "Network access between your hotline server and the bridge",
+    "signalDockerCommand": "Docker Run Command"
   },
   "reports": {
     "title": "Reports",
@@ -1284,26 +1270,11 @@
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
   },
-  "locationField": {
-    "placeholder": "Tìm kiếm địa chỉ...",
-    "searching": "Đang tìm...",
-    "noResults": "Không có kết quả",
-    "openInMaps": "Mở trên bản đồ",
-    "clearLocation": "Xóa vị trí",
-    "useCurrentLocation": "Sử dụng vị trí hiện tại"
-  },
-  "geocoding": {
-    "title": "Mã hóa địa lý / Vị trí",
-    "description": "Cấu hình nhà cung cấp mã hóa địa lý để bật tự động hoàn thành vị trí trong các trường tùy chỉnh",
-    "provider": "Nhà cung cấp mã hóa địa lý",
-    "apiKey": "Khóa API",
-    "apiKeyPlaceholder": "Nhập khóa API của bạn",
-    "countries": "Bộ lọc quốc gia",
-    "countriesPlaceholder": "vd. vn, us, jp",
-    "countriesHelp": "Mã quốc gia 2 chữ cái phân cách bằng dấu phẩy. Để trống cho toàn cầu.",
-    "enabled": "Bật mã hóa địa lý",
-    "testConnection": "Kiểm tra kết nối",
-    "testSuccess": "Kết nối thành công ({{latency}}ms)",
-    "testFailed": "Kiểm tra kết nối thất bại"
+  "channelSettings": {
+    "title": "Channels & Providers",
+    "description": "Manage which communication channels are enabled for your hotline.",
+    "summary": "Manage channels",
+    "active": "Active",
+    "currentProvider": "Current voice/SMS provider:"
   }
 }

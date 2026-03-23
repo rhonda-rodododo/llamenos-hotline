@@ -458,9 +458,7 @@
     "rateLimiting": "속도 제한",
     "rateLimitingDescription": "같은 번호의 반복 통화 제한",
     "maxCallsPerMinute": "번호당 분당 최대 통화 수",
-    "blockDuration": "차단 기간 (분)",
-    "captchaMaxAttempts": "CAPTCHA 최대 시도 횟수",
-    "captchaMaxAttemptsDescription": "통화 거부 전 시도 횟수 (1-5)"
+    "blockDuration": "차단 기간 (분)"
   },
   "callHistory": {
     "title": "통화 기록",
@@ -741,8 +739,7 @@
       "select": "선택",
       "checkbox": "체크박스",
       "textarea": "텍스트 영역",
-      "file": "File",
-      "location": "위치"
+      "file": "File"
     },
     "validation": {
       "min": "최소",
@@ -751,18 +748,7 @@
       "maxLength": "최대 길이"
     },
     "context": "Context",
-    "empty": "No custom fields defined",
-    "locationSettings": "위치 설정",
-    "maxPrecision": "최대 정밀도",
-    "allowGps": "GPS 위치 허용",
-    "locationEncryptionNote": "위치 데이터는 노트 내용과 함께 암호화됩니다 (제로 지식)",
-    "precision": {
-      "exact": "정확 (전체 좌표)",
-      "block": "블록 수준",
-      "neighborhood": "동네 (주소만)",
-      "city": "도시 수준 (주소만)",
-      "none": "없음 (텍스트만)"
-    }
+    "empty": "No custom fields defined"
   },
   "volunteerProfile": {
     "joined": "가입일",
@@ -820,13 +806,7 @@
     "pause": "Pause",
     "loading": "Loading recording...",
     "error": "Failed to load recording",
-    "noRecording": "No recording available",
-    "transcribe": "Transcribe Recording",
-    "transcribing": "Transcribing...",
-    "transcribed": "Transcribed",
-    "transcriptionFailed": "Transcription failed",
-    "transcriptionNotSupported": "Your browser does not support local transcription",
-    "transcribingLocally": "Transcribing locally — audio stays on your device"
+    "noRecording": "No recording available"
   },
   "rcs": {
     "title": "RCS Channel",
@@ -839,42 +819,6 @@
     "fallbackToSmsDesc": "Send via SMS when RCS is unavailable for the recipient.",
     "autoResponse": "Auto-Response",
     "channelBadge": "RCS"
-  },
-  "signal": {
-    "title": "Signal Channel",
-    "description": "End-to-end encrypted messaging via Signal bridge.",
-    "e2eeNote": "Signal provides end-to-end encryption to the bridge. Messages are re-encrypted with your hotline's keys before storage.",
-    "bridgeUrl": "Bridge URL",
-    "bridgeApiKey": "Bridge API Key",
-    "webhookUrl": "Webhook URL",
-    "webhookSecret": "Webhook Secret",
-    "registeredNumber": "Registered Number",
-    "autoResponse": "Auto-Response",
-    "security": {
-      "transportLabel": "Transport: Signal (E2EE to bridge, strongest available)",
-      "bridgeDecryptionNotice": "Signal provides strong transport encryption. Messages are decrypted at our self-hosted bridge server (within your infrastructure) for processing, then re-encrypted for storage. The bridge requires ongoing maintenance as Signal updates its protocol."
-    }
-  },
-  "signalRegistration": {
-    "title": "Signal Number Registration",
-    "description": "Register your hotline phone number with Signal. The verification code will be intercepted automatically from your incoming SMS.",
-    "bridgeUrl": "Bridge URL",
-    "registeredNumber": "Phone Number to Register",
-    "useVoice": "Use voice verification (for VoIP numbers)",
-    "registerButton": "Register Signal",
-    "startRegistration": "Register Signal Number",
-    "notConfigured": "Signal number is not yet registered. Register to enable Signal messaging.",
-    "waitingSms": "Waiting for verification SMS...",
-    "waitingSmsDescription": "The verification code will be intercepted automatically from your incoming SMS. This may take a few minutes.",
-    "voiceVerification": "Voice Verification",
-    "voiceDescription": "Enter the 6-digit code from the verification voice call.",
-    "verificationCode": "Verification Code",
-    "connected": "Signal connected",
-    "registrationFailed": "Registration failed",
-    "tryAgain": "Try Again",
-    "alreadyInProgress": "Registration already in progress — wait for it to expire or refresh the page.",
-    "expired": "Registration expired. Please try again.",
-    "verificationFailed": "Verification failed"
   },
   "a11y": {
     "skipToContent": "콘텐츠로 건너뛰기",
@@ -1188,7 +1132,49 @@
     },
     "demoMode": "Populate with sample data",
     "demoModeDescription": "Creates sample volunteer accounts, shifts, and ban entries for testing and demos. Demo account credentials will be shown on the login page.",
-    "demoSeedFailed": "Sample data partially created"
+    "demoSeedFailed": "Sample data partially created",
+    "oauth": {
+      "connecting": "Connecting...",
+      "validating": "Validating...",
+      "connected": "Connected to {{provider}}",
+      "validate": "Validate {{provider}} Credentials",
+      "signUp": "Sign up for {{provider}}",
+      "validationFailed": "Credential validation failed",
+      "connectionFailed": "Connection failed",
+      "enterCredentials": "Enter your credentials above first",
+      "credentialsValid": "{{provider}} credentials verified successfully."
+    },
+    "phoneNumbers": {
+      "existing": "Your Numbers",
+      "buyNew": "Buy New",
+      "refresh": "Refresh numbers",
+      "validateFirst": "Validate your provider credentials to see available phone numbers.",
+      "noExisting": "No phone numbers found in your account. Enter a number manually or buy a new one.",
+      "searchFailed": "Failed to search for available numbers",
+      "provisioned": "Phone number provisioned successfully",
+      "provisionFailed": "Failed to provision phone number",
+      "search": "Search",
+      "provision": "Buy",
+      "voice": "Voice",
+      "sms": "SMS",
+      "countryCode": "Country (ISO)",
+      "areaCode": "Area code"
+    },
+    "webhooks": {
+      "title": "Webhook URLs",
+      "description": "Configure these URLs in your provider's dashboard to receive calls and messages.",
+      "copyAll": "Copy All",
+      "voiceIncoming": "Voice (Incoming)",
+      "voiceStatus": "Voice (Status)",
+      "smsWebhook": "SMS Webhook",
+      "signalWebhook": "Signal Webhook"
+    },
+    "signalE2eeNote": "Signal provides end-to-end encryption to the bridge. Messages are re-encrypted with your hotline's keys before storage.",
+    "signalPrerequisites": "Prerequisites",
+    "signalPrereq1": "A Linux server with Docker installed",
+    "signalPrereq2": "A phone number to register with Signal",
+    "signalPrereq3": "Network access between your hotline server and the bridge",
+    "signalDockerCommand": "Docker Run Command"
   },
   "reports": {
     "title": "Reports",
@@ -1284,26 +1270,11 @@
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
   },
-  "locationField": {
-    "placeholder": "주소 검색...",
-    "searching": "검색 중...",
-    "noResults": "결과 없음",
-    "openInMaps": "지도에서 열기",
-    "clearLocation": "위치 지우기",
-    "useCurrentLocation": "현재 위치 사용"
-  },
-  "geocoding": {
-    "title": "지오코딩 / 위치",
-    "description": "사용자 정의 필드에서 위치 자동완성을 활성화하기 위해 지오코딩 제공업체를 구성합니다",
-    "provider": "지오코딩 제공업체",
-    "apiKey": "API 키",
-    "apiKeyPlaceholder": "API 키를 입력하세요",
-    "countries": "국가 필터",
-    "countriesPlaceholder": "예: kr, us, jp",
-    "countriesHelp": "쉼표로 구분된 2자리 국가 코드. 전 세계는 비워두세요.",
-    "enabled": "지오코딩 활성화",
-    "testConnection": "연결 테스트",
-    "testSuccess": "연결 성공 ({{latency}}ms)",
-    "testFailed": "연결 테스트 실패"
+  "channelSettings": {
+    "title": "Channels & Providers",
+    "description": "Manage which communication channels are enabled for your hotline.",
+    "summary": "Manage channels",
+    "active": "Active",
+    "currentProvider": "Current voice/SMS provider:"
   }
 }

@@ -458,9 +458,7 @@
     "rateLimiting": "频率限制",
     "rateLimitingDescription": "限制同一号码的重复来电",
     "maxCallsPerMinute": "每分钟每号码最大通话数",
-    "blockDuration": "封禁时长（分钟）",
-    "captchaMaxAttempts": "CAPTCHA 最大尝试次数",
-    "captchaMaxAttemptsDescription": "拒绝通话前的尝试次数（1-5）"
+    "blockDuration": "封禁时长（分钟）"
   },
   "callHistory": {
     "title": "通话记录",
@@ -741,8 +739,7 @@
       "select": "下拉选择",
       "checkbox": "复选框",
       "textarea": "文本区域",
-      "file": "File",
-      "location": "位置"
+      "file": "File"
     },
     "validation": {
       "min": "最小值",
@@ -751,18 +748,7 @@
       "maxLength": "最大长度"
     },
     "context": "Context",
-    "empty": "No custom fields defined",
-    "locationSettings": "位置设置",
-    "maxPrecision": "最大精度",
-    "allowGps": "允许 GPS 定位",
-    "locationEncryptionNote": "位置数据与笔记内容一起加密（零知识）",
-    "precision": {
-      "exact": "精确（完整坐标）",
-      "block": "街区级别",
-      "neighborhood": "社区（仅地址）",
-      "city": "城市级别（仅地址）",
-      "none": "无（仅文本）"
-    }
+    "empty": "No custom fields defined"
   },
   "volunteerProfile": {
     "joined": "加入于",
@@ -820,13 +806,7 @@
     "pause": "Pause",
     "loading": "Loading recording...",
     "error": "Failed to load recording",
-    "noRecording": "No recording available",
-    "transcribe": "Transcribe Recording",
-    "transcribing": "Transcribing...",
-    "transcribed": "Transcribed",
-    "transcriptionFailed": "Transcription failed",
-    "transcriptionNotSupported": "Your browser does not support local transcription",
-    "transcribingLocally": "Transcribing locally — audio stays on your device"
+    "noRecording": "No recording available"
   },
   "rcs": {
     "title": "RCS Channel",
@@ -839,42 +819,6 @@
     "fallbackToSmsDesc": "Send via SMS when RCS is unavailable for the recipient.",
     "autoResponse": "Auto-Response",
     "channelBadge": "RCS"
-  },
-  "signal": {
-    "title": "Signal Channel",
-    "description": "End-to-end encrypted messaging via Signal bridge.",
-    "e2eeNote": "Signal provides end-to-end encryption to the bridge. Messages are re-encrypted with your hotline's keys before storage.",
-    "bridgeUrl": "Bridge URL",
-    "bridgeApiKey": "Bridge API Key",
-    "webhookUrl": "Webhook URL",
-    "webhookSecret": "Webhook Secret",
-    "registeredNumber": "Registered Number",
-    "autoResponse": "Auto-Response",
-    "security": {
-      "transportLabel": "Transport: Signal (E2EE to bridge, strongest available)",
-      "bridgeDecryptionNotice": "Signal provides strong transport encryption. Messages are decrypted at our self-hosted bridge server (within your infrastructure) for processing, then re-encrypted for storage. The bridge requires ongoing maintenance as Signal updates its protocol."
-    }
-  },
-  "signalRegistration": {
-    "title": "Signal Number Registration",
-    "description": "Register your hotline phone number with Signal. The verification code will be intercepted automatically from your incoming SMS.",
-    "bridgeUrl": "Bridge URL",
-    "registeredNumber": "Phone Number to Register",
-    "useVoice": "Use voice verification (for VoIP numbers)",
-    "registerButton": "Register Signal",
-    "startRegistration": "Register Signal Number",
-    "notConfigured": "Signal number is not yet registered. Register to enable Signal messaging.",
-    "waitingSms": "Waiting for verification SMS...",
-    "waitingSmsDescription": "The verification code will be intercepted automatically from your incoming SMS. This may take a few minutes.",
-    "voiceVerification": "Voice Verification",
-    "voiceDescription": "Enter the 6-digit code from the verification voice call.",
-    "verificationCode": "Verification Code",
-    "connected": "Signal connected",
-    "registrationFailed": "Registration failed",
-    "tryAgain": "Try Again",
-    "alreadyInProgress": "Registration already in progress — wait for it to expire or refresh the page.",
-    "expired": "Registration expired. Please try again.",
-    "verificationFailed": "Verification failed"
   },
   "a11y": {
     "skipToContent": "跳到内容",
@@ -1188,7 +1132,49 @@
     },
     "demoMode": "Populate with sample data",
     "demoModeDescription": "Creates sample volunteer accounts, shifts, and ban entries for testing and demos. Demo account credentials will be shown on the login page.",
-    "demoSeedFailed": "Sample data partially created"
+    "demoSeedFailed": "Sample data partially created",
+    "oauth": {
+      "connecting": "Connecting...",
+      "validating": "Validating...",
+      "connected": "Connected to {{provider}}",
+      "validate": "Validate {{provider}} Credentials",
+      "signUp": "Sign up for {{provider}}",
+      "validationFailed": "Credential validation failed",
+      "connectionFailed": "Connection failed",
+      "enterCredentials": "Enter your credentials above first",
+      "credentialsValid": "{{provider}} credentials verified successfully."
+    },
+    "phoneNumbers": {
+      "existing": "Your Numbers",
+      "buyNew": "Buy New",
+      "refresh": "Refresh numbers",
+      "validateFirst": "Validate your provider credentials to see available phone numbers.",
+      "noExisting": "No phone numbers found in your account. Enter a number manually or buy a new one.",
+      "searchFailed": "Failed to search for available numbers",
+      "provisioned": "Phone number provisioned successfully",
+      "provisionFailed": "Failed to provision phone number",
+      "search": "Search",
+      "provision": "Buy",
+      "voice": "Voice",
+      "sms": "SMS",
+      "countryCode": "Country (ISO)",
+      "areaCode": "Area code"
+    },
+    "webhooks": {
+      "title": "Webhook URLs",
+      "description": "Configure these URLs in your provider's dashboard to receive calls and messages.",
+      "copyAll": "Copy All",
+      "voiceIncoming": "Voice (Incoming)",
+      "voiceStatus": "Voice (Status)",
+      "smsWebhook": "SMS Webhook",
+      "signalWebhook": "Signal Webhook"
+    },
+    "signalE2eeNote": "Signal provides end-to-end encryption to the bridge. Messages are re-encrypted with your hotline's keys before storage.",
+    "signalPrerequisites": "Prerequisites",
+    "signalPrereq1": "A Linux server with Docker installed",
+    "signalPrereq2": "A phone number to register with Signal",
+    "signalPrereq3": "Network access between your hotline server and the bridge",
+    "signalDockerCommand": "Docker Run Command"
   },
   "reports": {
     "title": "Reports",
@@ -1284,26 +1270,11 @@
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
   },
-  "locationField": {
-    "placeholder": "搜索地址...",
-    "searching": "搜索中...",
-    "noResults": "未找到结果",
-    "openInMaps": "在地图中打开",
-    "clearLocation": "清除位置",
-    "useCurrentLocation": "使用当前位置"
-  },
-  "geocoding": {
-    "title": "地理编码 / 位置",
-    "description": "配置地理编码提供商以在自定义字段中启用位置自动完成",
-    "provider": "地理编码提供商",
-    "apiKey": "API 密钥",
-    "apiKeyPlaceholder": "输入您的 API 密钥",
-    "countries": "国家筛选",
-    "countriesPlaceholder": "例如 cn, us, jp",
-    "countriesHelp": "逗号分隔的 2 字母国家代码。留空表示全球。",
-    "enabled": "启用地理编码",
-    "testConnection": "测试连接",
-    "testSuccess": "连接成功 ({{latency}}ms)",
-    "testFailed": "连接测试失败"
+  "channelSettings": {
+    "title": "Channels & Providers",
+    "description": "Manage which communication channels are enabled for your hotline.",
+    "summary": "Manage channels",
+    "active": "Active",
+    "currentProvider": "Current voice/SMS provider:"
   }
 }
