@@ -820,6 +820,42 @@
     "autoResponse": "Auto-Response",
     "channelBadge": "RCS"
   },
+  "signal": {
+    "title": "Signal Channel",
+    "description": "End-to-end encrypted messaging via Signal bridge.",
+    "e2eeNote": "Signal provides end-to-end encryption to the bridge. Messages are re-encrypted with your hotline's keys before storage.",
+    "bridgeUrl": "Bridge URL",
+    "bridgeApiKey": "Bridge API Key",
+    "webhookUrl": "Webhook URL",
+    "webhookSecret": "Webhook Secret",
+    "registeredNumber": "Registered Number",
+    "autoResponse": "Auto-Response",
+    "security": {
+      "transportLabel": "Transport: Signal (E2EE to bridge, strongest available)",
+      "bridgeDecryptionNotice": "Signal provides strong transport encryption. Messages are decrypted at our self-hosted bridge server (within your infrastructure) for processing, then re-encrypted for storage. The bridge requires ongoing maintenance as Signal updates its protocol."
+    }
+  },
+  "signalRegistration": {
+    "title": "Signal Number Registration",
+    "description": "Register your hotline phone number with Signal. The verification code will be intercepted automatically from your incoming SMS.",
+    "bridgeUrl": "Bridge URL",
+    "registeredNumber": "Phone Number to Register",
+    "useVoice": "Use voice verification (for VoIP numbers)",
+    "registerButton": "Register Signal",
+    "startRegistration": "Register Signal Number",
+    "notConfigured": "Signal number is not yet registered. Register to enable Signal messaging.",
+    "waitingSms": "Waiting for verification SMS...",
+    "waitingSmsDescription": "The verification code will be intercepted automatically from your incoming SMS. This may take a few minutes.",
+    "voiceVerification": "Voice Verification",
+    "voiceDescription": "Enter the 6-digit code from the verification voice call.",
+    "verificationCode": "Verification Code",
+    "connected": "Signal connected",
+    "registrationFailed": "Registration failed",
+    "tryAgain": "Try Again",
+    "alreadyInProgress": "Registration already in progress — wait for it to expire or refresh the page.",
+    "expired": "Registration expired. Please try again.",
+    "verificationFailed": "Verification failed"
+  },
   "a11y": {
     "skipToContent": "Zum Inhalt springen",
     "switchToLanguage": "Zu {{language}} wechseln",

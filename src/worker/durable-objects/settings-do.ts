@@ -10,6 +10,7 @@ import type {
   Hub,
   MessagingConfig,
   SetupState,
+  SignalRegistrationPending,
   TelephonyProviderConfig,
 } from '../../shared/types'
 import {
@@ -95,6 +96,17 @@ export class SettingsDO extends DurableObject<Env> {
     this.router.get('/settings/messaging', () => this.getMessagingConfig())
     this.router.patch('/settings/messaging', async (req) =>
       this.updateMessagingConfig(await req.json())
+    )
+
+    // --- Signal Registration Pending ---
+    this.router.get('/settings/signal-registration-pending', () =>
+      this.getSignalRegistrationPending()
+    )
+    this.router.put('/settings/signal-registration-pending', async (req) =>
+      this.setSignalRegistrationPending(await req.json())
+    )
+    this.router.delete('/settings/signal-registration-pending', () =>
+      this.clearSignalRegistrationPending()
     )
 
     // --- Setup State ---
@@ -527,6 +539,34 @@ export class SettingsDO extends DurableObject<Env> {
 
     await this.ctx.storage.put('messagingConfig', updated)
     return Response.json(updated)
+  }
+
+  // --- Signal Registration Pending ---
+
+  private static readonly SIGNAL_REGISTRATION_PENDING_KEY = 'signalRegistrationPending'
+
+  private async getSignalRegistrationPending(): Promise<Response> {
+    const pending = await this.ctx.storage.get<SignalRegistrationPending>(
+      SettingsDO.SIGNAL_REGISTRATION_PENDING_KEY
+    )
+    if (pending && new Date(pending.expiresAt).getTime() < Date.now()) {
+      // TTL expired — clean up and return null
+      await this.ctx.storage.delete(SettingsDO.SIGNAL_REGISTRATION_PENDING_KEY)
+      return Response.json(null)
+    }
+    return Response.json(pending || null)
+  }
+
+  private async setSignalRegistrationPending(
+    pending: SignalRegistrationPending
+  ): Promise<Response> {
+    await this.ctx.storage.put(SettingsDO.SIGNAL_REGISTRATION_PENDING_KEY, pending)
+    return Response.json({ ok: true })
+  }
+
+  private async clearSignalRegistrationPending(): Promise<Response> {
+    await this.ctx.storage.delete(SettingsDO.SIGNAL_REGISTRATION_PENDING_KEY)
+    return Response.json({ ok: true })
   }
 
   // --- Setup State ---

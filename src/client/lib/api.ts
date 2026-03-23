@@ -989,6 +989,42 @@ export async function testWhatsAppConnection(data: { phoneNumberId: string; acce
   })
 }
 
+// --- Signal Registration ---
+
+export interface SignalRegistrationResponse {
+  ok: boolean
+  method: 'sms' | 'voice'
+}
+
+export interface SignalRegistrationStatus {
+  status: 'idle' | 'pending' | 'complete' | 'failed'
+  method?: 'sms' | 'voice'
+  expiresAt?: string
+  error?: string
+}
+
+export async function startSignalRegistration(data: {
+  bridgeUrl: string
+  registeredNumber: string
+  useVoice?: boolean
+}) {
+  return request<SignalRegistrationResponse>('/messaging/signal/register', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getSignalRegistrationStatus() {
+  return request<SignalRegistrationStatus>('/messaging/signal/registration-status')
+}
+
+export async function verifySignalRegistration(code: string) {
+  return request<{ ok: boolean }>('/messaging/signal/verify', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  })
+}
+
 // --- Reports ---
 
 export interface Report extends Conversation {

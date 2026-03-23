@@ -1,12 +1,22 @@
 import { Hono } from 'hono'
 import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
 import { canClaimChannel } from '../../shared/permissions'
-import type { MessagingChannelType, MessagingConfig, WhatsAppConfig } from '../../shared/types'
+import type {
+  MessagingChannelType,
+  MessagingConfig,
+  SignalRegistrationPending,
+  WhatsAppConfig,
+} from '../../shared/types'
 import { getDOs, getNostrPublisher, getScopedDOs } from '../lib/do-access'
 import { getMessagingAdapter } from '../lib/do-access'
 import { audit } from '../services/audit'
 import type { AppEnv, Env, Volunteer } from '../types'
 import type { IncomingMessage, MessageStatusUpdate, MessagingAdapter } from './adapter'
+import {
+  completeSignalRegistration,
+  extractSignalCode,
+  isSignalVerificationSMS,
+} from './signal/registration'
 
 const messaging = new Hono<AppEnv>()
 
@@ -141,6 +151,26 @@ messaging.post('/:channel/webhook', async (c) => {
   } catch (err) {
     console.error(`[messaging] Failed to parse ${channel} webhook:`, err)
     return c.json({ error: 'Failed to parse message' }, 400)
+  }
+
+  // --- Signal verification SMS interception ---
+  // Check if this SMS is a Signal verification code before any conversation routing.
+  // This must run before keyword interception and conversation creation.
+  if (channel === 'sms' && incoming.body) {
+    const globalDos = getDOs(c.env)
+    const pendingRes = await globalDos.settings.fetch(
+      new Request('http://do/settings/signal-registration-pending')
+    )
+    const pending = (await pendingRes.json()) as SignalRegistrationPending | null
+
+    if (pending && pending.status === 'pending' && isSignalVerificationSMS(incoming.body)) {
+      const code = extractSignalCode(incoming.body)
+      await completeSignalRegistration(pending, code, globalDos.settings)
+      // Return empty TwiML — do not route as a conversation
+      return c.text('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', 200, {
+        'Content-Type': 'text/xml',
+      })
+    }
   }
 
   // Keyword interception for blast subscribe/unsubscribe

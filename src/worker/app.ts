@@ -18,6 +18,7 @@ import filesRoutes from './routes/files'
 import healthRoutes from './routes/health'
 import hubRoutes from './routes/hubs'
 import invitesRoutes from './routes/invites'
+import signalRegistrationRoutes from './routes/messaging/signal-registration'
 import metricsRoutes from './routes/metrics'
 import notesRoutes from './routes/notes'
 import provisioningRoutes from './routes/provisioning'
@@ -58,6 +59,12 @@ api.route('/telephony', telephonyRoutes)
 
 // Messaging webhooks (each adapter validates its own signature)
 api.route('/messaging', messagingRoutes)
+
+// Signal registration (authenticated — admin only)
+const signalRegAuth = new Hono<AppEnv>()
+signalRegAuth.use('*', auth)
+signalRegAuth.route('/', signalRegistrationRoutes)
+api.route('/messaging/signal', signalRegAuth)
 
 // Public preferences endpoint (no auth, token-validated)
 api.get('/messaging/preferences', async (c) => {
