@@ -242,7 +242,7 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 
 > Plans below were created 2026-03-22 but not yet added to the backlog. Status determined by codebase audit.
 
-- [ ] **Foundation Tooling** (`2026-03-22-foundation-tooling-plan.md`) — ~85% done. Biome, build constants, esbuild removal, Docker scripts all complete. Remaining: delete `src/globals.d.ts`, pin Docker SHA, run Phase 8 verification.
+- [x] **Foundation Tooling** (`2026-03-22-foundation-tooling-plan.md`) — Biome setup, build constants, esbuild removal, Docker SHA pinning, CI lint job, dev:docker scripts.
 - [x] **E2E Test Improvements** (`2026-03-22-e2e-test-improvements-plan.md`) — Test isolation, `resetTestState()` in 34 specs, coverage gaps doc, parallel workers, test-local.sh, .dev.vars.local.example.
 - [ ] **CF → VPS Demo Migration** (`2026-03-22-cf-vps-demo-migration-plan.md`) — ~70% done. Ansible role, cron reset, deploy workflow all exist. Remaining: verify demo_vars.example.yml, env.j2 template, run full verification.
 - [ ] **Application Hardening** (`2026-03-22-application-hardening-plan.md`) — ~40% done. Environment guards updated. Missing: cross-hub call subscriptions, hub deletion/archiving cascade, per-hub resource isolation audit, v2 backports.
