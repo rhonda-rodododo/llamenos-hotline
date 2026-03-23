@@ -1,9 +1,9 @@
 import { describe, expect, test, beforeAll, afterAll } from 'bun:test'
 import { migrate } from 'drizzle-orm/bun-sql/migrator'
 import path from 'node:path'
-import { createDatabase } from '../../src/server/db'
-import { RecordsService } from '../../src/server/services/records'
-import { auditLog } from '../../src/server/db/schema'
+import { createDatabase } from '@server/db'
+import { RecordsService } from '@server/services/records'
+import { auditLog } from '@server/db/schema'
 import { eq } from 'drizzle-orm'
 
 const TEST_DB_URL = process.env.TEST_DATABASE_URL ?? 'postgres://llamenos:llamenos@localhost:5433/llamenos_test'
@@ -54,8 +54,8 @@ describe('audit-chain', () => {
 
   test('tampered entry breaks hash chain verification', async () => {
     const hub = `${RUN_PREFIX}-t4`
-    const e1 = await service.addAuditEntry(TEST_HUB, 'event.real', 'pubkey-y', { safe: true })
-    const e2 = await service.addAuditEntry(TEST_HUB, 'event.after', 'pubkey-y')
+    const e1 = await service.addAuditEntry(hub, 'event.real', 'pubkey-y', { safe: true })
+    const e2 = await service.addAuditEntry(hub, 'event.after', 'pubkey-y')
 
     // Tamper with e1's details directly in the DB
     await db

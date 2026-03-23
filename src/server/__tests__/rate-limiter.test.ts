@@ -1,9 +1,9 @@
 import { describe, expect, test, beforeAll, afterAll } from 'bun:test'
 import { migrate } from 'drizzle-orm/bun-sql/migrator'
 import path from 'node:path'
-import { createDatabase } from '../../src/server/db'
-import { SettingsService } from '../../src/server/services/settings'
-import { rateLimitCounters } from '../../src/server/db/schema'
+import { createDatabase } from '@server/db'
+import { SettingsService } from '@server/services/settings'
+import { rateLimitCounters } from '@server/db/schema'
 import { eq, sql } from 'drizzle-orm'
 
 const TEST_DB_URL = process.env.TEST_DATABASE_URL ?? 'postgres://llamenos:llamenos@localhost:5433/llamenos_test'

@@ -3,8 +3,8 @@ import {
   MAX_CUSTOM_FIELDS,
   MAX_SELECT_OPTIONS,
   fieldMatchesContext,
-} from '../../src/shared/types'
-import type { CustomFieldDefinition, CustomFieldContext } from '../../src/shared/types'
+} from '@shared/types'
+import type { CustomFieldDefinition, CustomFieldContext } from '@shared/types'
 
 function makeField(context: CustomFieldContext): CustomFieldDefinition {
   return {

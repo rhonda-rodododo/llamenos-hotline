@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import * as labels from '../../src/shared/crypto-labels'
+import * as labels from '@shared/crypto-labels'
 
 describe('crypto-labels', () => {
   const entries = Object.entries(labels)
