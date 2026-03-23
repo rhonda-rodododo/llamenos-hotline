@@ -244,10 +244,10 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 
 - [x] **Foundation Tooling** (`2026-03-22-foundation-tooling-plan.md`) — Biome setup, build constants, esbuild removal, Docker SHA pinning, CI lint job, dev:docker scripts.
 - [x] **E2E Test Improvements** (`2026-03-22-e2e-test-improvements-plan.md`) — Test isolation, `resetTestState()` in 34 specs, coverage gaps doc, parallel workers, test-local.sh, .dev.vars.local.example.
-- [ ] **CF → VPS Demo Migration** (`2026-03-22-cf-vps-demo-migration-plan.md`) — ~70% done. Ansible role, cron reset, deploy workflow all exist. Remaining: verify demo_vars.example.yml, env.j2 template, run full verification.
+- [x] **CF → VPS Demo Migration** (`2026-03-22-cf-vps-demo-migration-plan.md`) — Ansible role templates (env.j2, docker-compose.j2, caddy.j2), demo cron reset, deploy workflow, justfile recipes.
 - [ ] **Application Hardening** (`2026-03-22-application-hardening-plan.md`) — ~40% done. Environment guards updated. Missing: cross-hub call subscriptions, hub deletion/archiving cascade, per-hub resource isolation audit, v2 backports.
 - [ ] **CF Removal + Drizzle Migration** (`2026-03-22-cf-removal-drizzle-migration-plan.md`) — 0% done. Major architecture migration: Durable Objects → Drizzle/PostgreSQL services. All 7 DOs still active. *Blocks hub-admin-zero-trust and production deployment.*
-- [ ] **SLSA Provenance** (`2026-03-22-slsa-provenance-plan.md`) — ~60% done. Dockerfile.build, verify-build.sh, CHECKSUMS.txt, attest-build-provenance all exist. Missing: GPG signing workflow, provenance JSON metadata.
+- [x] **SLSA Provenance** (`2026-03-22-slsa-provenance-plan.md`) — Dockerfile.build, verify-build.sh, CHECKSUMS.txt, attest-build-provenance, GPG signing step, provenance.json metadata.
 - [ ] **Transcription Boundary** (`2026-03-22-transcription-boundary-plan.md`) — ~50% done. Client-side WASM Whisper complete (Epic 78). Missing: remove CF AI path, remove env.AI binding, add transcribeAudioBuffer(), recording transcribe button, settings UI update, E2E tests.
 - [ ] **Voice CAPTCHA** (`2026-03-22-voice-captcha-plan.md`) — ~60% done. CAPTCHA infrastructure wired into call flow, voice prompts translated. Missing: captchaMaxAttempts tracking, TTS phrase helper, admin UI for max attempts, E2E tests.
 - [ ] **Geocoding Location Fields** (`2026-03-22-geocoding-location-fields-plan.md`) — 0% done. Full greenfield: geocoding adapter interface, provider implementations, schema, routes, LocationField component, i18n, E2E tests.
