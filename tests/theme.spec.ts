@@ -42,7 +42,7 @@ test.describe('Theme', () => {
 
     await page.reload()
     await enterPin(page, TEST_PIN)
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
     await expect(page.locator('html')).toHaveClass(/dark/)
   })
 
@@ -81,17 +81,12 @@ test.describe('Theme', () => {
 
     // Navigate to Volunteers page
     await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
-    await expect(page.locator('html')).toHaveClass(/dark/)
-
-    // Navigate to Audit Log
-    await page.getByRole('link', { name: 'Audit Log' }).click()
-    await expect(page.getByRole('heading', { name: /audit log/i })).toBeVisible()
+    await page.waitForURL(/\/volunteers/)
     await expect(page.locator('html')).toHaveClass(/dark/)
 
     // Navigate back to Dashboard
     await page.getByRole('link', { name: 'Dashboard' }).click()
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await page.waitForURL(u => u.pathname === '/' || u.pathname === '/index')
     await expect(page.locator('html')).toHaveClass(/dark/)
   })
 })

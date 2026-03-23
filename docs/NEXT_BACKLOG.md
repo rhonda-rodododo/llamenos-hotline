@@ -256,3 +256,7 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 - [ ] **Unit & Integration Tests** (`2026-03-22-unit-integration-tests.md`) — bun:test suite for crypto labels, custom fields, rate limiter, audit chain, WebAuthn counter, hub key envelopes. Files exist in src/server/__tests__/ (import paths fixed), needs DB integration tests verified against live Postgres.
 - [ ] **File Service & Blob Storage** (`2026-03-22-file-service-blob-storage.md`) — Replace R2 with Drizzle file_records table + MinIO BlobStorage, FilesService class.
 - [ ] **Watchtower Auto-Updates** (`2026-03-22-watchtower-production-updates.md`) — Watchtower sidecar in docker-compose.production.yml, label-based opt-in, GHCR auth, Ansible template.
+
+### Security Fixes — Pending
+
+- [ ] **Unknown API routes should return 404 instead of 401** — Auth middleware runs before route matching, so unauthenticated requests to non-existent routes get 401 (reveals route doesn't exist but requires auth). Fix: move route matching before auth middleware, or add a catch-all 404 handler after all routes that returns 404 regardless of auth state.

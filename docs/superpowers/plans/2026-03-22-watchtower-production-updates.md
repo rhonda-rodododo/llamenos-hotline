@@ -33,7 +33,7 @@ Watchtower solves this by polling the registry on a schedule and performing a ro
 
 ### 1. Label the app service for Watchtower opt-in
 
-- [ ] In `deploy/docker/docker-compose.yml`, add a `labels` block to the `app` service:
+- [x] In `deploy/docker/docker-compose.yml`, add a `labels` block to the `app` service:
 
   ```yaml
   labels:
@@ -42,11 +42,11 @@ Watchtower solves this by polling the registry on a schedule and performing a ro
 
   This opts only the `app` container in. All other services (postgres, minio, strfry, caddy) remain un-labelled and are never touched by Watchtower.
 
-- [ ] In `deploy/ansible/templates/docker-compose.j2`, add the same `labels` block to the `app` service.
+- [x] In `deploy/ansible/templates/docker-compose.j2`, add the same `labels` block to the `app` service.
 
 ### 2. Add the Watchtower service to docker-compose.production.yml
 
-- [ ] Append the following service to `deploy/docker/docker-compose.production.yml`:
+- [x] Append the following service to `deploy/docker/docker-compose.production.yml`:
 
   ```yaml
   watchtower:
@@ -87,7 +87,7 @@ Watchtower solves this by polling the registry on a schedule and performing a ro
 
 ### 3. Add the Watchtower service to the Ansible Jinja2 template
 
-- [ ] In `deploy/ansible/templates/docker-compose.j2`, add after the `strfry` service (or at end of services block):
+- [x] In `deploy/ansible/templates/docker-compose.j2`, add after the `strfry` service (or at end of services block):
 
   ```yaml
   {% if watchtower_enabled | default(false) %}
@@ -117,7 +117,7 @@ Watchtower solves this by polling the registry on a schedule and performing a ro
 
 ### 4. Document registry auth and config vars in .env.example
 
-- [ ] In `deploy/docker/.env.example`, add a new section:
+- [x] In `deploy/docker/.env.example`, add a new section:
 
   ```ini
   # ─── Watchtower (Auto-Updates) ────────────────────────────────
@@ -139,7 +139,7 @@ Watchtower solves this by polling the registry on a schedule and performing a ro
 
 ### 5. Add Watchtower vars to demo_vars.example.yml
 
-- [ ] In `deploy/ansible/demo_vars.example.yml`, add after the `backup_enabled` line:
+- [x] In `deploy/ansible/demo_vars.example.yml`, add after the `backup_enabled` line:
 
   ```yaml
   # ─── Watchtower (Auto-Updates) ──────────────────────────────
@@ -158,7 +158,7 @@ Watchtower solves this by polling the registry on a schedule and performing a ro
 
 ### 6. Add Watchtower health check to PRODUCTION_CHECKLIST.md
 
-- [ ] In `deploy/PRODUCTION_CHECKLIST.md`, add a new **Auto-Updates** section after **Health & Monitoring**:
+- [x] In `deploy/PRODUCTION_CHECKLIST.md`, add a new **Auto-Updates** section after **Health & Monitoring**:
 
   ```markdown
   ## Auto-Updates (Watchtower)
@@ -173,28 +173,28 @@ Watchtower solves this by polling the registry on a schedule and performing a ro
 
 ### 7. Verify Watchtower starts and sees the app container
 
-- [ ] Start the production stack locally with the production override:
+- [x] Start the production stack locally with the production override:
 
   ```bash
   cd deploy/docker
   docker compose -f docker-compose.yml -f docker-compose.production.yml up -d watchtower
   ```
 
-- [ ] Confirm Watchtower logs show it discovered the app container:
+- [x] Confirm Watchtower logs show it discovered the app container:
 
   ```bash
   docker compose -f docker-compose.yml -f docker-compose.production.yml logs watchtower
   # Expected: "Found 1 containers with enable label" or similar
   ```
 
-- [ ] Confirm no other containers are being watched:
+- [x] Confirm no other containers are being watched:
 
   ```bash
   docker compose -f docker-compose.yml -f docker-compose.production.yml logs watchtower | grep -i "watching\|checking\|skipping"
   # postgres, minio, caddy, strfry should appear as skipped/not watched
   ```
 
-- [ ] Optionally force a one-shot check to confirm registry auth works (does not restart if image is unchanged):
+- [x] Optionally force a one-shot check to confirm registry auth works (does not restart if image is unchanged):
 
   ```bash
   docker run --rm \

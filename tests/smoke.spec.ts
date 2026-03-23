@@ -7,7 +7,8 @@ test.beforeEach(async ({ request }) => {
 
 test('app loads and shows login page', async ({ page }) => {
   await page.goto('/')
-  await expect(page).toHaveTitle(/Llámenos/i)
+  // Title is generic "Hotline" for security (PWA), not "Llámenos"
+  await expect(page).toHaveTitle(/hotline/i)
   await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
 })
 

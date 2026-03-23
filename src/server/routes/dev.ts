@@ -22,6 +22,16 @@ dev.post('/test-reset', async (c) => {
   await services.calls.resetForTest()
   await services.conversations.resetForTest()
   await services.files.resetForTest()
+  // Re-bootstrap admin so tests can log in immediately after reset
+  if (c.env.ADMIN_PUBKEY) {
+    try {
+      await services.identity.bootstrapAdmin(c.env.ADMIN_PUBKEY)
+      // Mark profile complete so login goes to Dashboard, not profile-setup
+      await services.identity.updateVolunteer(c.env.ADMIN_PUBKEY, { profileCompleted: true })
+    } catch {
+      // Admin may already exist if resetForTest preserved it
+    }
+  }
   return c.json({ ok: true })
 })
 
