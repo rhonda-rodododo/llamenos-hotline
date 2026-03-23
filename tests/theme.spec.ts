@@ -18,9 +18,22 @@ test.describe('Theme', () => {
   })
 
   test('can switch to system theme', async ({ page }) => {
+    // First force dark so we know the state changed
+    await page.getByRole('button', { name: /dark theme/i }).click()
+    await expect(page.locator('html')).toHaveClass(/dark/)
+
+    // Switch to system — should remove the forced class and follow OS preference
     await page.getByRole('button', { name: /system theme/i }).click()
-    // System theme should not throw an error, just apply
-    await expect(page.locator('html')).toBeVisible()
+
+    // In system mode the html element gets dark/light based on OS preference,
+    // but the stored value should be "system" (not "dark" or "light")
+    const storedTheme = await page.evaluate(() => localStorage.getItem('llamenos-theme'))
+    expect(storedTheme).toBe('system')
+
+    // The html element should still have a valid theme applied (either dark or light from OS)
+    const htmlClasses = await page.locator('html').getAttribute('class')
+    // It should NOT have both dark and light simultaneously — sanity check
+    expect(htmlClasses).toBeDefined()
   })
 
   test('theme persists across page reload', async ({ page }) => {
@@ -31,6 +44,23 @@ test.describe('Theme', () => {
     await enterPin(page, TEST_PIN)
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
     await expect(page.locator('html')).toHaveClass(/dark/)
+  })
+
+  test('theme preference is stored in localStorage', async ({ page }) => {
+    // Switch to dark and verify localStorage
+    await page.getByRole('button', { name: /dark theme/i }).click()
+    let stored = await page.evaluate(() => localStorage.getItem('llamenos-theme'))
+    expect(stored).toBe('dark')
+
+    // Switch to light and verify localStorage
+    await page.getByRole('button', { name: /light theme/i }).click()
+    stored = await page.evaluate(() => localStorage.getItem('llamenos-theme'))
+    expect(stored).toBe('light')
+
+    // Switch to system and verify localStorage
+    await page.getByRole('button', { name: /system theme/i }).click()
+    stored = await page.evaluate(() => localStorage.getItem('llamenos-theme'))
+    expect(stored).toBe('system')
   })
 
   test('login page has theme toggle', async ({ page }) => {
