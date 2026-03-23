@@ -9,7 +9,13 @@
 **Tech Stack:** Hono routes, Zod v4 validation, ProviderCapabilities registry, Playwright E2E tests.
 
 **Spec:** `docs/superpowers/specs/2026-03-23-route-fix-setup-automation-design.md`
-**Dependencies:** Plan A (Provider Capabilities Interface) must be complete. Plan B (Credential Encryption) should be complete for encrypted storage.
+
+**Prerequisites:**
+- **Plan A MUST be complete** — this plan imports `TELEPHONY_CAPABILITIES` and `MESSAGING_CAPABILITIES` from Plan A.
+  Verify: `grep -r 'TELEPHONY_CAPABILITIES' src/server/telephony/capabilities.ts` should show the registry.
+- **Plan B should be complete** for encrypted credential storage (not blocking but recommended).
+
+**SSRF Note:** The `/validate` route calls `capabilities.testConnection()` which makes outbound HTTP requests. SSRF protection is handled within each provider's capabilities — Asterisk uses `validateSelfHostedUrl()`, Signal uses `validateExternalUrl()`, cloud providers use hardcoded API base URLs. No additional SSRF guard is needed at the route level.
 
 ---
 
@@ -54,8 +60,9 @@ test.describe('provider setup routes', () => {
 
 - [ ] **Step 2: Run test to confirm the 404 bug**
 
-Run: `bunx playwright test tests/provider-setup-routes.spec.ts --project chromium`
+Run: `bunx playwright test tests/provider-setup-routes.spec.ts`
 Expected: FAIL — status is 404 (routes not mounted)
+(These tests need the webserver running — they run under the chromium project with global-setup)
 
 - [ ] **Step 3: Mount the routes in app.ts**
 
@@ -95,6 +102,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net'
 
 test.describe('provider setup API', () => {
+  // Note: These tests run under the chromium project which includes global-setup
+  // (creates admin auth). If running standalone, ensure dev server is running
+  // and admin is bootstrapped.
+
   test('POST /validate with valid Asterisk creds tests connection', async ({ request }) => {
     // Asterisk is running in Docker — use real ARI credentials
     const res = await request.post('/api/setup/provider/validate', {
@@ -203,7 +214,8 @@ providerSetup.post('/phone-numbers/search', requirePermission('settings:manage')
   const parsed = capabilities.credentialSchema.safeParse(body.credentials)
   if (!parsed.success) return c.json({ error: 'Invalid credentials', details: parsed.error.format() }, 400)
 
-  const numbers = await capabilities.searchAvailableNumbers(parsed.data, body.query as any)
+  // TODO: validate query with a NumberSearchQuery Zod schema
+  const numbers = await capabilities.searchAvailableNumbers(parsed.data, body.query as NumberSearchQuery)
   return c.json({ numbers })
 })
 
@@ -249,7 +261,7 @@ providerSetup.post('/configure-sip', requirePermission('settings:manage'), async
   const parsed = capabilities.credentialSchema.safeParse(body.credentials)
   if (!parsed.success) return c.json({ error: 'Invalid credentials', details: parsed.error.format() }, 400)
 
-  const result = await capabilities.configureSipTrunk(parsed.data, body.options as any)
+  const result = await capabilities.configureSipTrunk(parsed.data, body.options as SipTrunkOptions)
   return c.json(result)
 })
 
@@ -417,6 +429,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add -A
+git status
+# Stage only relevant changed files
 git commit -m "feat: route fix + setup automation complete"
 ```

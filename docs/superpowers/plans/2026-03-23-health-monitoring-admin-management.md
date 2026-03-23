@@ -9,7 +9,12 @@
 **Tech Stack:** Bun `setInterval`, ProviderCapabilities + MessagingChannelCapabilities, Nostr ephemeral events, React components.
 
 **Spec:** `docs/superpowers/specs/2026-03-23-health-monitoring-admin-management-design.md`
-**Dependencies:** Plan A (Provider Capabilities Interface) must be complete.
+
+**Prerequisites:**
+- **Plan A MUST be complete** — specifically Task 11 (adds `testConnection()` to `TelephonyAdapter` interface and all 5 adapter implementations). Verify: `grep 'testConnection' src/server/telephony/adapter.ts` should show the method.
+- **Plan A's `TELEPHONY_CAPABILITIES` registry must exist** for admin management flows.
+
+**Scope note:** The spec mentions Nostr relay publishing for real-time dashboard updates. This plan uses HTTP polling (30s interval) for the initial implementation. Nostr real-time publishing can be added as a follow-up — the health badge component already has polling infrastructure that can be replaced with a Nostr subscription later.
 
 ---
 
@@ -108,8 +113,9 @@ test.describe('ProviderHealthService unit', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bunx playwright test tests/provider-health.spec.ts --project bridge`
+Run: `bunx playwright test tests/provider-health.spec.ts`
 Expected: FAIL — module not found
+(Note: the `bridge` project only matches `asterisk-*.spec.ts` — run without project filter for these server-side tests)
 
 - [ ] **Step 3: Implement ProviderHealthService**
 
@@ -215,7 +221,7 @@ export class ProviderHealthService {
 
 - [ ] **Step 4: Run tests**
 
-Run: `bunx playwright test tests/provider-health.spec.ts --project bridge`
+Run: `bunx playwright test tests/provider-health.spec.ts`
 Expected: All 4 tests PASS
 
 - [ ] **Step 5: Commit**
@@ -242,7 +248,20 @@ settings.get('/provider-health', requirePermission('settings:view'), async (c) =
 })
 ```
 
-- [ ] **Step 2: Wire health service into server startup**
+- [ ] **Step 2: Add `providerHealth` to the Services interface**
+
+In `src/server/services/index.ts` (line 27-38), add to the `Services` interface:
+
+```typescript
+export interface Services {
+  // ...existing properties...
+  providerHealth: ProviderHealthService
+}
+```
+
+Import `ProviderHealthService` at the top. Do NOT add it to `createServices()` — it's created separately in server.ts since it needs the full services object.
+
+- [ ] **Step 3: Wire health service into server startup**
 
 In `src/server/server.ts`, after services are initialized:
 
@@ -454,6 +473,7 @@ Expected: No regressions
 - [ ] **Step 5: Commit**
 
 ```bash
-git add -A
+git status
+# Stage only relevant changed files
 git commit -m "feat: health monitoring + admin provider management complete"
 ```

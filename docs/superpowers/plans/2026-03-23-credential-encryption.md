@@ -82,8 +82,19 @@ test.describe('provider credential encryption', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bunx playwright test tests/credential-encryption.spec.ts --project bridge`
+Run: `bunx playwright test tests/credential-encryption.spec.ts --project server-unit`
 Expected: FAIL — `encryptProviderCredentials` not exported
+
+> **Note:** The `bridge` project only matches `asterisk-*.spec.ts`. Before running, add a `server-unit` project to `playwright.config.ts`:
+> ```typescript
+> {
+>   // Server-side unit tests — no browser, no webserver needed
+>   name: "server-unit",
+>   testMatch: /^(?!.*responsive|.*bootstrap).*\.spec\.ts$/,
+>   testIgnore: [/asterisk-.*\.spec\.ts/],  // bridge handles these
+> }
+> ```
+> Or alternatively, run without a project filter: `bunx playwright test tests/credential-encryption.spec.ts`
 
 - [ ] **Step 3: Implement encryption functions**
 
@@ -108,10 +119,16 @@ function deriveProviderKey(serverSecret: string): Uint8Array {
     sha256,
     hexToBytes(serverSecret),
     new Uint8Array(0),
-    new TextEncoder().encode(LABEL_PROVIDER_CREDENTIAL_WRAP),
+    utf8ToBytes(LABEL_PROVIDER_CREDENTIAL_WRAP),
     32,
   )
 }
+// Note: utf8ToBytes is already imported from @noble/ciphers/utils.js in crypto.ts
+```
+
+Also update `encryptProviderCredentials` to use `utf8ToBytes` instead of `new TextEncoder().encode`:
+```typescript
+  const ciphertext = cipher.encrypt(utf8ToBytes(plaintext))
 
 /**
  * Encrypt provider credentials for storage.
@@ -148,7 +165,7 @@ Note: `sha256`, `hexToBytes`, `bytesToHex`, and `xchacha20poly1305` should alrea
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `bunx playwright test tests/credential-encryption.spec.ts --project bridge`
+Run: `bunx playwright test tests/credential-encryption.spec.ts`
 Expected: All 4 tests PASS
 
 - [ ] **Step 5: Commit**
@@ -315,14 +332,46 @@ Expected: All tests PASS (including the new migration test)
 
 - [ ] **Step 3: Update SettingsService to encrypt/decrypt**
 
-In `src/server/services/settings.ts`, the service needs `serverSecret` passed at construction. Add it:
+In `src/server/services/settings.ts` (line 74), the current constructor is `constructor(protected readonly db: Database)`. Add `serverSecret`:
 
 ```typescript
 private serverSecret: string
 
-constructor(db: DrizzleDB, serverSecret: string) {
-  this.db = db
+constructor(protected readonly db: Database, serverSecret: string) {
   this.serverSecret = serverSecret
+}
+```
+
+Also update the `createServices()` factory in `src/server/services/index.ts` (line 43):
+
+```typescript
+export function createServices(db: Database, blob: BlobStorage | null = null, serverSecret: string): Services {
+  return {
+    // ...existing services...
+    settings: new SettingsService(db, serverSecret),
+    // ...
+  }
+}
+```
+
+Update the caller of `createServices()` in `src/server/app.ts` or `src/server/server.ts` to pass `env.SERVER_NOSTR_SECRET`.
+
+**Also update `getHubByPhone()`** (settings.ts ~line 291) — this method reads `config.phoneNumber` from the now-encrypted text column. After the schema change, it must decrypt first:
+
+```typescript
+async getHubByPhone(phoneNumber: string): Promise<string | null> {
+  const rows = await this.db.select().from(telephonyConfig)
+  for (const row of rows) {
+    if (!row.config) continue
+    let config: TelephonyProviderConfig
+    try {
+      config = JSON.parse(decryptProviderCredentials(row.config, this.serverSecret))
+    } catch {
+      try { config = JSON.parse(row.config) } catch { continue } // legacy plaintext
+    }
+    if (config.phoneNumber === phoneNumber) return row.hubId
+  }
+  return null
 }
 ```
 
