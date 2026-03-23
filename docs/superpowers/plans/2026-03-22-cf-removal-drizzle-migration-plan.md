@@ -220,7 +220,7 @@ volunteers.get('/', async (c) => {
 
 - [ ] **1.5 Create `src/server/db/schema/settings.ts`**
 
-  Tables: `hubs`, `hub_keys`, `roles`, `custom_field_definitions`, `telephony_config`, `messaging_config`, `spam_settings`, `call_settings`, `transcription_settings`, `ivr_languages`, `fallback_group`
+  Tables: `hubs`, `hub_keys`, `roles`, `custom_field_definitions`, `telephony_config`, `messaging_config`, `spam_settings`, `call_settings`, `transcription_settings`, `ivr_languages`, `fallback_group`, `rate_limit_counters`, `ivr_audio`, `setup_state`, `captcha_state`, `report_categories`, `oauth_state`, `provider_config`, `geocoding_config`, `signal_registration_pending`
 
   ```typescript
   import { boolean, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
@@ -254,7 +254,7 @@ volunteers.get('/', async (c) => {
     hubId: text('hub_id'), // null = global
     fieldName: text('field_name').notNull(),
     label: text('label').notNull(),
-    fieldType: text('field_type').notNull(), // 'text' | 'select' | 'multiselect' | 'checkbox' | 'date'
+    fieldType: text('field_type').notNull(), // 'text' | 'number' | 'select' | 'checkbox' | 'textarea' | 'file' | 'location'
     options: jsonb<string[]>()('options').notNull().default([]),
     required: boolean('required').notNull().default(false),
     showInVolunteerView: boolean('show_in_volunteer_view').notNull().default(false),
@@ -280,6 +280,7 @@ volunteers.get('/', async (c) => {
     rateLimitEnabled: boolean('rate_limit_enabled').notNull().default(true),
     maxCallsPerMinute: integer('max_calls_per_minute').notNull().default(5),
     blockDurationMinutes: integer('block_duration_minutes').notNull().default(60),
+    captchaMaxAttempts: integer('captcha_max_attempts').notNull().default(2),
   })
 
   export const callSettings = pgTable('call_settings', {
@@ -328,6 +329,7 @@ volunteers.get('/', async (c) => {
   export const captchaState = pgTable('captcha_state', {
     callSid: text('call_sid').primaryKey(),
     expectedDigits: text('expected_digits').notNull(),
+    attempts: integer('attempts').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   })
@@ -336,6 +338,50 @@ volunteers.get('/', async (c) => {
     hubId: text('hub_id').primaryKey().default('global'),
     categories: jsonb<string[]>()('categories').notNull().default([]),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  })
+
+  // --- New tables added 2026-03-22 (post-plan audit) ---
+
+  export const oauthState = pgTable('oauth_state', {
+    provider: text('provider').primaryKey(), // 'twilio' | 'telnyx'
+    state: text('state').notNull(), // 32-byte hex CSRF token
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  })
+
+  export const providerConfig = pgTable('provider_config', {
+    id: text('id').primaryKey().default('global'),
+    provider: text('provider').notNull(), // SupportedProvider
+    connected: boolean('connected').notNull().default(false),
+    phoneNumber: text('phone_number'),
+    webhooksConfigured: boolean('webhooks_configured').notNull().default(false),
+    sipConfigured: boolean('sip_configured').notNull().default(false),
+    a2pStatus: text('a2p_status').default('not_started'),
+    brandSid: text('brand_sid'),
+    campaignSid: text('campaign_sid'),
+    messagingServiceSid: text('messaging_service_sid'),
+    encryptedCredentials: text('encrypted_credentials'), // ECIES-encrypted blob
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  })
+
+  export const geocodingConfig = pgTable('geocoding_config', {
+    id: text('id').primaryKey().default('global'),
+    provider: text('provider'), // 'opencage' | 'geoapify' | null
+    apiKey: text('api_key').notNull().default(''),
+    countries: jsonb<string[]>()('countries').notNull().default([]),
+    enabled: boolean('enabled').notNull().default(false),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  })
+
+  export const signalRegistrationPending = pgTable('signal_registration_pending', {
+    id: text('id').primaryKey().default('global'),
+    number: text('number').notNull(),
+    bridgeUrl: text('bridge_url').notNull(),
+    method: text('method').notNull(), // 'sms' | 'voice'
+    status: text('status').notNull().default('pending'), // 'pending' | 'complete' | 'failed'
+    error: text('error'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   })
   ```
 
