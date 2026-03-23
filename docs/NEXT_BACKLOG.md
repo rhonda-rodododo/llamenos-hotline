@@ -261,9 +261,13 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 
 - [ ] **Unknown API routes should return 404 instead of 401** — Auth middleware runs before route matching, so unauthenticated requests to non-existent routes get 401 (reveals route doesn't exist but requires auth). Fix: move route matching before auth middleware, or add a catch-all 404 handler after all routes that returns 404 regardless of auth state.
 
-### Pre-Existing Test Failures — Need UI Selector Updates
+### Test Quality — Status (2026-03-23)
 
-- [x] **Notes page crashes without hub key** — FIXED: test-reset now seeds ECIES-wrapped hub key envelopes, fixed client API route (/my-key → /key-envelope), fixed settings route response shapes (custom-fields, ivr-languages, ivr-audio, roles all returned raw arrays instead of wrapped objects).
-- [ ] **admin-flow.spec.ts** — 5/15 tests still fail: shift CRUD (3 tests — shift name not visible after save) and ban CRUD (2 tests — phone not visible after save). Likely form submission or API response issues with hub-scoped shift/ban routes.
-- [ ] **notes-crud.spec.ts** — 1/7 tests fail: "notes are grouped by call" assertion can't find call card after creation.
-- [ ] **hub-access-control.spec.ts** — 1/4 tests fail. Edit dialog missing `data-testid="hub-access-toggle"` for the access control switch.
+**Verified 100% passing suites (15 files, 167 tests):**
+admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health-config (5), auth-guards (7), audit-log (6), volunteer-flow (9), profile-settings (13), ban-management (13), form-validation (8), login-restore (10), blasts (7), call-spam (5) + unit tests (25)
+
+**Known remaining issues:**
+- [ ] **roles.spec.ts** — 6/28 tests fail: serial chain cascade (role update fails after create; reporter/custom role hub context 400 vs 403)
+- [ ] **Hub-scoped API calls from non-hub-member volunteers** return 400 (hub context required) instead of 403 (permission denied) — tests accept both
+- [ ] **conversations.spec.ts** — setup wizard flow is fragile; mostly smoke tests; needs real message send/receive tests when providers are configured
+- [ ] **hub-access-control.spec.ts** — 1/4 tests fail (missing data-testid="hub-access-toggle")
