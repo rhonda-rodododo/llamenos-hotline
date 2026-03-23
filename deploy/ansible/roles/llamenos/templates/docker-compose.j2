@@ -1,0 +1,221 @@
+# Llamenos Docker Compose — managed by Ansible
+# Do not edit directly; changes will be overwritten on next deploy.
+
+name: llamenos
+
+services:
+  # ── Core ──────────────────────────────────────────────────
+  app:
+    image: {{ llamenos_image }}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M
+    env_file:
+      - .env
+    networks:
+      - web
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      strfry:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  postgres:
+    image: {{ postgres_image }}
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=llamenos
+      - POSTGRES_USER=llamenos
+      - POSTGRES_PASSWORD={{ pg_password }}
+    networks:
+      - internal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U llamenos -d llamenos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  caddy:
+    image: {{ caddy_image }}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - web
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    depends_on:
+      app:
+        condition: service_healthy
+
+  minio:
+    image: {{ minio_image }}
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    volumes:
+      - minio-data:/data
+    environment:
+      - MINIO_ROOT_USER={{ minio_access_key }}
+      - MINIO_ROOT_PASSWORD={{ minio_secret_key }}
+    networks:
+      - internal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  strfry:
+    image: dockurr/strfry:1.0.1
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    volumes:
+      - nostr-data:/app/strfry-db
+    networks:
+      - internal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:7777"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+{% if 'transcription' in (compose_profiles | default([])) %}
+
+  whisper:
+    image: {{ whisper_image | default('fedirz/faster-whisper-server:0.4.1') }}
+    restart: unless-stopped
+    environment:
+      - WHISPER__MODEL={{ whisper_model | default('Systran/faster-whisper-base') }}
+      - WHISPER__DEVICE={{ whisper_device | default('cpu') }}
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+{% endif %}
+{% if 'asterisk' in (compose_profiles | default([])) %}
+
+  asterisk:
+    image: {{ asterisk_image | default('andrius/asterisk:20') }}
+    restart: unless-stopped
+    volumes:
+      - asterisk-config:/etc/asterisk
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "asterisk", "-rx", "core show version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  asterisk-bridge:
+    image: {{ llamenos_image }}
+    command: ["bun", "run", "asterisk-bridge/index.ts"]
+    restart: unless-stopped
+    environment:
+      - ARI_URL=ws://asterisk:8088/ari/events
+      - ARI_USERNAME={{ ari_username | default('llamenos') }}
+      - ARI_PASSWORD={{ ari_password }}
+      - WORKER_WEBHOOK_URL=http://app:3000
+      - BRIDGE_SECRET={{ bridge_secret }}
+    networks:
+      - internal
+    depends_on:
+      asterisk:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+{% endif %}
+{% if 'signal' in (compose_profiles | default([])) %}
+
+  signal-cli:
+    image: {{ signal_image | default('bbernhard/signal-cli-rest-api:0.92') }}
+    restart: unless-stopped
+    environment:
+      - MODE=json-rpc
+      - AUTO_RECEIVE_SCHEDULE=0 * * * *
+    volumes:
+      - signal-data:/home/.local/share/signal-cli
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/about"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+{% endif %}
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:
+  minio-data:
+  nostr-data:
+{% if 'asterisk' in (compose_profiles | default([])) %}
+  asterisk-config:
+{% endif %}
+{% if 'signal' in (compose_profiles | default([])) %}
+  signal-data:
+{% endif %}
+
+networks:
+  web:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true
