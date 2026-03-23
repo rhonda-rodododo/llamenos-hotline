@@ -42,9 +42,3 @@ export interface BlobStorage {
   delete(key: string): Promise<void>
 }
 
-/**
- * Transcription service (Workers AI / self-hosted Whisper).
- */
-export interface TranscriptionService {
-  run(model: string, input: { audio: number[] }): Promise<{ text: string }>
-}

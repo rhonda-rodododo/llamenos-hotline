@@ -84,11 +84,6 @@
     }
   ],
 
-  // AI binding for Whisper transcription
-  "ai": {
-    "binding": "AI"
-  },
-
   // Service bindings — Nostr relay (Nosflare fork)
   // Uncomment when llamenos-relay Worker is deployed:
   // "services": [
@@ -140,9 +135,6 @@
           "bucket_name": "llamenos-files-next"
         }
       ],
-      "ai": {
-        "binding": "AI"
-      },
       // Uncomment when llamenos-relay Worker is deployed:
       // "services": [
       //   { "binding": "NOSFLARE", "service": "llamenos-relay-next" }
