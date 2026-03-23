@@ -374,7 +374,7 @@ telephony.post('/queue-exit', async (c) => {
 
   if (queueResult === 'hangup') {
     // Caller hung up while in queue — end the call as unanswered
-    await services.calls.deleteActiveCall(callSid, hubId).catch(() => {})
+    await services.calls.deleteActiveCall(callSid, hubId).catch((err) => console.error('[telephony] failed to delete active call:', callSid, err))
     await services.records.addAuditEntry(hubId ?? 'global', 'callMissed', 'system', { callSid })
     return telephonyResponse(adapter.emptyResponse())
   }
@@ -484,7 +484,7 @@ telephony.post('/voicemail-recording', async (c) => {
   const callSid = url.searchParams.get('callSid') || ''
 
   if (recordingStatus === 'completed') {
-    await services.calls.updateActiveCall(callSid, { status: 'voicemail' }, hubId).catch(() => {})
+    await services.calls.updateActiveCall(callSid, { status: 'voicemail' }, hubId).catch((err) => console.error('[telephony] failed to update voicemail status:', callSid, err))
     await services.records.addAuditEntry(hubId ?? 'global', 'voicemailReceived', 'system', {
       callSid,
     })

@@ -36,7 +36,7 @@ export function publishNostrEvent(
         ],
         content: eventContent,
       })
-      .catch(() => {})
+      .catch((err) => console.error('[nostr] event publish failed:', err))
   } catch {
     // Nostr not configured
   }

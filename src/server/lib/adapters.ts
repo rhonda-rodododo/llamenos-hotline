@@ -123,7 +123,9 @@ export function closeNostrPublisher(): void {
   if (cachedPublisher) {
     try {
       cachedPublisher.close()
-    } catch {}
+    } catch (err) {
+      console.error('[nostr] publisher close failed:', err)
+    }
     cachedPublisher = null
   }
 }

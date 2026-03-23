@@ -27,7 +27,7 @@ function publishConversationEvent(
         ],
         content: JSON.stringify(content),
       })
-      .catch(() => {})
+      .catch((err) => console.error('[nostr] conversation event publish failed:', err))
   } catch {
     // Nostr not configured
   }

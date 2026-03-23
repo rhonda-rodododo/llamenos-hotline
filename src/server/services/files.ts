@@ -158,8 +158,8 @@ export class FilesService {
         .from(fileRecords)
       await Promise.all(
         rows.flatMap((r) => [
-          this.deleteAssembled(r.id).catch(() => {}),
-          this.deleteAllChunks(r.id, r.totalChunks).catch(() => {}),
+          this.deleteAssembled(r.id).catch((err) => console.error('[files] blob cleanup failed:', r.id, err)),
+          this.deleteAllChunks(r.id, r.totalChunks).catch((err) => console.error('[files] chunk cleanup failed:', r.id, err)),
         ])
       )
     }

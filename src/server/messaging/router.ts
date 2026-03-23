@@ -245,7 +245,7 @@ async function handleStatusUpdate(
           ...(statusUpdate.failureReason ? { failureReason: statusUpdate.failureReason } : {}),
         }),
       })
-      .catch(() => {})
+      .catch((err) => console.error('[nostr] messaging status event publish failed:', err))
   } catch {
     // Nostr not configured
   }

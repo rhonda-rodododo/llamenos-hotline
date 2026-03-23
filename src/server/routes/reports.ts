@@ -23,7 +23,7 @@ function publishReportEvent(
         ],
         content: JSON.stringify(content),
       })
-      .catch(() => {})
+      .catch((err) => console.error('[nostr] report event publish failed:', err))
   } catch {
     // Nostr not configured
   }
