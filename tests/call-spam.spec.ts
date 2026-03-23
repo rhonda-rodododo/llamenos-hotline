@@ -86,7 +86,7 @@ test.describe('Ban list call enforcement', () => {
     await page.evaluate(async (num) => {
       const res = await window.__authedFetch('/api/bans', {
         method: 'POST',
-        body: JSON.stringify({ number: num }),
+        body: JSON.stringify({ phone: num, reason: 'E2E ban test' }),
       })
       if (!res.ok) throw new Error(`addBan failed: ${res.status} ${await res.text()}`)
     }, BANNED_NUMBER)
@@ -139,7 +139,7 @@ test.describe('Ban list call enforcement', () => {
     await page.evaluate(async (num) => {
       await window.__authedFetch('/api/bans', {
         method: 'POST',
-        body: JSON.stringify({ number: num }),
+        body: JSON.stringify({ phone: num, reason: 'E2E ban test' }),
       })
     }, freshNumber)
 
