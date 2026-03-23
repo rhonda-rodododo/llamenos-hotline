@@ -38,7 +38,7 @@ export function RetentionSection({ settings, onChange, expanded, onToggle }: Pro
   function handleChange(key: keyof RetentionSettings, raw: string) {
     const val = Number.parseInt(raw, 10)
     if (!Number.isNaN(val)) {
-      setDraft((d) => ({ ...d, [key]: val }))
+      setDraft((d: RetentionSettings) => ({ ...d, [key]: val }))
     }
   }
 
@@ -60,16 +60,16 @@ export function RetentionSection({ settings, onChange, expanded, onToggle }: Pro
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {fields.map(({ key, label, min, max }) => (
-          <div key={key} className="space-y-2">
-            <Label htmlFor={`retention-${key}`}>{label}</Label>
+          <div key={String(key)} className="space-y-2">
+            <Label htmlFor={`retention-${String(key)}`}>{label}</Label>
             <Input
-              id={`retention-${key}`}
+              id={`retention-${String(key)}`}
               type="number"
               min={min}
               max={max}
               value={draft[key]}
               onChange={(e) => handleChange(key, e.target.value)}
-              data-testid={`retention-${key}`}
+              data-testid={`retention-${String(key)}`}
             />
             <p className="text-xs text-muted-foreground">
               {min}–{max} {t('common.days', { defaultValue: 'days' })}

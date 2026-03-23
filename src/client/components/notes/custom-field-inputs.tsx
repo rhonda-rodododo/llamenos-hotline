@@ -9,10 +9,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import type { CustomFieldDefinition, LocationFieldValue } from '@shared/types'
+import type { CustomFieldDefinition, FileFieldValue, LocationFieldValue } from '@shared/types'
 import { useTranslation } from 'react-i18next'
 
-type FieldValue = string | number | boolean
+type FieldValue = string | number | boolean | FileFieldValue
 
 interface Props {
   fields: CustomFieldDefinition[]

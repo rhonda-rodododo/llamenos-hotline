@@ -542,12 +542,7 @@ function GdprSection() {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [exportLoading, setExportLoading] = useState(false)
-  const [erasureRequest, setErasureRequest] = useState<{
-    pubkey: string
-    requestedAt: string
-    executeAt: string
-    status: 'pending' | 'cancelled' | 'executed'
-  } | null>(null)
+  const [erasureRequest, setErasureRequest] = useState<import('@/lib/api').ErasureRequest | null>(null)
   const [erasureLoading, setErasureLoading] = useState(false)
   const [erasureChecked, setErasureChecked] = useState(false)
   const { expanded, toggleSection } = usePersistedExpanded('settings-expanded:/settings/gdpr', [])

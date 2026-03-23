@@ -68,7 +68,7 @@ export function ReportTypesSection({
     try {
       if (editing.id) {
         // Update existing
-        const updated = await updateReportType(editing.id, {
+        const { reportType: updated } = await updateReportType(editing.id, {
           name: editing.name.trim(),
           description: editing.description.trim() || undefined,
         })
@@ -76,7 +76,7 @@ export function ReportTypesSection({
         // Handle isDefault separately if changed
         const existing = reportTypes.find((rt) => rt.id === editing.id)
         if (editing.isDefault && !existing?.isDefault) {
-          const withDefault = await setDefaultReportType(editing.id)
+          const { reportType: withDefault } = await setDefaultReportType(editing.id)
           onChange(
             reportTypes.map((rt) => {
               if (rt.id === editing.id) return withDefault
@@ -86,7 +86,7 @@ export function ReportTypesSection({
         }
       } else {
         // Create new
-        const created = await createReportType({
+        const { reportType: created } = await createReportType({
           name: editing.name.trim(),
           description: editing.description.trim() || undefined,
           isDefault: editing.isDefault,
@@ -122,7 +122,7 @@ export function ReportTypesSection({
 
   async function handleUnarchive(id: string) {
     try {
-      const updated = await unarchiveReportType(id)
+      const { reportType: updated } = await unarchiveReportType(id)
       onChange(reportTypes.map((rt) => (rt.id === id ? updated : rt)))
       toast(t('common.success'), 'success')
     } catch {
@@ -132,7 +132,7 @@ export function ReportTypesSection({
 
   async function handleSetDefault(id: string) {
     try {
-      const updated = await setDefaultReportType(id)
+      const { reportType: updated } = await setDefaultReportType(id)
       onChange(
         reportTypes.map((rt) => {
           if (rt.id === id) return updated
