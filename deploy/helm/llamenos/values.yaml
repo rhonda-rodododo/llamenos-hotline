@@ -79,6 +79,12 @@ asteriskBridge:
     tag: ""
   # REQUIRED if using Asterisk: set a strong random secret
   bridgeSecret: ""
+  # Hotline phone number (E.164, e.g. +12125551234)
+  hotlineNumber: ""
+  # SIP trunk auto-config — set all three to enable PJSIP auto-configuration at startup
+  sipProvider: ""   # e.g. sip.telnyx.com or sip.twilio.com
+  sipUsername: ""   # SIP username / account SID
+  sipPassword: ""   # SIP password / auth token
 
 # Nostr relay (strfry) — required for all real-time events
 nostr:
