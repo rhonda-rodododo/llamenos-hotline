@@ -1,5 +1,14 @@
 import { Hono } from 'hono'
 import { getDOs } from '../lib/do-access'
+import {
+  buildTelephonyPayload,
+  buildMessagingPayload,
+  type TelephonyProvider,
+  type MessagingProvider,
+  type MessagingChannel,
+  type SimulateCallParams,
+  type SimulateMessageParams,
+} from '../lib/test-payload-factory'
 import type { AppEnv } from '../types'
 
 const dev = new Hono<AppEnv>()
@@ -85,6 +94,111 @@ dev.post('/test-reset-records', async (c) => {
   await dos.calls.fetch(new Request('http://do/reset', { method: 'POST' }))
   await dos.conversations.fetch(new Request('http://do/reset', { method: 'POST' }))
   return c.json({ ok: true })
+})
+
+// -------------------------------------------------------------------
+// Simulation infrastructure — POST factory-generated payloads to real webhook endpoints
+// -------------------------------------------------------------------
+
+/** POST a factory-generated payload to the real webhook endpoint. */
+async function postToWebhook(
+  c: { req: { url: string } },
+  factoryResult: { body: string; contentType: string; headers: Record<string, string>; path: string }
+): Promise<Response> {
+  const origin = new URL(c.req.url).origin
+  return fetch(`${origin}${factoryResult.path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': factoryResult.contentType,
+      'CF-Connecting-IP': '127.0.0.1', // triggers telephony/messaging dev bypass
+      ...factoryResult.headers,
+    },
+    body: factoryResult.body,
+  })
+}
+
+// --- Telephony simulation ---
+
+dev.post('/test-simulate/incoming-call', async (c) => {
+  if (c.env.ENVIRONMENT !== 'development') return c.json({ error: 'Not Found' }, 404)
+  if (!checkResetSecret(c)) return c.json({ error: 'Forbidden' }, 403)
+  const provider = (c.req.query('provider') ?? 'twilio') as TelephonyProvider
+  const params: SimulateCallParams = await c.req.json().catch(() => ({}))
+  const result = buildTelephonyPayload(provider, 'incoming-call', params)
+  const res = await postToWebhook(c, result)
+  return new Response(res.body, {
+    status: res.status,
+    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'text/plain' },
+  })
+})
+
+dev.post('/test-simulate/answer-call', async (c) => {
+  if (c.env.ENVIRONMENT !== 'development') return c.json({ error: 'Not Found' }, 404)
+  if (!checkResetSecret(c)) return c.json({ error: 'Forbidden' }, 403)
+  const provider = (c.req.query('provider') ?? 'twilio') as TelephonyProvider
+  const params: SimulateCallParams = await c.req.json().catch(() => ({}))
+  const result = buildTelephonyPayload(provider, 'answer-call', params)
+  const res = await postToWebhook(c, result)
+  return new Response(res.body, {
+    status: res.status,
+    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'text/plain' },
+  })
+})
+
+dev.post('/test-simulate/end-call', async (c) => {
+  if (c.env.ENVIRONMENT !== 'development') return c.json({ error: 'Not Found' }, 404)
+  if (!checkResetSecret(c)) return c.json({ error: 'Forbidden' }, 403)
+  const provider = (c.req.query('provider') ?? 'twilio') as TelephonyProvider
+  const params: SimulateCallParams = await c.req.json().catch(() => ({}))
+  const result = buildTelephonyPayload(provider, 'end-call', params)
+  const res = await postToWebhook(c, result)
+  return new Response(res.body, {
+    status: res.status,
+    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'text/plain' },
+  })
+})
+
+dev.post('/test-simulate/voicemail', async (c) => {
+  if (c.env.ENVIRONMENT !== 'development') return c.json({ error: 'Not Found' }, 404)
+  if (!checkResetSecret(c)) return c.json({ error: 'Forbidden' }, 403)
+  const provider = (c.req.query('provider') ?? 'twilio') as TelephonyProvider
+  const params: SimulateCallParams = await c.req.json().catch(() => ({}))
+  const result = buildTelephonyPayload(provider, 'voicemail', params)
+  const res = await postToWebhook(c, result)
+  return new Response(res.body, {
+    status: res.status,
+    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'text/plain' },
+  })
+})
+
+// --- Messaging simulation ---
+
+dev.post('/test-simulate/incoming-message', async (c) => {
+  if (c.env.ENVIRONMENT !== 'development') return c.json({ error: 'Not Found' }, 404)
+  if (!checkResetSecret(c)) return c.json({ error: 'Forbidden' }, 403)
+  const provider = (c.req.query('provider') ?? 'twilio') as MessagingProvider
+  const channel = (c.req.query('channel') ?? 'sms') as MessagingChannel
+  const params: SimulateMessageParams = await c.req.json().catch(() => ({}))
+  const result = buildMessagingPayload(provider, channel, 'incoming-message', params)
+  const res = await postToWebhook(c, result)
+  return new Response(res.body, {
+    status: res.status,
+    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'text/plain' },
+  })
+})
+
+dev.post('/test-simulate/delivery-status', async (c) => {
+  if (c.env.ENVIRONMENT !== 'development') return c.json({ error: 'Not Found' }, 404)
+  if (!checkResetSecret(c)) return c.json({ error: 'Forbidden' }, 403)
+  const provider = (c.req.query('provider') ?? 'twilio') as MessagingProvider
+  const channel = (c.req.query('channel') ?? 'sms') as MessagingChannel
+  const params: SimulateMessageParams = await c.req.json().catch(() => ({}))
+  const result = buildMessagingPayload(provider, channel, 'delivery-status', params)
+  const res = await postToWebhook(c, result)
+  return new Response(res.body, {
+    status: res.status,
+    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'text/plain' },
+  })
 })
 
 export default dev

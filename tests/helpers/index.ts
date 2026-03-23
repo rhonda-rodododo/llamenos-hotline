@@ -3,7 +3,7 @@ import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import { getPublicKey, nip19 } from 'nostr-tools'
-import { TestIds } from './test-ids'
+import { TestIds } from '../test-ids'
 
 export const ADMIN_NSEC = 'nsec174zsa94n3e7t0ugfldh9tgkkzmaxhalr78uxt9phjq3mmn6d6xas5jdffh'
 export const TEST_PIN = '123456'
@@ -28,10 +28,10 @@ export const Timeouts = {
 } as const
 
 // Re-export TestIds for convenience
-export { TestIds } from './test-ids'
+export { TestIds } from '../test-ids'
 
 // Re-export page object utilities
-export * from './pages/index'
+export * from '../pages/index'
 
 /**
  * Pre-compute an encrypted key blob in Node.js (Playwright runtime) and inject
