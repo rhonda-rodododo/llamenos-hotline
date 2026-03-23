@@ -1,6 +1,6 @@
 # Provider Simulation Suite — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add realistic webhook simulation endpoints covering all 5 telephony providers × 9 events and all 4 messaging channels, routing payloads through the full adapter parsing stack so E2E tests exercise real webhook handling code.
 
@@ -33,29 +33,29 @@
 
 This creates the `tests/helpers/` directory structure before any spec files reference it.
 
-- [ ] Create the directory and move the file:
+- [x] Create the directory and move the file:
   ```bash
   mkdir -p tests/helpers
   mv tests/helpers.ts tests/helpers/index.ts
   ```
 
-- [ ] Verify no imports break — grep for existing imports of `helpers.ts`:
+- [x] Verify no imports break — grep for existing imports of `helpers.ts`:
   ```bash
   grep -r "from './helpers'" tests/ --include="*.ts" | grep -v "helpers/index"
   grep -r "from '../helpers'" tests/ --include="*.ts" | grep -v "helpers/index"
   ```
 
-- [ ] Update any imports that still reference the old path (the `./helpers` import in test files should resolve to `./helpers/index.ts` automatically in TypeScript, so usually no changes needed — but verify):
+- [x] Update any imports that still reference the old path (the `./helpers` import in test files should resolve to `./helpers/index.ts` automatically in TypeScript, so usually no changes needed — but verify):
   ```bash
   bunx tsc --noEmit 2>&1 | grep "helpers"
   ```
 
-- [ ] Run a smoke test to confirm helpers still work:
+- [x] Run a smoke test to confirm helpers still work:
   ```bash
   bunx playwright test tests/smoke.spec.ts --reporter=list
   ```
 
-- [ ] Commit:
+- [x] Commit:
   ```bash
   git add tests/helpers/ tests/
   git commit -m "refactor(tests): migrate helpers.ts → helpers/index.ts"
@@ -70,9 +70,9 @@ This creates the `tests/helpers/` directory structure before any spec files refe
 
 The telephony router already has a dev bypass (`CF-Connecting-IP === '127.0.0.1'` OR `hostname === 'localhost'`). The messaging router has no equivalent — `validateWebhook()` is called unconditionally. Without this, simulation POSTs to messaging webhook paths fail signature validation even in dev.
 
-- [ ] Read `src/worker/messaging/router.ts` around line 63–90 to see the current structure before editing.
+- [x] Read `src/worker/messaging/router.ts` around line 63–90 to see the current structure before editing.
 
-- [ ] Add the dev bypass immediately before the `validateWebhook` call:
+- [x] Add the dev bypass immediately before the `validateWebhook` call:
   ```typescript
   // Dev bypass: skip signature validation for localhost simulation POSTs
   const isDev = c.env.ENVIRONMENT === 'development'
@@ -89,13 +89,13 @@ The telephony router already has a dev bypass (`CF-Connecting-IP === '127.0.0.1'
   ```
   (Remove the existing unconditional `validateWebhook` call and `if (!isValid)` block.)
 
-- [ ] Run typecheck:
+- [x] Run typecheck:
   ```bash
   bun run typecheck
   ```
   Expected: no errors.
 
-- [ ] Commit:
+- [x] Commit:
   ```bash
   git add src/worker/messaging/router.ts
   git commit -m "fix(messaging): add dev bypass to messaging router webhook validation"
@@ -110,7 +110,7 @@ The telephony router already has a dev bypass (`CF-Connecting-IP === '127.0.0.1'
 
 Create the file with types, the `FactoryResult` interface, and a form-encoding helper. No provider implementations yet.
 
-- [ ] Create `src/worker/lib/test-payload-factory.ts`:
+- [x] Create `src/worker/lib/test-payload-factory.ts`:
   ```typescript
   /**
    * Test payload factory — generates realistic provider webhook payloads for E2E tests.
@@ -199,12 +199,12 @@ Create the file with types, the `FactoryResult` interface, and a form-encoding h
   }
   ```
 
-- [ ] Run typecheck — should pass with empty implementations:
+- [x] Run typecheck — should pass with empty implementations:
   ```bash
   bun run typecheck
   ```
 
-- [ ] Commit:
+- [x] Commit:
   ```bash
   git add src/worker/lib/test-payload-factory.ts
   git commit -m "feat(sim): scaffold payload factory types and helpers"
@@ -219,7 +219,7 @@ Create the file with types, the `FactoryResult` interface, and a form-encoding h
 
 Asterisk uses JSON webhooks from an ARI bridge. The adapter field aliases (e.g. `channelId || callSid`, `callerNumber || from`) mean we emit the primary field names. Critical: `recordingStatus` must be `"done"` (the adapter maps `"done"` → normalized `"completed"`).
 
-- [ ] Add the Asterisk factory to `src/worker/lib/test-payload-factory.ts`:
+- [x] Add the Asterisk factory to `src/worker/lib/test-payload-factory.ts`:
   ```typescript
   // -------------------------------------------------------------------
   // Asterisk — JSON from ARI bridge
@@ -369,13 +369,13 @@ Asterisk uses JSON webhooks from an ARI bridge. The adapter field aliases (e.g. 
   }
   ```
 
-- [ ] Run typecheck:
+- [x] Run typecheck:
   ```bash
   bun run typecheck
   ```
   Expected: no errors.
 
-- [ ] Commit:
+- [x] Commit:
   ```bash
   git add src/worker/lib/test-payload-factory.ts
   git commit -m "feat(sim): Asterisk telephony payload factory (9 events)"
@@ -390,7 +390,7 @@ Asterisk uses JSON webhooks from an ARI bridge. The adapter field aliases (e.g. 
 
 Twilio uses form-encoded POSTs. SignalWire is payload-identical — the factory emits `X-Twilio-Signature` which SignalWire's adapter accepts alongside its own header. Both providers share one builder function.
 
-- [ ] Add to `src/worker/lib/test-payload-factory.ts`:
+- [x] Add to `src/worker/lib/test-payload-factory.ts`:
   ```typescript
   // -------------------------------------------------------------------
   // Twilio + SignalWire — form-encoded
@@ -472,12 +472,12 @@ Twilio uses form-encoded POSTs. SignalWire is payload-identical — the factory 
   }
   ```
 
-- [ ] Run typecheck:
+- [x] Run typecheck:
   ```bash
   bun run typecheck
   ```
 
-- [ ] Commit:
+- [x] Commit:
   ```bash
   git add src/worker/lib/test-payload-factory.ts
   git commit -m "feat(sim): Twilio/SignalWire telephony payload factory"
@@ -492,7 +492,7 @@ Twilio uses form-encoded POSTs. SignalWire is payload-identical — the factory 
 
 Vonage uses JSON POSTs. Call IDs use both `uuid` and `conversation_uuid` (adapter reads `data.uuid || data.conversation_uuid` — emit both).
 
-- [ ] Add to `src/worker/lib/test-payload-factory.ts`:
+- [x] Add to `src/worker/lib/test-payload-factory.ts`:
   ```typescript
   // -------------------------------------------------------------------
   // Vonage — JSON
@@ -572,7 +572,7 @@ Vonage uses JSON POSTs. Call IDs use both `uuid` and `conversation_uuid` (adapte
   }
   ```
 
-- [ ] Run typecheck, commit:
+- [x] Run typecheck, commit:
   ```bash
   bun run typecheck
   git add src/worker/lib/test-payload-factory.ts
@@ -588,7 +588,7 @@ Vonage uses JSON POSTs. Call IDs use both `uuid` and `conversation_uuid` (adapte
 
 Plivo uses form-encoded POSTs similar to Twilio but with different field names (`CallUUID`, `ConferenceDuration`, etc.).
 
-- [ ] Add to `src/worker/lib/test-payload-factory.ts`:
+- [x] Add to `src/worker/lib/test-payload-factory.ts`:
   ```typescript
   // -------------------------------------------------------------------
   // Plivo — form-encoded
@@ -669,7 +669,7 @@ Plivo uses form-encoded POSTs similar to Twilio but with different field names (
   }
   ```
 
-- [ ] Run typecheck, commit:
+- [x] Run typecheck, commit:
   ```bash
   bun run typecheck
   git add src/worker/lib/test-payload-factory.ts
@@ -685,7 +685,7 @@ Plivo uses form-encoded POSTs similar to Twilio but with different field names (
 
 Add one public function that dispatches to the right provider builder:
 
-- [ ] Add to the end of `src/worker/lib/test-payload-factory.ts`:
+- [x] Add to the end of `src/worker/lib/test-payload-factory.ts`:
   ```typescript
   /** Build a telephony webhook payload for any provider × event combination */
   export function buildTelephonyPayload(
@@ -708,7 +708,7 @@ Add one public function that dispatches to the right provider builder:
   }
   ```
 
-- [ ] Run typecheck, commit:
+- [x] Run typecheck, commit:
   ```bash
   bun run typecheck
   git add src/worker/lib/test-payload-factory.ts
@@ -724,7 +724,7 @@ Add one public function that dispatches to the right provider builder:
 
 Four SMS providers: Twilio/SignalWire (form), Vonage (JSON), Plivo (form), Asterisk (delegates → Twilio format). Two events: incoming-message and delivery-status.
 
-- [ ] Add to `src/worker/lib/test-payload-factory.ts`:
+- [x] Add to `src/worker/lib/test-payload-factory.ts`:
   ```typescript
   // -------------------------------------------------------------------
   // SMS messaging factories
@@ -830,7 +830,7 @@ Four SMS providers: Twilio/SignalWire (form), Vonage (JSON), Plivo (form), Aster
   }
   ```
 
-- [ ] Run typecheck, commit:
+- [x] Run typecheck, commit:
   ```bash
   bun run typecheck
   git add src/worker/lib/test-payload-factory.ts
@@ -846,7 +846,7 @@ Four SMS providers: Twilio/SignalWire (form), Vonage (JSON), Plivo (form), Aster
 
 WhatsApp has two modes: Meta Cloud API (nested JSON) and Twilio (form with `whatsapp:` prefix). Signal uses a bridge. RCS uses Google RBM JSON.
 
-- [ ] Add to `src/worker/lib/test-payload-factory.ts`:
+- [x] Add to `src/worker/lib/test-payload-factory.ts`:
   ```typescript
   // -------------------------------------------------------------------
   // WhatsApp — Meta Cloud API (JSON) and Twilio mode (form)
@@ -989,7 +989,7 @@ WhatsApp has two modes: Meta Cloud API (nested JSON) and Twilio (form with `what
   }
   ```
 
-- [ ] Add the top-level messaging dispatcher:
+- [x] Add the top-level messaging dispatcher:
   ```typescript
   /** Build a messaging webhook payload for any provider × channel × event combination */
   export function buildMessagingPayload(
@@ -1013,12 +1013,12 @@ WhatsApp has two modes: Meta Cloud API (nested JSON) and Twilio (form with `what
   }
   ```
 
-- [ ] Read `src/worker/messaging/signal/` to verify the Signal adapter's expected payload structure, and adjust `buildSignalPayload` if the actual field names differ from the guess above:
+- [x] Read `src/worker/messaging/signal/` to verify the Signal adapter's expected payload structure, and adjust `buildSignalPayload` if the actual field names differ from the guess above:
   ```bash
   cat src/worker/messaging/signal/adapter.ts | grep -A 20 "parseIncomingMessage"
   ```
 
-- [ ] Run typecheck, commit:
+- [x] Run typecheck, commit:
   ```bash
   bun run typecheck
   git add src/worker/lib/test-payload-factory.ts
@@ -1034,7 +1034,7 @@ WhatsApp has two modes: Meta Cloud API (nested JSON) and Twilio (form with `what
 
 Add 6 simulation endpoints. Each builds the payload via factory, POSTs to the real webhook URL on localhost (setting `CF-Connecting-IP: 127.0.0.1` to trigger the dev bypass), and returns the webhook handler's response.
 
-- [ ] Add imports at the top of `src/worker/routes/dev.ts`:
+- [x] Add imports at the top of `src/worker/routes/dev.ts`:
   ```typescript
   import {
     buildTelephonyPayload,
@@ -1049,7 +1049,7 @@ Add 6 simulation endpoints. Each builds the payload via factory, POSTs to the re
   } from '../lib/test-payload-factory'
   ```
 
-- [ ] Add a helper that posts the factory result to the local server:
+- [x] Add a helper that posts the factory result to the local server:
   ```typescript
   /** POST a factory-generated payload to the real webhook endpoint. */
   async function postToWebhook(
@@ -1069,7 +1069,7 @@ Add 6 simulation endpoints. Each builds the payload via factory, POSTs to the re
   }
   ```
 
-- [ ] Add the 6 simulation endpoints before `export default dev`:
+- [x] Add the 6 simulation endpoints before `export default dev`:
   ```typescript
   // --- Telephony simulation ---
 
@@ -1138,19 +1138,19 @@ Add 6 simulation endpoints. Each builds the payload via factory, POSTs to the re
   })
   ```
 
-- [ ] Run typecheck:
+- [x] Run typecheck:
   ```bash
   bun run typecheck
   ```
   Expected: no errors.
 
-- [ ] Run build:
+- [x] Run build:
   ```bash
   bun run build
   ```
   Expected: success.
 
-- [ ] Commit:
+- [x] Commit:
   ```bash
   git add src/worker/routes/dev.ts
   git commit -m "feat(sim): add 6 simulation endpoints to dev routes"
@@ -1165,7 +1165,7 @@ Add 6 simulation endpoints. Each builds the payload via factory, POSTs to the re
 
 Thin wrappers for use in Playwright tests. All helpers call the simulation endpoints via `request.post()` and return the parsed response body.
 
-- [ ] Create `tests/helpers/simulation.ts`:
+- [x] Create `tests/helpers/simulation.ts`:
   ```typescript
   import type { APIRequestContext } from '@playwright/test'
 
@@ -1278,12 +1278,12 @@ Thin wrappers for use in Playwright tests. All helpers call the simulation endpo
   }
   ```
 
-- [ ] Run typecheck:
+- [x] Run typecheck:
   ```bash
   bun run typecheck
   ```
 
-- [ ] Commit:
+- [x] Commit:
   ```bash
   git add tests/helpers/simulation.ts
   git commit -m "feat(sim): Playwright simulation helpers"
@@ -1298,7 +1298,7 @@ Thin wrappers for use in Playwright tests. All helpers call the simulation endpo
 
 Test the full Asterisk call lifecycle end-to-end. Assertions check both the adapter command response (ARI JSON) and downstream effects (call records, correct state).
 
-- [ ] Create `tests/simulation-asterisk.spec.ts`:
+- [x] Create `tests/simulation-asterisk.spec.ts`:
   ```typescript
   import { test, expect } from '@playwright/test'
   import { simulateIncomingCall, simulateEndCall, simulateVoicemail } from './helpers/simulation'
@@ -1350,13 +1350,13 @@ Test the full Asterisk call lifecycle end-to-end. Assertions check both the adap
   })
   ```
 
-- [ ] Run the new tests against local dev server:
+- [x] Run the new tests against local dev server:
   ```bash
   bunx playwright test tests/simulation-asterisk.spec.ts --reporter=list
   ```
   If the server isn't running with Asterisk configured, tests may skip or error at the "telephony not configured" stage — that is acceptable. The test should NOT fail on payload format errors (400/403 from the webhook endpoint). If you see 403, the `CF-Connecting-IP` bypass isn't working — recheck Task 11's `postToWebhook` function.
 
-- [ ] Commit:
+- [x] Commit:
   ```bash
   git add tests/simulation-asterisk.spec.ts
   git commit -m "test(sim): Asterisk call lifecycle E2E tests"
@@ -1371,7 +1371,7 @@ Test the full Asterisk call lifecycle end-to-end. Assertions check both the adap
 
 One smoke test per provider: simulate an incoming call, verify the webhook returns a valid response (not 400/403/500). This catches payload format errors for each provider without needing full telephony configuration.
 
-- [ ] Create `tests/simulation-telephony.spec.ts`:
+- [x] Create `tests/simulation-telephony.spec.ts`:
   ```typescript
   import { test, expect } from '@playwright/test'
   import { simulateIncomingCall, simulateEndCall, simulateVoicemail } from './helpers/simulation'
@@ -1412,13 +1412,13 @@ One smoke test per provider: simulate an incoming call, verify the webhook retur
   })
   ```
 
-- [ ] Run smoke tests:
+- [x] Run smoke tests:
   ```bash
   bunx playwright test tests/simulation-telephony.spec.ts --reporter=list
   ```
   All tests should pass (200 or 404, not 400/403/500).
 
-- [ ] Commit:
+- [x] Commit:
   ```bash
   git add tests/simulation-telephony.spec.ts
   git commit -m "test(sim): cross-provider telephony smoke tests"
@@ -1433,7 +1433,7 @@ One smoke test per provider: simulate an incoming call, verify the webhook retur
 
 Test incoming message → conversation created, delivery status update, and smoke-test all channel/provider combinations.
 
-- [ ] Create `tests/simulation-messaging.spec.ts`:
+- [x] Create `tests/simulation-messaging.spec.ts`:
   ```typescript
   import { test, expect } from '@playwright/test'
   import {
@@ -1510,12 +1510,12 @@ Test incoming message → conversation created, delivery status update, and smok
   })
   ```
 
-- [ ] Run tests:
+- [x] Run tests:
   ```bash
   bunx playwright test tests/simulation-messaging.spec.ts --reporter=list
   ```
 
-- [ ] Commit:
+- [x] Commit:
   ```bash
   git add tests/simulation-messaging.spec.ts
   git commit -m "test(sim): messaging channel simulation E2E tests"
@@ -1525,30 +1525,30 @@ Test incoming message → conversation created, delivery status update, and smok
 
 ## Task 16: Final verification
 
-- [ ] Run full typecheck:
+- [x] Run full typecheck:
   ```bash
   bun run typecheck
   ```
   Expected: no errors.
 
-- [ ] Run build:
+- [x] Run build:
   ```bash
   bun run build
   ```
   Expected: success.
 
-- [ ] Run all simulation tests together:
+- [x] Run all simulation tests together:
   ```bash
   bunx playwright test tests/simulation-asterisk.spec.ts tests/simulation-telephony.spec.ts tests/simulation-messaging.spec.ts --reporter=list
   ```
   Expected: all pass (200 or 404, no 400/403/500).
 
-- [ ] Run existing call-flow tests to verify nothing regressed:
+- [x] Run existing call-flow tests to verify nothing regressed:
   ```bash
   bunx playwright test tests/call-flow.spec.ts tests/telephony-provider.spec.ts --reporter=list
   ```
 
-- [ ] Commit any final fixes, then push:
+- [x] Commit any final fixes, then push:
   ```bash
   git add -p
   git commit -m "chore(sim): final typecheck and build fixes"
@@ -1558,15 +1558,15 @@ Test incoming message → conversation created, delivery status update, and smok
 
 ## Completion Checklist
 
-- [ ] `tests/helpers.ts` → `tests/helpers/index.ts` migrated, existing tests unaffected
-- [ ] Messaging router dev bypass added (matches telephony router pattern)
-- [ ] Payload factory covers all 5 telephony providers × 9 events
-- [ ] Payload factory covers all 4 messaging channels × supported providers × 2 events
-- [ ] Signal adapter payload format verified against actual adapter code
-- [ ] 6 simulation endpoints in dev.ts, guarded behind dev + test-secret
-- [ ] All simulation endpoints set `CF-Connecting-IP: 127.0.0.1`
-- [ ] `bun run typecheck` passes
-- [ ] `bun run build` passes
-- [ ] `simulation-asterisk.spec.ts` passes (no 400/403/500)
-- [ ] `simulation-telephony.spec.ts` passes for all 5 providers (200 or 404)
-- [ ] `simulation-messaging.spec.ts` passes for all channels (200 or 404)
+- [x] `tests/helpers.ts` → `tests/helpers/index.ts` migrated, existing tests unaffected
+- [x] Messaging router dev bypass added (matches telephony router pattern)
+- [x] Payload factory covers all 5 telephony providers × 9 events
+- [x] Payload factory covers all 4 messaging channels × supported providers × 2 events
+- [x] Signal adapter payload format verified against actual adapter code
+- [x] 6 simulation endpoints in dev.ts, guarded behind dev + test-secret
+- [x] All simulation endpoints set `CF-Connecting-IP: 127.0.0.1`
+- [x] `bun run typecheck` passes
+- [x] `bun run build` passes
+- [x] `simulation-asterisk.spec.ts` passes (no 400/403/500)
+- [x] `simulation-telephony.spec.ts` passes for all 5 providers (200 or 404)
+- [x] `simulation-messaging.spec.ts` passes for all channels (200 or 404)
