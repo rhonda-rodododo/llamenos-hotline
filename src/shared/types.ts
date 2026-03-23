@@ -411,3 +411,41 @@ export interface HubRoleAssignment {
   hubId: string
   roleIds: string[]
 }
+
+// --- Provider OAuth Auto-Config Types (Epic 48) ---
+
+export interface OAuthState {
+  state: string // 32-byte hex CSRF token
+  provider: 'twilio' | 'telnyx'
+  expiresAt: number // Unix ms — 10-minute TTL
+}
+
+export interface NumberInfo {
+  phoneNumber: string // E.164
+  friendlyName: string
+  capabilities: { voice: boolean; sms: boolean; mms: boolean }
+  sid?: string // provider-specific ID (Twilio SID, Telnyx ID, etc.)
+}
+
+export type SupportedProvider = 'twilio' | 'telnyx' | 'signalwire' | 'vonage' | 'plivo'
+
+export interface ProviderConfig {
+  provider: SupportedProvider
+  connected: boolean
+  phoneNumber?: string
+  webhooksConfigured: boolean
+  sipConfigured: boolean
+  a2pStatus?: 'not_started' | 'pending' | 'approved' | 'failed' | 'skipped'
+  brandSid?: string
+  campaignSid?: string
+  messagingServiceSid?: string
+  // Encrypted credential fields are stored in SettingsDO, not in this type
+}
+
+export interface SipTrunkConfig {
+  sipProvider: string // e.g. 'sip.twilio.com'
+  sipUsername: string
+  sipPassword: string
+  trunkSid?: string // Twilio Trunk SID
+  connectionId?: string // Telnyx Connection ID
+}

@@ -74,6 +74,12 @@ export interface Env {
 
   // Push notifications (Epic 86) — FCM (Android)
   FCM_SERVICE_ACCOUNT_KEY?: string // Google Cloud service account JSON
+
+  // Provider OAuth (Epic 48) — OAuth client credentials for auto-config
+  TWILIO_OAUTH_CLIENT_ID?: string
+  TWILIO_OAUTH_CLIENT_SECRET?: string
+  TELNYX_OAUTH_CLIENT_ID?: string
+  TELNYX_OAUTH_CLIENT_SECRET?: string
 }
 
 /** @deprecated Use roles array + permission system instead */
