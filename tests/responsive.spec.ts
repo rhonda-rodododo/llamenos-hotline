@@ -39,3 +39,33 @@ test('mobile page has no horizontal overflow', async ({ page }) => {
   const viewportWidth = await page.evaluate(() => window.innerWidth)
   expect(bodyWidth).toBeLessThanOrEqual(viewportWidth + 1) // +1 for rounding
 })
+
+test('mobile navigation works across pages', async ({ page }) => {
+  await loginAsAdmin(page)
+
+  // Open menu and navigate to Notes
+  await page.getByRole('button', { name: /open menu/i }).click()
+  await page.getByRole('link', { name: 'Notes' }).click()
+  await expect(page.getByRole('heading', { name: /notes/i })).toBeVisible()
+
+  // Menu should auto-close after navigation
+  await expect(page.getByRole('link', { name: 'Dashboard' })).toBeHidden()
+
+  // Navigate to Volunteers
+  await page.getByRole('button', { name: /open menu/i }).click()
+  await page.getByRole('link', { name: 'Volunteers' }).click()
+  await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+})
+
+test('mobile pages have no horizontal overflow across routes', async ({ page }) => {
+  await loginAsAdmin(page)
+
+  const routes = ['/notes', '/volunteers', '/admin/settings']
+  for (const route of routes) {
+    await page.goto(route)
+    await page.waitForLoadState('networkidle')
+    const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
+    const viewportWidth = await page.evaluate(() => window.innerWidth)
+    expect(bodyWidth, `Overflow on ${route}`).toBeLessThanOrEqual(viewportWidth + 1)
+  }
+})
