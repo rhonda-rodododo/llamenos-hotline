@@ -18,6 +18,25 @@ Build a first-run setup wizard that activates automatically when an admin logs i
 - **Threat model transparency.** When selecting channels, show the honest security assessment for each (transport encryption level, metadata exposure, third-party trust).
 - **Testable.** Each provider configuration includes a "Test Connection" button that validates credentials and connectivity before proceeding.
 
+## ProviderSetup Module
+
+The wizard's provider configuration steps (Step 3a, 3b, 3c) are backed by a unified worker module at `src/worker/provider-setup/` (see **Epic 48: Provider OAuth + Auto-Config** for full details). This module exposes REST endpoints the wizard UI calls rather than having the admin manually configure webhooks or registration commands.
+
+Key endpoints consumed by the wizard:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/setup/provider/:provider/oauth/start` | Returns provider OAuth authorization URL |
+| `GET /api/setup/provider/:provider/oauth/callback` | Exchanges auth code, stores token, redirects to wizard |
+| `GET /api/setup/provider/:provider/numbers` | Lists phone numbers available on the connected account |
+| `POST /api/setup/provider/:provider/configure-webhooks` | Auto-configures webhooks for the selected number |
+| `POST /api/setup/provider/:provider/test` | Validates credentials and connectivity |
+| `POST /api/messaging/signal/register` | Initiates signal-cli registration for a phone number |
+| `GET /api/messaging/signal/registration-status` | Polls registration state (idle / registering / pending / complete) |
+| `POST /api/messaging/signal/verify` | Submits voice verification code manually |
+
+The wizard treats these endpoints as a thin API layer — the UI handles all state transitions and UX feedback, while the worker handles all provider-side side effects. See Epic 48 for endpoint contracts and signal registration for the signal-cli bridge integration.
+
 ## Wizard Steps
 
 ### Step 1: Hotline Identity
@@ -85,22 +104,37 @@ Provider selection cards with comparison:
 | WebRTC calling | Yes | Yes | Yes | Yes | Yes |
 | Cost | $$ | $ | $$ | $ | Free (self-hosted) |
 
-After selection, show provider-specific credential fields:
-- **Twilio:** Account SID, Auth Token, Phone Number
-- **SignalWire:** Project ID, API Token, Space URL, Phone Number
-- **Vonage:** API Key, API Secret, Application ID, Private Key, Phone Number
-- **Plivo:** Auth ID, Auth Token, Phone Number
+> **Recommended for self-hosted deployments:** Running our Docker stack? Use Asterisk + a SIP provider — free, no lock-in, and webhooks are configured automatically. See the card comparison above. Asterisk requires no per-minute fees and keeps all call routing on your own infrastructure.
+
+**OAuth-enabled providers (Twilio, Telnyx):**
+
+An `OAuthConnectButton` component replaces manual credential entry for supported providers. The flow:
+
+1. Admin clicks "Connect with Twilio" (or "Connect with Telnyx")
+2. Worker returns `{ authUrl }` from `GET /api/setup/provider/twilio/oauth/start`
+3. Client navigates to `authUrl` in the same tab
+4. Provider redirects to `/api/setup/provider/twilio/oauth/callback`
+5. Worker exchanges the auth code, stores the token, and redirects to `/setup?step=3a&provider=twilio&status=connected`
+6. TanStack Router reads query params; wizard renders `PhoneNumberSelector` showing numbers on the connected account
+7. Admin picks an existing number or provisions a new one
+8. Worker auto-configures all webhooks for that number via `POST /api/setup/provider/twilio/configure-webhooks`
+9. Wizard shows `WebhookConfirmation` (read-only — admin does not copy or paste anything) and advances to Step 4
+
+**Credential-entry providers (SignalWire, Vonage, Plivo, Asterisk):**
+
+Show provider-specific credential fields:
+- **SignalWire:** Project ID, API Token, Space URL
+- **Vonage:** API Key, API Secret, Application ID, Private Key
+- **Plivo:** Auth ID, Auth Token
 - **Asterisk:** ARI URL, ARI Username, ARI Password, SIP Trunk details
 
-Each provider shows:
-- A "Test Connection" button that calls the provider's API to verify credentials
-- A link to the provider's signup page
-- A link to the provider-specific setup guide (from the docs site)
+After credentials are entered and validated via `POST /api/setup/provider/:provider/test`:
+- `PhoneNumberSelector` appears, populated from the provider's number list
+- Admin picks a number
+- Worker auto-configures webhooks (same as OAuth path — no manual webhook URL copying)
+- `WebhookConfirmation` shows the configured URLs as a read-only confirmation
 
-**Webhook URL display:** After credentials are validated, show the exact webhook URLs the admin needs to configure in their provider's dashboard, with copy-to-clipboard buttons:
-- Voice: `https://{domain}/api/telephony/incoming`
-- Voice status: `https://{domain}/api/telephony/status`
-- SMS (if enabled): `https://{domain}/api/messaging/sms/webhook`
+Webhook URLs are shown as confirmation only — they are never presented with copy-to-clipboard for the admin to configure manually. The worker owns that configuration step entirely.
 
 **3b: WhatsApp Configuration** (if WhatsApp selected)
 
@@ -110,13 +144,26 @@ Two paths:
 
 **3c: Signal Bridge Configuration** (if Signal selected)
 
-This is the most technical step. Show:
-1. Prerequisites checklist (Linux server, Docker, phone number)
-2. Docker run command (copy-to-clipboard)
-3. Registration commands (step-by-step with curl examples)
-4. Fields: Bridge URL, Bridge API Key, Webhook Secret, Registered Number
-5. "Test Connection" button that pings the bridge health endpoint
-6. Link to full Signal bridge setup guide
+This step uses the `SignalRegistrationFlow` component to automate the registration process that previously required manual curl commands.
+
+Flow:
+
+1. **Prerequisites checklist** — Linux server, Docker, phone number for the bridge
+2. **Docker run command** (copy-to-clipboard) to start the signal-cli-rest-api bridge
+3. **Fields:** Bridge URL, Bridge API Key — admin enters these, then clicks "Test Connection" to validate the bridge is reachable
+4. **"Register Signal Number" button** — initiates automated registration:
+   - `POST /api/messaging/signal/register` triggers signal-cli register on the bridge
+   - UI transitions to "Registering..." state (spinner)
+   - UI polls `GET /api/messaging/signal/registration-status` every 2 seconds
+   - When status = `pending`: shows "Waiting for verification SMS..." with animated indicator
+   - When status = `complete`: shows green checkmark "Signal connected" — wizard advances automatically
+5. **Voice verification fallback** — if SMS is not received, admin clicks "Didn't receive SMS? Use voice verification":
+   - Worker triggers voice verification call via the bridge
+   - Manual code entry form appears
+   - `POST /api/messaging/signal/verify` submits the code
+   - On success, same completion state as SMS path
+
+`SignalRegistrationFlow` status states: `idle` → `registering` → `pending` → `complete` (or `error`)
 
 If the admin doesn't have infrastructure ready, allow them to skip and come back later. Mark Signal as "pending setup" in the channel list.
 
@@ -156,6 +203,16 @@ Show a summary card:
 - "Go to Dashboard" button
 
 Mark setup as complete in `SettingsDO` (`setupCompleted: true`).
+
+## Re-Entrant Channel Management
+
+The Settings > Channels page reuses the same React components as the wizard steps (`StepProviderVoice`, `StepProviderSignal`, etc.) but wrapped in a `ChannelSettings` layout instead of the wizard container. This means:
+
+- Admin can add a new channel after initial setup by navigating to Settings > Channels
+- Each channel card shows its current status (configured / pending / error)
+- "Add Signal" launches the same `SignalRegistrationFlow` outside the wizard
+- "Reconfigure Twilio" launches the same `OAuthConnectButton` → `PhoneNumberSelector` flow
+- Removing a channel de-activates it in `SettingsDO` without deleting historical data
 
 ## Making Telephony Optional
 
@@ -201,13 +258,11 @@ The wizard is re-enterable: accessible from Settings > "Setup Wizard" to reconfi
 
 ## Files
 
+**Setup wizard (existing plan):**
 - **Create:** `src/client/routes/setup.tsx` — setup wizard page (redirects here on first login if !setupCompleted)
 - **Create:** `src/client/components/setup/SetupWizard.tsx` — wizard container with step navigation
 - **Create:** `src/client/components/setup/StepIdentity.tsx` — hotline identity form
 - **Create:** `src/client/components/setup/StepChannels.tsx` — channel selection cards
-- **Create:** `src/client/components/setup/StepProviderVoice.tsx` — voice/SMS provider config
-- **Create:** `src/client/components/setup/StepProviderWhatsApp.tsx` — WhatsApp config
-- **Create:** `src/client/components/setup/StepProviderSignal.tsx` — Signal bridge config
 - **Create:** `src/client/components/setup/StepSettings.tsx` — quick settings
 - **Create:** `src/client/components/setup/StepInvite.tsx` — volunteer/reporter invite
 - **Create:** `src/client/components/setup/StepSummary.tsx` — summary & launch
@@ -222,9 +277,20 @@ The wizard is re-enterable: accessible from Settings > "Setup Wizard" to reconfi
 - **Modify:** `src/worker/app.ts` — mount setup routes
 - **Modify:** `src/shared/types.ts` — SetupState type
 
+**New components added by ProviderSetup Module integration (this update):**
+- **Create:** `src/client/components/setup/OAuthConnectButton.tsx` — OAuth redirect + callback polling, provider logo + connection status
+- **Create:** `src/client/components/setup/PhoneNumberSelector.tsx` — lists numbers from provider, allows selection or new provisioning
+- **Create:** `src/client/components/setup/SignalRegistrationFlow.tsx` — animated registration state machine (idle → registering → pending → complete), voice fallback, manual code entry
+- **Create:** `src/client/components/setup/WebhookConfirmation.tsx` — read-only display of auto-configured webhook URLs
+- **Modify:** `src/client/components/setup/StepProviderVoice.tsx` — add OAuth buttons for Twilio/Telnyx, `PhoneNumberSelector`, `WebhookConfirmation`
+- **Modify:** `src/client/components/setup/StepProviderSignal.tsx` — replace curl examples with `SignalRegistrationFlow`
+- **Create:** `src/client/components/settings/ChannelSettings.tsx` — re-entrant channel management using wizard step components
+
 ## Dependencies
 
 - Epic 42 (Messaging Architecture — for MessagingConfig types and channel type definitions)
+- **Epic 48 (Provider OAuth + Auto-Config)** — must be implemented before ProviderSetup Module integration; provides all `/api/setup/provider/*` endpoints
+- **Signal Registration Epic** — must be implemented before Step 3c automated flow; provides `/api/messaging/signal/register` and `/api/messaging/signal/registration-status` endpoints
 
 ## Blocks
 
@@ -240,3 +306,10 @@ The wizard is re-enterable: accessible from Settings > "Setup Wizard" to reconfi
 - E2E: Re-enter wizard from settings → previous values preserved, can modify
 - E2E: Provider connection test → success and failure states
 - E2E: No provider configured → telephony routes return helpful errors, not crashes
+- E2E: OAuth flow (Twilio) — mock provider OAuth callback, verify `PhoneNumberSelector` shown, verify webhooks auto-configured after number selection
+- E2E: OAuth flow (Telnyx) — same as Twilio path
+- E2E: Credential-entry provider (Vonage) — enter credentials, test connection, select number, webhooks auto-configured, `WebhookConfirmation` shown read-only
+- E2E: Signal auto-registration — mock signal-cli bridge + mock SMS verification intercept, verify `SignalRegistrationFlow` transitions through all states and auto-completes
+- E2E: Signal voice verification fallback — SMS not received, admin clicks voice fallback, enters code manually, registration completes
+- E2E: Re-entrant channel management — navigate to Settings > Channels after initial setup, add Signal channel, complete `SignalRegistrationFlow` outside wizard
+- E2E: Recommended path display — Docker-detected deployment shows Asterisk recommendation callout in Step 3a
