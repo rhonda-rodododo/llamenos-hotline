@@ -8,7 +8,8 @@ import type { AppEnv } from '../types'
 function publishReportEvent(
   env: AppEnv['Bindings'],
   kind: number,
-  content: Record<string, unknown>
+  content: Record<string, unknown>,
+  hubId?: string
 ) {
   try {
     const publisher = getNostrPublisher(env)
@@ -17,7 +18,7 @@ function publishReportEvent(
         kind,
         created_at: Math.floor(Date.now() / 1000),
         tags: [
-          ['d', 'global'],
+          ['d', hubId ?? 'global'],
           ['t', 'llamenos:event'],
         ],
         content: JSON.stringify(content),
@@ -127,7 +128,7 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
     type: 'report:new',
     conversationId: conversation.id,
     category: body.category,
-  })
+  }, hubId ?? undefined)
 
   await services.records.addAuditEntry(hubId ?? 'global', 'reportCreated', pubkey, {
     conversationId: conversation.id,
@@ -269,9 +270,7 @@ reports.post('/:id/messages', async (c) => {
   publishReportEvent(c.env, KIND_MESSAGE_NEW, {
     type: 'message:new',
     conversationId: id,
-  })
-
-  void hubId // hubId unused in this handler but available
+  }, hubId ?? undefined)
 
   return c.json(msg)
 })
@@ -300,7 +299,7 @@ reports.post('/:id/assign', requirePermission('reports:assign'), async (c) => {
     type: 'conversation:assigned',
     conversationId: id,
     assignedTo: body.assignedTo,
-  })
+  }, hubId ?? undefined)
 
   return c.json(updated)
 })

@@ -12,7 +12,8 @@ const conversations = new Hono<AppEnv>()
 function publishConversationEvent(
   env: AppEnv['Bindings'],
   kind: number,
-  content: Record<string, unknown>
+  content: Record<string, unknown>,
+  hubId?: string
 ) {
   try {
     const publisher = getNostrPublisher(env)
@@ -21,7 +22,7 @@ function publishConversationEvent(
         kind,
         created_at: Math.floor(Date.now() / 1000),
         tags: [
-          ['d', 'global'],
+          ['d', hubId ?? 'global'],
           ['t', 'llamenos:event'],
         ],
         content: JSON.stringify(content),
@@ -276,7 +277,7 @@ conversations.post('/:id/messages', async (c) => {
     type: 'message:new',
     conversationId: id,
     channelType: 'outbound',
-  })
+  }, hubId ?? undefined)
 
   c.executionCtx.waitUntil(
     services.records.addAuditEntry(hubId ?? 'global', 'messageSent', pubkey, {
@@ -319,7 +320,7 @@ conversations.patch('/:id', async (c) => {
     type: convEventType,
     conversationId: id,
     assignedTo: body.assignedTo,
-  })
+  }, hubId ?? undefined)
 
   c.executionCtx.waitUntil(
     services.records.addAuditEntry(
@@ -395,7 +396,7 @@ conversations.post('/:id/claim', async (c) => {
     type: 'conversation:assigned',
     conversationId: id,
     assignedTo: pubkey,
-  })
+  }, hubId ?? undefined)
 
   c.executionCtx.waitUntil(
     services.records.addAuditEntry(hubId ?? 'global', 'conversationClaimed', pubkey, {

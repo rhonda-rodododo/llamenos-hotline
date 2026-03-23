@@ -69,7 +69,7 @@ export async function startParallelRinging(
       type: 'call:ring',
       callSid,
       hubId: hubId ?? 'global',
-    })
+    }, hubId)
 
     // Ring phone volunteers via telephony adapter (skip if no one needs phone ringing)
     if (toRingPhone.length > 0) {

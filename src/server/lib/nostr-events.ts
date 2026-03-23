@@ -9,7 +9,8 @@ let cachedEventKey: Uint8Array | null = null
 export function publishNostrEvent(
   env: AppEnv['Bindings'],
   kind: number,
-  content: Record<string, unknown>
+  content: Record<string, unknown>,
+  hubId?: string
 ): void {
   try {
     const publisher = getNostrPublisher(env)
@@ -30,7 +31,7 @@ export function publishNostrEvent(
         kind,
         created_at: Math.floor(Date.now() / 1000),
         tags: [
-          ['d', 'global'],
+          ['d', hubId ?? 'global'],
           ['t', 'llamenos:event'],
         ],
         content: eventContent,

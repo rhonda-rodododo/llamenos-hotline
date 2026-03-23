@@ -453,14 +453,14 @@ telephony.post('/call-recording', async (c) => {
       // Persist recording SID on the call record
       const existingRecord = await services.records.getCallRecord(parentCallSid, hubId)
       if (existingRecord) {
-        await services.records.updateCallRecord(parentCallSid, {
+        await services.records.updateCallRecord(parentCallSid, hubId ?? 'global', {
           recordingSid,
           hasRecording: true,
         })
       }
 
-      maybeTranscribe(parentCallSid, recordingSid, pubkey, env, services).catch((err) =>
-        console.error('[background]', err)
+      maybeTranscribe(parentCallSid, recordingSid, pubkey, hubId ?? 'global', env, services).catch(
+        (err) => console.error('[background]', err)
       )
     }
   }
@@ -488,7 +488,9 @@ telephony.post('/voicemail-recording', async (c) => {
     await services.records.addAuditEntry(hubId ?? 'global', 'voicemailReceived', 'system', {
       callSid,
     })
-    transcribeVoicemail(callSid, env, services).catch((err) => console.error('[background]', err))
+    transcribeVoicemail(callSid, hubId ?? 'global', env, services).catch((err) =>
+      console.error('[background]', err)
+    )
   }
 
   return telephonyResponse(adapter.emptyResponse())

@@ -49,17 +49,18 @@ export class ShiftService {
     return this.#rowToSchedule(row)
   }
 
-  async updateSchedule(id: string, data: Partial<CreateScheduleData>): Promise<ShiftSchedule> {
+  async updateSchedule(id: string, hubId: string, data: Partial<CreateScheduleData>): Promise<ShiftSchedule> {
     if (
       (data.startTime && !isValidTimeFormat(data.startTime)) ||
       (data.endTime && !isValidTimeFormat(data.endTime))
     ) {
       throw new AppError(400, 'Invalid time format — expected HH:MM (00:00–23:59)')
     }
+    const whereClause = and(eq(shiftSchedules.id, id), eq(shiftSchedules.hubId, hubId))
     const rows = await this.db
       .select()
       .from(shiftSchedules)
-      .where(eq(shiftSchedules.id, id))
+      .where(whereClause)
       .limit(1)
     if (!rows[0]) throw new AppError(404, 'Schedule not found')
 
@@ -73,13 +74,13 @@ export class ShiftService {
         ...(data.volunteerPubkeys !== undefined ? { volunteerPubkeys: data.volunteerPubkeys } : {}),
         ...(data.ringGroupId !== undefined ? { ringGroupId: data.ringGroupId } : {}),
       })
-      .where(eq(shiftSchedules.id, id))
+      .where(whereClause)
       .returning()
     return this.#rowToSchedule(row)
   }
 
-  async deleteSchedule(id: string): Promise<void> {
-    await this.db.delete(shiftSchedules).where(eq(shiftSchedules.id, id))
+  async deleteSchedule(id: string, hubId: string): Promise<void> {
+    await this.db.delete(shiftSchedules).where(and(eq(shiftSchedules.id, id), eq(shiftSchedules.hubId, hubId)))
   }
 
   // ------------------------------------------------------------------ Overrides

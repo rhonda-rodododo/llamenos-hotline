@@ -7,6 +7,7 @@ export async function maybeTranscribe(
   parentCallSid: string,
   recordingSid: string,
   volunteerPubkey: string,
+  hubId: string,
   env: Env,
   services: Services
 ) {
@@ -57,7 +58,7 @@ export async function maybeTranscribe(
       })
 
       // Mark call record as having a transcription and persist the recording SID
-      await services.records.updateCallRecord(parentCallSid, {
+      await services.records.updateCallRecord(parentCallSid, hubId, {
         hasTranscription: true,
         recordingSid,
         hasRecording: true,
@@ -68,7 +69,7 @@ export async function maybeTranscribe(
   }
 }
 
-export async function transcribeVoicemail(callSid: string, env: Env, services: Services) {
+export async function transcribeVoicemail(callSid: string, hubId: string, env: Env, services: Services) {
   // Check if transcription is globally enabled
   const transSettings = await services.settings.getTranscriptionSettings()
   if (!transSettings.globalEnabled) return
@@ -107,7 +108,7 @@ export async function transcribeVoicemail(callSid: string, env: Env, services: S
       })
 
       // Mark call record as having a transcription
-      await services.records.updateCallRecord(callSid, {
+      await services.records.updateCallRecord(callSid, hubId, {
         hasTranscription: true,
       })
     }

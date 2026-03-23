@@ -333,7 +333,7 @@ async function tryAutoAssign(
           kind: KIND_CONVERSATION_ASSIGNED,
           created_at: Math.floor(Date.now() / 1000),
           tags: [
-            ['d', 'global'],
+            ['d', hubId],
             ['t', 'llamenos:event'],
           ],
           content: JSON.stringify({

@@ -122,9 +122,15 @@ export class RecordsService {
 
   async updateCallRecord(
     id: string,
+    hubId: string,
     data: Partial<CreateCallRecordData>
   ): Promise<EncryptedCallRecord> {
-    const rows = await this.db.select().from(callRecords).where(eq(callRecords.id, id)).limit(1)
+    const hId = hubId ?? 'global'
+    const rows = await this.db
+      .select()
+      .from(callRecords)
+      .where(and(eq(callRecords.id, id), eq(callRecords.hubId, hId)))
+      .limit(1)
     if (!rows[0]) throw new AppError(404, 'Call record not found')
     const [row] = await this.db
       .update(callRecords)
@@ -141,7 +147,7 @@ export class RecordsService {
           ? { adminEnvelopes: data.adminEnvelopes as RecipientEnvelope[] }
           : {}),
       })
-      .where(eq(callRecords.id, id))
+      .where(and(eq(callRecords.id, id), eq(callRecords.hubId, hId)))
       .returning()
     return this.#rowToCallRecord(row)
   }
