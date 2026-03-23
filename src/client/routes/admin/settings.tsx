@@ -1,3 +1,4 @@
+import { ChannelSettings } from '@/components/admin-settings/channel-settings'
 import { CallSettingsSection } from '@/components/admin-settings/call-settings-section'
 import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-section'
 import { IvrLanguagesSection } from '@/components/admin-settings/ivr-languages-section'
@@ -200,6 +201,12 @@ function AdminSettingsPage() {
         <h1 className="text-xl font-bold sm:text-2xl">{t('settings.hubTitle')}</h1>
       </div>
       <p className="text-sm text-muted-foreground">{t('settings.hubDescription')}</p>
+
+      <ChannelSettings
+        expanded={expanded.has('channel-settings')}
+        onToggle={(open) => toggleSection('channel-settings', open)}
+        statusSummary={t('channelSettings.summary', { defaultValue: 'Manage channels' })}
+      />
 
       {webauthnSettings && (
         <PasskeyPolicySection

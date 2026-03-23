@@ -592,7 +592,7 @@ export async function updateCustomFields(fields: CustomFieldDefinition[]) {
 // --- Telephony Provider Settings ---
 
 export type { TelephonyProviderConfig, TelephonyProviderType } from '@shared/types'
-import type { TelephonyProviderConfig } from '@shared/types'
+import type { TelephonyProviderConfig, TelephonyProviderType } from '@shared/types'
 
 export async function getTelephonyProvider() {
   return request<TelephonyProviderConfig | null>('/settings/telephony-provider')
@@ -987,6 +987,106 @@ export async function testWhatsAppConnection(data: { phoneNumberId: string; acce
     method: 'POST',
     body: JSON.stringify(data),
   })
+}
+
+// --- Provider OAuth & Phone Numbers ---
+
+export interface OAuthStartResponse {
+  stateToken: string
+  provider: string
+  mode: 'oauth' | 'manual'
+  redirectUrl?: string
+  message?: string
+  signupUrl: string
+  docsUrl: string
+}
+
+export interface OAuthStatusResponse {
+  provider: string
+  status: 'pending' | 'connected' | 'error' | 'expired'
+  accountSid?: string
+  error?: string
+  connectedAt?: string
+}
+
+export interface ProviderPhoneNumber {
+  phoneNumber: string
+  friendlyName: string
+  capabilities: { voice: boolean; sms: boolean; mms: boolean }
+  locality?: string
+  region?: string
+  country: string
+}
+
+export interface AvailablePhoneNumber extends ProviderPhoneNumber {
+  monthlyPrice?: string
+}
+
+export interface ProviderCredentials {
+  provider: TelephonyProviderType
+  accountSid?: string
+  authToken?: string
+  signalwireSpace?: string
+  apiKey?: string
+  apiSecret?: string
+  applicationId?: string
+  authId?: string
+  ariUrl?: string
+  ariUsername?: string
+  ariPassword?: string
+}
+
+export async function startProviderOAuth(provider: TelephonyProviderType) {
+  return request<OAuthStartResponse>('/setup/provider/oauth/start', {
+    method: 'POST',
+    body: JSON.stringify({ provider }),
+  })
+}
+
+export async function getProviderOAuthStatus(stateToken: string) {
+  return request<OAuthStatusResponse>(`/setup/provider/oauth/status/${stateToken}`)
+}
+
+export async function validateProviderCredentials(credentials: ProviderCredentials) {
+  return request<{ ok: boolean; error?: string; accountName?: string }>('/setup/provider/validate', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+}
+
+export async function listProviderPhoneNumbers(credentials: ProviderCredentials) {
+  return request<{ numbers: ProviderPhoneNumber[] }>('/setup/provider/phone-numbers', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+}
+
+export async function searchAvailablePhoneNumbers(
+  credentials: ProviderCredentials & { country: string; areaCode?: string; contains?: string }
+) {
+  return request<{ numbers: AvailablePhoneNumber[] }>('/setup/provider/phone-numbers/search', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+}
+
+export async function provisionPhoneNumber(
+  credentials: ProviderCredentials & { phoneNumber: string }
+) {
+  return request<{ ok: boolean; phoneNumber: string; error?: string }>('/setup/provider/phone-numbers/provision', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+}
+
+export async function getWebhookUrls() {
+  return request<{
+    voice: string
+    voiceStatus: string
+    sms: string
+    whatsapp: string
+    signal: string
+  }>('/setup/provider/webhooks')
 }
 
 // --- Reports ---
