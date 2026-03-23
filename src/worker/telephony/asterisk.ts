@@ -145,9 +145,9 @@ export class AsteriskAdapter implements TelephonyAdapter {
   }
 
   async handleCaptchaResponse(params: CaptchaResponseParams): Promise<TelephonyResponse> {
-    const { digits, expectedDigits, callerLanguage: lang, callSid } = params
+    const { callerLanguage: lang, callSid, result, expectedDigits } = params
 
-    if (digits === expectedDigits) {
+    if (result === 'pass') {
       return this.json([
         this.speak(getPrompt('captchaSuccess', lang), lang),
         {
@@ -159,7 +159,22 @@ export class AsteriskAdapter implements TelephonyAdapter {
       ])
     }
 
-    return this.json([this.speak(getPrompt('captchaFailed', lang), lang), { action: 'hangup' }])
+    if (result === 'retry') {
+      return this.json([
+        this.speak(getPrompt('captchaRetry', lang), lang),
+        this.speak(`${expectedDigits.split('').join(' ')}.`, lang),
+        {
+          action: 'gather',
+          numDigits: 4,
+          timeout: 10,
+          callbackEvent: 'captcha_response',
+          metadata: { callSid },
+        },
+      ])
+    }
+
+    // 'fail' or 'expired'
+    return this.json([this.speak(getPrompt('captchaFail', lang), lang), { action: 'hangup' }])
   }
 
   async handleCallAnswered(params: CallAnsweredParams): Promise<TelephonyResponse> {

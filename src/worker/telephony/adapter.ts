@@ -171,6 +171,8 @@ export interface CaptchaResponseParams {
   callerLanguage: string
   /** Hub ID for multi-hub routing — appended to callback URLs as &hub= */
   hubId?: string
+  /** Server-side verification result: pass, fail, expired, or retry */
+  result: 'pass' | 'fail' | 'expired' | 'retry'
 }
 
 export interface CallAnsweredParams {

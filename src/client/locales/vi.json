@@ -458,7 +458,9 @@
     "rateLimiting": "Giới hạn tần suất",
     "rateLimitingDescription": "Giới hạn cuộc gọi lặp lại từ cùng một số",
     "maxCallsPerMinute": "Cuộc gọi tối đa mỗi phút mỗi số",
-    "blockDuration": "Thời gian chặn (phút)"
+    "blockDuration": "Thời gian chặn (phút)",
+    "captchaMaxAttempts": "Số lần thử CAPTCHA tối đa",
+    "captchaMaxAttemptsDescription": "Số lần thử trước khi từ chối cuộc gọi (1-5)"
   },
   "callHistory": {
     "title": "Lịch sử cuộc gọi",

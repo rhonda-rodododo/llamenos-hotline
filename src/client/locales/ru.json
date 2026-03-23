@@ -458,7 +458,9 @@
     "rateLimiting": "Ограничение частоты",
     "rateLimitingDescription": "Ограничить повторные звонки с одного номера",
     "maxCallsPerMinute": "Макс. звонков в минуту с номера",
-    "blockDuration": "Длительность блокировки (минуты)"
+    "blockDuration": "Длительность блокировки (минуты)",
+    "captchaMaxAttempts": "Макс. попыток CAPTCHA",
+    "captchaMaxAttemptsDescription": "Количество попыток до отклонения звонка (1-5)"
   },
   "callHistory": {
     "title": "История звонков",

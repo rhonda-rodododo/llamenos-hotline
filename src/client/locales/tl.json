@@ -458,7 +458,9 @@
     "rateLimiting": "Rate Limiting",
     "rateLimitingDescription": "Limitahan ang paulit-ulit na tawag mula sa parehong numero",
     "maxCallsPerMinute": "Max na tawag bawat minuto bawat numero",
-    "blockDuration": "Tagal ng pagka-block (minuto)"
+    "blockDuration": "Tagal ng pagka-block (minuto)",
+    "captchaMaxAttempts": "Max na pagsubok sa CAPTCHA",
+    "captchaMaxAttemptsDescription": "Bilang ng pagsubok bago tanggihan ang tawag (1-5)"
   },
   "callHistory": {
     "title": "Kasaysayan ng Tawag",
