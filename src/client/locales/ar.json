@@ -739,7 +739,8 @@
       "select": "قائمة اختيار",
       "checkbox": "مربع اختيار",
       "textarea": "منطقة نصية",
-      "file": "File"
+      "file": "File",
+      "location": "موقع"
     },
     "validation": {
       "min": "الحد الأدنى",
@@ -748,7 +749,18 @@
       "maxLength": "الحد الأقصى للطول"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "إعدادات الموقع",
+    "maxPrecision": "أقصى دقة",
+    "allowGps": "السماح بموقع GPS",
+    "locationEncryptionNote": "يتم تشفير بيانات الموقع مع محتوى الملاحظة (دون معرفة)",
+    "precision": {
+      "exact": "دقيق (إحداثيات كاملة)",
+      "block": "مستوى الحي",
+      "neighborhood": "الحي (العنوان فقط)",
+      "city": "مستوى المدينة (العنوان فقط)",
+      "none": "لا شيء (نص فقط)"
+    }
   },
   "volunteerProfile": {
     "joined": "انضم في",
@@ -1227,5 +1239,27 @@
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
+  },
+  "locationField": {
+    "placeholder": "ابحث عن عنوان...",
+    "searching": "جاري البحث...",
+    "noResults": "لا توجد نتائج",
+    "openInMaps": "فتح في الخريطة",
+    "clearLocation": "مسح الموقع",
+    "useCurrentLocation": "استخدم الموقع الحالي"
+  },
+  "geocoding": {
+    "title": "الترميز الجغرافي / الموقع",
+    "description": "تكوين مزود الترميز الجغرافي لتمكين الإكمال التلقائي للموقع في الحقول المخصصة",
+    "provider": "مزود الترميز الجغرافي",
+    "apiKey": "مفتاح API",
+    "apiKeyPlaceholder": "أدخل مفتاح API الخاص بك",
+    "countries": "تصفية الدول",
+    "countriesPlaceholder": "مثال: us, ca, mx",
+    "countriesHelp": "رموز دول مكونة من حرفين مفصولة بفواصل. اترك فارغًا للعالم بأسره.",
+    "enabled": "تمكين الترميز الجغرافي",
+    "testConnection": "اختبار الاتصال",
+    "testSuccess": "الاتصال ناجح ({{latency}} مللي ثانية)",
+    "testFailed": "فشل اختبار الاتصال"
   }
 }

@@ -739,7 +739,8 @@
       "select": "Pagpili",
       "checkbox": "Checkbox",
       "textarea": "Lugar ng Teksto",
-      "file": "File"
+      "file": "File",
+      "location": "Lokasyon"
     },
     "validation": {
       "min": "Min",
@@ -748,7 +749,18 @@
       "maxLength": "Max na Haba"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "Mga setting ng lokasyon",
+    "maxPrecision": "Maximum na katumpakan",
+    "allowGps": "Payagan ang GPS na lokasyon",
+    "locationEncryptionNote": "Ang data ng lokasyon ay naka-encrypt kasama ng nilalaman ng tala (zero-knowledge)",
+    "precision": {
+      "exact": "Eksaktong (buong coordinates)",
+      "block": "Antas ng bloke",
+      "neighborhood": "Kapitbahayan (address lamang)",
+      "city": "Antas ng lungsod (address lamang)",
+      "none": "Wala (text lamang)"
+    }
   },
   "volunteerProfile": {
     "joined": "Sumali noong",
@@ -1227,5 +1239,27 @@
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
+  },
+  "locationField": {
+    "placeholder": "Maghanap ng address...",
+    "searching": "Naghahanap...",
+    "noResults": "Walang resulta",
+    "openInMaps": "Buksan sa mapa",
+    "clearLocation": "Burahin ang lokasyon",
+    "useCurrentLocation": "Gamitin ang kasalukuyang lokasyon"
+  },
+  "geocoding": {
+    "title": "Geocoding / Lokasyon",
+    "description": "I-configure ang isang geocoding provider para i-enable ang location autocomplete sa custom fields",
+    "provider": "Geocoding Provider",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Ilagay ang iyong API key",
+    "countries": "Filter ng bansa",
+    "countriesPlaceholder": "hal. ph, us, jp",
+    "countriesHelp": "Mga 2-letter country code na pinaghihiwalay ng kuwit. Iwanang walang laman para sa buong mundo.",
+    "enabled": "I-enable ang geocoding",
+    "testConnection": "Subukan ang koneksyon",
+    "testSuccess": "Matagumpay ang koneksyon ({{latency}}ms)",
+    "testFailed": "Nabigo ang test ng koneksyon"
   }
 }

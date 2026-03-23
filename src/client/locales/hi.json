@@ -739,7 +739,8 @@
       "select": "चयन",
       "checkbox": "चेकबॉक्स",
       "textarea": "टेक्स्ट एरिया",
-      "file": "File"
+      "file": "File",
+      "location": "स्थान"
     },
     "validation": {
       "min": "न्यूनतम",
@@ -748,7 +749,18 @@
       "maxLength": "अधिकतम लंबाई"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "स्थान सेटिंग",
+    "maxPrecision": "अधिकतम सटीकता",
+    "allowGps": "GPS स्थान की अनुमति दें",
+    "locationEncryptionNote": "स्थान डेटा नोट सामग्री के साथ एन्क्रिप्ट किया गया है (शून्य-ज्ञान)",
+    "precision": {
+      "exact": "सटीक (पूर्ण निर्देशांक)",
+      "block": "ब्लॉक स्तर",
+      "neighborhood": "पड़ोस (केवल पता)",
+      "city": "शहर स्तर (केवल पता)",
+      "none": "कोई नहीं (केवल पाठ)"
+    }
   },
   "volunteerProfile": {
     "joined": "शामिल हुए",
@@ -1227,5 +1239,27 @@
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
+  },
+  "locationField": {
+    "placeholder": "पता खोजें...",
+    "searching": "खोज रहा है...",
+    "noResults": "कोई परिणाम नहीं",
+    "openInMaps": "मानचित्र में खोलें",
+    "clearLocation": "स्थान साफ़ करें",
+    "useCurrentLocation": "वर्तमान स्थान का उपयोग करें"
+  },
+  "geocoding": {
+    "title": "जियोकोडिंग / स्थान",
+    "description": "कस्टम फ़ील्ड में स्थान स्वतः पूर्ण सक्षम करने के लिए जियोकोडिंग प्रदाता कॉन्फ़िगर करें",
+    "provider": "जियोकोडिंग प्रदाता",
+    "apiKey": "API कुंजी",
+    "apiKeyPlaceholder": "अपनी API कुंजी दर्ज करें",
+    "countries": "देश फ़िल्टर",
+    "countriesPlaceholder": "जैसे in, us, gb",
+    "countriesHelp": "अल्पविराम से अलग 2-अक्षर वाले देश कोड। विश्वव्यापी के लिए खाली छोड़ें।",
+    "enabled": "जियोकोडिंग सक्षम करें",
+    "testConnection": "कनेक्शन परीक्षण",
+    "testSuccess": "कनेक्शन सफल ({{latency}}ms)",
+    "testFailed": "कनेक्शन परीक्षण विफल"
   }
 }
