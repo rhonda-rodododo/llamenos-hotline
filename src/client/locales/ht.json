@@ -741,7 +741,8 @@
       "select": "Seleksyon",
       "checkbox": "Kaz",
       "textarea": "Zòn Tèks",
-      "file": "File"
+      "file": "File",
+      "location": "Lokasyon"
     },
     "validation": {
       "min": "Min",
@@ -750,7 +751,18 @@
       "maxLength": "Longè Maks"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "Paramèt lokasyon",
+    "maxPrecision": "Presizyon maksimòm",
+    "allowGps": "Pèmèt lokasyon GPS",
+    "locationEncryptionNote": "Done lokasyon yo chifre ak kontni nòt la (zewo konesans)",
+    "precision": {
+      "exact": "Egzak (kowòdone konplè)",
+      "block": "Nivo blòk",
+      "neighborhood": "Katye (adrès sèlman)",
+      "city": "Nivo vil (adrès sèlman)",
+      "none": "Okenn (tèks sèlman)"
+    }
   },
   "volunteerProfile": {
     "joined": "Te antre",
@@ -1271,5 +1283,27 @@
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
+  },
+  "locationField": {
+    "placeholder": "Chèche yon adrès...",
+    "searching": "Ap chèche...",
+    "noResults": "Pa gen rezilta",
+    "openInMaps": "Ouvri nan kat",
+    "clearLocation": "Efase lokasyon",
+    "useCurrentLocation": "Itilize lokasyon aktyèl"
+  },
+  "geocoding": {
+    "title": "Jewokodaj / Lokasyon",
+    "description": "Konfigire yon founisè jewokodaj pou aktive otomatik lokasyon nan chan pèsonalize",
+    "provider": "Founisè jewokodaj",
+    "apiKey": "Kle API",
+    "apiKeyPlaceholder": "Antre kle API ou",
+    "countries": "Filtre peyi",
+    "countriesPlaceholder": "egzanp: us, ht, ca",
+    "countriesHelp": "Kòd peyi 2 lèt separe pa vigil. Kite vid pou tout mond.",
+    "enabled": "Aktive jewokodaj",
+    "testConnection": "Teste koneksyon",
+    "testSuccess": "Koneksyon reyisi ({{latency}}ms)",
+    "testFailed": "Tès koneksyon echwe"
   }
 }

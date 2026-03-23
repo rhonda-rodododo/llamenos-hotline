@@ -741,7 +741,8 @@
       "select": "Selección",
       "checkbox": "Casilla de verificación",
       "textarea": "Área de Texto",
-      "file": "File"
+      "file": "File",
+      "location": "Ubicación"
     },
     "validation": {
       "min": "Mín",
@@ -750,7 +751,18 @@
       "maxLength": "Longitud Máx"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "Configuración de ubicación",
+    "maxPrecision": "Precisión máxima",
+    "allowGps": "Permitir ubicación GPS",
+    "locationEncryptionNote": "Los datos de ubicación se cifran con el contenido de la nota (conocimiento cero)",
+    "precision": {
+      "exact": "Exacta (coordenadas completas)",
+      "block": "Nivel de cuadra",
+      "neighborhood": "Vecindario (solo dirección)",
+      "city": "Nivel de ciudad (solo dirección)",
+      "none": "Ninguna (solo texto)"
+    }
   },
   "volunteerProfile": {
     "joined": "Se unió",
@@ -1271,5 +1283,27 @@
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
+  },
+  "locationField": {
+    "placeholder": "Buscar una dirección...",
+    "searching": "Buscando...",
+    "noResults": "Sin resultados",
+    "openInMaps": "Abrir en mapa",
+    "clearLocation": "Borrar ubicación",
+    "useCurrentLocation": "Usar ubicación actual"
+  },
+  "geocoding": {
+    "title": "Geocodificación / Ubicación",
+    "description": "Configurar un proveedor de geocodificación para habilitar el autocompletado de ubicación en campos personalizados",
+    "provider": "Proveedor de geocodificación",
+    "apiKey": "Clave API",
+    "apiKeyPlaceholder": "Ingrese su clave API",
+    "countries": "Filtro de países",
+    "countriesPlaceholder": "ej. us, mx, es",
+    "countriesHelp": "Códigos de país de 2 letras separados por comas. Dejar vacío para todo el mundo.",
+    "enabled": "Habilitar geocodificación",
+    "testConnection": "Probar conexión",
+    "testSuccess": "Conexión exitosa ({{latency}}ms)",
+    "testFailed": "Prueba de conexión fallida"
   }
 }

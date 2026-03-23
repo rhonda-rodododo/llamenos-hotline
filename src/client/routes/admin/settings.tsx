@@ -1,5 +1,6 @@
 import { CallSettingsSection } from '@/components/admin-settings/call-settings-section'
 import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-section'
+import { GeocodingSettingsSection } from '@/components/admin-settings/geocoding-settings-section'
 import { IvrLanguagesSection } from '@/components/admin-settings/ivr-languages-section'
 import { PasskeyPolicySection } from '@/components/admin-settings/passkey-policy-section'
 import { RCSChannelSection } from '@/components/admin-settings/rcs-channel-section'
@@ -14,11 +15,13 @@ import { usePersistedExpanded } from '@/components/settings-section'
 import {
   type CallSettings,
   type CustomFieldDefinition,
+  type GeocodingConfigAdmin,
   type IvrAudioRecording,
   type SpamSettings,
   type TelephonyProviderConfig,
   getCallSettings,
   getCustomFields,
+  getGeocodingSettings,
   getIvrLanguages,
   getMessagingConfig,
   getSpamSettings,
@@ -32,7 +35,7 @@ import { type WebAuthnSettings, getWebAuthnSettings } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { IVR_LANGUAGES } from '@shared/languages'
-import type { MessagingConfig } from '@shared/types'
+import { GEOCODING_PROVIDER_LABELS, type MessagingConfig } from '@shared/types'
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 import { Settings2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -67,6 +70,7 @@ function AdminSettingsPage() {
     type: 'twilio',
   })
   const [messagingConfig, setMessagingConfig] = useState<MessagingConfig | null>(null)
+  const [geocodingConfig, setGeocodingConfig] = useState<GeocodingConfigAdmin | null>(null)
 
   const { expanded, toggleSection } = usePersistedExpanded(
     'settings-expanded:/admin/settings',
@@ -102,6 +106,9 @@ function AdminSettingsPage() {
         .catch(() => {}),
       getMessagingConfig()
         .then(setMessagingConfig)
+        .catch(() => {}),
+      getGeocodingSettings()
+        .then(setGeocodingConfig)
         .catch(() => {}),
     ])
       .catch(() => toast(t('common.error'), 'error'))
@@ -276,6 +283,20 @@ function AdminSettingsPage() {
         onToggle={(open) => toggleSection('custom-fields', open)}
         statusSummary={customFieldsStatus}
       />
+
+      {geocodingConfig && (
+        <GeocodingSettingsSection
+          config={geocodingConfig}
+          onChange={setGeocodingConfig}
+          expanded={expanded.has('geocoding')}
+          onToggle={(open) => toggleSection('geocoding', open)}
+          statusSummary={
+            geocodingConfig.enabled && geocodingConfig.provider
+              ? GEOCODING_PROVIDER_LABELS[geocodingConfig.provider]
+              : t('common.disabled')
+          }
+        />
+      )}
 
       {spam && (
         <SpamSection

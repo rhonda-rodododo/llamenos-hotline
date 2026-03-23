@@ -741,7 +741,8 @@
       "select": "Sélection",
       "checkbox": "Case à cocher",
       "textarea": "Zone de texte",
-      "file": "File"
+      "file": "File",
+      "location": "Localisation"
     },
     "validation": {
       "min": "Min",
@@ -750,7 +751,18 @@
       "maxLength": "Longueur max"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "Paramètres de localisation",
+    "maxPrecision": "Précision maximale",
+    "allowGps": "Autoriser la localisation GPS",
+    "locationEncryptionNote": "Les données de localisation sont chiffrées avec le contenu de la note (zéro connaissance)",
+    "precision": {
+      "exact": "Exacte (coordonnées complètes)",
+      "block": "Niveau bloc",
+      "neighborhood": "Quartier (adresse uniquement)",
+      "city": "Niveau ville (adresse uniquement)",
+      "none": "Aucune (texte uniquement)"
+    }
   },
   "volunteerProfile": {
     "joined": "Inscrit le",
@@ -1271,5 +1283,27 @@
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
+  },
+  "locationField": {
+    "placeholder": "Rechercher une adresse...",
+    "searching": "Recherche...",
+    "noResults": "Aucun résultat",
+    "openInMaps": "Ouvrir sur la carte",
+    "clearLocation": "Effacer le lieu",
+    "useCurrentLocation": "Utiliser la position actuelle"
+  },
+  "geocoding": {
+    "title": "Géocodage / Localisation",
+    "description": "Configurer un fournisseur de géocodage pour activer la saisie automatique de localisation",
+    "provider": "Fournisseur de géocodage",
+    "apiKey": "Clé API",
+    "apiKeyPlaceholder": "Entrez votre clé API",
+    "countries": "Filtre de pays",
+    "countriesPlaceholder": "ex. fr, be, ca",
+    "countriesHelp": "Codes de pays à 2 lettres séparés par des virgules. Laisser vide pour le monde entier.",
+    "enabled": "Activer le géocodage",
+    "testConnection": "Tester la connexion",
+    "testSuccess": "Connexion réussie ({{latency}}ms)",
+    "testFailed": "Échec du test de connexion"
   }
 }

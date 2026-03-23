@@ -589,6 +589,51 @@ export async function updateCustomFields(fields: CustomFieldDefinition[]) {
   })
 }
 
+// --- Geocoding ---
+
+import type { GeocodingConfig, GeocodingConfigAdmin, LocationResult } from '@shared/types'
+export type { GeocodingConfig, GeocodingConfigAdmin, LocationResult } from '@shared/types'
+
+export async function geocodingAutocomplete(query: string, limit = 5) {
+  return request<LocationResult[]>('/geocoding/autocomplete', {
+    method: 'POST',
+    body: JSON.stringify({ query, limit }),
+  })
+}
+
+export async function geocodingGeocode(address: string) {
+  return request<LocationResult | null>('/geocoding/geocode', {
+    method: 'POST',
+    body: JSON.stringify({ address }),
+  })
+}
+
+export async function geocodingReverse(lat: number, lon: number) {
+  return request<LocationResult | null>('/geocoding/reverse', {
+    method: 'POST',
+    body: JSON.stringify({ lat, lon }),
+  })
+}
+
+export async function getGeocodingConfig() {
+  return request<GeocodingConfig>('/geocoding/config')
+}
+
+export async function getGeocodingSettings() {
+  return request<GeocodingConfigAdmin>('/geocoding/settings')
+}
+
+export async function updateGeocodingSettings(config: Partial<GeocodingConfigAdmin>) {
+  return request<GeocodingConfigAdmin>('/geocoding/settings', {
+    method: 'PATCH',
+    body: JSON.stringify(config),
+  })
+}
+
+export async function testGeocodingProvider() {
+  return request<{ ok: boolean; latency: number; error?: string }>('/geocoding/test')
+}
+
 // --- Telephony Provider Settings ---
 
 export type { TelephonyProviderConfig, TelephonyProviderType } from '@shared/types'

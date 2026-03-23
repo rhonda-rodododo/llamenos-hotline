@@ -741,7 +741,8 @@
       "select": "Lựa chọn",
       "checkbox": "Hộp kiểm",
       "textarea": "Vùng văn bản",
-      "file": "File"
+      "file": "File",
+      "location": "Vị trí"
     },
     "validation": {
       "min": "Tối thiểu",
@@ -750,7 +751,18 @@
       "maxLength": "Độ dài tối đa"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "Cài đặt vị trí",
+    "maxPrecision": "Độ chính xác tối đa",
+    "allowGps": "Cho phép vị trí GPS",
+    "locationEncryptionNote": "Dữ liệu vị trí được mã hóa cùng nội dung ghi chú (không có kiến thức)",
+    "precision": {
+      "exact": "Chính xác (tọa độ đầy đủ)",
+      "block": "Mức khối",
+      "neighborhood": "Khu vực lân cận (chỉ địa chỉ)",
+      "city": "Mức thành phố (chỉ địa chỉ)",
+      "none": "Không (chỉ văn bản)"
+    }
   },
   "volunteerProfile": {
     "joined": "Tham gia",
@@ -1271,5 +1283,27 @@
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
     "urlPlaceholder": "https://hub.example.com"
+  },
+  "locationField": {
+    "placeholder": "Tìm kiếm địa chỉ...",
+    "searching": "Đang tìm...",
+    "noResults": "Không có kết quả",
+    "openInMaps": "Mở trên bản đồ",
+    "clearLocation": "Xóa vị trí",
+    "useCurrentLocation": "Sử dụng vị trí hiện tại"
+  },
+  "geocoding": {
+    "title": "Mã hóa địa lý / Vị trí",
+    "description": "Cấu hình nhà cung cấp mã hóa địa lý để bật tự động hoàn thành vị trí trong các trường tùy chỉnh",
+    "provider": "Nhà cung cấp mã hóa địa lý",
+    "apiKey": "Khóa API",
+    "apiKeyPlaceholder": "Nhập khóa API của bạn",
+    "countries": "Bộ lọc quốc gia",
+    "countriesPlaceholder": "vd. vn, us, jp",
+    "countriesHelp": "Mã quốc gia 2 chữ cái phân cách bằng dấu phẩy. Để trống cho toàn cầu.",
+    "enabled": "Bật mã hóa địa lý",
+    "testConnection": "Kiểm tra kết nối",
+    "testSuccess": "Kết nối thành công ({{latency}}ms)",
+    "testFailed": "Kiểm tra kết nối thất bại"
   }
 }

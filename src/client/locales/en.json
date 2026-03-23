@@ -815,7 +815,8 @@
       "select": "Select",
       "checkbox": "Checkbox",
       "textarea": "Text Area",
-      "file": "File"
+      "file": "File",
+      "location": "Location"
     },
     "validation": {
       "min": "Min",
@@ -824,7 +825,18 @@
       "maxLength": "Max Length"
     },
     "context": "Context",
-    "empty": "No custom fields defined"
+    "empty": "No custom fields defined",
+    "locationSettings": "Location Settings",
+    "maxPrecision": "Maximum Precision",
+    "allowGps": "Allow GPS location",
+    "locationEncryptionNote": "Location data is encrypted with note content (zero-knowledge)",
+    "precision": {
+      "exact": "Exact (full coordinates)",
+      "block": "Block level",
+      "neighborhood": "Neighborhood (address only)",
+      "city": "City level (address only)",
+      "none": "None (text only)"
+    }
   },
   "volunteerProfile": {
     "joined": "Joined",
@@ -1271,5 +1283,27 @@
     "title": "Message Preferences",
     "invalidToken": "Invalid or expired preferences link",
     "unsubscribe": "Unsubscribe from all messages"
+  },
+  "locationField": {
+    "placeholder": "Search for an address...",
+    "searching": "Searching...",
+    "noResults": "No results found",
+    "openInMaps": "Open in maps",
+    "clearLocation": "Clear location",
+    "useCurrentLocation": "Use current location"
+  },
+  "geocoding": {
+    "title": "Geocoding / Location",
+    "description": "Configure a geocoding provider to enable location autocomplete in custom fields",
+    "provider": "Geocoding Provider",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Enter your API key",
+    "countries": "Country Filter",
+    "countriesPlaceholder": "e.g. us, ca, mx",
+    "countriesHelp": "Comma-separated 2-letter country codes. Leave empty for worldwide.",
+    "enabled": "Enable geocoding",
+    "testConnection": "Test Connection",
+    "testSuccess": "Connection successful ({{latency}}ms)",
+    "testFailed": "Connection test failed"
   }
 }
