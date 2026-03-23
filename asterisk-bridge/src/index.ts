@@ -1,6 +1,7 @@
 import { AriClient } from './ari-client'
 import { WebhookSender } from './webhook-sender'
 import { CommandHandler } from './command-handler'
+import { PjsipConfigurator } from './pjsip-configurator'
 import type { BridgeConfig } from './types'
 
 /** Load configuration from environment variables */
@@ -12,6 +13,7 @@ function loadConfig(): BridgeConfig {
   const workerWebhookUrl = process.env.WORKER_WEBHOOK_URL
   const bridgeSecret = process.env.BRIDGE_SECRET
   const bridgePort = parseInt(process.env.BRIDGE_PORT ?? '3000', 10)
+  const bridgeBind = process.env.BRIDGE_BIND ?? '127.0.0.1'
   const stasisApp = process.env.STASIS_APP ?? 'llamenos'
 
   if (!ariUsername) throw new Error('ARI_USERNAME is required')
@@ -27,7 +29,11 @@ function loadConfig(): BridgeConfig {
     workerWebhookUrl,
     bridgeSecret,
     bridgePort,
+    bridgeBind,
     stasisApp,
+    sipProvider: process.env.SIP_PROVIDER,
+    sipUsername: process.env.SIP_USERNAME,
+    sipPassword: process.env.SIP_PASSWORD,
   }
 }
 
@@ -35,6 +41,10 @@ async function main(): Promise<void> {
   console.log('[bridge] Starting Asterisk ARI Bridge...')
 
   const config = loadConfig()
+
+  // SIP auto-config state — reported on /health
+  let sipConfigured = false
+  let sipConfigSkipped = false
 
   // Initialize components
   const ari = new AriClient(config)
@@ -56,7 +66,7 @@ async function main(): Promise<void> {
   // Start HTTP server for Worker commands
   const server = Bun.serve({
     port: config.bridgePort,
-    hostname: '127.0.0.1', // Bind to localhost only — must not be internet-facing
+    hostname: config.bridgeBind, // Default 127.0.0.1 — set BRIDGE_BIND=0.0.0.0 in Docker
     async fetch(request: Request): Promise<Response> {
       const url = new URL(request.url)
       const path = url.pathname
@@ -68,6 +78,8 @@ async function main(): Promise<void> {
         return Response.json({
           status: 'ok',
           uptime: process.uptime(),
+          sipConfigured,
+          sipConfigSkipped,
           ...status,
         })
       }
@@ -265,6 +277,21 @@ async function main(): Promise<void> {
     console.log('[bridge] Asterisk info:', JSON.stringify(info).substring(0, 200))
   } catch (err) {
     console.warn('[bridge] Could not fetch Asterisk info (will retry on reconnect):', err)
+  }
+
+  // Auto-configure PJSIP SIP trunk if credentials are provided
+  if (config.sipProvider && config.sipUsername && config.sipPassword) {
+    try {
+      const pjsip = new PjsipConfigurator(ari)
+      await pjsip.configure(config.sipProvider, config.sipUsername, config.sipPassword)
+      sipConfigured = true
+    } catch (err) {
+      console.error('[bridge] PJSIP auto-config failed:', err)
+      // Non-fatal — bridge can still handle calls if pjsip.conf was pre-configured
+    }
+  } else {
+    console.log('[bridge] SIP env vars not set — skipping PJSIP auto-config')
+    sipConfigSkipped = true
   }
 
   console.log('[bridge] Asterisk ARI Bridge is running')

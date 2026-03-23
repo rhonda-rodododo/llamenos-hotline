@@ -188,7 +188,11 @@ services:
     profiles: ["asterisk"]
     restart: unless-stopped
     volumes:
-      - asterisk-config:/etc/asterisk
+      - ../../asterisk-bridge/asterisk-config/ari.conf:/etc/asterisk/ari.conf:ro
+      - ../../asterisk-bridge/asterisk-config/http.conf:/etc/asterisk/http.conf:ro
+      - ../../asterisk-bridge/asterisk-config/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ../../asterisk-bridge/asterisk-config/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ../../asterisk-bridge/asterisk-config/sorcery.conf:/etc/asterisk/sorcery.conf:ro
     networks:
       - internal
     healthcheck:
@@ -206,16 +210,20 @@ services:
     restart: unless-stopped
     environment:
       - ARI_URL=ws://asterisk:8088/ari/events
+      - ARI_REST_URL=http://asterisk:8088/ari
       - ARI_USERNAME=${ARI_USERNAME:-llamenos}
       - ARI_PASSWORD=${ARI_PASSWORD:?ARI_PASSWORD is required — do NOT use the default}
       - WORKER_WEBHOOK_URL=http://app:3000
       - BRIDGE_SECRET=${BRIDGE_SECRET:?BRIDGE_SECRET is required — generate a random value}
+      - HOTLINE_NUMBER=${HOTLINE_NUMBER:-}
+      # SIP trunk auto-config — set all three to enable PJSIP auto-configuration at startup
+      - SIP_PROVIDER=${SIP_PROVIDER:-}
+      - SIP_USERNAME=${SIP_USERNAME:-}
+      - SIP_PASSWORD=${SIP_PASSWORD:-}
     networks:
       - internal
     depends_on:
       asterisk:
-        condition: service_healthy
-      app:
         condition: service_healthy
 
   # ── Optional: Signal Messaging ───────────────────────────
@@ -243,7 +251,6 @@ volumes:
   caddy-config:
   minio-data:
   nostr-data:
-  asterisk-config:
   signal-data:
 
 networks:

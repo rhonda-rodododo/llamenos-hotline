@@ -14,7 +14,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["bun-types"]
+    "types": ["bun"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
