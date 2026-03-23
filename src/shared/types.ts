@@ -92,6 +92,55 @@ export const PROVIDER_REQUIRED_FIELDS: Record<
   asterisk: ['ariUrl', 'ariUsername', 'ariPassword', 'phoneNumber'],
 }
 
+// --- Geocoding / Location Types ---
+
+export type LocationPrecision = 'none' | 'city' | 'neighborhood' | 'block' | 'exact'
+
+export type LocationResult = {
+  address: string
+  displayName?: string
+  lat: number
+  lon: number
+  countryCode?: string
+}
+
+export type LocationFieldValue = {
+  address: string
+  displayName?: string
+  lat?: number
+  lon?: number
+  source: 'geocoded' | 'gps' | 'manual'
+}
+
+export type GeocodingProvider = 'opencage' | 'geoapify'
+
+export type GeocodingConfig = {
+  provider: GeocodingProvider | null
+  countries: string[]
+  enabled: boolean
+}
+
+export type GeocodingConfigAdmin = GeocodingConfig & { apiKey: string }
+
+export const GEOCODING_PROVIDER_LABELS: Record<GeocodingProvider, string> = {
+  opencage: 'OpenCage',
+  geoapify: 'Geoapify',
+}
+
+export const DEFAULT_GEOCODING_CONFIG: GeocodingConfigAdmin = {
+  provider: null,
+  apiKey: '',
+  countries: [],
+  enabled: false,
+}
+
+// --- Location Field Settings (for custom field definition) ---
+
+export interface LocationFieldSettings {
+  maxPrecision: LocationPrecision
+  allowGps: boolean
+}
+
 // --- Custom Fields ---
 
 export type CustomFieldContext = 'call-notes' | 'conversation-notes' | 'reports' | 'all'
@@ -101,7 +150,7 @@ export interface CustomFieldDefinition {
   id: string // unique UUID
   name: string // internal key (machine-readable, e.g. "severity")
   label: string // display label (e.g. "Severity Rating")
-  type: 'text' | 'number' | 'select' | 'checkbox' | 'textarea' | 'file'
+  type: 'text' | 'number' | 'select' | 'checkbox' | 'textarea' | 'file' | 'location'
   required: boolean
   options?: string[] // for 'select' type only
   validation?: {
@@ -122,6 +171,8 @@ export interface CustomFieldDefinition {
   maxFileSize?: number // bytes, for file type
   allowedMimeTypes?: string[] // e.g., ['image/*', 'application/pdf']
   maxFiles?: number // for multi-file fields (default: 1)
+  // Location field type options
+  locationSettings?: LocationFieldSettings
   order: number
   createdAt: string
 }
@@ -485,4 +536,53 @@ export interface Hub {
 export interface HubRoleAssignment {
   hubId: string
   roleIds: string[]
+}
+
+// --- Provider OAuth Auto-Config Types (Epic 48) ---
+
+export interface OAuthState {
+  state: string // 32-byte hex CSRF token
+  provider: 'twilio' | 'telnyx'
+  expiresAt: number // Unix ms — 10-minute TTL
+}
+
+export interface NumberInfo {
+  phoneNumber: string // E.164
+  friendlyName: string
+  capabilities: { voice: boolean; sms: boolean; mms: boolean }
+  sid?: string // provider-specific ID (Twilio SID, Telnyx ID, etc.)
+}
+
+export type SupportedProvider = 'twilio' | 'telnyx' | 'signalwire' | 'vonage' | 'plivo'
+
+export interface ProviderConfig {
+  provider: SupportedProvider
+  connected: boolean
+  phoneNumber?: string
+  webhooksConfigured: boolean
+  sipConfigured: boolean
+  a2pStatus?: 'not_started' | 'pending' | 'approved' | 'failed' | 'skipped'
+  brandSid?: string
+  campaignSid?: string
+  messagingServiceSid?: string
+  // Encrypted credential fields are stored in SettingsDO, not in this type
+}
+
+export interface SipTrunkConfig {
+  sipProvider: string // e.g. 'sip.twilio.com'
+  sipUsername: string
+  sipPassword: string
+  trunkSid?: string // Twilio Trunk SID
+  connectionId?: string // Telnyx Connection ID
+}
+
+// --- Signal Registration ---
+
+export interface SignalRegistrationPending {
+  number: string
+  bridgeUrl: string
+  method: 'sms' | 'voice'
+  expiresAt: string // ISO 8601
+  status: 'pending' | 'complete' | 'failed'
+  error?: string
 }

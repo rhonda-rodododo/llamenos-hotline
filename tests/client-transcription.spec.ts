@@ -82,3 +82,45 @@ test.describe('Client-side transcription settings', () => {
     await expect(baseButton).toHaveClass(/border-primary/)
   })
 })
+
+test.describe('Transcribe recording button', () => {
+  test.beforeEach(async ({ request }) => {
+    await resetTestState(request)
+  })
+
+  test('call history page shows transcribe button alongside recording player', async ({ page }) => {
+    await loginAsAdmin(page)
+    await navigateAfterLogin(page, '/calls')
+    await expect(page.getByRole('heading', { name: 'Call History' })).toBeVisible()
+
+    // If recording players exist, they should have transcribe buttons
+    const playerCount = await page.getByTestId('recording-player').count()
+    if (playerCount > 0) {
+      const transcribeBtn = page.getByTestId('transcribe-recording-btn').first()
+      await expect(transcribeBtn).toBeVisible()
+      await expect(transcribeBtn).toContainText('Transcribe Recording')
+    }
+  })
+
+  test('no network requests to CF AI during transcription flow', async ({ page }) => {
+    await loginAsAdmin(page)
+
+    // Monitor network requests for CF AI calls
+    const cfAiRequests: string[] = []
+    page.on('request', (request) => {
+      const url = request.url()
+      if (url.includes('ai.cloudflare') || url.includes('@cf/openai/whisper')) {
+        cfAiRequests.push(url)
+      }
+    })
+
+    await navigateAfterLogin(page, '/calls')
+    await expect(page.getByRole('heading', { name: 'Call History' })).toBeVisible()
+
+    // Wait a moment for any lazy requests
+    await page.waitForTimeout(1000)
+
+    // No requests should have been made to CF AI
+    expect(cfAiRequests).toHaveLength(0)
+  })
+})

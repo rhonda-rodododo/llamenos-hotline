@@ -1,10 +1,10 @@
+import { ChannelSettings } from '@/components/admin-settings/channel-settings'
 import { CallSettingsSection } from '@/components/admin-settings/call-settings-section'
 import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-section'
-import { ReportTypesSection } from '@/components/admin-settings/report-types-section'
+import { GeocodingSettingsSection } from '@/components/admin-settings/geocoding-settings-section'
 import { IvrLanguagesSection } from '@/components/admin-settings/ivr-languages-section'
 import { PasskeyPolicySection } from '@/components/admin-settings/passkey-policy-section'
 import { RCSChannelSection } from '@/components/admin-settings/rcs-channel-section'
-import { RetentionSection } from '@/components/admin-settings/retention-section'
 import { RolesSection } from '@/components/admin-settings/roles-section'
 import { SignalChannelSection } from '@/components/admin-settings/signal-channel-section'
 import { SpamSection } from '@/components/admin-settings/spam-section'
@@ -16,21 +16,19 @@ import { usePersistedExpanded } from '@/components/settings-section'
 import {
   type CallSettings,
   type CustomFieldDefinition,
+  type GeocodingConfigAdmin,
   type IvrAudioRecording,
-  type RetentionSettings,
   type SpamSettings,
   type TelephonyProviderConfig,
   getCallSettings,
   getCustomFields,
+  getGeocodingSettings,
   getIvrLanguages,
   getMessagingConfig,
-  getRetentionSettings,
   getSpamSettings,
   getTelephonyProvider,
   getTranscriptionSettings,
   listIvrAudio,
-  listReportTypes,
-  updateRetentionSettings,
   updateSpamSettings,
   updateTranscriptionSettings,
 } from '@/lib/api'
@@ -38,7 +36,7 @@ import { type WebAuthnSettings, getWebAuthnSettings } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { IVR_LANGUAGES } from '@shared/languages'
-import type { MessagingConfig, ReportType } from '@shared/types'
+import { GEOCODING_PROVIDER_LABELS, type MessagingConfig } from '@shared/types'
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 import { Settings2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -73,8 +71,7 @@ function AdminSettingsPage() {
     type: 'twilio',
   })
   const [messagingConfig, setMessagingConfig] = useState<MessagingConfig | null>(null)
-  const [retentionSettings, setRetentionSettings] = useState<RetentionSettings | null>(null)
-  const [reportTypesList, setReportTypesList] = useState<ReportType[]>([])
+  const [geocodingConfig, setGeocodingConfig] = useState<GeocodingConfigAdmin | null>(null)
 
   const { expanded, toggleSection } = usePersistedExpanded(
     'settings-expanded:/admin/settings',
@@ -111,11 +108,8 @@ function AdminSettingsPage() {
       getMessagingConfig()
         .then(setMessagingConfig)
         .catch(() => {}),
-      getRetentionSettings()
-        .then(setRetentionSettings)
-        .catch(() => {}),
-      listReportTypes()
-        .then((r) => setReportTypesList(r.reportTypes))
+      getGeocodingSettings()
+        .then(setGeocodingConfig)
         .catch(() => {}),
     ])
       .catch(() => toast(t('common.error'), 'error'))
@@ -215,6 +209,12 @@ function AdminSettingsPage() {
       </div>
       <p className="text-sm text-muted-foreground">{t('settings.hubDescription')}</p>
 
+      <ChannelSettings
+        expanded={expanded.has('channel-settings')}
+        onToggle={(open) => toggleSection('channel-settings', open)}
+        statusSummary={t('channelSettings.summary', { defaultValue: 'Manage channels' })}
+      />
+
       {webauthnSettings && (
         <PasskeyPolicySection
           settings={webauthnSettings}
@@ -291,18 +291,19 @@ function AdminSettingsPage() {
         statusSummary={customFieldsStatus}
       />
 
-      <ReportTypesSection
-        reportTypes={reportTypesList}
-        customFields={customFieldDefs}
-        onChange={setReportTypesList}
-        expanded={expanded.has('report-types')}
-        onToggle={(open) => toggleSection('report-types', open)}
-        statusSummary={
-          reportTypesList.filter((rt) => !rt.archivedAt).length > 0
-            ? `${reportTypesList.filter((rt) => !rt.archivedAt).length} ${t('settings.reportTypes.typesCount', { defaultValue: 'types' })}`
-            : t('common.none', { defaultValue: 'None' })
-        }
-      />
+      {geocodingConfig && (
+        <GeocodingSettingsSection
+          config={geocodingConfig}
+          onChange={setGeocodingConfig}
+          expanded={expanded.has('geocoding')}
+          onToggle={(open) => toggleSection('geocoding', open)}
+          statusSummary={
+            geocodingConfig.enabled && geocodingConfig.provider
+              ? GEOCODING_PROVIDER_LABELS[geocodingConfig.provider]
+              : t('common.disabled')
+          }
+        />
+      )}
 
       {spam && (
         <SpamSection
@@ -340,15 +341,6 @@ function AdminSettingsPage() {
               ? t('common.configured', { defaultValue: 'Configured' })
               : t('settings.notConfigured', { defaultValue: 'Not configured' })
           }
-        />
-      )}
-
-      {retentionSettings && (
-        <RetentionSection
-          settings={retentionSettings}
-          onChange={setRetentionSettings}
-          expanded={expanded.has('retention')}
-          onToggle={(open) => toggleSection('retention', open)}
         />
       )}
 

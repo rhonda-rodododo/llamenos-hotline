@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label'
 import { type MessagingConfig, testMessagingChannel, updateMessagingConfig } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { CheckCircle2, Copy, Loader2, Shield, XCircle } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { SignalRegistrationFlow } from './signal-registration-flow'
 
 interface SignalChannelSectionProps {
   config: MessagingConfig
@@ -76,6 +77,13 @@ export function SignalChannelSection({
     }
   }
 
+  const isSignalConfigured = !!signal.registeredNumber && !!signal.bridgeUrl
+
+  const handleRegistrationComplete = useCallback(() => {
+    // Refresh config from server
+    window.location.reload()
+  }, [])
+
   return (
     <SettingsSection
       id="signal-channel"
@@ -97,6 +105,12 @@ export function SignalChannelSection({
             })}
           </p>
         </div>
+
+        {/* Signal Registration Wizard */}
+        <SignalRegistrationFlow
+          isConfigured={isSignalConfigured}
+          onRegistrationComplete={handleRegistrationComplete}
+        />
 
         <div className="space-y-2">
           <Label htmlFor="signal-bridge-url">

@@ -1,6 +1,6 @@
-import { FileFieldInput } from '@/components/custom-fields/file-field-input'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LocationField } from '@/components/ui/location-field'
 import {
   Select,
   SelectContent,
@@ -9,10 +9,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import type { CustomFieldDefinition, FileFieldValue } from '@shared/types'
+import type { CustomFieldDefinition, LocationFieldValue } from '@shared/types'
 import { useTranslation } from 'react-i18next'
 
-type FieldValue = string | number | boolean | FileFieldValue
+type FieldValue = string | number | boolean
 
 interface Props {
   fields: CustomFieldDefinition[]
@@ -175,15 +175,27 @@ function renderFieldInput(
           </SelectContent>
         </Select>
       )
-    case 'file':
+    case 'location': {
+      let locationValue: LocationFieldValue | null = null
+      if (typeof value === 'string' && value) {
+        try {
+          locationValue = JSON.parse(value) as LocationFieldValue
+        } catch {
+          locationValue = { address: value, source: 'manual' }
+        }
+      }
       return (
-        <FileFieldInput
-          definition={field}
-          value={value as FileFieldValue | undefined}
-          onChange={(v) => onChange(v as FieldValue)}
+        <LocationField
+          id={id}
+          value={locationValue}
+          onChange={(v) => onChange(v ? JSON.stringify(v) : '')}
+          maxPrecision={field.locationSettings?.maxPrecision ?? 'exact'}
+          allowGps={field.locationSettings?.allowGps ?? false}
+          allowAutocomplete
           disabled={disabled}
         />
       )
+    }
     default:
       return null
   }

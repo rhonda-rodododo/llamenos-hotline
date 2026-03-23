@@ -115,19 +115,7 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls",
-    "analytics": {
-      "title": "分析",
-      "callVolume": "通话量",
-      "callVolume7d": "通话量 — 最近7天",
-      "callVolume30d": "通话量 — 最近30天",
-      "peakHours": "高峰时段",
-      "teamPerformance": "团队表现",
-      "answered": "已接听",
-      "voicemail": "语音信箱",
-      "unanswered": "未接听",
-      "noData": "此时段无数据"
-    }
+    "viewCalls": "View Calls"
   },
   "calls": {
     "incoming": "来电",
@@ -149,15 +137,7 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail",
-    "detail": {
-      "title": "通话详情",
-      "metadata": "通话信息",
-      "notes": "记录",
-      "recording": "录音",
-      "audit": "审计追踪",
-      "notFound": "未找到通话"
-    }
+    "voicemail": "Voicemail"
   },
   "callSettings": {
     "title": "通话设置",
@@ -199,14 +179,7 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": {
-      "title": "记录详情",
-      "forbidden": "您没有权限查看此记录",
-      "notFound": "记录未找到",
-      "callContext": "来自通话",
-      "viewCall": "查看通话详情",
-      "editFromCallPage": "从通话详情页面编辑"
-    },
+    "detail": "Note Details",
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -229,9 +202,7 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated",
-    "permalink": "查看",
-    "viewPermalink": "查看记录"
+    "updated": "Note updated"
   },
   "transcription": {
     "title": "转录",
@@ -372,18 +343,7 @@
     "noActivity": "No recent activity",
     "notFound": "Volunteer not found",
     "recentActivity": "Recent Activity",
-    "unnamed": "Unnamed Volunteer",
-    "sendInvite": "Send invite",
-    "sendInviteTitle": "Send Invite Link",
-    "inviteChannel": "Send via",
-    "inviteNotSent": "Not sent — copy link to share manually",
-    "inviteSentVia": "Sent via {{channel}} on {{date}}",
-    "inviteSentSuccess": "Invite sent via {{channel}}",
-    "smsInsecureWarning": "SMS is not end-to-end encrypted. Use Signal or WhatsApp if possible.",
-    "smsAcknowledge": "I understand SMS is not end-to-end encrypted and accept the risk.",
-    "smsAcknowledgeRequired": "You must acknowledge the security warning before sending via SMS.",
-    "copyLink": "Copy link",
-    "noChannelsConfigured": "No messaging channels are configured. Copy the link to share manually."
+    "unnamed": "Unnamed Volunteer"
   },
   "webauthn": {
     "title": "通行密钥",
@@ -660,26 +620,7 @@
     "transcriptionEnableDesc": "Automatically transcribe your calls",
     "transcriptionManaged": "Managed by admin",
     "version": "Version",
-    "voicemail": "Voicemail",
-    "reportTypes": {
-      "title": "Report Types",
-      "description": "Description",
-      "empty": "No report types defined",
-      "new": "New Report Type",
-      "name": "Name",
-      "namePlaceholder": "e.g. Crisis Report",
-      "descriptionPlaceholder": "Brief description of when to use this type",
-      "fields": "Bound fields",
-      "default": "Default",
-      "setDefault": "Set as default",
-      "archive": "Archive",
-      "unarchive": "Restore",
-      "archived": "Archived",
-      "archiveConfirm": "Archive this report type? Existing reports will keep their type.",
-      "showArchived": "Show archived",
-      "hideArchived": "Hide archived",
-      "typesCount": "types"
-    }
+    "voicemail": "Voicemail"
   },
   "session": {
     "expiringWarning": "您的会话即将过期。",
@@ -807,23 +748,7 @@
       "maxLength": "最大长度"
     },
     "context": "Context",
-    "empty": "No custom fields defined",
-    "file": {
-      "upload": "Choose file or drag & drop",
-      "uploading": "Uploading...",
-      "download": "Download",
-      "remove": "Remove",
-      "tooLarge": "File too large (max {{max}} MB)",
-      "invalidType": "File type not allowed",
-      "unavailable": "File unavailable",
-      "allowedTypes": "Allowed file types",
-      "allowedTypesHint": "Hold Ctrl/Cmd to select multiple",
-      "mimeImages": "Images",
-      "mimePDF": "PDF",
-      "mimeAudio": "Audio",
-      "mimeAny": "Any file type",
-      "maxSizeMB": "Max file size (MB)"
-    }
+    "empty": "No custom fields defined"
   },
   "volunteerProfile": {
     "joined": "加入于",
@@ -1207,7 +1132,49 @@
     },
     "demoMode": "Populate with sample data",
     "demoModeDescription": "Creates sample volunteer accounts, shifts, and ban entries for testing and demos. Demo account credentials will be shown on the login page.",
-    "demoSeedFailed": "Sample data partially created"
+    "demoSeedFailed": "Sample data partially created",
+    "oauth": {
+      "connecting": "Connecting...",
+      "validating": "Validating...",
+      "connected": "Connected to {{provider}}",
+      "validate": "Validate {{provider}} Credentials",
+      "signUp": "Sign up for {{provider}}",
+      "validationFailed": "Credential validation failed",
+      "connectionFailed": "Connection failed",
+      "enterCredentials": "Enter your credentials above first",
+      "credentialsValid": "{{provider}} credentials verified successfully."
+    },
+    "phoneNumbers": {
+      "existing": "Your Numbers",
+      "buyNew": "Buy New",
+      "refresh": "Refresh numbers",
+      "validateFirst": "Validate your provider credentials to see available phone numbers.",
+      "noExisting": "No phone numbers found in your account. Enter a number manually or buy a new one.",
+      "searchFailed": "Failed to search for available numbers",
+      "provisioned": "Phone number provisioned successfully",
+      "provisionFailed": "Failed to provision phone number",
+      "search": "Search",
+      "provision": "Buy",
+      "voice": "Voice",
+      "sms": "SMS",
+      "countryCode": "Country (ISO)",
+      "areaCode": "Area code"
+    },
+    "webhooks": {
+      "title": "Webhook URLs",
+      "description": "Configure these URLs in your provider's dashboard to receive calls and messages.",
+      "copyAll": "Copy All",
+      "voiceIncoming": "Voice (Incoming)",
+      "voiceStatus": "Voice (Status)",
+      "smsWebhook": "SMS Webhook",
+      "signalWebhook": "Signal Webhook"
+    },
+    "signalE2eeNote": "Signal provides end-to-end encryption to the bridge. Messages are re-encrypted with your hotline's keys before storage.",
+    "signalPrerequisites": "Prerequisites",
+    "signalPrereq1": "A Linux server with Docker installed",
+    "signalPrereq2": "A phone number to register with Signal",
+    "signalPrereq3": "Network access between your hotline server and the bridge",
+    "signalDockerCommand": "Docker Run Command"
   },
   "reports": {
     "title": "Reports",
@@ -1275,11 +1242,7 @@
     "messages": "Messages",
     "noReportsHint": "No reports yet. Create one to get started.",
     "notFound": "Report not found",
-    "updated": "Report Updated",
-    "type": {
-      "label": "Report Type",
-      "placeholder": "Select a report type"
-    }
+    "updated": "Report Updated"
   },
   "hubs": {
     "title": "Hub Management",
@@ -1305,88 +1268,13 @@
     "selectHub": "Select hub",
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
-    "urlPlaceholder": "https://hub.example.com",
-    "delete": "删除",
-    "deleteHub": "删除Hub",
-    "deleteHubConfirm": "这将永久删除\"{{name}}\"及其所有数据。请输入Hub名称以确认。",
-    "deleteHubNameLabel": "输入Hub名称以确认",
-    "hubDeleted": "Hub已成功删除",
-    "deleteHubActiveCallsError": "无法删除有正在进行通话的Hub",
-    "archive": "归档",
-    "archiveHub": "归档中心",
-    "archiveHubConfirm": "确定要归档\"{{name}}\"吗？已归档的中心将从活动操作中隐藏。",
-    "hubArchived": "中心归档成功"
+    "urlPlaceholder": "https://hub.example.com"
   },
-  "consent": {
-    "title": "数据处理协议",
-    "subtitle": "请在继续之前阅读并接受",
-    "intro": "在访问系统之前，您必须同意我们如何收集和使用您的数据。",
-    "dataCollected": {
-      "title": "我们收集的内容",
-      "accountInfo": "账户信息（姓名、公钥、语言）",
-      "callNotes": "加密的通话记录和对话记录",
-      "sessions": "登录会话元数据",
-      "auditLog": "活动审计日志"
-    },
-    "howWeProtect": {
-      "title": "我们如何保护您的数据",
-      "e2ee": "通话记录经过端对端加密——服务器无法读取",
-      "noPlaintext": "敏感个人信息从不以明文存储",
-      "retention": "数据在配置的保留期后自动删除"
-    },
-    "yourRights": {
-      "title": "您的权利（GDPR）",
-      "access": "访问权：从设置中下载您的所有数据",
-      "portability": "可携带权：以JSON格式导出您的数据",
-      "erasure": "删除权：从设置中请求删除账户"
-    },
-    "gdprNote": "本平台依据欧盟GDPR合规运营。",
-    "version": "隐私政策版本：{{version}}",
-    "scrollToRead": "滚动阅读后再同意",
-    "agree": "我同意数据处理条款",
-    "submitting": "提交中..."
-  },
-  "gdpr": {
-    "title": "隐私与数据",
-    "exportTitle": "下载我的数据",
-    "exportDescription": "下载系统中存储的所有数据副本（GDPR第20条）。",
-    "exportButton": "下载我的数据",
-    "exportLoading": "正在准备导出...",
-    "exportError": "导出数据失败",
-    "erasureTitle": "请求删除账户",
-    "erasureDescription": "永久删除您的账户和所有相关个人数据。此操作有72小时审查期。",
-    "erasureWarning": "以下内容将被永久删除：",
-    "erasureWarningItems": {
-      "profile": "您的个人资料和账户信息",
-      "sessions": "所有登录会话和WebAuthn凭证",
-      "notes": "您创作的所有通话记录",
-      "shifts": "班次分配",
-      "auditEntries": "审计日志条目将被匿名化"
-    },
-    "erasurePinRequired": "输入您的PIN码确认",
-    "erasureButton": "请求删除账户",
-    "erasureRequested": "账户删除请求已提交",
-    "erasureCountdown": "您的账户将在{{hours}}小时后删除",
-    "erasureCancelButton": "取消删除请求",
-    "erasureCancelled": "删除请求已取消",
-    "erasureConfirm": "确认删除",
-    "retentionTitle": "数据保留",
-    "retentionDescription": "配置不同类型数据的保留时长。",
-    "retentionCallRecords": "通话记录（天）",
-    "retentionNotes": "通话记录（天）",
-    "retentionMessages": "消息（天）",
-    "retentionAuditLog": "审计日志（天）",
-    "retentionSaved": "保留设置已保存",
-    "retentionSaveError": "保存保留设置失败"
-  },
-  "conversations": {
-    "status": {
-      "pending": "待发送",
-      "sent": "已发送",
-      "delivered": "已送达",
-      "read": "已读",
-      "failed": "发送失败",
-      "failedTooltip": "失败：{{error}}"
-    }
+  "channelSettings": {
+    "title": "Channels & Providers",
+    "description": "Manage which communication channels are enabled for your hotline.",
+    "summary": "Manage channels",
+    "active": "Active",
+    "currentProvider": "Current voice/SMS provider:"
   }
 }

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { type CustomFieldDefinition, updateCustomFields } from '@/lib/api'
 import { useToast } from '@/lib/toast'
-import { MAX_CUSTOM_FIELDS } from '@shared/types'
+import { type LocationPrecision, MAX_CUSTOM_FIELDS } from '@shared/types'
 import { ChevronDown, ChevronUp, Plus, Save, StickyNote, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -227,7 +227,7 @@ export function CustomFieldsSection({
                 <option value="select">{t('customFields.types.select')}</option>
                 <option value="checkbox">{t('customFields.types.checkbox')}</option>
                 <option value="textarea">{t('customFields.types.textarea')}</option>
-                <option value="file">{t('customFields.types.file')}</option>
+                <option value="location">{t('customFields.types.location')}</option>
               </select>
             </div>
           </div>
@@ -279,6 +279,55 @@ export function CustomFieldsSection({
                 <Plus className="h-3 w-3" />
                 {t('customFields.addOption')}
               </Button>
+            </div>
+          )}
+
+          {/* Location settings */}
+          {editing.type === 'location' && (
+            <div className="space-y-3 rounded-lg border border-border p-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                {t('customFields.locationSettings')}
+              </p>
+              <div className="space-y-1">
+                <Label>{t('customFields.maxPrecision')}</Label>
+                <select
+                  value={editing.locationSettings?.maxPrecision ?? 'exact'}
+                  onChange={(e) =>
+                    setEditing((prev) => ({
+                      ...prev!,
+                      locationSettings: {
+                        maxPrecision: e.target.value as LocationPrecision,
+                        allowGps: prev?.locationSettings?.allowGps ?? false,
+                      },
+                    }))
+                  }
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="exact">{t('customFields.precision.exact')}</option>
+                  <option value="block">{t('customFields.precision.block')}</option>
+                  <option value="neighborhood">{t('customFields.precision.neighborhood')}</option>
+                  <option value="city">{t('customFields.precision.city')}</option>
+                  <option value="none">{t('customFields.precision.none')}</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={editing.locationSettings?.allowGps ?? false}
+                  onCheckedChange={(checked) =>
+                    setEditing((prev) => ({
+                      ...prev!,
+                      locationSettings: {
+                        maxPrecision: prev?.locationSettings?.maxPrecision ?? 'exact',
+                        allowGps: checked,
+                      },
+                    }))
+                  }
+                />
+                <Label className="text-sm">{t('customFields.allowGps')}</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t('customFields.locationEncryptionNote')}
+              </p>
             </div>
           )}
 
@@ -353,53 +402,6 @@ export function CustomFieldsSection({
                       },
                     }))
                   }
-                />
-              </div>
-            </div>
-          )}
-
-          {/* File type options */}
-          {editing.type === 'file' && (
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label>{t('customFields.file.allowedTypes')}</Label>
-                <select
-                  multiple
-                  data-testid="file-allowed-types"
-                  value={editing.allowedMimeTypes ?? []}
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.selectedOptions).map((o) => o.value)
-                    setEditing((prev) => ({ ...prev!, allowedMimeTypes: selected }))
-                  }}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  size={4}
-                >
-                  <option value="image/*">{t('customFields.file.mimeImages')}</option>
-                  <option value="application/pdf">{t('customFields.file.mimePDF')}</option>
-                  <option value="audio/*">{t('customFields.file.mimeAudio')}</option>
-                  <option value="*/*">{t('customFields.file.mimeAny')}</option>
-                </select>
-                <p className="text-xs text-muted-foreground">{t('customFields.file.allowedTypesHint')}</p>
-              </div>
-              <div className="space-y-1">
-                <Label>{t('customFields.file.maxSizeMB')}</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={
-                    editing.maxFileSize !== undefined
-                      ? Math.round(editing.maxFileSize / (1024 * 1024))
-                      : 10
-                  }
-                  onChange={(e) => {
-                    const mb = Number(e.target.value)
-                    setEditing((prev) => ({
-                      ...prev!,
-                      maxFileSize: mb > 0 ? mb * 1024 * 1024 : undefined,
-                    }))
-                  }}
-                  placeholder="10"
                 />
               </div>
             </div>

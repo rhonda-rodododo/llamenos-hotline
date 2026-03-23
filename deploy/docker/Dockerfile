@@ -11,13 +11,13 @@ ARG BUILD_COMMIT=local
 ARG BUILD_TIME=
 
 # Stage 1: Install dependencies
-FROM oven/bun:1 AS deps
+FROM oven/bun:1@sha256:0733e50325078969732ebe3b15ce4c4be5082f18c4ac1a0f0ca4839c2e4e42a7 AS deps
 WORKDIR /app
 COPY package.json bun.lockb ./
 RUN bun install --frozen-lockfile --ignore-scripts
 
 # Stage 2: Build frontend SPA
-FROM oven/bun:1 AS frontend
+FROM oven/bun:1@sha256:0733e50325078969732ebe3b15ce4c4be5082f18c4ac1a0f0ca4839c2e4e42a7 AS frontend
 WORKDIR /app
 COPY package.json bun.lockb ./
 COPY --from=deps /app/node_modules/ node_modules/
@@ -34,8 +34,8 @@ ENV BUILD_TIME=${BUILD_TIME}
 RUN bun run build
 
 # Stage 3: Production
-# TODO: pin to a specific digest when deploying to production for full reproducibility
-FROM oven/bun:1-slim
+# Pin SHA — update via Dependabot or on new minor release
+FROM oven/bun:1-slim@sha256:478281fdd196871c7e51ba6a820b7803a8ae97042ec86cdbc2e1c6b6626442d9
 
 # Install curl for healthcheck
 USER root

@@ -115,19 +115,7 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls",
-    "analytics": {
-      "title": "Analitik",
-      "callVolume": "Volim Rele",
-      "callVolume7d": "Volim Rele — 7 Dènyè Jou",
-      "callVolume30d": "Volim Rele — 30 Dènyè Jou",
-      "peakHours": "Lè Pik",
-      "teamPerformance": "Pèfòmans Ekip",
-      "answered": "Reponn",
-      "voicemail": "Mesaj Vwa",
-      "unanswered": "Pa Reponn",
-      "noData": "Pa gen done pou peryòd sa a"
-    }
+    "viewCalls": "View Calls"
   },
   "calls": {
     "incoming": "Apèl Antre",
@@ -149,15 +137,7 @@
     "recording": "Recording",
     "transcription": "Transcription",
     "unknownCaller": "Unknown Caller",
-    "voicemail": "Voicemail",
-    "detail": {
-      "title": "Detay Apèl la",
-      "metadata": "Enfòmasyon Apèl",
-      "notes": "Nòt",
-      "recording": "Anrejistreman",
-      "audit": "Jounal Odit",
-      "notFound": "Apèl pa jwenn"
-    }
+    "voicemail": "Voicemail"
   },
   "callSettings": {
     "title": "Paramèt Apèl",
@@ -199,14 +179,7 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": {
-      "title": "Detay Nòt la",
-      "forbidden": "Ou pa gen pèmisyon pou wè nòt sa a",
-      "notFound": "Nòt pa jwenn",
-      "callContext": "Soti nan apèl",
-      "viewCall": "Wè detay apèl la",
-      "editFromCallPage": "Modifye nan paj detay apèl la"
-    },
+    "detail": "Note Details",
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",
@@ -229,9 +202,7 @@
     "saving": "Saving...",
     "search": "Search notes...",
     "textHint": "Write your note...",
-    "updated": "Note updated",
-    "permalink": "Wè",
-    "viewPermalink": "Wè Nòt"
+    "updated": "Note updated"
   },
   "transcription": {
     "title": "Transkripsyon",
@@ -372,18 +343,7 @@
     "noActivity": "No recent activity",
     "notFound": "Volunteer not found",
     "recentActivity": "Recent Activity",
-    "unnamed": "Unnamed Volunteer",
-    "sendInvite": "Send invite",
-    "sendInviteTitle": "Send Invite Link",
-    "inviteChannel": "Send via",
-    "inviteNotSent": "Not sent — copy link to share manually",
-    "inviteSentVia": "Sent via {{channel}} on {{date}}",
-    "inviteSentSuccess": "Invite sent via {{channel}}",
-    "smsInsecureWarning": "SMS is not end-to-end encrypted. Use Signal or WhatsApp if possible.",
-    "smsAcknowledge": "I understand SMS is not end-to-end encrypted and accept the risk.",
-    "smsAcknowledgeRequired": "You must acknowledge the security warning before sending via SMS.",
-    "copyLink": "Copy link",
-    "noChannelsConfigured": "No messaging channels are configured. Copy the link to share manually."
+    "unnamed": "Unnamed Volunteer"
   },
   "webauthn": {
     "title": "Kle aksè",
@@ -660,26 +620,7 @@
     "transcriptionEnableDesc": "Automatically transcribe your calls",
     "transcriptionManaged": "Managed by admin",
     "version": "Version",
-    "voicemail": "Voicemail",
-    "reportTypes": {
-      "title": "Report Types",
-      "description": "Description",
-      "empty": "No report types defined",
-      "new": "New Report Type",
-      "name": "Name",
-      "namePlaceholder": "e.g. Crisis Report",
-      "descriptionPlaceholder": "Brief description of when to use this type",
-      "fields": "Bound fields",
-      "default": "Default",
-      "setDefault": "Set as default",
-      "archive": "Archive",
-      "unarchive": "Restore",
-      "archived": "Archived",
-      "archiveConfirm": "Archive this report type? Existing reports will keep their type.",
-      "showArchived": "Show archived",
-      "hideArchived": "Hide archived",
-      "typesCount": "types"
-    }
+    "voicemail": "Voicemail"
   },
   "session": {
     "expiringWarning": "Sesyon ou prèske expire.",
@@ -807,23 +748,7 @@
       "maxLength": "Longè Maks"
     },
     "context": "Context",
-    "empty": "No custom fields defined",
-    "file": {
-      "upload": "Choose file or drag & drop",
-      "uploading": "Uploading...",
-      "download": "Download",
-      "remove": "Remove",
-      "tooLarge": "File too large (max {{max}} MB)",
-      "invalidType": "File type not allowed",
-      "unavailable": "File unavailable",
-      "allowedTypes": "Allowed file types",
-      "allowedTypesHint": "Hold Ctrl/Cmd to select multiple",
-      "mimeImages": "Images",
-      "mimePDF": "PDF",
-      "mimeAudio": "Audio",
-      "mimeAny": "Any file type",
-      "maxSizeMB": "Max file size (MB)"
-    }
+    "empty": "No custom fields defined"
   },
   "volunteerProfile": {
     "joined": "Te antre",
@@ -1207,7 +1132,49 @@
     },
     "demoMode": "Populate with sample data",
     "demoModeDescription": "Creates sample volunteer accounts, shifts, and ban entries for testing and demos. Demo account credentials will be shown on the login page.",
-    "demoSeedFailed": "Sample data partially created"
+    "demoSeedFailed": "Sample data partially created",
+    "oauth": {
+      "connecting": "Connecting...",
+      "validating": "Validating...",
+      "connected": "Connected to {{provider}}",
+      "validate": "Validate {{provider}} Credentials",
+      "signUp": "Sign up for {{provider}}",
+      "validationFailed": "Credential validation failed",
+      "connectionFailed": "Connection failed",
+      "enterCredentials": "Enter your credentials above first",
+      "credentialsValid": "{{provider}} credentials verified successfully."
+    },
+    "phoneNumbers": {
+      "existing": "Your Numbers",
+      "buyNew": "Buy New",
+      "refresh": "Refresh numbers",
+      "validateFirst": "Validate your provider credentials to see available phone numbers.",
+      "noExisting": "No phone numbers found in your account. Enter a number manually or buy a new one.",
+      "searchFailed": "Failed to search for available numbers",
+      "provisioned": "Phone number provisioned successfully",
+      "provisionFailed": "Failed to provision phone number",
+      "search": "Search",
+      "provision": "Buy",
+      "voice": "Voice",
+      "sms": "SMS",
+      "countryCode": "Country (ISO)",
+      "areaCode": "Area code"
+    },
+    "webhooks": {
+      "title": "Webhook URLs",
+      "description": "Configure these URLs in your provider's dashboard to receive calls and messages.",
+      "copyAll": "Copy All",
+      "voiceIncoming": "Voice (Incoming)",
+      "voiceStatus": "Voice (Status)",
+      "smsWebhook": "SMS Webhook",
+      "signalWebhook": "Signal Webhook"
+    },
+    "signalE2eeNote": "Signal provides end-to-end encryption to the bridge. Messages are re-encrypted with your hotline's keys before storage.",
+    "signalPrerequisites": "Prerequisites",
+    "signalPrereq1": "A Linux server with Docker installed",
+    "signalPrereq2": "A phone number to register with Signal",
+    "signalPrereq3": "Network access between your hotline server and the bridge",
+    "signalDockerCommand": "Docker Run Command"
   },
   "reports": {
     "title": "Reports",
@@ -1275,11 +1242,7 @@
     "messages": "Messages",
     "noReportsHint": "No reports yet. Create one to get started.",
     "notFound": "Report not found",
-    "updated": "Report Updated",
-    "type": {
-      "label": "Report Type",
-      "placeholder": "Select a report type"
-    }
+    "updated": "Report Updated"
   },
   "hubs": {
     "title": "Hub Management",
@@ -1305,88 +1268,13 @@
     "selectHub": "Select hub",
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
-    "urlPlaceholder": "https://hub.example.com",
-    "delete": "Efase",
-    "deleteHub": "Efase Hub",
-    "deleteHubConfirm": "Sa pral efase pèmanantman \"{{name}}\" ak tout done l yo. Tape non hub la pou konfime.",
-    "deleteHubNameLabel": "Tape non hub la pou konfime",
-    "hubDeleted": "Hub efase avèk siksè",
-    "deleteHubActiveCallsError": "Paka efase yon hub ki gen apèl aktif",
-    "archive": "Achive",
-    "archiveHub": "Achive Hub la",
-    "archiveHubConfirm": "Èske w sèten ou vle achive \"{{name}}\" ? Hub ki achive yo kache nan operasyon aktif yo.",
-    "hubArchived": "Hub la achive avèk siksè"
+    "urlPlaceholder": "https://hub.example.com"
   },
-  "consent": {
-    "title": "Acordo de Processamento de Dados",
-    "subtitle": "Bitte lesen und akzeptieren Sie vor dem Fortfahren",
-    "intro": "Before you can access the hotline system, you must agree to how your data is collected and used.",
-    "dataCollected": {
-      "title": "What we collect",
-      "accountInfo": "Account information (name, public key, languages)",
-      "callNotes": "Encrypted call notes and conversation records",
-      "sessions": "Login session metadata",
-      "auditLog": "Activity audit log"
-    },
-    "howWeProtect": {
-      "title": "How we protect your data",
-      "e2ee": "Call notes are end-to-end encrypted — the server cannot read them",
-      "noPlaintext": "Sensitive personal information is never stored in plaintext",
-      "retention": "Data is automatically deleted after the configured retention period"
-    },
-    "yourRights": {
-      "title": "Your rights (GDPR)",
-      "access": "Right to access: Download all your data from Settings",
-      "portability": "Right to portability: Export your data as JSON",
-      "erasure": "Right to erasure: Request account deletion from Settings"
-    },
-    "gdprNote": "This platform is operated in compliance with EU GDPR.",
-    "version": "Privacy policy version: {{version}}",
-    "scrollToRead": "Scrollen Sie zum Lesen, bevor Sie zustimmen",
-    "agree": "Concordo com os termos de processamento de dados",
-    "submitting": "Submitting..."
-  },
-  "gdpr": {
-    "title": "Datenschutz & Daten",
-    "exportTitle": "Download My Data",
-    "exportDescription": "Download a copy of all your data stored in this system (GDPR Article 20).",
-    "exportButton": "Baixar meus dados",
-    "exportLoading": "Preparing export...",
-    "exportError": "Failed to export data",
-    "erasureTitle": "Request Account Deletion",
-    "erasureDescription": "Permanently delete your account and all associated personal data. This action has a 72-hour review period.",
-    "erasureWarning": "The following will be permanently deleted:",
-    "erasureWarningItems": {
-      "profile": "Your profile and account information",
-      "sessions": "All login sessions and WebAuthn credentials",
-      "notes": "All call notes authored by you",
-      "shifts": "Shift assignments",
-      "auditEntries": "Audit log entries will be anonymized"
-    },
-    "erasurePinRequired": "Enter your PIN to confirm",
-    "erasureButton": "Solicitar exclusão de conta",
-    "erasureRequested": "Account deletion requested",
-    "erasureCountdown": "Your account will be deleted in {{hours}} hours",
-    "erasureCancelButton": "Cancel deletion request",
-    "erasureCancelled": "Deletion request cancelled",
-    "erasureConfirm": "Confirm deletion",
-    "retentionTitle": "Data Retention",
-    "retentionDescription": "Configure how long different types of data are kept.",
-    "retentionCallRecords": "Call records (days)",
-    "retentionNotes": "Call notes (days)",
-    "retentionMessages": "Messages (days)",
-    "retentionAuditLog": "Audit log (days)",
-    "retentionSaved": "Retention settings saved",
-    "retentionSaveError": "Failed to save retention settings"
-  },
-  "conversations": {
-    "status": {
-      "pending": "Annatant",
-      "sent": "Voye",
-      "delivered": "Delivre",
-      "read": "Li",
-      "failed": "Echwe",
-      "failedTooltip": "Echwe: {{error}}"
-    }
+  "channelSettings": {
+    "title": "Channels & Providers",
+    "description": "Manage which communication channels are enabled for your hotline.",
+    "summary": "Manage channels",
+    "active": "Active",
+    "currentProvider": "Current voice/SMS provider:"
   }
 }
