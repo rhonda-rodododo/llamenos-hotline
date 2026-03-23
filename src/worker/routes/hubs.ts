@@ -165,7 +165,7 @@ routes.get('/:hubId/key', async (c) => {
 
   // Enforce hub membership — only members and super-admins may fetch hub key envelopes
   const isSuperAdmin = checkPermission(permissions, '*')
-  const isMember = (volunteer.hubRoles || []).some(hr => hr.hubId === hubId)
+  const isMember = (volunteer.hubRoles || []).some((hr) => hr.hubId === hubId)
   if (!isSuperAdmin && !isMember) {
     return c.json({ error: 'Access denied' }, 403)
   }
