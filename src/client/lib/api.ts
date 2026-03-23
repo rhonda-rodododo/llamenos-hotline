@@ -1694,7 +1694,8 @@ export async function getMyHubKeyEnvelope(hubId: string) {
   return request<{
     wrappedKey: string
     ephemeralPubkey: string
-  } | null>(`/hubs/${hubId}/my-key`)
+    ephemeralPk?: string
+  } | null>(`/hubs/${hubId}/key-envelope`)
 }
 
 // --- File Upload Context Binding ---

@@ -46,9 +46,14 @@ export async function loadHubKeysForUser(
   await Promise.allSettled(
     hubIds.map(async (hubId) => {
       try {
-        const envelope = await getMyHubKeyEnvelope(hubId)
-        if (!envelope) return
-        const hubKey = unwrapHubKey(envelope as KeyEnvelope, secretKey)
+        const raw = await getMyHubKeyEnvelope(hubId)
+        if (!raw) return
+        // Normalize: server may return ephemeralPk or ephemeralPubkey
+        const envelope: KeyEnvelope = {
+          wrappedKey: raw.wrappedKey,
+          ephemeralPubkey: raw.ephemeralPubkey || raw.ephemeralPk || '',
+        }
+        const hubKey = unwrapHubKey(envelope, secretKey)
         // Only write if this load is still the current generation
         if (cacheGeneration === myGeneration) {
           hubKeyCache.set(hubId, hubKey)

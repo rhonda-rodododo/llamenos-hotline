@@ -1,5 +1,39 @@
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js'
+import { LABEL_HUB_KEY_WRAP } from '@shared/crypto-labels'
 import { Hono } from 'hono'
 import type { AppEnv } from '../types'
+
+function rand(n: number): Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(n))
+}
+
+/** ECIES-wrap a hub key for a recipient (test-only server-side helper). */
+function wrapHubKeyForPubkey(hubKey: Uint8Array, recipientPubkeyHex: string) {
+  const ephemeralSecret = rand(32)
+  const ephemeralPublicKey = secp256k1.getPublicKey(ephemeralSecret, true)
+  const recipientCompressed = hexToBytes(`02${recipientPubkeyHex}`)
+  const shared = secp256k1.getSharedSecret(ephemeralSecret, recipientCompressed)
+  const sharedX = shared.slice(1, 33)
+  const labelBytes = utf8ToBytes(LABEL_HUB_KEY_WRAP)
+  const keyInput = new Uint8Array(labelBytes.length + sharedX.length)
+  keyInput.set(labelBytes)
+  keyInput.set(sharedX, labelBytes.length)
+  const symmetricKey = sha256(keyInput)
+  const nonce = rand(24)
+  const cipher = xchacha20poly1305(symmetricKey, nonce)
+  const ciphertext = cipher.encrypt(hubKey)
+  const packed = new Uint8Array(nonce.length + ciphertext.length)
+  packed.set(nonce)
+  packed.set(ciphertext, nonce.length)
+  return {
+    pubkey: recipientPubkeyHex,
+    wrappedKey: bytesToHex(packed),
+    ephemeralPubkey: bytesToHex(ephemeralPublicKey),
+  }
+}
 
 const dev = new Hono<AppEnv>()
 
@@ -30,7 +64,7 @@ dev.post('/test-reset', async (c) => {
     } catch {
       // Admin may already exist
     }
-    // Create default hub so pages that require hub context work
+    // Create default hub with hub key envelopes so pages requiring hub context work
     try {
       const hub = await services.settings.createHub({
         id: 'default-hub',
@@ -44,6 +78,10 @@ dev.post('/test-reset', async (c) => {
         hubId: hub.id,
         roleIds: ['role-super-admin'],
       })
+      // Generate and distribute hub key — ECIES-wrap for admin so hub key cache works
+      const hubKey = rand(32)
+      const envelope = wrapHubKeyForPubkey(hubKey, c.env.ADMIN_PUBKEY)
+      await services.settings.setHubKeyEnvelopes(hub.id, [envelope])
       // Mark setup as completed so the setup wizard doesn't intercept navigation
       await services.settings.updateSetupState({ setupCompleted: true })
     } catch {

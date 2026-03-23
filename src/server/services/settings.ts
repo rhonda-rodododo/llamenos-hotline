@@ -41,6 +41,7 @@ import {
   noteEnvelopes,
   rateLimitCounters,
   reportCategories,
+  reportTypes,
   ringGroups,
   roles,
   setupState,
@@ -864,6 +865,7 @@ export class SettingsService {
     await this.db.delete(captchaState)
     await this.db.delete(rateLimitCounters)
     await this.db.delete(hubKeys)
+    await this.db.delete(reportTypes) // FK: report_types.hub_id → hubs.id — must delete before hubs
     await this.db.delete(hubs)
     await this.db.delete(ivrAudio)
     await this.db.delete(reportCategories)

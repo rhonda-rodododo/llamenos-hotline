@@ -194,7 +194,11 @@ routes.get('/:hubId/key-envelope', async (c) => {
   const myEnvelope = envelopes.find((e) => e.pubkey === pubkey)
   if (!myEnvelope) return c.json({ error: 'not_a_member' }, 404)
 
-  return c.json({ wrappedKey: myEnvelope.wrappedKey, ephemeralPk: myEnvelope.ephemeralPubkey })
+  return c.json({
+    wrappedKey: myEnvelope.wrappedKey,
+    ephemeralPubkey: myEnvelope.ephemeralPubkey,
+    ephemeralPk: myEnvelope.ephemeralPubkey, // backwards compat
+  })
 })
 
 // Get my hub key envelope (any hub member — membership required)
@@ -212,9 +216,11 @@ routes.get('/:hubId/key', async (c) => {
     return c.json({ error: 'Access denied' }, 403)
   }
 
-  const envelopes = await services.settings.getHubKeyEnvelopes(hubId)
-  if (!envelopes.length) return c.json({ error: 'Hub not found' }, 404)
+  // Verify hub exists first
+  const hub = await services.settings.getHub(hubId)
+  if (!hub) return c.json({ error: 'Hub not found' }, 404)
 
+  const envelopes = await services.settings.getHubKeyEnvelopes(hubId)
   // Return only the envelope for this user
   const myEnvelope = envelopes.find((e) => e.pubkey === pubkey)
   if (!myEnvelope) return c.json({ error: 'No key envelope for this user' }, 404)
