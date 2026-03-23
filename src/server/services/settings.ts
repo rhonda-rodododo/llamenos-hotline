@@ -5,9 +5,13 @@ import type { Role } from '../../shared/permissions'
 import type {
   CustomFieldDefinition,
   EnabledChannels,
+  GeocodingConfigAdmin,
   Hub,
   MessagingConfig,
+  OAuthState,
+  ProviderConfig,
   SetupState,
+  SignalRegistrationPending,
   TelephonyProviderConfig,
 } from '../../shared/types'
 import { DEFAULT_MESSAGING_CONFIG, DEFAULT_SETUP_STATE } from '../../shared/types'
@@ -42,6 +46,10 @@ import {
   setupState,
   shiftOverrides,
   shiftSchedules,
+  geocodingConfig,
+  oauthState,
+  providerConfig,
+  signalRegistrationPending,
   spamSettings,
   subscribers,
   telephonyConfig,
@@ -898,5 +906,137 @@ export class SettingsService {
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
     }
+  }
+
+  // --- OAuth State (Provider Auto-Config) ---
+
+  async setOAuthState(state: OAuthState): Promise<void> {
+    await this.db
+      .insert(oauthState)
+      .values({ provider: state.provider, state: state.state, expiresAt: new Date(state.expiresAt) })
+      .onConflictDoUpdate({ target: oauthState.provider, set: { state: state.state, expiresAt: new Date(state.expiresAt) } })
+  }
+
+  async getOAuthState(provider: string): Promise<OAuthState | null> {
+    const rows = await this.db.select().from(oauthState).where(eq(oauthState.provider, provider))
+    if (!rows[0]) return null
+    if (rows[0].expiresAt < new Date()) {
+      await this.db.delete(oauthState).where(eq(oauthState.provider, provider))
+      return null
+    }
+    return { state: rows[0].state, provider: rows[0].provider as OAuthState['provider'], expiresAt: rows[0].expiresAt.getTime() }
+  }
+
+  async clearOAuthState(provider: string): Promise<void> {
+    await this.db.delete(oauthState).where(eq(oauthState.provider, provider))
+  }
+
+  // --- Provider Config ---
+
+  async getProviderConfig(): Promise<ProviderConfig | null> {
+    const rows = await this.db.select().from(providerConfig)
+    if (!rows[0]) return null
+    return {
+      provider: rows[0].provider as ProviderConfig['provider'],
+      connected: rows[0].connected,
+      phoneNumber: rows[0].phoneNumber ?? undefined,
+      webhooksConfigured: rows[0].webhooksConfigured,
+      sipConfigured: rows[0].sipConfigured,
+      a2pStatus: (rows[0].a2pStatus ?? 'not_started') as ProviderConfig['a2pStatus'],
+      brandSid: rows[0].brandSid ?? undefined,
+      campaignSid: rows[0].campaignSid ?? undefined,
+      messagingServiceSid: rows[0].messagingServiceSid ?? undefined,
+    }
+  }
+
+  async setProviderConfig(config: ProviderConfig, encryptedCredentials?: string): Promise<void> {
+    const values = {
+      id: 'global' as const,
+      provider: config.provider,
+      connected: config.connected,
+      phoneNumber: config.phoneNumber ?? null,
+      webhooksConfigured: config.webhooksConfigured,
+      sipConfigured: config.sipConfigured,
+      a2pStatus: config.a2pStatus ?? 'not_started',
+      brandSid: config.brandSid ?? null,
+      campaignSid: config.campaignSid ?? null,
+      messagingServiceSid: config.messagingServiceSid ?? null,
+      encryptedCredentials: encryptedCredentials ?? null,
+      updatedAt: new Date(),
+    }
+    await this.db.insert(providerConfig).values(values).onConflictDoUpdate({ target: providerConfig.id, set: values })
+  }
+
+  async getEncryptedCredentials(): Promise<string | null> {
+    const rows = await this.db.select({ creds: providerConfig.encryptedCredentials }).from(providerConfig)
+    return rows[0]?.creds ?? null
+  }
+
+  // --- Geocoding Config ---
+
+  async getGeocodingConfig(): Promise<GeocodingConfigAdmin> {
+    const rows = await this.db.select().from(geocodingConfig)
+    if (!rows[0]) return { provider: null, apiKey: '', countries: [], enabled: false }
+    return {
+      provider: rows[0].provider as GeocodingConfigAdmin['provider'],
+      apiKey: rows[0].apiKey,
+      countries: rows[0].countries,
+      enabled: rows[0].enabled,
+    }
+  }
+
+  async updateGeocodingConfig(data: Partial<GeocodingConfigAdmin>): Promise<GeocodingConfigAdmin> {
+    const current = await this.getGeocodingConfig()
+    const updated = { ...current, ...data }
+    await this.db.insert(geocodingConfig).values({
+      id: 'global',
+      provider: updated.provider,
+      apiKey: updated.apiKey,
+      countries: updated.countries,
+      enabled: updated.enabled,
+      updatedAt: new Date(),
+    }).onConflictDoUpdate({
+      target: geocodingConfig.id,
+      set: { provider: updated.provider, apiKey: updated.apiKey, countries: updated.countries, enabled: updated.enabled, updatedAt: new Date() },
+    })
+    return updated
+  }
+
+  // --- Signal Registration Pending ---
+
+  async getSignalRegistrationPending(): Promise<SignalRegistrationPending | null> {
+    const rows = await this.db.select().from(signalRegistrationPending)
+    if (!rows[0]) return null
+    if (rows[0].expiresAt < new Date()) {
+      await this.db.delete(signalRegistrationPending).where(eq(signalRegistrationPending.id, 'global'))
+      return null
+    }
+    return {
+      number: rows[0].number,
+      bridgeUrl: rows[0].bridgeUrl,
+      method: rows[0].method as SignalRegistrationPending['method'],
+      status: rows[0].status as SignalRegistrationPending['status'],
+      error: rows[0].error ?? undefined,
+      expiresAt: rows[0].expiresAt.toISOString(),
+    }
+  }
+
+  async setSignalRegistrationPending(pending: SignalRegistrationPending): Promise<void> {
+    await this.db.insert(signalRegistrationPending).values({
+      id: 'global',
+      number: pending.number,
+      bridgeUrl: pending.bridgeUrl,
+      method: pending.method,
+      status: pending.status,
+      error: pending.error ?? null,
+      expiresAt: new Date(pending.expiresAt),
+    }).onConflictDoUpdate({
+      target: signalRegistrationPending.id,
+      set: { number: pending.number, bridgeUrl: pending.bridgeUrl, method: pending.method, status: pending.status, error: pending.error ?? null, expiresAt: new Date(pending.expiresAt) },
+    })
+  }
+
+  async clearSignalRegistrationPending(): Promise<void> {
+    await this.db.delete(signalRegistrationPending).where(eq(signalRegistrationPending.id, 'global'))
   }
 }
