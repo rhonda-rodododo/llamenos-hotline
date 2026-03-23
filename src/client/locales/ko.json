@@ -458,7 +458,9 @@
     "rateLimiting": "속도 제한",
     "rateLimitingDescription": "같은 번호의 반복 통화 제한",
     "maxCallsPerMinute": "번호당 분당 최대 통화 수",
-    "blockDuration": "차단 기간 (분)"
+    "blockDuration": "차단 기간 (분)",
+    "captchaMaxAttempts": "CAPTCHA 최대 시도 횟수",
+    "captchaMaxAttemptsDescription": "통화 거부 전 시도 횟수 (1-5)"
   },
   "callHistory": {
     "title": "통화 기록",

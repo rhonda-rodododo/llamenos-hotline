@@ -182,17 +182,32 @@ export class TwilioAdapter implements TelephonyAdapter {
     const tLang = getTwilioVoice(lang)
     const hp = hubXmlParam(params.hubId)
 
-    if (params.digits === params.expectedDigits) {
+    if (params.result === 'pass') {
       return this.twiml(`
         <Response>
-          <Say language="${tLang}">${getPrompt('captchaSuccess', lang)}</Say>
+          <Say language="${tLang}">${escapeXml(getPrompt('captchaSuccess', lang))}</Say>
           <Enqueue waitUrl="/api/telephony/wait-music?lang=${lang}${hp}" action="/api/telephony/queue-exit?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST">${params.callSid}</Enqueue>
         </Response>
       `)
     }
+
+    if (params.result === 'retry') {
+      return this.twiml(`
+        <Response>
+          <Gather numDigits="4" action="/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" timeout="10">
+            <Say language="${tLang}">${escapeXml(getPrompt('captchaRetry', lang))}</Say>
+            <Say language="${tLang}">${escapeXml(params.expectedDigits.split('').join(', '))}.</Say>
+          </Gather>
+          <Say language="${tLang}">${escapeXml(getPrompt('captchaTimeout', lang))}</Say>
+          <Hangup/>
+        </Response>
+      `)
+    }
+
+    // 'fail' or 'expired'
     return this.twiml(`
       <Response>
-        <Say language="${tLang}">${getPrompt('captchaFail', lang)}</Say>
+        <Say language="${tLang}">${escapeXml(getPrompt('captchaFail', lang))}</Say>
         <Hangup/>
       </Response>
     `)

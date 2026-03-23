@@ -458,7 +458,9 @@
     "rateLimiting": "Límite de Frecuencia",
     "rateLimitingDescription": "Limitar llamadas repetidas del mismo número",
     "maxCallsPerMinute": "Máximo de llamadas por minuto por número",
-    "blockDuration": "Duración del bloqueo (minutos)"
+    "blockDuration": "Duración del bloqueo (minutos)",
+    "captchaMaxAttempts": "Intentos máximos de CAPTCHA",
+    "captchaMaxAttemptsDescription": "Número de intentos antes de rechazar la llamada (1-5)"
   },
   "callHistory": {
     "title": "Historial de Llamadas",

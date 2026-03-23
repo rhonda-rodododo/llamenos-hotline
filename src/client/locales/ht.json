@@ -458,7 +458,9 @@
     "rateLimiting": "Limitasyon Frekans",
     "rateLimitingDescription": "Limite apèl repete nan menm nimewo a",
     "maxCallsPerMinute": "Maksimòm apèl pa minit pa nimewo",
-    "blockDuration": "Dire blokaj (minit)"
+    "blockDuration": "Dire blokaj (minit)",
+    "captchaMaxAttempts": "Maksimòm tantativ CAPTCHA",
+    "captchaMaxAttemptsDescription": "Kantite tantativ anvan yo rejte apèl la (1-5)"
   },
   "callHistory": {
     "title": "Istorik Apèl",
