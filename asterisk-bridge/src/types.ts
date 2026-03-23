@@ -337,6 +337,8 @@ export interface BridgeConfig {
   workerWebhookUrl: string
   bridgeSecret: string
   bridgePort: number
+  /** Bind address for the HTTP server (default 127.0.0.1, set to 0.0.0.0 in Docker) */
+  bridgeBind: string
   /** Stasis application name */
   stasisApp: string
   /** SIP trunk provider hostname (e.g. sip.twilio.com). When present, PJSIP is auto-configured at startup. */
