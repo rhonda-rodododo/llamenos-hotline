@@ -1,6 +1,6 @@
 # Signal Automated Registration Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Automate Signal number registration by intercepting the verification SMS that arrives at the hotline's Twilio number, eliminating the need for manual curl commands during setup.
 
@@ -32,8 +32,8 @@
 
 ### Phase 1: Types and Shared Interfaces
 
-- [ ] Read `src/shared/types.ts` to understand existing type patterns.
-- [ ] Add `SignalRegistrationPending` to `src/shared/types.ts`:
+- [x] Read `src/shared/types.ts` to understand existing type patterns.
+- [x] Add `SignalRegistrationPending` to `src/shared/types.ts`:
   ```typescript
   export interface SignalRegistrationPending {
     number: string
@@ -44,42 +44,42 @@
     error?: string
   }
   ```
-- [ ] Run `bun run typecheck` — must pass before proceeding.
+- [x] Run `bun run typecheck` — must pass before proceeding.
 
 ### Phase 2: SettingsDO Changes
 
-- [ ] Read `src/worker/durable-objects/settings-do.ts` in full.
-- [ ] Add storage key constant `SIGNAL_REGISTRATION_PENDING_KEY = 'signalRegistrationPending'`.
-- [ ] Implement `getSignalRegistrationPending(): Promise<SignalRegistrationPending | null>`:
+- [x] Read `src/worker/durable-objects/settings-do.ts` in full.
+- [x] Add storage key constant `SIGNAL_REGISTRATION_PENDING_KEY = 'signalRegistrationPending'`.
+- [x] Implement `getSignalRegistrationPending(): Promise<SignalRegistrationPending | null>`:
   - Read from DO storage.
   - If record exists and `expiresAt` is in the past, delete it and return `null`.
   - Otherwise return the record.
-- [ ] Implement `setSignalRegistrationPending(pending: SignalRegistrationPending): Promise<void>` — writes to DO storage.
-- [ ] Implement `clearSignalRegistrationPending(): Promise<void>` — deletes the key from DO storage.
-- [ ] Expose the three methods via the DO's `DORouter` dispatch (same pattern as existing SettingsDO methods).
-- [ ] Run `bun run typecheck` — must pass.
+- [x] Implement `setSignalRegistrationPending(pending: SignalRegistrationPending): Promise<void>` — writes to DO storage.
+- [x] Implement `clearSignalRegistrationPending(): Promise<void>` — deletes the key from DO storage.
+- [x] Expose the three methods via the DO's `DORouter` dispatch (same pattern as existing SettingsDO methods).
+- [x] Run `bun run typecheck` — must pass.
 
 ### Phase 3: Registration Helper Functions
 
-- [ ] Create `src/worker/messaging/signal/registration.ts`.
-- [ ] Implement `isSignalVerificationSMS(body: string): boolean`:
+- [x] Create `src/worker/messaging/signal/registration.ts`.
+- [x] Implement `isSignalVerificationSMS(body: string): boolean`:
   - Regex: `/^Your Signal code: \d{6}/`
   - Returns `true` only on match — no side effects.
-- [ ] Implement `extractSignalCode(body: string): string`:
+- [x] Implement `extractSignalCode(body: string): string`:
   - Regex: `/Your Signal code: (\d{6})/`
   - Throws if no match (caller should guard with `isSignalVerificationSMS` first).
-- [ ] Implement `completeSignalRegistration(pending: SignalRegistrationPending, code: string, settings: SettingsDOClient): Promise<void>`:
+- [x] Implement `completeSignalRegistration(pending: SignalRegistrationPending, code: string, settings: SettingsDOClient): Promise<void>`:
   - **SSRF allow-list validation (MUST run before any HTTP call):** Retrieve the live `SignalConfig` from SettingsDO via `settings.getSignalConfig()`. Validate that `pending.bridgeUrl === signalConfig.bridgeUrl` (i.e. the URL in the pending record matches the configured bridge URL). If the configured `signalConfig` is not yet set, fall back to validating against an explicit allow-list stored in settings (e.g. `settings.getAllowedBridgeUrls()`). If validation fails: call `settings.clearSignalRegistrationPending()` and return early with the record left in a cleared state — do NOT proceed to the HTTP call.
   - Only after allow-list validation passes: call `POST /v1/register/{number}/verify/{code}` on `pending.bridgeUrl`.
   - On HTTP 200/201: builds `SignalConfig` from `pending`, persists via `settings.setSignalConfig(...)`, calls `settings.clearSignalRegistrationPending()`.
   - On failure: calls `settings.setSignalRegistrationPending({ ...pending, status: 'failed', error: responseText })`.
   - Never throws — errors are written back to SettingsDO as `status: 'failed'`.
-- [ ] Run `bun run typecheck` — must pass.
+- [x] Run `bun run typecheck` — must pass.
 
 ### Phase 4: API Route Handlers
 
-- [ ] Read `src/worker/app.ts` and one existing API handler file to understand the Hono routing pattern used in this project.
-- [ ] Create `src/worker/api/messaging/signal-registration.ts` with three handlers:
+- [x] Read `src/worker/app.ts` and one existing API handler file to understand the Hono routing pattern used in this project.
+- [x] Create `src/worker/api/messaging/signal-registration.ts` with three handlers:
 
   **`POST /api/messaging/signal/register`**
   - Require admin auth (use existing auth middleware pattern).
@@ -106,14 +106,14 @@
   - Call `completeSignalRegistration(pending, code, settings)`.
   - Re-read pending state: if `status === 'complete'` return `{ ok: true }`, else return 400 with `error`.
 
-- [ ] Mount the new routes in `src/worker/app.ts` under `/api/messaging/signal` alongside existing messaging routes.
-- [ ] Run `bun run typecheck` — must pass.
+- [x] Mount the new routes in `src/worker/app.ts` under `/api/messaging/signal` alongside existing messaging routes.
+- [x] Run `bun run typecheck` — must pass.
 
 ### Phase 5: SMS Webhook Interception
 
-- [ ] Read `src/worker/messaging/router.ts` (or wherever Twilio SMS webhook is handled) in full.
-- [ ] Locate the entry point where the SMS body is first available and before any conversation routing logic.
-- [ ] Add interception block:
+- [x] Read `src/worker/messaging/router.ts` (or wherever Twilio SMS webhook is handled) in full.
+- [x] Locate the entry point where the SMS body is first available and before any conversation routing logic.
+- [x] Add interception block:
   ```typescript
   import { isSignalVerificationSMS, extractSignalCode, completeSignalRegistration } from '../messaging/signal/registration'
 
@@ -127,13 +127,13 @@
     })
   }
   ```
-- [ ] Confirm the interception runs before any existing logging or routing that would create a conversation record.
-- [ ] Run `bun run typecheck` — must pass.
+- [x] Confirm the interception runs before any existing logging or routing that would create a conversation record.
+- [x] Run `bun run typecheck` — must pass.
 
 ### Phase 6: Frontend — Registration Wizard
 
-- [ ] Read the existing Signal settings component(s) in `src/client/components/settings/` to understand current UI structure.
-- [ ] Extend the Signal channel settings panel to add a registration wizard section. It should only appear when Signal is not yet configured (or after a failed attempt):
+- [x] Read the existing Signal settings component(s) in `src/client/components/settings/` to understand current UI structure.
+- [x] Extend the Signal channel settings panel to add a registration wizard section. It should only appear when Signal is not yet configured (or after a failed attempt):
   - Form fields: Bridge URL (text input), Registered Number (text input), "Use voice verification" checkbox.
   - "Register Signal" submit button — calls `POST /api/messaging/signal/register`.
   - On `method: 'sms'` response: show "Waiting for verification SMS…" with countdown (expires in 10 minutes) and a spinner. Poll `GET /api/messaging/signal/registration-status` every 3 seconds.
@@ -141,19 +141,19 @@
   - On `status: 'complete'` from polling: dismiss wizard, show "Signal connected" success state.
   - On `status: 'failed'` from polling: show error message and "Try Again" button that resets the form.
   - On 409 from register endpoint: show "Registration already in progress — wait for it to expire or refresh the page."
-- [ ] After successful registration (when polling returns `status: 'complete'`), render the following two security disclosures in the `SignalRegistrationFlow` or `StepProviderSignal` component. Both strings must be wrapped in `t(...)` with i18n keys:
+- [x] After successful registration (when polling returns `status: 'complete'`), render the following two security disclosures in the `SignalRegistrationFlow` or `StepProviderSignal` component. Both strings must be wrapped in `t(...)` with i18n keys:
   1. A channel-level security label: `t('signal.security.transportLabel')` → English value: `"Transport: Signal (E2EE to bridge, strongest available)"`
   2. An infrastructure disclosure notice: `t('signal.security.bridgeDecryptionNotice')` → English value: `"Signal provides strong transport encryption. Messages are decrypted at our self-hosted bridge server (within your infrastructure) for processing, then re-encrypted for storage. The bridge requires ongoing maintenance as Signal updates its protocol."`
   Add both keys to `src/client/locales/en.json`. Copy English values to all other locale files in `src/client/locales/` as placeholders (do not block on translations, but all locale files must have the keys to avoid missing-key warnings).
-- [ ] All other user-facing strings must use the i18n system (`t(...)` calls with translation keys). Add the English keys to `src/client/locales/en.json` (other locales can be left as copies of English for now — do not block on translations).
-- [ ] Run `bun run typecheck` — must pass.
-- [ ] Run `bun run build` — must pass.
+- [x] All other user-facing strings must use the i18n system (`t(...)` calls with translation keys). Add the English keys to `src/client/locales/en.json` (other locales can be left as copies of English for now — do not block on translations).
+- [x] Run `bun run typecheck` — must pass.
+- [x] Run `bun run build` — must pass.
 
 ### Phase 7: E2E Tests (Write First, Then Verify)
 
 Write the test file before running — fix any issues until all tests pass.
 
-- [ ] Create `tests/signal-auto-registration.spec.ts`.
+- [x] Create `tests/signal-auto-registration.spec.ts`.
 
   **Test: SMS auto-registration completes automatically**
   - Mock `POST /v1/register/{number}` on bridge → 200 OK.
@@ -201,14 +201,14 @@ Write the test file before running — fix any issues until all tests pass.
   - Set expired pending state in SettingsDO.
   - Call `POST /api/messaging/signal/verify` with a valid code — assert 404.
 
-- [ ] Run `bunx playwright test tests/signal-auto-registration.spec.ts` — fix until all tests pass.
+- [x] Run `bunx playwright test tests/signal-auto-registration.spec.ts` — fix until all tests pass.
 
 ### Phase 8: Final Checks
 
-- [ ] Run `bun run typecheck` — zero errors.
-- [ ] Run `bun run build` — zero errors.
-- [ ] Run `bun run lint` — zero warnings/errors (or run `bun run lint:fix` and re-check).
-- [ ] Run `bunx playwright test` (full suite) — no regressions in existing tests.
-- [ ] Review `src/worker/messaging/router.ts` diff to confirm the interception block cannot accidentally swallow legitimate inbound SMS (e.g., when `signalRegistrationPending` is null, the guard short-circuits immediately).
-- [ ] Confirm `SignalRegistrationPending` in `src/shared/types.ts` is the single source of truth — no inline interface definitions duplicated in handler files.
-- [ ] Confirm no raw string literals used for crypto contexts (not directly applicable here, but verify no new crypto operations were introduced outside `crypto-labels.ts`).
+- [x] Run `bun run typecheck` — zero errors.
+- [x] Run `bun run build` — zero errors.
+- [x] Run `bun run lint` — zero warnings/errors (or run `bun run lint:fix` and re-check).
+- [x] Run `bunx playwright test` (full suite) — no regressions in existing tests.
+- [x] Review `src/worker/messaging/router.ts` diff to confirm the interception block cannot accidentally swallow legitimate inbound SMS (e.g., when `signalRegistrationPending` is null, the guard short-circuits immediately).
+- [x] Confirm `SignalRegistrationPending` in `src/shared/types.ts` is the single source of truth — no inline interface definitions duplicated in handler files.
+- [x] Confirm no raw string literals used for crypto contexts (not directly applicable here, but verify no new crypto operations were introduced outside `crypto-labels.ts`).
