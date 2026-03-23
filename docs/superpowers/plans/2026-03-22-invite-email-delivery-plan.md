@@ -1,6 +1,6 @@
 # Volunteer Invite Delivery — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add secure invite delivery for volunteer onboarding. Admins paste a recipient's Signal number (or WhatsApp as fallback); the system sends the invite link via encrypted messaging. Email is explicitly NOT used — it is insecure for this threat model (volunteers may be targeted by adversaries).
 
@@ -21,9 +21,9 @@
 
 ## Phase 1: MessagingAdapter Reuse
 
-- [ ] The `MessagingAdapter` interface already exists (`src/server/messaging/messaging-adapter.ts`)
-- [ ] Signal adapter already exists (`src/server/messaging/adapters/signal-adapter.ts`)
-- [ ] These adapters are currently used for conversation messaging — we will reuse them for invite delivery
+- [x] The `MessagingAdapter` interface already exists (`src/server/messaging/messaging-adapter.ts`)
+- [x] Signal adapter already exists (`src/server/messaging/adapters/signal-adapter.ts`)
+- [x] These adapters are currently used for conversation messaging — we will reuse them for invite delivery
 
 No new adapter needed. The invite delivery service wraps the existing adapters.
 
@@ -31,7 +31,7 @@ No new adapter needed. The invite delivery service wraps the existing adapters.
 
 ## Phase 2: Invite Delivery Service
 
-- [ ] Create `src/server/services/invite-delivery-service.ts`:
+- [x] Create `src/server/services/invite-delivery-service.ts`:
   ```typescript
   export type InviteDeliveryChannel = 'signal' | 'whatsapp' | 'sms'
 
@@ -45,7 +45,7 @@ No new adapter needed. The invite delivery service wraps the existing adapters.
   }
   ```
 
-- [ ] `sendInvite()` implementation:
+- [x] `sendInvite()` implementation:
   1. Construct invite link: `${process.env.APP_URL}/invite?code=${inviteCode}`
   2. Compose message text (kept short, no hub name or identifiable info in message body):
      ```
@@ -55,13 +55,13 @@ No new adapter needed. The invite delivery service wraps the existing adapters.
   3. Use the specified adapter to send via `sendMessage()` (single outbound message, no conversation)
   4. Record delivery: store `recipientPhone` HMAC hash + `channel` + `sentAt` on invite record
 
-- [ ] Phone number stored as HMAC hash (using `LABEL_PHONE_HMAC`), never plaintext
+- [x] Phone number stored as HMAC hash (using `LABEL_PHONE_HMAC`), never plaintext
 
 ---
 
 ## Phase 3: Backend Endpoint
 
-- [ ] In `src/server/routes/invites.ts`, add:
+- [x] In `src/server/routes/invites.ts`, add:
   ```
   POST /api/invites/:code/send
   Body: { recipientPhone: string, channel: 'signal' | 'whatsapp' | 'sms' }
@@ -73,14 +73,14 @@ No new adapter needed. The invite delivery service wraps the existing adapters.
   - Call `inviteDeliveryService.sendInvite()`
   - Return `{ sent: true, channel }`
 
-- [ ] Add `recipientPhoneHash TEXT`, `deliveryChannel VARCHAR(16)`, `deliverySentAt TIMESTAMPTZ` to invites:
+- [x] Add `recipientPhoneHash TEXT`, `deliveryChannel VARCHAR(16)`, `deliverySentAt TIMESTAMPTZ` to invites:
   - Drizzle migration: add columns to the `invites` table in the main branch schema.
 
 ---
 
 ## Phase 4: Available Channels Detection
 
-- [ ] Add `GET /api/invites/available-channels` (admin):
+- [x] Add `GET /api/invites/available-channels` (admin):
   - Returns which messaging channels are configured for this hub:
     ```json
     { "signal": true, "whatsapp": false, "sms": true }
@@ -92,7 +92,7 @@ No new adapter needed. The invite delivery service wraps the existing adapters.
 ## Phase 5: Admin UI
 
 ### 5.1 Send invite dialog
-- [ ] In the volunteer invite management UI (volunteers page or admin settings):
+- [x] In the volunteer invite management UI (volunteers page or admin settings):
   - After creating invite code, show "Send invite" button
   - Opens dialog:
     - Phone number field (E.164 hint)
@@ -103,7 +103,7 @@ No new adapter needed. The invite delivery service wraps the existing adapters.
   - "Copy invite link" button always available as fallback
 
 ### 5.2 Invite status in list
-- [ ] Show delivery status per invite:
+- [x] Show delivery status per invite:
   - "Not sent — copy link to share manually"
   - "Sent via Signal on [date]"
   - "Sent via WhatsApp on [date]"
@@ -112,36 +112,36 @@ No new adapter needed. The invite delivery service wraps the existing adapters.
 
 ## Phase 6: Invite Link Frontend Route
 
-- [ ] Verify `src/client/routes/invite.tsx` (or `invite.$code.tsx`) exists and handles the onboarding flow:
+- [x] Verify `src/client/routes/invite.tsx` (or `invite.$code.tsx`) exists and handles the onboarding flow:
   - Reads `?code=` from URL
   - Calls `GET /api/invites/validate/:code`
   - Shows error if expired/used
   - Shows onboarding form: set display name, generate keypair, optionally passkey setup
   - After redemption: redirect to `/profile-setup`
-- [ ] If route doesn't exist: create it
+- [x] If route doesn't exist: create it
 
 ---
 
 ## Phase 7: Tests
 
-- [ ] Admin sends invite via Signal → message sent (mocked adapter)
-- [ ] Admin sends invite via SMS → shown warning but allowed with `acknowledgedInsecure: true`
-- [ ] Expired invite code → 410 Gone
-- [ ] Invalid phone format → 422
-- [ ] Invite link in message navigates to onboarding page
-- [ ] `recipientPhoneHash` stored (not plaintext) after send
+- [x] Admin sends invite via Signal → message sent (mocked adapter)
+- [x] Admin sends invite via SMS → shown warning but allowed with `acknowledgedInsecure: true`
+- [x] Expired invite code → 410 Gone
+- [x] Invalid phone format → 422
+- [x] Invite link in message navigates to onboarding page
+- [x] `recipientPhoneHash` stored (not plaintext) after send
 
 ---
 
 ## Completion Checklist
 
-- [ ] `InviteDeliveryService` reuses existing messaging adapters
-- [ ] `POST /api/invites/:code/send` endpoint with channel selection
-- [ ] Available channels endpoint for UI
-- [ ] No email pathway. Signal > WhatsApp > SMS > manual.
-- [ ] SMS requires explicit insecure acknowledgment
-- [ ] Phone stored as HMAC hash, never plaintext
-- [ ] Admin UI: channel selector, send button, delivery status
-- [ ] Invite link frontend route exists and handles onboarding
-- [ ] `bun run typecheck` passes
-- [ ] `bun run build` passes
+- [x] `InviteDeliveryService` reuses existing messaging adapters
+- [x] `POST /api/invites/:code/send` endpoint with channel selection
+- [x] Available channels endpoint for UI
+- [x] No email pathway. Signal > WhatsApp > SMS > manual.
+- [x] SMS requires explicit insecure acknowledgment
+- [x] Phone stored as HMAC hash, never plaintext
+- [x] Admin UI: channel selector, send button, delivery status
+- [x] Invite link frontend route exists and handles onboarding
+- [x] `bun run typecheck` passes
+- [x] `bun run build` passes

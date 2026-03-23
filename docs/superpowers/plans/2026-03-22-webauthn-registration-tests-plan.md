@@ -1,6 +1,6 @@
 # WebAuthn Registration & Authentication Tests — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add E2E tests for WebAuthn passkey registration, authentication, multi-device session management, and credential deletion.
 
@@ -13,7 +13,7 @@
 ## Phase 1: Playwright Virtual Authenticator Setup
 
 ### 1.1 Create WebAuthn test helper
-- [ ] Add `setupVirtualAuthenticator(page)` to `tests/helpers.ts`:
+- [x] Add `setupVirtualAuthenticator(page)` to `tests/helpers.ts`:
   ```typescript
   async function setupVirtualAuthenticator(page: Page): Promise<string> {
     const cdp = await page.context().newCDPSession(page)
@@ -30,17 +30,17 @@
     return authenticatorId
   }
   ```
-- [ ] Add `teardownVirtualAuthenticator(page, authenticatorId)` helper
+- [x] Add `teardownVirtualAuthenticator(page, authenticatorId)` helper
 
 ### 1.2 Verify Playwright version supports WebAuthn CDP
-- [ ] Check `playwright.config.ts` for browser version — WebAuthn virtual authenticator requires Chrome 87+
-- [ ] Run a quick smoke test: `page.evaluate(() => navigator.credentials.create !== undefined)`
+- [x] Check `playwright.config.ts` for browser version — WebAuthn virtual authenticator requires Chrome 87+
+- [x] Run a quick smoke test: `page.evaluate(() => navigator.credentials.create !== undefined)`
 
 ---
 
 ## Phase 2: Passkey Registration Tests
 
-- [ ] Create `tests/webauthn.spec.ts`
+- [x] Create `tests/webauthn.spec.ts`
 
 ### Test 2.1: Admin can register a passkey
 ```
@@ -53,8 +53,8 @@ Then: Passkey registered successfully
 Then: New credential appears in credentials list with label "My Laptop"
 Then: Credential has creation date
 ```
-- [ ] Use virtual authenticator (1.1) to auto-confirm the passkey prompt
-- [ ] Verify `POST /api/webauthn/register-begin` and `POST /api/webauthn/register-end` called
+- [x] Use virtual authenticator (1.1) to auto-confirm the passkey prompt
+- [x] Verify `POST /api/webauthn/register-begin` and `POST /api/webauthn/register-end` called
 
 ### Test 2.2: Volunteer can register a passkey
 ```
@@ -92,8 +92,8 @@ Then: Login succeeds
 Then: Admin is on dashboard
 Then: No nsec was entered
 ```
-- [ ] Verify `POST /api/webauthn/authenticate-begin` and `POST /api/webauthn/authenticate-end` called
-- [ ] Verify session token stored in sessionStorage
+- [x] Verify `POST /api/webauthn/authenticate-begin` and `POST /api/webauthn/authenticate-end` called
+- [x] Verify session token stored in sessionStorage
 
 ### Test 3.2: Passkey login fails with wrong credential
 ```
@@ -167,11 +167,11 @@ Then: Login succeeds on new device
 
 ## Completion Checklist
 
-- [ ] Virtual authenticator helper working in test context
-- [ ] `bun run typecheck` passes
-- [ ] Passkey registration: credential appears after successful registration
-- [ ] Passkey authentication: login without nsec succeeds
-- [ ] Session token from passkey auth works for API calls
-- [ ] Credential deletion: removed from list
-- [ ] Session revocation: revoked session returns 401
-- [ ] `bunx playwright test tests/webauthn.spec.ts` passes
+- [x] Virtual authenticator helper working in test context
+- [x] `bun run typecheck` passes
+- [x] Passkey registration: credential appears after successful registration
+- [x] Passkey authentication: login without nsec succeeds
+- [x] Session token from passkey auth works for API calls
+- [x] Credential deletion: removed from list
+- [x] Session revocation: revoked session returns 401
+- [x] `bunx playwright test tests/webauthn.spec.ts` passes

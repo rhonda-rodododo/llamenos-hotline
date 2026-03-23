@@ -1,6 +1,6 @@
 # i18n Full Locale Coverage Tests — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Extend locale test coverage from 2 languages (en, es) to all 13 languages. Add RTL (Arabic) layout verification. Confirm locale persistence across reloads.
 
@@ -11,17 +11,17 @@
 ## Phase 1: Locale Switching Tests (All 13)
 
 ### 1.1 Audit which UI strings to verify per locale
-- [ ] Identify 3–5 key strings in each UI area that appear in all 13 locale files:
+- [x] Identify 3–5 key strings in each UI area that appear in all 13 locale files:
   - Dashboard: `common.dashboard` or `ui.navigation.dashboard`
   - Notes: `notes.title` or similar
   - Login: `auth.login.title` or similar
   - Admin: `admin.title` or similar
   - Settings: `common.settings`
-- [ ] Read `src/client/locales/en.json` to identify exact top-level keys and sample values
-- [ ] Instead of hardcoding expected strings, the test should: (1) load the locale JSON file for the current locale, (2) find the key being checked, (3) assert that the rendered page text matches the locale file value. This avoids the maintenance burden of updating hardcoded strings when translations are updated.
+- [x] Read `src/client/locales/en.json` to identify exact top-level keys and sample values
+- [x] Instead of hardcoding expected strings, the test should: (1) load the locale JSON file for the current locale, (2) find the key being checked, (3) assert that the rendered page text matches the locale file value. This avoids the maintenance burden of updating hardcoded strings when translations are updated.
 
 ### 1.2 Parametric locale test
-- [ ] Add to `tests/i18n.spec.ts` (new file):
+- [x] Add to `tests/i18n.spec.ts` (new file):
   ```typescript
   const locales = ['en','es','zh','tl','vi','ar','fr','ht','ko','ru','hi','pt','de']
 
@@ -41,7 +41,7 @@ Then: No untranslated strings visible (no "common.dashboard" raw key visible)
 Then: No [locale] placeholder errors
 Then: No console errors about missing i18n keys
 ```
-- [ ] Use `page.on('console', msg => { if (msg.text().includes('i18next')) fail(...) })`
+- [x] Use `page.on('console', msg => { if (msg.text().includes('i18next')) fail(...) })`
 
 ### Test 1.4: Locale persists after reload
 ```
@@ -50,7 +50,7 @@ When: Reload page
 Then: UI still in Haitian Creole
 Then: Language selector shows "Haitian Creole" as selected
 ```
-- [ ] Verify localStorage or server-side language preference is retained
+- [x] Verify localStorage or server-side language preference is retained
 
 ---
 
@@ -65,8 +65,8 @@ Then: Sidebar/navigation is on the RIGHT side (mirrored)
 Then: Text is right-aligned
 Then: No horizontal overflow (layout doesn't break)
 ```
-- [ ] Use `page.evaluate(() => document.documentElement.dir)` to check
-- [ ] Take screenshot for visual comparison
+- [x] Use `page.evaluate(() => document.documentElement.dir)` to check
+- [x] Take screenshot for visual comparison
 
 ### Test 2.2: Arabic form inputs are RTL
 ```
@@ -83,7 +83,7 @@ When: Navigate to admin settings page
 Then: No horizontal scrollbar (layout fits in viewport)
 Then: No text clipping or overflow
 ```
-- [ ] Use `page.evaluate(() => document.body.scrollWidth > document.body.clientWidth)` to detect overflow
+- [x] Use `page.evaluate(() => document.body.scrollWidth > document.body.clientWidth)` to detect overflow
 
 ---
 
@@ -118,7 +118,7 @@ Then: Language selector shows 한국어 selected
 
 ## Phase 4: Locale File Completeness Verification
 
-- [ ] Add a test utility (not a Playwright test — a standalone script or test setup check):
+- [x] Add a test utility (not a Playwright test — a standalone script or test setup check):
   - Load all 13 locale JSON files
   - Compare keys in each file to `en.json` (reference)
   - Report any missing keys
@@ -138,19 +138,19 @@ for (const locale of locales) {
   }
 }
 ```
-- [ ] **Important:** The `deepMissingKeys` helper must traverse keys recursively (handling nested objects), not just top-level keys. The initial implementation must include nested key traversal — a flat key check will silently miss missing nested translations.
-- [ ] Add `"check:locales": "bun run scripts/check-locales.ts"` to `package.json`
-- [ ] Run as part of CI alongside `bun run typecheck`
+- [x] **Important:** The `deepMissingKeys` helper must traverse keys recursively (handling nested objects), not just top-level keys. The initial implementation must include nested key traversal — a flat key check will silently miss missing nested translations.
+- [x] Add `"check:locales": "bun run scripts/check-locales.ts"` to `package.json`
+- [x] Run as part of CI alongside `bun run typecheck`
 
 ---
 
 ## Completion Checklist
 
-- [ ] Locale tests load values dynamically from locale JSON files (no hardcoded expected strings)
-- [ ] Parametric locale test: all 13 languages render without raw keys
-- [ ] Arabic RTL: `dir="rtl"` confirmed on `<html>` element
-- [ ] Arabic layout: no horizontal overflow
-- [ ] Locale persistence: selected language survives page reload
-- [ ] Language selector: all 13 languages listed with native names
-- [ ] `scripts/check-locales.ts` passes (no missing keys in any locale file)
-- [ ] `bunx playwright test tests/i18n.spec.ts` passes
+- [x] Locale tests load values dynamically from locale JSON files (no hardcoded expected strings)
+- [x] Parametric locale test: all 13 languages render without raw keys
+- [x] Arabic RTL: `dir="rtl"` confirmed on `<html>` element
+- [x] Arabic layout: no horizontal overflow
+- [x] Locale persistence: selected language survives page reload
+- [x] Language selector: all 13 languages listed with native names
+- [x] `scripts/check-locales.ts` passes (no missing keys in any locale file)
+- [x] `bunx playwright test tests/i18n.spec.ts` passes

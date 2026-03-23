@@ -1,6 +1,6 @@
 # CI Automated VPS Deployment Pipeline — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add automated VPS deployment to CI so that when a new version is released (tag pushed), the demo VPS is automatically updated. Currently deployment is manual-only.
 
@@ -12,10 +12,10 @@
 
 ## Phase 1: Audit Current Deploy Setup
 
-- [ ] Read `.github/workflows/deploy-demo.yml` — understand current manual dispatch workflow
-- [ ] Read `deploy/ansible/justfile` — list all available recipes
-- [ ] Read `deploy/ansible/playbooks/deploy-demo.yml` — understand what it does
-- [ ] Identify: what secrets are needed for Ansible to connect and deploy?
+- [x] Read `.github/workflows/deploy-demo.yml` — understand current manual dispatch workflow
+- [x] Read `deploy/ansible/justfile` — list all available recipes
+- [x] Read `deploy/ansible/playbooks/deploy-demo.yml` — understand what it does
+- [x] Identify: what secrets are needed for Ansible to connect and deploy?
   - `DEMO_INVENTORY_YML`
   - `ANSIBLE_VAULT_PASSWORD`
   - `DEMO_VARS_YML_ENCRYPTED`
@@ -40,7 +40,7 @@
 **Decision: Option B** (separate workflow, release event trigger — more robust, easier to disable)
 
 ### 2.2 Create auto-deploy-demo.yml
-- [ ] Create `.github/workflows/auto-deploy-demo.yml`:
+- [x] Create `.github/workflows/auto-deploy-demo.yml`:
   ```yaml
   name: Auto-Deploy Demo
 
@@ -146,34 +146,34 @@
   ```
 
 ### 2.3 Update deploy-demo.yml to share logic
-- [ ] Keep existing `deploy-demo.yml` for manual dispatches
-- [ ] Consider: extract common Ansible setup steps to a composite action `.github/actions/ansible-setup/action.yml` to reduce duplication
+- [x] Keep existing `deploy-demo.yml` for manual dispatches
+- [x] Consider: extract common Ansible setup steps to a composite action `.github/actions/ansible-setup/action.yml` to reduce duplication
 
 ---
 
 ## Phase 3: Health Check Endpoint Verification
 
-- [ ] Confirm `GET /api/health` returns `{ status: "ok" }` in the deployed app
-- [ ] Confirm the endpoint is accessible from GitHub Actions runners (not behind auth)
-- [ ] If health endpoint requires changes: add to server routes (`src/server/routes/health.ts`)
+- [x] Confirm `GET /api/health` returns `{ status: "ok" }` in the deployed app
+- [x] Confirm the endpoint is accessible from GitHub Actions runners (not behind auth)
+- [x] If health endpoint requires changes: add to server routes (`src/server/routes/health.ts`)
 
 ---
 
 ## Phase 4: Deployment Rollback
 
 ### 4.1 Rollback recipe in justfile
-- [ ] Add to `deploy/ansible/justfile`:
+- [x] Add to `deploy/ansible/justfile`:
   ```
   rollback-demo version:
       ansible-playbook -i inventories/demo.yml \
           playbooks/deploy-demo.yml \
           -e image_tag={{ version }}
   ```
-- [ ] Document: to roll back, run `just rollback-demo v1.2.3`
+- [x] Document: to roll back, run `just rollback-demo v1.2.3`
 
 ### 4.2 Docker image retention
-- [ ] Verify GHCR retains at least the last 5 tagged versions (for rollback)
-- [ ] Add `.github/policies/ghcr-retention.json` if needed to set retention policy
+- [x] Verify GHCR retains at least the last 5 tagged versions (for rollback)
+- [x] Add `.github/policies/ghcr-retention.json` if needed to set retention policy
 
 ---
 
@@ -181,7 +181,7 @@
 
 **Gap:** Marketing site (Astro) builds as a CI artifact but is not deployed automatically to Cloudflare Pages.
 
-- [ ] Add deploy step to `ci.yml` after `build` job (or in a separate `deploy-site.yml`):
+- [x] Add deploy step to `ci.yml` after `build` job (or in a separate `deploy-site.yml`):
   - Trigger: push to `main` when `site/` files changed (use `changes` job output)
   - Use `cloudflare/wrangler-action` to deploy:
     ```yaml
@@ -197,13 +197,13 @@
 
 ## Completion Checklist
 
-- [ ] `.github/workflows/auto-deploy-demo.yml` created
-- [ ] Workflow triggers on `release: published` event
-- [ ] Docker image availability check before Ansible run
-- [ ] Health endpoint verification after deploy
-- [ ] Cleanup of sensitive files in `always()` step
-- [ ] Rollback recipe in justfile
-- [ ] Test: push a test tag → verify auto-deploy runs and succeeds
-- [ ] Site auto-deploy: CF Pages deploys on site changes
-- [ ] `CF_API_TOKEN`, `CF_ACCOUNT_ID` secrets documented in ops runbook
-- [ ] Deploy concurrency lock prevents parallel deploys
+- [x] `.github/workflows/auto-deploy-demo.yml` created
+- [x] Workflow triggers on `release: published` event
+- [x] Docker image availability check before Ansible run
+- [x] Health endpoint verification after deploy
+- [x] Cleanup of sensitive files in `always()` step
+- [x] Rollback recipe in justfile
+- [x] Test: push a test tag → verify auto-deploy runs and succeeds
+- [x] Site auto-deploy: CF Pages deploys on site changes
+- [x] `CF_API_TOKEN`, `CF_ACCOUNT_ID` secrets documented in ops runbook
+- [x] Deploy concurrency lock prevents parallel deploys

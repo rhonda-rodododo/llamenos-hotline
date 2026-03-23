@@ -1,6 +1,6 @@
 # CI Security Hardening — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Complete the CI security pipeline: GPG-sign CHECKSUMS.txt (the one piece `verify-build.sh` already expects but CI doesn't produce), add secret scanning, add Dependabot, and publish a security policy.
 
@@ -13,8 +13,8 @@
 **Gap:** `scripts/verify-build.sh` checks for `CHECKSUMS.txt.asc` (GPG signature) but the `release` job in `ci.yml` never generates it. The verify script fails silently on signature check.
 
 ### 1.1 Add GPG signing to release job in ci.yml
-- [ ] Read `.github/workflows/ci.yml` — find the `release` job
-- [ ] Add GPG key setup step before the GitHub Release creation:
+- [x] Read `.github/workflows/ci.yml` — find the `release` job
+- [x] Add GPG key setup step before the GitHub Release creation:
   ```yaml
   - name: Import GPG signing key
     run: |
@@ -28,11 +28,11 @@
           --detach-sign CHECKSUMS.txt
       # Produces CHECKSUMS.txt.asc
   ```
-- [ ] Update the `softprops/action-gh-release` step to also upload `CHECKSUMS.txt.asc`
-- [ ] Verify `verify-build.sh` correctly imports and verifies with the public key fingerprint
+- [x] Update the `softprops/action-gh-release` step to also upload `CHECKSUMS.txt.asc`
+- [x] Verify `verify-build.sh` correctly imports and verifies with the public key fingerprint
 
 ### 1.2 Generate and publish GPG keypair
-- [ ] Create a new dedicated CI signing key (NOT a personal key):
+- [x] Create a new dedicated CI signing key (NOT a personal key):
   ```bash
   gpg --batch --gen-key <<EOF
   Key-Type: RSA
@@ -45,22 +45,22 @@
   %no-protection
   EOF
   ```
-- [ ] Export armored private key: `gpg --armor --export-secret-keys <KEY_ID>`
-- [ ] Store as GitHub repository secret: `RELEASE_GPG_PRIVATE_KEY`
-- [ ] Store key ID as: `RELEASE_GPG_KEY_ID`
-- [ ] Export armored public key and publish in `SECURITY.md` (see Phase 4)
+- [x] Export armored private key: `gpg --armor --export-secret-keys <KEY_ID>`
+- [x] Store as GitHub repository secret: `RELEASE_GPG_PRIVATE_KEY`
+- [x] Store key ID as: `RELEASE_GPG_KEY_ID`
+- [x] Export armored public key and publish in `SECURITY.md` (see Phase 4)
 
 ### 1.3 Update verify-build.sh to use published public key
-- [ ] Read `scripts/verify-build.sh`
-- [ ] Add step to import CI public key automatically (or document it must be imported manually)
-- [ ] Add GPG_FINGERPRINT constant to the script
+- [x] Read `scripts/verify-build.sh`
+- [x] Add step to import CI public key automatically (or document it must be imported manually)
+- [x] Add GPG_FINGERPRINT constant to the script
 
 ---
 
 ## Phase 2: Secret Scanning
 
 ### 2.1 Add gitleaks configuration
-- [ ] Create `.gitleaks.toml` at repo root:
+- [x] Create `.gitleaks.toml` at repo root:
   ```toml
   title = "Llamenos Hotline Gitleaks Configuration"
 
@@ -76,7 +76,7 @@
   [rules.allowlist]
   regexes = ["nsec174zsa94n3e7t0ugfldh9tgkkzmaxhalr78uxt9phjq3mmn6d6xas5jdffh"]
   ```
-- [ ] Create `.github/workflows/secret-scan.yml`:
+- [x] Create `.github/workflows/secret-scan.yml`:
   ```yaml
   name: Secret Scanning
   on:
@@ -93,18 +93,18 @@
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   ```
-- [ ] Test: run gitleaks locally against full history to ensure no false positives block CI
+- [x] Test: run gitleaks locally against full history to ensure no false positives block CI
 
 ### 2.2 Verify GitHub Advanced Security (secret scanning) is enabled
-- [ ] Check repo settings → Security → Secret scanning is enabled
-- [ ] Enable "Push protection" (blocks commits containing detected secrets)
+- [x] Check repo settings → Security → Secret scanning is enabled
+- [x] Enable "Push protection" (blocks commits containing detected secrets)
 
 ---
 
 ## Phase 3: Dependabot Configuration
 
 ### 3.1 Create .github/dependabot.yml
-- [ ] Create `.github/dependabot.yml`:
+- [x] Create `.github/dependabot.yml`:
   ```yaml
   version: 2
   updates:
@@ -147,7 +147,7 @@
   ```
 
 ### 3.2 Configure auto-merge for safe updates
-- [ ] Create `.github/auto-merge.yml` (or add to dependabot rules):
+- [x] Create `.github/auto-merge.yml` (or add to dependabot rules):
   - Auto-approve and merge patch updates for non-critical deps
   - Require human review for major version bumps
   - Never auto-merge for: `@noble/*`, `drizzle-orm`, `hono`, `react`
@@ -156,7 +156,7 @@
 
 ## Phase 4: SECURITY.md
 
-- [ ] Create `.github/SECURITY.md` (GitHub shows this as "Security Policy"):
+- [x] Create `.github/SECURITY.md` (GitHub shows this as "Security Policy"):
   ```markdown
   # Security Policy
 
@@ -204,28 +204,28 @@
   - Reproducible builds: verify build integrity with CHECKSUMS.txt + GPG signature
   - SLSA Level 2 provenance attestation on all releases
   ```
-- [ ] Add `SECURITY.md` as a proper file (not just `.github/SECURITY.md` — GitHub shows both)
+- [x] Add `SECURITY.md` as a proper file (not just `.github/SECURITY.md` — GitHub shows both)
 
 ---
 
 ## Phase 5: License Compliance Check (Optional)
 
-- [ ] Create `.github/workflows/license-check.yml` (manual trigger only):
+- [x] Create `.github/workflows/license-check.yml` (manual trigger only):
   - Run `npx license-checker --summary --failOn GPL-2.0,AGPL-3.0` for Node deps
   - Run `cargo license` for Rust deps
   - Upload report as artifact
-- [ ] Review any flagged licenses before marking optional
+- [x] Review any flagged licenses before marking optional
 
 ---
 
 ## Completion Checklist
 
-- [ ] `CHECKSUMS.txt.asc` generated in release job and uploaded to GitHub Release
-- [ ] `scripts/verify-build.sh` passes signature verification on a test release
-- [ ] `RELEASE_GPG_PRIVATE_KEY` and `RELEASE_GPG_KEY_ID` secrets set in repo
-- [ ] CI public key fingerprint published in SECURITY.md
-- [ ] gitleaks: `.gitleaks.toml` created, CI workflow runs on PRs and main
-- [ ] No false-positive secret alerts (test nsec allowlisted)
-- [ ] `.github/dependabot.yml` created, auto-update PRs start appearing on Monday
-- [ ] `.github/SECURITY.md` published (visible at `/security` tab on GitHub)
-- [ ] Security audit CI job still passes after all changes
+- [x] `CHECKSUMS.txt.asc` generated in release job and uploaded to GitHub Release
+- [x] `scripts/verify-build.sh` passes signature verification on a test release
+- [x] `RELEASE_GPG_PRIVATE_KEY` and `RELEASE_GPG_KEY_ID` secrets set in repo
+- [x] CI public key fingerprint published in SECURITY.md
+- [x] gitleaks: `.gitleaks.toml` created, CI workflow runs on PRs and main
+- [x] No false-positive secret alerts (test nsec allowlisted)
+- [x] `.github/dependabot.yml` created, auto-update PRs start appearing on Monday
+- [x] `.github/SECURITY.md` published (visible at `/security` tab on GitHub)
+- [x] Security audit CI job still passes after all changes

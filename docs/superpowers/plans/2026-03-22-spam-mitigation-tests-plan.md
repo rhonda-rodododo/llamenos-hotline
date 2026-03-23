@@ -1,6 +1,6 @@
 # Spam Mitigation Tests — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add E2E tests for all spam mitigation features: ban list enforcement, rate limiting, and voice CAPTCHA. Some tests overlap with `call-flow-tests-plan.md` — coordinate to avoid duplication.
 
@@ -12,7 +12,7 @@
 
 `tests/ban-management.spec.ts` already has CRUD tests. This plan adds **enforcement** tests.
 
-- [ ] Add to `tests/ban-management.spec.ts` or create `tests/call-spam.spec.ts`:
+- [x] Add to `tests/ban-management.spec.ts` or create `tests/call-spam.spec.ts`:
 
 ### Test 1.1: Call from banned number is rejected at the telephony route
 ```
@@ -22,8 +22,8 @@ Then: Response contains reject TwiML/NCCO/PXML (e.g., <Response><Reject/></Respo
 Then: No call entry created in active calls
 Then: Audit log entry created: event="callRejected", reason="banned"
 ```
-- [ ] Use `request.post('/api/telephony/incoming', { data: mockTwilioInboundPayload('+15555559999') })`
-- [ ] Verify response body contains rejection marker
+- [x] Use `request.post('/api/telephony/incoming', { data: mockTwilioInboundPayload('+15555559999') })`
+- [x] Verify response body contains rejection marker
 
 ### Test 1.2: Call from non-banned number is NOT rejected
 ```
@@ -52,7 +52,7 @@ Then: Call rejected
 
 ## Phase 2: Rate Limiting Tests
 
-- [ ] Add rate limiting tests to `tests/call-spam.spec.ts`:
+- [x] Add rate limiting tests to `tests/call-spam.spec.ts`:
 
 ### Test 2.1: Rate limit enforced after threshold
 ```
@@ -62,8 +62,8 @@ Then: All 3 calls are routed (not rejected)
 When: Simulate 4th call from "+15555556666" within same minute
 Then: 4th call rejected with rate-limit response
 ```
-- [ ] May need `PUT /api/settings/spam { rateLimitPerMinute: 3 }` before test
-- [ ] May need test-mode rate limit override (smaller time window)
+- [x] May need `PUT /api/settings/spam { rateLimitPerMinute: 3 }` before test
+- [x] May need test-mode rate limit override (smaller time window)
 
 ### Test 2.2: Rate limit resets after window
 ```
@@ -72,7 +72,7 @@ When: Wait for rate limit window to expire (mock time or short window in test)
 When: Simulate new call from "+15555556666"
 Then: Call accepted (rate counter reset)
 ```
-- [ ] For test feasibility: set rate limit to very short window (1 second) in test setup, or mock time
+- [x] For test feasibility: set rate limit to very short window (1 second) in test setup, or mock time
 
 ### Test 2.3: Rate limit is per-caller (not global)
 ```
@@ -93,7 +93,7 @@ Then: Second call rejected
 
 ## Phase 3: Voice CAPTCHA Tests
 
-- [ ] Add CAPTCHA tests to `tests/call-spam.spec.ts`:
+- [x] Add CAPTCHA tests to `tests/call-spam.spec.ts`:
 
 ### Test 3.1: CAPTCHA toggled on — next call requires digit input
 ```
@@ -156,7 +156,7 @@ Then: Both rejections appear with appropriate event types and reasons
 
 ## Phase 5: Admin Spam Settings UI Tests
 
-- [ ] Add to existing `tests/admin-flow.spec.ts` or spam-specific test:
+- [x] Add to existing `tests/admin-flow.spec.ts` or spam-specific test:
 
 ### Test 5.1: Admin can toggle ban list on/off
 ```
@@ -191,18 +191,18 @@ Then: Calls route directly (no challenge)
 
 ## Completion Checklist
 
-- [ ] `bun run typecheck` passes
-- [ ] `bun run build` passes
-- [ ] Ban list enforcement: banned number rejected on telephony webhook
-- [ ] Ban list enforcement: non-banned number not rejected
-- [ ] Real-time ban: new ban enforced on next call (no caching)
-- [ ] Rate limit: exceeding threshold rejects calls
-- [ ] Rate limit: different callers have independent counters
-- [ ] CAPTCHA: enabled → next call receives digit challenge
-- [ ] CAPTCHA: wrong digits → call rejected
-- [ ] CAPTCHA: correct digits → call routes normally
-- [ ] CAPTCHA: disabled → calls route without challenge
-- [ ] Combined scenario: ban takes priority over rate limit and CAPTCHA
-- [ ] Admin settings: ban list toggle, rate limit change, and CAPTCHA toggle tested
-- [ ] Audit log: rejection events logged with reason
-- [ ] `bunx playwright test tests/call-spam.spec.ts` passes
+- [x] `bun run typecheck` passes
+- [x] `bun run build` passes
+- [x] Ban list enforcement: banned number rejected on telephony webhook
+- [x] Ban list enforcement: non-banned number not rejected
+- [x] Real-time ban: new ban enforced on next call (no caching)
+- [x] Rate limit: exceeding threshold rejects calls
+- [x] Rate limit: different callers have independent counters
+- [x] CAPTCHA: enabled → next call receives digit challenge
+- [x] CAPTCHA: wrong digits → call rejected
+- [x] CAPTCHA: correct digits → call routes normally
+- [x] CAPTCHA: disabled → calls route without challenge
+- [x] Combined scenario: ban takes priority over rate limit and CAPTCHA
+- [x] Admin settings: ban list toggle, rate limit change, and CAPTCHA toggle tested
+- [x] Audit log: rejection events logged with reason
+- [x] `bunx playwright test tests/call-spam.spec.ts` passes
