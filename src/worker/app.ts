@@ -20,6 +20,7 @@ import hubRoutes from './routes/hubs'
 import invitesRoutes from './routes/invites'
 import metricsRoutes from './routes/metrics'
 import notesRoutes from './routes/notes'
+import providerSetupRoutes from './routes/provider-setup'
 import provisioningRoutes from './routes/provisioning'
 import reportsRoutes from './routes/reports'
 import settingsRoutes from './routes/settings'
@@ -117,6 +118,7 @@ authenticated.route('/uploads', uploadsRoutes)
 authenticated.route('/files', filesRoutes)
 authenticated.route('/reports', reportsRoutes)
 authenticated.route('/setup', setupRoutes)
+authenticated.route('/setup/provider', providerSetupRoutes)
 authenticated.route('/hubs', hubRoutes)
 authenticated.route('/blasts', blastsRoutes)
 authenticated.route('/contacts', contactsRoutes)
