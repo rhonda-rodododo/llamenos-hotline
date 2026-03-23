@@ -263,6 +263,7 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 
 ### Pre-Existing Test Failures — Need UI Selector Updates
 
-- [ ] **Notes page crashes without hub key** — After test-reset, the Notes page throws "Something went wrong" because the hub key isn't available (no hub key envelopes seeded). The test-reset creates a default hub but doesn't seed hub key envelopes. Fix: either seed a test hub key in test-reset, or make the Notes component handle missing hub key gracefully.
-- [ ] **admin-flow.spec.ts** — 10/15 tests fail. Selectors updated to data-testid but tests depend on volunteer/shift/ban CRUD which needs hub context. Root cause: Notes page crash propagates.
+- [x] **Notes page crashes without hub key** — FIXED: test-reset now seeds ECIES-wrapped hub key envelopes, fixed client API route (/my-key → /key-envelope), fixed settings route response shapes (custom-fields, ivr-languages, ivr-audio, roles all returned raw arrays instead of wrapped objects).
+- [ ] **admin-flow.spec.ts** — 5/15 tests still fail: shift CRUD (3 tests — shift name not visible after save) and ban CRUD (2 tests — phone not visible after save). Likely form submission or API response issues with hub-scoped shift/ban routes.
+- [ ] **notes-crud.spec.ts** — 1/7 tests fail: "notes are grouped by call" assertion can't find call card after creation.
 - [ ] **hub-access-control.spec.ts** — 1/4 tests fail. Edit dialog missing `data-testid="hub-access-toggle"` for the access control switch.
