@@ -22,14 +22,32 @@ dev.post('/test-reset', async (c) => {
   await services.calls.resetForTest()
   await services.conversations.resetForTest()
   await services.files.resetForTest()
-  // Re-bootstrap admin so tests can log in immediately after reset
+  // Re-bootstrap admin and default hub so tests can log in immediately after reset
   if (c.env.ADMIN_PUBKEY) {
     try {
       await services.identity.bootstrapAdmin(c.env.ADMIN_PUBKEY)
-      // Mark profile complete so login goes to Dashboard, not profile-setup
       await services.identity.updateVolunteer(c.env.ADMIN_PUBKEY, { profileCompleted: true })
     } catch {
-      // Admin may already exist if resetForTest preserved it
+      // Admin may already exist
+    }
+    // Create default hub so pages that require hub context work
+    try {
+      const hub = await services.settings.createHub({
+        id: 'default-hub',
+        name: 'Default Hub',
+        slug: 'default',
+        createdBy: c.env.ADMIN_PUBKEY,
+      })
+      // Assign admin to the hub
+      await services.identity.setHubRole({
+        pubkey: c.env.ADMIN_PUBKEY,
+        hubId: hub.id,
+        roleIds: ['role-super-admin'],
+      })
+      // Mark setup as completed so the setup wizard doesn't intercept navigation
+      await services.settings.updateSetupState({ setupCompleted: true })
+    } catch {
+      // Hub may already exist
     }
   }
   return c.json({ ok: true })

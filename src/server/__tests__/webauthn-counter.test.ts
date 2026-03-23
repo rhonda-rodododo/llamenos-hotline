@@ -6,7 +6,7 @@ import { IdentityService } from '@server/services/identity'
 import { webauthnCredentials } from '@server/db/schema'
 import { eq } from 'drizzle-orm'
 
-const TEST_DB_URL = process.env.TEST_DATABASE_URL ?? 'postgres://llamenos:llamenos@localhost:5433/llamenos'
+const TEST_DB_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgres://llamenos:llamenos@localhost:5433/llamenos'
 const TEST_PUBKEY = 'test-webauthn-pubkey-counter'
 const TEST_CRED_ID = 'test-cred-counter-001'
 
