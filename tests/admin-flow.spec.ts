@@ -24,7 +24,8 @@ test.describe('Admin flow', () => {
     await page.getByRole('link', { name: 'Volunteers' }).click()
     await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
 
-    // Add volunteer
+    // Add volunteer — wait for page to settle (button detaches during re-renders)
+    await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: /add volunteer/i }).click()
     await page.getByLabel('Name').fill(volName)
     await page.getByLabel('Phone Number').fill(phone)
@@ -34,15 +35,15 @@ test.describe('Admin flow', () => {
     // Should show the generated nsec
     await expect(page.getByText(/nsec1/)).toBeVisible({ timeout: 15000 })
 
-    // Close the nsec card — use data-slot to avoid matching toast dismiss icon
-    await page.locator('button[data-slot="button"]').filter({ hasText: 'Close' }).click()
+    // Close the nsec card
+    await page.getByTestId('dismiss-nsec').click()
 
     // Volunteer should appear (phone is masked by default)
     await expect(page.getByText(volName).first()).toBeVisible()
 
     // Delete the volunteer — scope to the row containing the volunteer name
-    const volRow = page.locator('.divide-y > div').filter({ hasText: volName })
-    await volRow.getByRole('button', { name: 'Delete' }).click()
+    const volRow = page.getByTestId('volunteer-list').locator('div').filter({ hasText: volName }).first()
+    await volRow.getByTestId('volunteer-delete-btn').click()
     // Confirm dialog has a "Delete" button
     await page.getByRole('dialog').getByRole('button', { name: /delete/i }).click()
     // Wait for dialog to close
@@ -143,6 +144,7 @@ test.describe('Admin flow', () => {
 
   test('phone validation rejects bad numbers', async ({ page }) => {
     await page.getByRole('link', { name: 'Volunteers' }).click()
+    await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: /add volunteer/i }).click()
 
     await page.getByLabel('Name').fill('Bad Phone')
@@ -163,7 +165,8 @@ test.describe('Admin flow', () => {
 
   test('admin settings page loads with all sections', async ({ page }) => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({ timeout: 15000 })
 
     // Section headers are always visible (in collapsible trigger)
     await expect(page.getByRole('heading', { name: 'Transcription' })).toBeVisible()
@@ -177,7 +180,8 @@ test.describe('Admin flow', () => {
 
   test('admin settings toggles work', async ({ page }) => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({ timeout: 15000 })
 
     // Expand transcription section to see its switches
     await page.getByRole('heading', { name: 'Transcription' }).click()
@@ -205,8 +209,9 @@ test.describe('Admin flow', () => {
   })
 
   test('notes page loads', async ({ page }) => {
-    await page.getByRole('link', { name: 'Notes' }).click()
-    await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
+    await page.getByRole('link', { name: 'Call Notes' }).click()
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible({ timeout: 15000 })
     await expect(page.getByText(/encrypted end-to-end/i)).toBeVisible()
   })
 
@@ -220,12 +225,13 @@ test.describe('Admin flow', () => {
     // Switch back to English — aria-label is now in Spanish ("Cambiar a ...")
     await page.getByRole('combobox', { name: /cambiar a/i }).click()
     await page.getByRole('option', { name: /english/i }).click()
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
   })
 
   test('admin settings shows status summaries when collapsed', async ({ page }) => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({ timeout: 15000 })
 
     // Wait for settings to load
     await page.waitForTimeout(1000)

@@ -5,8 +5,9 @@ test.describe('Notes CRUD', () => {
   test.beforeEach(async ({ page, request }) => {
     await resetTestState(request)
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Notes' }).click()
-    await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
+    await page.getByRole('link', { name: 'Call Notes' }).click()
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible({ timeout: 15000 })
   })
 
   test('notes page shows encryption note', async ({ page }) => {
@@ -14,12 +15,12 @@ test.describe('Notes CRUD', () => {
   })
 
   test('can open new note form', async ({ page }) => {
-    await page.getByRole('button', { name: /new note/i }).click()
+    await page.getByTestId('note-new-btn').click()
     await expect(page.getByText('Call ID')).toBeVisible()
   })
 
   test('can create a note', async ({ page }) => {
-    await page.getByRole('button', { name: /new note/i }).click()
+    await page.getByTestId('note-new-btn').click()
 
     await page.locator('#call-id').fill('test-call-' + Date.now())
     await page.locator('textarea').fill('Test note from E2E')
@@ -30,7 +31,7 @@ test.describe('Notes CRUD', () => {
   })
 
   test('can cancel new note', async ({ page }) => {
-    await page.getByRole('button', { name: /new note/i }).click()
+    await page.getByTestId('note-new-btn').click()
     await page.getByRole('button', { name: /cancel/i }).click()
     // Form should be gone
     await expect(page.locator('#call-id')).not.toBeVisible()
@@ -40,13 +41,13 @@ test.describe('Notes CRUD', () => {
     // Create two notes for the same call
     const callId = 'group-test-' + Date.now()
 
-    await page.getByRole('button', { name: /new note/i }).click()
+    await page.getByTestId('note-new-btn').click()
     await page.locator('#call-id').fill(callId)
     await page.locator('textarea').fill('First note')
     await page.getByRole('button', { name: /save/i }).click()
     await expect(page.locator('p').filter({ hasText: 'First note' })).toBeVisible()
 
-    await page.getByRole('button', { name: /new note/i }).click()
+    await page.getByTestId('note-new-btn').click()
     await page.locator('#call-id').fill(callId)
     await page.locator('textarea').fill('Second note')
     await page.getByRole('button', { name: /save/i }).click()
@@ -59,14 +60,14 @@ test.describe('Notes CRUD', () => {
 
   test('can edit a note', async ({ page }) => {
     // Create a note first
-    await page.getByRole('button', { name: /new note/i }).click()
+    await page.getByTestId('note-new-btn').click()
     await page.locator('#call-id').fill('edit-test-' + Date.now())
     await page.locator('textarea').fill('Original text')
     await page.getByRole('button', { name: /save/i }).click()
     await expect(page.locator('p').filter({ hasText: 'Original text' })).toBeVisible()
 
     // Click edit on the note
-    const editBtn = page.locator('button[aria-label="Edit"]').first()
+    const editBtn = page.getByTestId('note-edit-btn').first()
     await editBtn.click()
 
     // Textarea should be visible with original text
