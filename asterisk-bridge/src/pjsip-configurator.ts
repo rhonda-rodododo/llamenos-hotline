@@ -32,15 +32,27 @@ export class PjsipConfigurator {
       aors: 'trunk',
     })
 
-    // Registration — tells Asterisk to register with the provider
-    await this.ari.configureDynamic('res_pjsip', 'registration', 'trunk-reg', {
-      transport: 'transport-udp',
-      outbound_auth: 'trunk-auth',
-      server_uri: `sip:${provider}`,
-      client_uri: `sip:${username}@${provider}`,
-      retry_interval: '60',
-      expiration: '3600',
-    })
+    // Registration — tells Asterisk to register with the provider.
+    // Asterisk 22.x does not support dynamic creation of registration objects
+    // via the sorcery memory wizard (returns 403). We attempt it anyway so
+    // future versions that add support will work automatically. If it fails,
+    // admins must add the registration stanza to pjsip.conf manually.
+    try {
+      await this.ari.configureDynamic('res_pjsip', 'registration', 'trunk-reg', {
+        transport: 'transport-udp',
+        outbound_auth: 'trunk-auth',
+        server_uri: `sip:${provider}`,
+        client_uri: `sip:${username}@${provider}`,
+        retry_interval: '60',
+        expiration: '3600',
+      })
+    } catch (err) {
+      console.warn(
+        '[pjsip] Could not configure registration dynamically (expected on Asterisk 22.x).',
+        'Add a [trunk-reg] registration stanza to pjsip.conf manually if outbound registration is needed.',
+        String(err),
+      )
+    }
 
     // Reload res_pjsip so the new objects take effect
     await this.ari.reloadModule('res_pjsip.so')

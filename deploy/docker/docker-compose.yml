@@ -188,7 +188,11 @@ services:
     profiles: ["asterisk"]
     restart: unless-stopped
     volumes:
-      - asterisk-config:/etc/asterisk
+      - ../../asterisk-bridge/asterisk-config/ari.conf:/etc/asterisk/ari.conf:ro
+      - ../../asterisk-bridge/asterisk-config/http.conf:/etc/asterisk/http.conf:ro
+      - ../../asterisk-bridge/asterisk-config/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ../../asterisk-bridge/asterisk-config/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ../../asterisk-bridge/asterisk-config/sorcery.conf:/etc/asterisk/sorcery.conf:ro
     networks:
       - internal
     healthcheck:
@@ -221,8 +225,6 @@ services:
     depends_on:
       asterisk:
         condition: service_healthy
-      app:
-        condition: service_healthy
 
   # ── Optional: Signal Messaging ───────────────────────────
   signal-cli:
@@ -249,7 +251,6 @@ volumes:
   caddy-config:
   minio-data:
   nostr-data:
-  asterisk-config:
   signal-data:
 
 networks:

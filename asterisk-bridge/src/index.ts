@@ -13,6 +13,7 @@ function loadConfig(): BridgeConfig {
   const workerWebhookUrl = process.env.WORKER_WEBHOOK_URL
   const bridgeSecret = process.env.BRIDGE_SECRET
   const bridgePort = parseInt(process.env.BRIDGE_PORT ?? '3000', 10)
+  const bridgeBind = process.env.BRIDGE_BIND ?? '127.0.0.1'
   const stasisApp = process.env.STASIS_APP ?? 'llamenos'
 
   if (!ariUsername) throw new Error('ARI_USERNAME is required')
@@ -28,6 +29,7 @@ function loadConfig(): BridgeConfig {
     workerWebhookUrl,
     bridgeSecret,
     bridgePort,
+    bridgeBind,
     stasisApp,
     sipProvider: process.env.SIP_PROVIDER,
     sipUsername: process.env.SIP_USERNAME,
@@ -64,7 +66,7 @@ async function main(): Promise<void> {
   // Start HTTP server for Worker commands
   const server = Bun.serve({
     port: config.bridgePort,
-    hostname: '127.0.0.1', // Bind to localhost only — must not be internet-facing
+    hostname: config.bridgeBind, // Default 127.0.0.1 — set BRIDGE_BIND=0.0.0.0 in Docker
     async fetch(request: Request): Promise<Response> {
       const url = new URL(request.url)
       const path = url.pathname

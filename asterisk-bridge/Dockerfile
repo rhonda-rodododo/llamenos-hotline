@@ -2,12 +2,12 @@ FROM oven/bun:1@sha256:856da45d07aeb62eb38ea3e7f9e1794c0143a4ff63efb00e6c4491b62
 WORKDIR /app
 
 # Install dependencies
-COPY package.json bun.lockb* ./
+COPY asterisk-bridge/package.json asterisk-bridge/bun.lockb* ./
 RUN bun install --frozen-lockfile 2>/dev/null || bun install
 
 # Copy source code
-COPY src/ src/
-COPY tsconfig.json ./
+COPY asterisk-bridge/src/ src/
+COPY asterisk-bridge/tsconfig.json ./
 
 # Type check
 RUN bun run typecheck
@@ -30,6 +30,7 @@ ENV ARI_USERNAME=llamenos
 ENV WORKER_WEBHOOK_URL=https://your-worker.example.com
 # BRIDGE_SECRET must be set at runtime — no default
 ENV BRIDGE_PORT=3000
+ENV BRIDGE_BIND=0.0.0.0
 ENV STASIS_APP=llamenos
 
 EXPOSE 3000

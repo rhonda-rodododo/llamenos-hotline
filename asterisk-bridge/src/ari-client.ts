@@ -372,10 +372,11 @@ export class AriClient {
 
   /**
    * Reload an Asterisk module via ARI.
-   * POST /ari/asterisk/modules/{moduleName}
+   * PUT /ari/asterisk/modules/{moduleName} — reloads an already-loaded module.
+   * (POST loads a new module; DELETE unloads.)
    */
   async reloadModule(moduleName: string): Promise<void> {
-    await this.request('POST', `/asterisk/modules/${moduleName}`)
+    await this.request('PUT', `/asterisk/modules/${moduleName}`)
   }
 
   /** List active channels */

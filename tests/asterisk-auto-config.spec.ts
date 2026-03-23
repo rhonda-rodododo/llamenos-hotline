@@ -1,7 +1,39 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type TestInfo } from '@playwright/test'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { spawn, type ChildProcess } from 'node:child_process'
+
+// Real Asterisk ARI connection details — set via env or default to dev compose values
+const REAL_ARI_URL = process.env.ARI_REST_URL ?? 'http://127.0.0.1:8089/ari'
+const REAL_ARI_USERNAME = process.env.ARI_USERNAME ?? 'llamenos'
+const REAL_ARI_PASSWORD = process.env.ARI_PASSWORD ?? 'changeme'
+
+/** Check if a real Asterisk instance is reachable */
+async function isAsteriskAvailable(): Promise<boolean> {
+  try {
+    const res = await fetch(`${REAL_ARI_URL}/asterisk/info`, {
+      headers: { Authorization: 'Basic ' + btoa(`${REAL_ARI_USERNAME}:${REAL_ARI_PASSWORD}`) },
+      signal: AbortSignal.timeout(2000),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+/** Make an authenticated ARI REST call */
+async function ariRequest(method: string, path: string, body?: unknown): Promise<Response> {
+  const url = `${REAL_ARI_URL}${path}`
+  const headers: Record<string, string> = {
+    Authorization: 'Basic ' + btoa(`${REAL_ARI_USERNAME}:${REAL_ARI_PASSWORD}`),
+  }
+  const init: RequestInit = { method, headers }
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json'
+    init.body = JSON.stringify(body)
+  }
+  return fetch(url, init)
+}
 
 interface MockAri {
   port: number
@@ -126,7 +158,7 @@ test('auto-configures PJSIP trunk when SIP env vars are present', async () => {
     expect(paths).toContain('/ari/asterisk/config/dynamic/res_pjsip/registration/trunk-reg')
 
     const reloadCalls = mockAri.calls.filter((c) =>
-      c.method === 'POST' && c.path === '/ari/asterisk/modules/res_pjsip.so'
+      c.method === 'PUT' && c.path === '/ari/asterisk/modules/res_pjsip.so'
     )
     expect(reloadCalls.length).toBeGreaterThan(0)
   } finally {
@@ -205,11 +237,129 @@ test('PJSIP auto-config is idempotent across restarts', async () => {
     expect(newConfigPaths).toContain('/ari/asterisk/config/dynamic/res_pjsip/registration/trunk-reg')
 
     const newReloadCalls = newCalls.filter((c) =>
-      c.method === 'POST' && c.path === '/ari/asterisk/modules/res_pjsip.so'
+      c.method === 'PUT' && c.path === '/ari/asterisk/modules/res_pjsip.so'
     )
     expect(newReloadCalls.length).toBeGreaterThan(0)
   } finally {
     await killProcess(bridge2)
     await mockAri.stop()
   }
+})
+
+// ================================================================
+// Real Asterisk integration tests — require dev docker compose running
+// Skip automatically if Asterisk is not reachable
+// ================================================================
+
+test.describe('real Asterisk ARI', () => {
+  test.beforeEach(async ({}, testInfo: TestInfo) => {
+    const available = await isAsteriskAvailable()
+    if (!available) {
+      testInfo.skip(true, 'Asterisk not available (run bun run dev:docker)')
+    }
+  })
+
+  test('connects to ARI and retrieves Asterisk info', async () => {
+    const res = await ariRequest('GET', '/asterisk/info')
+    expect(res.ok).toBe(true)
+    const info = (await res.json()) as Record<string, unknown>
+    expect(info).toHaveProperty('build')
+    expect(info).toHaveProperty('system')
+    const system = info['system'] as Record<string, unknown>
+    expect(typeof system['version']).toBe('string')
+  })
+
+  test('PJSIP dynamic config: create, read, and delete objects', async () => {
+    const testId = `test-${Date.now()}`
+
+    // Create an auth object via dynamic config API
+    const createRes = await ariRequest('PUT', `/asterisk/config/dynamic/res_pjsip/auth/${testId}`, {
+      fields: [
+        { attribute: 'auth_type', value: 'userpass' },
+        { attribute: 'username', value: 'testuser' },
+        { attribute: 'password', value: 'testpass' },
+      ],
+    })
+    expect(createRes.status).toBeLessThan(300)
+
+    // Read it back
+    const readRes = await ariRequest('GET', `/asterisk/config/dynamic/res_pjsip/auth/${testId}`)
+    expect(readRes.ok).toBe(true)
+    const fields = (await readRes.json()) as Array<{ attribute: string; value: string }>
+    const usernameField = fields.find((f) => f.attribute === 'username')
+    expect(usernameField?.value).toBe('testuser')
+
+    // Delete it
+    const deleteRes = await ariRequest('DELETE', `/asterisk/config/dynamic/res_pjsip/auth/${testId}`)
+    expect(deleteRes.status).toBeLessThan(300)
+
+    // Verify it's gone
+    const verifyRes = await ariRequest('GET', `/asterisk/config/dynamic/res_pjsip/auth/${testId}`)
+    expect(verifyRes.ok).toBe(false)
+  })
+
+  test('res_pjsip module can be reloaded', async () => {
+    const res = await ariRequest('PUT', '/asterisk/modules/res_pjsip.so')
+    // PUT on modules endpoint triggers a reload — 204 No Content on success
+    expect(res.status).toBeLessThan(300)
+  })
+
+  test('PJSIP auto-config via bridge against real Asterisk', async () => {
+    const bridgePort = await getFreePort()
+    const testProvider = `test-${Date.now()}.example.com`
+
+    // Clean up any leftover objects from previous runs
+    await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/registration/trunk-reg').catch(() => {})
+    await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/endpoint/trunk').catch(() => {})
+    await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/aor/trunk').catch(() => {})
+    await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/auth/trunk-auth').catch(() => {})
+
+    const bridge = spawnBridge({
+      ARI_URL: `ws://127.0.0.1:8089/ari/events`,
+      ARI_REST_URL: REAL_ARI_URL,
+      ARI_USERNAME: REAL_ARI_USERNAME,
+      ARI_PASSWORD: REAL_ARI_PASSWORD,
+      WORKER_WEBHOOK_URL: 'http://127.0.0.1:9999',
+      BRIDGE_SECRET: 'testsecret',
+      SIP_PROVIDER: testProvider,
+      SIP_USERNAME: 'autoconfig-test',
+      SIP_PASSWORD: 'autoconfig-pass',
+      BRIDGE_PORT: String(bridgePort),
+    })
+
+    try {
+      // Wait for bridge to configure PJSIP — longer timeout for real ARI connection
+      await pollHealth(bridgePort, (body) => body['sipConfigured'] === true, 20_000)
+
+      // Verify the objects were created in Asterisk
+      const authRes = await ariRequest('GET', '/asterisk/config/dynamic/res_pjsip/auth/trunk-auth')
+      expect(authRes.ok).toBe(true)
+      const authFields = (await authRes.json()) as Array<{ attribute: string; value: string }>
+      expect(authFields.find((f) => f.attribute === 'username')?.value).toBe('autoconfig-test')
+
+      const aorRes = await ariRequest('GET', '/asterisk/config/dynamic/res_pjsip/aor/trunk')
+      expect(aorRes.ok).toBe(true)
+      const aorFields = (await aorRes.json()) as Array<{ attribute: string; value: string }>
+      expect(aorFields.find((f) => f.attribute === 'contact')?.value).toContain(testProvider)
+
+      const endpointRes = await ariRequest('GET', '/asterisk/config/dynamic/res_pjsip/endpoint/trunk')
+      expect(endpointRes.ok).toBe(true)
+
+      // Registration may or may not exist — Asterisk 22.x doesn't support dynamic
+      // registration objects. Just verify it doesn't break the bridge.
+      const regRes = await ariRequest('GET', '/asterisk/config/dynamic/res_pjsip/registration/trunk-reg')
+      // regRes.ok may be false on Asterisk 22.x — that's expected
+      if (regRes.ok) {
+        const regFields = (await regRes.json()) as Array<{ attribute: string; value: string }>
+        expect(regFields.find((f) => f.attribute === 'server_uri')?.value).toContain(testProvider)
+      }
+    } finally {
+      await killProcess(bridge)
+      // Clean up: delete the objects we created
+      await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/registration/trunk-reg').catch(() => {})
+      await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/endpoint/trunk').catch(() => {})
+      await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/aor/trunk').catch(() => {})
+      await ariRequest('DELETE', '/asterisk/config/dynamic/res_pjsip/auth/trunk-auth').catch(() => {})
+    }
+  })
 })
