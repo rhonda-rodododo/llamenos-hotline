@@ -1,6 +1,6 @@
 # Call Flow & Parallel Ringing Tests — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add E2E tests covering the complete call lifecycle: inbound call routing, volunteer notification, call answering, active call UI, parallel ringing + first-pickup cancellation, and call completion with notes.
 
@@ -13,7 +13,7 @@
 ## Phase 1: Test Infrastructure for Mock Calls
 
 ### 1.1 Mock telephony webhook helper
-- [ ] Add `simulateInboundCall(request, options)` to `tests/helpers.ts`:
+- [x] Add `simulateInboundCall(request, options)` to `tests/helpers.ts`:
   ```typescript
   interface MockCallOptions {
     callSid: string
@@ -27,23 +27,23 @@
   - For Twilio format: `{ CallSid, From, To, CallStatus: "ringing", Direction: "inbound" }`
   - Must bypass webhook signature validation in test mode (see 1.2)
 
-- [ ] Add `simulateCallAnswered(request, callSid, answeredByPhone)` to `tests/helpers.ts`
+- [x] Add `simulateCallAnswered(request, callSid, answeredByPhone)` to `tests/helpers.ts`
   - Posts `POST /api/telephony/answer` webhook with `{ CallSid, To: answeredByPhone, CallStatus: "in-progress" }`
 
-- [ ] Add `simulateCallHungUp(request, callSid)` to `tests/helpers.ts`
+- [x] Add `simulateCallHungUp(request, callSid)` to `tests/helpers.ts`
   - Posts `POST /api/telephony/hangup` webhook with `{ CallSid, CallStatus: "completed" }`
 
-- [ ] Add `simulateVoicemail(request, callSid, recordingUrl)` to `tests/helpers.ts`
+- [x] Add `simulateVoicemail(request, callSid, recordingUrl)` to `tests/helpers.ts`
   - Posts `POST /api/telephony/voicemail` webhook with recording data
 
 ### 1.2 Test-mode webhook signature bypass
-- [ ] In telephony route handlers, when `ENVIRONMENT === 'test'` or `'demo'`, skip webhook signature validation
+- [x] In telephony route handlers, when `ENVIRONMENT === 'test'` or `'demo'`, skip webhook signature validation
   - Check that `validateWebhook()` is already bypassed for test env (it may be — check `src/worker/routes/telephony.ts`)
   - If not: add `if (env.ENVIRONMENT === 'test') { return; }` before signature check
   - This is the same pattern used by `POST /api/test-reset`
 
 ### 1.3 Call state polling helper
-- [ ] Add `waitForCallState(page, callSid, state, timeout)` to `tests/helpers.ts`
+- [x] Add `waitForCallState(page, callSid, state, timeout)` to `tests/helpers.ts`
   - Polls `GET /api/calls/active` until the call with `callSid` appears in `state`
   - Uses Playwright `waitForFunction` with timeout
 
@@ -51,7 +51,7 @@
 
 ## Phase 2: Core Call Lifecycle Tests
 
-- [ ] Create `tests/call-flow.spec.ts`
+- [x] Create `tests/call-flow.spec.ts`
 
 ### Test 2.1: Inbound call appears in dashboard
 ```
@@ -60,7 +60,7 @@ When: Simulate inbound call (callSid="test-call-001", from="+15555550001")
 Then: Dashboard shows incoming call notification within 5 seconds
 Then: Call displays caller ID (anonymised), hub name, duration counter
 ```
-- [ ] Implement: `simulateInboundCall()` → `page.waitForSelector('[data-testid="incoming-call"]')`
+- [x] Implement: `simulateInboundCall()` → `page.waitForSelector('[data-testid="incoming-call"]')`
 
 ### Test 2.2: Volunteer answers a call
 ```
@@ -115,7 +115,7 @@ Then: Admin can see the voicemail entry
 
 ## Phase 3: Parallel Ringing Tests
 
-- [ ] Create `tests/parallel-ringing.spec.ts`
+- [x] Create `tests/parallel-ringing.spec.ts`
 
 ### Test 3.1: Multiple volunteers ring simultaneously
 ```
@@ -124,7 +124,7 @@ When: Simulate inbound call
 Then: Both Volunteer A's dashboard AND Volunteer B's dashboard show incoming call
       (Use two separate Playwright page contexts for two simultaneous sessions)
 ```
-- [ ] Implement using Playwright's `browser.newContext()` for second volunteer session
+- [x] Implement using Playwright's `browser.newContext()` for second volunteer session
 
 ### Test 3.2: First answer cancels other ringing
 ```
@@ -142,7 +142,7 @@ When: Simulate inbound call
 Then: Volunteer A's dashboard shows incoming call
 Then: Volunteer B's dashboard does NOT show incoming call
 ```
-- [ ] May require checking that /api/shifts or similar respects current time — use test shift with wide time window or mock time
+- [x] May require checking that /api/shifts or similar respects current time — use test shift with wide time window or mock time
 
 ### Test 3.4: Fallback group when no one on shift
 ```
@@ -158,7 +158,7 @@ Then: Volunteer C's dashboard shows incoming call
 
 ## Phase 4: Call Recording Tests
 
-- [ ] Add to `tests/call-recording.spec.ts` or new `tests/call-recording-flow.spec.ts`
+- [x] Add to `tests/call-recording.spec.ts` or new `tests/call-recording-flow.spec.ts`
 
 ### Test 5.1: Recording attached to call
 ```
@@ -181,15 +181,15 @@ Then: Access denied (403)
 
 ## Completion Checklist
 
-- [ ] `simulateInboundCall()` helper works against test server
-- [ ] Webhook signature bypass active in test mode
-- [ ] `bun run typecheck` passes
-- [ ] `bun run build` passes
-- [ ] Test 2.1: Inbound call notification visible within 5 seconds
-- [ ] Test 2.2: Answer call → active call UI with controls
-- [ ] Test 2.3: Note created during active call
-- [ ] Test 2.4: Note persists after call ends
-- [ ] Test 3.1: Two simultaneous volunteer sessions both see incoming call
-- [ ] Test 3.2: First answer cancels ringing for the other volunteer
-- [ ] `bunx playwright test tests/call-flow.spec.ts` passes
-- [ ] `bunx playwright test tests/parallel-ringing.spec.ts` passes
+- [x] `simulateInboundCall()` helper works against test server
+- [x] Webhook signature bypass active in test mode
+- [x] `bun run typecheck` passes
+- [x] `bun run build` passes
+- [x] Test 2.1: Inbound call notification visible within 5 seconds
+- [x] Test 2.2: Answer call → active call UI with controls
+- [x] Test 2.3: Note created during active call
+- [x] Test 2.4: Note persists after call ends
+- [x] Test 3.1: Two simultaneous volunteer sessions both see incoming call
+- [x] Test 3.2: First answer cancels ringing for the other volunteer
+- [x] `bunx playwright test tests/call-flow.spec.ts` passes
+- [x] `bunx playwright test tests/parallel-ringing.spec.ts` passes

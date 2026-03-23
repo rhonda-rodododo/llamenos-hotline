@@ -33,16 +33,16 @@ subscribers {
 ```
 
 **Correction:**
-- [ ] Rename `phoneNumber` → `identifierHash` (HMAC hash, not plaintext)
-- [ ] Replace `channel` → `channels` JSONB array OR create junction table `subscriber_channels(subscriberId, channelType, verified)`
-- [ ] Replace `active: boolean` → `status: 'active' | 'paused' | 'unsubscribed'` enum
-- [ ] Add `tags TEXT[]` column (or JSONB array)
-- [ ] Add `language VARCHAR(10) NULLABLE` column
-- [ ] Add `doubleOptInConfirmed BOOLEAN NOT NULL DEFAULT FALSE` column
-- [ ] Add `subscribedAt TIMESTAMPTZ NOT NULL DEFAULT NOW()` column
-- [ ] Add `preferenceToken VARCHAR(64) NOT NULL` column (used for opt-out URL tokens)
-- [ ] Add `hmacContext` note: identifierHash uses `HMAC_SUBSCRIBER` label from `crypto-labels.ts`
-- [ ] Run `bunx drizzle-kit generate` after fix
+- [x] Rename `phoneNumber` → `identifierHash` (HMAC hash, not plaintext)
+- [x] Replace `channel` → `channels` JSONB array OR create junction table `subscriber_channels(subscriberId, channelType, verified)`
+- [x] Replace `active: boolean` → `status: 'active' | 'paused' | 'unsubscribed'` enum
+- [x] Add `tags TEXT[]` column (or JSONB array)
+- [x] Add `language VARCHAR(10) NULLABLE` column
+- [x] Add `doubleOptInConfirmed BOOLEAN NOT NULL DEFAULT FALSE` column
+- [x] Add `subscribedAt TIMESTAMPTZ NOT NULL DEFAULT NOW()` column
+- [x] Add `preferenceToken VARCHAR(64) NOT NULL` column (used for opt-out URL tokens)
+- [x] Add `hmacContext` note: identifierHash uses `HMAC_SUBSCRIBER` label from `crypto-labels.ts`
+- [x] Run `bunx drizzle-kit generate` after fix
 
 ### Issue 2: Blasts table — missing targeting fields
 
@@ -70,11 +70,11 @@ blasts {
 ```
 
 **Correction:**
-- [ ] Replace `channel` → `targetChannels JSONB` (array of channel types)
-- [ ] Add `targetTags JSONB NOT NULL DEFAULT '[]'`
-- [ ] Add `targetLanguages JSONB NOT NULL DEFAULT '[]'`
-- [ ] Replace `stats` flat columns → `stats JSONB NOT NULL DEFAULT '{}'` with the structured shape above
-- [ ] Update Zod schema to match
+- [x] Replace `channel` → `targetChannels JSONB` (array of channel types)
+- [x] Add `targetTags JSONB NOT NULL DEFAULT '[]'`
+- [x] Add `targetLanguages JSONB NOT NULL DEFAULT '[]'`
+- [x] Replace `stats` flat columns → `stats JSONB NOT NULL DEFAULT '{}'` with the structured shape above
+- [x] Update Zod schema to match
 
 ### Issue 3: Missing `file_records` table
 
@@ -86,7 +86,7 @@ blasts {
 **Current plan:** No `file_records` table.
 
 **Correction:**
-- [ ] Add `file_records` table to `src/server/db/schema/conversations.ts`:
+- [x] Add `file_records` table to `src/server/db/schema/conversations.ts`:
   ```typescript
   fileRecords = pgTable('file_records', {
     id: varchar('id', { length: 64 }).primaryKey(),
@@ -110,8 +110,8 @@ blasts {
 **Current plan:** No table for this.
 
 **Correction:**
-- [ ] Add `blastConfig JSONB NOT NULL DEFAULT '{}'` column to the hub settings table OR
-- [ ] Add separate `blast_settings` table (one row per hub):
+- [x] Add `blastConfig JSONB NOT NULL DEFAULT '{}'` column to the hub settings table OR
+- [x] Add separate `blast_settings` table (one row per hub):
   ```typescript
   blastSettings = pgTable('blast_settings', {
     hubId: varchar('hub_id', { length: 64 }).primaryKey().references(() => hubs.id),
@@ -131,10 +131,10 @@ blasts {
 **Current plan:** No `context` column.
 
 **Correction:**
-- [ ] Add `context VARCHAR(32)` column to `custom_field_definitions`:
+- [x] Add `context VARCHAR(32)` column to `custom_field_definitions`:
   - Values: `'notes'` | `'conversations'` | `'reports'` | `'all'`
   - Default: `'notes'`
-- [ ] Update Zod schema for `CustomFieldDefinition` to include `context`
+- [x] Update Zod schema for `CustomFieldDefinition` to include `context`
 
 ### Issue 6: Missing `note_replies` table
 
@@ -143,7 +143,7 @@ blasts {
 **Current plan:** No `note_replies` table — Epic 123 deferred but schema needs placeholder.
 
 **Correction:**
-- [ ] Add `note_replies` table to `src/server/db/schema/records.ts`:
+- [x] Add `note_replies` table to `src/server/db/schema/records.ts`:
   ```typescript
   noteReplies = pgTable('note_replies', {
     id: varchar('id', { length: 64 }).primaryKey(),
@@ -165,7 +165,7 @@ blasts {
 **Current plan:** No `volunteer_load` table.
 
 **Correction:**
-- [ ] Add `volunteer_load` table OR a `load` column to conversations assignment queries:
+- [x] Add `volunteer_load` table OR a `load` column to conversations assignment queries:
   - Simpler approach: `load` is computed by counting `WHERE assignedTo = pubkey AND status = 'open'`
   - If the DO uses a cached counter (not recomputed): add `volunteer_load(hubId, pubkey, activeCount)` table
   - **Recommended:** Use computed query (no separate table), remove legacy cached counter
@@ -177,19 +177,19 @@ blasts {
 These tables are referenced by other specs written in this session and must be added to Phase 1:
 
 ### GDPR tables (from `2026-03-22-gdpr-compliance-plan.md`)
-- [ ] `gdpr_consents(pubkey PK, consentVersion, consentedAt)`
-- [ ] `gdpr_erasure_requests(pubkey PK, requestedAt, executeAt, status)`
-- [ ] Add `retention_settings` JSONB column to hub settings
+- [x] `gdpr_consents(pubkey PK, consentVersion, consentedAt)`
+- [x] `gdpr_erasure_requests(pubkey PK, requestedAt, executeAt, status)`
+- [x] Add `retention_settings` JSONB column to hub settings
 
 ### Geocoding config (from `2026-03-22-geocoding-location-fields-plan.md`)
-- [ ] `geocoding_config` JSONB column on `settings` table (per-hub or global)
+- [x] `geocoding_config` JSONB column on `settings` table (per-hub or global)
 
 ### Hub access control (from `2026-03-22-hub-admin-zero-trust-visibility-plan.md`)
-- [ ] `allow_super_admin_access BOOLEAN DEFAULT FALSE` on hub settings
-- [ ] `hub_key_envelopes(hubId, pubkey, wrappedKey, ephemeralPk, createdAt)` table
+- [x] `allow_super_admin_access BOOLEAN DEFAULT FALSE` on hub settings
+- [x] `hub_key_envelopes(hubId, pubkey, wrappedKey, ephemeralPk, createdAt)` table
 
 ### Contact `identifierHash` hashing context
-- [ ] Document: `contactIdentifier` in conversations (caller's phone/identifier) is stored as `HMAC_PHONE_PREFIX` hash (from `crypto-labels.ts`) — server stores hash for matching ban lists, not plaintext
+- [x] Document: `contactIdentifier` in conversations (caller's phone/identifier) is stored as `HMAC_PHONE_PREFIX` hash (from `crypto-labels.ts`) — server stores hash for matching ban lists, not plaintext
 
 ---
 
@@ -197,8 +197,8 @@ These tables are referenced by other specs written in this session and must be a
 
 **Issue found:** DO code mixes ISO string timestamps (some entities) and millisecond unix numbers (other entities). Drizzle should standardize to `TIMESTAMPTZ` PostgreSQL type across all tables.
 
-- [ ] Ensure all `createdAt`, `updatedAt`, `expiresAt` columns are `timestamp('...').notNull()` in Drizzle (maps to `TIMESTAMPTZ`)
-- [ ] In migration data-loader: convert millisecond timestamps to `new Date(ms)` for PostgreSQL compatibility
+- [x] Ensure all `createdAt`, `updatedAt`, `expiresAt` columns are `timestamp('...').notNull()` in Drizzle (maps to `TIMESTAMPTZ`)
+- [x] In migration data-loader: convert millisecond timestamps to `new Date(ms)` for PostgreSQL compatibility
 
 ---
 
@@ -222,9 +222,9 @@ After corrections, the migration should cover:
 
 **Active worktree:** `.worktrees/cf-removal` on `feature/cf-removal-drizzle-migration`
 
-- [ ] Switch to the worktree: `cd ~/projects/llamenos-hotline/.worktrees/cf-removal`
-- [ ] Apply all schema corrections above to `src/server/db/schema/` files
-- [ ] Regenerate all migrations: `bunx drizzle-kit generate`
-- [ ] Run typecheck: `bun run typecheck`
-- [ ] Commit: `git commit -m "fix(schema): correct subscriber/blast models, add missing tables"`
-- [ ] These corrections must land BEFORE Phase 2 service classes are written
+- [x] Switch to the worktree: `cd ~/projects/llamenos-hotline/.worktrees/cf-removal`
+- [x] Apply all schema corrections above to `src/server/db/schema/` files
+- [x] Regenerate all migrations: `bunx drizzle-kit generate`
+- [x] Run typecheck: `bun run typecheck`
+- [x] Commit: `git commit -m "fix(schema): correct subscriber/blast models, add missing tables"`
+- [x] These corrections must land BEFORE Phase 2 service classes are written

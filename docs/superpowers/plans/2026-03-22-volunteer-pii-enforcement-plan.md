@@ -1,6 +1,6 @@
 # Volunteer PII Enforcement — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Verify and enforce that volunteer phone numbers and real names are only visible to admins, never to other volunteers. Add tests to prevent regression.
 
@@ -10,14 +10,14 @@
 
 ## Phase 1: Audit Current API Behaviour
 
-- [ ] Read `src/worker/routes/volunteers.ts`
-- [ ] For each endpoint, document what fields are returned:
+- [x] Read `src/worker/routes/volunteers.ts`
+- [x] For each endpoint, document what fields are returned:
   - `GET /api/volunteers` — list all volunteers
   - `GET /api/volunteers/:pubkey` — get one volunteer
   - `GET /api/volunteers/me` — get self
-- [ ] Check if `phone` and `name` are filtered based on `c.get('roles')` or similar
-- [ ] Check what `GET /api/auth/me` returns — does it include `name` and `phone` for the current user?
-- [ ] Note the exact field names in the response objects
+- [x] Check if `phone` and `name` are filtered based on `c.get('roles')` or similar
+- [x] Check what `GET /api/auth/me` returns — does it include `name` and `phone` for the current user?
+- [x] Note the exact field names in the response objects
 
 ---
 
@@ -42,7 +42,7 @@
 ## Phase 3: Implement Filtering
 
 ### 3.1 Create role-based response projector
-- [ ] Create `src/worker/lib/volunteer-projector.ts` — define the three view interfaces (with discriminant tags `readonly view: 'public' | 'self' | 'admin'`) and implement:
+- [x] Create `src/worker/lib/volunteer-projector.ts` — define the three view interfaces (with discriminant tags `readonly view: 'public' | 'self' | 'admin'`) and implement:
   ```typescript
   function projectVolunteer(
     volunteer: Volunteer,
@@ -54,21 +54,21 @@
   - `VolunteerAdminView` (`view: 'admin'`): all fields, phone masked unless `options.unmask && isAdmin`
   - `VolunteerSelfView` (`view: 'self'`): own data, phone always masked
   - `VolunteerPublicView` (`view: 'public'`): only `pubkey`, `roles` (names), `spokenLanguages`, `onBreak`
-- [ ] These types live in `src/worker/lib/volunteer-projector.ts` only — do NOT add them to `src/shared/types.ts` (that file is for client/server shared types)
+- [x] These types live in `src/worker/lib/volunteer-projector.ts` only — do NOT add them to `src/shared/types.ts` (that file is for client/server shared types)
 
 ### 3.2 Apply projection in route handlers
-- [ ] `GET /api/volunteers` — for each volunteer in list:
+- [x] `GET /api/volunteers` — for each volunteer in list:
   - If admin → `VolunteerAdminView`
   - If volunteer requesting own entry → `VolunteerSelfView`
   - Otherwise → `VolunteerPublicView`
-- [ ] `GET /api/volunteers/:pubkey` — same projection logic
-- [ ] `GET /api/auth/me` — always returns `VolunteerSelfView` (own data + admin status)
-- [ ] `PATCH /api/volunteers/me` — returns `VolunteerSelfView`
-- [ ] `PATCH /api/volunteers/:targetPubkey` — admin updating another volunteer, returns `VolunteerAdminView`
+- [x] `GET /api/volunteers/:pubkey` — same projection logic
+- [x] `GET /api/auth/me` — always returns `VolunteerSelfView` (own data + admin status)
+- [x] `PATCH /api/volunteers/me` — returns `VolunteerSelfView`
+- [x] `PATCH /api/volunteers/:targetPubkey` — admin updating another volunteer, returns `VolunteerAdminView`
 
 ### 3.3 Phone masking (already in UI, verify in API)
-- [ ] Verify `GET /api/volunteers/:pubkey` for admin returns masked phone by default: `{ phone: "+1 *** *** 1234" }`
-- [ ] Implement `?unmask=true` query param on `GET /api/volunteers/:pubkey`:
+- [x] Verify `GET /api/volunteers/:pubkey` for admin returns masked phone by default: `{ phone: "+1 *** *** 1234" }`
+- [x] Implement `?unmask=true` query param on `GET /api/volunteers/:pubkey`:
   - Server-side check: only admin can request unmask; return 403 for non-admins
   - Returns full phone number when admin sends `?unmask=true`
   - Audit log entry created on every unmask request
@@ -78,20 +78,20 @@
 
 ## Phase 4: TypeScript Enforcement
 
-- [ ] Ensure route handlers return typed responses (not `c.json(volunteer as any)`)
-- [ ] Update route return types to use the projection types:
+- [x] Ensure route handlers return typed responses (not `c.json(volunteer as any)`)
+- [x] Update route return types to use the projection types:
   ```typescript
   volunteers.get('/', async (c): Promise<Response> => {
     // return type: VolunteerPublicView[] | VolunteerAdminView[]
   })
   ```
-- [ ] Run `bun run typecheck` — any untyped response objects will surface here
+- [x] Run `bun run typecheck` — any untyped response objects will surface here
 
 ---
 
 ## Phase 5: E2E Tests
 
-- [ ] Add to `tests/roles.spec.ts` or create `tests/volunteer-pii.spec.ts`:
+- [x] Add to `tests/roles.spec.ts` or create `tests/volunteer-pii.spec.ts`:
 
 ### Test 5.1: Volunteer list hides other volunteers' names
 ```
@@ -136,11 +136,11 @@ Then: Phone field shows full number
 
 ## Completion Checklist
 
-- [ ] `GET /api/volunteers` for non-admin: no `name` or `phone` fields on others
-- [ ] `GET /api/volunteers/:pubkey` for non-admin (other volunteer): no `name` or `phone`
-- [ ] `GET /api/auth/me`: own `name` and `phone` visible
-- [ ] Admin view: all names visible, phones masked by default
-- [ ] `bun run typecheck` passes (typed projections enforced)
-- [ ] E2E tests pass: volunteer cannot see other volunteers' names or phones
-- [ ] Phone masking test: masked format confirmed
-- [ ] PIN challenge for admin unmask confirmed
+- [x] `GET /api/volunteers` for non-admin: no `name` or `phone` fields on others
+- [x] `GET /api/volunteers/:pubkey` for non-admin (other volunteer): no `name` or `phone`
+- [x] `GET /api/auth/me`: own `name` and `phone` visible
+- [x] Admin view: all names visible, phones masked by default
+- [x] `bun run typecheck` passes (typed projections enforced)
+- [x] E2E tests pass: volunteer cannot see other volunteers' names or phones
+- [x] Phone masking test: masked format confirmed
+- [x] PIN challenge for admin unmask confirmed

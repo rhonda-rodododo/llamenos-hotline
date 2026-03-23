@@ -230,3 +230,10 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 - [x] **Invite Delivery** (`2026-03-22-invite-email-delivery-plan.md`) — `InviteDeliveryService`, Signal/WhatsApp/SMS send, phone HMAC hash, admin dialog with channel selector and SMS warning
 - [x] **Dashboard Analytics** (`2026-03-22-dashboard-analytics-plan.md`) — recharts charts (call volume, peak hours, team stats), lazy-loaded admin section, analytics API
 - [x] **File Field Type** (`2026-03-22-file-field-type-plan.md`) — E2EE file upload/download, `FileFieldInput`/`FileFieldDisplay` components, `PATCH /api/uploads/:id/context`, admin MIME/size config
+
+### Telephony Automation
+
+- [x] **Asterisk Bridge Auto-Config** (`2026-03-22-asterisk-bridge-auto-config.md`) — PjsipConfigurator writes auth/aor/endpoint/registration via ARI dynamic config API at startup, sorcery.conf for memory wizard, Docker compose + dev offsets, real-Asterisk E2E tests
+- [ ] **Provider OAuth Auto-Config** (`2026-03-22-provider-oauth-auto-config.md`) — ProviderSetup module: Twilio/Telnyx OAuth, SignalWire/Vonage/Plivo credential validation, webhook auto-config, SIP trunk provisioning, A2P 10DLC registration
+- [ ] **Signal Automated Registration** (`2026-03-22-signal-automated-registration.md`) — SMS interception for Signal verification codes, SettingsDO pending state with TTL, voice fallback manual entry, registration wizard UI
+- [ ] **Setup Wizard Provider Module** (`2026-03-22-setup-wizard-provider-module.md`) — OAuthConnectButton, PhoneNumberSelector, SignalRegistrationFlow, WebhookConfirmation components. *Depends on Provider OAuth + Signal Registration.*

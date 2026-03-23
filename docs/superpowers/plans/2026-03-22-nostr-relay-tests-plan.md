@@ -1,6 +1,6 @@
 # Nostr Relay Event Tests — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add E2E tests that verify the real-time Nostr relay architecture: events published from server reach the client, event content is encrypted, and client-side decryption works correctly.
 
@@ -22,27 +22,27 @@
 ## Phase 1: Test Infrastructure
 
 ### 1.1 Nostr relay availability check
-- [ ] Add `isNostrRelayAvailable(): Promise<boolean>` to `tests/helpers.ts`
+- [x] Add `isNostrRelayAvailable(): Promise<boolean>` to `tests/helpers.ts`
   - Attempts WebSocket connection to `process.env.NOSTR_RELAY_URL || 'ws://localhost:7778'`
   - Returns true if connected within 2 seconds
   - Used to skip relay tests if relay not running
 
 ### 1.2 Direct relay subscription helper
-- [ ] Add `subscribeToRelay(relayUrl, filter)` test helper using `nostr-tools` (already a dependency):
+- [x] Add `subscribeToRelay(relayUrl, filter)` test helper using `nostr-tools` (already a dependency):
   - Opens a WebSocket to the relay
   - Sends NIP-01 `["REQ", subId, filter]`
   - Returns an async iterator of received events
   - Closes subscription after test
 
 ### 1.3 Hub key extraction for tests
-- [ ] Add `getHubKeyForVolunteer(request, page)` helper:
+- [x] Add `getHubKeyForVolunteer(request, page)` helper:
   - Calls `GET /api/config` to get hub info
   - Uses the logged-in volunteer's nsec (from test keyManager) to unwrap the hub key envelope
   - Returns raw hub key bytes for use in decryption assertions
   - Uses `window.__llamenos_test_crypto` (from e2ee test plan) to unwrap
 
 ### 1.4 Event decryption helper
-- [ ] Add `decryptRelayEvent(event, hubKey)` helper:
+- [x] Add `decryptRelayEvent(event, hubKey)` helper:
   - Takes a raw Nostr event with encrypted `content` field
   - Calls `decryptHubEvent(event.content, hubKey)` from `src/worker/lib/hub-event-crypto.ts`
   - Returns parsed event data
@@ -52,8 +52,8 @@
 
 ## Phase 2: Event Publishing Tests
 
-- [ ] Create `tests/nostr-relay.spec.ts`
-- [ ] Add `test.skip(!await isNostrRelayAvailable(), 'Nostr relay not available')` at top
+- [x] Create `tests/nostr-relay.spec.ts`
+- [x] Add `test.skip(!await isNostrRelayAvailable(), 'Nostr relay not available')` at top
 
 ### Test 2.1: Server publishes event on inbound call
 ```
@@ -142,7 +142,7 @@ Then: Decryption fails
 
 ## Phase 5: REST Polling Fallback Tests
 
-- [ ] Add to `tests/call-flow.spec.ts`:
+- [x] Add to `tests/call-flow.spec.ts`:
 
 ### Test 5.1: UI updates via REST polling when relay is down
 ```
@@ -157,14 +157,14 @@ Then: Within 15 seconds, incoming call notification appears
 
 ## Completion Checklist
 
-- [ ] `nostr-tools` websocket subscription helper working in test context
-- [ ] Hub key extraction working via test crypto helpers
-- [ ] Test 2.1: Event published to relay on inbound call
-- [ ] Test 2.2: Event content is ciphertext (not plaintext)
-- [ ] Test 2.3: Event decrypts to expected call event shape
-- [ ] Test 2.4: Dashboard UI updates via Nostr (end-to-end)
-- [ ] Test 2.5: Answer cancels ringing on second session
-- [ ] Test 4.1: Event tags are generic (no semantic info)
-- [ ] Test 5.1: REST polling fallback works when relay unreachable
-- [ ] All relay tests skipped gracefully when relay not running
-- [ ] `bunx playwright test tests/nostr-relay.spec.ts` passes (with relay running)
+- [x] `nostr-tools` websocket subscription helper working in test context
+- [x] Hub key extraction working via test crypto helpers
+- [x] Test 2.1: Event published to relay on inbound call
+- [x] Test 2.2: Event content is ciphertext (not plaintext)
+- [x] Test 2.3: Event decrypts to expected call event shape
+- [x] Test 2.4: Dashboard UI updates via Nostr (end-to-end)
+- [x] Test 2.5: Answer cancels ringing on second session
+- [x] Test 4.1: Event tags are generic (no semantic info)
+- [x] Test 5.1: REST polling fallback works when relay unreachable
+- [x] All relay tests skipped gracefully when relay not running
+- [x] `bunx playwright test tests/nostr-relay.spec.ts` passes (with relay running)

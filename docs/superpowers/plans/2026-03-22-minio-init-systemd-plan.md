@@ -1,6 +1,6 @@
 # MinIO Initialization & Systemd Service Integration — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** (1) Automate MinIO bucket creation, lifecycle policies, and dedicated IAM user on first run. (2) Add systemd service units so Docker Compose starts automatically on host reboot.
 
@@ -12,7 +12,7 @@
 
 ### Phase 1.1: MinIO init script
 
-- [ ] Create `deploy/scripts/init-minio.sh`:
+- [x] Create `deploy/scripts/init-minio.sh`:
   ```bash
   #!/usr/bin/env bash
   set -euo pipefail
@@ -65,31 +65,31 @@
 
   echo "MinIO initialized successfully."
   ```
-- [ ] Make executable: `chmod +x deploy/scripts/init-minio.sh`
+- [x] Make executable: `chmod +x deploy/scripts/init-minio.sh`
 
 ### Phase 1.2: Add to first-run.sh
-- [ ] Edit `first-run.sh` (or create if missing):
+- [x] Edit `first-run.sh` (or create if missing):
   - After `docker compose up -d`
   - Add: `bash deploy/scripts/init-minio.sh`
   - Prompt user to set `MINIO_APP_USER` and `MINIO_APP_PASSWORD` if not set
 
 ### Phase 1.3: Add to Ansible deploy playbook
-- [ ] In `deploy/ansible/roles/llamenos/tasks/main.yml`:
+- [x] In `deploy/ansible/roles/llamenos/tasks/main.yml`:
   - Add task: Copy `init-minio.sh` to server
   - Add task: Run `init-minio.sh` after container startup
   - The script is idempotent (uses `--ignore-existing` / `|| true` guards), so no `creates:` sentinel is needed — omit the `creates:` clause
 
 ### Phase 1.4: Env var updates
-- [ ] Add `MINIO_APP_USER` and `MINIO_APP_PASSWORD` to:
+- [x] Add `MINIO_APP_USER` and `MINIO_APP_PASSWORD` to:
   - `docker-compose.yml` environment section (app service)
   - `deploy/ansible/demo_vars.example.yml`
   - `src/platform/node/env.ts` — prefer `MINIO_APP_PASSWORD` over root password if set
-- [ ] Update application MinIO client to use `MINIO_APP_USER`/`MINIO_APP_PASSWORD` instead of root credentials
+- [x] Update application MinIO client to use `MINIO_APP_USER`/`MINIO_APP_PASSWORD` instead of root credentials
   - File: `src/platform/node/storage/minio-client.ts` (or equivalent)
   - Fall back to root credentials only in dev
 
 ### Phase 1.5: Health check update
-- [ ] In `GET /api/health`, add MinIO bucket existence check:
+- [x] In `GET /api/health`, add MinIO bucket existence check:
   - `headBucket({ Bucket: bucketName })` — returns 404 if not created yet
   - Include in health response: `{ minio: 'ok' | 'bucket_missing' | 'unreachable' }`
 
@@ -98,7 +98,7 @@
 ## Part 2: Systemd Service Integration
 
 ### Phase 2.1: Systemd unit file
-- [ ] Create `deploy/systemd/llamenos.service`:
+- [x] Create `deploy/systemd/llamenos.service`:
   ```ini
   [Unit]
   Description=Llamenos Hotline Stack
@@ -120,7 +120,7 @@
   ```
 
 ### Phase 2.2: Ansible: install and enable service
-- [ ] In `deploy/ansible/roles/llamenos/tasks/main.yml`, add tasks:
+- [x] In `deploy/ansible/roles/llamenos/tasks/main.yml`, add tasks:
   ```yaml
   - name: Copy systemd service file
     template:
@@ -137,17 +137,17 @@
       state: started
       daemon_reload: yes
   ```
-- [ ] Create Ansible handler `reload systemd`:
+- [x] Create Ansible handler `reload systemd`:
   ```yaml
   - name: reload systemd
     systemd:
       daemon_reload: yes
   ```
-- [ ] Create `deploy/ansible/templates/llamenos.service.j2`:
+- [x] Create `deploy/ansible/templates/llamenos.service.j2`:
   - Same as above but with `{{ deploy_dir }}` Jinja variable for `WorkingDirectory`
 
 ### Phase 2.3: Smoke test
-- [ ] After Ansible deploy, verify:
+- [x] After Ansible deploy, verify:
   - `systemctl is-active llamenos` → active
   - `systemctl is-enabled llamenos` → enabled
   - `docker compose ps` shows all containers up
@@ -157,16 +157,16 @@
 ## Completion Checklist
 
 **MinIO:**
-- [ ] `deploy/scripts/init-minio.sh` creates bucket, lifecycle rules, IAM user
-- [ ] Script is idempotent (safe to run multiple times)
-- [ ] Recordings expire after 90 days, voicemails after 365 days
-- [ ] App uses dedicated IAM user, not root credentials
-- [ ] `first-run.sh` calls init script
-- [ ] Ansible runs init script on deploy
-- [ ] Health endpoint reports MinIO bucket status
+- [x] `deploy/scripts/init-minio.sh` creates bucket, lifecycle rules, IAM user
+- [x] Script is idempotent (safe to run multiple times)
+- [x] Recordings expire after 90 days, voicemails after 365 days
+- [x] App uses dedicated IAM user, not root credentials
+- [x] `first-run.sh` calls init script
+- [x] Ansible runs init script on deploy
+- [x] Health endpoint reports MinIO bucket status
 
 **Systemd:**
-- [ ] `deploy/systemd/llamenos.service` created
-- [ ] Ansible installs and enables systemd unit
-- [ ] Stack auto-starts on host reboot
-- [ ] Service can be managed with `systemctl start/stop/restart llamenos`
+- [x] `deploy/systemd/llamenos.service` created
+- [x] Ansible installs and enables systemd unit
+- [x] Stack auto-starts on host reboot
+- [x] Service can be managed with `systemctl start/stop/restart llamenos`
