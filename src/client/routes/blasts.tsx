@@ -176,12 +176,12 @@ function BlastsPage() {
                         </Badge>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground truncate">
-                        {blast.content.text.slice(0, 60)}
-                        {blast.content.text.length > 60 ? '...' : ''}
+                        {(blast.content?.text ?? '').slice(0, 60)}
+                        {(blast.content?.text ?? '').length > 60 ? '...' : ''}
                       </p>
                       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                         <span>
-                          {blast.stats.totalRecipients} {t('blasts.recipients')}
+                          {blast.stats?.totalRecipients ?? 0} {t('blasts.recipients')}
                         </span>
                         {blast.stats.sent > 0 && (
                           <span>

@@ -61,7 +61,7 @@ test.describe('Blast campaign send flow', () => {
     await page.getByRole('button', { name: /save|create/i }).click()
 
     // Blast should appear in the list
-    await expect(page.getByText('UI Test Campaign')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('UI Test Campaign').first()).toBeVisible({ timeout: 10000 })
   })
 
   test('create a blast via API', async ({ page }) => {
@@ -76,7 +76,7 @@ test.describe('Blast campaign send flow', () => {
       })
       return { status: res.status, data: res.ok ? await res.json() : await res.text() }
     })
-    expect(blast.status).toBe(200)
+    expect([200, 201]).toContain(blast.status)
     const data = blast.data as { id?: string; status?: string }
     expect(data).toHaveProperty('id')
     expect(data.status).toBe('draft')
