@@ -160,9 +160,48 @@ export const retentionSettings = pgTable('retention_settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-/** Geocoding configuration per hub (for call location display) */
+/** Geocoding configuration (global) */
 export const geocodingConfig = pgTable('geocoding_config', {
-  hubId: text('hub_id').primaryKey().default('global'),
-  config: jsonb<Record<string, unknown>>()('config').notNull().default({}),
+  id: text('id').primaryKey().default('global'),
+  provider: text('provider'), // 'opencage' | 'geoapify' | null
+  apiKey: text('api_key').notNull().default(''),
+  countries: jsonb<string[]>()('countries').notNull().default([]),
+  enabled: boolean('enabled').notNull().default(false),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** OAuth state for provider auto-config (TTL-enforced) */
+export const oauthState = pgTable('oauth_state', {
+  provider: text('provider').primaryKey(), // 'twilio' | 'telnyx'
+  state: text('state').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Provider configuration and encrypted credentials */
+export const providerConfig = pgTable('provider_config', {
+  id: text('id').primaryKey().default('global'),
+  provider: text('provider').notNull(),
+  connected: boolean('connected').notNull().default(false),
+  phoneNumber: text('phone_number'),
+  webhooksConfigured: boolean('webhooks_configured').notNull().default(false),
+  sipConfigured: boolean('sip_configured').notNull().default(false),
+  a2pStatus: text('a2p_status').default('not_started'),
+  brandSid: text('brand_sid'),
+  campaignSid: text('campaign_sid'),
+  messagingServiceSid: text('messaging_service_sid'),
+  encryptedCredentials: text('encrypted_credentials'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Signal registration pending state (TTL-enforced) */
+export const signalRegistrationPending = pgTable('signal_registration_pending', {
+  id: text('id').primaryKey().default('global'),
+  number: text('number').notNull(),
+  bridgeUrl: text('bridge_url').notNull(),
+  method: text('method').notNull(), // 'sms' | 'voice'
+  status: text('status').notNull().default('pending'),
+  error: text('error'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
