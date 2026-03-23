@@ -9,6 +9,8 @@ import type {
   EnabledChannels,
   Hub,
   MessagingConfig,
+  OAuthState,
+  ProviderConfig,
   SetupState,
   TelephonyProviderConfig,
 } from '../../shared/types'
@@ -154,6 +156,22 @@ export class SettingsDO extends DurableObject<Env> {
     this.router.put('/settings/hub/:id/key', async (req, { id }) =>
       this.setHubKeyEnvelopes(id, await req.json())
     )
+
+    // --- OAuth State (Provider Auto-Config, Epic 48) ---
+    this.router.put('/settings/oauth-state', async (req) => this.setOAuthState(await req.json()))
+    this.router.get('/settings/oauth-state/:provider', (_req, { provider }) =>
+      this.getOAuthState(provider)
+    )
+    this.router.delete('/settings/oauth-state/:provider', (_req, { provider }) =>
+      this.clearOAuthState(provider)
+    )
+
+    // --- Provider Config (Auto-Config, Epic 48) ---
+    this.router.put('/settings/provider-config', async (req) =>
+      this.setProviderConfigData(await req.json())
+    )
+    this.router.get('/settings/provider-config', () => this.getProviderConfigData())
+    this.router.get('/settings/provider-credentials', () => this.getEncryptedCredentials())
 
     // --- Test Reset (demo mode only — Epic 258 C3) ---
     this.router.post('/reset', async () => {
@@ -957,6 +975,56 @@ export class SettingsDO extends DurableObject<Env> {
     const hub = hubs.find((h) => h.phoneNumber === phone && h.status === 'active')
     if (!hub) return Response.json({ error: 'No hub for this number' }, { status: 404 })
     return Response.json({ hub })
+  }
+
+  // --- OAuth State (Provider Auto-Config, Epic 48) ---
+
+  private async setOAuthState(state: OAuthState): Promise<Response> {
+    if (!state.state || !state.provider || !state.expiresAt) {
+      return Response.json({ error: 'Invalid OAuth state' }, { status: 400 })
+    }
+    await this.ctx.storage.put(`oauth-state:${state.provider}`, state)
+    return Response.json({ ok: true })
+  }
+
+  private async getOAuthState(provider: string): Promise<Response> {
+    const state = await this.ctx.storage.get<OAuthState>(`oauth-state:${provider}`)
+    if (!state) return Response.json(null)
+    // Check TTL
+    if (Date.now() > state.expiresAt) {
+      await this.ctx.storage.delete(`oauth-state:${provider}`)
+      return Response.json(null)
+    }
+    return Response.json(state)
+  }
+
+  private async clearOAuthState(provider: string): Promise<Response> {
+    await this.ctx.storage.delete(`oauth-state:${provider}`)
+    return Response.json({ ok: true })
+  }
+
+  // --- Provider Config (Auto-Config, Epic 48) ---
+
+  private async setProviderConfigData(data: {
+    config: ProviderConfig
+    encryptedCredentials: string
+  }): Promise<Response> {
+    if (!data.config || !data.encryptedCredentials) {
+      return Response.json({ error: 'config and encryptedCredentials required' }, { status: 400 })
+    }
+    await this.ctx.storage.put('providerConfig', data.config)
+    await this.ctx.storage.put('providerEncryptedCredentials', data.encryptedCredentials)
+    return Response.json({ ok: true })
+  }
+
+  private async getProviderConfigData(): Promise<Response> {
+    const config = await this.ctx.storage.get<ProviderConfig>('providerConfig')
+    return Response.json(config || null)
+  }
+
+  private async getEncryptedCredentials(): Promise<Response> {
+    const creds = await this.ctx.storage.get<string>('providerEncryptedCredentials')
+    return Response.json({ encryptedCredentials: creds || null })
   }
 
   // --- Hub Key Management ---
