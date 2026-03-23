@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
-import type { MessagingConfig, SignalRegistrationPending } from '../../../shared/types'
-import { getDOs } from '../../lib/do-access'
+import type { SignalRegistrationPending } from '../../../shared/types'
 import { validateExternalUrl } from '../../lib/ssrf-guard'
 import { completeSignalRegistration } from '../../messaging/signal/registration'
 import { requirePermission } from '../../middleware/permission-guard'
@@ -13,7 +12,7 @@ const signalRegistration = new Hono<AppEnv>()
  * Initiate Signal number registration via the bridge.
  */
 signalRegistration.post('/register', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
 
   const body = await c.req.json<{
     bridgeUrl?: string
@@ -23,12 +22,10 @@ signalRegistration.post('/register', requirePermission('settings:manage'), async
 
   const { bridgeUrl, registeredNumber, useVoice } = body
 
-  // Validate required fields
   if (!bridgeUrl || !registeredNumber) {
     return c.json({ error: 'bridgeUrl and registeredNumber are required' }, 400)
   }
 
-  // Validate bridge URL is well-formed HTTPS
   try {
     const parsed = new URL(bridgeUrl)
     if (parsed.protocol !== 'https:') {
@@ -38,24 +35,19 @@ signalRegistration.post('/register', requirePermission('settings:manage'), async
     return c.json({ error: 'Invalid bridge URL' }, 400)
   }
 
-  // SSRF validation
   const ssrfError = validateExternalUrl(bridgeUrl, 'Bridge URL')
   if (ssrfError) {
     return c.json({ error: ssrfError }, 400)
   }
 
   // Check for existing pending registration
-  const pendingRes = await dos.settings.fetch(
-    new Request('http://do/settings/signal-registration-pending')
-  )
-  const existingPending = (await pendingRes.json()) as SignalRegistrationPending | null
+  const existingPending = await services.settings.getSignalRegistrationPending()
   if (existingPending && existingPending.status === 'pending') {
     return c.json({ error: 'Registration already in progress' }, 409)
   }
 
   // Check if Signal is already fully configured
-  const msgRes = await dos.settings.fetch(new Request('http://do/settings/messaging'))
-  const msgConfig = (await msgRes.json()) as MessagingConfig | null
+  const msgConfig = await services.settings.getMessagingConfig()
   if (msgConfig?.signal?.registeredNumber && !existingPending) {
     return c.json({ error: 'Signal is already configured' }, 409)
   }
@@ -71,13 +63,7 @@ signalRegistration.post('/register', requirePermission('settings:manage'), async
     status: 'pending',
   }
 
-  await dos.settings.fetch(
-    new Request('http://do/settings/signal-registration-pending', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(pending),
-    })
-  )
+  await services.settings.setSignalRegistrationPending(pending)
 
   // Call the bridge to initiate registration
   try {
@@ -90,24 +76,14 @@ signalRegistration.post('/register', requirePermission('settings:manage'), async
     })
 
     if (!bridgeRes.ok) {
-      // Roll back pending state
-      await dos.settings.fetch(
-        new Request('http://do/settings/signal-registration-pending', {
-          method: 'DELETE',
-        })
-      )
+      await services.settings.clearSignalRegistrationPending()
       const errorText = await bridgeRes.text().catch(() => `HTTP ${bridgeRes.status}`)
       return c.json({ error: `Bridge error: ${errorText}` }, 502)
     }
 
     return c.json({ ok: true, method })
   } catch (err) {
-    // Roll back pending state on network error
-    await dos.settings.fetch(
-      new Request('http://do/settings/signal-registration-pending', {
-        method: 'DELETE',
-      })
-    )
+    await services.settings.clearSignalRegistrationPending()
     const errorMsg = err instanceof Error ? err.message : String(err)
     return c.json({ error: `Bridge connection failed: ${errorMsg}` }, 502)
   }
@@ -115,20 +91,14 @@ signalRegistration.post('/register', requirePermission('settings:manage'), async
 
 /**
  * GET /api/messaging/signal/registration-status
- * Check the current state of Signal registration.
  */
 signalRegistration.get('/registration-status', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
 
-  const pendingRes = await dos.settings.fetch(
-    new Request('http://do/settings/signal-registration-pending')
-  )
-  const pending = (await pendingRes.json()) as SignalRegistrationPending | null
+  const pending = await services.settings.getSignalRegistrationPending()
 
   if (!pending) {
-    // Check if Signal is fully configured
-    const msgRes = await dos.settings.fetch(new Request('http://do/settings/messaging'))
-    const msgConfig = (await msgRes.json()) as MessagingConfig | null
+    const msgConfig = await services.settings.getMessagingConfig()
     if (msgConfig?.signal?.registeredNumber) {
       return c.json({ status: 'complete' })
     }
@@ -148,7 +118,7 @@ signalRegistration.get('/registration-status', requirePermission('settings:manag
  * Manual verification code entry (voice path).
  */
 signalRegistration.post('/verify', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
+  const services = c.get('services')
 
   const body = await c.req.json<{ code?: string }>()
   const { code } = body
@@ -157,24 +127,16 @@ signalRegistration.post('/verify', requirePermission('settings:manage'), async (
     return c.json({ error: 'Code must be exactly 6 digits' }, 400)
   }
 
-  // Read pending state
-  const pendingRes = await dos.settings.fetch(
-    new Request('http://do/settings/signal-registration-pending')
-  )
-  const pending = (await pendingRes.json()) as SignalRegistrationPending | null
+  const pending = await services.settings.getSignalRegistrationPending()
 
   if (!pending) {
     return c.json({ error: 'No pending registration found' }, 404)
   }
 
-  // Complete registration
-  await completeSignalRegistration(pending, code, dos.settings)
+  await completeSignalRegistration(pending, code, services.settings)
 
   // Re-read pending state to check result
-  const resultRes = await dos.settings.fetch(
-    new Request('http://do/settings/signal-registration-pending')
-  )
-  const result = (await resultRes.json()) as SignalRegistrationPending | null
+  const result = await services.settings.getSignalRegistrationPending()
 
   if (!result || result.status === 'complete') {
     return c.json({ ok: true })
