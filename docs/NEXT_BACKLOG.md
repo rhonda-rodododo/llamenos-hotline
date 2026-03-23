@@ -263,6 +263,6 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 
 ### Pre-Existing Test Failures — Need UI Selector Updates
 
-- [ ] **admin-flow.spec.ts** — 12/15 tests fail. Selectors don't match current UI: "Hub Settings" heading not found (sidebar link text changed), "call notes" heading not found, buttons detach from DOM during re-renders (volunteer add, note new). Needs selector audit against current UI.
-- [ ] **notes-crud.spec.ts** — 6/7 tests fail. Same heading/button selector issues as admin-flow.
+- [ ] **Notes page crashes without hub key** — After test-reset, the Notes page throws "Something went wrong" because the hub key isn't available (no hub key envelopes seeded). The test-reset creates a default hub but doesn't seed hub key envelopes. Fix: either seed a test hub key in test-reset, or make the Notes component handle missing hub key gracefully.
+- [ ] **admin-flow.spec.ts** — 10/15 tests fail. Selectors updated to data-testid but tests depend on volunteer/shift/ban CRUD which needs hub context. Root cause: Notes page crash propagates.
 - [ ] **hub-access-control.spec.ts** — 1/4 tests fail. Edit dialog missing `data-testid="hub-access-toggle"` for the access control switch.
