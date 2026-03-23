@@ -237,3 +237,18 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 - [ ] **Provider OAuth Auto-Config** (`2026-03-22-provider-oauth-auto-config.md`) — ProviderSetup module: Twilio/Telnyx OAuth, SignalWire/Vonage/Plivo credential validation, webhook auto-config, SIP trunk provisioning, A2P 10DLC registration
 - [ ] **Signal Automated Registration** (`2026-03-22-signal-automated-registration.md`) — SMS interception for Signal verification codes, SettingsDO pending state with TTL, voice fallback manual entry, registration wizard UI
 - [ ] **Setup Wizard Provider Module** (`2026-03-22-setup-wizard-provider-module.md`) — OAuthConnectButton, PhoneNumberSelector, SignalRegistrationFlow, WebhookConfirmation components. *Depends on Provider OAuth + Signal Registration.*
+
+### Unreviewed Plans — Pending Triage
+
+> Plans below were created 2026-03-22 but not yet added to the backlog. Status determined by codebase audit.
+
+- [ ] **Foundation Tooling** (`2026-03-22-foundation-tooling-plan.md`) — ~85% done. Biome, build constants, esbuild removal, Docker scripts all complete. Remaining: delete `src/globals.d.ts`, pin Docker SHA, run Phase 8 verification.
+- [x] **E2E Test Improvements** (`2026-03-22-e2e-test-improvements-plan.md`) — Test isolation, `resetTestState()` in 34 specs, coverage gaps doc, parallel workers, test-local.sh, .dev.vars.local.example.
+- [ ] **CF → VPS Demo Migration** (`2026-03-22-cf-vps-demo-migration-plan.md`) — ~70% done. Ansible role, cron reset, deploy workflow all exist. Remaining: verify demo_vars.example.yml, env.j2 template, run full verification.
+- [ ] **Application Hardening** (`2026-03-22-application-hardening-plan.md`) — ~40% done. Environment guards updated. Missing: cross-hub call subscriptions, hub deletion/archiving cascade, per-hub resource isolation audit, v2 backports.
+- [ ] **CF Removal + Drizzle Migration** (`2026-03-22-cf-removal-drizzle-migration-plan.md`) — 0% done. Major architecture migration: Durable Objects → Drizzle/PostgreSQL services. All 7 DOs still active. *Blocks hub-admin-zero-trust and production deployment.*
+- [ ] **SLSA Provenance** (`2026-03-22-slsa-provenance-plan.md`) — ~60% done. Dockerfile.build, verify-build.sh, CHECKSUMS.txt, attest-build-provenance all exist. Missing: GPG signing workflow, provenance JSON metadata.
+- [ ] **Transcription Boundary** (`2026-03-22-transcription-boundary-plan.md`) — ~50% done. Client-side WASM Whisper complete (Epic 78). Missing: remove CF AI path, remove env.AI binding, add transcribeAudioBuffer(), recording transcribe button, settings UI update, E2E tests.
+- [ ] **Voice CAPTCHA** (`2026-03-22-voice-captcha-plan.md`) — ~60% done. CAPTCHA infrastructure wired into call flow, voice prompts translated. Missing: captchaMaxAttempts tracking, TTS phrase helper, admin UI for max attempts, E2E tests.
+- [ ] **Geocoding Location Fields** (`2026-03-22-geocoding-location-fields-plan.md`) — 0% done. Full greenfield: geocoding adapter interface, provider implementations, schema, routes, LocationField component, i18n, E2E tests.
+- [ ] **Hub Admin Zero-Trust Visibility** (`2026-03-22-hub-admin-zero-trust-visibility-plan.md`) — ~20% done. Hub key infrastructure exists. Missing: allowSuperAdminAccess column, service methods, API routes, key rotation, admin UI, E2E tests. *Depends on Drizzle migration.*
