@@ -4,25 +4,18 @@
   "private": true,
   "license": "AGPL-3.0-or-later",
   "type": "module",
-  "imports": {
-    "#cloudflare-workers": {
-      "bun": "./src/platform/index.ts",
-      "default": "./src/platform/index.ts"
-    }
-  },
+  "imports": {},
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "bun run deploy:site",
-    "deploy:cloudflare": "bun run build && bunx wrangler deploy",
-    "deploy:next": "bun run build && bunx wrangler deploy --env next",
     "deploy:site": "cd site && bun run deploy",
-    "dev:worker": "bunx wrangler dev",
-    "dev:tunnel": "bash scripts/dev-tunnel.sh",
+    "dev:server": "bun --watch src/server/server.ts",
     "dev:docker": "docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.dev.yml --profile asterisk up -d postgres minio strfry asterisk asterisk-bridge",
     "dev:docker:down": "docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.dev.yml --profile asterisk down",
-    "start:bun": "bun src/platform/node/server.ts",
+    "start": "bun src/server/server.ts",
+    "start:bun": "bun src/server/server.ts",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
     "format": "biome format --write src/",

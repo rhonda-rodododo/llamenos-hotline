@@ -9,7 +9,7 @@
  */
 
 import { type APIRequestContext } from '@playwright/test'
-import { generateKeyPair as nostrGenerate } from 'nostr-tools/pure'
+import { generateSecretKey, getPublicKey as nostrGetPubkey } from 'nostr-tools/pure'
 import { nip19 } from 'nostr-tools'
 import { bytesToHex } from '@noble/hashes/utils.js'
 
@@ -58,13 +58,9 @@ export async function createVolunteerViaApi(
   const roleIds = options?.roleIds || ['role-volunteer']
 
   // Generate a keypair
-  const sk = nostrGenerate()
-  const pubkey = bytesToHex(sk.slice(0, 32)) // This is wrong - we need to use the public key
+  const sk = generateSecretKey()
+  const actualPubkey = nostrGetPubkey(sk)
   const nsec = nip19.nsecEncode(sk)
-
-  // Actually, we need to compute the public key properly
-  const { getPublicKey } = await import('nostr-tools')
-  const actualPubkey = getPublicKey(sk)
 
   const res = await request.post('/api/volunteers', {
     data: { name, phone, roleIds, pubkey: actualPubkey },
