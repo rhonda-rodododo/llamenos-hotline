@@ -95,6 +95,16 @@ else
   echo "No GPG signature found (CHECKSUMS.txt.asc)"
 fi
 
+# Download and display provenance metadata if available
+if gh release download "$VERSION" --repo "$REPO" --pattern "provenance.json" --dir "$WORKDIR" 2>/dev/null; then
+  echo ""
+  echo "--- Build Provenance Metadata ---"
+  cat "$WORKDIR/provenance.json"
+  echo ""
+else
+  echo "No provenance metadata found (provenance.json)"
+fi
+
 # Compare checksums
 echo ""
 echo "--- Comparing checksums ---"
