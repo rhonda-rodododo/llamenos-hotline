@@ -227,6 +227,87 @@ export class TranscriptionManager {
   }
 
   /**
+   * Transcribe an arbitrary audio buffer (e.g., a downloaded recording).
+   *
+   * Converts the buffer to float32 PCM at 16kHz, sends it to the
+   * transcription Web Worker, and returns the transcript string.
+   *
+   * The model must be initialized first via `initialize()`.
+   * Audio never leaves the device.
+   */
+  async transcribeAudioBuffer(buffer: ArrayBuffer, _mimeType: string): Promise<string> {
+    if (!TranscriptionManager.isSupported()) {
+      throw new Error('Browser does not support client-side transcription')
+    }
+
+    // Initialize if not already done
+    if (this.status === 'idle' || this.status === 'error') {
+      await this.initialize()
+    }
+
+    if (!this.worker) {
+      throw new Error('Transcription worker not initialized')
+    }
+
+    // Decode audio to float32 PCM at 16kHz using OfflineAudioContext
+    const audioContext = new OfflineAudioContext(1, 1, 16000)
+    const audioBuffer = await audioContext.decodeAudioData(buffer.slice(0))
+    const targetSampleRate = 16000
+    const duration = audioBuffer.duration
+    const offlineCtx = new OfflineAudioContext(
+      1,
+      Math.ceil(duration * targetSampleRate),
+      targetSampleRate
+    )
+    const source = offlineCtx.createBufferSource()
+    source.buffer = audioBuffer
+    source.connect(offlineCtx.destination)
+    source.start()
+    const rendered = await offlineCtx.startRendering()
+    const pcmFloat32 = rendered.getChannelData(0)
+
+    // Send to worker and wait for result
+    const chunkIndex = this.chunkIndex++
+    this.pendingChunks.add(chunkIndex)
+
+    return new Promise<string>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pendingChunks.delete(chunkIndex)
+        reject(new Error('Transcription timed out'))
+      }, 600_000) // 10 min for long recordings
+
+      // Temporarily intercept this specific chunk result
+      const originalHandler = this.worker!.onmessage
+      this.worker!.onmessage = (event: MessageEvent) => {
+        const msg = event.data
+        if (msg.type === 'chunk_result' && msg.chunkIndex === chunkIndex) {
+          clearTimeout(timeout)
+          this.pendingChunks.delete(chunkIndex)
+          this.worker!.onmessage = originalHandler
+          resolve(msg.text as string)
+        } else if (msg.type === 'error' && msg.chunkIndex === chunkIndex) {
+          clearTimeout(timeout)
+          this.pendingChunks.delete(chunkIndex)
+          this.worker!.onmessage = originalHandler
+          reject(new Error(msg.error as string))
+        } else {
+          // Forward other messages to the normal handler
+          originalHandler?.call(this.worker!, event)
+        }
+      }
+
+      this.worker!.postMessage(
+        {
+          type: 'transcribe_chunk',
+          audio: pcmFloat32.buffer,
+          chunkIndex,
+        },
+        [pcmFloat32.buffer]
+      )
+    })
+  }
+
+  /**
    * Stop everything and free resources (~89MB).
    */
   async dispose(): Promise<void> {

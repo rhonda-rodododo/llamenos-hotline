@@ -806,7 +806,13 @@
     "pause": "Pause",
     "loading": "Loading recording...",
     "error": "Failed to load recording",
-    "noRecording": "No recording available"
+    "noRecording": "No recording available",
+    "transcribe": "Transcribe Recording",
+    "transcribing": "Transcribing...",
+    "transcribed": "Transcribed",
+    "transcriptionFailed": "Transcription failed",
+    "transcriptionNotSupported": "Your browser does not support local transcription",
+    "transcribingLocally": "Transcribing locally — audio stays on your device"
   },
   "rcs": {
     "title": "RCS Channel",

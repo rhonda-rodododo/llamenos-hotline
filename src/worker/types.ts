@@ -1,4 +1,4 @@
-import type { BlobStorage, TranscriptionService } from '../platform/types'
+import type { BlobStorage } from '../platform/types'
 import type { KeyEnvelope, MessagingChannelType, RecipientEnvelope } from '../shared/types'
 
 /**
@@ -31,8 +31,8 @@ export interface Env {
   CONVERSATION_DO: DONamespace
   BLAST_DO: DONamespace
 
-  // Transcription (CF: Ai binding, Node: Whisper HTTP client)
-  AI: TranscriptionService
+  // Self-hosted Whisper server URL (optional — client-side WASM is the default)
+  WHISPER_SERVER_URL?: string
 
   // Static assets (CF: Fetcher, Node: null — served by Hono serveStatic)
   ASSETS: { fetch(request: Request): Promise<Response> } | null
