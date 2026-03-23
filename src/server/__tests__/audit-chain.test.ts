@@ -6,7 +6,7 @@ import { RecordsService } from '@server/services/records'
 import { auditLog } from '@server/db/schema'
 import { eq } from 'drizzle-orm'
 
-const TEST_DB_URL = process.env.TEST_DATABASE_URL ?? 'postgres://llamenos:llamenos@localhost:5433/llamenos_test'
+const TEST_DB_URL = process.env.TEST_DATABASE_URL ?? 'postgres://llamenos:llamenos@localhost:5433/llamenos'
 // Use a unique prefix per test run so parallel file-level execution never shares data
 const RUN_PREFIX = `test-hub-audit-${crypto.randomUUID().slice(0, 8)}`
 
@@ -15,7 +15,7 @@ let service: RecordsService
 
 beforeAll(async () => {
   db = createDatabase(TEST_DB_URL)
-  await migrate(db, { migrationsFolder: path.resolve(import.meta.dir, '../../drizzle/migrations') })
+  await migrate(db, { migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations') })
   service = new RecordsService(db)
 })
 
