@@ -793,6 +793,7 @@ export interface SpamSettings {
   rateLimitEnabled: boolean
   maxCallsPerMinute: number
   blockDurationMinutes: number
+  captchaMaxAttempts: number
 }
 
 export interface InviteCode {
@@ -1087,6 +1088,42 @@ export async function getWebhookUrls() {
     whatsapp: string
     signal: string
   }>('/setup/provider/webhooks')
+}
+
+// --- Signal Registration ---
+
+export interface SignalRegistrationResponse {
+  ok: boolean
+  method: 'sms' | 'voice'
+}
+
+export interface SignalRegistrationStatus {
+  status: 'idle' | 'pending' | 'complete' | 'failed'
+  method?: 'sms' | 'voice'
+  expiresAt?: string
+  error?: string
+}
+
+export async function startSignalRegistration(data: {
+  bridgeUrl: string
+  registeredNumber: string
+  useVoice?: boolean
+}) {
+  return request<SignalRegistrationResponse>('/messaging/signal/register', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getSignalRegistrationStatus() {
+  return request<SignalRegistrationStatus>('/messaging/signal/registration-status')
+}
+
+export async function verifySignalRegistration(code: string) {
+  return request<{ ok: boolean }>('/messaging/signal/verify', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  })
 }
 
 // --- Reports ---
@@ -1490,4 +1527,49 @@ export async function addHubMember(hubId: string, pubkey: string, roleIds: strin
 
 export async function removeHubMember(hubId: string, pubkey: string) {
   return request<{ ok: true }>(`/hubs/${hubId}/members/${pubkey}`, { method: 'DELETE' })
+}
+
+// --- Geocoding ---
+
+import type { GeocodingConfig, GeocodingConfigAdmin, LocationResult } from '@shared/types'
+export type { GeocodingConfig, GeocodingConfigAdmin, LocationResult } from '@shared/types'
+
+export async function geocodingAutocomplete(query: string, limit = 5) {
+  return request<LocationResult[]>('/geocoding/autocomplete', {
+    method: 'POST',
+    body: JSON.stringify({ query, limit }),
+  })
+}
+
+export async function geocodingGeocode(address: string) {
+  return request<LocationResult | null>('/geocoding/geocode', {
+    method: 'POST',
+    body: JSON.stringify({ address }),
+  })
+}
+
+export async function geocodingReverse(lat: number, lon: number) {
+  return request<LocationResult | null>('/geocoding/reverse', {
+    method: 'POST',
+    body: JSON.stringify({ lat, lon }),
+  })
+}
+
+export async function getGeocodingConfig() {
+  return request<GeocodingConfig>('/geocoding/config')
+}
+
+export async function getGeocodingSettings() {
+  return request<GeocodingConfigAdmin>('/geocoding/settings')
+}
+
+export async function updateGeocodingSettings(config: Partial<GeocodingConfigAdmin>) {
+  return request<GeocodingConfigAdmin>('/geocoding/settings', {
+    method: 'PATCH',
+    body: JSON.stringify(config),
+  })
+}
+
+export async function testGeocodingProvider() {
+  return request<{ ok: boolean; latency: number; error?: string }>('/geocoding/test')
 }
