@@ -5,16 +5,17 @@ import { createBlobStorage } from './blob-storage'
  * the Cloudflare Workers Env interface, using local implementations.
  *
  * - DO namespaces → PostgreSQL-backed singletons
- * - AI binding → self-hosted Whisper HTTP client
  * - R2_BUCKET → MinIO S3 client
  * - ASSETS → null (handled by Hono serveStatic)
  * - Secrets → process.env or /run/secrets/ files
+ *
+ * Transcription: WHISPER_SERVER_URL env var passed through directly.
+ * Client-side WASM Whisper is the default; self-hosted Whisper is opt-in.
  */
 import { createDONamespace, storageInstances } from './durable-object'
 import { startAlarmPoller } from './storage/alarm-poller'
 import { getPool, initPostgresPool } from './storage/postgres-pool'
 import { runStartupMigrations } from './storage/startup-migrations'
-import { createTranscriptionService } from './transcription'
 
 /**
  * Read a secret from /run/secrets/ (Docker secrets) or fall back to env var.
@@ -74,7 +75,7 @@ export async function createNodeEnv(): Promise<Record<string, unknown>> {
     DEMO_MODE: process.env.DEMO_MODE || undefined,
     DEV_RESET_SECRET: process.env.DEV_RESET_SECRET || undefined,
     ASSETS: null, // Static files served by Hono serveStatic
-    AI: createTranscriptionService(),
+    WHISPER_SERVER_URL: process.env.WHISPER_SERVER_URL || undefined,
     R2_BUCKET: createBlobStorage(),
     // Nostr relay (Epic 76.1)
     SERVER_NOSTR_SECRET: serverNostrSecret || undefined,
