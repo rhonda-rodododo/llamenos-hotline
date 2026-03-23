@@ -449,3 +449,14 @@ export interface SipTrunkConfig {
   trunkSid?: string // Twilio Trunk SID
   connectionId?: string // Telnyx Connection ID
 }
+
+// --- Signal Registration ---
+
+export interface SignalRegistrationPending {
+  number: string
+  bridgeUrl: string
+  method: 'sms' | 'voice'
+  expiresAt: string // ISO 8601
+  status: 'pending' | 'complete' | 'failed'
+  error?: string
+}
