@@ -8,6 +8,7 @@ export const HubSchema = z.object({
   status: z.enum(['active', 'suspended', 'archived']),
   phoneNumber: z.string().optional(),
   createdBy: z.string(),
+  allowSuperAdminAccess: z.boolean().optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 })

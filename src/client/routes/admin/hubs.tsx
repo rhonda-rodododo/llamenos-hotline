@@ -12,12 +12,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { type Hub, archiveHub, createHub, deleteHub, listHubs, updateHub } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { createFileRoute } from '@tanstack/react-router'
-import { Archive, Building2, Pencil, Phone, Plus, Trash2 } from 'lucide-react'
+import { Archive, Building2, Pencil, Phone, Plus, Shield, ShieldOff, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -27,8 +28,10 @@ export const Route = createFileRoute('/admin/hubs')({
 
 function HubsPage() {
   const { t } = useTranslation()
-  const { hasPermission } = useAuth()
+  const auth = useAuth()
+  const { hasPermission } = auth
   const { toast } = useToast()
+  const isSuperAdmin = auth.roles.includes('role-super-admin')
   const [hubs, setHubs] = useState<Hub[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -95,6 +98,7 @@ function HubsPage() {
                 <HubRow
                   key={hub.id}
                   hub={hub}
+                  isSuperAdmin={isSuperAdmin}
                   onEdit={() => setEditingHub(hub)}
                   onArchive={() => setArchivingHub(hub)}
                   onDelete={() => setDeletingHub(hub)}
@@ -123,6 +127,7 @@ function HubsPage() {
             if (!open) setEditingHub(null)
           }}
           hub={editingHub}
+          isSuperAdmin={isSuperAdmin}
           onUpdated={(updated) => {
             setHubs((prev) => prev.map((h) => (h.id === updated.id ? updated : h)))
             setEditingHub(null)
@@ -161,10 +166,11 @@ function HubsPage() {
 
 function HubRow({
   hub,
+  isSuperAdmin,
   onEdit,
   onArchive,
   onDelete,
-}: { hub: Hub; onEdit: () => void; onArchive: () => void; onDelete: () => void }) {
+}: { hub: Hub; isSuperAdmin: boolean; onEdit: () => void; onArchive: () => void; onDelete: () => void }) {
   const { t } = useTranslation()
 
   const statusColors: Record<Hub['status'], string> = {
@@ -202,6 +208,26 @@ function HubRow({
         <Badge variant="outline" className={statusColors[hub.status]}>
           {t(`hubs.status.${hub.status}`)}
         </Badge>
+        {isSuperAdmin && (
+          <Badge
+            variant="outline"
+            className={
+              hub.allowSuperAdminAccess
+                ? 'border-blue-500/50 text-blue-700 dark:text-blue-400'
+                : 'border-orange-500/50 text-orange-700 dark:text-orange-400'
+            }
+            data-testid="hub-access-badge"
+          >
+            {hub.allowSuperAdminAccess ? (
+              <Shield className="mr-1 h-3 w-3" />
+            ) : (
+              <ShieldOff className="mr-1 h-3 w-3" />
+            )}
+            {hub.allowSuperAdminAccess
+              ? t('hubs.accessControl.enabled')
+              : t('hubs.accessControl.restricted')}
+          </Badge>
+        )}
         <span className="text-xs text-muted-foreground">
           {new Date(hub.createdAt).toLocaleDateString()}
         </span>
@@ -344,11 +370,13 @@ function EditHubDialog({
   open,
   onOpenChange,
   hub,
+  isSuperAdmin,
   onUpdated,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   hub: Hub
+  isSuperAdmin: boolean
   onUpdated: (hub: Hub) => void
 }) {
   const { t } = useTranslation()
@@ -357,6 +385,8 @@ function EditHubDialog({
   const [description, setDescription] = useState(hub.description || '')
   const [phoneNumber, setPhoneNumber] = useState(hub.phoneNumber || '')
   const [saving, setSaving] = useState(false)
+  const [showAccessConfirm, setShowAccessConfirm] = useState<'enable' | 'disable' | null>(null)
+  const [togglingAccess, setTogglingAccess] = useState(false)
 
   // Reset form state when hub changes
   useEffect(() => {
@@ -384,74 +414,180 @@ function EditHubDialog({
     }
   }
 
+  function handleAccessToggleRequest() {
+    if (hub.allowSuperAdminAccess) {
+      setShowAccessConfirm('disable')
+    } else {
+      setShowAccessConfirm('enable')
+    }
+  }
+
+  async function handleAccessToggleConfirm() {
+    const newValue = showAccessConfirm === 'enable'
+    setTogglingAccess(true)
+    try {
+      const res = await updateHub(hub.id, { allowSuperAdminAccess: newValue })
+      onUpdated(res.hub)
+      toast(t('hubs.hubUpdated'), 'success')
+    } catch {
+      toast(t('common.error'), 'error')
+    } finally {
+      setTogglingAccess(false)
+      setShowAccessConfirm(null)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('hubs.editHub')}</DialogTitle>
-          <DialogDescription>{t('hubs.editHubDescription')}</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="edit-hub-name">{t('hubs.hubName')}</Label>
-            <Input
-              id="edit-hub-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="edit-hub-description">{t('hubs.hubDescription')}</Label>
-            <Textarea
-              id="edit-hub-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="edit-hub-phone">{t('hubs.hubPhoneNumber')}</Label>
-            <PhoneInput id="edit-hub-phone" value={phoneNumber} onChange={setPhoneNumber} />
-            <p className="text-xs text-muted-foreground">{t('hubs.hubPhoneNumberHelp')}</p>
-          </div>
-
-          {/* Status display (read-only) */}
-          <div className="space-y-2">
-            <Label>{t('common.status')}</Label>
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="outline"
-                className={
-                  hub.status === 'active'
-                    ? 'border-green-500/50 text-green-700 dark:text-green-400'
-                    : hub.status === 'suspended'
-                      ? 'border-yellow-500/50 text-yellow-700 dark:text-yellow-400'
-                      : 'border-red-500/50 text-red-700 dark:text-red-400'
-                }
-              >
-                {t(`hubs.status.${hub.status}`)}
-              </Badge>
-              <span className="font-mono text-xs text-muted-foreground">/{hub.slug}</span>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('hubs.editHub')}</DialogTitle>
+            <DialogDescription>{t('hubs.editHubDescription')}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-hub-name">{t('hubs.hubName')}</Label>
+              <Input
+                id="edit-hub-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
             </div>
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-hub-description">{t('hubs.hubDescription')}</Label>
+              <Textarea
+                id="edit-hub-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-hub-phone">{t('hubs.hubPhoneNumber')}</Label>
+              <PhoneInput id="edit-hub-phone" value={phoneNumber} onChange={setPhoneNumber} />
+              <p className="text-xs text-muted-foreground">{t('hubs.hubPhoneNumberHelp')}</p>
+            </div>
 
+            {/* Status display (read-only) */}
+            <div className="space-y-2">
+              <Label>{t('common.status')}</Label>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className={
+                    hub.status === 'active'
+                      ? 'border-green-500/50 text-green-700 dark:text-green-400'
+                      : hub.status === 'suspended'
+                        ? 'border-yellow-500/50 text-yellow-700 dark:text-yellow-400'
+                        : 'border-red-500/50 text-red-700 dark:text-red-400'
+                  }
+                >
+                  {t(`hubs.status.${hub.status}`)}
+                </Badge>
+                <span className="font-mono text-xs text-muted-foreground">/{hub.slug}</span>
+              </div>
+            </div>
+
+            {/* Access Control section */}
+            <div className="space-y-3 rounded-lg border p-4" data-testid="hub-access-control">
+              <div className="flex items-center gap-2">
+                {hub.allowSuperAdminAccess ? (
+                  <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                ) : (
+                  <ShieldOff className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                )}
+                <Label className="text-sm font-semibold">
+                  {t('hubs.accessControl.title')}
+                </Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t('hubs.accessControl.description')}
+              </p>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="access-toggle" className="text-sm">
+                  {t('hubs.accessControl.allowSuperAdmin')}
+                </Label>
+                {isSuperAdmin ? (
+                  <Badge
+                    variant="outline"
+                    className={
+                      hub.allowSuperAdminAccess
+                        ? 'border-blue-500/50 text-blue-700 dark:text-blue-400'
+                        : 'border-orange-500/50 text-orange-700 dark:text-orange-400'
+                    }
+                  >
+                    {hub.allowSuperAdminAccess
+                      ? t('hubs.accessControl.enabled')
+                      : t('hubs.accessControl.restricted')}
+                  </Badge>
+                ) : (
+                  <Switch
+                    id="access-toggle"
+                    checked={hub.allowSuperAdminAccess ?? false}
+                    onCheckedChange={handleAccessToggleRequest}
+                    data-testid="hub-access-toggle"
+                  />
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={saving}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={saving || !name.trim()}>
+                {saving ? t('common.loading') : t('common.save')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Access control confirmation dialog */}
+      <Dialog
+        open={showAccessConfirm !== null}
+        onOpenChange={(v) => {
+          if (!v) setShowAccessConfirm(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('hubs.accessControl.title')}</DialogTitle>
+            <DialogDescription>
+              {showAccessConfirm === 'enable'
+                ? t('hubs.accessControl.enableConfirm')
+                : t('hubs.accessControl.disableConfirm')}
+            </DialogDescription>
+          </DialogHeader>
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={saving}
+              onClick={() => setShowAccessConfirm(null)}
+              disabled={togglingAccess}
             >
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={saving || !name.trim()}>
-              {saving ? t('common.loading') : t('common.save')}
+            <Button
+              type="button"
+              variant={showAccessConfirm === 'disable' ? 'destructive' : 'default'}
+              onClick={handleAccessToggleConfirm}
+              disabled={togglingAccess}
+              data-testid="hub-access-confirm-btn"
+            >
+              {togglingAccess ? t('common.loading') : t('common.confirm')}
             </Button>
           </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 

@@ -707,6 +707,7 @@ export class SettingsService {
         ...(data.description !== undefined && { description: data.description }),
         ...(data.phoneNumber !== undefined && { phoneNumber: data.phoneNumber }),
         ...(data.status !== undefined && { status: data.status }),
+        ...(data.allowSuperAdminAccess !== undefined && { allowSuperAdminAccess: data.allowSuperAdminAccess }),
         updatedAt: new Date(),
       })
       .where(eq(hubs.id, id))
@@ -903,6 +904,7 @@ export class SettingsService {
       status: r.status as Hub['status'],
       phoneNumber: r.phoneNumber ?? undefined,
       createdBy: r.createdBy,
+      allowSuperAdminAccess: r.allowSuperAdminAccess,
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
     }

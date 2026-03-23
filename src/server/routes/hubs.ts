@@ -162,7 +162,40 @@ routes.delete(
   }
 )
 
+// --- Hub Settings (zero-trust visibility) ---
+
+// Update hub settings (hub admin only — super admin CANNOT modify their own access)
+routes.patch('/:hubId/settings', requirePermission('settings:manage'), async (c) => {
+  const hubId = c.req.param('hubId')
+  const body = (await c.req.json()) as { allowSuperAdminAccess?: boolean }
+  const callerPubkey = c.get('pubkey')
+  const services = c.get('services')
+
+  if (body.allowSuperAdminAccess !== undefined) {
+    // Super admin cannot self-grant visibility
+    const isSuperAdmin = await services.identity.isSuperAdmin(callerPubkey)
+    if (isSuperAdmin) {
+      return c.json({ error: 'Super admin cannot modify their own hub access' }, 403)
+    }
+    await services.settings.updateHub(hubId, { allowSuperAdminAccess: body.allowSuperAdminAccess })
+  }
+  return c.body(null, 204)
+})
+
 // --- Hub Key Management ---
+
+// Get my hub key envelope (re-fetch after rotation)
+routes.get('/:hubId/key-envelope', async (c) => {
+  const hubId = c.req.param('hubId')
+  const pubkey = c.get('pubkey')
+  const services = c.get('services')
+
+  const envelopes = await services.settings.getHubKeyEnvelopes(hubId)
+  const myEnvelope = envelopes.find((e) => e.pubkey === pubkey)
+  if (!myEnvelope) return c.json({ error: 'not_a_member' }, 404)
+
+  return c.json({ wrappedKey: myEnvelope.wrappedKey, ephemeralPk: myEnvelope.ephemeralPubkey })
+})
 
 // Get my hub key envelope (any hub member — membership required)
 routes.get('/:hubId/key', async (c) => {

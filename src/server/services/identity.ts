@@ -580,6 +580,27 @@ export class IdentityService {
       .where(eq(provisionRooms.roomId, id))
   }
 
+  // ------------------------------------------------------------------ Super Admin Helpers
+
+  /**
+   * Return pubkeys of all active volunteers who hold the 'role-super-admin' role
+   * (which grants the '*' wildcard permission).
+   */
+  async getSuperAdminPubkeys(): Promise<string[]> {
+    const rows = await this.db
+      .select({ pubkey: volunteers.pubkey, roles: volunteers.roles })
+      .from(volunteers)
+      .where(eq(volunteers.active, true))
+    return rows
+      .filter((r) => (r.roles as string[]).includes('role-super-admin'))
+      .map((r) => r.pubkey)
+  }
+
+  async isSuperAdmin(pubkey: string): Promise<boolean> {
+    const superAdmins = await this.getSuperAdminPubkeys()
+    return superAdmins.includes(pubkey)
+  }
+
   // ------------------------------------------------------------------ Test Reset
 
   async resetForTest(): Promise<void> {

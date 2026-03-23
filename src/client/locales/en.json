@@ -1262,7 +1262,16 @@
     "selectHub": "Select hub",
     "switchHub": "Switch hub",
     "urlLabel": "Hub URL",
-    "urlPlaceholder": "https://hub.example.com"
+    "urlPlaceholder": "https://hub.example.com",
+    "accessControl": {
+      "title": "Platform Administrator Access",
+      "allowSuperAdmin": "Allow platform administrator to view this hub's data",
+      "description": "When disabled, the platform administrator cannot decrypt call notes, conversations, or reports. This is enforced through encryption — not a permissions check.",
+      "enableConfirm": "This grants the platform administrator access to new records in this hub. They will NOT gain access to historical records. Continue?",
+      "disableConfirm": "This revokes the platform administrator's access to this hub. They will lose access to future records immediately. Continue?",
+      "enabled": "Admin Access Enabled",
+      "restricted": "Admin Access Restricted"
+    }
   },
   "blasts": {
     "title": "Message Blasts",

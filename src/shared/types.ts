@@ -529,6 +529,8 @@ export interface Hub {
   status: 'active' | 'suspended' | 'archived'
   phoneNumber?: string // Primary hotline number (for routing)
   createdBy: string // Super admin pubkey
+  /** Zero-trust: hub admin must explicitly opt-in to allow super-admin visibility */
+  allowSuperAdminAccess?: boolean
   createdAt: string
   updatedAt: string
 }
