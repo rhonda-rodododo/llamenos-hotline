@@ -1,42 +1,28 @@
 import { Hono } from 'hono'
 import type { GeocodingConfigAdmin } from '../../shared/types'
 import { createGeocodingAdapter } from '../geocoding/factory'
-import { getDOs } from '../lib/do-access'
 import { requirePermission } from '../middleware/permission-guard'
-import { audit } from '../services/audit'
 import type { AppEnv } from '../types'
 
 const geocoding = new Hono<AppEnv>()
 
 /**
- * Helper: load geocoding config from SettingsDO and create an adapter.
- * Recreated per-request since adapter is stateless.
+ * Helper: load geocoding config from SettingsService and create an adapter.
  */
-async function getAdapter(env: AppEnv['Bindings']) {
-  const dos = getDOs(env)
-  const res = await dos.settings.fetch(new Request('http://do/settings/geocoding/admin'))
-  const config = (await res.json()) as GeocodingConfigAdmin
+async function getAdapter(c: { get: (key: 'services') => { settings: { getGeocodingConfig: () => Promise<GeocodingConfigAdmin> } } }) {
+  const config = await c.get('services').settings.getGeocodingConfig()
   return { adapter: createGeocodingAdapter(config), config }
 }
 
 /**
- * Helper: check rate limit via SettingsDO.
- * Returns true if the request should be blocked.
+ * Helper: check rate limit via SettingsService.
  */
 async function isRateLimited(
-  env: AppEnv['Bindings'],
+  c: { get: (key: 'services') => { settings: { checkRateLimit: (key: string, maxPerMinute: number) => Promise<boolean> } } },
   key: string,
   maxPerMinute: number
 ): Promise<boolean> {
-  const dos = getDOs(env)
-  const res = await dos.settings.fetch(
-    new Request('http://do/rate-limit/check', {
-      method: 'POST',
-      body: JSON.stringify({ key, maxPerMinute }),
-    })
-  )
-  const data = (await res.json()) as { limited: boolean }
-  return data.limited
+  return c.get('services').settings.checkRateLimit(key, maxPerMinute)
 }
 
 // --- POST /api/geocoding/autocomplete ---
@@ -49,12 +35,12 @@ geocoding.post('/autocomplete', requirePermission('notes:create'), async (c) => 
   const limit = Math.min(Math.max(body.limit ?? 5, 1), 10)
   const pubkey = c.get('pubkey')
 
-  if (await isRateLimited(c.env, `geocoding:autocomplete:${pubkey}`, 60)) {
+  if (await isRateLimited(c, `geocoding:autocomplete:${pubkey}`, 60)) {
     return c.json({ error: 'Rate limit exceeded' }, 429)
   }
 
   try {
-    const { adapter } = await getAdapter(c.env)
+    const { adapter } = await getAdapter(c)
     const results = await adapter.autocomplete(query, { limit })
     return c.json(results)
   } catch (err) {
@@ -71,12 +57,12 @@ geocoding.post('/geocode', requirePermission('notes:create'), async (c) => {
   }
   const pubkey = c.get('pubkey')
 
-  if (await isRateLimited(c.env, `geocoding:geocode:${pubkey}`, 20)) {
+  if (await isRateLimited(c, `geocoding:geocode:${pubkey}`, 20)) {
     return c.json({ error: 'Rate limit exceeded' }, 429)
   }
 
   try {
-    const { adapter } = await getAdapter(c.env)
+    const { adapter } = await getAdapter(c)
     const result = await adapter.geocode(body.address.trim())
     return c.json(result)
   } catch (err) {
@@ -96,12 +82,12 @@ geocoding.post('/reverse', requirePermission('notes:create'), async (c) => {
   }
   const pubkey = c.get('pubkey')
 
-  if (await isRateLimited(c.env, `geocoding:reverse:${pubkey}`, 20)) {
+  if (await isRateLimited(c, `geocoding:reverse:${pubkey}`, 20)) {
     return c.json({ error: 'Rate limit exceeded' }, 429)
   }
 
   try {
-    const { adapter } = await getAdapter(c.env)
+    const { adapter } = await getAdapter(c)
     const result = await adapter.reverse(body.lat, body.lon)
     return c.json(result)
   } catch (err) {
@@ -112,42 +98,32 @@ geocoding.post('/reverse', requirePermission('notes:create'), async (c) => {
 
 // --- GET /api/geocoding/settings ---
 geocoding.get('/settings', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
-  const res = await dos.settings.fetch(new Request('http://do/settings/geocoding/admin'))
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const config = await c.get('services').settings.getGeocodingConfig()
+  return c.json(config)
 })
 
 // --- PATCH /api/geocoding/settings ---
 geocoding.patch('/settings', requirePermission('settings:manage'), async (c) => {
-  const dos = getDOs(c.env)
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
-  const res = await dos.settings.fetch(
-    new Request('http://do/settings/geocoding', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
-  )
-  if (res.ok) {
-    await audit(dos.records, 'geocodingConfigUpdated', pubkey, {
-      provider: (body as { provider?: string }).provider,
-    })
-  }
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const updated = await c.get('services').settings.updateGeocodingConfig(body)
+  await c.get('services').records.addAuditEntry('global', 'geocodingConfigUpdated', pubkey, {
+    provider: (body as { provider?: string }).provider,
+  })
+  return c.json(updated)
 })
 
 // --- GET /api/geocoding/test ---
 geocoding.get('/test', requirePermission('settings:manage'), async (c) => {
   try {
     const start = Date.now()
-    const { adapter, config } = await getAdapter(c.env)
+    const { adapter, config } = await getAdapter(c)
 
     if (!config.enabled || !config.provider || !config.apiKey) {
       return c.json({ ok: false, latency: 0, error: 'Geocoding not configured' })
     }
 
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 5000)
+    const timeout = setTimeout(() => {}, 5000)
     try {
       const result = await adapter.geocode('London, UK')
       clearTimeout(timeout)
@@ -164,9 +140,10 @@ geocoding.get('/test', requirePermission('settings:manage'), async (c) => {
 
 // --- GET /api/geocoding/config (public, no apiKey) ---
 geocoding.get('/config', async (c) => {
-  const dos = getDOs(c.env)
-  const res = await dos.settings.fetch(new Request('http://do/settings/geocoding'))
-  return new Response(res.body, { status: res.status, headers: res.headers })
+  const full = await c.get('services').settings.getGeocodingConfig()
+  // Strip apiKey for public response
+  const { apiKey: _, ...publicConfig } = full
+  return c.json({ ...publicConfig })
 })
 
 export default geocoding

@@ -40,7 +40,7 @@ function handleProviderError(err: unknown): Response {
 
 providerSetup.get('/twilio/oauth/start', async (c) => {
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     const result = await setup.oauthStart('twilio')
     return c.json(result)
   } catch (err) {
@@ -57,7 +57,7 @@ providerSetup.get('/twilio/oauth/callback', async (c) => {
   }
 
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     await setup.oauthCallback('twilio', code, state)
     return c.redirect('/admin/setup?provider=twilio&status=success')
   } catch (err) {
@@ -70,7 +70,7 @@ providerSetup.get('/twilio/oauth/callback', async (c) => {
 
 providerSetup.get('/telnyx/oauth/start', async (c) => {
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     const result = await setup.oauthStart('telnyx')
     return c.json(result)
   } catch (err) {
@@ -87,7 +87,7 @@ providerSetup.get('/telnyx/oauth/callback', async (c) => {
   }
 
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     await setup.oauthCallback('telnyx', code, state)
     return c.redirect('/admin/setup?provider=telnyx&status=success')
   } catch (err) {
@@ -100,7 +100,7 @@ providerSetup.get('/telnyx/oauth/callback', async (c) => {
 
 providerSetup.post('/twilio/a2p/brand', async (c) => {
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     const body = (await c.req.json()) as Record<string, string>
     const result = await setup.submitA2pBrand(body)
     return c.json(result)
@@ -111,7 +111,7 @@ providerSetup.post('/twilio/a2p/brand', async (c) => {
 
 providerSetup.get('/twilio/a2p/status', async (c) => {
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     const result = await setup.getA2pStatus()
     return c.json(result)
   } catch (err) {
@@ -121,7 +121,7 @@ providerSetup.get('/twilio/a2p/status', async (c) => {
 
 providerSetup.post('/twilio/a2p/campaign', async (c) => {
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     const body = (await c.req.json()) as Record<string, unknown>
     const result = await setup.submitA2pCampaign(body)
     return c.json(result)
@@ -132,7 +132,7 @@ providerSetup.post('/twilio/a2p/campaign', async (c) => {
 
 providerSetup.post('/twilio/a2p/skip', async (c) => {
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     await setup.skipA2p()
     return c.json({ ok: true })
   } catch (err) {
@@ -149,7 +149,7 @@ providerSetup.post('/:provider/configure', async (c) => {
   }
 
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     const body = (await c.req.json()) as { credentials: Record<string, string> }
     if (!body.credentials) {
       return c.json({ error: 'credentials field is required' }, 400)
@@ -168,7 +168,7 @@ providerSetup.get('/:provider/numbers', async (c) => {
   }
 
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     const numbers = await setup.listNumbers(provider)
     return c.json({ numbers })
   } catch (err) {
@@ -183,7 +183,7 @@ providerSetup.post('/:provider/select-number', async (c) => {
   }
 
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     const body = (await c.req.json()) as {
       phoneNumber: string
       enableSms?: boolean
@@ -209,7 +209,7 @@ providerSetup.post('/:provider/provision-number', async (c) => {
   }
 
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     const body = (await c.req.json()) as { areaCode?: string; country?: string }
     const result = await setup.provisionNumber(provider, body)
     return c.json(result)
@@ -225,7 +225,7 @@ providerSetup.get('/:provider/status', async (c) => {
   }
 
   try {
-    const setup = new ProviderSetup(c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.env)
     const result = await setup.getStatus()
     return c.json(result)
   } catch (err) {
