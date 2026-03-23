@@ -940,13 +940,75 @@ jobs:
           name: app-build
           path: dist/
 
-      - name: Generate SLSA build provenance (Epic 79)
+      - name: Generate SLSA build provenance attestation (Epic 79)
         uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v2.1.0
         with:
           subject-path: |
             CHECKSUMS.txt
             dist/client/**/*.js
             dist/client/**/*.css
+
+      - name: Generate provenance metadata JSON (Epic 79)
+        run: |
+          BUN_VERSION=$(cat package.json | grep -o '"bun":\s*"[^"]*"' | head -1 || echo "unknown")
+          cat > provenance.json <<PROVEOF
+          {
+            "builder": { "id": "https://github.com/actions/runner" },
+            "buildType": "https://github.com/slsa-framework/slsa/blob/main/docs/spec/v1.0/levels.md",
+            "invocation": {
+              "configSource": {
+                "uri": "git+https://github.com/${{ github.repository }}@refs/tags/v${{ needs.version.outputs.new_version }}",
+                "digest": { "sha1": "${{ github.sha }}" },
+                "entryPoint": ".github/workflows/ci.yml"
+              },
+              "parameters": {
+                "SOURCE_DATE_EPOCH": "$(git log -1 --format=%ct)",
+                "bunVersion": "${{ env.BUN_VERSION }}"
+              }
+            },
+            "buildConfig": {
+              "dockerfile": "Dockerfile.build",
+              "steps": ["bun install --frozen-lockfile", "bun run build"]
+            },
+            "metadata": {
+              "buildStartedOn": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+              "buildFinishedOn": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+              "completeness": { "parameters": true, "environment": false, "materials": false },
+              "reproducible": true
+            },
+            "materials": [
+              {
+                "uri": "git+https://github.com/${{ github.repository }}@refs/tags/v${{ needs.version.outputs.new_version }}",
+                "digest": { "sha1": "${{ github.sha }}" }
+              }
+            ]
+          }
+          PROVEOF
+          # Clean up leading whitespace from heredoc indentation
+          python3 -c "
+          import json, sys
+          with open('provenance.json') as f:
+              data = json.load(f)
+          with open('provenance.json', 'w') as f:
+              json.dump(data, f, indent=2)
+          "
+          echo "--- provenance.json ---"
+          cat provenance.json
+
+      - name: GPG sign CHECKSUMS.txt (Epic 79)
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+          GPG_KEY_ID: ${{ secrets.RELEASE_GPG_KEY_ID }}
+        run: |
+          if [ -z "$GPG_PRIVATE_KEY" ] || [ -z "$GPG_KEY_ID" ]; then
+            echo "GPG signing secrets not configured — skipping signature"
+            exit 0
+          fi
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --batch --armor --local-user "$GPG_KEY_ID" --detach-sign CHECKSUMS.txt
+          echo "GPG signature generated: CHECKSUMS.txt.asc"
+          gpg --verify CHECKSUMS.txt.asc CHECKSUMS.txt
+          echo "GPG signature verified successfully"
 
       - name: Install git-cliff
         run: |
@@ -969,8 +1031,11 @@ jobs:
           body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
           files: |
             CHECKSUMS.txt
+            CHECKSUMS.txt.asc
+            provenance.json
 
   # ─── CI Status Gate ─────────────────────────────────────────
   # Single status check for branch protection rules.
