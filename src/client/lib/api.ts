@@ -137,6 +137,7 @@ export async function getMe() {
   return request<{
     pubkey: string
     roles: string[]
+    hubRoles: { hubId: string; roleIds: string[] }[]
     permissions: string[]
     primaryRole: { id: string; name: string; slug: string } | null
     name: string
@@ -805,6 +806,8 @@ export interface InviteCode {
   createdAt: string
   expiresAt: string
   usedAt?: string
+  deliveryChannel?: string
+  deliverySentAt?: string
 }
 
 // --- Conversations ---
@@ -849,9 +852,13 @@ export interface ConversationMessage {
   attachmentIds?: string[]
   // Delivery status tracking (Epic 71)
   status?: MessageDeliveryStatus
+  /** Alias for status — used by UI delivery indicators. */
+  deliveryStatus?: MessageDeliveryStatus
   deliveredAt?: string
   readAt?: string
   failureReason?: string
+  /** Alias for failureReason — used by UI delivery indicators. */
+  deliveryError?: string
   retryCount?: number
   createdAt: string
   externalId?: string
@@ -1156,6 +1163,7 @@ export async function listReports(params?: {
 export async function createReport(data: {
   title: string
   category?: string
+  reportTypeId?: string
   encryptedContent: string
   readerEnvelopes: MessageKeyEnvelope[]
 }) {
@@ -1208,6 +1216,47 @@ export async function updateReport(id: string, data: { status?: string }) {
 
 export async function getReportCategories() {
   return request<{ categories: string[] }>(hp('/reports/categories'))
+}
+
+// --- Report Types ---
+
+import type { ReportType, CreateReportTypeInput, UpdateReportTypeInput } from '@shared/types'
+export type { ReportType }
+
+export async function listReportTypes() {
+  return request<{ reportTypes: ReportType[] }>(hp('/reports/types'))
+}
+
+export async function createReportType(data: CreateReportTypeInput) {
+  return request<{ reportType: ReportType }>(hp('/reports/types'), {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateReportType(id: string, data: UpdateReportTypeInput) {
+  return request<{ reportType: ReportType }>(hp(`/reports/types/${id}`), {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function archiveReportType(id: string) {
+  return request<{ reportType: ReportType }>(hp(`/reports/types/${id}/archive`), {
+    method: 'POST',
+  })
+}
+
+export async function unarchiveReportType(id: string) {
+  return request<{ reportType: ReportType }>(hp(`/reports/types/${id}/unarchive`), {
+    method: 'POST',
+  })
+}
+
+export async function setDefaultReportType(id: string) {
+  return request<{ reportType: ReportType }>(hp(`/reports/types/${id}/default`), {
+    method: 'POST',
+  })
 }
 
 export async function getReportFiles(id: string) {
@@ -1572,4 +1621,181 @@ export async function updateGeocodingSettings(config: Partial<GeocodingConfigAdm
 
 export async function testGeocodingProvider() {
   return request<{ ok: boolean; latency: number; error?: string }>('/geocoding/test')
+}
+
+// --- Retention Settings (GDPR) ---
+
+import type { RetentionSettings } from '@shared/types'
+export type { RetentionSettings }
+
+export async function getRetentionSettings() {
+  return request<RetentionSettings>('/settings/retention')
+}
+
+export async function updateRetentionSettings(data: Partial<RetentionSettings>) {
+  return request<RetentionSettings>('/settings/retention', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+// --- Dashboard Analytics ---
+
+export interface CallHourBucket {
+  hour: number
+  count: number
+}
+
+export interface CallVolumeDay {
+  date: string
+  count: number
+  answered: number
+  voicemail: number
+}
+
+export interface VolunteerStatEntry {
+  pubkey: string
+  name: string
+  callsAnswered: number
+  callsHandled: number
+  avgDuration: number
+  notesCreated: number
+}
+
+export async function getCallAnalytics(days?: number) {
+  const qs = days ? `?days=${days}` : ''
+  return request<{ data: CallVolumeDay[] }>(hp(`/analytics/call-volume${qs}`))
+}
+
+export async function getCallHoursAnalytics() {
+  return request<{ data: CallHourBucket[] }>(hp('/analytics/call-hours'))
+}
+
+export async function getVolunteerStats() {
+  return request<{ data: VolunteerStatEntry[] }>(hp('/analytics/volunteer-stats'))
+}
+
+// --- Consent (GDPR) ---
+
+export async function getConsentStatus() {
+  return request<{ hasConsented: boolean; consentVersion: string }>('/auth/me/consent')
+}
+
+export async function submitConsent(version: string) {
+  return request<{ ok: true }>('/auth/me/consent', {
+    method: 'POST',
+    body: JSON.stringify({ version }),
+  })
+}
+
+// --- Hub Key Envelopes ---
+
+export async function getMyHubKeyEnvelope(hubId: string) {
+  return request<{
+    wrappedKey: string
+    ephemeralPubkey: string
+  } | null>(`/hubs/${hubId}/my-key`)
+}
+
+// --- File Upload Context Binding ---
+
+export async function bindUploadContext(
+  fileId: string,
+  contextType: string,
+  contextId: string
+) {
+  return request<{ ok: true }>(`/files/${fileId}/context`, {
+    method: 'PATCH',
+    body: JSON.stringify({ contextType, contextId }),
+  })
+}
+
+// --- Call Detail ---
+
+export async function getCallDetail(callId: string) {
+  return request<{
+    call: CallRecord
+    notes: EncryptedNote[]
+    auditEntries: AuditLogEntry[]
+  }>(hp(`/calls/${callId}`))
+}
+
+// --- Note Detail ---
+
+export async function getNote(noteId: string) {
+  return request<{ note: EncryptedNote }>(hp(`/notes/${noteId}`))
+}
+
+// --- Account Erasure (GDPR) ---
+
+export interface ErasureRequest {
+  id: string
+  pubkey: string
+  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'executed'
+  requestedAt: string
+  executeAt: string
+  scheduledAt?: string
+  completedAt?: string
+  cancelledAt?: string
+}
+
+export async function getMyErasureRequest() {
+  return request<ErasureRequest | null>('/auth/me/erasure')
+}
+
+export async function requestAccountErasure() {
+  return request<ErasureRequest>('/auth/me/erasure', { method: 'POST' })
+}
+
+export async function cancelAccountErasure() {
+  return request<{ ok: true }>('/auth/me/erasure', { method: 'DELETE' })
+}
+
+export async function downloadMyData() {
+  const headers = getAuthHeaders('GET', '/auth/me/data-export')
+  const res = await fetch(`${API_BASE}/auth/me/data-export`, { headers })
+  if (!res.ok) {
+    if (res.status === 401) onAuthExpired?.()
+    throw new ApiError(res.status, await res.text())
+  }
+  onApiActivity?.()
+  return res.blob()
+}
+
+// --- Invite Delivery ---
+
+export type InviteDeliveryChannel = 'sms' | 'whatsapp' | 'signal' | 'email'
+
+export async function getAvailableInviteChannels() {
+  return request<{ signal: boolean; whatsapp: boolean; sms: boolean }>('/invites/channels')
+}
+
+export async function sendInvite(
+  code: string,
+  data: {
+    recipientPhone: string
+    channel: InviteDeliveryChannel
+    acknowledgedInsecure?: boolean
+  }
+) {
+  return request<{ ok: true }>(`/invites/${code}/send`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+// --- Volunteer Admin (unmasked) ---
+
+export async function getVolunteerUnmasked(pubkey: string) {
+  return request<{ volunteer: Volunteer & { phone: string } }>(`/volunteers/${pubkey}/unmasked`)
+}
+
+// --- Hub Archive & Delete ---
+
+export async function archiveHub(hubId: string) {
+  return request<{ hub: Hub }>(`/hubs/${hubId}/archive`, { method: 'POST' })
+}
+
+export async function deleteHub(hubId: string) {
+  return request<{ ok: true }>(`/hubs/${hubId}`, { method: 'DELETE' })
 }

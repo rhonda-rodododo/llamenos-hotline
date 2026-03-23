@@ -205,7 +205,7 @@ function VolunteerProfilePage() {
                         setUnmaskedPhone(null)
                       } else {
                         const vol = await getVolunteerUnmasked(volunteer.pubkey)
-                        setUnmaskedPhone(vol.phone)
+                        setUnmaskedPhone(vol.volunteer.phone)
                       }
                     }}
                     className="text-muted-foreground hover:text-foreground"

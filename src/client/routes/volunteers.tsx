@@ -674,7 +674,7 @@ function VolunteerRow({
                     const ok = await pinChallenge.requirePin()
                     if (ok) {
                       const vol = await getVolunteerUnmasked(volunteer.pubkey)
-                      setUnmaskedPhone(vol.phone)
+                      setUnmaskedPhone(vol.volunteer.phone)
                     }
                   }
                 }}
