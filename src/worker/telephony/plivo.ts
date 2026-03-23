@@ -198,13 +198,25 @@ export class PlivoAdapter implements TelephonyAdapter {
     const lang = params.callerLanguage
     const hp = hubXmlParam(params.hubId)
 
-    if (params.digits === params.expectedDigits) {
+    if (params.result === 'pass') {
       return this.plivoXml(`
         ${speak(getPrompt('captchaSuccess', lang), lang)}
         <Conference waitSound="/api/telephony/wait-music?lang=${lang}${hp}" action="/api/telephony/queue-exit?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" startConferenceOnEnter="false" endConferenceOnExit="false" stayAlone="true">${params.callSid}</Conference>
       `)
     }
 
+    if (params.result === 'retry') {
+      return this.plivoXml(`
+        <GetDigits numDigits="4" action="/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" timeout="10" redirect="true">
+          ${speak(getPrompt('captchaRetry', lang), lang)}
+          ${speak(`${params.expectedDigits.split('').join(', ')}.`, lang)}
+        </GetDigits>
+        ${speak(getPrompt('captchaTimeout', lang), lang)}
+        <Hangup/>
+      `)
+    }
+
+    // 'fail' or 'expired'
     return this.plivoXml(`
       ${speak(getPrompt('captchaFail', lang), lang)}
       <Hangup/>

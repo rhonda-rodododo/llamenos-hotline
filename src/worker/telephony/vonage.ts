@@ -216,7 +216,7 @@ export class VonageAdapter implements TelephonyAdapter {
     const lang = params.callerLanguage
     const hp = hubQP(params.hubId)
 
-    if (params.digits === params.expectedDigits) {
+    if (params.result === 'pass') {
       return this.ncco([
         talk(getPrompt('captchaSuccess', lang), lang),
         {
@@ -229,6 +229,21 @@ export class VonageAdapter implements TelephonyAdapter {
       ])
     }
 
+    if (params.result === 'retry') {
+      return this.ncco([
+        talk(getPrompt('captchaRetry', lang), lang, true),
+        talk(`${params.expectedDigits.split('').join(', ')}.`, lang, true),
+        {
+          action: 'input',
+          type: ['dtmf'],
+          dtmf: { maxDigits: 4, timeOut: 10 },
+          eventUrl: [`/api/telephony/captcha?callSid=${params.callSid}&lang=${lang}${hp}`],
+          eventMethod: 'POST',
+        },
+      ])
+    }
+
+    // 'fail' or 'expired'
     return this.ncco([talk(getPrompt('captchaFail', lang), lang)])
   }
 
