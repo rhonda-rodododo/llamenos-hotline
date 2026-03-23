@@ -177,6 +177,7 @@ export class SettingsDO extends DurableObject<Env> {
         rateLimitEnabled: true,
         maxCallsPerMinute: 3,
         blockDurationMinutes: 30,
+        captchaMaxAttempts: 2,
       })
     }
     if ((await this.ctx.storage.get('transcriptionEnabled')) === undefined) {
@@ -249,13 +250,24 @@ export class SettingsDO extends DurableObject<Env> {
         await this.ctx.storage.put(key, recent)
       }
     }
+
+    // Clean up expired CAPTCHA challenges (older than 5 minutes)
+    const captchaKeys = await this.ctx.storage.list({ prefix: 'captcha:' })
+    for (const [key, value] of captchaKeys) {
+      const stored = value as { createdAt: number }
+      if (now - stored.createdAt > 5 * 60 * 1000) {
+        await this.ctx.storage.delete(key)
+      }
+    }
   }
 
   // --- Spam Settings ---
 
   private async getSpamSettings(): Promise<Response> {
     const settings = await this.ctx.storage.get<SpamSettings>('spamSettings')
-    return Response.json(settings)
+    // Ensure captchaMaxAttempts has a default for existing installations
+    const normalized = { captchaMaxAttempts: 2, ...settings }
+    return Response.json(normalized)
   }
 
   private async updateSpamSettings(data: Partial<SpamSettings>): Promise<Response> {
@@ -800,8 +812,12 @@ export class SettingsDO extends DurableObject<Env> {
 
   private async storeCaptcha(data: { callSid: string; expected: string }): Promise<Response> {
     const key = `captcha:${data.callSid}`
-    // Store with creation time for expiry
-    await this.ctx.storage.put(key, { expected: data.expected, createdAt: Date.now() })
+    // Store with creation time for expiry and attempt counter
+    await this.ctx.storage.put(key, {
+      expected: data.expected,
+      createdAt: Date.now(),
+      attempts: 0,
+    })
     // Schedule cleanup alarm
     try {
       await this.ctx.storage.setAlarm(Date.now() + 5 * 60 * 1000)
@@ -813,17 +829,20 @@ export class SettingsDO extends DurableObject<Env> {
 
   private async verifyCaptcha(data: { callSid: string; digits: string }): Promise<Response> {
     const key = `captcha:${data.callSid}`
-    const stored = await this.ctx.storage.get<{ expected: string; createdAt: number }>(key)
-    // Always delete after first verification attempt (one-time use)
-    await this.ctx.storage.delete(key)
+    const stored = await this.ctx.storage.get<{
+      expected: string
+      createdAt: number
+      attempts: number
+    }>(key)
 
     if (!stored) {
-      return Response.json({ match: false, expected: '' })
+      return Response.json({ result: 'expired' as const, expected: '' })
     }
 
-    // Expire after 5 minutes
-    if (Date.now() - stored.createdAt > 5 * 60 * 1000) {
-      return Response.json({ match: false, expected: stored.expected })
+    // Expire after 2 minutes
+    if (Date.now() - stored.createdAt > 120_000) {
+      await this.ctx.storage.delete(key)
+      return Response.json({ result: 'expired' as const, expected: stored.expected })
     }
 
     // Constant-time comparison
@@ -833,7 +852,25 @@ export class SettingsDO extends DurableObject<Env> {
     for (let i = 0; i < expected.length; i++) {
       match &= expected.charCodeAt(i) === digits.charCodeAt(i) ? 1 : 0
     }
-    return Response.json({ match: match === 1, expected })
+
+    if (match === 1) {
+      await this.ctx.storage.delete(key)
+      return Response.json({ result: 'pass' as const, expected })
+    }
+
+    // Increment attempts and check against max
+    const spamSettings = await this.ctx.storage.get<SpamSettings>('spamSettings')
+    const maxAttempts = spamSettings?.captchaMaxAttempts ?? 2
+    const newAttempts = (stored.attempts ?? 0) + 1
+
+    if (newAttempts >= maxAttempts) {
+      await this.ctx.storage.delete(key)
+      return Response.json({ result: 'fail' as const, expected })
+    }
+
+    // Update stored challenge with incremented attempts
+    await this.ctx.storage.put(key, { ...stored, attempts: newAttempts })
+    return Response.json({ result: 'retry' as const, expected })
   }
 
   // --- Hub Registry Methods ---

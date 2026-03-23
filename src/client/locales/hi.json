@@ -458,7 +458,9 @@
     "rateLimiting": "दर सीमा",
     "rateLimitingDescription": "एक ही नंबर से बार-बार कॉल सीमित करें",
     "maxCallsPerMinute": "प्रति नंबर प्रति मिनट अधिकतम कॉल",
-    "blockDuration": "ब्लॉक अवधि (मिनट)"
+    "blockDuration": "ब्लॉक अवधि (मिनट)",
+    "captchaMaxAttempts": "अधिकतम CAPTCHA प्रयास",
+    "captchaMaxAttemptsDescription": "कॉल अस्वीकार करने से पहले प्रयासों की संख्या (1-5)"
   },
   "callHistory": {
     "title": "कॉल इतिहास",

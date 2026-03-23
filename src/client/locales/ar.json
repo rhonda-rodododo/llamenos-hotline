@@ -458,7 +458,9 @@
     "rateLimiting": "تحديد المعدل",
     "rateLimitingDescription": "تحديد المكالمات المتكررة من نفس الرقم",
     "maxCallsPerMinute": "أقصى عدد مكالمات في الدقيقة لكل رقم",
-    "blockDuration": "مدة الحظر (دقائق)"
+    "blockDuration": "مدة الحظر (دقائق)",
+    "captchaMaxAttempts": "الحد الأقصى لمحاولات CAPTCHA",
+    "captchaMaxAttemptsDescription": "عدد المحاولات قبل رفض المكالمة (1-5)"
   },
   "callHistory": {
     "title": "سجل المكالمات",

@@ -164,9 +164,11 @@ telephony.post('/language-selected', async (c) => {
   // Generate CAPTCHA digits server-side with CSPRNG and store them
   let captchaDigits: string | undefined
   if (spamSettings.voiceCaptchaEnabled && !rateLimited) {
-    const buf = new Uint8Array(2)
+    const buf = new Uint8Array(4)
     crypto.getRandomValues(buf)
-    captchaDigits = String(1000 + (((buf[0] << 8) | buf[1]) % 9000))
+    captchaDigits = Array.from(buf)
+      .map((b) => (b % 9) + 1)
+      .join('')
     // Store expected digits server-side (not in callback URL)
     await dos.settings.fetch(
       new Request('http://do/captcha/store', {
@@ -216,7 +218,10 @@ telephony.post('/captcha', async (c) => {
       body: JSON.stringify({ callSid, digits }),
     })
   )
-  const { match, expected } = (await captchaRes.json()) as { match: boolean; expected: string }
+  const { result, expected } = (await captchaRes.json()) as {
+    result: 'pass' | 'fail' | 'expired' | 'retry'
+    expected: string
+  }
 
   const response = await adapter.handleCaptchaResponse({
     callSid,
@@ -224,9 +229,10 @@ telephony.post('/captcha', async (c) => {
     expectedDigits: expected,
     callerLanguage: callerLang,
     hubId,
+    result,
   })
 
-  if (match) {
+  if (result === 'pass') {
     const origin = new URL(c.req.url).origin
     c.executionCtx.waitUntil(startParallelRinging(callSid, callerNumber, origin, c.env, dos, hubId))
   }

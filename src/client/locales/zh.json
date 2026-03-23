@@ -458,7 +458,9 @@
     "rateLimiting": "频率限制",
     "rateLimitingDescription": "限制同一号码的重复来电",
     "maxCallsPerMinute": "每分钟每号码最大通话数",
-    "blockDuration": "封禁时长（分钟）"
+    "blockDuration": "封禁时长（分钟）",
+    "captchaMaxAttempts": "CAPTCHA 最大尝试次数",
+    "captchaMaxAttemptsDescription": "拒绝通话前的尝试次数（1-5）"
   },
   "callHistory": {
     "title": "通话记录",

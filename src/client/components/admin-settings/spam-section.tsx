@@ -51,6 +51,32 @@ export function SpamSection({
         />
       </div>
 
+      {settings.voiceCaptchaEnabled && (
+        <div className="rounded-lg border border-border p-4">
+          <div className="space-y-2">
+            <Label htmlFor="captcha-max-attempts">{t('spam.captchaMaxAttempts')}</Label>
+            <p className="text-xs text-muted-foreground">{t('spam.captchaMaxAttemptsDescription')}</p>
+            <Input
+              id="captcha-max-attempts"
+              type="number"
+              value={settings.captchaMaxAttempts}
+              onChange={async (e) => {
+                try {
+                  const val = Math.max(1, Math.min(5, Number.parseInt(e.target.value) || 2))
+                  const res = await updateSpamSettings({ captchaMaxAttempts: val })
+                  onChange(res)
+                } catch {
+                  toast(t('common.error'), 'error')
+                }
+              }}
+              min={1}
+              max={5}
+              className="w-24"
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between rounded-lg border border-border p-4">
         <div className="flex items-start gap-3">
           <Timer className="mt-0.5 h-4 w-4 text-muted-foreground" />
