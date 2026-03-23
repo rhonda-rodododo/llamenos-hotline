@@ -84,7 +84,7 @@ test.describe('Demo Mode', () => {
 
     // Should redirect to dashboard
     await page.waitForURL('**/', { timeout: 30000 })
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 15000 })
 
     // Verify demo volunteers were created
     await page.getByRole('link', { name: 'Volunteers' }).click()

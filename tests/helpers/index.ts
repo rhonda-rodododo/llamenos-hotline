@@ -224,7 +224,7 @@ export async function completeProfileSetup(page: Page) {
     await page.getByRole('button', { name: /complete setup/i }).click()
     await page.waitForURL(u => !u.toString().includes('profile-setup'), { timeout: 15000 })
   }
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 })
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
 }
 
 export function uniquePhone(): string {

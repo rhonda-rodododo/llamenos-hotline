@@ -92,7 +92,7 @@ test.describe('Live Telephony', () => {
       if (router) router.navigate({ to: '/' })
     })
     await page.waitForURL(/\/$/, { timeout: 10_000 })
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
 
     // Place a call — press 2 for Spanish to get past IVR
     const { sid } = await callHotline({ sendDigits: 'wwwwwwwwww2' })

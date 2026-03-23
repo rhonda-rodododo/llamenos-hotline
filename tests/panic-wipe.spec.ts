@@ -6,7 +6,7 @@ test.describe('Panic Wipe (L-9)', () => {
     await loginAsAdmin(page)
 
     // Verify we're on the dashboard and storage has data
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
     const hasKeyBefore = await page.evaluate(() => !!localStorage.getItem('llamenos-encrypted-key'))
     expect(hasKeyBefore).toBe(true)
 
@@ -37,7 +37,7 @@ test.describe('Panic Wipe (L-9)', () => {
 
   test('two Escapes then pause does not trigger wipe', async ({ page }) => {
     await loginAsAdmin(page)
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
 
     // Two Escapes, then wait > 1 second
     await page.keyboard.press('Escape')
@@ -50,7 +50,7 @@ test.describe('Panic Wipe (L-9)', () => {
     await page.waitForTimeout(500)
 
     // Should still be on the dashboard
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
 
     // Storage should still have the key
     const hasKey = await page.evaluate(() => !!localStorage.getItem('llamenos-encrypted-key'))

@@ -243,7 +243,7 @@ test.describe('Setup Wizard - Provider Module', () => {
     // Complete setup
     await page.getByRole('button', { name: /go to dashboard/i }).click()
     await page.waitForURL('**/', { timeout: 15000 })
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
   })
 
   // =====================================================================

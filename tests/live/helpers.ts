@@ -92,7 +92,7 @@ export async function loginAsAdmin(page: Page) {
   await firstDigit.click()
   await page.keyboard.type(STAGING_PIN, { delay: 50 })
 
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 })
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 15000 })
 }
 
 interface CallHotlineOptions {

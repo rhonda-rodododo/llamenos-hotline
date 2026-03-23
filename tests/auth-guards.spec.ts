@@ -28,7 +28,7 @@ test.describe('Auth guards', () => {
 
   test('session requires PIN re-entry after reload', async ({ page }) => {
     await loginAsAdmin(page)
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
 
     // Reload clears in-memory keyManager; encrypted key persists in localStorage
     await page.reload()
@@ -40,12 +40,12 @@ test.describe('Auth guards', () => {
     await enterPin(page, TEST_PIN)
 
     // Should be back on the Dashboard
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 15000 })
   })
 
   test('logout clears session', async ({ page }) => {
     await loginAsAdmin(page)
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
 
     // Logout
     await page.getByRole('button', { name: /log out/i }).click()

@@ -132,7 +132,7 @@ test.describe('Signal Automated Registration', () => {
     )
     // The button may or may not be visible depending on Signal section expansion state
     // Just verify the page loaded without errors
-    await expect(page.getByRole('heading', { name: 'Dashboard' }).or(
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true }).or(
       page.getByText('Settings')
     )).toBeVisible({ timeout: 10000 })
   })

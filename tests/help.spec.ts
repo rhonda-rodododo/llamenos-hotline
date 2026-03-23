@@ -81,7 +81,7 @@ test.describe('Help & Getting Started', () => {
   test('help link is visible in sidebar', async ({ page }) => {
     await loginAsAdmin(page)
     // On dashboard, Help link should be in sidebar
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
 
     const helpLink = page.locator('nav').getByRole('link', { name: 'Help' })
     await expect(helpLink).toBeVisible()
@@ -94,14 +94,14 @@ test.describe('Help & Getting Started', () => {
 
   test('getting started checklist shows on dashboard', async ({ page }) => {
     await loginAsAdmin(page)
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
 
     // Clear any previous dismissal and reload to reset the checklist state
     await page.evaluate(() => localStorage.removeItem('getting-started-dismissed'))
     await page.reload()
     // Re-enter PIN after reload (in-memory key cleared)
     await enterPin(page, TEST_PIN)
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 30000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 30000 })
 
     // Getting Started checklist should be visible if not all items are done.
     // If setup wizard is already completed and all items are done, the component hides itself.
@@ -121,14 +121,14 @@ test.describe('Help & Getting Started', () => {
 
   test('getting started checklist can be dismissed', async ({ page }) => {
     await loginAsAdmin(page)
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
 
     // Clear any previous dismissal and reload
     await page.evaluate(() => localStorage.removeItem('getting-started-dismissed'))
     await page.reload()
     // Re-enter PIN after reload (in-memory key cleared)
     await enterPin(page, TEST_PIN)
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 30000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 30000 })
 
     // Check if checklist is visible (may auto-hide if all items done)
     const checklist = page.getByText('Getting Started')
@@ -149,7 +149,7 @@ test.describe('Help & Getting Started', () => {
 
   test('command palette includes Help command', async ({ page }) => {
     await loginAsAdmin(page)
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
 
     // Open command palette with Ctrl+K
     await page.keyboard.press('Control+k')

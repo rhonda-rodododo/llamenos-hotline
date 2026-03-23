@@ -27,7 +27,7 @@ test.describe('Volunteer flow', () => {
   test('volunteer completes profile setup', async ({ page }) => {
     await loginAsVolunteer(page, volunteerNsec)
     await completeProfileSetup(page)
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
   })
 
   test('volunteer sees limited navigation', async ({ page }) => {

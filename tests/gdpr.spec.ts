@@ -22,7 +22,7 @@ test.describe('GDPR Compliance', () => {
     test('consent gate hidden for admin (already consented or skipped)', async ({ page }) => {
       await loginAsAdmin(page)
       // After login, dashboard should be visible — no consent gate blocking it
-      await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({
+      await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
         timeout: Timeouts.AUTH,
       })
       // Consent gate should not be visible
@@ -64,7 +64,7 @@ test.describe('GDPR Compliance', () => {
         await expect(gate).not.toBeVisible({ timeout: 5000 })
 
         // Dashboard should now be accessible
-        await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({
+        await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
           timeout: Timeouts.AUTH,
         })
       }

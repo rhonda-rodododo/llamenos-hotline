@@ -42,7 +42,7 @@ export async function clickAndWaitForApi(
 export const Navigation = {
   async goToDashboard(page: Page): Promise<void> {
     await page.getByRole('link', { name: 'Dashboard' }).click()
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
   },
 
   async goToVolunteers(page: Page): Promise<void> {

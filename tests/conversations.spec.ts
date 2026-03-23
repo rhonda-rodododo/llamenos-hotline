@@ -33,7 +33,7 @@ test.describe('Conversations — no channels configured', () => {
     const hasMessaging = config.channels?.sms || config.channels?.whatsapp || config.channels?.signal || config.channels?.reports
     test.skip(!!hasMessaging, 'Messaging channels already enabled — cannot test hidden nav')
 
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: /conversations/i })).not.toBeVisible()
   })
 })
@@ -71,7 +71,7 @@ test.describe('Conversations — with channels enabled', () => {
     await expect(page.getByText('Review & Launch')).toBeVisible({ timeout: 5000 })
     await page.getByRole('button', { name: /go to dashboard/i }).click()
     await page.waitForURL('**/', { timeout: 15000 })
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
   }
 
   test('setup channels and verify nav link appears', async ({ page }) => {
@@ -115,7 +115,7 @@ test.describe('Conversations — with channels enabled', () => {
 
   test('reports page is navigable from sidebar link', async ({ page }) => {
     await loginAsAdmin(page)
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
 
     // Click the Reports link in the sidebar
     await page.getByRole('link', { name: 'Reports' }).click()

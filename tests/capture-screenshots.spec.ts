@@ -104,7 +104,7 @@ async function loginAsAdmin(page: Page): Promise<void> {
   await preloadEncryptedKey(page, ADMIN_NSEC, TEST_PIN)
   await page.reload()
   await enterPin(page, TEST_PIN)
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 30000 })
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 30000 })
 }
 
 /**

@@ -63,7 +63,7 @@ test.describe('Multi-hub architecture', () => {
     await expect(page.getByRole('heading', { name: /audit log/i })).toBeVisible()
 
     await page.getByRole('link', { name: 'Dashboard' }).click()
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
   })
 
   // --- API tests (these create additional hubs) ---

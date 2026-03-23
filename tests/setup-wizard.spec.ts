@@ -456,7 +456,7 @@ test.describe('Setup Wizard', () => {
 
     // Should redirect to the dashboard at "/"
     await page.waitForURL('**/', { timeout: 15000 })
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
   })
 
   // =====================================================================
