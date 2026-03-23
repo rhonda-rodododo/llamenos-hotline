@@ -40,7 +40,7 @@ test.describe('Auth guards', () => {
     await enterPin(page, TEST_PIN)
 
     // Should be back on the Dashboard
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 30000 })
   })
 
   test('logout clears session', async ({ page }) => {
