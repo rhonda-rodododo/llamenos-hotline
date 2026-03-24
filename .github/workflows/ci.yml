@@ -271,6 +271,8 @@ jobs:
       - name: Dry-run check
         run: |
           cd deploy/ansible
+          # Playbook includes vars.yml internally; provide example as the real file
+          cp vars.example.yml vars.yml
           ansible-playbook setup.yml --check --diff \
             -i inventory.example.yml \
             --extra-vars "@vars.example.yml"
