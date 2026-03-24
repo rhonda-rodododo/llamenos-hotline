@@ -1,11 +1,11 @@
 import { CallSettingsSection } from '@/components/admin-settings/call-settings-section'
 import { ChannelSettings } from '@/components/admin-settings/channel-settings'
 import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-section'
-import { ReportTypesSection } from '@/components/admin-settings/report-types-section'
 import { GeocodingSettingsSection } from '@/components/admin-settings/geocoding-settings-section'
 import { IvrLanguagesSection } from '@/components/admin-settings/ivr-languages-section'
 import { PasskeyPolicySection } from '@/components/admin-settings/passkey-policy-section'
 import { RCSChannelSection } from '@/components/admin-settings/rcs-channel-section'
+import { ReportTypesSection } from '@/components/admin-settings/report-types-section'
 import { RolesSection } from '@/components/admin-settings/roles-section'
 import { SignalChannelSection } from '@/components/admin-settings/signal-channel-section'
 import { SpamSection } from '@/components/admin-settings/spam-section'
@@ -25,12 +25,12 @@ import {
   getCustomFields,
   getGeocodingSettings,
   getIvrLanguages,
-  listReportTypes,
   getMessagingConfig,
   getSpamSettings,
   getTelephonyProvider,
   getTranscriptionSettings,
   listIvrAudio,
+  listReportTypes,
   updateSpamSettings,
   updateTranscriptionSettings,
 } from '@/lib/api'

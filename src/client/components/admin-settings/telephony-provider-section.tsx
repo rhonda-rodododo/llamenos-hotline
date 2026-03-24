@@ -76,6 +76,7 @@ export function TelephonyProviderSection({
         <div className="space-y-1">
           <Label>{t('telephonyProvider.provider')}</Label>
           <select
+            data-testid="telephony-provider-select"
             value={draft.type || 'twilio'}
             onChange={(e) => {
               onDraftChange({ type: e.target.value as TelephonyProviderType })

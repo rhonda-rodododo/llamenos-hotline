@@ -104,9 +104,22 @@ test.describe('Call flow', () => {
   const CALL_SID = `CA_flow_${Date.now()}`
   const CALLER_FROM = '+15550001111'
   const HOTLINE_TO = '+15559998888'
+  let relayAvailable = false
 
   test.beforeAll(async ({ request }) => {
     await resetTestState(request)
+    // Check if Nostr relay is running (required for real-time call events on dashboard)
+    try {
+      const ws = new WebSocket('ws://localhost:7778')
+      await new Promise<void>((resolve, reject) => {
+        ws.onopen = () => { ws.close(); resolve() }
+        ws.onerror = () => reject(new Error('unreachable'))
+        setTimeout(() => reject(new Error('timeout')), 3000)
+      })
+      relayAvailable = true
+    } catch {
+      relayAvailable = false
+    }
   })
 
   test.beforeEach(async ({ page }) => {
@@ -118,6 +131,8 @@ test.describe('Call flow', () => {
   // ── 2.1: Inbound call appears in dashboard ────────────────────────────────
 
   test('inbound call appears in dashboard as ringing', async ({ page, request }) => {
+    test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
+
     // Ensure admin is in the fallback ring group so the call routes to them
     await setFallbackGroup(page, ADMIN_PUBKEY)
 

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, resetTestState } from '../helpers'
+import { ADMIN_NSEC, loginAsAdmin, resetTestState } from '../helpers'
+import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 /**
  * Voice CAPTCHA E2E tests.
@@ -16,14 +17,15 @@ test.describe('Voice CAPTCHA', () => {
 
   // --- Test 5.1: CAPTCHA disabled — call routes directly ---
   test('CAPTCHA disabled — language-selected returns enqueue (no CAPTCHA)', async ({ request }) => {
+    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     // Ensure CAPTCHA is disabled (default after reset)
-    const spamRes = await request.get('/api/settings/spam')
+    const spamRes = await adminApi.get('/api/settings/spam')
     expect(spamRes.ok()).toBeTruthy()
     const spam = await spamRes.json()
     expect(spam.voiceCaptchaEnabled).toBe(false)
 
     // Simulate inbound call webhook (Twilio format)
-    const incomingRes = await request.post('/api/telephony/language-selected?auto=1', {
+    const incomingRes = await request.post('/telephony/language-selected?auto=1', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: 'CallSid=test-nocaptcha-001&From=%2B15551234567&To=%2B15559999999&Digits=2',
     })
@@ -37,16 +39,15 @@ test.describe('Voice CAPTCHA', () => {
 
   // --- Test 5.2: CAPTCHA enabled — challenge presented ---
   test('CAPTCHA enabled — language-selected returns CAPTCHA Gather', async ({ request }) => {
+    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     // Enable CAPTCHA via API
-    const enableRes = await request.patch('/api/settings/spam', {
-      data: { voiceCaptchaEnabled: true },
-    })
+    const enableRes = await adminApi.patch('/api/settings/spam', { voiceCaptchaEnabled: true })
     expect(enableRes.ok()).toBeTruthy()
     const updated = await enableRes.json()
     expect(updated.voiceCaptchaEnabled).toBe(true)
 
     // Simulate inbound call
-    const callRes = await request.post('/api/telephony/language-selected?auto=1', {
+    const callRes = await request.post('/telephony/language-selected?auto=1', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: 'CallSid=test-captcha-002&From=%2B15551234567&To=%2B15559999999&Digits=2',
     })
@@ -56,7 +57,7 @@ test.describe('Voice CAPTCHA', () => {
     // Should contain Gather for CAPTCHA digits
     expect(body).toContain('Gather')
     expect(body).toContain('numDigits="4"')
-    expect(body).toContain('/api/telephony/captcha')
+    expect(body).toContain('/telephony/captcha')
     // Should NOT contain Enqueue yet
     expect(body).not.toContain('Enqueue')
   })
@@ -64,7 +65,7 @@ test.describe('Voice CAPTCHA', () => {
   // --- Test 5.3: Correct DTMF passes CAPTCHA ---
   test('correct DTMF digits pass CAPTCHA and enqueue call', async ({ request }) => {
     // First generate a challenge by hitting language-selected
-    const callRes = await request.post('/api/telephony/language-selected?auto=1', {
+    const callRes = await request.post('/telephony/language-selected?auto=1', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: 'CallSid=test-captcha-003&From=%2B15551234567&To=%2B15559999999&Digits=2',
     })
@@ -85,7 +86,7 @@ test.describe('Voice CAPTCHA', () => {
 
     // Submit correct CAPTCHA digits
     const captchaRes = await request.post(
-      `/api/telephony/captcha?callSid=test-captcha-003&lang=en`,
+      `/telephony/captcha?callSid=test-captcha-003&lang=en`,
       {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         data: `CallSid=test-captcha-003&From=%2B15551234567&Digits=${expectedDigits}`,
@@ -101,14 +102,13 @@ test.describe('Voice CAPTCHA', () => {
 
   // --- Test 5.4: Incorrect DTMF triggers retry, then rejection ---
   test('incorrect DTMF triggers retry then rejection after max attempts', async ({ request }) => {
+    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     // Set max attempts to 2
-    const settingsRes = await request.patch('/api/settings/spam', {
-      data: { captchaMaxAttempts: 2 },
-    })
+    const settingsRes = await adminApi.patch('/api/settings/spam', { captchaMaxAttempts: 2 })
     expect(settingsRes.ok()).toBeTruthy()
 
     // Generate challenge
-    const callRes = await request.post('/api/telephony/language-selected?auto=1', {
+    const callRes = await request.post('/telephony/language-selected?auto=1', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: 'CallSid=test-captcha-004&From=%2B15551234567&To=%2B15559999999&Digits=2',
     })
@@ -116,7 +116,7 @@ test.describe('Voice CAPTCHA', () => {
 
     // First wrong attempt — should get retry
     const attempt1 = await request.post(
-      `/api/telephony/captcha?callSid=test-captcha-004&lang=en`,
+      `/telephony/captcha?callSid=test-captcha-004&lang=en`,
       {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         data: 'CallSid=test-captcha-004&From=%2B15551234567&Digits=0000',
@@ -131,7 +131,7 @@ test.describe('Voice CAPTCHA', () => {
 
     // Second wrong attempt — should get rejection (hangup)
     const attempt2 = await request.post(
-      `/api/telephony/captcha?callSid=test-captcha-004&lang=en`,
+      `/telephony/captcha?callSid=test-captcha-004&lang=en`,
       {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         data: 'CallSid=test-captcha-004&From=%2B15551234567&Digits=0000',
@@ -149,7 +149,7 @@ test.describe('Voice CAPTCHA', () => {
   test('expired challenge returns rejection', async ({ request }) => {
     // Submit CAPTCHA for a callSid that was never generated (simulates expiry)
     const captchaRes = await request.post(
-      `/api/telephony/captcha?callSid=test-captcha-expired&lang=en`,
+      `/telephony/captcha?callSid=test-captcha-expired&lang=en`,
       {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         data: 'CallSid=test-captcha-expired&From=%2B15551234567&Digits=1234',
@@ -195,13 +195,12 @@ test.describe('Voice CAPTCHA', () => {
     await maxAttemptsInput.press('Tab') // trigger onChange
 
     // Verify it was saved via API
-    const spamRes = await request.get('/api/settings/spam')
+    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const spamRes = await adminApi.get('/api/settings/spam')
     const spam = await spamRes.json()
     expect(spam.captchaMaxAttempts).toBe(3)
 
     // Cleanup: disable CAPTCHA
-    await request.patch('/api/settings/spam', {
-      data: { voiceCaptchaEnabled: false },
-    })
+    await adminApi.patch('/api/settings/spam', { voiceCaptchaEnabled: false })
   })
 })

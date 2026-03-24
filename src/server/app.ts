@@ -19,9 +19,11 @@ import conversationsRoutes from './routes/conversations'
 import devRoutes from './routes/dev'
 import filesRoutes from './routes/files'
 import gdprRoutes from './routes/gdpr'
+import geocodingRoutes from './routes/geocoding'
 import healthRoutes from './routes/health'
 import hubRoutes from './routes/hubs'
 import invitesRoutes from './routes/invites'
+import signalRegistrationRoutes from './routes/messaging/signal-registration'
 import metricsRoutes from './routes/metrics'
 import notesRoutes from './routes/notes'
 import providerSetupRoutes from './routes/provider-setup'
@@ -29,7 +31,6 @@ import provisioningRoutes from './routes/provisioning'
 import reportTypesRoutes from './routes/report-types'
 import reportsRoutes from './routes/reports'
 import settingsRoutes from './routes/settings'
-import signalRegistrationRoutes from './routes/messaging/signal-registration'
 import setupRoutes from './routes/setup'
 import shiftsRoutes from './routes/shifts'
 import telephonyRoutes from './routes/telephony'
@@ -182,6 +183,7 @@ authenticated.route('/hubs', hubRoutes)
 authenticated.route('/blasts', blastsRoutes)
 authenticated.route('/contacts', contactsRoutes)
 authenticated.route('/gdpr', gdprRoutes)
+authenticated.route('/geocoding', geocodingRoutes)
 
 // Hub-scoped authenticated routes
 const hubScoped = new Hono<AppEnv>()
