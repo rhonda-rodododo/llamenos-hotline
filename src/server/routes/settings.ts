@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
-import { validateExternalUrl } from '../lib/ssrf-guard'
+import { MESSAGING_CAPABILITIES } from '../messaging/capabilities'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
+import { TELEPHONY_CAPABILITIES } from '../telephony/capabilities'
 import type { AppEnv } from '../types'
+import type { TelephonyProviderType, MessagingChannelType } from '@shared/types'
 
 const settings = new Hono<AppEnv>()
 
@@ -177,89 +179,51 @@ settings.post(
   '/telephony-provider/test',
   requirePermission('settings:manage-telephony'),
   async (c) => {
-    const body = (await c.req.json()) as {
-      type: string
-      accountSid?: string
-      authToken?: string
-      phoneNumber?: string
-      signalwireSpace?: string
-      apiKey?: string
-      apiSecret?: string
-      applicationId?: string
-      authId?: string
-      ariUrl?: string
-      ariUsername?: string
-      ariPassword?: string
-    }
+    const config = await c.req.json() as { type: string; [key: string]: unknown }
+    const capabilities = TELEPHONY_CAPABILITIES[config.type as TelephonyProviderType]
+    if (!capabilities) return c.json({ ok: false, error: `Unknown provider: ${config.type}` }, 400)
+
+    const parsed = capabilities.credentialSchema.safeParse(config)
+    if (!parsed.success) return c.json({ ok: false, error: 'Invalid config', details: parsed.error }, 400)
+
     try {
-      let testUrl: string
-      const testHeaders: Record<string, string> = {}
-
-      switch (body.type) {
-        case 'twilio': {
-          // HIGH-W5: Validate SID format before URL construction to prevent path traversal
-          if (!body.accountSid || !/^AC[a-f0-9]{32}$/.test(body.accountSid)) {
-            return Response.json({ ok: false, error: 'Invalid Twilio Account SID format' }, { status: 400 })
-          }
-          const safeSid = encodeURIComponent(body.accountSid)
-          testUrl = `https://api.twilio.com/2010-04-01/Accounts/${safeSid}.json`
-          testHeaders.Authorization = `Basic ${btoa(`${body.accountSid}:${body.authToken}`)}`
-          break
-        }
-        case 'signalwire': {
-          if (!body.signalwireSpace || !/^[a-zA-Z0-9_-]+$/.test(body.signalwireSpace)) {
-            return Response.json(
-              { ok: false, error: 'Invalid SignalWire space name' },
-              { status: 400 }
-            )
-          }
-          testUrl = `https://${body.signalwireSpace}.signalwire.com/api/relay/rest/phone_numbers`
-          testHeaders.Authorization = `Basic ${btoa(`${body.accountSid}:${body.authToken}`)}`
-          break
-        }
-        case 'vonage':
-          testUrl = `https://rest.nexmo.com/account/get-balance?api_key=${encodeURIComponent(body.apiKey || '')}&api_secret=${encodeURIComponent(body.apiSecret || '')}`
-          break
-        case 'plivo':
-          testUrl = `https://api.plivo.com/v1/Account/${encodeURIComponent(body.authId || '')}/`
-          testHeaders.Authorization = `Basic ${btoa(`${body.authId}:${body.authToken}`)}`
-          break
-        case 'asterisk': {
-          if (!body.ariUrl) {
-            return Response.json({ ok: false, error: 'ARI URL is required' }, { status: 400 })
-          }
-          const ariError = validateExternalUrl(body.ariUrl, 'ARI URL')
-          if (ariError) {
-            return Response.json({ ok: false, error: ariError }, { status: 400 })
-          }
-          testUrl = `${body.ariUrl}/api/asterisk/info`
-          testHeaders.Authorization = `Basic ${btoa(`${body.ariUsername}:${body.ariPassword}`)}`
-          break
-        }
-        default:
-          return Response.json({ ok: false, error: 'Unknown provider type' }, { status: 400 })
-      }
-
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 10000)
-      try {
-        const testRes = await fetch(testUrl, { headers: testHeaders, signal: controller.signal })
-        clearTimeout(timeout)
-        if (testRes.ok) {
-          return Response.json({ ok: true })
-        }
-        return Response.json(
-          { ok: false, error: `Provider returned ${testRes.status}` },
-          { status: 400 }
-        )
-      } finally {
-        clearTimeout(timeout)
-      }
+      const result = await capabilities.testConnection(parsed.data)
+      return c.json({ ok: result.connected, ...result })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Connection failed'
-      return Response.json({ ok: false, error: message }, { status: 400 })
+      return c.json({ ok: false, error: message }, { status: 400 })
     }
-  }
+  },
+)
+
+// SMS / messaging channel connection test
+settings.post(
+  '/messaging/test',
+  requirePermission('settings:manage-messaging'),
+  async (c) => {
+    const hubId = c.get('hubId')
+    const body = (await c.req.json()) as { channel: string }
+    const channel = body.channel as MessagingChannelType
+    const capabilities = MESSAGING_CAPABILITIES[channel]
+    if (!capabilities) return c.json({ error: `Unknown channel: ${body.channel}` }, 400)
+
+    const services = c.get('services')
+    const messagingConfig = await services.settings.getMessagingConfig(hubId ?? undefined)
+    if (!messagingConfig) return c.json({ error: 'Messaging not configured' }, 400)
+
+    const channelConfig = messagingConfig[channel as keyof typeof messagingConfig]
+    if (!channelConfig || typeof channelConfig !== 'object') {
+      return c.json({ error: `Channel ${body.channel} not configured` }, 400)
+    }
+
+    try {
+      const result = await capabilities.testConnection(channelConfig as Parameters<typeof capabilities.testConnection>[0])
+      return c.json(result)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Connection failed'
+      return c.json({ connected: false, latencyMs: 0, error: message, errorType: 'unknown' as const }, { status: 400 })
+    }
+  },
 )
 
 // --- Messaging config ---

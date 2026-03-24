@@ -28,6 +28,7 @@ import provisioningRoutes from './routes/provisioning'
 import reportsRoutes from './routes/reports'
 import reportTypesRoutes from './routes/report-types'
 import settingsRoutes from './routes/settings'
+import providerSetupRoutes from './routes/provider-setup'
 import setupRoutes from './routes/setup'
 import shiftsRoutes from './routes/shifts'
 import telephonyRoutes from './routes/telephony'
@@ -169,6 +170,7 @@ authenticated.route('/files', filesRoutes)
 authenticated.route('/reports', reportsRoutes)
 authenticated.route('/report-types', reportTypesRoutes)
 authenticated.route('/setup', setupRoutes)
+authenticated.route('/setup/provider', providerSetupRoutes)
 authenticated.route('/hubs', hubRoutes)
 authenticated.route('/blasts', blastsRoutes)
 authenticated.route('/contacts', contactsRoutes)
