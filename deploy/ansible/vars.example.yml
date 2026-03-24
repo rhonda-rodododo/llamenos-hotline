@@ -100,7 +100,7 @@ twilio_phone_number: ""
 # ─── Nostr Relay (Core) ─────────────────────────────────────────
 # REQUIRED: Server secret for signing relay events (exactly 64 lowercase hex chars).
 # Generate with: openssl rand -hex 32
-server_nostr_secret: "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg"
+server_nostr_secret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 # OPTIONAL: Relay URL (default: ws://strfry:7777 for the bundled strfry)
 # nostr_relay_url: "ws://strfry:7777"
