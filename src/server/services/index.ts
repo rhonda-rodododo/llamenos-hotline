@@ -10,6 +10,7 @@ import { RecordsService } from './records'
 import { ReportTypeService } from './report-types'
 import { SettingsService } from './settings'
 import { ShiftService } from './shifts'
+import type { ProviderHealthService } from './provider-health'
 
 export type {
   BlastService,
@@ -22,6 +23,7 @@ export type {
   ReportTypeService,
   SettingsService,
   ShiftService,
+  ProviderHealthService,
 }
 
 export interface Services {
@@ -35,6 +37,7 @@ export interface Services {
   files: FilesService
   gdpr: GdprService
   reportTypes: ReportTypeService
+  providerHealth?: ProviderHealthService
 }
 
 export function createServices(db: Database, blob: BlobStorage | null = null, serverSecret = ''): Services {

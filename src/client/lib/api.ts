@@ -590,6 +590,28 @@ export async function updateCustomFields(fields: CustomFieldDefinition[]) {
   })
 }
 
+// --- Provider Health Status ---
+
+export interface HealthCheckResult {
+  provider: string
+  channel?: string
+  status: 'healthy' | 'degraded' | 'down'
+  latencyMs: number
+  lastCheck: string
+  consecutiveFailures: number
+  error?: string
+}
+
+export interface ProviderHealthStatus {
+  telephony: HealthCheckResult | null
+  messaging: Record<string, HealthCheckResult>
+  lastFullCheck: string
+}
+
+export async function getProviderHealth() {
+  return request<ProviderHealthStatus>('/settings/provider-health')
+}
+
 // --- Telephony Provider Settings ---
 
 export type { TelephonyProviderConfig, TelephonyProviderType } from '@shared/types'

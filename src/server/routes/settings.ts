@@ -152,6 +152,13 @@ settings.patch('/webauthn', requirePermission('settings:manage'), async (c) => {
   return c.json(updated)
 })
 
+// --- Provider health status ---
+settings.get('/provider-health', requirePermission('settings:manage'), async (c) => {
+  const healthService = c.get('services').providerHealth
+  if (!healthService) return c.json({ error: 'Health service not available' }, 503)
+  return c.json(healthService.getHealthStatus())
+})
+
 // --- Telephony Provider settings ---
 settings.get('/telephony-provider', requirePermission('settings:manage-telephony'), async (c) => {
   const services = c.get('services')

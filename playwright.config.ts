@@ -46,7 +46,7 @@ export default defineConfig({
     {
       // Bridge integration tests — no browser, no webserver, no global setup needed
       name: "bridge",
-      testMatch: /asterisk-.*\.spec\.ts|provider-capabilities\.spec\.ts/,
+      testMatch: /asterisk-.*\.spec\.ts|provider-capabilities\.spec\.ts|provider-health\.spec\.ts/,
     },
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL

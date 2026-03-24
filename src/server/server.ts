@@ -13,12 +13,13 @@ import { migrate } from 'drizzle-orm/bun-sql/migrator'
 import { Hono } from 'hono'
 import { initDb } from './db'
 import { loadEnv } from './env'
-import { closeNostrPublisher } from './lib/adapters'
+import { closeNostrPublisher, getTelephony, getMessagingAdapter } from './lib/adapters'
 import { createBlobStorage } from './lib/blob-storage'
 import { scheduleRetentionPurge } from './jobs/retention-purge'
 import { errorHandler } from './middleware/error'
 import { servicesMiddleware } from './middleware/services'
 import { createServices } from './services'
+import { ProviderHealthService } from './services/provider-health'
 import type { BlobStorage } from './types'
 
 async function main() {
@@ -79,6 +80,40 @@ async function main() {
 
   const services = createServices(db, blob, env.SERVER_NOSTR_SECRET ?? '')
 
+  // Provider health monitoring
+  const providerHealth = new ProviderHealthService()
+  services.providerHealth = providerHealth
+
+  const healthInterval = Number.parseInt(process.env.HEALTH_CHECK_INTERVAL_MS ?? '60000', 10)
+  providerHealth.start(async () => {
+    try {
+      const adapter = await getTelephony(services.settings)
+      if (adapter) await providerHealth.checkProvider('telephony', 'active', adapter)
+    } catch (err) {
+      console.error('[health] Telephony check error:', err)
+    }
+
+    try {
+      const config = await services.settings.getMessagingConfig()
+      for (const channel of config?.enabledChannels ?? []) {
+        try {
+          const msgAdapter = await getMessagingAdapter(channel, services.settings, env.HMAC_SECRET ?? '')
+          await providerHealth.checkProvider('messaging', channel, {
+            async testConnection() {
+              const status = await msgAdapter.getChannelStatus()
+              return { connected: status.connected, latencyMs: 0, error: status.error }
+            },
+          })
+        } catch {
+          /* channel not configured */
+        }
+      }
+    } catch (err) {
+      console.error('[health] Messaging check error:', err)
+    }
+  }, healthInterval)
+  console.log(`[llamenos] Provider health monitoring started (interval: ${healthInterval}ms)`)
+
   // Schedule daily retention purge at 03:00 UTC
   scheduleRetentionPurge(services)
   console.log('[llamenos] Data retention purge scheduled')
@@ -127,6 +162,7 @@ async function main() {
   const shutdown = () => {
     console.log('[llamenos] Shutting down...')
 
+    providerHealth.stop()
     closeNostrPublisher()
 
     server.close(() => {
