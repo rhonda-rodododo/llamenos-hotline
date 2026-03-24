@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: ["**/live/**", "**/unit/**"],
+  testIgnore: ["**/live/**"],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -24,10 +24,26 @@ export default defineConfig({
       testMatch: /global-setup\.ts/,
     },
     {
+      // API integration tests — no browser, request fixture only
+      name: "api",
+      testDir: "./tests/api",
+      use: { /* no device — request fixture only */ },
+      dependencies: ["setup"],
+    },
+    {
+      // UI E2E tests — full browser
+      name: "ui",
+      testDir: "./tests/ui",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: /bootstrap\.spec\.ts/,
+      dependencies: ["setup"],
+    },
+    {
+      // TEMPORARY: runs existing tests from tests/ root until Phase 2 moves them to tests/ui/
+      // Excludes api/ and ui/ subdirs to avoid duplicate execution with dedicated projects
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      // Exclude bootstrap tests — they delete admin state and interfere with parallel tests
-      testIgnore: /bootstrap\.spec\.ts/,
+      testIgnore: [/bootstrap\.spec\.ts/, /asterisk-auto-config\.spec\.ts/, /api\//, /ui\//],
       dependencies: ["setup"],
     },
     {
@@ -38,7 +54,8 @@ export default defineConfig({
       dependencies: ["chromium"],
     },
     {
-      name: "mobile-chromium",
+      name: "mobile",
+      testDir: "./tests/ui",
       use: { ...devices["Pixel 7"] },
       testMatch: /responsive\.spec\.ts/,
       dependencies: ["setup"],
@@ -46,7 +63,7 @@ export default defineConfig({
     {
       // Bridge integration tests — no browser, no webserver, no global setup needed
       name: "bridge",
-      testMatch: /asterisk-.*\.spec\.ts|provider-capabilities\.spec\.ts|provider-health\.spec\.ts/,
+      testMatch: /asterisk-auto-config\.spec\.ts/,
     },
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL
