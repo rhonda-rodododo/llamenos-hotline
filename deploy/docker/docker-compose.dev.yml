@@ -28,6 +28,8 @@ services:
   strfry:
     ports:
       - "7778:7777"
+    volumes:
+      - ./strfry-test.conf:/etc/strfry.conf:ro
 
   # Asterisk PBX — dev port offsets
   asterisk:

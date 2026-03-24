@@ -416,4 +416,24 @@ settings.get('/permissions', requirePermission('system:manage-roles'), async (c)
   })
 })
 
+// --- Fallback group: admin-only ---
+settings.get('/fallback-group', requirePermission('settings:manage'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const pubkeys = await services.settings.getFallbackGroup(hubId ?? undefined)
+  return c.json({ pubkeys })
+})
+
+settings.put('/fallback-group', requirePermission('settings:manage'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const pubkey = c.get('pubkey')
+  const { pubkeys } = await c.req.json<{ pubkeys: string[] }>()
+  await services.settings.setFallbackGroup(pubkeys, hubId ?? undefined)
+  await services.records.addAuditEntry(hubId ?? 'global', 'fallbackGroupUpdated', pubkey, {
+    pubkeys,
+  })
+  return c.json({ pubkeys })
+})
+
 export default settings
