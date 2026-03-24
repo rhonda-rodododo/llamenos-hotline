@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import {
   loginAsAdmin,
   loginAsVolunteer,
@@ -11,33 +11,7 @@ import {
   Timeouts,
 } from '../helpers'
 
-// Window type augmentation for authed fetch helper
-declare global {
-  interface Window {
-    __authedFetch: (url: string, options?: RequestInit) => Promise<Response>
-  }
-}
-
-function injectAuthedFetch(page: Page) {
-  return page.evaluate(() => {
-    window.__authedFetch = async (url: string, options: RequestInit = {}) => {
-      const km = (window as any).__TEST_KEY_MANAGER
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...((options.headers as Record<string, string>) || {}),
-      }
-      if (km?.isUnlocked()) {
-        const reqMethod = (options.method || 'GET').toUpperCase()
-        const reqPath = new URL(url, location.origin).pathname
-        const token = km.createAuthToken(Date.now(), reqMethod, reqPath)
-        headers['Authorization'] = `Bearer ${token}`
-      }
-      return fetch(url, { ...options, headers })
-    }
-  })
-}
-
-test.describe('Blasts — access control, validation, deletion', () => {
+test.describe('Blasts — UI', () => {
   test.describe.configure({ mode: 'serial' })
 
   let volunteerNsec: string
@@ -81,10 +55,27 @@ test.describe('Blasts — access control, validation, deletion', () => {
   test('volunteer cannot access blasts API endpoint', async ({ page }) => {
     await loginAsVolunteer(page, volunteerNsec)
     await completeProfileSetup(page)
-    await injectAuthedFetch(page)
+
+    // Inject authed fetch helper that uses keyManager for auth headers
+    await page.evaluate(() => {
+      ;(window as any).__authedFetch = async (url: string, options: RequestInit = {}) => {
+        const km = (window as any).__TEST_KEY_MANAGER
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...((options.headers as Record<string, string>) || {}),
+        }
+        if (km?.isUnlocked()) {
+          const reqMethod = (options.method || 'GET').toUpperCase()
+          const reqPath = new URL(url, location.origin).pathname
+          const token = km.createAuthToken(Date.now(), reqMethod, reqPath)
+          headers['Authorization'] = `Bearer ${token}`
+        }
+        return fetch(url, { ...options, headers })
+      }
+    })
 
     const result = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/blasts')
+      const res = await (window as any).__authedFetch('/api/blasts')
       return { status: res.status, ok: res.ok }
     })
 
@@ -95,7 +86,6 @@ test.describe('Blasts — access control, validation, deletion', () => {
 
   test('blast composer validates empty name field', async ({ page }) => {
     await loginAsAdmin(page)
-    await injectAuthedFetch(page)
     await navigateAfterLogin(page, '/blasts')
     await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({ timeout: Timeouts.ELEMENT })
 
@@ -113,7 +103,6 @@ test.describe('Blasts — access control, validation, deletion', () => {
 
   test('blast composer validates empty content field', async ({ page }) => {
     await loginAsAdmin(page)
-    await injectAuthedFetch(page)
     await navigateAfterLogin(page, '/blasts')
     await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({ timeout: Timeouts.ELEMENT })
 
@@ -131,7 +120,6 @@ test.describe('Blasts — access control, validation, deletion', () => {
 
   test('blast composer save button enables only when both fields are filled', async ({ page }) => {
     await loginAsAdmin(page)
-    await injectAuthedFetch(page)
     await navigateAfterLogin(page, '/blasts')
     await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({ timeout: Timeouts.ELEMENT })
 
@@ -159,7 +147,6 @@ test.describe('Blasts — access control, validation, deletion', () => {
 
   test('blast can be deleted after creation', async ({ page }) => {
     await loginAsAdmin(page)
-    await injectAuthedFetch(page)
     await navigateAfterLogin(page, '/blasts')
     await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({ timeout: Timeouts.ELEMENT })
 
@@ -184,44 +171,5 @@ test.describe('Blasts — access control, validation, deletion', () => {
 
     // The blast should be removed from the list
     await expect(page.getByText(blastName)).not.toBeVisible({ timeout: Timeouts.API })
-  })
-
-  test('blast deletion via API removes it from the list', async ({ page }) => {
-    await loginAsAdmin(page)
-    await injectAuthedFetch(page)
-
-    // Create a blast via API
-    const blastName = `API Delete ${Date.now()}`
-    const createResult = await page.evaluate(async (name: string) => {
-      const res = await window.__authedFetch('/api/blasts', {
-        method: 'POST',
-        body: JSON.stringify({
-          name,
-          channel: 'sms',
-          content: 'To be deleted via API',
-        }),
-      })
-      return { status: res.status, data: await res.json() }
-    }, blastName)
-    expect(createResult.status).toBe(200)
-    const blastId = (createResult.data as { id: string }).id
-    expect(blastId).toBeTruthy()
-
-    // Delete via API
-    const deleteResult = await page.evaluate(async (id: string) => {
-      const res = await window.__authedFetch(`/api/blasts/${id}`, { method: 'DELETE' })
-      return { status: res.status, data: await res.json() }
-    }, blastId)
-    expect(deleteResult.status).toBe(200)
-
-    // Verify it's gone from the list API
-    const listResult = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/blasts')
-      return { status: res.status, data: await res.json() }
-    })
-    expect(listResult.status).toBe(200)
-    const blasts = (listResult.data as { blasts: Array<{ id: string }> }).blasts
-    const deletedBlast = blasts.find((b) => b.id === blastId)
-    expect(deletedBlast).toBeUndefined()
   })
 })

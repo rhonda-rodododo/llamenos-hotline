@@ -1,9 +1,8 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, resetTestState } from '../helpers'
+import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { loginAsAdmin, ADMIN_NSEC, resetTestState } from '../helpers'
 
-
-test.describe('Multi-hub architecture', () => {
-  // Tests must run in order — later tests create hubs that affect UI state
+test.describe('Multi-hub architecture — UI', () => {
   test.describe.configure({ mode: 'serial' })
 
   test.beforeAll(async ({ request }) => {
@@ -12,35 +11,6 @@ test.describe('Multi-hub architecture', () => {
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
-    // Inject authed fetch helper that uses keyManager for auth headers
-    await page.evaluate(() => {
-      window.__authedFetch = async (url: string, options: RequestInit = {}) => {
-        const km = (window as any).__TEST_KEY_MANAGER
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          ...(options.headers as Record<string, string> || {}),
-        }
-        if (km?.isUnlocked()) {
-          const reqMethod = (options.method || 'GET').toUpperCase()
-          const reqPath = new URL(url, location.origin).pathname
-          const token = km.createAuthToken(Date.now(), reqMethod, reqPath)
-          headers['Authorization'] = `Bearer ${token}`
-        }
-        return fetch(url, { ...options, headers })
-      }
-    })
-  })
-
-  // --- UI tests first (before any hub-creating API tests) ---
-
-  test('config returns hubs array', async ({ page }) => {
-    // The config endpoint is public — no auth needed
-    const config = await page.evaluate(async () => {
-      const res = await fetch('/api/config')
-      return res.json()
-    })
-    expect(config).toHaveProperty('hubs')
-    expect(Array.isArray(config.hubs)).toBe(true)
   })
 
   test('hub switcher hidden when single hub', async ({ page }) => {
@@ -66,136 +36,14 @@ test.describe('Multi-hub architecture', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
   })
 
-  // --- API tests (these create additional hubs) ---
+  test('admin can archive a hub via the UI', async ({ page, request }) => {
+    const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
-  test('hub CRUD operations via API', async ({ page }) => {
-    // Create a hub
-    const created = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/hubs', {
-        method: 'POST',
-        body: JSON.stringify({ name: 'Test Hub', description: 'E2E test hub' }),
-      })
-      if (!res.ok) return { error: await res.text(), status: res.status }
-      return res.json()
-    })
-    expect(created).toHaveProperty('hub')
-    expect(created.hub.name).toBe('Test Hub')
-    expect(created.hub.slug).toBe('test-hub')
-    expect(created.hub.status).toBe('active')
-    expect(created.hub.id).toBeTruthy()
-
-    // List hubs — should include the new one
-    const listData = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/hubs')
-      return res.json()
-    })
-    expect(listData.hubs.some((h: { id: string }) => h.id === created.hub.id)).toBe(true)
-
-    // Get hub details
-    const fetched = await page.evaluate(async (hubId: string) => {
-      const res = await window.__authedFetch(`/api/hubs/${hubId}`)
-      return res.json()
-    }, created.hub.id)
-    expect(fetched.hub.name).toBe('Test Hub')
-
-    // Update hub
-    const updated = await page.evaluate(async (hubId: string) => {
-      const res = await window.__authedFetch(`/api/hubs/${hubId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ name: 'Updated Hub' }),
-      })
-      return res.json()
-    }, created.hub.id)
-    expect(updated.hub.name).toBe('Updated Hub')
-  })
-
-  test('hub-scoped routes use per-hub DOs', async ({ page }) => {
-    // Create a hub
-    const created = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/hubs', {
-        method: 'POST',
-        body: JSON.stringify({ name: 'Scoped Hub' }),
-      })
-      return res.json()
-    })
-    const hubId = created.hub.id
-
-    // Access hub-scoped audit log
-    const auditData = await page.evaluate(async (hId: string) => {
-      const res = await window.__authedFetch(`/api/hubs/${hId}/audit`)
-      return { ok: res.ok, data: res.ok ? await res.json() : await res.text() }
-    }, hubId)
-    expect(auditData.ok).toBe(true)
-    expect(auditData.data).toHaveProperty('entries')
-
-    // Access hub-scoped shifts
-    const shiftsData = await page.evaluate(async (hId: string) => {
-      const res = await window.__authedFetch(`/api/hubs/${hId}/shifts`)
-      return { ok: res.ok, data: res.ok ? await res.json() : await res.text() }
-    }, hubId)
-    expect(shiftsData.ok).toBe(true)
-    expect(shiftsData.data).toHaveProperty('shifts')
-
-    // Access hub-scoped bans
-    const bansData = await page.evaluate(async (hId: string) => {
-      const res = await window.__authedFetch(`/api/hubs/${hId}/bans`)
-      return { ok: res.ok, data: res.ok ? await res.json() : await res.text() }
-    }, hubId)
-    expect(bansData.ok).toBe(true)
-    expect(bansData.data).toHaveProperty('bans')
-
-    // Hub-scoped data should be independent from global
-    // The new hub should have empty bans (no global data leaking)
-    expect(bansData.data.bans).toHaveLength(0)
-  })
-
-  test('hub member management', async ({ page }) => {
-    // Create a hub
-    const created = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/hubs', {
-        method: 'POST',
-        body: JSON.stringify({ name: 'Member Hub' }),
-      })
-      return res.json()
-    })
-    const hubId = created.hub.id
-
-    // Get admin's pubkey from the key manager
-    const adminPubkey = await page.evaluate(() => {
-      const km = (window as any).__TEST_KEY_MANAGER
-      return km.getPublicKeyHex()
-    })
-
-    // Add admin as member to the new hub with a different role
-    const addResult = await page.evaluate(async ({ hId, pk }: { hId: string; pk: string }) => {
-      const res = await window.__authedFetch(`/api/hubs/${hId}/members`, {
-        method: 'POST',
-        body: JSON.stringify({ pubkey: pk, roleIds: ['role-volunteer'] }),
-      })
-      return { ok: res.ok, status: res.status, data: res.ok ? await res.json() : await res.text() }
-    }, { hId: hubId, pk: adminPubkey })
-    expect(addResult.ok).toBe(true)
-
-    // Remove member from hub
-    const removeResult = await page.evaluate(async ({ hId, pk }: { hId: string; pk: string }) => {
-      const res = await window.__authedFetch(`/api/hubs/${hId}/members/${pk}`, {
-        method: 'DELETE',
-      })
-      return { ok: res.ok }
-    }, { hId: hubId, pk: adminPubkey })
-    expect(removeResult.ok).toBe(true)
-  })
-
-  test('admin can archive a hub via the UI', async ({ page }) => {
     // Create a hub via the API so the test doesn't depend on prior state
     const hubName = `archive-test-${Date.now()}`
-    const created = await page.evaluate(async (name: string) => {
-      const res = await window.__authedFetch('/api/hubs', {
-        method: 'POST',
-        body: JSON.stringify({ name }),
-      })
-      return res.json()
-    }, hubName)
+    const createRes = await authedApi.post('/api/hubs', { name: hubName })
+    expect(createRes.ok()).toBe(true)
+    const created = await createRes.json()
     expect(created).toHaveProperty('hub')
 
     // Navigate to the hub management page
@@ -221,25 +69,18 @@ test.describe('Multi-hub architecture', () => {
     await expect(page.getByText(hubName)).not.toBeVisible()
   })
 
-  test('hub delete requires typing hub name to confirm', async ({ page }) => {
+  test('hub delete requires typing hub name to confirm', async ({ page, request }) => {
+    const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     const hubName = `delete-confirm-test-${Date.now()}`
 
     // Create + archive a hub via API
-    const created = await page.evaluate(async (name: string) => {
-      const res = await window.__authedFetch('/api/hubs', {
-        method: 'POST',
-        body: JSON.stringify({ name }),
-      })
-      return res.json()
-    }, hubName)
+    const createRes = await authedApi.post('/api/hubs', { name: hubName })
+    expect(createRes.ok()).toBe(true)
+    const created = await createRes.json()
     const hubId = created.hub.id
 
-    await page.evaluate(async (id: string) => {
-      await window.__authedFetch(`/api/hubs/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'archived' }),
-      })
-    }, hubId)
+    const archiveRes = await authedApi.patch(`/api/hubs/${hubId}`, { status: 'archived' })
+    expect(archiveRes.ok()).toBe(true)
 
     await page.goto('/admin/hubs')
     await page.waitForLoadState('networkidle')
@@ -269,25 +110,18 @@ test.describe('Multi-hub architecture', () => {
     await expect(page.getByRole('dialog')).not.toBeVisible()
   })
 
-  test('admin can permanently delete an archived hub', async ({ page }) => {
+  test('admin can permanently delete an archived hub', async ({ page, request }) => {
+    const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     const hubName = `perm-delete-test-${Date.now()}`
 
     // Create + archive via API
-    const created = await page.evaluate(async (name: string) => {
-      const res = await window.__authedFetch('/api/hubs', {
-        method: 'POST',
-        body: JSON.stringify({ name }),
-      })
-      return res.json()
-    }, hubName)
+    const createRes = await authedApi.post('/api/hubs', { name: hubName })
+    expect(createRes.ok()).toBe(true)
+    const created = await createRes.json()
     const hubId = created.hub.id
 
-    await page.evaluate(async (id: string) => {
-      await window.__authedFetch(`/api/hubs/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'archived' }),
-      })
-    }, hubId)
+    const archiveRes = await authedApi.patch(`/api/hubs/${hubId}`, { status: 'archived' })
+    expect(archiveRes.ok()).toBe(true)
 
     await page.goto('/admin/hubs')
     await page.waitForLoadState('networkidle')
@@ -305,65 +139,7 @@ test.describe('Multi-hub architecture', () => {
     await expect(page.locator('[data-testid="hub-row"]').filter({ hasText: hubName })).not.toBeVisible()
 
     // Verify hub is gone via API
-    const getResult = await page.evaluate(async (id: string) => {
-      const res = await window.__authedFetch(`/api/hubs/${id}`)
-      return { status: res.status }
-    }, hubId)
-    expect(getResult.status).toBe(404)
-  })
-
-  test('hub delete via API returns 409 when active calls exist', async ({ page }) => {
-    // Create a hub (we can't easily inject active calls in E2E, so just verify the endpoint
-    // correctly blocks deletion of a hub that doesn't exist — we exercise the 404 path)
-    const deleteResult = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/hubs/nonexistent-hub-id', {
-        method: 'DELETE',
-      })
-      return { status: res.status }
-    })
-    // Nonexistent hub should return 404
-    expect(deleteResult.status).toBe(404)
-  })
-
-  test('hub-scoped data is isolated', async ({ page }) => {
-    // Create two hubs
-    const hub1 = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/hubs', {
-        method: 'POST',
-        body: JSON.stringify({ name: 'Hub A' }),
-      })
-      return (await res.json()).hub
-    })
-
-    const hub2 = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/hubs', {
-        method: 'POST',
-        body: JSON.stringify({ name: 'Hub B' }),
-      })
-      return (await res.json()).hub
-    })
-
-    // Create a ban in hub A
-    await page.evaluate(async (hubId: string) => {
-      await window.__authedFetch(`/api/hubs/${hubId}/bans`, {
-        method: 'POST',
-        body: JSON.stringify({ phone: '+15559990001', reason: 'Hub A test ban' }),
-      })
-    }, hub1.id)
-
-    // Hub A should have the ban
-    const hub1Bans = await page.evaluate(async (hubId: string) => {
-      const res = await window.__authedFetch(`/api/hubs/${hubId}/bans`)
-      return res.json()
-    }, hub1.id)
-    expect(hub1Bans.bans.length).toBeGreaterThan(0)
-    expect(hub1Bans.bans.some((b: { phone: string }) => b.phone === '+15559990001')).toBe(true)
-
-    // Hub B should NOT have the ban (isolated)
-    const hub2Bans = await page.evaluate(async (hubId: string) => {
-      const res = await window.__authedFetch(`/api/hubs/${hubId}/bans`)
-      return res.json()
-    }, hub2.id)
-    expect(hub2Bans.bans.some((b: { phone: string }) => b.phone === '+15559990001')).toBe(false)
+    const getRes = await authedApi.get(`/api/hubs/${hubId}`)
+    expect(getRes.status()).toBe(404)
   })
 })
