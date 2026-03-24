@@ -10,9 +10,7 @@ on:
   pull_request:
     paths:
       - 'apps/desktop/**'
-      - 'packages/crypto/**'
       - 'tests/desktop/**'
-      - 'src/client/**'
   workflow_dispatch:
 
 permissions:

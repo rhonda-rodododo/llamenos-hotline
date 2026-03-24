@@ -22,8 +22,6 @@ on:
     paths:
       - 'package.json'
       - 'bun.lockb'
-      - '**/Cargo.toml'
-      - '**/Cargo.lock'
       - '**/Dockerfile*'
       - 'deploy/docker/**'
       - '.github/workflows/security-audit.yml'
@@ -31,8 +29,6 @@ on:
     paths:
       - 'package.json'
       - 'bun.lockb'
-      - '**/Cargo.toml'
-      - '**/Cargo.lock'
       - '**/Dockerfile*'
       - 'deploy/docker/**'
   workflow_dispatch:
@@ -69,31 +65,8 @@ jobs:
         run: bun audit || true
         continue-on-error: true
 
-  # ─── Rust Dependency Audit ─────────────────────────────────
-  rust-audit:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # stable
-        with:
-          toolchain: stable
-
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
-
-      - name: Audit Rust dependencies (packages/crypto)
-        working-directory: packages/crypto
-        run: cargo audit
-
-      - name: Audit Rust dependencies (apps/desktop)
-        working-directory: apps/desktop
-        run: cargo audit
-        continue-on-error: true  # May fail if desktop Cargo.lock is not committed
+  # NOTE: Rust dependency audit (cargo-audit) disabled until packages/crypto or apps/desktop exist.
+  # Re-enable when Rust crates are added to the repo.
 
   # ─── Dockerfile Security Scanning ──────────────────────────
   dockerfile-scan:
