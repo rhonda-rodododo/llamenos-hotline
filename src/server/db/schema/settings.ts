@@ -58,13 +58,13 @@ export const customFieldDefinitions = pgTable('custom_field_definitions', {
 
 export const telephonyConfig = pgTable('telephony_config', {
   hubId: text('hub_id').primaryKey().default('global'),
-  config: jsonb<Record<string, unknown>>()('config').notNull().default({}),
+  config: text('config').notNull().default(''),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const messagingConfig = pgTable('messaging_config', {
   hubId: text('hub_id').primaryKey().default('global'),
-  config: jsonb<Record<string, unknown>>()('config').notNull().default({}),
+  config: text('config').notNull().default(''),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
