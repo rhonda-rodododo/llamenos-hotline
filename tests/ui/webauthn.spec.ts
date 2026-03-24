@@ -17,8 +17,8 @@
  *   - CDP session fails to set up virtual authenticator
  */
 
-import { test, expect, type Page, type CDPSession } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, resetTestState, ADMIN_NSEC, TEST_PIN } from '../helpers'
+import { type CDPSession, type Page, expect, test } from '@playwright/test'
+import { ADMIN_NSEC, TEST_PIN, loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 import { preloadEncryptedKey } from '../helpers/crypto'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -219,7 +219,10 @@ test.describe('Passkey authentication', () => {
 
     const passkeyBtn = page.getByTestId('passkey-login-btn')
     if (!(await passkeyBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-      test.skip(true, 'Passkey login button not visible — WebAuthn may not be available in test env')
+      test.skip(
+        true,
+        'Passkey login button not visible — WebAuthn may not be available in test env'
+      )
       await teardownVirtualAuthenticator(auth.cdp, auth.authenticatorId)
       return
     }
@@ -312,7 +315,9 @@ test.describe('Credential management', () => {
     const rowsBefore = await page.getByTestId('passkey-credential-row').count()
 
     // Delete the credential
-    const targetRow = page.getByTestId('passkey-credential-row').filter({ hasText: 'To Be Deleted' })
+    const targetRow = page
+      .getByTestId('passkey-credential-row')
+      .filter({ hasText: 'To Be Deleted' })
     const deleteBtn = targetRow.getByTestId('passkey-delete-btn')
     await deleteBtn.click()
 
@@ -331,7 +336,10 @@ test.describe('Credential management', () => {
     await navigateAfterLogin(page, '/settings')
 
     const webauthnSupported = await page.evaluate(
-      () => typeof window !== 'undefined' && 'credentials' in navigator && 'PublicKeyCredential' in window
+      () =>
+        typeof window !== 'undefined' &&
+        'credentials' in navigator &&
+        'PublicKeyCredential' in window
     )
 
     const passkeySection = page.locator('#passkeys')

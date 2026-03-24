@@ -11,7 +11,7 @@
  *   4. Navigating to /notes/:noteId renders the note detail page
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 test.describe('Call Detail Page', () => {
@@ -76,7 +76,7 @@ test.describe('Call Detail Page', () => {
       const headers: Record<string, string> = {}
       if (km?.isUnlocked()) {
         const token = km.createAuthToken(Date.now(), 'GET', '/api/notes')
-        headers['Authorization'] = `Bearer ${token}`
+        headers.Authorization = `Bearer ${token}`
       }
       const res = await fetch('/api/notes?page=1&limit=1', { headers })
       if (!res.ok) return null
@@ -119,7 +119,7 @@ test.describe('Call Detail Page', () => {
       const headers: Record<string, string> = {}
       if (km?.isUnlocked()) {
         const token = km.createAuthToken(Date.now(), 'GET', '/api/notes')
-        headers['Authorization'] = `Bearer ${token}`
+        headers.Authorization = `Bearer ${token}`
       }
       const res = await fetch('/api/notes?page=1&limit=1', { headers })
       if (!res.ok) return null
@@ -165,9 +165,7 @@ test.describe('Settings Profile Section', () => {
     page,
   }) => {
     await page.getByRole('link', { name: 'Settings', exact: true }).click()
-    await expect(
-      page.getByRole('heading', { name: 'Account Settings', exact: true })
-    ).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
 
     // Profile section should be visible and expanded by default
     await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible()

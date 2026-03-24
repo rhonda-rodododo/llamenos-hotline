@@ -14,8 +14,8 @@
  *   - Telephony is not configured (USE_TEST_ADAPTER=true expected)
  */
 
+import { expect, test } from '@playwright/test'
 import WebSocket from 'ws'
-import { test, expect } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 const RELAY_URL = process.env.NOSTR_RELAY_URL || 'ws://localhost:7778'
@@ -129,7 +129,7 @@ test.describe('Call ring Nostr events', () => {
           const method = (options.method || 'GET').toUpperCase()
           const path = new URL(url, location.origin).pathname
           const token = km.createAuthToken(Date.now(), method, path)
-          headers['Authorization'] = `Bearer ${token}`
+          headers.Authorization = `Bearer ${token}`
         }
         return fetch(url, { ...options, headers })
       }
@@ -142,7 +142,7 @@ test.describe('Call ring Nostr events', () => {
     })
     if (adminPubkey) {
       await page.evaluate(async (pubkey: string) => {
-        await window.__authedFetch!('/api/settings/fallback-group', {
+        await window.__authedFetch?.('/api/settings/fallback-group', {
           method: 'PUT',
           body: JSON.stringify({ pubkeys: [pubkey] }),
         })
@@ -261,7 +261,10 @@ test.describe('Call ring Nostr events', () => {
 
     const ringEvent = collectedEvents.find((e) => e.kind === KIND_CALL_RING)
     if (!ringEvent) {
-      test.skip(true, 'No relay event received — relay may not be configured with SERVER_NOSTR_SECRET')
+      test.skip(
+        true,
+        'No relay event received — relay may not be configured with SERVER_NOSTR_SECRET'
+      )
       return
     }
 
@@ -336,8 +339,8 @@ test.describe('Call ring Nostr events', () => {
     }
 
     const tagMap = Object.fromEntries(ringEvent.tags.map((t) => [t[0], t[1]]))
-    expect(tagMap['t'], 'Expected "llamenos:event" tag').toBe('llamenos:event')
-    expect(tagMap['d'], 'Expected hub ID "global" in d tag').toBe('global')
+    expect(tagMap.t, 'Expected "llamenos:event" tag').toBe('llamenos:event')
+    expect(tagMap.d, 'Expected hub ID "global" in d tag').toBe('global')
   })
 
   test('call ring event decrypts correctly with SERVER_NOSTR_SECRET', async ({ request }) => {
@@ -409,7 +412,9 @@ test.describe('Call ring Nostr events', () => {
     expect(decrypted?.callSid, 'Decrypted event must contain the callSid').toBe(callSid)
   })
 
-  test('unauthenticated subscriber cannot determine event type from content', async ({ request }) => {
+  test('unauthenticated subscriber cannot determine event type from content', async ({
+    request,
+  }) => {
     if (!relayAvailable) {
       test.skip(true, 'Nostr relay not running')
       return
@@ -498,7 +503,7 @@ test.describe('REST polling fallback when relay unreachable', () => {
           const method = (options.method || 'GET').toUpperCase()
           const path = new URL(url, location.origin).pathname
           const token = km.createAuthToken(Date.now(), method, path)
-          headers['Authorization'] = `Bearer ${token}`
+          headers.Authorization = `Bearer ${token}`
         }
         return fetch(url, { ...options, headers })
       }
@@ -519,7 +524,7 @@ test.describe('REST polling fallback when relay unreachable', () => {
     })
     if (adminPubkey) {
       await page.evaluate(async (pubkey: string) => {
-        await window.__authedFetch!('/api/settings/fallback-group', {
+        await window.__authedFetch?.('/api/settings/fallback-group', {
           method: 'PUT',
           body: JSON.stringify({ pubkeys: [pubkey] }),
         })
@@ -556,7 +561,7 @@ test.describe('REST polling fallback when relay unreachable', () => {
     while (!callFound && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 1000))
       callFound = await page.evaluate(async (sid: string) => {
-        const res = await window.__authedFetch!('/api/calls/active')
+        const res = await window.__authedFetch?.('/api/calls/active')
         const data = (await res.json()) as { calls?: Array<{ id: string }> }
         return (data.calls ?? []).some((c) => c.id === sid)
       }, callSid)

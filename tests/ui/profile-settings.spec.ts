@@ -1,5 +1,15 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, completeProfileSetup, resetTestState, uniquePhone, enterPin, TEST_PIN, navigateAfterLogin } from '../helpers'
+import { expect, test } from '@playwright/test'
+import {
+  TEST_PIN,
+  completeProfileSetup,
+  createVolunteerAndGetNsec,
+  enterPin,
+  loginAsAdmin,
+  loginAsVolunteer,
+  navigateAfterLogin,
+  resetTestState,
+  uniquePhone,
+} from '../helpers'
 
 test.describe('Profile self-service', () => {
   let volunteerNsec: string

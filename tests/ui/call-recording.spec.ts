@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin } from '../helpers'
 
 test.describe('Call Recording Playback', () => {
@@ -6,7 +6,9 @@ test.describe('Call Recording Playback', () => {
     await loginAsAdmin(page)
   })
 
-  test('call history page renders recording badge and player for calls with recordings', async ({ page }) => {
+  test('call history page renders recording badge and player for calls with recordings', async ({
+    page,
+  }) => {
     await navigateAfterLogin(page, '/calls')
     await expect(page.getByRole('heading', { name: 'Call History' })).toBeVisible()
 

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { TEST_PIN, enterPin, loginAsAdmin, resetTestState } from '../helpers'
 
 test.describe('Auth guards', () => {
@@ -40,7 +40,9 @@ test.describe('Auth guards', () => {
     await enterPin(page, TEST_PIN)
 
     // Should be back on the Dashboard
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 30000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 30000,
+    })
   })
 
   test('logout clears session', async ({ page }) => {

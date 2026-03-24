@@ -1,5 +1,12 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, completeProfileSetup, resetTestState, uniquePhone } from '../helpers'
+import { expect, test } from '@playwright/test'
+import {
+  completeProfileSetup,
+  createVolunteerAndGetNsec,
+  loginAsAdmin,
+  loginAsVolunteer,
+  resetTestState,
+  uniquePhone,
+} from '../helpers'
 
 test.describe('Volunteer flow', () => {
   let volunteerNsec: string

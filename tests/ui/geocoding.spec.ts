@@ -1,5 +1,5 @@
-import { test, expect, type Page } from '@playwright/test'
-import { loginAsAdmin, resetTestState } from '../helpers'
+import { type Page, expect, test } from '@playwright/test'
+import { loginAsAdmin } from '../helpers'
 
 /** Navigate to admin settings and expand geocoding section */
 async function expandGeocoding(page: Page) {

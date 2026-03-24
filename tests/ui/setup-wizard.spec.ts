@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, resetTestState, uniquePhone, navigateAfterLogin } from '../helpers'
+import { expect, test } from '@playwright/test'
+import { loginAsAdmin, navigateAfterLogin, resetTestState, uniquePhone } from '../helpers'
 
 test.describe('Setup Wizard', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -16,7 +16,7 @@ test.describe('Setup Wizard', () => {
   // --- Helper: fill out step 1 (Identity) with defaults ---
   async function fillIdentityStep(
     page: import('@playwright/test').Page,
-    opts: { name?: string; org?: string } = {},
+    opts: { name?: string; org?: string } = {}
   ) {
     const hotlineName = opts.name ?? `Test Hotline ${Date.now()}`
     const orgName = opts.org ?? 'Test Org'
@@ -29,7 +29,9 @@ test.describe('Setup Wizard', () => {
   async function selectChannel(page: import('@playwright/test').Page, label: string) {
     // Use getByRole('button') with exact name matching to avoid substring conflicts
     // Channel cards have role="button" with aria-pressed attribute
-    const card = page.locator(`[role="button"][aria-pressed]`).filter({ has: page.getByText(label, { exact: true }) })
+    const card = page
+      .locator(`[role="button"][aria-pressed]`)
+      .filter({ has: page.getByText(label, { exact: true }) })
     await card.click()
   }
 
@@ -107,7 +109,9 @@ test.describe('Setup Wizard', () => {
   // =====================================================================
   // Test 3: Step 2 - Channel selection validation
   // =====================================================================
-  test('step 2: channel selection validation prevents advancing without selection', async ({ page }) => {
+  test('step 2: channel selection validation prevents advancing without selection', async ({
+    page,
+  }) => {
     await goToSetup(page)
 
     // Complete step 1
@@ -151,14 +155,18 @@ test.describe('Setup Wizard', () => {
     await selectChannel(page, 'Voice Calls')
 
     // The Voice card should show as selected (aria-pressed=true)
-    const voiceCard = page.locator('[role="button"][aria-pressed]').filter({ has: page.getByText('Voice Calls', { exact: true }) })
+    const voiceCard = page
+      .locator('[role="button"][aria-pressed]')
+      .filter({ has: page.getByText('Voice Calls', { exact: true }) })
     await expect(voiceCard).toHaveAttribute('aria-pressed', 'true')
 
     // Select SMS
     await selectChannel(page, 'SMS')
 
     // The SMS card should show as selected
-    const smsCard = page.locator('[role="button"][aria-pressed]').filter({ has: page.getByText('SMS', { exact: true }) })
+    const smsCard = page
+      .locator('[role="button"][aria-pressed]')
+      .filter({ has: page.getByText('SMS', { exact: true }) })
     await expect(smsCard).toHaveAttribute('aria-pressed', 'true')
 
     // Both should remain selected
@@ -166,7 +174,9 @@ test.describe('Setup Wizard', () => {
     await expect(smsCard).toHaveAttribute('aria-pressed', 'true')
 
     // Other channels should NOT be selected
-    const whatsappCard = page.locator('[role="button"][aria-pressed]').filter({ has: page.getByText('WhatsApp', { exact: true }) })
+    const whatsappCard = page
+      .locator('[role="button"][aria-pressed]')
+      .filter({ has: page.getByText('WhatsApp', { exact: true }) })
     await expect(whatsappCard).toHaveAttribute('aria-pressed', 'false')
 
     // Next button should be enabled
@@ -456,13 +466,17 @@ test.describe('Setup Wizard', () => {
 
     // Should redirect to the dashboard at "/"
     await page.waitForURL('**/', { timeout: 15000 })
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 10000,
+    })
   })
 
   // =====================================================================
   // Test: Step 3 - Provider form shows Test Connection and Save buttons
   // =====================================================================
-  test('step 3: provider form shows test connection and save buttons for Voice', async ({ page }) => {
+  test('step 3: provider form shows test connection and save buttons for Voice', async ({
+    page,
+  }) => {
     await goToSetup(page)
 
     // Complete step 1
@@ -557,7 +571,9 @@ test.describe('Setup Wizard', () => {
   // =====================================================================
   // Test: Summary does not show navigation buttons (only Go to Dashboard)
   // =====================================================================
-  test('step 6: summary step hides Next/Back navigation, shows Go to Dashboard', async ({ page }) => {
+  test('step 6: summary step hides Next/Back navigation, shows Go to Dashboard', async ({
+    page,
+  }) => {
     await goToSetup(page)
 
     // Speed through all steps

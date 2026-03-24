@@ -56,7 +56,7 @@ notes.post('/', requirePermission('notes:create'), async (c) => {
     callId: body.callId,
     conversationId: body.conversationId,
   })
-  return c.json(note, 201)
+  return c.json({ note }, 201)
 })
 
 // --- Note Permalink (GET /notes/:noteId) ---
@@ -92,7 +92,7 @@ notes.patch('/:id', requirePermission('notes:update-own'), async (c) => {
   }
   const updated = await services.records.updateNote(id, { ...body, authorPubkey: pubkey })
   await services.records.addAuditEntry(hubId ?? 'global', 'noteEdited', pubkey, { noteId: id })
-  return c.json(updated)
+  return c.json({ note: updated })
 })
 
 // --- Note Replies (Epic 123) ---

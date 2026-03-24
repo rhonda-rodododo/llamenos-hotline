@@ -622,7 +622,26 @@
     "transcriptionEnableDesc": "Automatically transcribe your calls",
     "transcriptionManaged": "Managed by admin",
     "version": "Version",
-    "voicemail": "Voicemail"
+    "voicemail": "Voicemail",
+    "types": "types",
+    "reportTypes": {
+      "title": "Report Types",
+      "description": "Configure report categories and bind custom fields to each type.",
+      "empty": "No report types defined yet.",
+      "new": "New Report Type",
+      "name": "Name",
+      "namePlaceholder": "e.g. Crisis Report",
+      "descriptionPlaceholder": "Brief description of this report type",
+      "default": "Default",
+      "archived": "Archived",
+      "fields": "Fields",
+      "setDefault": "Set as default",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "archiveConfirm": "Archive this report type?",
+      "showArchived": "Show archived",
+      "hideArchived": "Hide archived"
+    }
   },
   "session": {
     "expiringWarning": "Your session is about to expire.",

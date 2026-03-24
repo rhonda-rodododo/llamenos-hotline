@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, TEST_PIN } from '../helpers'
+import { expect, test } from '@playwright/test'
+import { TEST_PIN, loginAsAdmin } from '../helpers'
 
 test.describe('Panic Wipe (L-9)', () => {
   test('triple-Escape wipes storage and redirects to login', async ({ page }) => {

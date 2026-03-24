@@ -311,6 +311,7 @@ export function ReportTypesSection({
             </div>
             <div className="flex items-center gap-2">
               <Switch
+                data-testid="report-type-default-switch"
                 checked={editing.isDefault}
                 onCheckedChange={(checked) =>
                   setEditing((prev) => (prev ? { ...prev, isDefault: checked } : prev))

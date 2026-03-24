@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { ADMIN_NSEC } from '../helpers'
-import { createAuthedRequestFromNsec, type AuthedRequest } from '../helpers/authed-request'
+import { type AuthedRequest, createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 /**
  * E2E tests for Provider OAuth Auto-Config (Epic 48).
@@ -44,13 +44,13 @@ test.describe('Provider OAuth Auto-Config', () => {
     const { authUrl } = await startRes.json()
     const stateMatch = authUrl.match(/state=([a-f0-9]+)/)
     expect(stateMatch).toBeTruthy()
-    const state = stateMatch![1]
+    const state = stateMatch?.[1]
 
     // Hit the callback endpoint with the valid state
     // The server-side Twilio token exchange will fail with fake code,
     // but state validation succeeds — redirect will contain error from token exchange
     const callbackRes = await adminApi.get(
-      `/api/setup/provider/oauth/callback?code=test_auth_code&state=${state}&provider=twilio`,
+      `/api/setup/provider/oauth/callback?code=test_auth_code&state=${state}&provider=twilio`
     )
 
     // The callback always redirects (302) — either success or error
@@ -65,7 +65,7 @@ test.describe('Provider OAuth Auto-Config', () => {
 
     // Try callback with a different state — should fail state validation
     const res = await adminApi.get(
-      '/api/setup/provider/oauth/callback?code=test&state=wrong_state_value_here&provider=twilio',
+      '/api/setup/provider/oauth/callback?code=test&state=wrong_state_value_here&provider=twilio'
     )
 
     // The redirect will contain error about state mismatch
@@ -236,7 +236,7 @@ test.describe('Provider OAuth Auto-Config', () => {
     const { authUrl } = await startRes.json()
     const stateMatch = authUrl.match(/state=([a-f0-9]+)/)
     expect(stateMatch).toBeTruthy()
-    const state = stateMatch![1]
+    const state = stateMatch?.[1]
 
     const res = await adminApi.get(`/api/setup/provider/oauth/status/${state}`)
     expect(res.ok()).toBeTruthy()

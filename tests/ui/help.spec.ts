@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, enterPin, resetTestState, TEST_PIN } from '../helpers'
+import { expect, test } from '@playwright/test'
+import { TEST_PIN, enterPin, loginAsAdmin, resetTestState } from '../helpers'
 
 test.describe('Help & Getting Started', () => {
   test.beforeEach(async ({ request }) => {
@@ -81,7 +81,9 @@ test.describe('Help & Getting Started', () => {
   test('help link is visible in sidebar', async ({ page }) => {
     await loginAsAdmin(page)
     // On dashboard, Help link should be in sidebar
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 10000,
+    })
 
     const helpLink = page.locator('nav').getByRole('link', { name: 'Help' })
     await expect(helpLink).toBeVisible()
@@ -94,14 +96,18 @@ test.describe('Help & Getting Started', () => {
 
   test('getting started checklist shows on dashboard', async ({ page }) => {
     await loginAsAdmin(page)
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 10000,
+    })
 
     // Clear any previous dismissal and reload to reset the checklist state
     await page.evaluate(() => localStorage.removeItem('getting-started-dismissed'))
     await page.reload()
     // Re-enter PIN after reload (in-memory key cleared)
     await enterPin(page, TEST_PIN)
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 30000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 30000,
+    })
 
     // Getting Started checklist should be visible if not all items are done.
     // If setup wizard is already completed and all items are done, the component hides itself.
@@ -111,7 +117,14 @@ test.describe('Help & Getting Started', () => {
 
     if (isVisible) {
       // At least one checklist item should be visible
-      const hasItem = await page.getByText('Complete setup wizard').or(page.getByText('Invite volunteers')).or(page.getByText('Create shift schedule')).or(page.getByText('Configure telephony')).first().isVisible().catch(() => false)
+      const hasItem = await page
+        .getByText('Complete setup wizard')
+        .or(page.getByText('Invite volunteers'))
+        .or(page.getByText('Create shift schedule'))
+        .or(page.getByText('Configure telephony'))
+        .first()
+        .isVisible()
+        .catch(() => false)
       expect(hasItem).toBeTruthy()
     } else {
       // All checklist items are done — this is acceptable, skip gracefully
@@ -121,14 +134,18 @@ test.describe('Help & Getting Started', () => {
 
   test('getting started checklist can be dismissed', async ({ page }) => {
     await loginAsAdmin(page)
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 10000,
+    })
 
     // Clear any previous dismissal and reload
     await page.evaluate(() => localStorage.removeItem('getting-started-dismissed'))
     await page.reload()
     // Re-enter PIN after reload (in-memory key cleared)
     await enterPin(page, TEST_PIN)
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 30000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 30000,
+    })
 
     // Check if checklist is visible (may auto-hide if all items done)
     const checklist = page.getByText('Getting Started')
@@ -149,11 +166,15 @@ test.describe('Help & Getting Started', () => {
 
   test('command palette includes Help command', async ({ page }) => {
     await loginAsAdmin(page)
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 10000,
+    })
 
     // Open command palette with Ctrl+K
     await page.keyboard.press('Control+k')
-    await expect(page.getByPlaceholder('Type a command or search...')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByPlaceholder('Type a command or search...')).toBeVisible({
+      timeout: 5000,
+    })
 
     // Type "help" to search
     await page.getByPlaceholder('Type a command or search...').fill('help')

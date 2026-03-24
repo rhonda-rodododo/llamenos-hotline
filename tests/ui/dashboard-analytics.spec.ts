@@ -1,9 +1,9 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import {
+  completeProfileSetup,
+  createVolunteerAndGetNsec,
   loginAsAdmin,
   loginAsVolunteer,
-  createVolunteerAndGetNsec,
-  completeProfileSetup,
   resetTestState,
   uniquePhone,
 } from '../helpers'

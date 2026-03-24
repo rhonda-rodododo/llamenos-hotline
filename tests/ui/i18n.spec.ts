@@ -11,11 +11,25 @@
  * Tests load expected strings dynamically from locale JSON files.
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin } from '../helpers'
 
 // All 13 supported locales
-const ALL_LOCALES = ['en', 'es', 'zh', 'tl', 'vi', 'ar', 'fr', 'ht', 'ko', 'ru', 'hi', 'pt', 'de'] as const
+const ALL_LOCALES = [
+  'en',
+  'es',
+  'zh',
+  'tl',
+  'vi',
+  'ar',
+  'fr',
+  'ht',
+  'ko',
+  'ru',
+  'hi',
+  'pt',
+  'de',
+] as const
 type Locale = (typeof ALL_LOCALES)[number]
 
 // Native names for the language selector display
@@ -84,7 +98,9 @@ test.describe('Locale rendering', () => {
   const PRIORITY_LOCALES: Locale[] = ['es', 'ar', 'zh', 'ko', 'de']
 
   for (const locale of PRIORITY_LOCALES) {
-    test(`locale ${locale} (${LOCALE_NATIVE_NAMES[locale]}) renders dashboard in correct language`, async ({ page }) => {
+    test(`locale ${locale} (${LOCALE_NATIVE_NAMES[locale]}) renders dashboard in correct language`, async ({
+      page,
+    }) => {
       const i18nErrors: string[] = []
       page.on('console', (msg) => {
         const text = msg.text()
@@ -100,9 +116,11 @@ test.describe('Locale rendering', () => {
       const selector = page.getByRole('combobox', { name: /switch to|language/i })
       await expect(selector).toBeVisible({ timeout: 10_000 })
       await selector.click()
-      await page.getByRole('option', {
-        name: new RegExp(LOCALE_NATIVE_NAMES[locale], 'i'),
-      }).click()
+      await page
+        .getByRole('option', {
+          name: new RegExp(LOCALE_NATIVE_NAMES[locale], 'i'),
+        })
+        .click()
 
       // Wait for re-render
       await page.waitForTimeout(500)

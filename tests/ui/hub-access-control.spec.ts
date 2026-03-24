@@ -7,9 +7,9 @@
  *   - Hub admins can disable super admin access after enabling
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { ADMIN_NSEC, Timeouts, loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
-import { ADMIN_NSEC, loginAsAdmin, resetTestState, navigateAfterLogin, Timeouts } from '../helpers'
 
 test.describe('Hub access control UI', () => {
   test.describe.configure({ mode: 'serial' })

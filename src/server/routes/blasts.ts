@@ -87,7 +87,7 @@ blasts.post('/', async (c) => {
     content: body.content,
     status: body.status,
   })
-  return c.json(blast, 201)
+  return c.json({ blast }, 201)
 })
 
 blasts.get('/:id', async (c) => {

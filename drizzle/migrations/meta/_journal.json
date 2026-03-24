@@ -78,6 +78,13 @@
       "when": 1742947200003,
       "tag": "0010_oauth_state",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1742947200004,
+      "tag": "0011_geocoding_config_columns",
+      "breakpoints": true
     }
   ]
 }

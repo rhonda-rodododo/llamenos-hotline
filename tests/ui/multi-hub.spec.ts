@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { ADMIN_NSEC, loginAsAdmin, resetTestState } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
-import { loginAsAdmin, ADMIN_NSEC, resetTestState } from '../helpers'
 
 test.describe('Multi-hub architecture — UI', () => {
   test.describe.configure({ mode: 'serial' })
@@ -62,7 +62,10 @@ test.describe('Multi-hub architecture — UI', () => {
     await expect(page.getByRole('dialog')).toContainText(hubName)
 
     // Confirm the archive action (click the destructive Archive Hub button in dialog)
-    await page.getByRole('button', { name: /archive hub/i }).last().click()
+    await page
+      .getByRole('button', { name: /archive hub/i })
+      .last()
+      .click()
 
     // Dialog should close and hub should no longer appear in the active list
     await expect(page.getByRole('dialog')).not.toBeVisible()
@@ -136,7 +139,9 @@ test.describe('Multi-hub architecture — UI', () => {
 
     // Dialog closes and hub is removed from list
     await expect(page.getByRole('dialog')).not.toBeVisible()
-    await expect(page.locator('[data-testid="hub-row"]').filter({ hasText: hubName })).not.toBeVisible()
+    await expect(
+      page.locator('[data-testid="hub-row"]').filter({ hasText: hubName })
+    ).not.toBeVisible()
 
     // Verify hub is gone via API
     const getRes = await authedApi.get(`/api/hubs/${hubId}`)

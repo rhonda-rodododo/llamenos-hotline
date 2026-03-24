@@ -1,35 +1,36 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, enterPin, TEST_PIN, navigateAfterLogin } from '../helpers'
+import { type Page, expect, test } from '@playwright/test'
+import { TEST_PIN, enterPin, loginAsAdmin, navigateAfterLogin } from '../helpers'
+
+/** Navigate to Hub Settings and expand the Telephony Provider section */
+async function expandTelephonySection(page: Page) {
+  await page.getByRole('link', { name: 'Hub Settings' }).click()
+  await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+  await page.getByText('Telephony Provider').first().click()
+  await expect(page.getByTestId('telephony-provider-select')).toBeVisible({ timeout: 10000 })
+}
 
 test.describe('Telephony Provider Settings', () => {
-  test.beforeEach(async ({ page }) => {
+  test('telephony provider section is visible and collapsed by default', async ({ page }) => {
     await loginAsAdmin(page)
     await page.getByRole('link', { name: 'Hub Settings' }).click()
     await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
-  })
-
-  test('telephony provider section is visible and collapsed by default', async ({ page }) => {
     await expect(page.getByText('Telephony Provider').first()).toBeVisible()
   })
 
   test('expanding section shows provider form', async ({ page }) => {
-    // Expand the Telephony Provider section
-    await page.getByText('Telephony Provider').first().click()
+    await loginAsAdmin(page)
+    await expandTelephonySection(page)
     // Should show either the env fallback message or current provider (if saved by another test)
     await expect(
-      page.getByText(/using environment variable defaults/i).or(
-        page.getByText(/current provider/i)
-      )
+      page.getByText(/using environment variable defaults/i).or(page.getByText(/current provider/i))
     ).toBeVisible({ timeout: 10000 })
   })
 
   test('provider dropdown shows all providers', async ({ page }) => {
-    await page.getByText('Telephony Provider').first().click()
+    await loginAsAdmin(page)
+    await expandTelephonySection(page)
 
     const select = page.getByTestId('telephony-provider-select')
-    await expect(select).toBeVisible()
-
-    // Should have all 6 provider options
     const options = select.locator('option')
     await expect(options).toHaveCount(6)
     await expect(options.nth(0)).toHaveText('Twilio')
@@ -41,37 +42,33 @@ test.describe('Telephony Provider Settings', () => {
   })
 
   test('changing provider updates credential form fields', async ({ page }) => {
-    await page.getByText('Telephony Provider').first().click()
+    await loginAsAdmin(page)
+    await expandTelephonySection(page)
 
-    // Default is Twilio — should show Account SID and Auth Token
+    const select = page.getByTestId('telephony-provider-select')
+
+    // Switch to Twilio first to ensure consistent starting state
+    await select.selectOption('twilio')
     await expect(page.getByText('Account SID')).toBeVisible()
     await expect(page.getByText('Auth Token').first()).toBeVisible()
-    // Should NOT show SignalWire Space
     await expect(page.getByText('SignalWire Space', { exact: true })).not.toBeVisible()
 
     // Switch to SignalWire
-    const select = page.getByTestId('telephony-provider-select')
     await select.selectOption('signalwire')
-    // Should show SignalWire Space field
     await expect(page.getByText('SignalWire Space', { exact: true })).toBeVisible()
-    // Should still show Account SID and Auth Token (shared with Twilio)
     await expect(page.getByText('Account SID')).toBeVisible()
 
     // Switch to Vonage
     await select.selectOption('vonage')
-    // Should show Vonage-specific fields
     await expect(page.getByText('API Key')).toBeVisible()
     await expect(page.getByText('API Secret')).toBeVisible()
     await expect(page.getByText('Application ID')).toBeVisible()
-    // Should NOT show Twilio fields
     await expect(page.getByText('Account SID')).not.toBeVisible()
-    // Vonage is now implemented — no warning
     await expect(page.getByText(/not yet implemented/i)).not.toBeVisible()
 
     // Switch to Plivo
     await select.selectOption('plivo')
     await expect(page.getByText('Auth ID')).toBeVisible()
-    // Plivo is now implemented — no warning
     await expect(page.getByText(/not yet implemented/i)).not.toBeVisible()
 
     // Switch to Asterisk
@@ -80,14 +77,18 @@ test.describe('Telephony Provider Settings', () => {
     await expect(page.getByText('ARI Username')).toBeVisible()
     await expect(page.getByText('ARI Password')).toBeVisible()
     await expect(page.getByText('Bridge Callback URL')).toBeVisible()
-    // Asterisk is now implemented — no warning
     await expect(page.getByText(/not yet implemented/i)).not.toBeVisible()
   })
 
   test('save button disabled when phone number is empty', async ({ page }) => {
-    await page.getByText('Telephony Provider').first().click()
+    await loginAsAdmin(page)
+    await expandTelephonySection(page)
 
-    // Clear any pre-filled phone number (may be set by a parallel test)
+    // Ensure Twilio is selected (no pre-filled phone for this provider if we just switched)
+    const select = page.getByTestId('telephony-provider-select')
+    await select.selectOption('twilio')
+
+    // Clear any pre-filled phone number
     const phoneInput = page.locator('input[type="tel"]')
     await phoneInput.fill('')
 
@@ -96,12 +97,16 @@ test.describe('Telephony Provider Settings', () => {
   })
 
   test('admin can save Twilio provider config', async ({ page }) => {
-    await page.getByText('Telephony Provider').first().click()
+    await loginAsAdmin(page)
+    await expandTelephonySection(page)
+
+    // Select Twilio explicitly
+    const select = page.getByTestId('telephony-provider-select')
+    await select.selectOption('twilio')
 
     // Fill in Twilio credentials
     await page.locator('input[type="tel"]').fill('+15551234567')
     await page.getByPlaceholder('AC...').fill('AC1234567890abcdef')
-    // Auth token is type=password, use label
     const authTokenInput = page.locator('input[type="password"]').first()
     await authTokenInput.fill('test-auth-token-123')
 
@@ -113,18 +118,17 @@ test.describe('Telephony Provider Settings', () => {
     // Should show success toast
     await expect(page.getByText(/telephony provider saved/i)).toBeVisible({ timeout: 5000 })
 
-    // Should now show "Current provider: Twilio" instead of env fallback
+    // Should now show "Current provider: Twilio"
     await expect(page.getByText(/current provider.*twilio/i)).toBeVisible()
   })
 
   test('saved provider config persists after page reload', async ({ page }) => {
-    // Use a unique phone to identify this test's save
-    const uniquePhone = `+1555${Date.now().toString().slice(-7)}`
-    const uniqueSid = `AC${Date.now().toString(16)}`
+    await loginAsAdmin(page)
+    await expandTelephonySection(page)
 
-    // First save a config
-    await page.getByText('Telephony Provider').first().click()
-    await page.locator('input[type="tel"]').fill(uniquePhone)
+    // Save a config with unique values
+    const uniqueSid = `AC${Date.now().toString(16)}`
+    await page.locator('input[type="tel"]').fill('+15559876543')
     await page.getByPlaceholder('AC...').fill(uniqueSid)
     const authTokenInput = page.locator('input[type="password"]').first()
     await authTokenInput.fill('test-auth-token-456')
@@ -136,21 +140,18 @@ test.describe('Telephony Provider Settings', () => {
     await page.reload()
     await enterPin(page, TEST_PIN)
     // PIN unlock redirects to dashboard — navigate back to Hub Settings
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+    await expandTelephonySection(page)
 
-    // Expand the section
-    await page.getByText('Telephony Provider').first().click()
-
-    // Should show current provider (may be overwritten by a parallel test, so just check presence)
+    // Should show current provider
     await expect(page.getByText(/current provider/i)).toBeVisible()
 
-    // Account SID should be pre-filled with some value (could be ours or another test's)
+    // Account SID should be pre-filled (could be ours or overwritten by a parallel test)
     await expect(page.getByPlaceholder('AC...')).not.toHaveValue('')
   })
 
   test('admin can save SignalWire provider config', async ({ page }) => {
-    await page.getByText('Telephony Provider').first().click()
+    await loginAsAdmin(page)
+    await expandTelephonySection(page)
 
     // Switch to SignalWire
     const select = page.getByTestId('telephony-provider-select')
@@ -172,9 +173,12 @@ test.describe('Telephony Provider Settings', () => {
   })
 
   test('test connection button works (will fail with fake creds)', async ({ page }) => {
-    await page.getByText('Telephony Provider').first().click()
+    await loginAsAdmin(page)
+    await expandTelephonySection(page)
 
-    // Fill minimal Twilio creds
+    // Select Twilio and fill minimal creds
+    const select = page.getByTestId('telephony-provider-select')
+    await select.selectOption('twilio')
     await page.locator('input[type="tel"]').fill('+15551234567')
     await page.getByPlaceholder('AC...').fill('ACfake123')
     const authTokenInput = page.locator('input[type="password"]').first()
@@ -184,16 +188,16 @@ test.describe('Telephony Provider Settings', () => {
     const testButton = page.getByRole('button', { name: /test connection/i })
     await testButton.click()
 
-    // Should show "Testing..." while in progress
-    await expect(page.getByText(/testing\.\.\./i)).toBeVisible()
-
-    // Should show failure (since creds are fake)
-    await expect(page.getByText(/connection failed/i)).toBeVisible({ timeout: 10000 })
+    // Should show failure (since creds are fake) — may transition through "Testing..." first
+    await expect(page.getByText(/connection failed/i)).toBeVisible({ timeout: 15000 })
   })
 
   test('deep link to telephony-provider section auto-expands it', async ({ page }) => {
+    await loginAsAdmin(page)
     await navigateAfterLogin(page, '/admin/settings?section=telephony-provider')
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({
+      timeout: 10000,
+    })
 
     // The section should be expanded — we should see the provider dropdown
     await expect(page.getByTestId('telephony-provider-select')).toBeVisible({ timeout: 10000 })

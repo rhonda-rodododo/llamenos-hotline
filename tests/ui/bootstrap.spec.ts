@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, resetTestState, enterPin } from '../helpers'
+import { expect, test } from '@playwright/test'
+import { enterPin, loginAsAdmin, resetTestState } from '../helpers'
 
 // Tests depend on each other's server-side state (bootstrap creates admin for later tests)
 test.describe.configure({ mode: 'serial' })
@@ -28,12 +28,16 @@ test.describe('In-Browser Admin Bootstrap', () => {
 
     // Navigate to root — should eventually redirect to /setup
     await page.goto('/')
-    await page.waitForURL(url => url.pathname === '/setup' || url.pathname === '/login', { timeout: 15000 })
+    await page.waitForURL((url) => url.pathname === '/setup' || url.pathname === '/login', {
+      timeout: 15000,
+    })
 
     // If we ended up on /login, the login page should show "go to setup" message
     if (page.url().includes('/login')) {
       // Bootstrap redirect on login page works — verify the message is shown
-      await expect(page.getByText('No admin account configured yet')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByText('No admin account configured yet')).toBeVisible({
+        timeout: 10000,
+      })
       // Click through to setup
       await page.getByRole('link', { name: /go to setup/i }).click()
       await page.waitForURL('**/setup', { timeout: 10000 })
@@ -75,7 +79,10 @@ test.describe('In-Browser Admin Bootstrap', () => {
   // =====================================================================
   // Test 3: Full bootstrap flow — generate keypair, set PIN, backup, verify
   // =====================================================================
-  test('complete bootstrap flow creates admin and advances to wizard', async ({ page, request }) => {
+  test('complete bootstrap flow creates admin and advances to wizard', async ({
+    page,
+    request,
+  }) => {
     // Fresh state
     await request.post('/api/test-reset-no-admin', {
       headers: { 'X-Test-Secret': process.env.DEV_RESET_SECRET || 'test-reset-secret' },
@@ -120,7 +127,7 @@ test.describe('In-Browser Admin Bootstrap', () => {
     // Recovery key should be shown
     const recoveryKey = await page.locator('[data-testid="recovery-key"]').textContent()
     expect(recoveryKey).toBeTruthy()
-    expect(recoveryKey!.includes('-')).toBeTruthy()
+    expect(recoveryKey?.includes('-')).toBeTruthy()
 
     // Download backup
     const downloadPromise = page.waitForEvent('download')
@@ -148,7 +155,9 @@ test.describe('In-Browser Admin Bootstrap', () => {
     // --- Hard refresh: should prompt for PIN re-entry ---
     await page.reload()
     // Key is stored in localStorage but locked after reload (in-memory closure cleared)
-    await expect(page.getByRole('heading', { name: 'Enter your PIN' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Enter your PIN' })).toBeVisible({
+      timeout: 10000,
+    })
 
     // Enter the correct PIN (123456)
     for (let i = 0; i < 6; i++) {
@@ -176,7 +185,9 @@ test.describe('In-Browser Admin Bootstrap', () => {
     await page.reload()
 
     // Should NOT show the bootstrap redirect — admin now exists
-    await expect(page.getByText('No admin account configured yet')).not.toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('No admin account configured yet')).not.toBeVisible({
+      timeout: 5000,
+    })
 
     // Should show the normal login page (recovery/nsec entry)
     await expect(page.getByText(/sign in to/i)).toBeVisible({ timeout: 5000 })

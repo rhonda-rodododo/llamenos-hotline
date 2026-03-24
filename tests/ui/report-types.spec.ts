@@ -18,16 +18,24 @@ async function expandReportTypes(page: Page) {
 /** Navigate to Reports page */
 async function navigateToReports(page: Page) {
   await page.getByRole('link', { name: 'Reports' }).click()
-  await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({ timeout: 10000 })
+  await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({
+    timeout: 10000,
+  })
 }
 
 /** Create a report type via the UI. Returns after success toast is visible. */
-async function createReportType(page: Page, name: string, description: string, setAsDefault = true) {
+async function createReportType(
+  page: Page,
+  name: string,
+  description: string,
+  setAsDefault = true
+) {
   await page.getByTestId('add-report-type-btn').click()
   await page.getByTestId('report-type-name-input').fill(name)
   await page.getByTestId('report-type-description-input').fill(description)
 
-  const defaultSwitch = page.getByRole('switch')
+  const defaultSwitch = page.getByTestId('report-type-default-switch')
+  await expect(defaultSwitch).toBeVisible({ timeout: 5000 })
   const isChecked = await defaultSwitch.isChecked()
   if (setAsDefault && !isChecked) {
     await defaultSwitch.click()
@@ -67,12 +75,12 @@ test.describe('Report Types System', () => {
   test('created report type shows default badge', async ({ page }) => {
     await expandReportTypes(page)
 
-    const typeName = `Default Type ${Date.now()}`
-    await createReportType(page, typeName, 'Default type test', true)
+    const typeName = `Badge Test ${Date.now()}`
+    await createReportType(page, typeName, 'Badge visibility test', true)
 
     const typeRow = page.getByTestId('report-type-row').filter({ hasText: typeName })
     await expect(typeRow).toBeVisible()
-    await expect(typeRow.getByText('Default')).toBeVisible()
+    await expect(typeRow.getByText('Default', { exact: true })).toBeVisible()
   })
 
   test('admin can create a second report type without default', async ({ page }) => {
@@ -106,11 +114,11 @@ test.describe('Report Types System', () => {
     await supportRow.getByTestId('set-default-btn').click()
 
     // Support should now have Default badge
-    await expect(supportRow.getByText('Default')).toBeVisible({ timeout: 5000 })
+    await expect(supportRow.getByText('Default', { exact: true })).toBeVisible({ timeout: 5000 })
 
     // Crisis should no longer have Default badge
     const crisisRow = page.getByTestId('report-type-row').filter({ hasText: firstName })
-    await expect(crisisRow.getByText('Default')).not.toBeVisible()
+    await expect(crisisRow.getByText('Default', { exact: true })).not.toBeVisible()
   })
 
   test('admin can archive a report type', async ({ page }) => {
@@ -169,7 +177,9 @@ test.describe('Report Types System', () => {
 
     // Open new report form
     await page.getByRole('button', { name: /new/i }).click()
-    await expect(page.getByPlaceholder('Brief description of the report')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByPlaceholder('Brief description of the report')).toBeVisible({
+      timeout: 5000,
+    })
 
     // Report type dropdown should be visible
     await expect(page.getByTestId('report-type-select')).toBeVisible()

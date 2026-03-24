@@ -1,38 +1,55 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, completeProfileSetup, resetTestState, uniquePhone } from '../helpers'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { expect, test } from '@playwright/test'
+import {
+  completeProfileSetup,
+  createVolunteerAndGetNsec,
+  loginAsAdmin,
+  loginAsVolunteer,
+  resetTestState,
+  uniquePhone,
+} from '../helpers'
 import { ADMIN_NSEC } from '../helpers'
+import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 /**
  * Helper to make authenticated API calls from the browser context.
  * Used only for test setup (creating/assigning roles) within UI test beforeAll hooks.
  */
-async function apiCall(page: import('@playwright/test').Page, method: string, path: string, body?: unknown) {
-  return page.evaluate(async ({ method, path, body }) => {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+async function apiCall(
+  page: import('@playwright/test').Page,
+  method: string,
+  path: string,
+  body?: unknown
+) {
+  return page.evaluate(
+    async ({ method, path, body }) => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
 
-    // Try session token first (WebAuthn sessions)
-    const sessionToken = sessionStorage.getItem('llamenos-session-token')
-    if (sessionToken) {
-      headers['Authorization'] = `Session ${sessionToken}`
-    } else {
-      // Use the test key manager exposed by main.tsx
-      const km = (window as any).__TEST_KEY_MANAGER
-      if (km?.isUnlocked?.()) {
-        try {
-          const token = km.createAuthToken(Date.now(), method, `/api${path}`)
-          headers['Authorization'] = `Bearer ${token}`
-        } catch { /* key locked or unavailable */ }
+      // Try session token first (WebAuthn sessions)
+      const sessionToken = sessionStorage.getItem('llamenos-session-token')
+      if (sessionToken) {
+        headers.Authorization = `Session ${sessionToken}`
+      } else {
+        // Use the test key manager exposed by main.tsx
+        const km = (window as any).__TEST_KEY_MANAGER
+        if (km?.isUnlocked?.()) {
+          try {
+            const token = km.createAuthToken(Date.now(), method, `/api${path}`)
+            headers.Authorization = `Bearer ${token}`
+          } catch {
+            /* key locked or unavailable */
+          }
+        }
       }
-    }
 
-    const res = await fetch(`/api${path}`, {
-      method,
-      headers,
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    })
-    return { status: res.status, body: await res.json().catch(() => null) }
-  }, { method, path, body })
+      const res = await fetch(`/api${path}`, {
+        method,
+        headers,
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      })
+      return { status: res.status, body: await res.json().catch(() => null) }
+    },
+    { method, path, body }
+  )
 }
 
 // --- Role-based UI navigation ---
@@ -47,7 +64,9 @@ test.describe('Role-based UI visibility', () => {
     await loginAsAdmin(page)
     reporterNsec = await createVolunteerAndGetNsec(page, 'UI Reporter', uniquePhone())
     const listResult = await apiCall(page, 'GET', '/volunteers')
-    const reporter = listResult.body.volunteers.find((v: { name: string }) => v.name === 'UI Reporter')
+    const reporter = listResult.body.volunteers.find(
+      (v: { name: string }) => v.name === 'UI Reporter'
+    )
     await apiCall(page, 'PATCH', `/volunteers/${reporter.pubkey}`, {
       roles: ['role-reporter'],
     })
@@ -132,7 +151,9 @@ test.describe('Role Assignment UI', () => {
     await page.getByRole('option', { name: 'Hub Admin' }).click()
 
     // Verify the badge now shows Hub Admin
-    await expect(volRow.locator('[data-slot="badge"]').filter({ hasText: 'Hub Admin' })).toBeVisible()
+    await expect(
+      volRow.locator('[data-slot="badge"]').filter({ hasText: 'Hub Admin' })
+    ).toBeVisible()
   })
 
   test('Hub Admin badge displays correctly after role change', async ({ page }) => {
@@ -143,7 +164,9 @@ test.describe('Role Assignment UI', () => {
     const volRow = page.locator('.divide-y > div').filter({ has: volText })
 
     // The badge should show "Hub Admin"
-    await expect(volRow.locator('[data-slot="badge"]').filter({ hasText: 'Hub Admin' })).toBeVisible()
+    await expect(
+      volRow.locator('[data-slot="badge"]').filter({ hasText: 'Hub Admin' })
+    ).toBeVisible()
   })
 
   test('Add Volunteer form shows all available roles', async ({ page }) => {

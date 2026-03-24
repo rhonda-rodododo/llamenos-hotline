@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, resetTestState } from '../helpers'
 
 test.describe('Notes CRUD', () => {
@@ -22,7 +22,7 @@ test.describe('Notes CRUD', () => {
   test('can create a note', async ({ page }) => {
     await page.getByTestId('note-new-btn').click()
 
-    await page.locator('#call-id').fill('test-call-' + Date.now())
+    await page.locator('#call-id').fill(`test-call-${Date.now()}`)
     await page.locator('textarea').fill('Test note from E2E')
     await page.getByRole('button', { name: /save/i }).click()
 
@@ -39,7 +39,7 @@ test.describe('Notes CRUD', () => {
 
   test('notes are grouped by call', async ({ page }) => {
     // Create two notes for the same call
-    const callId = 'group-test-' + Date.now()
+    const callId = `group-test-${Date.now()}`
 
     await page.getByTestId('note-new-btn').click()
     await page.locator('#call-id').fill(callId)
@@ -61,7 +61,7 @@ test.describe('Notes CRUD', () => {
   test('can edit a note', async ({ page }) => {
     // Create a note first
     await page.getByTestId('note-new-btn').click()
-    await page.locator('#call-id').fill('edit-test-' + Date.now())
+    await page.locator('#call-id').fill(`edit-test-${Date.now()}`)
     await page.locator('textarea').fill('Original text')
     await page.getByRole('button', { name: /save/i }).click()
     await expect(page.locator('p').filter({ hasText: 'Original text' })).toBeVisible()

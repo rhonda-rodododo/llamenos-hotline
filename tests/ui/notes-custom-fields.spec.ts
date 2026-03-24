@@ -1,5 +1,5 @@
-import { test, expect, type Page } from '@playwright/test'
-import { loginAsAdmin, resetTestState } from '../helpers'
+import { type Page, expect, test } from '@playwright/test'
+import { loginAsAdmin } from '../helpers'
 
 /**
  * End-to-end: custom fields defined in admin settings → used in notes forms.
@@ -14,14 +14,19 @@ async function createCustomTextField(page: Page, label: string) {
 
   // Expand section (idempotent — won't collapse if already open via sessionStorage)
   const addFieldBtn = page.getByRole('button', { name: /add field/i })
-  if (!await addFieldBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+  if (!(await addFieldBtn.isVisible({ timeout: 1000 }).catch(() => false))) {
     await page.getByRole('heading', { name: /custom note fields/i }).click()
   }
   await expect(addFieldBtn).toBeVisible({ timeout: 10000 })
 
   // If a field with this label already exists, skip creation
   const existing = page.locator('.rounded-lg.border').filter({ hasText: label })
-  if (await existing.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (
+    await existing
+      .first()
+      .isVisible({ timeout: 2000 })
+      .catch(() => false)
+  ) {
     return
   }
 
@@ -32,12 +37,17 @@ async function createCustomTextField(page: Page, label: string) {
 }
 
 /** Create a note with a custom field value and return the note text for identification */
-async function createNoteWithCustomField(page: Page, fieldLabel: string, fieldValue: string, noteText: string) {
+async function createNoteWithCustomField(
+  page: Page,
+  fieldLabel: string,
+  fieldValue: string,
+  noteText: string
+) {
   await page.getByRole('link', { name: 'Notes' }).click()
   await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
 
   await page.getByRole('button', { name: /new note/i }).click()
-  await page.locator('#call-id').fill('cf-test-' + Date.now())
+  await page.locator('#call-id').fill(`cf-test-${Date.now()}`)
   await page.locator('textarea').first().fill(noteText)
   await page.getByLabel(fieldLabel).fill(fieldValue)
   await page.getByRole('button', { name: /save/i }).click()
@@ -155,7 +165,7 @@ test.describe('Notes Call Headers', () => {
     await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
 
     // Create a note with a known call ID
-    const callId = 'header-test-' + Date.now()
+    const callId = `header-test-${Date.now()}`
     await page.getByRole('button', { name: /new note/i }).click()
     await page.locator('#call-id').fill(callId)
     await page.locator('textarea').first().fill('Header test note')
@@ -171,7 +181,7 @@ test.describe('Notes Call Headers', () => {
     await page.getByRole('link', { name: 'Notes' }).click()
     await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
 
-    const callId = 'group-header-' + Date.now()
+    const callId = `group-header-${Date.now()}`
 
     // Create first note
     await page.getByRole('button', { name: /new note/i }).click()
@@ -199,7 +209,7 @@ test.describe('Notes Call Headers', () => {
 
     // Create a note to edit
     await page.getByRole('button', { name: /new note/i }).click()
-    await page.locator('#call-id').fill('edit-save-' + Date.now())
+    await page.locator('#call-id').fill(`edit-save-${Date.now()}`)
     await page.locator('textarea').first().fill('Original content')
     await page.getByRole('button', { name: /save/i }).click()
     await expect(page.locator('p').filter({ hasText: 'Original content' })).toBeVisible()

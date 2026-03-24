@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
+import { expect, test } from '@playwright/test'
+import { loginAsAdmin, navigateAfterLogin } from '../helpers'
 
 test.describe('Blast campaign UI', () => {
   test.beforeEach(async ({ page }) => {
@@ -8,9 +8,9 @@ test.describe('Blast campaign UI', () => {
 
   test('blasts page loads for admin', async ({ page }) => {
     await navigateAfterLogin(page, '/blasts')
-    await expect(
-      page.getByRole('heading', { name: 'Message Blasts' }),
-    ).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({
+      timeout: 10000,
+    })
   })
 
   test('create a blast via composer UI', async ({ page }) => {

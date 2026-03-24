@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, resetTestState, Timeouts } from '../helpers'
+import { expect, test } from '@playwright/test'
+import { Timeouts, loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 test.describe('RCS Channel Configuration', () => {
   test.beforeEach(async ({ request }) => {
@@ -61,7 +61,9 @@ test.describe('RCS Channel Configuration', () => {
 
     // Fill in valid config
     await page.getByTestId('rcs-agent-id').fill('brands/SAVE_TEST/agents/AGENT_001')
-    await page.getByTestId('rcs-service-key').fill('{"type": "service_account", "project_id": "save-test"}')
+    await page
+      .getByTestId('rcs-service-key')
+      .fill('{"type": "service_account", "project_id": "save-test"}')
     await page.getByTestId('rcs-webhook-secret').fill('whsec_save_test')
 
     // Save button should be enabled (agent ID is filled)
@@ -136,7 +138,9 @@ test.describe('RCS Channel Configuration', () => {
 
     const testAgentId = 'brands/PERSIST_TEST/agents/PERSIST_001'
     await page.getByTestId('rcs-agent-id').fill(testAgentId)
-    await page.getByTestId('rcs-service-key').fill('{"type": "service_account", "project_id": "persist"}')
+    await page
+      .getByTestId('rcs-service-key')
+      .fill('{"type": "service_account", "project_id": "persist"}')
 
     // Save
     const saveButton = rcsSection.getByRole('button', { name: /save/i })

@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, enterPin, resetTestState, TEST_PIN } from '../helpers'
+import { expect, test } from '@playwright/test'
+import { TEST_PIN, enterPin, loginAsAdmin, resetTestState } from '../helpers'
 
 test.describe('Theme', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -86,7 +86,7 @@ test.describe('Theme', () => {
 
     // Navigate back to Dashboard
     await page.getByRole('link', { name: 'Dashboard' }).click()
-    await page.waitForURL(u => u.pathname === '/' || u.pathname === '/index')
+    await page.waitForURL((u) => u.pathname === '/' || u.pathname === '/index')
     await expect(page.locator('html')).toHaveClass(/dark/)
   })
 })

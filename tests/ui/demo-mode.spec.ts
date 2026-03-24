@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 test.describe('Demo Mode', () => {
@@ -15,7 +15,9 @@ test.describe('Demo Mode', () => {
   }
 
   async function selectChannel(page: import('@playwright/test').Page, label: string) {
-    const card = page.locator(`[role="button"][aria-pressed]`).filter({ has: page.getByText(label, { exact: true }) })
+    const card = page
+      .locator(`[role="button"][aria-pressed]`)
+      .filter({ has: page.getByText(label, { exact: true }) })
     await card.click()
   }
 
@@ -58,7 +60,9 @@ test.describe('Demo Mode', () => {
 
     // Should redirect to dashboard
     await page.waitForURL('**/', { timeout: 30000 })
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 15000,
+    })
   }
 
   test.beforeEach(async ({ page, request }) => {
@@ -92,13 +96,13 @@ test.describe('Demo Mode', () => {
     await page.getByRole('link', { name: 'Volunteers' }).click()
     await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible({ timeout: 10000 })
 
-    // Check for demo volunteer names
-    await expect(page.getByText('Maria Santos')).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('James Chen')).toBeVisible()
-    await expect(page.getByText('Community Reporter')).toBeVisible()
+    // Check for demo volunteer names (use .first() in case of duplicate entries from parallel resets)
+    await expect(page.getByText('Maria Santos').first()).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('James Chen').first()).toBeVisible()
+    await expect(page.getByText('Community Reporter').first()).toBeVisible()
 
     // Fatima should be visible but deactivated
-    await expect(page.getByText('Fatima Al-Rashid')).toBeVisible()
+    await expect(page.getByText('Fatima Al-Rashid').first()).toBeVisible()
   })
 
   // =====================================================================
@@ -145,10 +149,12 @@ test.describe('Demo Mode', () => {
     await mariaRow.click()
 
     // Should redirect to dashboard (or profile setup)
-    await page.waitForURL(url => !url.toString().includes('/login'), { timeout: 15000 })
+    await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15000 })
 
     // Should be authenticated — check sidebar nav shows the name
-    await expect(page.getByRole('navigation').getByText('Maria Santos')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('navigation').getByText('Maria Santos')).toBeVisible({
+      timeout: 10000,
+    })
   })
 
   // =====================================================================
@@ -184,12 +190,14 @@ test.describe('Demo Mode', () => {
     await completeSetupWithDemoMode(page)
 
     await page.getByRole('link', { name: 'Shifts' }).click()
-    await expect(page.getByRole('heading', { name: 'Shift Schedule' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Shift Schedule' })).toBeVisible({
+      timeout: 10000,
+    })
 
-    // Check for demo shift names
-    await expect(page.getByText('Morning Team')).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('Evening Team')).toBeVisible()
-    await expect(page.getByText('Weekend Coverage')).toBeVisible()
+    // Check for demo shift names (use .first() as there may be multiple recurring instances)
+    await expect(page.getByText('Morning Team').first()).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Evening Team').first()).toBeVisible()
+    await expect(page.getByText('Weekend Coverage').first()).toBeVisible()
   })
 
   // =====================================================================
@@ -202,8 +210,8 @@ test.describe('Demo Mode', () => {
     await page.getByRole('link', { name: 'Ban List' }).click()
     await expect(page.getByRole('heading', { name: 'Ban List' })).toBeVisible({ timeout: 10000 })
 
-    // Check for demo ban reasons
-    await expect(page.getByText('Repeated prank calls')).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('Threatening language')).toBeVisible()
+    // Check for demo ban reasons (use .first() as resets may accumulate entries)
+    await expect(page.getByText('Repeated prank calls').first()).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Threatening language').first()).toBeVisible()
   })
 })

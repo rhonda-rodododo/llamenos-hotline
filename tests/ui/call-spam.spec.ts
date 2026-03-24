@@ -9,7 +9,7 @@
  *   3. Voice CAPTCHA — CAPTCHA toggle controls routing behavior
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 declare global {
@@ -30,7 +30,7 @@ function injectAuthedFetch(page: import('@playwright/test').Page) {
         const reqMethod = (options.method || 'GET').toUpperCase()
         const reqPath = new URL(url, location.origin).pathname
         const token = km.createAuthToken(Date.now(), reqMethod, reqPath)
-        headers['Authorization'] = `Bearer ${token}`
+        headers.Authorization = `Bearer ${token}`
       }
       return fetch(url, { ...options, headers })
     }
@@ -158,15 +158,19 @@ test.describe('Voice CAPTCHA', () => {
 
   test.afterEach(async ({ page }) => {
     // Reset CAPTCHA state after each test
-    await page.evaluate(async () => {
-      await window.__authedFetch('/api/settings/spam', {
-        method: 'PATCH',
-        body: JSON.stringify({ voiceCaptchaEnabled: false }),
+    await page
+      .evaluate(async () => {
+        await window.__authedFetch('/api/settings/spam', {
+          method: 'PATCH',
+          body: JSON.stringify({ voiceCaptchaEnabled: false }),
+        })
       })
-    }).catch(() => {})
+      .catch(() => {})
   })
 
-  test('CAPTCHA disabled — call routes to language menu without digit challenge', async ({ request }) => {
+  test('CAPTCHA disabled — call routes to language menu without digit challenge', async ({
+    request,
+  }) => {
     // Default state: CAPTCHA is off
     const res = await simulateCall(request, `CA_nocap_${Date.now()}`, CALLER, HOTLINE)
 

@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, enterPin, resetTestState, TEST_PIN, navigateAfterLogin } from '../helpers'
+import { expect, test } from '@playwright/test'
+import { TEST_PIN, enterPin, loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 test.describe('WebRTC & Call Preference Settings', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -45,7 +45,9 @@ test.describe('WebRTC & Call Preference Settings', () => {
 
   test('deep link to call-preference section auto-expands it', async ({ page }) => {
     await navigateAfterLogin(page, '/settings?section=call-preference')
-    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible({
+      timeout: 10000,
+    })
 
     // The section should be expanded — we should see the preference options
     await expect(page.getByText('Phone Only')).toBeVisible({ timeout: 10000 })
@@ -72,7 +74,11 @@ test.describe('WebRTC & Call Preference Settings', () => {
     await expect(page.getByText('API Key SID')).not.toBeVisible()
 
     // Enable WebRTC toggle
-    const webrtcSection = page.locator('div').filter({ hasText: /WebRTC Configuration/ }).filter({ has: page.getByRole('switch') }).last()
+    const webrtcSection = page
+      .locator('div')
+      .filter({ hasText: /WebRTC Configuration/ })
+      .filter({ has: page.getByRole('switch') })
+      .last()
     const toggle = webrtcSection.getByRole('switch')
     await toggle.click()
 
@@ -118,7 +124,11 @@ test.describe('WebRTC & Call Preference Settings', () => {
     await expect(page.getByText('WebRTC Configuration')).toBeVisible()
 
     // Enable WebRTC
-    const webrtcSection = page.locator('div').filter({ hasText: /WebRTC Configuration/ }).filter({ has: page.getByRole('switch') }).last()
+    const webrtcSection = page
+      .locator('div')
+      .filter({ hasText: /WebRTC Configuration/ })
+      .filter({ has: page.getByRole('switch') })
+      .last()
     const toggle = webrtcSection.getByRole('switch')
     await toggle.click()
 
@@ -136,7 +146,11 @@ test.describe('WebRTC & Call Preference Settings', () => {
     await page.getByTestId('auth-token').fill('webrtc-auth-token')
 
     // Enable WebRTC and fill API Key fields
-    const webrtcSection = page.locator('div').filter({ hasText: /WebRTC Configuration/ }).filter({ has: page.getByRole('switch') }).last()
+    const webrtcSection = page
+      .locator('div')
+      .filter({ hasText: /WebRTC Configuration/ })
+      .filter({ has: page.getByRole('switch') })
+      .last()
     const toggle = webrtcSection.getByRole('switch')
     await toggle.click()
 

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, resetTestState, uniquePhone } from '../helpers'
 
 test.describe('Invite-based onboarding', () => {
@@ -81,10 +81,13 @@ test.describe('Invite-based onboarding', () => {
     await page.getByRole('button', { name: /continue/i }).click()
 
     // Should land on profile-setup or dashboard
-    await page.waitForURL(url => {
-      const path = new URL(url.toString()).pathname
-      return path === '/profile-setup' || path === '/'
-    }, { timeout: 15000 })
+    await page.waitForURL(
+      (url) => {
+        const path = new URL(url.toString()).pathname
+        return path === '/profile-setup' || path === '/'
+      },
+      { timeout: 15000 }
+    )
   })
 
   test('invalid invite code shows error', async ({ page }) => {

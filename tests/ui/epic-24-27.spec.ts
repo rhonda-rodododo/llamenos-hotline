@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, resetTestState } from '../helpers'
 
 test.describe('Epic 24: Shift & Call Status Awareness', () => {
@@ -11,9 +11,7 @@ test.describe('Epic 24: Shift & Call Status Awareness', () => {
     // The sidebar should show a shift status indicator (green or gray dot)
     const sidebar = page.locator('nav')
     // Either "until" (on shift) or "Next shift" or "No shifts assigned"
-    await expect(
-      sidebar.getByText(/until|next shift|no shifts assigned/i)
-    ).toBeVisible()
+    await expect(sidebar.getByText(/until|next shift|no shifts assigned/i)).toBeVisible()
   })
 
   test('dashboard shows calls today metric', async ({ page }) => {
@@ -114,7 +112,10 @@ test.describe('Epic 27: Remaining Polish', () => {
     await page.getByRole('heading', { name: 'Spam Mitigation' }).click()
 
     // Find the voice CAPTCHA switch — use filter with both text and switch presence
-    const captchaSection = page.locator('div').filter({ hasText: /voice captcha/i, has: page.getByRole('switch') }).last()
+    const captchaSection = page
+      .locator('div')
+      .filter({ hasText: /voice captcha/i, has: page.getByRole('switch') })
+      .last()
     const captchaSwitch = captchaSection.getByRole('switch')
     await captchaSwitch.click()
 
@@ -123,7 +124,10 @@ test.describe('Epic 27: Remaining Polish', () => {
     await expect(page.getByText(/voice captcha/i).last()).toBeVisible()
 
     // Cancel should close dialog without changing
-    await page.getByRole('dialog').getByRole('button', { name: /cancel/i }).click()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /cancel/i })
+      .click()
     await expect(page.getByRole('dialog')).not.toBeVisible()
   })
 
@@ -135,14 +139,20 @@ test.describe('Epic 27: Remaining Polish', () => {
     await page.getByRole('heading', { name: 'Spam Mitigation' }).click()
 
     // Toggle rate limiting — use filter with both text and switch presence
-    const rlSection = page.locator('div').filter({ hasText: /rate limiting/i, has: page.getByRole('switch') }).last()
+    const rlSection = page
+      .locator('div')
+      .filter({ hasText: /rate limiting/i, has: page.getByRole('switch') })
+      .last()
     const rlSwitch = rlSection.getByRole('switch')
     const wasChecked = await rlSwitch.isChecked()
 
     await rlSwitch.click()
     // Confirm
     await expect(page.getByRole('dialog')).toBeVisible()
-    await page.getByRole('dialog').getByRole('button', { name: /confirm/i }).click()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /confirm/i })
+      .click()
     await expect(page.getByRole('dialog')).not.toBeVisible()
 
     // Switch should have toggled
@@ -152,7 +162,10 @@ test.describe('Epic 27: Remaining Polish', () => {
     // Toggle back to restore state
     await rlSwitch.click()
     await expect(page.getByRole('dialog')).toBeVisible()
-    await page.getByRole('dialog').getByRole('button', { name: /confirm/i }).click()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /confirm/i })
+      .click()
   })
 
   test('toast has dismiss button', async ({ page }) => {

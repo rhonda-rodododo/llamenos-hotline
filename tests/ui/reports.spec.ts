@@ -1,8 +1,12 @@
-import { test, expect, type Page, type APIRequestContext } from '@playwright/test'
+import { type APIRequestContext, type Page, expect, test } from '@playwright/test'
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools'
+import { createAuthToken } from '../../src/client/lib/crypto'
 import { ADMIN_NSEC, loginAsAdmin, loginAsVolunteer, uniquePhone } from '../helpers'
-import { createAuthedRequestFromNsec, type AuthedRequest } from '../helpers/authed-request'
-import { createAuthToken, encryptMessage } from '../../src/client/lib/crypto'
+import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+
+// Under parallel execution (3 workers), concurrent browser sessions with ECIES encryption
+// + PBKDF2 key derivation create significant CPU load. Allow 120s per test.
+test.setTimeout(120_000)
 
 /**
  * Navigate to the Reports page via sidebar link (SPA navigation).
@@ -10,58 +14,29 @@ import { createAuthToken, encryptMessage } from '../../src/client/lib/crypto'
  */
 async function navigateToReports(page: Page): Promise<void> {
   await page.getByRole('link', { name: 'Reports' }).click()
-  await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({ timeout: 10000 })
+  await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({
+    timeout: 10000,
+  })
 }
 
 /**
- * Create a report via the API (headless, fast — no browser encryption needed).
- * Uses the admin's authed request to create a report with envelope-encrypted content.
+ * Create a report via the UI. Assumes user is logged in and on the reports page.
  */
-async function createReportViaApi(
-  adminReq: AuthedRequest,
-  title: string,
-  body: string,
-): Promise<{ id: string; title: string }> {
-  const encrypted = encryptMessage(body, [adminReq.pubkey])
-
-  const res = await adminReq.post('/api/reports', {
-    title,
-    encryptedContent: encrypted.encryptedContent,
-    readerEnvelopes: encrypted.readerEnvelopes,
+async function createReportViaUI(page: Page, title: string, details: string): Promise<void> {
+  await page.getByRole('button', { name: /new/i }).click()
+  await expect(page.getByPlaceholder('Brief description of the report')).toBeVisible({
+    timeout: 5000,
   })
-  if (!res.ok()) {
-    throw new Error(`Report creation failed: ${res.status()} ${await res.text()}`)
-  }
-  const data = await res.json()
-  return { id: data.id, title }
-}
-
-/**
- * Create a report via the API using a reporter's nsec (for reporter role tests).
- */
-async function createReporterReportViaApi(
-  request: APIRequestContext,
-  reporterNsec: string,
-  title: string,
-  body: string,
-): Promise<{ id: string; title: string }> {
-  const decoded = nip19.decode(reporterNsec)
-  if (decoded.type !== 'nsec') throw new Error('Expected nsec')
-  const pubkey = getPublicKey(decoded.data)
-  const reporterReq = createAuthedRequestFromNsec(request, reporterNsec)
-
-  const encrypted = encryptMessage(body, [pubkey])
-
-  const res = await reporterReq.post('/api/reports', {
-    title,
-    encryptedContent: encrypted.encryptedContent,
-    readerEnvelopes: encrypted.readerEnvelopes,
+  await page.getByPlaceholder('Brief description of the report').fill(title)
+  await page.getByPlaceholder('Describe the situation in detail...').fill(details)
+  await page.getByRole('button', { name: /submit report/i }).click()
+  // Wait for form to close (sheet closes on successful submit).
+  // Under concurrent load, ECIES encryption can be slow — allow generous timeout.
+  await expect(page.getByPlaceholder('Brief description of the report')).not.toBeVisible({
+    timeout: 30000,
   })
-  if (!res.ok()) {
-    throw new Error(`Reporter report creation failed: ${res.status()} ${await res.text()}`)
-  }
-  const data = await res.json()
-  return { id: data.id, title }
+  // Wait for the report to appear in the refreshed list
+  await expect(page.getByText(title).first()).toBeVisible({ timeout: 30000 })
 }
 
 /**
@@ -88,7 +63,7 @@ async function claimSelectedReport(page: Page): Promise<void> {
 async function handleProfileSetup(page: Page): Promise<void> {
   if (page.url().includes('profile-setup')) {
     await page.getByRole('button', { name: /complete setup/i }).click()
-    await page.waitForURL(u => !u.toString().includes('profile-setup'), { timeout: 15000 })
+    await page.waitForURL((u) => !u.toString().includes('profile-setup'), { timeout: 15000 })
   }
 }
 
@@ -144,97 +119,102 @@ test.describe('Reports feature', () => {
       const title = `Admin Report ${Date.now()}`
 
       await page.getByRole('button', { name: /new/i }).click()
-      await expect(page.getByPlaceholder('Brief description of the report')).toBeVisible({ timeout: 5000 })
+      await expect(page.getByPlaceholder('Brief description of the report')).toBeVisible({
+        timeout: 5000,
+      })
       await page.getByPlaceholder('Brief description of the report').fill(title)
-      await page.getByPlaceholder('Describe the situation in detail...').fill('This is a test report created by admin')
+      await page
+        .getByPlaceholder('Describe the situation in detail...')
+        .fill('This is a test report created by admin')
       await page.getByRole('button', { name: /submit report/i }).click()
 
       // Verify the report appears in the list
       await expect(page.getByText(title).first()).toBeVisible({ timeout: 20000 })
     })
 
-    test('report shows in list with correct status', async ({ page, request }) => {
-      const adminReq = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-      const title = `Status Report ${Date.now()}`
-      await createReportViaApi(adminReq, title, 'Report for testing status')
-
+    test('report shows in list with correct status', async ({ page }) => {
       await loginAsAdmin(page)
       await navigateToReports(page)
+      const title = `Status Report ${Date.now()}`
 
+      // Create the report this test depends on
+      await createReportViaUI(page, title, 'Report for testing status')
+
+      // Verify the waiting status indicator is present
       const reportCard = page.locator('button[type="button"]').filter({ hasText: title })
-      await expect(reportCard).toBeVisible({ timeout: 15000 })
+      await expect(reportCard).toBeVisible()
       await expect(reportCard.getByText(/messages/i)).toBeVisible()
     })
 
-    test('selecting a report shows detail view', async ({ page, request }) => {
-      const adminReq = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-      const title = `Detail Report ${Date.now()}`
-      await createReportViaApi(adminReq, title, 'Report for testing detail view')
-
+    test('selecting a report shows detail view', async ({ page }) => {
       await loginAsAdmin(page)
       await navigateToReports(page)
+      const title = `Detail Report ${Date.now()}`
+
+      await createReportViaUI(page, title, 'Report for testing detail view')
       await selectReport(page, title)
 
       // The status badge should show "Waiting"
       await expect(page.getByText('Waiting')).toBeVisible()
     })
 
-    test('admin can claim a report', async ({ page, request }) => {
-      const adminReq = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-      const title = `Claim Report ${Date.now()}`
-      await createReportViaApi(adminReq, title, 'Report for testing claim')
-
+    test('admin can claim a report', async ({ page }) => {
       await loginAsAdmin(page)
       await navigateToReports(page)
+      const title = `Claim Report ${Date.now()}`
+
+      await createReportViaUI(page, title, 'Report for testing claim')
       await selectReport(page, title)
 
+      // Click the "Claim" button
       await claimSelectedReport(page)
 
       // Claim button should disappear
       await expect(page.getByRole('button', { name: /claim/i })).not.toBeVisible()
     })
 
-    test('admin can close a report', async ({ page, request }) => {
-      const adminReq = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-      const title = `Close Report ${Date.now()}`
-      const report = await createReportViaApi(adminReq, title, 'Report for testing close')
-
-      // Claim via API first (must be active to close)
-      await adminReq.post(`/api/reports/${report.id}/assign`, { assignee: adminReq.pubkey })
-
+    test('admin can close a report', async ({ page }) => {
       await loginAsAdmin(page)
       await navigateToReports(page)
+      const title = `Close Report ${Date.now()}`
+
+      // Create and claim the report first (must be active to close)
+      await createReportViaUI(page, title, 'Report for testing close')
       await selectReport(page, title)
+      await claimSelectedReport(page)
 
       // Click the "Close Report" button
       await expect(page.getByTestId('close-report')).toBeVisible({ timeout: 5000 })
       await page.getByTestId('close-report').click()
 
       // After closing, the report should be removed from the list
-      await expect(page.locator('button[type="button"]').filter({ hasText: title })).not.toBeVisible({ timeout: 10000 })
+      await expect(
+        page.locator('button[type="button"]').filter({ hasText: title })
+      ).not.toBeVisible({ timeout: 10000 })
     })
 
-    test('status filter works', async ({ page, request }) => {
-      const adminReq = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    test('status filter works', async ({ page }) => {
+      await loginAsAdmin(page)
+      await navigateToReports(page)
       const ts = Date.now()
       const titleA = `Filter A ${ts}`
       const titleB = `Filter B ${ts}`
 
-      // Create two reports via API
-      const reportA = await createReportViaApi(adminReq, titleA, `Details for ${titleA}`)
-      await createReportViaApi(adminReq, titleB, `Details for ${titleB}`)
-
-      // Claim A via API to make it active
-      await adminReq.post(`/api/reports/${reportA.id}/assign`, { assignee: adminReq.pubkey })
-
-      await loginAsAdmin(page)
-      await navigateToReports(page)
+      // Create two reports
+      await createReportViaUI(page, titleA, `Details for ${titleA}`)
+      await createReportViaUI(page, titleB, `Details for ${titleB}`)
 
       // Both reports should be visible
       await expect(page.getByText(titleA).first()).toBeVisible({ timeout: 15000 })
       await expect(page.getByText(titleB).first()).toBeVisible({ timeout: 15000 })
 
-      // Use the status filter to show only "Waiting" reports
+      // Claim one of them to make it active
+      await page.locator('button[type="button"]').filter({ hasText: titleA }).click()
+      await expect(page.getByRole('button', { name: /claim/i })).toBeVisible({ timeout: 5000 })
+      await page.getByRole('button', { name: /claim/i }).click()
+      await expect(page.getByText('Active')).toBeVisible({ timeout: 10000 })
+
+      // Now use the status filter to show only "Waiting" reports
       const mainContent = page.locator('main')
       const statusSelect = mainContent.locator('button[role="combobox"]').first()
       await statusSelect.click()
@@ -242,7 +222,9 @@ test.describe('Reports feature', () => {
 
       // Only B should be visible (still waiting)
       await expect(page.getByText(titleB).first()).toBeVisible({ timeout: 10000 })
-      await expect(page.locator('button[type="button"]').filter({ hasText: titleA })).not.toBeVisible()
+      await expect(
+        page.locator('button[type="button"]').filter({ hasText: titleA })
+      ).not.toBeVisible()
 
       // Switch filter to show "Active" reports
       await statusSelect.click()
@@ -250,7 +232,9 @@ test.describe('Reports feature', () => {
 
       // Only A should be visible
       await expect(page.getByText(titleA).first()).toBeVisible({ timeout: 10000 })
-      await expect(page.locator('button[type="button"]').filter({ hasText: titleB })).not.toBeVisible()
+      await expect(
+        page.locator('button[type="button"]').filter({ hasText: titleB })
+      ).not.toBeVisible()
 
       // Switch back to "All statuses"
       await statusSelect.click()
@@ -261,29 +245,26 @@ test.describe('Reports feature', () => {
       await expect(page.getByText(titleB).first()).toBeVisible({ timeout: 10000 })
     })
 
-    test('report detail shows messages for new report', async ({ page, request }) => {
-      const adminReq = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-      const title = `Messages Report ${Date.now()}`
-      await createReportViaApi(adminReq, title, 'Report for testing messages')
-
+    test('report detail shows messages for new report', async ({ page }) => {
       await loginAsAdmin(page)
       await navigateToReports(page)
+      const title = `Messages Report ${Date.now()}`
+
+      await createReportViaUI(page, title, 'Report for testing messages')
       await selectReport(page, title)
 
       // The initial report message should be visible (created with the report body)
+      // Report creation sends an initial message, so we should see at least one message
     })
 
-    test('admin can reply to a claimed report', async ({ page, request }) => {
-      const adminReq = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-      const title = `Reply Report ${Date.now()}`
-      const report = await createReportViaApi(adminReq, title, 'Report for testing replies')
-
-      // Claim via API
-      await adminReq.post(`/api/reports/${report.id}/assign`, { assignee: adminReq.pubkey })
-
+    test('admin can reply to a claimed report', async ({ page }) => {
       await loginAsAdmin(page)
       await navigateToReports(page)
+      const title = `Reply Report ${Date.now()}`
+
+      await createReportViaUI(page, title, 'Report for testing replies')
       await selectReport(page, title)
+      await claimSelectedReport(page)
 
       // The reply composer should be visible (report is active)
       const replyTextarea = page.getByPlaceholder('Type your reply...')
@@ -305,7 +286,9 @@ test.describe('Reports feature', () => {
 
       await page.getByRole('button', { name: /new/i }).click()
 
-      await expect(page.getByText('Your report is encrypted end-to-end')).toBeVisible({ timeout: 5000 })
+      await expect(page.getByText('Your report is encrypted end-to-end')).toBeVisible({
+        timeout: 5000,
+      })
       await expect(page.getByPlaceholder('Brief description of the report')).toBeVisible()
       await expect(page.getByPlaceholder('Describe the situation in detail...')).toBeVisible()
       await expect(page.getByRole('button', { name: /submit report/i })).toBeVisible()
@@ -316,7 +299,9 @@ test.describe('Reports feature', () => {
       await navigateToReports(page)
 
       await page.getByRole('button', { name: /new/i }).click()
-      await expect(page.getByPlaceholder('Brief description of the report')).toBeVisible({ timeout: 5000 })
+      await expect(page.getByPlaceholder('Brief description of the report')).toBeVisible({
+        timeout: 5000,
+      })
 
       const submitBtn = page.getByRole('button', { name: /submit report/i })
       await expect(submitBtn).toBeDisabled()
@@ -332,9 +317,22 @@ test.describe('Reports feature', () => {
 
     test('unselected state shows placeholder text', async ({ page }) => {
       await loginAsAdmin(page)
+
+      // First create a report so the list isn't empty
+      await navigateToReports(page)
+      await createReportViaUI(page, `Placeholder ${Date.now()}`, 'Ensures list is non-empty')
+
+      // Navigate away and back — this resets the selectedId state
+      await page.getByRole('link', { name: 'Dashboard' }).click()
+      await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+        timeout: 10000,
+      })
       await navigateToReports(page)
 
-      await expect(page.getByText('Select a report to view details')).toBeVisible({ timeout: 10000 })
+      // The right panel should show the placeholder text when no report is selected
+      await expect(page.getByText('Select a report to view details')).toBeVisible({
+        timeout: 10000,
+      })
     })
   })
 
@@ -369,7 +367,9 @@ test.describe('Reports feature', () => {
 
       await page.getByRole('link', { name: 'Reports' }).click()
       await page.waitForURL(/\/reports/, { timeout: 10000 })
-      await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({ timeout: 10000 })
+      await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({
+        timeout: 10000,
+      })
       await expect(page.getByRole('button', { name: /new/i })).toBeVisible()
     })
 
@@ -381,9 +381,13 @@ test.describe('Reports feature', () => {
       const title = `Reporter Report ${Date.now()}`
 
       await page.getByRole('button', { name: /new/i }).click()
-      await expect(page.getByPlaceholder('Brief description of the report')).toBeVisible({ timeout: 5000 })
+      await expect(page.getByPlaceholder('Brief description of the report')).toBeVisible({
+        timeout: 5000,
+      })
       await page.getByPlaceholder('Brief description of the report').fill(title)
-      await page.getByPlaceholder('Describe the situation in detail...').fill('This is a report created by a reporter')
+      await page
+        .getByPlaceholder('Describe the situation in detail...')
+        .fill('This is a report created by a reporter')
       await page.getByRole('button', { name: /submit report/i }).click()
 
       await expect(page.getByText(title).first()).toBeVisible({ timeout: 20000 })
@@ -391,12 +395,13 @@ test.describe('Reports feature', () => {
 
     test('reporter can reply to own report', async ({ page, request }) => {
       const reporterNsec = await createReporterViaApi(request)
-      const title = `Reply Report ${Date.now()}`
-      await createReporterReportViaApi(request, reporterNsec, title, 'Report for testing reporter replies')
-
       await loginAsVolunteer(page, reporterNsec)
       await handleProfileSetup(page)
       await navigateToReports(page)
+      const title = `Reply Report ${Date.now()}`
+
+      // Create a report to reply to
+      await createReportViaUI(page, title, 'Report for testing reporter replies')
       await selectReport(page, title)
 
       // The reply composer should be visible
@@ -407,8 +412,10 @@ test.describe('Reports feature', () => {
       await replyTextarea.fill('This is a reply from the reporter')
 
       // Click the send button
-      const sendBtn = page.locator('button[aria-label]').filter({ has: page.locator('svg.lucide-send') })
-      if (await sendBtn.count() > 0) {
+      const sendBtn = page
+        .locator('button[aria-label]')
+        .filter({ has: page.locator('svg.lucide-send') })
+      if ((await sendBtn.count()) > 0) {
         await sendBtn.click()
       } else {
         await replyTextarea.press('Control+Enter')
@@ -420,12 +427,12 @@ test.describe('Reports feature', () => {
 
     test('reporter sees encryption note in report detail', async ({ page, request }) => {
       const reporterNsec = await createReporterViaApi(request)
-      const title = `Encryption Note Report ${Date.now()}`
-      await createReporterReportViaApi(request, reporterNsec, title, 'Report for testing encryption note visibility')
-
       await loginAsVolunteer(page, reporterNsec)
       await handleProfileSetup(page)
       await navigateToReports(page)
+      const title = `Encryption Note Report ${Date.now()}`
+
+      await createReportViaUI(page, title, 'Report for testing encryption note visibility')
       await selectReport(page, title)
 
       // Verify encryption note is visible in the detail header
@@ -434,12 +441,12 @@ test.describe('Reports feature', () => {
 
     test('reporter does not see Claim or Close buttons', async ({ page, request }) => {
       const reporterNsec = await createReporterViaApi(request)
-      const title = `No Buttons Report ${Date.now()}`
-      await createReporterReportViaApi(request, reporterNsec, title, 'Report for testing button visibility')
-
       await loginAsVolunteer(page, reporterNsec)
       await handleProfileSetup(page)
       await navigateToReports(page)
+      const title = `No Buttons Report ${Date.now()}`
+
+      await createReportViaUI(page, title, 'Report for testing button visibility')
       await selectReport(page, title)
 
       // Reporter should NOT see Claim or Close buttons

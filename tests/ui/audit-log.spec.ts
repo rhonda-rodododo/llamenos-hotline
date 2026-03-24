@@ -1,5 +1,14 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, dismissNsecCard, resetTestState, uniquePhone, completeProfileSetup, navigateAfterLogin } from '../helpers'
+import { expect, test } from '@playwright/test'
+import {
+  completeProfileSetup,
+  createVolunteerAndGetNsec,
+  dismissNsecCard,
+  loginAsAdmin,
+  loginAsVolunteer,
+  navigateAfterLogin,
+  resetTestState,
+  uniquePhone,
+} from '../helpers'
 
 test.describe('Audit log', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -59,7 +68,9 @@ test.describe('Audit log', () => {
     // Whether redirected or shown the page, the volunteer should not see real audit entries
     if (isVisible) {
       // If shown the page, entries should be empty or access denied
-      await expect(page.getByText(/no audit log entries|access denied|forbidden/i)).toBeVisible({ timeout: 5000 })
+      await expect(page.getByText(/no audit log entries|access denied|forbidden/i)).toBeVisible({
+        timeout: 5000,
+      })
     }
     // If not visible (redirected), that's also correct behavior
   })

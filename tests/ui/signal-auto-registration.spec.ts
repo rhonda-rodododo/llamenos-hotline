@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { ADMIN_NSEC, loginAsAdmin, navigateAfterLogin } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
@@ -35,7 +35,9 @@ test.describe('Signal Automated Registration', () => {
     expect(['idle', 'complete', 'pending']).toContain(body.status)
   })
 
-  test('bridge connection failure returns 502 and rolls back pending state', async ({ request }) => {
+  test('bridge connection failure returns 502 and rolls back pending state', async ({
+    request,
+  }) => {
     const api = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     // Use a valid HTTPS URL that won't connect (port that's not listening)
     const res = await api.post('/api/messaging/signal/register', {
@@ -91,8 +93,8 @@ test.describe('Signal Automated Registration', () => {
     await navigateAfterLogin(page, '/admin/settings')
 
     // The settings page should load — verify the heading
-    await expect(
-      page.getByRole('heading', { name: 'Hub Settings', exact: true })
-    ).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({
+      timeout: 10000,
+    })
   })
 })

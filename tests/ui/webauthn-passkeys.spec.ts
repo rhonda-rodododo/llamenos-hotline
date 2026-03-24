@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 // Window type augmentation for authed fetch helper
@@ -24,7 +24,7 @@ async function injectAuthedFetch(page: import('@playwright/test').Page) {
         const reqMethod = (options.method || 'GET').toUpperCase()
         const reqPath = new URL(url, location.origin).pathname
         const token = km.createAuthToken(Date.now(), reqMethod, reqPath)
-        headers['Authorization'] = `Bearer ${token}`
+        headers.Authorization = `Bearer ${token}`
       }
       return fetch(url, { ...options, headers })
     }
@@ -110,7 +110,8 @@ test.describe('WebAuthn passkey registration and login', () => {
       await navigateAfterLogin(page, '/settings')
 
       // Verify the page loaded
-      const pageLoaded = await page.getByRole('heading', { name: /settings/i })
+      const pageLoaded = await page
+        .getByRole('heading', { name: /settings/i })
         .isVisible({ timeout: 10000 })
         .catch(() => false)
 
@@ -135,11 +136,13 @@ test.describe('WebAuthn passkey registration and login', () => {
           // Fall back to raw WebAuthn API
           const challenge = Uint8Array.from(
             atob((opts.challenge as string).replace(/-/g, '+').replace(/_/g, '/')),
-            c => c.charCodeAt(0)
+            (c) => c.charCodeAt(0)
           )
           const userId = Uint8Array.from(
-            atob(((opts.user as { id: string }).id as string).replace(/-/g, '+').replace(/_/g, '/')),
-            c => c.charCodeAt(0)
+            atob(
+              ((opts.user as { id: string }).id as string).replace(/-/g, '+').replace(/_/g, '/')
+            ),
+            (c) => c.charCodeAt(0)
           )
           const credential = await navigator.credentials.create({
             publicKey: {
@@ -172,7 +175,7 @@ test.describe('WebAuthn passkey registration and login', () => {
               attestation,
               label: 'Test Passkey',
             }
-            if (challengeId) body['challengeId'] = challengeId
+            if (challengeId) body.challengeId = challengeId
             const res = await window.__authedFetch('/api/webauthn/register/verify', {
               method: 'POST',
               body: JSON.stringify(body),
@@ -186,7 +189,7 @@ test.describe('WebAuthn passkey registration and login', () => {
         if (verifyResult.status === 200 || verifyResult.status === 201) {
           expect(
             (verifyResult.data as { verified?: boolean; ok?: boolean }).verified ??
-            (verifyResult.data as { verified?: boolean; ok?: boolean }).ok
+              (verifyResult.data as { verified?: boolean; ok?: boolean }).ok
           ).toBeTruthy()
         }
       }
@@ -208,7 +211,8 @@ test.describe('WebAuthn passkey registration and login', () => {
     expect(result.status).toBe(200)
     // Either an array or an object with a credentials array
     const data = result.data as unknown[] | { credentials: unknown[] }
-    const isArray = Array.isArray(data) || Array.isArray((data as { credentials?: unknown[] }).credentials)
+    const isArray =
+      Array.isArray(data) || Array.isArray((data as { credentials?: unknown[] }).credentials)
     expect(isArray).toBe(true)
   })
 })

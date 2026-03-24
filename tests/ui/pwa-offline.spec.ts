@@ -13,7 +13,7 @@
  *   5.1: No SRI mismatch errors in console
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin } from '../helpers'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,7 +33,7 @@ test.describe('Service Worker registration', () => {
         new Promise<null>((r) => setTimeout(() => r(null), 10_000)),
       ])
       if (!reg) return 'timeout'
-      const sw = (reg as ServiceWorkerRegistration)
+      const sw = reg as ServiceWorkerRegistration
       return sw.active ? sw.active.state : 'no-active-sw'
     })
 
@@ -46,7 +46,10 @@ test.describe('Service Worker registration', () => {
       if (msg.type() === 'error') {
         const text = msg.text()
         // Filter for SW-related errors only
-        if (text.toLowerCase().includes('service worker') || text.toLowerCase().includes('workbox')) {
+        if (
+          text.toLowerCase().includes('service worker') ||
+          text.toLowerCase().includes('workbox')
+        ) {
           consoleErrors.push(text)
         }
       }
@@ -233,7 +236,10 @@ test.describe('App shell offline load', () => {
 
     // Body should not be blank
     const bodyText = await page.evaluate(() => document.body.innerText.trim())
-    expect(bodyText.length, 'Page should show content (error state or cached), not blank').toBeGreaterThan(0)
+    expect(
+      bodyText.length,
+      'Page should show content (error state or cached), not blank'
+    ).toBeGreaterThan(0)
 
     await page.context().setOffline(false)
   })

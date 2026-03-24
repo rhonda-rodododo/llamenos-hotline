@@ -1,4 +1,4 @@
-import { test, expect, devices } from '@playwright/test'
+import { devices, expect, test } from '@playwright/test'
 import { loginAsAdmin, resetTestState } from '../helpers'
 
 test.use(devices['Pixel 7'])

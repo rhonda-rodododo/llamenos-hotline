@@ -1,5 +1,11 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, createVolunteerAndGetNsec, dismissNsecCard, resetTestState, uniquePhone } from '../helpers'
+import { expect, test } from '@playwright/test'
+import {
+  createVolunteerAndGetNsec,
+  dismissNsecCard,
+  loginAsAdmin,
+  resetTestState,
+  uniquePhone,
+} from '../helpers'
 
 test.describe('Shift management', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -17,8 +23,15 @@ test.describe('Shift management', () => {
 
   test('page renders shift schedule content', async ({ page }) => {
     // Verify the schedule page renders with either shifts or the empty state
-    const hasShifts = await page.locator('h3').first().isVisible({ timeout: 5000 }).catch(() => false)
-    const hasEmptyState = await page.getByText(/no shifts scheduled/i).isVisible().catch(() => false)
+    const hasShifts = await page
+      .locator('h3')
+      .first()
+      .isVisible({ timeout: 5000 })
+      .catch(() => false)
+    const hasEmptyState = await page
+      .getByText(/no shifts scheduled/i)
+      .isVisible()
+      .catch(() => false)
     expect(hasShifts || hasEmptyState).toBeTruthy()
   })
 
@@ -60,7 +73,11 @@ test.describe('Shift management', () => {
     await page.getByRole('button', { name: /save/i }).click()
 
     await expect(page.getByText(updatedName)).toBeVisible({ timeout: 10000 })
-    const updatedCard = page.locator('h3').filter({ hasText: updatedName }).locator('..').locator('..')
+    const updatedCard = page
+      .locator('h3')
+      .filter({ hasText: updatedName })
+      .locator('..')
+      .locator('..')
     await expect(updatedCard.getByText('10:00 - 18:00')).toBeVisible()
     await expect(page.getByText(shiftName)).not.toBeVisible()
   })
@@ -155,7 +172,10 @@ test.describe('Shift management', () => {
     await expect(page.getByText(/fallback group/i)).toBeVisible()
 
     // Open the fallback volunteer multi-select (in the Fallback Group card)
-    const fallbackCard = page.locator('main').filter({ hasText: /fallback group/i }).last()
+    const fallbackCard = page
+      .locator('main')
+      .filter({ hasText: /fallback group/i })
+      .last()
     const fallbackSelect = fallbackCard.getByRole('combobox')
     await fallbackSelect.click()
 

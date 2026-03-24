@@ -1,5 +1,13 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, loginAsVolunteer, createVolunteerAndGetNsec, resetTestState, uniquePhone, completeProfileSetup, navigateAfterLogin } from '../helpers'
+import { expect, test } from '@playwright/test'
+import {
+  completeProfileSetup,
+  createVolunteerAndGetNsec,
+  loginAsAdmin,
+  loginAsVolunteer,
+  navigateAfterLogin,
+  resetTestState,
+  uniquePhone,
+} from '../helpers'
 
 test.describe('Ban management', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -16,8 +24,15 @@ test.describe('Ban management', () => {
 
   test('page loads with ban list or empty state', async ({ page }) => {
     // Either shows existing bans or empty state
-    const hasBans = await page.locator('.divide-y > div').first().isVisible({ timeout: 5000 }).catch(() => false)
-    const hasEmptyState = await page.getByText(/no banned numbers/i).isVisible().catch(() => false)
+    const hasBans = await page
+      .locator('.divide-y > div')
+      .first()
+      .isVisible({ timeout: 5000 })
+      .catch(() => false)
+    const hasEmptyState = await page
+      .getByText(/no banned numbers/i)
+      .isVisible()
+      .catch(() => false)
     expect(hasBans || hasEmptyState).toBeTruthy()
   })
 
@@ -94,7 +109,10 @@ test.describe('Ban management', () => {
 
     // Cancel the dialog
     await expect(page.getByRole('dialog')).toBeVisible()
-    await page.getByRole('dialog').getByRole('button', { name: /cancel/i }).click()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /cancel/i })
+      .click()
 
     // Ban should still be there
     await expect(page.getByRole('dialog')).toBeHidden()

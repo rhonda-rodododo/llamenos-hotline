@@ -237,9 +237,7 @@ test.describe('Invite delivery', () => {
   test('onboarding route handles invite code from URL', async ({ page }) => {
     // Navigate to onboarding with an invalid code — should show error
     await page.goto('/onboarding?code=invalid-test-code-xyz')
-    await expect(
-      page.getByText(/invalid invite|invite code/i)
-    ).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText(/invalid invite|invite code/i)).toBeVisible({ timeout: 15000 })
   })
 
   test('onboarding without code shows error', async ({ page }) => {

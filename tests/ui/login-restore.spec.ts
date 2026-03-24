@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { resetTestState } from '../helpers'
 
 test.describe('Login page — no stored key (recovery view)', () => {
@@ -38,13 +38,16 @@ test.describe('Login page — stored key exists (PIN view)', () => {
     await page.goto('/login')
     // Inject a fake encrypted key blob to trigger the PIN entry UI
     await page.evaluate(() => {
-      localStorage.setItem('llamenos-encrypted-key', JSON.stringify({
-        salt: 'aa'.repeat(16),
-        iterations: 600000,
-        nonce: 'bb'.repeat(24),
-        ciphertext: 'cc'.repeat(32),
-        pubkey: 'dd'.repeat(8),
-      }))
+      localStorage.setItem(
+        'llamenos-encrypted-key',
+        JSON.stringify({
+          salt: 'aa'.repeat(16),
+          iterations: 600000,
+          nonce: 'bb'.repeat(24),
+          ciphertext: 'cc'.repeat(32),
+          pubkey: 'dd'.repeat(8),
+        })
+      )
     })
     await page.reload()
   })

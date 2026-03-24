@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { resetTestState } from '../helpers'
 
 test.beforeEach(async ({ request }) => {

@@ -1,7 +1,7 @@
-import { type Page, type APIRequestContext, expect } from '@playwright/test'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
+import { type APIRequestContext, type Page, expect } from '@playwright/test'
 import { getPublicKey, nip19 } from 'nostr-tools'
 import { TestIds } from '../test-ids'
 
@@ -19,8 +19,8 @@ export const Timeouts = {
   API: 15000,
   /** Time to wait for elements to appear */
   ELEMENT: 10000,
-  /** Time to wait for auth-related operations */
-  AUTH: 30000,
+  /** Time to wait for auth-related operations (60s for parallel execution with PBKDF2) */
+  AUTH: 60000,
   /** Short delay for UI settling after login/navigation */
   UI_SETTLE: 500,
   /** Medium delay for route component mount and initial API calls */
@@ -43,11 +43,13 @@ async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promi
   const pinBytes = encoder.encode(pin)
   const salt = crypto.getRandomValues(new Uint8Array(16))
 
-  const keyMaterial = await crypto.subtle.importKey('raw', pinBytes, 'PBKDF2', false, ['deriveBits'])
+  const keyMaterial = await crypto.subtle.importKey('raw', pinBytes, 'PBKDF2', false, [
+    'deriveBits',
+  ])
   const derivedBits = await crypto.subtle.deriveBits(
     { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 600_000 },
     keyMaterial,
-    256,
+    256
   )
   const kek = new Uint8Array(derivedBits)
 
@@ -70,10 +72,10 @@ async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promi
     pubkey: pubkeyHash,
   }
 
-  await page.evaluate(
-    ({ key, value }) => localStorage.setItem(key, value),
-    { key: 'llamenos-encrypted-key', value: JSON.stringify(data) },
-  )
+  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), {
+    key: 'llamenos-encrypted-key',
+    value: JSON.stringify(data),
+  })
 }
 
 /**
@@ -121,16 +123,21 @@ export async function navigateAfterLogin(page: Page, url: string): Promise<void>
   // SPA navigation via TanStack Router (no page reload, keeps auth state)
   const parsed = new URL(url, 'http://localhost')
   const searchParams = Object.fromEntries(parsed.searchParams.entries())
-  await page.evaluate(({ pathname, search }) => {
-    const router = (window as any).__TEST_ROUTER
-    if (!router) return
-    if (Object.keys(search).length > 0) {
-      router.navigate({ to: pathname, search })
-    } else {
-      router.navigate({ to: pathname })
-    }
-  }, { pathname: parsed.pathname, search: searchParams })
-  await page.waitForURL(u => u.toString().includes(parsed.pathname), { timeout: Timeouts.NAVIGATION })
+  await page.evaluate(
+    ({ pathname, search }) => {
+      const router = (window as any).__TEST_ROUTER
+      if (!router) return
+      if (Object.keys(search).length > 0) {
+        router.navigate({ to: pathname, search })
+      } else {
+        router.navigate({ to: pathname })
+      }
+    },
+    { pathname: parsed.pathname, search: searchParams }
+  )
+  await page.waitForURL((u) => u.toString().includes(parsed.pathname), {
+    timeout: Timeouts.NAVIGATION,
+  })
 
   // Allow route component to mount and initial API calls to complete
   await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
@@ -149,12 +156,13 @@ export async function reenterPinAfterReload(page: Page): Promise<void> {
 
   if (pinVisible) {
     await enterPin(page, TEST_PIN)
-    await page.waitForURL(u => !u.toString().includes('/login'), { timeout: 15000 })
+    await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 15000 })
   }
 }
 
 /**
  * Login as admin: pre-loads encrypted key into localStorage, then enters PIN.
+ * Also installs a handler to auto-dismiss the session expired modal if it appears.
  */
 export async function loginAsAdmin(page: Page) {
   await page.goto('/login')
@@ -162,7 +170,18 @@ export async function loginAsAdmin(page: Page) {
   await preloadEncryptedKey(page, ADMIN_NSEC, TEST_PIN)
   await page.reload()
   await enterPin(page, TEST_PIN)
-  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 30000 })
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+    timeout: 60000,
+  })
+
+  // Auto-dismiss session expired modal if it appears during the test.
+  // The modal overlays the entire page and blocks all pointer events.
+  await page.addLocatorHandler(page.getByText('Session Expired'), async () => {
+    const reconnectBtn = page.getByRole('button', { name: /reconnect/i })
+    if (await reconnectBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await reconnectBtn.click()
+    }
+  })
 }
 
 /**
@@ -174,7 +193,7 @@ export async function loginAsVolunteer(page: Page, nsec: string) {
   await preloadEncryptedKey(page, nsec, TEST_PIN)
   await page.reload({ waitUntil: 'domcontentloaded' })
   await enterPin(page, TEST_PIN)
-  await page.waitForURL(url => !url.toString().includes('/login'), { timeout: Timeouts.AUTH })
+  await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: Timeouts.AUTH })
   // Short delay for initial API calls to complete
   await page.waitForTimeout(Timeouts.UI_SETTLE)
 }
@@ -188,7 +207,7 @@ export async function loginWithNsec(page: Page, nsec: string) {
   await page.evaluate(() => sessionStorage.clear())
   await page.locator('#nsec').fill(nsec)
   await page.getByRole('button', { name: /log in/i }).click()
-  await page.waitForURL(url => !url.toString().includes('/login'), { timeout: 15000 })
+  await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15000 })
 }
 
 export async function logout(page: Page) {
@@ -196,7 +215,11 @@ export async function logout(page: Page) {
   await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
 }
 
-export async function createVolunteerAndGetNsec(page: Page, name: string, phone: string): Promise<string> {
+export async function createVolunteerAndGetNsec(
+  page: Page,
+  name: string,
+  phone: string
+): Promise<string> {
   await page.getByRole('link', { name: 'Volunteers' }).click()
   await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
 
@@ -222,9 +245,11 @@ export async function dismissNsecCard(page: Page): Promise<void> {
 export async function completeProfileSetup(page: Page) {
   if (page.url().includes('profile-setup')) {
     await page.getByRole('button', { name: /complete setup/i }).click()
-    await page.waitForURL(u => !u.toString().includes('profile-setup'), { timeout: 15000 })
+    await page.waitForURL((u) => !u.toString().includes('profile-setup'), { timeout: 15000 })
   }
-  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+    timeout: 10000,
+  })
 }
 
 export function uniquePhone(): string {

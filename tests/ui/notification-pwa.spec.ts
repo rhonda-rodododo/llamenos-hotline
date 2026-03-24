@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, resetTestState } from '../helpers'
 
 test.describe('Notification prompt banner', () => {
@@ -19,7 +19,9 @@ test.describe('Notification prompt banner', () => {
     await loginAsAdmin(page)
 
     // Notification banner should be visible
-    await expect(page.getByText('Enable notifications to get alerted when calls come in.')).toBeVisible()
+    await expect(
+      page.getByText('Enable notifications to get alerted when calls come in.')
+    ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Enable', exact: true })).toBeVisible()
   })
 
@@ -35,7 +37,9 @@ test.describe('Notification prompt banner', () => {
     await loginAsAdmin(page)
 
     // Banner should not appear
-    await expect(page.getByText('Enable notifications to get alerted when calls come in.')).not.toBeVisible()
+    await expect(
+      page.getByText('Enable notifications to get alerted when calls come in.')
+    ).not.toBeVisible()
   })
 
   test('dismiss button hides notification banner permanently', async ({ page }) => {
@@ -61,7 +65,9 @@ test.describe('Notification prompt banner', () => {
     await expect(banner).not.toBeVisible()
 
     // Verify localStorage was set
-    const dismissed = await page.evaluate(() => localStorage.getItem('llamenos-notification-prompt-dismissed'))
+    const dismissed = await page.evaluate(() =>
+      localStorage.getItem('llamenos-notification-prompt-dismissed')
+    )
     expect(dismissed).toBe('true')
   })
 })
@@ -89,7 +95,9 @@ test.describe('Settings notification permission status', () => {
     await expect(page.getByText('Enabled', { exact: true })).toBeVisible()
   })
 
-  test('shows "Not enabled" badge and Enable button when permission is default', async ({ page }) => {
+  test('shows "Not enabled" badge and Enable button when permission is default', async ({
+    page,
+  }) => {
     await page.addInitScript(() => {
       Object.defineProperty(window, 'Notification', {
         value: { permission: 'default', requestPermission: () => Promise.resolve('granted') },
@@ -130,7 +138,11 @@ test.describe('Settings notification permission status', () => {
     await notifSection.click()
 
     // Should show the Blocked badge
-    await expect(page.getByText("Notifications are blocked. Update your browser's site settings to enable them.")).toBeVisible()
+    await expect(
+      page.getByText(
+        "Notifications are blocked. Update your browser's site settings to enable them."
+      )
+    ).toBeVisible()
     await expect(page.getByText('Blocked', { exact: true })).toBeVisible()
   })
 })
@@ -155,7 +167,9 @@ test.describe('PWA install banner', () => {
     })
 
     // PWA banner should appear
-    await expect(page.getByText('Install this app for quick access and a better experience.')).toBeVisible({ timeout: 10000 })
+    await expect(
+      page.getByText('Install this app for quick access and a better experience.')
+    ).toBeVisible({ timeout: 10000 })
     await expect(page.getByRole('button', { name: 'Install' })).toBeVisible()
   })
 
@@ -182,7 +196,9 @@ test.describe('PWA install banner', () => {
     await expect(bannerText).not.toBeVisible()
 
     // localStorage set
-    const dismissed = await page.evaluate(() => localStorage.getItem('llamenos-pwa-install-dismissed'))
+    const dismissed = await page.evaluate(() =>
+      localStorage.getItem('llamenos-pwa-install-dismissed')
+    )
     expect(dismissed).toBe('true')
   })
 })

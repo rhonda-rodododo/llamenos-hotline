@@ -1252,37 +1252,37 @@ import type { CreateReportTypeInput, ReportType, UpdateReportTypeInput } from '@
 export type { ReportType }
 
 export async function listReportTypes() {
-  return request<{ reportTypes: ReportType[] }>(hp('/reports/types'))
+  return request<{ reportTypes: ReportType[] }>(hp('/report-types'))
 }
 
 export async function createReportType(data: CreateReportTypeInput) {
-  return request<{ reportType: ReportType }>(hp('/reports/types'), {
+  return request<{ reportType: ReportType }>(hp('/report-types'), {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
 export async function updateReportType(id: string, data: UpdateReportTypeInput) {
-  return request<{ reportType: ReportType }>(hp(`/reports/types/${id}`), {
+  return request<{ reportType: ReportType }>(hp(`/report-types/${id}`), {
     method: 'PATCH',
     body: JSON.stringify(data),
   })
 }
 
 export async function archiveReportType(id: string) {
-  return request<{ reportType: ReportType }>(hp(`/reports/types/${id}/archive`), {
-    method: 'POST',
+  return request<{ reportType: ReportType }>(hp(`/report-types/${id}`), {
+    method: 'DELETE',
   })
 }
 
 export async function unarchiveReportType(id: string) {
-  return request<{ reportType: ReportType }>(hp(`/reports/types/${id}/unarchive`), {
+  return request<{ reportType: ReportType }>(hp(`/report-types/${id}/unarchive`), {
     method: 'POST',
   })
 }
 
 export async function setDefaultReportType(id: string) {
-  return request<{ reportType: ReportType }>(hp(`/reports/types/${id}/default`), {
+  return request<{ reportType: ReportType }>(hp(`/report-types/${id}/default`), {
     method: 'POST',
   })
 }

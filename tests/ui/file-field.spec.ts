@@ -1,5 +1,5 @@
-import { test, expect, type Page } from '@playwright/test'
-import { loginAsAdmin, resetTestState } from '../helpers'
+import { type Page, expect, test } from '@playwright/test'
+import { loginAsAdmin } from '../helpers'
 
 declare global {
   interface Window {
@@ -29,7 +29,7 @@ test.describe('File Custom Field', () => {
           const reqMethod = (options.method || 'GET').toUpperCase()
           const reqPath = new URL(url, location.origin).pathname
           const token = km.createAuthToken(Date.now(), reqMethod, reqPath)
-          headers['Authorization'] = `Bearer ${token}`
+          headers.Authorization = `Bearer ${token}`
         }
         return fetch(url, { ...options, headers })
       }
@@ -49,7 +49,12 @@ test.describe('File Custom Field', () => {
 
     // Skip if already exists
     const existing = page.locator('.rounded-lg.border').filter({ hasText: label })
-    if (await existing.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (
+      await existing
+        .first()
+        .isVisible({ timeout: 2000 })
+        .catch(() => false)
+    ) {
       return
     }
 
@@ -153,7 +158,7 @@ test.describe('File Custom Field', () => {
         const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream' }
         if (km?.isUnlocked()) {
           const token = km.createAuthToken(Date.now(), 'PUT', `/api/uploads/${uploadId}/chunks/0`)
-          headers['Authorization'] = `Bearer ${token}`
+          headers.Authorization = `Bearer ${token}`
         }
         await fetch(`/api/uploads/${uploadId}/chunks/0`, {
           method: 'PUT',
@@ -172,16 +177,13 @@ test.describe('File Custom Field', () => {
     expect(typeof uploadId).toBe('string')
 
     // Now bind the context
-    const bindResult = await page.evaluate(
-      async (uploadId: string) => {
-        const res = await window.__authedFetch(`/api/uploads/${uploadId}/context`, {
-          method: 'PATCH',
-          body: JSON.stringify({ contextType: 'custom_field', contextId: 'note-abc-123' }),
-        })
-        return { status: res.status, body: await res.json() }
-      },
-      uploadId
-    )
+    const bindResult = await page.evaluate(async (uploadId: string) => {
+      const res = await window.__authedFetch(`/api/uploads/${uploadId}/context`, {
+        method: 'PATCH',
+        body: JSON.stringify({ contextType: 'custom_field', contextId: 'note-abc-123' }),
+      })
+      return { status: res.status, body: await res.json() }
+    }, uploadId)
 
     expect(bindResult.status).toBe(200)
     expect(bindResult.body.ok).toBe(true)
@@ -197,7 +199,10 @@ test.describe('File Custom Field', () => {
     const conversationId = await page.evaluate(async () => {
       const res = await window.__authedFetch('/api/conversations', {
         method: 'POST',
-        body: JSON.stringify({ channelType: 'web', contactIdentifierHash: `test-ctx-incomplete-${Date.now()}` }),
+        body: JSON.stringify({
+          channelType: 'web',
+          contactIdentifierHash: `test-ctx-incomplete-${Date.now()}`,
+        }),
       })
       const data = await res.json()
       return data.id as string
@@ -225,16 +230,13 @@ test.describe('File Custom Field', () => {
       [conversationId, adminPubkey] as [string, string]
     )
 
-    const result = await page.evaluate(
-      async (uploadId: string) => {
-        const res = await window.__authedFetch(`/api/uploads/${uploadId}/context`, {
-          method: 'PATCH',
-          body: JSON.stringify({ contextType: 'custom_field', contextId: 'note-xyz' }),
-        })
-        return { status: res.status, body: await res.json() }
-      },
-      uploadId
-    )
+    const result = await page.evaluate(async (uploadId: string) => {
+      const res = await window.__authedFetch(`/api/uploads/${uploadId}/context`, {
+        method: 'PATCH',
+        body: JSON.stringify({ contextType: 'custom_field', contextId: 'note-xyz' }),
+      })
+      return { status: res.status, body: await res.json() }
+    }, uploadId)
 
     expect(result.status).toBe(409)
     expect(result.body.error).toContain('complete')
@@ -266,27 +268,22 @@ test.describe('File Custom Field', () => {
     })
 
     // Init without conversationId but with contextType: custom_field
-    const result = await page.evaluate(
-      async (adminPubkey: string) => {
-        const res = await window.__authedFetch('/api/uploads/init', {
-          method: 'POST',
-          body: JSON.stringify({
-            totalSize: 10,
-            totalChunks: 1,
-            conversationId: '',
-            contextType: 'custom_field',
-            recipientEnvelopes: [
-              { pubkey: adminPubkey, encryptedFileKey: 'k', ephemeralPubkey: 'e' },
-            ],
-            encryptedMetadata: [
-              { pubkey: adminPubkey, encryptedContent: 'm', ephemeralPubkey: 'e' },
-            ],
-          }),
-        })
-        return { status: res.status, body: await res.json() }
-      },
-      adminPubkey
-    )
+    const result = await page.evaluate(async (adminPubkey: string) => {
+      const res = await window.__authedFetch('/api/uploads/init', {
+        method: 'POST',
+        body: JSON.stringify({
+          totalSize: 10,
+          totalChunks: 1,
+          conversationId: '',
+          contextType: 'custom_field',
+          recipientEnvelopes: [
+            { pubkey: adminPubkey, encryptedFileKey: 'k', ephemeralPubkey: 'e' },
+          ],
+          encryptedMetadata: [{ pubkey: adminPubkey, encryptedContent: 'm', ephemeralPubkey: 'e' }],
+        }),
+      })
+      return { status: res.status, body: await res.json() }
+    }, adminPubkey)
 
     expect(result.status).toBe(200)
     expect(typeof result.body.uploadId).toBe('string')

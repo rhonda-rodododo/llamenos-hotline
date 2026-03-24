@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, resetTestState, navigateAfterLogin } from '../helpers'
+import { expect, test } from '@playwright/test'
+import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 test.describe('Setup Wizard - Provider Module', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -125,9 +125,7 @@ test.describe('Setup Wizard - Provider Module', () => {
     await expect(page.getByText('Signal Bridge')).toBeVisible()
 
     // Should show E2EE note
-    await expect(
-      page.getByText(/Signal provides end-to-end encryption/)
-    ).toBeVisible()
+    await expect(page.getByText(/Signal provides end-to-end encryption/)).toBeVisible()
 
     // Should show prerequisites
     await expect(page.getByText('Prerequisites')).toBeVisible()
@@ -243,7 +241,9 @@ test.describe('Setup Wizard - Provider Module', () => {
     // Complete setup
     await page.getByRole('button', { name: /go to dashboard/i }).click()
     await page.waitForURL('**/', { timeout: 15000 })
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 10000,
+    })
   })
 
   // =====================================================================

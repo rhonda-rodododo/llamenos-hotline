@@ -40,7 +40,7 @@ reportTypesRoutes.post('/', requirePermission('settings:manage-fields'), async (
     name: reportType.name,
   })
 
-  return c.json(reportType, 201)
+  return c.json({ reportType }, 201)
 })
 
 // PATCH /api/report-types/:id — update name/description (admin only)
@@ -66,7 +66,7 @@ reportTypesRoutes.patch('/:id', requirePermission('settings:manage-fields'), asy
     reportTypeId: id,
   })
 
-  return c.json(reportType)
+  return c.json({ reportType })
 })
 
 // DELETE /api/report-types/:id — archive (soft delete, admin only)
@@ -98,7 +98,7 @@ reportTypesRoutes.post('/:id/unarchive', requirePermission('settings:manage-fiel
     reportTypeId: id,
   })
 
-  return c.json(reportType)
+  return c.json({ reportType })
 })
 
 // POST /api/report-types/:id/default — set as default type (admin only)
@@ -114,7 +114,7 @@ reportTypesRoutes.post('/:id/default', requirePermission('settings:manage-fields
     reportTypeId: id,
   })
 
-  return c.json(reportType)
+  return c.json({ reportType })
 })
 
 export default reportTypesRoutes

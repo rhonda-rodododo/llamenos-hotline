@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, resetTestState, uniquePhone } from '../helpers'
 
 test.describe('Admin flow', () => {
@@ -44,10 +44,17 @@ test.describe('Admin flow', () => {
     await expect(page.getByText(volName).first()).toBeVisible()
 
     // Delete the volunteer — scope to the row containing the volunteer name
-    const volRow = page.getByTestId('volunteer-list').locator('div').filter({ hasText: volName }).first()
+    const volRow = page
+      .getByTestId('volunteer-list')
+      .locator('div')
+      .filter({ hasText: volName })
+      .first()
     await volRow.getByTestId('volunteer-delete-btn').click()
     // Confirm dialog has a "Delete" button
-    await page.getByRole('dialog').getByRole('button', { name: /delete/i }).click()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /delete/i })
+      .click()
     // Wait for dialog to close
     await expect(page.getByRole('dialog')).toBeHidden()
 
@@ -169,7 +176,9 @@ test.describe('Admin flow', () => {
   test('admin settings page loads with all sections', async ({ page }) => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
     await page.waitForLoadState('networkidle')
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({
+      timeout: 15000,
+    })
 
     // Section headers are always visible (in collapsible trigger)
     await expect(page.getByRole('heading', { name: 'Transcription' })).toBeVisible()
@@ -184,7 +193,9 @@ test.describe('Admin flow', () => {
   test('admin settings toggles work', async ({ page }) => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
     await page.waitForLoadState('networkidle')
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({
+      timeout: 15000,
+    })
 
     // Expand transcription section to see its switches
     await page.getByRole('heading', { name: 'Transcription' }).click()
@@ -234,7 +245,9 @@ test.describe('Admin flow', () => {
   test('admin settings shows status summaries when collapsed', async ({ page }) => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
     await page.waitForLoadState('networkidle')
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({
+      timeout: 15000,
+    })
 
     // Wait for settings to load
     await page.waitForTimeout(1000)
@@ -249,7 +262,13 @@ test.describe('Admin flow', () => {
     await expect(transcriptionCard).toBeVisible()
     const transcriptionStatus = transcriptionCard.locator('span.text-xs')
     // At least one status text should be visible (on desktop viewports)
-    const statusCount = await page.locator('.text-xs.text-muted-foreground').filter({ hasText: /(Enabled|Disabled|Not configured|Not required|languages|fields|None|CAPTCHA|Default|Customized)/i }).count()
+    const statusCount = await page
+      .locator('.text-xs.text-muted-foreground')
+      .filter({
+        hasText:
+          /(Enabled|Disabled|Not configured|Not required|languages|fields|None|CAPTCHA|Default|Customized)/i,
+      })
+      .count()
     expect(statusCount).toBeGreaterThan(0)
   })
 

@@ -11,16 +11,16 @@
  * Screenshots are saved to site/public/screenshots/
  */
 
-import { test, expect } from '@playwright/test'
-import { type Page } from '@playwright/test'
-import { resetTestState } from '../helpers'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
+import { expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { getPublicKey, nip19 } from 'nostr-tools'
-import * as fs from 'fs'
-import * as path from 'path'
-import { fileURLToPath } from 'url'
+import { resetTestState } from '../helpers'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -39,7 +39,8 @@ const VIEWPORTS = {
 const SCREENSHOT_DIR = path.join(__dirname, '..', 'site', 'public', 'screenshots')
 
 // Skip in CI - this test is only run manually for documentation
-test.skip(({ }, testInfo) => !!process.env.CI, 'Screenshot capture only runs manually')
+// biome-ignore lint/correctness/noEmptyPattern: Playwright skip callback signature
+test.skip(({}, testInfo) => !!process.env.CI, 'Screenshot capture only runs manually')
 
 /**
  * Pre-compute an encrypted key blob and inject into localStorage.
@@ -49,11 +50,13 @@ async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promi
   const pinBytes = encoder.encode(pin)
   const salt = crypto.getRandomValues(new Uint8Array(16))
 
-  const keyMaterial = await crypto.subtle.importKey('raw', pinBytes, 'PBKDF2', false, ['deriveBits'])
+  const keyMaterial = await crypto.subtle.importKey('raw', pinBytes, 'PBKDF2', false, [
+    'deriveBits',
+  ])
   const derivedBits = await crypto.subtle.deriveBits(
     { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 600_000 },
     keyMaterial,
-    256,
+    256
   )
   const kek = new Uint8Array(derivedBits)
 
@@ -76,10 +79,10 @@ async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promi
     pubkey: pubkeyHash,
   }
 
-  await page.evaluate(
-    ({ key, value }) => localStorage.setItem(key, value),
-    { key: 'llamenos-encrypted-key', value: JSON.stringify(data) },
-  )
+  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), {
+    key: 'llamenos-encrypted-key',
+    value: JSON.stringify(data),
+  })
 }
 
 /**
@@ -104,7 +107,9 @@ async function loginAsAdmin(page: Page): Promise<void> {
   await preloadEncryptedKey(page, ADMIN_NSEC, TEST_PIN)
   await page.reload()
   await enterPin(page, TEST_PIN)
-  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 30000 })
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+    timeout: 30000,
+  })
 }
 
 /**
@@ -112,7 +117,9 @@ async function loginAsAdmin(page: Page): Promise<void> {
  */
 async function navigateTo(page: Page, pathname: string): Promise<void> {
   await page.evaluate((path) => {
-    const router = (window as unknown as { __TEST_ROUTER?: { navigate: (opts: { to: string }) => void } }).__TEST_ROUTER
+    const router = (
+      window as unknown as { __TEST_ROUTER?: { navigate: (opts: { to: string }) => void } }
+    ).__TEST_ROUTER
     if (router) {
       router.navigate({ to: path })
     }
@@ -127,7 +134,7 @@ async function navigateTo(page: Page, pathname: string): Promise<void> {
 async function captureScreen(
   page: Page,
   name: string,
-  viewport: 'desktop' | 'mobile',
+  viewport: 'desktop' | 'mobile'
 ): Promise<void> {
   const vp = VIEWPORTS[viewport]
   await page.setViewportSize(vp)

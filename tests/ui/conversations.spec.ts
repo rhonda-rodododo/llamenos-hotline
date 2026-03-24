@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 test.describe('Conversations — no channels configured', () => {
@@ -14,14 +14,20 @@ test.describe('Conversations — no channels configured', () => {
     await loginAsAdmin(page)
 
     // Check if channels are already enabled — if so, skip
-    const config = await page.evaluate(() => fetch('/api/config').then(r => r.json()))
-    const hasMessaging = config.channels?.sms || config.channels?.whatsapp || config.channels?.signal || config.channels?.reports
+    const config = await page.evaluate(() => fetch('/api/config').then((r) => r.json()))
+    const hasMessaging =
+      config.channels?.sms ||
+      config.channels?.whatsapp ||
+      config.channels?.signal ||
+      config.channels?.reports
     test.skip(!!hasMessaging, 'Messaging channels already enabled — cannot test empty state')
 
     await navigateAfterLogin(page, '/conversations')
     await expect(page.getByText('No messaging channels enabled')).toBeVisible({ timeout: 10000 })
     await expect(
-      page.getByText('Enable SMS, WhatsApp, Signal, or Reports in Hub Settings to start receiving messages.')
+      page.getByText(
+        'Enable SMS, WhatsApp, Signal, or Reports in Hub Settings to start receiving messages.'
+      )
     ).toBeVisible()
   })
 
@@ -29,8 +35,12 @@ test.describe('Conversations — no channels configured', () => {
     await loginAsAdmin(page)
 
     // Check if channels are already enabled — if so, skip
-    const config = await page.evaluate(() => fetch('/api/config').then(r => r.json()))
-    const hasMessaging = config.channels?.sms || config.channels?.whatsapp || config.channels?.signal || config.channels?.reports
+    const config = await page.evaluate(() => fetch('/api/config').then((r) => r.json()))
+    const hasMessaging =
+      config.channels?.sms ||
+      config.channels?.whatsapp ||
+      config.channels?.signal ||
+      config.channels?.reports
     test.skip(!!hasMessaging, 'Messaging channels already enabled — cannot test hidden nav')
 
     await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
@@ -39,8 +49,6 @@ test.describe('Conversations — no channels configured', () => {
 })
 
 test.describe('Conversations — with channels enabled', () => {
-
-
   /**
    * Helper: enable channels using the setup wizard flow.
    * Navigates through the wizard selecting Reports + SMS, then completes setup.
@@ -55,7 +63,9 @@ test.describe('Conversations — with channels enabled', () => {
     await expect(page.getByText('Choose Communication Channels')).toBeVisible({ timeout: 5000 })
 
     // Step 2: Select Reports (no provider needed)
-    const reportsCard = page.locator(`[role="button"][aria-pressed]`).filter({ has: page.getByText('Reports', { exact: true }) })
+    const reportsCard = page
+      .locator(`[role="button"][aria-pressed]`)
+      .filter({ has: page.getByText('Reports', { exact: true }) })
     await reportsCard.click()
     await page.getByRole('button', { name: /next/i }).click()
     await expect(page.getByText('Configure Providers')).toBeVisible({ timeout: 5000 })
@@ -71,7 +81,9 @@ test.describe('Conversations — with channels enabled', () => {
     await expect(page.getByText('Review & Launch')).toBeVisible({ timeout: 5000 })
     await page.getByRole('button', { name: /go to dashboard/i }).click()
     await page.waitForURL('**/', { timeout: 15000 })
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+      timeout: 10000,
+    })
   }
 
   test('setup channels and verify nav link appears', async ({ page }) => {
@@ -87,7 +99,9 @@ test.describe('Conversations — with channels enabled', () => {
     await navigateAfterLogin(page, '/reports')
 
     // Reports page should show the heading
-    await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({
+      timeout: 10000,
+    })
 
     // Empty state shows "No reports" message
     await expect(page.getByText('No reports', { exact: true })).toBeVisible()
@@ -107,7 +121,9 @@ test.describe('Conversations — with channels enabled', () => {
     // but the Reports page should work fine
     await loginAsAdmin(page)
     await page.getByRole('link', { name: 'Reports' }).click()
-    await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({
+      timeout: 10000,
+    })
 
     // The "No messaging channels enabled" text should NOT appear on reports page
     await expect(page.getByText('No messaging channels enabled')).not.toBeVisible()

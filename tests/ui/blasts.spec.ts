@@ -1,14 +1,14 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import {
-  loginAsAdmin,
-  loginAsVolunteer,
+  Timeouts,
+  completeProfileSetup,
   createVolunteerAndGetNsec,
   dismissNsecCard,
-  completeProfileSetup,
+  loginAsAdmin,
+  loginAsVolunteer,
   navigateAfterLogin,
   resetTestState,
   uniquePhone,
-  Timeouts,
 } from '../helpers'
 
 test.describe('Blasts — UI', () => {
@@ -43,7 +43,9 @@ test.describe('Blasts — UI', () => {
     const onBlastsPage = currentUrl.includes('/blasts')
     if (onBlastsPage) {
       // If still on blasts page, there should be a forbidden/access denied indicator
-      const forbiddenIndicator = page.getByText(/forbidden|access denied|not authorized|permission/i)
+      const forbiddenIndicator = page.getByText(
+        /forbidden|access denied|not authorized|permission/i
+      )
       await expect(forbiddenIndicator).toBeVisible({ timeout: Timeouts.ELEMENT })
     }
     // If redirected away, that's the expected behavior — test passes
@@ -67,7 +69,7 @@ test.describe('Blasts — UI', () => {
           const reqMethod = (options.method || 'GET').toUpperCase()
           const reqPath = new URL(url, location.origin).pathname
           const token = km.createAuthToken(Date.now(), reqMethod, reqPath)
-          headers['Authorization'] = `Bearer ${token}`
+          headers.Authorization = `Bearer ${token}`
         }
         return fetch(url, { ...options, headers })
       }
@@ -86,7 +88,9 @@ test.describe('Blasts — UI', () => {
   test('blast composer validates empty name field', async ({ page }) => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/blasts')
-    await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({ timeout: Timeouts.ELEMENT })
+    await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({
+      timeout: Timeouts.ELEMENT,
+    })
 
     // Open the blast composer
     await page.getByRole('button', { name: /new blast/i }).click()
@@ -103,7 +107,9 @@ test.describe('Blasts — UI', () => {
   test('blast composer validates empty content field', async ({ page }) => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/blasts')
-    await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({ timeout: Timeouts.ELEMENT })
+    await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({
+      timeout: Timeouts.ELEMENT,
+    })
 
     // Open the blast composer
     await page.getByRole('button', { name: /new blast/i }).click()
@@ -120,7 +126,9 @@ test.describe('Blasts — UI', () => {
   test('blast composer save button enables only when both fields are filled', async ({ page }) => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/blasts')
-    await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({ timeout: Timeouts.ELEMENT })
+    await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({
+      timeout: Timeouts.ELEMENT,
+    })
 
     await page.getByRole('button', { name: /new blast/i }).click()
     await expect(page.getByTestId('blast-name')).toBeVisible({ timeout: Timeouts.ELEMENT })
@@ -147,7 +155,9 @@ test.describe('Blasts — UI', () => {
   test('blast can be deleted after creation', async ({ page }) => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/blasts')
-    await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({ timeout: Timeouts.ELEMENT })
+    await expect(page.getByRole('heading', { name: 'Message Blasts' })).toBeVisible({
+      timeout: Timeouts.ELEMENT,
+    })
 
     // Create a blast first
     const blastName = `Delete Test ${Date.now()}`
@@ -157,18 +167,18 @@ test.describe('Blasts — UI', () => {
     await page.getByTestId('blast-text').fill('This blast will be deleted')
     await page.getByRole('button', { name: /save|create/i }).click()
 
-    // Blast should appear in the list
-    await expect(page.getByText(blastName)).toBeVisible({ timeout: Timeouts.API })
+    // Blast should appear in the list (may also appear in detail panel if auto-selected)
+    await expect(page.getByText(blastName).first()).toBeVisible({ timeout: Timeouts.API })
 
-    // Click on the blast to select it and see its details
-    await page.getByText(blastName).click()
+    // Click on the blast in the list to select it and see its details
+    await page.getByText(blastName).first().click()
 
-    // Click the delete button in the detail panel
-    const deleteButton = page.getByRole('button', { name: /delete/i })
+    // Click the delete button in the detail panel (exact match to avoid matching list items)
+    const deleteButton = page.getByRole('button', { name: 'Delete', exact: true })
     await expect(deleteButton).toBeVisible({ timeout: Timeouts.ELEMENT })
     await deleteButton.click()
 
     // The blast should be removed from the list
-    await expect(page.getByText(blastName)).not.toBeVisible({ timeout: Timeouts.API })
+    await expect(page.getByText(blastName).first()).not.toBeVisible({ timeout: Timeouts.API })
   })
 })

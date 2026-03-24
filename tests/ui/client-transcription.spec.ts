@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 test.describe('Client-side transcription settings', () => {
@@ -38,7 +38,7 @@ test.describe('Client-side transcription settings', () => {
 
     // Setting persists in localStorage
     const settings = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('llamenos:client-transcription') || '{}'),
+      JSON.parse(localStorage.getItem('llamenos:client-transcription') || '{}')
     )
     expect(settings.enabled).toBe(true)
     expect(settings.model).toBe('base.en')
@@ -49,7 +49,7 @@ test.describe('Client-side transcription settings', () => {
 
     // Verify persisted state
     const updatedSettings = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('llamenos:client-transcription') || '{}'),
+      JSON.parse(localStorage.getItem('llamenos:client-transcription') || '{}')
     )
     expect(updatedSettings.enabled).toBe(false)
   })
@@ -59,11 +59,14 @@ test.describe('Client-side transcription settings', () => {
 
     // Pre-set localStorage before navigating to settings
     await page.evaluate(() => {
-      localStorage.setItem('llamenos:client-transcription', JSON.stringify({
-        enabled: true,
-        model: 'base',
-        language: 'en',
-      }))
+      localStorage.setItem(
+        'llamenos:client-transcription',
+        JSON.stringify({
+          enabled: true,
+          model: 'base',
+          language: 'en',
+        })
+      )
     })
 
     await navigateAfterLogin(page, '/settings?section=transcription')
