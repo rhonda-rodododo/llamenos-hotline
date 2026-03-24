@@ -34,8 +34,8 @@ test.describe('Voicemail webhook API', () => {
       }),
     })
 
-    // If telephony is not configured (no provider in dev), the handler returns 503.
-    if (incomingRes.status() === 503) {
+    // If telephony is not configured (no provider in dev), the middleware returns 404 or handler returns 503.
+    if (incomingRes.status() === 503 || incomingRes.status() === 404) {
       test.skip(true, 'Telephony not configured in dev env -- skipping voicemail webhook test')
       return
     }
@@ -78,8 +78,8 @@ test.describe('Voicemail webhook API', () => {
       }),
     })
 
-    // With no telephony configured -> 503; with config -> 200 TwiML
-    if (res.status() !== 503) {
+    // With no telephony configured -> 404 or 503; with config -> 200 TwiML
+    if (res.status() !== 503 && res.status() !== 404) {
       expect(res.status()).toBe(200)
       const body = await res.text()
       // TwiML responses are XML with a <Response> root element
@@ -102,7 +102,7 @@ test.describe('Voicemail webhook API', () => {
         }),
       },
     )
-    // Should not return 500 -- either 200/204 (handled gracefully) or 503 (no telephony config)
+    // Should not return 500 -- either 200/204 (handled gracefully) or 404/503 (no telephony config)
     expect(res.status()).not.toBe(500)
   })
 })
