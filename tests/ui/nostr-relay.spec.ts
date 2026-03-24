@@ -142,7 +142,7 @@ test.describe('Call ring Nostr events', () => {
     // Set up fallback group so calls proceed
     const adminPubkey = await page.evaluate(() => {
       const km = (window as any).__TEST_KEY_MANAGER
-      return km?.getPublicKey?.() ?? null
+      return km?.getPublicKeyHex?.() ?? null
     })
     if (adminPubkey) {
       await page.evaluate(async (pubkey: string) => {
@@ -524,7 +524,7 @@ test.describe('REST polling fallback when relay unreachable', () => {
     // Set up fallback group
     const adminPubkey = await page.evaluate(() => {
       const km = (window as any).__TEST_KEY_MANAGER
-      return km?.getPublicKey?.() ?? null
+      return km?.getPublicKeyHex?.() ?? null
     })
     if (adminPubkey) {
       await page.evaluate(async (pubkey: string) => {

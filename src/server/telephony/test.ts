@@ -83,6 +83,19 @@ export class TestAdapter implements TelephonyAdapter {
         </Response>
       `)
     }
+
+    // Retry: re-Gather with new digits
+    if (params.remainingAttempts && params.remainingAttempts > 0 && params.newCaptchaDigits) {
+      return this.twiml(`
+        <Response>
+          <Gather numDigits="${params.newCaptchaDigits.length}" action="/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${params.callerLanguage}${hp}" method="POST" timeout="10">
+            <Say>That was incorrect. Please try again: ${params.newCaptchaDigits.split('').join(', ')}</Say>
+          </Gather>
+          <Redirect method="POST">/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${params.callerLanguage}${hp}</Redirect>
+        </Response>
+      `)
+    }
+
     return this.twiml('<Response><Hangup/></Response>')
   }
 

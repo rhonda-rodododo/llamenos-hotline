@@ -11,12 +11,17 @@ calls.get('/active', requirePermission('calls:read-active'), async (c) => {
   const permissions = c.get('permissions')
   const canSeeFullInfo = checkPermission(permissions, 'calls:read-active-full')
   const activeCalls = await services.calls.getActiveCalls(hubId)
-  if (!canSeeFullInfo) {
-    return c.json({
-      calls: activeCalls.map((call) => ({ ...call, callerNumber: '[redacted]' })),
-    })
-  }
-  return c.json({ calls: activeCalls })
+
+  // Map server ActiveCall (callSid, assignedPubkey, Date) to client ActiveCall (id, answeredBy, string)
+  const mapped = activeCalls.map((call) => ({
+    id: call.callSid,
+    callerNumber: canSeeFullInfo ? call.callerNumber : '[redacted]',
+    answeredBy: call.assignedPubkey ?? null,
+    startedAt: call.startedAt instanceof Date ? call.startedAt.toISOString() : call.startedAt,
+    status: call.status,
+  }))
+
+  return c.json({ calls: mapped })
 })
 
 calls.get('/today-count', requirePermission('calls:read-active'), async (c) => {

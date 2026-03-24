@@ -17,8 +17,12 @@ export class CallService {
   // ------------------------------------------------------------------ Active Calls
 
   async getActiveCalls(hubId?: string): Promise<ActiveCall[]> {
-    const hId = hubId ?? 'global'
-    const rows = await this.db.select().from(activeCalls).where(eq(activeCalls.hubId, hId))
+    if (hubId) {
+      const rows = await this.db.select().from(activeCalls).where(eq(activeCalls.hubId, hubId))
+      return rows.map((r) => this.#rowToActiveCall(r))
+    }
+    // No hub specified — return all active calls (super admin cross-hub view)
+    const rows = await this.db.select().from(activeCalls)
     return rows.map((r) => this.#rowToActiveCall(r))
   }
 

@@ -229,6 +229,22 @@ export class VonageAdapter implements TelephonyAdapter {
       ])
     }
 
+    // Retry: re-Gather with new digits
+    if (params.remainingAttempts && params.remainingAttempts > 0 && params.newCaptchaDigits) {
+      const retryDigits = params.newCaptchaDigits
+      return this.ncco([
+        talk(getPrompt('captchaRetry', lang), lang),
+        talk(`${retryDigits.split('').join(', ')}.`, lang, true),
+        {
+          action: 'input',
+          type: ['dtmf'],
+          dtmf: { maxDigits: 4, timeOut: 10 },
+          eventUrl: [`/api/telephony/captcha?callSid=${params.callSid}&lang=${lang}${hp}`],
+          eventMethod: 'POST',
+        },
+      ])
+    }
+
     return this.ncco([talk(getPrompt('captchaFail', lang), lang)])
   }
 

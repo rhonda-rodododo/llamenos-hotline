@@ -65,14 +65,30 @@ describe('TestAdapter', () => {
     expect(res.body).toContain('<Enqueue')
   })
 
-  test('handleCaptchaResponse returns Hangup on wrong digits', async () => {
+  test('handleCaptchaResponse returns Hangup on wrong digits with no retries', async () => {
     const res = await adapter.handleCaptchaResponse({
       callSid: 'CA_test_123',
       digits: '9999',
       expectedDigits: '1234',
       callerLanguage: 'en',
+      remainingAttempts: 0,
     })
     expect(res.body).toContain('<Hangup')
+    expect(res.body).not.toContain('<Gather')
+  })
+
+  test('handleCaptchaResponse returns Gather on wrong digits with retries remaining', async () => {
+    const res = await adapter.handleCaptchaResponse({
+      callSid: 'CA_test_123',
+      digits: '9999',
+      expectedDigits: '1234',
+      callerLanguage: 'en',
+      remainingAttempts: 2,
+      newCaptchaDigits: '5678',
+    })
+    expect(res.body).toContain('<Gather')
+    expect(res.body).toContain('5, 6, 7, 8')
+    expect(res.body).not.toContain('<Enqueue')
   })
 
   test('rejectCall returns Reject TwiML', () => {

@@ -176,6 +176,10 @@ export interface CaptchaResponseParams {
   callerLanguage: string
   /** Hub ID for multi-hub routing — appended to callback URLs as &hub= */
   hubId?: string
+  /** Remaining CAPTCHA attempts before rejection. When > 0, adapter should re-Gather with new digits. */
+  remainingAttempts?: number
+  /** New CAPTCHA digits for retry (generated server-side when shouldRetry is true) */
+  newCaptchaDigits?: string
 }
 
 export interface CallAnsweredParams {

@@ -202,6 +202,7 @@ export interface SpamSettings {
   rateLimitEnabled: boolean
   maxCallsPerMinute: number
   blockDurationMinutes: number
+  captchaMaxAttempts: number
 }
 
 export interface CallSettings {

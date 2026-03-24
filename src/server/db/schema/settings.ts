@@ -75,6 +75,7 @@ export const spamSettings = pgTable('spam_settings', {
   rateLimitEnabled: boolean('rate_limit_enabled').notNull().default(true),
   maxCallsPerMinute: integer('max_calls_per_minute').notNull().default(5),
   blockDurationMinutes: integer('block_duration_minutes').notNull().default(60),
+  captchaMaxAttempts: integer('captcha_max_attempts').notNull().default(3),
 })
 
 export const callSettings = pgTable('call_settings', {
@@ -127,6 +128,7 @@ export const setupState = pgTable('setup_state', {
 export const captchaState = pgTable('captcha_state', {
   callSid: text('call_sid').primaryKey(),
   expectedDigits: text('expected_digits').notNull(),
+  attempts: integer('attempts').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 })

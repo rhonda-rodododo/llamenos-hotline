@@ -190,6 +190,21 @@ export class TwilioAdapter implements TelephonyAdapter {
         </Response>
       `)
     }
+
+    // Retry: re-Gather with new digits
+    if (params.remainingAttempts && params.remainingAttempts > 0 && params.newCaptchaDigits) {
+      const retryDigits = params.newCaptchaDigits
+      return this.twiml(`
+        <Response>
+          <Gather numDigits="4" action="/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" timeout="10">
+            <Say language="${tLang}">${escapeXml(getPrompt('captchaRetry', lang))}</Say>
+            <Say language="${tLang}">${escapeXml(retryDigits.split('').join(', '))}.</Say>
+          </Gather>
+          <Redirect method="POST">/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${lang}${hp}</Redirect>
+        </Response>
+      `)
+    }
+
     return this.twiml(`
       <Response>
         <Say language="${tLang}">${getPrompt('captchaFail', lang)}</Say>

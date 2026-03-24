@@ -103,6 +103,15 @@ telephony.post('/incoming', async (c) => {
     }
   }
 
+  // Fall back to the sole hub when no phone mapping exists (single-hub deployments)
+  if (!hubId) {
+    const allHubs = await services.settings.getHubs()
+    if (allHubs.length === 1) {
+      hubId = allHubs[0].id
+      console.log(`[telephony] /incoming defaulted to sole hub=${hubId}`)
+    }
+  }
+
   // Use hub-scoped adapter for subsequent operations
   const adapter =
     (await getTelephony(services.settings, hubId, {
@@ -131,8 +140,14 @@ telephony.post('/incoming', async (c) => {
 // --- Step 2: Language selected -> spam check -> greeting + hold/captcha ---
 telephony.post('/language-selected', async (c) => {
   const url = new URL(c.req.url)
-  const hubId = getHubId(url)
+  let hubId = getHubId(url)
   const services = c.get('services')
+
+  // Fall back to the sole hub when no hub param is present (single-hub deployments)
+  if (!hubId) {
+    const allHubs = await services.settings.getHubs()
+    if (allHubs.length === 1) hubId = allHubs[0].id
+  }
   const env = c.env
   const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
@@ -216,7 +231,21 @@ telephony.post('/captcha', async (c) => {
   const callerLang = url.searchParams.get('lang') || DEFAULT_LANGUAGE
 
   // Look up expected digits from server-side storage (not URL params)
-  const { match, expected } = await services.settings.verifyCaptcha(callSid, digits)
+  const spamSettings = await services.settings.getSpamSettings(hubId)
+  const { match, expected, shouldRetry, remainingAttempts } = await services.settings.verifyCaptcha(
+    callSid,
+    digits,
+    spamSettings.captchaMaxAttempts
+  )
+
+  // On retry, generate new CAPTCHA digits and store them
+  let newCaptchaDigits: string | undefined
+  if (shouldRetry) {
+    const buf = new Uint8Array(2)
+    crypto.getRandomValues(buf)
+    newCaptchaDigits = String(1000 + (((buf[0] << 8) | buf[1]) % 9000))
+    await services.settings.storeCaptcha(callSid, newCaptchaDigits)
+  }
 
   const response = await adapter.handleCaptchaResponse({
     callSid,
@@ -224,6 +253,8 @@ telephony.post('/captcha', async (c) => {
     expectedDigits: expected,
     callerLanguage: callerLang,
     hubId,
+    remainingAttempts,
+    newCaptchaDigits,
   })
 
   if (match) {

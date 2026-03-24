@@ -61,9 +61,9 @@ function formEncode(params: Record<string, string>): string {
  */
 async function setFallbackGroup(page: import('@playwright/test').Page, pubkey: string) {
   await page.evaluate(async (pk) => {
-    const res = await window.__authedFetch('/api/shifts/fallback', {
+    const res = await window.__authedFetch('/api/settings/fallback-group', {
       method: 'PUT',
-      body: JSON.stringify({ volunteers: [pk] }),
+      body: JSON.stringify({ pubkeys: [pk] }),
     })
     if (!res.ok) {
       const body = await res.text()
@@ -142,11 +142,7 @@ test.describe('Call flow', () => {
 
   // ── 2.1: Inbound call appears in dashboard ────────────────────────────────
 
-  // BUG: Dashboard useCalls() hook receives events via relay subscription but the incoming
-  // calls card never renders — the subscription filter or event processing may be mismatched.
-  // The call IS created in DB (waitForActiveCall succeeds) and the Nostr event IS published
-  // (verified in nostr-relay.spec.ts), but the React component doesn't update.
-  test.fixme('inbound call appears in dashboard as ringing', async ({ page, request }) => {
+  test('inbound call appears in dashboard as ringing', async ({ page, request }) => {
     test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
 
     // Ensure admin is in the fallback ring group so the call routes to them

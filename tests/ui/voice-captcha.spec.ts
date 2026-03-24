@@ -100,49 +100,43 @@ test.describe('Voice CAPTCHA', () => {
   })
 
   // --- Test 5.4: Incorrect DTMF triggers retry, then rejection ---
-  // BUG: Server's /telephony/captcha route deletes captcha state after first attempt (one-shot).
-  // captchaMaxAttempts setting exists but retry logic is not implemented — wrong digits always hangup.
-  // This test correctly defines the expected retry behavior. Unskip when server implements retry.
-  test.fixme(
-    'incorrect DTMF triggers retry then rejection after max attempts',
-    async ({ request }) => {
-      const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-      // Set max attempts to 2
-      const settingsRes = await adminApi.patch('/api/settings/spam', { captchaMaxAttempts: 2 })
-      expect(settingsRes.ok()).toBeTruthy()
+  test('incorrect DTMF triggers retry then rejection after max attempts', async ({ request }) => {
+    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    // Set max attempts to 2
+    const settingsRes = await adminApi.patch('/api/settings/spam', { captchaMaxAttempts: 2 })
+    expect(settingsRes.ok()).toBeTruthy()
 
-      // Generate challenge
-      const callRes = await request.post('/telephony/language-selected?auto=1', {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        data: 'CallSid=test-captcha-004&From=%2B15551234567&To=%2B15559999999&Digits=2',
-      })
-      expect(callRes.ok()).toBeTruthy()
+    // Generate challenge
+    const callRes = await request.post('/telephony/language-selected?auto=1', {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: 'CallSid=test-captcha-004&From=%2B15551234567&To=%2B15559999999&Digits=2',
+    })
+    expect(callRes.ok()).toBeTruthy()
 
-      // First wrong attempt — should get retry
-      const attempt1 = await request.post('/telephony/captcha?callSid=test-captcha-004&lang=en', {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        data: 'CallSid=test-captcha-004&From=%2B15551234567&Digits=0000',
-      })
-      expect(attempt1.ok()).toBeTruthy()
-      const body1 = await attempt1.text()
-      // Should be a retry (re-gather)
-      expect(body1).toContain('Gather')
-      expect(body1).not.toContain('Enqueue')
-      expect(body1).not.toContain('Hangup')
+    // First wrong attempt — should get retry
+    const attempt1 = await request.post('/telephony/captcha?callSid=test-captcha-004&lang=en', {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: 'CallSid=test-captcha-004&From=%2B15551234567&Digits=0000',
+    })
+    expect(attempt1.ok()).toBeTruthy()
+    const body1 = await attempt1.text()
+    // Should be a retry (re-gather)
+    expect(body1).toContain('Gather')
+    expect(body1).not.toContain('Enqueue')
+    expect(body1).not.toContain('Hangup')
 
-      // Second wrong attempt — should get rejection (hangup)
-      const attempt2 = await request.post('/telephony/captcha?callSid=test-captcha-004&lang=en', {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        data: 'CallSid=test-captcha-004&From=%2B15551234567&Digits=0000',
-      })
-      expect(attempt2.ok()).toBeTruthy()
-      const body2 = await attempt2.text()
-      // Should contain hangup (rejected after max attempts)
-      expect(body2).toContain('Hangup')
-      expect(body2).not.toContain('Enqueue')
-      expect(body2).not.toContain('Gather')
-    }
-  )
+    // Second wrong attempt — should get rejection (hangup)
+    const attempt2 = await request.post('/telephony/captcha?callSid=test-captcha-004&lang=en', {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: 'CallSid=test-captcha-004&From=%2B15551234567&Digits=0000',
+    })
+    expect(attempt2.ok()).toBeTruthy()
+    const body2 = await attempt2.text()
+    // Should contain hangup (rejected after max attempts)
+    expect(body2).toContain('Hangup')
+    expect(body2).not.toContain('Enqueue')
+    expect(body2).not.toContain('Gather')
+  })
 
   // --- Test 5.5: Expired challenge rejects ---
   test('expired challenge returns rejection', async ({ request }) => {

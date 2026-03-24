@@ -152,7 +152,7 @@ export function useCalls() {
     }
 
     poll() // Seed initial state on mount / hub switch
-    const interval = setInterval(poll, 15_000)
+    const interval = setInterval(poll, 8_000)
     return () => {
       mounted = false
       clearInterval(interval)

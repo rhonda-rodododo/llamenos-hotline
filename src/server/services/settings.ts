@@ -96,6 +96,7 @@ export class SettingsService {
       rateLimitEnabled: row?.rateLimitEnabled ?? true,
       maxCallsPerMinute: row?.maxCallsPerMinute ?? 3,
       blockDurationMinutes: row?.blockDurationMinutes ?? 30,
+      captchaMaxAttempts: row?.captchaMaxAttempts ?? 3,
     }
   }
 
@@ -535,7 +536,17 @@ export class SettingsService {
       .from(fallbackGroup)
       .where(eq(fallbackGroup.hubId, hId))
       .limit(1)
-    return (rows[0]?.volunteerPubkeys as string[]) ?? []
+    if (rows[0]) return (rows[0].volunteerPubkeys as string[]) ?? []
+    // Fall back to global fallback group when hub-specific is not configured
+    if (hId !== 'global') {
+      const globalRows = await this.db
+        .select()
+        .from(fallbackGroup)
+        .where(eq(fallbackGroup.hubId, 'global'))
+        .limit(1)
+      return (globalRows[0]?.volunteerPubkeys as string[]) ?? []
+    }
+    return []
   }
 
   async setFallbackGroup(pubkeys: string[], hubId?: string): Promise<void> {
@@ -582,28 +593,41 @@ export class SettingsService {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
     await this.db
       .insert(captchaState)
-      .values({ callSid, expectedDigits, expiresAt })
+      .values({ callSid, expectedDigits, attempts: 0, expiresAt })
       .onConflictDoUpdate({
         target: captchaState.callSid,
-        set: { expectedDigits, expiresAt },
+        set: { expectedDigits, attempts: 0, expiresAt },
       })
   }
 
   async verifyCaptcha(
     callSid: string,
-    digits: string
-  ): Promise<{ match: boolean; expected: string }> {
+    digits: string,
+    maxAttempts = 3
+  ): Promise<{
+    match: boolean
+    expected: string
+    shouldRetry: boolean
+    remainingAttempts: number
+  }> {
     const rows = await this.db
       .select()
       .from(captchaState)
       .where(eq(captchaState.callSid, callSid))
       .limit(1)
-    // One-shot: delete after read
-    await this.db.delete(captchaState).where(eq(captchaState.callSid, callSid))
 
     const row = rows[0]
-    if (!row) return { match: false, expected: '' }
-    if (row.expiresAt < new Date()) return { match: false, expected: row.expectedDigits }
+    if (!row) return { match: false, expected: '', shouldRetry: false, remainingAttempts: 0 }
+    if (row.expiresAt < new Date()) {
+      // Expired — delete and reject
+      await this.db.delete(captchaState).where(eq(captchaState.callSid, callSid))
+      return {
+        match: false,
+        expected: row.expectedDigits,
+        shouldRetry: false,
+        remainingAttempts: 0,
+      }
+    }
 
     // Constant-time comparison
     const expected = row.expectedDigits
@@ -611,7 +635,32 @@ export class SettingsService {
     for (let i = 0; i < expected.length; i++) {
       match &= expected.charCodeAt(i) === digits.charCodeAt(i) ? 1 : 0
     }
-    return { match: match === 1, expected }
+
+    if (match === 1) {
+      // Correct — delete and pass
+      await this.db.delete(captchaState).where(eq(captchaState.callSid, callSid))
+      return { match: true, expected, shouldRetry: false, remainingAttempts: 0 }
+    }
+
+    // Wrong — increment attempts
+    const newAttempts = (row.attempts ?? 0) + 1
+    if (newAttempts >= maxAttempts) {
+      // Max attempts reached — delete and reject
+      await this.db.delete(captchaState).where(eq(captchaState.callSid, callSid))
+      return { match: false, expected, shouldRetry: false, remainingAttempts: 0 }
+    }
+
+    // Still has retries — update attempt count, keep record
+    await this.db
+      .update(captchaState)
+      .set({ attempts: newAttempts })
+      .where(eq(captchaState.callSid, callSid))
+    return {
+      match: false,
+      expected,
+      shouldRetry: true,
+      remainingAttempts: maxAttempts - newAttempts,
+    }
   }
 
   // ------------------------------------------------------------------ Roles

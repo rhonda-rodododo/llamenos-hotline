@@ -205,6 +205,19 @@ export class PlivoAdapter implements TelephonyAdapter {
       `)
     }
 
+    // Retry: re-Gather with new digits
+    if (params.remainingAttempts && params.remainingAttempts > 0 && params.newCaptchaDigits) {
+      const retryDigits = params.newCaptchaDigits
+      return this.plivoXml(`
+        <GetDigits numDigits="4" action="/api/telephony/captcha?callSid=${params.callSid}&amp;lang=${lang}${hp}" method="POST" timeout="10" redirect="true">
+          ${speak(getPrompt('captchaRetry', lang), lang)}
+          ${speak(`${retryDigits.split('').join(', ')}.`, lang)}
+        </GetDigits>
+        ${speak(getPrompt('captchaTimeout', lang), lang)}
+        <Hangup/>
+      `)
+    }
+
     return this.plivoXml(`
       ${speak(getPrompt('captchaFail', lang), lang)}
       <Hangup/>

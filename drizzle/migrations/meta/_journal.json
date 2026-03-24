@@ -85,6 +85,13 @@
       "when": 1742947200004,
       "tag": "0011_geocoding_config_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1742947200005,
+      "tag": "0012_captcha_retry",
+      "breakpoints": true
     }
   ]
 }

@@ -70,8 +70,10 @@ export async function startParallelRinging(
       KIND_CALL_RING,
       {
         type: 'call:ring',
+        callId: callSid,
         callSid,
         hubId: hubId ?? 'global',
+        startedAt: new Date().toISOString(),
       },
       hubId
     )

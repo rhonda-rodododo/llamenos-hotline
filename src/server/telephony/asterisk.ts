@@ -159,6 +159,21 @@ export class AsteriskAdapter implements TelephonyAdapter {
       ])
     }
 
+    // Retry: re-Gather with new digits
+    if (params.remainingAttempts && params.remainingAttempts > 0 && params.newCaptchaDigits) {
+      return this.json([
+        this.speak(getPrompt('captchaRetry', lang), lang),
+        this.speak(params.newCaptchaDigits.split('').join(' '), lang),
+        {
+          action: 'gather',
+          numDigits: 4,
+          timeout: 10,
+          callbackEvent: 'captcha_response',
+          metadata: { callSid },
+        },
+      ])
+    }
+
     return this.json([this.speak(getPrompt('captchaFailed', lang), lang), { action: 'hangup' }])
   }
 
