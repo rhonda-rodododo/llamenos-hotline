@@ -1,0 +1,7 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: lint-fix
+      glob: "*.{ts,tsx,js,jsx}"
+      run: bunx biome check --write --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
