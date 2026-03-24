@@ -40,3 +40,5 @@ apps/desktop/target/
 packages/crypto/dist/
 .dev.vars.local
 .worktrees/
+.claude/projects/
+.claude/scheduled_tasks.lock
