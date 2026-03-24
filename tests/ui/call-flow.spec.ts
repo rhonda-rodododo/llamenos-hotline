@@ -12,10 +12,10 @@
  * Prerequisites: telephony must be configured in the test environment (USE_TEST_ADAPTER=true).
  */
 
-import { test, expect } from '@playwright/test'
-import { getPublicKey } from 'nostr-tools/pure'
+import { expect, test } from '@playwright/test'
 import { nip19 } from 'nostr-tools'
-import { ADMIN_NSEC, loginAsAdmin, navigateAfterLogin, resetTestState, TestIds } from '../helpers'
+import { getPublicKey } from 'nostr-tools/pure'
+import { ADMIN_NSEC, TestIds, loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 // Build admin pubkey from the test admin's nsec
 const { data: adminSkBytes } = nip19.decode(ADMIN_NSEC) as { type: 'nsec'; data: Uint8Array }
@@ -81,7 +81,8 @@ async function waitForActiveCall(
 ) {
   await page.waitForFunction(
     ({ sid, expectedStatus }) => {
-      return window.__authedFetch('/api/calls/active')
+      return window
+        .__authedFetch('/api/calls/active')
         .then((r) => r.json())
         .then((data: { calls?: Array<{ id: string; status: string }> }) => {
           const call = data.calls?.find((c) => c.id === sid)
@@ -112,7 +113,10 @@ test.describe('Call flow', () => {
     try {
       const ws = new WebSocket('ws://localhost:7778')
       await new Promise<void>((resolve, reject) => {
-        ws.onopen = () => { ws.close(); resolve() }
+        ws.onopen = () => {
+          ws.close()
+          resolve()
+        }
         ws.onerror = () => reject(new Error('unreachable'))
         setTimeout(() => reject(new Error('timeout')), 3000)
       })
