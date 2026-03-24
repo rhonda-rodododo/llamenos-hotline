@@ -44,6 +44,9 @@ test.describe('Volunteer PII enforcement', () => {
 
   test.beforeAll(async ({ request }) => {
     await resetTestState(request)
+  })
+
+  test.beforeEach(async ({ request }) => {
     adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
 

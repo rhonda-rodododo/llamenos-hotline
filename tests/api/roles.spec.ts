@@ -15,6 +15,9 @@ test.describe('Role Management API', () => {
 
   test.beforeAll(async ({ request }) => {
     await resetTestState(request)
+  })
+
+  test.beforeEach(async ({ request }) => {
     authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
 
@@ -159,32 +162,40 @@ test.describe('Permission Enforcement', () => {
   let volunteerApi: AuthedRequest
   let reporterApi: AuthedRequest
 
+  // Store secret keys so we can recreate authed requests in beforeEach
+  let volSk: Uint8Array
+  let repSk: Uint8Array
+
   test.beforeAll(async ({ request }) => {
-    authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const setupApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
     // Create a volunteer (default role: volunteer)
-    const volSk = generateSecretKey()
+    volSk = generateSecretKey()
     const volPubkey = getPublicKey(volSk)
-    await authedApi.post('/api/volunteers', {
+    await setupApi.post('/api/volunteers', {
       name: 'PBAC Vol',
       phone: uniquePhone(),
       pubkey: volPubkey,
       roleIds: ['role-volunteer'],
     })
-    volunteerApi = createAuthedRequest(request, volSk)
 
     // Create a reporter: create as volunteer, then change role to reporter
-    const repSk = generateSecretKey()
+    repSk = generateSecretKey()
     const repPubkey = getPublicKey(repSk)
-    await authedApi.post('/api/volunteers', {
+    await setupApi.post('/api/volunteers', {
       name: 'PBAC Reporter',
       phone: uniquePhone(),
       pubkey: repPubkey,
       roleIds: ['role-volunteer'],
     })
-    await authedApi.patch(`/api/volunteers/${repPubkey}`, {
+    await setupApi.patch(`/api/volunteers/${repPubkey}`, {
       roles: ['role-reporter'],
     })
+  })
+
+  test.beforeEach(async ({ request }) => {
+    authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    volunteerApi = createAuthedRequest(request, volSk)
     reporterApi = createAuthedRequest(request, repSk)
   })
 
@@ -293,14 +304,15 @@ test.describe('Multi-role users', () => {
 
   let authedApi: AuthedRequest
   let multiRoleApi: AuthedRequest
+  let multiRoleSk: Uint8Array
 
   test.beforeAll(async ({ request }) => {
-    authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const setupApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
     // Create a volunteer
-    const sk = generateSecretKey()
-    const pubkey = getPublicKey(sk)
-    await authedApi.post('/api/volunteers', {
+    multiRoleSk = generateSecretKey()
+    const pubkey = getPublicKey(multiRoleSk)
+    await setupApi.post('/api/volunteers', {
       name: 'Multi-Role User',
       phone: uniquePhone(),
       pubkey,
@@ -308,11 +320,14 @@ test.describe('Multi-role users', () => {
     })
 
     // Assign both volunteer AND reviewer roles
-    await authedApi.patch(`/api/volunteers/${pubkey}`, {
+    await setupApi.patch(`/api/volunteers/${pubkey}`, {
       roles: ['role-volunteer', 'role-reviewer'],
     })
+  })
 
-    multiRoleApi = createAuthedRequest(request, sk)
+  test.beforeEach(async ({ request }) => {
+    authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    multiRoleApi = createAuthedRequest(request, multiRoleSk)
   })
 
   test('multi-role user gets union of all role permissions', async () => {
@@ -350,12 +365,13 @@ test.describe('Custom role with specific permissions', () => {
   let authedApi: AuthedRequest
   let customApi: AuthedRequest
   let customRoleId: string
+  let customSk: Uint8Array
 
   test.beforeAll(async ({ request }) => {
-    authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const setupApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
     // Create a custom role with very specific permissions
-    const roleRes = await authedApi.post('/api/settings/roles', {
+    const roleRes = await setupApi.post('/api/settings/roles', {
       name: 'Shift Viewer',
       slug: `shift-viewer-${Date.now().toString(36)}`,
       permissions: ['shifts:read', 'bans:read'],
@@ -366,9 +382,9 @@ test.describe('Custom role with specific permissions', () => {
     customRoleId = roleBody.id
 
     // Create a volunteer
-    const sk = generateSecretKey()
-    const pubkey = getPublicKey(sk)
-    await authedApi.post('/api/volunteers', {
+    customSk = generateSecretKey()
+    const pubkey = getPublicKey(customSk)
+    await setupApi.post('/api/volunteers', {
       name: 'Shift Viewer User',
       phone: uniquePhone(),
       pubkey,
@@ -376,11 +392,14 @@ test.describe('Custom role with specific permissions', () => {
     })
 
     // Assign custom role
-    await authedApi.patch(`/api/volunteers/${pubkey}`, {
+    await setupApi.patch(`/api/volunteers/${pubkey}`, {
       roles: [customRoleId],
     })
+  })
 
-    customApi = createAuthedRequest(request, sk)
+  test.beforeEach(async ({ request }) => {
+    authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    customApi = createAuthedRequest(request, customSk)
   })
 
   test('user with custom role gets only those permissions', async () => {
@@ -450,12 +469,13 @@ test.describe('Wildcard permission resolution', () => {
 
   let authedApi: AuthedRequest
   let wildcardApi: AuthedRequest
+  let wildcardSk: Uint8Array
 
   test.beforeAll(async ({ request }) => {
-    authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const setupApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
     // Create a custom role with domain wildcard (bans:*)
-    const roleRes = await authedApi.post('/api/settings/roles', {
+    const roleRes = await setupApi.post('/api/settings/roles', {
       name: 'Ban Manager',
       slug: `ban-manager-${Date.now().toString(36)}`,
       permissions: ['bans:*'],
@@ -465,19 +485,22 @@ test.describe('Wildcard permission resolution', () => {
     const roleBody = await roleRes.json()
 
     // Create user and assign the custom role
-    const sk = generateSecretKey()
-    const pubkey = getPublicKey(sk)
-    await authedApi.post('/api/volunteers', {
+    wildcardSk = generateSecretKey()
+    const pubkey = getPublicKey(wildcardSk)
+    await setupApi.post('/api/volunteers', {
       name: 'Ban Manager User',
       phone: uniquePhone(),
       pubkey,
       roleIds: ['role-volunteer'],
     })
-    await authedApi.patch(`/api/volunteers/${pubkey}`, {
+    await setupApi.patch(`/api/volunteers/${pubkey}`, {
       roles: [roleBody.id],
     })
+  })
 
-    wildcardApi = createAuthedRequest(request, sk)
+  test.beforeEach(async ({ request }) => {
+    authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    wildcardApi = createAuthedRequest(request, wildcardSk)
   })
 
   test('domain wildcard grants all permissions in that domain', async () => {

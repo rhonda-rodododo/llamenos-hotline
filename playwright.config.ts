@@ -7,7 +7,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 3 : parseInt(process.env.PLAYWRIGHT_WORKERS || '1'),
-  reporter: "html",
+  reporter: [["html"], ["json"], ["dot"]],
   timeout: 30_000,
   expect: {
     timeout: 10_000,

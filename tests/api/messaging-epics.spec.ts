@@ -48,14 +48,14 @@ test.describe('Epic 68: Messaging Channel Permissions', () => {
 
   test.beforeAll(async ({ request }) => {
     await resetTestState(request)
-    adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const setupApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
     // Create a volunteer with default role (has all channel permissions)
-    const vol = await createVolunteer(adminApi, 'FullChannel Vol', uniquePhone())
+    const vol = await createVolunteer(setupApi, 'FullChannel Vol', uniquePhone())
     volunteerNsec = vol.nsec
 
     // Create a custom role with only SMS permission
-    const roleRes = await adminApi.post('/api/settings/roles', {
+    const roleRes = await setupApi.post('/api/settings/roles', {
       name: 'SMS Only',
       slug: 'sms-only',
       permissions: [
@@ -71,12 +71,16 @@ test.describe('Epic 68: Messaging Channel Permissions', () => {
 
     // Create a volunteer with restricted role
     const restrictedVol = await createVolunteer(
-      adminApi,
+      setupApi,
       'SMSOnly Vol',
       uniquePhone(),
       [roleBody.id],
     )
     restrictedVolunteerNsec = restrictedVol.nsec
+  })
+
+  test.beforeEach(async ({ request }) => {
+    adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
 
   test('volunteer role includes all channel claim permissions by default', async ({ request }) => {
@@ -145,7 +149,7 @@ test.describe('Epic 68: Messaging Channel Permissions', () => {
 test.describe('Epic 69: Auto-Assignment Logic', () => {
   let adminApi: AuthedRequest
 
-  test.beforeAll(async ({ request }) => {
+  test.beforeEach(async ({ request }) => {
     adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
 
@@ -191,7 +195,7 @@ test.describe('Epic 70: Conversation Reassignment API', () => {
 
   let adminApi: AuthedRequest
 
-  test.beforeAll(async ({ request }) => {
+  test.beforeEach(async ({ request }) => {
     adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
 
@@ -226,7 +230,7 @@ test.describe('Epic 70: Conversation Reassignment API', () => {
 test.describe('Epic 71: Message Delivery Status (first block)', () => {
   let adminApi: AuthedRequest
 
-  test.beforeAll(async ({ request }) => {
+  test.beforeEach(async ({ request }) => {
     adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
 
@@ -268,6 +272,9 @@ test.describe('Epic 71: Message Delivery Status (second block)', () => {
 
   test.beforeAll(async ({ request }) => {
     await resetTestState(request)
+  })
+
+  test.beforeEach(async ({ request }) => {
     adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
 
@@ -336,7 +343,7 @@ test.describe('Channel Permission Integration', () => {
 
   let adminApi: AuthedRequest
 
-  test.beforeAll(async ({ request }) => {
+  test.beforeEach(async ({ request }) => {
     adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
 
