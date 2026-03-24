@@ -28,8 +28,8 @@ export const PERMISSION_CATALOG = {
   'notes:reply': 'Reply to notes',
 
   // Contacts
-  'contacts:view': 'View contacts page and contact timelines',
-  'contacts:view-history': 'View past interactions from other volunteers for a contact',
+  'contacts:read': 'View contacts page and contact timelines',
+  'contacts:read-history': 'View past interactions from other volunteers for a contact',
 
   // Reports
   'reports:create': 'Submit reports',
@@ -181,8 +181,8 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'calls:*',
       'blasts:*',
       'files:*',
-      'contacts:view',
-      'contacts:view-history',
+      'contacts:read',
+      'contacts:read-history',
     ],
     isDefault: true,
     isSystem: false,

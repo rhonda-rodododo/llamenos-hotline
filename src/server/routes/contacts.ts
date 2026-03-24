@@ -3,7 +3,7 @@ import { requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
 const contacts = new Hono<AppEnv>()
-contacts.use('*', requirePermission('contacts:view'))
+contacts.use('*', requirePermission('contacts:read'))
 
 // GET /contacts — list contacts with note counts
 contacts.get('/', async (c) => {

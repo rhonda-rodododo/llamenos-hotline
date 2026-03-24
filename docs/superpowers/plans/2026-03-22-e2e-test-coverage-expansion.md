@@ -47,7 +47,7 @@ The test suite has 38 spec files but five important feature areas have zero or n
 
 ### Key UI notes
 
-- `/contacts` route — linked from sidebar as "Contacts" (admin only, permission `contacts:view`). Route file does not yet exist in `src/client/routes/` — it may need to be created as part of implementing this plan.
+- `/contacts` route — linked from sidebar as "Contacts" (admin only, permission `contacts:read`). Route file does not yet exist in `src/client/routes/` — it may need to be created as part of implementing this plan.
 - Hub member management UI is in `src/client/routes/admin/hubs.tsx` — the current UI only has create/edit hub dialogs, no member management UI. Member management is API-only for now.
 - Voicemail badge in calls list: `call.hasVoicemail` controls a `<Badge>` with a `<Voicemail>` icon inside `src/client/routes/calls.tsx` — no `data-testid` yet; tests should locate it via role/text or add a testid.
 - The telephony middleware skips signature validation for localhost in dev mode (`ENVIRONMENT=development`), making webhook simulation safe in E2E tests.
@@ -151,7 +151,7 @@ The test suite has 38 spec files but five important feature areas have zero or n
 - [ ] Run the test: `bunx playwright test tests/contacts.spec.ts`
   - Expected: "contacts page loads" test may fail if the client route `/contacts` does not exist.
   - If the route is missing, create `src/client/routes/contacts.tsx` with a minimal contacts list component that fetches `GET /api/contacts` and renders each contact's `contactHash` (last 8 chars), `noteCount`, `conversationCount`, and `lastSeen`.
-  - The route should be linked under TanStack Router at path `/contacts` and guarded with `hasPermission('contacts:view')`.
+  - The route should be linked under TanStack Router at path `/contacts` and guarded with `hasPermission('contacts:read')`.
 
 - [ ] After confirming feature is present or creating the route, re-run the test until it passes.
 

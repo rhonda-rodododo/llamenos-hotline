@@ -241,7 +241,7 @@ git commit -m "feat: ProviderHealthService with consecutive failure tracking"
 - [x] **Step 1: Add the health endpoint**
 
 ```typescript
-settings.get('/provider-health', requirePermission('settings:view'), async (c) => {
+settings.get('/provider-health', requirePermission('settings:read'), async (c) => {
   const healthService = c.get('services').providerHealth
   if (!healthService) return c.json({ error: 'Health service not available' }, 503)
   return c.json(healthService.getHealthStatus())

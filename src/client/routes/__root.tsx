@@ -398,7 +398,7 @@ function AuthenticatedLayout() {
                 <NavLink to="/bans" icon={<ShieldBan className="h-4 w-4" />}>
                   {t('nav.banList')}
                 </NavLink>
-                {hasPermission('contacts:view') && (
+                {hasPermission('contacts:read') && (
                   <NavLink to="/contacts" icon={<Contact className="h-4 w-4" />}>
                     {t('nav.contacts', { defaultValue: 'Contacts' })}
                   </NavLink>

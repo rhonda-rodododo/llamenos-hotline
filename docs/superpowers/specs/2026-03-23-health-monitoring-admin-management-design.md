@@ -85,8 +85,8 @@ healthService.start()
 **File:** `src/server/routes/settings.ts` — Add:
 
 ```typescript
-// Use settings:view so shift supervisors and other admins can see health status
-settings.get('/provider-health', requirePermission('settings:view'), async (c) => {
+// Use settings:read so shift supervisors and other admins can see health status
+settings.get('/provider-health', requirePermission('settings:read'), async (c) => {
   const health = c.get('services').providerHealth.getHealthStatus()
   return c.json(health)
 })
