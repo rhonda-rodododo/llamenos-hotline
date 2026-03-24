@@ -17,7 +17,7 @@ Llámenos is a secure crisis response hotline webapp. Callers dial a phone numbe
 - **Auth**: Nostr keypairs (BIP-340 Schnorr signatures) + WebAuthn session tokens for multi-device support
 - **i18n**: Built-in from day one — all user-facing strings must be translatable
 - **Deployment**: VPS (Ansible/Docker), EU/GDPR-compatible hosting
-- **Testing**: E2E only via Playwright — no unit tests
+- **Testing**: Three suites — unit (`bun:test`), API integration (Playwright, no browser), UI E2E (Playwright, Chromium)
 - **PWA**: Service worker via vite-plugin-pwa + Workbox; manifest uses generic name "Hotline" for security
 
 ## Architecture Roles
@@ -111,9 +111,13 @@ bun run lint:fix                         # Biome lint auto-fix
 bun run start                            # Start Bun server (production)
 bun run deploy                           # Deploy marketing site
 bun run deploy:site                      # Deploy marketing site only (cd site && ...)
-bunx playwright test                     # Run all E2E tests
-bunx playwright test tests/smoke.spec.ts # Run a single test file
-bun run test:ui                          # Playwright UI mode
+bun run test:unit                        # Run colocated unit tests (bun:test)
+bun run test:api                         # Run API integration tests (no browser)
+bun run test:e2e                         # Run UI E2E tests (Chromium)
+bun run test:all                         # Run all tests (unit + playwright)
+bun run test:interactive                 # Playwright interactive UI mode
+bunx playwright test                     # Run all Playwright suites
+bunx playwright test tests/ui/smoke.spec.ts  # Run a single test file
 bun run typecheck                        # Type check (tsc --noEmit)
 bun run bootstrap-admin                  # Generate admin keypair
 ./scripts/test-local.sh                  # Run E2E tests against Docker backend
@@ -136,7 +140,13 @@ PLAYWRIGHT_WORKERS=3 bunx playwright test    # Run with 3 workers (after isolati
 
 - **Always run `bun run typecheck` and `bun run build` before committing and pushing.** Never push code that doesn't build. If typecheck or build fails, fix it before committing.
 - Implement features completely — no stubs, no shortcuts, no TODOs left behind.
-- **Every feature or fix must include E2E tests.** If you add or change UI behavior, add Playwright tests covering the new functionality. If modifying existing features, update the relevant test files. A feature is not complete until its tests are written and passing. Check `tests/` for existing test files that may need updating.
+- **Every feature or fix must include tests.** Use the right suite for the job:
+  - Testing a pure function or class? → colocated `.test.ts` with `bun:test`
+  - Testing an API endpoint's behavior? → `tests/api/` (Playwright, no browser)
+  - Testing what a user sees and clicks? → `tests/ui/` (Playwright, Chromium)
+  - Use `tests/helpers/authed-request.ts` for authenticated API tests without a browser.
+  - Some unit tests require Postgres — start backing services with `bun run dev:docker` first.
+  A feature is not complete until its tests are written and passing.
 - Edit files in place; never create copies. Git history is the backup. Commit regularly when work is complete, don't worry about accidentally committing unrelated changes.
 - Keep the file tree lean. Use git commits frequently to checkpoint progress.
 - No legacy fallbacks or migration code until this file notes the app is in production.
