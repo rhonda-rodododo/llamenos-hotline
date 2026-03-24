@@ -6,7 +6,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 3 : parseInt(process.env.PLAYWRIGHT_WORKERS || '1'),
+  workers: process.env.CI ? 3 : parseInt(process.env.PLAYWRIGHT_WORKERS || '3'),
   reporter: [["html"], ["json"], ["list"]],
   timeout: 30_000,
   expect: {
@@ -65,5 +65,9 @@ export default defineConfig({
         command: "bun run build && bun run start",
         url: "http://localhost:3000/api/health/ready",
         reuseExistingServer: !process.env.CI,
+        env: {
+          ...process.env,
+          USE_TEST_ADAPTER: 'true',
+        },
       },
 });

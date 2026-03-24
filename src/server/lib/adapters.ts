@@ -56,6 +56,12 @@ export async function getTelephony(
     return new TwilioAdapter(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN, env.TWILIO_PHONE_NUMBER)
   }
 
+  // Test adapter fallback — returns valid TwiML without real API calls
+  if (Bun.env.USE_TEST_ADAPTER === 'true') {
+    const { TestAdapter } = await import('../telephony/test')
+    return new TestAdapter()
+  }
+
   return null
 }
 
