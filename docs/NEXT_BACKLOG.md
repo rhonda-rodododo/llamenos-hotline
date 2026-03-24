@@ -257,14 +257,22 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 - [ ] **File Service & Blob Storage** (`2026-03-22-file-service-blob-storage.md`) — Replace R2 with Drizzle file_records table + MinIO BlobStorage, FilesService class.
 - [ ] **Watchtower Auto-Updates** (`2026-03-22-watchtower-production-updates.md`) — Watchtower sidecar in docker-compose.production.yml, label-based opt-in, GHCR auth, Ansible template.
 
+### Provider Auto-Registration Refactor (2026-03-23) — COMPLETE
+
+- [x] **Provider Capabilities Interface** — `ProviderCapabilities<T>` generic interface + Zod discriminated union schemas for all 6 telephony providers (Twilio, SignalWire, Vonage, Plivo, Asterisk, Telnyx) + 4 messaging channels (SMS, WhatsApp, Signal, RCS). `testConnection()`, `getWebhookUrls()`, `listOwnedNumbers()`, `searchAvailableNumbers()`, `provisionNumber()`, `configureWebhooks()`. TELEPHONY_CAPABILITIES + MESSAGING_CAPABILITIES registries. 20 E2E tests.
+- [x] **Credential Encryption** — Real XChaCha20-Poly1305 replacing fake hex-encoding. HKDF key derivation from SERVER_NOSTR_SECRET. Schema migration (jsonb→text). Auto-migration of plaintext data. 4 E2E tests.
+- [x] **Route Fix + Setup Automation** — Mounted orphaned provider-setup routes (were 404). Rewrote to capabilities registry. Added SMS connection test endpoint. Deduplicated settings test handler.
+- [x] **Health Monitoring** — ProviderHealthService with consecutive failure tracking (healthy→degraded→down). Background polling. GET /provider-health endpoint. ProviderHealthBadge React component. 5 E2E tests.
+- [x] **Infrastructure** — Fixed Asterisk bridge 44GB memory leak (WebSocket GC + reconnect limit). Docker compose dev cleanup (asterisk in Docker, bridge local). Bun upgraded to latest.
+
 ### Security Fixes — Pending
 
 - [ ] **Unknown API routes should return 404 instead of 401** — Auth middleware runs before route matching, so unauthenticated requests to non-existent routes get 401 (reveals route doesn't exist but requires auth). Fix: move route matching before auth middleware, or add a catch-all 404 handler after all routes that returns 404 regardless of auth state.
 
 ### Test Quality — Status (2026-03-23)
 
-**Verified 100% passing suites (15 files, 167 tests):**
-admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health-config (5), auth-guards (7), audit-log (6), volunteer-flow (9), profile-settings (13), ban-management (13), form-validation (8), login-restore (10), blasts (7), call-spam (5) + unit tests (25)
+**Verified 100% passing suites (19 files, 200 tests):**
+admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health-config (5), auth-guards (7), audit-log (6), volunteer-flow (9), profile-settings (13), ban-management (13), form-validation (8), login-restore (10), blasts (7), call-spam (5) + unit tests (25) + provider-capabilities (20), credential-encryption (4), provider-health (5), asterisk-auto-config (8)
 
 **Known remaining issues:**
 - [ ] **roles.spec.ts** — 6/28 tests fail: serial chain cascade (role update fails after create; reporter/custom role hub context 400 vs 403)
