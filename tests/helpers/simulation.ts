@@ -1,7 +1,7 @@
 import type { APIRequestContext } from '@playwright/test'
 
-const BASE_URL = process.env.BASE_URL ?? 'http://localhost:8787'
-const TEST_SECRET = process.env.E2E_TEST_SECRET ?? process.env.DEV_RESET_SECRET ?? ''
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? process.env.BASE_URL ?? 'http://localhost:3000'
+const TEST_SECRET = process.env.E2E_TEST_SECRET || process.env.DEV_RESET_SECRET || 'test-reset-secret'
 
 export interface SimulateCallParams {
   callSid?: string
