@@ -5,6 +5,253 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2026-03-24
+
+### Bug Fixes
+
+- sync workflow fixes from desktop (action SHAs, toolchain, no CF)
+- P0/P1 application hardening — auth guard, permission, hub scoping
+- add composite PKs to hubKeys and ivrAudio tables
+- type safety and unique constraint fixes from code review
+- spec compliance fixes — getEffectiveVolunteers, checkRateLimit, protected db
+- critical safety fixes — atomic ops, race conditions, null filter
+- use z.iso.datetime() — z.string().datetime() deprecated in Zod 4
+- use z.uuid() top-level (z.string().uuid() deprecated in Zod 4)
+- add missing createdAt, enum statuses, typed HttpErrorStatus
+- spec compliance fixes for Phase 4
+- code quality fixes for Phase 4
+- code quality fixes for Phase 5
+- add missing hub columns + drop vestigial nostrPubkey
+- align HubSchema/CreateHubSchema/UpdateHubSchema with Hub interface
+- implement full hub CRUD + archiving in SettingsService
+- enforce WebAuthn counter monotonicity to prevent replay attacks
+- address code review issues in FilesService and audit-chain tests
+- hub delete cascade roles table + hub-key-cache race + deleteTestHub auth
+- add dev bypass to messaging router webhook validation
+- fix ARI module reload method, Docker config, and E2E tests
+- restore geocoding, signal registration, and captcha API functions lost in merge
+- resolve all 69 TypeScript errors from Drizzle migration merge
+- install missing deps, fix test infrastructure, update package.json scripts
+- resolve 19 typecheck errors in unit test import paths
+- replace empty catch blocks with error logging for observability
+- dev:docker uses .env.dev.defaults — works without manual setup
+- unit test migration paths and DB URL — all 25 tests pass
+- test infrastructure — admin bootstrap on reset, heading selectors, test fixes
+- test-reset creates default hub + setup state, unit test DB URL fallback
+- hub context chain — API route, key envelopes, FK ordering, graceful fallback
+- settings API response shape + null safety — all admin pages load after reset
+- API response shape mismatches — shift create/update, ban create, settings
+- null safety in blasts/notes pages + API response shapes + test assertions
+- blast tests — subscriber import uses identifierHash, send verifies via API
+- Dashboard heading exact match across all 16 test files (28 occurrences)
+- call-spam ban API format (phone+reason), blasts accept 400 for hub context
+- audit-log hub scoping, roles 400/403, volunteer login timeout, auth PIN timeout
+- roles unique slugs, volunteer login domcontentloaded, audit volunteer test
+- roles tests accept 400/403 for notes/calls, slug validation relaxed
+- replace fake hex-encoding with real encryption in ProviderSetup
+- replace fake Twilio SID that triggers GitHub push protection
+- health endpoint uses settings:read permission (not settings:manage)
+- :view -> :read - make permission verbs consistent
+- resolve Playwright beforeAll request fixture lifecycle issues
+- handle jsonb column type in getTelephonyProvider and getMessagingConfig
+- revert jsonb workaround, apply migration 0008 directly
+- simulation helpers use correct port and test secret
+- resolve API test failures — missing migrations, stale role permissions, assertion mismatches
+- rewrite simulation helpers to use real webhook routes
+- rewrite CI pipeline — remove nonexistent jobs, add unit tests
+- fix lint errors and formatting across codebase
+
+### CI/CD
+
+- add GPG signing, provenance JSON, and release artifact uploads (Epic 79)
+
+### Documentation
+
+- add specs and implementation plans for all 5 workstreams
+- fix 10 spec review issues in CF removal + Drizzle migration design
+- CF removal + Drizzle/Zod migration implementation plan
+- document Watchtower GHCR auth and config vars in .env.example and demo_vars.example.yml
+- add Watchtower health check items to production checklist
+- complete v1 hardening sprint specs, plans, and backlog
+- mark security hardening v2 backport as complete
+- mark volunteer PII enforcement as complete
+- mark application hardening phase 3 as audited and complete
+- mark CI security hardening as complete
+- mark CI VPS Auto-Deploy complete in backlog
+- mark Ops PostgreSQL Backup & Recovery complete in backlog
+- mark Ops MinIO Init + Systemd Service complete in backlog
+- mark drizzle schema corrections complete in backlog
+- mark shared test helpers complete in backlog
+- mark E2EE, spam mitigation, and i18n tests as complete in backlog
+- mark Nostr relay, PWA offline, and WebAuthn tests as complete
+- mark all remaining items as dev ready for implementing agent
+- mark all platform hardening sprint items as complete
+- provider simulation suite design
+- provider simulation suite implementation plan
+- check off completed plan checkboxes and update backlog tracking
+- mark E2E test improvements plan as complete
+- mark E2E test improvements complete in backlog
+- mark Foundation Tooling and merge implementation
+- mark Provider Simulation Suite complete in backlog
+- mark SLSA Provenance and CF VPS Demo Migration complete
+- mark Provider OAuth Auto-Config complete
+- mark Signal Automated Registration complete
+- mark Transcription Boundary complete
+- mark Voice CAPTCHA complete
+- mark Geocoding Location Fields complete
+- mark Setup Wizard Provider Module complete
+- update Drizzle migration plan with new DO features from 2026-03-22
+- mark CF Removal + Drizzle Migration complete — DOs eliminated
+- update backlog — mark app hardening + zero-trust complete, triage new plans
+- document pre-existing test failures needing UI selector updates
+- update backlog with precise root cause for remaining test failures
+- update backlog — 34/40 tests now pass, 6 remaining CRUD issues
+- update test quality status — 167 tests verified passing across 15 suites
+- provider auto-registration design specs (5 documents)
+- implementation plans for provider auto-registration (4 plans)
+- fix review issues in Plan A — SSRF guards, build safety, schema audit
+- fix review issues in Plans B, C, D
+- update backlog with provider auto-registration completion
+- mark all plan checkboxes complete
+- add test suite restructuring design spec
+- fix spec review issues in test restructuring design
+- add Phase 1 implementation plan for test restructuring
+- update package.json scripts and CLAUDE.md for three-suite testing
+- add UI test parallel isolation design spec
+
+### Features
+
+- enable CI on pull requests and gate deploy jobs
+- sync workflows from desktop branch for PR validation
+- add lint config, preflight validation, digest rollback, and CI job
+- demote CF Workers to optional; add Ansible VPS demo deployment
+- add Biome linting, Bun-native Docker builds, and clean up esbuild
+- add Drizzle foundation — Bun SQL driver, schema files, custom JSONB
+- add 7 service classes replacing Durable Objects
+- add Zod schemas and error middleware for all domains
+- wire Drizzle db + services into Hono app at startup
+- migrate auth/hub middleware to service layer
+- migrate auth + webauthn routes to service layer
+- migrate volunteers + invites routes to service layer
+- migrate shifts routes to service layer
+- migrate bans, notes, audit routes to service layer
+- migrate calls, telephony, webrtc routes to service layer
+- migrate remaining 15 routes + messaging router to service layer
+- migrate worker/index.ts cron handler to service layer
+- add initial Drizzle schema migration
+- add archive hub action with confirmation dialog
+- label app service for Watchtower opt-in and add conditional Watchtower service to Ansible template
+- add Watchtower auto-update service to production compose
+- add file_records Drizzle table for blob file metadata
+- create FilesService with DB operations and blob storage methods
+- inject FilesService with BlobStorage into createServices and server startup
+- migrate uploads.ts from R2/manifest-blob to FilesService + Drizzle
+- migrate files.ts from 501 stubs to FilesService DB + blob reads
+- cross-hub call reception + hub cascade delete
+- add permanent hub delete with name-confirmation dialog + E2E tests
+- startup config validation + createTestHub/deleteTestHub helpers
+- apply security hardening v2 audit backport
+- enforce volunteer PII visibility with typed projections
+- add security hardening — GPG signing, secret scan, Dependabot, SECURITY.md
+- automated VPS deploy + site deploy on release
+- PostgreSQL backup & recovery procedures
+- MinIO IAM init + systemd service integration
+- drizzle schema corrections and privacy refactor
+- add call flow E2E tests and fix telephony routing
+- add E2EE note encryption verification tests
+- add spam mitigation E2E tests
+- add i18n locale coverage E2E tests
+- add locale completeness checker and fix missing archive translations
+- add Nostr relay event E2E tests and wire up call:ring publishing
+- add PWA offline mode E2E tests
+- add WebAuthn passkey E2E tests with virtual authenticator
+- add dashboard analytics with call volume charts and team stats
+- add call detail, note permalink, and settings profile pages
+- add consent gate, data export, right to erasure, and retention policies
+- add file field type with E2EE upload/download
+- add delivery status tracking and status icon UI
+- add report types system with custom field binding
+- add secure invite delivery via Signal/WhatsApp/SMS
+- auto-configure PJSIP SIP trunk via ARI dynamic config
+- provider simulation suite — payload factories, endpoints, and E2E tests
+- complete CF-to-VPS demo migration plan
+- implement Provider OAuth Auto-Config module
+- implement Signal automated registration with SMS interception
+- remove CF AI transcription path, add client-side recording transcription
+- complete voice CAPTCHA with retry logic, attempt tracking, and admin UI
+- implement geocoding provider & location custom fields
+- add provider module with OAuth validation, phone number selection, and webhook URLs
+- add OAuth, provider config, geocoding, signal registration tables and service methods
+- port all new features from main to Drizzle service architecture
+- hub admin zero-trust visibility — per-hub super admin access control
+- real XChaCha20-Poly1305 provider credential encryption
+- per-provider Zod schemas with discriminated union
+- encrypt provider credentials at rest in SettingsService
+- add telnyx to TelephonyProviderType, derive config from Zod schemas, add shared result types
+- ProviderCapabilities interface, registry, and stubs
+- real testConnection for WhatsApp, Signal (with SSRF), RCS messaging capabilities
+- full capability implementations for all 6 telephony providers
+- add testConnection() to TelephonyAdapter interface + all implementations
+- mount provider-setup routes, rewrite with capabilities registry, add SMS test
+- ProviderHealthService with background monitoring and health badge UI
+- add authedRequest helper and api/ui test directories
+- restructure playwright config with api/ui/bridge projects
+- expand API test suite with permission matrix, CRUD lifecycle, and GDPR tests
+
+### Miscellaneous
+
+- add .worktrees/ to .gitignore
+- delete CF/DO/platform layer — all DO files, wrangler, platform shim
+- remove CF/wrangler deps, update scripts, CI, Docker, CLAUDE.md
+- add bun test:unit script and tests/unit/ directory
+- apply Biome auto-fixes and delete obsolete globals.d.ts
+- finalize foundation tooling plan — delete globals.d.ts, pin Docker digests, fix lint
+- install drizzle-orm, recharts, zod 4, and update all deps
+- update .claudeignore to exclude dist, .claude, test-results
+- migrate telephony/messaging config from jsonb to encrypted text
+- v0.21.0 [skip ci]
+
+### Refactoring
+
+- rename src/worker/ → src/server/ and update all import aliases
+- split helpers.ts into focused helper modules
+- move unit tests to colocated positions next to source
+- migrate 3 Playwright tests to colocated bun:test
+- move all test files to tests/api/ and tests/ui/
+- remove temporary chromium project from playwright config
+- convert 5 browser API tests to headless authedRequest
+- split 8 mixed test files into API and UI parts
+
+### Testing
+
+- add test isolation resets to all 33 mutation specs
+- add archive hub UI test to multi-hub spec
+- SHA-256 audit log hash chain integrity
+- rate limiter window reset and blocking logic
+- hub key envelope atomicity — replace leaves no orphans
+- file upload lifecycle — init, chunks, complete, download, ACL
+- contacts page and timeline API coverage
+- hub membership add and remove API coverage
+- WebAuthn passkey registration and login flow
+- blast create, send, and subscriber import
+- voicemail webhook updates call status and badge
+- strengthen 4 weak test files with meaningful assertions
+- add hub access control tests for zero-trust visibility
+- add mobile navigation + overflow tests, health/config endpoint tests
+- update admin-flow + notes-crud selectors to use data-testid
+- comprehensive testConnection + registry tests for all providers
+- add API suite smoke test for health endpoints
+
+### Merge
+
+- ansible hardening — preflight, rollback, lint config, CI job
+- CF → VPS demo migration
+- Biome linting, Bun-native Docker, esbuild removal
+
+### Security
+
+- fix 3 hub isolation gaps — cross-hub schedule/call updates + Nostr tag scoping
+
 ## [0.20.0] - 2026-03-08
 
 ### Bug Fixes
