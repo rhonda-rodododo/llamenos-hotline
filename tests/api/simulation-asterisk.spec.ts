@@ -1,0 +1,53 @@
+import { test, expect } from '@playwright/test'
+import { simulateIncomingCall, simulateEndCall, simulateVoicemail } from '../helpers/simulation'
+import { resetTestState } from '../helpers/index'
+
+test.describe('Asterisk simulation — call lifecycle', () => {
+  test.beforeEach(async ({ request }) => {
+    await resetTestState(request)
+  })
+
+  test('incoming call → returns queue ARI command (not 400/403/500)', async ({ request }) => {
+    const { status, body } = await simulateIncomingCall(request, 'asterisk', {
+      callerNumber: '+15555550100',
+    })
+    // 200 = webhook accepted and processed
+    // 404 = Asterisk not configured in this env (acceptable in CI)
+    expect([200, 404]).toContain(status)
+    if (status === 200) {
+      // Asterisk adapter returns ARI command JSON
+      const json = JSON.parse(body)
+      expect(json).toHaveProperty('commands')
+      const commands: Array<{ action: string }> = json.commands
+      // Should either enqueue (CAPTCHA off) or present language menu (CAPTCHA on)
+      const actions = commands.map((c) => c.action)
+      expect(actions.some((a) => ['queue', 'speak', 'gather'].includes(a))).toBe(true)
+    }
+  })
+
+  test('end call (completed) → call-status returns 200 or 404', async ({ request }) => {
+    const callSid = `ast-end-${Date.now()}`
+    await simulateIncomingCall(request, 'asterisk', { callSid })
+    const { status } = await simulateEndCall(request, 'asterisk', {
+      callSid,
+      status: 'completed',
+    })
+    expect([200, 404]).toContain(status)
+  })
+
+  test('voicemail → voicemail-recording returns ARI hangup command (when configured)', async ({
+    request,
+  }) => {
+    const callSid = `ast-vm-${Date.now()}`
+    await simulateIncomingCall(request, 'asterisk', { callSid })
+    const { status, body } = await simulateVoicemail(request, 'asterisk', { callSid })
+    expect([200, 404]).toContain(status)
+    if (status === 200 && body.trim().startsWith('{')) {
+      const json = JSON.parse(body)
+      if (json.commands) {
+        const actions: string[] = json.commands.map((c: { action: string }) => c.action)
+        expect(actions).toContain('hangup')
+      }
+    }
+  })
+})
