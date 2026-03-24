@@ -1,8 +1,15 @@
-import { test, expect } from '@playwright/test'
+import { describe, expect, test } from 'bun:test'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
-
-// ─── Mock HTTP server helper ──────────────────────────────────────────────────
+import { TwilioConfigSchema, TelephonyProviderConfigSchema, TelnyxConfigSchema } from '@shared/schemas/providers'
+import { twilioCapabilities } from './twilio-capabilities'
+import { signalwireCapabilities } from './signalwire-capabilities'
+import { vonageCapabilities } from './vonage-capabilities'
+import { plivoCapabilities } from './plivo-capabilities'
+import { telnyxCapabilities } from './telnyx-capabilities'
+import { asteriskCapabilities } from './asterisk-capabilities'
+import { TELEPHONY_CAPABILITIES } from './capabilities'
+import { MESSAGING_CAPABILITIES } from '../messaging/capabilities'
 
 async function startMockApi(
   handler: (req: IncomingMessage, res: ServerResponse) => void,
@@ -16,11 +23,8 @@ async function startMockApi(
   }
 }
 
-// ─── Existing Zod schema tests ────────────────────────────────────────────────
-
-test.describe('provider Zod schemas', () => {
-  test('TwilioConfigSchema validates correct config', async () => {
-    const { TwilioConfigSchema } = await import('../src/shared/schemas/providers')
+describe('provider Zod schemas', () => {
+  test('TwilioConfigSchema validates correct config', () => {
     const result = TwilioConfigSchema.safeParse({
       type: 'twilio',
       phoneNumber: '+15551234567',
@@ -30,8 +34,7 @@ test.describe('provider Zod schemas', () => {
     expect(result.success).toBe(true)
   })
 
-  test('TwilioConfigSchema rejects invalid accountSid', async () => {
-    const { TwilioConfigSchema } = await import('../src/shared/schemas/providers')
+  test('TwilioConfigSchema rejects invalid accountSid', () => {
     const result = TwilioConfigSchema.safeParse({
       type: 'twilio',
       phoneNumber: '+15551234567',
@@ -41,8 +44,7 @@ test.describe('provider Zod schemas', () => {
     expect(result.success).toBe(false)
   })
 
-  test('TelephonyProviderConfigSchema discriminates by type', async () => {
-    const { TelephonyProviderConfigSchema } = await import('../src/shared/schemas/providers')
+  test('TelephonyProviderConfigSchema discriminates by type', () => {
     const twilio = TelephonyProviderConfigSchema.safeParse({
       type: 'twilio',
       phoneNumber: '+15551234567',
@@ -67,8 +69,7 @@ test.describe('provider Zod schemas', () => {
     expect(invalid.success).toBe(false)
   })
 
-  test('rejects phone numbers not in E.164 format', async () => {
-    const { TwilioConfigSchema } = await import('../src/shared/schemas/providers')
+  test('rejects phone numbers not in E.164 format', () => {
     const result = TwilioConfigSchema.safeParse({
       type: 'twilio',
       phoneNumber: '5551234567',
@@ -78,8 +79,7 @@ test.describe('provider Zod schemas', () => {
     expect(result.success).toBe(false)
   })
 
-  test('TelnyxConfigSchema validates', async () => {
-    const { TelnyxConfigSchema } = await import('../src/shared/schemas/providers')
+  test('TelnyxConfigSchema validates', () => {
     const result = TelnyxConfigSchema.safeParse({
       type: 'telnyx',
       phoneNumber: '+15551234567',
@@ -89,16 +89,13 @@ test.describe('provider Zod schemas', () => {
   })
 })
 
-// ─── Twilio testConnection ────────────────────────────────────────────────────
-
-test.describe('Twilio capabilities', () => {
+describe('Twilio capabilities', () => {
   test('testConnection succeeds with valid credentials', async () => {
     const mock = await startMockApi((req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ sid: 'AC123', friendly_name: 'Test Account', status: 'active' }))
     })
     try {
-      const { twilioCapabilities } = await import('../src/server/telephony/twilio-capabilities')
       const result = await twilioCapabilities.testConnection({
         type: 'twilio',
         phoneNumber: '+15551234567',
@@ -120,7 +117,6 @@ test.describe('Twilio capabilities', () => {
       res.end('Unauthorized')
     })
     try {
-      const { twilioCapabilities } = await import('../src/server/telephony/twilio-capabilities')
       const result = await twilioCapabilities.testConnection({
         type: 'twilio',
         phoneNumber: '+15551234567',
@@ -135,40 +131,31 @@ test.describe('Twilio capabilities', () => {
     }
   })
 
-  test('getWebhookUrls returns correct paths', async () => {
-    const { twilioCapabilities } = await import('../src/server/telephony/twilio-capabilities')
+  test('getWebhookUrls returns correct paths', () => {
     const urls = twilioCapabilities.getWebhookUrls('https://hotline.example.com', 'hub-123')
     expect(urls.voiceIncoming).toBe('https://hotline.example.com/api/telephony/incoming?hub=hub-123')
     expect(urls.smsIncoming).toBe('https://hotline.example.com/api/messaging/sms/webhook?hub=hub-123')
   })
 })
 
-// ─── Parameterised tests for SignalWire, Vonage, Plivo, Telnyx ───────────────
-
+// Parameterized tests for other providers
 const providerTests = [
   {
     name: 'signalwire',
-    importPath: '../src/server/telephony/signalwire-capabilities',
-    exportName: 'signalwireCapabilities',
+    capabilities: signalwireCapabilities,
     config: (port: number) => ({
-      type: 'signalwire' as const,
-      phoneNumber: '+15551234567',
-      accountSid: 'test',
-      authToken: 'test',
-      signalwireSpace: 'testspace',
+      type: 'signalwire' as const, phoneNumber: '+15551234567',
+      accountSid: 'test', authToken: 'test', signalwireSpace: 'testspace',
       _testBaseUrl: `http://127.0.0.1:${port}/api/laml`,
     }),
     successResponse: { sid: 'test', friendly_name: 'SW Account', status: 'active' },
   },
   {
     name: 'vonage',
-    importPath: '../src/server/telephony/vonage-capabilities',
-    exportName: 'vonageCapabilities',
+    capabilities: vonageCapabilities,
     config: (port: number) => ({
-      type: 'vonage' as const,
-      phoneNumber: '+15551234567',
-      apiKey: 'key',
-      apiSecret: 'secret',
+      type: 'vonage' as const, phoneNumber: '+15551234567',
+      apiKey: 'key', apiSecret: 'secret',
       applicationId: '550e8400-e29b-41d4-a716-446655440000',
       _testBaseUrl: `http://127.0.0.1:${port}`,
     }),
@@ -176,24 +163,19 @@ const providerTests = [
   },
   {
     name: 'plivo',
-    importPath: '../src/server/telephony/plivo-capabilities',
-    exportName: 'plivoCapabilities',
+    capabilities: plivoCapabilities,
     config: (port: number) => ({
-      type: 'plivo' as const,
-      phoneNumber: '+15551234567',
-      authId: 'test',
-      authToken: 'test',
+      type: 'plivo' as const, phoneNumber: '+15551234567',
+      authId: 'test', authToken: 'test',
       _testBaseUrl: `http://127.0.0.1:${port}`,
     }),
     successResponse: { account_type: 'standard', cash_credits: '10.00' },
   },
   {
     name: 'telnyx',
-    importPath: '../src/server/telephony/telnyx-capabilities',
-    exportName: 'telnyxCapabilities',
+    capabilities: telnyxCapabilities,
     config: (port: number) => ({
-      type: 'telnyx' as const,
-      phoneNumber: '+15551234567',
+      type: 'telnyx' as const, phoneNumber: '+15551234567',
       apiKey: 'KEY_TEST',
       _testBaseUrl: `http://127.0.0.1:${port}`,
     }),
@@ -202,7 +184,7 @@ const providerTests = [
 ] as const
 
 for (const p of providerTests) {
-  test.describe(`${p.name} capabilities`, () => {
+  describe(`${p.name} capabilities`, () => {
     test('testConnection succeeds', async () => {
       const mock = await startMockApi((req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -210,8 +192,7 @@ for (const p of providerTests) {
       })
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mod = await import(p.importPath as string) as Record<string, any>
-        const result = await mod[p.exportName].testConnection(p.config(mock.port))
+        const result = await p.capabilities.testConnection(p.config(mock.port) as any)
         expect(result.connected).toBe(true)
       } finally {
         await mock.stop()
@@ -225,8 +206,7 @@ for (const p of providerTests) {
       })
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mod = await import(p.importPath as string) as Record<string, any>
-        const result = await mod[p.exportName].testConnection(p.config(mock.port))
+        const result = await p.capabilities.testConnection(p.config(mock.port) as any)
         expect(result.connected).toBe(false)
         expect(result.errorType).toBe('invalid_credentials')
       } finally {
@@ -236,17 +216,11 @@ for (const p of providerTests) {
   })
 }
 
-// ─── Asterisk capability tests ───────────────────────────────────────────────
-
-test.describe('asterisk capabilities', () => {
+describe('asterisk capabilities', () => {
   test('testConnection rejects loopback addresses', async () => {
-    const { asteriskCapabilities } = await import('../src/server/telephony/asterisk-capabilities')
     const result = await asteriskCapabilities.testConnection({
-      type: 'asterisk',
-      phoneNumber: '+15551234567',
-      ariUrl: 'http://127.0.0.1:8089/ari',
-      ariUsername: 'llamenos',
-      ariPassword: 'changeme',
+      type: 'asterisk', phoneNumber: '+15551234567',
+      ariUrl: 'http://127.0.0.1:8089/ari', ariUsername: 'llamenos', ariPassword: 'changeme',
     } as Parameters<typeof asteriskCapabilities.testConnection>[0])
     expect(result.connected).toBe(false)
     expect(result.errorType).toBe('invalid_credentials')
@@ -254,30 +228,16 @@ test.describe('asterisk capabilities', () => {
   })
 
   test('testConnection rejects localhost', async () => {
-    const { asteriskCapabilities } = await import('../src/server/telephony/asterisk-capabilities')
     const result = await asteriskCapabilities.testConnection({
-      type: 'asterisk',
-      phoneNumber: '+15551234567',
-      ariUrl: 'http://localhost:8089/ari',
-      ariUsername: 'llamenos',
-      ariPassword: 'changeme',
+      type: 'asterisk', phoneNumber: '+15551234567',
+      ariUrl: 'http://localhost:8089/ari', ariUsername: 'llamenos', ariPassword: 'changeme',
     } as Parameters<typeof asteriskCapabilities.testConnection>[0])
     expect(result.connected).toBe(false)
     expect(result.errorType).toBe('invalid_credentials')
   })
-
-  test('testConnection against real ARI (skipped if unreachable)', async () => {
-    // Asterisk Docker runs at localhost:8089 but the loopback guard prevents
-    // direct connection in tests. This test is a no-op placeholder that confirms
-    // the guard behavior and skips rather than failing.
-    test.skip(true, 'Asterisk ARI at localhost:8089 is blocked by loopback guard by design; use an external ARI URL to test real connectivity')
-  })
 })
 
-// ─── Registry completeness tests ─────────────────────────────────────────────
-
-test('TELEPHONY_CAPABILITIES has all provider types', async () => {
-  const { TELEPHONY_CAPABILITIES } = await import('../src/server/telephony/capabilities')
+test('TELEPHONY_CAPABILITIES has all provider types', () => {
   expect(Object.keys(TELEPHONY_CAPABILITIES)).toEqual(
     expect.arrayContaining(['twilio', 'signalwire', 'vonage', 'plivo', 'asterisk', 'telnyx']),
   )
@@ -289,8 +249,7 @@ test('TELEPHONY_CAPABILITIES has all provider types', async () => {
   }
 })
 
-test('MESSAGING_CAPABILITIES has all channel types', async () => {
-  const { MESSAGING_CAPABILITIES } = await import('../src/server/messaging/capabilities')
+test('MESSAGING_CAPABILITIES has all channel types', () => {
   expect(Object.keys(MESSAGING_CAPABILITIES)).toEqual(
     expect.arrayContaining(['sms', 'whatsapp', 'signal', 'rcs']),
   )

@@ -1,10 +1,10 @@
-import { test, expect } from '@playwright/test'
+import { describe, expect, test } from 'bun:test'
+import { encryptProviderCredentials, decryptProviderCredentials } from './crypto'
 
-test.describe('provider credential encryption', () => {
+describe('provider credential encryption', () => {
   const TEST_SECRET = 'a'.repeat(64)
 
-  test('encrypt then decrypt roundtrip', async () => {
-    const { encryptProviderCredentials, decryptProviderCredentials } = await import('../src/server/lib/crypto')
+  test('encrypt then decrypt roundtrip', () => {
     const plaintext = JSON.stringify({ accountSid: 'AC123', authToken: 'secret-token-here' })
     const encrypted = encryptProviderCredentials(plaintext, TEST_SECRET)
     expect(encrypted).not.toBe(plaintext)
@@ -13,23 +13,20 @@ test.describe('provider credential encryption', () => {
     expect(decrypted).toBe(plaintext)
   })
 
-  test('decrypt with wrong key throws', async () => {
-    const { encryptProviderCredentials, decryptProviderCredentials } = await import('../src/server/lib/crypto')
+  test('decrypt with wrong key throws', () => {
     const encrypted = encryptProviderCredentials('secret data', TEST_SECRET)
     const wrongKey = 'b'.repeat(64)
     expect(() => decryptProviderCredentials(encrypted, wrongKey)).toThrow()
   })
 
-  test('each encryption produces different ciphertext (random nonce)', async () => {
-    const { encryptProviderCredentials } = await import('../src/server/lib/crypto')
+  test('each encryption produces different ciphertext (random nonce)', () => {
     const plaintext = 'same input'
     const a = encryptProviderCredentials(plaintext, TEST_SECRET)
     const b = encryptProviderCredentials(plaintext, TEST_SECRET)
     expect(a).not.toBe(b)
   })
 
-  test('encrypted output is nonce (48 hex = 24 bytes) + ciphertext', async () => {
-    const { encryptProviderCredentials } = await import('../src/server/lib/crypto')
+  test('encrypted output is nonce (48 hex = 24 bytes) + ciphertext', () => {
     const encrypted = encryptProviderCredentials('test', TEST_SECRET)
     expect(encrypted.length).toBeGreaterThan(48 + 32)
   })

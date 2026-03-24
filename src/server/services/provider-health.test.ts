@@ -1,10 +1,9 @@
-import { test, expect } from '@playwright/test'
+import { describe, expect, test } from 'bun:test'
+import { ProviderHealthService } from './provider-health'
 
-test.describe('ProviderHealthService', () => {
+describe('ProviderHealthService', () => {
   test('healthy status when testConnection succeeds', async () => {
-    const { ProviderHealthService } = await import('../src/server/services/provider-health')
     const service = new ProviderHealthService()
-
     const mockAdapter = {
       async testConnection() {
         return { connected: true, latencyMs: 42 }
@@ -24,10 +23,8 @@ test.describe('ProviderHealthService', () => {
   })
 
   test('degraded after first failure, down after 3 consecutive failures', async () => {
-    const { ProviderHealthService } = await import('../src/server/services/provider-health')
     const service = new ProviderHealthService()
 
-    // Seed with a healthy result first so status transitions are logged
     const healthyAdapter = {
       async testConnection() {
         return { connected: true, latencyMs: 10 }
@@ -41,17 +38,14 @@ test.describe('ProviderHealthService', () => {
       },
     }
 
-    // Failure 1 → degraded
     const r1 = await service.checkProvider('telephony', 'active', failingAdapter)
     expect(r1.status).toBe('degraded')
     expect(r1.consecutiveFailures).toBe(1)
 
-    // Failure 2 → still degraded
     const r2 = await service.checkProvider('telephony', 'active', failingAdapter)
     expect(r2.status).toBe('degraded')
     expect(r2.consecutiveFailures).toBe(2)
 
-    // Failure 3 → down (threshold = 3)
     const r3 = await service.checkProvider('telephony', 'active', failingAdapter)
     expect(r3.status).toBe('down')
     expect(r3.consecutiveFailures).toBe(3)
@@ -62,7 +56,6 @@ test.describe('ProviderHealthService', () => {
   })
 
   test('recovery from down to healthy resets failure count', async () => {
-    const { ProviderHealthService } = await import('../src/server/services/provider-health')
     const service = new ProviderHealthService()
 
     const failingAdapter = {
@@ -70,14 +63,11 @@ test.describe('ProviderHealthService', () => {
         return { connected: false, latencyMs: 0, error: 'timeout' }
       },
     }
-
-    // Drive to down state
     for (let i = 0; i < 3; i++) {
       await service.checkProvider('telephony', 'active', failingAdapter)
     }
     expect(service.getHealthStatus().telephony!.status).toBe('down')
 
-    // Recover
     const healthyAdapter = {
       async testConnection() {
         return { connected: true, latencyMs: 15 }
@@ -90,7 +80,6 @@ test.describe('ProviderHealthService', () => {
   })
 
   test('messaging channels tracked separately', async () => {
-    const { ProviderHealthService } = await import('../src/server/services/provider-health')
     const service = new ProviderHealthService()
 
     const smsAdapter = {
@@ -114,7 +103,6 @@ test.describe('ProviderHealthService', () => {
   })
 
   test('start and stop control periodic checks', async () => {
-    const { ProviderHealthService } = await import('../src/server/services/provider-health')
     const service = new ProviderHealthService()
 
     let checkCount = 0
@@ -122,18 +110,14 @@ test.describe('ProviderHealthService', () => {
       checkCount++
     }
 
-    // Start with a very short interval for testing
     service.start(checkFn, 50)
-
-    // Wait for initial + at least one interval
     await new Promise((r) => setTimeout(r, 120))
     expect(checkCount).toBeGreaterThanOrEqual(2)
 
     const countBefore = checkCount
     service.stop()
 
-    // After stop, no more checks should fire
     await new Promise((r) => setTimeout(r, 100))
-    expect(checkCount).toBeLessThanOrEqual(countBefore + 1) // Allow one in-flight
+    expect(checkCount).toBeLessThanOrEqual(countBefore + 1)
   })
 })
