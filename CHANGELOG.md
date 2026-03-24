@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] - 2026-03-24
+
+### Bug Fixes
+
+- use boolean conditionals for regex_search assertions
+- format telephony test files for biome compliance
+
+### Features
+
+- add TestAdapter for E2E telephony testing
+- register TestAdapter and enable in Playwright config
+
+### Miscellaneous
+
+- v0.22.0 [skip ci]
+
+### Testing
+
+- remove telephony 503 skip conditions from UI tests
+
 ## [0.21.1] - 2026-03-24
 
 ### Bug Fixes
