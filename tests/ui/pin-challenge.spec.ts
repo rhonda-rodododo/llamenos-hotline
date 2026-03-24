@@ -1,9 +1,29 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, enterPin, resetTestState, TEST_PIN } from '../helpers'
+import { expect, test } from '@playwright/test'
+import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
+import {
+  ADMIN_NSEC,
+  TEST_PIN,
+  enterPin,
+  loginAsAdmin,
+  navigateAfterLogin,
+  resetTestState,
+  uniquePhone,
+} from '../helpers'
+import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 test.describe('PIN Challenge (Re-auth Step-up)', () => {
   test.beforeEach(async ({ request }) => {
     await resetTestState(request)
+    // Ensure at least one volunteer with a phone exists for the toggle button
+    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const sk = generateSecretKey()
+    const pk = getPublicKey(sk)
+    await adminApi.post('/api/volunteers', {
+      pubkey: pk,
+      name: 'PIN Test Volunteer',
+      phone: uniquePhone(),
+      roleIds: ['role-volunteer'],
+    })
   })
 
   test('phone unmask on volunteers page requires PIN', async ({ page }) => {
@@ -15,12 +35,7 @@ test.describe('PIN Challenge (Re-auth Step-up)', () => {
 
     // Find a volunteer row with a phone toggle button
     const toggleBtn = page.getByTestId('toggle-phone-visibility').first()
-    const hasToggle = await toggleBtn.isVisible({ timeout: 5000 }).catch(() => false)
-    if (!hasToggle) {
-      // No volunteers with phones — skip test
-      test.skip()
-      return
-    }
+    await expect(toggleBtn).toBeVisible({ timeout: 5000 })
 
     // Click to unmask phone — should trigger PIN challenge
     await toggleBtn.click()
@@ -47,11 +62,7 @@ test.describe('PIN Challenge (Re-auth Step-up)', () => {
     await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
 
     const toggleBtn = page.getByTestId('toggle-phone-visibility').first()
-    const hasToggle = await toggleBtn.isVisible({ timeout: 5000 }).catch(() => false)
-    if (!hasToggle) {
-      test.skip()
-      return
-    }
+    await expect(toggleBtn).toBeVisible({ timeout: 5000 })
 
     // Click to unmask phone
     await toggleBtn.click()
@@ -87,11 +98,7 @@ test.describe('PIN Challenge (Re-auth Step-up)', () => {
     await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
 
     const toggleBtn = page.getByTestId('toggle-phone-visibility').first()
-    const hasToggle = await toggleBtn.isVisible({ timeout: 5000 }).catch(() => false)
-    if (!hasToggle) {
-      test.skip()
-      return
-    }
+    await expect(toggleBtn).toBeVisible({ timeout: 5000 })
 
     // Click to unmask phone
     await toggleBtn.click()
