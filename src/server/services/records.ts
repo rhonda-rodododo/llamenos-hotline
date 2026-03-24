@@ -10,9 +10,9 @@ import type {
   AuditLogEntry,
   BanEntry,
   BulkBanData,
+  CallHourBucket,
   CallRecordFilters,
   CallVolumeDay,
-  CallHourBucket,
   CreateBanData,
   CreateCallRecordData,
   CreateNoteData,
@@ -501,8 +501,14 @@ export class RecordsService {
       .select({
         date: sql<string>`DATE(${callRecords.startedAt})`.as('date'),
         count: sql<number>`COUNT(*)::int`.as('count'),
-        answered: sql<number>`SUM(CASE WHEN ${callRecords.status} = 'completed' AND NOT ${callRecords.hasVoicemail} THEN 1 ELSE 0 END)::int`.as('answered'),
-        voicemail: sql<number>`SUM(CASE WHEN ${callRecords.hasVoicemail} THEN 1 ELSE 0 END)::int`.as('voicemail'),
+        answered:
+          sql<number>`SUM(CASE WHEN ${callRecords.status} = 'completed' AND NOT ${callRecords.hasVoicemail} THEN 1 ELSE 0 END)::int`.as(
+            'answered'
+          ),
+        voicemail:
+          sql<number>`SUM(CASE WHEN ${callRecords.hasVoicemail} THEN 1 ELSE 0 END)::int`.as(
+            'voicemail'
+          ),
       })
       .from(callRecords)
       .where(and(eq(callRecords.hubId, hId), gte(callRecords.startedAt, since)))
@@ -517,10 +523,7 @@ export class RecordsService {
     }))
   }
 
-  async getCallHourDistribution(
-    hubId: string | undefined,
-    days: 30
-  ): Promise<CallHourBucket[]> {
+  async getCallHourDistribution(hubId: string | undefined, days: 30): Promise<CallHourBucket[]> {
     const hId = hubId ?? 'global'
     const since = new Date()
     since.setDate(since.getDate() - days)

@@ -52,9 +52,12 @@ export function SignalProviderForm({ data, onChange }: Props) {
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
-  const webhookUrls = useMemo(() => [
-    { label: t('setup.webhooks.signalWebhook'), url: `${origin}/api/messaging/signal/webhook` },
-  ], [origin, t])
+  const webhookUrls = useMemo(
+    () => [
+      { label: t('setup.webhooks.signalWebhook'), url: `${origin}/api/messaging/signal/webhook` },
+    ],
+    [origin, t]
+  )
 
   return (
     <div className="space-y-4 rounded-lg border p-4">
@@ -65,9 +68,7 @@ export function SignalProviderForm({ data, onChange }: Props) {
 
       {/* E2EE info note */}
       <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
-        <p className="text-xs text-blue-700 dark:text-blue-400">
-          {t('setup.signalE2eeNote')}
-        </p>
+        <p className="text-xs text-blue-700 dark:text-blue-400">{t('setup.signalE2eeNote')}</p>
       </div>
 
       <p className="text-xs text-muted-foreground">{t('setup.signalDescription')}</p>
@@ -87,7 +88,8 @@ export function SignalProviderForm({ data, onChange }: Props) {
         <p className="text-xs font-medium">{t('setup.signalDockerCommand')}</p>
         <div className="flex items-start gap-2 rounded-md border bg-background p-2">
           <code className="flex-1 text-[11px] break-all font-mono">
-            docker run -d --name signal-api -p 8080:8080 -v signal-data:/home/.local/share/signal-cli bbernhard/signal-cli-rest-api
+            docker run -d --name signal-api -p 8080:8080 -v
+            signal-data:/home/.local/share/signal-cli bbernhard/signal-cli-rest-api
           </code>
           <Button
             variant="ghost"
@@ -161,10 +163,7 @@ export function SignalProviderForm({ data, onChange }: Props) {
       )}
 
       {/* Webhook URLs */}
-      <WebhookConfirmation
-        urls={webhookUrls}
-        visible={data.signalValidated}
-      />
+      <WebhookConfirmation urls={webhookUrls} visible={data.signalValidated} />
 
       <Button
         variant="outline"

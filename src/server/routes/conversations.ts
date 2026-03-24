@@ -273,11 +273,16 @@ conversations.post('/:id/messages', async (c) => {
   })
 
   // Publish new message event to Nostr relay
-  publishConversationEvent(c.env, KIND_MESSAGE_NEW, {
-    type: 'message:new',
-    conversationId: id,
-    channelType: 'outbound',
-  }, hubId ?? undefined)
+  publishConversationEvent(
+    c.env,
+    KIND_MESSAGE_NEW,
+    {
+      type: 'message:new',
+      conversationId: id,
+      channelType: 'outbound',
+    },
+    hubId ?? undefined
+  )
 
   c.executionCtx.waitUntil(
     services.records.addAuditEntry(hubId ?? 'global', 'messageSent', pubkey, {
@@ -316,11 +321,16 @@ conversations.patch('/:id', async (c) => {
 
   // Publish status change to Nostr relay
   const convEventType = body.status === 'closed' ? 'conversation:closed' : 'conversation:assigned'
-  publishConversationEvent(c.env, KIND_CONVERSATION_ASSIGNED, {
-    type: convEventType,
-    conversationId: id,
-    assignedTo: body.assignedTo,
-  }, hubId ?? undefined)
+  publishConversationEvent(
+    c.env,
+    KIND_CONVERSATION_ASSIGNED,
+    {
+      type: convEventType,
+      conversationId: id,
+      assignedTo: body.assignedTo,
+    },
+    hubId ?? undefined
+  )
 
   c.executionCtx.waitUntil(
     services.records.addAuditEntry(
@@ -392,11 +402,16 @@ conversations.post('/:id/claim', async (c) => {
   })
 
   // Publish assignment to Nostr relay
-  publishConversationEvent(c.env, KIND_CONVERSATION_ASSIGNED, {
-    type: 'conversation:assigned',
-    conversationId: id,
-    assignedTo: pubkey,
-  }, hubId ?? undefined)
+  publishConversationEvent(
+    c.env,
+    KIND_CONVERSATION_ASSIGNED,
+    {
+      type: 'conversation:assigned',
+      conversationId: id,
+      assignedTo: pubkey,
+    },
+    hubId ?? undefined
+  )
 
   c.executionCtx.waitUntil(
     services.records.addAuditEntry(hubId ?? 'global', 'conversationClaimed', pubkey, {

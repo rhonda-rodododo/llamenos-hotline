@@ -19,13 +19,7 @@ export type TelephonyEvent =
 export type MessagingChannel = 'sms' | 'whatsapp' | 'signal' | 'rcs'
 export type MessagingEvent = 'incoming-message' | 'delivery-status'
 
-export type MessagingProvider =
-  | 'twilio'
-  | 'signalwire'
-  | 'vonage'
-  | 'plivo'
-  | 'asterisk'
-  | 'meta'
+export type MessagingProvider = 'twilio' | 'signalwire' | 'vonage' | 'plivo' | 'asterisk' | 'meta'
 
 export interface SimulateCallParams {
   callSid?: string
@@ -369,15 +363,9 @@ export function buildVonageTelephonyPayload(
         `/api/telephony/call-status${sep}${hubQ}`
       )
     case 'queue-wait':
-      return json(
-        { uuid: callSid, duration: 30 },
-        `/api/telephony/wait-music${sep}${hubQ}`
-      )
+      return json({ uuid: callSid, duration: 30 }, `/api/telephony/wait-music${sep}${hubQ}`)
     case 'queue-exit':
-      return json(
-        { uuid: callSid, status: 'answered' },
-        `/api/telephony/queue-exit${sep}${hubQ}`
-      )
+      return json({ uuid: callSid, status: 'answered' }, `/api/telephony/queue-exit${sep}${hubQ}`)
     case 'recording-complete':
       return json(
         { uuid: callSid, recording_url: `https://api.nexmo.com/media/download?id=${callSid}` },
@@ -518,11 +506,11 @@ function buildTwilioSmsPayload(
       MessageSid: msgSid,
     }
     if (params.mediaUrl) {
-      fields['NumMedia'] = '1'
-      fields['MediaUrl0'] = params.mediaUrl
-      fields['MediaContentType0'] = params.mediaType ?? 'image/jpeg'
+      fields.NumMedia = '1'
+      fields.MediaUrl0 = params.mediaUrl
+      fields.MediaContentType0 = params.mediaType ?? 'image/jpeg'
     } else {
-      fields['NumMedia'] = '0'
+      fields.NumMedia = '0'
     }
     return {
       body: encodeForm(fields),
@@ -575,10 +563,7 @@ function buildVonageSmsPayload(
   }
 }
 
-function buildPlivoSmsPayload(
-  event: MessagingEvent,
-  params: SimulateMessageParams
-): FactoryResult {
+function buildPlivoSmsPayload(event: MessagingEvent, params: SimulateMessageParams): FactoryResult {
   const msgId = params.messageSid ?? randomMessageSid('plivo')
   const from = params.senderNumber ?? '+15555550200'
   const hubQ = params.hubId ? `?hub=${params.hubId}` : ''
@@ -590,7 +575,7 @@ function buildPlivoSmsPayload(
       Text: params.body ?? 'Test message',
       MessageUUID: msgId,
     }
-    if (params.mediaUrl) fields['Media0'] = params.mediaUrl
+    if (params.mediaUrl) fields.Media0 = params.mediaUrl
     return {
       body: encodeForm(fields),
       contentType: 'application/x-www-form-urlencoded',
@@ -712,10 +697,7 @@ function buildWhatsappPayload(
 // Signal (signal-cli bridge) and RCS (Google RBM)
 // -------------------------------------------------------------------
 
-function buildSignalPayload(
-  event: MessagingEvent,
-  params: SimulateMessageParams
-): FactoryResult {
+function buildSignalPayload(event: MessagingEvent, params: SimulateMessageParams): FactoryResult {
   const from = params.senderNumber ?? '+15555550200'
   const hubQ = params.hubId ? `?hub=${params.hubId}` : ''
 
@@ -739,10 +721,7 @@ function buildSignalPayload(
   }
 }
 
-function buildRcsPayload(
-  event: MessagingEvent,
-  params: SimulateMessageParams
-): FactoryResult {
+function buildRcsPayload(event: MessagingEvent, params: SimulateMessageParams): FactoryResult {
   const msgId = params.messageSid ?? randomMessageSid('twilio')
   const from = params.senderNumber ?? '+15555550200'
   const hubQ = params.hubId ? `?hub=${params.hubId}` : ''

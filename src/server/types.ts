@@ -1,4 +1,9 @@
-import type { KeyEnvelope, MessageDeliveryStatus, MessagingChannelType, RecipientEnvelope } from '../shared/types'
+import type {
+  KeyEnvelope,
+  MessageDeliveryStatus,
+  MessagingChannelType,
+  RecipientEnvelope,
+} from '../shared/types'
 
 /**
  * S3-compatible blob storage (R2 / MinIO).

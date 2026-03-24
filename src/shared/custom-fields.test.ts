@@ -1,10 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import {
-  MAX_CUSTOM_FIELDS,
-  MAX_SELECT_OPTIONS,
-  fieldMatchesContext,
-} from '@shared/types'
-import type { CustomFieldDefinition, CustomFieldContext } from '@shared/types'
+import { MAX_CUSTOM_FIELDS, MAX_SELECT_OPTIONS, fieldMatchesContext } from '@shared/types'
+import type { CustomFieldContext, CustomFieldDefinition } from '@shared/types'
 
 function makeField(context: CustomFieldContext): CustomFieldDefinition {
   return {
@@ -43,7 +39,12 @@ describe('custom-fields', () => {
     })
 
     test('context "all" matches every specific context', () => {
-      const allContexts: CustomFieldContext[] = ['call-notes', 'conversation-notes', 'reports', 'all']
+      const allContexts: CustomFieldContext[] = [
+        'call-notes',
+        'conversation-notes',
+        'reports',
+        'all',
+      ]
       for (const ctx of allContexts) {
         expect(fieldMatchesContext(makeField('all'), ctx)).toBe(true)
       }

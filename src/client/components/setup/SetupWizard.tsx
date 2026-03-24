@@ -6,7 +6,12 @@ import { completeSetup, getConfig, seedDemoData, setActiveHub, updateSetupState 
 import { useAuth } from '@/lib/auth'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
-import type { ChannelType, SignalConfig, TelephonyProviderDraft, WhatsAppConfig } from '@shared/types'
+import type {
+  ChannelType,
+  SignalConfig,
+  TelephonyProviderDraft,
+  WhatsAppConfig,
+} from '@shared/types'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, ArrowRight, KeyRound, SkipForward } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -276,7 +281,7 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
           >
             {Array.from({ length: TOTAL_STEPS }, (_, i) => (
               <div
-                key={i}
+                key={`step-${i}`}
                 className={`h-1.5 flex-1 rounded-full transition-colors ${
                   i <= step ? 'bg-primary' : 'bg-muted'
                 }`}

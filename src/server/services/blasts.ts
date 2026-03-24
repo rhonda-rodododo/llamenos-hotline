@@ -49,16 +49,12 @@ export class BlastService {
 
   async updateBlast(
     id: string,
-    data: Partial<
-      CreateBlastData & { stats: Partial<BlastStats>; sentAt: Date }
-    >
+    data: Partial<CreateBlastData & { stats: Partial<BlastStats>; sentAt: Date }>
   ): Promise<Blast> {
     const existing = await this.getBlast(id)
     if (!existing) throw new AppError(404, 'Blast not found')
 
-    const statsUpdate = data.stats
-      ? { stats: { ...existing.stats, ...data.stats } }
-      : {}
+    const statsUpdate = data.stats ? { stats: { ...existing.stats, ...data.stats } } : {}
 
     const [row] = await this.db
       .update(blasts)
@@ -94,20 +90,12 @@ export class BlastService {
     return rows[0] ? this.#rowToSubscriber(rows[0]) : null
   }
 
-  async findSubscriberByHash(
-    identifierHash: string,
-    hubId?: string
-  ): Promise<Subscriber | null> {
+  async findSubscriberByHash(identifierHash: string, hubId?: string): Promise<Subscriber | null> {
     const hId = hubId ?? 'global'
     const rows = await this.db
       .select()
       .from(subscribers)
-      .where(
-        and(
-          eq(subscribers.hubId, hId),
-          eq(subscribers.identifierHash, identifierHash)
-        )
-      )
+      .where(and(eq(subscribers.hubId, hId), eq(subscribers.identifierHash, identifierHash)))
       .limit(1)
     return rows[0] ? this.#rowToSubscriber(rows[0]) : null
   }

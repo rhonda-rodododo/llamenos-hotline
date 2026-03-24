@@ -17,10 +17,10 @@ import {
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { createReport, getReportCategories, listReportTypes } from '@/lib/api'
-import type { ReportType } from '@shared/types'
 import { useAuth } from '@/lib/auth'
 import { encryptMessage } from '@/lib/crypto'
 import { useToast } from '@/lib/toast'
+import type { ReportType } from '@shared/types'
 import { Loader2, Lock, Send } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -161,19 +161,21 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
               <Label data-testid="report-type-label">
                 {t('reports.type.label', { defaultValue: 'Report Type' })}
               </Label>
-              <Select
-                value={reportTypeId}
-                onValueChange={setReportTypeId}
-                disabled={submitting}
-              >
+              <Select value={reportTypeId} onValueChange={setReportTypeId} disabled={submitting}>
                 <SelectTrigger className="w-full" data-testid="report-type-select">
                   <SelectValue
-                    placeholder={t('reports.type.placeholder', { defaultValue: 'Select a report type' })}
+                    placeholder={t('reports.type.placeholder', {
+                      defaultValue: 'Select a report type',
+                    })}
                   />
                 </SelectTrigger>
                 <SelectContent>
                   {activeReportTypes.map((rt) => (
-                    <SelectItem key={rt.id} value={rt.id} data-testid={`report-type-option-${rt.id}`}>
+                    <SelectItem
+                      key={rt.id}
+                      value={rt.id}
+                      data-testid={`report-type-option-${rt.id}`}
+                    >
                       {rt.name}
                       {rt.isDefault && (
                         <span className="ml-1.5 text-xs text-muted-foreground">

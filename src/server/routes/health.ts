@@ -84,10 +84,7 @@ async function runChecks(): Promise<HealthResult> {
 
 // Full health check — dependency status
 health.get('/', async (c) => {
-  const [{ status, checks, details }, backup] = await Promise.all([
-    runChecks(),
-    readBackupStatus(),
-  ])
+  const [{ status, checks, details }, backup] = await Promise.all([runChecks(), readBackupStatus()])
   const hasDetails = Object.keys(details).length > 0
 
   return c.json(

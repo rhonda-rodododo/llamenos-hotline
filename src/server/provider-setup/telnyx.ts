@@ -134,10 +134,7 @@ export class TelnyxProvider {
     }
   }
 
-  async provisionNumber(
-    accessToken: string,
-    areaCode?: string
-  ): Promise<ProvisionNumberResult> {
+  async provisionNumber(accessToken: string, areaCode?: string): Promise<ProvisionNumberResult> {
     // Search for available numbers
     const searchParams = new URLSearchParams({ 'filter[limit]': '1' })
     if (areaCode) searchParams.set('filter[national_destination_code]', areaCode)
@@ -189,10 +186,7 @@ export class TelnyxProvider {
     }
   }
 
-  async createSipConnection(
-    accessToken: string,
-    domain: string
-  ): Promise<SipTrunkConfig> {
+  async createSipConnection(accessToken: string, domain: string): Promise<SipTrunkConfig> {
     const sipUsername = `llamenos-${crypto.randomUUID().slice(0, 8)}`
     const sipPassword = Array.from(crypto.getRandomValues(new Uint8Array(24)))
       .map((b) => b.toString(36).padStart(2, '0'))

@@ -27,7 +27,9 @@ export async function generateWebRtcToken(
       throw new Error('Telnyx WebRTC not yet implemented')
     default: {
       const _exhaustive: never = config
-      throw new Error(`WebRTC not supported for provider: ${(_exhaustive as TelephonyProviderConfig).type}`)
+      throw new Error(
+        `WebRTC not supported for provider: ${(_exhaustive as TelephonyProviderConfig).type}`
+      )
     }
   }
 }
@@ -39,7 +41,12 @@ export function isWebRtcConfigured(config: TelephonyProviderConfig | null): bool
   if (!config) return false
   switch (config.type) {
     case 'twilio':
-      return !!(config.webrtcEnabled && config.apiKeySid && config.apiKeySecret && config.twimlAppSid)
+      return !!(
+        config.webrtcEnabled &&
+        config.apiKeySid &&
+        config.apiKeySecret &&
+        config.twimlAppSid
+      )
     case 'signalwire':
       // SignalWire uses the same token flow as Twilio but config shape differs
       return false

@@ -83,7 +83,7 @@ export class VonageProvider {
     }
 
     if (enableSms) {
-      (appBody.capabilities as Record<string, unknown>).messages = {
+      ;(appBody.capabilities as Record<string, unknown>).messages = {
         webhooks: {
           inbound_url: {
             address: `https://${domain}/api/messaging/sms/webhook`,
@@ -131,7 +131,11 @@ export class VonageProvider {
 
     if (!linkRes.ok) {
       const text = await linkRes.text()
-      throw new ProviderApiError('Failed to link Vonage number to application', linkRes.status, text)
+      throw new ProviderApiError(
+        'Failed to link Vonage number to application',
+        linkRes.status,
+        text
+      )
     }
   }
 
@@ -149,9 +153,7 @@ export class VonageProvider {
       size: '1',
     })
 
-    const searchRes = await fetch(
-      `https://rest.nexmo.com/number/search?${searchParams.toString()}`
-    )
+    const searchRes = await fetch(`https://rest.nexmo.com/number/search?${searchParams.toString()}`)
 
     if (!searchRes.ok) {
       const text = await searchRes.text()

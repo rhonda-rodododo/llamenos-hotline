@@ -95,17 +95,14 @@ export class PlivoProvider {
 
     // Associate number with application
     const numStr = number.replace('+', '')
-    const numRes = await fetch(
-      `https://api.plivo.com/v1/Account/${authId}/Number/${numStr}/`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: auth,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ app_id: appData.app_id }),
-      }
-    )
+    const numRes = await fetch(`https://api.plivo.com/v1/Account/${authId}/Number/${numStr}/`, {
+      method: 'POST',
+      headers: {
+        Authorization: auth,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ app_id: appData.app_id }),
+    })
 
     if (!numRes.ok) {
       const text = await numRes.text()

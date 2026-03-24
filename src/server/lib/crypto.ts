@@ -1,8 +1,8 @@
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
-import { hmac } from '@noble/hashes/hmac.js'
 import { hkdf } from '@noble/hashes/hkdf.js'
+import { hmac } from '@noble/hashes/hmac.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import {
@@ -149,7 +149,13 @@ export function encryptCallRecordForStorage(
 // ── Provider Credential Encryption ──
 
 function deriveProviderKey(serverSecret: string): Uint8Array {
-  return hkdf(sha256, hexToBytes(serverSecret), new Uint8Array(0), utf8ToBytes(LABEL_PROVIDER_CREDENTIAL_WRAP), 32)
+  return hkdf(
+    sha256,
+    hexToBytes(serverSecret),
+    new Uint8Array(0),
+    utf8ToBytes(LABEL_PROVIDER_CREDENTIAL_WRAP),
+    32
+  )
 }
 
 export function encryptProviderCredentials(plaintext: string, serverSecret: string): string {

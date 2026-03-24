@@ -1,9 +1,9 @@
+import type { MessagingChannelType, TelephonyProviderType } from '@shared/types'
 import { Hono } from 'hono'
 import { MESSAGING_CAPABILITIES } from '../messaging/capabilities'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { TELEPHONY_CAPABILITIES } from '../telephony/capabilities'
 import type { AppEnv } from '../types'
-import type { TelephonyProviderType, MessagingChannelType } from '@shared/types'
 
 const settings = new Hono<AppEnv>()
 
@@ -186,12 +186,13 @@ settings.post(
   '/telephony-provider/test',
   requirePermission('settings:manage-telephony'),
   async (c) => {
-    const config = await c.req.json() as { type: string; [key: string]: unknown }
+    const config = (await c.req.json()) as { type: string; [key: string]: unknown }
     const capabilities = TELEPHONY_CAPABILITIES[config.type as TelephonyProviderType]
     if (!capabilities) return c.json({ ok: false, error: `Unknown provider: ${config.type}` }, 400)
 
     const parsed = capabilities.credentialSchema.safeParse(config)
-    if (!parsed.success) return c.json({ ok: false, error: 'Invalid config', details: parsed.error }, 400)
+    if (!parsed.success)
+      return c.json({ ok: false, error: 'Invalid config', details: parsed.error }, 400)
 
     try {
       const result = await capabilities.testConnection(parsed.data)
@@ -200,38 +201,39 @@ settings.post(
       const message = err instanceof Error ? err.message : 'Connection failed'
       return c.json({ ok: false, error: message }, { status: 400 })
     }
-  },
+  }
 )
 
 // SMS / messaging channel connection test
-settings.post(
-  '/messaging/test',
-  requirePermission('settings:manage-messaging'),
-  async (c) => {
-    const hubId = c.get('hubId')
-    const body = (await c.req.json()) as { channel: string }
-    const channel = body.channel as MessagingChannelType
-    const capabilities = MESSAGING_CAPABILITIES[channel]
-    if (!capabilities) return c.json({ error: `Unknown channel: ${body.channel}` }, 400)
+settings.post('/messaging/test', requirePermission('settings:manage-messaging'), async (c) => {
+  const hubId = c.get('hubId')
+  const body = (await c.req.json()) as { channel: string }
+  const channel = body.channel as MessagingChannelType
+  const capabilities = MESSAGING_CAPABILITIES[channel]
+  if (!capabilities) return c.json({ error: `Unknown channel: ${body.channel}` }, 400)
 
-    const services = c.get('services')
-    const messagingConfig = await services.settings.getMessagingConfig(hubId ?? undefined)
-    if (!messagingConfig) return c.json({ error: 'Messaging not configured' }, 400)
+  const services = c.get('services')
+  const messagingConfig = await services.settings.getMessagingConfig(hubId ?? undefined)
+  if (!messagingConfig) return c.json({ error: 'Messaging not configured' }, 400)
 
-    const channelConfig = messagingConfig[channel as keyof typeof messagingConfig]
-    if (!channelConfig || typeof channelConfig !== 'object') {
-      return c.json({ error: `Channel ${body.channel} not configured` }, 400)
-    }
+  const channelConfig = messagingConfig[channel as keyof typeof messagingConfig]
+  if (!channelConfig || typeof channelConfig !== 'object') {
+    return c.json({ error: `Channel ${body.channel} not configured` }, 400)
+  }
 
-    try {
-      const result = await capabilities.testConnection(channelConfig as Parameters<typeof capabilities.testConnection>[0])
-      return c.json(result)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Connection failed'
-      return c.json({ connected: false, latencyMs: 0, error: message, errorType: 'unknown' as const }, { status: 400 })
-    }
-  },
-)
+  try {
+    const result = await capabilities.testConnection(
+      channelConfig as Parameters<typeof capabilities.testConnection>[0]
+    )
+    return c.json(result)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Connection failed'
+    return c.json(
+      { connected: false, latencyMs: 0, error: message, errorType: 'unknown' as const },
+      { status: 400 }
+    )
+  }
+})
 
 // --- Messaging config ---
 settings.get('/messaging', requirePermission('settings:manage-messaging'), async (c) => {

@@ -1,9 +1,9 @@
+import type { NumberSearchQuery, TelephonyProviderType } from '@shared/types'
 import { Hono } from 'hono'
 import { requirePermission } from '../middleware/permission-guard'
-import { ProviderSetup, OAuthStateError, ProviderApiError } from '../provider-setup/index'
+import { OAuthStateError, ProviderApiError, ProviderSetup } from '../provider-setup/index'
 import { TELEPHONY_CAPABILITIES } from '../telephony/capabilities'
 import type { AppEnv } from '../types'
-import type { TelephonyProviderType, NumberSearchQuery } from '@shared/types'
 
 const providerSetup = new Hono<AppEnv>()
 
@@ -13,10 +13,7 @@ function handleProviderError(err: unknown): Response {
     return Response.json({ error: 'invalid_state', message: err.message }, { status: 400 })
   }
   if (err instanceof ProviderApiError) {
-    return Response.json(
-      { error: err.message, providerStatus: err.statusCode },
-      { status: 400 },
-    )
+    return Response.json({ error: err.message, providerStatus: err.statusCode }, { status: 400 })
   }
   const message = err instanceof Error ? err.message : 'Unknown error'
   return Response.json({ error: message }, { status: 500 })
@@ -26,7 +23,11 @@ function handleProviderError(err: unknown): Response {
 
 // Validate provider credentials
 providerSetup.post('/validate', requirePermission('settings:manage'), async (c) => {
-  const body = (await c.req.json()) as { provider: string; credentials?: unknown; [key: string]: unknown }
+  const body = (await c.req.json()) as {
+    provider: string
+    credentials?: unknown
+    [key: string]: unknown
+  }
   const provider = body.provider as TelephonyProviderType
   const capabilities = TELEPHONY_CAPABILITIES[provider]
   if (!capabilities) return c.json({ error: `Unknown provider: ${body.provider}` }, 400)
@@ -64,11 +65,16 @@ providerSetup.get('/webhooks', requirePermission('settings:manage'), async (c) =
 
 // List owned phone numbers
 providerSetup.post('/phone-numbers', requirePermission('settings:manage'), async (c) => {
-  const body = (await c.req.json()) as { provider: string; credentials?: unknown; [key: string]: unknown }
+  const body = (await c.req.json()) as {
+    provider: string
+    credentials?: unknown
+    [key: string]: unknown
+  }
   const provider = body.provider as TelephonyProviderType
   const capabilities = TELEPHONY_CAPABILITIES[provider]
   if (!capabilities) return c.json({ error: `Unknown provider: ${body.provider}` }, 400)
-  if (!capabilities.listOwnedNumbers) return c.json({ error: 'Provider does not support number listing' }, 400)
+  if (!capabilities.listOwnedNumbers)
+    return c.json({ error: 'Provider does not support number listing' }, 400)
 
   const credentials = body.credentials ?? body
   const parsed = capabilities.credentialSchema.safeParse(credentials)
@@ -80,11 +86,20 @@ providerSetup.post('/phone-numbers', requirePermission('settings:manage'), async
 
 // Search available phone numbers
 providerSetup.post('/phone-numbers/search', requirePermission('settings:manage'), async (c) => {
-  const body = (await c.req.json()) as { provider: string; credentials?: unknown; query?: NumberSearchQuery; country?: string; areaCode?: string; contains?: string; [key: string]: unknown }
+  const body = (await c.req.json()) as {
+    provider: string
+    credentials?: unknown
+    query?: NumberSearchQuery
+    country?: string
+    areaCode?: string
+    contains?: string
+    [key: string]: unknown
+  }
   const provider = body.provider as TelephonyProviderType
   const capabilities = TELEPHONY_CAPABILITIES[provider]
   if (!capabilities) return c.json({ error: `Unknown provider: ${body.provider}` }, 400)
-  if (!capabilities.searchAvailableNumbers) return c.json({ error: 'Provider does not support number search' }, 400)
+  if (!capabilities.searchAvailableNumbers)
+    return c.json({ error: 'Provider does not support number search' }, 400)
 
   const credentials = body.credentials ?? body
   const parsed = capabilities.credentialSchema.safeParse(credentials)
@@ -102,11 +117,18 @@ providerSetup.post('/phone-numbers/search', requirePermission('settings:manage')
 
 // Provision a phone number
 providerSetup.post('/phone-numbers/provision', requirePermission('settings:manage'), async (c) => {
-  const body = (await c.req.json()) as { provider: string; credentials?: unknown; phoneNumber: string; number?: string; [key: string]: unknown }
+  const body = (await c.req.json()) as {
+    provider: string
+    credentials?: unknown
+    phoneNumber: string
+    number?: string
+    [key: string]: unknown
+  }
   const provider = body.provider as TelephonyProviderType
   const capabilities = TELEPHONY_CAPABILITIES[provider]
   if (!capabilities) return c.json({ error: `Unknown provider: ${body.provider}` }, 400)
-  if (!capabilities.provisionNumber) return c.json({ error: 'Provider does not support number provisioning' }, 400)
+  if (!capabilities.provisionNumber)
+    return c.json({ error: 'Provider does not support number provisioning' }, 400)
 
   const credentials = body.credentials ?? body
   const parsed = capabilities.credentialSchema.safeParse(credentials)
@@ -121,11 +143,17 @@ providerSetup.post('/phone-numbers/provision', requirePermission('settings:manag
 
 // Auto-configure webhooks on provider
 providerSetup.post('/configure-webhooks', requirePermission('settings:manage'), async (c) => {
-  const body = (await c.req.json()) as { provider: string; credentials?: unknown; phoneNumber: string; [key: string]: unknown }
+  const body = (await c.req.json()) as {
+    provider: string
+    credentials?: unknown
+    phoneNumber: string
+    [key: string]: unknown
+  }
   const provider = body.provider as TelephonyProviderType
   const capabilities = TELEPHONY_CAPABILITIES[provider]
   if (!capabilities) return c.json({ error: `Unknown provider: ${body.provider}` }, 400)
-  if (!capabilities.configureWebhooks) return c.json({ error: 'Provider does not support webhook auto-config' }, 400)
+  if (!capabilities.configureWebhooks)
+    return c.json({ error: 'Provider does not support webhook auto-config' }, 400)
 
   const credentials = body.credentials ?? body
   const parsed = capabilities.credentialSchema.safeParse(credentials)
@@ -133,7 +161,7 @@ providerSetup.post('/configure-webhooks', requirePermission('settings:manage'), 
 
   const webhookUrls = capabilities.getWebhookUrls(
     c.env.APP_URL || new URL(c.req.url).origin,
-    c.get('hubId') ?? undefined,
+    c.get('hubId') ?? undefined
   )
   const result = await capabilities.configureWebhooks(parsed.data, body.phoneNumber, webhookUrls)
   return c.json(result)

@@ -69,7 +69,12 @@ export async function maybeTranscribe(
   }
 }
 
-export async function transcribeVoicemail(callSid: string, hubId: string, env: Env, services: Services) {
+export async function transcribeVoicemail(
+  callSid: string,
+  hubId: string,
+  env: Env,
+  services: Services
+) {
   // Check if transcription is globally enabled
   const transSettings = await services.settings.getTranscriptionSettings()
   if (!transSettings.globalEnabled) return

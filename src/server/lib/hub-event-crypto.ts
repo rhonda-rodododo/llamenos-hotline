@@ -35,7 +35,10 @@ export function deriveServerEventKey(serverSecret: string): Uint8Array {
  * Decrypt event content from Nostr relay.
  * Returns parsed object, or null on failure (wrong key, corrupted data).
  */
-export function decryptHubEvent(packed: string, eventKey: Uint8Array): Record<string, unknown> | null {
+export function decryptHubEvent(
+  packed: string,
+  eventKey: Uint8Array
+): Record<string, unknown> | null {
   try {
     const data = hexToBytes(packed)
     const nonce = data.slice(0, 24)

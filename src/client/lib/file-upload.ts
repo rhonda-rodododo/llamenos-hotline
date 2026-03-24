@@ -3,12 +3,7 @@
  * Wraps the chunked upload API with E2EE (XChaCha20-Poly1305 + ECIES key envelopes).
  */
 import type { EncryptedFileMetadata, FileFieldValue } from '@shared/types'
-import {
-  bindUploadContext,
-  downloadFile,
-  getFileEnvelopes,
-  getFileMetadata,
-} from './api'
+import { bindUploadContext, downloadFile, getFileEnvelopes, getFileMetadata } from './api'
 import { chunkedUpload } from './chunked-upload'
 import { decryptFile, decryptFileMetadata, encryptFile } from './file-crypto'
 
@@ -148,4 +143,3 @@ export function triggerBrowserDownload(blob: Blob, filename: string): void {
   // Revoke after a short delay to allow the download to start
   setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
-

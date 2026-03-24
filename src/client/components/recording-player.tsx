@@ -99,9 +99,7 @@ export function RecordingPlayer({ callId, onTranscriptReady }: RecordingPlayerPr
       setTranscript(text)
       onTranscriptReady?.(text)
     } catch (err) {
-      setTranscriptionError(
-        err instanceof Error ? err.message : t('recording.transcriptionFailed')
-      )
+      setTranscriptionError(err instanceof Error ? err.message : t('recording.transcriptionFailed'))
     } finally {
       setTranscribing(false)
     }

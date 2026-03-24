@@ -38,12 +38,7 @@ export function WebhookConfirmation({ urls, visible }: WebhookConfirmationProps)
     <div className="space-y-3 rounded-lg border bg-muted/30 p-4" data-testid="webhook-confirmation">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold">{t('setup.webhooks.title')}</h4>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleCopyAll}
-          className="text-xs h-7"
-        >
+        <Button variant="ghost" size="sm" onClick={handleCopyAll} className="text-xs h-7">
           <Copy className="h-3 w-3" />
           {t('setup.webhooks.copyAll')}
         </Button>

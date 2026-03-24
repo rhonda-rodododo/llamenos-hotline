@@ -49,7 +49,7 @@ export class TwilioProvider {
 
     if (!res.ok) {
       const text = await res.text()
-      throw new ProviderApiError(`Twilio OAuth token exchange failed`, res.status, text)
+      throw new ProviderApiError('Twilio OAuth token exchange failed', res.status, text)
     }
 
     const data = (await res.json()) as Record<string, string>
@@ -192,27 +192,21 @@ export class TwilioProvider {
     return { phoneNumber: data.phone_number, sid: data.sid }
   }
 
-  async createSipTrunk(
-    credentials: TwilioCredentials,
-    domain: string
-  ): Promise<SipTrunkConfig> {
+  async createSipTrunk(credentials: TwilioCredentials, domain: string): Promise<SipTrunkConfig> {
     const sid = credentials.subAccountSid || credentials.accountSid
     const authHeader = `Basic ${btoa(`${sid}:${credentials.accessToken}`)}`
 
     // Create SIP trunk
-    const trunkRes = await fetch(
-      `https://trunking.twilio.com/v1/Trunks`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: authHeader,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          FriendlyName: `Llamenos SIP Trunk - ${domain}`,
-        }).toString(),
-      }
-    )
+    const trunkRes = await fetch('https://trunking.twilio.com/v1/Trunks', {
+      method: 'POST',
+      headers: {
+        Authorization: authHeader,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        FriendlyName: `Llamenos SIP Trunk - ${domain}`,
+      }).toString(),
+    })
 
     if (!trunkRes.ok) {
       const text = await trunkRes.text()

@@ -170,7 +170,13 @@ function HubRow({
   onEdit,
   onArchive,
   onDelete,
-}: { hub: Hub; isSuperAdmin: boolean; onEdit: () => void; onArchive: () => void; onDelete: () => void }) {
+}: {
+  hub: Hub
+  isSuperAdmin: boolean
+  onEdit: () => void
+  onArchive: () => void
+  onDelete: () => void
+}) {
   const { t } = useTranslation()
 
   const statusColors: Record<Hub['status'], string> = {
@@ -498,13 +504,9 @@ function EditHubDialog({
                 ) : (
                   <ShieldOff className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                 )}
-                <Label className="text-sm font-semibold">
-                  {t('hubs.accessControl.title')}
-                </Label>
+                <Label className="text-sm font-semibold">{t('hubs.accessControl.title')}</Label>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {t('hubs.accessControl.description')}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('hubs.accessControl.description')}</p>
               <div className="flex items-center justify-between gap-3">
                 <Label htmlFor="access-toggle" className="text-sm">
                   {t('hubs.accessControl.allowSuperAdmin')}
@@ -642,9 +644,7 @@ function DeleteHubDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('hubs.deleteHub')}</DialogTitle>
-          <DialogDescription>
-            {t('hubs.deleteHubConfirm', { name: hub.name })}
-          </DialogDescription>
+          <DialogDescription>{t('hubs.deleteHubConfirm', { name: hub.name })}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
           <Label htmlFor="delete-hub-confirm">{t('hubs.deleteHubNameLabel')}</Label>

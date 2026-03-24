@@ -11,7 +11,9 @@ const BaseProviderSchema = z.object({
 
 export const TwilioConfigSchema = BaseProviderSchema.extend({
   type: z.literal('twilio'),
-  accountSid: z.string().regex(/^AC[0-9a-f]{32}$/i, 'Must start with AC followed by 32 hex characters'),
+  accountSid: z
+    .string()
+    .regex(/^AC[0-9a-f]{32}$/i, 'Must start with AC followed by 32 hex characters'),
   authToken: z.string().min(32, 'Auth token must be at least 32 characters'),
   webrtcEnabled: z.boolean().optional(),
   apiKeySid: z.string().optional(),

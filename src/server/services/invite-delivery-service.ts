@@ -1,7 +1,7 @@
-import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import { hmac } from '@noble/hashes/hmac.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js'
+import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import { getMessagingAdapter } from '../lib/adapters'
 import type { SettingsService } from './settings'
 

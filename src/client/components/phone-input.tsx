@@ -115,10 +115,10 @@ function CountrySelect({
                       setOpen(false)
                     }}
                   >
-                    <FlagComponent country={value!} countryName={label} />
+                    <FlagComponent country={value as Country} countryName={label} />
                     <span className="flex-1 text-sm">{label}</span>
                     <span className="text-sm text-foreground/50">
-                      +{getCountryCallingCode(value!)}
+                      +{getCountryCallingCode(value as Country)}
                     </span>
                     <CheckIcon
                       className={cn(

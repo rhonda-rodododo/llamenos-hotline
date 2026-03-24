@@ -52,8 +52,7 @@ const CHANNELS: ChannelInfo[] = [
 const SECURITY_BADGE_STYLES: Record<TransportSecurity, string> = {
   e2ee: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
   'e2ee-to-bridge': 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
-  'provider-encrypted':
-    'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
+  'provider-encrypted': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
   none: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
 }
 
@@ -167,17 +166,13 @@ export function ChannelSettings({ expanded, onToggle, statusSummary }: ChannelSe
                     }
                   }}
                   className={`cursor-pointer p-3 transition-all ${
-                    selected
-                      ? 'border-primary ring-2 ring-primary/20'
-                      : 'hover:border-primary/50'
+                    selected ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary/50'
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
                       <Icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium text-sm">
-                        {CHANNEL_LABELS[channel.type]}
-                      </span>
+                      <span className="font-medium text-sm">{CHANNEL_LABELS[channel.type]}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       {selected && status === 'active' && (
@@ -195,9 +190,7 @@ export function ChannelSettings({ expanded, onToggle, statusSummary }: ChannelSe
                       )}
                     </div>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t(channel.descriptionKey)}
-                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t(channel.descriptionKey)}</p>
                   <Badge
                     variant="outline"
                     className={`mt-2 text-[10px] border-0 ${SECURITY_BADGE_STYLES[security]}`}

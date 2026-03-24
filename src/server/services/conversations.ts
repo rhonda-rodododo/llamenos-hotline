@@ -168,7 +168,15 @@ export class ConversationService {
     const id = crypto.randomUUID()
     const now = new Date()
 
-    const deliveryStatus = data.deliveryStatus ?? (data.status === 'sent' ? 'sent' : data.status === 'delivered' ? 'delivered' : data.status === 'failed' ? 'failed' : 'pending')
+    const deliveryStatus =
+      data.deliveryStatus ??
+      (data.status === 'sent'
+        ? 'sent'
+        : data.status === 'delivered'
+          ? 'delivered'
+          : data.status === 'failed'
+            ? 'failed'
+            : 'pending')
 
     const [row] = await this.db
       .insert(messageEnvelopes)

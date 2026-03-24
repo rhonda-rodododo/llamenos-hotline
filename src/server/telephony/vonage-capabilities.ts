@@ -1,21 +1,21 @@
 import { VonageConfigSchema } from '@shared/schemas/providers'
-import type { ProviderCapabilities } from './capabilities'
-import type {
-  ConnectionTestResult,
-  WebhookUrlSet,
-  PhoneNumberInfo,
-  NumberSearchQuery,
-  ProvisionResult,
-  AutoConfigResult,
-} from '@shared/types'
 import type { VonageConfig } from '@shared/schemas/providers'
+import type {
+  AutoConfigResult,
+  ConnectionTestResult,
+  NumberSearchQuery,
+  PhoneNumberInfo,
+  ProvisionResult,
+  WebhookUrlSet,
+} from '@shared/types'
+import type { ProviderCapabilities } from './capabilities'
 
 function restBase(config: VonageConfig): string {
-  return (config as Record<string, unknown>)._testBaseUrl as string ?? 'https://rest.nexmo.com'
+  return ((config as Record<string, unknown>)._testBaseUrl as string) ?? 'https://rest.nexmo.com'
 }
 
 function apiBaseV2(config: VonageConfig): string {
-  return (config as Record<string, unknown>)._testBaseUrl as string ?? 'https://api.nexmo.com'
+  return ((config as Record<string, unknown>)._testBaseUrl as string) ?? 'https://api.nexmo.com'
 }
 
 function authParams(config: VonageConfig): string {
@@ -45,10 +45,19 @@ export const vonageCapabilities: ProviderCapabilities<VonageConfig> = {
           connected: false,
           latencyMs,
           error: `HTTP ${res.status}`,
-          errorType: res.status === 401 ? 'invalid_credentials' : res.status === 429 ? 'rate_limited' : 'unknown',
+          errorType:
+            res.status === 401
+              ? 'invalid_credentials'
+              : res.status === 429
+                ? 'rate_limited'
+                : 'unknown',
         }
       }
-      const data = (await res.json()) as { value?: number; 'error-code'?: string; 'error-code-label'?: string }
+      const data = (await res.json()) as {
+        value?: number
+        'error-code'?: string
+        'error-code-label'?: string
+      }
       if (data['error-code'] && data['error-code'] !== '200') {
         return {
           connected: false,
@@ -59,7 +68,12 @@ export const vonageCapabilities: ProviderCapabilities<VonageConfig> = {
       }
       return { connected: true, latencyMs }
     } catch (err) {
-      return { connected: false, latencyMs: Date.now() - start, error: String(err), errorType: 'network_error' }
+      return {
+        connected: false,
+        latencyMs: Date.now() - start,
+        error: String(err),
+        errorType: 'network_error',
+      }
     }
   },
 
@@ -96,7 +110,10 @@ export const vonageCapabilities: ProviderCapabilities<VonageConfig> = {
     }))
   },
 
-  async searchAvailableNumbers(config: VonageConfig, query: NumberSearchQuery): Promise<PhoneNumberInfo[]> {
+  async searchAvailableNumbers(
+    config: VonageConfig,
+    query: NumberSearchQuery
+  ): Promise<PhoneNumberInfo[]> {
     const params = new URLSearchParams()
     params.set('country', query.country || 'US')
     if (query.contains) params.set('pattern', query.contains)
@@ -151,7 +168,11 @@ export const vonageCapabilities: ProviderCapabilities<VonageConfig> = {
     return { ok: true, number: `+${msisdn}` }
   },
 
-  async configureWebhooks(config: VonageConfig, _phoneNumber: string, webhookUrls: WebhookUrlSet): Promise<AutoConfigResult> {
+  async configureWebhooks(
+    config: VonageConfig,
+    _phoneNumber: string,
+    webhookUrls: WebhookUrlSet
+  ): Promise<AutoConfigResult> {
     const url = `${apiBaseV2(config)}/v2/applications/${config.applicationId}`
     const appBody = {
       capabilities: {
@@ -159,7 +180,9 @@ export const vonageCapabilities: ProviderCapabilities<VonageConfig> = {
           webhooks: {
             answer_url: { address: webhookUrls.voiceIncoming, http_method: 'POST' },
             event_url: { address: webhookUrls.voiceStatus, http_method: 'POST' },
-            ...(webhookUrls.voiceFallback ? { fallback_answer_url: { address: webhookUrls.voiceFallback, http_method: 'POST' } } : {}),
+            ...(webhookUrls.voiceFallback
+              ? { fallback_answer_url: { address: webhookUrls.voiceFallback, http_method: 'POST' } }
+              : {}),
           },
         },
         ...(webhookUrls.smsIncoming
@@ -167,7 +190,9 @@ export const vonageCapabilities: ProviderCapabilities<VonageConfig> = {
               messages: {
                 webhooks: {
                   inbound_url: { address: webhookUrls.smsIncoming, http_method: 'POST' },
-                  ...(webhookUrls.smsStatus ? { status_url: { address: webhookUrls.smsStatus, http_method: 'POST' } } : {}),
+                  ...(webhookUrls.smsStatus
+                    ? { status_url: { address: webhookUrls.smsStatus, http_method: 'POST' } }
+                    : {}),
                 },
               },
             }

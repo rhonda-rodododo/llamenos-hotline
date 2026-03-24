@@ -73,7 +73,7 @@ calls.get('/:callId/detail', async (c) => {
     // For archived calls, check by decrypted answeredBy — we can't do server-side,
     // so we allow the volunteer to fetch and let client validate via E2EE decryption.
     // At minimum, if there's an active call that another volunteer answered, deny.
-    if (activeCall && activeCall.assignedPubkey && activeCall.assignedPubkey !== pubkey) {
+    if (activeCall?.assignedPubkey && activeCall.assignedPubkey !== pubkey) {
       return c.json({ error: 'Forbidden' }, 403)
     }
   }

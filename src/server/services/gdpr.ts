@@ -354,9 +354,7 @@ export class GdprService {
     const pending = await this.db
       .select()
       .from(gdprErasureRequests)
-      .where(
-        and(eq(gdprErasureRequests.status, 'pending'), lt(gdprErasureRequests.executeAt, now))
-      )
+      .where(and(eq(gdprErasureRequests.status, 'pending'), lt(gdprErasureRequests.executeAt, now)))
 
     let count = 0
     for (const req of pending) {
@@ -396,7 +394,9 @@ export class GdprService {
     const clampAudit = (v: number) => Math.max(365, Math.min(3650, v))
     const updated: RetentionSettings = {
       callRecordsDays:
-        data.callRecordsDays !== undefined ? clampCall(data.callRecordsDays) : current.callRecordsDays,
+        data.callRecordsDays !== undefined
+          ? clampCall(data.callRecordsDays)
+          : current.callRecordsDays,
       notesDays: data.notesDays !== undefined ? clampCall(data.notesDays) : current.notesDays,
       messagesDays:
         data.messagesDays !== undefined ? clampCall(data.messagesDays) : current.messagesDays,
@@ -405,7 +405,11 @@ export class GdprService {
     }
     await this.db
       .insert(retentionSettings)
-      .values({ hubId: hId, settings: updated as unknown as Record<string, number>, updatedAt: new Date() })
+      .values({
+        hubId: hId,
+        settings: updated as unknown as Record<string, number>,
+        updatedAt: new Date(),
+      })
       .onConflictDoUpdate({
         target: retentionSettings.hubId,
         set: { settings: updated as unknown as Record<string, number>, updatedAt: new Date() },

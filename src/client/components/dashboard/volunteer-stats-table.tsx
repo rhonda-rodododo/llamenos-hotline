@@ -1,6 +1,6 @@
-import { useTranslation } from 'react-i18next'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { VolunteerStatEntry } from '@/lib/api'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   data: VolunteerStatEntry[]
@@ -22,7 +22,10 @@ export function VolunteerStatsTable({ data, loading }: Props) {
 
   if (data.length === 0) {
     return (
-      <p className="py-4 text-center text-sm text-muted-foreground" data-testid="volunteer-stats-no-data">
+      <p
+        className="py-4 text-center text-sm text-muted-foreground"
+        data-testid="volunteer-stats-no-data"
+      >
         {t('dashboard.analytics.noData')}
       </p>
     )
@@ -35,7 +38,9 @@ export function VolunteerStatsTable({ data, loading }: Props) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs text-muted-foreground">
-            <th className="pb-2 pr-4 font-medium">{t('volunteers.title', { defaultValue: 'Volunteer' })}</th>
+            <th className="pb-2 pr-4 font-medium">
+              {t('volunteers.title', { defaultValue: 'Volunteer' })}
+            </th>
             <th className="pb-2 text-right font-medium">{t('dashboard.analytics.answered')}</th>
           </tr>
         </thead>

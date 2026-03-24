@@ -32,6 +32,7 @@ import {
   customFieldDefinitions,
   fallbackGroup,
   fileRecords,
+  geocodingConfig,
   hubKeys,
   hubs,
   ivrAudio,
@@ -39,6 +40,8 @@ import {
   messageEnvelopes,
   messagingConfig,
   noteEnvelopes,
+  oauthState,
+  providerConfig,
   rateLimitCounters,
   reportCategories,
   reportTypes,
@@ -47,9 +50,6 @@ import {
   setupState,
   shiftOverrides,
   shiftSchedules,
-  geocodingConfig,
-  oauthState,
-  providerConfig,
   signalRegistrationPending,
   spamSettings,
   subscribers,
@@ -76,7 +76,7 @@ export class SettingsService {
 
   constructor(
     protected readonly db: Database,
-    serverSecret: string,
+    serverSecret: string
   ) {
     this.serverSecret = serverSecret
   }
@@ -271,7 +271,11 @@ export class SettingsService {
 
   async getTelephonyProvider(hubId?: string): Promise<TelephonyProviderConfig | null> {
     const hId = hubId ?? 'global'
-    const rows = await this.db.select().from(telephonyConfig).where(eq(telephonyConfig.hubId, hId)).limit(1)
+    const rows = await this.db
+      .select()
+      .from(telephonyConfig)
+      .where(eq(telephonyConfig.hubId, hId))
+      .limit(1)
     if (!rows[0]) return null
     const configStr = rows[0].config
     if (!configStr) return null
@@ -290,7 +294,10 @@ export class SettingsService {
     return JSON.parse(json) as TelephonyProviderConfig
   }
 
-  async updateTelephonyProvider(config: TelephonyProviderConfig, hubId?: string): Promise<TelephonyProviderConfig> {
+  async updateTelephonyProvider(
+    config: TelephonyProviderConfig,
+    hubId?: string
+  ): Promise<TelephonyProviderConfig> {
     const hId = hubId ?? 'global'
     const encrypted = encryptProviderCredentials(JSON.stringify(config), this.serverSecret)
     await this.db
@@ -310,7 +317,10 @@ export class SettingsService {
       if (!row.config) continue
       let cfg: Record<string, unknown>
       try {
-        cfg = JSON.parse(decryptProviderCredentials(row.config, this.serverSecret)) as Record<string, unknown>
+        cfg = JSON.parse(decryptProviderCredentials(row.config, this.serverSecret)) as Record<
+          string,
+          unknown
+        >
       } catch {
         try {
           cfg = JSON.parse(row.config) as Record<string, unknown>
@@ -400,7 +410,11 @@ export class SettingsService {
 
   async getMessagingConfig(hubId?: string): Promise<MessagingConfig> {
     const hId = hubId ?? 'global'
-    const rows = await this.db.select().from(messagingConfig).where(eq(messagingConfig.hubId, hId)).limit(1)
+    const rows = await this.db
+      .select()
+      .from(messagingConfig)
+      .where(eq(messagingConfig.hubId, hId))
+      .limit(1)
     if (!rows[0] || !rows[0].config) return { ...DEFAULT_MESSAGING_CONFIG }
     const configStr = rows[0].config
     let json: string
@@ -418,7 +432,10 @@ export class SettingsService {
     return JSON.parse(json) as MessagingConfig
   }
 
-  async updateMessagingConfig(data: Partial<MessagingConfig>, hubId?: string): Promise<MessagingConfig> {
+  async updateMessagingConfig(
+    data: Partial<MessagingConfig>,
+    hubId?: string
+  ): Promise<MessagingConfig> {
     const hId = hubId ?? 'global'
     const current = await this.getMessagingConfig(hId)
     const updated = { ...current, ...data }
@@ -742,7 +759,9 @@ export class SettingsService {
         ...(data.description !== undefined && { description: data.description }),
         ...(data.phoneNumber !== undefined && { phoneNumber: data.phoneNumber }),
         ...(data.status !== undefined && { status: data.status }),
-        ...(data.allowSuperAdminAccess !== undefined && { allowSuperAdminAccess: data.allowSuperAdminAccess }),
+        ...(data.allowSuperAdminAccess !== undefined && {
+          allowSuperAdminAccess: data.allowSuperAdminAccess,
+        }),
         updatedAt: new Date(),
       })
       .where(eq(hubs.id, id))
@@ -803,10 +822,7 @@ export class SettingsService {
       await tx.delete(noteEnvelopes).where(eq(noteEnvelopes.hubId, id))
 
       // --- Blasts (delete deliveries via blastId before blasts) ---
-      const hubBlasts = await tx
-        .select({ id: blasts.id })
-        .from(blasts)
-        .where(eq(blasts.hubId, id))
+      const hubBlasts = await tx.select({ id: blasts.id }).from(blasts).where(eq(blasts.hubId, id))
       if (hubBlasts.length > 0) {
         const blastIds = hubBlasts.map((b) => b.id)
         await tx.delete(blastDeliveries).where(inArray(blastDeliveries.blastId, blastIds))
@@ -951,8 +967,15 @@ export class SettingsService {
   async setOAuthState(state: OAuthState): Promise<void> {
     await this.db
       .insert(oauthState)
-      .values({ provider: state.provider, state: state.state, expiresAt: new Date(state.expiresAt) })
-      .onConflictDoUpdate({ target: oauthState.provider, set: { state: state.state, expiresAt: new Date(state.expiresAt) } })
+      .values({
+        provider: state.provider,
+        state: state.state,
+        expiresAt: new Date(state.expiresAt),
+      })
+      .onConflictDoUpdate({
+        target: oauthState.provider,
+        set: { state: state.state, expiresAt: new Date(state.expiresAt) },
+      })
   }
 
   async getOAuthState(provider: string): Promise<OAuthState | null> {
@@ -962,7 +985,11 @@ export class SettingsService {
       await this.db.delete(oauthState).where(eq(oauthState.provider, provider))
       return null
     }
-    return { state: rows[0].state, provider: rows[0].provider as OAuthState['provider'], expiresAt: rows[0].expiresAt.getTime() }
+    return {
+      state: rows[0].state,
+      provider: rows[0].provider as OAuthState['provider'],
+      expiresAt: rows[0].expiresAt.getTime(),
+    }
   }
 
   async clearOAuthState(provider: string): Promise<void> {
@@ -1002,11 +1029,16 @@ export class SettingsService {
       encryptedCredentials: encryptedCredentials ?? null,
       updatedAt: new Date(),
     }
-    await this.db.insert(providerConfig).values(values).onConflictDoUpdate({ target: providerConfig.id, set: values })
+    await this.db
+      .insert(providerConfig)
+      .values(values)
+      .onConflictDoUpdate({ target: providerConfig.id, set: values })
   }
 
   async getEncryptedCredentials(): Promise<string | null> {
-    const rows = await this.db.select({ creds: providerConfig.encryptedCredentials }).from(providerConfig)
+    const rows = await this.db
+      .select({ creds: providerConfig.encryptedCredentials })
+      .from(providerConfig)
     return rows[0]?.creds ?? null
   }
 
@@ -1026,17 +1058,26 @@ export class SettingsService {
   async updateGeocodingConfig(data: Partial<GeocodingConfigAdmin>): Promise<GeocodingConfigAdmin> {
     const current = await this.getGeocodingConfig()
     const updated = { ...current, ...data }
-    await this.db.insert(geocodingConfig).values({
-      id: 'global',
-      provider: updated.provider,
-      apiKey: updated.apiKey,
-      countries: updated.countries,
-      enabled: updated.enabled,
-      updatedAt: new Date(),
-    }).onConflictDoUpdate({
-      target: geocodingConfig.id,
-      set: { provider: updated.provider, apiKey: updated.apiKey, countries: updated.countries, enabled: updated.enabled, updatedAt: new Date() },
-    })
+    await this.db
+      .insert(geocodingConfig)
+      .values({
+        id: 'global',
+        provider: updated.provider,
+        apiKey: updated.apiKey,
+        countries: updated.countries,
+        enabled: updated.enabled,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: geocodingConfig.id,
+        set: {
+          provider: updated.provider,
+          apiKey: updated.apiKey,
+          countries: updated.countries,
+          enabled: updated.enabled,
+          updatedAt: new Date(),
+        },
+      })
     return updated
   }
 
@@ -1046,7 +1087,9 @@ export class SettingsService {
     const rows = await this.db.select().from(signalRegistrationPending)
     if (!rows[0]) return null
     if (rows[0].expiresAt < new Date()) {
-      await this.db.delete(signalRegistrationPending).where(eq(signalRegistrationPending.id, 'global'))
+      await this.db
+        .delete(signalRegistrationPending)
+        .where(eq(signalRegistrationPending.id, 'global'))
       return null
     }
     return {
@@ -1060,21 +1103,33 @@ export class SettingsService {
   }
 
   async setSignalRegistrationPending(pending: SignalRegistrationPending): Promise<void> {
-    await this.db.insert(signalRegistrationPending).values({
-      id: 'global',
-      number: pending.number,
-      bridgeUrl: pending.bridgeUrl,
-      method: pending.method,
-      status: pending.status,
-      error: pending.error ?? null,
-      expiresAt: new Date(pending.expiresAt),
-    }).onConflictDoUpdate({
-      target: signalRegistrationPending.id,
-      set: { number: pending.number, bridgeUrl: pending.bridgeUrl, method: pending.method, status: pending.status, error: pending.error ?? null, expiresAt: new Date(pending.expiresAt) },
-    })
+    await this.db
+      .insert(signalRegistrationPending)
+      .values({
+        id: 'global',
+        number: pending.number,
+        bridgeUrl: pending.bridgeUrl,
+        method: pending.method,
+        status: pending.status,
+        error: pending.error ?? null,
+        expiresAt: new Date(pending.expiresAt),
+      })
+      .onConflictDoUpdate({
+        target: signalRegistrationPending.id,
+        set: {
+          number: pending.number,
+          bridgeUrl: pending.bridgeUrl,
+          method: pending.method,
+          status: pending.status,
+          error: pending.error ?? null,
+          expiresAt: new Date(pending.expiresAt),
+        },
+      })
   }
 
   async clearSignalRegistrationPending(): Promise<void> {
-    await this.db.delete(signalRegistrationPending).where(eq(signalRegistrationPending.id, 'global'))
+    await this.db
+      .delete(signalRegistrationPending)
+      .where(eq(signalRegistrationPending.id, 'global'))
   }
 }

@@ -6,11 +6,11 @@ import { ConversationService } from './conversations'
 import { FilesService } from './files'
 import { GdprService } from './gdpr'
 import { IdentityService } from './identity'
+import type { ProviderHealthService } from './provider-health'
 import { RecordsService } from './records'
 import { ReportTypeService } from './report-types'
 import { SettingsService } from './settings'
 import { ShiftService } from './shifts'
-import type { ProviderHealthService } from './provider-health'
 
 export type {
   BlastService,
@@ -40,7 +40,11 @@ export interface Services {
   providerHealth?: ProviderHealthService
 }
 
-export function createServices(db: Database, blob: BlobStorage | null = null, serverSecret = ''): Services {
+export function createServices(
+  db: Database,
+  blob: BlobStorage | null = null,
+  serverSecret = ''
+): Services {
   return {
     identity: new IdentityService(db),
     settings: new SettingsService(db, serverSecret),

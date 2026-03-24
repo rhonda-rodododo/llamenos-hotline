@@ -244,7 +244,11 @@ function CallHistoryPage() {
           ) : (
             <div className="divide-y divide-border">
               {calls.map((call) => (
-                <div key={call.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6 hover:bg-muted/30 transition-colors" data-testid="call-history-row">
+                <div
+                  key={call.id}
+                  className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6 hover:bg-muted/30 transition-colors"
+                  data-testid="call-history-row"
+                >
                   <Link
                     to="/calls/$callId"
                     params={{ callId: call.id }}

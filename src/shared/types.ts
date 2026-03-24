@@ -23,7 +23,13 @@ export type RecipientKeyEnvelope = RecipientEnvelope
 
 // --- Telephony Provider Config ---
 
-export type TelephonyProviderType = 'twilio' | 'signalwire' | 'vonage' | 'plivo' | 'asterisk' | 'telnyx'
+export type TelephonyProviderType =
+  | 'twilio'
+  | 'signalwire'
+  | 'vonage'
+  | 'plivo'
+  | 'asterisk'
+  | 'telnyx'
 
 export const TELEPHONY_PROVIDER_LABELS: Record<TelephonyProviderType, string> = {
   twilio: 'Twilio',
@@ -580,7 +586,12 @@ export interface ConnectionTestResult {
   latencyMs: number
   accountName?: string
   error?: string
-  errorType?: 'invalid_credentials' | 'network_error' | 'rate_limited' | 'account_suspended' | 'unknown'
+  errorType?:
+    | 'invalid_credentials'
+    | 'network_error'
+    | 'rate_limited'
+    | 'account_suspended'
+    | 'unknown'
 }
 
 export interface WebhookUrlSet {

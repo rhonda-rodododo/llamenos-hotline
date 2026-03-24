@@ -1,7 +1,17 @@
+import {
+  RCSConfigSchema,
+  SMSConfigSchema,
+  SignalBridgeConfigSchema,
+  WhatsAppConfigSchema,
+} from '@shared/schemas/providers'
+import type { RCSConfig, SignalBridgeConfig, WhatsAppConfig } from '@shared/schemas/providers'
+import type {
+  AutoConfigResult,
+  ConnectionTestResult,
+  MessagingChannelType,
+  WebhookUrlSet,
+} from '@shared/types'
 import type { z } from 'zod/v4'
-import type { MessagingChannelType, ConnectionTestResult, WebhookUrlSet, AutoConfigResult } from '@shared/types'
-import { SMSConfigSchema, WhatsAppConfigSchema, SignalBridgeConfigSchema, RCSConfigSchema } from '@shared/schemas/providers'
-import type { WhatsAppConfig, SignalBridgeConfig, RCSConfig } from '@shared/schemas/providers'
 import { validateExternalUrl } from '../lib/ssrf-guard'
 
 export interface MessagingChannelCapabilities<T = unknown> {
@@ -42,7 +52,12 @@ const whatsappCapabilities: MessagingChannelCapabilities<WhatsAppConfig> = {
       return { connected: true, latencyMs: 0, accountName: 'Uses Twilio credentials' }
     }
     if (!config.phoneNumberId || !config.accessToken) {
-      return { connected: false, latencyMs: 0, error: 'Phone Number ID and Access Token required', errorType: 'invalid_credentials' }
+      return {
+        connected: false,
+        latencyMs: 0,
+        error: 'Phone Number ID and Access Token required',
+        errorType: 'invalid_credentials',
+      }
     }
     const start = Date.now()
     try {
@@ -52,12 +67,22 @@ const whatsappCapabilities: MessagingChannelCapabilities<WhatsAppConfig> = {
       })
       const latencyMs = Date.now() - start
       if (!res.ok) {
-        return { connected: false, latencyMs, error: `HTTP ${res.status}`, errorType: res.status === 401 ? 'invalid_credentials' : 'unknown' }
+        return {
+          connected: false,
+          latencyMs,
+          error: `HTTP ${res.status}`,
+          errorType: res.status === 401 ? 'invalid_credentials' : 'unknown',
+        }
       }
-      const data = await res.json() as { verified_name?: string }
+      const data = (await res.json()) as { verified_name?: string }
       return { connected: true, latencyMs, accountName: data.verified_name }
     } catch (err) {
-      return { connected: false, latencyMs: Date.now() - start, error: String(err), errorType: 'network_error' }
+      return {
+        connected: false,
+        latencyMs: Date.now() - start,
+        error: String(err),
+        errorType: 'network_error',
+      }
     }
   },
   getWebhookUrls(baseUrl: string, hubId?: string): WebhookUrlSet {
@@ -74,21 +99,39 @@ const signalCapabilities: MessagingChannelCapabilities<SignalBridgeConfig> = {
   supportsWebhookAutoConfig: false,
   async testConnection(config: SignalBridgeConfig): Promise<ConnectionTestResult> {
     const urlError = validateExternalUrl(config.bridgeUrl, 'Signal Bridge URL')
-    if (urlError) return { connected: false, latencyMs: 0, error: urlError, errorType: 'invalid_credentials' }
+    if (urlError)
+      return { connected: false, latencyMs: 0, error: urlError, errorType: 'invalid_credentials' }
 
     const start = Date.now()
     try {
       const headers: Record<string, string> = {}
       if (config.bridgeApiKey) headers.Authorization = `Bearer ${config.bridgeApiKey}`
-      const res = await fetch(`${config.bridgeUrl}/v1/about`, { headers, signal: AbortSignal.timeout(10_000) })
+      const res = await fetch(`${config.bridgeUrl}/v1/about`, {
+        headers,
+        signal: AbortSignal.timeout(10_000),
+      })
       const latencyMs = Date.now() - start
       if (!res.ok) {
-        return { connected: false, latencyMs, error: `HTTP ${res.status}`, errorType: res.status === 401 ? 'invalid_credentials' : 'unknown' }
+        return {
+          connected: false,
+          latencyMs,
+          error: `HTTP ${res.status}`,
+          errorType: res.status === 401 ? 'invalid_credentials' : 'unknown',
+        }
       }
-      const data = await res.json() as { versions?: Record<string, string> }
-      return { connected: true, latencyMs, accountName: `signal-cli ${data.versions?.['signal-cli'] ?? ''}`.trim() }
+      const data = (await res.json()) as { versions?: Record<string, string> }
+      return {
+        connected: true,
+        latencyMs,
+        accountName: `signal-cli ${data.versions?.['signal-cli'] ?? ''}`.trim(),
+      }
     } catch (err) {
-      return { connected: false, latencyMs: Date.now() - start, error: String(err), errorType: 'network_error' }
+      return {
+        connected: false,
+        latencyMs: Date.now() - start,
+        error: String(err),
+        errorType: 'network_error',
+      }
     }
   },
   getWebhookUrls(baseUrl: string, hubId?: string): WebhookUrlSet {
@@ -106,13 +149,26 @@ const rcsCapabilities: MessagingChannelCapabilities<RCSConfig> = {
   async testConnection(config: RCSConfig): Promise<ConnectionTestResult> {
     const start = Date.now()
     try {
-      const keyData = JSON.parse(config.serviceAccountKey) as { client_email?: string; private_key?: string }
+      const keyData = JSON.parse(config.serviceAccountKey) as {
+        client_email?: string
+        private_key?: string
+      }
       if (!keyData.client_email || !keyData.private_key) {
-        return { connected: false, latencyMs: 0, error: 'Invalid service account key', errorType: 'invalid_credentials' }
+        return {
+          connected: false,
+          latencyMs: 0,
+          error: 'Invalid service account key',
+          errorType: 'invalid_credentials',
+        }
       }
       return { connected: true, latencyMs: Date.now() - start, accountName: keyData.client_email }
     } catch (err) {
-      return { connected: false, latencyMs: Date.now() - start, error: 'Invalid JSON in service account key', errorType: 'invalid_credentials' }
+      return {
+        connected: false,
+        latencyMs: Date.now() - start,
+        error: 'Invalid JSON in service account key',
+        errorType: 'invalid_credentials',
+      }
     }
   },
   getWebhookUrls(baseUrl: string, hubId?: string): WebhookUrlSet {

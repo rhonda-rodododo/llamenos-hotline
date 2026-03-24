@@ -108,9 +108,9 @@ export class TwilioSMSAdapter implements MessagingAdapter {
     }
 
     // Add status callback URL if BASE_URL is configured
-    const baseUrl = process.env['BASE_URL']
+    const baseUrl = process.env.BASE_URL
     if (baseUrl) {
-      formParams['StatusCallback'] = `${baseUrl}/api/messaging/sms/webhook`
+      formParams.StatusCallback = `${baseUrl}/api/messaging/sms/webhook`
     }
 
     const body = new URLSearchParams(formParams)
@@ -136,9 +136,9 @@ export class TwilioSMSAdapter implements MessagingAdapter {
     }
 
     // Add status callback URL if BASE_URL is configured
-    const baseUrl = process.env['BASE_URL']
+    const baseUrl = process.env.BASE_URL
     if (baseUrl) {
-      formParams['StatusCallback'] = `${baseUrl}/api/messaging/sms/webhook`
+      formParams.StatusCallback = `${baseUrl}/api/messaging/sms/webhook`
     }
 
     const body = new URLSearchParams(formParams)

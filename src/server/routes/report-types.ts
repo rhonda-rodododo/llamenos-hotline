@@ -57,7 +57,9 @@ reportTypesRoutes.patch('/:id', requirePermission('settings:manage-fields'), asy
 
   const reportType = await services.reportTypes.updateReportType(hubId, id, {
     ...(body.name !== undefined ? { name: body.name.trim() } : {}),
-    ...(body.description !== undefined ? { description: body.description.trim() || undefined } : {}),
+    ...(body.description !== undefined
+      ? { description: body.description.trim() || undefined }
+      : {}),
   })
 
   await services.records.addAuditEntry(hubId, 'reportTypeUpdated', pubkey, {

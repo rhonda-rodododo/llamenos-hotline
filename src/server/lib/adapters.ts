@@ -186,6 +186,9 @@ function createAdapterFromConfig(config: TelephonyProviderConfig): TelephonyAdap
       )
     }
     case 'telnyx':
-      throw new AppError(501, 'Telnyx runtime adapter not yet implemented — use Twilio or another provider for call handling')
+      throw new AppError(
+        501,
+        'Telnyx runtime adapter not yet implemented — use Twilio or another provider for call handling'
+      )
   }
 }

@@ -1,17 +1,17 @@
 import { PlivoConfigSchema } from '@shared/schemas/providers'
-import type { ProviderCapabilities } from './capabilities'
-import type {
-  ConnectionTestResult,
-  WebhookUrlSet,
-  PhoneNumberInfo,
-  NumberSearchQuery,
-  ProvisionResult,
-  AutoConfigResult,
-} from '@shared/types'
 import type { PlivoConfig } from '@shared/schemas/providers'
+import type {
+  AutoConfigResult,
+  ConnectionTestResult,
+  NumberSearchQuery,
+  PhoneNumberInfo,
+  ProvisionResult,
+  WebhookUrlSet,
+} from '@shared/types'
+import type { ProviderCapabilities } from './capabilities'
 
 function apiBase(config: PlivoConfig): string {
-  return (config as Record<string, unknown>)._testBaseUrl as string ?? 'https://api.plivo.com'
+  return ((config as Record<string, unknown>)._testBaseUrl as string) ?? 'https://api.plivo.com'
 }
 
 function basicAuth(authId: string, authToken: string): string {
@@ -44,16 +44,31 @@ export const plivoCapabilities: ProviderCapabilities<PlivoConfig> = {
           connected: false,
           latencyMs,
           error: `HTTP ${res.status}`,
-          errorType: res.status === 401 ? 'invalid_credentials' : res.status === 429 ? 'rate_limited' : 'unknown',
+          errorType:
+            res.status === 401
+              ? 'invalid_credentials'
+              : res.status === 429
+                ? 'rate_limited'
+                : 'unknown',
         }
       }
       const data = (await res.json()) as { name?: string; account_type?: string; state?: string }
       if (data.state === 'suspended') {
-        return { connected: false, latencyMs, error: 'Account suspended', errorType: 'account_suspended' }
+        return {
+          connected: false,
+          latencyMs,
+          error: 'Account suspended',
+          errorType: 'account_suspended',
+        }
       }
       return { connected: true, latencyMs, accountName: data.name }
     } catch (err) {
-      return { connected: false, latencyMs: Date.now() - start, error: String(err), errorType: 'network_error' }
+      return {
+        connected: false,
+        latencyMs: Date.now() - start,
+        error: String(err),
+        errorType: 'network_error',
+      }
     }
   },
 
@@ -94,7 +109,10 @@ export const plivoCapabilities: ProviderCapabilities<PlivoConfig> = {
     }))
   },
 
-  async searchAvailableNumbers(config: PlivoConfig, query: NumberSearchQuery): Promise<PhoneNumberInfo[]> {
+  async searchAvailableNumbers(
+    config: PlivoConfig,
+    query: NumberSearchQuery
+  ): Promise<PhoneNumberInfo[]> {
     const params = new URLSearchParams()
     params.set('country_iso', query.country || 'US')
     if (query.areaCode) params.set('region', query.areaCode)
@@ -147,7 +165,11 @@ export const plivoCapabilities: ProviderCapabilities<PlivoConfig> = {
     return { ok: true, number: `+${cleanNumber}` }
   },
 
-  async configureWebhooks(config: PlivoConfig, phoneNumber: string, webhookUrls: WebhookUrlSet): Promise<AutoConfigResult> {
+  async configureWebhooks(
+    config: PlivoConfig,
+    phoneNumber: string,
+    webhookUrls: WebhookUrlSet
+  ): Promise<AutoConfigResult> {
     const cleanNumber = phoneNumber.startsWith('+') ? phoneNumber.slice(1) : phoneNumber
     const url = `${apiBase(config)}/v1/Account/${config.authId}/Number/${cleanNumber}/`
     const body: Record<string, string> = {}

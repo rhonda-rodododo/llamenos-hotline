@@ -13,9 +13,9 @@ import { migrate } from 'drizzle-orm/bun-sql/migrator'
 import { Hono } from 'hono'
 import { initDb } from './db'
 import { loadEnv } from './env'
-import { closeNostrPublisher, getTelephony, getMessagingAdapter } from './lib/adapters'
-import { createBlobStorage } from './lib/blob-storage'
 import { scheduleRetentionPurge } from './jobs/retention-purge'
+import { closeNostrPublisher, getMessagingAdapter, getTelephony } from './lib/adapters'
+import { createBlobStorage } from './lib/blob-storage'
 import { errorHandler } from './middleware/error'
 import { servicesMiddleware } from './middleware/services'
 import { createServices } from './services'
@@ -57,7 +57,9 @@ async function main() {
     console.warn('[llamenos] ⚠  APP_URL not set — invite links and webhooks may use wrong base URL')
   }
   if (!env.CORS_ALLOWED_ORIGINS) {
-    console.warn('[llamenos] ⚠  CORS_ALLOWED_ORIGINS not set — only built-in origins allowed (localhost in dev)')
+    console.warn(
+      '[llamenos] ⚠  CORS_ALLOWED_ORIGINS not set — only built-in origins allowed (localhost in dev)'
+    )
   }
   if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) {
     console.warn('[llamenos] ⚠  Twilio credentials missing — telephony features disabled')
@@ -97,7 +99,11 @@ async function main() {
       const config = await services.settings.getMessagingConfig()
       for (const channel of config?.enabledChannels ?? []) {
         try {
-          const msgAdapter = await getMessagingAdapter(channel, services.settings, env.HMAC_SECRET ?? '')
+          const msgAdapter = await getMessagingAdapter(
+            channel,
+            services.settings,
+            env.HMAC_SECRET ?? ''
+          )
           await providerHealth.checkProvider('messaging', channel, {
             async testConnection() {
               const status = await msgAdapter.getChannelStatus()

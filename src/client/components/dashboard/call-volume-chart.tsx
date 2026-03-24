@@ -1,17 +1,9 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { CallVolumeDay } from '@/lib/api'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 interface Props {
   data: CallVolumeDay[]
@@ -42,7 +34,10 @@ export function CallVolumeChart({ data, loading, days, onDaysChange }: Props) {
 
   if (data.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-muted-foreground" data-testid="call-volume-no-data">
+      <p
+        className="py-8 text-center text-sm text-muted-foreground"
+        data-testid="call-volume-no-data"
+      >
         {t('dashboard.analytics.noData')}
       </p>
     )
@@ -52,7 +47,9 @@ export function CallVolumeChart({ data, loading, days, onDaysChange }: Props) {
     <div data-testid="call-volume-chart">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-sm font-medium text-muted-foreground">
-          {days === 7 ? t('dashboard.analytics.callVolume7d') : t('dashboard.analytics.callVolume30d')}
+          {days === 7
+            ? t('dashboard.analytics.callVolume7d')
+            : t('dashboard.analytics.callVolume30d')}
         </span>
         <div className="flex gap-1">
           <Button

@@ -196,9 +196,7 @@ function VolunteerProfilePage() {
               <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <Phone className="h-3.5 w-3.5" />
-                  <span className="font-mono text-xs">
-                    {unmaskedPhone ?? volunteer.phone}
-                  </span>
+                  <span className="font-mono text-xs">{unmaskedPhone ?? volunteer.phone}</span>
                   <button
                     onClick={async () => {
                       if (unmaskedPhone) {

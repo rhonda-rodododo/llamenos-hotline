@@ -1,4 +1,13 @@
-import { boolean, integer, pgEnum, pgTable, text, timestamp, unique, varchar } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  varchar,
+} from 'drizzle-orm/pg-core'
 import type { EncryptedMetaItem, FileKeyEnvelope, RecipientEnvelope } from '../../../shared/types'
 import { jsonb } from '../bun-jsonb'
 

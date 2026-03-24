@@ -1,12 +1,15 @@
-import { describe, expect, test, beforeAll, afterAll } from 'bun:test'
-import { migrate } from 'drizzle-orm/bun-sql/migrator'
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import path from 'node:path'
 import { createDatabase } from '@server/db'
-import { RecordsService } from '@server/services/records'
 import { auditLog } from '@server/db/schema'
+import { RecordsService } from '@server/services/records'
 import { eq } from 'drizzle-orm'
+import { migrate } from 'drizzle-orm/bun-sql/migrator'
 
-const TEST_DB_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgres://llamenos:llamenos@localhost:5433/llamenos'
+const TEST_DB_URL =
+  process.env.TEST_DATABASE_URL ??
+  process.env.DATABASE_URL ??
+  'postgres://llamenos:llamenos@localhost:5433/llamenos'
 // Use a unique prefix per test run so parallel file-level execution never shares data
 const RUN_PREFIX = `test-hub-audit-${crypto.randomUUID().slice(0, 8)}`
 
@@ -15,14 +18,16 @@ let service: RecordsService
 
 beforeAll(async () => {
   db = createDatabase(TEST_DB_URL)
-  await migrate(db, { migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations') })
+  await migrate(db, {
+    migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations'),
+  })
   service = new RecordsService(db)
 })
 
 afterAll(async () => {
   // Clean up all entries with our run prefix (handles all hub IDs used in this run)
   const { sql } = await import('drizzle-orm')
-  await db.delete(auditLog).where(sql`${auditLog.hubId} LIKE ${RUN_PREFIX + '%'}`)
+  await db.delete(auditLog).where(sql`${auditLog.hubId} LIKE ${`${RUN_PREFIX}%`}`)
 })
 
 describe('audit-chain', () => {
@@ -31,7 +36,7 @@ describe('audit-chain', () => {
     const entry = await service.addAuditEntry(hub, 'test.event.1', 'pubkey-a', { x: 1 })
     expect(entry.previousEntryHash).toBeUndefined()
     expect(entry.entryHash).toBeString()
-    expect(entry.entryHash!.length).toBe(64) // 32 bytes hex
+    expect(entry.entryHash?.length).toBe(64) // 32 bytes hex
   })
 
   test('second entry previousEntryHash equals first entryHash', async () => {

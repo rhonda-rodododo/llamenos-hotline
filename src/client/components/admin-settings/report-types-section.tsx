@@ -106,7 +106,12 @@ export function ReportTypesSection({
   }
 
   async function handleArchive(id: string) {
-    if (!confirm(t('settings.reportTypes.archiveConfirm', { defaultValue: 'Archive this report type?' }))) return
+    if (
+      !confirm(
+        t('settings.reportTypes.archiveConfirm', { defaultValue: 'Archive this report type?' })
+      )
+    )
+      return
     try {
       await archiveReportType(id)
       onChange(
@@ -168,9 +173,7 @@ export function ReportTypesSection({
               </Badge>
             )}
           </div>
-          {rt.description && (
-            <p className="text-xs text-muted-foreground">{rt.description}</p>
-          )}
+          {rt.description && <p className="text-xs text-muted-foreground">{rt.description}</p>}
           <p className="text-xs text-muted-foreground">
             {t('settings.reportTypes.fields')}: {fieldCount}
           </p>
@@ -234,7 +237,9 @@ export function ReportTypesSection({
     <SettingsSection
       id="report-types"
       title={t('settings.reportTypes.title')}
-      description={t('settings.reportTypes.description', { defaultValue: 'Configure report categories and bind custom fields to each type.' })}
+      description={t('settings.reportTypes.description', {
+        defaultValue: 'Configure report categories and bind custom fields to each type.',
+      })}
       icon={<Tags className="h-5 w-5 text-muted-foreground" />}
       expanded={expanded}
       onToggle={onToggle}
@@ -244,9 +249,7 @@ export function ReportTypesSection({
       {activeTypes.length === 0 && !editing ? (
         <p className="text-sm text-muted-foreground">{t('settings.reportTypes.empty')}</p>
       ) : (
-        <div className="space-y-2">
-          {activeTypes.map((rt) => renderType(rt))}
-        </div>
+        <div className="space-y-2">{activeTypes.map((rt) => renderType(rt))}</div>
       )}
 
       {/* Archived types toggle */}
@@ -263,9 +266,7 @@ export function ReportTypesSection({
               : `${t('settings.reportTypes.showArchived', { defaultValue: 'Show archived' })} (${archivedTypes.length})`}
           </Button>
           {showArchived && (
-            <div className="mt-2 space-y-2">
-              {archivedTypes.map((rt) => renderType(rt, true))}
-            </div>
+            <div className="mt-2 space-y-2">{archivedTypes.map((rt) => renderType(rt, true))}</div>
           )}
         </div>
       )}
@@ -283,8 +284,12 @@ export function ReportTypesSection({
                 id="rt-name"
                 data-testid="report-type-name-input"
                 value={editing.name}
-                onChange={(e) => setEditing((prev) => prev ? { ...prev, name: e.target.value } : prev)}
-                placeholder={t('settings.reportTypes.namePlaceholder', { defaultValue: 'e.g. Crisis Report' })}
+                onChange={(e) =>
+                  setEditing((prev) => (prev ? { ...prev, name: e.target.value } : prev))
+                }
+                placeholder={t('settings.reportTypes.namePlaceholder', {
+                  defaultValue: 'e.g. Crisis Report',
+                })}
                 maxLength={128}
               />
             </div>
@@ -294,8 +299,12 @@ export function ReportTypesSection({
                 id="rt-description"
                 data-testid="report-type-description-input"
                 value={editing.description}
-                onChange={(e) => setEditing((prev) => prev ? { ...prev, description: e.target.value } : prev)}
-                placeholder={t('settings.reportTypes.descriptionPlaceholder', { defaultValue: 'Brief description of when to use this type' })}
+                onChange={(e) =>
+                  setEditing((prev) => (prev ? { ...prev, description: e.target.value } : prev))
+                }
+                placeholder={t('settings.reportTypes.descriptionPlaceholder', {
+                  defaultValue: 'Brief description of when to use this type',
+                })}
                 rows={2}
                 className="resize-none"
               />
@@ -304,7 +313,7 @@ export function ReportTypesSection({
               <Switch
                 checked={editing.isDefault}
                 onCheckedChange={(checked) =>
-                  setEditing((prev) => prev ? { ...prev, isDefault: checked } : prev)
+                  setEditing((prev) => (prev ? { ...prev, isDefault: checked } : prev))
                 }
               />
               <Label className="text-sm">{t('settings.reportTypes.setDefault')}</Label>
@@ -328,7 +337,9 @@ export function ReportTypesSection({
         <Button
           data-testid="add-report-type-btn"
           variant="outline"
-          onClick={() => setEditing({ name: '', description: '', isDefault: activeTypes.length === 0 })}
+          onClick={() =>
+            setEditing({ name: '', description: '', isDefault: activeTypes.length === 0 })
+          }
         >
           <Plus className="h-4 w-4" />
           {t('settings.reportTypes.new')}

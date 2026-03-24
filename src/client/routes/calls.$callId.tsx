@@ -149,7 +149,9 @@ function CallDetailPage() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => navigate({ to: '/calls', search: { page: 1, q: '', dateFrom: '', dateTo: '' } })}
+          onClick={() =>
+            navigate({ to: '/calls', search: { page: 1, q: '', dateFrom: '', dateTo: '' } })
+          }
           className="text-muted-foreground hover:text-foreground"
           aria-label={t('common.back')}
         >

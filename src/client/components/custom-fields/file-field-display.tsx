@@ -1,9 +1,9 @@
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/lib/auth'
-import { getSecretKey } from '@/lib/key-manager'
-import { downloadAndDecryptFile, triggerBrowserDownload } from '@/lib/file-upload'
 import { getFileMetadata } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 import { decryptFileMetadata } from '@/lib/file-crypto'
+import { downloadAndDecryptFile, triggerBrowserDownload } from '@/lib/file-upload'
+import { getSecretKey } from '@/lib/key-manager'
 import type { CustomFieldDefinition, EncryptedFileMetadata, FileFieldValue } from '@shared/types'
 import { Download, File as FileIcon, Image as ImageIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -73,7 +73,6 @@ export function FileFieldDisplay({ definition: _definition, value }: Props) {
 
     let objectUrl: string | null = null
     let cancelled = false
-
     ;(async () => {
       try {
         const secretKey = getSecretKey()
@@ -107,7 +106,9 @@ export function FileFieldDisplay({ definition: _definition, value }: Props) {
 
   if (unavailable) {
     return (
-      <span className="text-xs text-muted-foreground italic">{t('customFields.file.unavailable')}</span>
+      <span className="text-xs text-muted-foreground italic">
+        {t('customFields.file.unavailable')}
+      </span>
     )
   }
 

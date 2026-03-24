@@ -1,18 +1,22 @@
 import { describe, expect, test } from 'bun:test'
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { type IncomingMessage, type ServerResponse, createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { TwilioConfigSchema, TelephonyProviderConfigSchema, TelnyxConfigSchema } from '@shared/schemas/providers'
-import { twilioCapabilities } from './twilio-capabilities'
-import { signalwireCapabilities } from './signalwire-capabilities'
-import { vonageCapabilities } from './vonage-capabilities'
-import { plivoCapabilities } from './plivo-capabilities'
-import { telnyxCapabilities } from './telnyx-capabilities'
+import {
+  TelephonyProviderConfigSchema,
+  TelnyxConfigSchema,
+  TwilioConfigSchema,
+} from '@shared/schemas/providers'
+import { MESSAGING_CAPABILITIES } from '../messaging/capabilities'
 import { asteriskCapabilities } from './asterisk-capabilities'
 import { TELEPHONY_CAPABILITIES } from './capabilities'
-import { MESSAGING_CAPABILITIES } from '../messaging/capabilities'
+import { plivoCapabilities } from './plivo-capabilities'
+import { signalwireCapabilities } from './signalwire-capabilities'
+import { telnyxCapabilities } from './telnyx-capabilities'
+import { twilioCapabilities } from './twilio-capabilities'
+import { vonageCapabilities } from './vonage-capabilities'
 
 async function startMockApi(
-  handler: (req: IncomingMessage, res: ServerResponse) => void,
+  handler: (req: IncomingMessage, res: ServerResponse) => void
 ): Promise<{ port: number; stop: () => Promise<void> }> {
   const server = createServer(handler)
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -133,8 +137,12 @@ describe('Twilio capabilities', () => {
 
   test('getWebhookUrls returns correct paths', () => {
     const urls = twilioCapabilities.getWebhookUrls('https://hotline.example.com', 'hub-123')
-    expect(urls.voiceIncoming).toBe('https://hotline.example.com/api/telephony/incoming?hub=hub-123')
-    expect(urls.smsIncoming).toBe('https://hotline.example.com/api/messaging/sms/webhook?hub=hub-123')
+    expect(urls.voiceIncoming).toBe(
+      'https://hotline.example.com/api/telephony/incoming?hub=hub-123'
+    )
+    expect(urls.smsIncoming).toBe(
+      'https://hotline.example.com/api/messaging/sms/webhook?hub=hub-123'
+    )
   })
 })
 
@@ -144,8 +152,11 @@ const providerTests = [
     name: 'signalwire',
     capabilities: signalwireCapabilities,
     config: (port: number) => ({
-      type: 'signalwire' as const, phoneNumber: '+15551234567',
-      accountSid: 'test', authToken: 'test', signalwireSpace: 'testspace',
+      type: 'signalwire' as const,
+      phoneNumber: '+15551234567',
+      accountSid: 'test',
+      authToken: 'test',
+      signalwireSpace: 'testspace',
       _testBaseUrl: `http://127.0.0.1:${port}/api/laml`,
     }),
     successResponse: { sid: 'test', friendly_name: 'SW Account', status: 'active' },
@@ -154,8 +165,10 @@ const providerTests = [
     name: 'vonage',
     capabilities: vonageCapabilities,
     config: (port: number) => ({
-      type: 'vonage' as const, phoneNumber: '+15551234567',
-      apiKey: 'key', apiSecret: 'secret',
+      type: 'vonage' as const,
+      phoneNumber: '+15551234567',
+      apiKey: 'key',
+      apiSecret: 'secret',
       applicationId: '550e8400-e29b-41d4-a716-446655440000',
       _testBaseUrl: `http://127.0.0.1:${port}`,
     }),
@@ -165,8 +178,10 @@ const providerTests = [
     name: 'plivo',
     capabilities: plivoCapabilities,
     config: (port: number) => ({
-      type: 'plivo' as const, phoneNumber: '+15551234567',
-      authId: 'test', authToken: 'test',
+      type: 'plivo' as const,
+      phoneNumber: '+15551234567',
+      authId: 'test',
+      authToken: 'test',
       _testBaseUrl: `http://127.0.0.1:${port}`,
     }),
     successResponse: { account_type: 'standard', cash_credits: '10.00' },
@@ -175,7 +190,8 @@ const providerTests = [
     name: 'telnyx',
     capabilities: telnyxCapabilities,
     config: (port: number) => ({
-      type: 'telnyx' as const, phoneNumber: '+15551234567',
+      type: 'telnyx' as const,
+      phoneNumber: '+15551234567',
       apiKey: 'KEY_TEST',
       _testBaseUrl: `http://127.0.0.1:${port}`,
     }),
@@ -219,8 +235,11 @@ for (const p of providerTests) {
 describe('asterisk capabilities', () => {
   test('testConnection rejects loopback addresses', async () => {
     const result = await asteriskCapabilities.testConnection({
-      type: 'asterisk', phoneNumber: '+15551234567',
-      ariUrl: 'http://127.0.0.1:8089/ari', ariUsername: 'llamenos', ariPassword: 'changeme',
+      type: 'asterisk',
+      phoneNumber: '+15551234567',
+      ariUrl: 'http://127.0.0.1:8089/ari',
+      ariUsername: 'llamenos',
+      ariPassword: 'changeme',
     } as Parameters<typeof asteriskCapabilities.testConnection>[0])
     expect(result.connected).toBe(false)
     expect(result.errorType).toBe('invalid_credentials')
@@ -229,8 +248,11 @@ describe('asterisk capabilities', () => {
 
   test('testConnection rejects localhost', async () => {
     const result = await asteriskCapabilities.testConnection({
-      type: 'asterisk', phoneNumber: '+15551234567',
-      ariUrl: 'http://localhost:8089/ari', ariUsername: 'llamenos', ariPassword: 'changeme',
+      type: 'asterisk',
+      phoneNumber: '+15551234567',
+      ariUrl: 'http://localhost:8089/ari',
+      ariUsername: 'llamenos',
+      ariPassword: 'changeme',
     } as Parameters<typeof asteriskCapabilities.testConnection>[0])
     expect(result.connected).toBe(false)
     expect(result.errorType).toBe('invalid_credentials')
@@ -239,7 +261,7 @@ describe('asterisk capabilities', () => {
 
 test('TELEPHONY_CAPABILITIES has all provider types', () => {
   expect(Object.keys(TELEPHONY_CAPABILITIES)).toEqual(
-    expect.arrayContaining(['twilio', 'signalwire', 'vonage', 'plivo', 'asterisk', 'telnyx']),
+    expect.arrayContaining(['twilio', 'signalwire', 'vonage', 'plivo', 'asterisk', 'telnyx'])
   )
   for (const caps of Object.values(TELEPHONY_CAPABILITIES)) {
     expect(caps.displayName).toBeTruthy()
@@ -251,6 +273,6 @@ test('TELEPHONY_CAPABILITIES has all provider types', () => {
 
 test('MESSAGING_CAPABILITIES has all channel types', () => {
   expect(Object.keys(MESSAGING_CAPABILITIES)).toEqual(
-    expect.arrayContaining(['sms', 'whatsapp', 'signal', 'rcs']),
+    expect.arrayContaining(['sms', 'whatsapp', 'signal', 'rcs'])
   )
 })

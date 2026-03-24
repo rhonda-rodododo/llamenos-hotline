@@ -331,7 +331,10 @@ function AuditDetails({ entry }: { entry: AuditLogEntry }) {
   const isCallEvent =
     entry.event === 'callAnswered' || entry.event === 'callEnded' || entry.event === 'callMissed'
   const isVoicemail = entry.event === 'voicemailReceived'
-  const isNoteEvent = entry.event === 'noteCreated' || entry.event === 'noteEdited' || entry.event === 'noteReplyCreated'
+  const isNoteEvent =
+    entry.event === 'noteCreated' ||
+    entry.event === 'noteEdited' ||
+    entry.event === 'noteReplyCreated'
 
   if (isCallEvent) {
     return (

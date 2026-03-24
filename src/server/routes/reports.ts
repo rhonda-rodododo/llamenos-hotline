@@ -92,7 +92,10 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
 
   // Validate reportTypeId belongs to this hub if provided
   if (body.reportTypeId) {
-    const reportType = await services.reportTypes.getReportType(hubId ?? 'global', body.reportTypeId)
+    const reportType = await services.reportTypes.getReportType(
+      hubId ?? 'global',
+      body.reportTypeId
+    )
     if (!reportType || reportType.archivedAt) {
       return c.json({ error: 'Invalid or archived report type' }, 400)
     }
@@ -124,11 +127,16 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
   })
 
   // Publish report event to Nostr relay
-  publishReportEvent(c.env, KIND_MESSAGE_NEW, {
-    type: 'report:new',
-    conversationId: conversation.id,
-    category: body.category,
-  }, hubId ?? undefined)
+  publishReportEvent(
+    c.env,
+    KIND_MESSAGE_NEW,
+    {
+      type: 'report:new',
+      conversationId: conversation.id,
+      category: body.category,
+    },
+    hubId ?? undefined
+  )
 
   await services.records.addAuditEntry(hubId ?? 'global', 'reportCreated', pubkey, {
     conversationId: conversation.id,
@@ -267,10 +275,15 @@ reports.post('/:id/messages', async (c) => {
   })
 
   // Publish message event to Nostr relay
-  publishReportEvent(c.env, KIND_MESSAGE_NEW, {
-    type: 'message:new',
-    conversationId: id,
-  }, hubId ?? undefined)
+  publishReportEvent(
+    c.env,
+    KIND_MESSAGE_NEW,
+    {
+      type: 'message:new',
+      conversationId: id,
+    },
+    hubId ?? undefined
+  )
 
   return c.json(msg)
 })
@@ -295,11 +308,16 @@ reports.post('/:id/assign', requirePermission('reports:assign'), async (c) => {
   })
 
   // Publish assignment event to Nostr relay
-  publishReportEvent(c.env, KIND_CONVERSATION_ASSIGNED, {
-    type: 'conversation:assigned',
-    conversationId: id,
-    assignedTo: body.assignedTo,
-  }, hubId ?? undefined)
+  publishReportEvent(
+    c.env,
+    KIND_CONVERSATION_ASSIGNED,
+    {
+      type: 'conversation:assigned',
+      conversationId: id,
+      assignedTo: body.assignedTo,
+    },
+    hubId ?? undefined
+  )
 
   return c.json(updated)
 })

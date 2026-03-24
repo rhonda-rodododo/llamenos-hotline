@@ -1078,10 +1078,13 @@ export async function getProviderOAuthStatus(stateToken: string) {
 }
 
 export async function validateProviderCredentials(credentials: ProviderCredentials) {
-  return request<{ ok: boolean; error?: string; accountName?: string }>('/setup/provider/validate', {
-    method: 'POST',
-    body: JSON.stringify(credentials),
-  })
+  return request<{ ok: boolean; error?: string; accountName?: string }>(
+    '/setup/provider/validate',
+    {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    }
+  )
 }
 
 export async function listProviderPhoneNumbers(credentials: ProviderCredentials) {
@@ -1103,10 +1106,13 @@ export async function searchAvailablePhoneNumbers(
 export async function provisionPhoneNumber(
   credentials: ProviderCredentials & { phoneNumber: string }
 ) {
-  return request<{ ok: boolean; phoneNumber: string; error?: string }>('/setup/provider/phone-numbers/provision', {
-    method: 'POST',
-    body: JSON.stringify(credentials),
-  })
+  return request<{ ok: boolean; phoneNumber: string; error?: string }>(
+    '/setup/provider/phone-numbers/provision',
+    {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    }
+  )
 }
 
 export async function getWebhookUrls() {
@@ -1242,7 +1248,7 @@ export async function getReportCategories() {
 
 // --- Report Types ---
 
-import type { ReportType, CreateReportTypeInput, UpdateReportTypeInput } from '@shared/types'
+import type { CreateReportTypeInput, ReportType, UpdateReportTypeInput } from '@shared/types'
 export type { ReportType }
 
 export async function listReportTypes() {
@@ -1722,11 +1728,7 @@ export async function getMyHubKeyEnvelope(hubId: string) {
 
 // --- File Upload Context Binding ---
 
-export async function bindUploadContext(
-  fileId: string,
-  contextType: string,
-  contextId: string
-) {
+export async function bindUploadContext(fileId: string, contextType: string, contextId: string) {
   return request<{ ok: true }>(`/files/${fileId}/context`, {
     method: 'PATCH',
     body: JSON.stringify({ contextType, contextId }),

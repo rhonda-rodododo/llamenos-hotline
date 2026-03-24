@@ -34,7 +34,13 @@ export class ReportTypeService {
       await this.db
         .update(reportTypes)
         .set({ isDefault: false, updatedAt: now })
-        .where(and(eq(reportTypes.hubId, hubId), eq(reportTypes.isDefault, true), isNull(reportTypes.archivedAt)))
+        .where(
+          and(
+            eq(reportTypes.hubId, hubId),
+            eq(reportTypes.isDefault, true),
+            isNull(reportTypes.archivedAt)
+          )
+        )
     }
 
     const [row] = await this.db
@@ -53,7 +59,11 @@ export class ReportTypeService {
     return this.#rowToReportType(row)
   }
 
-  async updateReportType(hubId: string, id: string, data: UpdateReportTypeInput): Promise<ReportType> {
+  async updateReportType(
+    hubId: string,
+    id: string,
+    data: UpdateReportTypeInput
+  ): Promise<ReportType> {
     const existing = await this.getReportType(hubId, id)
     if (!existing) throw new AppError(404, 'Report type not found')
 
@@ -120,7 +130,8 @@ export class ReportTypeService {
   async setDefaultReportType(hubId: string, id: string): Promise<ReportType> {
     const existing = await this.getReportType(hubId, id)
     if (!existing) throw new AppError(404, 'Report type not found')
-    if (existing.archivedAt) throw new AppError(400, 'Cannot set an archived report type as default')
+    if (existing.archivedAt)
+      throw new AppError(400, 'Cannot set an archived report type as default')
 
     const now = new Date()
 

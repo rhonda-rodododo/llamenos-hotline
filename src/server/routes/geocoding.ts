@@ -9,7 +9,11 @@ const geocoding = new Hono<AppEnv>()
 /**
  * Helper: load geocoding config from SettingsService and create an adapter.
  */
-async function getAdapter(c: { get: (key: 'services') => { settings: { getGeocodingConfig: () => Promise<GeocodingConfigAdmin> } } }) {
+async function getAdapter(c: {
+  get: (key: 'services') => {
+    settings: { getGeocodingConfig: () => Promise<GeocodingConfigAdmin> }
+  }
+}) {
   const config = await c.get('services').settings.getGeocodingConfig()
   return { adapter: createGeocodingAdapter(config), config }
 }
@@ -18,7 +22,11 @@ async function getAdapter(c: { get: (key: 'services') => { settings: { getGeocod
  * Helper: check rate limit via SettingsService.
  */
 async function isRateLimited(
-  c: { get: (key: 'services') => { settings: { checkRateLimit: (key: string, maxPerMinute: number) => Promise<boolean> } } },
+  c: {
+    get: (key: 'services') => {
+      settings: { checkRateLimit: (key: string, maxPerMinute: number) => Promise<boolean> }
+    }
+  },
   key: string,
   maxPerMinute: number
 ): Promise<boolean> {

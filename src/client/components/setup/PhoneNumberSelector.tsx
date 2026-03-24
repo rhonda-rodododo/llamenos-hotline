@@ -116,9 +116,7 @@ export function PhoneNumberSelector({
           placeholder="+12125551234"
           data-testid="phone-number-input"
         />
-        <p className="text-xs text-muted-foreground">
-          {t('setup.phoneNumbers.validateFirst')}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('setup.phoneNumbers.validateFirst')}</p>
       </div>
     )
   }
@@ -220,9 +218,7 @@ export function PhoneNumberSelector({
           )}
 
           {hasLoaded && existingNumbers.length === 0 && !loading && (
-            <p className="text-xs text-muted-foreground">
-              {t('setup.phoneNumbers.noExisting')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('setup.phoneNumbers.noExisting')}</p>
           )}
         </div>
       )}
@@ -273,10 +269,7 @@ export function PhoneNumberSelector({
           {searchResults.length > 0 && (
             <div className="max-h-48 overflow-y-auto rounded-lg border divide-y">
               {searchResults.map((num) => (
-                <div
-                  key={num.phoneNumber}
-                  className="flex items-center justify-between px-3 py-2"
-                >
+                <div key={num.phoneNumber} className="flex items-center justify-between px-3 py-2">
                   <div>
                     <p className="text-sm font-medium">{num.phoneNumber}</p>
                     <p className="text-xs text-muted-foreground">

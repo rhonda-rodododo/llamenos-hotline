@@ -209,6 +209,7 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
             >
               {LANGUAGES.map((lang, index) => (
                 <button
+                  type="button"
                   key={lang.code}
                   role="radio"
                   aria-checked={uiLang === lang.code}

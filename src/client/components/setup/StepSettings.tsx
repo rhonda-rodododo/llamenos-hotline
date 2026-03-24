@@ -203,6 +203,7 @@ export function StepSettings({ data, onChange, headingRef }: Props) {
                 >
                   {cat}
                   <button
+                    type="button"
                     onClick={() => removeCategory(cat)}
                     aria-label={`${t('common.remove')}: ${cat}`}
                     className="text-muted-foreground hover:text-foreground"

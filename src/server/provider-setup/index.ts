@@ -40,7 +40,17 @@ export class ProviderSetup {
   private readonly settings: SettingsService
   private readonly serverSecret: string
 
-  constructor(settings: SettingsService, env: { HOTLINE_NAME?: string; SERVER_NOSTR_SECRET?: string; TWILIO_OAUTH_CLIENT_ID?: string; TWILIO_OAUTH_CLIENT_SECRET?: string; TELNYX_OAUTH_CLIENT_ID?: string; TELNYX_OAUTH_CLIENT_SECRET?: string }) {
+  constructor(
+    settings: SettingsService,
+    env: {
+      HOTLINE_NAME?: string
+      SERVER_NOSTR_SECRET?: string
+      TWILIO_OAUTH_CLIENT_ID?: string
+      TWILIO_OAUTH_CLIENT_SECRET?: string
+      TELNYX_OAUTH_CLIENT_ID?: string
+      TELNYX_OAUTH_CLIENT_SECRET?: string
+    }
+  ) {
     this.settings = settings
     this.serverSecret = env.SERVER_NOSTR_SECRET ?? ''
     this.domain = env.HOTLINE_NAME || 'localhost'
@@ -75,11 +85,7 @@ export class ProviderSetup {
     return this.telnyx.oauthStart(state)
   }
 
-  async oauthCallback(
-    provider: 'twilio' | 'telnyx',
-    code: string,
-    state: string
-  ): Promise<void> {
+  async oauthCallback(provider: 'twilio' | 'telnyx', code: string, state: string): Promise<void> {
     const stored = await this.settings.getOAuthState(provider)
 
     if (!stored) {
@@ -102,10 +108,16 @@ export class ProviderSetup {
 
     if (provider === 'twilio') {
       const credentials = await this.twilio.oauthCallback(code)
-      encryptedCredentials = encryptProviderCredentials(JSON.stringify(credentials), this.serverSecret)
+      encryptedCredentials = encryptProviderCredentials(
+        JSON.stringify(credentials),
+        this.serverSecret
+      )
     } else {
       const credentials = await this.telnyx.oauthCallback(code)
-      encryptedCredentials = encryptProviderCredentials(JSON.stringify(credentials), this.serverSecret)
+      encryptedCredentials = encryptProviderCredentials(
+        JSON.stringify(credentials),
+        this.serverSecret
+      )
     }
 
     await this.settings.setProviderConfig(config, encryptedCredentials)
@@ -143,7 +155,10 @@ export class ProviderSetup {
       webhooksConfigured: false,
       sipConfigured: false,
     }
-    const encryptedCredentials = encryptProviderCredentials(JSON.stringify(credentials), this.serverSecret)
+    const encryptedCredentials = encryptProviderCredentials(
+      JSON.stringify(credentials),
+      this.serverSecret
+    )
     await this.settings.setProviderConfig(config, encryptedCredentials)
 
     return { ok: true }
@@ -190,26 +205,56 @@ export class ProviderSetup {
     switch (provider) {
       case 'twilio':
         await this.twilio.configureWebhooks(
-          parsed as unknown as TwilioCredentials, numberSid, domain, options.enableSms ?? false
+          parsed as unknown as TwilioCredentials,
+          numberSid,
+          domain,
+          options.enableSms ?? false
         )
         if (options.createSipTrunk) {
-          result.sipTrunk = await this.twilio.createSipTrunk(parsed as unknown as TwilioCredentials, domain)
+          result.sipTrunk = await this.twilio.createSipTrunk(
+            parsed as unknown as TwilioCredentials,
+            domain
+          )
         }
         break
       case 'telnyx':
-        await this.telnyx.configureWebhooks(parsed.accessToken, numberSid, domain, options.enableSms ?? false)
+        await this.telnyx.configureWebhooks(
+          parsed.accessToken,
+          numberSid,
+          domain,
+          options.enableSms ?? false
+        )
         if (options.createSipTrunk) {
           result.sipTrunk = await this.telnyx.createSipConnection(parsed.accessToken, domain)
         }
         break
       case 'signalwire':
-        await this.signalwire.configureWebhooks(parsed.projectId, parsed.apiToken, parsed.spaceUrl, numberSid, domain, options.enableSms ?? false)
+        await this.signalwire.configureWebhooks(
+          parsed.projectId,
+          parsed.apiToken,
+          parsed.spaceUrl,
+          numberSid,
+          domain,
+          options.enableSms ?? false
+        )
         break
       case 'vonage':
-        await this.vonage.configureWebhooks(parsed.apiKey, parsed.apiSecret, phoneNumber, domain, options.enableSms ?? false)
+        await this.vonage.configureWebhooks(
+          parsed.apiKey,
+          parsed.apiSecret,
+          phoneNumber,
+          domain,
+          options.enableSms ?? false
+        )
         break
       case 'plivo':
-        await this.plivo.configureWebhooks(parsed.authId, parsed.authToken, phoneNumber, domain, options.enableSms ?? false)
+        await this.plivo.configureWebhooks(
+          parsed.authId,
+          parsed.authToken,
+          phoneNumber,
+          domain,
+          options.enableSms ?? false
+        )
         break
     }
 
@@ -240,11 +285,20 @@ export class ProviderSetup {
 
     switch (provider) {
       case 'twilio':
-        return this.twilio.provisionNumber(parsed as unknown as TwilioCredentials, options.areaCode, options.country)
+        return this.twilio.provisionNumber(
+          parsed as unknown as TwilioCredentials,
+          options.areaCode,
+          options.country
+        )
       case 'telnyx':
         return this.telnyx.provisionNumber(parsed.accessToken, options.areaCode)
       case 'signalwire':
-        return this.signalwire.provisionNumber(parsed.projectId, parsed.apiToken, parsed.spaceUrl, options.areaCode)
+        return this.signalwire.provisionNumber(
+          parsed.projectId,
+          parsed.apiToken,
+          parsed.spaceUrl,
+          options.areaCode
+        )
       case 'vonage':
         return this.vonage.provisionNumber(parsed.apiKey, parsed.apiSecret, options.country)
       case 'plivo':
@@ -257,7 +311,12 @@ export class ProviderSetup {
   async getStatus(): Promise<ProviderConfig> {
     const config = await this.settings.getProviderConfig()
     if (!config) {
-      return { provider: 'twilio', connected: false, webhooksConfigured: false, sipConfigured: false }
+      return {
+        provider: 'twilio',
+        connected: false,
+        webhooksConfigured: false,
+        sipConfigured: false,
+      }
     }
     return config
   }
@@ -273,7 +332,11 @@ export class ProviderSetup {
 
     const currentConfig = await this.settings.getProviderConfig()
     if (currentConfig) {
-      const updatedConfig: ProviderConfig = { ...currentConfig, brandSid: result.brandSid, a2pStatus: 'pending' }
+      const updatedConfig: ProviderConfig = {
+        ...currentConfig,
+        brandSid: result.brandSid,
+        a2pStatus: 'pending',
+      }
       const existingCreds = await this.settings.getEncryptedCredentials()
       await this.settings.setProviderConfig(updatedConfig, existingCreds ?? undefined)
     }
@@ -293,14 +356,25 @@ export class ProviderSetup {
       throw new ProviderApiError('No brand registration found', 400, 'Submit A2P brand first')
     }
     if (!currentConfig.messagingServiceSid) {
-      throw new ProviderApiError('No messaging service SID configured', 400, 'Configure messaging service first')
+      throw new ProviderApiError(
+        'No messaging service SID configured',
+        400,
+        'Configure messaging service first'
+      )
     }
 
     const result = await this.twilio.submitA2pCampaign(
-      parsed, currentConfig.brandSid, currentConfig.messagingServiceSid, campaignBody
+      parsed,
+      currentConfig.brandSid,
+      currentConfig.messagingServiceSid,
+      campaignBody
     )
 
-    const updatedConfig: ProviderConfig = { ...currentConfig, campaignSid: result.campaignSid, a2pStatus: 'pending' }
+    const updatedConfig: ProviderConfig = {
+      ...currentConfig,
+      campaignSid: result.campaignSid,
+      a2pStatus: 'pending',
+    }
     const existingCreds = await this.settings.getEncryptedCredentials()
     await this.settings.setProviderConfig(updatedConfig, existingCreds ?? undefined)
 
@@ -318,7 +392,10 @@ export class ProviderSetup {
     }
 
     const result = await this.twilio.getA2pStatus(
-      parsed, currentConfig.brandSid, currentConfig.campaignSid, currentConfig.messagingServiceSid
+      parsed,
+      currentConfig.brandSid,
+      currentConfig.campaignSid,
+      currentConfig.messagingServiceSid
     )
 
     let a2pStatus: ProviderConfig['a2pStatus'] = 'pending'
@@ -328,7 +405,8 @@ export class ProviderSetup {
       result.brandStatus === 'approved' &&
       (!result.campaignStatus || result.campaignStatus === 'approved')
     ) {
-      a2pStatus = result.campaignStatus === 'approved' ? 'approved' : currentConfig.a2pStatus || 'pending'
+      a2pStatus =
+        result.campaignStatus === 'approved' ? 'approved' : currentConfig.a2pStatus || 'pending'
     }
 
     const updatedConfig: ProviderConfig = { ...currentConfig, a2pStatus }

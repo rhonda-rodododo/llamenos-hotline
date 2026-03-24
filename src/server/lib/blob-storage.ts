@@ -25,13 +25,9 @@ export function createBlobStorage(opts?: {
   const endpoint = opts?.endpoint || process.env.MINIO_ENDPOINT || 'http://localhost:9000'
   // Prefer dedicated app IAM user; fall back to root credentials in dev
   const accessKeyId =
-    opts?.accessKeyId ||
-    process.env.MINIO_APP_USER ||
-    process.env.MINIO_ACCESS_KEY
+    opts?.accessKeyId || process.env.MINIO_APP_USER || process.env.MINIO_ACCESS_KEY
   const secretAccessKey =
-    opts?.secretAccessKey ||
-    process.env.MINIO_APP_PASSWORD ||
-    process.env.MINIO_SECRET_KEY
+    opts?.secretAccessKey || process.env.MINIO_APP_PASSWORD || process.env.MINIO_SECRET_KEY
   if (!accessKeyId || !secretAccessKey) {
     throw new Error(
       'MinIO credentials required: set MINIO_APP_USER/MINIO_APP_PASSWORD (or MINIO_ACCESS_KEY/MINIO_SECRET_KEY for dev)'

@@ -1,10 +1,10 @@
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { useAuth } from '@/lib/auth'
-import { getSecretKey } from '@/lib/key-manager'
 import { uploadEncryptedFile } from '@/lib/file-upload'
+import { getSecretKey } from '@/lib/key-manager'
 import type { CustomFieldDefinition, FileFieldValue } from '@shared/types'
-import { Upload, X, File as FileIcon } from 'lucide-react'
+import { File as FileIcon, Upload, X } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -95,15 +95,11 @@ export function FileFieldInput({ definition, value, onChange, disabled }: Props)
           },
         })
 
-        setUploadState((prev) =>
-          prev ? { ...prev, status: 'complete', progress: 100 } : prev
-        )
+        setUploadState((prev) => (prev ? { ...prev, status: 'complete', progress: 100 } : prev))
         onChange(fileFieldValue)
       } catch {
         setUploadState((prev) =>
-          prev
-            ? { ...prev, status: 'error', progress: 0, error: t('common.error') }
-            : prev
+          prev ? { ...prev, status: 'error', progress: 0, error: t('common.error') } : prev
         )
       }
     },
@@ -141,9 +137,16 @@ export function FileFieldInput({ definition, value, onChange, disabled }: Props)
         className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"
       >
         <FileIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span className="flex-1 truncate text-muted-foreground">{t('customFields.file.upload')}</span>
+        <span className="flex-1 truncate text-muted-foreground">
+          {t('customFields.file.upload')}
+        </span>
         {!disabled && (
-          <Button variant="ghost" size="icon-xs" onClick={handleRemove} aria-label={t('customFields.file.remove')}>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={handleRemove}
+            aria-label={t('customFields.file.remove')}
+          >
             <X className="h-3 w-3" />
           </Button>
         )}

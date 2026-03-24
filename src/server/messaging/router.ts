@@ -136,7 +136,12 @@ messaging.post('/:channel/webhook', async (c) => {
           await services.blasts.createSubscriber({
             hubId: hId,
             identifierHash: incoming.senderIdentifierHash,
-            channels: [{ type: incoming.channelType as 'sms' | 'whatsapp' | 'signal' | 'rcs', verified: false }],
+            channels: [
+              {
+                type: incoming.channelType as 'sms' | 'whatsapp' | 'signal' | 'rcs',
+                verified: false,
+              },
+            ],
             status: 'active',
           })
         }

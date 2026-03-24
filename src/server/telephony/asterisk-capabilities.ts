@@ -1,10 +1,10 @@
 import { AsteriskConfigSchema } from '@shared/schemas/providers'
-import type { ProviderCapabilities } from './capabilities'
-import type { ConnectionTestResult, WebhookUrlSet } from '@shared/types'
 import type { AsteriskConfig } from '@shared/schemas/providers'
+import type { ConnectionTestResult, WebhookUrlSet } from '@shared/types'
+import type { ProviderCapabilities } from './capabilities'
 
 function ariBase(config: AsteriskConfig): string {
-  return (config as Record<string, unknown>)._testBaseUrl as string ?? config.ariUrl
+  return ((config as Record<string, unknown>)._testBaseUrl as string) ?? config.ariUrl
 }
 
 function basicAuth(username: string, password: string): string {
@@ -13,7 +13,13 @@ function basicAuth(username: string, password: string): string {
 
 /** Block loopback and link-local addresses. Private IPs are allowed for self-hosted Asterisk. */
 function isBlockedHost(hostname: string): boolean {
-  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0') return true
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname === '0.0.0.0'
+  )
+    return true
   // Block 127.x.x.x range
   if (/^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true
   // Block link-local 169.254.x.x
@@ -57,14 +63,27 @@ export const asteriskCapabilities: ProviderCapabilities<AsteriskConfig> = {
           connected: false,
           latencyMs,
           error: `HTTP ${res.status}`,
-          errorType: res.status === 401 ? 'invalid_credentials' : res.status === 429 ? 'rate_limited' : 'unknown',
+          errorType:
+            res.status === 401
+              ? 'invalid_credentials'
+              : res.status === 429
+                ? 'rate_limited'
+                : 'unknown',
         }
       }
-      const data = (await res.json()) as { system?: { entity_id?: string }; config?: { name?: string } }
+      const data = (await res.json()) as {
+        system?: { entity_id?: string }
+        config?: { name?: string }
+      }
       const name = data.config?.name ?? data.system?.entity_id
       return { connected: true, latencyMs, accountName: name }
     } catch (err) {
-      return { connected: false, latencyMs: Date.now() - start, error: String(err), errorType: 'network_error' }
+      return {
+        connected: false,
+        latencyMs: Date.now() - start,
+        error: String(err),
+        errorType: 'network_error',
+      }
     }
   },
 

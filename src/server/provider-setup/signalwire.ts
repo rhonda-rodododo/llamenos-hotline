@@ -11,15 +11,10 @@ export class SignalWireProvider {
     return `Basic ${btoa(`${projectId}:${apiToken}`)}`
   }
 
-  async validateCredentials(
-    projectId: string,
-    apiToken: string,
-    spaceUrl: string
-  ): Promise<void> {
-    const res = await fetch(
-      `https://${spaceUrl}/api/relay/rest/phone_numbers?page_size=1`,
-      { headers: { Authorization: this.authHeader(projectId, apiToken) } }
-    )
+  async validateCredentials(projectId: string, apiToken: string, spaceUrl: string): Promise<void> {
+    const res = await fetch(`https://${spaceUrl}/api/relay/rest/phone_numbers?page_size=1`, {
+      headers: { Authorization: this.authHeader(projectId, apiToken) },
+    })
 
     if (!res.ok) {
       const text = await res.text()
@@ -27,15 +22,10 @@ export class SignalWireProvider {
     }
   }
 
-  async listNumbers(
-    projectId: string,
-    apiToken: string,
-    spaceUrl: string
-  ): Promise<NumberInfo[]> {
-    const res = await fetch(
-      `https://${spaceUrl}/api/relay/rest/phone_numbers`,
-      { headers: { Authorization: this.authHeader(projectId, apiToken) } }
-    )
+  async listNumbers(projectId: string, apiToken: string, spaceUrl: string): Promise<NumberInfo[]> {
+    const res = await fetch(`https://${spaceUrl}/api/relay/rest/phone_numbers`, {
+      headers: { Authorization: this.authHeader(projectId, apiToken) },
+    })
 
     if (!res.ok) {
       const text = await res.text()
@@ -82,17 +72,14 @@ export class SignalWireProvider {
       body.message_request_url = `https://${domain}/api/messaging/sms/webhook`
     }
 
-    const res = await fetch(
-      `https://${spaceUrl}/api/relay/rest/phone_numbers/${numberId}`,
-      {
-        method: 'PUT',
-        headers: {
-          Authorization: this.authHeader(projectId, apiToken),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      }
-    )
+    const res = await fetch(`https://${spaceUrl}/api/relay/rest/phone_numbers/${numberId}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: this.authHeader(projectId, apiToken),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
 
     if (!res.ok) {
       const text = await res.text()
@@ -129,17 +116,14 @@ export class SignalWireProvider {
 
     const phoneNumber = searchData.data[0].number
 
-    const buyRes = await fetch(
-      `https://${spaceUrl}/api/relay/rest/phone_numbers`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: this.authHeader(projectId, apiToken),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ number: phoneNumber }),
-      }
-    )
+    const buyRes = await fetch(`https://${spaceUrl}/api/relay/rest/phone_numbers`, {
+      method: 'POST',
+      headers: {
+        Authorization: this.authHeader(projectId, apiToken),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ number: phoneNumber }),
+    })
 
     if (!buyRes.ok) {
       const text = await buyRes.text()

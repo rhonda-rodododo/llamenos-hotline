@@ -77,7 +77,9 @@ export const blastDeliveries = pgTable('blast_deliveries', {
 export const blastSettings = pgTable('blast_settings', {
   hubId: text('hub_id').primaryKey().default('global'),
   optInKeywords: jsonb<string[]>()('opt_in_keywords').notNull().default(['START', 'JOIN', 'YES']),
-  optOutKeywords: jsonb<string[]>()('opt_out_keywords').notNull().default(['STOP', 'UNSUBSCRIBE', 'CANCEL']),
+  optOutKeywords: jsonb<string[]>()('opt_out_keywords')
+    .notNull()
+    .default(['STOP', 'UNSUBSCRIBE', 'CANCEL']),
   doubleOptInEnabled: boolean('double_opt_in_enabled').notNull().default(false),
   doubleOptInMessage: text('double_opt_in_message'),
   welcomeMessage: text('welcome_message'),

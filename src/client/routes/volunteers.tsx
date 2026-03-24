@@ -4,12 +4,7 @@ import { PinChallengeDialog } from '@/components/pin-challenge-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -790,7 +785,8 @@ function SendInviteDialog({
   const [acknowledgedInsecure, setAcknowledgedInsecure] = useState(false)
   const [sending, setSending] = useState(false)
 
-  const hasAnyChannel = availableChannels.signal || availableChannels.whatsapp || availableChannels.sms
+  const hasAnyChannel =
+    availableChannels.signal || availableChannels.whatsapp || availableChannels.sms
 
   // Default to the best available channel
   const defaultChannel: InviteDeliveryChannel = availableChannels.signal
@@ -862,15 +858,11 @@ function SendInviteDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableChannels.signal && (
-                      <SelectItem value="signal">Signal</SelectItem>
-                    )}
+                    {availableChannels.signal && <SelectItem value="signal">Signal</SelectItem>}
                     {availableChannels.whatsapp && (
                       <SelectItem value="whatsapp">WhatsApp</SelectItem>
                     )}
-                    {availableChannels.sms && (
-                      <SelectItem value="sms">SMS</SelectItem>
-                    )}
+                    {availableChannels.sms && <SelectItem value="sms">SMS</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
@@ -909,11 +901,7 @@ function SendInviteDialog({
                   <Send className="h-4 w-4" />
                   {sending ? t('common.loading') : t('volunteers.sendInvite')}
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={onCopyLink}
-                  data-testid="copy-invite-link-btn"
-                >
+                <Button variant="outline" onClick={onCopyLink} data-testid="copy-invite-link-btn">
                   <Copy className="h-4 w-4" />
                   {t('volunteers.copyLink')}
                 </Button>
@@ -921,7 +909,9 @@ function SendInviteDialog({
             </>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">{t('volunteers.noChannelsConfigured')}</p>
+              <p className="text-sm text-muted-foreground">
+                {t('volunteers.noChannelsConfigured')}
+              </p>
               <Button
                 variant="outline"
                 onClick={onCopyLink}

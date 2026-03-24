@@ -1,15 +1,7 @@
-import { useTranslation } from 'react-i18next'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { CallHourBucket } from '@/lib/api'
+import { useTranslation } from 'react-i18next'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 interface Props {
   data: CallHourBucket[]
@@ -37,7 +29,10 @@ export function CallHoursChart({ data, loading }: Props) {
 
   if (data.length === 0 || data.every((d) => d.count === 0)) {
     return (
-      <p className="py-8 text-center text-sm text-muted-foreground" data-testid="call-hours-no-data">
+      <p
+        className="py-8 text-center text-sm text-muted-foreground"
+        data-testid="call-hours-no-data"
+      >
         {t('dashboard.analytics.noData')}
       </p>
     )
@@ -51,13 +46,15 @@ export function CallHoursChart({ data, loading }: Props) {
   return (
     <div data-testid="call-hours-chart">
       <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 8, left: 28, bottom: 0 }}>
+        <BarChart
+          data={chartData}
+          layout="vertical"
+          margin={{ top: 4, right: 8, left: 28, bottom: 0 }}
+        >
           <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
           <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
           <YAxis type="category" dataKey="hour" tick={{ fontSize: 10 }} width={32} />
-          <Tooltip
-            formatter={(value) => [value, t('calls.title', { defaultValue: 'Calls' })]}
-          />
+          <Tooltip formatter={(value) => [value, t('calls.title', { defaultValue: 'Calls' })]} />
           <Bar dataKey="count" fill="#6366f1" radius={[0, 2, 2, 0]} name="count" />
         </BarChart>
       </ResponsiveContainer>

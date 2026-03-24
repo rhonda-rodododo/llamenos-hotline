@@ -17,7 +17,11 @@ interface MessageStatusIconProps {
  * read     → CheckCheck (blue)
  * failed   → AlertCircle (red) with error tooltip
  */
-export function MessageStatusIcon({ status, error, className = 'h-3 w-3' }: MessageStatusIconProps) {
+export function MessageStatusIcon({
+  status,
+  error,
+  className = 'h-3 w-3',
+}: MessageStatusIconProps) {
   const { t } = useTranslation()
 
   switch (status) {

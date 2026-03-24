@@ -64,8 +64,8 @@ export function CustomFieldsSection({
       } else {
         const newField: CustomFieldDefinition = {
           id: crypto.randomUUID(),
-          name: editing.name!,
-          label: editing.label!,
+          name: editing.name ?? '',
+          label: editing.label ?? '',
           type: editing.type || 'text',
           required: editing.required ?? false,
           options: editing.options,
@@ -179,7 +179,7 @@ export function CustomFieldsSection({
                   const label = e.target.value
                   const autoName = !editing.id
                   setEditing((prev) => ({
-                    ...prev!,
+                    ...(prev ?? {}),
                     label,
                     ...(autoName
                       ? {
@@ -201,7 +201,7 @@ export function CustomFieldsSection({
                 id="custom-field-name"
                 data-testid="custom-field-name-input"
                 value={editing.name || ''}
-                onChange={(e) => setEditing((prev) => ({ ...prev!, name: e.target.value }))}
+                onChange={(e) => setEditing((prev) => ({ ...(prev ?? {}), name: e.target.value }))}
                 placeholder="e.g. severity"
                 maxLength={50}
               />
@@ -216,7 +216,7 @@ export function CustomFieldsSection({
                 value={editing.type || 'text'}
                 onChange={(e) =>
                   setEditing((prev) => ({
-                    ...prev!,
+                    ...(prev ?? {}),
                     type: e.target.value as CustomFieldDefinition['type'],
                   }))
                 }
@@ -235,7 +235,9 @@ export function CustomFieldsSection({
           <div className="flex items-center gap-2">
             <Switch
               checked={editing.required ?? false}
-              onCheckedChange={(checked) => setEditing((prev) => ({ ...prev!, required: checked }))}
+              onCheckedChange={(checked) =>
+                setEditing((prev) => ({ ...(prev ?? {}), required: checked }))
+              }
             />
             <Label className="text-sm">{t('customFields.required')}</Label>
           </div>
@@ -245,13 +247,13 @@ export function CustomFieldsSection({
             <div className="space-y-2">
               <Label>{t('customFields.options')}</Label>
               {(editing.options || []).map((opt, i) => (
-                <div key={i} className="flex gap-2">
+                <div key={`opt-${i}-${opt}`} className="flex gap-2">
                   <Input
                     value={opt}
                     onChange={(e) => {
                       const next = [...(editing.options || [])]
                       next[i] = e.target.value
-                      setEditing((prev) => ({ ...prev!, options: next }))
+                      setEditing((prev) => ({ ...(prev ?? {}), options: next }))
                     }}
                   />
                   <Button
@@ -259,7 +261,7 @@ export function CustomFieldsSection({
                     size="sm"
                     onClick={() => {
                       setEditing((prev) => ({
-                        ...prev!,
+                        ...(prev ?? {}),
                         options: prev?.options?.filter((_, j) => j !== i),
                       }))
                     }}
@@ -273,7 +275,10 @@ export function CustomFieldsSection({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setEditing((prev) => ({ ...prev!, options: [...(prev?.options || []), ''] }))
+                  setEditing((prev) => ({
+                    ...(prev ?? {}),
+                    options: [...(prev?.options || []), ''],
+                  }))
                 }}
               >
                 <Plus className="h-3 w-3" />
@@ -294,7 +299,7 @@ export function CustomFieldsSection({
                   value={editing.locationSettings?.maxPrecision ?? 'exact'}
                   onChange={(e) =>
                     setEditing((prev) => ({
-                      ...prev!,
+                      ...(prev ?? {}),
                       locationSettings: {
                         maxPrecision: e.target.value as LocationPrecision,
                         allowGps: prev?.locationSettings?.allowGps ?? false,
@@ -315,7 +320,7 @@ export function CustomFieldsSection({
                   checked={editing.locationSettings?.allowGps ?? false}
                   onCheckedChange={(checked) =>
                     setEditing((prev) => ({
-                      ...prev!,
+                      ...(prev ?? {}),
                       locationSettings: {
                         maxPrecision: prev?.locationSettings?.maxPrecision ?? 'exact',
                         allowGps: checked,
@@ -341,7 +346,7 @@ export function CustomFieldsSection({
                   value={editing.validation?.minLength ?? ''}
                   onChange={(e) =>
                     setEditing((prev) => ({
-                      ...prev!,
+                      ...(prev ?? {}),
                       validation: {
                         ...prev?.validation,
                         minLength: e.target.value ? Number(e.target.value) : undefined,
@@ -358,7 +363,7 @@ export function CustomFieldsSection({
                   value={editing.validation?.maxLength ?? ''}
                   onChange={(e) =>
                     setEditing((prev) => ({
-                      ...prev!,
+                      ...(prev ?? {}),
                       validation: {
                         ...prev?.validation,
                         maxLength: e.target.value ? Number(e.target.value) : undefined,
@@ -379,7 +384,7 @@ export function CustomFieldsSection({
                   value={editing.validation?.min ?? ''}
                   onChange={(e) =>
                     setEditing((prev) => ({
-                      ...prev!,
+                      ...(prev ?? {}),
                       validation: {
                         ...prev?.validation,
                         min: e.target.value ? Number(e.target.value) : undefined,
@@ -395,7 +400,7 @@ export function CustomFieldsSection({
                   value={editing.validation?.max ?? ''}
                   onChange={(e) =>
                     setEditing((prev) => ({
-                      ...prev!,
+                      ...(prev ?? {}),
                       validation: {
                         ...prev?.validation,
                         max: e.target.value ? Number(e.target.value) : undefined,
@@ -413,7 +418,7 @@ export function CustomFieldsSection({
               <Switch
                 checked={editing.visibleToVolunteers ?? true}
                 onCheckedChange={(checked) =>
-                  setEditing((prev) => ({ ...prev!, visibleToVolunteers: checked }))
+                  setEditing((prev) => ({ ...(prev ?? {}), visibleToVolunteers: checked }))
                 }
               />
               <Label className="text-sm">{t('customFields.visibleToVolunteers')}</Label>
@@ -422,7 +427,7 @@ export function CustomFieldsSection({
               <Switch
                 checked={editing.editableByVolunteers ?? true}
                 onCheckedChange={(checked) =>
-                  setEditing((prev) => ({ ...prev!, editableByVolunteers: checked }))
+                  setEditing((prev) => ({ ...(prev ?? {}), editableByVolunteers: checked }))
                 }
               />
               <Label className="text-sm">{t('customFields.editableByVolunteers')}</Label>

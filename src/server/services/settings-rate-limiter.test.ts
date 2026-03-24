@@ -1,12 +1,15 @@
-import { describe, expect, test, beforeAll, afterAll } from 'bun:test'
-import { migrate } from 'drizzle-orm/bun-sql/migrator'
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import path from 'node:path'
 import { createDatabase } from '@server/db'
-import { SettingsService } from '@server/services/settings'
 import { rateLimitCounters } from '@server/db/schema'
+import { SettingsService } from '@server/services/settings'
 import { eq, sql } from 'drizzle-orm'
+import { migrate } from 'drizzle-orm/bun-sql/migrator'
 
-const TEST_DB_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgres://llamenos:llamenos@localhost:5433/llamenos'
+const TEST_DB_URL =
+  process.env.TEST_DATABASE_URL ??
+  process.env.DATABASE_URL ??
+  'postgres://llamenos:llamenos@localhost:5433/llamenos'
 const KEY_PREFIX = `test-rl-${crypto.randomUUID()}`
 
 let db: ReturnType<typeof createDatabase>
@@ -14,12 +17,14 @@ let service: SettingsService
 
 beforeAll(async () => {
   db = createDatabase(TEST_DB_URL)
-  await migrate(db, { migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations') })
+  await migrate(db, {
+    migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations'),
+  })
   service = new SettingsService(db, '')
 })
 
 afterAll(async () => {
-  await db.delete(rateLimitCounters).where(sql`${rateLimitCounters.key} LIKE ${KEY_PREFIX + '%'}`)
+  await db.delete(rateLimitCounters).where(sql`${rateLimitCounters.key} LIKE ${`${KEY_PREFIX}%`}`)
 })
 
 describe('rate-limiter', () => {

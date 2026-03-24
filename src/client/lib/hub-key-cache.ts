@@ -10,7 +10,7 @@
  */
 
 import { getMyHubKeyEnvelope } from './api'
-import { type KeyEnvelope } from './crypto'
+import type { KeyEnvelope } from './crypto'
 import { unwrapHubKey } from './hub-key-manager'
 
 const hubKeyCache = new Map<string, Uint8Array>()
@@ -32,10 +32,7 @@ export function getHubKeyForId(hubId: string): Uint8Array | null {
  * silently ignored — the cache will simply lack that hub's key, and Nostr
  * decryption will fall back to REST polling for that hub.
  */
-export async function loadHubKeysForUser(
-  hubIds: string[],
-  secretKey: Uint8Array
-): Promise<void> {
+export async function loadHubKeysForUser(hubIds: string[], secretKey: Uint8Array): Promise<void> {
   if (!hubIds.length) return
 
   // Increment generation BEFORE clearing so concurrent in-flight fetches from a

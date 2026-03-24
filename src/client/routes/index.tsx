@@ -121,11 +121,7 @@ function DashboardPage() {
   useEffect(() => {
     if (!isAdmin || !analyticsOpen) return
     setAnalyticsLoading(true)
-    Promise.all([
-      getCallAnalytics(analyticsDays),
-      getCallHoursAnalytics(),
-      getVolunteerStats(),
-    ])
+    Promise.all([getCallAnalytics(analyticsDays), getCallHoursAnalytics(), getVolunteerStats()])
       .then(([vol, hours, stats]) => {
         setCallVolumeData(vol.data)
         setCallHoursData(hours.data)
@@ -393,7 +389,9 @@ function DashboardPage() {
               <CardContent className="space-y-8 pt-4">
                 {/* Call Volume Chart */}
                 <div>
-                  <h3 className="mb-3 text-sm font-medium">{t('dashboard.analytics.callVolume')}</h3>
+                  <h3 className="mb-3 text-sm font-medium">
+                    {t('dashboard.analytics.callVolume')}
+                  </h3>
                   <CallVolumeChart
                     data={callVolumeData}
                     loading={analyticsLoading}
@@ -405,13 +403,21 @@ function DashboardPage() {
                 {/* Peak Hours Chart */}
                 <div>
                   <h3 className="mb-3 text-sm font-medium">{t('dashboard.analytics.peakHours')}</h3>
-                  <CallHoursChart data={callHoursData} loading={analyticsLoading && !analyticsLoaded} />
+                  <CallHoursChart
+                    data={callHoursData}
+                    loading={analyticsLoading && !analyticsLoaded}
+                  />
                 </div>
 
                 {/* Team Performance Table */}
                 <div>
-                  <h3 className="mb-3 text-sm font-medium">{t('dashboard.analytics.teamPerformance')}</h3>
-                  <VolunteerStatsTable data={volunteerStatsData} loading={analyticsLoading && !analyticsLoaded} />
+                  <h3 className="mb-3 text-sm font-medium">
+                    {t('dashboard.analytics.teamPerformance')}
+                  </h3>
+                  <VolunteerStatsTable
+                    data={volunteerStatsData}
+                    loading={analyticsLoading && !analyticsLoaded}
+                  />
                 </div>
               </CardContent>
             </CollapsibleContent>

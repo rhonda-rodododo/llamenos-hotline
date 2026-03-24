@@ -1,12 +1,15 @@
-import { describe, expect, test, beforeAll, afterAll } from 'bun:test'
-import { migrate } from 'drizzle-orm/bun-sql/migrator'
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import path from 'node:path'
 import { createDatabase } from '@server/db'
+import { hubKeys, hubs } from '@server/db/schema'
 import { SettingsService } from '@server/services/settings'
-import { hubs, hubKeys } from '@server/db/schema'
 import { eq } from 'drizzle-orm'
+import { migrate } from 'drizzle-orm/bun-sql/migrator'
 
-const TEST_DB_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgres://llamenos:llamenos@localhost:5433/llamenos'
+const TEST_DB_URL =
+  process.env.TEST_DATABASE_URL ??
+  process.env.DATABASE_URL ??
+  'postgres://llamenos:llamenos@localhost:5433/llamenos'
 const TEST_HUB_ID = `test-hub-envelopes-${crypto.randomUUID().slice(0, 8)}`
 
 let db: ReturnType<typeof createDatabase>
@@ -14,7 +17,9 @@ let service: SettingsService
 
 beforeAll(async () => {
   db = createDatabase(TEST_DB_URL)
-  await migrate(db, { migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations') })
+  await migrate(db, {
+    migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations'),
+  })
   service = new SettingsService(db, '')
   // Create test hub using updated schema (no timezone, add slug)
   await db.insert(hubs).values({
@@ -55,10 +60,7 @@ describe('hub-key-envelopes', () => {
   })
 
   test('replace with 2 envelopes leaves only 2 (no orphans)', async () => {
-    await service.setHubKeyEnvelopes(TEST_HUB_ID, [
-      makeEnvelope('pk-dave'),
-      makeEnvelope('pk-eve'),
-    ])
+    await service.setHubKeyEnvelopes(TEST_HUB_ID, [makeEnvelope('pk-dave'), makeEnvelope('pk-eve')])
 
     const stored = await service.getHubKeyEnvelopes(TEST_HUB_ID)
     expect(stored.length).toBe(2)

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { encryptProviderCredentials, decryptProviderCredentials } from './crypto'
+import { decryptProviderCredentials, encryptProviderCredentials } from './crypto'
 
 describe('provider credential encryption', () => {
   const TEST_SECRET = 'a'.repeat(64)

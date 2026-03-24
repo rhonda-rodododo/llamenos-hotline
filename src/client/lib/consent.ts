@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
 import { CONSENT_VERSION } from '@shared/types'
+import { useCallback, useEffect, useState } from 'react'
 import { getConsentStatus, submitConsent } from './api'
 
 interface UseConsentResult {

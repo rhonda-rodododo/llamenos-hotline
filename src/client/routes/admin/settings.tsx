@@ -1,5 +1,5 @@
-import { ChannelSettings } from '@/components/admin-settings/channel-settings'
 import { CallSettingsSection } from '@/components/admin-settings/call-settings-section'
+import { ChannelSettings } from '@/components/admin-settings/channel-settings'
 import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-section'
 import { GeocodingSettingsSection } from '@/components/admin-settings/geocoding-settings-section'
 import { IvrLanguagesSection } from '@/components/admin-settings/ivr-languages-section'
@@ -36,7 +36,11 @@ import { type WebAuthnSettings, getWebAuthnSettings } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { IVR_LANGUAGES } from '@shared/languages'
-import { GEOCODING_PROVIDER_LABELS, type MessagingConfig, type TelephonyProviderDraft } from '@shared/types'
+import {
+  GEOCODING_PROVIDER_LABELS,
+  type MessagingConfig,
+  type TelephonyProviderDraft,
+} from '@shared/types'
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 import { Settings2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'

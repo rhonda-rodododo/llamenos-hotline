@@ -55,7 +55,9 @@ export function SpamSection({
         <div className="rounded-lg border border-border p-4">
           <div className="space-y-2">
             <Label htmlFor="captcha-max-attempts">{t('spam.captchaMaxAttempts')}</Label>
-            <p className="text-xs text-muted-foreground">{t('spam.captchaMaxAttemptsDescription')}</p>
+            <p className="text-xs text-muted-foreground">
+              {t('spam.captchaMaxAttemptsDescription')}
+            </p>
             <Input
               id="captcha-max-attempts"
               type="number"

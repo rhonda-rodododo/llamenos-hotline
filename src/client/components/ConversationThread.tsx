@@ -3,11 +3,7 @@ import type { ConversationMessage } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptMessage } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
-import {
-  ArrowDown,
-  Loader2,
-  Lock,
-} from 'lucide-react'
+import { ArrowDown, Loader2, Lock } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 

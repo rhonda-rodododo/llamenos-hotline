@@ -27,7 +27,11 @@ export class ProviderHealthService {
   private failures = new Map<string, number>()
   private interval: ReturnType<typeof setInterval> | null = null
 
-  async checkProvider(category: string, name: string, adapter: Checkable): Promise<HealthCheckResult> {
+  async checkProvider(
+    category: string,
+    name: string,
+    adapter: Checkable
+  ): Promise<HealthCheckResult> {
     const key = `${category}:${name}`
     const testResult = await adapter.testConnection()
     const consecutiveFailures = testResult.connected ? 0 : (this.failures.get(key) ?? 0) + 1
@@ -35,7 +39,11 @@ export class ProviderHealthService {
 
     const result: HealthCheckResult = {
       provider: name,
-      status: testResult.connected ? 'healthy' : consecutiveFailures >= DOWN_THRESHOLD ? 'down' : 'degraded',
+      status: testResult.connected
+        ? 'healthy'
+        : consecutiveFailures >= DOWN_THRESHOLD
+          ? 'down'
+          : 'degraded',
       latencyMs: testResult.latencyMs,
       lastCheck: new Date().toISOString(),
       consecutiveFailures,

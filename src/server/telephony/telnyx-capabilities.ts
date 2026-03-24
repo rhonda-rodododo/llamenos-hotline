@@ -1,17 +1,17 @@
 import { TelnyxConfigSchema } from '@shared/schemas/providers'
-import type { ProviderCapabilities } from './capabilities'
-import type {
-  ConnectionTestResult,
-  WebhookUrlSet,
-  PhoneNumberInfo,
-  NumberSearchQuery,
-  ProvisionResult,
-  AutoConfigResult,
-} from '@shared/types'
 import type { TelnyxConfig } from '@shared/schemas/providers'
+import type {
+  AutoConfigResult,
+  ConnectionTestResult,
+  NumberSearchQuery,
+  PhoneNumberInfo,
+  ProvisionResult,
+  WebhookUrlSet,
+} from '@shared/types'
+import type { ProviderCapabilities } from './capabilities'
 
 function apiBase(config: TelnyxConfig): string {
-  return (config as Record<string, unknown>)._testBaseUrl as string ?? 'https://api.telnyx.com'
+  return ((config as Record<string, unknown>)._testBaseUrl as string) ?? 'https://api.telnyx.com'
 }
 
 function bearerAuth(apiKey: string): string {
@@ -44,13 +44,23 @@ export const telnyxCapabilities: ProviderCapabilities<TelnyxConfig> = {
           connected: false,
           latencyMs,
           error: `HTTP ${res.status}`,
-          errorType: res.status === 401 ? 'invalid_credentials' : res.status === 429 ? 'rate_limited' : 'unknown',
+          errorType:
+            res.status === 401
+              ? 'invalid_credentials'
+              : res.status === 429
+                ? 'rate_limited'
+                : 'unknown',
         }
       }
       await res.json() // consume body
       return { connected: true, latencyMs }
     } catch (err) {
-      return { connected: false, latencyMs: Date.now() - start, error: String(err), errorType: 'network_error' }
+      return {
+        connected: false,
+        latencyMs: Date.now() - start,
+        error: String(err),
+        errorType: 'network_error',
+      }
     }
   },
 
@@ -95,7 +105,10 @@ export const telnyxCapabilities: ProviderCapabilities<TelnyxConfig> = {
     })
   },
 
-  async searchAvailableNumbers(config: TelnyxConfig, query: NumberSearchQuery): Promise<PhoneNumberInfo[]> {
+  async searchAvailableNumbers(
+    config: TelnyxConfig,
+    query: NumberSearchQuery
+  ): Promise<PhoneNumberInfo[]> {
     const params = new URLSearchParams()
     params.set('filter[country_code]', query.country || 'US')
     if (query.areaCode) params.set('filter[national_destination_code]', query.areaCode)
@@ -153,7 +166,11 @@ export const telnyxCapabilities: ProviderCapabilities<TelnyxConfig> = {
     return { ok: true, number }
   },
 
-  async configureWebhooks(config: TelnyxConfig, _phoneNumber: string, webhookUrls: WebhookUrlSet): Promise<AutoConfigResult> {
+  async configureWebhooks(
+    config: TelnyxConfig,
+    _phoneNumber: string,
+    webhookUrls: WebhookUrlSet
+  ): Promise<AutoConfigResult> {
     const base = apiBase(config)
     const headers = {
       Authorization: bearerAuth(config.apiKey),
@@ -202,6 +219,12 @@ export const telnyxCapabilities: ProviderCapabilities<TelnyxConfig> = {
       return { ok: false, error: err.errors?.[0]?.detail ?? `HTTP ${res.status}` }
     }
     const data = (await res.json()) as { data?: { id?: string } }
-    return { ok: true, details: { texmlAppId: data.data?.id, note: 'New TeXML application created — save texmlAppId to config' } }
+    return {
+      ok: true,
+      details: {
+        texmlAppId: data.data?.id,
+        note: 'New TeXML application created — save texmlAppId to config',
+      },
+    }
   },
 }

@@ -65,11 +65,16 @@ export async function startParallelRinging(
     })
 
     // Publish call:ring event to Nostr relay for real-time client notification
-    publishNostrEvent(env, KIND_CALL_RING, {
-      type: 'call:ring',
-      callSid,
-      hubId: hubId ?? 'global',
-    }, hubId)
+    publishNostrEvent(
+      env,
+      KIND_CALL_RING,
+      {
+        type: 'call:ring',
+        callSid,
+        hubId: hubId ?? 'global',
+      },
+      hubId
+    )
 
     // Ring phone volunteers via telephony adapter (skip if no one needs phone ringing)
     if (toRingPhone.length > 0) {

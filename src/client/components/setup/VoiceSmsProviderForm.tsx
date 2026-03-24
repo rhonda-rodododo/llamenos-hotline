@@ -28,11 +28,16 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
   const { toast } = useToast()
   const [saving, setSaving] = useState(false)
 
-  const provider: TelephonyProviderDraft = data.telephonyProvider || { type: 'twilio' as TelephonyProviderType }
+  const provider: TelephonyProviderDraft = data.telephonyProvider || {
+    type: 'twilio' as TelephonyProviderType,
+  }
   const selectedType = provider.type
 
   function update(patch: Partial<TelephonyProviderDraft>) {
-    onChange({ telephonyProvider: { ...provider, ...patch } as TelephonyProviderDraft, providerValidated: false })
+    onChange({
+      telephonyProvider: { ...provider, ...patch } as TelephonyProviderDraft,
+      providerValidated: false,
+    })
   }
 
   const credentials = useMemo(
@@ -49,7 +54,19 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
       ariUsername: provider.ariUsername,
       ariPassword: provider.ariPassword,
     }),
-    [selectedType, provider.accountSid, provider.authToken, provider.signalwireSpace, provider.apiKey, provider.apiSecret, provider.applicationId, provider.authId, provider.ariUrl, provider.ariUsername, provider.ariPassword]
+    [
+      selectedType,
+      provider.accountSid,
+      provider.authToken,
+      provider.signalwireSpace,
+      provider.apiKey,
+      provider.apiSecret,
+      provider.applicationId,
+      provider.authId,
+      provider.ariUrl,
+      provider.ariUsername,
+      provider.ariPassword,
+    ]
   )
 
   async function handleSave() {
@@ -72,7 +89,10 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
       { label: t('setup.webhooks.voiceStatus'), url: `${origin}/api/telephony/status` },
     ]
     if (data.selectedChannels.includes('sms')) {
-      urls.push({ label: t('setup.webhooks.smsWebhook'), url: `${origin}/api/messaging/sms/webhook` })
+      urls.push({
+        label: t('setup.webhooks.smsWebhook'),
+        url: `${origin}/api/messaging/sms/webhook`,
+      })
     }
     return urls
   }, [origin, data.selectedChannels, t])
@@ -242,10 +262,7 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
       />
 
       {/* Webhook URLs */}
-      <WebhookConfirmation
-        urls={webhookUrls}
-        visible={data.providerValidated}
-      />
+      <WebhookConfirmation urls={webhookUrls} visible={data.providerValidated} />
 
       {/* Save button */}
       {data.providerValidated && (

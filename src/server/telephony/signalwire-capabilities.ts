@@ -1,17 +1,20 @@
 import { SignalWireConfigSchema } from '@shared/schemas/providers'
-import type { ProviderCapabilities } from './capabilities'
-import type {
-  ConnectionTestResult,
-  WebhookUrlSet,
-  PhoneNumberInfo,
-  NumberSearchQuery,
-  ProvisionResult,
-  AutoConfigResult,
-} from '@shared/types'
 import type { SignalWireConfig } from '@shared/schemas/providers'
+import type {
+  AutoConfigResult,
+  ConnectionTestResult,
+  NumberSearchQuery,
+  PhoneNumberInfo,
+  ProvisionResult,
+  WebhookUrlSet,
+} from '@shared/types'
+import type { ProviderCapabilities } from './capabilities'
 
 function apiBase(config: SignalWireConfig): string {
-  return (config as Record<string, unknown>)._testBaseUrl as string ?? `https://${config.signalwireSpace}.signalwire.com/api/laml`
+  return (
+    ((config as Record<string, unknown>)._testBaseUrl as string) ??
+    `https://${config.signalwireSpace}.signalwire.com/api/laml`
+  )
 }
 
 function basicAuth(sid: string, token: string): string {
@@ -44,16 +47,31 @@ export const signalwireCapabilities: ProviderCapabilities<SignalWireConfig> = {
           connected: false,
           latencyMs,
           error: `HTTP ${res.status}`,
-          errorType: res.status === 401 ? 'invalid_credentials' : res.status === 429 ? 'rate_limited' : 'unknown',
+          errorType:
+            res.status === 401
+              ? 'invalid_credentials'
+              : res.status === 429
+                ? 'rate_limited'
+                : 'unknown',
         }
       }
       const data = (await res.json()) as { friendly_name?: string; status?: string }
       if (data.status === 'suspended') {
-        return { connected: false, latencyMs, error: 'Account suspended', errorType: 'account_suspended' }
+        return {
+          connected: false,
+          latencyMs,
+          error: 'Account suspended',
+          errorType: 'account_suspended',
+        }
       }
       return { connected: true, latencyMs, accountName: data.friendly_name }
     } catch (err) {
-      return { connected: false, latencyMs: Date.now() - start, error: String(err), errorType: 'network_error' }
+      return {
+        connected: false,
+        latencyMs: Date.now() - start,
+        error: String(err),
+        errorType: 'network_error',
+      }
     }
   },
 
@@ -85,12 +103,19 @@ export const signalwireCapabilities: ProviderCapabilities<SignalWireConfig> = {
       number: n.phone_number,
       country: n.iso_country,
       locality: n.locality,
-      capabilities: { voice: n.capabilities.voice, sms: n.capabilities.sms, mms: n.capabilities.mms },
+      capabilities: {
+        voice: n.capabilities.voice,
+        sms: n.capabilities.sms,
+        mms: n.capabilities.mms,
+      },
       owned: true,
     }))
   },
 
-  async searchAvailableNumbers(config: SignalWireConfig, query: NumberSearchQuery): Promise<PhoneNumberInfo[]> {
+  async searchAvailableNumbers(
+    config: SignalWireConfig,
+    query: NumberSearchQuery
+  ): Promise<PhoneNumberInfo[]> {
     const params = new URLSearchParams()
     if (query.areaCode) params.set('AreaCode', query.areaCode)
     if (query.contains) params.set('Contains', query.contains)
@@ -114,7 +139,11 @@ export const signalwireCapabilities: ProviderCapabilities<SignalWireConfig> = {
       number: n.phone_number,
       country: n.iso_country,
       locality: n.locality,
-      capabilities: { voice: n.capabilities.voice, sms: n.capabilities.SMS, mms: n.capabilities.MMS },
+      capabilities: {
+        voice: n.capabilities.voice,
+        sms: n.capabilities.SMS,
+        mms: n.capabilities.MMS,
+      },
       owned: false,
     }))
   },
@@ -139,7 +168,11 @@ export const signalwireCapabilities: ProviderCapabilities<SignalWireConfig> = {
     return { ok: true, number: data.phone_number }
   },
 
-  async configureWebhooks(config: SignalWireConfig, phoneNumber: string, webhookUrls: WebhookUrlSet): Promise<AutoConfigResult> {
+  async configureWebhooks(
+    config: SignalWireConfig,
+    phoneNumber: string,
+    webhookUrls: WebhookUrlSet
+  ): Promise<AutoConfigResult> {
     const listUrl = `${apiBase(config)}/2010-04-01/Accounts/${config.accountSid}/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(phoneNumber)}`
     const listRes = await fetch(listUrl, {
       headers: { Authorization: basicAuth(config.accountSid, config.authToken) },
