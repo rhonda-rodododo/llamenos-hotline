@@ -9,8 +9,7 @@
  *
  * All tests use serial mode to avoid race conditions on shared call state.
  *
- * Prerequisites: telephony must be configured in the test environment.
- * Tests skip gracefully if telephony returns 503 (not configured).
+ * Prerequisites: telephony must be configured in the test environment (USE_TEST_ADAPTER=true).
  */
 
 import { test, expect } from '@playwright/test'
@@ -134,10 +133,6 @@ test.describe('Call flow', () => {
       }),
     })
 
-    if (incomingRes.status() === 503) {
-      test.skip(true, 'Telephony not configured — skipping call flow tests')
-      return
-    }
     expect(incomingRes.status()).toBe(200)
 
     // Step 2: Simulate language selection (triggers startParallelRinging)
@@ -150,10 +145,6 @@ test.describe('Call flow', () => {
       }),
     })
 
-    if (langRes.status() === 503) {
-      test.skip(true, 'Telephony not configured — skipping call flow tests')
-      return
-    }
     expect(langRes.status()).toBe(200)
 
     // Step 3: Wait for the call to appear in the active calls API
@@ -224,10 +215,7 @@ test.describe('Call flow', () => {
         CallDuration: '30',
       }),
     })
-    // 503 = no telephony configured (already skipped earlier), otherwise expect ok
-    if (hangupRes.status() !== 503) {
-      expect([200, 204]).toContain(hangupRes.status())
-    }
+    expect([200, 204]).toContain(hangupRes.status())
 
     // Navigate to call history
     await navigateAfterLogin(page, '/calls')
@@ -266,10 +254,7 @@ test.describe('Call flow', () => {
       }),
     })
 
-    if (incomingRes.status() === 503) {
-      test.skip(true, 'Telephony not configured')
-      return
-    }
+    expect(incomingRes.status()).toBe(200)
 
     await page.request.post('/telephony/language-selected?forceLang=en', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

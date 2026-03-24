@@ -2,7 +2,6 @@
  * Call Spam Mitigation Tests
  *
  * Tests ban list enforcement, rate limiting, and CAPTCHA via telephony webhooks.
- * All tests skip gracefully when telephony is not configured (503 response).
  *
  * Test groups:
  *   1. Ban list enforcement — banned numbers get TwiML rejection
@@ -94,11 +93,6 @@ test.describe('Ban list call enforcement', () => {
     // Simulate call from banned number
     const res = await simulateCall(request, `CA_ban_${Date.now()}`, BANNED_NUMBER)
 
-    if (res.status() === 503) {
-      test.skip(true, 'Telephony not configured — skipping ban enforcement test')
-      return
-    }
-
     expect(res.status()).toBe(200)
     const body = await res.text()
     // TwiML Reject response contains <Reject/> or Reject in the response
@@ -111,11 +105,6 @@ test.describe('Ban list call enforcement', () => {
     // Ensure CLEAN_NUMBER is not banned (resetTestState handles this)
     const res = await simulateCall(request, `CA_clean_${Date.now()}`, CLEAN_NUMBER)
 
-    if (res.status() === 503) {
-      test.skip(true, 'Telephony not configured — skipping ban enforcement test')
-      return
-    }
-
     expect(res.status()).toBe(200)
     const body = await res.text()
     // Should get a language menu TwiML (not a rejection)
@@ -127,10 +116,6 @@ test.describe('Ban list call enforcement', () => {
 
     // First call — not banned, should route
     const res1 = await simulateCall(request, `CA_fresh1_${Date.now()}`, freshNumber)
-    if (res1.status() === 503) {
-      test.skip(true, 'Telephony not configured')
-      return
-    }
     expect(res1.status()).toBe(200)
     const body1 = await res1.text()
     expect(body1.toLowerCase()).not.toMatch(/^.*<reject/)
@@ -185,10 +170,6 @@ test.describe('Voice CAPTCHA', () => {
     // Default state: CAPTCHA is off
     const res = await simulateCall(request, `CA_nocap_${Date.now()}`, CALLER, HOTLINE)
 
-    if (res.status() === 503) {
-      test.skip(true, 'Telephony not configured')
-      return
-    }
     expect(res.status()).toBe(200)
     const body = await res.text()
     // With no CAPTCHA, the incoming response should play a language menu
@@ -213,10 +194,6 @@ test.describe('Voice CAPTCHA', () => {
 
     // Step 1: incoming call
     const incomingRes = await simulateCall(request, callSid, CALLER, HOTLINE)
-    if (incomingRes.status() === 503) {
-      test.skip(true, 'Telephony not configured')
-      return
-    }
     expect(incomingRes.status()).toBe(200)
 
     // Step 2: language selected → should trigger CAPTCHA, NOT startParallelRinging
@@ -228,10 +205,6 @@ test.describe('Voice CAPTCHA', () => {
         Digits: '1',
       }),
     })
-    if (langRes.status() === 503) {
-      test.skip(true, 'Telephony not configured')
-      return
-    }
     expect(langRes.status()).toBe(200)
     const langBody = await langRes.text()
 

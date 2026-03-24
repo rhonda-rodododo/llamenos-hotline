@@ -36,10 +36,7 @@ test.describe('Voicemail UI', () => {
         Direction: 'inbound',
       }),
     })
-    if (incomingRes.status() === 503) {
-      test.skip(true, 'Telephony not configured in dev env -- skipping voicemail UI badge test')
-      return
-    }
+    expect(incomingRes.status()).toBe(200)
 
     // Simulate voicemail recording complete
     await request.post(`/telephony/voicemail-recording?callSid=${callSid}`, {

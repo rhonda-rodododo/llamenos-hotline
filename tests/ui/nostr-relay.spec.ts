@@ -11,7 +11,7 @@
  * All tests skip gracefully when:
  *   - Nostr relay is not running (ws://localhost:7778 unreachable)
  *   - SERVER_NOSTR_SECRET is not set in env
- *   - Telephony is not configured (503 response)
+ *   - Telephony is not configured (USE_TEST_ADAPTER=true expected)
  */
 
 import WebSocket from 'ws'
@@ -180,11 +180,7 @@ test.describe('Call ring Nostr events', () => {
       }),
     })
 
-    if (incomingRes.status() === 503) {
-      ws.close()
-      test.skip(true, 'Telephony not configured')
-      return
-    }
+    expect(incomingRes.status()).toBe(200)
 
     // Step 2: language selected → triggers startParallelRinging → publishes Nostr event
     const langRes = await request.post('/telephony/language-selected?forceLang=en', {
@@ -196,11 +192,7 @@ test.describe('Call ring Nostr events', () => {
       }),
     })
 
-    if (langRes.status() === 503) {
-      ws.close()
-      test.skip(true, 'Telephony not configured')
-      return
-    }
+    expect(langRes.status()).toBe(200)
 
     // Wait up to 3s for event to arrive
     const deadline = Date.now() + 3000
@@ -246,11 +238,7 @@ test.describe('Call ring Nostr events', () => {
       }),
     })
 
-    if (incomingRes.status() === 503) {
-      ws.close()
-      test.skip(true, 'Telephony not configured')
-      return
-    }
+    expect(incomingRes.status()).toBe(200)
 
     await request.post('/telephony/language-selected?forceLang=en', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -320,11 +308,7 @@ test.describe('Call ring Nostr events', () => {
       }),
     })
 
-    if (incomingRes.status() === 503) {
-      ws.close()
-      test.skip(true, 'Telephony not configured')
-      return
-    }
+    expect(incomingRes.status()).toBe(200)
 
     await request.post('/telephony/language-selected?forceLang=en', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -386,11 +370,7 @@ test.describe('Call ring Nostr events', () => {
       }),
     })
 
-    if (incomingRes.status() === 503) {
-      ws.close()
-      test.skip(true, 'Telephony not configured')
-      return
-    }
+    expect(incomingRes.status()).toBe(200)
 
     await request.post('/telephony/language-selected?forceLang=en', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -455,11 +435,7 @@ test.describe('Call ring Nostr events', () => {
       }),
     })
 
-    if (incomingRes.status() === 503) {
-      ws.close()
-      test.skip(true, 'Telephony not configured')
-      return
-    }
+    expect(incomingRes.status()).toBe(200)
 
     await request.post('/telephony/language-selected?forceLang=en', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -563,10 +539,7 @@ test.describe('REST polling fallback when relay unreachable', () => {
       }),
     })
 
-    if (incomingRes.status() === 503) {
-      test.skip(true, 'Telephony not configured')
-      return
-    }
+    expect(incomingRes.status()).toBe(200)
 
     await request.post('/telephony/language-selected?forceLang=en', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
