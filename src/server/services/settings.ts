@@ -90,7 +90,16 @@ export class SettingsService {
       .from(spamSettings)
       .where(eq(spamSettings.hubId, hId))
       .limit(1)
-    const row = rows[0]
+    let row = rows[0]
+    // Fall back to global settings when hub-specific settings don't exist
+    if (!row && hId !== 'global') {
+      const globalRows = await this.db
+        .select()
+        .from(spamSettings)
+        .where(eq(spamSettings.hubId, 'global'))
+        .limit(1)
+      row = globalRows[0]
+    }
     return {
       voiceCaptchaEnabled: row?.voiceCaptchaEnabled ?? false,
       rateLimitEnabled: row?.rateLimitEnabled ?? true,
@@ -589,14 +598,20 @@ export class SettingsService {
 
   // ------------------------------------------------------------------ CAPTCHA
 
-  async storeCaptcha(callSid: string, expectedDigits: string): Promise<void> {
+  async storeCaptcha(
+    callSid: string,
+    expectedDigits: string,
+    preserveAttempts = false
+  ): Promise<void> {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
     await this.db
       .insert(captchaState)
       .values({ callSid, expectedDigits, attempts: 0, expiresAt })
       .onConflictDoUpdate({
         target: captchaState.callSid,
-        set: { expectedDigits, attempts: 0, expiresAt },
+        set: preserveAttempts
+          ? { expectedDigits, expiresAt }
+          : { expectedDigits, attempts: 0, expiresAt },
       })
   }
 

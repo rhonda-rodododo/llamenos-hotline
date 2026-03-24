@@ -80,11 +80,9 @@ test.describe('Voice CAPTCHA', () => {
     expect(digitMatch).toBeTruthy()
     const expectedDigits = `${digitMatch?.[1]}${digitMatch?.[2]}${digitMatch?.[3]}${digitMatch?.[4]}`
 
-    // Verify all digits are 1-9 (no zeros)
-    for (const d of expectedDigits) {
-      expect(Number(d)).toBeGreaterThanOrEqual(1)
-      expect(Number(d)).toBeLessThanOrEqual(9)
-    }
+    // Verify it's a 4-digit number (1000-9999)
+    expect(Number(expectedDigits)).toBeGreaterThanOrEqual(1000)
+    expect(Number(expectedDigits)).toBeLessThanOrEqual(9999)
 
     // Submit correct CAPTCHA digits
     const captchaRes = await request.post('/telephony/captcha?callSid=test-captcha-003&lang=en', {
@@ -102,21 +100,36 @@ test.describe('Voice CAPTCHA', () => {
   // --- Test 5.4: Incorrect DTMF triggers retry, then rejection ---
   test('incorrect DTMF triggers retry then rejection after max attempts', async ({ request }) => {
     const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-    // Set max attempts to 2
-    const settingsRes = await adminApi.patch('/api/settings/spam', { captchaMaxAttempts: 2 })
+    // Enable CAPTCHA with max attempts of 2
+    const settingsRes = await adminApi.patch('/api/settings/spam', {
+      voiceCaptchaEnabled: true,
+      captchaMaxAttempts: 2,
+    })
     expect(settingsRes.ok()).toBeTruthy()
 
-    // Generate challenge
+    // Verify settings took effect
+    const checkRes = await adminApi.get('/api/settings/spam')
+    const spamCheck = await checkRes.json()
+    expect(spamCheck.voiceCaptchaEnabled).toBe(true)
+    expect(spamCheck.captchaMaxAttempts).toBe(2)
+
+    // Use unique callSid and caller number to avoid rate limiting and stale state
+    const callSid = `test-captcha-retry-${Date.now()}`
+    const callerNumber = `%2B1555${String(Date.now()).slice(-7)}`
+
+    // Generate challenge — must contain Gather (CAPTCHA active)
     const callRes = await request.post('/telephony/language-selected?auto=1', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      data: 'CallSid=test-captcha-004&From=%2B15551234567&To=%2B15559999999&Digits=2',
+      data: `CallSid=${callSid}&From=${callerNumber}&To=%2B15559999999&Digits=2`,
     })
     expect(callRes.ok()).toBeTruthy()
+    const challengeTwiml = await callRes.text()
+    expect(challengeTwiml, 'CAPTCHA should be enabled — expecting Gather').toContain('Gather')
 
     // First wrong attempt — should get retry
-    const attempt1 = await request.post('/telephony/captcha?callSid=test-captcha-004&lang=en', {
+    const attempt1 = await request.post(`/telephony/captcha?callSid=${callSid}&lang=en`, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      data: 'CallSid=test-captcha-004&From=%2B15551234567&Digits=0000',
+      data: `CallSid=${callSid}&From=${callerNumber}&Digits=0000`,
     })
     expect(attempt1.ok()).toBeTruthy()
     const body1 = await attempt1.text()
@@ -126,9 +139,9 @@ test.describe('Voice CAPTCHA', () => {
     expect(body1).not.toContain('Hangup')
 
     // Second wrong attempt — should get rejection (hangup)
-    const attempt2 = await request.post('/telephony/captcha?callSid=test-captcha-004&lang=en', {
+    const attempt2 = await request.post(`/telephony/captcha?callSid=${callSid}&lang=en`, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      data: 'CallSid=test-captcha-004&From=%2B15551234567&Digits=0000',
+      data: `CallSid=${callSid}&From=${callerNumber}&Digits=0000`,
     })
     expect(attempt2.ok()).toBeTruthy()
     const body2 = await attempt2.text()

@@ -244,7 +244,7 @@ telephony.post('/captcha', async (c) => {
     const buf = new Uint8Array(2)
     crypto.getRandomValues(buf)
     newCaptchaDigits = String(1000 + (((buf[0] << 8) | buf[1]) % 9000))
-    await services.settings.storeCaptcha(callSid, newCaptchaDigits)
+    await services.settings.storeCaptcha(callSid, newCaptchaDigits, true)
   }
 
   const response = await adapter.handleCaptchaResponse({
