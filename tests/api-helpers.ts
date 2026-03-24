@@ -11,9 +11,20 @@
 import { type APIRequestContext } from '@playwright/test'
 import { generateSecretKey, getPublicKey as nostrGetPubkey } from 'nostr-tools/pure'
 import { nip19 } from 'nostr-tools'
-import { bytesToHex } from '@noble/hashes/utils.js'
-import { createAuthedRequestFromNsec } from './helpers/authed-request'
+import { createAuthedRequestFromNsec, createAuthedRequest, type AuthedRequest } from './helpers/authed-request'
 import { ADMIN_NSEC } from './helpers'
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface TestUser {
+  sk: Uint8Array
+  pubkey: string
+  nsec: string
+  name: string
+  phone: string
+  roleIds: string[]
+  api: AuthedRequest
+}
 
 interface CreateVolunteerResult {
   pubkey: string
@@ -32,20 +43,225 @@ interface CreateShiftResult {
   name: string
 }
 
+export type RoleAlias = 'super-admin' | 'hub-admin' | 'reviewer' | 'volunteer' | 'reporter'
+
+const ROLE_ID_MAP: Record<RoleAlias, string> = {
+  'super-admin': 'role-super-admin',
+  'hub-admin': 'role-hub-admin',
+  'reviewer': 'role-reviewer',
+  'volunteer': 'role-volunteer',
+  'reporter': 'role-reporter',
+}
+
+// Monotonic counter to ensure unique phones even within the same millisecond
+let phoneCounter = 0
+
 /**
  * Generate a unique phone number for testing.
+ * Uses monotonic counter to avoid collisions in parallel tests.
  */
 export function uniquePhone(): string {
-  const suffix = Date.now().toString().slice(-7)
-  return `+1555${suffix}`
+  const ts = Date.now().toString().slice(-5)
+  const counter = (phoneCounter++).toString().padStart(4, '0')
+  return `+1555${ts}${counter}`
 }
 
 /**
  * Generate a unique name for testing.
  */
 export function uniqueName(prefix: string): string {
-  return `${prefix} ${Date.now()}`
+  return `${prefix} ${Date.now().toString(36)}`
 }
+
+/**
+ * Generate a unique slug-safe string.
+ */
+export function uniqueSlug(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+}
+
+// ─── TestContext: Reusable multi-role test environment ────────────────────────
+
+/**
+ * Manages a complete test environment: hub, users with different roles, and cleanup.
+ *
+ * Usage:
+ * ```ts
+ * let ctx: TestContext
+ * test.beforeAll(async ({ request }) => {
+ *   ctx = await TestContext.create(request, {
+ *     roles: ['volunteer', 'reviewer', 'reporter', 'hub-admin'],
+ *   })
+ * })
+ * test.beforeEach(async ({ request }) => { ctx.refreshApis(request) })
+ * test.afterAll(async () => { await ctx.cleanup() })
+ * ```
+ */
+export class TestContext {
+  private _adminApi: AuthedRequest
+  readonly hubId: string
+  readonly hubName: string
+  private readonly users = new Map<RoleAlias, TestUser>()
+  private readonly customRoleIds: string[] = []
+  private rawRequest: APIRequestContext
+
+  get adminApi(): AuthedRequest {
+    return this._adminApi
+  }
+
+  private constructor(
+    request: APIRequestContext,
+    adminApi: AuthedRequest,
+    hubId: string,
+    hubName: string,
+  ) {
+    this.rawRequest = request
+    this._adminApi = adminApi
+    this.hubId = hubId
+    this.hubName = hubName
+  }
+
+  static async create(
+    request: APIRequestContext,
+    opts?: {
+      roles?: RoleAlias[]
+      hubName?: string
+    },
+  ): Promise<TestContext> {
+    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const hubName = opts?.hubName ?? uniqueName('TestHub')
+
+    // Create a hub
+    const hubRes = await adminApi.post('/api/hubs', { name: hubName })
+    if (!hubRes.ok()) {
+      throw new Error(`Failed to create test hub: ${hubRes.status()} ${await hubRes.text()}`)
+    }
+    const { hub } = await hubRes.json()
+
+    const ctx = new TestContext(request, adminApi, hub.id, hubName)
+
+    // Create users for each requested role
+    const roles = opts?.roles ?? ['volunteer', 'reviewer', 'reporter']
+    for (const role of roles) {
+      await ctx.addUser(role)
+    }
+
+    return ctx
+  }
+
+  /** Add a user with the given role, creating them as a volunteer then assigning the role. */
+  async addUser(role: RoleAlias, name?: string): Promise<TestUser> {
+    const sk = generateSecretKey()
+    const pubkey = nostrGetPubkey(sk)
+    const nsec = nip19.nsecEncode(sk)
+    const phone = uniquePhone()
+    const userName = name ?? `Test ${role} ${Date.now().toString(36)}`
+    const roleId = ROLE_ID_MAP[role]
+
+    // Create volunteer with the requested role
+    const createRes = await this.adminApi.post('/api/volunteers', {
+      name: userName,
+      phone,
+      pubkey,
+      roleIds: [roleId],
+    })
+    if (!createRes.ok()) {
+      throw new Error(`Failed to create ${role}: ${createRes.status()} ${await createRes.text()}`)
+    }
+
+    // Add as hub member
+    await this.adminApi.post(`/api/hubs/${this.hubId}/members`, {
+      pubkey,
+      roleIds: [roleId],
+    })
+
+    const api = createAuthedRequest(this.rawRequest, sk)
+    const user: TestUser = { sk, pubkey, nsec, name: userName, phone, roleIds: [roleId], api }
+    this.users.set(role, user)
+    return user
+  }
+
+  /** Get the TestUser for a role. Throws if not created. */
+  user(role: RoleAlias): TestUser {
+    const u = this.users.get(role)
+    if (!u) throw new Error(`No user for role '${role}'. Did you include it in TestContext.create()?`)
+    return u
+  }
+
+  /** Get the AuthedRequest for a role. */
+  api(role: RoleAlias): AuthedRequest {
+    return this.user(role).api
+  }
+
+  /** Hub-scoped path helper. */
+  hubPath(path: string): string {
+    return `/api/hubs/${this.hubId}${path}`
+  }
+
+  /** Recreate AuthedRequest objects after Playwright creates new request context (beforeEach). */
+  refreshApis(request: APIRequestContext): void {
+    this.rawRequest = request
+    for (const [, user] of this.users) {
+      user.api = createAuthedRequest(request, user.sk)
+    }
+    this._adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+  }
+
+  /** Create a custom role within the test hub and return its ID. */
+  async createCustomRole(name: string, permissions: string[], slug?: string): Promise<string> {
+    const roleSlug = slug ?? uniqueSlug(name.toLowerCase().replace(/\s+/g, '-'))
+    const res = await this.adminApi.post('/api/settings/roles', {
+      name,
+      slug: roleSlug,
+      permissions,
+      description: `Test role: ${name}`,
+    })
+    if (res.status() !== 201) {
+      throw new Error(`Failed to create custom role: ${res.status()} ${await res.text()}`)
+    }
+    const body = await res.json()
+    this.customRoleIds.push(body.id)
+    return body.id
+  }
+
+  /** Assign a user to a custom role (replaces existing roles). */
+  async assignRole(pubkey: string, roleIds: string[]): Promise<void> {
+    const res = await this.adminApi.patch(`/api/volunteers/${pubkey}`, { roles: roleIds })
+    if (!res.ok()) {
+      throw new Error(`Failed to assign role: ${res.status()} ${await res.text()}`)
+    }
+  }
+
+  /** Delete the hub and all created custom roles. */
+  async cleanup(): Promise<void> {
+    const errors: string[] = []
+
+    // Delete custom roles
+    for (const roleId of this.customRoleIds) {
+      try {
+        await this.adminApi.delete(`/api/settings/roles/${roleId}`)
+      } catch (e) {
+        errors.push(`role ${roleId}: ${e}`)
+      }
+    }
+
+    // Delete the hub
+    try {
+      const res = await this.adminApi.delete(`/api/hubs/${this.hubId}`)
+      if (!res.ok() && res.status() !== 404) {
+        errors.push(`hub: ${res.status()}`)
+      }
+    } catch (e) {
+      errors.push(`hub: ${e}`)
+    }
+
+    if (errors.length > 0) {
+      console.warn('TestContext cleanup errors:', errors.join(', '))
+    }
+  }
+}
+
+// ─── Standalone helpers (backward-compatible) ────────────────────────────────
 
 /**
  * Create a volunteer directly via API.
@@ -59,7 +275,6 @@ export async function createVolunteerViaApi(
   const phone = options?.phone || uniquePhone()
   const roleIds = options?.roleIds || ['role-volunteer']
 
-  // Generate a keypair
   const sk = generateSecretKey()
   const actualPubkey = nostrGetPubkey(sk)
   const nsec = nip19.nsecEncode(sk)
@@ -75,21 +290,42 @@ export async function createVolunteerViaApi(
 }
 
 /**
- * Delete a volunteer via API.
+ * Create a volunteer and return both the result and the raw secret key.
+ * Useful when you need an AuthedRequest for the new volunteer.
  */
+export async function createVolunteerWithKey(
+  request: APIRequestContext,
+  options?: { name?: string; phone?: string; roleIds?: string[] },
+): Promise<CreateVolunteerResult & { sk: Uint8Array }> {
+  const name = options?.name || uniqueName('TestVol')
+  const phone = options?.phone || uniquePhone()
+  const roleIds = options?.roleIds || ['role-volunteer']
+
+  const sk = generateSecretKey()
+  const actualPubkey = nostrGetPubkey(sk)
+  const nsec = nip19.nsecEncode(sk)
+
+  const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+  const res = await adminApi.post('/api/volunteers', { name, phone, roleIds, pubkey: actualPubkey })
+
+  if (!res.ok()) {
+    throw new Error(`Failed to create volunteer: ${res.status()} ${await res.text()}`)
+  }
+
+  return { pubkey: actualPubkey, nsec, name, phone, sk }
+}
+
 export async function deleteVolunteerViaApi(
   request: APIRequestContext,
   pubkey: string,
 ): Promise<void> {
-  const res = await request.delete(`/api/volunteers/${pubkey}`)
+  const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+  const res = await adminApi.delete(`/api/volunteers/${pubkey}`)
   if (!res.ok()) {
     throw new Error(`Failed to delete volunteer: ${res.status()} ${await res.text()}`)
   }
 }
 
-/**
- * Create a ban entry directly via API.
- */
 export async function createBanViaApi(
   request: APIRequestContext,
   options?: { phone?: string; reason?: string },
@@ -108,9 +344,6 @@ export async function createBanViaApi(
   return { phone, reason }
 }
 
-/**
- * Remove a ban via API.
- */
 export async function removeBanViaApi(
   request: APIRequestContext,
   phone: string,
@@ -121,9 +354,6 @@ export async function removeBanViaApi(
   }
 }
 
-/**
- * Create a shift directly via API.
- */
 export async function createShiftViaApi(
   request: APIRequestContext,
   options?: {
@@ -152,9 +382,6 @@ export async function createShiftViaApi(
   return { id: data.shift.id, name }
 }
 
-/**
- * Delete a shift via API.
- */
 export async function deleteShiftViaApi(
   request: APIRequestContext,
   id: string,
@@ -165,9 +392,6 @@ export async function deleteShiftViaApi(
   }
 }
 
-/**
- * Get all volunteers via API.
- */
 export async function listVolunteersViaApi(
   request: APIRequestContext,
 ): Promise<Array<{ pubkey: string; name: string; phone: string }>> {
@@ -179,9 +403,6 @@ export async function listVolunteersViaApi(
   return data.volunteers
 }
 
-/**
- * Get all bans via API.
- */
 export async function listBansViaApi(
   request: APIRequestContext,
 ): Promise<Array<{ phone: string; reason: string }>> {
@@ -193,9 +414,6 @@ export async function listBansViaApi(
   return data.bans
 }
 
-/**
- * Get all shifts via API.
- */
 export async function listShiftsViaApi(
   request: APIRequestContext,
 ): Promise<Array<{ id: string; name: string }>> {
@@ -207,10 +425,6 @@ export async function listShiftsViaApi(
   return data.shifts
 }
 
-/**
- * Clean up all test data created by a specific test.
- * Useful in afterEach/afterAll hooks.
- */
 export async function cleanupTestData(
   request: APIRequestContext,
   data: {
@@ -221,7 +435,6 @@ export async function cleanupTestData(
 ): Promise<void> {
   const errors: Error[] = []
 
-  // Delete volunteers
   for (const pubkey of data.volunteerPubkeys || []) {
     try {
       await deleteVolunteerViaApi(request, pubkey)
@@ -230,7 +443,6 @@ export async function cleanupTestData(
     }
   }
 
-  // Delete bans
   for (const phone of data.banPhones || []) {
     try {
       await removeBanViaApi(request, phone)
@@ -239,7 +451,6 @@ export async function cleanupTestData(
     }
   }
 
-  // Delete shifts
   for (const id of data.shiftIds || []) {
     try {
       await deleteShiftViaApi(request, id)
@@ -248,7 +459,6 @@ export async function cleanupTestData(
     }
   }
 
-  // Log any cleanup errors but don't fail the test
   if (errors.length > 0) {
     console.warn('Cleanup errors:', errors.map(e => e.message).join(', '))
   }
