@@ -91,12 +91,14 @@ These are legitimate and should NOT be changed:
 - **webauthn.spec.ts (8)** — CDP virtual authenticator only works in Chromium. Tests check for authenticator support and skip gracefully.
 - **capture-screenshots.spec.ts (1)** — Intentionally disabled in CI.
 
-### Part D: Serial → Parallel (Category 1)
+### Part D: File-Level Parallelism (Category 1)
 
-Already being handled by 4 parallel agents. The pattern is:
-- Remove `test.describe.configure({ mode: 'serial' })`
-- Make each test self-contained with its own setup
-- Use unique names/IDs to avoid collision between parallel tests
+The goal is **file-level parallelism**: different `.spec.ts` files run in parallel across workers, but tests within a file can remain serial. `test.describe.configure({ mode: 'serial' })` within a file is fine.
+
+What needs to change:
+- Each file must reset/isolate its own state (via `resetTestState` in `beforeAll` or hub scoping)
+- No file should depend on state created by another file
+- `fullyParallel: true` in Playwright config + serial within describe blocks = correct behavior
 
 ### Expected Outcome
 
