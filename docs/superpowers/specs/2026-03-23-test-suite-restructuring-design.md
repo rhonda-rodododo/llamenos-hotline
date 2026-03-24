@@ -1,7 +1,7 @@
 # Test Suite Restructuring Design
 
 **Date:** 2026-03-23
-**Status:** Draft
+**Status:** Approved
 **Scope:** 3-phase restructuring of test architecture
 
 ## Problem
@@ -20,7 +20,7 @@ This causes:
 
 | Suite | Runner | Location | What it tests | Command |
 |-------|--------|----------|---------------|---------|
-| **Unit** | `bun test` | Colocated `*.test.ts` next to source | Pure functions, classes, logic | `bun test` |
+| **Unit** | `bun test` | Colocated `*.test.ts` next to source | Pure functions, classes, logic (some require Postgres) | `bun test` |
 | **API integration** | Playwright (no browser) | `tests/api/*.spec.ts` | HTTP endpoints against running server | `bunx playwright test --project=api` |
 | **UI E2E** | Playwright (Chromium) | `tests/ui/*.spec.ts` | Full browser user flows | `bunx playwright test --project=ui` |
 
@@ -40,7 +40,7 @@ Core enabler for headless API tests. Replaces the `page.evaluate(apiCall)` patte
 **How it works:**
 1. Takes a Playwright `APIRequestContext` + Nostr secret key (Uint8Array)
 2. Imports `createAuthToken` directly from `src/client/lib/crypto.ts` — single source of truth
-3. For each request, generates a fresh Schnorr signature bound to `{method}:{path}`
+3. For each request, generates a fresh Schnorr signature over `llamenos:auth:{pubkey}:{timestamp}:{method}:{path}`
 4. Sets `Authorization: Bearer <json>` header with `{ pubkey, timestamp, token }`
 
 **Interface:**
@@ -106,20 +106,25 @@ projects: [
 
   {
     name: "bridge",
-    testMatch: /asterisk-.*\.spec\.ts/,
+    testMatch: /asterisk-auto-config\.spec\.ts/,
   },
 ]
 ```
 
+Note: The bridge regex is narrowed from `/asterisk-.*\.spec\.ts/` to `/asterisk-auto-config\.spec\.ts/` because `simulation-asterisk.spec.ts` is a server integration test (needs running server) that belongs in `tests/api/`, not in the bridge project.
+
 ### Package Scripts
 
 ```json
-"test":       "bunx playwright test",
-"test:unit":  "bun test src/",
-"test:api":   "bunx playwright test --project=api",
-"test:ui":    "bunx playwright test --project=ui",
-"test:all":   "bun test src/ && bunx playwright test"
+"test":            "bunx playwright test",
+"test:unit":       "bun test src/",
+"test:api":        "bunx playwright test --project=api",
+"test:e2e":        "bunx playwright test --project=ui",
+"test:interactive": "bunx playwright test --ui",
+"test:all":        "bun test src/ && bunx playwright test"
 ```
+
+Note: The existing `test:ui` script (which launches Playwright's interactive UI mode) is renamed to `test:interactive` to avoid collision with the new `test:e2e` script for running UI E2E tests. The project flag uses `--project=ui` but the script is named `test:e2e` to avoid ambiguity.
 
 ## Phase 1: Infrastructure + Convention
 
@@ -145,8 +150,9 @@ Create the foundation. Independently shippable.
 | `tests/provider-capabilities.spec.ts` | `src/server/telephony/provider-capabilities.test.ts` | Yes — Playwright → bun:test |
 
 5. **Delete `src/server/__tests__/` directory**
-6. **Update `package.json` scripts**
-7. **Update `CLAUDE.md` testing guidance**
+6. **Update bridge project regex** — narrow from `/asterisk-.*\.spec\.ts|provider-capabilities\.spec\.ts|provider-health\.spec\.ts/` to `/asterisk-auto-config\.spec\.ts/` (provider tests moved to colocated bun:test, simulation-asterisk is an API integration test)
+7. **Update `package.json` scripts** — rename `test:ui` (interactive mode) to `test:interactive`, add `test:e2e`, `test:api`, update `test:unit`
+8. **Update `CLAUDE.md` testing guidance**
 
 ### Verification
 
@@ -164,15 +170,16 @@ Move all existing Playwright spec files into `tests/ui/` or `tests/api/`. Pure m
 - `health-config.spec.ts`
 - `simulation-telephony.spec.ts`
 - `simulation-messaging.spec.ts`
-- `signal-auto-registration.spec.ts`
+- `simulation-asterisk.spec.ts`
 
 ### Split files
 
 - `voice-captcha.spec.ts` — 5 API tests → `tests/api/voice-captcha.spec.ts`, 1 UI test → `tests/ui/voice-captcha.spec.ts`
+- `signal-auto-registration.spec.ts` — 7 API tests (using `page.request`) → `tests/api/signal-auto-registration.spec.ts` (rewrite to use `request` fixture), 1 UI test → `tests/ui/signal-auto-registration.spec.ts`
 
 ### Moves to `tests/ui/` (all remaining browser tests)
 
-All ~43 remaining spec files move to `tests/ui/`:
+All remaining spec files move to `tests/ui/` (~58 files):
 
 `smoke.spec.ts`, `admin-flow.spec.ts`, `auth-guards.spec.ts`, `audit-log.spec.ts`, `ban-management.spec.ts`, `blast-sending.spec.ts`, `blasts.spec.ts`, `bootstrap.spec.ts`, `call-detail.spec.ts`, `call-flow.spec.ts`, `call-recording.spec.ts`, `call-spam.spec.ts`, `capture-screenshots.spec.ts`, `client-transcription.spec.ts`, `contacts.spec.ts`, `conversations.spec.ts`, `custom-fields.spec.ts`, `dashboard-analytics.spec.ts`, `demo-mode.spec.ts`, `device-linking.spec.ts`, `e2ee-notes.spec.ts`, `epic-24-27.spec.ts`, `file-field.spec.ts`, `file-upload.spec.ts`, `form-validation.spec.ts`, `gdpr.spec.ts`, `geocoding.spec.ts`, `help.spec.ts`, `hub-access-control.spec.ts`, `hub-membership.spec.ts`, `i18n.spec.ts`, `invite-delivery.spec.ts`, `invite-onboarding.spec.ts`, `login-restore.spec.ts`, `messaging-epics.spec.ts`, `multi-hub.spec.ts`, `notes-crud.spec.ts`, `notes-custom-fields.spec.ts`, `nostr-relay.spec.ts`, `notification-pwa.spec.ts`, `panic-wipe.spec.ts`, `pin-challenge.spec.ts`, `profile-settings.spec.ts`, `provider-oauth.spec.ts`, `pwa-offline.spec.ts`, `rcs-channel.spec.ts`, `reports.spec.ts`, `report-types.spec.ts`, `responsive.spec.ts`, `roles.spec.ts`, `security-hardening.spec.ts`, `setup-wizard.spec.ts`, `setup-wizard-provider.spec.ts`, `shift-management.spec.ts`, `telephony-provider.spec.ts`, `theme.spec.ts`, `voice-captcha.spec.ts` (UI portion), `volunteer-flow.spec.ts`, `volunteer-pii.spec.ts`, `voicemail-webhook.spec.ts`, `webauthn.spec.ts`, `webauthn-passkeys.spec.ts`, `webrtc-settings.spec.ts`
 
@@ -183,6 +190,10 @@ All ~43 remaining spec files move to `tests/ui/`:
 - `tests/global-setup.ts` — shared setup
 - `tests/test-ids.ts` — shared constants
 - `tests/api-helpers.ts` — shared API setup helpers
+
+### Excluded from restructuring
+
+- `tests/live/` — governed by `playwright.live.config.ts`, excluded via `testIgnore: ["**/live/**"]`. Not part of this restructuring.
 
 ### Update relative imports
 
@@ -225,6 +236,7 @@ Extract API tests → `tests/api/`, keep UI tests → `tests/ui/`:
 | `contacts.spec.ts` | 4 (contact API) | 1 (contacts page) |
 | `hub-access-control.spec.ts` | 4 (access API) | 5 (toggle UI) |
 | `voicemail-webhook.spec.ts` | 2 (webhook API) | 2 (voicemail flag UI) |
+| `signal-auto-registration.spec.ts` | 7 (registration API) | 1 (settings UI) |
 
 ### Files that stay in `tests/ui/` (browser-dependent)
 
@@ -255,7 +267,8 @@ Extract API tests → `tests/api/`, keep UI tests → `tests/ui/`:
 Three test suites with distinct purposes:
 
 - **Unit tests** (`bun test`): Colocated `*.test.ts` files next to source.
-  Pure logic, no server needed. Use `bun:test` imports.
+  Pure logic, use `bun:test` imports. Some tests require Postgres
+  (start backing services with `bun run dev:docker` first).
 - **API integration tests** (`bunx playwright test --project=api`):
   Tests in `tests/api/`. HTTP requests against running server, no browser.
   Use `authedRequest` helper for authenticated endpoints.
