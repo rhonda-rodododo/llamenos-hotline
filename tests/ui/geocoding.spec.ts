@@ -31,12 +31,6 @@ async function expandCustomFields(page: Page) {
 }
 
 test.describe('Geocoding & Location Fields', () => {
-  test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })
@@ -94,10 +88,14 @@ test.describe('Geocoding & Location Fields', () => {
   test('admin can disable geocoding', async ({ page }) => {
     await expandGeocoding(page)
 
-    // Set to disabled
-    await page.getByTestId('geocoding-provider-select').selectOption('')
+    // First enable it, then disable
+    await page.getByTestId('geocoding-provider-select').selectOption('opencage')
+    await page.getByTestId('geocoding-api-key-input').fill('test-key')
+    await page.getByTestId('geocoding-save-btn').click()
+    await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
 
-    // Save
+    // Now disable
+    await page.getByTestId('geocoding-provider-select').selectOption('')
     await page.getByTestId('geocoding-save-btn').click()
     await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
   })
@@ -109,7 +107,8 @@ test.describe('Geocoding & Location Fields', () => {
     await page.getByRole('button', { name: /add field/i }).click()
 
     // Fill in field details
-    await page.getByPlaceholder('e.g. Severity Rating').fill('Caller Location')
+    const fieldLabel = `Caller Location ${Date.now()}`
+    await page.getByPlaceholder('e.g. Severity Rating').fill(fieldLabel)
 
     // Change type to Location
     await page.locator('select').first().selectOption('location')
@@ -123,11 +122,19 @@ test.describe('Geocoding & Location Fields', () => {
     await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
 
     // Field should appear in the list with Location type badge
-    await expect(page.getByText('Caller Location').first()).toBeVisible()
+    await expect(page.getByText(fieldLabel).first()).toBeVisible()
     await expect(page.getByText('Location').first()).toBeVisible()
   })
 
   test('location field appears in note creation form', async ({ page }) => {
+    // First create a location custom field
+    await expandCustomFields(page)
+    await page.getByRole('button', { name: /add field/i }).click()
+    await page.getByPlaceholder('e.g. Severity Rating').fill(`Location Field ${Date.now()}`)
+    await page.locator('select').first().selectOption('location')
+    await page.getByRole('button', { name: /save/i }).last().click()
+    await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
+
     // Navigate to notes page
     await page.getByRole('link', { name: /notes/i }).first().click()
     await expect(page.getByRole('heading', { name: /notes/i })).toBeVisible({ timeout: 10000 })
@@ -139,8 +146,6 @@ test.describe('Geocoding & Location Fields', () => {
     }
 
     // Check for the location field placeholder (search address input)
-    const locationInput = page.getByPlaceholder(/search for an address/i)
-    // It may or may not be visible depending on the page structure
     // Just verify the custom fields section loads without errors
   })
 })

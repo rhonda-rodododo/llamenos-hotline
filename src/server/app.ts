@@ -29,6 +29,7 @@ import provisioningRoutes from './routes/provisioning'
 import reportTypesRoutes from './routes/report-types'
 import reportsRoutes from './routes/reports'
 import settingsRoutes from './routes/settings'
+import signalRegistrationRoutes from './routes/messaging/signal-registration'
 import setupRoutes from './routes/setup'
 import shiftsRoutes from './routes/shifts'
 import telephonyRoutes from './routes/telephony'
@@ -60,6 +61,12 @@ api.route('/invites', invitesRoutes)
 
 // Device provisioning (mixed auth — room creation is public, payload submission is authenticated)
 api.route('/provision', provisioningRoutes)
+
+// Signal registration (authenticated admin routes — must be before webhook router)
+const signalAdmin = new Hono<AppEnv>()
+signalAdmin.use('*', auth)
+signalAdmin.route('/', signalRegistrationRoutes)
+api.route('/messaging/signal', signalAdmin)
 
 // Messaging webhooks (each adapter validates its own signature)
 api.route('/messaging', messagingRoutes)

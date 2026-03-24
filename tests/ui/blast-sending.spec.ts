@@ -2,12 +2,6 @@ import { test, expect } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 test.describe('Blast campaign UI', () => {
-  test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })
@@ -26,13 +20,14 @@ test.describe('Blast campaign UI', () => {
     await page.getByRole('button', { name: /new blast/i }).click()
     await expect(page.getByTestId('blast-name')).toBeVisible({ timeout: 10000 })
 
-    await page.getByTestId('blast-name').fill('UI Test Campaign')
+    const blastName = `UI Test Campaign ${Date.now()}`
+    await page.getByTestId('blast-name').fill(blastName)
     await page.getByTestId('blast-text').fill('Hello from the E2E test campaign')
 
     // Save/create the blast
     await page.getByRole('button', { name: /save|create/i }).click()
 
     // Blast should appear in the list
-    await expect(page.getByText('UI Test Campaign').first()).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(blastName).first()).toBeVisible({ timeout: 10000 })
   })
 })

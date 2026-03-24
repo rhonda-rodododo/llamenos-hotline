@@ -1,14 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
-// Tests depend on each other's server-side state (test 2 seeds data for 3-7)
-test.describe.configure({ mode: 'serial' })
-
 test.describe('Demo Mode', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   // --- Helpers ---
 
   async function goToSetup(page: import('@playwright/test').Page) {
@@ -51,6 +44,27 @@ test.describe('Demo Mode', () => {
     await expect(page.getByText('Review & Launch')).toBeVisible({ timeout: 5000 })
   }
 
+  /** Complete the full setup wizard with demo mode enabled */
+  async function completeSetupWithDemoMode(page: import('@playwright/test').Page) {
+    await navigateToSummaryWithDemoMode(page)
+
+    // Enable demo mode
+    const toggle = page.getByRole('switch')
+    await toggle.click()
+    await expect(toggle).toBeChecked()
+
+    // Complete setup
+    await page.getByRole('button', { name: /go to dashboard/i }).click()
+
+    // Should redirect to dashboard
+    await page.waitForURL('**/', { timeout: 30000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 15000 })
+  }
+
+  test.beforeEach(async ({ page, request }) => {
+    await resetTestState(request)
+  })
+
   // =====================================================================
   // Test 1: Demo mode toggle appears on summary step
   // =====================================================================
@@ -72,19 +86,7 @@ test.describe('Demo Mode', () => {
   // =====================================================================
   test('complete setup with demo mode creates demo accounts', async ({ page }) => {
     await loginAsAdmin(page)
-    await navigateToSummaryWithDemoMode(page)
-
-    // Enable demo mode
-    const toggle = page.getByRole('switch')
-    await toggle.click()
-    await expect(toggle).toBeChecked()
-
-    // Complete setup
-    await page.getByRole('button', { name: /go to dashboard/i }).click()
-
-    // Should redirect to dashboard
-    await page.waitForURL('**/', { timeout: 30000 })
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 15000 })
+    await completeSetupWithDemoMode(page)
 
     // Verify demo volunteers were created
     await page.getByRole('link', { name: 'Volunteers' }).click()
@@ -103,7 +105,10 @@ test.describe('Demo Mode', () => {
   // Test 3: Demo account picker visible on login page
   // =====================================================================
   test('login page shows demo account picker when demo mode is enabled', async ({ page }) => {
-    // Go to login page (demo mode should be enabled from previous test)
+    await loginAsAdmin(page)
+    await completeSetupWithDemoMode(page)
+
+    // Go to login page (demo mode should be enabled from setup above)
     await page.goto('/login')
     await page.waitForLoadState('domcontentloaded')
 
@@ -125,6 +130,10 @@ test.describe('Demo Mode', () => {
   // Test 4: One-click demo login works
   // =====================================================================
   test('clicking demo account logs in and redirects to dashboard', async ({ page }) => {
+    await loginAsAdmin(page)
+    await completeSetupWithDemoMode(page)
+
+    // Go to login page
     await page.goto('/login')
     await page.waitForLoadState('domcontentloaded')
 
@@ -147,6 +156,10 @@ test.describe('Demo Mode', () => {
   // =====================================================================
   test('demo banner shows when logged in', async ({ page }) => {
     await loginAsAdmin(page)
+    await completeSetupWithDemoMode(page)
+
+    // Re-login to see the banner
+    await loginAsAdmin(page)
 
     // Wait for config to load — the hotline name in the sidebar confirms config loaded
     await expect(page.getByRole('navigation')).toBeVisible({ timeout: 10000 })
@@ -168,6 +181,7 @@ test.describe('Demo Mode', () => {
   // =====================================================================
   test('demo shifts are populated', async ({ page }) => {
     await loginAsAdmin(page)
+    await completeSetupWithDemoMode(page)
 
     await page.getByRole('link', { name: 'Shifts' }).click()
     await expect(page.getByRole('heading', { name: 'Shift Schedule' })).toBeVisible({ timeout: 10000 })
@@ -183,6 +197,7 @@ test.describe('Demo Mode', () => {
   // =====================================================================
   test('demo bans are populated', async ({ page }) => {
     await loginAsAdmin(page)
+    await completeSetupWithDemoMode(page)
 
     await page.getByRole('link', { name: 'Ban List' }).click()
     await expect(page.getByRole('heading', { name: 'Ban List' })).toBeVisible({ timeout: 10000 })

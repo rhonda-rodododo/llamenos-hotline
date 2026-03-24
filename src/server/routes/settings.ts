@@ -51,12 +51,16 @@ settings.put('/custom-fields', requirePermission('settings:manage-fields'), asyn
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const body = await c.req.json()
+  const fields = Array.isArray(body) ? body : body.fields
+  if (!Array.isArray(fields)) {
+    return c.json({ error: 'fields must be an array' }, 400)
+  }
   const updated = await services.settings.updateCustomFields(
-    body as Parameters<typeof services.settings.updateCustomFields>[0],
+    fields as Parameters<typeof services.settings.updateCustomFields>[0],
     hubId ?? undefined
   )
   await services.records.addAuditEntry(hubId ?? 'global', 'customFieldsUpdated', pubkey, {})
-  return c.json(updated)
+  return c.json({ fields: updated })
 })
 
 // --- All remaining settings: require specific permissions ---

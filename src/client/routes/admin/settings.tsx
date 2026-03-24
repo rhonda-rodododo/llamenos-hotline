@@ -1,6 +1,7 @@
 import { CallSettingsSection } from '@/components/admin-settings/call-settings-section'
 import { ChannelSettings } from '@/components/admin-settings/channel-settings'
 import { CustomFieldsSection } from '@/components/admin-settings/custom-fields-section'
+import { ReportTypesSection } from '@/components/admin-settings/report-types-section'
 import { GeocodingSettingsSection } from '@/components/admin-settings/geocoding-settings-section'
 import { IvrLanguagesSection } from '@/components/admin-settings/ivr-languages-section'
 import { PasskeyPolicySection } from '@/components/admin-settings/passkey-policy-section'
@@ -24,6 +25,7 @@ import {
   getCustomFields,
   getGeocodingSettings,
   getIvrLanguages,
+  listReportTypes,
   getMessagingConfig,
   getSpamSettings,
   getTelephonyProvider,
@@ -39,6 +41,7 @@ import { IVR_LANGUAGES } from '@shared/languages'
 import {
   GEOCODING_PROVIDER_LABELS,
   type MessagingConfig,
+  type ReportType,
   type TelephonyProviderDraft,
 } from '@shared/types'
 import { createFileRoute, useSearch } from '@tanstack/react-router'
@@ -76,6 +79,7 @@ function AdminSettingsPage() {
   })
   const [messagingConfig, setMessagingConfig] = useState<MessagingConfig | null>(null)
   const [geocodingConfig, setGeocodingConfig] = useState<GeocodingConfigAdmin | null>(null)
+  const [reportTypes, setReportTypes] = useState<ReportType[]>([])
 
   const { expanded, toggleSection } = usePersistedExpanded(
     'settings-expanded:/admin/settings',
@@ -114,6 +118,9 @@ function AdminSettingsPage() {
         .catch(() => {}),
       getGeocodingSettings()
         .then(setGeocodingConfig)
+        .catch(() => {}),
+      listReportTypes()
+        .then((r) => setReportTypes(r.reportTypes))
         .catch(() => {}),
     ])
       .catch(() => toast(t('common.error'), 'error'))
@@ -196,6 +203,11 @@ function AdminSettingsPage() {
   const customFieldsStatus =
     customFieldDefs.length > 0
       ? `${customFieldDefs.length} ${t('settings.fields', { defaultValue: 'fields' })}`
+      : t('common.none', { defaultValue: 'None' })
+
+  const reportTypesStatus =
+    reportTypes.filter((rt) => !rt.archivedAt).length > 0
+      ? `${reportTypes.filter((rt) => !rt.archivedAt).length} ${t('settings.types', { defaultValue: 'types' })}`
       : t('common.none', { defaultValue: 'None' })
 
   const spamStatus = spam
@@ -293,6 +305,15 @@ function AdminSettingsPage() {
         expanded={expanded.has('custom-fields')}
         onToggle={(open) => toggleSection('custom-fields', open)}
         statusSummary={customFieldsStatus}
+      />
+
+      <ReportTypesSection
+        reportTypes={reportTypes}
+        customFields={customFieldDefs}
+        onChange={setReportTypes}
+        expanded={expanded.has('report-types')}
+        onToggle={(open) => toggleSection('report-types', open)}
+        statusSummary={reportTypesStatus}
       />
 
       {geocodingConfig && (

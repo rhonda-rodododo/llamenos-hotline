@@ -1,5 +1,5 @@
 import { type Page, expect, test } from '@playwright/test'
-import { loginAsAdmin, resetTestState } from '../helpers'
+import { loginAsAdmin } from '../helpers'
 
 /** Navigate to admin hub settings and expand the Report Types section */
 async function expandReportTypes(page: Page) {
@@ -21,13 +21,26 @@ async function navigateToReports(page: Page) {
   await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({ timeout: 10000 })
 }
 
+/** Create a report type via the UI. Returns after success toast is visible. */
+async function createReportType(page: Page, name: string, description: string, setAsDefault = true) {
+  await page.getByTestId('add-report-type-btn').click()
+  await page.getByTestId('report-type-name-input').fill(name)
+  await page.getByTestId('report-type-description-input').fill(description)
+
+  const defaultSwitch = page.getByRole('switch')
+  const isChecked = await defaultSwitch.isChecked()
+  if (setAsDefault && !isChecked) {
+    await defaultSwitch.click()
+  } else if (!setAsDefault && isChecked) {
+    await defaultSwitch.click()
+  }
+
+  await page.getByTestId('report-type-save-btn').click()
+  await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
+  await expect(page.getByText(name).first()).toBeVisible()
+}
+
 test.describe('Report Types System', () => {
-  test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })
@@ -41,27 +54,23 @@ test.describe('Report Types System', () => {
   test('admin can create a report type', async ({ page }) => {
     await expandReportTypes(page)
 
-    // Click new report type button
+    const typeName = `Crisis Report ${Date.now()}`
     await page.getByTestId('add-report-type-btn').click()
-
-    // Fill in the form
-    await page.getByTestId('report-type-name-input').fill('Crisis Report')
+    await page.getByTestId('report-type-name-input').fill(typeName)
     await page.getByTestId('report-type-description-input').fill('For immediate crisis situations')
-
-    // Check the "set as default" toggle (it's already checked since no types exist)
-    // Save the new type
     await page.getByTestId('report-type-save-btn').click()
 
-    // Verify success and the type appears in the list
     await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText('Crisis Report').first()).toBeVisible()
+    await expect(page.getByText(typeName).first()).toBeVisible()
   })
 
   test('created report type shows default badge', async ({ page }) => {
     await expandReportTypes(page)
 
-    // The Crisis Report we created should show Default badge since it was the first
-    const typeRow = page.getByTestId('report-type-row').filter({ hasText: 'Crisis Report' })
+    const typeName = `Default Type ${Date.now()}`
+    await createReportType(page, typeName, 'Default type test', true)
+
+    const typeRow = page.getByTestId('report-type-row').filter({ hasText: typeName })
     await expect(typeRow).toBeVisible()
     await expect(typeRow.getByText('Default')).toBeVisible()
   })
@@ -69,70 +78,93 @@ test.describe('Report Types System', () => {
   test('admin can create a second report type without default', async ({ page }) => {
     await expandReportTypes(page)
 
-    await page.getByTestId('add-report-type-btn').click()
-    await page.getByTestId('report-type-name-input').fill('Support Request')
-    await page.getByTestId('report-type-description-input').fill('For general support requests')
+    const suffix = Date.now()
+    // Create first type (will be default)
+    await createReportType(page, `First Type ${suffix}`, 'First type', true)
 
-    // Make sure "Set as default" is unchecked
-    const defaultSwitch = page.getByRole('switch')
-    if (await defaultSwitch.isChecked()) {
-      await defaultSwitch.click()
-    }
+    // Create second type without default
+    const secondName = `Second Type ${suffix}`
+    await createReportType(page, secondName, 'For general support requests', false)
 
-    await page.getByTestId('report-type-save-btn').click()
-    await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText('Support Request').first()).toBeVisible()
+    await expect(page.getByText(secondName).first()).toBeVisible()
   })
 
   test('admin can set a different type as default', async ({ page }) => {
     await expandReportTypes(page)
 
-    // Find Support Request row and set as default
-    const supportRow = page.getByTestId('report-type-row').filter({ hasText: 'Support Request' })
+    const suffix = Date.now()
+    const firstName = `Crisis ${suffix}`
+    const secondName = `Support ${suffix}`
+
+    // Create two types - first is default
+    await createReportType(page, firstName, 'Crisis type', true)
+    await createReportType(page, secondName, 'Support type', false)
+
+    // Set second as default
+    const supportRow = page.getByTestId('report-type-row').filter({ hasText: secondName })
     await expect(supportRow).toBeVisible()
     await supportRow.getByTestId('set-default-btn').click()
 
-    // Support Request should now have the Default badge
+    // Support should now have Default badge
     await expect(supportRow.getByText('Default')).toBeVisible({ timeout: 5000 })
 
-    // Crisis Report should no longer have Default badge
-    const crisisRow = page.getByTestId('report-type-row').filter({ hasText: 'Crisis Report' })
+    // Crisis should no longer have Default badge
+    const crisisRow = page.getByTestId('report-type-row').filter({ hasText: firstName })
     await expect(crisisRow.getByText('Default')).not.toBeVisible()
   })
 
   test('admin can archive a report type', async ({ page }) => {
     await expandReportTypes(page)
 
-    // Archive "Support Request" (which is default — archiving should remove default)
-    const supportRow = page.getByTestId('report-type-row').filter({ hasText: 'Support Request' })
-    await expect(supportRow).toBeVisible()
+    const suffix = Date.now()
+    const defaultName = `Default ${suffix}`
+    const archiveName = `ToArchive ${suffix}`
 
-    // Reset default back to Crisis Report first
-    const crisisRow = page.getByTestId('report-type-row').filter({ hasText: 'Crisis Report' })
-    await crisisRow.getByTestId('set-default-btn').click()
-    await expect(crisisRow.getByText('Default')).toBeVisible({ timeout: 5000 })
+    // Create default type, then one to archive
+    await createReportType(page, defaultName, 'Default', true)
+    await createReportType(page, archiveName, 'Will be archived', false)
 
-    // Now archive Support Request
+    // Archive the second type
+    const archiveRow = page.getByTestId('report-type-row').filter({ hasText: archiveName })
+    await expect(archiveRow).toBeVisible()
     page.once('dialog', (dialog) => dialog.accept())
-    await supportRow.getByTestId('archive-report-type-btn').click()
+    await archiveRow.getByTestId('archive-report-type-btn').click()
 
-    // Support Request should disappear from active list
-    await expect(supportRow).not.toBeVisible({ timeout: 5000 })
+    // Should disappear from active list
+    await expect(archiveRow).not.toBeVisible({ timeout: 5000 })
   })
 
   test('archived report type can be shown and unarchived', async ({ page }) => {
     await expandReportTypes(page)
 
+    const suffix = Date.now()
+    const defaultName = `Default ${suffix}`
+    const archiveName = `Archived ${suffix}`
+
+    // Create two types, archive the second
+    await createReportType(page, defaultName, 'Default', true)
+    await createReportType(page, archiveName, 'Will be archived then unarchived', false)
+
+    const archiveRow = page.getByTestId('report-type-row').filter({ hasText: archiveName })
+    page.once('dialog', (dialog) => dialog.accept())
+    await archiveRow.getByTestId('archive-report-type-btn').click()
+    await expect(archiveRow).not.toBeVisible({ timeout: 5000 })
+
     // Show archived section
     await page.getByRole('button', { name: /show archived/i }).click()
-    await expect(page.getByTestId('report-type-row').filter({ hasText: 'Support Request' })).toBeVisible()
+    await expect(page.getByTestId('report-type-row').filter({ hasText: archiveName })).toBeVisible()
 
     // Unarchive it
     await page.getByTestId('unarchive-report-type-btn').click()
-    await expect(page.getByText('Support Request').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(archiveName).first()).toBeVisible({ timeout: 5000 })
   })
 
   test('report form shows report type dropdown when types exist', async ({ page }) => {
+    // Create a report type first
+    await expandReportTypes(page)
+    const typeName = `FormType ${Date.now()}`
+    await createReportType(page, typeName, 'For form test', true)
+
     await navigateToReports(page)
 
     // Open new report form
@@ -145,47 +177,60 @@ test.describe('Report Types System', () => {
   })
 
   test('default type is pre-selected in report form', async ({ page }) => {
+    await expandReportTypes(page)
+    const typeName = `DefaultSelect ${Date.now()}`
+    await createReportType(page, typeName, 'Default select test', true)
+
     await navigateToReports(page)
     await page.getByRole('button', { name: /new/i }).click()
     await expect(page.getByTestId('report-type-select')).toBeVisible({ timeout: 5000 })
 
-    // The select should show "Crisis Report" since it's the default
-    await expect(page.getByTestId('report-type-select')).toContainText('Crisis Report')
+    // The select should show the default type
+    await expect(page.getByTestId('report-type-select')).toContainText(typeName)
   })
 
   test('can change report type in form', async ({ page }) => {
+    await expandReportTypes(page)
+    const suffix = Date.now()
+    const defaultName = `Default ${suffix}`
+    const otherName = `Other ${suffix}`
+    await createReportType(page, defaultName, 'Default', true)
+    await createReportType(page, otherName, 'Other option', false)
+
     await navigateToReports(page)
     await page.getByRole('button', { name: /new/i }).click()
     await expect(page.getByTestId('report-type-select')).toBeVisible({ timeout: 5000 })
 
-    // Change to Support Request
+    // Change to the other type
     await page.getByTestId('report-type-select').click()
-    await page.getByText('Support Request').click()
-    await expect(page.getByTestId('report-type-select')).toContainText('Support Request')
+    await page.getByText(otherName).click()
+    await expect(page.getByTestId('report-type-select')).toContainText(otherName)
   })
 
   test('archived type not shown in report form dropdown', async ({ page }) => {
-    // First, archive Crisis Report
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
     await expandReportTypes(page)
 
-    const crisisRow = page.getByTestId('report-type-row').filter({ hasText: 'Crisis Report' })
-    // Set Support Request as default so we can archive Crisis Report
-    const supportRow = page.getByTestId('report-type-row').filter({ hasText: 'Support Request' })
-    await supportRow.getByTestId('set-default-btn').click()
-    await expect(supportRow.getByText('Default')).toBeVisible({ timeout: 5000 })
+    const suffix = Date.now()
+    const keepName = `Keep ${suffix}`
+    const archName = `ArchDrop ${suffix}`
 
+    // Create two types
+    await createReportType(page, keepName, 'Will stay active', true)
+    await createReportType(page, archName, 'Will be archived', false)
+
+    // Archive the second type
+    const archRow = page.getByTestId('report-type-row').filter({ hasText: archName })
     page.once('dialog', (dialog) => dialog.accept())
-    await crisisRow.getByTestId('archive-report-type-btn').click()
-    await expect(crisisRow).not.toBeVisible({ timeout: 5000 })
+    await archRow.getByTestId('archive-report-type-btn').click()
+    await expect(archRow).not.toBeVisible({ timeout: 5000 })
 
-    // Now open report form and verify Crisis Report is not in the dropdown
+    // Open report form and verify archived type is not in dropdown
     await navigateToReports(page)
     await page.getByRole('button', { name: /new/i }).click()
     await expect(page.getByTestId('report-type-select')).toBeVisible({ timeout: 5000 })
 
-    // Open the dropdown and verify Crisis Report is not there
+    // Open the dropdown and verify archived type is not there
     await page.getByTestId('report-type-select').click()
-    await expect(page.getByText('Crisis Report')).not.toBeVisible()
+    await expect(page.getByText(archName)).not.toBeVisible()
   })
 })

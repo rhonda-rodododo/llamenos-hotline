@@ -1,14 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, enterPin, resetTestState, TEST_PIN, navigateAfterLogin } from '../helpers'
+import { loginAsAdmin, enterPin, TEST_PIN, navigateAfterLogin } from '../helpers'
 
 test.describe('Telephony Provider Settings', () => {
-  // Tests depend on each other's server-side state (save in test N, verify in test N+1)
-  test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
     await page.getByRole('link', { name: 'Hub Settings' }).click()

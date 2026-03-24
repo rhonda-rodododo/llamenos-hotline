@@ -12,22 +12,19 @@ import {
 } from '../helpers'
 
 test.describe('Blasts — UI', () => {
-  test.describe.configure({ mode: 'serial' })
+  // Global setup handles initial reset; tests use unique data for isolation
 
-  let volunteerNsec: string
-
-  test.beforeAll(async ({ browser, request }) => {
-    await resetTestState(request)
-
-    // Create a volunteer for access control tests
-    const page = await browser.newPage()
+  /** Helper: create a volunteer and return nsec (logs in as admin, creates vol, closes admin page) */
+  async function setupVolunteer(page: import('@playwright/test').Page): Promise<string> {
     await loginAsAdmin(page)
-    volunteerNsec = await createVolunteerAndGetNsec(page, 'Blast Test Vol', uniquePhone())
+    const nsec = await createVolunteerAndGetNsec(page, `Blast Vol ${Date.now()}`, uniquePhone())
     await dismissNsecCard(page)
-    await page.close()
-  })
+    return nsec
+  }
 
   test('volunteer cannot access the blasts page (redirected or denied)', async ({ page }) => {
+    const volunteerNsec = await setupVolunteer(page)
+
     await loginAsVolunteer(page, volunteerNsec)
     await completeProfileSetup(page)
 
@@ -53,6 +50,8 @@ test.describe('Blasts — UI', () => {
   })
 
   test('volunteer cannot access blasts API endpoint', async ({ page }) => {
+    const volunteerNsec = await setupVolunteer(page)
+
     await loginAsVolunteer(page, volunteerNsec)
     await completeProfileSetup(page)
 

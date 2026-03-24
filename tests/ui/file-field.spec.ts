@@ -13,12 +13,6 @@ declare global {
  * file size/type validation errors, and note round-trip.
  */
 test.describe('File Custom Field', () => {
-  test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
 
@@ -91,13 +85,17 @@ test.describe('File Custom Field', () => {
   })
 
   test('admin can create a file custom field', async ({ page }) => {
-    await createFileCustomField(page, 'Attachment')
+    const label = `Attachment ${Date.now()}`
+    await createFileCustomField(page, label)
     // Field type badge should show "File"
-    const fieldRow = page.locator('[data-testid="custom-field-row"]').filter({ hasText: 'Attachment' })
+    const fieldRow = page.locator('[data-testid="custom-field-row"]').filter({ hasText: label })
     await expect(fieldRow).toBeVisible()
   })
 
   test('file custom field shows in note form', async ({ page }) => {
+    // Create the file field first
+    await createFileCustomField(page, `FileField ${Date.now()}`)
+
     await page.getByRole('link', { name: 'Notes' }).click()
     await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
 
@@ -121,7 +119,7 @@ test.describe('File Custom Field', () => {
         method: 'POST',
         body: JSON.stringify({
           channelType: 'web',
-          contactIdentifierHash: 'test-file-field-ctx',
+          contactIdentifierHash: `test-file-field-ctx-${Date.now()}`,
         }),
       })
       const data = await res.json()
@@ -199,7 +197,7 @@ test.describe('File Custom Field', () => {
     const conversationId = await page.evaluate(async () => {
       const res = await window.__authedFetch('/api/conversations', {
         method: 'POST',
-        body: JSON.stringify({ channelType: 'web', contactIdentifierHash: 'test-ctx-incomplete' }),
+        body: JSON.stringify({ channelType: 'web', contactIdentifierHash: `test-ctx-incomplete-${Date.now()}` }),
       })
       const data = await res.json()
       return data.id as string
@@ -243,20 +241,19 @@ test.describe('File Custom Field', () => {
   })
 
   test('file field validation: exceeding maxFileSize shows error', async ({ page }) => {
-    // Create a field with a tiny maxFileSize (1 byte) via API, then test client-side validation
-    // We test via direct UI — create a field with 1MB max and try to "upload" a larger file
+    // Create the file field first
+    await createFileCustomField(page, `Attachment ${Date.now()}`)
 
     // Navigate to notes to see the file field
     await page.getByRole('link', { name: 'Notes' }).click()
     await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
     await page.getByRole('button', { name: /new note/i }).click()
 
-    // The file field dropzone should be visible (from the "Attachment" field created earlier)
+    // The file field dropzone should be visible
     const dropzone = page.getByTestId('file-field-dropzone')
     await expect(dropzone).toBeVisible()
 
-    // We can't easily upload a real file in Playwright without mocking,
-    // but we can verify the dropzone is interactive and the field renders correctly
+    // Verify the dropzone is interactive and the field renders correctly
     await expect(dropzone).toBeEnabled()
   })
 

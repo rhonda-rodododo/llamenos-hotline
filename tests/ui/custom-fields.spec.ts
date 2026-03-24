@@ -6,7 +6,6 @@ async function expandCustomFields(page: Page) {
   await page.getByRole('link', { name: 'Hub Settings' }).click()
   await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
 
-  // Check if section is already expanded (sessionStorage persists across serial tests)
   const addFieldBtn = page.getByRole('button', { name: /add field/i })
   if (!await addFieldBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
     await page.getByRole('heading', { name: /custom note fields/i }).click()
@@ -15,14 +14,8 @@ async function expandCustomFields(page: Page) {
 }
 
 test.describe('Custom Note Fields', () => {
-  // Tests depend on each other's state (empty state → add → delete)
-  test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
+  test.beforeEach(async ({ page, request }) => {
     await resetTestState(request)
-  })
-
-  test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })
 
@@ -35,37 +28,38 @@ test.describe('Custom Note Fields', () => {
   test('admin can add a text custom field', async ({ page }) => {
     await expandCustomFields(page)
 
+    const fieldName = `Severity ${Date.now()}`
+
     // Click Add Field
     await page.getByRole('button', { name: /add field/i }).click()
 
     // Fill in field details using placeholders
-    await page.getByPlaceholder('e.g. Severity Rating').fill('Severity')
-    // Name should auto-generate — use exact match to avoid matching label placeholder
-    await expect(page.getByPlaceholder('e.g. severity', { exact: true })).toHaveValue('severity')
+    await page.getByPlaceholder('e.g. Severity Rating').fill(fieldName)
 
     // Save
     await page.getByRole('button', { name: /save/i }).last().click()
     await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
 
     // Field should appear in the list
-    await expect(page.getByText('Severity').first()).toBeVisible()
+    await expect(page.getByText(fieldName).first()).toBeVisible()
   })
 
   test('admin can add a select custom field with options', async ({ page }) => {
     await expandCustomFields(page)
 
+    const fieldName = `Category ${Date.now()}`
+
     // Click Add Field
     await page.getByRole('button', { name: /add field/i }).click()
 
     // Fill in field details
-    await page.getByPlaceholder('e.g. Severity Rating').fill('Category')
+    await page.getByPlaceholder('e.g. Severity Rating').fill(fieldName)
 
     // Change type to Select
     await page.locator('select').selectOption('select')
 
     // Add options
     await page.getByRole('button', { name: /add option/i }).click()
-    // Find the newly added option input (last textbox in the form)
     const optionInputs = page.getByRole('textbox')
     await optionInputs.last().fill('Crisis')
     await page.getByRole('button', { name: /add option/i }).click()
@@ -75,28 +69,30 @@ test.describe('Custom Note Fields', () => {
     await page.getByRole('button', { name: /save/i }).last().click()
     await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
 
-    // Field should appear in the list with Select type badge
-    await expect(page.getByText('Category').first()).toBeVisible()
+    // Field should appear in the list
+    await expect(page.getByText(fieldName).first()).toBeVisible()
   })
 
   test('admin can delete a custom field', async ({ page }) => {
     await expandCustomFields(page)
 
+    const fieldName = `ToDelete ${Date.now()}`
+
     // First create a field to delete
     await page.getByRole('button', { name: /add field/i }).click()
     await expect(page.getByPlaceholder('e.g. Severity Rating')).toBeVisible({ timeout: 10000 })
-    await page.getByPlaceholder('e.g. Severity Rating').fill('ToDelete')
+    await page.getByPlaceholder('e.g. Severity Rating').fill(fieldName)
     await page.getByRole('button', { name: /save/i }).last().click()
     await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText('ToDelete').first()).toBeVisible()
+    await expect(page.getByText(fieldName).first()).toBeVisible()
 
     // Delete it — accept the confirmation dialog
     page.on('dialog', dialog => dialog.accept())
-    const fieldRow = page.locator('.rounded-lg.border').filter({ hasText: 'ToDelete' }).first()
+    const fieldRow = page.locator('.rounded-lg.border').filter({ hasText: fieldName }).first()
     await fieldRow.locator('button').filter({ has: page.locator('.text-destructive') }).click()
 
     // Field should be removed
-    await expect(page.getByText('ToDelete')).not.toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(fieldName)).not.toBeVisible({ timeout: 5000 })
   })
 
   test('custom fields section deep link works', async ({ page }) => {

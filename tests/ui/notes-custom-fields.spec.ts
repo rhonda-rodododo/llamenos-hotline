@@ -6,44 +6,54 @@ import { loginAsAdmin, resetTestState } from '../helpers'
  * Tests the full lifecycle: create field → create note with field value →
  * verify badge display → edit note → verify pre-fill → update value.
  */
+
+/** Create a text custom field via admin settings UI */
+async function createCustomTextField(page: Page, label: string) {
+  await page.getByRole('link', { name: 'Hub Settings' }).click()
+  await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+
+  // Expand section (idempotent — won't collapse if already open via sessionStorage)
+  const addFieldBtn = page.getByRole('button', { name: /add field/i })
+  if (!await addFieldBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await page.getByRole('heading', { name: /custom note fields/i }).click()
+  }
+  await expect(addFieldBtn).toBeVisible({ timeout: 10000 })
+
+  // If a field with this label already exists, skip creation
+  const existing = page.locator('.rounded-lg.border').filter({ hasText: label })
+  if (await existing.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+    return
+  }
+
+  await addFieldBtn.click()
+  await page.getByPlaceholder('e.g. Severity Rating').fill(label)
+  await page.getByRole('button', { name: /save/i }).last().click()
+  await expect(page.getByText(/success/i)).toBeVisible({ timeout: 10000 })
+}
+
+/** Create a note with a custom field value and return the note text for identification */
+async function createNoteWithCustomField(page: Page, fieldLabel: string, fieldValue: string, noteText: string) {
+  await page.getByRole('link', { name: 'Notes' }).click()
+  await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
+
+  await page.getByRole('button', { name: /new note/i }).click()
+  await page.locator('#call-id').fill('cf-test-' + Date.now())
+  await page.locator('textarea').first().fill(noteText)
+  await page.getByLabel(fieldLabel).fill(fieldValue)
+  await page.getByRole('button', { name: /save/i }).click()
+
+  // Wait for note to appear
+  await expect(page.locator('p').filter({ hasText: noteText })).toBeVisible()
+}
+
 test.describe('Custom Fields in Notes', () => {
-  // Tests depend on each other's server-side state (field from test 1, note from test 2, etc.)
-  test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })
 
-  /** Create a text custom field via admin settings UI (idempotent — skips if field already exists) */
-  async function createCustomTextField(page: Page, label: string) {
-    await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
-
-    // Expand section (idempotent — won't collapse if already open via sessionStorage)
-    const addFieldBtn = page.getByRole('button', { name: /add field/i })
-    if (!await addFieldBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await page.getByRole('heading', { name: /custom note fields/i }).click()
-    }
-    await expect(addFieldBtn).toBeVisible({ timeout: 10000 })
-
-    // If a field with this label already exists (e.g. from a flaky retry), skip creation
-    const existing = page.locator('.rounded-lg.border').filter({ hasText: label })
-    if (await existing.first().isVisible({ timeout: 2000 }).catch(() => false)) {
-      return
-    }
-
-    await addFieldBtn.click()
-    await page.getByPlaceholder('e.g. Severity Rating').fill(label)
-    await page.getByRole('button', { name: /save/i }).last().click()
-    await expect(page.getByText(/success/i)).toBeVisible({ timeout: 10000 })
-  }
-
   test('custom fields appear in new note form', async ({ page }) => {
-    await createCustomTextField(page, 'Priority Level')
+    const fieldLabel = `Priority ${Date.now()}`
+    await createCustomTextField(page, fieldLabel)
 
     // Navigate to notes
     await page.getByRole('link', { name: 'Notes' }).click()
@@ -53,61 +63,50 @@ test.describe('Custom Fields in Notes', () => {
     await page.getByRole('button', { name: /new note/i }).click()
 
     // Custom field label should appear in the form
-    await expect(page.getByLabel('Priority Level')).toBeVisible()
+    await expect(page.getByLabel(fieldLabel)).toBeVisible()
   })
 
   test('create note with custom field value shows badge', async ({ page }) => {
-    // Field created in previous test persists (sequential, no reset between tests)
-    await page.getByRole('link', { name: 'Notes' }).click()
-    await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
+    const fieldLabel = `Priority ${Date.now()}`
+    await createCustomTextField(page, fieldLabel)
 
-    // Create a note with custom field
-    await page.getByRole('button', { name: /new note/i }).click()
-    await page.locator('#call-id').fill('cf-test-' + Date.now())
-
-    // Fill note text (first textarea in the new note form)
-    await page.locator('textarea').first().fill('Note with priority field')
-
-    // Fill the custom field
-    await page.getByLabel('Priority Level').fill('High')
-
-    // Save
-    await page.getByRole('button', { name: /save/i }).click()
-
-    // Note text should appear
-    await expect(page.locator('p').filter({ hasText: 'Note with priority field' })).toBeVisible()
+    const noteText = `Note with ${fieldLabel}`
+    await createNoteWithCustomField(page, fieldLabel, 'High', noteText)
 
     // Custom field value should appear as a badge
-    await expect(page.getByText('Priority Level: High')).toBeVisible()
+    await expect(page.getByText(`${fieldLabel}: High`)).toBeVisible()
   })
 
   test('edit form shows custom fields pre-filled', async ({ page }) => {
-    await page.getByRole('link', { name: 'Notes' }).click()
-    await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
+    const fieldLabel = `Priority ${Date.now()}`
+    await createCustomTextField(page, fieldLabel)
 
-    // Badge from previous test should be visible
-    await expect(page.getByText('Priority Level: High').first()).toBeVisible()
+    const noteText = `Prefill test ${Date.now()}`
+    await createNoteWithCustomField(page, fieldLabel, 'High', noteText)
 
-    // Click edit on the note that has our badge
-    const noteCard = page.locator('.py-4').filter({ hasText: 'Note with priority field' }).first()
+    // Click edit on the note
+    const noteCard = page.locator('.py-4').filter({ hasText: noteText }).first()
     await noteCard.locator('button[aria-label="Edit"]').click()
 
     // The custom field input should be pre-filled
-    const fieldInput = page.getByLabel('Priority Level')
+    const fieldInput = page.getByLabel(fieldLabel)
     await expect(fieldInput).toBeVisible()
     await expect(fieldInput).toHaveValue('High', { timeout: 10000 })
   })
 
   test('can update custom field value via edit', async ({ page }) => {
-    await page.getByRole('link', { name: 'Notes' }).click()
-    await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
+    const fieldLabel = `Priority ${Date.now()}`
+    await createCustomTextField(page, fieldLabel)
+
+    const noteText = `Update test ${Date.now()}`
+    await createNoteWithCustomField(page, fieldLabel, 'High', noteText)
 
     // Click edit on the specific note
-    const noteCard = page.locator('.py-4').filter({ hasText: 'Note with priority field' }).first()
+    const noteCard = page.locator('.py-4').filter({ hasText: noteText }).first()
     await noteCard.locator('button[aria-label="Edit"]').click()
 
     // Change the field value
-    const fieldInput = page.getByLabel('Priority Level')
+    const fieldInput = page.getByLabel(fieldLabel)
     await fieldInput.clear()
     await fieldInput.fill('Critical')
 
@@ -115,31 +114,34 @@ test.describe('Custom Fields in Notes', () => {
     await page.getByRole('button', { name: /save/i }).click()
 
     // Badge should show updated value on the edited note
-    await expect(noteCard.getByText('Priority Level: Critical')).toBeVisible()
-    await expect(noteCard.getByText('Priority Level: High')).not.toBeVisible()
+    await expect(noteCard.getByText(`${fieldLabel}: Critical`)).toBeVisible()
+    await expect(noteCard.getByText(`${fieldLabel}: High`)).not.toBeVisible()
   })
 
   test('edit preserves note text when changing field value', async ({ page }) => {
-    await page.getByRole('link', { name: 'Notes' }).click()
-    await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
+    const fieldLabel = `Priority ${Date.now()}`
+    await createCustomTextField(page, fieldLabel)
+
+    const noteText = `Preserve test ${Date.now()}`
+    await createNoteWithCustomField(page, fieldLabel, 'High', noteText)
 
     // Click edit on the specific note
-    const noteCard = page.locator('.py-4').filter({ hasText: 'Note with priority field' }).first()
+    const noteCard = page.locator('.py-4').filter({ hasText: noteText }).first()
     await noteCard.locator('button[aria-label="Edit"]').click()
 
     // Verify textarea has existing text
     const textarea = page.locator('textarea').first()
-    await expect(textarea).toHaveValue('Note with priority field')
+    await expect(textarea).toHaveValue(noteText)
 
     // Change field value without changing text
-    const fieldInput = page.getByLabel('Priority Level')
+    const fieldInput = page.getByLabel(fieldLabel)
     await fieldInput.clear()
     await fieldInput.fill('Low')
     await page.getByRole('button', { name: /save/i }).click()
 
     // Both text and field should be preserved on the specific note
-    await expect(noteCard.getByText('Note with priority field')).toBeVisible()
-    await expect(noteCard.getByText('Priority Level: Low')).toBeVisible()
+    await expect(noteCard.getByText(noteText)).toBeVisible()
+    await expect(noteCard.getByText(`${fieldLabel}: Low`)).toBeVisible()
   })
 })
 
