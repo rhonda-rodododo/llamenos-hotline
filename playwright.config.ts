@@ -39,19 +39,12 @@ export default defineConfig({
       dependencies: ["setup"],
     },
     {
-      // TEMPORARY: runs existing tests from tests/ root until Phase 2 moves them to tests/ui/
-      // Excludes api/ and ui/ subdirs to avoid duplicate execution with dedicated projects
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
-      testIgnore: [/bootstrap\.spec\.ts/, /asterisk-auto-config\.spec\.ts/, /api\//, /ui\//],
-      dependencies: ["setup"],
-    },
-    {
-      // Bootstrap tests run after main tests to avoid admin-deletion race conditions
+      // Bootstrap tests run after main UI tests to avoid admin-deletion race conditions
       name: "bootstrap",
+      testDir: "./tests/ui",
       use: { ...devices["Desktop Chrome"] },
       testMatch: /bootstrap\.spec\.ts/,
-      dependencies: ["chromium"],
+      dependencies: ["ui"],
     },
     {
       name: "mobile",
