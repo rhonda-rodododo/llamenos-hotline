@@ -464,6 +464,16 @@ export class TwilioAdapter implements TelephonyAdapter {
     return this.twiml('<Response/>')
   }
 
+  async testConnection() {
+    const { twilioCapabilities } = await import('./twilio-capabilities')
+    return twilioCapabilities.testConnection({
+      type: 'twilio',
+      phoneNumber: this.phoneNumber,
+      accountSid: this.accountSid,
+      authToken: this.authToken,
+    } as Parameters<typeof twilioCapabilities.testConnection>[0])
+  }
+
   // --- Helpers ---
 
   protected twiml(xml: string): TelephonyResponse {

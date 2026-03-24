@@ -21,6 +21,17 @@ export class SignalWireAdapter extends TwilioAdapter {
     return `https://${this.space}.signalwire.com/api/laml/2010-04-01/Accounts/${this.accountSid}`
   }
 
+  override async testConnection() {
+    const { signalwireCapabilities } = await import('./signalwire-capabilities')
+    return signalwireCapabilities.testConnection({
+      type: 'signalwire',
+      phoneNumber: this.phoneNumber,
+      accountSid: this.accountSid,
+      authToken: this.authToken,
+      signalwireSpace: this.space,
+    } as Parameters<typeof signalwireCapabilities.testConnection>[0])
+  }
+
   override async validateWebhook(request: Request): Promise<boolean> {
     // SignalWire uses the same X-Twilio-Signature HMAC-SHA1 validation as Twilio
     // but may send X-SignalWire-Signature header instead

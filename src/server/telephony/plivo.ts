@@ -458,4 +458,14 @@ export class PlivoAdapter implements TelephonyAdapter {
   emptyResponse(): TelephonyResponse {
     return this.plivoXml('')
   }
+
+  async testConnection() {
+    const { plivoCapabilities } = await import('./plivo-capabilities')
+    return plivoCapabilities.testConnection({
+      type: 'plivo',
+      phoneNumber: this.phoneNumber,
+      authId: this.authId,
+      authToken: this.authToken,
+    } as Parameters<typeof plivoCapabilities.testConnection>[0])
+  }
 }

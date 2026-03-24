@@ -514,4 +514,16 @@ export class VonageAdapter implements TelephonyAdapter {
   emptyResponse(): TelephonyResponse {
     return this.ncco([])
   }
+
+  async testConnection() {
+    const { vonageCapabilities } = await import('./vonage-capabilities')
+    return vonageCapabilities.testConnection({
+      type: 'vonage',
+      phoneNumber: this.phoneNumber,
+      apiKey: this.apiKey,
+      apiSecret: this.apiSecret,
+      applicationId: this.applicationId,
+      privateKey: this.privateKey,
+    } as Parameters<typeof vonageCapabilities.testConnection>[0])
+  }
 }

@@ -362,6 +362,18 @@ export class AsteriskAdapter implements TelephonyAdapter {
     }
   }
 
+  async testConnection() {
+    const { asteriskCapabilities } = await import('./asterisk-capabilities')
+    return asteriskCapabilities.testConnection({
+      type: 'asterisk',
+      phoneNumber: this.phoneNumber,
+      ariUrl: this.ariUrl,
+      ariUsername: this.ariUsername,
+      ariPassword: this.ariPassword,
+      bridgeCallbackUrl: this.bridgeCallbackUrl,
+    } as Parameters<typeof asteriskCapabilities.testConnection>[0])
+  }
+
   // --- Internal helpers ---
 
   private async bridgeRequest(method: string, path: string, body?: unknown): Promise<unknown> {

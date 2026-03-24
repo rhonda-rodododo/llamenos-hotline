@@ -1,3 +1,5 @@
+import type { ConnectionTestResult } from '@shared/types'
+
 // --- Webhook result types (provider-agnostic) ---
 
 export interface WebhookCallInfo {
@@ -139,6 +141,9 @@ export interface TelephonyAdapter {
 
   /** Return an empty/no-op response */
   emptyResponse(): TelephonyResponse
+
+  /** Test provider connectivity using stored credentials. Used by health monitoring. */
+  testConnection(): Promise<ConnectionTestResult>
 }
 
 export interface LanguageMenuParams {
