@@ -1,0 +1,173 @@
+import { test, expect } from '@playwright/test'
+import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { ADMIN_NSEC, resetTestState } from '../helpers'
+import type { AuthedRequest } from '../helpers/authed-request'
+import { createAuthToken } from '../../src/client/lib/crypto'
+import { nip19 } from 'nostr-tools'
+
+/**
+ * Upload a binary chunk with proper auth and Content-Type: application/octet-stream.
+ * The standard AuthedRequest.put sets Content-Type: application/json, so we
+ * bypass it for raw binary uploads.
+ */
+async function putChunk(
+  request: Parameters<typeof createAuthedRequestFromNsec>[0],
+  nsec: string,
+  path: string,
+  data: Buffer,
+) {
+  const decoded = nip19.decode(nsec)
+  if (decoded.type !== 'nsec') throw new Error('Expected nsec')
+  const token = createAuthToken(decoded.data, Date.now(), 'PUT', path)
+  return request.put(path, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/octet-stream',
+    },
+    data,
+  })
+}
+
+test.describe('File upload lifecycle', () => {
+  let authedApi: AuthedRequest
+
+  test.beforeAll(async ({ request }) => {
+    await resetTestState(request)
+  })
+
+  test.beforeEach(async ({ request }) => {
+    authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+  })
+
+  test('full upload flow: init → chunks → complete → download', async ({ request }) => {
+    // Create a conversation to attach the file to
+    const convRes = await authedApi.post('/api/conversations', {
+      channelType: 'web',
+      contactIdentifierHash: 'test-hash-file-upload',
+    })
+    const convData = await convRes.json()
+    const conversationId = convData.id as string
+    expect(typeof conversationId).toBe('string')
+
+    const adminPubkey = authedApi.pubkey
+    expect(typeof adminPubkey).toBe('string')
+
+    // Init upload
+    const initRes = await authedApi.post('/api/uploads/init', {
+      totalSize: 10,
+      totalChunks: 2,
+      conversationId,
+      recipientEnvelopes: [
+        {
+          pubkey: adminPubkey,
+          encryptedFileKey: 'test-key-hex',
+          ephemeralPubkey: 'test-ephem-hex',
+        },
+      ],
+      encryptedMetadata: [
+        {
+          pubkey: adminPubkey,
+          encryptedContent: 'test-meta-hex',
+          ephemeralPubkey: 'test-ephem-hex',
+        },
+      ],
+    })
+    expect(initRes.ok()).toBe(true)
+    const initData = await initRes.json()
+    const uploadId = initData.uploadId as string
+    expect(typeof uploadId).toBe('string')
+
+    // Upload chunk 0
+    const chunk0Res = await putChunk(
+      request,
+      ADMIN_NSEC,
+      `/api/uploads/${uploadId}/chunks/0`,
+      Buffer.from([1, 2, 3, 4, 5]),
+    )
+    expect(chunk0Res.ok()).toBe(true)
+    const chunk0Result = await chunk0Res.json()
+    expect(chunk0Result.completedChunks).toBe(1)
+    expect(chunk0Result.totalChunks).toBe(2)
+
+    // Upload chunk 1
+    const chunk1Res = await putChunk(
+      request,
+      ADMIN_NSEC,
+      `/api/uploads/${uploadId}/chunks/1`,
+      Buffer.from([6, 7, 8, 9, 10]),
+    )
+    expect(chunk1Res.ok()).toBe(true)
+
+    // Check status before completing
+    const statusRes = await authedApi.get(`/api/uploads/${uploadId}/status`)
+    const statusData = await statusRes.json()
+    expect(statusData.completedChunks).toBe(2)
+    expect(statusData.totalChunks).toBe(2)
+    expect(statusData.status).toBe('uploading')
+
+    // Complete the upload
+    const completeRes = await authedApi.post(`/api/uploads/${uploadId}/complete`)
+    expect(completeRes.ok()).toBe(true)
+    const completeData = await completeRes.json()
+    expect(completeData.fileId).toBe(uploadId)
+    expect(completeData.status).toBe('complete')
+
+    // Download content
+    const downloadRes = await authedApi.get(`/api/files/${uploadId}/content`)
+    expect(downloadRes.ok()).toBe(true)
+    const downloadBuf = await downloadRes.body()
+    const downloadedBytes = Array.from(new Uint8Array(downloadBuf))
+    expect(downloadedBytes).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+    // Get envelopes from DB
+    const envelopesRes = await authedApi.get(`/api/files/${uploadId}/envelopes`)
+    const envelopes = await envelopesRes.json()
+    expect(Array.isArray(envelopes)).toBe(true)
+    expect(envelopes[0].pubkey).toBe(adminPubkey)
+
+    // Get metadata from DB
+    const metaRes = await authedApi.get(`/api/files/${uploadId}/metadata`)
+    const meta = await metaRes.json()
+    expect(Array.isArray(meta)).toBe(true)
+    expect(meta[0].pubkey).toBe(adminPubkey)
+  })
+
+  test('cannot complete upload with missing chunks', async ({ request }) => {
+    const convRes = await authedApi.post('/api/conversations', {
+      channelType: 'web',
+      contactIdentifierHash: 'test-hash-missing-chunks',
+    })
+    const convData = await convRes.json()
+    const conversationId = convData.id as string
+
+    const adminPubkey = authedApi.pubkey
+
+    const initRes = await authedApi.post('/api/uploads/init', {
+      totalSize: 100,
+      totalChunks: 3,
+      conversationId,
+      recipientEnvelopes: [
+        { pubkey: adminPubkey, encryptedFileKey: 'k', ephemeralPubkey: 'e' },
+      ],
+      encryptedMetadata: [
+        { pubkey: adminPubkey, encryptedContent: 'm', ephemeralPubkey: 'e' },
+      ],
+    })
+    const initData = await initRes.json()
+    const uploadId = initData.uploadId as string
+
+    // Only upload 1 of 3 chunks
+    await putChunk(
+      request,
+      ADMIN_NSEC,
+      `/api/uploads/${uploadId}/chunks/0`,
+      Buffer.from([1, 2, 3]),
+    )
+
+    const completeRes = await authedApi.post(`/api/uploads/${uploadId}/complete`)
+    expect(completeRes.status()).toBe(400)
+    const completeBody = await completeRes.json()
+    expect(completeBody.completedChunks).toBe(1)
+    expect(completeBody.totalChunks).toBe(3)
+  })
+})
