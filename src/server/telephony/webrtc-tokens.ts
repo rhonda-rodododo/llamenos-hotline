@@ -1,3 +1,4 @@
+import type { PlivoConfig, TwilioConfig, VonageConfig } from '../../shared/schemas/providers'
 import type { TelephonyProviderConfig, TelephonyProviderType } from '../../shared/types'
 
 /**
@@ -13,16 +14,21 @@ export async function generateWebRtcToken(
 ): Promise<{ token: string; provider: TelephonyProviderType }> {
   switch (config.type) {
     case 'twilio':
-    case 'signalwire':
       return generateTwilioToken(config, identity)
+    case 'signalwire':
+      throw new Error('SignalWire WebRTC token generation not yet implemented')
     case 'vonage':
       return generateVonageToken(config, identity)
     case 'plivo':
       return generatePlivoToken(config, identity)
     case 'asterisk':
       throw new Error('Asterisk WebRTC requires JsSIP configuration (Epic 35)')
-    default:
-      throw new Error(`WebRTC not supported for provider: ${config.type}`)
+    case 'telnyx':
+      throw new Error('Telnyx WebRTC not yet implemented')
+    default: {
+      const _exhaustive: never = config
+      throw new Error(`WebRTC not supported for provider: ${(_exhaustive as TelephonyProviderConfig).type}`)
+    }
   }
 }
 
@@ -30,11 +36,13 @@ export async function generateWebRtcToken(
  * Check whether a provider config has WebRTC properly configured.
  */
 export function isWebRtcConfigured(config: TelephonyProviderConfig | null): boolean {
-  if (!config?.webrtcEnabled) return false
+  if (!config) return false
   switch (config.type) {
     case 'twilio':
+      return !!(config.webrtcEnabled && config.apiKeySid && config.apiKeySecret && config.twimlAppSid)
     case 'signalwire':
-      return !!(config.apiKeySid && config.apiKeySecret && config.twimlAppSid)
+      // SignalWire uses the same token flow as Twilio but config shape differs
+      return false
     case 'vonage':
       return !!(config.applicationId && config.privateKey)
     case 'plivo':
@@ -48,10 +56,10 @@ export function isWebRtcConfigured(config: TelephonyProviderConfig | null): bool
 // Twilio Access Tokens use a HS256 JWT with Voice grant
 
 async function generateTwilioToken(
-  config: TelephonyProviderConfig,
+  config: TwilioConfig,
   identity: string
 ): Promise<{ token: string; provider: TelephonyProviderType }> {
-  if (!config.apiKeySid || !config.apiKeySecret || !config.twimlAppSid || !config.accountSid) {
+  if (!config.apiKeySid || !config.apiKeySecret || !config.twimlAppSid) {
     throw new Error(
       'Missing Twilio WebRTC config: apiKeySid, apiKeySecret, twimlAppSid, accountSid'
     )
@@ -82,11 +90,11 @@ async function generateTwilioToken(
 // Vonage uses RS256 JWT with application_id and sub claims
 
 async function generateVonageToken(
-  config: TelephonyProviderConfig,
+  config: VonageConfig,
   identity: string
 ): Promise<{ token: string; provider: TelephonyProviderType }> {
-  if (!config.applicationId || !config.privateKey) {
-    throw new Error('Missing Vonage WebRTC config: applicationId, privateKey')
+  if (!config.privateKey) {
+    throw new Error('Missing Vonage WebRTC config: privateKey')
   }
 
   const now = Math.floor(Date.now() / 1000)
@@ -120,13 +128,9 @@ async function generateVonageToken(
 // The "token" is a time-limited credential pair
 
 async function generatePlivoToken(
-  config: TelephonyProviderConfig,
+  config: PlivoConfig,
   identity: string
 ): Promise<{ token: string; provider: TelephonyProviderType }> {
-  if (!config.authId || !config.authToken) {
-    throw new Error('Missing Plivo WebRTC config: authId, authToken')
-  }
-
   // Plivo browser SDK authenticates with a username (endpoint) and password
   // The token format encodes credentials + identity for the client
   const tokenData = {

@@ -36,7 +36,7 @@ import { type WebAuthnSettings, getWebAuthnSettings } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { IVR_LANGUAGES } from '@shared/languages'
-import { GEOCODING_PROVIDER_LABELS, type MessagingConfig } from '@shared/types'
+import { GEOCODING_PROVIDER_LABELS, type MessagingConfig, type TelephonyProviderDraft } from '@shared/types'
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 import { Settings2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -67,7 +67,7 @@ function AdminSettingsPage() {
   const [webauthnSettings, setWebauthnSettings] = useState<WebAuthnSettings | null>(null)
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([])
   const [providerConfig, setProviderConfig] = useState<TelephonyProviderConfig | null>(null)
-  const [providerDraft, setProviderDraft] = useState<Partial<TelephonyProviderConfig>>({
+  const [providerDraft, setProviderDraft] = useState<TelephonyProviderDraft>({
     type: 'twilio',
   })
   const [messagingConfig, setMessagingConfig] = useState<MessagingConfig | null>(null)

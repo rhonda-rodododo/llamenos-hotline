@@ -11,16 +11,16 @@ import {
   updateTelephonyProvider,
 } from '@/lib/api'
 import { useToast } from '@/lib/toast'
-import { TELEPHONY_PROVIDER_LABELS } from '@shared/types'
+import { TELEPHONY_PROVIDER_LABELS, type TelephonyProviderDraft } from '@shared/types'
 import { Radio, Save } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface Props {
   config: TelephonyProviderConfig | null
-  draft: Partial<TelephonyProviderConfig>
+  draft: TelephonyProviderDraft
   onConfigChange: (config: TelephonyProviderConfig) => void
-  onDraftChange: (draft: Partial<TelephonyProviderConfig>) => void
+  onDraftChange: (draft: TelephonyProviderDraft) => void
   expanded: boolean
   onToggle: (open: boolean) => void
   statusSummary?: string
@@ -41,8 +41,8 @@ export function TelephonyProviderSection({
   const [testResult, setTestResult] = useState<{ ok: boolean; error?: string } | null>(null)
   const [saving, setSaving] = useState(false)
 
-  function updateDraft(patch: Partial<TelephonyProviderConfig>) {
-    onDraftChange({ ...draft, ...patch })
+  function updateDraft(patch: Partial<TelephonyProviderDraft>) {
+    onDraftChange({ ...draft, ...patch } as TelephonyProviderDraft)
   }
 
   return (

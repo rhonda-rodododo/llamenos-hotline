@@ -6,8 +6,7 @@ import { completeSetup, getConfig, seedDemoData, setActiveHub, updateSetupState 
 import { useAuth } from '@/lib/auth'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
-import type { ChannelType } from '@shared/types'
-import type { SignalConfig, TelephonyProviderConfig, WhatsAppConfig } from '@shared/types'
+import type { ChannelType, SignalConfig, TelephonyProviderDraft, WhatsAppConfig } from '@shared/types'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, ArrowRight, KeyRound, SkipForward } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -27,7 +26,7 @@ export interface SetupData {
   organization: string
   language: string
   selectedChannels: ChannelType[]
-  telephonyProvider: Partial<TelephonyProviderConfig> | null
+  telephonyProvider: TelephonyProviderDraft | null
   whatsappConfig: Partial<WhatsAppConfig> | null
   signalConfig: Partial<SignalConfig> | null
   voiceSettings: { queueTimeout: number; voicemailEnabled: boolean; voicemailMaxDuration: number }

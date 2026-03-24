@@ -1,6 +1,5 @@
 import type { SMSConfig, TelephonyProviderConfig } from '../../../shared/types'
 import type { MessagingAdapter } from '../adapter'
-import { AsteriskSMSAdapter } from './asterisk'
 import { PlivoSMSAdapter } from './plivo'
 import { SignalWireSMSAdapter } from './signalwire'
 import { TwilioSMSAdapter } from './twilio'
@@ -77,33 +76,15 @@ export function createSMSAdapter(
     }
 
     case 'asterisk': {
-      // Asterisk has no native SMS -- delegate to Twilio if credentials available
-      if (telephonyConfig.accountSid && telephonyConfig.authToken) {
-        const twilioDelegate = new TwilioSMSAdapter(
-          telephonyConfig.accountSid,
-          telephonyConfig.authToken,
-          phoneNumber,
-          hmacSecret
-        )
-        return new AsteriskSMSAdapter(twilioDelegate)
-      }
+      // Asterisk has no native SMS — a dedicated SMS provider must be configured separately
       throw new Error(
-        'Asterisk requires separate SMS provider credentials. ' +
-          'Provide Twilio accountSid and authToken alongside Asterisk config for SMS support.'
+        'Asterisk does not support SMS. Configure a separate SMS provider (e.g., Twilio) for SMS support.'
       )
     }
 
-    default: {
-      // Default to Twilio for unknown/future providers
-      if (!telephonyConfig.accountSid || !telephonyConfig.authToken) {
-        throw new Error('SMS adapter requires accountSid and authToken')
-      }
-      return new TwilioSMSAdapter(
-        telephonyConfig.accountSid,
-        telephonyConfig.authToken,
-        phoneNumber,
-        hmacSecret
-      )
+    case 'telnyx': {
+      // Telnyx SMS adapter not yet implemented
+      throw new Error('Telnyx SMS adapter not yet implemented')
     }
   }
 }

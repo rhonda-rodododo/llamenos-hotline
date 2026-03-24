@@ -7,7 +7,7 @@ import {
   updateTelephonyProvider,
 } from '@/lib/api'
 import { useToast } from '@/lib/toast'
-import { TELEPHONY_PROVIDER_LABELS } from '@shared/types'
+import { TELEPHONY_PROVIDER_LABELS, type TelephonyProviderDraft } from '@shared/types'
 import { Check } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -28,11 +28,11 @@ export function VoiceSmsProviderForm({ data, onChange }: Props) {
   const { toast } = useToast()
   const [saving, setSaving] = useState(false)
 
-  const provider = data.telephonyProvider || { type: 'twilio' as TelephonyProviderType }
-  const selectedType = (provider.type || 'twilio') as TelephonyProviderType
+  const provider: TelephonyProviderDraft = data.telephonyProvider || { type: 'twilio' as TelephonyProviderType }
+  const selectedType = provider.type
 
-  function update(patch: Partial<TelephonyProviderConfig>) {
-    onChange({ telephonyProvider: { ...provider, ...patch }, providerValidated: false })
+  function update(patch: Partial<TelephonyProviderDraft>) {
+    onChange({ telephonyProvider: { ...provider, ...patch } as TelephonyProviderDraft, providerValidated: false })
   }
 
   const credentials = useMemo(

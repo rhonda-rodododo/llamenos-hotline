@@ -23,7 +23,7 @@ export type RecipientKeyEnvelope = RecipientEnvelope
 
 // --- Telephony Provider Config ---
 
-export type TelephonyProviderType = 'twilio' | 'signalwire' | 'vonage' | 'plivo' | 'asterisk'
+export type TelephonyProviderType = 'twilio' | 'signalwire' | 'vonage' | 'plivo' | 'asterisk' | 'telnyx'
 
 export const TELEPHONY_PROVIDER_LABELS: Record<TelephonyProviderType, string> = {
   twilio: 'Twilio',
@@ -31,66 +31,50 @@ export const TELEPHONY_PROVIDER_LABELS: Record<TelephonyProviderType, string> = 
   vonage: 'Vonage',
   plivo: 'Plivo',
   asterisk: 'Asterisk (Self-Hosted)',
+  telnyx: 'Telnyx',
 }
 
-export interface TelephonyProviderConfig {
-  type: TelephonyProviderType
-  phoneNumber: string // E.164 hotline number
+export type { TelephonyProviderConfig } from '@shared/schemas/providers'
 
-  // Twilio / SignalWire
+/**
+ * Flat draft type for form state when editing telephony provider settings.
+ * All fields are optional except `type`, making it safe to use as a work-in-progress
+ * buffer before assembling a valid discriminated union config for the API.
+ */
+export interface TelephonyProviderDraft {
+  type: TelephonyProviderType
+  phoneNumber?: string
+  // Twilio
   accountSid?: string
   authToken?: string
-  signalwireSpace?: string // SignalWire only: {space}.signalwire.com
-
+  webrtcEnabled?: boolean
+  apiKeySid?: string
+  apiKeySecret?: string
+  twimlAppSid?: string
+  // SignalWire
+  signalwireSpace?: string
   // Vonage
   apiKey?: string
   apiSecret?: string
   applicationId?: string
-  privateKey?: string // Vonage Application private key (PEM)
-
+  privateKey?: string
   // Plivo
   authId?: string
-  // authToken shared with Twilio field
-
-  // Asterisk ARI
-  ariUrl?: string // e.g. https://asterisk.example.com:8089/ari
+  // Asterisk
+  ariUrl?: string
   ariUsername?: string
   ariPassword?: string
-  bridgeCallbackUrl?: string // URL the ARI bridge posts webhooks to
-
-  // WebRTC (Twilio/SignalWire require extra API keys; Vonage/Plivo use existing creds)
-  webrtcEnabled?: boolean
-  apiKeySid?: string // Twilio/SignalWire API Key SID for Access Token generation
-  apiKeySecret?: string // Twilio/SignalWire API Key Secret
-  twimlAppSid?: string // Twilio/SignalWire TwiML App SID for browser calls
-
-  // SIP VoIP (mobile native clients — Linphone SDK, Epic 91)
-  sipDomain?: string // SIP REGISTER domain
-  sipUsername?: string // SIP REGISTER username
-  sipPassword?: string // SIP REGISTER password
-  sipEndpointUsername?: string // Plivo SIP endpoint username
-  sipEndpointPassword?: string // Plivo SIP endpoint password
-  spaceUrl?: string // SignalWire space URL
-  asteriskGateway?: string // Vonage→Asterisk SIP gateway host
-  asteriskSipUsername?: string // Vonage→Asterisk SIP credentials
-  asteriskSipPassword?: string // Vonage→Asterisk SIP credentials
+  bridgeCallbackUrl?: string
+  // Telnyx
+  texmlAppId?: string
 }
 
 // --- Call Preference ---
 
 export type CallPreference = 'phone' | 'browser' | 'both'
 
-/** Which credential fields each provider requires */
-export const PROVIDER_REQUIRED_FIELDS: Record<
-  TelephonyProviderType,
-  (keyof TelephonyProviderConfig)[]
-> = {
-  twilio: ['accountSid', 'authToken', 'phoneNumber'],
-  signalwire: ['accountSid', 'authToken', 'signalwireSpace', 'phoneNumber'],
-  vonage: ['apiKey', 'apiSecret', 'applicationId', 'phoneNumber'],
-  plivo: ['authId', 'authToken', 'phoneNumber'],
-  asterisk: ['ariUrl', 'ariUsername', 'ariPassword', 'phoneNumber'],
-}
+// PROVIDER_REQUIRED_FIELDS removed — use ProviderCapabilities.credentialSchema instead
+// See src/server/telephony/capabilities.ts
 
 // --- Geocoding / Location Types ---
 
@@ -587,4 +571,59 @@ export interface SignalRegistrationPending {
   expiresAt: string // ISO 8601
   status: 'pending' | 'complete' | 'failed'
   error?: string
+}
+
+// ── Provider capability result types ──
+
+export interface ConnectionTestResult {
+  connected: boolean
+  latencyMs: number
+  accountName?: string
+  error?: string
+  errorType?: 'invalid_credentials' | 'network_error' | 'rate_limited' | 'account_suspended' | 'unknown'
+}
+
+export interface WebhookUrlSet {
+  voiceIncoming?: string
+  voiceStatus?: string
+  voiceFallback?: string
+  smsIncoming?: string
+  smsStatus?: string
+  whatsappIncoming?: string
+  signalIncoming?: string
+  rcsIncoming?: string
+}
+
+export interface PhoneNumberInfo {
+  number: string
+  country: string
+  locality?: string
+  capabilities: { voice: boolean; sms: boolean; mms: boolean }
+  monthlyFee?: string
+  owned: boolean
+}
+
+export interface NumberSearchQuery {
+  country: string
+  areaCode?: string
+  contains?: string
+  limit?: number
+}
+
+export interface ProvisionResult {
+  ok: boolean
+  number?: string
+  error?: string
+}
+
+export interface AutoConfigResult {
+  ok: boolean
+  error?: string
+  details?: Record<string, unknown>
+}
+
+export interface SipTrunkOptions {
+  domain?: string
+  username?: string
+  password?: string
 }

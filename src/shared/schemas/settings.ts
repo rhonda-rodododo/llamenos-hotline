@@ -1,4 +1,5 @@
 import { z } from 'zod/v4'
+import { TelephonyProviderConfigSchema } from './providers'
 
 export const HubSchema = z.object({
   id: z.string(),
@@ -93,10 +94,7 @@ export type TranscriptionSettings = z.infer<typeof TranscriptionSettingsSchema>
 export const IvrLanguagesSchema = z.array(z.string())
 export type IvrLanguages = z.infer<typeof IvrLanguagesSchema>
 
-export const TelephonyConfigSchema = z.object({
-  provider: z.string(),
-  config: z.record(z.string(), z.unknown()),
-})
+export const TelephonyConfigSchema = TelephonyProviderConfigSchema
 export type TelephonyConfig = z.infer<typeof TelephonyConfigSchema>
 
 export const MessagingChannelConfigSchema = z.object({
