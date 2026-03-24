@@ -273,13 +273,8 @@ export class SettingsService {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(telephonyConfig).where(eq(telephonyConfig.hubId, hId)).limit(1)
     if (!rows[0]) return null
-    const configVal = rows[0].config
-    if (!configVal) return null
-    // Handle jsonb column (object) vs text column (encrypted string)
-    if (typeof configVal === 'object') {
-      return configVal as unknown as TelephonyProviderConfig
-    }
-    const configStr = configVal as string
+    const configStr = rows[0].config
+    if (!configStr) return null
     let json: string
     try {
       json = decryptProviderCredentials(configStr, this.serverSecret)
@@ -407,12 +402,7 @@ export class SettingsService {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(messagingConfig).where(eq(messagingConfig.hubId, hId)).limit(1)
     if (!rows[0] || !rows[0].config) return { ...DEFAULT_MESSAGING_CONFIG }
-    const configVal = rows[0].config
-    // Handle jsonb column (object) vs text column (encrypted string)
-    if (typeof configVal === 'object') {
-      return configVal as unknown as MessagingConfig
-    }
-    const configStr = configVal as string
+    const configStr = rows[0].config
     let json: string
     try {
       json = decryptProviderCredentials(configStr, this.serverSecret)
