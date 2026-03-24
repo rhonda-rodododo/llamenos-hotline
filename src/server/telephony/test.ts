@@ -112,7 +112,7 @@ export class TestAdapter implements TelephonyAdapter {
     _lang: string,
     _audioUrls?: AudioUrlMap,
     queueTime?: number,
-    queueTimeout?: number,
+    queueTimeout?: number
   ): Promise<TelephonyResponse> {
     if (queueTime && queueTimeout && queueTime >= queueTimeout) {
       return this.twiml('<Response><Leave/></Response>')
@@ -145,17 +145,25 @@ export class TestAdapter implements TelephonyAdapter {
   // --- Call Control (no-ops for test) ---
 
   async hangupCall(_callSid: string): Promise<void> {}
-  async ringVolunteers(_params: RingVolunteersParams): Promise<string[]> { return [] }
+  async ringVolunteers(_params: RingVolunteersParams): Promise<string[]> {
+    return []
+  }
   async cancelRinging(_callSids: string[], _exceptSid?: string): Promise<void> {}
 
   // --- Webhook Validation (always passes) ---
 
-  async validateWebhook(_request: Request): Promise<boolean> { return true }
+  async validateWebhook(_request: Request): Promise<boolean> {
+    return true
+  }
 
   // --- Recording (not available in test) ---
 
-  async getCallRecording(_callSid: string): Promise<ArrayBuffer | null> { return null }
-  async getRecordingAudio(_recordingSid: string): Promise<ArrayBuffer | null> { return null }
+  async getCallRecording(_callSid: string): Promise<ArrayBuffer | null> {
+    return null
+  }
+  async getRecordingAudio(_recordingSid: string): Promise<ArrayBuffer | null> {
+    return null
+  }
 
   // --- Webhook Parsing (Twilio form-body format) ---
 
@@ -189,9 +197,14 @@ export class TestAdapter implements TelephonyAdapter {
     const form = await request.clone().formData()
     const raw = form.get('CallStatus') as string
     const STATUS_MAP: Record<string, WebhookCallStatus['status']> = {
-      initiated: 'initiated', ringing: 'ringing', 'in-progress': 'answered',
-      completed: 'completed', busy: 'busy', 'no-answer': 'no-answer',
-      failed: 'failed', canceled: 'failed',
+      initiated: 'initiated',
+      ringing: 'ringing',
+      'in-progress': 'answered',
+      completed: 'completed',
+      busy: 'busy',
+      'no-answer': 'no-answer',
+      failed: 'failed',
+      canceled: 'failed',
     }
     return { status: STATUS_MAP[raw] ?? 'failed' }
   }
@@ -205,7 +218,11 @@ export class TestAdapter implements TelephonyAdapter {
     const form = await request.clone().formData()
     const raw = form.get('QueueResult') as string
     const RESULT_MAP: Record<string, WebhookQueueResult['result']> = {
-      leave: 'leave', 'queue-full': 'queue-full', error: 'error', bridged: 'bridged', hangup: 'hangup',
+      leave: 'leave',
+      'queue-full': 'queue-full',
+      error: 'error',
+      bridged: 'bridged',
+      hangup: 'hangup',
     }
     return { result: RESULT_MAP[raw] ?? 'error' }
   }

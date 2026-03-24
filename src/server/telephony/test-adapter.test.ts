@@ -91,7 +91,11 @@ describe('TestAdapter', () => {
   })
 
   test('parseIncomingWebhook extracts form fields', async () => {
-    const body = new URLSearchParams({ CallSid: 'CA_abc', From: '+15551111111', To: '+15552222222' })
+    const body = new URLSearchParams({
+      CallSid: 'CA_abc',
+      From: '+15551111111',
+      To: '+15552222222',
+    })
     const req = new Request('http://localhost/telephony/incoming', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
