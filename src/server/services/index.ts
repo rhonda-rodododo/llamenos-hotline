@@ -37,10 +37,10 @@ export interface Services {
   reportTypes: ReportTypeService
 }
 
-export function createServices(db: Database, blob: BlobStorage | null = null): Services {
+export function createServices(db: Database, blob: BlobStorage | null = null, serverSecret = ''): Services {
   return {
     identity: new IdentityService(db),
-    settings: new SettingsService(db),
+    settings: new SettingsService(db, serverSecret),
     records: new RecordsService(db),
     shifts: new ShiftService(db),
     calls: new CallService(db),

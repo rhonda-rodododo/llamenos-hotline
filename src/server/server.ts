@@ -77,7 +77,7 @@ async function main() {
     console.warn('[llamenos] MinIO not configured — file upload/download routes will return 503')
   }
 
-  const services = createServices(db, blob)
+  const services = createServices(db, blob, env.SERVER_NOSTR_SECRET ?? '')
 
   // Schedule daily retention purge at 03:00 UTC
   scheduleRetentionPurge(services)

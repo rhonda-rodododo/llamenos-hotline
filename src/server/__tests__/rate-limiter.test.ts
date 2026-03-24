@@ -15,7 +15,7 @@ let service: SettingsService
 beforeAll(async () => {
   db = createDatabase(TEST_DB_URL)
   await migrate(db, { migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations') })
-  service = new SettingsService(db)
+  service = new SettingsService(db, '')
 })
 
 afterAll(async () => {

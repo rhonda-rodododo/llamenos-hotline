@@ -57,6 +57,7 @@ import {
   transcriptionSettings,
   volunteers,
 } from '../db/schema'
+import { decryptProviderCredentials, encryptProviderCredentials } from '../lib/crypto'
 import { AppError } from '../lib/errors'
 import type {
   CallSettings,
@@ -71,7 +72,14 @@ import type {
 } from '../types'
 
 export class SettingsService {
-  constructor(protected readonly db: Database) {}
+  private readonly serverSecret: string
+
+  constructor(
+    protected readonly db: Database,
+    serverSecret: string,
+  ) {
+    this.serverSecret = serverSecret
+  }
 
   // ------------------------------------------------------------------ Spam Settings
 
@@ -263,36 +271,53 @@ export class SettingsService {
 
   async getTelephonyProvider(hubId?: string): Promise<TelephonyProviderConfig | null> {
     const hId = hubId ?? 'global'
-    const rows = await this.db
-      .select()
-      .from(telephonyConfig)
-      .where(eq(telephonyConfig.hubId, hId))
-      .limit(1)
+    const rows = await this.db.select().from(telephonyConfig).where(eq(telephonyConfig.hubId, hId)).limit(1)
     if (!rows[0]) return null
-    return rows[0].config as unknown as TelephonyProviderConfig
+    const configStr = rows[0].config
+    if (!configStr) return null
+    let json: string
+    try {
+      json = decryptProviderCredentials(configStr, this.serverSecret)
+    } catch {
+      // Legacy plaintext — re-encrypt and update
+      json = configStr
+      const encrypted = encryptProviderCredentials(json, this.serverSecret)
+      await this.db
+        .update(telephonyConfig)
+        .set({ config: encrypted })
+        .where(eq(telephonyConfig.hubId, hId))
+    }
+    return JSON.parse(json) as TelephonyProviderConfig
   }
 
-  async updateTelephonyProvider(
-    config: TelephonyProviderConfig,
-    hubId?: string
-  ): Promise<TelephonyProviderConfig> {
+  async updateTelephonyProvider(config: TelephonyProviderConfig, hubId?: string): Promise<TelephonyProviderConfig> {
     const hId = hubId ?? 'global'
-    const configRecord = config as unknown as Record<string, unknown>
+    const encrypted = encryptProviderCredentials(JSON.stringify(config), this.serverSecret)
     await this.db
       .insert(telephonyConfig)
-      .values({ hubId: hId, config: configRecord })
+      .values({ hubId: hId, config: encrypted })
       .onConflictDoUpdate({
         target: telephonyConfig.hubId,
-        set: { config: configRecord, updatedAt: new Date() },
+        set: { config: encrypted, updatedAt: new Date() },
       })
     return config
   }
 
   async getHubByPhone(phone: string): Promise<Hub | null> {
-    // Fetch all telephony configs and filter by phone in config JSON
+    // Fetch all telephony configs and filter by phone in decrypted config
     const rows = await this.db.select().from(telephonyConfig)
     for (const row of rows) {
-      const cfg = row.config as Record<string, unknown>
+      if (!row.config) continue
+      let cfg: Record<string, unknown>
+      try {
+        cfg = JSON.parse(decryptProviderCredentials(row.config, this.serverSecret)) as Record<string, unknown>
+      } catch {
+        try {
+          cfg = JSON.parse(row.config) as Record<string, unknown>
+        } catch {
+          continue
+        }
+      }
       if (cfg.phoneNumber === phone) {
         // Look up the hub
         const hubRows = await this.db.select().from(hubs).where(eq(hubs.id, row.hubId)).limit(1)
@@ -375,29 +400,35 @@ export class SettingsService {
 
   async getMessagingConfig(hubId?: string): Promise<MessagingConfig> {
     const hId = hubId ?? 'global'
-    const rows = await this.db
-      .select()
-      .from(messagingConfig)
-      .where(eq(messagingConfig.hubId, hId))
-      .limit(1)
-    if (!rows[0]) return { ...DEFAULT_MESSAGING_CONFIG }
-    return rows[0].config as unknown as MessagingConfig
+    const rows = await this.db.select().from(messagingConfig).where(eq(messagingConfig.hubId, hId)).limit(1)
+    if (!rows[0] || !rows[0].config) return { ...DEFAULT_MESSAGING_CONFIG }
+    const configStr = rows[0].config
+    let json: string
+    try {
+      json = decryptProviderCredentials(configStr, this.serverSecret)
+    } catch {
+      // Legacy plaintext — re-encrypt and update
+      json = configStr
+      const encrypted = encryptProviderCredentials(json, this.serverSecret)
+      await this.db
+        .update(messagingConfig)
+        .set({ config: encrypted })
+        .where(eq(messagingConfig.hubId, hId))
+    }
+    return JSON.parse(json) as MessagingConfig
   }
 
-  async updateMessagingConfig(
-    data: Partial<MessagingConfig>,
-    hubId?: string
-  ): Promise<MessagingConfig> {
+  async updateMessagingConfig(data: Partial<MessagingConfig>, hubId?: string): Promise<MessagingConfig> {
     const hId = hubId ?? 'global'
     const current = await this.getMessagingConfig(hId)
     const updated = { ...current, ...data }
-    const updatedRecord = updated as unknown as Record<string, unknown>
+    const encrypted = encryptProviderCredentials(JSON.stringify(updated), this.serverSecret)
     await this.db
       .insert(messagingConfig)
-      .values({ hubId: hId, config: updatedRecord })
+      .values({ hubId: hId, config: encrypted })
       .onConflictDoUpdate({
         target: messagingConfig.hubId,
-        set: { config: updatedRecord, updatedAt: new Date() },
+        set: { config: encrypted, updatedAt: new Date() },
       })
     return updated
   }
