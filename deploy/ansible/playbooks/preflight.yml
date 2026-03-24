@@ -59,7 +59,7 @@
         that:
           - admin_pubkey is defined
           - admin_pubkey | length == 64
-          - admin_pubkey | regex_search('^[0-9a-f]{64}$')
+          - admin_pubkey | regex_search('^[0-9a-f]{64}$') is truthy
         fail_msg: >
           REQUIRED: 'admin_pubkey' must be a 64-character lowercase hex string (Nostr public key).
           Generate one with: bun run bootstrap-admin
@@ -70,7 +70,7 @@
         that:
           - admin_decryption_pubkey is defined
           - admin_decryption_pubkey | length == 64
-          - admin_decryption_pubkey | regex_search('^[0-9a-f]{64}$')
+          - admin_decryption_pubkey | regex_search('^[0-9a-f]{64}$') is truthy
         fail_msg: >
           REQUIRED: 'admin_decryption_pubkey' must be a 64-character lowercase hex string.
           Generate one with: bun run bootstrap-admin
@@ -91,7 +91,7 @@
         that:
           - server_nostr_secret is defined
           - server_nostr_secret | length == 64
-          - server_nostr_secret | regex_search('^[0-9a-f]{64}$')
+          - server_nostr_secret | regex_search('^[0-9a-f]{64}$') is truthy
         fail_msg: >
           REQUIRED: 'server_nostr_secret' must be exactly 64 lowercase hex characters.
           Generate one with: openssl rand -hex 32
