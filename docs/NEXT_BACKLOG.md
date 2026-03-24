@@ -279,3 +279,10 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 - [ ] **Hub-scoped API calls from non-hub-member volunteers** return 400 (hub context required) instead of 403 (permission denied) — tests accept both
 - [ ] **conversations.spec.ts** — setup wizard flow is fragile; mostly smoke tests; needs real message send/receive tests when providers are configured
 - [ ] **hub-access-control.spec.ts** — 1/4 tests fail (missing data-testid="hub-access-toggle")
+
+## App Bugs Found During Test Restructuring (2026-03-24)
+
+- [ ] **CAPTCHA retry not implemented** — `captchaMaxAttempts` setting exists and is persisted, but the server's `/telephony/captcha` route deletes challenge state after first attempt (one-shot). Wrong digits always return `<Hangup/>` regardless of remaining attempts. Route should track attempt count and re-Gather until max attempts reached. Test: `voice-captcha.spec.ts` test 5.4 (marked as `test.fixme`).
+- [ ] **Dashboard incoming calls require Nostr relay** — The dashboard `useCalls()` hook gets call events exclusively from the Nostr relay WebSocket subscription. There is no REST polling fallback for incoming calls. If the relay is down or the page reloads mid-call, the incoming call card does not appear. Tests: `call-flow.spec.ts` (skip when relay unavailable).
+- [ ] **Drizzle migration journal out of sync** — Migrations 0004, 0005, 0008, 0009, 0010 were in SQL files but missing from the journal or not applied to the dev database. Root cause: worktree-based development may have lost migration state. Applied manually during test restructuring.
+- [ ] **TwiML callback URLs use /api/telephony/ prefix** — The TwilioAdapter generates TwiML with action URLs like `/api/telephony/wait-music` and `/api/telephony/queue-exit`, but these routes are under the authenticated `/api/` mount. Twilio callbacks to these URLs would fail auth. Should use `/telephony/` (unauthenticated webhook routes).
