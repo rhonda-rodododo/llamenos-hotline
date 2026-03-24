@@ -2,6 +2,7 @@ import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hmac } from '@noble/hashes/hmac.js'
+import { hkdf } from '@noble/hashes/hkdf.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import {
@@ -9,6 +10,7 @@ import {
   HMAC_PHONE_PREFIX,
   LABEL_CALL_META,
   LABEL_MESSAGE,
+  LABEL_PROVIDER_CREDENTIAL_WRAP,
 } from '@shared/crypto-labels'
 import type { MessageKeyEnvelope } from '../types'
 
@@ -142,6 +144,33 @@ export function encryptCallRecordForStorage(
       ...eciesWrapKeyServer(recordKey, pk, LABEL_CALL_META),
     })),
   }
+}
+
+// ── Provider Credential Encryption ──
+
+function deriveProviderKey(serverSecret: string): Uint8Array {
+  return hkdf(sha256, hexToBytes(serverSecret), new Uint8Array(0), utf8ToBytes(LABEL_PROVIDER_CREDENTIAL_WRAP), 32)
+}
+
+export function encryptProviderCredentials(plaintext: string, serverSecret: string): string {
+  const key = deriveProviderKey(serverSecret)
+  const nonce = new Uint8Array(24)
+  crypto.getRandomValues(nonce)
+  const cipher = xchacha20poly1305(key, nonce)
+  const ciphertext = cipher.encrypt(utf8ToBytes(plaintext))
+  const packed = new Uint8Array(24 + ciphertext.length)
+  packed.set(nonce)
+  packed.set(ciphertext, 24)
+  return bytesToHex(packed)
+}
+
+export function decryptProviderCredentials(encrypted: string, serverSecret: string): string {
+  const bytes = hexToBytes(encrypted)
+  const nonce = bytes.slice(0, 24)
+  const ciphertext = bytes.slice(24)
+  const key = deriveProviderKey(serverSecret)
+  const cipher = xchacha20poly1305(key, nonce)
+  return new TextDecoder().decode(cipher.decrypt(ciphertext))
 }
 
 /**
