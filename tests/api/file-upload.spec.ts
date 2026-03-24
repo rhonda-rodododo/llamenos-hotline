@@ -40,14 +40,8 @@ test.describe('File upload lifecycle', () => {
   })
 
   test('full upload flow: init → chunks → complete → download', async ({ request }) => {
-    // Create a conversation to attach the file to
-    const convRes = await authedApi.post('/api/conversations', {
-      channelType: 'web',
-      contactIdentifierHash: 'test-hash-file-upload',
-    })
-    const convData = await convRes.json()
-    const conversationId = convData.id as string
-    expect(typeof conversationId).toBe('string')
+    // Use a dummy conversationId — file upload init does not validate it
+    const conversationId = `test-conv-file-upload-${Date.now()}`
 
     const adminPubkey = authedApi.pubkey
     expect(typeof adminPubkey).toBe('string')
@@ -133,13 +127,8 @@ test.describe('File upload lifecycle', () => {
   })
 
   test('cannot complete upload with missing chunks', async ({ request }) => {
-    const convRes = await authedApi.post('/api/conversations', {
-      channelType: 'web',
-      contactIdentifierHash: 'test-hash-missing-chunks',
-    })
-    const convData = await convRes.json()
-    const conversationId = convData.id as string
-
+    // Use a dummy conversationId — file upload init does not validate it
+    const conversationId = `test-conv-missing-chunks-${Date.now()}`
     const adminPubkey = authedApi.pubkey
 
     const initRes = await authedApi.post('/api/uploads/init', {

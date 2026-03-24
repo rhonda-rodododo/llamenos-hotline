@@ -229,6 +229,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'conversations:claim-rcs',
       'conversations:claim-web',
       'shifts:read-own',
+      'volunteers:read',
       'bans:report',
       'reports:read-assigned',
       'reports:send-message',

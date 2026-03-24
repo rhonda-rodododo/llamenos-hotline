@@ -36,7 +36,9 @@ export function createAuthedRequest(
   const pubkey = getPublicKey(secretKey)
 
   function authHeaders(method: string, path: string, extra?: Record<string, string>): Record<string, string> {
-    const token = createAuthToken(secretKey, Date.now(), method, path)
+    // Strip query params — server verifies against url.pathname only
+    const pathname = path.split('?')[0]
+    const token = createAuthToken(secretKey, Date.now(), method, pathname)
     return {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',

@@ -12,6 +12,8 @@ import { type APIRequestContext } from '@playwright/test'
 import { generateSecretKey, getPublicKey as nostrGetPubkey } from 'nostr-tools/pure'
 import { nip19 } from 'nostr-tools'
 import { bytesToHex } from '@noble/hashes/utils.js'
+import { createAuthedRequestFromNsec } from './helpers/authed-request'
+import { ADMIN_NSEC } from './helpers'
 
 interface CreateVolunteerResult {
   pubkey: string
@@ -62,9 +64,8 @@ export async function createVolunteerViaApi(
   const actualPubkey = nostrGetPubkey(sk)
   const nsec = nip19.nsecEncode(sk)
 
-  const res = await request.post('/api/volunteers', {
-    data: { name, phone, roleIds, pubkey: actualPubkey },
-  })
+  const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+  const res = await adminApi.post('/api/volunteers', { name, phone, roleIds, pubkey: actualPubkey })
 
   if (!res.ok()) {
     throw new Error(`Failed to create volunteer: ${res.status()} ${await res.text()}`)

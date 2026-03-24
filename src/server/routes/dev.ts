@@ -56,6 +56,7 @@ dev.post('/test-reset', async (c) => {
   await services.calls.resetForTest()
   await services.conversations.resetForTest()
   await services.files.resetForTest()
+  await services.settings.resetForTest()
   // Re-bootstrap admin and default hub so tests can log in immediately after reset
   if (c.env.ADMIN_PUBKEY) {
     try {
@@ -110,6 +111,7 @@ dev.post('/test-reset-no-admin', async (c) => {
   await services.calls.resetForTest()
   await services.conversations.resetForTest()
   await services.files.resetForTest()
+  await services.settings.resetForTest()
   // Delete the admin volunteer so bootstrap tests see needsBootstrap=true
   if (c.env.ADMIN_PUBKEY) {
     try {

@@ -616,6 +616,7 @@ export class SettingsService {
             hubId: hId,
             name: r.name,
             slug: r.slug,
+            description: r.description ?? '',
             permissions: r.permissions,
             isDefault: r.isDefault,
             createdAt: now,
@@ -656,6 +657,7 @@ export class SettingsService {
         hubId,
         name: data.name,
         slug: data.slug,
+        description: data.description ?? '',
         permissions: data.permissions,
         isDefault: false,
         createdAt: new Date(),
@@ -678,6 +680,7 @@ export class SettingsService {
       .set({
         ...(data.name ? { name: data.name } : {}),
         ...(data.permissions ? { permissions: data.permissions } : {}),
+        ...(data.description !== undefined ? { description: data.description } : {}),
       })
       .where(eq(roles.id, id))
       .returning()
@@ -922,7 +925,7 @@ export class SettingsService {
       permissions: r.permissions as string[],
       isDefault: r.isDefault,
       isSystem: r.id === 'role-super-admin',
-      description: '',
+      description: r.description ?? '',
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.createdAt.toISOString(),
     }

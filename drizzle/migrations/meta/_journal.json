@@ -31,6 +31,20 @@
       "breakpoints": true
     },
     {
+      "idx": 4,
+      "version": "7",
+      "when": 1742774400000,
+      "tag": "0004_file_record_context",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1742774400001,
+      "tag": "0005_message_delivery_status",
+      "breakpoints": true
+    },
+    {
       "idx": 6,
       "version": "7",
       "when": 1742860800000,
@@ -49,6 +63,13 @@
       "version": "7",
       "when": 1742947200001,
       "tag": "0008_encrypt_provider_config",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1742947200002,
+      "tag": "0009_role_description",
       "breakpoints": true
     }
   ]

@@ -34,6 +34,7 @@ export const roles = pgTable('roles', {
   hubId: text('hub_id'), // null = global role
   name: text('name').notNull(),
   slug: text('slug').notNull(),
+  description: text('description').notNull().default(''),
   permissions: jsonb<string[]>()('permissions').notNull().default([]),
   isDefault: boolean('is_default').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

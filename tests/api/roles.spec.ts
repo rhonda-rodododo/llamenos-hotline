@@ -104,7 +104,7 @@ test.describe('Role Management API', () => {
     })
     expect(res.status()).toBe(403)
     const body = await res.json()
-    expect(body.error).toContain('system')
+    expect(body.error).toContain('super-admin')
   })
 
   test('cannot delete default roles', async () => {
@@ -230,18 +230,21 @@ test.describe('Permission Enforcement', () => {
     expect(meBody.permissions).toContain('notes:create')
     expect(meBody.permissions).toContain('notes:read-own')
     expect(meBody.permissions).toContain('shifts:read-own')
+    expect(meBody.permissions).toContain('volunteers:read')
 
     // Should NOT have admin permissions
     expect(meBody.permissions).not.toContain('*')
-    expect(meBody.permissions).not.toContain('volunteers:read')
+    expect(meBody.permissions).not.toContain('volunteers:create')
     expect(meBody.permissions).not.toContain('settings:manage')
     expect(meBody.permissions).not.toContain('audit:read')
   })
 
   test('volunteer cannot access admin endpoints (403)', async () => {
-    // Volunteers don't have volunteers:read
-    const volunteerRes = await volunteerApi.get('/api/volunteers')
-    expect(volunteerRes.status()).toBe(403)
+    // Volunteers have volunteers:read but NOT volunteers:create
+    const volCreateRes = await volunteerApi.post('/api/volunteers', {
+      name: 'Hack Vol', phone: '+15551111111', pubkey: '00'.repeat(32), roleIds: ['role-volunteer'],
+    })
+    expect(volCreateRes.status()).toBe(403)
 
     // Volunteers don't have audit:read (may return 400 if hub context required, or 403)
     const auditRes = await volunteerApi.get('/api/audit')

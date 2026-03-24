@@ -65,7 +65,8 @@ test.describe('Hub membership management', () => {
     const volRes = await authedApi.get(`/api/volunteers/${vol.pubkey}`)
     const volRecord = await volRes.json()
 
-    const hubIds: string[] = (volRecord.volunteer?.hubRoles ?? []).map(
+    // Single volunteer endpoint returns projected volunteer directly (not wrapped in {volunteer: ...})
+    const hubIds: string[] = (volRecord.hubRoles ?? []).map(
       (r: { hubId: string }) => r.hubId,
     )
     expect(hubIds).toContain(hub1.id)

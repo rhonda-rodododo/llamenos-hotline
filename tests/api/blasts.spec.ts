@@ -19,7 +19,7 @@ test.describe('Blasts — API', () => {
       channel: 'sms',
       content: 'To be deleted via API',
     })
-    expect(createRes.status()).toBe(200)
+    expect(createRes.status()).toBe(201)
     const createData = await createRes.json() as { id: string }
     const blastId = createData.id
     expect(blastId).toBeTruthy()
