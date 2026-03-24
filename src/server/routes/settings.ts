@@ -153,7 +153,7 @@ settings.patch('/webauthn', requirePermission('settings:manage'), async (c) => {
 })
 
 // --- Provider health status ---
-settings.get('/provider-health', requirePermission('settings:manage'), async (c) => {
+settings.get('/provider-health', requirePermission('settings:read'), async (c) => {
   const healthService = c.get('services').providerHealth
   if (!healthService) return c.json({ error: 'Health service not available' }, 503)
   return c.json(healthService.getHealthStatus())
