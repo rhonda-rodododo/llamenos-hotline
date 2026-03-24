@@ -1,6 +1,6 @@
 # Health Monitoring + Admin Management Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Continuous background health monitoring for all active providers with real-time dashboard visibility, plus admin UI for switching providers, changing numbers, and rotating credentials.
 
@@ -38,7 +38,7 @@
 - Create: `src/server/services/provider-health.ts`
 - Test: `tests/provider-health.spec.ts`
 
-- [ ] **Step 1: Write health service test**
+- [x] **Step 1: Write health service test**
 
 ```typescript
 // tests/provider-health.spec.ts
@@ -111,13 +111,13 @@ test.describe('ProviderHealthService unit', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bunx playwright test tests/provider-health.spec.ts`
 Expected: FAIL — module not found
 (Note: the `bridge` project only matches `asterisk-*.spec.ts` — run without project filter for these server-side tests)
 
-- [ ] **Step 3: Implement ProviderHealthService**
+- [x] **Step 3: Implement ProviderHealthService**
 
 ```typescript
 // src/server/services/provider-health.ts
@@ -219,12 +219,12 @@ export class ProviderHealthService {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `bunx playwright test tests/provider-health.spec.ts`
 Expected: All 4 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server/services/provider-health.ts tests/provider-health.spec.ts
@@ -238,7 +238,7 @@ git commit -m "feat: ProviderHealthService with consecutive failure tracking"
 **Files:**
 - Modify: `src/server/routes/settings.ts`
 
-- [ ] **Step 1: Add the health endpoint**
+- [x] **Step 1: Add the health endpoint**
 
 ```typescript
 settings.get('/provider-health', requirePermission('settings:view'), async (c) => {
@@ -248,7 +248,7 @@ settings.get('/provider-health', requirePermission('settings:view'), async (c) =
 })
 ```
 
-- [ ] **Step 2: Add `providerHealth` to the Services interface**
+- [x] **Step 2: Add `providerHealth` to the Services interface**
 
 In `src/server/services/index.ts` (line 27-38), add to the `Services` interface:
 
@@ -261,7 +261,7 @@ export interface Services {
 
 Import `ProviderHealthService` at the top. Do NOT add it to `createServices()` — it's created separately in server.ts since it needs the full services object.
 
-- [ ] **Step 3: Wire health service into server startup**
+- [x] **Step 3: Wire health service into server startup**
 
 In `src/server/server.ts`, after services are initialized:
 
@@ -298,12 +298,12 @@ providerHealth.start(async () => {
 }, healthCheckInterval)
 ```
 
-- [ ] **Step 3: Run typecheck + build**
+- [x] **Step 3: Run typecheck + build**
 
 Run: `bun run typecheck && bun run build`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/server/routes/settings.ts src/server/server.ts
@@ -317,7 +317,7 @@ git commit -m "feat: health check API endpoint + background health service start
 **Files:**
 - Create: `src/client/components/admin-settings/provider-health-badge.tsx`
 
-- [ ] **Step 1: Create the component**
+- [x] **Step 1: Create the component**
 
 ```typescript
 // src/client/components/admin-settings/provider-health-badge.tsx
@@ -390,12 +390,12 @@ export function ProviderHealthBadge() {
 }
 ```
 
-- [ ] **Step 2: Run build to verify component compiles**
+- [x] **Step 2: Run build to verify component compiles**
 
 Run: `bun run build`
 Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/client/components/admin-settings/provider-health-badge.tsx
@@ -410,7 +410,7 @@ git commit -m "feat: ProviderHealthBadge UI component"
 - Modify: `src/client/components/admin-settings/telephony-provider-section.tsx`
 - Modify: `src/client/components/setup/PhoneNumberSelector.tsx`
 
-- [ ] **Step 1: Add switch/change/rotate action buttons to telephony-provider-section**
+- [x] **Step 1: Add switch/change/rotate action buttons to telephony-provider-section**
 
 Read the existing `telephony-provider-section.tsx` file first to understand the current structure. Then add:
 
@@ -421,7 +421,7 @@ Read the existing `telephony-provider-section.tsx` file first to understand the 
    - Change Number: PhoneNumberSelector + auto-configure webhooks + save
    - Rotate Credentials: credential fields only + test + save
 
-- [ ] **Step 2: Make PhoneNumberSelector reusable**
+- [x] **Step 2: Make PhoneNumberSelector reusable**
 
 Read `PhoneNumberSelector.tsx`. Remove any setup-wizard-specific assumptions. The component should accept props:
 - `provider: TelephonyProviderType`
@@ -434,12 +434,12 @@ Wire the API calls to the capabilities-based endpoints:
 - `/api/setup/provider/phone-numbers/search` for searching
 - `/api/setup/provider/phone-numbers/provision` for provisioning
 
-- [ ] **Step 3: Run typecheck + build**
+- [x] **Step 3: Run typecheck + build**
 
 Run: `bun run typecheck && bun run build`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/client/components/admin-settings/telephony-provider-section.tsx src/client/components/setup/PhoneNumberSelector.tsx
@@ -450,27 +450,27 @@ git commit -m "feat: admin provider management flows (switch/change/rotate)"
 
 ### Task 5: Final Verification
 
-- [ ] **Step 1: Run full typecheck**
+- [x] **Step 1: Run full typecheck**
 
 Run: `bun run typecheck`
 Expected: PASS
 
-- [ ] **Step 2: Run full build**
+- [x] **Step 2: Run full build**
 
 Run: `bun run build`
 Expected: PASS
 
-- [ ] **Step 3: Run all tests**
+- [x] **Step 3: Run all tests**
 
 Run: `bunx playwright test tests/provider-health.spec.ts tests/provider-setup-routes.spec.ts tests/provider-capabilities.spec.ts tests/asterisk-auto-config.spec.ts --project bridge`
 Expected: All PASS
 
-- [ ] **Step 4: Run full E2E suite**
+- [x] **Step 4: Run full E2E suite**
 
 Run: `bunx playwright test`
 Expected: No regressions
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git status

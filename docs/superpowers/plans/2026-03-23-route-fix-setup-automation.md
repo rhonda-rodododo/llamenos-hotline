@@ -1,6 +1,6 @@
 # Route Fix + Setup Automation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Mount the orphaned provider-setup routes, align the API contract with the frontend, and wire the full automated setup flow through the capabilities registry.
 
@@ -38,7 +38,7 @@
 **Files:**
 - Modify: `src/server/app.ts` (after line 171)
 
-- [ ] **Step 1: Write test that the routes are reachable**
+- [x] **Step 1: Write test that the routes are reachable**
 
 ```typescript
 // tests/provider-setup-routes.spec.ts
@@ -58,13 +58,13 @@ test.describe('provider setup routes', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to confirm the 404 bug**
+- [x] **Step 2: Run test to confirm the 404 bug**
 
 Run: `bunx playwright test tests/provider-setup-routes.spec.ts`
 Expected: FAIL — status is 404 (routes not mounted)
 (These tests need the webserver running — they run under the chromium project with global-setup)
 
-- [ ] **Step 3: Mount the routes in app.ts**
+- [x] **Step 3: Mount the routes in app.ts**
 
 In `src/server/app.ts`, add after line 171 (`authenticated.route('/setup', setupRoutes)`):
 
@@ -74,12 +74,12 @@ import providerSetupRoutes from './routes/provider-setup'
 authenticated.route('/setup/provider', providerSetupRoutes)
 ```
 
-- [ ] **Step 4: Run test to verify routes are mounted**
+- [x] **Step 4: Run test to verify routes are mounted**
 
 Run: `bunx playwright test tests/provider-setup-routes.spec.ts --project chromium`
 Expected: PASS — status is 400 or 401 (not 404)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server/app.ts tests/provider-setup-routes.spec.ts
@@ -93,7 +93,7 @@ git commit -m "fix: mount provider-setup routes in app.ts (fixes 404 on /api/set
 **Files:**
 - Rewrite: `src/server/routes/provider-setup.ts`
 
-- [ ] **Step 1: Add route tests for validate, phone-numbers, webhooks**
+- [x] **Step 1: Add route tests for validate, phone-numbers, webhooks**
 
 Append to `tests/provider-setup-routes.spec.ts`:
 
@@ -156,7 +156,7 @@ test.describe('provider setup API', () => {
 })
 ```
 
-- [ ] **Step 2: Rewrite `src/server/routes/provider-setup.ts`**
+- [x] **Step 2: Rewrite `src/server/routes/provider-setup.ts`**
 
 Full rewrite — generic paths, provider in body, delegates to capabilities:
 
@@ -299,12 +299,12 @@ providerSetup.get('/status', requirePermission('settings:manage'), async (c) => 
 export default providerSetup
 ```
 
-- [ ] **Step 3: Run tests**
+- [x] **Step 3: Run tests**
 
 Run: `bunx playwright test tests/provider-setup-routes.spec.ts --project chromium`
 Expected: All tests PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/server/routes/provider-setup.ts tests/provider-setup-routes.spec.ts
@@ -318,7 +318,7 @@ git commit -m "feat: rewrite provider-setup routes to match frontend API + capab
 **Files:**
 - Modify: `src/server/routes/settings.ts`
 
-- [ ] **Step 1: Replace the telephony-provider/test switch with capabilities**
+- [x] **Step 1: Replace the telephony-provider/test switch with capabilities**
 
 Find the `POST /telephony-provider/test` handler and replace the inline switch with:
 
@@ -338,7 +338,7 @@ settings.post('/telephony-provider/test', requirePermission('settings:manage'), 
 })
 ```
 
-- [ ] **Step 2: Add SMS test endpoint**
+- [x] **Step 2: Add SMS test endpoint**
 
 ```typescript
 import { MESSAGING_CAPABILITIES } from '../messaging/capabilities'
@@ -359,12 +359,12 @@ settings.post('/messaging/test', requirePermission('settings:manage-messaging'),
 })
 ```
 
-- [ ] **Step 3: Run typecheck + build**
+- [x] **Step 3: Run typecheck + build**
 
 Run: `bun run typecheck && bun run build`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/server/routes/settings.ts
@@ -378,7 +378,7 @@ git commit -m "feat: deduplicate provider test via capabilities, add SMS connect
 **Files:**
 - Verify: `src/client/lib/api.ts`
 
-- [ ] **Step 1: Read the frontend API functions and verify paths match**
+- [x] **Step 1: Read the frontend API functions and verify paths match**
 
 Check that these functions in `api.ts` call the correct paths:
 - `startProviderOAuth()` → `POST /api/setup/provider/oauth/start`
@@ -390,12 +390,12 @@ Check that these functions in `api.ts` call the correct paths:
 
 If any paths don't match, update them.
 
-- [ ] **Step 2: Run build to verify frontend compiles**
+- [x] **Step 2: Run build to verify frontend compiles**
 
 Run: `bun run build`
 Expected: PASS
 
-- [ ] **Step 3: Commit any changes**
+- [x] **Step 3: Commit any changes**
 
 ```bash
 git add src/client/lib/api.ts
@@ -406,27 +406,27 @@ git commit -m "fix: align frontend API paths with mounted provider-setup routes"
 
 ### Task 5: Final Integration Test
 
-- [ ] **Step 1: Run full typecheck**
+- [x] **Step 1: Run full typecheck**
 
 Run: `bun run typecheck`
 Expected: PASS
 
-- [ ] **Step 2: Run full build**
+- [x] **Step 2: Run full build**
 
 Run: `bun run build`
 Expected: PASS
 
-- [ ] **Step 3: Run all bridge + provider tests**
+- [x] **Step 3: Run all bridge + provider tests**
 
 Run: `bunx playwright test tests/provider-setup-routes.spec.ts tests/provider-capabilities.spec.ts tests/asterisk-auto-config.spec.ts --project bridge`
 Expected: All PASS
 
-- [ ] **Step 4: Run chromium tests for route smoke test**
+- [x] **Step 4: Run chromium tests for route smoke test**
 
 Run: `bunx playwright test tests/provider-setup-routes.spec.ts --project chromium`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git status

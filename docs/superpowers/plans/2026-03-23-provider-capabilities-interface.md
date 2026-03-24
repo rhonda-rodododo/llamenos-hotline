@@ -1,6 +1,6 @@
 # Provider Capabilities Interface + Zod Schemas Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Create a self-describing ProviderCapabilities interface + per-provider Zod schemas so adding new providers is formulaic.
 
@@ -39,7 +39,7 @@
 - Create: `src/shared/schemas/providers.ts`
 - Test: `tests/provider-capabilities.spec.ts`
 
-- [ ] **Step 1: Write the schema test file with validation tests**
+- [x] **Step 1: Write the schema test file with validation tests**
 
 ```typescript
 // tests/provider-capabilities.spec.ts
@@ -117,12 +117,12 @@ test.describe('provider Zod schemas', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bunx playwright test tests/provider-capabilities.spec.ts --project bridge`
 Expected: FAIL — module `../src/shared/schemas/providers` not found
 
-- [ ] **Step 3: Create the provider schemas file**
+- [x] **Step 3: Create the provider schemas file**
 
 ```typescript
 // src/shared/schemas/providers.ts
@@ -242,12 +242,12 @@ export const RCSConfigSchema = z.object({
 export type RCSConfig = z.infer<typeof RCSConfigSchema>
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bunx playwright test tests/provider-capabilities.spec.ts --project bridge`
 Expected: All 5 schema tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/shared/schemas/providers.ts tests/provider-capabilities.spec.ts
@@ -262,7 +262,7 @@ git commit -m "feat: per-provider Zod schemas with discriminated union"
 - Modify: `src/shared/types.ts` (lines 26, 28-34, 36-77, 84-93, 558)
 - Modify: `src/shared/schemas/settings.ts` (lines 96-100)
 
-- [ ] **Step 1: Add shared result types to `src/shared/types.ts`**
+- [x] **Step 1: Add shared result types to `src/shared/types.ts`**
 
 Add after the existing type definitions (after line ~560):
 
@@ -323,7 +323,7 @@ export interface SipTrunkOptions {
 }
 ```
 
-- [ ] **Step 2: Update `TelephonyProviderType` to add `'telnyx'` (line 26)**
+- [x] **Step 2: Update `TelephonyProviderType` to add `'telnyx'` (line 26)**
 
 ```typescript
 // Before:
@@ -333,11 +333,11 @@ export type TelephonyProviderType = 'twilio' | 'signalwire' | 'vonage' | 'plivo'
 export type TelephonyProviderType = 'twilio' | 'signalwire' | 'vonage' | 'plivo' | 'asterisk' | 'telnyx'
 ```
 
-- [ ] **Step 3: Update `TELEPHONY_PROVIDER_LABELS` (lines 28-34)**
+- [x] **Step 3: Update `TELEPHONY_PROVIDER_LABELS` (lines 28-34)**
 
 Add `telnyx: 'Telnyx'` entry.
 
-- [ ] **Step 4: Remove `PROVIDER_REQUIRED_FIELDS` (lines 84-93)**
+- [x] **Step 4: Remove `PROVIDER_REQUIRED_FIELDS` (lines 84-93)**
 
 Delete the entire `PROVIDER_REQUIRED_FIELDS` constant. Replace with a comment:
 
@@ -346,7 +346,7 @@ Delete the entire `PROVIDER_REQUIRED_FIELDS` constant. Replace with a comment:
 // See src/server/telephony/capabilities.ts
 ```
 
-- [ ] **Step 5: Re-export TelephonyProviderConfig from Zod schema**
+- [x] **Step 5: Re-export TelephonyProviderConfig from Zod schema**
 
 At the top of `types.ts`, add:
 
@@ -357,7 +357,7 @@ export type { TelephonyProviderConfig } from '@shared/schemas/providers'
 
 Remove the old manually-defined `TelephonyProviderConfig` interface (lines 36-77). Any existing imports of `TelephonyProviderConfig` from `types.ts` continue to work via re-export.
 
-- [ ] **Step 6: Audit consumers of `TelephonyConfigSchema` before changing it**
+- [x] **Step 6: Audit consumers of `TelephonyConfigSchema` before changing it**
 
 Run: `grep -rn 'TelephonyConfigSchema\|TelephonyConfig\b' src/ --include='*.ts' | grep -v node_modules`
 
@@ -379,7 +379,7 @@ export type TelephonyConfig = z.infer<typeof TelephonyConfigSchema>
 
 Remove `PROVIDER_REQUIRED_FIELDS` from `types.ts` and update all consumers atomically in this step.
 
-- [ ] **Step 7: Fix `createAdapterFromConfig()` switch in `src/server/lib/adapters.ts` (line 188)**
+- [x] **Step 7: Fix `createAdapterFromConfig()` switch in `src/server/lib/adapters.ts` (line 188)**
 
 Add telnyx case before the default:
 
@@ -388,17 +388,17 @@ case 'telnyx':
   throw new AppError('Telnyx runtime adapter not yet implemented — use Twilio or another provider for call handling', 501)
 ```
 
-- [ ] **Step 8: Run typecheck to find and fix all exhaustiveness errors**
+- [x] **Step 8: Run typecheck to find and fix all exhaustiveness errors**
 
 Run: `bun run typecheck`
 Expected: Errors in any switch/if-else on `TelephonyProviderType` that doesn't handle `'telnyx'`. Fix each one by adding the telnyx case (most will be a throw or skip).
 
-- [ ] **Step 9: Run build**
+- [x] **Step 9: Run build**
 
 Run: `bun run build`
 Expected: PASS
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/shared/types.ts src/shared/schemas/settings.ts src/shared/schemas/providers.ts src/server/lib/adapters.ts
@@ -412,7 +412,7 @@ git commit -m "feat: add telnyx to TelephonyProviderType, derive config from Zod
 **Files:**
 - Create: `src/server/telephony/capabilities.ts`
 
-- [ ] **Step 1: Write the capabilities interface and registry**
+- [x] **Step 1: Write the capabilities interface and registry**
 
 ```typescript
 // src/server/telephony/capabilities.ts
@@ -473,7 +473,7 @@ export const TELEPHONY_CAPABILITIES: Record<TelephonyProviderType, ProviderCapab
 }
 ```
 
-- [ ] **Step 2: Create stub capability files** so the registry imports resolve and the build doesn't break. Each stub exports a minimal capabilities object that throws on `testConnection()`:
+- [x] **Step 2: Create stub capability files** so the registry imports resolve and the build doesn't break. Each stub exports a minimal capabilities object that throws on `testConnection()`:
 
 For each provider (`twilio`, `signalwire`, `vonage`, `plivo`, `asterisk`, `telnyx`), create a stub like:
 
@@ -496,12 +496,12 @@ export const twilioCapabilities: ProviderCapabilities = {
 
 Create matching stubs for all 6 providers. Also create stub `src/server/messaging/capabilities.ts`.
 
-- [ ] **Step 3: Run typecheck + build to verify everything compiles**
+- [x] **Step 3: Run typecheck + build to verify everything compiles**
 
 Run: `bun run typecheck && bun run build`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/server/telephony/capabilities.ts src/server/telephony/*-capabilities.ts src/server/messaging/capabilities.ts
@@ -516,7 +516,7 @@ git commit -m "feat: ProviderCapabilities interface, registry, and stubs"
 - Create: `src/server/telephony/twilio-capabilities.ts`
 - Test: `tests/provider-capabilities.spec.ts` (append)
 
-- [ ] **Step 1: Add Twilio testConnection test**
+- [x] **Step 1: Add Twilio testConnection test**
 
 Append to `tests/provider-capabilities.spec.ts`:
 
@@ -585,12 +585,12 @@ test.describe('Twilio capabilities', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bunx playwright test tests/provider-capabilities.spec.ts --project bridge -g "Twilio capabilities"`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement Twilio capabilities**
+- [x] **Step 3: Implement Twilio capabilities**
 
 ```typescript
 // src/server/telephony/twilio-capabilities.ts
@@ -738,12 +738,12 @@ export const twilioCapabilities: ProviderCapabilities<TwilioConfig> = {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bunx playwright test tests/provider-capabilities.spec.ts --project bridge -g "Twilio"`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server/telephony/twilio-capabilities.ts tests/provider-capabilities.spec.ts
@@ -757,7 +757,7 @@ git commit -m "feat: Twilio capabilities with testConnection, number management,
 **Files:**
 - Create: `src/server/telephony/signalwire-capabilities.ts`
 
-- [ ] **Step 1: Implement SignalWire capabilities**
+- [x] **Step 1: Implement SignalWire capabilities**
 
 SignalWire uses a Twilio-compatible API. Same patterns as Twilio with different base URL (`https://{space}.signalwire.com/api/laml`).
 
@@ -866,7 +866,7 @@ export const signalwireCapabilities: ProviderCapabilities<SignalWireConfig> = {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/server/telephony/signalwire-capabilities.ts
@@ -880,7 +880,7 @@ git commit -m "feat: SignalWire capabilities (Twilio-compatible API)"
 **Files:**
 - Create: `src/server/telephony/vonage-capabilities.ts`
 
-- [ ] **Step 1: Implement Vonage capabilities**
+- [x] **Step 1: Implement Vonage capabilities**
 
 ```typescript
 // src/server/telephony/vonage-capabilities.ts
@@ -1000,7 +1000,7 @@ export const vonageCapabilities: ProviderCapabilities<VonageConfig> = {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/server/telephony/vonage-capabilities.ts
@@ -1014,7 +1014,7 @@ git commit -m "feat: Vonage capabilities with number management and webhook conf
 **Files:**
 - Create: `src/server/telephony/plivo-capabilities.ts`
 
-- [ ] **Step 1: Implement Plivo capabilities**
+- [x] **Step 1: Implement Plivo capabilities**
 
 ```typescript
 // src/server/telephony/plivo-capabilities.ts
@@ -1129,7 +1129,7 @@ export const plivoCapabilities: ProviderCapabilities<PlivoConfig> = {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/server/telephony/plivo-capabilities.ts
@@ -1144,7 +1144,7 @@ git commit -m "feat: Plivo capabilities with number management and webhook confi
 - Create: `src/server/telephony/asterisk-capabilities.ts`
 - Modify: `src/server/lib/ssrf-guard.ts` (add `validateSelfHostedUrl`)
 
-- [ ] **Step 0: Add `validateSelfHostedUrl()` to ssrf-guard.ts**
+- [x] **Step 0: Add `validateSelfHostedUrl()` to ssrf-guard.ts**
 
 This variant allows RFC 1918 private IPs (10.x, 172.16-31.x, 192.168.x) but still blocks loopback (127.x, ::1), link-local (169.254.x, fe80::), and other dangerous ranges. Used for self-hosted services like Asterisk.
 
@@ -1187,7 +1187,7 @@ function isLoopbackOrLinkLocal(hostname: string): boolean {
 }
 ```
 
-- [ ] **Step 1: Implement Asterisk capabilities**
+- [x] **Step 1: Implement Asterisk capabilities**
 
 Asterisk is self-hosted — no number provisioning or webhook auto-config. SSRF protection via `validateSelfHostedUrl()` for the `ariUrl` (allows private IPs, blocks loopback).
 
@@ -1243,7 +1243,7 @@ export const asteriskCapabilities: ProviderCapabilities<AsteriskConfig> = {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/server/telephony/asterisk-capabilities.ts
@@ -1257,7 +1257,7 @@ git commit -m "feat: Asterisk capabilities with SSRF-guarded ARI health check"
 **Files:**
 - Create: `src/server/telephony/telnyx-capabilities.ts`
 
-- [ ] **Step 1: Implement Telnyx capabilities**
+- [x] **Step 1: Implement Telnyx capabilities**
 
 Setup/validation only — no runtime adapter. Uses Bearer auth against Telnyx REST API.
 
@@ -1396,7 +1396,7 @@ export const telnyxCapabilities: ProviderCapabilities<TelnyxConfig> = {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/server/telephony/telnyx-capabilities.ts
@@ -1410,7 +1410,7 @@ git commit -m "feat: Telnyx capabilities (setup/validation only, no runtime adap
 **Files:**
 - Create: `src/server/messaging/capabilities.ts`
 
-- [ ] **Step 1: Create messaging capabilities interface and registry**
+- [x] **Step 1: Create messaging capabilities interface and registry**
 
 ```typescript
 // src/server/messaging/capabilities.ts
@@ -1557,7 +1557,7 @@ export const MESSAGING_CAPABILITIES: Record<MessagingChannelType, MessagingChann
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/server/messaging/capabilities.ts
@@ -1571,7 +1571,7 @@ git commit -m "feat: messaging channel capabilities (SMS, WhatsApp, Signal, RCS)
 **Files:**
 - Modify: `tests/provider-capabilities.spec.ts`
 
-- [ ] **Step 1: Add testConnection mock tests for each non-Twilio provider**
+- [x] **Step 1: Add testConnection mock tests for each non-Twilio provider**
 
 Append to `tests/provider-capabilities.spec.ts`. Each test starts a mock HTTP server, calls `testConnection()`, and verifies the result:
 
@@ -1633,7 +1633,7 @@ for (const { name, importPath, configFactory, successResponse } of [
 }
 ```
 
-- [ ] **Step 2: Add Asterisk test (uses real Docker Asterisk)**
+- [x] **Step 2: Add Asterisk test (uses real Docker Asterisk)**
 
 ```typescript
 test.describe('asterisk capabilities', () => {
@@ -1654,7 +1654,7 @@ test.describe('asterisk capabilities', () => {
 })
 ```
 
-- [ ] **Step 3: Add capabilities registry test**
+- [x] **Step 3: Add capabilities registry test**
 
 ```typescript
 test('TELEPHONY_CAPABILITIES has all provider types', async () => {
@@ -1671,12 +1671,12 @@ test('TELEPHONY_CAPABILITIES has all provider types', async () => {
 })
 ```
 
-- [ ] **Step 4: Run all tests**
+- [x] **Step 4: Run all tests**
 
 Run: `bunx playwright test tests/provider-capabilities.spec.ts --project bridge`
 Expected: All PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/provider-capabilities.spec.ts
@@ -1690,7 +1690,7 @@ git commit -m "test: add testConnection mock tests for all providers + registry 
 **Files:**
 - Modify: `src/server/telephony/adapter.ts` (line 142)
 
-- [ ] **Step 1: Add method to interface**
+- [x] **Step 1: Add method to interface**
 
 After the last method in the `TelephonyAdapter` interface (around line 142), add:
 
@@ -1705,12 +1705,12 @@ Also add the import:
 import type { ConnectionTestResult } from '@shared/types'
 ```
 
-- [ ] **Step 2: Run typecheck to find all adapters that need the new method**
+- [x] **Step 2: Run typecheck to find all adapters that need the new method**
 
 Run: `bun run typecheck`
 Expected: Errors in twilio.ts, signalwire.ts, vonage.ts, plivo.ts, asterisk.ts — each needs `testConnection()`.
 
-- [ ] **Step 3: Add stub implementations to each adapter**
+- [x] **Step 3: Add stub implementations to each adapter**
 
 In each adapter file, add a `testConnection()` method that delegates to the corresponding capabilities:
 
@@ -1724,17 +1724,17 @@ async testConnection(): Promise<ConnectionTestResult> {
 
 (Each adapter stores its config — pass it to the capabilities `testConnection()`.)
 
-- [ ] **Step 4: Run typecheck**
+- [x] **Step 4: Run typecheck**
 
 Run: `bun run typecheck`
 Expected: PASS
 
-- [ ] **Step 5: Run all existing tests**
+- [x] **Step 5: Run all existing tests**
 
 Run: `bunx playwright test tests/asterisk-auto-config.spec.ts --project bridge`
 Expected: All 8 PASS (no regression)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/server/telephony/adapter.ts src/server/telephony/twilio.ts src/server/telephony/signalwire.ts src/server/telephony/vonage.ts src/server/telephony/plivo.ts src/server/telephony/asterisk.ts
@@ -1745,22 +1745,22 @@ git commit -m "feat: add testConnection() to TelephonyAdapter interface + all im
 
 ### Task 12: Final Integration — Build + Full Test Suite
 
-- [ ] **Step 1: Run typecheck**
+- [x] **Step 1: Run typecheck**
 
 Run: `bun run typecheck`
 Expected: PASS
 
-- [ ] **Step 2: Run build**
+- [x] **Step 2: Run build**
 
 Run: `bun run build`
 Expected: PASS
 
-- [ ] **Step 3: Run all provider tests**
+- [x] **Step 3: Run all provider tests**
 
 Run: `bunx playwright test tests/provider-capabilities.spec.ts tests/asterisk-auto-config.spec.ts --project bridge`
 Expected: All tests PASS
 
-- [ ] **Step 4: Final commit if any loose changes**
+- [x] **Step 4: Final commit if any loose changes**
 
 ```bash
 git status

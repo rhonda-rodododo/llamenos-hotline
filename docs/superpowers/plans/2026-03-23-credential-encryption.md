@@ -1,6 +1,6 @@
 # Credential Encryption Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Replace fake hex-encoding with real XChaCha20-Poly1305 symmetric encryption for all provider credentials at rest.
 
@@ -31,7 +31,7 @@
 - Modify: `src/server/lib/crypto.ts`
 - Test: `tests/credential-encryption.spec.ts`
 
-- [ ] **Step 1: Write the encryption roundtrip test**
+- [x] **Step 1: Write the encryption roundtrip test**
 
 ```typescript
 // tests/credential-encryption.spec.ts
@@ -80,7 +80,7 @@ test.describe('provider credential encryption', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bunx playwright test tests/credential-encryption.spec.ts --project server-unit`
 Expected: FAIL — `encryptProviderCredentials` not exported
@@ -96,7 +96,7 @@ Expected: FAIL — `encryptProviderCredentials` not exported
 > ```
 > Or alternatively, run without a project filter: `bunx playwright test tests/credential-encryption.spec.ts`
 
-- [ ] **Step 3: Implement encryption functions**
+- [x] **Step 3: Implement encryption functions**
 
 Add to `src/server/lib/crypto.ts`:
 
@@ -163,12 +163,12 @@ export function decryptProviderCredentials(encrypted: string, serverSecret: stri
 
 Note: `sha256`, `hexToBytes`, `bytesToHex`, and `xchacha20poly1305` should already be imported in crypto.ts. Verify and add any missing imports.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bunx playwright test tests/credential-encryption.spec.ts`
 Expected: All 4 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server/lib/crypto.ts tests/credential-encryption.spec.ts
@@ -182,7 +182,7 @@ git commit -m "feat: real XChaCha20-Poly1305 provider credential encryption"
 **Files:**
 - Modify: `src/server/provider-setup/index.ts` (lines 364-374)
 
-- [ ] **Step 1: Replace the fake encrypt/decrypt functions**
+- [x] **Step 1: Replace the fake encrypt/decrypt functions**
 
 Find the current fake functions (around lines 364-374):
 
@@ -225,16 +225,16 @@ constructor(settings: SettingsService, serverSecret: string) {
 
 Update the route handler that creates ProviderSetup to pass `c.env.SERVER_NOSTR_SECRET`.
 
-- [ ] **Step 2: Remove the unused LABEL_PROVIDER_CREDENTIAL_WRAP import** (it's now imported in crypto.ts)
+- [x] **Step 2: Remove the unused LABEL_PROVIDER_CREDENTIAL_WRAP import** (it's now imported in crypto.ts)
 
 Check if provider-setup/index.ts still needs the import for other reasons. If not, remove it.
 
-- [ ] **Step 3: Run typecheck**
+- [x] **Step 3: Run typecheck**
 
 Run: `bun run typecheck`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/server/provider-setup/index.ts
@@ -249,7 +249,7 @@ git commit -m "fix: replace fake hex-encoding with real encryption in ProviderSe
 - Modify: `src/server/db/schema/settings.ts`
 - Create: New Drizzle migration
 
-- [ ] **Step 1: Update schema definitions**
+- [x] **Step 1: Update schema definitions**
 
 In `src/server/db/schema/settings.ts`, find the `telephonyConfig` table definition and change `config` from `jsonb` to `text`:
 
@@ -271,21 +271,21 @@ config: jsonb<Record<string, unknown>>()('config').notNull().default({}),
 config: text('config').notNull().default(''),
 ```
 
-- [ ] **Step 2: Generate migration**
+- [x] **Step 2: Generate migration**
 
 Run: `bun run migrate:generate`
 Expected: New SQL migration file in `src/server/db/migrations/`
 
-- [ ] **Step 3: Review the generated migration SQL**
+- [x] **Step 3: Review the generated migration SQL**
 
 It should contain `ALTER TABLE ... ALTER COLUMN ... TYPE text`. If the migration looks correct, proceed.
 
-- [ ] **Step 4: Apply migration**
+- [x] **Step 4: Apply migration**
 
 Run: `bun run migrate`
 Expected: Migration applied successfully
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/server/db/schema/settings.ts src/server/db/migrations/
@@ -299,7 +299,7 @@ git commit -m "chore: migrate telephony/messaging config from jsonb to encrypted
 **Files:**
 - Modify: `src/server/services/settings.ts`
 
-- [ ] **Step 1: Add auto-migration test**
+- [x] **Step 1: Add auto-migration test**
 
 Append to `tests/credential-encryption.spec.ts`:
 
@@ -325,12 +325,12 @@ test.describe('auto-migration of plaintext data', () => {
 })
 ```
 
-- [ ] **Step 2: Run test**
+- [x] **Step 2: Run test**
 
 Run: `bunx playwright test tests/credential-encryption.spec.ts --project bridge`
 Expected: All tests PASS (including the new migration test)
 
-- [ ] **Step 3: Update SettingsService to encrypt/decrypt**
+- [x] **Step 3: Update SettingsService to encrypt/decrypt**
 
 In `src/server/services/settings.ts` (line 74), the current constructor is `constructor(protected readonly db: Database)`. Add `serverSecret`:
 
@@ -412,7 +412,7 @@ Apply the same pattern to `getMessagingConfig()` / `updateMessagingConfig()`.
 
 For `geocodingConfig.apiKey`, encrypt/decrypt inline in the get/update methods.
 
-- [ ] **Step 4: Update SettingsService construction in app.ts/server.ts**
+- [x] **Step 4: Update SettingsService construction in app.ts/server.ts**
 
 Where SettingsService is created, pass `env.SERVER_NOSTR_SECRET`:
 
@@ -420,22 +420,22 @@ Where SettingsService is created, pass `env.SERVER_NOSTR_SECRET`:
 const settings = new SettingsService(db, env.SERVER_NOSTR_SECRET)
 ```
 
-- [ ] **Step 5: Run typecheck**
+- [x] **Step 5: Run typecheck**
 
 Run: `bun run typecheck`
 Expected: PASS
 
-- [ ] **Step 6: Run build**
+- [x] **Step 6: Run build**
 
 Run: `bun run build`
 Expected: PASS
 
-- [ ] **Step 7: Run all tests**
+- [x] **Step 7: Run all tests**
 
 Run: `bunx playwright test tests/credential-encryption.spec.ts --project bridge`
 Expected: All PASS
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/server/services/settings.ts src/server/app.ts tests/credential-encryption.spec.ts
@@ -446,22 +446,22 @@ git commit -m "feat: encrypt provider credentials at rest in SettingsService"
 
 ### Task 5: Final Verification
 
-- [ ] **Step 1: Run full typecheck**
+- [x] **Step 1: Run full typecheck**
 
 Run: `bun run typecheck`
 Expected: PASS
 
-- [ ] **Step 2: Run full build**
+- [x] **Step 2: Run full build**
 
 Run: `bun run build`
 Expected: PASS
 
-- [ ] **Step 3: Run full E2E suite**
+- [x] **Step 3: Run full E2E suite**
 
 Run: `bunx playwright test --project bridge`
 Expected: All bridge tests pass (credential encryption + asterisk + provider oauth)
 
-- [ ] **Step 4: Verify no plaintext credentials in new writes**
+- [x] **Step 4: Verify no plaintext credentials in new writes**
 
 Start dev server, save a telephony provider config through the UI or API, then check the DB:
 
