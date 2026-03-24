@@ -13,7 +13,7 @@ export default defineConfig({
     timeout: 10_000,
   },
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:8788",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000",
     trace: "on-first-retry",
     actionTimeout: 10_000,
     navigationTimeout: 15_000,
@@ -46,14 +46,14 @@ export default defineConfig({
     {
       // Bridge integration tests — no browser, no webserver, no global setup needed
       name: "bridge",
-      testMatch: /asterisk-.*\.spec\.ts/,
+      testMatch: /asterisk-.*\.spec\.ts|provider-capabilities\.spec\.ts/,
     },
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: "bun run build && PORT=8788 bun run start",
-        url: "http://localhost:8788/api/health/ready",
+        command: "bun run build && bun run start",
+        url: "http://localhost:3000/api/health/ready",
         reuseExistingServer: !process.env.CI,
       },
 });
