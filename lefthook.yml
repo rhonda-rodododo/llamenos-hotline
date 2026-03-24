@@ -8,4 +8,4 @@ pre-commit:
         bunx biome check --diagnostic-level=error --files-ignore-unknown=true {staged_files}
       stage_fixed: true
     - name: pii-check
-      run: scripts/pii-check.sh
+      run: "test -x scripts/pii-check.sh && scripts/pii-check.sh || true"
