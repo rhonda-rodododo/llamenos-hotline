@@ -131,23 +131,29 @@ async function generateVonageToken(
 }
 
 // --- Plivo JWT ---
-// Plivo browser SDK uses auth credentials directly (Auth ID + Auth Token)
-// The "token" is a time-limited credential pair
+// Plivo browser SDK uses an Access Token JWT signed with the auth token secret.
+// The SDK parses the JWT to extract per.voice grants and derives the SIP username
+// as `${sub}_${iss}` where iss = authId and sub = endpoint identity.
 
 async function generatePlivoToken(
   config: PlivoConfig,
   identity: string
 ): Promise<{ token: string; provider: TelephonyProviderType }> {
-  // Plivo browser SDK authenticates with a username (endpoint) and password
-  // The token format encodes credentials + identity for the client
-  const tokenData = {
-    username: `${identity}@app.plivo.com`,
-    authId: config.authId,
-    // For security, we generate a time-limited HMAC rather than sending the raw auth token
-    exp: Math.floor(Date.now() / 1000) + 3600,
+  const now = Math.floor(Date.now() / 1000)
+  const header = { typ: 'JWT', alg: 'HS256' }
+  const payload = {
+    iss: config.authId,
+    sub: identity,
+    nbf: now,
+    exp: now + 3600,
+    per: {
+      voice: {
+        incoming_allow: true,
+        outgoing_allow: false,
+      },
+    },
   }
-  const hmac = await hmacSha256(config.authToken, JSON.stringify(tokenData))
-  const token = base64urlEncode(JSON.stringify({ ...tokenData, sig: hmac }))
+  const token = await signJwtHs256(header, payload, config.authToken)
   return { token, provider: 'plivo' }
 }
 
@@ -210,18 +216,4 @@ async function signJwtRs256(
   const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(data))
   const sigB64 = base64urlEncodeBytes(new Uint8Array(sig))
   return `${data}.${sigB64}`
-}
-
-async function hmacSha256(key: string, data: string): Promise<string> {
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(key),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  )
-  const sig = await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(data))
-  return Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
 }
