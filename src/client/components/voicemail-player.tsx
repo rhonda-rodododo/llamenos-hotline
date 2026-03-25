@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { type EncryptedNote, downloadFile, getFileEnvelopes, listNotes } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
@@ -143,6 +144,13 @@ export function VoicemailPlayer({ fileId, callId, canListen }: VoicemailPlayerPr
 
   return (
     <div data-testid="voicemail-player" className="space-y-2">
+      {/* Always show a voicemail badge so the element is visible even without audio/transcript */}
+      {!showAudioPlayer && !transcript && !transcriptLoading && (
+        <Badge variant="secondary" className="gap-1" data-testid="voicemail-badge">
+          <Voicemail className="h-3 w-3" />
+          {t('voicemail.label', { defaultValue: 'Voicemail' })}
+        </Badge>
+      )}
       {showAudioPlayer && (
         <div className="flex items-center gap-2">
           <Button

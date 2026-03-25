@@ -65,19 +65,21 @@ async function teardownVirtualAuthenticator(
 /** Navigate to /settings and open the passkeys section */
 async function openPasskeysSection(page: Page): Promise<void> {
   await navigateAfterLogin(page, '/settings')
-  // Expand passkeys section (it may be collapsed)
-  const passkeySection = page.locator('#passkeys')
-  const isVisible = await passkeySection.isVisible({ timeout: 3000 }).catch(() => false)
-  if (!isVisible) {
-    // Click the section header to expand
-    const sectionHeader = page.getByRole('button', { name: /passkey/i })
-    if (await sectionHeader.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await sectionHeader.click()
-    }
+  // Wait for the passkeys card to appear (requires webauthnAvailable)
+  await expect(page.locator('#passkeys')).toBeVisible({ timeout: 5000 })
+
+  // Check if the collapsible content is already expanded by looking for the input
+  const labelInput = page.getByTestId('passkey-label-input')
+  const alreadyExpanded = await labelInput.isVisible({ timeout: 500 }).catch(() => false)
+
+  if (!alreadyExpanded) {
+    // Click the card header (CollapsibleTrigger) to expand the section
+    await page.locator('#passkeys').locator('div[data-slot="card-header"]').click()
+    // Wait for collapsible animation to complete
+    await labelInput.waitFor({ state: 'visible', timeout: 5000 })
   }
-  // Wait for collapsible animation to complete before interacting with content
-  await page.waitForTimeout(300)
-  await expect(page.getByTestId('passkey-label-input')).toBeVisible({ timeout: 5000 })
+
+  await expect(labelInput).toBeVisible({ timeout: 5000 })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

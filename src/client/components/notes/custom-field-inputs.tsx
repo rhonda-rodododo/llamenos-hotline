@@ -1,3 +1,4 @@
+import { FileFieldInput } from '@/components/custom-fields/file-field-input'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LocationField } from '@/components/ui/location-field'
@@ -174,6 +175,15 @@ function renderFieldInput(
             ))}
           </SelectContent>
         </Select>
+      )
+    case 'file':
+      return (
+        <FileFieldInput
+          definition={field}
+          value={value as FileFieldValue | undefined}
+          onChange={(v) => onChange(v ?? '')}
+          disabled={disabled}
+        />
       )
     case 'location': {
       let locationValue: LocationFieldValue | null = null

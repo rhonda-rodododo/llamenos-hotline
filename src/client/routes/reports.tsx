@@ -205,15 +205,21 @@ function ReportsPage() {
     [selectedId, hasNsec, publicKey, adminDecryptionPubkey, toast, t]
   )
 
-  const handleReportCreated = useCallback((reportId: string) => {
-    // Refresh reports list and select the new one
-    listReports()
-      .then(({ conversations }) => {
-        setReports(conversations)
-        setSelectedId(reportId)
-      })
-      .catch(() => {})
-  }, [])
+  const handleReportCreated = useCallback(
+    (reportId: string) => {
+      // Refresh reports list with current filters and select the new one
+      const params: { status?: string; category?: string } = {}
+      if (statusFilter !== 'all') params.status = statusFilter
+      if (categoryFilter !== 'all') params.category = categoryFilter
+      listReports(params)
+        .then(({ conversations }) => {
+          setReports(conversations)
+          setSelectedId(reportId)
+        })
+        .catch(() => {})
+    },
+    [statusFilter, categoryFilter]
+  )
 
   const showEmptyState = !loading && reports.length === 0
 

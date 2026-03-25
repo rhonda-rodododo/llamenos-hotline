@@ -29,14 +29,37 @@ async function createReportViaUI(page: Page, title: string, details: string): Pr
   })
   await page.getByPlaceholder('Brief description of the report').fill(title)
   await page.getByPlaceholder('Describe the situation in detail...').fill(details)
+
+  // Set up response waiters BEFORE clicking submit so we don't miss the callbacks.
+  // The component POSTs the report, then calls listReports() to refresh.
+  const postResponse = page.waitForResponse(
+    (resp) => resp.url().includes('/api/reports') && resp.request().method() === 'POST',
+    { timeout: 30000 }
+  )
+  const listResponse = page.waitForResponse(
+    (resp) =>
+      resp.url().includes('/api/reports') &&
+      resp.request().method() === 'GET' &&
+      resp.status() === 200,
+    { timeout: 30000 }
+  )
+
   await page.getByRole('button', { name: /submit report/i }).click()
+
+  // Wait for the POST to succeed
+  await postResponse
+
   // Wait for form to close (sheet closes on successful submit).
   // Under concurrent load, ECIES encryption can be slow — allow generous timeout.
   await expect(page.getByPlaceholder('Brief description of the report')).not.toBeVisible({
     timeout: 30000,
   })
-  // Wait for the report to appear in the refreshed list
-  await expect(page.getByText(title).first()).toBeVisible({ timeout: 30000 })
+
+  // Wait for the list refresh GET triggered by handleReportCreated
+  await listResponse
+
+  // Wait for the report to appear in the rendered list
+  await expect(page.getByText(title).first()).toBeVisible({ timeout: 15000 })
 }
 
 /**

@@ -14,9 +14,18 @@ test.describe('Invite-based onboarding', () => {
     const volPhone = uniquePhone()
 
     await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(volName)
-    await page.getByLabel('Phone Number').fill(volPhone)
-    await page.getByLabel('Phone Number').blur()
+
+    // Wait for the invite form to render
+    const nameInput = page.getByLabel('Name')
+    await expect(nameInput).toBeVisible({ timeout: 10000 })
+    await nameInput.fill(volName)
+
+    // PhoneInput is a complex component — use the input with the invite-phone id
+    const phoneInput = page.locator('#invite-phone')
+    await expect(phoneInput).toBeVisible({ timeout: 5000 })
+    await phoneInput.fill(volPhone)
+    await phoneInput.blur()
+
     await page.getByRole('button', { name: /create invite/i }).click()
 
     // Invite link should appear
@@ -107,9 +116,18 @@ test.describe('Invite-based onboarding', () => {
     const volPhone = uniquePhone()
 
     await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(volName)
-    await page.getByLabel('Phone Number').fill(volPhone)
-    await page.getByLabel('Phone Number').blur()
+
+    // Wait for the invite form to render
+    const nameInput = page.getByLabel('Name')
+    await expect(nameInput).toBeVisible({ timeout: 10000 })
+    await nameInput.fill(volName)
+
+    // PhoneInput is a complex component — use the input with the invite-phone id
+    const phoneInput = page.locator('#invite-phone')
+    await expect(phoneInput).toBeVisible({ timeout: 5000 })
+    await phoneInput.fill(volPhone)
+    await phoneInput.blur()
+
     await page.getByRole('button', { name: /create invite/i }).click()
 
     // Close the invite link card

@@ -26,7 +26,10 @@ test.describe('Blast campaign UI', () => {
 
     // Save/create the blast and wait for the API response
     await Promise.all([
-      page.waitForResponse((res) => res.url().includes('/api/blasts') && res.status() < 400),
+      page.waitForResponse(
+        (res) =>
+          res.url().includes('/blasts') && res.request().method() === 'POST' && res.status() < 400
+      ),
       page.getByRole('button', { name: /save|create/i }).click(),
     ])
 
