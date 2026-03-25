@@ -102,7 +102,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@263435318d21b8e681c14492fe198571cfb76f00 # v6.12.0
         with:
-          context: ./asterisk-bridge
+          context: .
+          file: asterisk-bridge/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
