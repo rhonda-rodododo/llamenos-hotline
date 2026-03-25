@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.0] - 2026-03-25
+
+### Bug Fixes
+
+- persist voicemail to call_records and store encrypted audio in MinIO
+- voicemail webhook tests and upsert call records for persistence
+- remove mock.module leak in voicemail-storage tests
+
+### Documentation
+
+- add voicemail completion design spec
+- fix voicemail spec review issues
+- fix Vonage recording deletion — Media API DELETE exists
+- add voicemail Phase 1 implementation plan
+- fix Phase 1 plan review issues
+- add voicemail Phase 2 implementation plan
+- fix Phase 2 plan review issues
+- add voicemail Phase 3 implementation plan
+- fix Phase 3 plan review issues
+- fix Nostr event kind in voicemail spec (20001 → 1002)
+
+### Features
+
+- add LABEL_VOICEMAIL_WRAP and LABEL_VOICEMAIL_TRANSCRIPT crypto labels
+- add voicemailFileId, configurable size limits, and nullable conversationId
+- add deleteRecording() to TelephonyAdapter interface and all implementations
+- add binary encryption/decryption for voicemail audio storage
+- add voicemail storage orchestrator
+- use LABEL_VOICEMAIL_TRANSCRIPT for voicemail transcript encryption
+- add voicemail permissions and Voicemail Reviewer role
+- add voicemailMode + voicemailRetentionDays settings; fix callRecordingMaxBytes gap
+- add handleUnavailable to TelephonyAdapter interface and all implementations
+- wire voicemail mode routing into call flow
+- add voicemail mode selector and retention days UI to call settings
+- publish Nostr event and Web Push on voicemail storage
+- expose voicemailFileId in call history API and client types
+- VoicemailPlayer component with encrypted audio playback and transcript display
+- add webhook URL verification to TelephonyAdapter interface
+
+### Miscellaneous
+
+- v0.25.0 [skip ci]
+
 ## [0.24.0] - 2026-03-25
 
 ### Miscellaneous
