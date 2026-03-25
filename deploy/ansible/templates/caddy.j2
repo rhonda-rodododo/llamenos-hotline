@@ -29,6 +29,14 @@
 		reverse_proxy strfry:7777
 	}
 
+{% if 'asterisk' in compose_profiles %}
+	# WebSocket Secure proxy for SIP signaling (JsSIP → Asterisk PJSIP)
+	# Caddy terminates TLS; proxies plain WS to Asterisk's HTTP server.
+	handle /ws {
+		reverse_proxy asterisk:8088
+	}
+{% endif %}
+
 	# Everything else (SPA static files)
 	handle {
 		reverse_proxy app:3000
@@ -52,7 +60,7 @@
 		X-Permitted-Cross-Domain-Policies "none"
 
 		# Content Security Policy
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' wss://{{ domain }}/nostr; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' wss://{{ domain }}/nostr wss://{{ domain }}/ws; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 
 		# Permissions Policy (restrict browser features)
 		Permissions-Policy "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()"
