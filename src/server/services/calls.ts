@@ -104,6 +104,7 @@ export class CallService {
         hubId: data.hubId ?? 'global',
         volunteerPubkey: data.volunteerPubkey,
         phone: data.phone ?? null,
+        type: data.type ?? 'phone',
         status: data.status ?? 'ringing',
       })
       .returning()
@@ -188,6 +189,7 @@ export class CallService {
       hubId: r.hubId,
       volunteerPubkey: r.volunteerPubkey,
       phone: r.phone,
+      type: r.type,
       status: r.status,
       createdAt: r.createdAt,
     }

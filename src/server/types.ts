@@ -722,6 +722,7 @@ export interface CallLeg {
   hubId: string
   volunteerPubkey: string
   phone?: string | null
+  type: 'phone' | 'browser'
   status: string
   createdAt: Date
 }
@@ -732,6 +733,7 @@ export interface CreateCallLegData {
   hubId?: string
   volunteerPubkey: string
   phone?: string
+  type?: 'phone' | 'browser'
   status?: string
 }
 

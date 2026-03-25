@@ -1,5 +1,7 @@
-import { boolean, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import { jsonb } from '../bun-jsonb'
+
+export const callLegTypeEnum = pgEnum('call_leg_type', ['phone', 'browser'])
 
 export const activeCalls = pgTable('active_calls', {
   callSid: text('call_sid').primaryKey(),
@@ -17,6 +19,7 @@ export const callLegs = pgTable('call_legs', {
   hubId: text('hub_id').notNull().default('global'),
   volunteerPubkey: text('volunteer_pubkey').notNull(),
   phone: text('phone'),
+  type: callLegTypeEnum('type').notNull().default('phone'),
   status: text('status').notNull().default('ringing'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
