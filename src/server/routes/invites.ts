@@ -101,7 +101,7 @@ invites.post('/', authMiddleware, requirePermission('invites:create'), async (c)
   }
   const invite = await services.identity.createInvite({ ...body, createdBy: pubkey })
   await services.records.addAuditEntry('global', 'inviteCreated', pubkey, { name: body.name })
-  return c.json(invite, 201)
+  return c.json({ invite }, 201)
 })
 
 /**
