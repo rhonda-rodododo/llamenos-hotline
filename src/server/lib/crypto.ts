@@ -89,7 +89,8 @@ function eciesWrapKeyServer(
  */
 export function encryptMessageForStorage(
   plaintext: string,
-  readerPubkeys: string[]
+  readerPubkeys: string[],
+  label: string = LABEL_MESSAGE
 ): { encryptedContent: string; readerEnvelopes: MessageKeyEnvelope[] } {
   // Generate random per-message symmetric key
   const messageKey = new Uint8Array(32)
@@ -108,7 +109,7 @@ export function encryptMessageForStorage(
     encryptedContent: bytesToHex(packed),
     readerEnvelopes: readerPubkeys.map((pk) => ({
       pubkey: pk,
-      ...eciesWrapKeyServer(messageKey, pk, LABEL_MESSAGE),
+      ...eciesWrapKeyServer(messageKey, pk, label),
     })),
   }
   // messageKey goes out of scope — never stored

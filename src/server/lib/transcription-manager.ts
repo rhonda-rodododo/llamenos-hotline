@@ -1,3 +1,4 @@
+import { LABEL_VOICEMAIL_TRANSCRIPT } from '@shared/crypto-labels'
 import { encryptMessageForStorage } from '../lib/crypto'
 import type { Services } from '../services'
 import type { Env } from '../types'
@@ -101,9 +102,11 @@ export async function transcribeVoicemail(
         console.error('[transcription] ADMIN_PUBKEY not configured — cannot encrypt voicemail')
         return
       }
-      const { encryptedContent, readerEnvelopes } = encryptMessageForStorage(result.text, [
-        adminPubkey,
-      ])
+      const { encryptedContent, readerEnvelopes } = encryptMessageForStorage(
+        result.text,
+        [adminPubkey],
+        LABEL_VOICEMAIL_TRANSCRIPT
+      )
 
       await services.records.createNote({
         callId: callSid,
