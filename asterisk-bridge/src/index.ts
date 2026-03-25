@@ -146,37 +146,62 @@ async function main(): Promise<void> {
 
         try {
           const data = JSON.parse(body) as {
-            callSid: string
+            callSid?: string
+            parentCallSid?: string
             callerNumber: string
-            volunteers: Array<{ pubkey: string; phone: string }>
+            volunteers: Array<{ pubkey: string; phone?: string; browserIdentity?: string }>
             callbackUrl: string
           }
 
+          // Support both callSid and parentCallSid field names
+          const parentCallSid = data.parentCallSid ?? data.callSid ?? ''
           const channelIds: string[] = []
 
           for (const vol of data.volunteers) {
-            // Convert phone number to SIP endpoint
-            // Format: PJSIP/phone@trunk
-            const endpoint = `PJSIP/${vol.phone}@trunk`
+            // Ring phone leg (PJSIP trunk dial)
+            if (vol.phone) {
+              const endpoint = `PJSIP/${vol.phone}@trunk`
+              try {
+                const channel = await ari.originate({
+                  endpoint,
+                  callerId: data.callerNumber,
+                  timeout: 30,
+                  app: config.stasisApp,
+                  appArgs: `dialed,${parentCallSid},${vol.pubkey},phone`,
+                })
+                channelIds.push(channel.id)
 
-            try {
-              const channel = await ari.originate({
-                endpoint,
-                callerId: data.callerNumber,
-                timeout: 30,
-                app: config.stasisApp,
-                appArgs: `dialed,${data.callSid},${vol.pubkey}`,
-              })
-              channelIds.push(channel.id)
-
-              // Track ringing state
-              const parentCall = handler.getCall(data.callSid)
-              if (parentCall) {
-                parentCall.ringingChannels.push(channel.id)
+                const parentCall = handler.getCall(parentCallSid)
+                if (parentCall) {
+                  parentCall.ringingChannels.push(channel.id)
+                }
+                handler.trackRingingChannel(channel.id, parentCallSid)
+              } catch (err) {
+                console.error(`[bridge] Failed to ring ${vol.pubkey} (phone):`, err)
               }
-              handler.trackRingingChannel(channel.id, data.callSid)
-            } catch (err) {
-              console.error(`[bridge] Failed to ring ${vol.pubkey}:`, err)
+            }
+
+            // Ring browser leg (PJSIP endpoint provisioned via /provision-endpoint)
+            if (vol.browserIdentity) {
+              const endpoint = `PJSIP/${vol.browserIdentity}`
+              try {
+                const channel = await ari.originate({
+                  endpoint,
+                  callerId: data.callerNumber,
+                  timeout: 30,
+                  app: config.stasisApp,
+                  appArgs: `dialed,${parentCallSid},${vol.pubkey},browser`,
+                })
+                channelIds.push(channel.id)
+
+                const parentCall = handler.getCall(parentCallSid)
+                if (parentCall) {
+                  parentCall.ringingChannels.push(channel.id)
+                }
+                handler.trackRingingChannel(channel.id, parentCallSid)
+              } catch (err) {
+                console.error(`[bridge] Failed to ring ${vol.pubkey} (browser):`, err)
+              }
             }
           }
 
