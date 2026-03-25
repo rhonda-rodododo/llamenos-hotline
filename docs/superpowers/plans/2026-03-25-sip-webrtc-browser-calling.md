@@ -10,7 +10,11 @@
 
 **Spec:** `docs/superpowers/specs/2026-03-25-sip-webrtc-browser-calling-design.md`
 
-**Depends on:** Browser Calling plan (`docs/superpowers/plans/2026-03-24-browser-calling.md`) — `WebRTCAdapter` interface, `WebRTCManager`, `createAdapter()` factory must exist before Task 4.
+**Depends on:** Browser Calling plan (`docs/superpowers/plans/2026-03-24-browser-calling.md`) — `WebRTCAdapter` interface, `WebRTCManager`, `createAdapter()` factory must exist before Task 5.
+
+**IMPORTANT — Bridge route path convention:** The bridge uses flat paths (`/ring`, `/hangup`, `/provision-endpoint`). The existing `AsteriskAdapter` uses `/commands/` prefixed paths (`/commands/ring`, `/commands/hangup`). Verify which convention is actually working before implementing — there may be a pre-existing path mismatch or a proxy prefix. All new provisioner routes in this plan use flat paths to match the bridge's `index.ts` route handlers.
+
+**IMPORTANT — TURN credential mechanism:** coturn is configured with `use-auth-secret` (time-limited HMAC credentials per RFC 5766), NOT static username/password. The `AsteriskProvisioner` must compute TURN credentials at token generation time using `HMAC-SHA1(turnSecret, timestamp:identity)`. See Task 4 for implementation details.
 
 ---
 
@@ -291,7 +295,7 @@ import type { AriClient } from './ari-client'
  * dynamic config changes take effect immediately.
  */
 export async function provisionEndpoint(
-  ari: Pick<AriClient, 'configureDynamic'>,
+  ari: Pick<AriClient, 'configureDynamic' | 'deleteDynamic'>,
   pubkey: string,
 ): Promise<{ username: string; password: string }> {
   const username = `vol_${pubkey.slice(0, 12)}`
@@ -305,24 +309,37 @@ export async function provisionEndpoint(
   })
 
   // 2. AOR — single contact, qualify every 30s for health
-  await ari.configureDynamic('res_pjsip', 'aor', username, {
-    max_contacts: '1',
-    remove_existing: 'yes',
-    qualify_frequency: '30',
-  })
+  try {
+    await ari.configureDynamic('res_pjsip', 'aor', username, {
+      max_contacts: '1',
+      remove_existing: 'yes',
+      qualify_frequency: '30',
+    })
+  } catch (err) {
+    // Rollback auth on aor failure
+    try { await ari.deleteDynamic('res_pjsip', 'auth', username) } catch { /* best effort */ }
+    throw err
+  }
 
   // 3. Endpoint — webrtc=yes auto-enables DTLS, ICE, AVPF
-  await ari.configureDynamic('res_pjsip', 'endpoint', username, {
-    auth: username,
-    aors: username,
-    webrtc: 'yes',
-    transport: 'transport-wss',
-    context: 'volunteers',
-    dtls_auto_generate_cert: 'yes',
-    media_encryption: 'dtls',
-    disallow: 'all',
-    allow: 'opus,ulaw',
-  })
+  try {
+    await ari.configureDynamic('res_pjsip', 'endpoint', username, {
+      auth: username,
+      aors: username,
+      webrtc: 'yes',
+      transport: 'transport-wss',
+      context: 'volunteers',
+      dtls_auto_generate_cert: 'yes',
+      media_encryption: 'dtls',
+      disallow: 'all',
+      allow: 'opus,ulaw',
+    })
+  } catch (err) {
+    // Rollback auth + aor on endpoint failure
+    try { await ari.deleteDynamic('res_pjsip', 'aor', username) } catch { /* best effort */ }
+    try { await ari.deleteDynamic('res_pjsip', 'auth', username) } catch { /* best effort */ }
+    throw err
+  }
 
   return { username, password }
 }
@@ -599,10 +616,24 @@ export class AsteriskProvisioner implements SipEndpointProvisioner {
     private wssPort: number,
     private stunServer: string,
     private turnServer?: string,
-    private turnUsername?: string,
-    private turnCredential?: string,
+    private turnSecret?: string,
   ) {
     this.bridge = new BridgeClient(bridgeCallbackUrl, bridgeSecret)
+  }
+
+  /** Compute time-limited TURN credential using HMAC-SHA1(secret, username) per RFC 5766 */
+  private async computeTurnCredential(turnUsername: string): Promise<string> {
+    if (!this.turnSecret) throw new Error('TURN_SECRET required for TURN credential generation')
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(this.turnSecret),
+      { name: 'HMAC', hash: 'SHA-1' },
+      false,
+      ['sign']
+    )
+    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(turnUsername))
+    // Base64-encode the HMAC (coturn expects base64, not hex)
+    return btoa(String.fromCharCode(...new Uint8Array(sig)))
   }
 
   async provisionEndpoint(pubkey: string): Promise<SipEndpointConfig> {
@@ -613,11 +644,18 @@ export class AsteriskProvisioner implements SipEndpointProvisioner {
     if (this.stunServer) {
       iceServers.push({ urls: this.stunServer })
     }
-    if (this.turnServer) {
+    if (this.turnServer && this.turnSecret) {
+      // coturn uses use-auth-secret (RFC 5766 long-term credentials).
+      // Credentials are time-limited: username = expiry:identity,
+      // credential = HMAC-SHA1(secret, username)
+      const ttl = 86400 // 24 hours
+      const expiry = Math.floor(Date.now() / 1000) + ttl
+      const turnUsername = `${expiry}:${username}`
+      const turnCredential = await this.computeTurnCredential(turnUsername)
       iceServers.push({
         urls: this.turnServer,
-        username: this.turnUsername,
-        credential: this.turnCredential,
+        username: turnUsername,
+        credential: turnCredential,
       })
     }
 
@@ -675,8 +713,7 @@ describe('AsteriskProvisioner', () => {
     8089,
     'stun:stun.l.google.com:19302',
     'turn:turn.example.com:3478',
-    'turnuser',
-    'turnpass',
+    'test-turn-secret-abc123',
   )
 
   test('provisionEndpoint returns SipEndpointConfig', async () => {
@@ -689,11 +726,10 @@ describe('AsteriskProvisioner', () => {
     expect(config.password).toBe('test-pass-123')
     expect(config.iceServers).toHaveLength(2)
     expect(config.iceServers[0]).toEqual({ urls: 'stun:stun.l.google.com:19302' })
-    expect(config.iceServers[1]).toEqual({
-      urls: 'turn:turn.example.com:3478',
-      username: 'turnuser',
-      credential: 'turnpass',
-    })
+    // TURN credentials are time-limited HMAC — verify format
+    expect(config.iceServers[1].urls).toBe('turn:turn.example.com:3478')
+    expect(config.iceServers[1].username).toMatch(/^\d+:vol_/) // timestamp:identity
+    expect(config.iceServers[1].credential).toBeTruthy() // HMAC-SHA1 base64
 
     // Verify bridge was called
     expect(fetchCalls[0].url).toContain('/provision-endpoint')
@@ -713,7 +749,30 @@ describe('AsteriskProvisioner', () => {
 bun test src/server/telephony/asterisk-provisioner.test.ts
 ```
 
-- [ ] **Step 7: Update webrtc-tokens.ts — replace Asterisk throw**
+- [ ] **Step 7: Update AsteriskConfigSchema with new fields**
+
+In `src/shared/schemas/providers.ts`, extend `AsteriskConfigSchema`:
+
+```typescript
+export const AsteriskConfigSchema = BaseProviderSchema.extend({
+  type: z.literal('asterisk'),
+  ariUrl: z.string().url('Must be a valid URL'),
+  ariUsername: z.string().min(1),
+  ariPassword: z.string().min(1),
+  bridgeCallbackUrl: z.string().url().optional(),
+  bridgeSecret: z.string().optional(),
+  // SIP WebRTC browser calling fields
+  asteriskDomain: z.string().optional(),
+  wssPort: z.number().optional(),
+  stunServer: z.string().optional(),
+  turnServer: z.string().optional(),
+  turnSecret: z.string().optional(),
+})
+```
+
+Run `bun run typecheck` to verify no downstream type errors.
+
+- [ ] **Step 8: Update webrtc-tokens.ts — replace Asterisk throw**
 
 In `src/server/telephony/webrtc-tokens.ts`:
 
@@ -730,8 +789,7 @@ case 'asterisk': {
     config.wssPort ?? 8089,
     config.stunServer ?? 'stun:stun.l.google.com:19302',
     config.turnServer,
-    config.turnUsername,
-    config.turnCredential,
+    config.turnSecret,
   )
   const endpoint = await provisioner.provisionEndpoint(identity)
   const token = btoa(JSON.stringify({
@@ -751,18 +809,16 @@ case 'asterisk':
   return !!(config.ariUrl && config.bridgeCallbackUrl)
 ```
 
-**Note:** The `AsteriskConfig` type in `src/shared/schemas/providers.ts` may need new optional fields: `asteriskDomain`, `wssPort`, `stunServer`, `turnServer`, `turnUsername`, `turnCredential`. Check the existing type and add any missing fields. These are hub-level provider config fields set by admins.
-
-- [ ] **Step 8: Run typecheck + build**
+- [ ] **Step 9: Run typecheck + build**
 
 ```bash
 bun run typecheck && bun run build
 ```
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add src/server/telephony/bridge-client.ts src/server/telephony/sip-provisioner.ts src/server/telephony/asterisk-provisioner.ts src/server/telephony/asterisk-provisioner.test.ts src/server/telephony/asterisk.ts src/server/telephony/webrtc-tokens.ts
+git add src/server/telephony/bridge-client.ts src/server/telephony/sip-provisioner.ts src/server/telephony/asterisk-provisioner.ts src/server/telephony/asterisk-provisioner.test.ts src/server/telephony/asterisk.ts src/server/telephony/webrtc-tokens.ts src/shared/schemas/providers.ts
 git commit -m "feat: add SipEndpointProvisioner + AsteriskProvisioner + BridgeClient"
 ```
 
@@ -1088,7 +1144,49 @@ In the `volumes:` section, inside the asterisk profile conditional:
 
 - [ ] **Step 4: Add equivalent services to docker-compose.dev.yml**
 
-If `docker-compose.dev.yml` does not exist, check the dev docker setup. The dev environment needs coturn and Asterisk WSS port exposed locally. Add coturn with simple static credentials and Asterisk with port 8089 mapped.
+The dev compose is at `deploy/docker/docker-compose.dev.yml`. Host port 8089 is already mapped to ARI (container port 8088). Use host port **8090** for WSS (container port 8089):
+
+```yaml
+  asterisk:
+    # ... existing config ...
+    ports:
+      - "8089:8088"     # ARI HTTP/WS (existing)
+      - "8090:8089"     # WSS for browser SIP clients (new)
+
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    ports:
+      - "3478:3478"
+      - "3478:3478/tcp"
+    environment:
+      - TURN_REALM=localhost
+      - TURN_SECRET=dev-turn-secret-changeme
+    command: >
+      turnserver
+      --realm=localhost
+      --use-auth-secret
+      --static-auth-secret=dev-turn-secret-changeme
+      --listening-port=3478
+      --min-port=49152
+      --max-port=49172
+      --no-cli
+      --fingerprint
+      --log-file=stdout
+    networks:
+      - internal
+```
+
+Also mount dev TLS certs into Asterisk container (generated by `scripts/dev-certs.sh`):
+
+```yaml
+  asterisk:
+    volumes:
+      - ./asterisk-bridge/dev-certs/asterisk.pem:/etc/asterisk/keys/asterisk.pem:ro
+      - ./asterisk-bridge/dev-certs/asterisk.key:/etc/asterisk/keys/asterisk.key:ro
+```
+
+Update CLAUDE.md port offset comment: `v1: asterisk-ari:8089, asterisk-wss:8090`
 
 - [ ] **Step 5: Commit**
 
@@ -1172,9 +1270,7 @@ ASTERISK_DOMAIN={{ asterisk_domain | default(domain) }}
 ASTERISK_WSS_PORT={{ asterisk_wss_port | default(443) }}
 STUN_SERVER={{ stun_server | default('stun:' + domain + ':3478') }}
 TURN_SERVER={{ turn_server | default('turn:' + domain + ':3478') }}
-TURN_USERNAME={{ turn_username | default('') }}
-TURN_CREDENTIAL={{ turn_credential | default(turn_secret | default('')) }}
-TURN_SECRET={{ turn_secret | default('') }}
+TURN_SECRET={{ turn_secret }}
 ```
 
 **Note on `ASTERISK_WSS_PORT`:** In production with Caddy proxy, the WSS port from the browser's perspective is 443 (standard HTTPS). The `wsUri` becomes `wss://domain.com/ws`. The port 8089 is internal only.
@@ -1409,7 +1505,29 @@ git commit -m "test: add SIP WebRTC API and E2E tests"
 
 ---
 
-### Task 13: Update Existing Documentation
+### Task 13: Update Browser Calling Plan (Coordination)
+
+**Files:**
+- Modify: `docs/superpowers/plans/2026-03-24-browser-calling.md`
+
+- [ ] **Step 1: Remove Asterisk from "ignore browserIdentity" list**
+
+The browser calling plan says Asterisk should "ignore `browserIdentity` for now." This spec adds browser leg support for Asterisk. Update the plan to include Asterisk as a browser-leg-aware adapter.
+
+- [ ] **Step 2: Standardize browserIdentity length to 12 hex chars**
+
+The plan uses `pubkey.slice(0, 16)` for `browserIdentity` in `ringing.ts`. This spec uses `pubkey.slice(0, 12)` for PJSIP endpoint names. Update to 12 everywhere.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add docs/superpowers/plans/2026-03-24-browser-calling.md
+git commit -m "docs: update browser calling plan for Asterisk SIP WebRTC integration"
+```
+
+---
+
+### Task 14: Update Existing Documentation
 
 **Files:**
 - Modify: `CLAUDE.md` (add SIP WebRTC to gotchas and key patterns)
@@ -1445,7 +1563,7 @@ git commit -m "docs: add SIP WebRTC browser calling to project documentation"
 
 ---
 
-### Task 14: Final Integration Verification
+### Task 15: Final Integration Verification
 
 - [ ] **Step 1: Run full typecheck**
 
