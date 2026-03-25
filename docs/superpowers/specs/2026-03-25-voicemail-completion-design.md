@@ -193,7 +193,7 @@ Retention enforcement is a background cron job — setting is added in this phas
 
 When voicemail audio is encrypted and stored (end of Phase 1 flow):
 
-1. Server publishes an ephemeral kind 20001 event to strfry, encrypted with the hub key
+1. Server publishes a `KIND_CALL_VOICEMAIL` (1002) event to strfry, encrypted with the hub key. Uses kind 1002 (regular/persisted, not ephemeral) so clients coming online later can still see pending voicemail notifications.
 2. Decrypted content: `{ type: 'voicemail:new', callId, hubId, callerLast4, duration, timestamp }`
 3. Generic tag `["t", "llamenos:event"]` — relay cannot distinguish event types (existing pattern)
 4. Dashboard clients receive the event and show a voicemail notification badge/toast if the current user has `voicemail:notify` permission (client-side permission check)
