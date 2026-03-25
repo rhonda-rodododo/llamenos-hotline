@@ -9,7 +9,7 @@ import {
   toggleMute,
   acceptCall as webrtcAccept,
   hangupCall as webrtcHangup,
-} from '@/lib/webrtc'
+} from '@/lib/webrtc/manager'
 import { Mic, MicOff, Monitor, PhoneCall, PhoneOff } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'

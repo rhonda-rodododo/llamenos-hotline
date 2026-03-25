@@ -640,7 +640,9 @@ export async function testTelephonyProvider(
 // --- WebRTC Token ---
 
 export async function getWebRtcToken() {
-  return request<{ token: string; provider: string; identity: string }>('/telephony/webrtc-token')
+  return request<{ token: string; provider: string; identity: string; ttl: number }>(
+    '/telephony/webrtc-token'
+  )
 }
 
 export async function getWebRtcStatus() {
