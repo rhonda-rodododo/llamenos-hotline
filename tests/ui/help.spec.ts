@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test'
-import { TEST_PIN, enterPin, loginAsAdmin, resetTestState } from '../helpers'
+import { loginAsAdmin, resetTestState } from '../helpers'
 
 test.describe('Help & Getting Started', () => {
-  test.beforeEach(async ({ request }) => {
+  test.describe.configure({ mode: 'serial' })
+
+  test.beforeAll(async ({ request }) => {
     await resetTestState(request)
   })
 
@@ -100,13 +102,13 @@ test.describe('Help & Getting Started', () => {
       timeout: 10000,
     })
 
-    // Clear any previous dismissal and reload to reset the checklist state
+    // Clear any previous dismissal, then navigate away and back to force remount
     await page.evaluate(() => localStorage.removeItem('getting-started-dismissed'))
-    await page.reload()
-    // Re-enter PIN after reload (in-memory key cleared)
-    await enterPin(page, TEST_PIN)
+    await page.getByRole('link', { name: 'Help' }).click()
+    await expect(page.getByRole('heading', { name: /help/i })).toBeVisible({ timeout: 5000 })
+    await page.locator('nav').getByRole('link', { name: 'Dashboard' }).click()
     await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
-      timeout: 30000,
+      timeout: 10000,
     })
 
     // Getting Started checklist should be visible if not all items are done.
@@ -138,13 +140,13 @@ test.describe('Help & Getting Started', () => {
       timeout: 10000,
     })
 
-    // Clear any previous dismissal and reload
+    // Clear any previous dismissal, then navigate away and back to force remount
     await page.evaluate(() => localStorage.removeItem('getting-started-dismissed'))
-    await page.reload()
-    // Re-enter PIN after reload (in-memory key cleared)
-    await enterPin(page, TEST_PIN)
+    await page.getByRole('link', { name: 'Help' }).click()
+    await expect(page.getByRole('heading', { name: /help/i })).toBeVisible({ timeout: 5000 })
+    await page.locator('nav').getByRole('link', { name: 'Dashboard' }).click()
     await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
-      timeout: 30000,
+      timeout: 10000,
     })
 
     // Check if checklist is visible (may auto-hide if all items done)

@@ -179,7 +179,14 @@
     "create": "Create Note",
     "createFirst": "Create Your First Note",
     "date": "Date",
-    "detail": "Note Details",
+    "detail": {
+      "title": "Note Details",
+      "forbidden": "You don't have permission to view this note",
+      "notFound": "Note not found",
+      "editFromCallPage": "Edit notes from the call page",
+      "callContext": "Related Call",
+      "viewCall": "View Call Details"
+    },
     "edit": "Edit Note",
     "editing": "Editing...",
     "empty": "No notes",

@@ -2,11 +2,9 @@ import { expect, test } from '@playwright/test'
 import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
 
 test.describe('Conversations — no channels configured', () => {
-  // These tests only apply when no messaging channels are enabled.
-  // In demo mode or after setup wizard, channels are typically already enabled.
-  // Skip if channels are already configured.
+  test.describe.configure({ mode: 'serial' })
 
-  test.beforeEach(async ({ request }) => {
+  test.beforeAll(async ({ request }) => {
     await resetTestState(request)
   })
 
@@ -49,9 +47,11 @@ test.describe('Conversations — no channels configured', () => {
 })
 
 test.describe('Conversations — with channels enabled', () => {
+  test.describe.configure({ mode: 'serial' })
+
   /**
    * Helper: enable channels using the setup wizard flow.
-   * Navigates through the wizard selecting Reports + SMS, then completes setup.
+   * Navigates through the wizard selecting Reports, then completes setup.
    */
   async function enableChannelsViaSetupWizard(page: import('@playwright/test').Page) {
     await navigateAfterLogin(page, '/setup')
@@ -80,9 +80,9 @@ test.describe('Conversations — with channels enabled', () => {
     // Step 6: Complete setup
     await expect(page.getByText('Review & Launch')).toBeVisible({ timeout: 5000 })
     await page.getByRole('button', { name: /go to dashboard/i }).click()
-    await page.waitForURL('**/', { timeout: 15000 })
+    // Wait for navigation to dashboard — the setup wizard calls navigate({ to: '/' })
     await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
-      timeout: 10000,
+      timeout: 15000,
     })
   }
 

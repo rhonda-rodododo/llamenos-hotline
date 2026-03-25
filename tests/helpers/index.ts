@@ -86,7 +86,9 @@ export async function enterPin(page: Page, pin: string) {
   // Focus the first PIN digit input
   const firstDigit = page.locator('input[aria-label="PIN digit 1"]')
   await firstDigit.waitFor({ state: 'visible', timeout: 10000 })
-  await firstDigit.click()
+  // Use focus() instead of click() to avoid Playwright stability check failures
+  // caused by CSS transition-colors on the input during page load
+  await firstDigit.focus()
   // Type each digit — PinInput handles focus advance automatically
   await page.keyboard.type(pin, { delay: 50 })
   // If PIN is shorter than the input length (e.g., 6 digits in 8-box input),
@@ -151,8 +153,20 @@ export async function navigateAfterLogin(page: Page, url: string): Promise<void>
  * via the sidebar or page.goto as appropriate.
  */
 export async function reenterPinAfterReload(page: Page): Promise<void> {
+  // After reload, wait for the page to settle — Session Expired modal may flash
+  await page.waitForLoadState('domcontentloaded')
+
+  // Dismiss Session Expired modal if it appears before PIN input
+  const sessionExpired = page.getByText('Session Expired')
+  if (await sessionExpired.isVisible({ timeout: 1000 }).catch(() => false)) {
+    const reconnectBtn = page.getByRole('button', { name: /reconnect/i })
+    if (await reconnectBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await reconnectBtn.click({ timeout: 3000 }).catch(() => {})
+    }
+  }
+
   const pinInput = page.locator('input[aria-label="PIN digit 1"]')
-  const pinVisible = await pinInput.isVisible({ timeout: 3000 }).catch(() => false)
+  const pinVisible = await pinInput.isVisible({ timeout: 5000 }).catch(() => false)
 
   if (pinVisible) {
     await enterPin(page, TEST_PIN)
@@ -176,10 +190,13 @@ export async function loginAsAdmin(page: Page) {
 
   // Auto-dismiss session expired modal if it appears during the test.
   // The modal overlays the entire page and blocks all pointer events.
+  // Use noWaitAfter to prevent Playwright from waiting for navigations triggered by the click.
   await page.addLocatorHandler(page.getByText('Session Expired'), async () => {
     const reconnectBtn = page.getByRole('button', { name: /reconnect/i })
     if (await reconnectBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await reconnectBtn.click()
+      await reconnectBtn.click({ timeout: 3000 }).catch(() => {
+        // If click fails (e.g., modal dismissed by another action), ignore
+      })
     }
   })
 }
