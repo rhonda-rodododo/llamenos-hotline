@@ -45,7 +45,10 @@ test.describe('WebAuthn passkey registration and login', () => {
 
     // Authenticated request should get options back
     const result = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/webauthn/register/options', { method: 'POST' })
+      const res = await window.__authedFetch('/api/webauthn/register/options', {
+        method: 'POST',
+        body: JSON.stringify({ label: 'Test Passkey' }),
+      })
       return { status: res.status, data: res.ok ? await res.json() : await res.text() }
     })
     expect(result.status).toBe(200)

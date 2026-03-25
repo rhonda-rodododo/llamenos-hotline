@@ -121,7 +121,7 @@ test.describe('Role Assignment UI', () => {
     // All 5 default roles should be visible in the dropdown
     await expect(page.getByRole('option', { name: 'Super Admin' })).toBeVisible()
     await expect(page.getByRole('option', { name: 'Hub Admin' })).toBeVisible()
-    await expect(page.getByRole('option', { name: 'Reviewer' })).toBeVisible()
+    await expect(page.getByRole('option', { name: 'Reviewer', exact: true })).toBeVisible()
     await expect(page.getByRole('option', { name: 'Volunteer' })).toBeVisible()
     await expect(page.getByRole('option', { name: 'Reporter' })).toBeVisible()
 
@@ -174,7 +174,7 @@ test.describe('Role Assignment UI', () => {
     // All default roles should be present
     await expect(page.getByRole('option', { name: 'Super Admin' })).toBeVisible()
     await expect(page.getByRole('option', { name: 'Hub Admin' })).toBeVisible()
-    await expect(page.getByRole('option', { name: 'Reviewer' })).toBeVisible()
+    await expect(page.getByRole('option', { name: 'Reviewer', exact: true })).toBeVisible()
     await expect(page.getByRole('option', { name: 'Volunteer' })).toBeVisible()
     await expect(page.getByRole('option', { name: 'Reporter' })).toBeVisible()
 
@@ -194,7 +194,7 @@ test.describe('Role Assignment UI', () => {
     // All default roles should be present
     await expect(page.getByRole('option', { name: 'Super Admin' })).toBeVisible()
     await expect(page.getByRole('option', { name: 'Hub Admin' })).toBeVisible()
-    await expect(page.getByRole('option', { name: 'Reviewer' })).toBeVisible()
+    await expect(page.getByRole('option', { name: 'Reviewer', exact: true })).toBeVisible()
     await expect(page.getByRole('option', { name: 'Volunteer' })).toBeVisible()
     await expect(page.getByRole('option', { name: 'Reporter' })).toBeVisible()
 

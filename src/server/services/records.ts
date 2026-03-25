@@ -1,6 +1,6 @@
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
-import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, lte, or, sql } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
 import { auditLog, bans, callRecords, noteEnvelopes } from '../db/schema'
@@ -78,10 +78,16 @@ export class RecordsService {
 
   async isBanned(phone: string, hubId?: string): Promise<boolean> {
     const hId = hubId ?? 'global'
+    // Check both hub-specific and global bans — a globally banned number
+    // should be rejected regardless of which hub the call routes to
+    const hubConditions =
+      hId === 'global'
+        ? eq(bans.hubId, 'global')
+        : or(eq(bans.hubId, hId), eq(bans.hubId, 'global'))
     const rows = await this.db
       .select({ id: bans.id })
       .from(bans)
-      .where(and(eq(bans.hubId, hId), eq(bans.phone, phone)))
+      .where(and(hubConditions!, eq(bans.phone, phone)))
       .limit(1)
     return rows.length > 0
   }

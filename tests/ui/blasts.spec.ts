@@ -164,7 +164,11 @@ test.describe('Blasts — UI', () => {
     await expect(page.getByTestId('blast-name')).toBeVisible({ timeout: Timeouts.ELEMENT })
     await page.getByTestId('blast-name').fill(blastName)
     await page.getByTestId('blast-text').fill('This blast will be deleted')
-    await page.getByRole('button', { name: /save|create/i }).click()
+    // Save/create the blast and wait for the API response
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes('/api/blasts') && res.status() < 400),
+      page.getByRole('button', { name: /save|create/i }).click(),
+    ])
 
     // Blast should appear in the list (may also appear in detail panel if auto-selected)
     await expect(page.getByText(blastName).first()).toBeVisible({ timeout: Timeouts.API })
@@ -172,9 +176,10 @@ test.describe('Blasts — UI', () => {
     // Click on the blast in the list to select it and see its details
     await page.getByText(blastName).first().click()
 
-    // Click the delete button in the detail panel (exact match to avoid matching list items)
+    // Wait for the detail panel to fully render before clicking delete
     const deleteButton = page.getByRole('button', { name: 'Delete', exact: true })
     await expect(deleteButton).toBeVisible({ timeout: Timeouts.ELEMENT })
+    await expect(deleteButton).toBeEnabled()
     await deleteButton.click()
 
     // The blast should be removed from the list

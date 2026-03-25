@@ -24,8 +24,11 @@ test.describe('Blast campaign UI', () => {
     await page.getByTestId('blast-name').fill(blastName)
     await page.getByTestId('blast-text').fill('Hello from the E2E test campaign')
 
-    // Save/create the blast
-    await page.getByRole('button', { name: /save|create/i }).click()
+    // Save/create the blast and wait for the API response
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes('/api/blasts') && res.status() < 400),
+      page.getByRole('button', { name: /save|create/i }).click(),
+    ])
 
     // Blast should appear in the list
     await expect(page.getByText(blastName).first()).toBeVisible({ timeout: 10000 })

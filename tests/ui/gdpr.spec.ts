@@ -74,12 +74,12 @@ test.describe('GDPR Compliance', () => {
       await navigateAfterLogin(page, '/settings')
       await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 
-      // Expand the Privacy & Data section
-      const privacySection = page.getByRole('button', { name: /privacy.*data/i })
-      const sectionVisible = await privacySection.isVisible({ timeout: 3000 }).catch(() => false)
-      if (sectionVisible) {
-        await privacySection.click()
-      }
+      // Expand the Privacy & Data section by clicking the collapsible card header
+      const privacyCard = page.getByTestId('privacy')
+      await expect(privacyCard).toBeVisible({ timeout: 5000 })
+      // Click the CardHeader (CollapsibleTrigger) to expand the section
+      await privacyCard.locator('[data-slot="card-header"]').click()
+      await page.waitForTimeout(500)
 
       // Export button should be visible
       const exportBtn = page.getByTestId('gdpr-export-button')
@@ -116,19 +116,18 @@ test.describe('GDPR Compliance', () => {
     })
 
     test('volunteer can request account erasure and cancel it', async ({ page }) => {
+      test.slow() // full flow: create volunteer + login + navigate + request + cancel
       await loginAsVolunteer(page, volunteerNsec)
 
       // Navigate to settings
       await navigateAfterLogin(page, '/settings')
       await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 
-      // Expand privacy section if collapsed
-      const privacyBtn = page.getByRole('button', { name: /privacy.*data/i })
-      const visible = await privacyBtn.isVisible({ timeout: 3000 }).catch(() => false)
-      if (visible) {
-        const expanded = await privacyBtn.getAttribute('aria-expanded')
-        if (expanded === 'false') await privacyBtn.click()
-      }
+      // Expand privacy section by clicking the collapsible card header
+      const privacyCard = page.getByTestId('privacy')
+      await expect(privacyCard).toBeVisible({ timeout: 5000 })
+      await privacyCard.locator('[data-slot="card-header"]').click()
+      await page.waitForTimeout(500)
 
       // Request erasure button should be present
       const requestBtn = page.getByTestId('gdpr-request-erasure-button')

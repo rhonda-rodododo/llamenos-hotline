@@ -203,6 +203,9 @@ test.describe('Demo Mode', () => {
     await loginAsAdmin(page)
     await completeSetupWithDemoMode(page)
 
+    // Wait for async demo data seeding to complete before navigating
+    await page.waitForTimeout(2000)
+
     await page.getByRole('link', { name: 'Ban List' }).click()
     await expect(page.getByRole('heading', { name: 'Ban List' })).toBeVisible({ timeout: 10000 })
 

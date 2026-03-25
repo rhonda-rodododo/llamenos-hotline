@@ -44,25 +44,18 @@ test.describe('Voicemail UI', () => {
       }),
     })
 
-    // Allow webhook to process
-    await page.waitForTimeout(500)
-
-    // Navigate to calls page and verify voicemail badge renders
+    // Navigate to calls page — wait for the call history API to return
     await navigateAfterLogin(page, '/calls')
     await expect(page.getByRole('heading', { name: /calls/i })).toBeVisible({ timeout: 10000 })
 
-    // Check for voicemail badge -- rendered when call.hasVoicemail === true.
-    // The badge contains a Lucide <Voicemail> SVG icon.
-    const callRows = page.locator('[data-testid="call-row"]')
-    const rowCount = await callRows.count()
-    if (rowCount > 0) {
-      // Check for voicemail-badge testid (if present) or the Lucide voicemail SVG
-      const voicemailBadge = page
-        .locator('[data-testid="voicemail-badge"]')
-        .or(page.locator('svg[data-lucide="voicemail"]'))
-      const badgeCount = await voicemailBadge.count()
-      console.log(`[voicemail test] Found ${badgeCount} voicemail badge(s) in call list`)
-      // Don't hard-fail: badge visibility depends on call state persistence
-    }
+    // Wait for call list to load (call-history-row is the actual testid in the component)
+    await expect(page.locator('[data-testid="call-history-row"]').first()).toBeVisible({
+      timeout: 10000,
+    })
+
+    // The VoicemailPlayer component renders with data-testid="voicemail-player"
+    // when call.hasVoicemail is true. Verify at least one voicemail player is visible.
+    const voicemailPlayer = page.locator('[data-testid="voicemail-player"]')
+    await expect(voicemailPlayer.first()).toBeVisible({ timeout: 10000 })
   })
 })

@@ -110,8 +110,11 @@ test.describe('Invite delivery', () => {
     // Dismiss invite link card
     await page.getByTestId('dismiss-invite').click()
 
+    // Wait for pending invites section to render with the new invite
+    await expect(page.getByText(volName)).toBeVisible({ timeout: 10000 })
+
     // Pending invite section should show "Not sent" for the created invite
-    await expect(page.getByText(/not sent/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/not sent/i)).toBeVisible({ timeout: 10000 })
   })
 
   test('send button opens dialog for an existing pending invite', async ({ page }) => {

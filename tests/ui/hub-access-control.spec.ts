@@ -3,8 +3,8 @@
  *
  * Verifies that:
  *   - Hub access badge is visible in the hubs list
- *   - Hub admins can toggle super admin access via the edit dialog
- *   - Hub admins can disable super admin access after enabling
+ *   - Super admins see a read-only badge (not a toggle) in the edit dialog
+ *   - Super admins cannot self-grant hub access via the settings API
  */
 
 import { expect, test } from '@playwright/test'
@@ -38,7 +38,7 @@ test.describe('Hub access control UI', () => {
     await expect(accessBadge).toBeVisible()
   })
 
-  test('hub admin can enable super admin access via the edit dialog', async ({ page, request }) => {
+  test('super admin sees read-only access badge in edit dialog', async ({ page, request }) => {
     await navigateAfterLogin(page, '/admin/hubs')
 
     // Open the edit dialog for the test hub
@@ -51,62 +51,36 @@ test.describe('Hub access control UI', () => {
 
     // Find the access control section
     const accessControl = page.getByTestId('hub-access-control')
-    await expect(accessControl).toBeVisible()
+    await expect(accessControl).toBeVisible({ timeout: 10000 })
 
-    // Toggle should exist and be OFF (since allowSuperAdminAccess defaults to false)
-    const toggle = page.getByTestId('hub-access-toggle')
-    await expect(toggle).toBeVisible()
-
-    // Click the toggle to enable super admin access
-    await toggle.click()
-
-    // Confirmation dialog should appear
-    const confirmBtn = page.getByTestId('hub-access-confirm-btn')
-    await expect(confirmBtn).toBeVisible({ timeout: Timeouts.ELEMENT })
-    await confirmBtn.click()
-
-    // Wait for the dialog to process and close the confirmation
-    await expect(confirmBtn).not.toBeVisible({ timeout: Timeouts.API })
+    // Super admins see a read-only badge (not a toggle) showing access status.
+    // Default is restricted, so the badge should show "Restricted".
+    // The toggle (data-testid="hub-access-toggle") should NOT be present for super admins.
+    await expect(accessControl.getByText(/restricted/i)).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTestId('hub-access-toggle')).not.toBeVisible()
 
     // Close the edit dialog
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: Timeouts.ELEMENT })
 
-    // Verify the change persisted by checking via API
+    // Verify initial state via API
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     const fetchRes = await authedApi.get(`/api/hubs/${testHubId}`)
     const fetched = await fetchRes.json()
-    expect(fetched.hub.allowSuperAdminAccess).toBe(true)
+    expect(fetched.hub.allowSuperAdminAccess).toBe(false)
   })
 
-  test('hub admin can disable super admin access after enabling', async ({ page, request }) => {
-    await navigateAfterLogin(page, '/admin/hubs')
-
-    // Open the edit dialog
-    const hubRow = page.locator('[data-testid="hub-row"]').filter({ hasText: testHubName })
-    await expect(hubRow).toBeVisible({ timeout: Timeouts.ELEMENT })
-    await hubRow.getByRole('button', { name: /edit/i }).click()
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: Timeouts.ELEMENT })
-
-    // Toggle should be ON -- click to disable
-    const toggle = page.getByTestId('hub-access-toggle')
-    await expect(toggle).toBeVisible()
-    await toggle.click()
-
-    // Confirmation dialog for disabling
-    const confirmBtn = page.getByTestId('hub-access-confirm-btn')
-    await expect(confirmBtn).toBeVisible({ timeout: Timeouts.ELEMENT })
-    await confirmBtn.click()
-
-    // Wait for update to complete
-    await expect(confirmBtn).not.toBeVisible({ timeout: Timeouts.API })
-
-    // Close edit dialog
-    await page.keyboard.press('Escape')
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: Timeouts.ELEMENT })
-
-    // Verify the change persisted via API
+  test('super admin cannot modify hub access via settings API', async ({ request }) => {
+    // The settings endpoint explicitly blocks super admins from modifying their own access.
+    // This is a security constraint: only hub admins can grant/revoke super admin visibility.
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const updateRes = await authedApi.patch(`/api/hubs/${testHubId}/settings`, {
+      allowSuperAdminAccess: true,
+    })
+    // Should be 403 Forbidden because super admin cannot self-grant
+    expect(updateRes.status()).toBe(403)
+
+    // Verify the setting remains unchanged (false)
     const fetchRes = await authedApi.get(`/api/hubs/${testHubId}`)
     const fetched = await fetchRes.json()
     expect(fetched.hub.allowSuperAdminAccess).toBe(false)

@@ -44,7 +44,7 @@ async function createReportType(
   }
 
   await page.getByTestId('report-type-save-btn').click()
-  await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
+  await expect(page.getByText(/success/i).last()).toBeVisible({ timeout: 5000 })
   await expect(page.getByText(name).first()).toBeVisible()
 }
 
@@ -68,7 +68,7 @@ test.describe('Report Types System', () => {
     await page.getByTestId('report-type-description-input').fill('For immediate crisis situations')
     await page.getByTestId('report-type-save-btn').click()
 
-    await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/success/i).last()).toBeVisible({ timeout: 5000 })
     await expect(page.getByText(typeName).first()).toBeVisible()
   })
 
