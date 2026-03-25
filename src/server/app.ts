@@ -26,6 +26,7 @@ import invitesRoutes from './routes/invites'
 import signalRegistrationRoutes from './routes/messaging/signal-registration'
 import metricsRoutes from './routes/metrics'
 import notesRoutes from './routes/notes'
+import notificationsRoutes from './routes/notifications'
 import providerSetupRoutes from './routes/provider-setup'
 import provisioningRoutes from './routes/provisioning'
 import reportTypesRoutes from './routes/report-types'
@@ -109,6 +110,13 @@ api.patch('/messaging/preferences', async (c) => {
   })
 })
 
+// Public VAPID key endpoint (no auth — browser needs this before subscribing)
+api.get('/notifications/vapid-public-key', (c) => {
+  const key = c.env.VAPID_PUBLIC_KEY
+  if (!key) return c.json({ error: 'Push notifications not configured' }, 503)
+  return c.json({ publicKey: key })
+})
+
 // Public IVR audio serve (Twilio fetches during calls)
 api.get('/ivr-audio/:promptType/:language', async (c) => {
   const promptType = c.req.param('promptType')
@@ -184,6 +192,7 @@ authenticated.route('/blasts', blastsRoutes)
 authenticated.route('/contacts', contactsRoutes)
 authenticated.route('/gdpr', gdprRoutes)
 authenticated.route('/geocoding', geocodingRoutes)
+authenticated.route('/notifications', notificationsRoutes)
 
 // Hub-scoped authenticated routes
 const hubScoped = new Hono<AppEnv>()

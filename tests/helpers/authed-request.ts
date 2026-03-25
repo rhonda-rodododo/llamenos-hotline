@@ -17,7 +17,7 @@ export interface AuthedRequest {
   post(path: string, data?: unknown, opts?: RequestOpts): Promise<APIResponse>
   put(path: string, data?: unknown, opts?: RequestOpts): Promise<APIResponse>
   patch(path: string, data?: unknown, opts?: RequestOpts): Promise<APIResponse>
-  delete(path: string, opts?: RequestOpts): Promise<APIResponse>
+  delete(path: string, data?: unknown, opts?: RequestOpts): Promise<APIResponse>
   /** The hex public key derived from the secret key */
   pubkey: string
 }
@@ -31,16 +31,20 @@ export interface AuthedRequest {
  */
 export function createAuthedRequest(
   request: APIRequestContext,
-  secretKey: Uint8Array,
+  secretKey: Uint8Array
 ): AuthedRequest {
   const pubkey = getPublicKey(secretKey)
 
-  function authHeaders(method: string, path: string, extra?: Record<string, string>): Record<string, string> {
+  function authHeaders(
+    method: string,
+    path: string,
+    extra?: Record<string, string>
+  ): Record<string, string> {
     // Strip query params — server verifies against url.pathname only
     const pathname = path.split('?')[0]
     const token = createAuthToken(secretKey, Date.now(), method, pathname)
     return {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       ...extra,
     }
@@ -69,8 +73,11 @@ export function createAuthedRequest(
         ...(data !== undefined ? { data } : {}),
       })
     },
-    delete(path, opts?) {
-      return request.delete(path, { headers: authHeaders('DELETE', path, opts?.headers) })
+    delete(path, data?, opts?) {
+      return request.delete(path, {
+        headers: authHeaders('DELETE', path, opts?.headers),
+        ...(data !== undefined ? { data } : {}),
+      })
     },
   }
 }
@@ -81,7 +88,7 @@ export function createAuthedRequest(
  */
 export function createAuthedRequestFromNsec(
   request: APIRequestContext,
-  nsec: string,
+  nsec: string
 ): AuthedRequest {
   const decoded = nip19.decode(nsec)
   if (decoded.type !== 'nsec') throw new Error(`Expected nsec, got ${decoded.type}`)
