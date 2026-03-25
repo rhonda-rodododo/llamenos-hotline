@@ -66,7 +66,7 @@ Implemented per adapter:
 - **Twilio:** DELETE `https://api.twilio.com/2010-04-01/Accounts/{sid}/Recordings/{recordingSid}.json`
 - **SignalWire:** Same as Twilio (API-compatible)
 - **Plivo:** DELETE `https://api.plivo.com/v1/Account/{authId}/Recording/{recordingId}/`
-- **Vonage:** Vonage recordings are temporary download URLs that auto-expire after 30 days — no dedicated deletion API exists. `deleteRecording()` for Vonage is a no-op that logs a warning. The recording URL expires naturally. If stricter guarantees are needed, the Vonage number should not be used for voicemail.
+- **Vonage:** DELETE `https://api.nexmo.com/v3/media/{id}` via the Vonage Media API. Note: Vonage stores `recording_url` (a full download URL) rather than a discrete recording SID. The media `:id` must be extracted from the recording URL or looked up via `GET https://api.nexmo.com/v3/media/` with the account filter. Auth via JWT or Basic (API key:secret).
 - **Asterisk:** DELETE `http://asterisk-bridge/recordings/{recordingName}` (new bridge endpoint, see Phase 3)
 - **TestAdapter:** No-op, tracks deletion in test state
 
