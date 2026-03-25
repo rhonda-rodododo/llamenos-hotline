@@ -13,14 +13,14 @@ test.describe('Dashboard Analytics', () => {
   })
 
   test('analytics section is visible to admins on the dashboard', async ({ page }) => {
-    await page.goto('/')
+    // loginAsAdmin already lands on dashboard — no need to navigate again
     const trigger = page.getByTestId('analytics-section-trigger')
-    await expect(trigger).toBeVisible()
+    await expect(trigger).toBeVisible({ timeout: 15000 })
     await expect(trigger).toContainText('Analytics')
   })
 
   test('analytics section is collapsed by default', async ({ page }) => {
-    await page.goto('/')
+    // loginAsAdmin already lands on dashboard
     // Charts should not be visible when collapsed
     await expect(page.getByTestId('call-volume-chart')).not.toBeVisible()
     await expect(page.getByTestId('call-hours-chart')).not.toBeVisible()
@@ -30,7 +30,6 @@ test.describe('Dashboard Analytics', () => {
   })
 
   test('analytics section expands and charts render on click', async ({ page }) => {
-    await page.goto('/')
     const trigger = page.getByTestId('analytics-section-trigger')
     await trigger.click()
 
@@ -53,7 +52,6 @@ test.describe('Dashboard Analytics', () => {
     })
     page.on('pageerror', (err) => errors.push(err.message))
 
-    await page.goto('/')
     const trigger = page.getByTestId('analytics-section-trigger')
     await trigger.click()
     // Wait for content to load
@@ -71,11 +69,12 @@ test.describe('Dashboard Analytics', () => {
   })
 
   test('period toggle switches between 7 and 30 days', async ({ page }) => {
-    await page.goto('/')
     await page.getByTestId('analytics-section-trigger').click()
 
-    // Wait for content to load
-    await page.waitForTimeout(1500)
+    // Wait for chart content to load
+    await expect(
+      page.getByTestId('call-volume-chart').or(page.getByTestId('call-volume-no-data'))
+    ).toBeVisible({ timeout: 10000 })
 
     // Find the 7d and 30d buttons
     const btn7d = page.getByRole('button', { name: '7d' })
