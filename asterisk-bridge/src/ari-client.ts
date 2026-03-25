@@ -1,9 +1,9 @@
 import type {
   AnyAriEvent,
-  AriChannel,
   AriBridge,
-  AriRecording,
+  AriChannel,
   AriPlayback,
+  AriRecording,
   BridgeConfig,
 } from './types'
 
@@ -25,7 +25,7 @@ export class AriClient {
 
   constructor(config: BridgeConfig) {
     this.config = config
-    this.authHeader = 'Basic ' + btoa(`${config.ariUsername}:${config.ariPassword}`)
+    this.authHeader = `Basic ${btoa(`${config.ariUsername}:${config.ariPassword}`)}`
   }
 
   /** Register an event handler for all ARI events */
@@ -65,7 +65,11 @@ export class AriClient {
 
       ws.addEventListener('message', (event) => {
         try {
-          const data = JSON.parse(typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data as ArrayBuffer)) as AnyAriEvent
+          const data = JSON.parse(
+            typeof event.data === 'string'
+              ? event.data
+              : new TextDecoder().decode(event.data as ArrayBuffer)
+          ) as AnyAriEvent
           for (const handler of this.eventHandlers) {
             try {
               handler(data)
@@ -116,7 +120,7 @@ export class AriClient {
   private async request<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
     const url = `${this.config.ariRestUrl}${path}`
     const headers: Record<string, string> = {
-      'Authorization': this.authHeader,
+      Authorization: this.authHeader,
     }
 
     const init: RequestInit = { method, headers }
@@ -202,12 +206,18 @@ export class AriClient {
 
   /** Set a channel variable */
   async setChannelVar(channelId: string, variable: string, value: string): Promise<void> {
-    await this.request('POST', `/channels/${channelId}/variable?variable=${variable}&value=${encodeURIComponent(value)}`)
+    await this.request(
+      'POST',
+      `/channels/${channelId}/variable?variable=${variable}&value=${encodeURIComponent(value)}`
+    )
   }
 
   /** Get a channel variable */
   async getChannelVar(channelId: string, variable: string): Promise<string> {
-    const res = await this.request<{ value: string }>('GET', `/channels/${channelId}/variable?variable=${variable}`)
+    const res = await this.request<{ value: string }>(
+      'GET',
+      `/channels/${channelId}/variable?variable=${variable}`
+    )
     return res.value
   }
 
@@ -232,7 +242,11 @@ export class AriClient {
   // ---- Bridge Operations ----
 
   /** Create a mixing bridge */
-  async createBridge(params?: { bridgeId?: string; type?: string; name?: string }): Promise<AriBridge> {
+  async createBridge(params?: {
+    bridgeId?: string
+    type?: string
+    name?: string
+  }): Promise<AriBridge> {
     const body: Record<string, unknown> = {
       type: params?.type ?? 'mixing',
     }
@@ -277,13 +291,16 @@ export class AriClient {
   // ---- Recording Operations ----
 
   /** Start recording a channel */
-  async recordChannel(channelId: string, params: {
-    name: string
-    format?: string
-    maxDurationSeconds?: number
-    beep?: boolean
-    terminateOn?: string
-  }): Promise<AriRecording> {
+  async recordChannel(
+    channelId: string,
+    params: {
+      name: string
+      format?: string
+      maxDurationSeconds?: number
+      beep?: boolean
+      terminateOn?: string
+    }
+  ): Promise<AriRecording> {
     const body: Record<string, unknown> = {
       name: params.name,
       format: params.format ?? 'wav',
@@ -312,7 +329,7 @@ export class AriClient {
   async getRecordingFile(recordingName: string): Promise<ArrayBuffer | null> {
     const url = `${this.config.ariRestUrl}/recordings/stored/${recordingName}/file`
     const res = await fetch(url, {
-      headers: { 'Authorization': this.authHeader },
+      headers: { Authorization: this.authHeader },
     })
     if (!res.ok) return null
     return res.arrayBuffer()
@@ -330,12 +347,15 @@ export class AriClient {
   // ---- Bridge Recording Operations ----
 
   /** Start recording a bridge */
-  async recordBridge(bridgeId: string, params: {
-    name: string
-    format?: string
-    maxDurationSeconds?: number
-    beep?: boolean
-  }): Promise<AriRecording> {
+  async recordBridge(
+    bridgeId: string,
+    params: {
+      name: string
+      format?: string
+      maxDurationSeconds?: number
+      beep?: boolean
+    }
+  ): Promise<AriRecording> {
     const body: Record<string, unknown> = {
       name: params.name,
       format: params.format ?? 'wav',
@@ -362,7 +382,7 @@ export class AriClient {
     configClass: string,
     objectType: string,
     id: string,
-    fields: Record<string, string>,
+    fields: Record<string, string>
   ): Promise<void> {
     const body = {
       fields: Object.entries(fields).map(([attribute, value]) => ({ attribute, value })),
@@ -377,6 +397,15 @@ export class AriClient {
    */
   async reloadModule(moduleName: string): Promise<void> {
     await this.request('PUT', `/asterisk/modules/${moduleName}`)
+  }
+
+  /**
+   * Delete a dynamic config object via ARI.
+   * DELETE /ari/asterisk/config/dynamic/{configClass}/{objectType}/{id}
+   * Used for deprovisioning SIP endpoints.
+   */
+  async deleteDynamic(configClass: string, objectType: string, id: string): Promise<void> {
+    await this.request('DELETE', `/asterisk/config/dynamic/${configClass}/${objectType}/${id}`)
   }
 
   /** List active channels */
