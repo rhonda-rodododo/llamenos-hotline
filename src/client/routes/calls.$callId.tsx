@@ -150,7 +150,10 @@ function CallDetailPage() {
         <button
           type="button"
           onClick={() =>
-            navigate({ to: '/calls', search: { page: 1, q: '', dateFrom: '', dateTo: '' } })
+            navigate({
+              to: '/calls',
+              search: { page: 1, q: '', dateFrom: '', dateTo: '', voicemailOnly: false },
+            })
           }
           className="text-muted-foreground hover:text-foreground"
           aria-label={t('common.back')}

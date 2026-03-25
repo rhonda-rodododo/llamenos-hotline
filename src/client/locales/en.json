@@ -499,7 +499,12 @@
     "emptySubtitle": "Calls will appear here once received",
     "filterCompleted": "Completed",
     "filterUnanswered": "Unanswered",
-    "search": "Search calls..."
+    "search": "Search calls...",
+    "voicemailsOnly": "Voicemails only"
+  },
+  "voicemail": {
+    "loadingTranscript": "Loading transcript…",
+    "transcriptError": "Could not load voicemail transcript"
   },
   "profile": {
     "welcome": "Welcome!",

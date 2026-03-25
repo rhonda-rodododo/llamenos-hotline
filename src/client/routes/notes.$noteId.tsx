@@ -115,7 +115,7 @@ function NoteDetailPage() {
       navigate({
         to: '/calls/$callId',
         params: { callId: note.callId },
-        search: { page: 1, q: '', dateFrom: '', dateTo: '' },
+        search: { page: 1, q: '', dateFrom: '', dateTo: '', voicemailOnly: false },
       })
     } else {
       navigate({ to: '/notes', search: { page: 1, callId: '', search: '' } })
@@ -199,7 +199,7 @@ function NoteDetailPage() {
               <Link
                 to="/calls/$callId"
                 params={{ callId: note.callId }}
-                search={{ page: 1, q: '', dateFrom: '', dateTo: '' }}
+                search={{ page: 1, q: '', dateFrom: '', dateTo: '', voicemailOnly: false }}
                 className="text-sm text-primary hover:underline"
               >
                 {t('notes.detail.viewCall')}

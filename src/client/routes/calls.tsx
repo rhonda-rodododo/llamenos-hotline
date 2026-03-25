@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { VoicemailPlayer } from '@/components/voicemail-player'
 import { type CallRecord, type Volunteer, getCallHistory, listVolunteers } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptCallRecord } from '@/lib/crypto'
@@ -31,6 +32,7 @@ type CallsSearch = {
   q: string
   dateFrom: string
   dateTo: string
+  voicemailOnly: boolean
 }
 
 export const Route = createFileRoute('/calls')({
@@ -39,16 +41,17 @@ export const Route = createFileRoute('/calls')({
     q: (search?.q as string) || '',
     dateFrom: (search?.dateFrom as string) || '',
     dateTo: (search?.dateTo as string) || '',
+    voicemailOnly: search?.voicemailOnly === true || search?.voicemailOnly === 'true',
   }),
   component: CallHistoryPage,
 })
 
 function CallHistoryPage() {
   const { t } = useTranslation()
-  const { isAdmin, hasNsec, publicKey } = useAuth()
+  const { isAdmin, hasNsec, publicKey, hasPermission } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate({ from: '/calls' })
-  const { page, q, dateFrom, dateTo } = Route.useSearch()
+  const { page, q, dateFrom, dateTo, voicemailOnly } = Route.useSearch()
   const [calls, setCalls] = useState<CallRecord[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -67,6 +70,7 @@ function CallHistoryPage() {
       search: q || undefined,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
+      voicemailOnly: voicemailOnly || undefined,
     })
       .then((r) => {
         setCalls(r.calls)
@@ -74,7 +78,7 @@ function CallHistoryPage() {
       })
       .catch(() => toast(t('common.error'), 'error'))
       .finally(() => setLoading(false))
-  }, [page, q, dateFrom, dateTo])
+  }, [page, q, dateFrom, dateTo, voicemailOnly])
 
   useEffect(() => {
     fetchCalls()
@@ -120,7 +124,13 @@ function CallHistoryPage() {
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     navigate({
-      search: { page: 1, q: searchInput, dateFrom: dateFromInput, dateTo: dateToInput },
+      search: {
+        page: 1,
+        q: searchInput,
+        dateFrom: dateFromInput,
+        dateTo: dateToInput,
+        voicemailOnly,
+      },
     })
   }
 
@@ -128,14 +138,18 @@ function CallHistoryPage() {
     setSearchInput('')
     setDateFromInput('')
     setDateToInput('')
-    navigate({ search: { page: 1, q: '', dateFrom: '', dateTo: '' } })
+    navigate({ search: { page: 1, q: '', dateFrom: '', dateTo: '', voicemailOnly: false } })
+  }
+
+  function toggleVoicemailOnly() {
+    navigate({ search: (prev) => ({ ...prev, page: 1, voicemailOnly: !voicemailOnly }) })
   }
 
   function setPage(newPage: number) {
     navigate({ search: (prev) => ({ ...prev, page: newPage }) })
   }
 
-  const hasFilters = q || dateFrom || dateTo
+  const hasFilters = q || dateFrom || dateTo || voicemailOnly
 
   if (!isAdmin) {
     return <div className="text-muted-foreground">Access denied</div>
@@ -206,6 +220,17 @@ function CallHistoryPage() {
               >
                 <Search className="h-4 w-4" />
               </Button>
+              <Button
+                data-testid="call-voicemail-filter"
+                type="button"
+                variant={voicemailOnly ? 'default' : 'outline'}
+                size="sm"
+                onClick={toggleVoicemailOnly}
+                aria-pressed={voicemailOnly}
+                title={t('callHistory.voicemailsOnly', { defaultValue: 'Voicemails only' })}
+              >
+                <Voicemail className="h-4 w-4" />
+              </Button>
               {hasFilters && (
                 <Button
                   data-testid="call-clear-filters"
@@ -252,7 +277,7 @@ function CallHistoryPage() {
                   <Link
                     to="/calls/$callId"
                     params={{ callId: call.id }}
-                    search={{ page: 1, q: '', dateFrom: '', dateTo: '' }}
+                    search={{ page: 1, q: '', dateFrom: '', dateTo: '', voicemailOnly: false }}
                     className="min-w-0 flex-1 sm:flex-none sm:w-48 block"
                     data-testid="call-detail-link"
                   >
@@ -287,11 +312,11 @@ function CallHistoryPage() {
                   )}
                   <div className="flex items-center gap-1.5">
                     {call.hasVoicemail && (
-                      <Link to="/notes" search={{ page: 1, callId: call.id, search: '' }}>
-                        <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-muted">
-                          <Voicemail className="h-3 w-3" />
-                        </Badge>
-                      </Link>
+                      <VoicemailPlayer
+                        fileId={call.voicemailFileId}
+                        callId={call.id}
+                        canListen={hasPermission('voicemail:listen')}
+                      />
                     )}
                     {call.hasTranscription && (
                       <Link to="/notes" search={{ page: 1, callId: call.id, search: '' }}>

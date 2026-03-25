@@ -203,6 +203,10 @@ export class RecordsService {
 
     let filtered = allRows.map((r) => this.#rowToCallRecord(r))
 
+    if (filters?.voicemailOnly) {
+      filtered = filtered.filter((c) => c.hasVoicemail)
+    }
+
     if (filters?.search) {
       const q = filters.search.toLowerCase()
       filtered = filtered.filter(

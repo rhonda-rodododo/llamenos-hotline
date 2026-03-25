@@ -52,6 +52,7 @@ calls.get('/history', requirePermission('calls:read-history'), async (c) => {
     ...(c.req.query('search') ? { search: c.req.query('search')! } : {}),
     ...(c.req.query('dateFrom') ? { dateFrom: c.req.query('dateFrom')! } : {}),
     ...(c.req.query('dateTo') ? { dateTo: c.req.query('dateTo')! } : {}),
+    ...(c.req.query('voicemailOnly') === 'true' ? { voicemailOnly: true } : {}),
   }
   const result = await services.records.getCallHistory(page, limit, hubId, filters)
   return c.json(result)

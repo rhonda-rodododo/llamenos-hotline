@@ -113,7 +113,13 @@ export function CommandPalette() {
                     runCommand(() =>
                       navigate({
                         to: '/calls',
-                        search: { page: 1, q: searchQuery.trim(), dateFrom: '', dateTo: '' },
+                        search: {
+                          page: 1,
+                          q: searchQuery.trim(),
+                          dateFrom: '',
+                          dateTo: '',
+                          voicemailOnly: false,
+                        },
                       })
                     )
                   }
@@ -177,7 +183,7 @@ export function CommandPalette() {
                     runCommand(() =>
                       navigate({
                         to: '/calls',
-                        search: { page: 1, q: '', dateFrom: '', dateTo: '' },
+                        search: { page: 1, q: '', dateFrom: '', dateTo: '', voicemailOnly: false },
                       })
                     )
                   }

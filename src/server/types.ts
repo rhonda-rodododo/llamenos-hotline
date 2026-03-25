@@ -573,6 +573,7 @@ export interface CallRecordFilters {
   search?: string
   dateFrom?: string
   dateTo?: string
+  voicemailOnly?: boolean
 }
 
 // Analytics types

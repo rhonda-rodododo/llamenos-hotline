@@ -312,6 +312,7 @@ export async function getCallHistory(params?: {
   search?: string
   dateFrom?: string
   dateTo?: string
+  voicemailOnly?: boolean
 }) {
   const qs = new URLSearchParams()
   if (params?.page) qs.set('page', String(params.page))
@@ -319,6 +320,7 @@ export async function getCallHistory(params?: {
   if (params?.search) qs.set('search', params.search)
   if (params?.dateFrom) qs.set('dateFrom', params.dateFrom)
   if (params?.dateTo) qs.set('dateTo', params.dateTo)
+  if (params?.voicemailOnly) qs.set('voicemailOnly', 'true')
   return request<{ calls: CallRecord[]; total: number }>(hp(`/calls/history?${qs}`))
 }
 
