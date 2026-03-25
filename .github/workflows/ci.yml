@@ -245,7 +245,7 @@ jobs:
       - name: Build frontend
         run: bun run build
 
-      - name: Run API integration tests
+      - name: Start server
         env:
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
           ADMIN_PUBKEY: ${{ env.TEST_ADMIN_PUBKEY }}
@@ -258,6 +258,16 @@ jobs:
           NOSTR_RELAY_URL: ws://localhost:7777
           SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
           DEV_RESET_SECRET: test-reset-secret
+        run: |
+          bun run start &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/api/health/ready && break
+            sleep 2
+          done
+
+      - name: Run API integration tests
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
         run: bunx playwright test --project=setup --project=api
 
   # ─── UI E2E Tests ─────────────────────────────────────────
@@ -297,7 +307,7 @@ jobs:
       - name: Build frontend
         run: bun run build
 
-      - name: Run UI E2E tests
+      - name: Start server
         env:
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
           ADMIN_PUBKEY: ${{ env.TEST_ADMIN_PUBKEY }}
@@ -310,6 +320,16 @@ jobs:
           NOSTR_RELAY_URL: ws://localhost:7777
           SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
           DEV_RESET_SECRET: test-reset-secret
+        run: |
+          bun run start &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/api/health/ready && break
+            sleep 2
+          done
+
+      - name: Run UI E2E tests
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
         run: bunx playwright test --project=setup --project=ui --project=bootstrap --project=mobile
 
       - name: Upload test report
