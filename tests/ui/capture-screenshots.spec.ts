@@ -35,7 +35,7 @@ const VIEWPORTS = {
 } as const
 
 // Output directory
-const SCREENSHOT_DIR = path.join(__dirname, '..', 'site', 'public', 'screenshots')
+const SCREENSHOT_DIR = path.join(__dirname, '..', '..', 'site', 'public', 'screenshots')
 
 // Skip in CI - this test is only run manually for documentation
 // biome-ignore lint/correctness/noEmptyPattern: Playwright skip callback signature

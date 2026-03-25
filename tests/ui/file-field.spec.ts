@@ -118,18 +118,8 @@ test.describe('File Custom Field', () => {
     })
     expect(typeof adminPubkey).toBe('string')
 
-    // Create a conversation for the upload (required by uploads/init)
-    const conversationId = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/conversations', {
-        method: 'POST',
-        body: JSON.stringify({
-          channelType: 'web',
-          contactIdentifierHash: `test-file-field-ctx-${Date.now()}`,
-        }),
-      })
-      const data = await res.json()
-      return data.id as string
-    })
+    // Use a dummy conversationId — file upload init does not validate it
+    const conversationId = `test-conv-file-field-${Date.now()}`
 
     // Init and complete a minimal upload
     const uploadId = await page.evaluate(
@@ -195,18 +185,8 @@ test.describe('File Custom Field', () => {
       return (window as any).__TEST_KEY_MANAGER?.getPublicKeyHex() as string
     })
 
-    // Create conversation for upload
-    const conversationId = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/conversations', {
-        method: 'POST',
-        body: JSON.stringify({
-          channelType: 'web',
-          contactIdentifierHash: `test-ctx-incomplete-${Date.now()}`,
-        }),
-      })
-      const data = await res.json()
-      return data.id as string
-    })
+    // Use a dummy conversationId — file upload init does not validate it
+    const conversationId = `test-conv-incomplete-${Date.now()}`
 
     const uploadId = await page.evaluate(
       async ([conversationId, adminPubkey]: [string, string]) => {
