@@ -1,0 +1,35 @@
+# coturn configuration — managed by Ansible
+# Minimal config for WebRTC TURN relay
+
+# Realm — must match the domain
+realm={{ domain }}
+
+# Use long-term credential mechanism with shared secret
+use-auth-secret
+static-auth-secret={{ turn_secret }}
+
+# Listening ports
+listening-port=3478
+tls-listening-port=5349
+
+# Relay port range (keep small for Docker port mapping)
+min-port=49152
+max-port=49252
+
+# Disable CLI
+no-cli
+
+# Fingerprint (for TURN over TCP)
+fingerprint
+
+# Log to stdout for Docker
+log-file=stdout
+
+# Only relay — no TURN-to-TURN
+no-multicast-peers
+
+{% if coturn_cert_path is defined %}
+# TLS certificates
+cert=/etc/ssl/turn/cert.pem
+pkey=/etc/ssl/turn/key.pem
+{% endif %}

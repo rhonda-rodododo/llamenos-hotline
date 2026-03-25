@@ -120,6 +120,21 @@ whisper_image: fedirz/faster-whisper-server:0.4.1
 whisper_model: Systran/faster-whisper-base
 whisper_device: cpu
 
+# ─── Asterisk WebRTC (when asterisk profile enabled) ──────────
+# Domain for SIP URI and WSS connections (defaults to main domain)
+# asterisk_domain: demo.llamenos-hotline.com
+
+# coturn TURN server shared secret (generate with: openssl rand -hex 32)
+# Used for TURN credential generation. Required for WebRTC NAT traversal.
+turn_secret: ""
+
+# STUN/TURN server addresses (default: self-hosted coturn on same domain)
+# stun_server: "stun:demo.llamenos-hotline.com:3478"
+# turn_server: "turn:demo.llamenos-hotline.com:3478"
+
+# coturn Docker image
+coturn_image: coturn/coturn:4.6
+
 # ─── Backup ─────────────────────────────────────────────────────
 # Disable backups on demo instance (data is ephemeral by design)
 backup_enabled: false
