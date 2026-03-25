@@ -26,7 +26,7 @@
 
     - name: Record current llamenos image digest for rollback
       ansible.builtin.shell: |
-        docker inspect --format '{{ '{{' }}.Image{{ '}}' }}' llamenos-app 2>/dev/null || echo ""
+        docker inspect --format '{{ '{{' }}.Image{{ '}}' }}' llamenos-app-1 2>/dev/null || echo ""
       register: pre_update_digest
       changed_when: false
       tags: [update]
@@ -44,7 +44,7 @@
     - name: Pull latest images
       community.docker.docker_compose_v2:
         project_src: "{{ app_dir }}"
-        pull: always
+        pull: "{{ 'always' if pull_images | default(true) else 'missing' }}"
         state: present
         recreate: never
       register: pull_result
@@ -59,16 +59,15 @@
       tags: [update]
 
     - name: Wait for application health check
-      ansible.builtin.uri:
-        url: "http://localhost:3000/api/health"
-        method: GET
-        status_code: 200
-        return_content: true
+      ansible.builtin.command: >
+        docker compose -f {{ app_dir }}/docker-compose.yml
+        exec -T app curl -sf http://localhost:3000/api/health
       register: health_check
       retries: 20
       delay: 5
-      until: health_check.status == 200
+      until: health_check.rc == 0
       ignore_errors: true
+      changed_when: false
       tags: [update]
 
     - name: Rollback on health check failure
@@ -117,14 +116,14 @@
           when: rollback_digest_file is failed or rollback_digest_file.content | b64decode | trim | length == 0
 
         - name: Verify rollback health
-          ansible.builtin.uri:
-            url: "http://localhost:3000/api/health"
-            method: GET
-            status_code: 200
+          ansible.builtin.command: >
+            docker compose -f {{ app_dir }}/docker-compose.yml
+            exec -T app curl -sf http://localhost:3000/api/health
           register: rollback_health
           retries: 15
           delay: 5
-          until: rollback_health.status == 200
+          until: rollback_health.rc == 0
+          changed_when: false
 
         - name: Clean up rollback override file
           ansible.builtin.file:
