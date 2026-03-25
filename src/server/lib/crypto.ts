@@ -12,6 +12,7 @@ import {
   LABEL_MESSAGE,
   LABEL_PROVIDER_CREDENTIAL_WRAP,
 } from '@shared/crypto-labels'
+import type { RecipientEnvelope } from '@shared/types'
 import type { MessageKeyEnvelope } from '../types'
 
 /**
@@ -144,6 +145,97 @@ export function encryptCallRecordForStorage(
       ...eciesWrapKeyServer(recordKey, pk, LABEL_CALL_META),
     })),
   }
+}
+
+// ── Binary Encryption (Voicemail Audio) ──
+
+/**
+ * ECIES key unwrapping for a single recipient (server-side).
+ * Inverse of eciesWrapKeyServer: recovers the symmetric key from an envelope.
+ */
+function eciesUnwrapKeyServer(
+  envelope: { wrappedKey: string; ephemeralPubkey: string },
+  privateKey: Uint8Array,
+  label: string
+): Uint8Array {
+  const ephemeralPub = hexToBytes(envelope.ephemeralPubkey)
+  const shared = secp256k1.getSharedSecret(privateKey, ephemeralPub)
+  const sharedX = shared.slice(1, 33)
+
+  const labelBytes = utf8ToBytes(label)
+  const keyInput = new Uint8Array(labelBytes.length + sharedX.length)
+  keyInput.set(labelBytes)
+  keyInput.set(sharedX, labelBytes.length)
+  const symmetricKey = sha256(keyInput)
+
+  const packed = hexToBytes(envelope.wrappedKey)
+  const nonce = packed.slice(0, 24)
+  const ciphertext = packed.slice(24)
+  const cipher = xchacha20poly1305(symmetricKey, nonce)
+  return cipher.decrypt(ciphertext)
+}
+
+/**
+ * Encrypt binary data for storage using the envelope pattern.
+ * Generates a random per-item symmetric key, encrypts the plaintext binary,
+ * then wraps the key for each reader via ECIES.
+ *
+ * Used for voicemail audio and other binary blobs that need E2EE at rest.
+ * The plaintext is discarded after encryption.
+ *
+ * @param plaintext - Binary data to encrypt
+ * @param readerPubkeys - x-only pubkeys of authorized readers (hex)
+ * @param label - Domain separation label (e.g. LABEL_VOICEMAIL_WRAP)
+ */
+export function encryptBinaryForStorage(
+  plaintext: Uint8Array,
+  readerPubkeys: string[],
+  label: string
+): { encryptedContent: string; readerEnvelopes: RecipientEnvelope[] } {
+  const dataKey = new Uint8Array(32)
+  crypto.getRandomValues(dataKey)
+
+  const nonce = new Uint8Array(24)
+  crypto.getRandomValues(nonce)
+  const cipher = xchacha20poly1305(dataKey, nonce)
+  const ciphertext = cipher.encrypt(plaintext)
+
+  const packed = new Uint8Array(nonce.length + ciphertext.length)
+  packed.set(nonce)
+  packed.set(ciphertext, nonce.length)
+
+  return {
+    encryptedContent: bytesToHex(packed),
+    readerEnvelopes: readerPubkeys.map((pk) => ({
+      pubkey: pk,
+      ...eciesWrapKeyServer(dataKey, pk, label),
+    })),
+  }
+  // dataKey goes out of scope — never stored
+}
+
+/**
+ * Decrypt binary data from storage using the envelope pattern.
+ * Unwraps the symmetric key from the recipient's envelope, then decrypts.
+ *
+ * @param encryptedContentHex - Hex-encoded nonce(24) || ciphertext
+ * @param envelope - The recipient's ECIES envelope
+ * @param privateKey - Recipient's secp256k1 private key
+ * @param label - Domain separation label (must match encryption)
+ */
+export function decryptBinaryFromStorage(
+  encryptedContentHex: string,
+  envelope: { wrappedKey: string; ephemeralPubkey: string },
+  privateKey: Uint8Array,
+  label: string
+): Uint8Array {
+  const dataKey = eciesUnwrapKeyServer(envelope, privateKey, label)
+
+  const packed = hexToBytes(encryptedContentHex)
+  const nonce = packed.slice(0, 24)
+  const ciphertext = packed.slice(24)
+  const cipher = xchacha20poly1305(dataKey, nonce)
+  return cipher.decrypt(ciphertext)
 }
 
 // ── Provider Credential Encryption ──
