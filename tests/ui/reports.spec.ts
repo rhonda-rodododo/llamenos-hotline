@@ -33,14 +33,12 @@ async function createReportViaUI(page: Page, title: string, details: string): Pr
   // Set up response waiters BEFORE clicking submit so we don't miss the callbacks.
   // The component POSTs the report, then calls listReports() to refresh.
   const postResponse = page.waitForResponse(
-    (resp) => resp.url().includes('/api/reports') && resp.request().method() === 'POST',
+    (resp) => resp.url().includes('/reports') && resp.request().method() === 'POST',
     { timeout: 30000 }
   )
   const listResponse = page.waitForResponse(
     (resp) =>
-      resp.url().includes('/api/reports') &&
-      resp.request().method() === 'GET' &&
-      resp.status() === 200,
+      resp.url().includes('/reports') && resp.request().method() === 'GET' && resp.status() === 200,
     { timeout: 30000 }
   )
 

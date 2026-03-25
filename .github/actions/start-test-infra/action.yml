@@ -30,6 +30,9 @@ runs:
           curl -sf http://localhost:9000/minio/health/live && break
           sleep 2
         done
+        # Create the default bucket for file uploads
+        docker exec minio mc alias set local http://localhost:9000 minioadmin minioadmin
+        docker exec minio mc mb --ignore-existing local/llamenos-files
 
     - name: Start Asterisk
       shell: bash

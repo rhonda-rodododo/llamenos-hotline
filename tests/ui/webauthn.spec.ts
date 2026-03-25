@@ -73,8 +73,9 @@ async function openPasskeysSection(page: Page): Promise<void> {
   const alreadyExpanded = await labelInput.isVisible({ timeout: 500 }).catch(() => false)
 
   if (!alreadyExpanded) {
-    // Click the card header (CollapsibleTrigger) to expand the section
-    await page.locator('#passkeys').locator('div[data-slot="card-header"]').click()
+    // Click the card header (CollapsibleTrigger wraps CardHeader via asChild,
+    // so data-slot becomes "collapsible-trigger" not "card-header")
+    await page.locator('#passkeys').locator('div[data-slot="collapsible-trigger"]').click()
     // Wait for collapsible animation to complete
     await labelInput.waitFor({ state: 'visible', timeout: 5000 })
   }
