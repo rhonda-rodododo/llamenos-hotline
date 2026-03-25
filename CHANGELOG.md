@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] - 2026-03-25
+
+### Bug Fixes
+
+- use valid hex placeholder for server_nostr_secret
+- lefthook lint-fix should not block commits on warnings
+- silence lefthook lint-fix output
+- voice-captcha and call-flow test improvements
+- lefthook silently fixes, fails descriptively on real errors
+- pin-challenge tests create volunteer with phone in setup
+- enable Nostr relay events in dev/test environment
+- call-flow tests use ws package for relay check + fixme for dashboard
+- scrub leaked home directory paths and untrack .claude project files
+- implement CAPTCHA retry logic and fix dashboard call events
+- CAPTCHA retry works end-to-end, all voice-captcha tests pass
+- resolve pre-existing API test failures and harden TestAdapter
+- cast TextEncoder.encode() to Uint8Array<ArrayBuffer> for WebCrypto APIs
+- address final code review issues
+
+### Documentation
+
+- document app bugs found during test restructuring
+- clarify file-level vs test-level parallelism in spec
+- add Web Push notifications and browser calling spec
+- address spec review feedback for web push + browser calling
+- address second spec review pass
+- update spec with research findings
+- add implementation plans for Web Push and Browser Calling
+- fix plan review issues for both implementation plans
+- add SIP WebRTC browser calling spec (JsSIP)
+- address spec review findings for SIP WebRTC design
+
+### Features
+
+- add lefthook pre-commit hook for auto lint-fix
+- add PII pre-commit hook to block leaked personal identifiers
+- add web-push + workbox deps, VAPID env vars
+- add PushService with subscription CRUD
+- add push notification subscription API routes
+- add Web Push delivery to ringing flow (WP4)
+- custom service worker with push notification handlers
+- add client-side push subscription management (WP6)
+- re-subscribe to push on app load and add push toggle to settings (WP7)
+- handle push notification answer intent on dashboard (WP8)
+- add WebRTCAdapter interface and types for browser calling
+- add TwilioWebRTCAdapter implementing WebRTCAdapter interface
+- add VonageWebRTCAdapter implementing WebRTCAdapter interface
+- add PlivoWebRTCAdapter and fix Plivo JWT token generation
+- replace webrtc.ts with provider-agnostic WebRTCManager
+- add ttl to WebRTC token endpoint response
+- add type column to call_legs table (phone | browser)
+- update RingVolunteersParams and all 5 adapters for browser calling
+- extend answer endpoint with leg cancellation
+- wire WebRTC answer into useCalls and keyboard shortcuts
+- request mic permission when switching to browser/both call preference
+
+### Miscellaneous
+
+- add USE_TEST_ADAPTER=true to .env for local dev
+- gitignore pii-check script, run from lefthook only if present
+- v0.23.0 [skip ci]
+
+### Refactoring
+
+- serial test improvements + lint fixes from agents
+
+### Wip
+
+- TestAdapter infrastructure + telephony skip removals
+
 ## [0.22.0] - 2026-03-24
 
 ### Bug Fixes
