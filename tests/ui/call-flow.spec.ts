@@ -204,12 +204,38 @@ test.describe('Call flow', () => {
 
   // ── 2.3: Write a note during the call ────────────────────────────────────
 
-  test('can write and save a note during an active call', async ({ page }) => {
+  test('can write and save a note during an active call', async ({ page, request }) => {
     test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
     // beforeEach already logged in and navigated to dashboard with authedFetch injected
-    await waitForActiveCall(page, CALL_SID, 'ringing')
 
-    // Answer the call first
+    // Set up a fresh call for this test (self-contained, doesn't depend on prior serial tests)
+    const noteCallSid = `CA_note_${Date.now()}`
+
+    await setFallbackGroup(page, ADMIN_PUBKEY)
+
+    // Simulate inbound call + language selection
+    await request.post('/telephony/incoming', {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: formEncode({
+        CallSid: noteCallSid,
+        From: CALLER_FROM,
+        To: HOTLINE_TO,
+        CallStatus: 'ringing',
+        Direction: 'inbound',
+      }),
+    })
+    await request.post('/telephony/language-selected?forceLang=en', {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: formEncode({
+        CallSid: noteCallSid,
+        From: CALLER_FROM,
+        Digits: '1',
+      }),
+    })
+
+    await waitForActiveCall(page, noteCallSid, 'ringing')
+
+    // Answer the call via UI
     await expect(page.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 15_000 })
     await page.getByTestId(TestIds.ANSWER_CALL_BTN).click()
     await expect(page.getByTestId(TestIds.ACTIVE_CALL_PANEL)).toBeVisible({ timeout: 8_000 })

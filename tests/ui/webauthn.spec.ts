@@ -150,8 +150,8 @@ test.describe('Passkey registration', () => {
   })
 
   test('multiple passkeys can be registered', async ({ page }) => {
-    const auth = await setupVirtualAuthenticator(page)
-    if (!auth) {
+    const auth1 = await setupVirtualAuthenticator(page)
+    if (!auth1) {
       test.skip(true, 'Virtual authenticator not supported')
       return
     }
@@ -161,15 +161,33 @@ test.describe('Passkey registration', () => {
     const labelInput = page.getByTestId('passkey-label-input')
     const registerBtn = page.getByTestId('passkey-register-btn')
 
-    // Register first passkey
+    // Register first passkey using first virtual authenticator
     await labelInput.fill('Device Alpha')
     await registerBtn.click()
     await expect(
       page.getByTestId('passkey-credential-row').filter({ hasText: 'Device Alpha' })
     ).toBeVisible({ timeout: 10_000 })
 
-    // Register second passkey
+    // Remove first authenticator and add a second one on the same CDP session.
+    // excludeCredentials prevents the same authenticator from creating a new
+    // credential for the same user, so we need a fresh authenticator.
+    const { cdp } = auth1
+    await cdp.send('WebAuthn.removeVirtualAuthenticator', {
+      authenticatorId: auth1.authenticatorId,
+    })
+    const { authenticatorId: auth2Id } = await cdp.send('WebAuthn.addVirtualAuthenticator', {
+      options: {
+        protocol: 'ctap2',
+        transport: 'internal',
+        hasResidentKey: true,
+        hasUserVerification: true,
+        isUserVerified: true,
+      },
+    })
+
+    // Register second passkey using fresh authenticator
     await labelInput.fill('Device Beta')
+    await expect(registerBtn).toBeEnabled({ timeout: 5_000 })
     await registerBtn.click()
     await expect(
       page.getByTestId('passkey-credential-row').filter({ hasText: 'Device Beta' })
@@ -180,7 +198,7 @@ test.describe('Passkey registration', () => {
     const count = await rows.count()
     expect(count, 'Expected at least 2 credentials registered').toBeGreaterThanOrEqual(2)
 
-    await teardownVirtualAuthenticator(auth.cdp, auth.authenticatorId)
+    await teardownVirtualAuthenticator(cdp, auth2Id)
   })
 })
 

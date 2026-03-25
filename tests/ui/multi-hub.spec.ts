@@ -128,8 +128,7 @@ test.describe('Multi-hub architecture — UI', () => {
     const archiveRes = await authedApi.patch(`/api/hubs/${hubId}`, { status: 'archived' })
     expect(archiveRes.ok()).toBe(true)
 
-    await page.goto('/admin/hubs')
-    await page.waitForLoadState('networkidle')
+    await navigateAfterLogin(page, '/admin/hubs')
 
     const hubRow = page.locator('[data-testid="hub-row"]').filter({ hasText: hubName })
     await expect(hubRow).toBeVisible()
