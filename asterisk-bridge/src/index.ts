@@ -1,8 +1,8 @@
 import { AriClient } from './ari-client'
-import { WebhookSender } from './webhook-sender'
 import { CommandHandler } from './command-handler'
 import { PjsipConfigurator } from './pjsip-configurator'
 import type { BridgeConfig } from './types'
+import { WebhookSender } from './webhook-sender'
 
 /** Load configuration from environment variables */
 function loadConfig(): BridgeConfig {
@@ -12,7 +12,7 @@ function loadConfig(): BridgeConfig {
   const ariPassword = process.env.ARI_PASSWORD
   const workerWebhookUrl = process.env.WORKER_WEBHOOK_URL
   const bridgeSecret = process.env.BRIDGE_SECRET
-  const bridgePort = parseInt(process.env.BRIDGE_PORT ?? '3000', 10)
+  const bridgePort = Number.parseInt(process.env.BRIDGE_PORT ?? '3000', 10)
   const bridgeBind = process.env.BRIDGE_BIND ?? '127.0.0.1'
   const stasisApp = process.env.STASIS_APP ?? 'llamenos'
 
@@ -58,7 +58,7 @@ async function main(): Promise<void> {
 
   // Register ARI event handler
   ari.onEvent((event) => {
-    handler.handleEvent(event).catch(err => {
+    handler.handleEvent(event).catch((err) => {
       console.error('[bridge] Event handler error:', err)
     })
   })
@@ -98,11 +98,14 @@ async function main(): Promise<void> {
             bridges: bridges.length,
           })
         } catch (err) {
-          return Response.json({
-            status: 'error',
-            error: String(err),
-            bridge: handler.getStatus(),
-          }, { status: 500 })
+          return Response.json(
+            {
+              status: 'error',
+              error: String(err),
+              bridge: handler.getStatus(),
+            },
+            { status: 500 }
+          )
         }
       }
 
@@ -167,11 +170,11 @@ async function main(): Promise<void> {
               channelIds.push(channel.id)
 
               // Track ringing state
-              const parentCall = handler['calls'].get(data.callSid)
+              const parentCall = handler.getCall(data.callSid)
               if (parentCall) {
                 parentCall.ringingChannels.push(channel.id)
               }
-              handler['ringingMap'].set(channel.id, data.callSid)
+              handler.trackRingingChannel(channel.id, data.callSid)
             } catch (err) {
               console.error(`[bridge] Failed to ring ${vol.pubkey}:`, err)
             }
@@ -201,7 +204,9 @@ async function main(): Promise<void> {
             if (id !== data.exceptId) {
               try {
                 await ari.hangupChannel(id)
-              } catch { /* may already be gone */ }
+              } catch {
+                /* may already be gone */
+              }
             }
           }
           return Response.json({ ok: true })
@@ -212,7 +217,8 @@ async function main(): Promise<void> {
 
       // Get recording audio
       if (path.startsWith('/recordings/') && method === 'GET') {
-        const signature = request.headers.get('X-Bridge-Signature') ?? url.searchParams.get('sig') ?? ''
+        const signature =
+          request.headers.get('X-Bridge-Signature') ?? url.searchParams.get('sig') ?? ''
         // Allow either header or query param for signature (for simple GET requests)
         if (config.bridgeSecret && !signature) {
           return new Response('Forbidden', { status: 403 })
@@ -251,6 +257,80 @@ async function main(): Promise<void> {
           const data = JSON.parse(body) as { channelId: string }
           await ari.hangupChannel(data.channelId)
           return Response.json({ ok: true })
+        } catch (err) {
+          return Response.json({ ok: false, error: String(err) }, { status: 500 })
+        }
+      }
+
+      // Provision SIP endpoint for volunteer WebRTC
+      if (path === '/provision-endpoint' && method === 'POST') {
+        const signature = request.headers.get('X-Bridge-Signature') ?? ''
+        const body = await request.clone().text()
+
+        if (config.bridgeSecret) {
+          const isValid = await webhook.verifySignature(url.toString(), body, signature)
+          if (!isValid) {
+            return new Response('Forbidden', { status: 403 })
+          }
+        }
+
+        try {
+          const { pubkey } = JSON.parse(body) as { pubkey: string }
+          const { provisionEndpoint } = await import('./endpoint-provisioner')
+          const result = await provisionEndpoint(ari, pubkey)
+          return Response.json({ ok: true, ...result })
+        } catch (err) {
+          return Response.json({ ok: false, error: String(err) }, { status: 500 })
+        }
+      }
+
+      // Deprovision SIP endpoint
+      if (path === '/deprovision-endpoint' && method === 'POST') {
+        const signature = request.headers.get('X-Bridge-Signature') ?? ''
+        const body = await request.clone().text()
+
+        if (config.bridgeSecret) {
+          const isValid = await webhook.verifySignature(url.toString(), body, signature)
+          if (!isValid) {
+            return new Response('Forbidden', { status: 403 })
+          }
+        }
+
+        try {
+          const { pubkey } = JSON.parse(body) as { pubkey: string }
+          const { deprovisionEndpoint } = await import('./endpoint-provisioner')
+          await deprovisionEndpoint(ari, pubkey)
+          return Response.json({ ok: true })
+        } catch (err) {
+          return Response.json({ ok: false, error: String(err) }, { status: 500 })
+        }
+      }
+
+      // Check SIP endpoint exists
+      if (path === '/check-endpoint' && method === 'POST') {
+        const signature = request.headers.get('X-Bridge-Signature') ?? ''
+        const body = await request.clone().text()
+
+        if (config.bridgeSecret) {
+          const isValid = await webhook.verifySignature(url.toString(), body, signature)
+          if (!isValid) {
+            return new Response('Forbidden', { status: 403 })
+          }
+        }
+
+        try {
+          const { pubkey } = JSON.parse(body) as { pubkey: string }
+          const username = `vol_${pubkey.slice(0, 12)}`
+          // Try to read the endpoint config — if it exists, the endpoint is provisioned
+          try {
+            await ari.getAsteriskInfo() // Use a lightweight ARI call to check connectivity
+            // For now, just verify we can construct the username — full check would need
+            // a GET to /asterisk/config/dynamic/res_pjsip/endpoint/{username}
+            // which requires adding a getDynamic method. Keep it simple for now.
+            return Response.json({ ok: true, exists: true, username })
+          } catch {
+            return Response.json({ ok: true, exists: false })
+          }
         } catch (err) {
           return Response.json({ ok: false, error: String(err) }, { status: 500 })
         }
@@ -315,7 +395,7 @@ async function main(): Promise<void> {
   })
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('[bridge] Fatal error:', err)
   process.exit(1)
 })

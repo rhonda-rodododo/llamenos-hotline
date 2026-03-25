@@ -1,21 +1,21 @@
 import type { AriClient } from './ari-client'
-import type { WebhookSender } from './webhook-sender'
 import type {
-  AnyAriEvent,
-  StasisStartEvent,
-  StasisEndEvent,
-  ChannelDtmfReceivedEvent,
-  ChannelStateChangeEvent,
-  ChannelHangupRequestEvent,
-  ChannelDestroyedEvent,
-  RecordingFinishedEvent,
-  RecordingFailedEvent,
-  PlaybackFinishedEvent,
   ActiveCall,
+  AnyAriEvent,
   BridgeCommand,
   BridgeConfig,
+  ChannelDestroyedEvent,
+  ChannelDtmfReceivedEvent,
+  ChannelHangupRequestEvent,
+  ChannelStateChangeEvent,
+  PlaybackFinishedEvent,
+  RecordingFailedEvent,
+  RecordingFinishedEvent,
+  StasisEndEvent,
+  StasisStartEvent,
   WebhookPayload,
 } from './types'
+import type { WebhookSender } from './webhook-sender'
 
 /**
  * CommandHandler — the central orchestrator that:
@@ -39,17 +39,20 @@ export class CommandHandler {
   private bridges = new Map<string, { callerChannelId: string; volunteerChannelId: string }>()
 
   /** Map of recording name → callback info */
-  private recordingCallbacks = new Map<string, {
-    callbackPath: string
-    callbackParams: Record<string, string>
-    channelId: string
-  }>()
+  private recordingCallbacks = new Map<
+    string,
+    {
+      callbackPath: string
+      callbackParams: Record<string, string>
+      channelId: string
+    }
+  >()
 
   /** Map of volunteer channel ID → parent call SID (for ringing coordination) */
   private ringingMap = new Map<string, string>()
 
   /** Configured hotline number (for the To field) */
-  private hotlineNumber: string = ''
+  private hotlineNumber = ''
 
   constructor(ari: AriClient, webhook: WebhookSender, config: BridgeConfig) {
     this.ari = ari
@@ -60,6 +63,16 @@ export class CommandHandler {
   /** Set the hotline phone number (for webhook payloads) */
   setHotlineNumber(number: string): void {
     this.hotlineNumber = number
+  }
+
+  /** Get the active call record for a given call SID (for ringing coordination from index.ts) */
+  getCall(callSid: string): ActiveCall | undefined {
+    return this.calls.get(callSid)
+  }
+
+  /** Track a ringing volunteer channel → parent call SID mapping */
+  trackRingingChannel(channelId: string, callSid: string): void {
+    this.ringingMap.set(channelId, callSid)
   }
 
   // ================================================================
@@ -107,7 +120,9 @@ export class CommandHandler {
     const channel = event.channel
     const args = event.args || []
 
-    console.log(`[handler] StasisStart channel=${channel.id} caller=${channel.caller.number} args=${args.join(',')}`)
+    console.log(
+      `[handler] StasisStart channel=${channel.id} caller=${channel.caller.number} args=${args.join(',')}`
+    )
 
     // Check if this is a volunteer outbound leg (originated by us for ringing)
     if (args[0] === 'dialed') {
@@ -173,7 +188,7 @@ export class CommandHandler {
       // Remove from parent call's ringing list
       const parentCall = this.calls.get(parentSid)
       if (parentCall) {
-        parentCall.ringingChannels = parentCall.ringingChannels.filter(id => id !== channelId)
+        parentCall.ringingChannels = parentCall.ringingChannels.filter((id) => id !== channelId)
       }
     }
   }
@@ -207,10 +222,18 @@ export class CommandHandler {
         // Stop any playing prompt
         try {
           await this.ari.stopPlayback(`gather-${channelId}`)
-        } catch { /* playback may not exist */ }
+        } catch {
+          /* playback may not exist */
+        }
 
         // Send digits to Worker via callback
-        await this.sendGatherResult(channelId, call, digits, gather.callbackPath, gather.callbackParams)
+        await this.sendGatherResult(
+          channelId,
+          call,
+          digits,
+          gather.callbackPath,
+          gather.callbackParams
+        )
       }
     }
   }
@@ -222,7 +245,9 @@ export class CommandHandler {
 
     if (parentSid && channel.state === 'Up') {
       // Volunteer answered — handled in StasisStart with 'dialed' arg
-      console.log(`[handler] ChannelStateChange channel=${channel.id} state=${channel.state} (volunteer ringing)`)
+      console.log(
+        `[handler] ChannelStateChange channel=${channel.id} state=${channel.state} (volunteer ringing)`
+      )
     }
   }
 
@@ -254,10 +279,17 @@ export class CommandHandler {
       // Determine status from cause
       let callStatus: 'completed' | 'busy' | 'no-answer' | 'failed' = 'completed'
       switch (event.cause) {
-        case 17: callStatus = 'busy'; break     // User busy
-        case 19: callStatus = 'no-answer'; break // No answer
-        case 21: callStatus = 'failed'; break    // Call rejected
-        default: callStatus = 'completed'
+        case 17:
+          callStatus = 'busy'
+          break // User busy
+        case 19:
+          callStatus = 'no-answer'
+          break // No answer
+        case 21:
+          callStatus = 'failed'
+          break // Call rejected
+        default:
+          callStatus = 'completed'
       }
 
       const payload: WebhookPayload = {
@@ -331,7 +363,13 @@ export class CommandHandler {
           if (call.activeGather === gather) {
             call.activeGather = undefined
             call.dtmfBuffer = ''
-            await this.sendGatherResult(channelId, call, '', gather.callbackPath, gather.callbackParams)
+            await this.sendGatherResult(
+              channelId,
+              call,
+              '',
+              gather.callbackPath,
+              gather.callbackParams
+            )
           }
         }, gather.timeout * 1000)
       }
@@ -346,9 +384,11 @@ export class CommandHandler {
   private async onVolunteerAnswered(
     volunteerChannelId: string,
     parentCallSid: string,
-    pubkey: string,
+    pubkey: string
   ): Promise<void> {
-    console.log(`[handler] Volunteer answered channel=${volunteerChannelId} parent=${parentCallSid} pubkey=${pubkey}`)
+    console.log(
+      `[handler] Volunteer answered channel=${volunteerChannelId} parent=${parentCallSid} pubkey=${pubkey}`
+    )
 
     // Send volunteer-answer webhook
     const parentCall = this.calls.get(parentCallSid)
@@ -364,7 +404,11 @@ export class CommandHandler {
       pubkey,
     }
 
-    const response = await this.webhook.sendWebhook('/api/telephony/volunteer-answer', payload, queryParams)
+    const response = await this.webhook.sendWebhook(
+      '/api/telephony/volunteer-answer',
+      payload,
+      queryParams
+    )
     if (response.ok) {
       const twiml = await response.text()
       const commands = this.webhook.parseTwimlToCommands(twiml, volunteerChannelId)
@@ -375,7 +419,9 @@ export class CommandHandler {
           if (ringChannelId !== volunteerChannelId) {
             try {
               await this.ari.hangupChannel(ringChannelId)
-            } catch { /* may already be gone */ }
+            } catch {
+              /* may already be gone */
+            }
           }
         }
         parentCall.ringingChannels = []
@@ -395,7 +441,7 @@ export class CommandHandler {
       try {
         await this.executeCommand(cmd)
       } catch (err) {
-        console.error(`[handler] Command failed:`, cmd.action, err)
+        console.error('[handler] Command failed:', cmd.action, err)
       }
     }
   }
@@ -444,9 +490,9 @@ export class CommandHandler {
       console.log(`[handler] TTS playback: "${cmd.text.substring(0, 50)}..." lang=${cmd.language}`)
       // Use Asterisk TTS if available, otherwise log warning
       try {
-        await this.ari.playMedia(cmd.channelId, `sound:beep`)
+        await this.ari.playMedia(cmd.channelId, 'sound:beep')
       } catch (err) {
-        console.warn(`[handler] TTS playback failed, channel may be gone:`, err)
+        console.warn('[handler] TTS playback failed, channel may be gone:', err)
       }
     } else {
       // Direct media playback
@@ -454,7 +500,7 @@ export class CommandHandler {
       try {
         await this.ari.playMedia(cmd.channelId, media)
       } catch (err) {
-        console.warn(`[handler] Playback failed:`, err)
+        console.warn('[handler] Playback failed:', err)
       }
     }
   }
@@ -476,19 +522,27 @@ export class CommandHandler {
     // Play the prompt (if any)
     if (cmd.text || cmd.media) {
       const media = cmd.media
-        ? (cmd.media.startsWith('http') ? cmd.media : `sound:${cmd.media}`)
+        ? cmd.media.startsWith('http')
+          ? cmd.media
+          : `sound:${cmd.media}`
         : 'sound:beep'
       try {
         await this.ari.playMedia(cmd.channelId, media, `gather-${cmd.channelId}`)
       } catch (err) {
-        console.warn(`[handler] Gather playback failed:`, err)
+        console.warn('[handler] Gather playback failed:', err)
         // Start timeout even if playback fails
         call.activeGather.timeoutTimer = setTimeout(async () => {
           if (call.activeGather) {
             const gather = call.activeGather
             call.activeGather = undefined
             call.dtmfBuffer = ''
-            await this.sendGatherResult(cmd.channelId, call, '', gather.callbackPath, gather.callbackParams)
+            await this.sendGatherResult(
+              cmd.channelId,
+              call,
+              '',
+              gather.callbackPath,
+              gather.callbackParams
+            )
           }
         }, cmd.timeout * 1000)
       }
@@ -500,7 +554,13 @@ export class CommandHandler {
           call.activeGather = undefined
           const digits = call.dtmfBuffer
           call.dtmfBuffer = ''
-          await this.sendGatherResult(cmd.channelId, call, digits, gather.callbackPath, gather.callbackParams)
+          await this.sendGatherResult(
+            cmd.channelId,
+            call,
+            digits,
+            gather.callbackPath,
+            gather.callbackParams
+          )
         }
       }, cmd.timeout * 1000)
     }
@@ -511,7 +571,7 @@ export class CommandHandler {
     // Resolve the caller channel from the queue
     let callerChannelId = cmd.callerChannelId
     if (this.queues.has(callerChannelId)) {
-      callerChannelId = this.queues.get(callerChannelId)!
+      callerChannelId = this.queues.get(callerChannelId) ?? callerChannelId
     }
 
     console.log(`[handler] Bridging caller=${callerChannelId} volunteer=${cmd.volunteerChannelId}`)
@@ -524,7 +584,9 @@ export class CommandHandler {
     }
     try {
       await this.ari.stopMoh(callerChannelId)
-    } catch { /* may not be on hold */ }
+    } catch {
+      /* may not be on hold */
+    }
 
     // Create bridge
     const bridgeId = `bridge-${callerChannelId}-${Date.now()}`
@@ -561,7 +623,7 @@ export class CommandHandler {
           })
         }
       } catch (err) {
-        console.error(`[handler] Failed to start bridge recording:`, err)
+        console.error('[handler] Failed to start bridge recording:', err)
       }
     }
   }
@@ -579,7 +641,9 @@ export class CommandHandler {
     if (cmd.beep) {
       try {
         await this.ari.playMedia(cmd.channelId, 'tone:1004/200')
-      } catch { /* beep failed, continue anyway */ }
+      } catch {
+        /* beep failed, continue anyway */
+      }
     }
 
     try {
@@ -597,7 +661,7 @@ export class CommandHandler {
         channelId: cmd.channelId,
       })
     } catch (err) {
-      console.error(`[handler] Failed to start recording:`, err)
+      console.error('[handler] Failed to start recording:', err)
     }
   }
 
@@ -644,12 +708,12 @@ export class CommandHandler {
     try {
       await this.ari.startMoh(cmd.channelId, cmd.musicOnHold ?? 'default')
     } catch (err) {
-      console.warn(`[handler] Failed to start MOH:`, err)
+      console.warn('[handler] Failed to start MOH:', err)
     }
 
     // Set up periodic wait callback
     const waitInterval = (cmd.waitCallbackInterval ?? 10) * 1000
-    let queueStartTime = Date.now()
+    const queueStartTime = Date.now()
 
     call.queue = {
       startedAt: queueStartTime,
@@ -658,6 +722,7 @@ export class CommandHandler {
     }
 
     if (cmd.waitCallbackPath) {
+      const waitCallbackPath = cmd.waitCallbackPath
       call.queue.waitTimer = setInterval(async () => {
         const queueTime = Math.floor((Date.now() - queueStartTime) / 1000)
 
@@ -671,9 +736,9 @@ export class CommandHandler {
 
         try {
           const response = await this.webhook.sendWebhook(
-            cmd.waitCallbackPath!,
+            waitCallbackPath,
             payload,
-            cmd.callbackParams,
+            cmd.callbackParams
           )
 
           if (response.ok) {
@@ -681,7 +746,9 @@ export class CommandHandler {
             const commands = this.webhook.parseTwimlToCommands(twiml, cmd.channelId)
 
             // Check for Leave command (means leave queue → voicemail)
-            const leaveCmd = commands.find(c => c.action === 'redirect' && 'path' in c && c.path === '__leave_queue__')
+            const leaveCmd = commands.find(
+              (c) => c.action === 'redirect' && 'path' in c && c.path === '__leave_queue__'
+            )
             if (leaveCmd) {
               // Clear queue
               this.cleanupCallQueue(cmd.channelId)
@@ -690,7 +757,7 @@ export class CommandHandler {
             }
           }
         } catch (err) {
-          console.error(`[handler] Wait callback failed:`, err)
+          console.error('[handler] Wait callback failed:', err)
         }
       }, waitInterval) as unknown as ReturnType<typeof setTimeout>
     }
@@ -762,7 +829,9 @@ export class CommandHandler {
             if (id !== exceptId) {
               try {
                 await this.ari.hangupChannel(id)
-              } catch { /* may already be gone */ }
+              } catch {
+                /* may already be gone */
+              }
             }
           }
           return { ok: true }
@@ -810,7 +879,7 @@ export class CommandHandler {
     call: ActiveCall,
     digits: string,
     callbackPath: string,
-    callbackParams?: Record<string, string>,
+    callbackParams?: Record<string, string>
   ): Promise<void> {
     const payload: WebhookPayload = {
       event: 'language-selected', // Gather results use same format
@@ -832,7 +901,7 @@ export class CommandHandler {
   private async sendQueueExit(
     channelId: string,
     call: ActiveCall,
-    result: 'leave' | 'queue-full' | 'error' | 'bridged' | 'hangup',
+    result: 'leave' | 'queue-full' | 'error' | 'bridged' | 'hangup'
   ): Promise<void> {
     const exitPath = call.queue?.exitCallbackPath
     if (!exitPath) return
@@ -868,9 +937,8 @@ export class CommandHandler {
     for (const [bridgeId, state] of this.bridges) {
       if (state.callerChannelId === channelId || state.volunteerChannelId === channelId) {
         // Hang up the other leg and destroy the bridge
-        const otherChannel = state.callerChannelId === channelId
-          ? state.volunteerChannelId
-          : state.callerChannelId
+        const otherChannel =
+          state.callerChannelId === channelId ? state.volunteerChannelId : state.callerChannelId
 
         this.ari.hangupChannel(otherChannel).catch(() => {})
         this.ari.destroyBridge(bridgeId).catch(() => {})
