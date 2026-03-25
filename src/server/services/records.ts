@@ -153,6 +153,29 @@ export class RecordsService {
     return this.#rowToCallRecord(row)
   }
 
+  /**
+   * Create a call record if it doesn't exist, or update it if it does.
+   * Used by webhook handlers that may fire before or after the call record is created.
+   */
+  async upsertCallRecord(
+    id: string,
+    hubId: string,
+    data: Partial<CreateCallRecordData> & { startedAt?: Date; status?: string }
+  ): Promise<EncryptedCallRecord> {
+    const hId = hubId ?? 'global'
+    const existing = await this.getCallRecord(id, hId)
+    if (existing) {
+      return this.updateCallRecord(id, hId, data)
+    }
+    return this.createCallRecord({
+      id,
+      hubId: hId,
+      startedAt: data.startedAt ?? new Date(),
+      status: data.status ?? 'voicemail',
+      ...data,
+    })
+  }
+
   async getCallHistory(
     page: number,
     limit: number,

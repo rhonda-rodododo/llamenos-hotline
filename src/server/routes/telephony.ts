@@ -522,10 +522,10 @@ telephony.post('/voicemail-recording', async (c) => {
       .updateActiveCall(callSid, { status: 'voicemail' }, hubId)
       .catch((err) => console.error('[telephony] failed to update voicemail status:', callSid, err))
 
-    // Persist voicemail flag and recording SID to call_records
+    // Persist voicemail flag and recording SID to call_records (upsert — record may not exist yet)
     if (recordingSid) {
       await services.records
-        .updateCallRecord(callSid, hubId ?? 'global', {
+        .upsertCallRecord(callSid, hubId ?? 'global', {
           hasVoicemail: true,
           hasRecording: true,
           recordingSid,

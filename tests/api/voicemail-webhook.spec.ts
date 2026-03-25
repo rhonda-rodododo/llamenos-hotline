@@ -12,15 +12,25 @@ function twilioForm(params: Record<string, string>): string {
 test.describe('Voicemail webhook API', () => {
   test.describe.configure({ mode: 'serial' })
 
+  /** Whether telephony is configured in this environment. Set in the first test. */
+  let telephonyAvailable = false
+  /** Shared callSid created during the first test, used by subsequent tests. */
+  let sharedCallSid = ''
+  /** RecordingSid sent in the voicemail-recording webhook. */
+  let sharedRecordingSid = ''
+
   test.beforeAll(async ({ request }) => {
     await resetTestState(request)
   })
 
-  test('voicemail-recording webhook accepts completed recording and sets hasVoicemail', async ({
+  test('voicemail-recording webhook accepts completed recording and sets hasVoicemail + recordingSid', async ({
     request,
   }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     const callSid = `CA_test_voicemail_${Date.now()}`
+    const recordingSid = `RE_test_${Date.now()}`
+    sharedCallSid = callSid
+    sharedRecordingSid = recordingSid
 
     // Step 1: Simulate an incoming call to create an active call record.
     const incomingRes = await request.post('/telephony/incoming', {
@@ -34,39 +44,49 @@ test.describe('Voicemail webhook API', () => {
       }),
     })
 
-    // If telephony is not configured (no provider in dev), the middleware returns 404 or handler returns 503.
+    // If telephony is not configured (no provider in dev), skip this and all dependent tests.
     if (incomingRes.status() === 503 || incomingRes.status() === 404) {
       test.skip(true, 'Telephony not configured in dev env -- skipping voicemail webhook test')
       return
     }
+
+    telephonyAvailable = true
 
     // Step 2: Fire the voicemail-recording webhook.
     const voicemailRes = await request.post(`/telephony/voicemail-recording?callSid=${callSid}`, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: twilioForm({
         RecordingStatus: 'completed',
-        RecordingSid: `RE_test_${Date.now()}`,
+        RecordingSid: recordingSid,
         CallSid: callSid,
       }),
     })
     expect([200, 204]).toContain(voicemailRes.status())
 
-    // Step 3: Check calls history API for hasVoicemail flag
+    // Step 3: Assert hasVoicemail and recordingSid on the call record.
+    // The voicemail-recording handler upserts a call_record, so it should appear in history.
     const callsRes = await authedApi.get('/api/calls/history?limit=50')
-    const callsData = await callsRes.json()
-    const calls =
-      (callsData as { calls?: Array<{ callSid?: string; id?: string; hasVoicemail?: boolean }> })
-        .calls ?? []
-    const match = calls.find(
-      (c: { callSid?: string; id?: string }) => c.callSid === callSid || c.id === callSid
-    )
-    if (match) {
-      expect(match.hasVoicemail).toBe(true)
+    expect(callsRes.status()).toBe(200)
+    const callsData = (await callsRes.json()) as {
+      calls: Array<{
+        id: string
+        hasVoicemail: boolean
+        hasRecording: boolean
+        recordingSid?: string | null
+      }>
     }
-    // If call record doesn't persist (e.g., no-op in test mode), just verify webhook accepted
+    const calls = callsData.calls ?? []
+    // call_records.id is the callSid used in upsertCallRecord
+    const match = calls.find((c) => c.id === callSid)
+
+    expect(match, `Expected to find call record with id=${callSid} in history`).toBeTruthy()
+    expect(match!.hasVoicemail).toBe(true)
+    expect(match!.recordingSid).toBe(recordingSid)
   })
 
   test('voicemail-complete webhook returns valid TwiML response', async ({ request }) => {
+    test.skip(!telephonyAvailable, 'Telephony not configured -- skipping')
+
     const res = await request.post('/telephony/voicemail-complete', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: twilioForm({
@@ -75,13 +95,10 @@ test.describe('Voicemail webhook API', () => {
       }),
     })
 
-    // With no telephony configured -> 404 or 503; with config -> 200 TwiML
-    if (res.status() !== 503 && res.status() !== 404) {
-      expect(res.status()).toBe(200)
-      const body = await res.text()
-      // TwiML responses are XML with a <Response> root element
-      expect(body).toMatch(/<Response>|<response>/i)
-    }
+    expect(res.status()).toBe(200)
+    const body = await res.text()
+    // TwiML responses are XML with a <Response> root element
+    expect(body).toMatch(/<Response>|<response>/i)
   })
 
   test('voicemail-recording webhook returns 200 for unknown callSid (graceful)', async ({
@@ -98,5 +115,39 @@ test.describe('Voicemail webhook API', () => {
     })
     // Should not return 500 -- either 200/204 (handled gracefully) or 404/503 (no telephony config)
     expect(res.status()).not.toBe(500)
+  })
+
+  test('voicemail transcript note is created with system:voicemail author', async ({ request }) => {
+    test.skip(!telephonyAvailable, 'Telephony not configured -- skipping')
+    // Transcription is async and requires faster-whisper / AI service.
+    // Check if a system:voicemail note was created for the call.
+    const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+
+    // Give transcription a moment to complete (it runs asynchronously after webhook)
+    await new Promise((r) => setTimeout(r, 2000))
+
+    const notesRes = await authedApi.get(`/api/notes?callId=${sharedCallSid}`)
+    expect(notesRes.status()).toBe(200)
+    const notesData = (await notesRes.json()) as {
+      notes: Array<{
+        authorPubkey: string
+        encryptedContent?: string
+      }>
+    }
+
+    const voicemailNote = notesData.notes?.find((n) => n.authorPubkey === 'system:voicemail')
+
+    // Transcription depends on faster-whisper being available in test env.
+    // If no voicemail note exists, skip rather than fail.
+    if (!voicemailNote) {
+      test.skip(
+        true,
+        'No voicemail transcript note found -- transcription service likely not available'
+      )
+      return
+    }
+
+    expect(voicemailNote.authorPubkey).toBe('system:voicemail')
+    expect(voicemailNote.encryptedContent).toBeTruthy()
   })
 })
