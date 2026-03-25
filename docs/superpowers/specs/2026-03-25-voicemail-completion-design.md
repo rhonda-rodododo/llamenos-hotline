@@ -27,7 +27,7 @@ Three phases, each independently testable and shippable.
 
 ### 1.1 Persistence Bug Fix
 
-The `/voicemail-recording` webhook handler (`src/server/routes/telephony.ts:519-528`) currently only calls `updateActiveCall()` (ephemeral). It must also call:
+The `/voicemail-recording` webhook handler in `src/server/routes/telephony.ts` currently only calls `updateActiveCall()` (ephemeral). It must also call:
 
 ```ts
 await services.records.updateCallRecord(callSid, hubId, {
@@ -42,15 +42,19 @@ Each adapter's `parseRecordingWebhook()` must surface the recording SID in its r
 
 **Flow after recording webhook fires:**
 
-1. `adapter.getRecordingAudio(recordingSid)` → raw audio bytes
-2. Encrypt audio with ECIES envelope pattern (same as notes/messages): random symmetric key → XChaCha20-Poly1305 → key wrapped per recipient
-3. `FilesService` uploads encrypted blob to MinIO with metadata
+1. `adapter.getRecordingAudio(recordingSid)` → raw audio bytes (`ArrayBuffer`)
+2. Encrypt audio using the existing `FilesService` encrypted file upload pattern (binary-aware, uses `FileKeyEnvelope` envelopes and chunk-based blob storage). This reuses the same infrastructure as user file uploads — no new encryption function needed.
+3. `FilesService` uploads encrypted blob to MinIO with metadata and recipient envelopes
 4. `adapter.deleteRecording(recordingSid)` → remove from provider
 5. `updateCallRecord(callSid, hubId, { hasVoicemail: true, voicemailFileId })`
 
-**Recipients for voicemail encryption:** Initially, all hub admins (users with `calls:*` or the future `voicemail:listen`). Phase 2 refines this to the `voicemail:listen` permission.
+**Recipients for voicemail encryption:**
+- **Audio envelopes:** Users with `voicemail:listen` permission in the hub (in Phase 1, before permissions exist, all hub admins with `calls:*`). Phase 2 switches to querying by `voicemail:listen`.
+- **Transcript envelopes:** Users with `voicemail:read` OR `voicemail:listen` permission. This means `voicemail:read` users can decrypt and view the transcript without being able to decrypt the audio. The existing `encryptMessageForStorage()` call in `transcribeVoicemail()` must be updated to include `voicemail:read` recipients in addition to admins.
 
-**New crypto label:** `LABEL_VOICEMAIL_WRAP` in `src/shared/crypto-labels.ts` for domain separation.
+**New crypto labels** in `src/shared/crypto-labels.ts`:
+- `LABEL_VOICEMAIL_WRAP` — domain separation for voicemail audio encryption (used instead of `LABEL_FILE_KEY` to distinguish voicemail blobs from user-uploaded files)
+- `LABEL_VOICEMAIL_TRANSCRIPT` — domain separation for voicemail transcript encryption (replaces the generic `LABEL_MESSAGE` currently used by `transcribeVoicemail()`)
 
 **Adapter interface addition:**
 
@@ -62,7 +66,7 @@ Implemented per adapter:
 - **Twilio:** DELETE `https://api.twilio.com/2010-04-01/Accounts/{sid}/Recordings/{recordingSid}.json`
 - **SignalWire:** Same as Twilio (API-compatible)
 - **Plivo:** DELETE `https://api.plivo.com/v1/Account/{authId}/Recording/{recordingId}/`
-- **Vonage:** DELETE via Vonage Recordings API
+- **Vonage:** Vonage recordings are temporary download URLs that auto-expire after 30 days — no dedicated deletion API exists. `deleteRecording()` for Vonage is a no-op that logs a warning. The recording URL expires naturally. If stricter guarantees are needed, the Vonage number should not be used for voicemail.
 - **Asterisk:** DELETE `http://asterisk-bridge/recordings/{recordingName}` (new bridge endpoint, see Phase 3)
 - **TestAdapter:** No-op, tracks deletion in test state
 
@@ -77,8 +81,8 @@ Implemented per adapter:
 
 - A `WhisperHttpClient` class implementing the `TranscriptionService` interface
 - POSTs audio to the faster-whisper container's endpoint (already deployed in Docker Compose)
-- Wired in server startup: if `WHISPER_URL` env var is set → use `WhisperHttpClient`; otherwise fall back to CF Workers AI binding
-- The existing `transcribeVoicemail()` function is unchanged — it calls `env.AI.run()` which resolves to the right backend
+- Wired in server startup: if `WHISPER_URL` env var is set, `env.AI` is set to a `WhisperHttpClient` instance that proxies `run()` calls to the faster-whisper HTTP endpoint. If `WHISPER_URL` is not set, falls back to CF Workers AI binding (demo/edge deployments).
+- The existing `transcribeVoicemail()` function is unchanged — it calls `env.AI.run()` which resolves to the right backend transparently
 
 ### 1.4 Test Fixes
 
@@ -104,8 +108,8 @@ New permissions in `PERMISSION_CATALOG` (`src/shared/permissions.ts`):
 | `voicemail:manage` | Configure voicemail settings (limits, prompts, retention) |
 
 **Default role updates:**
-- **Hub Admin:** add `voicemail:*`
-- **Volunteer:** add `voicemail:read` (can see voicemail exists, can't listen — appropriate for sensitive caller info)
+- **Hub Admin:** add `voicemail:*` (Hub Admin already has `calls:*`; adding `voicemail:*` explicitly ensures voicemail access survives if `calls:*` is ever narrowed on a custom role. Phase 1 uses `calls:*` for encryption recipients; Phase 2 switches to `voicemail:listen`.)
+- **Volunteer:** add `voicemail:read` + `calls:read-history` (volunteers need `calls:read-history` to see the call history list where voicemail badges appear; `voicemail:read` gates the voicemail-specific metadata and transcript within that list)
 
 **New default role — Voicemail Reviewer:**
 
@@ -137,25 +141,34 @@ voicemailMode: 'auto' | 'always' | 'never'  // default: 'auto'
 ```
 
 Behavior:
-- **`auto`** — Normal routing. But if `CallRouterService.getEligibleVolunteers(hubId)` returns zero (no shifts defined, no users on shift, and no fallback recipients), skip enqueue entirely and go straight to `adapter.handleVoicemail()`.
+- **`auto`** — Normal routing. But if `ShiftManagerService.getEffectiveVolunteers(hubId)` returns zero AND `SettingsService.getFallbackGroup(hubId)` is also empty (matching the existing logic in `startParallelRinging` in `src/server/lib/ringing.ts`), skip enqueue entirely and go straight to `adapter.handleVoicemail()`.
 - **`always`** — Every call goes to voicemail after the language menu + spam check. No ringing, no queue.
 - **`never`** — If nobody is available, play a "sorry, try again later" message and hang up. No voicemail.
 
-**Implementation point:** In the `/telephony/language-selected` handler, after spam check passes, before enqueue:
+**Implementation point:** In the `/telephony/language-selected` handler, after spam check passes, before `startParallelRinging`:
 
-```
-const eligible = await services.calls.getEligibleVolunteers(hubId)
+```ts
+const onShift = await services.shifts.getEffectiveVolunteers(hubId)
+const fallback = onShift.length === 0 ? await services.settings.getFallbackGroup(hubId) : onShift
 const settings = await services.settings.getCallSettings(hubId)
 
 if (settings.voicemailMode === 'always' ||
-    (settings.voicemailMode === 'auto' && eligible.length === 0)) {
-  return telephonyResponse(adapter.handleVoicemail({ ... }))
+    (settings.voicemailMode === 'auto' && fallback.length === 0)) {
+  return telephonyResponse(await adapter.handleVoicemail({ ... }))
 }
-if (settings.voicemailMode === 'never' && eligible.length === 0) {
-  return telephonyResponse(adapter.sayAndHangup('noVolunteersMessage', lang))
+if (settings.voicemailMode === 'never' && fallback.length === 0) {
+  // New adapter method: handleUnavailable(lang, audioUrls)
+  // Returns TwiML/NCCO that says "sorry, no one is available" and hangs up
+  return telephonyResponse(adapter.handleUnavailable(lang, audioUrls))
 }
-// else: normal enqueue + ring
+// else: normal enqueue + startParallelRinging
 ```
+
+**New adapter interface method:**
+```ts
+handleUnavailable(lang: string, audioUrls?: Record<string, string>): TelephonyResponse
+```
+Returns provider-appropriate response that plays an "unavailable" message and hangs up. Uses the configurable `unavailableMessage` IVR audio (new prompt type in `voice-prompts.ts`).
 
 The voicemail prompt is already configurable per-hub via the `ivrAudio` table — admins can set distinct prompts for voicemail-only vs fallback scenarios by customizing the `voicemailPrompt` audio.
 
@@ -170,7 +183,7 @@ Additions to `call_settings`:
 | `callRecordingMaxBytes` | integer | 20971520 (20MB) | Max bridged call recording file size |
 | `voicemailRetentionDays` | integer \| null | null | Auto-purge after N days; null = keep forever |
 
-Retention enforcement is a background cron job — setting is added in this phase, purge job implementation is deferred (can be a simple scheduled task that queries `call_records WHERE hasVoicemail = true AND createdAt < now() - retentionDays`).
+Retention enforcement is a background cron job — setting is added in this phase, purge job implementation is deferred (can be a simple scheduled task that queries `call_records WHERE hasVoicemail = true AND createdAt < now() - retentionDays`). The setting should be visible in admin UI with a "(purge job not yet active)" note until the job is implemented.
 
 ---
 
@@ -246,11 +259,11 @@ Operational documentation in `docs/operations/disable-provider-voicemail.md`:
 
 ### Modified
 - `src/server/routes/telephony.ts` — persistence bug fix, voicemail-only routing, notification dispatch
-- `src/server/telephony/adapter.ts` — `deleteRecording()` interface addition
+- `src/server/telephony/adapter.ts` — `deleteRecording()` and `handleUnavailable()` interface additions
 - `src/server/telephony/twilio.ts` — `deleteRecording()` implementation
 - `src/server/telephony/plivo.ts` — `deleteRecording()` implementation
 - `src/server/telephony/vonage.ts` — `deleteRecording()` implementation
-- `src/server/telephony/signalwire.ts` — `deleteRecording()` implementation
+- `src/server/telephony/signalwire.ts` — `deleteRecording()` + `getRecordingAudio()` + `handleUnavailable()` (SignalWire extends Twilio adapter — verify inheritance covers these or add explicit implementations)
 - `src/server/telephony/asterisk.ts` — `deleteRecording()` + `getRecordingAudio()` via bridge
 - `src/server/telephony/test.ts` — `deleteRecording()` test stub
 - `src/server/lib/transcription-manager.ts` — wire to faster-whisper on VPS
@@ -259,7 +272,9 @@ Operational documentation in `docs/operations/disable-provider-voicemail.md`:
 - `src/server/services/settings.ts` — new settings accessors
 - `src/server/services/records.ts` — voicemail record updates
 - `src/shared/permissions.ts` — `voicemail:*` domain, Voicemail Reviewer role
-- `src/shared/crypto-labels.ts` — `LABEL_VOICEMAIL_WRAP`
+- `src/shared/crypto-labels.ts` — `LABEL_VOICEMAIL_WRAP`, `LABEL_VOICEMAIL_TRANSCRIPT`
+- `src/shared/voice-prompts.ts` — new `unavailableMessage` prompt for `voicemailMode: 'never'`
+- `src/server/lib/ringing.ts` — voicemail-only check before parallel ringing
 - `src/client/routes/calls.tsx` — voicemail filter, badge click behavior
 - `tests/api/voicemail-webhook.spec.ts` — fix conditional guards, add storage tests
 
