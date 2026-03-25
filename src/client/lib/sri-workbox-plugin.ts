@@ -37,7 +37,7 @@ export function sriWorkboxPlugin(): Plugin {
       outDir = resolve(config.root, config.build.outDir)
     },
     closeBundle() {
-      const swPath = join(outDir, 'sw.js')
+      const swPath = join(outDir, 'service-worker.js')
       if (!existsSync(swPath)) return
 
       let swContent = readFileSync(swPath, 'utf-8')
