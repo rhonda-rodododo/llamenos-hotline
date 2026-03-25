@@ -53,20 +53,20 @@ test.describe('Blast campaign API', () => {
       content: 'This is an E2E send test blast',
     })
     const blastData = await createRes.json()
-    expect(blastData).toHaveProperty('id')
-    expect(blastData.status).toBe('draft')
+    expect(blastData.blast).toHaveProperty('id')
+    expect(blastData.blast.status).toBe('draft')
 
     // Send the blast
-    const sendRes = await authedApi.post(`/api/blasts/${blastData.id}/send`)
+    const sendRes = await authedApi.post(`/api/blasts/${blastData.blast.id}/send`)
     expect(sendRes.status()).toBe(200)
     const sentData = await sendRes.json()
-    expect(sentData.status).toBe('sending')
+    expect(sentData.blast.status).toBe('sending')
 
     // Verify via API that the blast status is now 'sending'
-    const verifyRes = await authedApi.get(`/api/blasts/${blastData.id}`)
+    const verifyRes = await authedApi.get(`/api/blasts/${blastData.blast.id}`)
     expect(verifyRes.ok()).toBe(true)
     const verify = await verifyRes.json()
-    expect(verify.status).toBe('sending')
+    expect(verify.blast.status).toBe('sending')
   })
 
   test('cannot send a blast that is already in sending state', async ({ request }) => {
