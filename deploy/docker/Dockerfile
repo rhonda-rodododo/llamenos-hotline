@@ -51,6 +51,7 @@ WORKDIR /app
 COPY package.json ./
 COPY --from=deps /app/node_modules/ node_modules/
 COPY src/ src/
+COPY drizzle/ drizzle/
 COPY tsconfig.json ./
 
 # Copy built frontend
@@ -78,6 +79,6 @@ ENV PLATFORM=node \
 EXPOSE 3000
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health/ready || exit 1
+  CMD curl -f http://localhost:3000/api/health/live || exit 1
 
 CMD ["bun", "src/server/server.ts"]
