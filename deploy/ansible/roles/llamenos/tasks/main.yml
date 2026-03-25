@@ -59,7 +59,7 @@
 - name: Pull Docker images
   community.docker.docker_compose_v2:
     project_src: "{{ app_dir }}"
-    pull: always
+    pull: "{{ 'always' if pull_images | default(true) else 'missing' }}"
     state: present
     recreate: never
   register: compose_pull

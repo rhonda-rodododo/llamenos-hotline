@@ -1,8 +1,13 @@
 # Caddyfile for Llamenos — managed by Ansible
 # Do not edit directly; changes will be overwritten on next deploy.
 {{ domain }} {
+{% if tls_mode | default('acme') == 'internal' %}
+	# TLS via Caddy's internal CA (local/dev use)
+	tls internal
+{% else %}
 	# TLS via Let's Encrypt
 	tls {{ acme_email }}
+{% endif %}
 
 	# API, telephony, and messaging routes -> app
 	handle /api/* {
