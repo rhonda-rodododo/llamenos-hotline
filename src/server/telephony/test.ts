@@ -183,6 +183,15 @@ export class TestAdapter implements TelephonyAdapter {
     `)
   }
 
+  handleUnavailable(_lang: string, _audioUrls?: AudioUrlMap): TelephonyResponse {
+    return this.twiml(`
+      <Response>
+        <Say>We are sorry, no one is available to take your call at this time. Please try again later. Goodbye.</Say>
+        <Hangup/>
+      </Response>
+    `)
+  }
+
   rejectCall(): TelephonyResponse {
     return this.twiml('<Response><Reject reason="rejected"/></Response>')
   }

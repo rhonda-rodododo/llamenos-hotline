@@ -497,6 +497,16 @@ export class TwilioAdapter implements TelephonyAdapter {
     `)
   }
 
+  handleUnavailable(lang: string, audioUrls?: AudioUrlMap): TelephonyResponse {
+    const unavailableTwiml = sayOrPlay('unavailableMessage', lang, audioUrls)
+    return this.twiml(`
+      <Response>
+        ${unavailableTwiml}
+        <Hangup/>
+      </Response>
+    `)
+  }
+
   emptyResponse(): TelephonyResponse {
     return this.twiml('<Response/>')
   }

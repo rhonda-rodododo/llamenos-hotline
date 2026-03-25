@@ -570,6 +570,10 @@ export class VonageAdapter implements TelephonyAdapter {
     return this.ncco([talk(getVoicemailThanks(lang), lang)])
   }
 
+  handleUnavailable(lang: string, audioUrls?: AudioUrlMap): TelephonyResponse {
+    return this.ncco([sayOrStream('unavailableMessage', lang, audioUrls), { action: 'hangup' }])
+  }
+
   emptyResponse(): TelephonyResponse {
     return this.ncco([])
   }

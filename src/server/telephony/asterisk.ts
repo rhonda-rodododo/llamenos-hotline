@@ -227,6 +227,13 @@ export class AsteriskAdapter implements TelephonyAdapter {
     return this.json([this.speak(getPrompt('voicemailThankYou', lang), lang), { action: 'hangup' }])
   }
 
+  handleUnavailable(lang: string, audioUrls?: AudioUrlMap): TelephonyResponse {
+    return this.json([
+      this.speakOrPlay('unavailableMessage', lang, audioUrls),
+      { action: 'hangup' },
+    ])
+  }
+
   emptyResponse(): TelephonyResponse {
     return { contentType: 'application/json', body: JSON.stringify({ commands: [] }) }
   }

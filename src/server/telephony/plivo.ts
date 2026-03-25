@@ -500,6 +500,13 @@ export class PlivoAdapter implements TelephonyAdapter {
     `)
   }
 
+  handleUnavailable(lang: string, audioUrls?: AudioUrlMap): TelephonyResponse {
+    return this.plivoXml(`
+      ${sayOrPlay('unavailableMessage', lang, audioUrls)}
+      <Hangup/>
+    `)
+  }
+
   emptyResponse(): TelephonyResponse {
     return this.plivoXml('')
   }

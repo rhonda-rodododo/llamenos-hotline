@@ -144,6 +144,12 @@ export interface TelephonyAdapter {
   /** Thank the caller after voicemail recording and hang up */
   handleVoicemailComplete(lang: string): TelephonyResponse
 
+  /**
+   * Play an "unavailable" message and hang up.
+   * Used when voicemailMode is 'never' and nobody is available.
+   */
+  handleUnavailable(lang: string, audioUrls?: AudioUrlMap): TelephonyResponse
+
   /** Return an empty/no-op response */
   emptyResponse(): TelephonyResponse
 
