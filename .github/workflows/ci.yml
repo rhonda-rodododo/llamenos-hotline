@@ -259,7 +259,7 @@ jobs:
           SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
           DEV_RESET_SECRET: test-reset-secret
         run: |
-          bun run start &
+          bun run start > /tmp/server.log 2>&1 &
           for i in $(seq 1 30); do
             curl -sf http://localhost:3000/api/health/ready && break
             sleep 2
@@ -269,6 +269,14 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
         run: bunx playwright test --project=setup --project=api
+
+      - name: Upload server logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: api-server-logs
+          path: /tmp/server.log
+          retention-days: 3
 
   # ─── UI E2E Tests ─────────────────────────────────────────
   e2e-tests:
@@ -321,7 +329,7 @@ jobs:
           SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
           DEV_RESET_SECRET: test-reset-secret
         run: |
-          bun run start &
+          bun run start > /tmp/server.log 2>&1 &
           for i in $(seq 1 30); do
             curl -sf http://localhost:3000/api/health/ready && break
             sleep 2
