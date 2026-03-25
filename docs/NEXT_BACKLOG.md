@@ -286,3 +286,18 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 - [ ] **Dashboard incoming calls require Nostr relay** — The dashboard `useCalls()` hook gets call events exclusively from the Nostr relay WebSocket subscription. There is no REST polling fallback for incoming calls. If the relay is down or the page reloads mid-call, the incoming call card does not appear. Tests: `call-flow.spec.ts` (skip when relay unavailable).
 - [ ] **Drizzle migration journal out of sync** — Migrations 0004, 0005, 0008, 0009, 0010 were in SQL files but missing from the journal or not applied to the dev database. Root cause: worktree-based development may have lost migration state. Applied manually during test restructuring.
 - [ ] **TwiML callback URLs use /api/telephony/ prefix** — The TwilioAdapter generates TwiML with action URLs like `/api/telephony/wait-music` and `/api/telephony/queue-exit`, but these routes are under the authenticated `/api/` mount. Twilio callbacks to these URLs would fail auth. Should use `/telephony/` (unauthenticated webhook routes).
+
+## SIP WebRTC Browser Calling
+- [x] Asterisk WSS transport configuration (pjsip.conf, http.conf, extensions.conf)
+- [x] ARI deleteDynamic method for endpoint deprovisioning
+- [x] Bridge provision/deprovision/check-endpoint commands
+- [x] BridgeClient extraction + AsteriskProvisioner + token generation
+- [x] coturn TURN server in Docker Compose (dev + production)
+- [x] Caddy WSS proxy route + CSP update
+- [x] Ansible env vars + turnserver.conf template
+- [x] Dev TLS cert generation script
+- [x] Browser calling plan coordination updates
+- [ ] SipWebRTCAdapter (JsSIP) — depends on WebRTCAdapter interface from browser calling plan
+- [ ] WebRTCManager factory integration
+- [ ] Bridge ring command extension for browser endpoints
+- [ ] E2E tests against local Asterisk

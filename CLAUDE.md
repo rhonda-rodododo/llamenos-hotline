@@ -80,6 +80,7 @@ src/
 - **Nostr relay real-time**: Ephemeral kind 20001 events via strfry (self-hosted). All event content encrypted with hub key. Generic tags (`["t", "llamenos:event"]`) — relay cannot distinguish event types.
 - **Hub key distribution**: Random 32 bytes (`crypto.getRandomValues`), ECIES-wrapped individually per member via `LABEL_HUB_KEY_WRAP`. Rotation on member departure excludes departed member.
 - **Client-side transcription**: WASM Whisper via `@huggingface/transformers` ONNX runtime. AudioWorklet ring buffer → Web Worker isolation. Audio never leaves the browser.
+- **SIP WebRTC (JsSIP)**: Browser calling for self-hosted SIP providers (Asterisk, FreeSWITCH, Kamailio). `SipWebRTCAdapter` wraps JsSIP UA for SIP-over-WSS signaling + browser DTLS-SRTP media. Endpoints provisioned via `AsteriskProvisioner` → asterisk-bridge → ARI dynamic config. coturn provides TURN relay for NAT traversal. Caddy terminates TLS and proxies WSS to Asterisk.
 - **Reproducible builds**: `Dockerfile.build` with `SOURCE_DATE_EPOCH`, content-hashed filenames. `CHECKSUMS.txt` in GitHub Releases. SLSA provenance. Verification via `scripts/verify-build.sh`.
 - **Hash-chained audit log**: SHA-256 chain with `previousEntryHash` + `entryHash` for tamper detection (Epic 77).
 - **Domain separation**: All 25 crypto context constants in `src/shared/crypto-labels.ts` — NEVER use raw string literals for crypto contexts.
@@ -94,6 +95,10 @@ src/
 - Nostr relay (strfry) is a core service, not optional — always runs with Docker Compose and Helm
 - `SERVER_NOSTR_SECRET` must be exactly 64 hex chars; server derives its Nostr keypair via HKDF
 - Hub key is random bytes, NOT derived from any identity key — see `hub-key-manager.ts`
+- JsSIP `reloadModule('res_pjsip.so')` disrupts ALL active SIP sessions — avoid during live calls; memory sorcery wizard makes dynamic config effective immediately
+- Asterisk WSS requires TLS — in production Caddy proxies WSS→WS; for local dev use `scripts/dev-certs.sh` (mkcert)
+- coturn TURN credentials use time-limited HMAC from shared secret — not static username/password
+- JsSIP `newRTCSession` fires for both incoming and outgoing — check `originator === 'remote'`
 
 ## Development Commands
 
