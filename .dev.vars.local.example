@@ -4,3 +4,8 @@ PLATFORM=node
 DATABASE_URL=postgresql://llamenos:yourpassword@localhost:5433/llamenos
 MINIO_ENDPOINT=http://localhost:9002
 NOSTR_RELAY_URL=ws://localhost:7778
+
+# Push notifications (Epic 86) — Web Push / VAPID
+# Generate with: bun -e "const wp = require('web-push'); const k = wp.generateVAPIDKeys(); console.log('VAPID_PUBLIC_KEY=' + k.publicKey); console.log('VAPID_PRIVATE_KEY=' + k.privateKey)"
+VAPID_PUBLIC_KEY=your_vapid_public_key_here
+VAPID_PRIVATE_KEY=your_vapid_private_key_here

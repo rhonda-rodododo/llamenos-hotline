@@ -75,6 +75,10 @@ export interface Env {
   // Push notifications (Epic 86) — FCM (Android)
   FCM_SERVICE_ACCOUNT_KEY?: string // Google Cloud service account JSON
 
+  // Push notifications (Epic 86) — Web Push / VAPID
+  VAPID_PUBLIC_KEY?: string // base64url-encoded uncompressed EC public key
+  VAPID_PRIVATE_KEY?: string // base64url-encoded EC private key
+
   // DATABASE_URL for Drizzle connection (Node.js only)
   DATABASE_URL?: string
 }
