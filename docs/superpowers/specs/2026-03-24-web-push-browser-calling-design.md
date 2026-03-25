@@ -23,6 +23,10 @@ These features are independent and can be implemented in parallel.
 | Push subscription cleanup | Passive (410 Gone) | Deactivated volunteers are filtered by ringing query; stale subscriptions are harmless |
 | Mic permission | Upfront + just-in-time | Prompt on preference change; re-check on answer since browsers can revoke |
 | Push delivery trigger | Direct from ringing logic | No extra hop through Nostr; fire-and-forget alongside existing notification paths |
+| Push notification body | Generic "A call is waiting" | Hub names could reveal crisis line nature on lock screens; matches existing `showBrowserNotification` behavior |
+| Push TTL | 30 seconds | Incoming calls are time-sensitive; stale push notifications are confusing |
+| Push deduplication | SW checks `clients.matchAll()` | Skip push notification if app window is already focused (in-app notification is superior) |
+| Push i18n | English-only (MVP) | Service worker lacks i18n framework; acceptable for initial release |
 | Push service | Native Web Push (`web-push` library) | Self-hosted, no third-party PII routing, EU/GDPR compatible |
 | WebRTC approach | Provider SDK per-adapter | Each SDK handles signaling/SRTP/auth; unified `WebRTCAdapter` interface normalizes lifecycle |
 | WebRTC adapter modes | VoIP (provider SDK) vs SIP (JsSIP/SIP.js) | VoIP for Twilio/Vonage/Plivo; SIP mode for Asterisk/SIP-only configs (separate spec) |
@@ -47,7 +51,7 @@ These features are independent and can be implemented in parallel.
 | `endpoint` | text | Unique — browser push endpoint URL |
 | `authKey` | text | Web Push auth secret |
 | `p256dhKey` | text | Client public key for encryption |
-| `userAgent` | text, nullable | For debugging delivery issues |
+| `deviceLabel` | text, nullable | Simplified label for UI (e.g., "Chrome/Android", "Firefox/Desktop") — not full user-agent string to avoid fingerprinting |
 | `createdAt` | timestamp | |
 | `updatedAt` | timestamp | |
 
@@ -56,33 +60,37 @@ These features are independent and can be implemented in parallel.
 
 **API endpoints:**
 - `POST /api/notifications/subscribe` — stores/updates a push subscription (authenticated)
-- `DELETE /api/notifications/subscribe` — removes a subscription by endpoint (authenticated)
+- `DELETE /api/notifications/subscribe` — removes a subscription by endpoint (authenticated; verifies the subscription's `pubkey` matches the authenticated volunteer to prevent cross-volunteer unsubscription)
 
 **Push delivery (in `ringing.ts`):**
 - After publishing `KIND_CALL_RING` to Nostr relay, query all `pushSubscriptions` for available volunteers
 - Fire `webpush.sendNotification()` for each subscription with payload:
   ```json
-  { "type": "call:ring", "callSid": "...", "hubId": "...", "hubName": "..." }
+  { "type": "call:ring", "callSid": "..." }
   ```
+  Payload intentionally minimal — no hub name, no caller info. Push notifications appear on lock screens; hub names could reveal the nature of the crisis line.
+- Set `TTL: 30` on push messages — calls are time-sensitive; stale notifications arriving minutes later are confusing
 - On 410 Gone response, delete the stale subscription
 - Fire-and-forget — does not block the ringing flow
 
 ### Service Worker & Client
 
 **Service worker `push` event handler:**
-- Added to existing Workbox-managed service worker
-- On `push` event, parse JSON payload and show notification:
-  - Title: "Incoming Call" (generic, no PII)
-  - Body: hub name only (e.g., "Hotline Central")
-  - Tag: `incoming-call` (replaces existing notification, no stacking)
-  - Actions: `[{ action: 'answer', title: 'Answer' }, { action: 'dismiss', title: 'Dismiss' }]`
-  - `requireInteraction: true` — stays until acted on
-  - Vibration pattern for mobile
+- Requires switching VitePWA from `generateSW` to `injectManifest` mode — custom event listeners (`push`, `notificationclick`) cannot be added to auto-generated service workers. The custom SW source file will import Workbox precaching and add the push handlers.
+- On `push` event:
+  1. Check `clients.matchAll({ type: 'window', includeUncontrolled: false })` — if any app window is focused/visible, skip the push notification (in-app ringtone/notification is superior)
+  2. Otherwise, parse JSON payload and show notification:
+     - Title: "Incoming Call" (generic, no PII)
+     - Body: "A call is waiting" (generic — no hub name to avoid revealing crisis line nature on lock screens)
+     - Tag: `incoming-call` (replaces existing notification, no stacking)
+     - Actions: `[{ action: 'answer', title: 'Answer' }, { action: 'dismiss', title: 'Dismiss' }]`
+     - `requireInteraction: true` — stays until acted on
+     - Vibration pattern for mobile
 
 **`notificationclick` handler:**
 - `dismiss` action: close notification, no further action
-- `answer` action or body click: `clients.openWindow('/dashboard?action=answer&callSid=...')` or `clients.focus()` if app is already open, then `postMessage` the answer intent
-- Dashboard route picks up `action=answer` query param and triggers existing answer flow
+- `answer` action or body click: `clients.openWindow('/dashboard?action=answer&callSid=...&hubId=...')` or `clients.focus()` if app is already open, then `postMessage({ type: 'answer-call', callSid, hubId })` the answer intent
+- Dashboard route picks up `action=answer` query param, switches to the correct hub context if needed, and triggers the existing answer flow
 
 **Client-side subscription flow:**
 - On app load (after auth), check `pushManager.getSubscription()`
@@ -115,7 +123,10 @@ interface WebRTCAdapter {
   reject(callSid: string): Promise<void>
   disconnect(): void
   setMuted(muted: boolean): void
-  on(event: 'incoming' | 'connected' | 'disconnected' | 'error', handler: Function): void
+  on(event: 'incoming', handler: (callSid: string) => void): void
+  on(event: 'connected', handler: () => void): void
+  on(event: 'disconnected', handler: () => void): void
+  on(event: 'error', handler: (error: Error) => void): void
   destroy(): void
 }
 ```
@@ -126,8 +137,6 @@ This interface serves as the checklist for provider additions:
 
 The adapter factory decides which implementation to use based on the hub's provider configuration and whether it's set up for VoIP or SIP-only.
 
-**State machine:** `idle → initializing → ready → ringing → connected → ended → error`
-
 **Provider SDKs — dynamic import:**
 - Twilio: `@twilio/voice-sdk` (already integrated)
 - Vonage: `@vonage/client-sdk`
@@ -135,10 +144,14 @@ The adapter factory decides which implementation to use based on the hub's provi
 - Loaded only when the hub's configured provider matches
 
 **Token flow:**
-- On app load (if call preference is `browser` or `both`), client calls `GET /api/calls/webrtc-token`
+- On app load (if call preference is `browser` or `both`), client calls `GET /api/telephony/webrtc-token` (existing endpoint)
 - Server generates provider-specific token via existing `webrtc-tokens.ts`
 - Client initializes correct adapter with token
-- Token refresh before expiry (provider-specific TTLs, typically ~1 hour)
+- Token refresh: set a timer for `tokenTTL - 60s` (re-fetch 1 minute before expiry). If a token expires mid-call, the active media session is unaffected but new incoming calls cannot be received until re-registration. Provider SDKs also fire `tokenWillExpire` callbacks where available.
+
+**State machine:** `idle → initializing → ready → ringing → connected → ended → error`
+- `ended` is transient — transitions back to `ready` after cleanup (device remains registered for next incoming call)
+- Adds `ended` state to existing `WebRtcState` type (currently missing)
 
 **Microphone permission handling:**
 - On preference change to `browser`/`both`: immediately `getUserMedia({ audio: true })` to prompt; show success/failure state in settings
@@ -147,18 +160,29 @@ The adapter factory decides which implementation to use based on the hub's provi
 
 ### Server-Side Changes
 
-Minimal changes — VoIP providers handle browser routing natively through their SDKs:
-
-**Call leg tracking:**
-- Add `type: 'phone' | 'browser'` column to `callLegs` table
+**Call leg tracking — schema changes:**
+- Add `type text('type').notNull().default('phone')` column to `callLegs` table (Drizzle migration)
+- Update `CallLeg` and `CreateCallLegData` types in `src/server/types.ts`
 - `callPreference: 'both'` volunteers get two leg rows (one phone, one browser)
 
-**Answer endpoint:**
-- `POST /api/calls/{callSid}/answer` accepts `{ type: 'browser' }` to distinguish connection method
-- On answer: mark the answered leg as `in-progress`, cancel all other legs regardless of type
-- For `'both'` volunteers answering on browser: their own phone leg is also cancelled
+**Browser leg creation in `ringVolunteers()`:**
+- VoIP providers route incoming calls to registered browser devices via their signaling mechanism, but the server must include browser client identities in the dial instructions:
+  - **Twilio**: TwiML `<Dial>` must include `<Client>identity</Client>` noun alongside `<Number>` nouns for browser-preference volunteers. The identity is the volunteer's pubkey (used during `Device.register()`).
+  - **Vonage**: NCCO `connect` action with `type: 'app'` and the volunteer's user ID targets their browser SDK
+  - **Plivo**: XML `<Dial>` with `<User>` element targets the browser endpoint
+- The `ringVolunteers` adapter method signature already accepts a volunteers list — extend each volunteer entry to include `{ pubkey, phone?, browserIdentity? }` so the adapter knows which dial directives to emit
+- For each browser-preference volunteer, create a `callLegs` row with `type: 'browser'`
 
-**No new adapter methods needed** — VoIP providers (Twilio, Vonage, Plivo) route incoming connections to registered browser devices automatically. The `ringBrowserVolunteer` pattern is only needed for SIP-mode providers (Asterisk spec).
+**Answer endpoint — `POST /api/calls/{callSid}/answer`:**
+- Accepts `{ type: 'browser' }` to distinguish connection method
+- On answer:
+  1. Query `callLegs` by `callSid`; mark the answered leg as `in-progress`
+  2. Update all other legs to `cancelled`
+  3. Invoke `adapter.cancelRinging()` to hang up outstanding phone legs
+  4. For `'both'` volunteers: answering on browser cancels their own phone leg too
+- Race condition: the existing `assignedPubkey` check on the `activeCalls` row handles simultaneous answers (first write wins). Leg cancellation runs after the assignment succeeds, so only the winner's legs survive.
+
+**No new adapter methods needed** for the answer/bridge flow — VoIP providers bridge the browser connection automatically when the client SDK accepts the incoming call. The `ringBrowserVolunteer` pattern is only needed for SIP-mode providers (Asterisk spec).
 
 ---
 
@@ -191,7 +215,7 @@ Minimal changes — VoIP providers handle browser routing natively through their
 - Token refresh logic
 
 **API integration tests (`tests/api/`):**
-- `GET /api/calls/webrtc-token` — returns provider-specific token (authenticated)
+- `GET /api/telephony/webrtc-token` — returns provider-specific token (authenticated)
 - `POST /api/calls/{callSid}/answer` with `type: 'browser'` — marks browser leg, cancels others
 - `'both'` volunteers: two legs created, answering one cancels both
 
