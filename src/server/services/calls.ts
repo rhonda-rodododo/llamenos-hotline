@@ -125,6 +125,27 @@ export class CallService {
     await this.db.delete(callLegs).where(eq(callLegs.legSid, legSid))
   }
 
+  /**
+   * Cancel all ringing legs except the one answered by the given volunteer.
+   * Returns the legSids of phone legs that should be cancelled via the telephony adapter.
+   */
+  async cancelOtherLegs(
+    callSid: string,
+    hubId: string | undefined,
+    answeredPubkey: string,
+    answeredType?: 'phone' | 'browser'
+  ): Promise<string[]> {
+    const legs = await this.getCallLegs(callSid, hubId)
+    const toCancel = legs.filter((leg) => {
+      if (leg.volunteerPubkey === answeredPubkey && leg.type === answeredType) return false
+      return leg.status === 'ringing'
+    })
+    for (const leg of toCancel) {
+      await this.updateCallLeg(leg.legSid, 'cancelled')
+    }
+    return toCancel.filter((l) => l.type === 'phone' && l.legSid).map((l) => l.legSid)
+  }
+
   // ------------------------------------------------------------------ Call Tokens
 
   async createCallToken(data: CreateCallTokenData): Promise<string> {

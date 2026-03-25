@@ -118,6 +118,11 @@ calls.post('/:callId/answer', requirePermission('calls:answer'), async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
 
+  const body = await c.req
+    .json<{ type?: 'phone' | 'browser' }>()
+    .catch((): { type?: 'phone' | 'browser' } => ({}))
+  const answerType = body.type
+
   const existing = await services.calls.getActiveCall(callId, hubId)
   if (!existing) return c.json({ error: 'Call not found' }, 404)
   if (existing.assignedPubkey) return c.json({ error: 'Call already answered' }, 409)
@@ -127,6 +132,26 @@ calls.post('/:callId/answer', requirePermission('calls:answer'), async (c) => {
     { assignedPubkey: pubkey, status: 'in-progress' },
     hubId
   )
+
+  // Cancel other ringing legs (both in DB and via telephony adapter for phone legs)
+  const phoneLegSidsToCancel = await services.calls.cancelOtherLegs(
+    callId,
+    hubId,
+    pubkey,
+    answerType
+  )
+
+  if (phoneLegSidsToCancel.length > 0) {
+    const adapter = await getTelephony(services.settings, hubId, {
+      TWILIO_ACCOUNT_SID: c.env.TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN: c.env.TWILIO_AUTH_TOKEN,
+      TWILIO_PHONE_NUMBER: c.env.TWILIO_PHONE_NUMBER,
+    })
+    if (adapter) {
+      await adapter.cancelRinging(phoneLegSidsToCancel)
+    }
+  }
+
   return c.json({ call: updated })
 })
 
