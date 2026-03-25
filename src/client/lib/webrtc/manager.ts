@@ -12,6 +12,7 @@
 
 import { getWebRtcToken } from '../api'
 import { PlivoWebRTCAdapter } from './adapters/plivo'
+import { SipWebRTCAdapter } from './adapters/sip'
 import { TwilioWebRTCAdapter } from './adapters/twilio'
 import { VonageWebRTCAdapter } from './adapters/vonage'
 import type { StateChangeHandler, WebRTCAdapter, WebRtcState } from './types'
@@ -44,6 +45,11 @@ function createAdapter(provider: string): WebRTCAdapter {
       return new VonageWebRTCAdapter()
     case 'plivo':
       return new PlivoWebRTCAdapter()
+    case 'asterisk':
+    case 'freeswitch':
+    case 'kamailio':
+    case 'sip':
+      return new SipWebRTCAdapter()
     default:
       throw new Error(`No WebRTC adapter for provider: ${provider}`)
   }
