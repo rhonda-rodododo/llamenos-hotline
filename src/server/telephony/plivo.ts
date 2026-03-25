@@ -419,6 +419,10 @@ export class PlivoAdapter implements TelephonyAdapter {
     return audioRes.arrayBuffer()
   }
 
+  async deleteRecording(recordingSid: string): Promise<void> {
+    await this.plivoApi(`/Recording/${recordingSid}/`, { method: 'DELETE' })
+  }
+
   // --- Webhook parsing ---
   // Plivo sends webhooks as form-encoded data
 

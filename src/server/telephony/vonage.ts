@@ -479,6 +479,21 @@ export class VonageAdapter implements TelephonyAdapter {
     return audioRes.arrayBuffer()
   }
 
+  async deleteRecording(recordingSid: string): Promise<void> {
+    // recordingSid is the recording_url for Vonage (e.g. https://api.nexmo.com/v1/files/{uuid})
+    try {
+      const url = new URL(recordingSid)
+      const mediaId = url.pathname.split('/').pop()
+      if (!mediaId) return
+      await fetch(`https://api.nexmo.com/v3/media/${mediaId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Basic ${btoa(`${this.apiKey}:${this.apiSecret}`)}` },
+      })
+    } catch (err) {
+      console.error('[vonage] Failed to delete recording:', err)
+    }
+  }
+
   // --- Webhook parsing ---
   // Vonage sends webhooks as JSON (not form data like Twilio)
 

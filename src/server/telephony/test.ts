@@ -207,11 +207,16 @@ export class TestAdapter implements TelephonyAdapter {
 
   // --- Recording (not available in test) ---
 
+  deletedRecordings: string[] = []
+
   async getCallRecording(_callSid: string): Promise<ArrayBuffer | null> {
     return null
   }
   async getRecordingAudio(_recordingSid: string): Promise<ArrayBuffer | null> {
     return null
+  }
+  async deleteRecording(recordingSid: string): Promise<void> {
+    this.deletedRecordings.push(recordingSid)
   }
 
   // --- Webhook Parsing (Twilio form-body format) ---

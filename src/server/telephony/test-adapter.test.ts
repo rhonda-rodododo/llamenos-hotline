@@ -159,4 +159,9 @@ describe('TestAdapter', () => {
     expect(res.body).toContain('<Say>')
     expect(res.body).toContain('<Pause')
   })
+
+  test('deleteRecording tracks deletion', async () => {
+    await adapter.deleteRecording('REC123')
+    expect(adapter.deletedRecordings).toContain('REC123')
+  })
 })

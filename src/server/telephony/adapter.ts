@@ -111,6 +111,11 @@ export interface TelephonyAdapter {
    */
   getRecordingAudio(recordingSid: string): Promise<ArrayBuffer | null>
 
+  /**
+   * Delete a recording from the provider after encrypted storage.
+   */
+  deleteRecording(recordingSid: string): Promise<void>
+
   // --- Webhook parsing (provider-specific field names → agnostic types) ---
 
   /** Parse incoming call webhook (CallSid, From) */

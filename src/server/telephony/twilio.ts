@@ -407,6 +407,10 @@ export class TwilioAdapter implements TelephonyAdapter {
     return audioRes.arrayBuffer()
   }
 
+  async deleteRecording(recordingSid: string): Promise<void> {
+    await this.twilioApi(`/Recordings/${recordingSid}.json`, { method: 'DELETE' })
+  }
+
   // --- Webhook parsing ---
 
   async parseIncomingWebhook(request: Request): Promise<WebhookCallInfo> {

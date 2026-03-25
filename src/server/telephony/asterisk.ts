@@ -293,6 +293,14 @@ export class AsteriskAdapter implements TelephonyAdapter {
     }
   }
 
+  async deleteRecording(recordingSid: string): Promise<void> {
+    try {
+      await this.bridge.request('DELETE', `/recordings/${recordingSid}`)
+    } catch (err) {
+      console.error('[asterisk] Failed to delete recording:', err)
+    }
+  }
+
   // --- Webhook validation ---
 
   async validateWebhook(request: Request): Promise<boolean> {
