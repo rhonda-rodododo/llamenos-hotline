@@ -7,10 +7,10 @@
  * Uses hub-scoped routes for non-super-admin users (MED-W1 compliance).
  */
 
-import { test, expect, type APIRequestContext } from '@playwright/test'
-import { TestContext, type RoleAlias } from '../api-helpers'
-import { createAuthedRequestFromNsec, type AuthedRequest } from '../helpers/authed-request'
+import { type APIRequestContext, expect, test } from '@playwright/test'
+import { type RoleAlias, TestContext } from '../api-helpers'
 import { ADMIN_NSEC } from '../helpers'
+import { type AuthedRequest, createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 let ctx: TestContext
 let adminApi: AuthedRequest
@@ -46,7 +46,7 @@ test.describe('Permission Matrix', () => {
     path: string,
     body: unknown | undefined,
     expectations: RoleExpectation[],
-    unauthExpected: number = 401,
+    unauthExpected = 401
   ) {
     for (const { role, allowed } of expectations) {
       let api: AuthedRequest
@@ -64,9 +64,14 @@ test.describe('Permission Matrix', () => {
       const status = res.status()
 
       if (allowed) {
-        expect(status, `${role} ${method.toUpperCase()} ${path} should be allowed`).toBeLessThan(400)
+        expect(status, `${role} ${method.toUpperCase()} ${path} should be allowed`).toBeLessThan(
+          400
+        )
       } else {
-        expect(status, `${role} ${method.toUpperCase()} ${path} should be denied`).toBeGreaterThanOrEqual(400)
+        expect(
+          status,
+          `${role} ${method.toUpperCase()} ${path} should be denied`
+        ).toBeGreaterThanOrEqual(400)
         expect(status, `${role} should not get 500`).not.toBe(500)
       }
     }
@@ -150,7 +155,9 @@ test.describe('Permission Matrix', () => {
       expect([200, 201]).toContain(saRes.status())
 
       // Hub-admin: allowed (hub-scoped) — use different phone to avoid duplicate
-      const haRes = await ctx.api('hub-admin').post(ctx.hubPath('/bans'), { phone: '+15550009998', reason: 'Matrix test ban 2' })
+      const haRes = await ctx
+        .api('hub-admin')
+        .post(ctx.hubPath('/bans'), { phone: '+15550009998', reason: 'Matrix test ban 2' })
       expect([200, 201]).toContain(haRes.status())
 
       // Volunteer: denied
@@ -311,9 +318,9 @@ test.describe('Permission Matrix', () => {
       const haRes = await ctx.api('hub-admin').get(ctx.hubPath('/analytics/calls?days=7'))
       expect(haRes.status()).toBe(200)
 
-      // Volunteer: no calls:read-history
+      // Volunteer: has calls:read-history — allowed
       const volRes = await ctx.api('volunteer').get(ctx.hubPath('/analytics/calls?days=7'))
-      expect(volRes.status()).toBe(403)
+      expect(volRes.status()).toBe(200)
 
       // Reporter: denied
       const repRes = await ctx.api('reporter').get(ctx.hubPath('/analytics/calls?days=7'))
@@ -438,10 +445,7 @@ test.describe('Permission Matrix', () => {
         const res = await ctx.api('volunteer').get(path)
         // 400 = hub context required, 403 = permission denied (checked before hub context)
         // Both are correct — the key assertion is they are NOT allowed through
-        expect(
-          res.status(),
-          `volunteer GET ${path} should be denied`,
-        ).toBeGreaterThanOrEqual(400)
+        expect(res.status(), `volunteer GET ${path} should be denied`).toBeGreaterThanOrEqual(400)
         expect(res.status(), `${path} should not 500`).not.toBe(500)
       }
     })
@@ -449,10 +453,7 @@ test.describe('Permission Matrix', () => {
     test('super-admin can access global resource routes without hub', async () => {
       for (const path of hubRequiredPaths) {
         const res = await adminApi.get(path)
-        expect(
-          res.status(),
-          `admin GET ${path} should succeed globally`,
-        ).not.toBe(400)
+        expect(res.status(), `admin GET ${path} should succeed globally`).not.toBe(400)
         expect(res.status()).not.toBe(500)
       }
     })

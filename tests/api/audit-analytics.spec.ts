@@ -4,10 +4,10 @@
  * Audit log querying with filters, analytics endpoints, and data format validation.
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { TestContext, uniquePhone } from '../api-helpers'
-import { createAuthedRequestFromNsec, type AuthedRequest } from '../helpers/authed-request'
 import { ADMIN_NSEC } from '../helpers'
+import { type AuthedRequest, createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 let ctx: TestContext
 let adminApi: AuthedRequest
@@ -17,7 +17,7 @@ test.describe('Audit Log and Analytics', () => {
 
   test.beforeAll(async ({ request }) => {
     ctx = await TestContext.create(request, {
-      roles: ['volunteer', 'hub-admin'],
+      roles: ['volunteer', 'hub-admin', 'reporter'],
       hubName: 'Audit Analytics Hub',
     })
 
@@ -174,8 +174,13 @@ test.describe('Audit Log and Analytics', () => {
       expect(res.status()).toBe(200)
     })
 
-    test('volunteer cannot access analytics', async () => {
+    test('volunteer can access call analytics (has calls:read-history)', async () => {
       const res = await ctx.api('volunteer').get(ctx.hubPath('/analytics/calls?days=7'))
+      expect(res.status()).toBe(200)
+    })
+
+    test('reporter cannot access analytics', async () => {
+      const res = await ctx.api('reporter').get(ctx.hubPath('/analytics/calls?days=7'))
       expect(res.status()).toBe(403)
     })
   })

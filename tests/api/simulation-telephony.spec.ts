@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test'
-import { resetTestState } from '../helpers/index'
 import { simulateEndCall, simulateIncomingCall, simulateVoicemail } from '../helpers/simulation'
 
 const PROVIDERS = ['twilio', 'signalwire', 'vonage', 'plivo', 'asterisk'] as const
@@ -19,10 +18,6 @@ const RESPONSE_PATTERNS: Record<string, { contentType: RegExp; bodyPattern: RegE
 }
 
 test.describe('Cross-provider telephony simulation smoke tests', () => {
-  test.beforeEach(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   for (const provider of PROVIDERS) {
     test(`${provider}: incoming-call webhook returns valid response or 404`, async ({
       request,

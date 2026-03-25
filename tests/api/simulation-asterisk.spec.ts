@@ -1,12 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { resetTestState } from '../helpers/index'
 import { simulateEndCall, simulateIncomingCall, simulateVoicemail } from '../helpers/simulation'
 
 test.describe('Asterisk simulation — call lifecycle', () => {
-  test.beforeEach(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test('incoming call → returns queue ARI command (not 400/403/500)', async ({ request }) => {
     const { status, body } = await simulateIncomingCall(request, 'asterisk', {
       callerNumber: '+15555550100',

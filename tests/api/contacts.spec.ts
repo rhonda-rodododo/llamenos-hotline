@@ -1,13 +1,9 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
-import { ADMIN_NSEC, resetTestState } from '../helpers'
 
 test.describe('Contacts API', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test('contacts API endpoint returns contacts array', async ({ request }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
@@ -18,7 +14,9 @@ test.describe('Contacts API', () => {
     expect(Array.isArray(data.contacts)).toBe(true)
   })
 
-  test('contact timeline API returns notes and conversations for existing contact', async ({ request }) => {
+  test('contact timeline API returns notes and conversations for existing contact', async ({
+    request,
+  }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
     // Fetch contacts list first
@@ -51,7 +49,7 @@ test.describe('Contacts API', () => {
   test('contact timeline returns 404 for unknown hash', async ({ request }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     const res = await authedApi.get(
-      '/api/contacts/0000000000000000deadbeefcafebabe00000000000000000000000000000000',
+      '/api/contacts/0000000000000000deadbeefcafebabe00000000000000000000000000000000'
     )
     expect([404, 200]).toContain(res.status())
     // 200 with empty arrays is also acceptable; 404 is preferred

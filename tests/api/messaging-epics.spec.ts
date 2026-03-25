@@ -7,18 +7,18 @@
  * Epic 71: Message delivery status
  */
 
-import { test, expect } from '@playwright/test'
-import { createAuthedRequestFromNsec, type AuthedRequest } from '../helpers/authed-request'
-import { ADMIN_NSEC, resetTestState, uniquePhone } from '../helpers'
-import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
+import { expect, test } from '@playwright/test'
 import { nip19 } from 'nostr-tools'
+import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
+import { ADMIN_NSEC, uniquePhone } from '../helpers'
+import { type AuthedRequest, createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 /** Create a volunteer via admin API, returning pubkey and nsec. */
 async function createVolunteer(
   adminApi: AuthedRequest,
   name: string,
   phone: string,
-  roleIds?: string[],
+  roleIds?: string[]
 ): Promise<{ pubkey: string; nsec: string }> {
   const sk = generateSecretKey()
   const pubkey = getPublicKey(sk)
@@ -47,7 +47,6 @@ test.describe('Epic 68: Messaging Channel Permissions', () => {
   let restrictedVolunteerNsec: string
 
   test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
     const setupApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
     // Create a volunteer with default role (has all channel permissions)
@@ -70,12 +69,9 @@ test.describe('Epic 68: Messaging Channel Permissions', () => {
     const roleBody = await roleRes.json()
 
     // Create a volunteer with restricted role
-    const restrictedVol = await createVolunteer(
-      setupApi,
-      'SMSOnly Vol',
-      uniquePhone(),
-      [roleBody.id],
-    )
+    const restrictedVol = await createVolunteer(setupApi, 'SMSOnly Vol', uniquePhone(), [
+      roleBody.id,
+    ])
     restrictedVolunteerNsec = restrictedVol.nsec
   })
 
@@ -271,10 +267,6 @@ test.describe('Epic 71: Message Delivery Status (second block)', () => {
 
   let adminApi: AuthedRequest
 
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ request }) => {
     adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
   })
@@ -426,9 +418,9 @@ test.describe('Cleanup test data', () => {
     const rolesBody = await rolesRes.json()
 
     // Delete custom roles created by these tests
-    const customRoles = rolesBody.roles.filter((r: { isDefault: boolean; slug: string }) =>
-      !r.isDefault &&
-      ['sms-only', 'wa-signal-only', 'all-channels'].includes(r.slug)
+    const customRoles = rolesBody.roles.filter(
+      (r: { isDefault: boolean; slug: string }) =>
+        !r.isDefault && ['sms-only', 'wa-signal-only', 'all-channels'].includes(r.slug)
     )
 
     for (const role of customRoles) {

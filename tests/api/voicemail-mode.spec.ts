@@ -1,5 +1,5 @@
 import { type APIRequestContext, expect, test } from '@playwright/test'
-import { ADMIN_NSEC, resetTestState } from '../helpers'
+import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 /**
@@ -13,10 +13,6 @@ test.describe('Voicemail mode routing', () => {
   test.describe.configure({ mode: 'serial' })
 
   let telephonyAvailable = false
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   /**
    * Helper: set voicemailMode via the settings API.

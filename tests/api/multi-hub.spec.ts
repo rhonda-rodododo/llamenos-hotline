@@ -1,13 +1,9 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
-import { ADMIN_NSEC, resetTestState } from '../helpers'
 
 test.describe('Multi-hub architecture — API', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test('config returns hubs array', async ({ request }) => {
     const res = await request.get('/api/config')
@@ -21,7 +17,10 @@ test.describe('Multi-hub architecture — API', () => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
     // Create a hub
-    const createRes = await authedApi.post('/api/hubs', { name: 'Test Hub', description: 'E2E test hub' })
+    const createRes = await authedApi.post('/api/hubs', {
+      name: 'Test Hub',
+      description: 'E2E test hub',
+    })
     expect(createRes.ok()).toBe(true)
     const created = await createRes.json()
     expect(created).toHaveProperty('hub')
@@ -94,7 +93,10 @@ test.describe('Multi-hub architecture — API', () => {
     const adminPubkey = authedApi.pubkey
 
     // Add admin as member to the new hub with a different role
-    const addRes = await authedApi.post(`/api/hubs/${hubId}/members`, { pubkey: adminPubkey, roleIds: ['role-volunteer'] })
+    const addRes = await authedApi.post(`/api/hubs/${hubId}/members`, {
+      pubkey: adminPubkey,
+      roleIds: ['role-volunteer'],
+    })
     expect(addRes.ok()).toBe(true)
 
     // Remove member from hub
@@ -122,7 +124,10 @@ test.describe('Multi-hub architecture — API', () => {
     const hub2 = (await hub2Res.json()).hub
 
     // Create a ban in hub A
-    const banRes = await authedApi.post(`/api/hubs/${hub1.id}/bans`, { phone: '+15559990001', reason: 'Hub A test ban' })
+    const banRes = await authedApi.post(`/api/hubs/${hub1.id}/bans`, {
+      phone: '+15559990001',
+      reason: 'Hub A test ban',
+    })
     expect(banRes.ok()).toBe(true)
 
     // Hub A should have the ban

@@ -82,4 +82,4 @@ services:
       --fingerprint
       --log-file=stdout
     networks:
-      - llamenos-dev
+      - internal

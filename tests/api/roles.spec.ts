@@ -1,8 +1,12 @@
-import { test, expect } from '@playwright/test'
-import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
+import { expect, test } from '@playwright/test'
 import { nip19 } from 'nostr-tools'
-import { createAuthedRequestFromNsec, createAuthedRequest, type AuthedRequest } from '../helpers/authed-request'
-import { ADMIN_NSEC, resetTestState, uniquePhone } from '../helpers'
+import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
+import { ADMIN_NSEC, uniquePhone } from '../helpers'
+import {
+  type AuthedRequest,
+  createAuthedRequest,
+  createAuthedRequestFromNsec,
+} from '../helpers/authed-request'
 
 // --- Role CRUD via API ---
 
@@ -12,10 +16,6 @@ test.describe('Role Management API', () => {
   let authedApi: AuthedRequest
   let customRoleId: string
   let customRoleSlug: string
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test.beforeEach(async ({ request }) => {
     authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
@@ -54,7 +54,11 @@ test.describe('Role Management API', () => {
     const body = await res.json()
     expect(body.name).toBe(`Call Monitor ${suffix}`)
     expect(body.slug).toBe(`call-monitor-${suffix}`)
-    expect(body.permissions).toEqual(['calls:read-active', 'calls:read-history', 'calls:read-presence'])
+    expect(body.permissions).toEqual([
+      'calls:read-active',
+      'calls:read-history',
+      'calls:read-presence',
+    ])
     expect(body.isDefault).toBe(false)
     expect(body.isSystem).toBe(false)
     expect(body.id).toMatch(/^role-/)
@@ -88,7 +92,12 @@ test.describe('Role Management API', () => {
     expect(customRoleId).toBeDefined()
 
     const res = await authedApi.patch(`/api/settings/roles/${customRoleId}`, {
-      permissions: ['calls:read-active', 'calls:read-history', 'calls:read-presence', 'calls:answer'],
+      permissions: [
+        'calls:read-active',
+        'calls:read-history',
+        'calls:read-presence',
+        'calls:answer',
+      ],
       description: 'Can now also answer calls',
     })
     expect(res.status()).toBe(200)
@@ -109,7 +118,13 @@ test.describe('Role Management API', () => {
 
   test('cannot delete default roles', async () => {
     // Try to delete each default role
-    const defaultRoleIds = ['role-super-admin', 'role-hub-admin', 'role-reviewer', 'role-volunteer', 'role-reporter']
+    const defaultRoleIds = [
+      'role-super-admin',
+      'role-hub-admin',
+      'role-reviewer',
+      'role-volunteer',
+      'role-reporter',
+    ]
     for (const id of defaultRoleIds) {
       const res = await authedApi.delete(`/api/settings/roles/${id}`)
       expect(res.status()).toBe(403)
@@ -147,9 +162,9 @@ test.describe('Role Management API', () => {
     expect(body.permissions['settings:manage']).toBeDefined()
 
     // Check domains are grouped
-    expect(body.byDomain['calls']).toBeDefined()
-    expect(body.byDomain['notes']).toBeDefined()
-    expect(body.byDomain['settings']).toBeDefined()
+    expect(body.byDomain.calls).toBeDefined()
+    expect(body.byDomain.notes).toBeDefined()
+    expect(body.byDomain.settings).toBeDefined()
   })
 })
 
@@ -242,7 +257,10 @@ test.describe('Permission Enforcement', () => {
   test('volunteer cannot access admin endpoints (403)', async () => {
     // Volunteers have volunteers:read but NOT volunteers:create
     const volCreateRes = await volunteerApi.post('/api/volunteers', {
-      name: 'Hack Vol', phone: '+15551111111', pubkey: '00'.repeat(32), roleIds: ['role-volunteer'],
+      name: 'Hack Vol',
+      phone: '+15551111111',
+      pubkey: '00'.repeat(32),
+      roleIds: ['role-volunteer'],
     })
     expect(volCreateRes.status()).toBe(403)
 

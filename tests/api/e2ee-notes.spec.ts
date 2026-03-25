@@ -15,7 +15,7 @@
 import { expect, test } from '@playwright/test'
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools'
 import { decryptNoteV2, encryptNoteV2 } from '../../src/client/lib/crypto'
-import { ADMIN_NSEC, resetTestState } from '../helpers'
+import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 // Build admin secret key bytes and pubkey from test nsec
@@ -77,10 +77,6 @@ test.describe('E2EE note encryption', () => {
   const CALL_ID = `test-call-e2ee-${Date.now()}`
   const NOTE_PLAINTEXT = 'Secret note content for E2EE verification'
   let noteId: string
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   // ── Test 1.1: Note content is encrypted at rest ───────────────────────────
 

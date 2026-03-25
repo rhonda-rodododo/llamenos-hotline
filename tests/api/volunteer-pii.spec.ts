@@ -8,17 +8,17 @@
  * Other volunteers must NOT see name or phone of their peers.
  */
 
-import { test, expect } from '@playwright/test'
-import { createAuthedRequestFromNsec, type AuthedRequest } from '../helpers/authed-request'
-import { ADMIN_NSEC, resetTestState, uniquePhone } from '../helpers'
-import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
+import { expect, test } from '@playwright/test'
 import { nip19 } from 'nostr-tools'
+import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
+import { ADMIN_NSEC, uniquePhone } from '../helpers'
+import { type AuthedRequest, createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 /** Create a volunteer via admin API, returning pubkey and nsec. */
 async function createVolunteer(
   adminApi: AuthedRequest,
   name: string,
-  phone: string,
+  phone: string
 ): Promise<{ pubkey: string; nsec: string }> {
   const sk = generateSecretKey()
   const pubkey = getPublicKey(sk)
@@ -41,10 +41,6 @@ test.describe('Volunteer PII enforcement', () => {
   test.describe.configure({ mode: 'serial' })
 
   let adminApi: AuthedRequest
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test.beforeEach(async ({ request }) => {
     adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
@@ -70,7 +66,7 @@ test.describe('Volunteer PII enforcement', () => {
     const listResult = await listRes.json()
 
     const targetEntry = listResult.volunteers.find(
-      (v: { pubkey: string }) => v.pubkey === volA.pubkey,
+      (v: { pubkey: string }) => v.pubkey === volA.pubkey
     )
     expect(targetEntry).toBeDefined()
 
@@ -101,7 +97,7 @@ test.describe('Volunteer PII enforcement', () => {
     const listResult = await listRes.json()
 
     const aliceEntry = listResult.volunteers.find(
-      (v: { pubkey: string }) => v.pubkey === alice.pubkey,
+      (v: { pubkey: string }) => v.pubkey === alice.pubkey
     )
     expect(aliceEntry).toBeDefined()
 
@@ -147,9 +143,7 @@ test.describe('Volunteer PII enforcement', () => {
     const listRes = await adminApi.get('/api/volunteers')
     const listResult = await listRes.json()
 
-    const volEntry = listResult.volunteers.find(
-      (v: { pubkey: string }) => v.pubkey === vol.pubkey,
-    )
+    const volEntry = listResult.volunteers.find((v: { pubkey: string }) => v.pubkey === vol.pubkey)
     expect(volEntry).toBeDefined()
 
     // Admin can see the name

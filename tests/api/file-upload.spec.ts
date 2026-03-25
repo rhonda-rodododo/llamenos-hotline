@@ -1,9 +1,9 @@
-import { test, expect } from '@playwright/test'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
-import { ADMIN_NSEC, resetTestState } from '../helpers'
-import type { AuthedRequest } from '../helpers/authed-request'
-import { createAuthToken } from '../../src/client/lib/crypto'
+import { expect, test } from '@playwright/test'
 import { nip19 } from 'nostr-tools'
+import { createAuthToken } from '../../src/client/lib/crypto'
+import { ADMIN_NSEC } from '../helpers'
+import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import type { AuthedRequest } from '../helpers/authed-request'
 
 /**
  * Upload a binary chunk with proper auth and Content-Type: application/octet-stream.
@@ -14,14 +14,14 @@ async function putChunk(
   request: Parameters<typeof createAuthedRequestFromNsec>[0],
   nsec: string,
   path: string,
-  data: Buffer,
+  data: Buffer
 ) {
   const decoded = nip19.decode(nsec)
   if (decoded.type !== 'nsec') throw new Error('Expected nsec')
   const token = createAuthToken(decoded.data, Date.now(), 'PUT', path)
   return request.put(path, {
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/octet-stream',
     },
     data,
@@ -30,10 +30,6 @@ async function putChunk(
 
 test.describe('File upload lifecycle', () => {
   let authedApi: AuthedRequest
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test.beforeEach(async ({ request }) => {
     authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
@@ -76,7 +72,7 @@ test.describe('File upload lifecycle', () => {
       request,
       ADMIN_NSEC,
       `/api/uploads/${uploadId}/chunks/0`,
-      Buffer.from([1, 2, 3, 4, 5]),
+      Buffer.from([1, 2, 3, 4, 5])
     )
     expect(chunk0Res.ok()).toBe(true)
     const chunk0Result = await chunk0Res.json()
@@ -88,7 +84,7 @@ test.describe('File upload lifecycle', () => {
       request,
       ADMIN_NSEC,
       `/api/uploads/${uploadId}/chunks/1`,
-      Buffer.from([6, 7, 8, 9, 10]),
+      Buffer.from([6, 7, 8, 9, 10])
     )
     expect(chunk1Res.ok()).toBe(true)
 
@@ -135,23 +131,14 @@ test.describe('File upload lifecycle', () => {
       totalSize: 100,
       totalChunks: 3,
       conversationId,
-      recipientEnvelopes: [
-        { pubkey: adminPubkey, encryptedFileKey: 'k', ephemeralPubkey: 'e' },
-      ],
-      encryptedMetadata: [
-        { pubkey: adminPubkey, encryptedContent: 'm', ephemeralPubkey: 'e' },
-      ],
+      recipientEnvelopes: [{ pubkey: adminPubkey, encryptedFileKey: 'k', ephemeralPubkey: 'e' }],
+      encryptedMetadata: [{ pubkey: adminPubkey, encryptedContent: 'm', ephemeralPubkey: 'e' }],
     })
     const initData = await initRes.json()
     const uploadId = initData.uploadId as string
 
     // Only upload 1 of 3 chunks
-    await putChunk(
-      request,
-      ADMIN_NSEC,
-      `/api/uploads/${uploadId}/chunks/0`,
-      Buffer.from([1, 2, 3]),
-    )
+    await putChunk(request, ADMIN_NSEC, `/api/uploads/${uploadId}/chunks/0`, Buffer.from([1, 2, 3]))
 
     const completeRes = await authedApi.post(`/api/uploads/${uploadId}/complete`)
     expect(completeRes.status()).toBe(400)

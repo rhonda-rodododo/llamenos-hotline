@@ -6,19 +6,15 @@
  *   - Super admins cannot self-grant access via the API
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
-import { ADMIN_NSEC, resetTestState } from '../helpers'
 
 test.describe('Hub access control API', () => {
   test.describe.configure({ mode: 'serial' })
 
   let testHubId: string
   const testHubName = `access-ctrl-api-${Date.now()}`
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test('newly created hub defaults to allowSuperAdminAccess = false', async ({ request }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)

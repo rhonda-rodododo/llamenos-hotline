@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { ADMIN_NSEC, resetTestState } from '../helpers'
+import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 /**
@@ -18,10 +18,6 @@ test.describe('Voicemail webhook API', () => {
   let sharedCallSid = ''
   /** RecordingSid sent in the voicemail-recording webhook. */
   let sharedRecordingSid = ''
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test('voicemail-recording webhook accepts completed recording and sets hasVoicemail + recordingSid', async ({
     request,

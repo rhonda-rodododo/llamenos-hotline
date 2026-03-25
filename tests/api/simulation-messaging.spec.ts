@@ -1,12 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { resetTestState } from '../helpers/index'
 import { simulateDeliveryStatus, simulateIncomingMessage } from '../helpers/simulation'
 
 test.describe('Messaging simulation', () => {
-  test.beforeEach(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test('Twilio SMS: incoming message → conversation created', async ({ request }) => {
     const { status } = await simulateIncomingMessage(request, 'twilio', 'sms', {
       senderNumber: '+15555550300',

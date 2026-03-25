@@ -9,20 +9,20 @@
  *   MED-W2:  Volunteer cannot ban by phone directly (no bans:create)
  */
 
-import { test, expect } from '@playwright/test'
-import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
+import { expect, test } from '@playwright/test'
 import { nip19 } from 'nostr-tools'
-import { createAuthedRequestFromNsec, createAuthedRequest, type AuthedRequest } from '../helpers/authed-request'
-import { ADMIN_NSEC, resetTestState, uniquePhone } from '../helpers'
+import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
+import { ADMIN_NSEC, uniquePhone } from '../helpers'
+import {
+  type AuthedRequest,
+  createAuthedRequest,
+  createAuthedRequestFromNsec,
+} from '../helpers/authed-request'
 
 test.describe('Security hardening', () => {
   test.describe.configure({ mode: 'serial' })
 
   let adminApi: AuthedRequest
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test.beforeEach(async ({ request }) => {
     adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
@@ -54,8 +54,9 @@ test.describe('Security hardening', () => {
     const auditRes = await adminApi.get(`/api/hubs/${hubId}/audit`)
     const auditResult = await auditRes.json()
 
-    const banEntry = (auditResult.entries as Array<{ event: string; details?: Record<string, unknown> }>)
-      .find((e) => e.event === 'numberBanned')
+    const banEntry = (
+      auditResult.entries as Array<{ event: string; details?: Record<string, unknown> }>
+    ).find((e) => e.event === 'numberBanned')
 
     expect(banEntry).toBeDefined()
     // Audit entry must NOT contain plaintext phone
@@ -70,16 +71,18 @@ test.describe('Security hardening', () => {
 
   test('HIGH-W5: Invalid Twilio account SID is rejected before URL construction', async () => {
     const invalidSids = [
-      '../other-account',       // path traversal attempt
-      'not-a-sid',              // wrong format
-      'ac' + '0'.repeat(32),    // lowercase ac (must be AC)
+      '../other-account', // path traversal attempt
+      'not-a-sid', // wrong format
+      `ac${'0'.repeat(32)}`, // lowercase ac (must be AC)
       'ACgggggggggggggggggggggggggggggggg', // non-hex chars
-      '',                        // empty
+      '', // empty
     ]
 
     for (const sid of invalidSids) {
       const res = await adminApi.post('/api/settings/telephony-provider/test', {
-        type: 'twilio', accountSid: sid, authToken: 'test',
+        type: 'twilio',
+        accountSid: sid,
+        authToken: 'test',
       })
       const body = await res.json()
 
@@ -91,9 +94,11 @@ test.describe('Security hardening', () => {
   test('HIGH-W5: Valid Twilio account SID passes format check (may fail on auth)', async () => {
     // A properly formatted SID should pass validation and attempt the real API call
     // (which will fail since credentials are fake, but not with a 400 format error)
-    const validSid = 'AC' + 'a'.repeat(32)
+    const validSid = `AC${'a'.repeat(32)}`
     const res = await adminApi.post('/api/settings/telephony-provider/test', {
-      type: 'twilio', accountSid: validSid, authToken: 'fake-token',
+      type: 'twilio',
+      accountSid: validSid,
+      authToken: 'fake-token',
     })
     const body = await res.json()
 
@@ -112,7 +117,10 @@ test.describe('Security hardening', () => {
     const pubkey = getPublicKey(sk)
 
     await adminApi.post('/api/volunteers', {
-      name: 'SecTest Volunteer', phone: uniquePhone(), roleIds: ['role-volunteer'], pubkey,
+      name: 'SecTest Volunteer',
+      phone: uniquePhone(),
+      roleIds: ['role-volunteer'],
+      pubkey,
     })
 
     // Create an authed request as the volunteer
@@ -133,7 +141,9 @@ test.describe('Security hardening', () => {
 
   // ─── MED-W2: Volunteer cannot create bans directly ────────────────────────
 
-  test('MED-W2: Volunteer gets 403 when attempting to ban via hub-scoped endpoint', async ({ request }) => {
+  test('MED-W2: Volunteer gets 403 when attempting to ban via hub-scoped endpoint', async ({
+    request,
+  }) => {
     // Create a hub and a volunteer via admin API
     const hubRes = await adminApi.post('/api/hubs', { name: 'Ban Permission Test Hub' })
     const { hub } = await hubRes.json()
@@ -142,10 +152,14 @@ test.describe('Security hardening', () => {
     const pubkey = getPublicKey(sk)
 
     await adminApi.post('/api/volunteers', {
-      name: 'NoBan Volunteer', phone: uniquePhone(), roleIds: ['role-volunteer'], pubkey,
+      name: 'NoBan Volunteer',
+      phone: uniquePhone(),
+      roleIds: ['role-volunteer'],
+      pubkey,
     })
     await adminApi.post(`/api/hubs/${hub.id}/members`, {
-      pubkey, roleIds: ['role-volunteer'],
+      pubkey,
+      roleIds: ['role-volunteer'],
     })
 
     // Create an authed request as the volunteer
@@ -153,7 +167,8 @@ test.describe('Security hardening', () => {
 
     // Volunteer trying to create a ban via hub-scoped route should get 403 (no bans:create)
     const banRes = await volunteerApi.post(`/api/hubs/${hub.id}/bans`, {
-      phone: '+15551234567', reason: 'test',
+      phone: '+15551234567',
+      reason: 'test',
     })
     expect(banRes.status()).toBe(403)
   })

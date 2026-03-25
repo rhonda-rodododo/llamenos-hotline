@@ -1,13 +1,9 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { ADMIN_NSEC, uniquePhone } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
-import { ADMIN_NSEC, resetTestState, uniquePhone } from '../helpers'
 
 test.describe('Blast campaign API', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test('create a blast via API', async ({ request }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
