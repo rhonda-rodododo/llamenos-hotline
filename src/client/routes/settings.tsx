@@ -24,6 +24,12 @@ import {
   getProvisioningRoom,
   sendProvisionedKey,
 } from '@/lib/provisioning'
+import {
+  isPushSubscribed,
+  isPushSupported,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from '@/lib/push-subscription'
 import { useToast } from '@/lib/toast'
 import {
   TranscriptionManager,
@@ -94,6 +100,9 @@ function SettingsPage() {
     callPreference
   )
   const [webrtcAvailable, setWebrtcAvailable] = useState(false)
+  const pushSupported = isPushSupported()
+  const [pushSubscribed, setPushSubscribed] = useState(false)
+  const [pushToggling, setPushToggling] = useState(false)
 
   // Collapsible state — persisted in sessionStorage, profile expanded by default
   const { expanded, toggleSection } = usePersistedExpanded(
@@ -124,6 +133,9 @@ function SettingsPage() {
         .then((r) => {
           setWebrtcAvailable(r.available)
         })
+        .catch(() => {}),
+      isPushSubscribed()
+        .then((subscribed) => setPushSubscribed(subscribed))
         .catch(() => {}),
     ]
     // Load WebAuthn credentials for all users
@@ -529,6 +541,45 @@ function SettingsPage() {
             }}
           />
         </div>
+        <PushNotificationToggle
+          supported={pushSupported}
+          subscribed={pushSubscribed}
+          toggling={pushToggling}
+          onToggle={async (enable) => {
+            setPushToggling(true)
+            try {
+              if (enable) {
+                const ok = await subscribeToPush()
+                if (ok) {
+                  setPushSubscribed(true)
+                  toast(
+                    t('notifications.pushEnabled', { defaultValue: 'Push notifications enabled' }),
+                    'success'
+                  )
+                } else {
+                  toast(
+                    t('notifications.pushEnableFailed', {
+                      defaultValue:
+                        'Could not enable push notifications. Grant notification permission first.',
+                    }),
+                    'error'
+                  )
+                }
+              } else {
+                await unsubscribeFromPush()
+                setPushSubscribed(false)
+                toast(
+                  t('notifications.pushDisabled', { defaultValue: 'Push notifications disabled' }),
+                  'success'
+                )
+              }
+            } catch {
+              toast(t('common.error'), 'error')
+            } finally {
+              setPushToggling(false)
+            }
+          }}
+        />
         <NotificationPermissionStatus />
       </SettingsSection>
 
@@ -733,6 +784,54 @@ function NotificationPermissionStatus() {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function PushNotificationToggle({
+  supported,
+  subscribed,
+  toggling,
+  onToggle,
+}: {
+  supported: boolean
+  subscribed: boolean
+  toggling: boolean
+  onToggle: (enable: boolean) => Promise<void>
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-border p-4">
+      <div className="space-y-0.5">
+        <Label>{t('settings.pushNotifications', { defaultValue: 'Push Notifications' })}</Label>
+        {!supported ? (
+          <p className="text-xs text-muted-foreground">
+            {t('settings.pushNotificationsUnsupported', {
+              defaultValue: 'Push notifications are not supported in this browser.',
+            })}
+          </p>
+        ) : subscribed ? (
+          <p className="text-xs text-muted-foreground">
+            {t('settings.pushNotificationsEnabled', {
+              defaultValue: 'Receive notifications even when the app is in the background.',
+            })}
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            {t('settings.pushNotificationsDisabled', {
+              defaultValue:
+                'Enable to receive call alerts when the app is closed or in the background.',
+            })}
+          </p>
+        )}
+      </div>
+      <Switch
+        disabled={!supported || toggling}
+        checked={subscribed}
+        onCheckedChange={(checked) => onToggle(checked)}
+        data-testid="push-notifications-toggle"
+      />
     </div>
   )
 }

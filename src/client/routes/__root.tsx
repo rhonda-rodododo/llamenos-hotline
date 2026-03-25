@@ -16,6 +16,7 @@ import { useCalls, useShiftStatus } from '@/lib/hooks'
 import { getHubKeyForId } from '@/lib/hub-key-cache'
 import * as keyManager from '@/lib/key-manager'
 import { NostrProvider } from '@/lib/nostr/context'
+import { subscribeToPush } from '@/lib/push-subscription'
 import { useTheme } from '@/lib/theme'
 import { useKeyboardShortcuts } from '@/lib/use-keyboard-shortcuts'
 import { Link, Outlet, createRootRoute, useLocation, useNavigate } from '@tanstack/react-router'
@@ -246,6 +247,18 @@ function AuthenticatedLayout() {
   const { currentCall } = useCalls()
   const { onShift, currentShift, nextShift } = useShiftStatus()
   useKeyboardShortcuts()
+
+  // Re-subscribe to push notifications on app load to handle endpoint rotation.
+  // Fire-and-forget: runs once when the authenticated layout mounts.
+  useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      'Notification' in window &&
+      Notification.permission === 'granted'
+    ) {
+      subscribeToPush()
+    }
+  }, [])
 
   // Close sidebar on navigation
   useEffect(() => {
