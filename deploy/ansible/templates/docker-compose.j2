@@ -163,6 +163,7 @@ services:
       - asterisk-config:/etc/asterisk
     networks:
       - internal
+      - web
     healthcheck:
       test: ["CMD", "asterisk", "-rx", "core show version"]
       interval: 30s
@@ -188,6 +189,30 @@ services:
         condition: service_healthy
       app:
         condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+  # ── coturn TURN/STUN server ──────────────────────────────────
+  # Required for WebRTC NAT traversal. Volunteers behind NAT use
+  # TURN relay for media when direct peer-to-peer fails.
+  coturn:
+    image: {{ coturn_image | default('coturn/coturn:4.6') }}
+    restart: unless-stopped
+    ports:
+      - "3478:3478"       # STUN/TURN UDP
+      - "3478:3478/tcp"   # STUN/TURN TCP
+      - "5349:5349"       # STUN/TURN TLS
+      - "5349:5349/tcp"   # STUN/TURN TLS TCP
+      - "49152-49252:49152-49252/udp"  # TURN relay ports
+    volumes:
+      - ./turnserver.conf:/etc/turnserver.conf:ro
+{% if coturn_cert_path is defined %}
+      - {{ coturn_cert_path }}:/etc/ssl/turn/cert.pem:ro
+      - {{ coturn_key_path }}:/etc/ssl/turn/key.pem:ro
+{% endif %}
+    networks:
+      - web
+      - internal
     security_opt:
       - no-new-privileges:true
 {% endif %}

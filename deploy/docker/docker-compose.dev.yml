@@ -1,6 +1,6 @@
 # v1 dev port offsets — avoids conflicts with llamenos v2 (~/projects/llamenos)
 # v2 uses: postgres:5432, minio:9000/9001, strfry:7777
-# v1 uses: postgres:5433, minio:9002/9003, strfry:7778, asterisk-ari:8089, asterisk-sip:5062
+# v1 uses: postgres:5433, minio:9002/9003, strfry:7778, asterisk-ari:8089, asterisk-sip:5062, asterisk-wss:8090, coturn:3478
 #
 # Asterisk + bridge are enabled via --profile asterisk in the dev:docker script.
 #
@@ -35,8 +35,12 @@ services:
   asterisk:
     ports:
       - "8089:8088"     # ARI HTTP/WS (offset from default 8088)
+      - "8090:8089"     # WSS for browser SIP clients (offset: host 8090 → container 8089)
       - "5062:5060/udp" # SIP UDP (offset from default 5060)
       - "5062:5060/tcp" # SIP TCP
+    volumes:
+      - ../asterisk-bridge/dev-certs/asterisk.pem:/etc/asterisk/keys/asterisk.pem:ro
+      - ../asterisk-bridge/dev-certs/asterisk.key:/etc/asterisk/keys/asterisk.key:ro
 
   # ARI bridge — dev-friendly defaults, webhook to local wrangler dev server
   asterisk-bridge:
@@ -59,3 +63,23 @@ services:
     depends_on:
       asterisk:
         condition: service_healthy
+
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    ports:
+      - "3478:3478"
+      - "3478:3478/tcp"
+    command: >
+      turnserver
+      --realm=localhost
+      --use-auth-secret
+      --static-auth-secret=dev-turn-secret-changeme
+      --listening-port=3478
+      --min-port=49152
+      --max-port=49172
+      --no-cli
+      --fingerprint
+      --log-file=stdout
+    networks:
+      - llamenos-dev
