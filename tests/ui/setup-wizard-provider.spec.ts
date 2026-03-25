@@ -58,7 +58,7 @@ test.describe('Setup Wizard - Provider Module', () => {
     await expect(page.getByText('Voice & SMS Provider')).toBeVisible()
 
     // Provider cards should be visible
-    await expect(page.getByText('Twilio')).toBeVisible()
+    await expect(page.getByText('Twilio', { exact: true }).first()).toBeVisible()
 
     // Validate button should be visible
     const validateBtn = page.getByTestId('oauth-connect-button')
@@ -121,7 +121,7 @@ test.describe('Setup Wizard - Provider Module', () => {
     await expect(page.getByText('Configure Providers')).toBeVisible({ timeout: 5000 })
 
     // Should show Signal bridge section
-    await expect(page.getByText('Signal Bridge')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Signal Bridge' })).toBeVisible()
 
     // Should show E2EE note
     await expect(page.getByText(/Signal provides end-to-end encryption/)).toBeVisible()
@@ -196,7 +196,7 @@ test.describe('Setup Wizard - Provider Module', () => {
 
     // Both forms should be visible
     await expect(page.getByText('Voice & SMS Provider')).toBeVisible()
-    await expect(page.getByText('Signal Bridge')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Signal Bridge' })).toBeVisible()
   })
 
   // =====================================================================
@@ -220,7 +220,7 @@ test.describe('Setup Wizard - Provider Module', () => {
 
     // Step 3: Voice provider form is shown
     await expect(page.getByText('Voice & SMS Provider')).toBeVisible()
-    await expect(page.getByText('Twilio')).toBeVisible()
+    await expect(page.getByText('Twilio', { exact: true }).first()).toBeVisible()
 
     // Skip to continue (no real credentials to test)
     await clickSkip(page)
@@ -264,7 +264,9 @@ test.describe('Setup Wizard - Provider Module', () => {
 
     // Navigate to admin settings
     await navigateAfterLogin(page, '/admin/settings')
-    await expect(page.getByText('Hub Settings')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Hub Settings' })).toBeVisible({
+      timeout: 10000,
+    })
 
     // Channel Settings section should be visible
     await expect(page.getByText('Channels & Providers')).toBeVisible()

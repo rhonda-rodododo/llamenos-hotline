@@ -51,11 +51,12 @@ invites.post('/redeem', async (c) => {
     return c.json({ error: 'Invalid signature' }, 401)
   }
 
-  // Rate limit redemption attempts
+  // Rate limit redemption attempts (relaxed in dev for parallel test runs)
   const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
+  const maxAttempts = c.env.ENVIRONMENT === 'development' ? 50 : 5
   const limited = await services.settings.checkRateLimit(
     `invite-redeem:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
-    5
+    maxAttempts
   )
   if (limited) return c.json({ error: 'Too many requests' }, 429)
 

@@ -105,7 +105,7 @@ test.describe('Dashboard Analytics — volunteer visibility', () => {
 
     // Create a volunteer and get their nsec
     const phone = uniquePhone()
-    const { nsec } = await createVolunteerAndGetNsec(page, 'Test Volunteer', phone)
+    const nsec = await createVolunteerAndGetNsec(page, 'Test Volunteer', phone)
 
     // Login as the volunteer
     await loginAsVolunteer(page, nsec)
