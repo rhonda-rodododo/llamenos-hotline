@@ -37,24 +37,22 @@ self.addEventListener('push', (event: PushEvent) => {
 
     let callSid = ''
     let hubId = ''
-    let callerNumber = ''
 
     if (event.data) {
       try {
         const payload = event.data.json() as {
           callSid?: string
           hubId?: string
-          callerNumber?: string
         }
         callSid = payload.callSid ?? ''
         hubId = payload.hubId ?? ''
-        callerNumber = payload.callerNumber ?? ''
       } catch {
         // Ignore malformed push payloads
       }
     }
 
-    const body = callerNumber ? `Call from ${callerNumber}` : 'A call is waiting'
+    // Always generic — never display caller info or hub names on lock screens (security requirement)
+    const body = 'A call is waiting'
 
     // `vibrate` and `actions` are part of the Push API Notification extension
     // (not in the base NotificationOptions DOM type), so we cast here.

@@ -104,20 +104,15 @@ export async function subscribeToPush(): Promise<boolean> {
     const { endpoint, keys } = json
     if (!endpoint || !keys?.p256dh || !keys?.auth) return false
 
-    // Send subscription to server
-    const body = {
+    // Send subscription to server (uses authenticated API helper)
+    const { subscribePush } = await import('./api')
+    await subscribePush({
       endpoint,
       keys: { p256dh: keys.p256dh, auth: keys.auth },
       deviceLabel: getDeviceLabel(),
-    }
-
-    const postResp = await fetch('/api/notifications/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
     })
 
-    return postResp.ok
+    return true
   } catch {
     return false
   }
@@ -140,12 +135,9 @@ export async function unsubscribeFromPush(): Promise<boolean> {
     const subscription = await registration.pushManager.getSubscription()
     if (!subscription) return false
 
-    // Notify server first
-    await fetch('/api/notifications/subscribe', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint: subscription.endpoint }),
-    }).catch(() => {
+    // Notify server first (uses authenticated API helper)
+    const { unsubscribePush } = await import('./api')
+    await unsubscribePush(subscription.endpoint).catch(() => {
       // Continue with local unsubscribe even if server call fails
     })
 

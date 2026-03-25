@@ -1829,3 +1829,23 @@ export async function archiveHub(hubId: string) {
 export async function deleteHub(hubId: string) {
   return request<{ ok: true }>(`/hubs/${hubId}`, { method: 'DELETE' })
 }
+
+// --- Push Notifications ---
+
+export async function subscribePush(data: {
+  endpoint: string
+  keys: { p256dh: string; auth: string }
+  deviceLabel?: string
+}) {
+  return request<{ ok: true }>('/notifications/subscribe', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function unsubscribePush(endpoint: string) {
+  return request<{ ok: true }>('/notifications/subscribe', {
+    method: 'DELETE',
+    body: JSON.stringify({ endpoint }),
+  })
+}

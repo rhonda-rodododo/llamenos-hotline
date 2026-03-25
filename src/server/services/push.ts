@@ -24,6 +24,8 @@ export interface PushSubscription {
 }
 
 export class PushService {
+  #vapidConfigured = false
+
   constructor(protected readonly db: Database) {}
 
   #rowToSubscription(row: typeof pushSubscriptions.$inferSelect): PushSubscription {
@@ -124,11 +126,15 @@ export class PushService {
   ): Promise<void> {
     if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return
 
-    webpush.setVapidDetails(
-      'mailto:admin@llamenos.org',
-      env.VAPID_PUBLIC_KEY,
-      env.VAPID_PRIVATE_KEY
-    )
+    // Configure VAPID once (idempotent — same values each call, but avoids repeated setup)
+    if (!this.#vapidConfigured) {
+      webpush.setVapidDetails(
+        'mailto:admin@llamenos.org',
+        env.VAPID_PUBLIC_KEY,
+        env.VAPID_PRIVATE_KEY
+      )
+      this.#vapidConfigured = true
+    }
 
     const subscriptions = await this.getSubscriptionsForPubkeys(pubkeys)
     const payload = JSON.stringify(data)

@@ -137,7 +137,8 @@ export class CallService {
   ): Promise<string[]> {
     const legs = await this.getCallLegs(callSid, hubId)
     const toCancel = legs.filter((leg) => {
-      if (leg.volunteerPubkey === answeredPubkey && leg.type === answeredType) return false
+      if (leg.volunteerPubkey === answeredPubkey && (!answeredType || leg.type === answeredType))
+        return false
       return leg.status === 'ringing'
     })
     for (const leg of toCancel) {
