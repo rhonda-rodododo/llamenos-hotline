@@ -4,7 +4,11 @@
 
 **Goal:** Add real-time voicemail notifications (Nostr relay + Web Push), voicemail audio playback with client-side decryption, expose `voicemailFileId` in the call history API, and write the provider voicemail disablement guide.
 
-**Architecture:** When voicemail audio is encrypted and stored (end of Phase 1 flow in `/voicemail-recording` handler), the server publishes a `KIND_CALL_VOICEMAIL` (1002) Nostr event encrypted with the hub key, and sends Web Push notifications to users with `voicemail:notify` permission. The client plays back voicemail audio by fetching the encrypted blob from the files API, decrypting with the user's private key, and rendering an audio player. The Asterisk bridge recording endpoints are already functional via Phase 1's `getRecordingAudio` / `deleteRecording` adapter methods.
+**Architecture:** When voicemail audio is encrypted and stored (end of Phase 1 flow in `/voicemail-recording` handler), the server publishes a `KIND_CALL_VOICEMAIL` (1002) Nostr event encrypted with the hub key, and sends Web Push notifications to users with `voicemail:notify` permission. The client plays back voicemail audio by fetching the encrypted blob from the existing files API (`GET /files/:id/content` + `GET /files/:id/envelopes`), decrypting with the user's private key, and rendering an audio player with the decrypted voicemail transcript below.
+
+**Note on Nostr event kind:** The spec says "kind 20001 (ephemeral)" but `KIND_CALL_VOICEMAIL` is defined as 1002 (regular/persisted) in the codebase. Using 1002 is correct — voicemail notifications should be persisted so clients coming online later can see them. The spec should be updated.
+
+**Note on Asterisk bridge:** The adapter methods (`getRecordingAudio`, `deleteRecording`) call bridge endpoints (`GET /recordings/:id`, `DELETE /recordings/:id`) via the `BridgeClient`. These endpoints must exist in the asterisk-bridge service (a separate codebase/repo). If the bridge doesn't implement them yet, the adapter calls will fail gracefully (try/catch). This plan does NOT include changes to the asterisk-bridge service itself.
 
 **Tech Stack:** Same as Phases 1-2 plus `web-push` (already installed), Nostr relay (strfry, already running), XChaCha20-Poly1305 client-side decryption.
 
@@ -60,8 +64,8 @@ import { KIND_CALL_VOICEMAIL } from '@shared/nostr-events'
 In the `/voicemail-recording` handler, inside the `void (async () => { ... })()` background block (after `storeVoicemailAudio` succeeds), add:
 
 ```ts
-// Publish voicemail Nostr event (hub-key encrypted)
-await publishNostrEvent(env, KIND_CALL_VOICEMAIL, {
+// Publish voicemail Nostr event (hub-key encrypted, fire-and-forget — returns void)
+publishNostrEvent(env, KIND_CALL_VOICEMAIL, {
   type: 'call:voicemail',
   callSid,
   hubId: hubId ?? 'global',
@@ -115,11 +119,12 @@ git commit -m "feat: publish Nostr event and Web Push on new voicemail"
 - Modify: `src/server/services/records.ts` or `src/server/routes/calls.ts`
 - Modify: `src/client/lib/api.ts`
 
-- [ ] **Step 1: Check how call records are returned to the client**
+- [ ] **Step 1: Expose voicemailFileId in call record responses**
 
-Read `src/server/routes/calls.ts` — the `GET /calls/history` endpoint. Find where `callRecords` rows are mapped to the response shape. Ensure `voicemailFileId` is included in the response.
-
-Also check `src/server/services/records.ts` — the `getCallHistory` or equivalent method. If it selects specific columns, add `voicemailFileId`.
+Three places need updating:
+1. `src/server/services/records.ts` — the `#rowToCallRecord` private method (around line 610-625) maps DB rows to the `EncryptedCallRecord` type. Add `voicemailFileId: r.voicemailFileId` to its return object.
+2. `src/server/types.ts` — verify `EncryptedCallRecord` interface includes `voicemailFileId`. If not, add `voicemailFileId?: string | null`.
+3. `src/server/routes/calls.ts` — verify the `GET /calls/history` endpoint passes through the field. It should if `#rowToCallRecord` is updated.
 
 - [ ] **Step 2: Add voicemailFileId to client CallRecord type**
 
@@ -142,61 +147,32 @@ git commit -m "feat: expose voicemailFileId in call history API response"
 
 ---
 
-## Task 3: Voicemail Playback API Endpoint
+## Task 3: Client API Helpers for Voicemail Audio
 
 **Files:**
-- Modify: `src/server/routes/calls.ts`
+- Modify: `src/client/lib/api.ts`
 
-- [ ] **Step 1: Add GET /calls/:callId/voicemail endpoint**
+The existing files API endpoints (`GET /files/:id/content` and `GET /files/:id/envelopes` in `src/server/routes/files.ts`) already handle access control via `recipientEnvelopes` — if the user's pubkey is in the envelopes, they can download. Since Phase 2 encrypts voicemail audio for `voicemail:listen` recipients, the existing permission model works. **No new server endpoint needed.**
 
-This endpoint returns the encrypted voicemail audio blob + the requesting user's envelope. Requires `voicemail:listen` permission. Follow the pattern of the existing `GET /calls/:callId/recording` endpoint:
+- [ ] **Step 1: Add getFileContent helper**
+
+In `src/client/lib/api.ts`, add a helper to fetch file content as ArrayBuffer:
 
 ```ts
-calls.get('/:callId/voicemail', requirePermission('voicemail:listen'), async (c) => {
-  const callId = c.req.param('callId')
-  const hubId = c.get('hubId')
-  const services = c.get('services')
-
-  // Get call record to find voicemailFileId
-  const record = await services.records.getCallRecord(callId, hubId)
-  if (!record?.voicemailFileId) {
-    return c.json({ error: 'No voicemail found' }, 404)
-  }
-
-  const fileId = record.voicemailFileId
-
-  // Get encrypted content from blob storage
-  const blob = await services.files.getContent(fileId)
-  if (!blob) {
-    return c.json({ error: 'Voicemail file not found' }, 404)
-  }
-
-  // Get envelopes for the requesting user
-  const fileRecord = await services.files.getFileRecord(fileId)
-  if (!fileRecord) {
-    return c.json({ error: 'File record not found' }, 404)
-  }
-
-  const userPubkey = c.get('pubkey')
-  const envelope = fileRecord.recipientEnvelopes.find(e => e.pubkey === userPubkey)
-
-  return c.json({
-    encryptedContent: Buffer.from(blob).toString('hex'),
-    envelope: envelope ?? null,
-    fileId,
+export async function getFileContent(fileId: string): Promise<ArrayBuffer> {
+  const res = await fetch(`/api/files/${fileId}/content`, {
+    headers: authHeaders(),
   })
-})
+  if (!res.ok) throw new Error(`Failed to fetch file: ${res.status}`)
+  return res.arrayBuffer()
+}
 ```
 
-Check what methods `FilesService` exposes for reading content and envelopes. The existing `GET /files/:id/content` and `GET /files/:id/envelopes` endpoints in `src/server/routes/files.ts` may already suffice — if so, the client can use those directly with the `voicemailFileId` instead of a dedicated voicemail endpoint. Decide which approach is cleaner.
+Check if a similar function already exists (maybe named differently). If so, reuse it.
 
-Alternatively, the simpler approach: the client uses the existing files API (`GET /files/:id/content` + `GET /files/:id/envelopes`) directly, and no new voicemail-specific endpoint is needed. The `voicemail:listen` permission check would happen at the component level (the voicemail player only renders if the user has the permission).
+- [ ] **Step 2: Verify getFileEnvelopes return type**
 
-- [ ] **Step 2: Decide on approach and implement**
-
-If using existing files API: verify the permission check on `GET /files/:id/content` allows access for users whose pubkey is in the `recipientEnvelopes`. If the voicemail was encrypted for admin pubkeys only (Phase 1), only admins can access. Phase 2 should have switched to `voicemail:listen` recipients.
-
-If creating a dedicated endpoint: implement it per the code above.
+The existing `getFileEnvelopes` in api.ts likely returns `{ envelopes: FileKeyEnvelope[] }` (wrapped object, not bare array). Verify and note the correct access pattern: `result.envelopes` not `result` directly.
 
 - [ ] **Step 3: Run typecheck**
 
@@ -205,8 +181,8 @@ Run: `bun run typecheck`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/server/routes/calls.ts
-git commit -m "feat: add voicemail playback API endpoint"
+git add src/client/lib/api.ts
+git commit -m "feat: add getFileContent client API helper for voicemail playback"
 ```
 
 ---
@@ -219,80 +195,68 @@ git commit -m "feat: add voicemail playback API endpoint"
 
 - [ ] **Step 1: Create VoicemailPlayer component**
 
-The component fetches encrypted audio from the files API, decrypts client-side, and renders a player:
+The component fetches encrypted audio from the files API, decrypts client-side, and renders a player with transcript. Must handle two permission levels:
+- `voicemail:listen` — full audio player + transcript
+- `voicemail:read` — transcript only, no audio
+
+Key implementation details:
+- `decryptFile()` in `src/client/lib/file-crypto.ts` returns `{ blob: Blob; checksum: string }`, NOT a bare `Blob` — destructure correctly
+- `getFileEnvelopes()` returns `{ envelopes: FileKeyEnvelope[] }` (wrapped object) — access via `.envelopes`
+- Use the new `getFileContent()` from Task 3 for fetching audio bytes
+- Fetch the voicemail transcript by querying notes for the callId and finding the one with `authorPubkey === 'system:voicemail'`
 
 ```tsx
-import { useEffect, useState } from 'react'
-import { getFileContent, getFileEnvelopes } from '@/lib/api'
-import { decryptFile } from '@/lib/file-crypto'
-import { useKeyManager } from '@/lib/key-manager'
-import { Button } from '@/components/ui/button'
-import { Pause, Play } from 'lucide-react'
-
 interface Props {
-  fileId: string
+  fileId?: string | null  // null if audio not stored (oversized or no blob)
   callId: string
+  canListen: boolean  // voicemail:listen permission
 }
 
-export function VoicemailPlayer({ fileId, callId }: Props) {
+export function VoicemailPlayer({ fileId, callId, canListen }: Props) {
+  // State for audio + transcript
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
-  const [playing, setPlaying] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const keyManager = useKeyManager()
+  const [transcript, setTranscript] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
+  // Load transcript from notes API (system:voicemail author)
   useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        // Fetch encrypted blob + envelopes
-        const [content, envelopes] = await Promise.all([
-          getFileContent(fileId),
-          getFileEnvelopes(fileId),
-        ])
+    // Fetch notes for this call, find authorPubkey === 'system:voicemail'
+    // Decrypt using the user's key
+    // setTranscript(decryptedText)
+  }, [callId])
 
-        // Find user's envelope
-        const myPubkey = keyManager.getPublicKey()
-        const envelope = envelopes.find(e => e.pubkey === myPubkey)
-        if (!envelope) {
-          setError('No decryption key available')
-          return
-        }
+  // Load + decrypt audio only if canListen && fileId exists
+  useEffect(() => {
+    if (!canListen || !fileId) return
+    // Fetch encrypted content + envelopes
+    // const content = await getFileContent(fileId)
+    // const { envelopes } = await getFileEnvelopes(fileId)
+    // Find user's envelope, decrypt:
+    // const { blob } = await decryptFile(new Uint8Array(content), envelope, secretKey)
+    // setAudioUrl(URL.createObjectURL(blob))
+  }, [fileId, canListen])
 
-        // Decrypt
-        const secretKey = keyManager.getSecretKey()
-        const blob = await decryptFile(new Uint8Array(content), envelope, secretKey)
-        if (!cancelled) {
-          setAudioUrl(URL.createObjectURL(blob))
-        }
-      } catch (err) {
-        if (!cancelled) setError('Failed to load voicemail')
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [fileId])
-
-  // ... render audio element with play/pause controls
+  // Render: audio player (if canListen) + transcript (always if available)
 }
 ```
 
-Adapt to match the existing `RecordingPlayer` component patterns — check how it accesses the key manager, handles loading states, and renders the audio element.
+Follow the existing `RecordingPlayer` component patterns for key manager access, loading states, and audio element rendering.
 
-- [ ] **Step 2: Wire VoicemailPlayer into calls.tsx**
+- [ ] **Step 2: Wire VoicemailPlayer into calls.tsx with permission-gated rendering**
 
-In `src/client/routes/calls.tsx`, replace the voicemail badge Link-to-notes with the VoicemailPlayer:
+In `src/client/routes/calls.tsx`, replace the voicemail badge Link-to-notes. Check the user's permissions from the auth context:
 
 ```tsx
-{call.hasVoicemail && call.voicemailFileId && (
-  <VoicemailPlayer fileId={call.voicemailFileId} callId={call.id} />
-)}
-{call.hasVoicemail && !call.voicemailFileId && (
-  // Fallback: link to notes (transcript only, no audio)
-  <Link to="/notes" search={{ callId: call.id }}>
-    <Badge variant="secondary"><Voicemail className="h-3 w-3" /></Badge>
-  </Link>
+{call.hasVoicemail && (
+  <VoicemailPlayer
+    fileId={call.voicemailFileId}
+    callId={call.id}
+    canListen={checkPermission(permissions, 'voicemail:listen')}
+  />
 )}
 ```
+
+If the user has `voicemail:read` but not `voicemail:listen`, they see the transcript but no audio player. If they have neither, the component doesn't render.
 
 - [ ] **Step 3: Add voicemail filter to call history**
 
@@ -375,7 +339,37 @@ git commit -m "docs: add provider voicemail disablement guide"
 
 ---
 
-## Task 6: Final Verification
+## Task 6: Tests
+
+**Files:**
+- Modify or create: `tests/api/voicemail-notifications.spec.ts`
+
+- [ ] **Step 1: Test voicemail notification dispatch**
+
+After the voicemail-recording webhook fires, verify:
+- Nostr event published with `KIND_CALL_VOICEMAIL` (check via relay subscription or mock)
+- Push notification sent to `voicemail:notify` users
+
+Since Nostr and push are fire-and-forget, these may be hard to assert directly. At minimum, verify the webhook handler completes without error and the call record is updated.
+
+- [ ] **Step 2: Test voicemailFileId in call history API**
+
+After a voicemail is stored, `GET /api/calls/history` should return the call record with `voicemailFileId` set.
+
+- [ ] **Step 3: Run all tests**
+
+Run: `bun run test:unit && bun run test:api`
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add tests/
+git commit -m "test: add voicemail notification and playback API tests"
+```
+
+---
+
+## Task 7: Final Verification
 
 - [ ] **Step 1: Run typecheck**: `bun run typecheck`
 - [ ] **Step 2: Run build**: `bun run build`
