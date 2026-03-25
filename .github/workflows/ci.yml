@@ -14,8 +14,8 @@
 #
 # Docs-only changes (*.md and site/ files) skip tests and versioning.
 #
-# E2E tests, mobile, desktop, and crypto jobs are disabled until ready.
-# To re-enable, add them back as jobs and update ci-status + version needs.
+# Desktop and crypto jobs are disabled until ready.
+# UI E2E tests run but are non-blocking (continue-on-error) while being stabilized.
 #
 # The created tag also triggers docker.yml for Docker image builds.
 
@@ -222,6 +222,235 @@ jobs:
           ADMIN_PUBKEY: ${{ env.TEST_ADMIN_PUBKEY }}
         run: bun run test:unit
 
+  # ─── API Integration Tests ────────────────────────────────
+  api-tests:
+    needs: [changes, build]
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: llamenos
+          POSTGRES_USER: llamenos
+          POSTGRES_PASSWORD: llamenos
+        options: >-
+          --health-cmd "pg_isready -U llamenos -d llamenos"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      strfry:
+        image: dockurr/strfry:1.0.1
+        options: >-
+          --health-cmd "curl -sf http://localhost:7777 || exit 1"
+          --health-interval 15s
+          --health-timeout 5s
+          --health-retries 5
+          --ulimit nofile=65536:65536
+        ports:
+          - 7777:7777
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright
+        run: bunx playwright install --with-deps chromium
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            -p 9000:9000 \
+            minio/minio:RELEASE.2025-01-20T14-49-07Z server /data
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            sleep 2
+          done
+
+      - name: Start Asterisk
+        run: |
+          docker run -d --name asterisk \
+            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/ari.conf:/etc/asterisk/ari.conf:ro \
+            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/http.conf:/etc/asterisk/http.conf:ro \
+            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/pjsip.conf:/etc/asterisk/pjsip.conf:ro \
+            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/extensions.conf:/etc/asterisk/extensions.conf:ro \
+            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/sorcery.conf:/etc/asterisk/sorcery.conf:ro \
+            -p 8088:8088 \
+            andrius/asterisk@sha256:e30df5ec1b512827bf3cffc49b8000b07376a05c950736d028348eba80035015
+          for i in $(seq 1 30); do
+            docker exec asterisk asterisk -rx "core show version" 2>/dev/null && break
+            sleep 2
+          done
+
+      - name: Start Asterisk Bridge
+        run: |
+          cd asterisk-bridge && bun install --frozen-lockfile
+          ARI_URL=ws://localhost:8088/ari/events \
+          ARI_REST_URL=http://localhost:8088/ari \
+          ARI_USERNAME=llamenos \
+          ARI_PASSWORD=changeme \
+          WORKER_WEBHOOK_URL=http://localhost:3000 \
+          BRIDGE_SECRET=dev-bridge-secret \
+          BRIDGE_PORT=3001 \
+          bun run start &
+          # Wait for bridge to be ready
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:3001/health 2>/dev/null && break
+            sleep 2
+          done
+
+      - name: Build frontend
+        run: bun run build
+
+      - name: Run API integration tests
+        env:
+          DATABASE_URL: postgresql://llamenos:llamenos@localhost:5432/llamenos
+          ADMIN_PUBKEY: ${{ env.TEST_ADMIN_PUBKEY }}
+          HMAC_SECRET: ci-test-hmac-secret-minimum-length-32-chars
+          ENVIRONMENT: development
+          USE_TEST_ADAPTER: "true"
+          MINIO_ENDPOINT: http://localhost:9000
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+          NOSTR_RELAY_URL: ws://localhost:7777
+          SERVER_NOSTR_SECRET: "0000000000000000000000000000000000000000000000000000000000000001"
+          DEV_RESET_SECRET: test-reset-secret
+        run: bunx playwright test --project=setup --project=api
+
+  # ─── UI E2E Tests ─────────────────────────────────────────
+  e2e-tests:
+    needs: [changes, build]
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Non-blocking while UI tests are being stabilized
+    continue-on-error: true
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: llamenos
+          POSTGRES_USER: llamenos
+          POSTGRES_PASSWORD: llamenos
+        options: >-
+          --health-cmd "pg_isready -U llamenos -d llamenos"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      strfry:
+        image: dockurr/strfry:1.0.1
+        options: >-
+          --health-cmd "curl -sf http://localhost:7777 || exit 1"
+          --health-interval 15s
+          --health-timeout 5s
+          --health-retries 5
+          --ulimit nofile=65536:65536
+        ports:
+          - 7777:7777
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright
+        run: bunx playwright install --with-deps chromium
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            -p 9000:9000 \
+            minio/minio:RELEASE.2025-01-20T14-49-07Z server /data
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            sleep 2
+          done
+
+      - name: Start Asterisk
+        run: |
+          docker run -d --name asterisk \
+            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/ari.conf:/etc/asterisk/ari.conf:ro \
+            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/http.conf:/etc/asterisk/http.conf:ro \
+            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/pjsip.conf:/etc/asterisk/pjsip.conf:ro \
+            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/extensions.conf:/etc/asterisk/extensions.conf:ro \
+            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/sorcery.conf:/etc/asterisk/sorcery.conf:ro \
+            -p 8088:8088 \
+            andrius/asterisk@sha256:e30df5ec1b512827bf3cffc49b8000b07376a05c950736d028348eba80035015
+          for i in $(seq 1 30); do
+            docker exec asterisk asterisk -rx "core show version" 2>/dev/null && break
+            sleep 2
+          done
+
+      - name: Start Asterisk Bridge
+        run: |
+          cd asterisk-bridge && bun install --frozen-lockfile
+          ARI_URL=ws://localhost:8088/ari/events \
+          ARI_REST_URL=http://localhost:8088/ari \
+          ARI_USERNAME=llamenos \
+          ARI_PASSWORD=changeme \
+          WORKER_WEBHOOK_URL=http://localhost:3000 \
+          BRIDGE_SECRET=dev-bridge-secret \
+          BRIDGE_PORT=3001 \
+          bun run start &
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:3001/health 2>/dev/null && break
+            sleep 2
+          done
+
+      - name: Build frontend
+        run: bun run build
+
+      - name: Run UI E2E tests
+        env:
+          DATABASE_URL: postgresql://llamenos:llamenos@localhost:5432/llamenos
+          ADMIN_PUBKEY: ${{ env.TEST_ADMIN_PUBKEY }}
+          HMAC_SECRET: ci-test-hmac-secret-minimum-length-32-chars
+          ENVIRONMENT: development
+          USE_TEST_ADAPTER: "true"
+          MINIO_ENDPOINT: http://localhost:9000
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+          NOSTR_RELAY_URL: ws://localhost:7777
+          SERVER_NOSTR_SECRET: "0000000000000000000000000000000000000000000000000000000000000001"
+          DEV_RESET_SECRET: test-reset-secret
+        run: bunx playwright test --project=setup --project=ui --project=bootstrap --project=mobile
+
+      - name: Upload test report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: e2e-test-report
+          path: playwright-report/
+          retention-days: 7
+
   # ─── Dependency Vulnerability Scan ───────────────────────────
   audit:
     needs: changes
@@ -279,15 +508,12 @@ jobs:
 
   # ─── Version Bump & Changelog ──────────────────────────────
   version:
-    needs: [changes, build, audit, unit-tests]
-    # Skip version bump for docs-only changes and PRs; require test success for app changes
+    needs: [changes, ci-status]
+    # Skip version bump for docs-only changes and PRs; ci-status gates all required checks
     if: |
-      always() &&
       github.event_name == 'push' &&
       needs.changes.outputs.docs_only != 'true' &&
-      needs.build.result == 'success' &&
-      needs.audit.result == 'success' &&
-      (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'skipped')
+      needs.ci-status.result == 'success'
     runs-on: ubuntu-latest
 
     permissions:
@@ -530,26 +756,62 @@ jobs:
             provenance.json
 
   # ─── CI Status Gate ─────────────────────────────────────────
-  # Single status check for branch protection rules.
-  # All required jobs must pass for PRs to be mergeable.
+  # Single status check for branch protection rules AND version/release gating.
+  # All required jobs must pass for PRs to be mergeable and for releases to proceed.
   ci-status:
-    needs: [build, audit, unit-tests]
+    needs: [lint, build, audit, unit-tests, api-tests, e2e-tests, ansible-validate]
     if: always()
     runs-on: ubuntu-latest
 
+    outputs:
+      passed: ${{ steps.check.outputs.passed }}
+
     steps:
       - name: Check all required jobs
+        id: check
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          AUDIT_RESULT: ${{ needs.audit.result }}
+          UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
+          API_TESTS_RESULT: ${{ needs.api-tests.result }}
+          E2E_TESTS_RESULT: ${{ needs.e2e-tests.result }}
+          ANSIBLE_RESULT: ${{ needs.ansible-validate.result }}
         run: |
-          if [[ "${{ needs.build.result }}" != "success" ]]; then
-            echo "build failed"
+          FAILED=false
+
+          # These jobs must succeed
+          for job_info in "lint:$LINT_RESULT" "build:$BUILD_RESULT" "audit:$AUDIT_RESULT"; do
+            job="${job_info%%:*}"
+            result="${job_info#*:}"
+            if [[ "$result" != "success" ]]; then
+              echo ":: $job: $result (FAILED)"
+              FAILED=true
+            else
+              echo ":: $job: $result (OK)"
+            fi
+          done
+
+          # These jobs may be legitimately skipped (docs-only or no ansible changes)
+          for job_info in "unit-tests:$UNIT_TESTS_RESULT" "api-tests:$API_TESTS_RESULT" "ansible-validate:$ANSIBLE_RESULT"; do
+            job="${job_info%%:*}"
+            result="${job_info#*:}"
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo ":: $job: $result (FAILED)"
+              FAILED=true
+            else
+              echo ":: $job: $result (OK)"
+            fi
+          done
+
+          # E2E tests are informational while being stabilized (continue-on-error)
+          echo ":: e2e-tests: $E2E_TESTS_RESULT (informational)"
+
+          if [[ "$FAILED" == "true" ]]; then
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            echo "One or more required checks failed"
             exit 1
           fi
-          if [[ "${{ needs.audit.result }}" != "success" ]]; then
-            echo "audit failed"
-            exit 1
-          fi
-          if [[ "${{ needs.unit-tests.result }}" != "success" && "${{ needs.unit-tests.result }}" != "skipped" ]]; then
-            echo "unit-tests failed"
-            exit 1
-          fi
+
+          echo "passed=true" >> "$GITHUB_OUTPUT"
           echo "All required checks passed!"
