@@ -18,7 +18,7 @@ This spec implements the `SipWebRTCAdapter` referenced as "separate spec" in the
 | SIP library | JsSIP (v3.13.x) | Actively maintained (7 releases in 2026), author maintains mediasoup, ships `.d.ts` types. SIP.js is abandoned (no npm release since Oct 2022, 90 open issues). |
 | Adapter naming | `SipWebRTCAdapter` (generic) | Works with any SIP server exposing WSS — not Asterisk-specific. Factory matches `'asterisk'`, `'freeswitch'`, `'kamailio'`, `'sip'`. |
 | Provisioning path | Hono → Bridge → ARI | Keeps ARI access centralized in the bridge. Provisioning commands use existing HMAC-signed `bridgeRequest()` channel. JsSIP ↔ Asterisk WSS traffic bypasses the bridge (direct SIP signaling). |
-| Endpoint naming | `vol_{pubkey.slice(0,12)}` | Deterministic from volunteer identity, collision-resistant with 12 hex chars (48 bits). |
+| Endpoint naming | `vol_{pubkey.slice(0,12)}` | Deterministic from volunteer identity, collision-resistant with 12 hex chars (48 bits). Browser calling plan must be updated to use 12 chars (not 16) for `browserIdentity` to match. |
 | Endpoint credentials | CSPRNG password, per-session delivery | Password generated on provision, delivered via token endpoint. Never persisted on client. Rotatable by reprovisioning. |
 | PJSIP `webrtc=yes` | Use Asterisk's built-in WebRTC preset | Auto-enables DTLS, ICE, AVPF, opus — no manual SDP configuration. |
 | `max_contacts: 1` | One browser registration per volunteer | Matches parallel ringing model — one browser leg per volunteer. Multiple devices handled by separate legs. |
@@ -108,16 +108,23 @@ export class SipWebRTCAdapter implements WebRTCAdapter {
       user_agent: 'Hotline/1.0',  // Generic — no app name leak
     })
 
-    this.#ua.on('registered', () => {
-      // UA ready to receive incoming INVITEs
-    })
-
     this.#ua.on('registrationFailed', (e: { cause: string }) => {
       this.#emit('error', new Error(`SIP registration failed: ${e.cause}`))
     })
 
+    // Handle WebSocket disconnect (network loss, server restart)
+    this.#ua.on('disconnected', () => {
+      this.#emit('error', new Error('SIP WebSocket disconnected'))
+    })
+
     this.#ua.on('newRTCSession', (e: { session: JsSIPRTCSession; originator: string }) => {
       if (e.originator !== 'remote') return  // only handle incoming calls
+
+      // Reject second incoming call if one is already active
+      if (this.#session) {
+        e.session.terminate({ status_code: 486, reason_phrase: 'Busy Here' })
+        return
+      }
 
       this.#session = e.session
       const callId = e.session.remote_identity?.uri?.user ?? ''
@@ -137,11 +144,23 @@ export class SipWebRTCAdapter implements WebRTCAdapter {
 
     this.#ua.start()
 
-    // Wait for registration before resolving
+    // Wait for initial registration before resolving.
+    // Uses one-shot handlers to avoid double-binding with the persistent
+    // registrationFailed listener above (which handles re-registration failures).
     await new Promise<void>((resolve, reject) => {
-      this.#ua!.on('registered', () => resolve())
-      this.#ua!.on('registrationFailed', (e: { cause: string }) =>
-        reject(new Error(`SIP registration failed: ${e.cause}`)))
+      let settled = false
+      const onRegistered = () => {
+        if (settled) return
+        settled = true
+        resolve()
+      }
+      const onFailed = (e: { cause: string }) => {
+        if (settled) return
+        settled = true
+        reject(new Error(`SIP initial registration failed: ${e.cause}`))
+      }
+      this.#ua!.on('registered', onRegistered)
+      this.#ua!.on('registrationFailed', onFailed)
     })
   }
 
@@ -338,6 +357,21 @@ case 'asterisk': {
 
 The `ttl: 600` matches the SIP registration expiry (10 minutes). The `WebRTCManager` schedules token refresh at `ttl - 60s` as specified in the browser calling plan.
 
+### Endpoint Lifecycle
+
+Endpoints are provisioned lazily and deprovisioned explicitly:
+
+| Event | Action |
+|-------|--------|
+| Volunteer sets call preference to `browser`/`both` | Provision on first token request (idempotent) |
+| Token refresh (every ~540s) | Re-provision (idempotent, password may change) |
+| Volunteer sets call preference to `phone` only | Deprovision endpoint |
+| Volunteer deactivated/deleted by admin | Deprovision endpoint |
+| SIP registration expires (600s) | No action — re-registration handled by JsSIP `register_expires` |
+| Volunteer goes off-shift | No deprovision — endpoint stays; ringing logic already filters by shift status |
+
+Stale endpoints (volunteer deactivated but not deprovisioned) are harmless — Asterisk won't route calls to unregistered endpoints. A periodic cleanup job can be added later if needed.
+
 ### isWebRtcConfigured
 
 In the same file, add Asterisk support:
@@ -364,9 +398,13 @@ In `asterisk-bridge/src/command-handler.ts`:
   3. `ari.configureDynamic('res_pjsip', 'auth', username, { auth_type: 'userpass', username, password })`
   4. `ari.configureDynamic('res_pjsip', 'aor', username, { max_contacts: '1', remove_existing: 'yes', qualify_frequency: '30' })`
   5. `ari.configureDynamic('res_pjsip', 'endpoint', username, { auth: username, aors: username, webrtc: 'yes', transport: 'transport-wss', context: 'volunteers', dtls_auto_generate_cert: 'yes', media_encryption: 'dtls', disallow: 'all', allow: 'opus,ulaw' })`
-  6. `ari.reloadModule('res_pjsip.so')`
-  7. Return `{ username, password }`
+  6. Return `{ username, password }`
 - Idempotent: ARI `PUT` overwrites existing objects with same ID — safe to call repeatedly
+
+**`res_pjsip` module reload — avoid during live calls:**
+The existing `PjsipConfigurator` reloads `res_pjsip.so` after trunk provisioning at startup, which is safe. For per-volunteer provisioning during live calls, a reload would disrupt ALL active SIP sessions. With the `memory` sorcery wizard (configured in `sorcery.conf`), dynamic config changes via ARI should take effect immediately without a reload. During implementation:
+1. Test whether provisioned endpoints work WITHOUT a reload
+2. If a reload IS required, debounce it — batch pending provisions and reload once after all are complete, and only when no active calls are in progress
 
 **`POST /commands/deprovision-endpoint`**
 - Body: `{ pubkey: string }`
@@ -375,7 +413,7 @@ In `asterisk-bridge/src/command-handler.ts`:
   2. `ari.deleteDynamic('res_pjsip', 'endpoint', username)`
   3. `ari.deleteDynamic('res_pjsip', 'aor', username)`
   4. `ari.deleteDynamic('res_pjsip', 'auth', username)`
-  5. `ari.reloadModule('res_pjsip.so')`
+  5. (Skip `reloadModule` during live calls — see provisioning note above)
 
 **`POST /commands/check-endpoint`**
 - Body: `{ pubkey: string }`
@@ -534,6 +572,9 @@ The browser leg's ARI channel has `endpoint: PJSIP/vol_xxx` — the bridge inclu
 - `destroy()` calls `ua.stop()`, nullifies references, clears handlers
 - Event mapping: `newRTCSession` (remote) → `incoming`, `accepted` → `connected`, `ended` → `disconnected`, `failed` → `error`
 - Ignores outgoing sessions (`originator !== 'remote'`)
+- Rejects second incoming session if one is already active (busy)
+- WSS disconnect emits error event
+- `initialize()` with wrong credentials rejects with registration failure
 - Mock JsSIP module for all tests
 
 **`src/server/telephony/asterisk-provisioner.test.ts`**
@@ -544,11 +585,12 @@ The browser leg's ARI channel has `endpoint: PJSIP/vol_xxx` — the bridge inclu
 - `checkEndpoint()` returns `true`/`false` based on bridge response
 
 **`asterisk-bridge/src/command-handler.test.ts`** (bridge-side)
-- `provision-endpoint`: mock ARI REST, verify 3 `configureDynamic` + 1 `reloadModule` calls
-- `deprovision-endpoint`: mock ARI REST, verify 3 `deleteDynamic` + 1 `reloadModule` calls
+- `provision-endpoint`: mock ARI REST, verify 3 `configureDynamic` calls (no `reloadModule` — see reload guidance above)
+- `deprovision-endpoint`: mock ARI REST, verify 3 `deleteDynamic` calls (no `reloadModule`)
 - `check-endpoint`: mock ARI REST, verify GET request
 - HMAC authentication enforced on all new commands
 - Error handling: ARI failure returns error, no partial config left behind
+- Partial provisioning rollback: if step 3 (endpoint) fails, clean up auth and aor from steps 1-2
 
 ### API Integration Tests (`tests/api/`)
 
@@ -560,6 +602,12 @@ The browser leg's ARI channel has `endpoint: PJSIP/vol_xxx` — the bridge inclu
 ### E2E Tests Against Local Asterisk (`tests/ui/`)
 
 Requires `bun run dev:docker` running (Asterisk container with WSS enabled).
+
+**TLS prerequisite for local WSS:** Browsers reject self-signed certs for WebSocket connections. For local E2E tests:
+- Use `mkcert` to generate locally-trusted TLS certs, mount into the Asterisk container
+- Playwright tests can bypass cert validation via `ignoreHTTPSErrors: true` in browser context options
+- Add a setup script or Docker entrypoint that generates dev certs if not present
+This is a **blocking prerequisite** — WSS will not work without valid TLS. Must be addressed as a dedicated implementation task.
 
 **`tests/ui/sip-browser-calling.spec.ts`**:
 1. Bridge provisions a real PJSIP endpoint via ARI dynamic config
@@ -612,6 +660,13 @@ Requires `bun run dev:docker` running (Asterisk container with WSS enabled).
 - coturn deployment (infrastructure, documented in Ansible vars)
 
 ---
+
+## Plan Updates Required
+
+The browser calling plan (`docs/superpowers/plans/2026-03-24-browser-calling.md`) needs these updates before this spec is implemented:
+
+1. **Remove Asterisk from "ignore browserIdentity" list** — the plan currently says Asterisk should ignore `browserIdentity` for now. This spec adds browser leg support for Asterisk, so the plan should be updated to include Asterisk in the browser-leg-aware adapters.
+2. **Standardize `browserIdentity` length to 12 hex chars** — the plan uses `pubkey.slice(0, 16)` for `browserIdentity` in `ringing.ts`. This spec uses `pubkey.slice(0, 12)` for PJSIP endpoint names. Standardize to 12 (48 bits is sufficient for collision resistance among volunteers; SIP endpoint names have practical length limits).
 
 ## Dependencies
 
