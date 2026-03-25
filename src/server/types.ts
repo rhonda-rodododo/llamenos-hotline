@@ -159,6 +159,7 @@ export interface EncryptedCallRecord {
   hasVoicemail: boolean
   hasRecording?: boolean
   recordingSid?: string // Twilio ID (not PII, server needs to update post-encryption)
+  voicemailFileId?: string | null // Object storage file ID for encrypted voicemail audio
 
   // Envelope-pattern encryption for admin(s)
   encryptedContent: string // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)

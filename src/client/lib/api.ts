@@ -793,6 +793,7 @@ export interface CallRecord {
   hasVoicemail: boolean
   hasRecording?: boolean
   recordingSid?: string
+  voicemailFileId?: string | null
   status: 'completed' | 'unanswered'
 
   // Envelope-encrypted metadata (Epic 77)

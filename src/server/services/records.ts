@@ -619,6 +619,7 @@ export class RecordsService {
       hasVoicemail: r.hasVoicemail,
       hasRecording: r.hasRecording ?? undefined,
       recordingSid: r.recordingSid ?? undefined,
+      voicemailFileId: r.voicemailFileId ?? null,
       encryptedContent: r.encryptedContent ?? '',
       adminEnvelopes: (r.adminEnvelopes as RecipientEnvelope[]) ?? [],
     }
