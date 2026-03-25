@@ -16,8 +16,8 @@ test.describe('Blasts — API', () => {
       content: 'To be deleted via API',
     })
     expect(createRes.status()).toBe(201)
-    const createData = (await createRes.json()) as { id: string }
-    const blastId = createData.id
+    const createData = (await createRes.json()) as { blast: { id: string } }
+    const blastId = createData.blast.id
     expect(blastId).toBeTruthy()
 
     // Delete via API

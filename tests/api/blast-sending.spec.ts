@@ -14,8 +14,9 @@ test.describe('Blast campaign API', () => {
     })
     expect([200, 201]).toContain(res.status())
     const data = await res.json()
-    expect(data).toHaveProperty('id')
-    expect(data.status).toBe('draft')
+    expect(data).toHaveProperty('blast')
+    expect(data.blast).toHaveProperty('id')
+    expect(data.blast.status).toBe('draft')
   })
 
   test('import subscribers via API', async ({ request }) => {
