@@ -165,7 +165,18 @@ export class SettingsService {
       .from(callSettings)
       .where(eq(callSettings.hubId, hId))
       .limit(1)
-    const row = rows[0]
+    let row = rows[0]
+
+    // Fall back to global settings when no hub-specific row exists
+    if (!row && hId !== 'global') {
+      const globalRows = await this.db
+        .select()
+        .from(callSettings)
+        .where(eq(callSettings.hubId, 'global'))
+        .limit(1)
+      row = globalRows[0]
+    }
+
     return {
       queueTimeoutSeconds: row?.queueTimeoutSeconds ?? 90,
       voicemailMaxSeconds: row?.voicemailMaxSeconds ?? 120,

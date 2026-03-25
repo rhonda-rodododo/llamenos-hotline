@@ -4,6 +4,7 @@ import {
   detectLanguageFromPhone,
   languageFromDigit,
 } from '../../shared/languages'
+import { permissionGranted, resolvePermissions } from '../../shared/permissions'
 import { getTelephony } from '../lib/adapters'
 import { hashPhone } from '../lib/crypto'
 import { telephonyResponse } from '../lib/helpers'
@@ -11,8 +12,32 @@ import { startParallelRinging } from '../lib/ringing'
 import { maybeTranscribe, transcribeVoicemail } from '../lib/transcription-manager'
 import { storeVoicemailAudio } from '../lib/voicemail-storage'
 import type { Services } from '../services'
-import type { AppEnv } from '../types'
+import type { AppEnv, CallSettings } from '../types'
 import type { Env } from '../types'
+
+/**
+ * Determine whether the call should go to voicemail, ring volunteers, or play unavailable.
+ * Single source of truth for the voicemail mode decision across all call entry points.
+ */
+async function checkVoicemailMode(
+  services: Services,
+  hubId: string | undefined
+): Promise<{
+  mode: 'auto' | 'always' | 'never'
+  hasAvailableVolunteers: boolean
+  callSettings: CallSettings
+}> {
+  const callSettings = await services.settings.getCallSettings(hubId)
+  const mode = callSettings.voicemailMode ?? 'auto'
+  if (mode === 'always') {
+    return { mode, hasAvailableVolunteers: false, callSettings }
+  }
+  let onShift = await services.shifts.getEffectiveVolunteers(hubId)
+  if (onShift.length === 0) {
+    onShift = await services.settings.getFallbackGroup(hubId)
+  }
+  return { mode, hasAvailableVolunteers: onShift.length > 0, callSettings }
+}
 
 const telephony = new Hono<AppEnv>()
 
@@ -203,6 +228,25 @@ telephony.post('/language-selected', async (c) => {
   })
 
   if (!rateLimited && !spamSettings.voiceCaptchaEnabled) {
+    const { mode, hasAvailableVolunteers, callSettings } = await checkVoicemailMode(services, hubId)
+
+    if (mode === 'always' || (mode === 'auto' && !hasAvailableVolunteers)) {
+      const vmResponse = await adapter.handleVoicemail({
+        callSid,
+        callerLanguage,
+        callbackUrl: new URL(c.req.url).origin,
+        audioUrls,
+        maxRecordingSeconds: callSettings.voicemailMaxSeconds,
+        hubId,
+      })
+      return telephonyResponse(vmResponse)
+    }
+
+    if (mode === 'never' && !hasAvailableVolunteers) {
+      return telephonyResponse(adapter.handleUnavailable(callerLanguage, audioUrls))
+    }
+
+    // Normal flow — ring volunteers
     const origin = new URL(c.req.url).origin
     console.log(
       `[telephony] /language-selected starting parallel ringing callSid=${callSid} origin=${origin} hub=${hubId || 'global'}`
@@ -259,6 +303,26 @@ telephony.post('/captcha', async (c) => {
   })
 
   if (match) {
+    const { mode, hasAvailableVolunteers, callSettings } = await checkVoicemailMode(services, hubId)
+
+    if (mode === 'always' || (mode === 'auto' && !hasAvailableVolunteers)) {
+      const audioUrls = await buildAudioUrlMap(services.settings, new URL(c.req.url).origin, hubId)
+      const vmResponse = await adapter.handleVoicemail({
+        callSid,
+        callerLanguage: callerLang,
+        callbackUrl: new URL(c.req.url).origin,
+        audioUrls,
+        maxRecordingSeconds: callSettings.voicemailMaxSeconds,
+        hubId,
+      })
+      return telephonyResponse(vmResponse)
+    }
+
+    if (mode === 'never' && !hasAvailableVolunteers) {
+      const audioUrls = await buildAudioUrlMap(services.settings, new URL(c.req.url).origin, hubId)
+      return telephonyResponse(adapter.handleUnavailable(callerLang, audioUrls))
+    }
+
     const origin = new URL(c.req.url).origin
     startParallelRinging(callSid, callerNumber, origin, env, services, hubId).catch((err) =>
       console.error('[background]', err)
@@ -544,11 +608,14 @@ telephony.post('/voicemail-recording', async (c) => {
       void (async () => {
         try {
           const settings = await services.settings.getCallSettings(hubId)
-          // Get admin pubkeys for encryption — use getVolunteers() and filter by admin roles
-          // Phase 2 will switch to querying by voicemail:listen permission
+          // Get pubkeys for encryption — filter by voicemail:listen permission
           const allVolunteers = await services.identity.getVolunteers()
+          const roleDefs = await services.settings.listRoles(hubId)
           const adminPubkeys = allVolunteers
-            .filter((v) => v.roles.some((r) => r === 'role-hub-admin' || r === 'role-super-admin'))
+            .filter((v) => {
+              const perms = resolvePermissions(v.roles, roleDefs)
+              return permissionGranted(perms, 'voicemail:listen')
+            })
             .map((v) => v.pubkey)
           // Also include env.ADMIN_PUBKEY as fallback
           if (env.ADMIN_PUBKEY && !adminPubkeys.includes(env.ADMIN_PUBKEY)) {
