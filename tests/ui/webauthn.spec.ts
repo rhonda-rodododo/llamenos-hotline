@@ -18,7 +18,7 @@
  */
 
 import { type CDPSession, type Page, expect, test } from '@playwright/test'
-import { ADMIN_NSEC, TEST_PIN, loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
+import { ADMIN_NSEC, TEST_PIN, loginAsAdmin, navigateAfterLogin } from '../helpers'
 import { preloadEncryptedKey } from '../helpers/crypto'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,10 +83,6 @@ async function openPasskeysSection(page: Page): Promise<void> {
 
 test.describe('Passkey registration', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
@@ -189,10 +185,6 @@ test.describe('Passkey registration', () => {
 test.describe('Passkey authentication', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test('login with passkey succeeds without entering nsec', async ({ page }) => {
     // First register a passkey while logged in with nsec
     await loginAsAdmin(page)
@@ -285,10 +277,6 @@ test.describe('Passkey authentication', () => {
 
 test.describe('Credential management', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)

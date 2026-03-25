@@ -7,7 +7,6 @@ import {
   loginAsAdmin,
   loginAsVolunteer,
   navigateAfterLogin,
-  resetTestState,
   uniquePhone,
 } from '../helpers'
 

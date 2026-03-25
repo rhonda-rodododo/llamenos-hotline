@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test'
 import { nip19 } from 'nostr-tools'
 import { getPublicKey } from 'nostr-tools/pure'
 import { encryptNoteV2 } from '../../src/client/lib/crypto'
-import { ADMIN_NSEC, loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
+import { ADMIN_NSEC, loginAsAdmin, navigateAfterLogin } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 const { data: adminSkBytes } = nip19.decode(ADMIN_NSEC) as { type: 'nsec'; data: Uint8Array }
@@ -40,10 +40,6 @@ async function createNoteViaApi(
 
 test.describe('Call Detail Page', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test('call history page loads and shows empty state or rows', async ({ page }) => {
     await loginAsAdmin(page)
@@ -99,10 +95,6 @@ test.describe('Call Detail Page', () => {
 })
 
 test.describe('Settings Profile Section', () => {
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test('settings page has profile section with name, phone, and language fields', async ({
     page,
   }) => {

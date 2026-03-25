@@ -1,12 +1,8 @@
 import { expect, test } from '@playwright/test'
-import { loginAsAdmin, resetTestState } from '../helpers'
+import { loginAsAdmin } from '../helpers'
 
 test.describe('Help & Getting Started', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test('help page loads with FAQ sections', async ({ page }) => {
     await loginAsAdmin(page)

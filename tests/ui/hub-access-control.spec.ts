@@ -8,7 +8,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { ADMIN_NSEC, Timeouts, loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
+import { ADMIN_NSEC, Timeouts, loginAsAdmin, navigateAfterLogin } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 test.describe('Hub access control UI', () => {
@@ -19,8 +19,6 @@ test.describe('Hub access control UI', () => {
   const testHubName = `access-ctrl-ui-${Date.now()}`
 
   test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-
     // Pre-create the hub via API so UI tests can reference it
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     const createRes = await authedApi.post('/api/hubs', { name: testHubName })

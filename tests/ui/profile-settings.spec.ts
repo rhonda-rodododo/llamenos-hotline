@@ -7,16 +7,11 @@ import {
   loginAsAdmin,
   loginAsVolunteer,
   navigateAfterLogin,
-  resetTestState,
   uniquePhone,
 } from '../helpers'
 
 test.describe('Profile self-service', () => {
   let volunteerNsec: string
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage()

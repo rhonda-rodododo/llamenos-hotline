@@ -10,7 +10,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
+import { loginAsAdmin, navigateAfterLogin } from '../helpers'
 
 declare global {
   interface Window {
@@ -70,10 +70,6 @@ test.describe('Ban list call enforcement', () => {
   const BANNED_NUMBER = '+15555559999'
   const CLEAN_NUMBER = '+15555550001'
 
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/')
@@ -102,7 +98,7 @@ test.describe('Ban list call enforcement', () => {
   })
 
   test('call from non-banned number is NOT rejected', async ({ page, request }) => {
-    // Ensure CLEAN_NUMBER is not banned (resetTestState handles this)
+    // Ensure CLEAN_NUMBER is not banned (global-setup handles this)
     const res = await simulateCall(request, `CA_clean_${Date.now()}`, CLEAN_NUMBER)
 
     expect(res.status()).toBe(200)
@@ -145,10 +141,6 @@ test.describe('Voice CAPTCHA', () => {
 
   const CALLER = '+15555552222'
   const HOTLINE = '+15559998888'
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)

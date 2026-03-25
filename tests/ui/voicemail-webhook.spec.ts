@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
+import { loginAsAdmin, navigateAfterLogin } from '../helpers'
 
 /**
  * Build a Twilio-style application/x-www-form-urlencoded body string.
@@ -10,10 +10,6 @@ function twilioForm(params: Record<string, string>): string {
 
 test.describe('Voicemail UI', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)

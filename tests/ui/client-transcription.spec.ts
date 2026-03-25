@@ -1,11 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
+import { loginAsAdmin, navigateAfterLogin } from '../helpers'
 
 test.describe('Client-side transcription settings', () => {
-  test.beforeEach(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test('can enable and configure client-side transcription', async ({ page }) => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/settings?section=transcription')
@@ -87,10 +83,6 @@ test.describe('Client-side transcription settings', () => {
 })
 
 test.describe('Transcribe recording button', () => {
-  test.beforeEach(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test('call history page shows transcribe button alongside recording player', async ({ page }) => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/calls')

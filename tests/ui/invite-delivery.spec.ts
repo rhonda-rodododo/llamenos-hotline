@@ -11,13 +11,9 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { loginAsAdmin, resetTestState, uniquePhone } from '../helpers'
+import { loginAsAdmin, uniquePhone } from '../helpers'
 
 test.describe('Invite delivery', () => {
-  test.beforeEach(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test('available-channels endpoint returns channel availability', async ({ request }) => {
     // This endpoint requires admin auth — call it directly
     const res = await request.get('/api/invites/available-channels', {

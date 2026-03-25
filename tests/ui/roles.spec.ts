@@ -4,7 +4,6 @@ import {
   createVolunteerAndGetNsec,
   loginAsAdmin,
   loginAsVolunteer,
-  resetTestState,
   uniquePhone,
 } from '../helpers'
 import { ADMIN_NSEC } from '../helpers'
@@ -58,8 +57,6 @@ test.describe('Role-based UI visibility', () => {
   let reporterNsec: string
 
   test.beforeAll(async ({ browser, request }) => {
-    await resetTestState(request)
-
     const page = await browser.newPage()
     await loginAsAdmin(page)
     reporterNsec = await createVolunteerAndGetNsec(page, 'UI Reporter', uniquePhone())
@@ -110,10 +107,6 @@ test.describe('Role-based UI visibility', () => {
 
 test.describe('Role Assignment UI', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test('role selector dropdown in volunteer list shows all default roles', async ({ page }) => {
     await loginAsAdmin(page)

@@ -1,9 +1,4 @@
 import { expect, test } from '@playwright/test'
-import { resetTestState } from '../helpers'
-
-test.beforeEach(async ({ request }) => {
-  await resetTestState(request)
-})
 
 test('app loads and shows login page', async ({ page }) => {
   await page.goto('/')

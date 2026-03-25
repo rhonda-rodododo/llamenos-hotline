@@ -4,13 +4,11 @@ import {
   createVolunteerAndGetNsec,
   loginAsAdmin,
   loginAsVolunteer,
-  resetTestState,
   uniquePhone,
 } from '../helpers'
 
 test.describe('Dashboard Analytics', () => {
   test.beforeEach(async ({ page, request }) => {
-    await resetTestState(request)
     await loginAsAdmin(page)
   })
 
@@ -103,7 +101,6 @@ test.describe('Dashboard Analytics', () => {
 
 test.describe('Dashboard Analytics — volunteer visibility', () => {
   test('analytics section is hidden from volunteers', async ({ page, request }) => {
-    await resetTestState(request)
     await loginAsAdmin(page)
 
     // Create a volunteer and get their nsec

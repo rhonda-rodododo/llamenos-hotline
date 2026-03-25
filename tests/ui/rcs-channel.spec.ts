@@ -1,11 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { Timeouts, loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
+import { Timeouts, loginAsAdmin, navigateAfterLogin } from '../helpers'
 
 test.describe('RCS Channel Configuration', () => {
-  test.beforeEach(async ({ request }) => {
-    await resetTestState(request)
-  })
-
   test('RCS section is present and expandable on admin settings page', async ({ page }) => {
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/admin/settings')

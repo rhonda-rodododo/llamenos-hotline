@@ -1,12 +1,8 @@
 import { expect, test } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
+import { loginAsAdmin, navigateAfterLogin } from '../helpers'
 
 test.describe('Conversations — no channels configured', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test('no messaging channels shows empty state on /conversations', async ({ page }) => {
     await loginAsAdmin(page)

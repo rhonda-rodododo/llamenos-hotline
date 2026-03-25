@@ -1,13 +1,9 @@
 import { expect, test } from '@playwright/test'
-import { ADMIN_NSEC, loginAsAdmin, resetTestState } from '../helpers'
+import { ADMIN_NSEC, loginAsAdmin } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 test.describe('Multi-hub architecture — UI', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)

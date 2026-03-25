@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test'
-import { loginAsAdmin, resetTestState } from '../helpers'
+import { loginAsAdmin } from '../helpers'
 
 test.describe('Notes CRUD', () => {
   test.beforeEach(async ({ page, request }) => {
-    await resetTestState(request)
     await loginAsAdmin(page)
     await page.getByRole('link', { name: 'Call Notes' }).click()
     await page.waitForLoadState('networkidle')

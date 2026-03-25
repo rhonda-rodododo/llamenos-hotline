@@ -8,7 +8,6 @@ import {
   loginAsAdmin,
   loginAsVolunteer,
   navigateAfterLogin,
-  resetTestState,
   uniquePhone,
 } from '../helpers'
 
@@ -31,8 +30,6 @@ test.describe('GDPR Compliance', () => {
     })
 
     test('consent gate shown and dismissed after agreement', async ({ page, request }) => {
-      await resetTestState(request)
-
       // Create a fresh volunteer
       const adminPage = await page.context().newPage()
       await loginAsAdmin(adminPage)
@@ -110,10 +107,6 @@ test.describe('GDPR Compliance', () => {
 
   test.describe('Right to erasure', () => {
     let volunteerNsec: string
-
-    test.beforeAll(async ({ request }) => {
-      await resetTestState(request)
-    })
 
     test.beforeAll(async ({ browser }) => {
       const page = await browser.newPage()

@@ -15,7 +15,7 @@
 import { expect, test } from '@playwright/test'
 import { nip19 } from 'nostr-tools'
 import { getPublicKey } from 'nostr-tools/pure'
-import { ADMIN_NSEC, TestIds, loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
+import { ADMIN_NSEC, TestIds, loginAsAdmin, navigateAfterLogin } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 // Build admin pubkey from the test admin's nsec
@@ -110,7 +110,6 @@ test.describe('Call flow', () => {
   let relayAvailable = false
 
   test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
     // Check relay availability using ws package (Node-compatible)
     const WS = (await import('ws')).default
     try {

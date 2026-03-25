@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test'
-import { TEST_PIN, enterPin, loginAsAdmin, resetTestState } from '../helpers'
+import { TEST_PIN, enterPin, loginAsAdmin } from '../helpers'
 
 test.describe('Theme', () => {
   test.beforeEach(async ({ page, request }) => {
-    await resetTestState(request)
     await loginAsAdmin(page)
   })
 

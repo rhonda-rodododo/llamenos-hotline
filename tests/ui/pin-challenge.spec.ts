@@ -6,14 +6,12 @@ import {
   enterPin,
   loginAsAdmin,
   navigateAfterLogin,
-  resetTestState,
   uniquePhone,
 } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 test.describe('PIN Challenge (Re-auth Step-up)', () => {
   test.beforeEach(async ({ request }) => {
-    await resetTestState(request)
     // Ensure at least one volunteer with a phone exists for the toggle button
     const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     const sk = generateSecretKey()

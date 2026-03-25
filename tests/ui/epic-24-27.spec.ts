@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test'
-import { loginAsAdmin, resetTestState } from '../helpers'
+import { loginAsAdmin } from '../helpers'
 
 test.describe('Epic 24: Shift & Call Status Awareness', () => {
   test.beforeEach(async ({ page, request }) => {
-    await resetTestState(request)
     await loginAsAdmin(page)
   })
 
@@ -21,7 +20,6 @@ test.describe('Epic 24: Shift & Call Status Awareness', () => {
 
 test.describe('Epic 25: Command Palette Enhancements', () => {
   test.beforeEach(async ({ page, request }) => {
-    await resetTestState(request)
     await loginAsAdmin(page)
   })
 
@@ -53,7 +51,6 @@ test.describe('Epic 25: Command Palette Enhancements', () => {
 
 test.describe('Epic 26: Custom IVR Audio Recording', () => {
   test.beforeEach(async ({ page, request }) => {
-    await resetTestState(request)
     await loginAsAdmin(page)
   })
 
@@ -85,7 +82,6 @@ test.describe('Epic 26: Custom IVR Audio Recording', () => {
 
 test.describe('Epic 27: Remaining Polish', () => {
   test.beforeEach(async ({ page, request }) => {
-    await resetTestState(request)
     await loginAsAdmin(page)
   })
 

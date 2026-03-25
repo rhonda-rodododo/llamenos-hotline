@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
+import { loginAsAdmin, navigateAfterLogin } from '../helpers'
 
 test.describe('Demo Mode', () => {
   // --- Helpers ---
@@ -64,10 +64,6 @@ test.describe('Demo Mode', () => {
       timeout: 15000,
     })
   }
-
-  test.beforeEach(async ({ page, request }) => {
-    await resetTestState(request)
-  })
 
   // =====================================================================
   // Test 1: Demo mode toggle appears on summary step

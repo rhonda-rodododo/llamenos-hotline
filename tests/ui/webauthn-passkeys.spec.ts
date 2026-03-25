@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { loginAsAdmin, navigateAfterLogin, resetTestState } from '../helpers'
+import { loginAsAdmin, navigateAfterLogin } from '../helpers'
 
 // Window type augmentation for authed fetch helper
 declare global {
@@ -33,10 +33,6 @@ async function injectAuthedFetch(page: import('@playwright/test').Page) {
 
 test.describe('WebAuthn passkey registration and login', () => {
   test.describe.configure({ mode: 'serial' })
-
-  test.beforeAll(async ({ request }) => {
-    await resetTestState(request)
-  })
 
   // CDP virtual authenticator only works in Chromium
   test.beforeEach(async ({ browserName }) => {

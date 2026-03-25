@@ -20,7 +20,6 @@ import { bytesToHex } from '@noble/hashes/utils.js'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { getPublicKey, nip19 } from 'nostr-tools'
-import { resetTestState } from '../helpers'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -216,10 +215,6 @@ test.describe('Screenshot Capture', () => {
     if (!fs.existsSync(SCREENSHOT_DIR)) {
       fs.mkdirSync(SCREENSHOT_DIR, { recursive: true })
     }
-  })
-
-  test.beforeEach(async ({ request }) => {
-    await resetTestState(request)
   })
 
   test('capture all documentation screenshots', async ({ page }) => {

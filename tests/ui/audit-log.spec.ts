@@ -6,13 +6,11 @@ import {
   loginAsAdmin,
   loginAsVolunteer,
   navigateAfterLogin,
-  resetTestState,
   uniquePhone,
 } from '../helpers'
 
 test.describe('Audit log', () => {
   test.beforeEach(async ({ page, request }) => {
-    await resetTestState(request)
     await loginAsAdmin(page)
   })
 
