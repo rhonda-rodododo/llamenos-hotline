@@ -40,7 +40,9 @@ These features are independent and can be implemented in parallel.
 
 **VAPID keypair:**
 - Generate via `web-push.generateVAPIDKeys()`, store as `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` in `.env`
+- Add `VAPID_PUBLIC_KEY?: string` and `VAPID_PRIVATE_KEY?: string` to the `Env` interface in `src/server/types.ts`
 - Public key exposed via `GET /api/notifications/vapid-public-key` (unauthenticated — it's a public key)
+- Verify `web-push` npm package compatibility with Bun runtime (Node crypto APIs)
 
 **Database — new `pushSubscriptions` table (Drizzle):**
 
@@ -66,9 +68,9 @@ These features are independent and can be implemented in parallel.
 - After publishing `KIND_CALL_RING` to Nostr relay, query all `pushSubscriptions` for available volunteers
 - Fire `webpush.sendNotification()` for each subscription with payload:
   ```json
-  { "type": "call:ring", "callSid": "..." }
+  { "type": "call:ring", "callSid": "...", "hubId": "..." }
   ```
-  Payload intentionally minimal — no hub name, no caller info. Push notifications appear on lock screens; hub names could reveal the nature of the crisis line.
+  Payload intentionally minimal — no hub name, no caller info. Push notifications appear on lock screens; hub names could reveal the nature of the crisis line. `hubId` is included for routing (notification click needs it) but is not displayed.
 - Set `TTL: 30` on push messages — calls are time-sensitive; stale notifications arriving minutes later are confusing
 - On 410 Gone response, delete the stale subscription
 - Fire-and-forget — does not block the ringing flow
@@ -76,7 +78,11 @@ These features are independent and can be implemented in parallel.
 ### Service Worker & Client
 
 **Service worker `push` event handler:**
-- Requires switching VitePWA from `generateSW` to `injectManifest` mode — custom event listeners (`push`, `notificationclick`) cannot be added to auto-generated service workers. The custom SW source file will import Workbox precaching and add the push handlers.
+- Requires switching VitePWA from `generateSW` to `injectManifest` mode — custom event listeners (`push`, `notificationclick`) cannot be added to auto-generated service workers
+- Custom SW source file at `src/service-worker.ts`:
+  - Import `precacheAndRoute` from `workbox-precaching` and call `precacheAndRoute(self.__WB_MANIFEST)` to replicate existing precaching
+  - Preserve `navigateFallbackDenylist` behavior (exclude `/api/` and `/telephony/` routes) via `registerRoute` with a NavigationRoute
+  - Add `push` and `notificationclick` event listeners
 - On `push` event:
   1. Check `clients.matchAll({ type: 'window', includeUncontrolled: false })` — if any app window is focused/visible, skip the push notification (in-app ringtone/notification is superior)
   2. Otherwise, parse JSON payload and show notification:
@@ -127,6 +133,7 @@ interface WebRTCAdapter {
   on(event: 'connected', handler: () => void): void
   on(event: 'disconnected', handler: () => void): void
   on(event: 'error', handler: (error: Error) => void): void
+  off(event: 'incoming' | 'connected' | 'disconnected' | 'error', handler: (...args: unknown[]) => void): void
   destroy(): void
 }
 ```
@@ -147,11 +154,12 @@ The adapter factory decides which implementation to use based on the hub's provi
 - On app load (if call preference is `browser` or `both`), client calls `GET /api/telephony/webrtc-token` (existing endpoint)
 - Server generates provider-specific token via existing `webrtc-tokens.ts`
 - Client initializes correct adapter with token
-- Token refresh: set a timer for `tokenTTL - 60s` (re-fetch 1 minute before expiry). If a token expires mid-call, the active media session is unaffected but new incoming calls cannot be received until re-registration. Provider SDKs also fire `tokenWillExpire` callbacks where available.
+- Token refresh: the `GET /api/telephony/webrtc-token` response must include a `ttl` field (seconds until expiry). Client sets a timer for `ttl - 60s` to re-fetch before expiry. If a token expires mid-call, the active media session is unaffected but new incoming calls cannot be received until re-registration. Provider SDKs also fire `tokenWillExpire` callbacks where available.
 
 **State machine:** `idle → initializing → ready → ringing → connected → ended → error`
 - `ended` is transient — transitions back to `ready` after cleanup (device remains registered for next incoming call)
 - Adds `ended` state to existing `WebRtcState` type (currently missing)
+- `error` state: recoverable via user retry (transitions to `initializing`), matching existing `initWebRtc()` behavior which only blocks when already `ready` or `initializing`
 
 **Microphone permission handling:**
 - On preference change to `browser`/`both`: immediately `getUserMedia({ audio: true })` to prompt; show success/failure state in settings
@@ -161,8 +169,8 @@ The adapter factory decides which implementation to use based on the hub's provi
 ### Server-Side Changes
 
 **Call leg tracking — schema changes:**
-- Add `type text('type').notNull().default('phone')` column to `callLegs` table (Drizzle migration)
-- Update `CallLeg` and `CreateCallLegData` types in `src/server/types.ts`
+- Add `type` column to `callLegs` table as a `pgEnum('call_leg_type', ['phone', 'browser'])` with `.default('phone')` (Drizzle migration)
+- Update `CallLeg`, `CreateCallLegData` types in `src/server/types.ts`, and `CallService.createCallLeg()` + `#rowToCallLeg()` in `src/server/services/calls.ts`
 - `callPreference: 'both'` volunteers get two leg rows (one phone, one browser)
 
 **Browser leg creation in `ringVolunteers()`:**
@@ -170,11 +178,12 @@ The adapter factory decides which implementation to use based on the hub's provi
   - **Twilio**: TwiML `<Dial>` must include `<Client>identity</Client>` noun alongside `<Number>` nouns for browser-preference volunteers. The identity is the volunteer's pubkey (used during `Device.register()`).
   - **Vonage**: NCCO `connect` action with `type: 'app'` and the volunteer's user ID targets their browser SDK
   - **Plivo**: XML `<Dial>` with `<User>` element targets the browser endpoint
-- The `ringVolunteers` adapter method signature already accepts a volunteers list — extend each volunteer entry to include `{ pubkey, phone?, browserIdentity? }` so the adapter knows which dial directives to emit
+- The `ringVolunteers` adapter method signature already accepts a volunteers list — extend each volunteer entry to include `{ pubkey, phone?, browserIdentity? }` so the adapter knows which dial directives to emit. **This is a breaking change** to `RingVolunteersParams` (currently `phone: string` is required). All 5 adapter implementations must be updated to handle the optional fields. Adapters not covered in this spec (SignalWire, Asterisk) should ignore `browserIdentity` for now.
 - For each browser-preference volunteer, create a `callLegs` row with `type: 'browser'`
 
-**Answer endpoint — `POST /api/calls/{callSid}/answer`:**
-- Accepts `{ type: 'browser' }` to distinguish connection method
+**Answer endpoint — `POST /api/calls/{callSid}/answer` (significant extension required):**
+- The current handler only sets `assignedPubkey` and `status: 'in-progress'` on `activeCalls`. It does not touch `callLegs` or invoke `cancelRinging()`. This must be extended to:
+- Accept `{ type: 'browser' }` to distinguish connection method
 - On answer:
   1. Query `callLegs` by `callSid`; mark the answered leg as `in-progress`
   2. Update all other legs to `cancelled`
@@ -192,7 +201,7 @@ The adapter factory decides which implementation to use based on the hub's provi
 
 **Unit tests (`bun:test`):**
 - `pushSubscriptions` CRUD (create, upsert on duplicate endpoint, delete, 410 cleanup)
-- Push payload construction (correct JSON, no PII — hub name only)
+- Push payload construction (correct JSON, no PII — callSid and hubId only, no human-readable names)
 - VAPID key loading and validation
 
 **API integration tests (`tests/api/`):**
@@ -230,6 +239,7 @@ The adapter factory decides which implementation to use based on the hub's provi
 ## Files to Create or Modify
 
 ### New Files
+- `src/service-worker.ts` — custom SW source for `injectManifest` mode (Workbox precaching + push/notificationclick handlers)
 - `src/server/db/schema/push-subscriptions.ts` — Drizzle table
 - `src/server/routes/notifications.ts` — subscribe/unsubscribe/vapid endpoints
 - `src/server/services/push.ts` — push delivery service
@@ -249,8 +259,17 @@ The adapter factory decides which implementation to use based on the hub's provi
 - `src/client/components/notification-prompt-banner.tsx` — add push subscription flow
 - `src/client/routes/` — settings page push toggle, dashboard answer-from-notification
 - `src/server/db/schema/` — add `type` column to `callLegs`
-- `src/server/services/calls.ts` — handle `type: 'browser'` in answer flow, cancel by type
-- `src/server/telephony/webrtc-tokens.ts` — no changes needed (already supports 3 providers)
+- `src/server/services/calls.ts` — handle `type: 'browser'` in answer flow, cancel by type, update `createCallLeg()` + `#rowToCallLeg()`
+- `src/server/types.ts` — add VAPID env vars to `Env`, update `CallLeg`/`CreateCallLegData` types, update `RingVolunteersParams`
+- `src/server/telephony/adapter.ts` — update `RingVolunteersParams` volunteer entry type (`phone` optional, add `browserIdentity`)
+- `src/server/telephony/twilio.ts` — emit `<Client>` noun in TwiML for browser volunteers
+- `src/server/telephony/vonage.ts` — emit `type: 'app'` NCCO action for browser volunteers
+- `src/server/telephony/plivo.ts` — emit `<User>` element in XML for browser volunteers
+- `src/server/telephony/signalwire.ts` — ignore `browserIdentity` for now
+- `src/server/telephony/asterisk.ts` — ignore `browserIdentity` for now
+- `src/server/telephony/webrtc-tokens.ts` — add `ttl` to response
+- `src/server/routes/webrtc.ts` — include `ttl` field in token response
+- `src/server/routes/calls.ts` — extend answer endpoint with leg cancellation + `cancelRinging()`
 - `vite.config.ts` — service worker configuration for push event handler
 - `.env.example` / `.env.live.example` — add VAPID env vars
 
