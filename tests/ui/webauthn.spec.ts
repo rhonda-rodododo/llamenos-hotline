@@ -75,6 +75,9 @@ async function openPasskeysSection(page: Page): Promise<void> {
       await sectionHeader.click()
     }
   }
+  // Wait for collapsible animation to complete before interacting with content
+  await page.waitForTimeout(300)
+  await expect(page.getByTestId('passkey-label-input')).toBeVisible({ timeout: 5000 })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

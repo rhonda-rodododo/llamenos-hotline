@@ -39,7 +39,7 @@ test.describe('Invite delivery', () => {
     await page.getByRole('button', { name: /create invite/i }).click()
 
     // Invite link card appears
-    await expect(page.locator('code').first()).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('invite-link-code')).toBeVisible({ timeout: 15000 })
 
     // Send invite dialog should open automatically after invite creation
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })

@@ -217,7 +217,10 @@ function VolunteersPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <code className="flex-1 break-all rounded-md bg-background px-3 py-2 text-xs">
+              <code
+                data-testid="invite-link-code"
+                className="flex-1 break-all rounded-md bg-background px-3 py-2 text-xs"
+              >
                 {inviteLink}
               </code>
               <Button

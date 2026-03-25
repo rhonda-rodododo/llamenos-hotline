@@ -20,7 +20,7 @@ test.describe('Invite-based onboarding', () => {
     await page.getByRole('button', { name: /create invite/i }).click()
 
     // Invite link should appear
-    const linkEl = page.locator('code').first()
+    const linkEl = page.getByTestId('invite-link-code')
     await expect(linkEl).toBeVisible({ timeout: 15000 })
     inviteLink = (await linkEl.textContent())!
     expect(inviteLink).toContain('/onboarding?code=')

@@ -57,6 +57,9 @@ dev.post('/test-reset', async (c) => {
   await services.conversations.resetForTest()
   await services.files.resetForTest()
   await services.settings.resetForTest()
+  // Re-seed default roles before bootstrapping admin — resetForTest deletes all roles,
+  // and bootstrapAdmin assigns role-super-admin which must exist for permission resolution
+  await services.settings.listRoles()
   // Re-bootstrap admin and default hub so tests can log in immediately after reset
   if (c.env.ADMIN_PUBKEY) {
     try {
