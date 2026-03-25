@@ -1,3 +1,4 @@
+import { KIND_CALL_VOICEMAIL } from '@shared/nostr-events'
 import { Hono } from 'hono'
 import {
   DEFAULT_LANGUAGE,
@@ -8,6 +9,7 @@ import { permissionGranted, resolvePermissions } from '../../shared/permissions'
 import { getTelephony } from '../lib/adapters'
 import { hashPhone } from '../lib/crypto'
 import { telephonyResponse } from '../lib/helpers'
+import { publishNostrEvent } from '../lib/nostr-events'
 import { startParallelRinging } from '../lib/ringing'
 import { maybeTranscribe, transcribeVoicemail } from '../lib/transcription-manager'
 import { storeVoicemailAudio } from '../lib/voicemail-storage'
@@ -632,6 +634,37 @@ telephony.post('/voicemail-recording', async (c) => {
             records: services.records,
             maxBytes: settings.voicemailMaxBytes,
           })
+
+          // Publish voicemail Nostr event (hub-key encrypted, fire-and-forget)
+          publishNostrEvent(
+            env,
+            KIND_CALL_VOICEMAIL,
+            {
+              type: 'call:voicemail',
+              callSid,
+              hubId: hubId ?? 'global',
+              timestamp: Date.now(),
+            },
+            hubId
+          )
+
+          // Send Web Push to users with voicemail:notify permission
+          const notifyPubkeys = allVolunteers
+            .filter((v) => {
+              const perms = resolvePermissions(v.roles, roleDefs)
+              return permissionGranted(perms, 'voicemail:notify')
+            })
+            .map((v) => v.pubkey)
+
+          if (notifyPubkeys.length > 0) {
+            services.push
+              .sendPushToVolunteers(
+                notifyPubkeys,
+                { type: 'voicemail', callSid, hubId: hubId ?? 'global' },
+                env
+              )
+              .catch((err: unknown) => console.error('[push] voicemail notification failed:', err))
+          }
         } catch (err) {
           console.error('[background] voicemail storage failed:', callSid, err)
         }
