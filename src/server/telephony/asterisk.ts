@@ -17,6 +17,7 @@ import type {
   WebhookQueueWait,
   WebhookRecordingStatus,
 } from './adapter'
+import { BridgeClient } from './bridge-client'
 
 /**
  * AsteriskAdapter — communicates with an ARI bridge service that runs
@@ -28,6 +29,8 @@ import type {
  * ARI and our webhook format.
  */
 export class AsteriskAdapter implements TelephonyAdapter {
+  private bridge: BridgeClient
+
   constructor(
     private ariUrl: string,
     private ariUsername: string,
@@ -35,7 +38,9 @@ export class AsteriskAdapter implements TelephonyAdapter {
     private phoneNumber: string,
     private bridgeCallbackUrl: string,
     private bridgeSecret: string
-  ) {}
+  ) {
+    this.bridge = new BridgeClient(bridgeCallbackUrl, bridgeSecret)
+  }
 
   // --- JSON command helpers ---
 
@@ -229,7 +234,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
   // --- Call management (REST calls to ARI bridge) ---
 
   async hangupCall(callSid: string): Promise<void> {
-    await this.bridgeRequest('POST', '/commands/hangup', { channelId: callSid })
+    await this.bridge.request('POST', '/commands/hangup', { channelId: callSid })
   }
 
   async ringVolunteers(params: RingVolunteersParams): Promise<string[]> {
@@ -237,7 +242,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
     // Asterisk doesn't support browser calling — filter to phone-only volunteers
     const phoneVolunteers = volunteers.filter((v) => v.phone)
     if (phoneVolunteers.length === 0) return []
-    const result = await this.bridgeRequest('POST', '/commands/ring', {
+    const result = await this.bridge.request('POST', '/commands/ring', {
       parentCallSid: callSid,
       callerNumber,
       volunteers: phoneVolunteers.map((v) => ({ pubkey: v.pubkey, phone: v.phone })),
@@ -248,7 +253,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
   }
 
   async cancelRinging(callSids: string[], exceptSid?: string): Promise<void> {
-    await this.bridgeRequest('POST', '/commands/cancel-ringing', {
+    await this.bridge.request('POST', '/commands/cancel-ringing', {
       callSids,
       exceptSid,
     })
@@ -256,7 +261,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
 
   async getCallRecording(callSid: string): Promise<ArrayBuffer | null> {
     try {
-      const result = await this.bridgeRequest('GET', `/recordings/call/${callSid}`)
+      const result = await this.bridge.request('GET', `/recordings/call/${callSid}`)
       if (result && typeof result === 'object' && 'audio' in result) {
         // Bridge returns base64-encoded audio
         const base64 = (result as { audio: string }).audio
@@ -273,7 +278,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
 
   async getRecordingAudio(recordingSid: string): Promise<ArrayBuffer | null> {
     try {
-      const result = await this.bridgeRequest('GET', `/recordings/${recordingSid}`)
+      const result = await this.bridge.request('GET', `/recordings/${recordingSid}`)
       if (result && typeof result === 'object' && 'audio' in result) {
         const base64 = (result as { audio: string }).audio
         const binary = atob(base64)
@@ -394,51 +399,6 @@ export class AsteriskAdapter implements TelephonyAdapter {
       ariPassword: this.ariPassword,
       bridgeCallbackUrl: this.bridgeCallbackUrl,
     } as Parameters<typeof asteriskCapabilities.testConnection>[0])
-  }
-
-  // --- Internal helpers ---
-
-  private async bridgeRequest(method: string, path: string, body?: unknown): Promise<unknown> {
-    const url = `${this.bridgeCallbackUrl}${path}`
-    const timestamp = Math.floor(Date.now() / 1000).toString()
-    const bodyStr = body ? JSON.stringify(body) : ''
-    const payload = `${timestamp}.${bodyStr}`
-
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(this.bridgeSecret) as Uint8Array<ArrayBuffer>,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    )
-    const sig = await crypto.subtle.sign(
-      'HMAC',
-      key,
-      new TextEncoder().encode(payload) as Uint8Array<ArrayBuffer>
-    )
-    const signature = Array.from(new Uint8Array(sig))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
-
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Bridge-Signature': signature,
-        'X-Bridge-Timestamp': timestamp,
-      },
-      body: bodyStr || undefined,
-    })
-
-    if (!response.ok) {
-      throw new Error(`ARI bridge request failed: ${response.status} ${response.statusText}`)
-    }
-
-    const contentType = response.headers.get('content-type') || ''
-    if (contentType.includes('application/json')) {
-      return response.json()
-    }
-    return null
   }
 }
 

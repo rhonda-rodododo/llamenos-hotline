@@ -1,4 +1,9 @@
-import type { PlivoConfig, TwilioConfig, VonageConfig } from '../../shared/schemas/providers'
+import type {
+  AsteriskConfig,
+  PlivoConfig,
+  TwilioConfig,
+  VonageConfig,
+} from '../../shared/schemas/providers'
 import type { TelephonyProviderConfig, TelephonyProviderType } from '../../shared/types'
 
 /**
@@ -22,7 +27,7 @@ export async function generateWebRtcToken(
     case 'plivo':
       return generatePlivoToken(config, identity)
     case 'asterisk':
-      throw new Error('Asterisk WebRTC requires JsSIP configuration (Epic 35)')
+      return generateAsteriskToken(config, identity)
     case 'telnyx':
       throw new Error('Telnyx WebRTC not yet implemented')
     default: {
@@ -54,6 +59,8 @@ export function isWebRtcConfigured(config: TelephonyProviderConfig | null): bool
       return !!(config.applicationId && config.privateKey)
     case 'plivo':
       return !!(config.authId && config.authToken)
+    case 'asterisk':
+      return !!(config.ariUrl && config.bridgeCallbackUrl)
     default:
       return false
   }
@@ -155,6 +162,36 @@ async function generatePlivoToken(
   }
   const token = await signJwtHs256(header, payload, config.authToken)
   return { token, provider: 'plivo', ttl: 3600 }
+}
+
+// --- Asterisk SIP/WebRTC token ---
+// Asterisk uses JsSIP/SIP.js with direct SIP credentials. The "token" is a base64-encoded
+// JSON blob containing SIP URI, password, WebSocket URI, and ICE servers.
+
+async function generateAsteriskToken(
+  config: AsteriskConfig,
+  identity: string
+): Promise<{ token: string; provider: TelephonyProviderType; ttl: number }> {
+  const { AsteriskProvisioner } = await import('./asterisk-provisioner')
+  const provisioner = new AsteriskProvisioner(
+    config.bridgeCallbackUrl!,
+    config.bridgeSecret!,
+    config.asteriskDomain ?? 'localhost',
+    config.wssPort ?? 8089,
+    config.stunServer ?? 'stun:stun.l.google.com:19302',
+    config.turnServer,
+    config.turnSecret
+  )
+  const endpoint = await provisioner.provisionEndpoint(identity)
+  const token = btoa(
+    JSON.stringify({
+      wsUri: endpoint.wsUri,
+      sipUri: endpoint.sipUri,
+      password: endpoint.password,
+      iceServers: endpoint.iceServers,
+    })
+  )
+  return { token, provider: 'asterisk', ttl: 600 }
 }
 
 // --- Crypto helpers ---

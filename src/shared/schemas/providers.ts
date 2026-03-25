@@ -52,6 +52,12 @@ export const AsteriskConfigSchema = BaseProviderSchema.extend({
   ariUsername: z.string().min(1),
   ariPassword: z.string().min(1),
   bridgeCallbackUrl: z.string().url().optional(),
+  bridgeSecret: z.string().optional(),
+  asteriskDomain: z.string().optional(),
+  wssPort: z.number().optional(),
+  stunServer: z.string().optional(),
+  turnServer: z.string().optional(),
+  turnSecret: z.string().optional(),
 })
 export type AsteriskConfig = z.infer<typeof AsteriskConfigSchema>
 
