@@ -533,6 +533,7 @@
     "callPrefBoth": "Telefon + Browser",
     "callPrefBothDesc": "Gleichzeitig auf Telefon und Browser klingeln",
     "webrtcNotConfigured": "Browser-Telefonie ist nicht verfügbar. Ihr Administrator muss WebRTC in den Telefonieanbieter-Einstellungen aktivieren.",
+    "micPermissionRequired": "Mikrofonzugriff ist für Browser-Telefonie erforderlich.",
     "aboutHeader": "About",
     "accountTitle": "Account",
     "actionsHeader": "Actions",

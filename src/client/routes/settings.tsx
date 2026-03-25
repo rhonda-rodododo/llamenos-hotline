@@ -461,6 +461,16 @@ function SettingsPage() {
               key={option.value}
               disabled={option.value !== 'phone' && !webrtcAvailable}
               onClick={async () => {
+                // Request mic permission when switching to browser or both
+                if (option.value === 'browser' || option.value === 'both') {
+                  try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+                    stream.getTracks().forEach((t) => t.stop())
+                  } catch {
+                    // Still allow the preference change — just-in-time check at answer time will catch it
+                    toast(t('settings.micPermissionRequired'), 'info')
+                  }
+                }
                 try {
                   setCurrentCallPref(option.value)
                   await updateMyProfile({ callPreference: option.value })

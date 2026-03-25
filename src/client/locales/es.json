@@ -533,6 +533,7 @@
     "callPrefBoth": "Teléfono + Navegador",
     "callPrefBothDesc": "Suena tanto en tu teléfono como en el navegador simultáneamente",
     "webrtcNotConfigured": "Las llamadas por navegador no están disponibles. Tu administrador necesita habilitar WebRTC en la configuración del proveedor de telefonía.",
+    "micPermissionRequired": "Se requiere acceso al micrófono para las llamadas por navegador.",
     "aboutHeader": "About",
     "accountTitle": "Account",
     "actionsHeader": "Actions",

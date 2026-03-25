@@ -533,6 +533,7 @@
     "callPrefBoth": "الهاتف + المتصفح",
     "callPrefBothDesc": "الرنين على كل من الهاتف والمتصفح في آن واحد",
     "webrtcNotConfigured": "الاتصال عبر المتصفح غير متاح. يحتاج المسؤول إلى تفعيل WebRTC في إعدادات مزود الاتصالات.",
+    "micPermissionRequired": "يلزم الوصول إلى الميكروفون للاتصال عبر المتصفح.",
     "aboutHeader": "About",
     "accountTitle": "Account",
     "actionsHeader": "Actions",

@@ -533,6 +533,7 @@
     "callPrefBoth": "Telepono + Browser",
     "callPrefBothDesc": "Patunugin ang parehong telepono at browser nang sabay",
     "webrtcNotConfigured": "Hindi available ang pagtawag sa browser. Kailangang i-enable ng iyong admin ang WebRTC sa mga setting ng telephony provider.",
+    "micPermissionRequired": "Kailangan ang access sa mikropono para sa pagtawag sa browser.",
     "aboutHeader": "About",
     "accountTitle": "Account",
     "actionsHeader": "Actions",

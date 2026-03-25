@@ -533,6 +533,7 @@
     "callPrefBoth": "Телефон + Браузер",
     "callPrefBothDesc": "Звонить одновременно на телефон и в браузер",
     "webrtcNotConfigured": "Звонки через браузер недоступны. Вашему администратору необходимо включить WebRTC в настройках провайдера телефонии.",
+    "micPermissionRequired": "Для звонков через браузер требуется доступ к микрофону.",
     "aboutHeader": "About",
     "accountTitle": "Account",
     "actionsHeader": "Actions",

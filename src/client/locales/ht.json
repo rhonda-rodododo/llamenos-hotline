@@ -533,6 +533,7 @@
     "callPrefBoth": "Telefòn + Navigatè",
     "callPrefBothDesc": "Sonnen ni telefòn ni navigatè an menm tan",
     "webrtcNotConfigured": "Apèl nan navigatè pa disponib. Admin ou bezwen aktive WebRTC nan paramèt founisè telefoni a.",
+    "micPermissionRequired": "Aksè mikwofòn obligatwa pou rele nan navigatè.",
     "aboutHeader": "About",
     "accountTitle": "Account",
     "actionsHeader": "Actions",

@@ -527,6 +527,7 @@
     "callPrefBoth": "Phone + Browser",
     "callPrefBothDesc": "Ring both your phone and browser simultaneously",
     "webrtcNotConfigured": "Browser calling is not available. Your admin needs to enable WebRTC in the telephony provider settings.",
+    "micPermissionRequired": "Microphone access is required for browser calling.",
     "notifications": "Call Notifications",
     "notificationsDescription": "Configure how you receive incoming call alerts",
     "playRingtone": "Play ringtone for incoming calls",

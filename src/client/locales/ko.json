@@ -533,6 +533,7 @@
     "callPrefBoth": "전화 + 브라우저",
     "callPrefBothDesc": "전화와 브라우저 모두 동시에 벨이 울립니다",
     "webrtcNotConfigured": "브라우저 통화를 사용할 수 없습니다. 관리자가 전화 서비스 제공업체 설정에서 WebRTC를 활성화해야 합니다.",
+    "micPermissionRequired": "브라우저 통화를 위해 마이크 접근 권한이 필요합니다.",
     "aboutHeader": "About",
     "accountTitle": "Account",
     "actionsHeader": "Actions",

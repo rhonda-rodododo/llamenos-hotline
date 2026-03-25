@@ -533,6 +533,7 @@
     "callPrefBoth": "फ़ोन + ब्राउज़र",
     "callPrefBothDesc": "फ़ोन और ब्राउज़र दोनों पर एक साथ रिंग करें",
     "webrtcNotConfigured": "ब्राउज़र कॉलिंग उपलब्ध नहीं है। आपके एडमिन को टेलीफ़ोनी प्रदाता सेटिंग्स में WebRTC सक्षम करना होगा।",
+    "micPermissionRequired": "ब्राउज़र कॉलिंग के लिए माइक्रोफ़ोन की अनुमति आवश्यक है।",
     "aboutHeader": "About",
     "accountTitle": "Account",
     "actionsHeader": "Actions",

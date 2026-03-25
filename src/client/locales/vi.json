@@ -533,6 +533,7 @@
     "callPrefBoth": "Điện thoại + Trình duyệt",
     "callPrefBothDesc": "Đổ chuông cả điện thoại và trình duyệt đồng thời",
     "webrtcNotConfigured": "Gọi qua trình duyệt không khả dụng. Quản trị viên cần bật WebRTC trong cài đặt nhà cung cấp điện thoại.",
+    "micPermissionRequired": "Cần quyền truy cập micrô để gọi qua trình duyệt.",
     "aboutHeader": "About",
     "accountTitle": "Account",
     "actionsHeader": "Actions",
