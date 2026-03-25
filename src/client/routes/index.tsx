@@ -84,6 +84,39 @@ function DashboardPage() {
     }
   }, [isAuthenticated, navigate])
 
+  // Handle push notification answer intent from URL query params.
+  // The service worker opens /?action=answer&callSid=<sid> when there is no
+  // existing focused window. We answer the call and clean up the URL.
+  // Runs once on mount — reads params directly to avoid polluting router types.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const action = params.get('action')
+    const callSid = params.get('callSid')
+    if (action === 'answer' && callSid) {
+      answerCall(callSid)
+      history.replaceState(null, '', '/')
+    }
+  }, [answerCall])
+
+  // Listen for service worker postMessage answer intents.
+  // The SW sends { type: 'ANSWER_CALL', callSid } when the user taps "Answer"
+  // on a push notification while the app is already open in a background tab.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+
+    function handleMessage(event: MessageEvent) {
+      const data = event.data as { type?: string; callSid?: string }
+      if (data?.type === 'ANSWER_CALL' && data.callSid) {
+        answerCall(data.callSid)
+      }
+    }
+
+    navigator.serviceWorker.addEventListener('message', handleMessage)
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', handleMessage)
+    }
+  }, [answerCall])
+
   // Fetch calls today count
   useEffect(() => {
     if (!isAuthenticated) return
