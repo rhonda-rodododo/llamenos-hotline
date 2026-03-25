@@ -412,6 +412,9 @@ export interface CallSettings {
   queueTimeoutSeconds: number
   voicemailMaxSeconds: number
   voicemailMaxBytes: number
+  voicemailMode: 'auto' | 'always' | 'never'
+  voicemailRetentionDays: number | null
+  callRecordingMaxBytes: number
 }
 
 export async function getCallSettings() {

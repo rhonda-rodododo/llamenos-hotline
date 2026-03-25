@@ -83,6 +83,9 @@ export const CallSettingsSchema = z.object({
   queueTimeoutSeconds: z.number().int().positive(),
   voicemailMaxSeconds: z.number().int().positive(),
   voicemailMaxBytes: z.number().int().positive(),
+  voicemailMode: z.enum(['auto', 'always', 'never']).default('auto'),
+  voicemailRetentionDays: z.number().int().positive().nullable().optional(),
+  callRecordingMaxBytes: z.number().int().positive().optional(),
 })
 export type CallSettings = z.infer<typeof CallSettingsSchema>
 

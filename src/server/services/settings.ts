@@ -170,6 +170,9 @@ export class SettingsService {
       queueTimeoutSeconds: row?.queueTimeoutSeconds ?? 90,
       voicemailMaxSeconds: row?.voicemailMaxSeconds ?? 120,
       voicemailMaxBytes: row?.voicemailMaxBytes ?? 2097152,
+      voicemailMode: (row?.voicemailMode as 'auto' | 'always' | 'never') ?? 'auto',
+      voicemailRetentionDays: row?.voicemailRetentionDays ?? null,
+      callRecordingMaxBytes: row?.callRecordingMaxBytes ?? 20971520,
     }
   }
 
@@ -178,6 +181,7 @@ export class SettingsService {
     const current = await this.getCallSettings(hId)
     const clamp = (v: number) => Math.max(30, Math.min(300, v))
     const clampBytes = (v: number) => Math.max(102400, Math.min(52428800, v)) // 100KB–50MB
+    const validVoicemailModes = ['auto', 'always', 'never'] as const
     const updated: CallSettings = {
       queueTimeoutSeconds:
         data.queueTimeoutSeconds !== undefined
@@ -191,6 +195,18 @@ export class SettingsService {
         data.voicemailMaxBytes !== undefined
           ? clampBytes(data.voicemailMaxBytes)
           : current.voicemailMaxBytes,
+      voicemailMode:
+        data.voicemailMode !== undefined && validVoicemailModes.includes(data.voicemailMode)
+          ? data.voicemailMode
+          : current.voicemailMode,
+      voicemailRetentionDays:
+        data.voicemailRetentionDays !== undefined
+          ? data.voicemailRetentionDays
+          : current.voicemailRetentionDays,
+      callRecordingMaxBytes:
+        data.callRecordingMaxBytes !== undefined
+          ? clampBytes(data.callRecordingMaxBytes)
+          : current.callRecordingMaxBytes,
     }
     await this.db
       .insert(callSettings)

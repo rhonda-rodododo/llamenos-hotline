@@ -84,6 +84,8 @@ export const callSettings = pgTable('call_settings', {
   voicemailMaxSeconds: integer('voicemail_max_seconds').notNull().default(120),
   voicemailMaxBytes: integer('voicemail_max_bytes').notNull().default(2097152), // 2MB
   callRecordingMaxBytes: integer('call_recording_max_bytes').notNull().default(20971520), // 20MB
+  voicemailMode: text('voicemail_mode').notNull().default('auto'), // 'auto' | 'always' | 'never'
+  voicemailRetentionDays: integer('voicemail_retention_days'),
 })
 
 export const transcriptionSettings = pgTable('transcription_settings', {

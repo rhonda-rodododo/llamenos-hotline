@@ -213,6 +213,9 @@ export interface CallSettings {
   queueTimeoutSeconds: number // 30-300, default 90
   voicemailMaxSeconds: number // 30-300, default 120
   voicemailMaxBytes: number // 100KB-50MB, default 2MB (2097152)
+  voicemailMode: 'auto' | 'always' | 'never' // default 'auto'
+  voicemailRetentionDays: number | null // null = no explicit limit
+  callRecordingMaxBytes: number // 100KB-50MB, default 20MB (20971520)
 }
 
 export interface InviteCode {
