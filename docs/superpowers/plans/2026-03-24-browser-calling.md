@@ -947,7 +947,7 @@ const toRing = available
     return {
       pubkey: v.pubkey,
       phone: (pref === 'phone' || pref === 'both') && v.phone ? v.phone : undefined,
-      browserIdentity: (pref === 'browser' || pref === 'both') ? `vol_${v.pubkey.slice(0, 16)}` : undefined,
+      browserIdentity: (pref === 'browser' || pref === 'both') ? `vol_${v.pubkey.slice(0, 12)}` : undefined,
     }
   })
 ```
@@ -1017,9 +1017,9 @@ For each volunteer with `browserIdentity`, include a `<User>` element in the Pli
 
 Multiple `<User>` + `<Number>` elements in one `<Dial>` work for parallel ringing.
 
-- [ ] **Step 6: Update SignalWire and Asterisk adapters**
+- [ ] **Step 6: Update SignalWire adapter**
 
-Both should ignore `browserIdentity` and filter to `phone`-only volunteers:
+SignalWire should ignore `browserIdentity` and filter to `phone`-only volunteers (Asterisk now supports browser legs via the SIP WebRTC plan — see `docs/superpowers/plans/2026-03-24-sip-webrtc-browser-calling.md`):
 
 ```typescript
 const phoneVolunteers = params.volunteers.filter(v => v.phone)
