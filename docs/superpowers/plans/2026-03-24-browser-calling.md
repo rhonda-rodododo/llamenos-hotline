@@ -301,6 +301,8 @@ import type { WebRTCAdapter, WebRtcEvent, WebRtcEventHandler } from '../types'
 
 export class VonageWebRTCAdapter implements WebRTCAdapter {
   #client: VonageClientType | null = null
+  #activeCallId: string | null = null
+  #muted = false
   #handlers = new Map<string, Set<(...args: unknown[]) => void>>()
 
   async initialize(token: string): Promise<void> {
@@ -333,18 +335,24 @@ export class VonageWebRTCAdapter implements WebRTCAdapter {
   }
 
   disconnect(): void {
-    // Vonage handles disconnect through call lifecycle
+    // Vonage Client SDK v2: look up the hangup method via context7 at implementation time.
+    // It may be client.hangup(callId) or similar. Track the active callId from the callInvite event.
+    if (this.#activeCallId && this.#client) {
+      // this.#client.hangup(this.#activeCallId) — verify exact API
+    }
+    this.#activeCallId = null
     this.#emit('disconnected')
   }
 
   setMuted(muted: boolean): void {
-    // Vonage Client SDK v2: mute handling varies — check latest docs via context7
-    // May need to use enableMedia/disableMedia or similar
-    console.warn('[vonage-webrtc] Mute not yet implemented for Vonage Client SDK')
+    // Vonage Client SDK v2: look up the mute API via context7 at implementation time.
+    // It may be client.mute(callId) / client.unmute(callId), or enableMedia/disableMedia.
+    // Must implement — no stubs allowed per project rules.
+    this.#muted = muted
   }
 
   isMuted(): boolean {
-    return false // Implement when mute API is confirmed
+    return this.#muted
   }
 
   on<E extends WebRtcEvent>(event: E, handler: WebRtcEventHandler<E>): void {
@@ -530,7 +538,12 @@ type PlivoClientType = {
 }
 ```
 
-**Important:** The Plivo token/credential flow needs revision. The current `generatePlivoToken()` creates an HMAC-signed blob, but the Plivo Browser SDK expects `login(username, password)`. At implementation time, verify via context7 whether `loginWithAccessToken()` works as an alternative, or whether we need to create Plivo endpoints via their API and pass real credentials.
+**CRITICAL — Plivo auth prerequisite:** Before implementing this adapter, you MUST research the Plivo Browser SDK auth flow via context7. The current `generatePlivoToken()` creates an HMAC-signed blob with `authId` (account-level), but the Plivo Browser SDK's `login()` expects **endpoint username + password** (created via Plivo REST API `POST /v1/Account/{auth_id}/Endpoint/`). Options:
+1. Use `loginWithAccessToken()` if available — verify via context7 docs
+2. Create Plivo endpoints via REST API during volunteer setup and store credentials
+3. Use the Plivo REST API to provision endpoints on-demand
+
+Resolve this BEFORE writing the adapter. Update `generatePlivoToken()` in `webrtc-tokens.ts` and the token endpoint response to match whichever auth mechanism works. The adapter's `initialize(token)` must receive whatever credentials the SDK needs.
 
 - [ ] **Step 4: Run tests**
 
@@ -615,6 +628,7 @@ function createAdapter(provider: string): WebRTCAdapter {
 let currentState: WebRtcState = 'idle'
 let adapter: WebRTCAdapter | null = null
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
+let incomingCallSid: string | null = null // Track the current incoming call SID
 const stateHandlers = new Set<StateChangeHandler>()
 
 function setState(state: WebRtcState, error?: string) {
@@ -631,8 +645,8 @@ export function onStateChange(handler: StateChangeHandler): () => void {
   return () => stateHandlers.delete(handler)
 }
 
-export async function initWebRtc(): Promise<void> {
-  if (currentState === 'ready' || currentState === 'initializing') return
+export async function initWebRtc(forceRefresh = false): Promise<void> {
+  if (!forceRefresh && (currentState === 'ready' || currentState === 'initializing')) return
 
   setState('initializing')
 
@@ -643,6 +657,7 @@ export async function initWebRtc(): Promise<void> {
     adapter = createAdapter(provider)
 
     adapter.on('incoming', (callSid) => {
+      incomingCallSid = callSid
       setState('ringing')
     })
 
@@ -651,6 +666,7 @@ export async function initWebRtc(): Promise<void> {
     })
 
     adapter.on('disconnected', () => {
+      incomingCallSid = null
       setState('ended')
       // Transient state — return to ready after cleanup
       setTimeout(() => {
@@ -675,7 +691,7 @@ export async function initWebRtc(): Promise<void> {
           if (adapter instanceof TwilioWebRTCAdapter) {
             (adapter as TwilioWebRTCAdapter).updateToken(refresh.token)
           } else {
-            await initWebRtc()
+            await initWebRtc(true) // forceRefresh bypasses the 'ready' guard
           }
         } catch (err) {
           console.warn('[webrtc] Token refresh failed:', err)
@@ -689,20 +705,19 @@ export async function initWebRtc(): Promise<void> {
 }
 
 export function acceptCall(): void {
-  // Accept the incoming call on the adapter
-  // The adapter fires 'connected' event which updates state
-  if (adapter && currentState === 'ringing') {
-    adapter.accept('').catch((err) => {
+  if (adapter && currentState === 'ringing' && incomingCallSid) {
+    adapter.accept(incomingCallSid).catch((err) => {
       console.error('[webrtc] Accept failed:', err)
     })
   }
 }
 
 export function rejectCall(): void {
-  if (adapter && currentState === 'ringing') {
-    adapter.reject('').catch((err) => {
+  if (adapter && currentState === 'ringing' && incomingCallSid) {
+    adapter.reject(incomingCallSid).catch((err) => {
       console.error('[webrtc] Reject failed:', err)
     })
+    incomingCallSid = null
     setState('ready')
   }
 }
@@ -956,16 +971,28 @@ for (const vol of toRing.filter(v => v.browserIdentity)) {
 
 In `src/server/telephony/twilio.ts`, `ringVolunteers()`:
 
-For each volunteer with `browserIdentity`, add a `<Client>` noun in the TwiML:
+The current code creates **individual outbound REST API calls** (`POST /Calls.json`) per volunteer — it does NOT use TwiML `<Dial>` with multiple nouns. For browser volunteers, create an outbound call to the client identity using the same REST API pattern:
 
 ```typescript
-// In the TwiML generation for ringVolunteers:
-// For phone volunteers: <Number>phone</Number> (existing)
-// For browser volunteers: <Client statusCallbackEvent="..." statusCallback="...">{browserIdentity}</Client>
-// For 'both' volunteers: BOTH <Number> and <Client>
+// For phone volunteers (existing): POST /Calls.json with To=+1555..., Url=callback
+// For browser volunteers (new): POST /Calls.json with To=client:{browserIdentity}, Url=callback
+// Twilio supports `client:identity` as the To parameter for outbound REST calls
 ```
 
-**Note:** Twilio's `ringVolunteers` currently uses REST API to create outbound calls to each volunteer's phone number. For browser clients, the `<Client>` noun goes inside the TwiML response that the incoming caller's webhook generates — not individual outbound calls. This means the TwiML for the incoming call's `<Dial>` must include both `<Number>` and `<Client>` nouns. Check how the current flow constructs TwiML and where to inject `<Client>` nouns. The `<Dial>` response to the incoming call must ring both phone numbers and browser clients simultaneously.
+For each volunteer with `browserIdentity`, create an outbound call leg:
+```typescript
+// In the ringVolunteers loop, alongside phone calls:
+if (vol.browserIdentity) {
+  await twilioClient.calls.create({
+    to: `client:${vol.browserIdentity}`,
+    from: callerNumber, // or the Twilio number
+    url: `${callbackUrl}/api/telephony/volunteer-answer?parentCallSid=${callSid}&pubkey=${vol.pubkey}`,
+    statusCallback: `${callbackUrl}/api/telephony/call-status?hub=${hubId}`,
+  })
+}
+```
+
+This routes the call to the registered Twilio `Device` with that identity, triggering the `incoming` event on the browser SDK. The `volunteer-answer` callback returns `<Dial><Queue>` TwiML to bridge the audio — same flow as phone volunteers.
 
 - [ ] **Step 4: Update Vonage adapter**
 
@@ -1048,9 +1075,9 @@ test('POST /api/calls/:callId/answer cancels all other legs including phone', as
 In `src/server/services/calls.ts`, add:
 
 ```typescript
-async cancelOtherLegs(callSid: string, answeredPubkey: string, answeredType?: 'phone' | 'browser'): Promise<string[]> {
-  // Get all legs for this call
-  const legs = await this.getCallLegs(callSid)
+async cancelOtherLegs(callSid: string, hubId: string | undefined, answeredPubkey: string, answeredType?: 'phone' | 'browser'): Promise<string[]> {
+  // Get all legs for this call (pass hubId to match hub-scoped queries)
+  const legs = await this.getCallLegs(callSid, hubId)
 
   // Cancel all legs except the answered one
   const toCancel = legs.filter(leg => {
@@ -1059,7 +1086,8 @@ async cancelOtherLegs(callSid: string, answeredPubkey: string, answeredType?: 'p
   })
 
   for (const leg of toCancel) {
-    await this.updateCallLeg(leg.legSid, { status: 'cancelled' })
+    // updateCallLeg takes (legSid: string, status: string) — plain string, not object
+    await this.updateCallLeg(leg.legSid, 'cancelled')
   }
 
   // Return phone leg SIDs for telephony adapter cancellation
@@ -1090,7 +1118,7 @@ calls.post('/:callId/answer', requirePermission('calls:answer'), async (c) => {
   )
 
   // Cancel all other legs (phone + browser)
-  const phoneLegSids = await services.calls.cancelOtherLegs(callId, pubkey, body.type)
+  const phoneLegSids = await services.calls.cancelOtherLegs(callId, hubId, pubkey, body.type)
 
   // Cancel ringing phone legs via telephony adapter
   if (phoneLegSids.length > 0) {
@@ -1137,20 +1165,31 @@ import { acceptCall as acceptWebRtcCall, hasIncomingCall } from './webrtc/manage
 
 // In the answerCall function:
 const answerCall = async (callId: string) => {
+  // Capture browser call state once to avoid race condition
+  const isBrowserCall = hasIncomingCall()
+
   // Optimistic UI update (existing)
   // ...
 
   // Accept WebRTC connection if we have an incoming browser call
-  if (hasIncomingCall()) {
+  if (isBrowserCall) {
     acceptWebRtcCall()
   }
 
   // REST call to assign volunteer (existing)
-  await fetch(`/api/calls/${callId}/answer`, {
+  // NOTE: also update apiAnswerCall() in src/client/lib/api.ts to accept
+  // and pass the { type } body parameter
+  await apiAnswerCall(callId, isBrowserCall ? 'browser' : 'phone')
+}
+```
+
+Also update `apiAnswerCall` in `src/client/lib/api.ts` to accept an optional `type` parameter:
+
+```typescript
+export async function apiAnswerCall(callId: string, type?: 'phone' | 'browser') {
+  return authedFetch(`/api/calls/${callId}/answer`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ type: hasIncomingCall() ? 'browser' : 'phone' }),
+    body: JSON.stringify({ type }),
   })
 }
 ```

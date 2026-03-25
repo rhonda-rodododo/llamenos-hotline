@@ -49,7 +49,7 @@ Expected: prints truncated base64url keys without errors. If `web-push` fails on
 ```bash
 bun -e "const wp = require('web-push'); const k = wp.generateVAPIDKeys(); console.log('VAPID_PUBLIC_KEY=' + k.publicKey); console.log('VAPID_PRIVATE_KEY=' + k.privateKey)"
 ```
-Add the output to `.env`. Add placeholder entries to `.env.example` and `.env.live.example`.
+Add the output to `.env`. Add placeholder entries to `.dev.vars.local.example`, `.env.live.example`, and `deploy/docker/.env.example`.
 
 - [ ] **Step 4: Add VAPID env vars to Env interface**
 
@@ -62,7 +62,7 @@ VAPID_PRIVATE_KEY?: string
 - [ ] **Step 5: Commit**
 
 ```bash
-git add package.json bun.lock .env.example .env.live.example src/server/types.ts
+git add package.json bun.lock .dev.vars.local.example .env.live.example deploy/docker/.env.example src/server/types.ts
 git commit -m "feat: add web-push + workbox deps, VAPID env vars"
 ```
 
@@ -197,7 +197,7 @@ bun run migrate
 // src/server/services/push.ts
 import { eq, and, inArray } from 'drizzle-orm'
 import { pushSubscriptions } from '../db/schema/push-subscriptions'
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
+import type { Database } from '../db'
 
 interface SubscribeParams {
   pubkey: string
@@ -208,9 +208,9 @@ interface SubscribeParams {
 }
 
 export class PushService {
-  #db: PostgresJsDatabase
+  #db: Database
 
-  constructor(db: PostgresJsDatabase) {
+  constructor(db: Database) {
     this.#db = db
   }
 
@@ -314,14 +314,15 @@ test.describe('Notification API', () => {
     expect(typeof body.publicKey).toBe('string')
   })
 
-  test('POST /api/notifications/subscribe stores subscription', async () => {
-    // Use authedRequest for authenticated endpoint
-    const res = await authedRequest('POST', '/api/notifications/subscribe', {
+  test('POST /api/notifications/subscribe stores subscription', async ({ request }) => {
+    // Use createAuthedRequestFromNsec helper (see tests/helpers/authed-request.ts)
+    const authedApi = createAuthedRequestFromNsec(request, TEST_NSEC)
+    const res = await authedApi.post('/api/notifications/subscribe', {
       endpoint: 'https://fcm.googleapis.com/fcm/send/test-api-1',
       keys: { auth: 'test-auth', p256dh: 'test-p256dh' },
       deviceLabel: 'Chrome/Test',
     })
-    expect(res.status).toBe(200)
+    expect(res.status()).toBe(200)
   })
 
   test('POST /api/notifications/subscribe rejects unauthenticated', async ({ request }) => {
@@ -331,16 +332,23 @@ test.describe('Notification API', () => {
     expect(res.status()).toBe(401)
   })
 
-  test('DELETE /api/notifications/subscribe removes subscription', async () => {
+  test('POST /api/notifications/subscribe rejects missing fields', async ({ request }) => {
+    const authedApi = createAuthedRequestFromNsec(request, TEST_NSEC)
+    const res = await authedApi.post('/api/notifications/subscribe', { endpoint: 'https://test' })
+    expect(res.status()).toBe(400)
+  })
+
+  test('DELETE /api/notifications/subscribe removes subscription', async ({ request }) => {
+    const authedApi = createAuthedRequestFromNsec(request, TEST_NSEC)
     // Subscribe first
-    await authedRequest('POST', '/api/notifications/subscribe', {
+    await authedApi.post('/api/notifications/subscribe', {
       endpoint: 'https://fcm.googleapis.com/fcm/send/test-delete',
       keys: { auth: 'a', p256dh: 'b' },
     })
-    const res = await authedRequest('DELETE', '/api/notifications/subscribe', {
+    const res = await authedApi.delete('/api/notifications/subscribe', {
       endpoint: 'https://fcm.googleapis.com/fcm/send/test-delete',
     })
-    expect(res.status).toBe(200)
+    expect(res.status()).toBe(200)
   })
 })
 ```
@@ -420,11 +428,17 @@ export default notifications
 
 In `src/server/app.ts`:
 - Import: `import notificationsRoutes from './routes/notifications'`
-- Mount the VAPID key endpoint as public (before auth):
-  ```typescript
-  api.route('/notifications', notificationsRoutes)
-  ```
-  Note: The `/vapid-public-key` sub-route is public. The `/subscribe` and `/subscribe` (DELETE) routes need auth — add auth middleware in the route file or mount under the authenticated router. Follow whichever pattern makes more sense given the existing `app.ts` structure. The VAPID key must be public (unauthenticated), so split the mounting: public GET under `api`, authenticated POST/DELETE under `authenticated`.
+- Split into two route files or use selective middleware. The cleanest approach matching `app.ts` patterns:
+  - Create a public Hono sub-app for the VAPID key and mount under `api` (public, no auth):
+    ```typescript
+    // In the public routes section (near api.route('/config', ...))
+    api.get('/notifications/vapid-public-key', notificationsRoutes.vapidKeyHandler)
+    ```
+  - Mount the subscribe/unsubscribe routes under `authenticated`:
+    ```typescript
+    authenticated.route('/notifications', notificationsRoutes)
+    ```
+  - The notifications route file should apply `auth` middleware on POST/DELETE, or be split into a public handler export and an authenticated Hono router. Follow the pattern used by `api.route('/config', configRoutes)` (public) vs `authenticated.route('/settings', settingsRoutes)` (authed).
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -499,9 +513,11 @@ async sendPushToVolunteers(
 ) {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return
 
-  const webpush = await import('web-push')
-  webpush.default.setVapidDetails(
-    'mailto:admin@llamenos.org',
+  // web-push is CJS — verify module shape during Task 1 smoke test.
+  // If `import('web-push')` doesn't have `.default`, use `require('web-push')` instead.
+  const webpush = require('web-push') as typeof import('web-push')
+  webpush.setVapidDetails(
+    'mailto:admin@llamenos.org', // Consider making this configurable via VAPID_SUBJECT env var
     env.VAPID_PUBLIC_KEY,
     env.VAPID_PRIVATE_KEY,
   )
@@ -512,7 +528,7 @@ async sendPushToVolunteers(
   await Promise.allSettled(
     subscriptions.map(async (sub) => {
       try {
-        await webpush.default.sendNotification(
+        await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { auth: sub.authKey, p256dh: sub.p256dhKey } },
           payload,
           { TTL: 30, urgency: 'high' }
@@ -638,7 +654,8 @@ self.addEventListener('notificationclick', (event) => {
   if (event.action === 'dismiss') return
 
   const { callSid, hubId } = event.notification.data as { callSid: string; hubId: string }
-  const targetUrl = `/dashboard?action=answer&callSid=${callSid}&hubId=${hubId}`
+  // Verify the actual dashboard route path in src/client/routes/ — it may be '/' not '/dashboard'
+  const targetUrl = `/?action=answer&callSid=${callSid}&hubId=${hubId}`
 
   event.waitUntil(
     (async () => {
@@ -713,17 +730,21 @@ Key changes from current config:
 - Moved `globPatterns` from `workbox` to `injectManifest`
 - Removed `workbox` block (no `navigateFallback`/`navigateFallbackDenylist` — handled in SW source)
 
-- [ ] **Step 3: Verify build succeeds**
+- [ ] **Step 3: Verify `sriWorkboxPlugin()` compatibility**
+
+The existing `src/client/lib/sri-workbox-plugin.ts` post-processes the generated SW file. Verify it still works with `injectManifest` mode — the output filename and structure may differ. Update if needed.
+
+- [ ] **Step 4: Verify build succeeds**
 
 ```bash
 bun run build
 ```
 Expected: Build succeeds, service worker is compiled and manifest is injected. Check `dist/client/` for the compiled SW file.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/client/service-worker.ts vite.config.ts
+git add src/client/service-worker.ts vite.config.ts src/client/lib/sri-workbox-plugin.ts
 git commit -m "feat: custom service worker with Web Push handlers (injectManifest)"
 ```
 
@@ -901,7 +922,52 @@ git commit -m "feat: client-side push subscription management"
 
 ---
 
-### Task 7: Handle push notification answer intent on dashboard
+### Task 7: Re-subscribe on app load + Settings UI
+
+**Files:**
+- Modify: Root layout or auth provider component (add `subscribeToPush()` on authenticated app load)
+- Modify: Settings page component (add push notification toggle + device list)
+
+- [ ] **Step 1: Add push re-subscription on authenticated app load**
+
+In the root layout or auth provider (wherever post-auth initialization runs), add:
+
+```typescript
+import { subscribeToPush } from '@/lib/push-subscription'
+
+// On authenticated app load, re-subscribe to handle endpoint rotation
+useEffect(() => {
+  if (isAuthenticated && Notification.permission === 'granted') {
+    subscribeToPush() // fire-and-forget, upserts via unique endpoint
+  }
+}, [isAuthenticated])
+```
+
+This ensures push subscriptions are refreshed on every app load per the spec requirement.
+
+- [ ] **Step 2: Add push notification toggle to Settings page**
+
+In the settings page component, add a section for push notifications:
+- Show status: enabled / disabled / unsupported (via `isPushSupported()` and `isPushSubscribed()`)
+- Toggle button: calls `subscribeToPush()` or `unsubscribeFromPush()`
+- Device list: fetch from `GET /api/notifications/subscriptions` (may need a new endpoint) or show current device status only for MVP
+
+- [ ] **Step 3: Run typecheck and build**
+
+```bash
+bun run typecheck && bun run build
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/client/
+git commit -m "feat: push notification re-subscription on app load + settings toggle"
+```
+
+---
+
+### Task 8: Handle push notification answer intent on dashboard
 
 **Files:**
 - Modify: Dashboard route component (check existing route file for dashboard)
@@ -938,7 +1004,7 @@ useEffect(() => {
     if (callSid) {
       answerCall(callSid)
       // Clean URL
-      window.history.replaceState({}, '', '/dashboard')
+      window.history.replaceState({}, '', '/') // Verify actual dashboard path
     }
   }
 }, [])
@@ -959,7 +1025,7 @@ git commit -m "feat: handle push notification answer intent on dashboard"
 
 ---
 
-### Task 8: E2E tests and final verification
+### Task 9: E2E tests and final verification
 
 **Files:**
 - Test: `tests/api/notifications.spec.ts` (ensure all pass)
