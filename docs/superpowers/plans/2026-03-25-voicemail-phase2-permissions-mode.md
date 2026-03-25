@@ -96,15 +96,57 @@ Add a new role to `DEFAULT_ROLES` array after the Reporter role:
 },
 ```
 
-- [ ] **Step 5: Run typecheck**
+- [ ] **Step 5: Write unit test for permissions**
 
-Run: `bun run typecheck`
+Create or add to a colocated test file (e.g., `src/shared/permissions.test.ts`):
+
+```ts
+import { describe, expect, test } from 'bun:test'
+import { DEFAULT_ROLES, hasPermission, PERMISSION_CATALOG } from './permissions'
+
+describe('voicemail permissions', () => {
+  test('voicemail:* permissions exist in catalog', () => {
+    expect(PERMISSION_CATALOG['voicemail:listen']).toBeDefined()
+    expect(PERMISSION_CATALOG['voicemail:read']).toBeDefined()
+    expect(PERMISSION_CATALOG['voicemail:notify']).toBeDefined()
+    expect(PERMISSION_CATALOG['voicemail:delete']).toBeDefined()
+    expect(PERMISSION_CATALOG['voicemail:manage']).toBeDefined()
+  })
+
+  test('Hub Admin has voicemail:* wildcard', () => {
+    const hubAdmin = DEFAULT_ROLES.find(r => r.id === 'role-hub-admin')!
+    expect(hasPermission([hubAdmin.id], DEFAULT_ROLES as any, 'voicemail:listen')).toBe(true)
+    expect(hasPermission([hubAdmin.id], DEFAULT_ROLES as any, 'voicemail:manage')).toBe(true)
+  })
+
+  test('Volunteer has voicemail:read and calls:read-history', () => {
+    const volunteer = DEFAULT_ROLES.find(r => r.id === 'role-volunteer')!
+    expect(volunteer.permissions).toContain('voicemail:read')
+    expect(volunteer.permissions).toContain('calls:read-history')
+    expect(volunteer.permissions).not.toContain('voicemail:listen')
+  })
+
+  test('Voicemail Reviewer role exists with correct permissions', () => {
+    const reviewer = DEFAULT_ROLES.find(r => r.id === 'role-voicemail-reviewer')!
+    expect(reviewer).toBeDefined()
+    expect(reviewer.permissions).toContain('voicemail:listen')
+    expect(reviewer.permissions).toContain('voicemail:read')
+    expect(reviewer.permissions).toContain('voicemail:notify')
+    expect(reviewer.permissions).toContain('notes:read-all')
+    expect(reviewer.permissions).toContain('calls:read-history')
+  })
+})
+```
+
+- [ ] **Step 6: Run typecheck and tests**
+
+Run: `bun run typecheck && bun test src/shared/permissions.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/shared/permissions.ts
+git add src/shared/permissions.ts src/shared/permissions.test.ts
 git commit -m "feat: add voicemail:* permission domain and Voicemail Reviewer role"
 ```
 
@@ -120,15 +162,16 @@ git commit -m "feat: add voicemail:* permission domain and Voicemail Reviewer ro
 - Modify: `src/client/lib/api.ts`
 - Create: migration
 
-- [ ] **Step 1: Add voicemailMode to DB schema**
+- [ ] **Step 1: Add voicemailMode and voicemailRetentionDays to DB schema**
 
 In `src/server/db/schema/settings.ts`, add to the `callSettings` table:
 
 ```ts
 voicemailMode: text('voicemail_mode').notNull().default('auto'),
+voicemailRetentionDays: integer('voicemail_retention_days'), // nullable — null = keep forever
 ```
 
-Valid values: `'auto'`, `'always'`, `'never'`.
+Valid `voicemailMode` values: `'auto'`, `'always'`, `'never'`.
 
 - [ ] **Step 2: Add to Zod schema**
 
@@ -136,7 +179,11 @@ In `src/shared/schemas/settings.ts`, add to `CallSettingsSchema`:
 
 ```ts
 voicemailMode: z.enum(['auto', 'always', 'never']).default('auto'),
+voicemailRetentionDays: z.number().int().positive().nullable().optional(),
+callRecordingMaxBytes: z.number().int().positive().optional(),
 ```
+
+Note: `callRecordingMaxBytes` exists in the DB but was missing from the Zod schema — fix this pre-existing gap.
 
 - [ ] **Step 3: Add to server CallSettings type**
 
@@ -144,7 +191,11 @@ In `src/server/types.ts`, find the `CallSettings` interface and add:
 
 ```ts
 voicemailMode: 'auto' | 'always' | 'never'
+voicemailRetentionDays: number | null
+callRecordingMaxBytes: number
 ```
+
+Note: `callRecordingMaxBytes` was missing from this interface despite existing in the DB. Fix while here.
 
 - [ ] **Step 4: Add to client CallSettings type**
 
@@ -152,6 +203,8 @@ In `src/client/lib/api.ts`, find the `CallSettings` interface and add:
 
 ```ts
 voicemailMode: 'auto' | 'always' | 'never'
+voicemailRetentionDays: number | null
+callRecordingMaxBytes: number
 ```
 
 - [ ] **Step 5: Wire in settings service**
@@ -217,7 +270,9 @@ In `src/server/telephony/adapter.ts`, add after `handleVoicemailComplete`:
 handleUnavailable(lang: string, audioUrls?: AudioUrlMap): TelephonyResponse
 ```
 
-Note: `AudioUrlMap` is `Record<string, string>` — check if it's already a type alias in the file.
+`AudioUrlMap` is already defined as `export type AudioUrlMap = Record<string, string>` at line 231 of adapter.ts — use it directly.
+
+**SignalWire** (`signalwire.ts`) extends `TwilioAdapter` and inherits `handleUnavailable` — no changes needed. Verify inheritance after implementation.
 
 - [ ] **Step 3: Implement on all adapters**
 
@@ -301,26 +356,42 @@ test.describe('Voicemail mode routing', () => {
 
 Adapt to match actual TwiML patterns from the test adapter. The test adapter may return JSON instead of XML.
 
-- [ ] **Step 2: Implement voicemail-only routing**
+- [ ] **Step 2: Extract voicemail mode routing helper**
 
-In `src/server/routes/telephony.ts`, in the `/language-selected` handler, replace lines 204-213:
+Create a helper function to avoid duplicating availability checks. Add it near the top of telephony.ts (or in a separate util):
 
 ```ts
-// Current code:
-if (!rateLimited && !spamSettings.voiceCaptchaEnabled) {
-  startParallelRinging(...)
+async function checkVoicemailMode(
+  services: Services,
+  hubId: string | undefined
+): Promise<{ mode: 'auto' | 'always' | 'never'; hasAvailableVolunteers: boolean; callSettings: CallSettings }> {
+  const callSettings = await services.settings.getCallSettings(hubId)
+  const mode = callSettings.voicemailMode ?? 'auto'
+
+  if (mode === 'always') {
+    return { mode, hasAvailableVolunteers: false, callSettings }
+  }
+
+  // For auto and never: compute availability once
+  let onShift = await services.shifts.getEffectiveVolunteers(hubId)
+  if (onShift.length === 0) {
+    onShift = await services.settings.getFallbackGroup(hubId)
+  }
+
+  return { mode, hasAvailableVolunteers: onShift.length > 0, callSettings }
 }
 ```
 
-With:
+- [ ] **Step 3: Implement voicemail-only routing in /language-selected**
+
+In the `/language-selected` handler, replace lines 204-213. The `handleIncomingCall` call at line 193 is **pure TwiML generation** (verified: no DB writes or state mutations) — safe to call and discard:
 
 ```ts
 if (!rateLimited && !spamSettings.voiceCaptchaEnabled) {
-  const callSettings = await services.settings.getCallSettings(hubId)
+  const { mode, hasAvailableVolunteers, callSettings } = await checkVoicemailMode(services, hubId)
 
-  // Voicemail-only mode check
-  if (callSettings.voicemailMode === 'always') {
-    // Skip queue entirely — go straight to voicemail
+  if (mode === 'always' || (mode === 'auto' && !hasAvailableVolunteers)) {
+    // Skip queue — go straight to voicemail
     const audioUrls = await buildAudioUrlMap(services.settings, new URL(c.req.url).origin, hubId)
     const vmResponse = await adapter.handleVoicemail({
       callSid,
@@ -333,37 +404,9 @@ if (!rateLimited && !spamSettings.voiceCaptchaEnabled) {
     return telephonyResponse(vmResponse)
   }
 
-  // Auto mode: check if anyone is available to ring
-  if (callSettings.voicemailMode === 'auto') {
-    let onShift = await services.shifts.getEffectiveVolunteers(hubId)
-    if (onShift.length === 0) {
-      onShift = await services.settings.getFallbackGroup(hubId)
-    }
-    if (onShift.length === 0) {
-      // Nobody available — auto-voicemail
-      const audioUrls = await buildAudioUrlMap(services.settings, new URL(c.req.url).origin, hubId)
-      const vmResponse = await adapter.handleVoicemail({
-        callSid,
-        callerLanguage,
-        callbackUrl: new URL(c.req.url).origin,
-        audioUrls,
-        maxRecordingSeconds: callSettings.voicemailMaxSeconds,
-        hubId,
-      })
-      return telephonyResponse(vmResponse)
-    }
-  }
-
-  // Never mode: check if anyone available, if not → unavailable message
-  if (callSettings.voicemailMode === 'never') {
-    let onShift = await services.shifts.getEffectiveVolunteers(hubId)
-    if (onShift.length === 0) {
-      onShift = await services.settings.getFallbackGroup(hubId)
-    }
-    if (onShift.length === 0) {
-      const audioUrls = await buildAudioUrlMap(services.settings, new URL(c.req.url).origin, hubId)
-      return telephonyResponse(adapter.handleUnavailable(callerLanguage, audioUrls))
-    }
+  if (mode === 'never' && !hasAvailableVolunteers) {
+    const audioUrls = await buildAudioUrlMap(services.settings, new URL(c.req.url).origin, hubId)
+    return telephonyResponse(adapter.handleUnavailable(callerLanguage, audioUrls))
   }
 
   // Normal flow — ring volunteers
@@ -377,9 +420,68 @@ if (!rateLimited && !spamSettings.voiceCaptchaEnabled) {
 }
 ```
 
-Note: `handleIncomingCall` is called BEFORE this block (line 193) — it generates the initial TwiML response (enqueue). For `always` and auto-voicemail cases, we override that response by returning early with the voicemail TwiML instead. The `handleIncomingCall` response is discarded in those cases.
+**Rate-limited callers** bypass voicemail mode entirely (they get the rate-limited response from `handleIncomingCall`). This is correct — spam callers should not reach voicemail.
 
-IMPORTANT: Check whether `handleIncomingCall` has side effects beyond generating TwiML. If it does (e.g., creating records), those side effects would still fire. Read the adapter implementations to verify.
+- [ ] **Step 4: Add voicemail mode check to /captcha handler**
+
+The `/captcha` handler (around line 261) also calls `startParallelRinging` on CAPTCHA success. Without a voicemail mode check, `voicemailMode: 'always'` would be bypassed when CAPTCHA is enabled. Add the same check:
+
+```ts
+if (match) {
+  const { mode, hasAvailableVolunteers, callSettings } = await checkVoicemailMode(services, hubId)
+
+  if (mode === 'always' || (mode === 'auto' && !hasAvailableVolunteers)) {
+    const audioUrls = await buildAudioUrlMap(services.settings, new URL(c.req.url).origin, hubId)
+    const vmResponse = await adapter.handleVoicemail({
+      callSid,
+      callerLanguage: callerLang,
+      callbackUrl: new URL(c.req.url).origin,
+      audioUrls,
+      maxRecordingSeconds: callSettings.voicemailMaxSeconds,
+      hubId,
+    })
+    return telephonyResponse(vmResponse)
+  }
+
+  if (mode === 'never' && !hasAvailableVolunteers) {
+    const audioUrls = await buildAudioUrlMap(services.settings, new URL(c.req.url).origin, hubId)
+    return telephonyResponse(adapter.handleUnavailable(callerLang, audioUrls))
+  }
+
+  const origin = new URL(c.req.url).origin
+  startParallelRinging(callSid, callerNumber, origin, env, services, hubId).catch((err) =>
+    console.error('[background]', err)
+  )
+}
+```
+
+- [ ] **Step 5: Switch encryption recipients to voicemail:listen permission**
+
+In the `/voicemail-recording` handler, the Phase 1 code filters admin pubkeys by role IDs. Now that voicemail permissions exist, switch to permission-based querying. Replace the role-based filter:
+
+```ts
+// OLD (Phase 1):
+const adminPubkeys = allVolunteers
+  .filter((v) => v.roles.some((r: string) => r === 'role-hub-admin' || r === 'role-super-admin'))
+  .map((v) => v.pubkey)
+```
+
+With:
+
+```ts
+// NEW (Phase 2): query by voicemail:listen permission
+import { resolvePermissions, permissionGranted } from '@shared/permissions'
+// Load role definitions from DB
+const roleDefs = await services.identity.getRoles()
+const adminPubkeys = allVolunteers
+  .filter((v) => {
+    const perms = resolvePermissions(v.roles, roleDefs)
+    return permissionGranted(perms, 'voicemail:listen')
+  })
+  .map((v) => v.pubkey)
+```
+
+Check that `services.identity.getRoles()` exists — if not, use `services.settings.getRoles()` or load from DB directly. The function must return the `Role[]` array for permission resolution.
 
 - [ ] **Step 3: Run tests**
 
@@ -474,7 +576,7 @@ Per the spec, add the `voicemailRetentionDays` setting to the UI with a "(purge 
 </div>
 ```
 
-Note: `voicemailRetentionDays` needs to be added to the schema/type if not already present. Check and add if missing.
+`voicemailRetentionDays` was added to the DB schema, Zod schema, and type definitions in Task 2. The settings service should already return it. If it doesn't render correctly, verify it's wired in `getCallSettings` / `updateCallSettings`.
 
 - [ ] **Step 4: Run typecheck and build**
 
