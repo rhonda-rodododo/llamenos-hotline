@@ -5,6 +5,7 @@ import { useAuth } from './auth'
 import { getCurrentCallId, getRingingCallIds } from './call-state'
 import { useNoteSheet } from './note-sheet-context'
 import { stopRinging } from './notifications'
+import { acceptCall as acceptWebRtcCall, hasIncomingCall } from './webrtc/manager'
 
 function isInputFocused(): boolean {
   const el = document.activeElement
@@ -62,7 +63,9 @@ export function useKeyboardShortcuts() {
         const ringing = getRingingCallIds()
         if (ringing.length > 0) {
           e.preventDefault()
-          answerCall(ringing[0]).catch(() => {})
+          const isBrowserCall = hasIncomingCall()
+          if (isBrowserCall) acceptWebRtcCall()
+          answerCall(ringing[0], isBrowserCall ? 'browser' : 'phone').catch(() => {})
           stopRinging()
         }
         return

@@ -22,6 +22,7 @@ import { useConfig } from './config'
 import { useNostrSubscription } from './nostr/hooks'
 import type { LlamenosEvent } from './nostr/types'
 import { startRinging, stopRinging } from './notifications'
+import { acceptCall as acceptWebRtcCall, hasIncomingCall } from './webrtc/manager'
 
 /** All call-related Nostr event kinds */
 const CALL_KINDS = [KIND_CALL_RING, KIND_CALL_UPDATE, KIND_CALL_VOICEMAIL, KIND_PRESENCE_UPDATE]
@@ -169,7 +170,10 @@ export function useCalls() {
         setCurrentCall({ ...call, status: 'in-progress' })
       }
       try {
-        await apiAnswerCall(callId)
+        // Capture browser call state once to avoid race with state machine transitions
+        const isBrowserCall = hasIncomingCall()
+        if (isBrowserCall) acceptWebRtcCall()
+        await apiAnswerCall(callId, isBrowserCall ? 'browser' : 'phone')
       } catch {
         // Revert optimistic update on failure
         setCurrentCall(null)

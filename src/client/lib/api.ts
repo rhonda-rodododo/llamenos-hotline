@@ -324,8 +324,11 @@ export async function getCallHistory(params?: {
 
 // --- Call Actions (REST) ---
 
-export async function answerCall(callId: string) {
-  return request<{ call: ActiveCall }>(hp(`/calls/${callId}/answer`), { method: 'POST' })
+export async function answerCall(callId: string, type?: 'phone' | 'browser') {
+  return request<{ call: ActiveCall }>(hp(`/calls/${callId}/answer`), {
+    method: 'POST',
+    body: JSON.stringify({ type }),
+  })
 }
 
 export async function hangupCall(callId: string) {
