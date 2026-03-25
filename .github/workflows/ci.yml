@@ -39,7 +39,8 @@ env:
   TEST_ADMIN_PUBKEY: "ac4718373d30301e5c7cf55e9e6f2568efb94f3278fb88f37f4981e880505228"
   # Shared test environment — used by api-tests, e2e-tests, and unit-tests
   TEST_DATABASE_URL: postgresql://llamenos:llamenos@localhost:5432/llamenos
-  TEST_HMAC_SECRET: ci-test-hmac-secret-minimum-length-32-chars
+  # Must be a valid hex string (even length) — used by hashPhone/hashIP via hexToBytes
+  TEST_HMAC_SECRET: "deadbeefcafebabe0123456789abcdef0123456789abcdef0123456789abcdef"
   TEST_SERVER_NOSTR_SECRET: "0000000000000000000000000000000000000000000000000000000000000001"
 
 jobs:
