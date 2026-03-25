@@ -33,9 +33,10 @@ log() {
   echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"
 }
 
-# Locate mc (MinIO client) — prefer docker exec, then host binary
-if docker inspect llamenos-minio &>/dev/null 2>&1; then
-  MC="docker exec llamenos-minio mc"
+# Locate mc (MinIO client) — prefer docker compose exec, then docker exec, then host binary
+COMPOSE_DIR="${COMPOSE_DIR:-/opt/llamenos}"
+if [[ -f "$COMPOSE_DIR/docker-compose.yml" ]] && docker compose -f "$COMPOSE_DIR/docker-compose.yml" exec -T minio mc --version &>/dev/null 2>&1; then
+  MC="docker compose -f $COMPOSE_DIR/docker-compose.yml exec -T minio mc"
 elif command -v mc &>/dev/null; then
   MC="mc"
 else

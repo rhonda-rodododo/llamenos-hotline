@@ -68,6 +68,14 @@
       UseDNS no
   notify: Restart sshd
 
+- name: Ensure sshd privilege separation directory exists
+  ansible.builtin.file:
+    path: /run/sshd
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Validate SSH configuration
   ansible.builtin.command: sshd -t
   changed_when: false

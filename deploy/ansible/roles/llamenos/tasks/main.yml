@@ -53,7 +53,7 @@
     dest: "{{ app_dir }}/Caddyfile"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_group }}"
-    mode: "0640"
+    mode: "0644"
   notify: Restart llamenos stack
 
 - name: Pull Docker images
@@ -80,26 +80,51 @@
   until: pg_ready.rc == 0
   changed_when: false
 
-- name: Copy init-minio.sh to server
-  ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../../../deploy/scripts/init-minio.sh"
-    dest: "{{ app_dir }}/scripts/init-minio.sh"
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_group }}"
-    mode: "0750"
+- name: Initialize MinIO — configure mc alias
+  ansible.builtin.command: >
+    docker compose -f {{ app_dir }}/docker-compose.yml
+    exec -T minio mc alias set local http://localhost:9000 {{ minio_access_key }} {{ minio_secret_key }}
+  changed_when: false
+  no_log: true
 
-- name: Initialize MinIO bucket and IAM user
-  ansible.builtin.command: "{{ app_dir }}/scripts/init-minio.sh"
-  become_user: "{{ deploy_user }}"
-  environment:
-    MINIO_URL: "http://localhost:9000"
-    MINIO_ROOT_USER: "{{ minio_access_key }}"
-    MINIO_ROOT_PASSWORD: "{{ minio_secret_key }}"
-    MINIO_BUCKET: "{{ minio_bucket }}"
-    MINIO_APP_USER: "{{ minio_app_user | default('llamenos-app') }}"
-    MINIO_APP_PASSWORD: "{{ minio_app_password }}"
-  register: minio_init
-  changed_when: "'initialized successfully' in minio_init.stdout"
+- name: Initialize MinIO — create bucket
+  ansible.builtin.command: >
+    docker compose -f {{ app_dir }}/docker-compose.yml
+    exec -T minio mc mb --ignore-existing local/{{ minio_bucket }}
+  register: minio_bucket_result
+  changed_when: "'created' in minio_bucket_result.stdout"
+
+- name: Initialize MinIO — set recording lifecycle (90 days)
+  ansible.builtin.command: >
+    docker compose -f {{ app_dir }}/docker-compose.yml
+    exec -T minio mc ilm rule add --expire-days 90 local/{{ minio_bucket }} --prefix recordings/
+  register: minio_lifecycle_rec
+  changed_when: minio_lifecycle_rec.rc == 0
+  failed_when: false
+
+- name: Initialize MinIO — set voicemail lifecycle (365 days)
+  ansible.builtin.command: >
+    docker compose -f {{ app_dir }}/docker-compose.yml
+    exec -T minio mc ilm rule add --expire-days 365 local/{{ minio_bucket }} --prefix voicemails/
+  register: minio_lifecycle_vm
+  changed_when: minio_lifecycle_vm.rc == 0
+  failed_when: false
+
+- name: Initialize MinIO — create app IAM user
+  ansible.builtin.command: >
+    docker compose -f {{ app_dir }}/docker-compose.yml
+    exec -T minio mc admin user add local {{ minio_app_user | default('llamenos-app') }} {{ minio_app_password }}
+  register: minio_user_result
+  changed_when: "'Successfully' in minio_user_result.stdout"
+  failed_when: false
+
+- name: Initialize MinIO — create and attach IAM policy
+  ansible.builtin.shell: |
+    echo '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],"Resource":["arn:aws:s3:::{{ minio_bucket }}/*"]},{"Effect":"Allow","Action":["s3:ListBucket"],"Resource":["arn:aws:s3:::{{ minio_bucket }}"]}]}' | \
+      docker compose -f {{ app_dir }}/docker-compose.yml exec -T minio sh -c 'cat > /tmp/llamenos-policy.json'
+    docker compose -f {{ app_dir }}/docker-compose.yml exec -T minio mc admin policy create local llamenos-app /tmp/llamenos-policy.json 2>/dev/null || true
+    docker compose -f {{ app_dir }}/docker-compose.yml exec -T minio mc admin policy attach local llamenos-app --user {{ minio_app_user | default('llamenos-app') }} 2>/dev/null || true
+  changed_when: false
 
 - name: Install systemd service unit
   ansible.builtin.template:
@@ -118,15 +143,14 @@
     daemon_reload: true
 
 - name: Wait for application health check
-  ansible.builtin.uri:
-    url: "http://localhost:3000/api/health"
-    method: GET
-    status_code: 200
-    return_content: true
+  ansible.builtin.command: >
+    docker compose -f {{ app_dir }}/docker-compose.yml
+    exec -T app curl -sf http://localhost:3000/api/health
   register: health_check
   retries: 20
   delay: 5
-  until: health_check.status == 200
+  until: health_check.rc == 0
+  changed_when: false
 
 - name: Install demo data reset cron job
   ansible.builtin.cron:
@@ -150,7 +174,7 @@
       Llamenos deployed successfully.
 
       Application URL: https://{{ domain }}
-      Health check: {{ health_check.json | default('OK') }}
+      Health check: {{ health_check.stdout | default('OK') }}
 
       To view logs:
         ssh {{ deploy_user }}@{{ ansible_host }} 'cd {{ app_dir }} && docker compose logs -f'
