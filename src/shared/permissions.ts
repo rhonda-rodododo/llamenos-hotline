@@ -107,6 +107,13 @@ export const PERMISSION_CATALOG = {
   'files:download-all': 'Download any file',
   'files:share': 'Re-encrypt/share files with others',
 
+  // Voicemail
+  'voicemail:listen': 'Play/decrypt voicemail audio',
+  'voicemail:read': 'View voicemail metadata in call history',
+  'voicemail:notify': 'Receive notifications for new voicemails',
+  'voicemail:delete': 'Delete voicemail audio and transcript',
+  'voicemail:manage': 'Configure voicemail settings',
+
   // GDPR
   'gdpr:consent': 'Record and check own data processing consent',
   'gdpr:export': 'Export own data (GDPR data portability)',
@@ -183,6 +190,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'files:*',
       'contacts:read',
       'contacts:read-history',
+      'voicemail:*',
     ],
     isDefault: true,
     isSystem: false,
@@ -238,6 +246,8 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'gdpr:consent',
       'gdpr:export',
       'gdpr:erase-self',
+      'voicemail:read',
+      'calls:read-history',
     ],
     isDefault: true,
     isSystem: false,
@@ -257,6 +267,22 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     isDefault: true,
     isSystem: false,
     description: 'Submits reports and tracks their own submissions',
+  },
+  {
+    id: 'role-voicemail-reviewer',
+    name: 'Voicemail Reviewer',
+    slug: 'voicemail-reviewer',
+    permissions: [
+      'voicemail:listen',
+      'voicemail:read',
+      'voicemail:notify',
+      'notes:read-all',
+      'contacts:read',
+      'calls:read-history',
+    ],
+    isDefault: true,
+    isSystem: false,
+    description: 'Triages voicemails — listens, reads transcripts, and receives notifications',
   },
 ]
 
