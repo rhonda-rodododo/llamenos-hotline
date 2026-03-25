@@ -124,3 +124,11 @@ export const LABEL_CONTACT_ID = 'llamenos:contact-identifier'
 
 /** ECIES wrapping of provider OAuth/API credentials stored in SettingsDO */
 export const LABEL_PROVIDER_CREDENTIAL_WRAP = 'llamenos:provider-credential-wrap:v1'
+
+// --- Voicemail Encryption ---
+
+/** Voicemail audio symmetric key wrapping (ECIES) */
+export const LABEL_VOICEMAIL_WRAP = 'llamenos:voicemail-audio'
+
+/** Voicemail transcript encryption (domain-separated from generic LABEL_MESSAGE) */
+export const LABEL_VOICEMAIL_TRANSCRIPT = 'llamenos:voicemail-transcript'
