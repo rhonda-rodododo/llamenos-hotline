@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0] - 2026-03-25
+
+### Miscellaneous
+
+- v0.24.0 [skip ci]
+
 ## [0.23.0] - 2026-03-25
 
 ### Bug Fixes
@@ -23,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - resolve pre-existing API test failures and harden TestAdapter
 - cast TextEncoder.encode() to Uint8Array<ArrayBuffer> for WebCrypto APIs
 - address final code review issues
+- resolve Playwright test failures and remove unnecessary skips
 
 ### Documentation
 
@@ -36,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix plan review issues for both implementation plans
 - add SIP WebRTC browser calling spec (JsSIP)
 - address spec review findings for SIP WebRTC design
+- add SIP WebRTC browser calling implementation plan
+- address plan review findings — TURN credentials, schema, rollback
+- update browser calling plan for Asterisk SIP WebRTC integration
+- add SIP WebRTC browser calling to project documentation
 
 ### Features
 
@@ -60,6 +71,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - extend answer endpoint with leg cancellation
 - wire WebRTC answer into useCalls and keyboard shortcuts
 - request mic permission when switching to browser/both call preference
+- add Asterisk WSS transport and volunteer dialplan for browser calling
+- add ARI deleteDynamic for SIP endpoint deprovisioning
+- add Caddy WSS proxy route and CSP for SIP browser calling
+- add coturn TURN server and Asterisk WSS to Docker Compose
+- add dev TLS cert generation script for Asterisk WSS
+- add coturn, STUN/TURN, and WSS env vars to Ansible config
+- add SIP endpoint provision/deprovision bridge commands
+- add SipEndpointProvisioner + AsteriskProvisioner + BridgeClient
+- add SIP adapter cases to WebRTCManager factory
+- extend ring command to support browser PJSIP endpoints
+- SipWebRTCAdapter using JsSIP for browser SIP/WebRTC calling
 
 ### Miscellaneous
 
@@ -70,6 +92,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Refactoring
 
 - serial test improvements + lint fixes from agents
+
+### Testing
+
+- add SIP WebRTC API and E2E tests
 
 ### Wip
 
