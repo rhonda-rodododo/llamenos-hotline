@@ -1,0 +1,51 @@
+name: Start Test Infrastructure
+description: Start MinIO, Asterisk PBX, and Asterisk Bridge for integration/E2E tests
+
+runs:
+  using: composite
+  steps:
+    - name: Start MinIO
+      shell: bash
+      run: |
+        docker run -d --name minio \
+          -e MINIO_ROOT_USER=minioadmin \
+          -e MINIO_ROOT_PASSWORD=minioadmin \
+          -p 9000:9000 \
+          minio/minio:RELEASE.2025-01-20T14-49-07Z server /data
+        for i in $(seq 1 30); do
+          curl -sf http://localhost:9000/minio/health/live && break
+          sleep 2
+        done
+
+    - name: Start Asterisk
+      shell: bash
+      run: |
+        docker run -d --name asterisk \
+          -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/ari.conf:/etc/asterisk/ari.conf:ro \
+          -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/http.conf:/etc/asterisk/http.conf:ro \
+          -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/pjsip.conf:/etc/asterisk/pjsip.conf:ro \
+          -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/extensions.conf:/etc/asterisk/extensions.conf:ro \
+          -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/sorcery.conf:/etc/asterisk/sorcery.conf:ro \
+          -p 8088:8088 \
+          andrius/asterisk@sha256:e30df5ec1b512827bf3cffc49b8000b07376a05c950736d028348eba80035015
+        for i in $(seq 1 30); do
+          docker exec asterisk asterisk -rx "core show version" 2>/dev/null && break
+          sleep 2
+        done
+
+    - name: Start Asterisk Bridge
+      shell: bash
+      run: |
+        cd asterisk-bridge && bun install --frozen-lockfile
+        ARI_URL=ws://localhost:8088/ari/events \
+        ARI_REST_URL=http://localhost:8088/ari \
+        ARI_USERNAME=llamenos \
+        ARI_PASSWORD=changeme \
+        WORKER_WEBHOOK_URL=http://localhost:3000 \
+        BRIDGE_SECRET=dev-bridge-secret \
+        BRIDGE_PORT=3001 \
+        bun run start &
+        for i in $(seq 1 15); do
+          curl -sf http://localhost:3001/health 2>/dev/null && break
+          sleep 2
+        done

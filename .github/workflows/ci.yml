@@ -4,9 +4,11 @@
 #   1. Detect changed files — skip version/release for docs-only changes
 #   2. Build & validate (lint, typecheck, vite build, site build)
 #   3. Run unit tests (with Postgres for DB-dependent tests)
-#   4. Auto-determine version bump from conventional commits
-#   5. Bump version, generate changelog, commit + tag
-#   6. Create GitHub Release with changelog
+#   4. Run API integration tests (Playwright, no browser)
+#   5. Run UI E2E tests (Playwright, Chromium — non-blocking while stabilizing)
+#   6. Auto-determine version bump from conventional commits
+#   7. Bump version, generate changelog, commit + tag
+#   8. Create GitHub Release with changelog
 #   (Desktop app releases are handled by tauri-release.yml)
 #
 # On pull requests (any target branch):
@@ -35,6 +37,10 @@ env:
   BUN_VERSION: "1.3.5"
   # Test admin keypair (derived from ADMIN_NSEC in tests/helpers.ts)
   TEST_ADMIN_PUBKEY: "ac4718373d30301e5c7cf55e9e6f2568efb94f3278fb88f37f4981e880505228"
+  # Shared test environment — used by api-tests, e2e-tests, and unit-tests
+  TEST_DATABASE_URL: postgresql://llamenos:llamenos@localhost:5432/llamenos
+  TEST_HMAC_SECRET: ci-test-hmac-secret-minimum-length-32-chars
+  TEST_SERVER_NOSTR_SECRET: "0000000000000000000000000000000000000000000000000000000000000001"
 
 jobs:
   # ─── Detect Changed Files ─────────────────────────────────────
@@ -104,16 +110,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+      - uses: ./.github/actions/setup-bun
         with:
           bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
 
       - name: Lint
         run: bun run lint
@@ -124,16 +123,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+      - uses: ./.github/actions/setup-bun
         with:
           bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
 
       - name: Install site dependencies
         run: cd site && bun install --frozen-lockfile
@@ -204,21 +196,14 @@ jobs:
           - 5432:5432
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+      - uses: ./.github/actions/setup-bun
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
       - name: Run unit tests
         env:
-          DATABASE_URL: postgresql://llamenos:llamenos@localhost:5432/llamenos
-          TEST_DATABASE_URL: postgresql://llamenos:llamenos@localhost:5432/llamenos
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          TEST_DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
           ADMIN_PUBKEY: ${{ env.TEST_ADMIN_PUBKEY }}
         run: bun run test:unit
 
@@ -251,84 +236,35 @@ jobs:
           --health-interval 15s
           --health-timeout 5s
           --health-retries 5
+          --health-start-period 10s
           --ulimit nofile=65536:65536
+          --tmpfs /app/strfry-db
         ports:
           - 7777:7777
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+      - uses: ./.github/actions/setup-bun
         with:
           bun-version: ${{ env.BUN_VERSION }}
+          install-playwright: "true"
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Install Playwright
-        run: bunx playwright install --with-deps chromium
-
-      - name: Start MinIO
-        run: |
-          docker run -d --name minio \
-            -e MINIO_ROOT_USER=minioadmin \
-            -e MINIO_ROOT_PASSWORD=minioadmin \
-            -p 9000:9000 \
-            minio/minio:RELEASE.2025-01-20T14-49-07Z server /data
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:9000/minio/health/live && break
-            sleep 2
-          done
-
-      - name: Start Asterisk
-        run: |
-          docker run -d --name asterisk \
-            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/ari.conf:/etc/asterisk/ari.conf:ro \
-            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/http.conf:/etc/asterisk/http.conf:ro \
-            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/pjsip.conf:/etc/asterisk/pjsip.conf:ro \
-            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/extensions.conf:/etc/asterisk/extensions.conf:ro \
-            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/sorcery.conf:/etc/asterisk/sorcery.conf:ro \
-            -p 8088:8088 \
-            andrius/asterisk@sha256:e30df5ec1b512827bf3cffc49b8000b07376a05c950736d028348eba80035015
-          for i in $(seq 1 30); do
-            docker exec asterisk asterisk -rx "core show version" 2>/dev/null && break
-            sleep 2
-          done
-
-      - name: Start Asterisk Bridge
-        run: |
-          cd asterisk-bridge && bun install --frozen-lockfile
-          ARI_URL=ws://localhost:8088/ari/events \
-          ARI_REST_URL=http://localhost:8088/ari \
-          ARI_USERNAME=llamenos \
-          ARI_PASSWORD=changeme \
-          WORKER_WEBHOOK_URL=http://localhost:3000 \
-          BRIDGE_SECRET=dev-bridge-secret \
-          BRIDGE_PORT=3001 \
-          bun run start &
-          # Wait for bridge to be ready
-          for i in $(seq 1 15); do
-            curl -sf http://localhost:3001/health 2>/dev/null && break
-            sleep 2
-          done
+      - uses: ./.github/actions/start-test-infra
 
       - name: Build frontend
         run: bun run build
 
       - name: Run API integration tests
         env:
-          DATABASE_URL: postgresql://llamenos:llamenos@localhost:5432/llamenos
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
           ADMIN_PUBKEY: ${{ env.TEST_ADMIN_PUBKEY }}
-          HMAC_SECRET: ci-test-hmac-secret-minimum-length-32-chars
+          HMAC_SECRET: ${{ env.TEST_HMAC_SECRET }}
           ENVIRONMENT: development
           USE_TEST_ADAPTER: "true"
           MINIO_ENDPOINT: http://localhost:9000
           MINIO_ACCESS_KEY: minioadmin
           MINIO_SECRET_KEY: minioadmin
           NOSTR_RELAY_URL: ws://localhost:7777
-          SERVER_NOSTR_SECRET: "0000000000000000000000000000000000000000000000000000000000000001"
+          SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
           DEV_RESET_SECRET: test-reset-secret
         run: bunx playwright test --project=setup --project=api
 
@@ -363,83 +299,35 @@ jobs:
           --health-interval 15s
           --health-timeout 5s
           --health-retries 5
+          --health-start-period 10s
           --ulimit nofile=65536:65536
+          --tmpfs /app/strfry-db
         ports:
           - 7777:7777
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+      - uses: ./.github/actions/setup-bun
         with:
           bun-version: ${{ env.BUN_VERSION }}
+          install-playwright: "true"
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Install Playwright
-        run: bunx playwright install --with-deps chromium
-
-      - name: Start MinIO
-        run: |
-          docker run -d --name minio \
-            -e MINIO_ROOT_USER=minioadmin \
-            -e MINIO_ROOT_PASSWORD=minioadmin \
-            -p 9000:9000 \
-            minio/minio:RELEASE.2025-01-20T14-49-07Z server /data
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:9000/minio/health/live && break
-            sleep 2
-          done
-
-      - name: Start Asterisk
-        run: |
-          docker run -d --name asterisk \
-            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/ari.conf:/etc/asterisk/ari.conf:ro \
-            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/http.conf:/etc/asterisk/http.conf:ro \
-            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/pjsip.conf:/etc/asterisk/pjsip.conf:ro \
-            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/extensions.conf:/etc/asterisk/extensions.conf:ro \
-            -v ${{ github.workspace }}/asterisk-bridge/asterisk-config/sorcery.conf:/etc/asterisk/sorcery.conf:ro \
-            -p 8088:8088 \
-            andrius/asterisk@sha256:e30df5ec1b512827bf3cffc49b8000b07376a05c950736d028348eba80035015
-          for i in $(seq 1 30); do
-            docker exec asterisk asterisk -rx "core show version" 2>/dev/null && break
-            sleep 2
-          done
-
-      - name: Start Asterisk Bridge
-        run: |
-          cd asterisk-bridge && bun install --frozen-lockfile
-          ARI_URL=ws://localhost:8088/ari/events \
-          ARI_REST_URL=http://localhost:8088/ari \
-          ARI_USERNAME=llamenos \
-          ARI_PASSWORD=changeme \
-          WORKER_WEBHOOK_URL=http://localhost:3000 \
-          BRIDGE_SECRET=dev-bridge-secret \
-          BRIDGE_PORT=3001 \
-          bun run start &
-          for i in $(seq 1 15); do
-            curl -sf http://localhost:3001/health 2>/dev/null && break
-            sleep 2
-          done
+      - uses: ./.github/actions/start-test-infra
 
       - name: Build frontend
         run: bun run build
 
       - name: Run UI E2E tests
         env:
-          DATABASE_URL: postgresql://llamenos:llamenos@localhost:5432/llamenos
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
           ADMIN_PUBKEY: ${{ env.TEST_ADMIN_PUBKEY }}
-          HMAC_SECRET: ci-test-hmac-secret-minimum-length-32-chars
+          HMAC_SECRET: ${{ env.TEST_HMAC_SECRET }}
           ENVIRONMENT: development
           USE_TEST_ADAPTER: "true"
           MINIO_ENDPOINT: http://localhost:9000
           MINIO_ACCESS_KEY: minioadmin
           MINIO_SECRET_KEY: minioadmin
           NOSTR_RELAY_URL: ws://localhost:7777
-          SERVER_NOSTR_SECRET: "0000000000000000000000000000000000000000000000000000000000000001"
+          SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
           DEV_RESET_SECRET: test-reset-secret
         run: bunx playwright test --project=setup --project=ui --project=bootstrap --project=mobile
 
@@ -457,17 +345,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+      - uses: ./.github/actions/setup-bun
         with:
-          # bun audit requires >= 1.3
           bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
 
       - name: Audit dependencies
         # Tiered approach: warn on high-severity, fail on critical.
@@ -497,12 +377,11 @@ jobs:
       - name: Run ansible-lint
         run: cd deploy/ansible && ansible-lint .
 
-      - name: Dry-run check
+      - name: Syntax check
         run: |
           cd deploy/ansible
-          # Playbook includes vars.yml internally; provide example as the real file
           cp vars.example.yml vars.yml
-          ansible-playbook setup.yml --check --diff \
+          ansible-playbook setup.yml --syntax-check \
             -i inventory.example.yml \
             --extra-vars "@vars.example.yml"
 
@@ -581,13 +460,8 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Version: $OLD_VERSION → $NEW_VERSION ($BUMP)"
 
-      - name: Install git-cliff
+      - uses: ./.github/actions/install-git-cliff
         if: steps.version.outputs.should_release == 'true'
-        run: |
-          curl -sSfL https://github.com/orhun/git-cliff/releases/download/v2.7.0/git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz -o /tmp/git-cliff.tar.gz
-          echo "d9705c9f43bd74e2d10ca7df10b624bbe6f15bd4774f6c1e012db5be276f91f7  /tmp/git-cliff.tar.gz" | sha256sum -c -
-          tar xz -C /usr/local/bin --strip-components=1 -f /tmp/git-cliff.tar.gz git-cliff-2.7.0/git-cliff
-          rm /tmp/git-cliff.tar.gz
 
       - name: Bump version in package.json
         if: steps.version.outputs.should_release == 'true'
@@ -728,12 +602,7 @@ jobs:
           gpg --verify CHECKSUMS.txt.asc CHECKSUMS.txt
           echo "GPG signature verified successfully"
 
-      - name: Install git-cliff
-        run: |
-          curl -sSfL https://github.com/orhun/git-cliff/releases/download/v2.7.0/git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz -o /tmp/git-cliff.tar.gz
-          echo "d9705c9f43bd74e2d10ca7df10b624bbe6f15bd4774f6c1e012db5be276f91f7  /tmp/git-cliff.tar.gz" | sha256sum -c -
-          tar xz -C /usr/local/bin --strip-components=1 -f /tmp/git-cliff.tar.gz git-cliff-2.7.0/git-cliff
-          rm /tmp/git-cliff.tar.gz
+      - uses: ./.github/actions/install-git-cliff
 
       - name: Generate release notes
         run: |

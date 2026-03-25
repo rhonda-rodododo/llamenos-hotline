@@ -25,3 +25,5 @@ all:
           ansible_user: deploy
           ansible_ssh_private_key_file: ~/.ssh/llamenos_demo_deploy
           ansible_port: 22
+          # CI dry-run only — remove this line in real inventory
+          ansible_connection: local
