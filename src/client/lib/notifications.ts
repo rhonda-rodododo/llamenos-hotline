@@ -2,6 +2,7 @@
  * Notification system for incoming calls.
  * Handles audio ringtone, tab title flashing, and browser notifications.
  */
+import { subscribeToPush } from './push-subscription'
 
 const RINGTONE_FREQUENCY = 440 // Hz (A4 note)
 const RING_DURATION = 800 // ms
@@ -101,7 +102,12 @@ export async function requestPermission(): Promise<boolean> {
   if (Notification.permission === 'granted') return true
   if (Notification.permission === 'denied') return false
   const result = await Notification.requestPermission()
-  return result === 'granted'
+  const granted = result === 'granted'
+  if (granted) {
+    // Fire-and-forget: register push subscription after permission is granted
+    subscribeToPush()
+  }
+  return granted
 }
 
 function showBrowserNotification(title: string, body: string) {
