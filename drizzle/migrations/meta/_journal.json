@@ -92,6 +92,13 @@
       "when": 1742947200005,
       "tag": "0012_captcha_retry",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1742947200006,
+      "tag": "0013_push_subscriptions",
+      "breakpoints": true
     }
   ]
 }

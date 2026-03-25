@@ -7,6 +7,7 @@ import { FilesService } from './files'
 import { GdprService } from './gdpr'
 import { IdentityService } from './identity'
 import type { ProviderHealthService } from './provider-health'
+import { PushService } from './push'
 import { RecordsService } from './records'
 import { ReportTypeService } from './report-types'
 import { SettingsService } from './settings'
@@ -19,6 +20,7 @@ export type {
   FilesService,
   GdprService,
   IdentityService,
+  PushService,
   RecordsService,
   ReportTypeService,
   SettingsService,
@@ -37,6 +39,7 @@ export interface Services {
   files: FilesService
   gdpr: GdprService
   reportTypes: ReportTypeService
+  push: PushService
   providerHealth?: ProviderHealthService
 }
 
@@ -56,5 +59,6 @@ export function createServices(
     files: new FilesService(db, blob),
     gdpr: new GdprService(db),
     reportTypes: new ReportTypeService(db),
+    push: new PushService(db),
   }
 }
