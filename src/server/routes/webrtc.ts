@@ -39,7 +39,7 @@ webrtc.get('/webrtc-token', async (c) => {
     // Use a sanitized identity (pubkey prefix — unique per volunteer)
     const identity = `vol_${pubkey.slice(0, 16)}`
     const result = await generateWebRtcToken(config, identity)
-    return c.json({ token: result.token, provider: result.provider, identity })
+    return c.json({ token: result.token, provider: result.provider, identity, ttl: result.ttl })
   } catch (err) {
     console.error('[webrtc] Token generation failed:', err)
     return c.json({ error: 'Failed to generate WebRTC token' }, 500)

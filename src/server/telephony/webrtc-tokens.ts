@@ -11,7 +11,7 @@ import type { TelephonyProviderConfig, TelephonyProviderType } from '../../share
 export async function generateWebRtcToken(
   config: TelephonyProviderConfig,
   identity: string
-): Promise<{ token: string; provider: TelephonyProviderType }> {
+): Promise<{ token: string; provider: TelephonyProviderType; ttl: number }> {
   switch (config.type) {
     case 'twilio':
       return generateTwilioToken(config, identity)
@@ -65,7 +65,7 @@ export function isWebRtcConfigured(config: TelephonyProviderConfig | null): bool
 async function generateTwilioToken(
   config: TwilioConfig,
   identity: string
-): Promise<{ token: string; provider: TelephonyProviderType }> {
+): Promise<{ token: string; provider: TelephonyProviderType; ttl: number }> {
   if (!config.apiKeySid || !config.apiKeySecret || !config.twimlAppSid) {
     throw new Error(
       'Missing Twilio WebRTC config: apiKeySid, apiKeySecret, twimlAppSid, accountSid'
@@ -90,7 +90,7 @@ async function generateTwilioToken(
   }
 
   const token = await signJwtHs256(header, payload, config.apiKeySecret)
-  return { token, provider: config.type }
+  return { token, provider: config.type, ttl: 3600 }
 }
 
 // --- Vonage JWT ---
@@ -99,7 +99,7 @@ async function generateTwilioToken(
 async function generateVonageToken(
   config: VonageConfig,
   identity: string
-): Promise<{ token: string; provider: TelephonyProviderType }> {
+): Promise<{ token: string; provider: TelephonyProviderType; ttl: number }> {
   if (!config.privateKey) {
     throw new Error('Missing Vonage WebRTC config: privateKey')
   }
@@ -127,7 +127,7 @@ async function generateVonageToken(
   }
 
   const token = await signJwtRs256(header, payload, config.privateKey)
-  return { token, provider: 'vonage' }
+  return { token, provider: 'vonage', ttl: 3600 }
 }
 
 // --- Plivo JWT ---
@@ -138,7 +138,7 @@ async function generateVonageToken(
 async function generatePlivoToken(
   config: PlivoConfig,
   identity: string
-): Promise<{ token: string; provider: TelephonyProviderType }> {
+): Promise<{ token: string; provider: TelephonyProviderType; ttl: number }> {
   const now = Math.floor(Date.now() / 1000)
   const header = { typ: 'JWT', alg: 'HS256' }
   const payload = {
@@ -154,7 +154,7 @@ async function generatePlivoToken(
     },
   }
   const token = await signJwtHs256(header, payload, config.authToken)
-  return { token, provider: 'plivo' }
+  return { token, provider: 'plivo', ttl: 3600 }
 }
 
 // --- Crypto helpers ---
