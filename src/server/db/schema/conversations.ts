@@ -66,7 +66,7 @@ export const messageEnvelopes = pgTable('message_envelopes', {
 export const fileRecords = pgTable('file_records', {
   id: text('id').primaryKey(),
   hubId: text('hub_id').notNull().default('global'),
-  conversationId: text('conversation_id').notNull(),
+  conversationId: text('conversation_id'),
   messageId: text('message_id'),
   uploadedBy: text('uploaded_by').notNull(),
   recipientEnvelopes: jsonb<FileKeyEnvelope[]>()('recipient_envelopes').notNull().default([]),

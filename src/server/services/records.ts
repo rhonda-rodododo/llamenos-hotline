@@ -142,6 +142,7 @@ export class RecordsService {
         ...(data.hasVoicemail !== undefined ? { hasVoicemail: data.hasVoicemail } : {}),
         ...(data.hasRecording !== undefined ? { hasRecording: data.hasRecording } : {}),
         ...(data.recordingSid !== undefined ? { recordingSid: data.recordingSid } : {}),
+        ...(data.voicemailFileId !== undefined ? { voicemailFileId: data.voicemailFileId } : {}),
         ...(data.encryptedContent !== undefined ? { encryptedContent: data.encryptedContent } : {}),
         ...(data.adminEnvelopes !== undefined
           ? { adminEnvelopes: data.adminEnvelopes as RecipientEnvelope[] }

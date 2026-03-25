@@ -224,7 +224,7 @@ export interface FileFieldValue {
 
 export interface FileRecord {
   id: string
-  conversationId: string
+  conversationId: string | null
   messageId?: string
   uploadedBy: string // pubkey of uploader
   recipientEnvelopes: FileKeyEnvelope[]
@@ -236,7 +236,7 @@ export interface FileRecord {
   createdAt: string
   completedAt?: string
   /** Optional context binding — set after the parent record (note, report, etc.) is saved. */
-  contextType?: 'conversation' | 'note' | 'report' | 'custom_field'
+  contextType?: 'conversation' | 'note' | 'report' | 'custom_field' | 'voicemail'
   contextId?: string // noteId or reportId
 }
 
@@ -247,7 +247,7 @@ export interface UploadInit {
   recipientEnvelopes: FileKeyEnvelope[]
   encryptedMetadata: EncryptedMetaItem[]
   /** Optional context binding — can be provided at init time or later via PATCH /context. */
-  contextType?: 'conversation' | 'note' | 'report' | 'custom_field'
+  contextType?: 'conversation' | 'note' | 'report' | 'custom_field' | 'voicemail'
   contextId?: string
 }
 

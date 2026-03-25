@@ -82,6 +82,8 @@ export const callSettings = pgTable('call_settings', {
   hubId: text('hub_id').primaryKey().default('global'),
   queueTimeoutSeconds: integer('queue_timeout_seconds').notNull().default(90),
   voicemailMaxSeconds: integer('voicemail_max_seconds').notNull().default(120),
+  voicemailMaxBytes: integer('voicemail_max_bytes').notNull().default(2097152), // 2MB
+  callRecordingMaxBytes: integer('call_recording_max_bytes').notNull().default(20971520), // 20MB
 })
 
 export const transcriptionSettings = pgTable('transcription_settings', {

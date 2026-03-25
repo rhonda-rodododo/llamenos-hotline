@@ -34,6 +34,7 @@ export const callRecords = pgTable('call_records', {
   hasVoicemail: boolean('has_voicemail').notNull().default(false),
   hasRecording: boolean('has_recording').notNull().default(false),
   recordingSid: text('recording_sid'),
+  voicemailFileId: text('voicemail_file_id'),
   // Encrypted fields (envelope pattern)
   encryptedContent: text('encrypted_content'),
   adminEnvelopes: jsonb<RecipientEnvelope[]>()('admin_envelopes').notNull().default([]),

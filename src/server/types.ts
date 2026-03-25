@@ -559,6 +559,7 @@ export interface CreateCallRecordData {
   hasVoicemail?: boolean
   hasRecording?: boolean
   recordingSid?: string
+  voicemailFileId?: string
   encryptedContent?: string
   adminEnvelopes?: RecipientEnvelope[]
 }
