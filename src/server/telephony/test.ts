@@ -20,7 +20,7 @@ import type {
 /**
  * TestAdapter — telephony adapter for E2E testing.
  * Returns valid TwiML responses without making real API calls.
- * Parses Twilio-format form-encoded webhook bodies.
+ * Parses both Twilio-format form-encoded and JSON (Asterisk/Vonage) webhook bodies.
  *
  * Activated via USE_TEST_ADAPTER=true env var as a fallback
  * when no real telephony provider is configured.
@@ -28,6 +28,42 @@ import type {
 export class TestAdapter implements TelephonyAdapter {
   private twiml(xml: string): TelephonyResponse {
     return { contentType: 'text/xml', body: xml.trim() }
+  }
+
+  /**
+   * Parse a webhook request body supporting both form-encoded (Twilio/SignalWire/Plivo)
+   * and JSON (Vonage/Asterisk) payloads. Returns a unified flat key-value map where
+   * JSON fields are normalised to their Twilio equivalents where possible.
+   */
+  private async parseWebhookBody(request: Request): Promise<Record<string, string>> {
+    const contentType = request.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+      const json = (await request.clone().json()) as Record<string, unknown>
+      // Normalise Vonage / Asterisk / generic JSON field names to Twilio equivalents
+      return {
+        CallSid: String(json.CallSid ?? json.callSid ?? json.uuid ?? json.channelId ?? ''),
+        From: String(json.From ?? json.from ?? json.callerNumber ?? json.callerIdNumber ?? ''),
+        To: String(json.To ?? json.to ?? json.calledNumber ?? json.destination_number ?? ''),
+        CallStatus: String(
+          json.CallStatus ?? json.callStatus ?? json.state ?? json.status ?? 'ringing'
+        ),
+        Digits: String(json.Digits ?? json.digits ?? json.dtmf ?? ''),
+        RecordingStatus: String(
+          json.RecordingStatus ??
+            json.recordingStatus ??
+            (json.recordingStatus === 'done' ? 'completed' : '')
+        ),
+        RecordingSid: String(json.RecordingSid ?? json.recordingSid ?? json.recordingName ?? ''),
+        QueueTime: String(json.QueueTime ?? json.queueTime ?? '0'),
+        QueueResult: String(json.QueueResult ?? json.result ?? json.reason ?? ''),
+      }
+    }
+    const form = await request.clone().formData()
+    const result: Record<string, string> = {}
+    for (const [key, value] of form.entries()) {
+      result[key] = String(value)
+    }
+    return result
   }
 
   // --- TwiML Response Methods ---
@@ -181,38 +217,39 @@ export class TestAdapter implements TelephonyAdapter {
   // --- Webhook Parsing (Twilio form-body format) ---
 
   async parseIncomingWebhook(request: Request): Promise<WebhookCallInfo> {
-    const form = await request.clone().formData()
+    const fields = await this.parseWebhookBody(request)
     return {
-      callSid: form.get('CallSid') as string,
-      callerNumber: form.get('From') as string,
-      calledNumber: (form.get('To') as string) || undefined,
+      callSid: fields.CallSid,
+      callerNumber: fields.From,
+      calledNumber: fields.To || undefined,
     }
   }
 
   async parseLanguageWebhook(request: Request): Promise<WebhookCallInfo & WebhookDigits> {
-    const form = await request.clone().formData()
+    const fields = await this.parseWebhookBody(request)
     return {
-      callSid: form.get('CallSid') as string,
-      callerNumber: form.get('From') as string,
-      digits: (form.get('Digits') as string) || '',
+      callSid: fields.CallSid,
+      callerNumber: fields.From,
+      digits: fields.Digits || '',
     }
   }
 
   async parseCaptchaWebhook(request: Request): Promise<WebhookDigits & { callerNumber: string }> {
-    const form = await request.clone().formData()
+    const fields = await this.parseWebhookBody(request)
     return {
-      digits: (form.get('Digits') as string) || '',
-      callerNumber: (form.get('From') as string) || '',
+      digits: fields.Digits || '',
+      callerNumber: fields.From || '',
     }
   }
 
   async parseCallStatusWebhook(request: Request): Promise<WebhookCallStatus> {
-    const form = await request.clone().formData()
-    const raw = form.get('CallStatus') as string
+    const fields = await this.parseWebhookBody(request)
+    const raw = fields.CallStatus
     const STATUS_MAP: Record<string, WebhookCallStatus['status']> = {
       initiated: 'initiated',
       ringing: 'ringing',
       'in-progress': 'answered',
+      answered: 'answered',
       completed: 'completed',
       busy: 'busy',
       'no-answer': 'no-answer',
@@ -223,13 +260,13 @@ export class TestAdapter implements TelephonyAdapter {
   }
 
   async parseQueueWaitWebhook(request: Request): Promise<WebhookQueueWait> {
-    const form = await request.clone().formData()
-    return { queueTime: Number.parseInt((form.get('QueueTime') as string) || '0', 10) }
+    const fields = await this.parseWebhookBody(request)
+    return { queueTime: Number.parseInt(fields.QueueTime || '0', 10) }
   }
 
   async parseQueueExitWebhook(request: Request): Promise<WebhookQueueResult> {
-    const form = await request.clone().formData()
-    const raw = form.get('QueueResult') as string
+    const fields = await this.parseWebhookBody(request)
+    const raw = fields.QueueResult
     const RESULT_MAP: Record<string, WebhookQueueResult['result']> = {
       leave: 'leave',
       'queue-full': 'queue-full',
@@ -241,12 +278,12 @@ export class TestAdapter implements TelephonyAdapter {
   }
 
   async parseRecordingWebhook(request: Request): Promise<WebhookRecordingStatus> {
-    const form = await request.clone().formData()
-    const raw = form.get('RecordingStatus') as string
+    const fields = await this.parseWebhookBody(request)
+    const raw = fields.RecordingStatus
     return {
       status: raw === 'completed' ? 'completed' : 'failed',
-      recordingSid: (form.get('RecordingSid') as string) || undefined,
-      callSid: (form.get('CallSid') as string) || undefined,
+      recordingSid: fields.RecordingSid || undefined,
+      callSid: fields.CallSid || undefined,
     }
   }
 

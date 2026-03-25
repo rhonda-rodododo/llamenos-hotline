@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test'
-import { simulateIncomingCall, simulateEndCall, simulateVoicemail } from '../helpers/simulation'
+import { expect, test } from '@playwright/test'
 import { resetTestState } from '../helpers/index'
+import { simulateEndCall, simulateIncomingCall, simulateVoicemail } from '../helpers/simulation'
 
 test.describe('Asterisk simulation — call lifecycle', () => {
   test.beforeEach(async ({ request }) => {
@@ -15,13 +15,19 @@ test.describe('Asterisk simulation — call lifecycle', () => {
     // 404 = Asterisk not configured in this env (acceptable in CI)
     expect([200, 404]).toContain(status)
     if (status === 200) {
-      // Asterisk adapter returns ARI command JSON
-      const json = JSON.parse(body)
-      expect(json).toHaveProperty('commands')
-      const commands: Array<{ action: string }> = json.commands
-      // Should either enqueue (CAPTCHA off) or present language menu (CAPTCHA on)
-      const actions = commands.map((c) => c.action)
-      expect(actions.some((a) => ['queue', 'speak', 'gather'].includes(a))).toBe(true)
+      // When a real AsteriskAdapter is configured: JSON ARI command response
+      // When using TestAdapter fallback (dev/test with USE_TEST_ADAPTER=true): TwiML XML
+      if (body.trim().startsWith('{')) {
+        const json = JSON.parse(body)
+        expect(json).toHaveProperty('commands')
+        const commands: Array<{ action: string }> = json.commands
+        // Should either enqueue (CAPTCHA off) or present language menu (CAPTCHA on)
+        const actions = commands.map((c) => c.action)
+        expect(actions.some((a) => ['queue', 'speak', 'gather'].includes(a))).toBe(true)
+      } else {
+        // TestAdapter fallback returns TwiML
+        expect(body).toMatch(/<Response>/)
+      }
     }
   })
 

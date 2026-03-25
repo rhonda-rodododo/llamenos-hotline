@@ -6,10 +6,10 @@
  * Uses hub-scoped routes since report_types table has FK to hubs.
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { TestContext } from '../api-helpers'
-import { createAuthedRequestFromNsec, type AuthedRequest } from '../helpers/authed-request'
 import { ADMIN_NSEC } from '../helpers'
+import { type AuthedRequest, createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 let ctx: TestContext
 let adminApi: AuthedRequest
@@ -43,7 +43,8 @@ test.describe('Report Type Management', () => {
       description: 'For logging incidents during calls',
     })
     expect(res.status()).toBe(201)
-    const body = await res.json()
+    const data = await res.json()
+    const body = data.reportType ?? data
     expect(body.id).toBeTruthy()
     expect(body.name).toBe('Incident Report')
     reportTypeId = body.id
@@ -65,7 +66,8 @@ test.describe('Report Type Management', () => {
       description: 'Updated description',
     })
     expect(res.status()).toBe(200)
-    const body = await res.json()
+    const data = await res.json()
+    const body = data.reportType ?? data
     expect(body.name).toBe('Updated Incident Report')
   })
 

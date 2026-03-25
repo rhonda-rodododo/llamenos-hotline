@@ -12,11 +12,11 @@
  * Uses direct crypto imports — no browser context needed.
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { decryptNoteV2, encryptNoteV2 } from '../../src/client/lib/crypto'
 import { ADMIN_NSEC, resetTestState } from '../helpers'
-import { encryptNoteV2, decryptNoteV2 } from '../../src/client/lib/crypto'
+import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 // Build admin secret key bytes and pubkey from test nsec
 const { data: adminSkBytes } = nip19.decode(ADMIN_NSEC) as { type: 'nsec'; data: Uint8Array }
@@ -37,12 +37,12 @@ interface RawNote {
 async function createEncryptedNote(
   authedApi: ReturnType<typeof createAuthedRequestFromNsec>,
   noteText: string,
-  callId: string,
+  callId: string
 ): Promise<string> {
   const { encryptedContent, authorEnvelope, adminEnvelopes } = encryptNoteV2(
     { text: noteText },
     ADMIN_PUBKEY,
-    [ADMIN_PUBKEY],
+    [ADMIN_PUBKEY]
   )
   const res = await authedApi.post('/api/notes', {
     callId,
@@ -51,14 +51,15 @@ async function createEncryptedNote(
     adminEnvelopes,
   })
   expect(res.ok()).toBeTruthy()
-  const note = await res.json()
+  const data = await res.json()
+  const note = data.note ?? data
   return note.id as string
 }
 
 /** Fetch raw note list for a callId, returning the notes array. */
 async function fetchRawNotes(
   authedApi: ReturnType<typeof createAuthedRequestFromNsec>,
-  callId: string,
+  callId: string
 ): Promise<RawNote[]> {
   const res = await authedApi.get(`/api/notes?callId=${encodeURIComponent(callId)}`)
   expect(res.ok()).toBeTruthy()
@@ -83,7 +84,9 @@ test.describe('E2EE note encryption', () => {
 
   // ── Test 1.1: Note content is encrypted at rest ───────────────────────────
 
-  test('note content is encrypted at rest (plaintext not in raw API response)', async ({ request }) => {
+  test('note content is encrypted at rest (plaintext not in raw API response)', async ({
+    request,
+  }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
     noteId = await createEncryptedNote(authedApi, NOTE_PLAINTEXT, CALL_ID)
@@ -119,11 +122,7 @@ test.describe('E2EE note encryption', () => {
     expect(note).toBeTruthy()
 
     // Decrypt using admin's secret key directly
-    const payload = decryptNoteV2(
-      note!.encryptedContent!,
-      note!.authorEnvelope!,
-      adminSkBytes,
-    )
+    const payload = decryptNoteV2(note!.encryptedContent!, note!.authorEnvelope!, adminSkBytes)
 
     expect(payload).not.toBeNull()
     expect(payload!.text).toBe(NOTE_PLAINTEXT)
@@ -131,7 +130,9 @@ test.describe('E2EE note encryption', () => {
 
   // ── Test 1.3: Per-note forward secrecy (unique envelope per note) ─────────
 
-  test('two notes have different authorEnvelopes (per-note forward secrecy)', async ({ request }) => {
+  test('two notes have different authorEnvelopes (per-note forward secrecy)', async ({
+    request,
+  }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
     const callId2 = `${CALL_ID}-b`
@@ -174,11 +175,7 @@ test.describe('E2EE note encryption', () => {
     expect(note).toBeTruthy()
 
     // Attempt decryption using the volunteer's secret key — should fail
-    const payload = decryptNoteV2(
-      note!.encryptedContent!,
-      note!.authorEnvelope!,
-      volSecretKey,
-    )
+    const payload = decryptNoteV2(note!.encryptedContent!, note!.authorEnvelope!, volSecretKey)
 
     // The volunteer's key is not in this note's envelopes — decryption must fail
     expect(payload).toBeNull()

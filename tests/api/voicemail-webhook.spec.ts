@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test'
-import { createAuthedRequestFromNsec } from '../helpers/authed-request'
+import { expect, test } from '@playwright/test'
 import { ADMIN_NSEC, resetTestState } from '../helpers'
+import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 /**
  * Build a Twilio-style application/x-www-form-urlencoded body string.
@@ -41,27 +41,24 @@ test.describe('Voicemail webhook API', () => {
     }
 
     // Step 2: Fire the voicemail-recording webhook.
-    const voicemailRes = await request.post(
-      `/telephony/voicemail-recording?callSid=${callSid}`,
-      {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        data: twilioForm({
-          RecordingStatus: 'completed',
-          RecordingSid: `RE_test_${Date.now()}`,
-          CallSid: callSid,
-        }),
-      },
-    )
+    const voicemailRes = await request.post(`/telephony/voicemail-recording?callSid=${callSid}`, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: twilioForm({
+        RecordingStatus: 'completed',
+        RecordingSid: `RE_test_${Date.now()}`,
+        CallSid: callSid,
+      }),
+    })
     expect([200, 204]).toContain(voicemailRes.status())
 
     // Step 3: Check calls history API for hasVoicemail flag
-    const callsRes = await authedApi.get('/api/calls?limit=50')
+    const callsRes = await authedApi.get('/api/calls/history?limit=50')
     const callsData = await callsRes.json()
     const calls =
       (callsData as { calls?: Array<{ callSid?: string; id?: string; hasVoicemail?: boolean }> })
         .calls ?? []
     const match = calls.find(
-      (c: { callSid?: string; id?: string }) => c.callSid === callSid || c.id === callSid,
+      (c: { callSid?: string; id?: string }) => c.callSid === callSid || c.id === callSid
     )
     if (match) {
       expect(match.hasVoicemail).toBe(true)
@@ -91,17 +88,14 @@ test.describe('Voicemail webhook API', () => {
     request,
   }) => {
     const unknownCallSid = `CA_unknown_${Date.now()}`
-    const res = await request.post(
-      `/telephony/voicemail-recording?callSid=${unknownCallSid}`,
-      {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        data: twilioForm({
-          RecordingStatus: 'completed',
-          RecordingSid: `RE_unknown_${Date.now()}`,
-          CallSid: unknownCallSid,
-        }),
-      },
-    )
+    const res = await request.post(`/telephony/voicemail-recording?callSid=${unknownCallSid}`, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: twilioForm({
+        RecordingStatus: 'completed',
+        RecordingSid: `RE_unknown_${Date.now()}`,
+        CallSid: unknownCallSid,
+      }),
+    })
     // Should not return 500 -- either 200/204 (handled gracefully) or 404/503 (no telephony config)
     expect(res.status()).not.toBe(500)
   })
