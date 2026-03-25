@@ -145,7 +145,15 @@
     "queueTimeout": "Queue Timeout",
     "queueTimeoutDescription": "How long callers wait before being sent to voicemail (seconds).",
     "voicemailMax": "Max Voicemail Length",
-    "voicemailMaxDescription": "Maximum recording length for voicemail messages (seconds)."
+    "voicemailMaxDescription": "Maximum recording length for voicemail messages (seconds).",
+    "voicemailMode": "Voicemail Mode",
+    "voicemailModeDescription": "Controls when callers are sent to voicemail",
+    "voicemailModeAuto": "Auto — voicemail when no one is available",
+    "voicemailModeAlways": "Always — every call goes to voicemail",
+    "voicemailModeNever": "Never — hang up if no one is available",
+    "retentionDays": "Voicemail Retention (days)",
+    "retentionDaysDescription": "Auto-delete voicemails after this many days. Leave empty for indefinite retention.",
+    "retentionNotYetActive": "Automatic purge not yet active — retention setting saved for future use"
   },
   "notes": {
     "title": "Call Notes",

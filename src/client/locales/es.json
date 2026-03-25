@@ -145,7 +145,15 @@
     "queueTimeout": "Tiempo de espera en cola",
     "queueTimeoutDescription": "Cuánto tiempo esperan los llamantes antes de ser enviados al buzón de voz (segundos).",
     "voicemailMax": "Duración máxima del buzón de voz",
-    "voicemailMaxDescription": "Duración máxima de grabación para mensajes de buzón de voz (segundos)."
+    "voicemailMaxDescription": "Duración máxima de grabación para mensajes de buzón de voz (segundos).",
+    "voicemailMode": "Modo de buzón de voz",
+    "voicemailModeDescription": "Controla cuándo los llamantes son enviados al buzón de voz",
+    "voicemailModeAuto": "Automático — buzón cuando nadie está disponible",
+    "voicemailModeAlways": "Siempre — cada llamada va al buzón de voz",
+    "voicemailModeNever": "Nunca — colgar si nadie está disponible",
+    "retentionDays": "Retención de buzón de voz (días)",
+    "retentionDaysDescription": "Eliminar automáticamente los mensajes de voz después de estos días. Dejar vacío para retención indefinida.",
+    "retentionNotYetActive": "La purga automática aún no está activa — configuración guardada para uso futuro"
   },
   "notes": {
     "title": "Notas de Llamada",

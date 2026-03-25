@@ -1,6 +1,13 @@
 import { SettingsSection } from '@/components/settings-section'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { type CallSettings, updateCallSettings } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { PhoneForwarded } from 'lucide-react'
@@ -36,6 +43,34 @@ export function CallSettingsSection({
       statusSummary={statusSummary}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2 sm:col-span-2">
+          <Label>{t('callSettings.voicemailMode')}</Label>
+          <p className="text-xs text-muted-foreground">
+            {t('callSettings.voicemailModeDescription')}
+          </p>
+          <Select
+            value={settings.voicemailMode}
+            onValueChange={async (val) => {
+              try {
+                const res = await updateCallSettings({
+                  voicemailMode: val as 'auto' | 'always' | 'never',
+                })
+                onChange(res)
+              } catch {
+                toast(t('common.error'), 'error')
+              }
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">{t('callSettings.voicemailModeAuto')}</SelectItem>
+              <SelectItem value="always">{t('callSettings.voicemailModeAlways')}</SelectItem>
+              <SelectItem value="never">{t('callSettings.voicemailModeNever')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="space-y-2">
           <Label htmlFor="queue-timeout">{t('callSettings.queueTimeout')}</Label>
           <p className="text-xs text-muted-foreground">
@@ -79,6 +114,19 @@ export function CallSettingsSection({
             min={30}
             max={300}
           />
+        </div>
+        <div className="space-y-2">
+          <Label>{t('callSettings.retentionDays')}</Label>
+          <p className="text-xs text-muted-foreground">
+            {t('callSettings.retentionDaysDescription')}
+          </p>
+          <Input
+            type="number"
+            value={settings.voicemailRetentionDays ?? ''}
+            placeholder="∞"
+            disabled
+          />
+          <p className="text-xs text-amber-600">{t('callSettings.retentionNotYetActive')}</p>
         </div>
       </div>
     </SettingsSection>
