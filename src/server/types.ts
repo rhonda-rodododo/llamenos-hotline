@@ -784,6 +784,9 @@ export interface CreateConversationData {
   metadata?: Record<string, unknown>
   /** Optional: bind this conversation to a report type (for web/report channelType) */
   reportTypeId?: string
+  /** When true, always INSERT a new row instead of upserting on the unique constraint.
+   *  Used by reports where the same contact can have multiple conversations. */
+  skipDedup?: boolean
 }
 
 export interface CreateMessageData {

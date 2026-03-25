@@ -54,24 +54,38 @@ export class ConversationService {
   async createConversation(data: CreateConversationData): Promise<Conversation> {
     const id = crypto.randomUUID()
     const now = new Date()
+    const values = {
+      id,
+      hubId: data.hubId ?? 'global',
+      channelType: data.channelType,
+      contactIdentifierHash: data.skipDedup
+        ? `${data.contactIdentifierHash}:${id}`
+        : data.contactIdentifierHash,
+      contactLast4: data.contactLast4 ?? null,
+      externalId: data.externalId ?? null,
+      assignedTo: data.assignedTo ?? null,
+      status: data.status ?? 'waiting',
+      metadata: data.skipDedup
+        ? { ...(data.metadata ?? {}), reporterPubkey: data.contactIdentifierHash }
+        : (data.metadata ?? {}),
+      reportTypeId: data.reportTypeId ?? null,
+      messageCount: 0,
+      createdAt: now,
+      updatedAt: now,
+      lastMessageAt: now,
+    }
+
+    if (data.skipDedup) {
+      // For reports: always create a new row. The contactIdentifierHash has a
+      // unique suffix so the unique constraint won't conflict. The original
+      // pubkey is preserved in metadata.reporterPubkey for ownership checks.
+      const [row] = await this.db.insert(conversations).values(values).returning()
+      return this.#rowToConversation(row)
+    }
+
     const [row] = await this.db
       .insert(conversations)
-      .values({
-        id,
-        hubId: data.hubId ?? 'global',
-        channelType: data.channelType,
-        contactIdentifierHash: data.contactIdentifierHash,
-        contactLast4: data.contactLast4 ?? null,
-        externalId: data.externalId ?? null,
-        assignedTo: data.assignedTo ?? null,
-        status: data.status ?? 'waiting',
-        metadata: data.metadata ?? {},
-        reportTypeId: data.reportTypeId ?? null,
-        messageCount: 0,
-        createdAt: now,
-        updatedAt: now,
-        lastMessageAt: now,
-      })
+      .values(values)
       .onConflictDoUpdate({
         target: [
           conversations.hubId,

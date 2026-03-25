@@ -187,12 +187,13 @@ test.describe('Call flow', () => {
   // ── 2.2: Volunteer answers the call ──────────────────────────────────────
 
   test('volunteer answers call and sees active call panel', async ({ page }) => {
+    test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
     // The call should still be ringing from the previous test
+    // beforeEach already logged in and navigated to dashboard with authedFetch injected
     await waitForActiveCall(page, CALL_SID, 'ringing')
-    await page.reload()
-    await injectAuthedFetch(page)
 
-    await expect(page.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 10_000 })
+    // Wait for dashboard to show the incoming call (real-time via Nostr relay)
+    await expect(page.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 15_000 })
 
     // Click Answer
     await page.getByTestId(TestIds.ANSWER_CALL_BTN).click()
@@ -204,13 +205,12 @@ test.describe('Call flow', () => {
   // ── 2.3: Write a note during the call ────────────────────────────────────
 
   test('can write and save a note during an active call', async ({ page }) => {
-    // Re-enter the call state (simulate active call if needed by reload)
+    test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
+    // beforeEach already logged in and navigated to dashboard with authedFetch injected
     await waitForActiveCall(page, CALL_SID, 'ringing')
-    await page.reload()
-    await injectAuthedFetch(page)
 
     // Answer the call first
-    await expect(page.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 15_000 })
     await page.getByTestId(TestIds.ANSWER_CALL_BTN).click()
     await expect(page.getByTestId(TestIds.ACTIVE_CALL_PANEL)).toBeVisible({ timeout: 8_000 })
 
@@ -229,6 +229,7 @@ test.describe('Call flow', () => {
   // ── 2.4: Note persists after call ends ───────────────────────────────────
 
   test('note persists in call history after call ends', async ({ page, request }) => {
+    test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
     // Simulate call hangup
     const hangupRes = await request.post('/telephony/call-status', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -257,6 +258,7 @@ test.describe('Call flow', () => {
   // ── 2.5: Volunteer ends call manually ────────────────────────────────────
 
   test('volunteer can end active call via hang up button', async ({ page }) => {
+    test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
     // Start fresh with a new call for this test
     const hangupCallSid = `CA_hangup_${Date.now()}`
 

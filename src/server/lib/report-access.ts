@@ -2,8 +2,8 @@ import { checkPermission } from '../middleware/permission-guard'
 
 interface ReportLike {
   contactIdentifierHash: string
-  assignedTo?: string
-  metadata?: { type?: string }
+  assignedTo?: string | null
+  metadata?: Record<string, unknown>
 }
 
 /**
@@ -13,7 +13,7 @@ interface ReportLike {
  * Three-tier access:
  * 1. reports:read-all — can see everything
  * 2. reports:read-assigned — can see reports assigned to them
- * 3. Own reports — contactIdentifierHash matches pubkey
+ * 3. Own reports — reporterPubkey in metadata matches pubkey
  */
 export function verifyReportAccess(
   report: ReportLike,
@@ -23,11 +23,22 @@ export function verifyReportAccess(
   if (checkPermission(permissions, 'reports:read-all')) return true
   if (checkPermission(permissions, 'reports:read-assigned') && report.assignedTo === pubkey)
     return true
+  if (isReportOwner(report, pubkey)) return true
+  return false
+}
+
+/** Check if the pubkey is the owner/reporter of this report. */
+export function isReportOwner(report: ReportLike, pubkey: string): boolean {
+  const meta = report.metadata as { reporterPubkey?: string } | undefined
+  // New reports store reporter pubkey in metadata (contactIdentifierHash has unique suffix)
+  if (meta?.reporterPubkey === pubkey) return true
+  // Legacy fallback: direct match on contactIdentifierHash
   if (report.contactIdentifierHash === pubkey) return true
   return false
 }
 
 /** Verify that a conversation is actually a report. Returns false if not. */
 export function isReport(report: ReportLike): boolean {
-  return report.metadata?.type === 'report'
+  const meta = report.metadata as { type?: string } | undefined
+  return meta?.type === 'report'
 }

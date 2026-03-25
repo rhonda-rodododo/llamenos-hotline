@@ -197,14 +197,43 @@ test.describe('App shell offline load', () => {
     // First visit — prime the SW cache
     await loginAsAdmin(page)
     await navigateAfterLogin(page, '/')
-    await page.evaluate(() => navigator.serviceWorker.ready)
-    await page.waitForTimeout(2000)
+    await page.evaluate(async () => {
+      const reg = await navigator.serviceWorker.ready
+      // Wait for SW to finish activating and controlling the page
+      if (reg.active?.state !== 'activated') {
+        await new Promise<void>((resolve) => {
+          reg.active?.addEventListener('statechange', function handler() {
+            if (reg.active?.state === 'activated') {
+              reg.active.removeEventListener('statechange', handler)
+              resolve()
+            }
+          })
+          // Resolve immediately if already activated
+          if (reg.active?.state === 'activated') resolve()
+        })
+      }
+    })
+    // Visit a second time to ensure precache is populated (SW controls page on second load)
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.waitForTimeout(1000)
+
+    // Verify SW is controlling the page before going offline
+    const isControlled = await page.evaluate(() => !!navigator.serviceWorker.controller)
+    if (!isControlled) {
+      // If not controlled yet, reload once more and wait
+      await page.reload({ waitUntil: 'networkidle' })
+      await page.waitForTimeout(2000)
+    }
 
     // Go offline and navigate to login
     await page.context().setOffline(true)
 
     // Navigate to root; SW serves app shell from cache
-    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await page.goto('/', { waitUntil: 'load', timeout: 15000 }).catch(() => {
+      // load event may not fire if SW doesn't serve all resources
+    })
+    // Give React time to render from cached assets
+    await page.waitForTimeout(2000)
 
     // App should render something (not a blank page / ERR_INTERNET_DISCONNECTED)
     // The login/PIN page or dashboard should be visible

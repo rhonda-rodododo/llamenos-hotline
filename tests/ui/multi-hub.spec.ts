@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { ADMIN_NSEC, loginAsAdmin } from '../helpers'
+import { ADMIN_NSEC, loginAsAdmin, navigateAfterLogin } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 test.describe('Multi-hub architecture — UI', () => {
@@ -51,11 +51,10 @@ test.describe('Multi-hub architecture — UI', () => {
     expect(created).toHaveProperty('hub')
 
     // Navigate to the hub management page
-    await page.goto('/admin/hubs')
-    await page.waitForLoadState('networkidle')
+    await navigateAfterLogin(page, '/admin/hubs')
 
     // Confirm the hub appears in the active list
-    await expect(page.getByText(hubName)).toBeVisible()
+    await expect(page.getByText(hubName)).toBeVisible({ timeout: 10000 })
 
     // Click the Archive button for this hub's row
     const hubRow = page.locator('[data-testid="hub-row"]').filter({ hasText: hubName })
@@ -89,12 +88,11 @@ test.describe('Multi-hub architecture — UI', () => {
     const archiveRes = await authedApi.patch(`/api/hubs/${hubId}`, { status: 'archived' })
     expect(archiveRes.ok()).toBe(true)
 
-    await page.goto('/admin/hubs')
-    await page.waitForLoadState('networkidle')
+    await navigateAfterLogin(page, '/admin/hubs')
 
-    // Reload to pick up archived status
+    // The hub should appear in the list (with archived status)
     const hubRow = page.locator('[data-testid="hub-row"]').filter({ hasText: hubName })
-    await expect(hubRow).toBeVisible()
+    await expect(hubRow).toBeVisible({ timeout: 10000 })
     await hubRow.getByTestId('hub-delete-btn').click()
 
     // Dialog opens

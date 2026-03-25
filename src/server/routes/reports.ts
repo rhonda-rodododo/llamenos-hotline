@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
 import { getNostrPublisher } from '../lib/adapters'
+import { isReportOwner } from '../lib/report-access'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
@@ -63,7 +64,7 @@ reports.get('/', async (c) => {
   if (!canReadAll) {
     filteredConvs = filteredConvs.filter((conv) => {
       if (canReadAssigned && conv.assignedTo === pubkey) return true
-      if (conv.contactIdentifierHash === pubkey) return true
+      if (isReportOwner(conv, pubkey)) return true
       return false
     })
   }
@@ -101,11 +102,15 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
     }
   }
 
-  // Create the conversation with report metadata
+  // Create the conversation with report metadata.
+  // Each report is a separate conversation, so use skipDedup to avoid the
+  // (hubId, channelType, contactIdentifierHash) unique constraint that normally
+  // deduplicates messaging threads per contact.
   const conversation = await services.conversations.createConversation({
     hubId: hubId ?? 'global',
     channelType: 'web',
     contactIdentifierHash: pubkey, // Reporter is the "contact"
+    skipDedup: true,
     status: 'waiting',
     metadata: {
       type: 'report',
@@ -146,6 +151,14 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
   return c.json({ ...conversation, firstMessage: msg }, 201)
 })
 
+// Get report categories (from settings) — must be before /:id to avoid being caught by the param route
+reports.get('/categories', async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId')
+  const categories = await services.settings.getReportCategories(hubId ?? undefined)
+  return c.json({ categories })
+})
+
 // Get a single report
 reports.get('/:id', async (c) => {
   const services = c.get('services')
@@ -175,7 +188,7 @@ reports.get('/:id', async (c) => {
     // Users with read-assigned can see assigned reports
     if (canReadAssigned && report.assignedTo === pubkey) {
       // OK
-    } else if (report.contactIdentifierHash === pubkey) {
+    } else if (isReportOwner(report, pubkey)) {
       // Own report
     } else {
       return c.json({ error: 'Forbidden' }, 403)
@@ -208,7 +221,7 @@ reports.get('/:id/messages', async (c) => {
   if (!canReadAll) {
     if (canReadAssigned && report.assignedTo === pubkey) {
       // OK
-    } else if (report.contactIdentifierHash === pubkey) {
+    } else if (isReportOwner(report, pubkey)) {
       // Own report
     } else {
       return c.json({ error: 'Forbidden' }, 403)
@@ -245,7 +258,7 @@ reports.post('/:id/messages', async (c) => {
 
   // Check if user can send messages in this report
   if (!canSendAny) {
-    if (canSendOwn && report.contactIdentifierHash === pubkey) {
+    if (canSendOwn && isReportOwner(report, pubkey)) {
       // Reporter can reply to own report
     } else if (report.assignedTo === pubkey) {
       // Assigned volunteer can reply
@@ -260,7 +273,7 @@ reports.post('/:id/messages', async (c) => {
     attachmentIds?: string[]
   }
 
-  const isReporter = report.contactIdentifierHash === pubkey
+  const isReporter = isReportOwner(report, pubkey)
   const direction = isReporter ? 'inbound' : 'outbound'
 
   const msg = await services.conversations.addMessage({
@@ -342,14 +355,6 @@ reports.patch('/:id', requirePermission('reports:update'), async (c) => {
   return c.json(updated)
 })
 
-// Get report categories (from settings)
-reports.get('/categories', async (c) => {
-  const services = c.get('services')
-  const hubId = c.get('hubId')
-  const categories = await services.settings.getReportCategories(hubId ?? undefined)
-  return c.json({ categories })
-})
-
 // Get files attached to a report
 reports.get('/:id/files', async (c) => {
   const services = c.get('services')
@@ -374,7 +379,7 @@ reports.get('/:id/files', async (c) => {
   if (!canReadAll) {
     if (canReadAssigned && report.assignedTo === pubkey) {
       // OK
-    } else if (report.contactIdentifierHash === pubkey) {
+    } else if (isReportOwner(report, pubkey)) {
       // Own
     } else {
       return c.json({ error: 'Forbidden' }, 403)

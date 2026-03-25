@@ -13,9 +13,9 @@ routes.get('/', async (c) => {
 
   const allHubs = await services.settings.getHubs()
 
-  // Super admin sees all
+  // Super admin sees all (including archived — needed for hub management page)
   if (checkPermission(permissions, '*')) {
-    return c.json({ hubs: allHubs.filter((h) => h.status === 'active') })
+    return c.json({ hubs: allHubs })
   }
 
   // Others see only their hubs
@@ -97,6 +97,19 @@ routes.patch('/:hubId', requirePermission('system:manage-hubs'), async (c) => {
     return c.json({ hub: updated })
   } catch {
     return c.json({ error: 'Failed to update hub' }, 500)
+  }
+})
+
+// Archive hub (super admin only — soft-delete: sets status to 'archived')
+routes.post('/:hubId/archive', requirePermission('system:manage-hubs'), async (c) => {
+  const hubId = c.req.param('hubId')
+  const services = c.get('services')
+
+  try {
+    const updated = await services.settings.updateHub(hubId, { status: 'archived' })
+    return c.json({ hub: updated })
+  } catch {
+    return c.json({ error: 'Failed to archive hub' }, 500)
   }
 })
 

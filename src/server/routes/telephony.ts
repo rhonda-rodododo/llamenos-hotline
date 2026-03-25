@@ -379,8 +379,14 @@ telephony.post('/volunteer-answer', async (c) => {
 // --- Step 5: Call status callback ---
 telephony.post('/call-status', async (c) => {
   const url = new URL(c.req.url)
-  const hubId = getHubId(url)
+  let hubId = getHubId(url)
   const services = c.get('services')
+
+  // Fall back to the sole hub when no hub param is present (single-hub deployments)
+  if (!hubId) {
+    const allHubs = await services.settings.getHubs()
+    if (allHubs.length === 1) hubId = allHubs[0].id
+  }
   const env = c.env
   const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
@@ -571,8 +577,20 @@ telephony.post('/call-recording', async (c) => {
 // --- Step 10: Voicemail recording status callback ---
 telephony.post('/voicemail-recording', async (c) => {
   const url = new URL(c.req.url)
-  const hubId = getHubId(url)
+  let hubId = getHubId(url)
   const services = c.get('services')
+
+  // Resolve hub from active call's stored context, then fall back to sole hub
+  const callSidFromUrl = url.searchParams.get('callSid') || ''
+  if (!hubId && callSidFromUrl) {
+    const allActiveCalls = await services.calls.getActiveCalls()
+    const matchedCall = allActiveCalls.find((ac) => ac.callSid === callSidFromUrl)
+    if (matchedCall) hubId = matchedCall.hubId
+  }
+  if (!hubId) {
+    const allHubs = await services.settings.getHubs()
+    if (allHubs.length === 1) hubId = allHubs[0].id
+  }
   const env = c.env
   const adapter = await getTelephony(services.settings, hubId, {
     TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,

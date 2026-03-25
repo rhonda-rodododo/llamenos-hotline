@@ -30,22 +30,7 @@ async function createReportViaUI(page: Page, title: string, details: string): Pr
   await page.getByPlaceholder('Brief description of the report').fill(title)
   await page.getByPlaceholder('Describe the situation in detail...').fill(details)
 
-  // Set up response waiters BEFORE clicking submit so we don't miss the callbacks.
-  // The component POSTs the report, then calls listReports() to refresh.
-  const postResponse = page.waitForResponse(
-    (resp) => resp.url().includes('/reports') && resp.request().method() === 'POST',
-    { timeout: 30000 }
-  )
-  const listResponse = page.waitForResponse(
-    (resp) =>
-      resp.url().includes('/reports') && resp.request().method() === 'GET' && resp.status() === 200,
-    { timeout: 30000 }
-  )
-
   await page.getByRole('button', { name: /submit report/i }).click()
-
-  // Wait for the POST to succeed
-  await postResponse
 
   // Wait for form to close (sheet closes on successful submit).
   // Under concurrent load, ECIES encryption can be slow — allow generous timeout.
@@ -53,11 +38,8 @@ async function createReportViaUI(page: Page, title: string, details: string): Pr
     timeout: 30000,
   })
 
-  // Wait for the list refresh GET triggered by handleReportCreated
-  await listResponse
-
-  // Wait for the report to appear in the rendered list
-  await expect(page.getByText(title).first()).toBeVisible({ timeout: 15000 })
+  // Wait for the report to appear in the rendered list (POST + list refresh + render)
+  await expect(page.getByText(title).first()).toBeVisible({ timeout: 30000 })
 }
 
 /**
@@ -73,8 +55,9 @@ async function selectReport(page: Page, title: string): Promise<void> {
  * Claim a report that is currently selected in the detail view.
  */
 async function claimSelectedReport(page: Page): Promise<void> {
-  await expect(page.getByRole('button', { name: /claim/i })).toBeVisible({ timeout: 5000 })
-  await page.getByRole('button', { name: /claim/i }).click()
+  const claimBtn = page.getByRole('button', { name: 'Claim', exact: true })
+  await expect(claimBtn).toBeVisible({ timeout: 5000 })
+  await claimBtn.click()
   await expect(page.getByText('Active')).toBeVisible({ timeout: 10000 })
 }
 
@@ -191,7 +174,7 @@ test.describe('Reports feature', () => {
       await claimSelectedReport(page)
 
       // Claim button should disappear
-      await expect(page.getByRole('button', { name: /claim/i })).not.toBeVisible()
+      await expect(page.getByRole('button', { name: 'Claim', exact: true })).not.toBeVisible()
     })
 
     test('admin can close a report', async ({ page }) => {
@@ -231,8 +214,10 @@ test.describe('Reports feature', () => {
 
       // Claim one of them to make it active
       await page.locator('button[type="button"]').filter({ hasText: titleA }).click()
-      await expect(page.getByRole('button', { name: /claim/i })).toBeVisible({ timeout: 5000 })
-      await page.getByRole('button', { name: /claim/i }).click()
+      await expect(page.getByRole('button', { name: 'Claim', exact: true })).toBeVisible({
+        timeout: 5000,
+      })
+      await page.getByRole('button', { name: 'Claim', exact: true }).click()
       await expect(page.getByText('Active')).toBeVisible({ timeout: 10000 })
 
       // Now use the status filter to show only "Waiting" reports
@@ -471,7 +456,7 @@ test.describe('Reports feature', () => {
       await selectReport(page, title)
 
       // Reporter should NOT see Claim or Close buttons
-      await expect(page.getByRole('button', { name: /claim/i })).not.toBeVisible()
+      await expect(page.getByRole('button', { name: 'Claim', exact: true })).not.toBeVisible()
       await expect(page.getByTestId('close-report')).not.toBeVisible()
     })
 

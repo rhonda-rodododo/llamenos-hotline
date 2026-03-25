@@ -44,9 +44,23 @@ test.describe('Voicemail UI', () => {
       }),
     })
 
+    // Complete the call so it appears in call history
+    await request.post('/telephony/call-status', {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: twilioForm({
+        CallSid: callSid,
+        CallStatus: 'completed',
+        From: '+15554445555',
+        To: '+15556667777',
+        Duration: '30',
+      }),
+    })
+
     // Navigate to calls page — wait for the call history API to return
     await navigateAfterLogin(page, '/calls')
-    await expect(page.getByRole('heading', { name: /calls/i })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: /call history/i })).toBeVisible({
+      timeout: 10000,
+    })
 
     // Wait for call list to load (call-history-row is the actual testid in the component)
     await expect(page.locator('[data-testid="call-history-row"]').first()).toBeVisible({

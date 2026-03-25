@@ -78,7 +78,7 @@ test.describe('GDPR Compliance', () => {
       const privacyCard = page.getByTestId('privacy')
       await expect(privacyCard).toBeVisible({ timeout: 5000 })
       // Click the CardHeader (CollapsibleTrigger) to expand the section
-      await privacyCard.locator('[data-slot="card-header"]').click()
+      await page.getByTestId('privacy-trigger').click()
       await page.waitForTimeout(500)
 
       // Export button should be visible
@@ -126,7 +126,7 @@ test.describe('GDPR Compliance', () => {
       // Expand privacy section by clicking the collapsible card header
       const privacyCard = page.getByTestId('privacy')
       await expect(privacyCard).toBeVisible({ timeout: 5000 })
-      await privacyCard.locator('[data-slot="card-header"]').click()
+      await page.getByTestId('privacy-trigger').click()
       await page.waitForTimeout(500)
 
       // Request erasure button should be present

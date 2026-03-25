@@ -120,7 +120,10 @@ test.describe('WebAuthn passkey registration and login', () => {
 
       // Get registration options via API
       const regOptions = await page.evaluate(async () => {
-        const res = await window.__authedFetch('/api/webauthn/register/options', { method: 'POST' })
+        const res = await window.__authedFetch('/api/webauthn/register/options', {
+          method: 'POST',
+          body: JSON.stringify({ label: 'Test Passkey' }),
+        })
         return res.json()
       })
       expect(regOptions).toHaveProperty('challenge')

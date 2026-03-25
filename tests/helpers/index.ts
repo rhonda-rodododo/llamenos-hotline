@@ -107,19 +107,35 @@ export async function navigateAfterLogin(page: Page, url: string): Promise<void>
   const isAuthenticated = await dashboardLink.isVisible({ timeout: 1000 }).catch(() => false)
 
   if (!isAuthenticated) {
-    // Need to re-authenticate — full page load clears in-memory keyManager
-    await page.goto('/login')
-    await page.waitForLoadState('domcontentloaded')
+    // Handle profile-setup page (no sidebar, need to complete first)
+    if (page.url().includes('profile-setup')) {
+      await completeProfileSetup(page)
+    } else {
+      // Need to re-authenticate — full page load clears in-memory keyManager
+      await page.goto('/login')
+      await page.waitForLoadState('domcontentloaded')
 
-    const pinInput = page.locator('input[aria-label="PIN digit 1"]')
-    const pinVisible = await pinInput.isVisible({ timeout: 5000 }).catch(() => false)
+      const pinInput = page.locator('input[aria-label="PIN digit 1"]')
+      const pinVisible = await pinInput.isVisible({ timeout: 5000 }).catch(() => false)
 
-    if (pinVisible) {
-      await enterPin(page, TEST_PIN)
+      if (pinVisible) {
+        await enterPin(page, TEST_PIN)
+      }
+
+      // Wait for the authenticated layout (may redirect to profile-setup first)
+      const dashOrSetup = await Promise.race([
+        dashboardLink
+          .waitFor({ state: 'visible', timeout: 30000 })
+          .then(() => 'dashboard' as const),
+        page
+          .waitForURL((u) => u.toString().includes('profile-setup'), { timeout: 30000 })
+          .then(() => 'profile-setup' as const),
+      ])
+
+      if (dashOrSetup === 'profile-setup') {
+        await completeProfileSetup(page)
+      }
     }
-
-    // Wait for the authenticated layout
-    await dashboardLink.waitFor({ state: 'visible', timeout: 30000 })
   }
 
   // SPA navigation via TanStack Router (no page reload, keeps auth state)
@@ -211,6 +227,12 @@ export async function loginAsVolunteer(page: Page, nsec: string) {
   await page.reload({ waitUntil: 'domcontentloaded' })
   await enterPin(page, TEST_PIN)
   await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: Timeouts.AUTH })
+  // Wait for potential client-side redirect to profile-setup (async auth guard)
+  await page.waitForTimeout(1500)
+  // Complete profile setup if redirected there (first-time volunteer login)
+  if (page.url().includes('profile-setup')) {
+    await completeProfileSetup(page)
+  }
   // Short delay for initial API calls to complete
   await page.waitForTimeout(Timeouts.UI_SETTLE)
 }

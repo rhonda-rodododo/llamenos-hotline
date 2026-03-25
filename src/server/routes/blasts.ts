@@ -3,6 +3,21 @@ import type { AppEnv } from '../types'
 
 const blasts = new Hono<AppEnv>()
 
+/** Parse content field from DB string to BlastContent object for API responses */
+// FIXME: this is a band-aid for the fact that the content field is currently stored as a string in the DB.
+// We should migrate to a proper JSONB column or decrypt and remove this parsing step.
+function blastWithParsedContent<T extends { content: string }>(blast: T) {
+  let content: unknown = blast.content
+  if (typeof content === 'string') {
+    try {
+      content = JSON.parse(content)
+    } catch {
+      content = { text: content }
+    }
+  }
+  return { ...blast, content }
+}
+
 // These routes are hub-scoped and require authentication (handled by middleware in app.ts)
 
 // --- Subscribers ---
@@ -64,7 +79,7 @@ blasts.get('/', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const blastList = await services.blasts.listBlasts(hubId ?? undefined)
-  return c.json({ blasts: blastList })
+  return c.json({ blasts: blastList.map(blastWithParsedContent) })
 })
 
 blasts.post('/', async (c) => {
@@ -84,10 +99,10 @@ blasts.post('/', async (c) => {
     targetChannels: body.targetChannels,
     targetTags: body.targetTags,
     targetLanguages: body.targetLanguages,
-    content: body.content,
+    content: typeof body.content === 'object' ? JSON.stringify(body.content) : body.content,
     status: body.status,
   })
-  return c.json(blast, 201)
+  return c.json({ blast: blastWithParsedContent(blast) }, 201)
 })
 
 blasts.get('/:id', async (c) => {
@@ -95,7 +110,7 @@ blasts.get('/:id', async (c) => {
   const services = c.get('services')
   const blast = await services.blasts.getBlast(id)
   if (!blast) return c.json({ error: 'Blast not found' }, 404)
-  return c.json(blast)
+  return c.json({ blast: blastWithParsedContent(blast) })
 })
 
 blasts.patch('/:id', async (c) => {
@@ -106,7 +121,7 @@ blasts.patch('/:id', async (c) => {
     id,
     body as Parameters<typeof services.blasts.updateBlast>[1]
   )
-  return c.json(updated)
+  return c.json({ blast: blastWithParsedContent(updated) })
 })
 
 blasts.delete('/:id', async (c) => {
@@ -129,7 +144,7 @@ blasts.post('/:id/send', async (c) => {
     status: 'sending',
     sentAt: new Date(),
   })
-  return c.json(updated)
+  return c.json({ blast: blastWithParsedContent(updated) })
 })
 
 blasts.post('/:id/schedule', async (c) => {
@@ -142,7 +157,7 @@ blasts.post('/:id/schedule', async (c) => {
     status: 'scheduled',
     ...(body.scheduledAt ? { sentAt: new Date(body.scheduledAt) } : {}),
   })
-  return c.json(updated)
+  return c.json({ blast: blastWithParsedContent(updated) })
 })
 
 blasts.post('/:id/cancel', async (c) => {
@@ -151,7 +166,7 @@ blasts.post('/:id/cancel', async (c) => {
   const blast = await services.blasts.getBlast(id)
   if (!blast) return c.json({ error: 'Blast not found' }, 404)
   const updated = await services.blasts.updateBlast(id, { status: 'cancelled' })
-  return c.json(updated)
+  return c.json({ blast: blastWithParsedContent(updated) })
 })
 
 // --- Settings (blast subscribe/unsubscribe keywords, stored in MessagingConfig) ---

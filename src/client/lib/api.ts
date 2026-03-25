@@ -1777,20 +1777,22 @@ export interface ErasureRequest {
 }
 
 export async function getMyErasureRequest() {
-  return request<ErasureRequest | null>('/auth/me/erasure')
+  const res = await request<{ request: ErasureRequest | null }>('/gdpr/me/erasure')
+  return res.request
 }
 
 export async function requestAccountErasure() {
-  return request<ErasureRequest>('/auth/me/erasure', { method: 'POST' })
+  const res = await request<{ request: ErasureRequest }>('/gdpr/me', { method: 'DELETE' })
+  return res.request
 }
 
 export async function cancelAccountErasure() {
-  return request<{ ok: true }>('/auth/me/erasure', { method: 'DELETE' })
+  return request<{ ok: true }>('/gdpr/me/cancel', { method: 'DELETE' })
 }
 
 export async function downloadMyData() {
-  const headers = getAuthHeaders('GET', '/auth/me/data-export')
-  const res = await fetch(`${API_BASE}/auth/me/data-export`, { headers })
+  const headers = getAuthHeaders('GET', '/gdpr/export')
+  const res = await fetch(`${API_BASE}/gdpr/export`, { headers })
   if (!res.ok) {
     if (res.status === 401) onAuthExpired?.()
     throw new ApiError(res.status, await res.text())

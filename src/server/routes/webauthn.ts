@@ -81,7 +81,7 @@ webauthn.post('/register/options', async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const volunteer = c.get('volunteer')
-  const body = (await c.req.json()) as { label: string }
+  const body = await c.req.json().catch(() => ({}) as { label?: string })
   const rpID = new URL(c.req.url).hostname
   const rpName = c.env.HOTLINE_NAME || 'Hotline'
   const existing: WebAuthnCredential[] = await services.identity.getWebAuthnCredentials(pubkey)

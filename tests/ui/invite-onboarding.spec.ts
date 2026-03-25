@@ -34,6 +34,10 @@ test.describe('Invite-based onboarding', () => {
     inviteLink = (await linkEl.textContent())!
     expect(inviteLink).toContain('/onboarding?code=')
 
+    // Close the send invite dialog that auto-opens after creation
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+
     // --- Step 2: Log out admin ---
     await page.getByRole('button', { name: /log out/i }).click()
     await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
@@ -129,6 +133,11 @@ test.describe('Invite-based onboarding', () => {
     await phoneInput.blur()
 
     await page.getByRole('button', { name: /create invite/i }).click()
+
+    // Wait for invite link to appear, then close the send invite dialog
+    await expect(page.getByTestId('invite-link-code')).toBeVisible({ timeout: 15000 })
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
 
     // Close the invite link card
     await page.getByTestId('dismiss-invite').click()
