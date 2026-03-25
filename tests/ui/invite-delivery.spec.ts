@@ -38,12 +38,12 @@ test.describe('Invite delivery', () => {
     await page.getByLabel('Phone Number').blur()
     await page.getByRole('button', { name: /create invite/i }).click()
 
-    // Invite link card appears
-    await expect(page.getByTestId('invite-link-code')).toBeVisible({ timeout: 15000 })
-
-    // Send invite dialog should open automatically after invite creation
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
+    // Send invite dialog opens automatically after invite creation
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 15000 })
     await expect(page.getByText(/send invite link/i)).toBeVisible()
+
+    // Invite link code exists in the DOM (may be behind dialog overlay)
+    await expect(page.getByTestId('invite-link-code')).toBeAttached({ timeout: 5000 })
   })
 
   test('send invite dialog shows copy link fallback', async ({ page }) => {

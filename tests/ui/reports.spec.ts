@@ -80,7 +80,7 @@ async function createReporterViaApi(request: APIRequestContext): Promise<string>
     roleIds: ['role-reporter'],
   })
   const inviteData = await inviteRes.json()
-  const inviteCode: string = inviteData.code
+  const inviteCode: string = inviteData.invite.code
 
   const secretKey = generateSecretKey()
   const pubkey = getPublicKey(secretKey)

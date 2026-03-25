@@ -370,7 +370,18 @@
     "noActivity": "No recent activity",
     "notFound": "Volunteer not found",
     "recentActivity": "Recent Activity",
-    "unnamed": "Unnamed Volunteer"
+    "unnamed": "Unnamed Volunteer",
+    "sendInviteTitle": "Send Invite Link",
+    "sendInvite": "Send Invite",
+    "inviteChannel": "Channel",
+    "smsInsecureWarning": "SMS is not encrypted. The invite link will be visible to the carrier and potentially others.",
+    "smsAcknowledge": "I understand SMS is not secure",
+    "smsAcknowledgeRequired": "You must acknowledge the security risk before sending via SMS",
+    "copyLink": "Copy Link",
+    "noChannelsConfigured": "No messaging channels configured. Use Copy Link to share the invite.",
+    "inviteNotSent": "Not sent",
+    "inviteSentSuccess": "Invite sent successfully",
+    "inviteSentVia": "Sent via"
   },
   "webauthn": {
     "title": "Passkeys",

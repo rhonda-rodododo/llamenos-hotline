@@ -5,19 +5,29 @@
  * Permission enforcement on invite endpoints.
  */
 
-import { test, expect } from '@playwright/test'
-import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
 import { schnorr } from '@noble/curves/secp256k1.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
+import { expect, test } from '@playwright/test'
+import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
 import { AUTH_PREFIX } from '../../src/shared/crypto-labels'
 import { TestContext } from '../api-helpers'
-import { createAuthedRequestFromNsec, createAuthedRequest, type AuthedRequest } from '../helpers/authed-request'
-import { ADMIN_NSEC } from '../helpers'
 import { uniquePhone } from '../api-helpers'
+import { ADMIN_NSEC } from '../helpers'
+import {
+  type AuthedRequest,
+  createAuthedRequest,
+  createAuthedRequestFromNsec,
+} from '../helpers/authed-request'
 
 /** Create a Schnorr signature for invite redeem (raw token, not JSON-wrapped). */
-function signForRedeem(sk: Uint8Array, pubkey: string, timestamp: number, method: string, path: string): string {
+function signForRedeem(
+  sk: Uint8Array,
+  pubkey: string,
+  timestamp: number,
+  method: string,
+  path: string
+): string {
   const message = `${AUTH_PREFIX}${pubkey}:${timestamp}:${method}:${path}`
   const messageHash = sha256(utf8ToBytes(message))
   return bytesToHex(schnorr.sign(messageHash, sk))
@@ -58,9 +68,10 @@ test.describe('Invite Workflow', () => {
     })
     expect(res.status()).toBe(201)
     const body = await res.json()
-    expect(body.code).toBeTruthy()
-    expect(typeof body.code).toBe('string')
-    inviteCode = body.code
+    expect(body.invite).toBeDefined()
+    expect(body.invite.code).toBeTruthy()
+    expect(typeof body.invite.code).toBe('string')
+    inviteCode = body.invite.code
   })
 
   test('admin can list invites', async () => {
