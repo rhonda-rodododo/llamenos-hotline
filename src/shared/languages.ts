@@ -160,6 +160,16 @@ export const LANGUAGES: LanguageConfig[] = [
       '+258', // Mozambique
     ],
   },
+  {
+    code: 'de',
+    label: 'Deutsch',
+    flag: 'DE',
+    phonePrefixes: [
+      '+49', // Germany
+      '+43', // Austria
+      '+41', // Switzerland (partial)
+    ],
+  },
 ]
 
 /** Map of code -> config for quick lookup */

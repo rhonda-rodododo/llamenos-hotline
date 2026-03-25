@@ -32,7 +32,7 @@ test.describe('Invite delivery', () => {
     const volPhone = uniquePhone()
 
     // Create invite
-    await page.getByRole('button', { name: /invite/i }).click()
+    await page.getByRole('button', { name: /invite volunteer/i }).click()
     await page.getByLabel('Name').fill(volName)
     await page.getByLabel('Phone Number').fill(volPhone)
     await page.getByLabel('Phone Number').blur()
@@ -54,7 +54,7 @@ test.describe('Invite delivery', () => {
     const volName = `CopyLink ${Date.now()}`
     const volPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite/i }).click()
+    await page.getByRole('button', { name: /invite volunteer/i }).click()
     await page.getByLabel('Name').fill(volName)
     await page.getByLabel('Phone Number').fill(volPhone)
     await page.getByLabel('Phone Number').blur()
@@ -76,7 +76,7 @@ test.describe('Invite delivery', () => {
     const volName = `Cancel ${Date.now()}`
     const volPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite/i }).click()
+    await page.getByRole('button', { name: /invite volunteer/i }).click()
     await page.getByLabel('Name').fill(volName)
     await page.getByLabel('Phone Number').fill(volPhone)
     await page.getByLabel('Phone Number').blur()
@@ -97,7 +97,7 @@ test.describe('Invite delivery', () => {
     const volName = `NotSent ${Date.now()}`
     const volPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite/i }).click()
+    await page.getByRole('button', { name: /invite volunteer/i }).click()
     await page.getByLabel('Name').fill(volName)
     await page.getByLabel('Phone Number').fill(volPhone)
     await page.getByLabel('Phone Number').blur()
@@ -122,7 +122,7 @@ test.describe('Invite delivery', () => {
     const volName = `ExistInvite ${Date.now()}`
     const volPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite/i }).click()
+    await page.getByRole('button', { name: /invite volunteer/i }).click()
     await page.getByLabel('Name').fill(volName)
     await page.getByLabel('Phone Number').fill(volPhone)
     await page.getByLabel('Phone Number').blur()
@@ -150,7 +150,7 @@ test.describe('Invite delivery', () => {
     await page.getByRole('link', { name: 'Volunteers' }).click()
     await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
 
-    await page.getByRole('button', { name: /invite/i }).click()
+    await page.getByRole('button', { name: /invite volunteer/i }).click()
     await page.getByLabel('Name').fill(`PhoneVal ${Date.now()}`)
     await page.getByLabel('Phone Number').fill(uniquePhone())
     await page.getByLabel('Phone Number').blur()
@@ -180,7 +180,7 @@ test.describe('Invite delivery', () => {
     await page.getByRole('link', { name: 'Volunteers' }).click()
     await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
 
-    await page.getByRole('button', { name: /invite/i }).click()
+    await page.getByRole('button', { name: /invite volunteer/i }).click()
     await page.getByLabel('Name').fill(`SMSWarn ${Date.now()}`)
     await page.getByLabel('Phone Number').fill(uniquePhone())
     await page.getByLabel('Phone Number').blur()

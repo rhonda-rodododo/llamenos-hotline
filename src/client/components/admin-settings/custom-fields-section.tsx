@@ -228,6 +228,7 @@ export function CustomFieldsSection({
                 <option value="checkbox">{t('customFields.types.checkbox')}</option>
                 <option value="textarea">{t('customFields.types.textarea')}</option>
                 <option value="location">{t('customFields.types.location')}</option>
+                <option value="file">{t('customFields.types.file')}</option>
               </select>
             </div>
           </div>

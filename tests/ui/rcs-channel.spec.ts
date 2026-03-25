@@ -14,7 +14,7 @@ test.describe('RCS Channel Configuration', () => {
     await expect(page.getByTestId('rcs-agent-id')).not.toBeVisible()
 
     // Expand the RCS section by clicking the header
-    await rcsSection.locator('[data-radix-collapsible-trigger]').click()
+    await rcsSection.locator('[data-slot="card-header"]').click()
 
     // After expanding, all three config fields should be visible
     await expect(page.getByTestId('rcs-agent-id')).toBeVisible({ timeout: Timeouts.ELEMENT })
@@ -28,7 +28,7 @@ test.describe('RCS Channel Configuration', () => {
 
     // Expand the RCS section
     const rcsSection = page.getByTestId('rcs-channel')
-    await rcsSection.locator('[data-radix-collapsible-trigger]').click()
+    await rcsSection.locator('[data-slot="card-header"]').click()
     await expect(page.getByTestId('rcs-agent-id')).toBeVisible({ timeout: Timeouts.ELEMENT })
 
     // Fill in test values
@@ -52,7 +52,7 @@ test.describe('RCS Channel Configuration', () => {
 
     // Expand the RCS section
     const rcsSection = page.getByTestId('rcs-channel')
-    await rcsSection.locator('[data-radix-collapsible-trigger]').click()
+    await rcsSection.locator('[data-slot="card-header"]').click()
     await expect(page.getByTestId('rcs-agent-id')).toBeVisible({ timeout: Timeouts.ELEMENT })
 
     // Fill in valid config
@@ -79,7 +79,7 @@ test.describe('RCS Channel Configuration', () => {
 
     // Expand the RCS section
     const rcsSection = page.getByTestId('rcs-channel')
-    await rcsSection.locator('[data-radix-collapsible-trigger]').click()
+    await rcsSection.locator('[data-slot="card-header"]').click()
     await expect(page.getByTestId('rcs-agent-id')).toBeVisible({ timeout: Timeouts.ELEMENT })
 
     // Clear the agent ID field (ensure it's empty)
@@ -100,7 +100,7 @@ test.describe('RCS Channel Configuration', () => {
 
     // Expand the RCS section
     const rcsSection = page.getByTestId('rcs-channel')
-    await rcsSection.locator('[data-radix-collapsible-trigger]').click()
+    await rcsSection.locator('[data-slot="card-header"]').click()
     await expect(page.getByTestId('rcs-agent-id')).toBeVisible({ timeout: Timeouts.ELEMENT })
 
     // Find the Fallback to SMS switch
@@ -129,7 +129,7 @@ test.describe('RCS Channel Configuration', () => {
 
     // Expand and fill in config
     const rcsSection = page.getByTestId('rcs-channel')
-    await rcsSection.locator('[data-radix-collapsible-trigger]').click()
+    await rcsSection.locator('[data-slot="card-header"]').click()
     await expect(page.getByTestId('rcs-agent-id')).toBeVisible({ timeout: Timeouts.ELEMENT })
 
     const testAgentId = 'brands/PERSIST_TEST/agents/PERSIST_001'
@@ -149,7 +149,7 @@ test.describe('RCS Channel Configuration', () => {
 
     // Re-expand RCS section
     const rcsSectionAgain = page.getByTestId('rcs-channel')
-    await rcsSectionAgain.locator('[data-radix-collapsible-trigger]').click()
+    await rcsSectionAgain.locator('[data-slot="card-header"]').click()
     await expect(page.getByTestId('rcs-agent-id')).toBeVisible({ timeout: Timeouts.ELEMENT })
 
     // Verify the saved agent ID persisted

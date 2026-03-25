@@ -115,7 +115,19 @@
     "reportsSubtitle": "File or review incident reports",
     "shiftStatus": "Shift Status",
     "viewAllNotes": "View All Notes",
-    "viewCalls": "View Calls"
+    "viewCalls": "View Calls",
+    "analytics": {
+      "title": "Analytics",
+      "callVolume": "Call Volume",
+      "callVolume7d": "Call Volume (7 days)",
+      "callVolume30d": "Call Volume (30 days)",
+      "peakHours": "Peak Hours",
+      "teamPerformance": "Team Performance",
+      "noData": "No data available",
+      "answered": "Answered",
+      "unanswered": "Unanswered",
+      "voicemail": "Voicemail"
+    }
   },
   "calls": {
     "incoming": "수신 전화",

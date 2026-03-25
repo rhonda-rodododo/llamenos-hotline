@@ -13,7 +13,7 @@ test.describe('Invite-based onboarding', () => {
     const volName = `Onboard ${Date.now()}`
     const volPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite/i }).click()
+    await page.getByRole('button', { name: /invite volunteer/i }).click()
     await page.getByLabel('Name').fill(volName)
     await page.getByLabel('Phone Number').fill(volPhone)
     await page.getByLabel('Phone Number').blur()
@@ -106,7 +106,7 @@ test.describe('Invite-based onboarding', () => {
     const volName = `Revoke ${Date.now()}`
     const volPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite/i }).click()
+    await page.getByRole('button', { name: /invite volunteer/i }).click()
     await page.getByLabel('Name').fill(volName)
     await page.getByLabel('Phone Number').fill(volPhone)
     await page.getByLabel('Phone Number').blur()

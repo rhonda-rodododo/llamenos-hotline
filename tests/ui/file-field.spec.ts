@@ -114,7 +114,7 @@ test.describe('File Custom Field', () => {
     // Create a completed upload via the API, then bind it
     const adminPubkey = await page.evaluate(() => {
       // biome-ignore lint/suspicious/noExplicitAny: test helper
-      return (window as any).__TEST_KEY_MANAGER?.getPublicKey() as string
+      return (window as any).__TEST_KEY_MANAGER?.getPublicKeyHex() as string
     })
     expect(typeof adminPubkey).toBe('string')
 
@@ -192,7 +192,7 @@ test.describe('File Custom Field', () => {
   test('PATCH /context fails if upload not complete', async ({ page }) => {
     const adminPubkey = await page.evaluate(() => {
       // biome-ignore lint/suspicious/noExplicitAny: test helper
-      return (window as any).__TEST_KEY_MANAGER?.getPublicKey() as string
+      return (window as any).__TEST_KEY_MANAGER?.getPublicKeyHex() as string
     })
 
     // Create conversation for upload
@@ -264,7 +264,7 @@ test.describe('File Custom Field', () => {
   }) => {
     const adminPubkey = await page.evaluate(() => {
       // biome-ignore lint/suspicious/noExplicitAny: test helper
-      return (window as any).__TEST_KEY_MANAGER?.getPublicKey() as string
+      return (window as any).__TEST_KEY_MANAGER?.getPublicKeyHex() as string
     })
 
     // Init without conversationId but with contextType: custom_field
