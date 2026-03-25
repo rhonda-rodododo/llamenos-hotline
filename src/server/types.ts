@@ -212,6 +212,7 @@ export interface SpamSettings {
 export interface CallSettings {
   queueTimeoutSeconds: number // 30-300, default 90
   voicemailMaxSeconds: number // 30-300, default 120
+  voicemailMaxBytes: number // 100KB-50MB, default 2MB (2097152)
 }
 
 export interface InviteCode {

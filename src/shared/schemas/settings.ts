@@ -82,6 +82,7 @@ export type SpamSettings = z.infer<typeof SpamSettingsSchema>
 export const CallSettingsSchema = z.object({
   queueTimeoutSeconds: z.number().int().positive(),
   voicemailMaxSeconds: z.number().int().positive(),
+  voicemailMaxBytes: z.number().int().positive(),
 })
 export type CallSettings = z.infer<typeof CallSettingsSchema>
 

@@ -9,6 +9,7 @@ import { hashPhone } from '../lib/crypto'
 import { telephonyResponse } from '../lib/helpers'
 import { startParallelRinging } from '../lib/ringing'
 import { maybeTranscribe, transcribeVoicemail } from '../lib/transcription-manager'
+import { storeVoicemailAudio } from '../lib/voicemail-storage'
 import type { Services } from '../services'
 import type { AppEnv } from '../types'
 import type { Env } from '../types'
@@ -513,16 +514,63 @@ telephony.post('/voicemail-recording', async (c) => {
     TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
   })
   if (!adapter) return c.json({ error: 'Telephony not configured' }, 503)
-  const { status: recordingStatus } = await adapter.parseRecordingWebhook(c.req.raw)
+  const { status: recordingStatus, recordingSid } = await adapter.parseRecordingWebhook(c.req.raw)
   const callSid = url.searchParams.get('callSid') || ''
 
   if (recordingStatus === 'completed') {
     await services.calls
       .updateActiveCall(callSid, { status: 'voicemail' }, hubId)
       .catch((err) => console.error('[telephony] failed to update voicemail status:', callSid, err))
+
+    // Persist voicemail flag and recording SID to call_records
+    if (recordingSid) {
+      await services.records
+        .updateCallRecord(callSid, hubId ?? 'global', {
+          hasVoicemail: true,
+          hasRecording: true,
+          recordingSid,
+        })
+        .catch((err) =>
+          console.error('[telephony] failed to persist voicemail record:', callSid, err)
+        )
+    }
+
     await services.records.addAuditEntry(hubId ?? 'global', 'voicemailReceived', 'system', {
       callSid,
     })
+
+    // Store encrypted audio in MinIO and delete from provider (background)
+    if (recordingSid) {
+      void (async () => {
+        try {
+          const settings = await services.settings.getCallSettings(hubId)
+          // Get admin pubkeys for encryption — use getVolunteers() and filter by admin roles
+          // Phase 2 will switch to querying by voicemail:listen permission
+          const allVolunteers = await services.identity.getVolunteers()
+          const adminPubkeys = allVolunteers
+            .filter((v) => v.roles.some((r) => r === 'role-hub-admin' || r === 'role-super-admin'))
+            .map((v) => v.pubkey)
+          // Also include env.ADMIN_PUBKEY as fallback
+          if (env.ADMIN_PUBKEY && !adminPubkeys.includes(env.ADMIN_PUBKEY)) {
+            adminPubkeys.push(env.ADMIN_PUBKEY)
+          }
+
+          await storeVoicemailAudio({
+            callSid,
+            recordingSid,
+            hubId: hubId ?? 'global',
+            adminPubkeys,
+            adapter,
+            files: services.files,
+            records: services.records,
+            maxBytes: settings.voicemailMaxBytes,
+          })
+        } catch (err) {
+          console.error('[background] voicemail storage failed:', callSid, err)
+        }
+      })()
+    }
+
     transcribeVoicemail(callSid, hubId ?? 'global', env, services).catch((err) =>
       console.error('[background]', err)
     )

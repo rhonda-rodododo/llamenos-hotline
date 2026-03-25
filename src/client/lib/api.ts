@@ -411,6 +411,7 @@ export async function updateSpamSettings(data: Partial<SpamSettings>) {
 export interface CallSettings {
   queueTimeoutSeconds: number
   voicemailMaxSeconds: number
+  voicemailMaxBytes: number
 }
 
 export async function getCallSettings() {

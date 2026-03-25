@@ -169,6 +169,7 @@ export class SettingsService {
     return {
       queueTimeoutSeconds: row?.queueTimeoutSeconds ?? 90,
       voicemailMaxSeconds: row?.voicemailMaxSeconds ?? 120,
+      voicemailMaxBytes: row?.voicemailMaxBytes ?? 2097152,
     }
   }
 
@@ -176,6 +177,7 @@ export class SettingsService {
     const hId = hubId ?? 'global'
     const current = await this.getCallSettings(hId)
     const clamp = (v: number) => Math.max(30, Math.min(300, v))
+    const clampBytes = (v: number) => Math.max(102400, Math.min(52428800, v)) // 100KB–50MB
     const updated: CallSettings = {
       queueTimeoutSeconds:
         data.queueTimeoutSeconds !== undefined
@@ -185,6 +187,10 @@ export class SettingsService {
         data.voicemailMaxSeconds !== undefined
           ? clamp(data.voicemailMaxSeconds)
           : current.voicemailMaxSeconds,
+      voicemailMaxBytes:
+        data.voicemailMaxBytes !== undefined
+          ? clampBytes(data.voicemailMaxBytes)
+          : current.voicemailMaxBytes,
     }
     await this.db
       .insert(callSettings)
