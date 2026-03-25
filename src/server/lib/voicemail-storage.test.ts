@@ -1,20 +1,11 @@
 import { describe, expect, mock, test } from 'bun:test'
+import { schnorr } from '@noble/curves/secp256k1.js'
 import { storeVoicemailAudio } from './voicemail-storage'
 
-// Mock encryptBinaryForStorage so tests exercise orchestration logic, not crypto correctness
-// (crypto correctness is tested in the Task 4 crypto unit tests)
-mock.module('./crypto', () => ({
-  encryptBinaryForStorage: mock(
-    (_plaintext: Uint8Array, readerPubkeys: string[], _label: string) => ({
-      encryptedContent: 'aabbccddee',
-      readerEnvelopes: readerPubkeys.map((pk) => ({
-        pubkey: pk,
-        wrappedKey: 'fakewrappedkey',
-        ephemeralPubkey: 'fakeephemeral',
-      })),
-    })
-  ),
-}))
+// Use real crypto with real keypairs instead of mocking the module
+// (mock.module leaks across test files in Bun's test runner)
+const privkey = schnorr.utils.randomSecretKey()
+const pubkey = Buffer.from(schnorr.getPublicKey(privkey)).toString('hex')
 
 describe('storeVoicemailAudio', () => {
   test('downloads, encrypts, stores, and deletes recording', async () => {
@@ -36,7 +27,7 @@ describe('storeVoicemailAudio', () => {
       callSid: 'CA123',
       recordingSid: 'REC456',
       hubId: 'hub-1',
-      adminPubkeys: ['aabbccddee'],
+      adminPubkeys: [pubkey],
       adapter: mockAdapter as any,
       files: mockFiles as any,
       records: mockRecords as any,
@@ -53,7 +44,6 @@ describe('storeVoicemailAudio', () => {
       'hub-1',
       expect.objectContaining({ voicemailFileId: expect.any(String) })
     )
-    // Returns the stored fileId
     expect(typeof result).toBe('string')
     expect(result).not.toBe('oversized')
   })
@@ -74,7 +64,7 @@ describe('storeVoicemailAudio', () => {
       callSid: 'CA123',
       recordingSid: 'REC456',
       hubId: 'hub-1',
-      adminPubkeys: ['aabbccddee'],
+      adminPubkeys: [pubkey],
       adapter: mockAdapter as any,
       files: mockFiles as any,
       records: { updateCallRecord: mock() } as any,
@@ -97,7 +87,7 @@ describe('storeVoicemailAudio', () => {
         callSid: 'CA123',
         recordingSid: 'REC_NULL',
         hubId: 'hub-1',
-        adminPubkeys: ['aabbccddee'],
+        adminPubkeys: [pubkey],
         adapter: mockAdapter as any,
         files: {} as any,
         records: {} as any,
@@ -125,7 +115,7 @@ describe('storeVoicemailAudio', () => {
         callSid: 'CA999',
         recordingSid: 'REC999',
         hubId: 'hub-1',
-        adminPubkeys: ['aabbccddee'],
+        adminPubkeys: [pubkey],
         adapter: mockAdapter as any,
         files: mockFiles as any,
         records: { updateCallRecord: mock() } as any,
@@ -133,7 +123,6 @@ describe('storeVoicemailAudio', () => {
       })
     ).rejects.toThrow('MinIO unavailable')
 
-    // Provider copy must NOT be deleted if storage failed
     expect(mockAdapter.deleteRecording).not.toHaveBeenCalled()
   })
 })
