@@ -43,3 +43,4 @@ packages/crypto/dist/
 .claude/projects/
 .claude/scheduled_tasks.lock
 scripts/pii-check.sh
+asterisk-bridge/dev-certs/
