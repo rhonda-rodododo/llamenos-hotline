@@ -16,6 +16,7 @@ import type {
   WebhookQueueResult,
   WebhookQueueWait,
   WebhookRecordingStatus,
+  WebhookVerificationResult,
 } from './adapter'
 import { BridgeClient } from './bridge-client'
 
@@ -415,6 +416,15 @@ export class AsteriskAdapter implements TelephonyAdapter {
       ariPassword: this.ariPassword,
       bridgeCallbackUrl: this.bridgeCallbackUrl,
     } as Parameters<typeof asteriskCapabilities.testConnection>[0])
+  }
+
+  async verifyWebhookConfig(
+    _phoneNumber: string,
+    _expectedBaseUrl: string
+  ): Promise<WebhookVerificationResult> {
+    // Asterisk is self-hosted — we control the dialplan directly.
+    // No external webhook configuration to verify.
+    return { configured: true }
   }
 }
 

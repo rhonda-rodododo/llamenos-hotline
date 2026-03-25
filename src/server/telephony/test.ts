@@ -15,6 +15,7 @@ import type {
   WebhookQueueResult,
   WebhookQueueWait,
   WebhookRecordingStatus,
+  WebhookVerificationResult,
 } from './adapter'
 
 /**
@@ -305,5 +306,16 @@ export class TestAdapter implements TelephonyAdapter {
 
   async testConnection(): Promise<ConnectionTestResult> {
     return { connected: true, latencyMs: 0 }
+  }
+
+  async verifyWebhookConfig(
+    _phoneNumber: string,
+    expectedBaseUrl: string
+  ): Promise<WebhookVerificationResult> {
+    return {
+      configured: true,
+      expectedUrl: `${expectedBaseUrl}/api/telephony/incoming`,
+      actualUrl: `${expectedBaseUrl}/api/telephony/incoming`,
+    }
   }
 }

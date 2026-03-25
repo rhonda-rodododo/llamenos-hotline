@@ -16,6 +16,7 @@ import type {
   WebhookQueueResult,
   WebhookQueueWait,
   WebhookRecordingStatus,
+  WebhookVerificationResult,
 } from './adapter'
 
 /**
@@ -519,6 +520,51 @@ export class TwilioAdapter implements TelephonyAdapter {
       accountSid: this.accountSid,
       authToken: this.authToken,
     } as Parameters<typeof twilioCapabilities.testConnection>[0])
+  }
+
+  async verifyWebhookConfig(
+    phoneNumber: string,
+    expectedBaseUrl: string
+  ): Promise<WebhookVerificationResult> {
+    const expectedVoiceUrl = `${expectedBaseUrl}/api/telephony/incoming`
+    try {
+      const encoded = encodeURIComponent(phoneNumber)
+      const res = await this.twilioApi(`/IncomingPhoneNumbers.json?PhoneNumber=${encoded}`, {
+        method: 'GET',
+      })
+      if (!res.ok) {
+        return {
+          configured: false,
+          expectedUrl: expectedVoiceUrl,
+          warning: `Failed to query Twilio API: ${res.status} ${res.statusText}`,
+        }
+      }
+      const data = (await res.json()) as {
+        incoming_phone_numbers?: Array<{ voice_url?: string }>
+      }
+      const numbers = data.incoming_phone_numbers
+      if (!numbers?.length) {
+        return {
+          configured: false,
+          expectedUrl: expectedVoiceUrl,
+          warning: `Phone number ${phoneNumber} not found in this Twilio account`,
+        }
+      }
+      const actualUrl = numbers[0].voice_url ?? ''
+      const configured = actualUrl.startsWith(expectedBaseUrl)
+      return {
+        configured,
+        expectedUrl: expectedVoiceUrl,
+        actualUrl: actualUrl || undefined,
+        warning: configured ? undefined : 'Voice webhook URL does not point to this application',
+      }
+    } catch (err) {
+      return {
+        configured: false,
+        expectedUrl: expectedVoiceUrl,
+        warning: `Error verifying webhook: ${err instanceof Error ? err.message : String(err)}`,
+      }
+    }
   }
 
   // --- Helpers ---

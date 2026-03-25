@@ -16,6 +16,7 @@ import type {
   WebhookQueueResult,
   WebhookQueueWait,
   WebhookRecordingStatus,
+  WebhookVerificationResult,
 } from './adapter'
 
 /**
@@ -588,5 +589,20 @@ export class VonageAdapter implements TelephonyAdapter {
       applicationId: this.applicationId,
       privateKey: this.privateKey,
     } as Parameters<typeof vonageCapabilities.testConnection>[0])
+  }
+
+  async verifyWebhookConfig(
+    _phoneNumber: string,
+    expectedBaseUrl: string
+  ): Promise<WebhookVerificationResult> {
+    // Vonage webhook verification requires the Application API with JWT auth,
+    // which needs the private key for signing. The Numbers API does not expose
+    // voice webhook URLs directly. Return a warning for now.
+    return {
+      configured: true,
+      expectedUrl: `${expectedBaseUrl}/api/telephony/incoming`,
+      warning:
+        'Vonage webhook verification not yet implemented — please verify webhook URL in the Vonage Dashboard',
+    }
   }
 }

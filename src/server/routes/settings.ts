@@ -1,5 +1,6 @@
 import type { MessagingChannelType, TelephonyProviderType } from '@shared/types'
 import { Hono } from 'hono'
+import { getTelephony } from '../lib/adapters'
 import { MESSAGING_CAPABILITIES } from '../messaging/capabilities'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { TELEPHONY_CAPABILITIES } from '../telephony/capabilities'
@@ -205,6 +206,41 @@ settings.post(
       const message = err instanceof Error ? err.message : 'Connection failed'
       return c.json({ ok: false, error: message }, { status: 400 })
     }
+  }
+)
+
+// Webhook URL verification — checks provider's phone number webhook points to this app
+settings.get(
+  '/telephony-provider/verify-webhook',
+  requirePermission('settings:manage-telephony'),
+  async (c) => {
+    const services = c.get('services')
+    const hubId = c.get('hubId')
+    const env = c.env
+
+    const adapter = await getTelephony(services.settings, hubId ?? undefined, {
+      TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
+      TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER,
+    })
+    if (!adapter) {
+      return c.json({ error: 'Telephony provider not configured' }, 503)
+    }
+
+    // Determine the phone number from hub config or env
+    const config = await services.settings.getTelephonyProvider(hubId ?? undefined)
+    const phoneNumber = config?.phoneNumber || env.TWILIO_PHONE_NUMBER
+    if (!phoneNumber) {
+      return c.json({ error: 'No phone number configured' }, 400)
+    }
+
+    const appUrl = env.APP_URL
+    if (!appUrl) {
+      return c.json({ error: 'APP_URL not configured — cannot verify webhook' }, 400)
+    }
+
+    const result = await adapter.verifyWebhookConfig(phoneNumber, appUrl)
+    return c.json(result)
   }
 )
 

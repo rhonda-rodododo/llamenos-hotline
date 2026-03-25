@@ -155,6 +155,16 @@ export interface TelephonyAdapter {
 
   /** Test provider connectivity using stored credentials. Used by health monitoring. */
   testConnection(): Promise<ConnectionTestResult>
+
+  /**
+   * Verify the provider's phone number webhook is pointing to this app.
+   * Returns whether the voice webhook URL matches the expected app URL.
+   * Cloud providers require correct webhook config for calls to reach us.
+   */
+  verifyWebhookConfig(
+    phoneNumber: string,
+    expectedBaseUrl: string
+  ): Promise<WebhookVerificationResult>
 }
 
 export interface LanguageMenuParams {
@@ -235,3 +245,10 @@ export interface TelephonyResponse {
 
 /** Map of "promptType:language" -> audio URL for custom recordings */
 export type AudioUrlMap = Record<string, string>
+
+export interface WebhookVerificationResult {
+  configured: boolean
+  expectedUrl?: string // what we expect
+  actualUrl?: string // what the provider has
+  warning?: string
+}
