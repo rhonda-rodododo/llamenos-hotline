@@ -180,12 +180,16 @@ async function signJwtHs256(
 
   const key = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(secret),
+    new TextEncoder().encode(secret) as Uint8Array<ArrayBuffer>,
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
   )
-  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data))
+  const sig = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(data) as Uint8Array<ArrayBuffer>
+  )
   const sigB64 = base64urlEncodeBytes(new Uint8Array(sig))
   return `${data}.${sigB64}`
 }
@@ -213,7 +217,11 @@ async function signJwtRs256(
     false,
     ['sign']
   )
-  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(data))
+  const sig = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    new TextEncoder().encode(data) as Uint8Array<ArrayBuffer>
+  )
   const sigB64 = base64urlEncodeBytes(new Uint8Array(sig))
   return `${data}.${sigB64}`
 }

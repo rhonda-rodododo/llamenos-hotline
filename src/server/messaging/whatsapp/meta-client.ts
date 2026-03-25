@@ -192,7 +192,7 @@ export class MetaDirectClient {
     const encoder = new TextEncoder()
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(this.appSecret),
+      encoder.encode(this.appSecret) as Uint8Array<ArrayBuffer>,
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']

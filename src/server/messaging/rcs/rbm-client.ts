@@ -62,7 +62,7 @@ export class RBMClient {
     const signature = await crypto.subtle.sign(
       'RSASSA-PKCS1-v1_5',
       key,
-      new TextEncoder().encode(signingInput)
+      new TextEncoder().encode(signingInput) as Uint8Array<ArrayBuffer>
     )
 
     const encodedSignature = base64urlEncode(String.fromCharCode(...new Uint8Array(signature)))

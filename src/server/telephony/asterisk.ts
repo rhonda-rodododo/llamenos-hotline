@@ -306,12 +306,16 @@ export class AsteriskAdapter implements TelephonyAdapter {
 
     const key = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(this.bridgeSecret),
+      new TextEncoder().encode(this.bridgeSecret) as Uint8Array<ArrayBuffer>,
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
     )
-    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
+    const sig = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      new TextEncoder().encode(payload) as Uint8Array<ArrayBuffer>
+    )
     const expectedSig = Array.from(new Uint8Array(sig))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')
@@ -402,12 +406,16 @@ export class AsteriskAdapter implements TelephonyAdapter {
 
     const key = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(this.bridgeSecret),
+      new TextEncoder().encode(this.bridgeSecret) as Uint8Array<ArrayBuffer>,
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
     )
-    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
+    const sig = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      new TextEncoder().encode(payload) as Uint8Array<ArrayBuffer>
+    )
     const signature = Array.from(new Uint8Array(sig))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')

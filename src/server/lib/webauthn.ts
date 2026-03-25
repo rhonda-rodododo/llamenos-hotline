@@ -18,7 +18,7 @@ export async function generateRegOptions(
     rpName,
     rpID,
     userName: volunteer.name || volunteer.pubkey.slice(0, 16),
-    userID: new TextEncoder().encode(volunteer.pubkey),
+    userID: new TextEncoder().encode(volunteer.pubkey) as Uint8Array<ArrayBuffer>,
     attestationType: 'none',
     authenticatorSelection: {
       residentKey: 'preferred',

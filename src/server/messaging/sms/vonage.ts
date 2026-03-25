@@ -74,12 +74,16 @@ export class VonageSMSAdapter implements MessagingAdapter {
     const encoder = new TextEncoder()
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(this.apiSecret),
+      encoder.encode(this.apiSecret) as Uint8Array<ArrayBuffer>,
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
     )
-    const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(body))
+    const sig = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      encoder.encode(body) as Uint8Array<ArrayBuffer>
+    )
     const expected = Array.from(new Uint8Array(sig))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')

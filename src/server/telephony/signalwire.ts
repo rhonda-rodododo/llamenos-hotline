@@ -62,12 +62,16 @@ export class SignalWireAdapter extends TwilioAdapter {
     const encoder = new TextEncoder()
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(this.authToken),
+      encoder.encode(this.authToken) as Uint8Array<ArrayBuffer>,
       { name: 'HMAC', hash: 'SHA-1' },
       false,
       ['sign']
     )
-    const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(dataString))
+    const sig = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      encoder.encode(dataString) as Uint8Array<ArrayBuffer>
+    )
     const expected = btoa(String.fromCharCode(...new Uint8Array(sig)))
 
     if (signature.length !== expected.length) return false

@@ -429,12 +429,16 @@ export class VonageAdapter implements TelephonyAdapter {
     const encoder = new TextEncoder()
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(this.apiSecret),
+      encoder.encode(this.apiSecret) as Uint8Array<ArrayBuffer>,
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
     )
-    const signed = await crypto.subtle.sign('HMAC', key, encoder.encode(sigInput))
+    const signed = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      encoder.encode(sigInput) as Uint8Array<ArrayBuffer>
+    )
     const expected = Array.from(new Uint8Array(signed))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')

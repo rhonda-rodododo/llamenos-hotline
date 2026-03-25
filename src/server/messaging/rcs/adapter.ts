@@ -127,12 +127,16 @@ async function hashIdentifier(identifier: string, secret: string): Promise<strin
   const encoder = new TextEncoder()
   const key = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(secret),
+    encoder.encode(secret) as Uint8Array<ArrayBuffer>,
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
   )
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(identifier))
+  const sig = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    encoder.encode(identifier) as Uint8Array<ArrayBuffer>
+  )
   return Array.from(new Uint8Array(sig))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
