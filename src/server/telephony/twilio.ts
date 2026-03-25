@@ -272,16 +272,30 @@ export class TwilioAdapter implements TelephonyAdapter {
     const callSids: string[] = []
     const hubParam = params.hubId ? `&hub=${encodeURIComponent(params.hubId)}` : ''
 
+    // Build list of outbound calls: one per phone number + one per browser identity
+    const outboundTargets: Array<{ pubkey: string; to: string }> = []
+    for (const vol of params.volunteers) {
+      if (vol.phone) {
+        outboundTargets.push({ pubkey: vol.pubkey, to: vol.phone })
+      }
+      if (vol.browserIdentity) {
+        outboundTargets.push({ pubkey: vol.pubkey, to: `client:${vol.browserIdentity}` })
+      }
+    }
+
     const calls = await Promise.allSettled(
-      params.volunteers.map(async (vol) => {
+      outboundTargets.map(async (target) => {
         const body = new URLSearchParams({
-          To: vol.phone,
+          To: target.to,
           From: this.phoneNumber,
-          Url: `${params.callbackUrl}/api/telephony/volunteer-answer?parentCallSid=${params.callSid}&pubkey=${vol.pubkey}${hubParam}`,
-          StatusCallback: `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${vol.pubkey}${hubParam}`,
+          Url: `${params.callbackUrl}/api/telephony/volunteer-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
+          StatusCallback: `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           Timeout: '30',
-          MachineDetection: 'Enable',
         })
+        // Only enable machine detection for phone calls, not browser clients
+        if (!target.to.startsWith('client:')) {
+          body.set('MachineDetection', 'Enable')
+        }
         // Twilio REST API requires separate params per event (not space-separated)
         body.append('StatusCallbackEvent', 'initiated')
         body.append('StatusCallbackEvent', 'ringing')
@@ -297,7 +311,7 @@ export class TwilioAdapter implements TelephonyAdapter {
           const data = (await res.json()) as { sid: string }
           return data.sid
         }
-        throw new Error(`Failed to call ${vol.pubkey}`)
+        throw new Error(`Failed to call ${target.pubkey}`)
       })
     )
 

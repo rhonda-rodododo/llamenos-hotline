@@ -36,16 +36,29 @@ export async function startParallelRinging(
       (v) => onShiftPubkeys.includes(v.pubkey) && v.active && !v.onBreak
     )
 
-    // Only ring phones for volunteers with phone or both preference (and who have a phone number)
-    const toRingPhone = available
+    // Build unified volunteer list with phone and/or browser identity per volunteer
+    const toRing = available
       .filter((v) => {
         const pref = v.callPreference ?? 'phone'
-        return (pref === 'phone' || pref === 'both') && v.phone
+        return (
+          ((pref === 'phone' || pref === 'both') && v.phone) ||
+          pref === 'browser' ||
+          pref === 'both'
+        )
       })
-      .map((v) => ({ pubkey: v.pubkey, phone: v.phone }))
+      .map((v) => {
+        const pref = v.callPreference ?? 'phone'
+        return {
+          pubkey: v.pubkey,
+          phone: (pref === 'phone' || pref === 'both') && v.phone ? v.phone : undefined,
+          browserIdentity:
+            pref === 'browser' || pref === 'both' ? `vol_${v.pubkey.slice(0, 16)}` : undefined,
+        }
+      })
 
-    // Browser-only volunteers still get notified via WebSocket (handled by call service)
-    const browserOnly = available.filter((v) => (v.callPreference ?? 'phone') === 'browser')
+    // Count phone vs browser for logging
+    const phoneCount = toRing.filter((v) => v.phone).length
+    const browserCount = toRing.filter((v) => v.browserIdentity).length
 
     if (available.length === 0) {
       console.log('[ringing] no available volunteers — skipping')
@@ -53,7 +66,7 @@ export async function startParallelRinging(
     }
 
     console.log(
-      `[ringing] callSid=${callSid} total=${available.length} phone=${toRingPhone.length} browser=${browserOnly.length}`
+      `[ringing] callSid=${callSid} total=${available.length} phone=${phoneCount} browser=${browserCount}`
     )
 
     // Record incoming call in the call service (includes all available volunteers for WebSocket)
@@ -88,8 +101,19 @@ export async function startParallelRinging(
       )
       .catch((err) => console.warn('[ringing] push notification failed:', err))
 
-    // Ring phone volunteers via telephony adapter (skip if no one needs phone ringing)
-    if (toRingPhone.length > 0) {
+    // Create browser call legs for volunteers with browser identity
+    for (const vol of toRing.filter((v) => v.browserIdentity)) {
+      await services.calls.createCallLeg({
+        legSid: `browser_${callSid}_${vol.pubkey.slice(0, 8)}`,
+        callSid,
+        hubId: hubId ?? 'global',
+        volunteerPubkey: vol.pubkey,
+        type: 'browser',
+      })
+    }
+
+    // Ring volunteers via telephony adapter (handles both phone and browser legs)
+    if (toRing.length > 0) {
       const adapter = await getTelephony(services.settings, hubId, {
         TWILIO_ACCOUNT_SID: env.TWILIO_ACCOUNT_SID,
         TWILIO_AUTH_TOKEN: env.TWILIO_AUTH_TOKEN,
@@ -102,7 +126,7 @@ export async function startParallelRinging(
         await adapter.ringVolunteers({
           callSid,
           callerNumber,
-          volunteers: toRingPhone,
+          volunteers: toRing,
           callbackUrl: origin,
           hubId,
         })

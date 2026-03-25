@@ -274,19 +274,43 @@ export class PlivoAdapter implements TelephonyAdapter {
     const callSids: string[] = []
     const hubParam = params.hubId ? `&hub=${encodeURIComponent(params.hubId)}` : ''
 
+    // Build outbound targets: one per phone + one per browser identity
+    // Plivo supports mixing <Number> and <User> in a single <Dial> for parallel ringing,
+    // but each volunteer gets a separate REST API call for status tracking
+    const outboundTargets: Array<{
+      pubkey: string
+      to: string
+      isBrowser: boolean
+    }> = []
+    for (const vol of params.volunteers) {
+      if (vol.phone) {
+        outboundTargets.push({ pubkey: vol.pubkey, to: vol.phone, isBrowser: false })
+      }
+      if (vol.browserIdentity) {
+        outboundTargets.push({
+          pubkey: vol.pubkey,
+          to: `sip:${vol.browserIdentity}@app.plivo.com`,
+          isBrowser: true,
+        })
+      }
+    }
+
     const calls = await Promise.allSettled(
-      params.volunteers.map(async (vol) => {
-        const body = {
+      outboundTargets.map(async (target) => {
+        const body: Record<string, unknown> = {
           from: this.phoneNumber,
-          to: vol.phone,
-          answer_url: `${params.callbackUrl}/api/telephony/volunteer-answer?parentCallSid=${params.callSid}&pubkey=${vol.pubkey}${hubParam}`,
+          to: target.to,
+          answer_url: `${params.callbackUrl}/api/telephony/volunteer-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           answer_method: 'POST',
-          hangup_url: `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${vol.pubkey}${hubParam}`,
+          hangup_url: `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           hangup_method: 'POST',
-          ring_url: `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${vol.pubkey}${hubParam}`,
+          ring_url: `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           ring_method: 'POST',
           ring_timeout: 30,
-          machine_detection: 'hangup',
+        }
+        // Only enable machine detection for phone calls
+        if (!target.isBrowser) {
+          body.machine_detection = 'hangup'
         }
 
         const res = await this.plivoApi('/Call/', {
@@ -298,7 +322,7 @@ export class PlivoAdapter implements TelephonyAdapter {
           const data = (await res.json()) as { request_uuid: string }
           return data.request_uuid
         }
-        throw new Error(`Failed to call ${vol.pubkey}`)
+        throw new Error(`Failed to call ${target.pubkey}`)
       })
     )
 

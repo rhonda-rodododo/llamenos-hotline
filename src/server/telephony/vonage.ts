@@ -324,21 +324,45 @@ export class VonageAdapter implements TelephonyAdapter {
     const callSids: string[] = []
     const hubParam = params.hubId ? `&hub=${encodeURIComponent(params.hubId)}` : ''
 
-    const calls = await Promise.allSettled(
-      params.volunteers.map(async (vol) => {
-        const body = {
+    // Build outbound targets: one per phone number + one per browser identity
+    const outboundTargets: Array<{
+      pubkey: string
+      to: Array<Record<string, string>>
+      machineDetection?: string
+    }> = []
+    for (const vol of params.volunteers) {
+      if (vol.phone) {
+        outboundTargets.push({
+          pubkey: vol.pubkey,
           to: [{ type: 'phone', number: vol.phone.replace('+', '') }],
+          machineDetection: 'hangup',
+        })
+      }
+      if (vol.browserIdentity) {
+        outboundTargets.push({
+          pubkey: vol.pubkey,
+          to: [{ type: 'app', user: vol.browserIdentity }],
+        })
+      }
+    }
+
+    const calls = await Promise.allSettled(
+      outboundTargets.map(async (target) => {
+        const body: Record<string, unknown> = {
+          to: target.to,
           from: { type: 'phone', number: this.phoneNumber.replace('+', '') },
           answer_url: [
-            `${params.callbackUrl}/api/telephony/volunteer-answer?parentCallSid=${params.callSid}&pubkey=${vol.pubkey}${hubParam}`,
+            `${params.callbackUrl}/api/telephony/volunteer-answer?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           ],
           answer_method: 'POST',
           event_url: [
-            `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${vol.pubkey}${hubParam}`,
+            `${params.callbackUrl}/api/telephony/call-status?parentCallSid=${params.callSid}&pubkey=${target.pubkey}${hubParam}`,
           ],
           event_method: 'POST',
           ringing_timer: 30,
-          machine_detection: 'hangup',
+        }
+        if (target.machineDetection) {
+          body.machine_detection = target.machineDetection
         }
 
         const res = await this.vonageApi('/v1/calls', {
@@ -350,7 +374,7 @@ export class VonageAdapter implements TelephonyAdapter {
           const data = (await res.json()) as { uuid: string }
           return data.uuid
         }
-        throw new Error(`Failed to call ${vol.pubkey}`)
+        throw new Error(`Failed to call ${target.pubkey}`)
       })
     )
 

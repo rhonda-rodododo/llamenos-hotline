@@ -1,9 +1,12 @@
+import type { RingVolunteersParams } from './adapter'
 import { TwilioAdapter } from './twilio'
 
 /**
  * SignalWire adapter — extends TwilioAdapter since SignalWire is API-compatible.
  * Only the base URLs and authentication differ.
  * SignalWire uses a "space" subdomain: https://{space}.signalwire.com
+ *
+ * Note: SignalWire does not support browser/client calling — only phone volunteers are rung.
  */
 export class SignalWireAdapter extends TwilioAdapter {
   private space: string
@@ -11,6 +14,13 @@ export class SignalWireAdapter extends TwilioAdapter {
   constructor(projectId: string, apiToken: string, phoneNumber: string, space: string) {
     super(projectId, apiToken, phoneNumber)
     this.space = space
+  }
+
+  override async ringVolunteers(params: RingVolunteersParams): Promise<string[]> {
+    // SignalWire doesn't support browser calling — filter to phone-only volunteers
+    const phoneOnly = params.volunteers.filter((v) => v.phone)
+    if (phoneOnly.length === 0) return []
+    return super.ringVolunteers({ ...params, volunteers: phoneOnly })
   }
 
   protected override getApiBaseUrl(): string {

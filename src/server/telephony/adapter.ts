@@ -206,7 +206,11 @@ export interface VoicemailParams {
 export interface RingVolunteersParams {
   callSid: string
   callerNumber: string
-  volunteers: Array<{ pubkey: string; phone: string }>
+  volunteers: Array<{
+    pubkey: string
+    phone?: string // optional — browser-only volunteers have no phone
+    browserIdentity?: string // e.g., 'vol_abc123' — for <Client>/<User>/NCCO routing
+  }>
   callbackUrl: string
   /** Hub ID for multi-hub routing — appended to callback URLs as ?hub= */
   hubId?: string

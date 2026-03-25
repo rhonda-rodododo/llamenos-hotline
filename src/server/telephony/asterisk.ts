@@ -234,10 +234,13 @@ export class AsteriskAdapter implements TelephonyAdapter {
 
   async ringVolunteers(params: RingVolunteersParams): Promise<string[]> {
     const { callSid, callerNumber, volunteers, callbackUrl, hubId } = params
+    // Asterisk doesn't support browser calling — filter to phone-only volunteers
+    const phoneVolunteers = volunteers.filter((v) => v.phone)
+    if (phoneVolunteers.length === 0) return []
     const result = await this.bridgeRequest('POST', '/commands/ring', {
       parentCallSid: callSid,
       callerNumber,
-      volunteers: volunteers.map((v) => ({ pubkey: v.pubkey, phone: v.phone })),
+      volunteers: phoneVolunteers.map((v) => ({ pubkey: v.pubkey, phone: v.phone })),
       callbackUrl,
       hubId,
     })
