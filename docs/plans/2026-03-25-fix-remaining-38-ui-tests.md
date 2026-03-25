@@ -1,8 +1,8 @@
 # Fix Remaining 38 UI E2E Test Failures
 
 **Date:** 2026-03-25
-**Status:** Ready for implementation
-**Context:** API tests are at 0 failures. UI tests went from 81 → 38 after fixing systemic issues (test isolation, missing i18n, broken API responses, selector mismatches). Remaining failures are grouped by root cause below.
+**Status:** Partially complete — 81 → 27 failures remaining
+**Context:** API tests are at 0 failures (263 passed). UI tests went from 81 → 27 (407 passed). Batches 1, 4, and most of 8 are done. Batches 2, 5, 6 partially done. Reports (11) and WebAuthn CDP (3) are the stubborn remaining clusters.
 
 ---
 
