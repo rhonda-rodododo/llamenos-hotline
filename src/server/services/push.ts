@@ -1,4 +1,5 @@
 import { and, eq, inArray } from 'drizzle-orm'
+import webpush from 'web-push'
 import type { Database } from '../db'
 import { pushSubscriptions } from '../db/schema'
 import { AppError } from '../lib/errors'
@@ -109,5 +110,46 @@ export class PushService {
       .from(pushSubscriptions)
       .where(inArray(pushSubscriptions.pubkey, pubkeys))
     return rows.map((r) => this.#rowToSubscription(r))
+  }
+
+  /**
+   * Send Web Push notifications to all subscriptions for the given volunteer pubkeys.
+   * Stale subscriptions (410/404) are automatically removed.
+   * Non-fatal delivery errors are logged but do not throw.
+   */
+  async sendPushToVolunteers(
+    pubkeys: string[],
+    data: { type: string; callSid: string; hubId: string },
+    env: { VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string }
+  ): Promise<void> {
+    if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return
+
+    webpush.setVapidDetails(
+      'mailto:admin@llamenos.org',
+      env.VAPID_PUBLIC_KEY,
+      env.VAPID_PRIVATE_KEY
+    )
+
+    const subscriptions = await this.getSubscriptionsForPubkeys(pubkeys)
+    const payload = JSON.stringify(data)
+
+    await Promise.allSettled(
+      subscriptions.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { auth: sub.authKey, p256dh: sub.p256dhKey } },
+            payload,
+            { TTL: 30, urgency: 'high' }
+          )
+        } catch (err: unknown) {
+          const statusCode = (err as { statusCode?: number }).statusCode
+          if (statusCode === 410 || statusCode === 404) {
+            await this.removeStaleSubscription(sub.endpoint)
+          } else {
+            console.warn('[push] Failed to send push:', sub.endpoint, err)
+          }
+        }
+      })
+    )
   }
 }

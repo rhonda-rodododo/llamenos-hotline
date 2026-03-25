@@ -78,6 +78,16 @@ export async function startParallelRinging(
       hubId
     )
 
+    // Send Web Push notifications to all available volunteers (fire-and-forget)
+    const availablePubkeys = available.map((v) => v.pubkey)
+    services.push
+      .sendPushToVolunteers(
+        availablePubkeys,
+        { type: 'call:ring', callSid, hubId: hubId ?? 'global' },
+        env
+      )
+      .catch((err) => console.warn('[ringing] push notification failed:', err))
+
     // Ring phone volunteers via telephony adapter (skip if no one needs phone ringing)
     if (toRingPhone.length > 0) {
       const adapter = await getTelephony(services.settings, hubId, {

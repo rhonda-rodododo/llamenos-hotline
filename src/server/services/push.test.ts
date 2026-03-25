@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test'
 import path from 'node:path'
 import { createDatabase } from '@server/db'
 import { pushSubscriptions } from '@server/db/schema'
@@ -184,5 +184,133 @@ describe('PushService', () => {
 
     // Should not contain subscriptions from other test cases that used different prefixes
     expect(results.every((r) => r.pubkey === PUBKEY_A || r.pubkey === PUBKEY_B)).toBeTrue()
+  })
+
+  describe('sendPushToVolunteers', () => {
+    // Real VAPID keys (generated via web-push generateVAPIDKeys) — needed to pass setVapidDetails validation
+    const VAPID_PUBLIC_KEY =
+      'BIHy2drSLovwE23fZqeFSY64Q09aAckj0IEAaxrrUvz-Q5fPwKQ0a_X5kr5lGy9mwi2wk0YSTqdgkjnbTkbcq9A'
+    const VAPID_PRIVATE_KEY = 't-vwcdqE1kB2Tj-VmH5iu4WuqwHKMYBY2_QLhQzwQm8'
+
+    test('returns early when VAPID keys are missing', async () => {
+      // Should not throw or touch the DB — just return silently
+      await expect(
+        service.sendPushToVolunteers(
+          [PUBKEY_A],
+          { type: 'call:ring', callSid: 'CA-test', hubId: 'global' },
+          {}
+        )
+      ).resolves.toBeUndefined()
+    })
+
+    test('returns early when only one VAPID key is present', async () => {
+      await expect(
+        service.sendPushToVolunteers(
+          [PUBKEY_A],
+          { type: 'call:ring', callSid: 'CA-test', hubId: 'global' },
+          { VAPID_PUBLIC_KEY }
+        )
+      ).resolves.toBeUndefined()
+    })
+
+    test('returns early with no subscriptions for given pubkeys', async () => {
+      // No subscriptions exist for this unique pubkey.
+      // setVapidDetails is called but getSubscriptionsForPubkeys returns [] so
+      // sendNotification is never called and the method returns without error.
+      const noPubkey = `${RUN_PREFIX}-nobody`
+      await expect(
+        service.sendPushToVolunteers(
+          [noPubkey],
+          { type: 'call:ring', callSid: 'CA-nobody', hubId: 'global' },
+          { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY }
+        )
+      ).resolves.toBeUndefined()
+    })
+
+    test('removes subscription when push delivery returns 410 Gone', async () => {
+      const endpoint = makeEndpoint('push-410')
+
+      await service.subscribe({
+        pubkey: PUBKEY_A,
+        endpoint,
+        authKey: 'auth-410',
+        p256dhKey: 'p256dh-410',
+      })
+
+      // Verify it exists
+      const before = await db
+        .select()
+        .from(pushSubscriptions)
+        .where(eq(pushSubscriptions.endpoint, endpoint))
+      expect(before.length).toBe(1)
+
+      // Mock web-push to throw a 410 error so removeStaleSubscription is called
+      const webpushModule = await import('web-push')
+      const originalSend = webpushModule.default.sendNotification.bind(webpushModule.default)
+
+      // Temporarily replace sendNotification with a 410-throwing stub
+      const stub410 = mock(async () => {
+        const err = Object.assign(new Error('Gone'), { statusCode: 410 })
+        throw err
+      })
+      webpushModule.default.sendNotification =
+        stub410 as typeof webpushModule.default.sendNotification
+
+      try {
+        await service.sendPushToVolunteers(
+          [PUBKEY_A],
+          { type: 'call:ring', callSid: 'CA-410', hubId: 'global' },
+          { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY }
+        )
+      } finally {
+        // Restore original
+        webpushModule.default.sendNotification = originalSend
+      }
+
+      // Subscription must have been deleted
+      const after = await db
+        .select()
+        .from(pushSubscriptions)
+        .where(eq(pushSubscriptions.endpoint, endpoint))
+      expect(after.length).toBe(0)
+    })
+
+    test('does NOT remove subscription on non-410 push error', async () => {
+      const endpoint = makeEndpoint('push-500')
+
+      await service.subscribe({
+        pubkey: PUBKEY_A,
+        endpoint,
+        authKey: 'auth-500',
+        p256dhKey: 'p256dh-500',
+      })
+
+      const webpushModule = await import('web-push')
+      const originalSend = webpushModule.default.sendNotification.bind(webpushModule.default)
+
+      const stub500 = mock(async () => {
+        const err = Object.assign(new Error('Internal Server Error'), { statusCode: 500 })
+        throw err
+      })
+      webpushModule.default.sendNotification =
+        stub500 as typeof webpushModule.default.sendNotification
+
+      try {
+        await service.sendPushToVolunteers(
+          [PUBKEY_A],
+          { type: 'call:ring', callSid: 'CA-500', hubId: 'global' },
+          { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY }
+        )
+      } finally {
+        webpushModule.default.sendNotification = originalSend
+      }
+
+      // Subscription must still exist (not removed for 500)
+      const after = await db
+        .select()
+        .from(pushSubscriptions)
+        .where(eq(pushSubscriptions.endpoint, endpoint))
+      expect(after.length).toBe(1)
+    })
   })
 })
