@@ -176,8 +176,8 @@ The adapter factory decides which implementation to use based on the hub's provi
 **Browser leg creation in `ringVolunteers()`:**
 - VoIP providers route incoming calls to registered browser devices via their signaling mechanism, but the server must include browser client identities in the dial instructions:
   - **Twilio**: TwiML `<Dial>` must include `<Client>identity</Client>` noun alongside `<Number>` nouns for browser-preference volunteers. The identity is the volunteer's pubkey (used during `Device.register()`).
-  - **Vonage**: NCCO `connect` action with `type: 'app'` and the volunteer's user ID targets their browser SDK
-  - **Plivo**: XML `<Dial>` with `<User>` element targets the browser endpoint
+  - **Vonage**: NCCO `connect` action only supports one endpoint array per action — cannot mix multiple users in a single `connect`. For parallel ringing, use the REST API to create multiple outbound call legs programmatically, each with `{ type: 'app', user: 'vol_xxx' }`. The `callInviteCancel` event with reason `'AnsweredElsewhere'` notifies other clients.
+  - **Plivo**: XML `<Dial>` with `<User>sip:username@phone.plivo.com</User>` element targets the browser endpoint. Multiple `<User>` + `<Number>` elements in one `<Dial>` work for parallel ringing (same model as Twilio). **Note:** Plivo Browser SDK uses endpoint username/password auth (`client.login(user, pass)`), not JWT tokens. The current `generatePlivoToken()` HMAC approach needs revision — the token endpoint should return endpoint credentials or use `loginWithAccessToken()`.
 - The `ringVolunteers` adapter method signature already accepts a volunteers list — extend each volunteer entry to include `{ pubkey, phone?, browserIdentity? }` so the adapter knows which dial directives to emit. **This is a breaking change** to `RingVolunteersParams` (currently `phone: string` is required). All 5 adapter implementations must be updated to handle the optional fields. Adapters not covered in this spec (SignalWire, Asterisk) should ignore `browserIdentity` for now.
 - For each browser-preference volunteer, create a `callLegs` row with `type: 'browser'`
 
@@ -192,6 +192,9 @@ The adapter factory decides which implementation to use based on the hub's provi
 - Race condition: the existing `assignedPubkey` check on the `activeCalls` row handles simultaneous answers (first write wins). Leg cancellation runs after the assignment succeeds, so only the winner's legs survive.
 
 **No new adapter methods needed** for the answer/bridge flow — VoIP providers bridge the browser connection automatically when the client SDK accepts the incoming call. The `ringBrowserVolunteer` pattern is only needed for SIP-mode providers (Asterisk spec).
+
+**Client-side answer integration:**
+- `useCalls.answerCall()` currently only calls `POST /api/calls/:callId/answer` — it does NOT call `acceptCall()` from the WebRTC module. For browser calling, answering must also accept the incoming provider SDK connection (e.g., `call.accept()` for Twilio). The `answerCall` flow must detect whether the volunteer has an active incoming WebRTC connection and accept it alongside the REST call.
 
 ---
 
