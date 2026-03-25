@@ -19,7 +19,7 @@
 ### Modified
 | File | Responsibility |
 |---|---|
-| `src/shared/crypto-labels.ts` | Add `LABEL_VOICEMAIL_AUDIO` and `LABEL_VOICEMAIL_TRANSCRIPT` |
+| `src/shared/crypto-labels.ts` | Add `LABEL_VOICEMAIL_WRAP` and `LABEL_VOICEMAIL_TRANSCRIPT` |
 | `src/server/db/schema/records.ts` | Add `voicemailFileId` column to `call_records` |
 | `src/server/db/schema/settings.ts` | Add `voicemailMaxBytes`, `callRecordingMaxBytes` to `call_settings` |
 | `src/server/telephony/adapter.ts` | Add `deleteRecording()` to `TelephonyAdapter` interface |
@@ -57,7 +57,7 @@ Add two new domain separation constants after the existing labels:
 
 ```ts
 /** Voicemail audio symmetric key wrapping (ECIES) */
-export const LABEL_VOICEMAIL_AUDIO = 'llamenos:voicemail-audio'
+export const LABEL_VOICEMAIL_WRAP = 'llamenos:voicemail-audio'
 
 /** Voicemail transcript encryption */
 export const LABEL_VOICEMAIL_TRANSCRIPT = 'llamenos:voicemail-transcript'
@@ -72,7 +72,7 @@ Expected: PASS
 
 ```bash
 git add src/shared/crypto-labels.ts
-git commit -m "feat: add LABEL_VOICEMAIL_AUDIO and LABEL_VOICEMAIL_TRANSCRIPT crypto labels"
+git commit -m "feat: add LABEL_VOICEMAIL_WRAP and LABEL_VOICEMAIL_TRANSCRIPT crypto labels"
 ```
 
 ---
@@ -113,9 +113,37 @@ Run: `bun run migrate`
 
 Verify by checking DB state — the columns should exist.
 
-- [ ] **Step 5: Update CreateCallRecordData type if needed**
+- [ ] **Step 5: Add voicemailFileId to CreateCallRecordData**
 
-Check `src/server/types.ts` for `CreateCallRecordData` — ensure `voicemailFileId` is included. If the type is derived from the schema, it may auto-update. If manually defined, add `voicemailFileId?: string`.
+In `src/server/types.ts`, the `CreateCallRecordData` interface (line ~550) is manually defined. Add `voicemailFileId?: string` after `recordingSid`:
+
+```ts
+voicemailFileId?: string
+```
+
+Also in `src/server/services/records.ts`, add `voicemailFileId` to the `set()` call inside `updateCallRecord` (follow the pattern of the other optional fields like `recordingSid`):
+
+```ts
+...(data.voicemailFileId !== undefined && { voicemailFileId: data.voicemailFileId }),
+```
+
+- [ ] **Step 5b: Add 'voicemail' to FileRecord.contextType union**
+
+In `src/shared/types.ts`, update the `contextType` field on `FileRecord` (line ~239):
+
+```ts
+contextType?: 'conversation' | 'note' | 'report' | 'custom_field' | 'voicemail'
+```
+
+- [ ] **Step 5c: Make FileRecord.conversationId optional**
+
+In `src/shared/types.ts`, `FileRecord.conversationId` (line 227) is required `string`, but voicemail files have no conversation. Change to:
+
+```ts
+conversationId: string | null
+```
+
+Check all callers of `createFileRecord` to ensure they still compile. The existing callers should already pass a string value, so this change is backwards-compatible.
 
 - [ ] **Step 6: Run typecheck and build**
 
@@ -275,14 +303,14 @@ git commit -m "feat: add deleteRecording() to TelephonyAdapter interface and all
 - Modify: `src/server/lib/crypto.ts`
 - Test: `src/server/lib/crypto.test.ts` (or create if it doesn't exist)
 
-The existing `encryptMessageForStorage()` handles string plaintext. Voicemail audio is binary (`Uint8Array`). We need a server-side function that encrypts binary data with the ECIES envelope pattern, using `LABEL_VOICEMAIL_AUDIO` for domain separation.
+The existing `encryptMessageForStorage()` handles string plaintext. Voicemail audio is binary (`Uint8Array`). We need a server-side function that encrypts binary data with the ECIES envelope pattern, using `LABEL_VOICEMAIL_WRAP` for domain separation.
 
 - [ ] **Step 1: Write failing test for binary encryption**
 
 ```ts
 import { describe, expect, test } from 'bun:test'
 import { encryptBinaryForStorage, decryptBinaryFromStorage } from './crypto'
-import { LABEL_VOICEMAIL_AUDIO } from '@shared/crypto-labels'
+import { LABEL_VOICEMAIL_WRAP } from '@shared/crypto-labels'
 
 describe('encryptBinaryForStorage', () => {
   test('encrypts and decrypts binary data for a recipient', async () => {
@@ -291,7 +319,7 @@ describe('encryptBinaryForStorage', () => {
     const pubkey = Buffer.from(schnorr.getPublicKey(privkey)).toString('hex')
 
     const plaintext = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])
-    const result = encryptBinaryForStorage(plaintext, [pubkey], LABEL_VOICEMAIL_AUDIO)
+    const result = encryptBinaryForStorage(plaintext, [pubkey], LABEL_VOICEMAIL_WRAP)
 
     expect(result.encryptedContent).toBeDefined()
     expect(result.readerEnvelopes).toHaveLength(1)
@@ -302,7 +330,7 @@ describe('encryptBinaryForStorage', () => {
       result.encryptedContent,
       result.readerEnvelopes[0],
       privkey,
-      LABEL_VOICEMAIL_AUDIO
+      LABEL_VOICEMAIL_WRAP
     )
     expect(decrypted).toEqual(plaintext)
   })
@@ -316,48 +344,77 @@ Expected: FAIL — functions not exported
 
 - [ ] **Step 3: Implement encryptBinaryForStorage**
 
-In `src/server/lib/crypto.ts`, add a new exported function. Follow the same pattern as `encryptMessageForStorage` but accept `Uint8Array` input and return hex-encoded ciphertext:
+In `src/server/lib/crypto.ts`, add a new exported function. Follow the same pattern as `encryptMessageForStorage` but accept `Uint8Array` input. Use `VoicemailKeyEnvelope` as the return type since `eciesWrapKeyServer` returns `{ wrappedKey, ephemeralPubkey }` (different field name from `FileKeyEnvelope.encryptedFileKey`):
 
 ```ts
-import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
-import { randomBytes } from '@noble/ciphers/webcrypto.js'
+/** Envelope for voicemail audio encryption key — matches eciesWrapKeyServer output. */
+export interface VoicemailKeyEnvelope {
+  pubkey: string
+  wrappedKey: string
+  ephemeralPubkey: string
+}
 
 export function encryptBinaryForStorage(
   plaintext: Uint8Array,
   readerPubkeys: string[],
   label: string
-): { encryptedContent: string; readerEnvelopes: FileKeyEnvelope[] } {
+): { encryptedContent: string; readerEnvelopes: VoicemailKeyEnvelope[] } {
   // Generate random 32-byte symmetric key
-  const fileKey = randomBytes(32)
-  const nonce = randomBytes(24)
+  const fileKey = new Uint8Array(32)
+  crypto.getRandomValues(fileKey)
+  const nonce = new Uint8Array(24)
+  crypto.getRandomValues(nonce)
   const cipher = xchacha20poly1305(fileKey, nonce)
   const ciphertext = cipher.encrypt(plaintext)
   // Store as: nonce(24) || ciphertext
   const combined = new Uint8Array(24 + ciphertext.length)
   combined.set(nonce, 0)
   combined.set(ciphertext, 24)
-  const encryptedContent = Buffer.from(combined).toString('hex')
+  const encryptedContent = bytesToHex(combined)
 
-  // Wrap key for each reader
-  const readerEnvelopes: FileKeyEnvelope[] = readerPubkeys.map((pubkey) => {
-    return eciesWrapKeyServer(fileKey, pubkey, label)
-  })
+  // Wrap key for each reader (eciesWrapKeyServer is file-private, called within same file)
+  const readerEnvelopes: VoicemailKeyEnvelope[] = readerPubkeys.map((pubkey) => ({
+    pubkey,
+    ...eciesWrapKeyServer(fileKey, pubkey, label),
+  }))
 
   return { encryptedContent, readerEnvelopes }
 }
 ```
 
-Also export a matching `decryptBinaryFromStorage` for testing and future playback:
+Also export a matching `decryptBinaryFromStorage` for testing and future playback. `eciesUnwrapKeyServer` does not exist yet — implement it in the same file following the inverse of `eciesWrapKeyServer`:
 
 ```ts
+function eciesUnwrapKeyServer(
+  envelope: { wrappedKey: string; ephemeralPubkey: string },
+  privateKey: Uint8Array,
+  label: string
+): Uint8Array {
+  const ephemeralPub = hexToBytes(envelope.ephemeralPubkey)
+  const shared = secp256k1.getSharedSecret(privateKey, ephemeralPub)
+  const sharedX = shared.slice(1, 33)
+
+  const labelBytes = utf8ToBytes(label)
+  const keyInput = new Uint8Array(labelBytes.length + sharedX.length)
+  keyInput.set(labelBytes)
+  keyInput.set(sharedX, labelBytes.length)
+  const symmetricKey = sha256(keyInput)
+
+  const packed = hexToBytes(envelope.wrappedKey)
+  const nonce = packed.subarray(0, 24)
+  const ciphertext = packed.subarray(24)
+  const cipher = xchacha20poly1305(symmetricKey, nonce)
+  return cipher.decrypt(ciphertext)
+}
+
 export function decryptBinaryFromStorage(
   encryptedContentHex: string,
-  envelope: FileKeyEnvelope,
+  envelope: VoicemailKeyEnvelope,
   privateKey: Uint8Array,
   label: string
 ): Uint8Array {
   const fileKey = eciesUnwrapKeyServer(envelope, privateKey, label)
-  const combined = Buffer.from(encryptedContentHex, 'hex')
+  const combined = hexToBytes(encryptedContentHex)
   const nonce = combined.subarray(0, 24)
   const ciphertext = combined.subarray(24)
   const cipher = xchacha20poly1305(fileKey, nonce)
@@ -365,7 +422,7 @@ export function decryptBinaryFromStorage(
 }
 ```
 
-Note: `eciesWrapKeyServer` is currently a private function in crypto.ts. You may need to either make it non-private or call it within the same file. Check if `eciesUnwrapKeyServer` exists — if not, implement it following the ECIES pattern (SharedSecret via ECDH, HKDF derive key, decrypt).
+Note: `eciesWrapKeyServer` is a file-private function in crypto.ts — `encryptBinaryForStorage` is added to the same file so it can call it directly. No need to export it.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -435,26 +492,32 @@ describe('storeVoicemailAudio', () => {
     expect(mockRecords.updateCallRecord).toHaveBeenCalledWith('CA123', 'hub-1', expect.objectContaining({ voicemailFileId: expect.any(String) }))
   })
 
-  test('rejects audio exceeding maxBytes', async () => {
+  test('returns oversized and keeps provider copy when audio exceeds maxBytes', async () => {
     const bigAudio = new Uint8Array(3_000_000) // 3MB > 2MB default
     const mockAdapter = {
       getRecordingAudio: mock(async () => bigAudio.buffer as ArrayBuffer),
       deleteRecording: mock(async () => {}),
     }
+    const mockFiles = {
+      createFileRecord: mock(), putAssembled: mock(), completeUpload: mock(),
+    }
 
-    await expect(storeVoicemailAudio({
+    const result = await storeVoicemailAudio({
       callSid: 'CA123',
       recordingSid: 'REC456',
       hubId: 'hub-1',
       adminPubkeys: ['aabbcc'],
       adapter: mockAdapter as any,
-      files: { createFileRecord: mock(), putAssembled: mock(), completeUpload: mock() } as any,
+      files: mockFiles as any,
       records: { updateCallRecord: mock() } as any,
       maxBytes: 2097152,
-    })).rejects.toThrow(/exceeds maximum/)
+    })
 
-    // Provider copy should NOT be deleted when storage fails
+    expect(result).toBe('oversized')
+    // Provider copy kept as fallback — NOT deleted
     expect(mockAdapter.deleteRecording).not.toHaveBeenCalled()
+    // No storage attempted
+    expect(mockFiles.putAssembled).not.toHaveBeenCalled()
   })
 })
 ```
@@ -472,7 +535,7 @@ import type { TelephonyAdapter } from '../telephony/adapter'
 import type { FilesService } from '../services/files'
 import type { RecordsService } from '../services/records'
 import { encryptBinaryForStorage } from './crypto'
-import { LABEL_VOICEMAIL_AUDIO } from '@shared/crypto-labels'
+import { LABEL_VOICEMAIL_WRAP } from '@shared/crypto-labels'
 import type { FileKeyEnvelope } from '@shared/types'
 
 interface StoreVoicemailParams {
@@ -486,7 +549,7 @@ interface StoreVoicemailParams {
   maxBytes: number
 }
 
-export async function storeVoicemailAudio(params: StoreVoicemailParams): Promise<string> {
+export async function storeVoicemailAudio(params: StoreVoicemailParams): Promise<string | 'oversized'> {
   const { callSid, recordingSid, hubId, adminPubkeys, adapter, files, records, maxBytes } = params
 
   // 1. Download audio from provider
@@ -497,18 +560,19 @@ export async function storeVoicemailAudio(params: StoreVoicemailParams): Promise
 
   const audioBytes = new Uint8Array(audioBuffer)
 
-  // 2. Validate size
+  // 2. Validate size — if over limit, log warning and keep provider copy as fallback
   if (audioBytes.length > maxBytes) {
-    throw new Error(
-      `Voicemail audio (${audioBytes.length} bytes) exceeds maximum (${maxBytes} bytes) for call ${callSid}`
+    console.warn(
+      `[voicemail] Audio (${audioBytes.length} bytes) exceeds max (${maxBytes} bytes) for call ${callSid} — keeping provider copy`
     )
+    return 'oversized'
   }
 
   // 3. Encrypt audio with ECIES envelopes for each admin
   const { encryptedContent, readerEnvelopes } = encryptBinaryForStorage(
     audioBytes,
     adminPubkeys,
-    LABEL_VOICEMAIL_AUDIO
+    LABEL_VOICEMAIL_WRAP
   )
 
   // 4. Store encrypted blob in MinIO via FilesService
@@ -567,15 +631,32 @@ git commit -m "feat: add voicemail audio storage orchestrator (download, encrypt
 **Files:**
 - Modify: `src/server/routes/telephony.ts` (the `/voicemail-recording` handler, ~line 504-532)
 
-- [ ] **Step 1: Fix the handler to extract recordingSid and persist to call_records**
+- [ ] **Step 1: Add top-level import for storeVoicemailAudio**
 
-In `src/server/routes/telephony.ts`, the `/voicemail-recording` handler currently:
+At the top of `src/server/routes/telephony.ts`, add:
+
+```ts
+import { storeVoicemailAudio } from '../lib/voicemail-storage'
+```
+
+- [ ] **Step 2: Write a test for the persistence fix**
+
+In `tests/api/voicemail-webhook.spec.ts`, add a focused test (or modify the existing test) that:
+1. Creates a call record via the incoming webhook
+2. Fires `/telephony/voicemail-recording?callSid=...` with a completed recording payload
+3. Queries `/api/calls/history` and asserts `hasVoicemail === true` and `recordingSid` is set
+
+This test should NOT have conditional `if (match)` guards — it must fail loudly if persistence doesn't work.
+
+- [ ] **Step 3: Fix the handler to extract recordingSid and persist to call_records**
+
+In the `/voicemail-recording` handler, change:
 
 ```ts
 const { status: recordingStatus } = await adapter.parseRecordingWebhook(c.req.raw)
 ```
 
-Change to:
+To:
 
 ```ts
 const { status: recordingStatus, recordingSid } = await adapter.parseRecordingWebhook(c.req.raw)
@@ -597,14 +678,19 @@ if (recordingSid) {
 
 // Store encrypted audio in MinIO and delete from provider (background)
 if (recordingSid) {
-  import('../lib/voicemail-storage').then(({ storeVoicemailAudio }) => {
-    const callSettings = services.settings.getCallSettings(hubId)
-    callSettings.then(async (settings) => {
-      // Get admin pubkeys for encryption envelopes
-      const members = await services.identity.getHubMembers(hubId ?? 'global')
-      const adminPubkeys = members
-        .filter((m) => m.roles.some((r) => r === 'role-hub-admin' || r === 'role-super-admin'))
-        .map((m) => m.pubkey)
+  void (async () => {
+    try {
+      const settings = await services.settings.getCallSettings(hubId)
+      // Get admin pubkeys for encryption — use getVolunteers() and filter by admin roles
+      // Phase 2 will switch to querying by voicemail:listen permission
+      const allVolunteers = await services.identity.getVolunteers()
+      const adminPubkeys = allVolunteers
+        .filter((v) => v.roles?.some((r) => r === 'role-hub-admin' || r === 'role-super-admin'))
+        .map((v) => v.pubkey)
+      // Also include env.ADMIN_PUBKEY as fallback
+      if (env.ADMIN_PUBKEY && !adminPubkeys.includes(env.ADMIN_PUBKEY)) {
+        adminPubkeys.push(env.ADMIN_PUBKEY)
+      }
 
       await storeVoicemailAudio({
         callSid,
@@ -616,27 +702,29 @@ if (recordingSid) {
         records: services.records,
         maxBytes: settings.voicemailMaxBytes ?? 2097152,
       })
-    })
-  }).catch((err) => console.error('[background] voicemail storage failed:', callSid, err))
+    } catch (err) {
+      console.error('[background] voicemail storage failed:', callSid, err)
+    }
+  })()
 }
 ```
 
-Note: The admin pubkey lookup uses `services.identity.getHubMembers()` — verify this method exists and returns role info. Phase 2 will switch to querying by `voicemail:listen` permission. For now, filtering by admin roles is correct per the spec.
+Uses `services.identity.getVolunteers()` (exists at `src/server/services/identity.ts:53`) filtered by admin roles. The `env.ADMIN_PUBKEY` is included as fallback to ensure at least one recipient always exists.
 
-- [ ] **Step 2: Run typecheck**
+- [ ] **Step 4: Run the test from Step 2**
 
-Run: `bun run typecheck`
+Run: `bun run test:api`
+Expected: PASS — `hasVoicemail` and `recordingSid` now persisted
+
+- [ ] **Step 5: Run typecheck and build**
+
+Run: `bun run typecheck && bun run build`
 Expected: PASS
 
-- [ ] **Step 3: Run build**
-
-Run: `bun run build`
-Expected: PASS
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/server/routes/telephony.ts
+git add src/server/routes/telephony.ts tests/api/voicemail-webhook.spec.ts
 git commit -m "fix: persist hasVoicemail and recordingSid to call_records, add encrypted audio storage"
 ```
 
@@ -647,13 +735,39 @@ git commit -m "fix: persist hasVoicemail and recordingSid to call_records, add e
 **Files:**
 - Modify: `src/server/lib/transcription-manager.ts`
 
-- [ ] **Step 1: Use LABEL_VOICEMAIL_TRANSCRIPT for voicemail transcripts**
+- [ ] **Step 1: Add label parameter to encryptMessageForStorage**
 
-In `transcribeVoicemail()`, find the `encryptMessageForStorage` call and ensure it uses the new voicemail-specific label instead of the generic message label.
+`encryptMessageForStorage` in `src/server/lib/crypto.ts` (line 89) currently hardcodes `LABEL_MESSAGE` at line 110. Add an optional `label` parameter with `LABEL_MESSAGE` as default:
 
-Check the current call — it likely passes admin pubkeys but uses `LABEL_MESSAGE` by default. Change the label parameter to `LABEL_VOICEMAIL_TRANSCRIPT`.
+```ts
+export function encryptMessageForStorage(
+  plaintext: string,
+  readerPubkeys: string[],
+  label: string = LABEL_MESSAGE  // <-- add this parameter
+): { encryptedContent: string; readerEnvelopes: MessageKeyEnvelope[] } {
+```
 
-If `encryptMessageForStorage` doesn't accept a label parameter, add one (with `LABEL_MESSAGE` as default for backwards compatibility).
+Then change line 110 from:
+```ts
+...eciesWrapKeyServer(messageKey, pk, LABEL_MESSAGE),
+```
+To:
+```ts
+...eciesWrapKeyServer(messageKey, pk, label),
+```
+
+This is backwards-compatible — all existing callers continue using `LABEL_MESSAGE`.
+
+- [ ] **Step 2: Use LABEL_VOICEMAIL_TRANSCRIPT in transcribeVoicemail**
+
+In `src/server/lib/transcription-manager.ts`, find the `encryptMessageForStorage` call inside `transcribeVoicemail()` and pass `LABEL_VOICEMAIL_TRANSCRIPT`:
+
+```ts
+import { LABEL_VOICEMAIL_TRANSCRIPT } from '@shared/crypto-labels'
+
+// In the encryptMessageForStorage call:
+const encrypted = encryptMessageForStorage(transcript, adminPubkeys, LABEL_VOICEMAIL_TRANSCRIPT)
+```
 
 - [ ] **Step 2: Run typecheck**
 
@@ -692,7 +806,16 @@ If the test environment can't create call records (e.g., telephony not configure
 
 Add assertion that the call record in history has `recordingSid` set (not null/undefined).
 
-- [ ] **Step 3: Add test for voicemailFileId (encrypted storage)**
+- [ ] **Step 3: Add test for voicemail transcript in note_envelopes**
+
+After the voicemail-recording webhook fires and transcription completes, query notes for the call and assert:
+- A note exists with `authorPubkey === 'system:voicemail'`
+- The note's `encryptedContent` is non-empty
+- The note is linked to the correct `callId`
+
+This verifies the spec requirement: "voicemail transcript exists in `note_envelopes` with `authorPubkey = 'system:voicemail'`". Note: transcription may be async — check if the test environment has faster-whisper or mock `env.AI`.
+
+- [ ] **Step 4: Add test for voicemailFileId (encrypted storage)**
 
 After the voicemail-recording webhook fires, the background storage job should eventually populate `voicemailFileId`. This may be hard to test synchronously since storage is async. Options:
 - Mock the storage function in tests
@@ -701,12 +824,12 @@ After the voicemail-recording webhook fires, the background storage job should e
 
 Use whichever pattern the existing test suite uses for async background operations.
 
-- [ ] **Step 4: Run all tests**
+- [ ] **Step 5: Run all tests**
 
 Run: `bun run test:unit && bun run test:api`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add tests/api/voicemail-webhook.spec.ts
