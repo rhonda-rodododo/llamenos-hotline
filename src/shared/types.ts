@@ -224,6 +224,7 @@ export interface FileFieldValue {
 
 export interface FileRecord {
   id: string
+  hubId: string
   conversationId: string | null
   messageId?: string
   uploadedBy: string // pubkey of uploader

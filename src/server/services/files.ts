@@ -3,16 +3,16 @@ import type { EncryptedMetaItem, FileKeyEnvelope, FileRecord } from '../../share
 import type { Database } from '../db'
 import { fileRecords } from '../db/schema'
 import { AppError } from '../lib/errors'
-import type { BlobStorage } from '../types'
+import type { StorageManager, StorageNamespace } from '../types'
 
 export class FilesService {
   constructor(
     protected readonly db: Database,
-    private readonly blob: BlobStorage | null
+    private readonly storage: StorageManager | null
   ) {}
 
-  get hasBlob(): boolean {
-    return this.blob !== null
+  get hasStorage(): boolean {
+    return this.storage !== null
   }
 
   // ------------------------------------------------------------------ DB: FileRecord CRUD
@@ -25,6 +25,7 @@ export class FilesService {
       .insert(fileRecords)
       .values({
         id: data.id,
+        hubId: data.hubId,
         conversationId: data.conversationId,
         messageId: data.messageId ?? null,
         uploadedBy: data.uploadedBy,
@@ -132,6 +133,7 @@ export class FilesService {
   #rowToFileRecord(r: typeof fileRecords.$inferSelect): FileRecord {
     return {
       id: r.id,
+      hubId: r.hubId ?? 'global',
       conversationId: r.conversationId,
       messageId: r.messageId ?? undefined,
       uploadedBy: r.uploadedBy,
@@ -150,18 +152,18 @@ export class FilesService {
 
   // ------------------------------------------------------------------ Test Reset
 
-  async resetForTest(): Promise<void> {
-    if (this.blob) {
-      // Clean up blob objects before removing DB records so we don't orphan blobs
+  async resetForTest(hubId: string): Promise<void> {
+    if (this.storage) {
+      // Clean up storage objects before removing DB records so we don't orphan blobs
       const rows = await this.db
         .select({ id: fileRecords.id, totalChunks: fileRecords.totalChunks })
         .from(fileRecords)
       await Promise.all(
         rows.flatMap((r) => [
-          this.deleteAssembled(r.id).catch((err) =>
-            console.error('[files] blob cleanup failed:', r.id, err)
+          this.deleteAssembled(hubId, r.id).catch((err) =>
+            console.error('[files] storage cleanup failed:', r.id, err)
           ),
-          this.deleteAllChunks(r.id, r.totalChunks).catch((err) =>
+          this.deleteAllChunks(hubId, r.id, r.totalChunks).catch((err) =>
             console.error('[files] chunk cleanup failed:', r.id, err)
           ),
         ])
@@ -170,68 +172,104 @@ export class FilesService {
     await this.db.delete(fileRecords)
   }
 
-  // ------------------------------------------------------------------ Blob: Chunks
+  // ------------------------------------------------------------------ Storage: Chunks
 
-  async putChunk(uploadId: string, chunkIndex: number, data: ArrayBuffer): Promise<void> {
-    const key = `files/${uploadId}/chunk-${String(chunkIndex).padStart(6, '0')}`
-    await this.#requireBlob().put(key, data)
+  async putChunk(
+    hubId: string,
+    uploadId: string,
+    chunkIndex: number,
+    data: ArrayBuffer
+  ): Promise<void> {
+    const key = `${uploadId}/chunk-${String(chunkIndex).padStart(6, '0')}`
+    await this.#requireStorage().put(hubId, 'attachments', key, data)
   }
 
-  async getChunk(uploadId: string, chunkIndex: number): Promise<ArrayBuffer | null> {
-    const key = `files/${uploadId}/chunk-${String(chunkIndex).padStart(6, '0')}`
-    const obj = await this.#requireBlob().get(key)
+  async getChunk(hubId: string, uploadId: string, chunkIndex: number): Promise<ArrayBuffer | null> {
+    const key = `${uploadId}/chunk-${String(chunkIndex).padStart(6, '0')}`
+    const obj = await this.#requireStorage().get(hubId, 'attachments', key)
     return obj ? obj.arrayBuffer() : null
   }
 
-  async deleteChunk(uploadId: string, chunkIndex: number): Promise<void> {
-    const key = `files/${uploadId}/chunk-${String(chunkIndex).padStart(6, '0')}`
-    await this.#requireBlob().delete(key)
+  async deleteChunk(hubId: string, uploadId: string, chunkIndex: number): Promise<void> {
+    const key = `${uploadId}/chunk-${String(chunkIndex).padStart(6, '0')}`
+    await this.#requireStorage().delete(hubId, 'attachments', key)
   }
 
-  async deleteAllChunks(uploadId: string, totalChunks: number): Promise<void> {
-    const blob = this.#requireBlob()
+  async deleteAllChunks(hubId: string, uploadId: string, totalChunks: number): Promise<void> {
+    const storage = this.#requireStorage()
     // Delete in parallel batches of 100 to avoid both sequential latency and
-    // overwhelming the blob store with 10k concurrent requests.
+    // overwhelming the storage with 10k concurrent requests.
     const BATCH = 100
     for (let i = 0; i < totalChunks; i += BATCH) {
       const end = Math.min(i + BATCH, totalChunks)
       await Promise.all(
         Array.from({ length: end - i }, (_, j) => {
-          const key = `files/${uploadId}/chunk-${String(i + j).padStart(6, '0')}`
-          return blob.delete(key)
+          const key = `${uploadId}/chunk-${String(i + j).padStart(6, '0')}`
+          return storage.delete(hubId, 'attachments', key)
         })
       )
     }
   }
 
-  // ------------------------------------------------------------------ Blob: Assembled content
+  // ------------------------------------------------------------------ Storage: Assembled content
 
-  async putAssembled(uploadId: string, data: Uint8Array): Promise<void> {
-    await this.#requireBlob().put(`files/${uploadId}/content`, data)
+  async putAssembled(
+    hubId: string,
+    uploadId: string,
+    data: Uint8Array,
+    namespace: StorageNamespace = 'attachments'
+  ): Promise<void> {
+    await this.#requireStorage().put(hubId, namespace, `${uploadId}/content`, data)
   }
 
-  async getAssembled(uploadId: string): Promise<{ body: ReadableStream; size: number } | null> {
-    return this.#requireBlob().get(`files/${uploadId}/content`)
+  async getAssembled(
+    hubId: string,
+    uploadId: string,
+    namespace: StorageNamespace = 'attachments'
+  ): Promise<{ body: ReadableStream; size: number } | null> {
+    return this.#requireStorage().get(hubId, namespace, `${uploadId}/content`)
   }
 
-  async deleteAssembled(uploadId: string): Promise<void> {
-    await this.#requireBlob().delete(`files/${uploadId}/content`)
+  async deleteAssembled(
+    hubId: string,
+    uploadId: string,
+    namespace: StorageNamespace = 'attachments'
+  ): Promise<void> {
+    await this.#requireStorage().delete(hubId, namespace, `${uploadId}/content`)
   }
 
-  // ------------------------------------------------------------------ Blob: Envelopes & Metadata (blob copies for backward compat)
+  // ------------------------------------------------------------------ Storage: Envelopes & Metadata (blob copies for backward compat)
 
-  async storeEnvelopesBlob(uploadId: string, envelopes: FileKeyEnvelope[]): Promise<void> {
-    await this.#requireBlob().put(`files/${uploadId}/envelopes`, JSON.stringify(envelopes))
+  async storeEnvelopesBlob(
+    hubId: string,
+    uploadId: string,
+    envelopes: FileKeyEnvelope[]
+  ): Promise<void> {
+    await this.#requireStorage().put(
+      hubId,
+      'attachments',
+      `${uploadId}/envelopes`,
+      JSON.stringify(envelopes)
+    )
   }
 
-  async storeMetadataBlob(uploadId: string, meta: EncryptedMetaItem[]): Promise<void> {
-    await this.#requireBlob().put(`files/${uploadId}/metadata`, JSON.stringify(meta))
+  async storeMetadataBlob(
+    hubId: string,
+    uploadId: string,
+    meta: EncryptedMetaItem[]
+  ): Promise<void> {
+    await this.#requireStorage().put(
+      hubId,
+      'attachments',
+      `${uploadId}/metadata`,
+      JSON.stringify(meta)
+    )
   }
 
-  // ------------------------------------------------------------------ Private: blob guard
+  // ------------------------------------------------------------------ Private: storage guard
 
-  #requireBlob(): BlobStorage {
-    if (!this.blob) throw new AppError(503, 'File storage not configured')
-    return this.blob
+  #requireStorage(): StorageManager {
+    if (!this.storage) throw new AppError(503, 'File storage not configured')
+    return this.storage
   }
 }

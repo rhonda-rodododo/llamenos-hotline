@@ -1,5 +1,5 @@
 import type { Database } from '../db'
-import type { BlobStorage } from '../types'
+import type { StorageManager } from '../types'
 import { BlastService } from './blasts'
 import { CallService } from './calls'
 import { ConversationService } from './conversations'
@@ -41,11 +41,12 @@ export interface Services {
   reportTypes: ReportTypeService
   push: PushService
   providerHealth?: ProviderHealthService
+  storage: StorageManager | null
 }
 
 export function createServices(
   db: Database,
-  blob: BlobStorage | null = null,
+  storage: StorageManager | null = null,
   serverSecret = ''
 ): Services {
   return {
@@ -56,9 +57,10 @@ export function createServices(
     calls: new CallService(db),
     conversations: new ConversationService(db),
     blasts: new BlastService(db),
-    files: new FilesService(db, blob),
+    files: new FilesService(db, storage),
     gdpr: new GdprService(db),
     reportTypes: new ReportTypeService(db),
     push: new PushService(db),
+    storage,
   }
 }
