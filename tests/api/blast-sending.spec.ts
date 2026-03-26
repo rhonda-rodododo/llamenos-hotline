@@ -78,8 +78,8 @@ test.describe('Blast campaign API', () => {
       channel: 'sms',
       content: 'Test content',
     })
-    const blast = await createRes.json()
-    const blastId = blast.id
+    const blastRes = await createRes.json()
+    const blastId = blastRes.blast.id
 
     // First send -- should succeed
     await authedApi.post(`/api/blasts/${blastId}/send`)

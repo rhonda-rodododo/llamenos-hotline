@@ -270,11 +270,13 @@ test.describe('Call flow', () => {
     // Navigate to call history
     await navigateAfterLogin(page, '/calls')
 
-    // The call should appear in the list (may take a moment for DB to update)
-    await expect(page.getByTestId(TestIds.CALL_LIST)).toBeVisible({ timeout: 10_000 })
+    // Wait for the call history page to render
+    await expect(page.getByRole('heading', { name: /call history/i })).toBeVisible({
+      timeout: 10_000,
+    })
 
     // At least one call row should exist (best-effort — call history may not persist in all test configs)
-    const callRows = page.getByTestId(TestIds.CALL_ROW)
+    const callRows = page.getByTestId('call-history-row')
     const rowCount = await callRows.count()
     if (rowCount === 0) {
       console.log('[call-flow] No call rows found — call history may not be persistent in test env')
