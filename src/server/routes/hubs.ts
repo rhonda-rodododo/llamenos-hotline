@@ -63,6 +63,14 @@ routes.post('/', requirePermission('system:manage-hubs'), async (c) => {
     createdBy: hubData.createdBy,
   })
 
+  if (services.storage) {
+    try {
+      await services.storage.provisionHub(hub.id)
+    } catch (err) {
+      console.error(`[hubs] Failed to provision storage for hub ${hub.id}:`, err)
+    }
+  }
+
   return c.json({ hub })
 })
 
@@ -126,6 +134,15 @@ routes.delete('/:hubId', requirePermission('system:manage-hubs'), async (c) => {
 
   try {
     await services.settings.deleteHub(hubId)
+
+    if (services.storage) {
+      try {
+        await services.storage.destroyHub(hubId)
+      } catch (err) {
+        console.error(`[hubs] Failed to destroy storage for hub ${hubId} — orphaned buckets:`, err)
+      }
+    }
+
     return c.json({ ok: true })
   } catch (err) {
     if (err instanceof Error && err.message.includes('not found')) {

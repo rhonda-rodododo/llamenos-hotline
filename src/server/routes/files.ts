@@ -12,7 +12,7 @@ files.get('/:id/content', requirePermission('files:download-own'), async (c) => 
   const permissions = c.get('permissions')
   const services = c.get('services')
 
-  if (!services.files.hasBlob) {
+  if (!services.files.hasStorage) {
     return c.json({ error: 'File storage not configured' }, 503)
   }
 
@@ -28,7 +28,9 @@ files.get('/:id/content', requirePermission('files:download-own'), async (c) => 
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  const obj = await services.files.getAssembled(fileId)
+  const namespace =
+    record.contextType === 'voicemail' ? ('voicemails' as const) : ('attachments' as const)
+  const obj = await services.files.getAssembled(record.hubId ?? 'global', fileId, namespace)
   if (!obj) {
     return c.json({ error: 'File content not found' }, 404)
   }

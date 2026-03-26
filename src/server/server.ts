@@ -16,12 +16,12 @@ import { loadEnv } from './env'
 import { scheduleBlastProcessor } from './jobs/blast-processor'
 import { scheduleRetentionPurge } from './jobs/retention-purge'
 import { closeNostrPublisher, getMessagingAdapter, getTelephony } from './lib/adapters'
-import { createBlobStorage } from './lib/blob-storage'
+import { createStorageManager } from './lib/storage-manager'
 import { errorHandler } from './middleware/error'
 import { servicesMiddleware } from './middleware/services'
 import { createServices } from './services'
 import { ProviderHealthService } from './services/provider-health'
-import type { BlobStorage } from './types'
+import type { StorageManager } from './types'
 
 async function main() {
   console.log('[llamenos] Starting server...')
@@ -73,15 +73,15 @@ async function main() {
   await migrate(db, { migrationsFolder: path.resolve(process.cwd(), 'drizzle', 'migrations') })
   console.log('[llamenos] Migrations applied')
 
-  let blob: BlobStorage | null = null
+  let storage: StorageManager | null = null
   try {
-    blob = createBlobStorage()
-    console.log('[llamenos] MinIO blob storage connected')
+    storage = createStorageManager()
+    console.log('[llamenos] RustFS storage manager connected')
   } catch {
-    console.warn('[llamenos] MinIO not configured — file upload/download routes will return 503')
+    console.warn('[llamenos] Storage not configured — file upload/download routes will return 503')
   }
 
-  const services = createServices(db, blob, env.SERVER_NOSTR_SECRET ?? '')
+  const services = createServices(db, storage, env.SERVER_NOSTR_SECRET ?? '')
 
   // Provider health monitoring
   const providerHealth = new ProviderHealthService()

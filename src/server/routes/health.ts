@@ -41,32 +41,23 @@ async function runChecks(): Promise<HealthResult> {
     details.postgres = err instanceof Error ? err.message : 'Connection failed'
   }
 
-  // Blob storage check — verify MinIO bucket exists and is accessible
+  // Object storage check — verify RustFS / MinIO health endpoint
   try {
-    const { HeadBucketCommand, S3Client } = await import('@aws-sdk/client-s3')
-    // MinIO credentials come from process.env (Bun server), not Hono bindings
-    const endpoint = process.env.MINIO_ENDPOINT || 'http://localhost:9000'
-    const accessKeyId = process.env.MINIO_APP_USER || process.env.MINIO_ACCESS_KEY
-    const secretAccessKey = process.env.MINIO_APP_PASSWORD || process.env.MINIO_SECRET_KEY
-    const bucket = process.env.MINIO_BUCKET || 'llamenos-files'
-
-    if (!accessKeyId || !secretAccessKey) {
+    const endpoint =
+      process.env.STORAGE_ENDPOINT || process.env.MINIO_ENDPOINT || 'http://localhost:9000'
+    const accessKeyId =
+      process.env.STORAGE_ACCESS_KEY || process.env.MINIO_APP_USER || process.env.MINIO_ACCESS_KEY
+    if (!accessKeyId) {
       checks.storage = 'failing'
-      details.storage = 'MinIO credentials not configured'
+      details.storage = 'Storage credentials not configured'
     } else {
-      const s3 = new S3Client({
-        endpoint,
-        region: 'us-east-1',
-        credentials: { accessKeyId, secretAccessKey },
-        forcePathStyle: true,
-      })
-      await s3.send(new HeadBucketCommand({ Bucket: bucket }))
-      checks.storage = 'ok'
+      const res = await fetch(`${endpoint}/health`, { signal: AbortSignal.timeout(5000) })
+      checks.storage = res.ok ? 'ok' : 'failing'
+      if (!res.ok) details.storage = `Health check returned ${res.status}`
     }
   } catch (err) {
     checks.storage = 'failing'
-    const msg = err instanceof Error ? err.message : String(err)
-    details.storage = msg.includes('NoSuchBucket') ? 'bucket_missing' : 'unreachable'
+    details.storage = err instanceof Error ? err.message : 'unreachable'
   }
 
   // Nostr relay configuration check
