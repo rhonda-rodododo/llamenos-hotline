@@ -72,6 +72,7 @@ export class BlastService {
         hubId: data.hubId ?? 'global',
         name: data.name,
         encryptedContent: data.encryptedContent ?? '',
+        contentEnvelopes: data.contentEnvelopes ?? [],
         targetChannels: data.targetChannels ?? [],
         targetTags: data.targetTags ?? [],
         targetLanguages: data.targetLanguages ?? [],

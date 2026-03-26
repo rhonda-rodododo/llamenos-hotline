@@ -86,6 +86,7 @@ blasts.post('/', async (c) => {
     targetTags: body.targetTags,
     targetLanguages: body.targetLanguages,
     encryptedContent: body.encryptedContent,
+    contentEnvelopes: body.contentEnvelopes as import('../../shared/types').RecipientEnvelope[],
     status: body.status,
   })
   return c.json({ blast }, 201)
