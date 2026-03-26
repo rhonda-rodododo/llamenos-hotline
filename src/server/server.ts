@@ -124,6 +124,20 @@ async function main() {
   scheduleRetentionPurge(services)
   console.log('[llamenos] Data retention purge scheduled')
 
+  // Initialize IdP adapter (Authentik by default)
+  try {
+    const { createIdPAdapter } = await import('./idp/index')
+    const idpAdapter = await createIdPAdapter()
+    const { setIdPAdapter } = await import('./app')
+    setIdPAdapter(idpAdapter)
+    console.log(`[llamenos] IdP adapter initialized (${process.env.IDP_ADAPTER || 'authentik'})`)
+  } catch (err) {
+    console.warn(
+      '[llamenos] ⚠  IdP adapter not available — auth facade will operate without IdP:',
+      err instanceof Error ? err.message : err
+    )
+  }
+
   const { default: serverApp } = await import('./app')
 
   // Create a top-level Hono app
