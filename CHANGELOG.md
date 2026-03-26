@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.1] - 2026-03-26
+
+### Bug Fixes
+
+- remove resetTestState from API tests to prevent parallel interference
+- remove resetTestState from UI E2E tests to prevent parallel interference
+- batch fix UI E2E test failures (selectors, i18n, missing options)
+- batch fix UI test failures (strict mode, rate limits, destructuring)
+- re-seed roles after test reset and fix invite/webauthn/multi-hub tests
+- RCS test click selector — use title text instead of data-slot
+- dashboard-analytics remove redundant goto, fix period toggle timing
+- wrap invite creation response in { invite } to match client type
+- add missing SendInviteDialog i18n keys and fix invite response
+- file-field tests — use dummy conversationId instead of missing endpoint
+- gate version/release on all CI jobs and add integration test suites
+- add checkout step before local composite actions in CI
+- move strfry from GHA service container to docker run
+- start server manually instead of via Playwright webServer in CI
+- batch fix 18+ UI test failures across multiple files
+- reports timing, webauthn expansion, and remaining test fixes
+- create MinIO bucket in CI test infrastructure
+- add a bunch of important changes
+- ansible templates
+- ansible deploy bugs found via local VM testing
+- complete ansible deploy validation via local VM testing
+- update blast API tests for new { blast } response wrapper
+- capture server logs as artifact on API test failure
+- use repo root context for asterisk-bridge Docker build
+- use hex-encoded HMAC_SECRET in CI — hashPhone/hashIP require hex
+- update remaining blast API test for { blast } response wrapper
+- update playbook health checks and container name
+- resolve last 6 UI test failures
+- last blast API wrapper + call-flow testid mismatch
+
+### Documentation
+
+- plan for fixing remaining 38 UI E2E test failures
+- update test fix plan — 81 → 27 failures remaining
+- mark ansible VM testing plan as complete
+
+### Miscellaneous
+
+- v0.25.1 [skip ci]
+
+### Refactoring
+
+- DRY up CI workflow with composite actions and fix CI failures
+
 ## [0.25.0] - 2026-03-25
 
 ### Bug Fixes
