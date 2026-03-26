@@ -247,14 +247,14 @@ jobs:
           AUTHENTIK_POSTGRESQL__PORT: 5432
           AUTHENTIK_POSTGRESQL__USER: llamenos
           AUTHENTIK_POSTGRESQL__PASSWORD: llamenos
-          AUTHENTIK_POSTGRESQL__NAME: authentik
+          AUTHENTIK_POSTGRESQL__NAME: llamenos
           AUTHENTIK_BOOTSTRAP_TOKEN: ci-bootstrap-token
         options: >-
           --health-cmd "ak healthcheck"
           --health-interval 15s
           --health-timeout 10s
-          --health-retries 10
-          --health-start-period 60s
+          --health-retries 15
+          --health-start-period 90s
         ports:
           - 9100:9000
 
@@ -266,9 +266,6 @@ jobs:
           install-playwright: "true"
 
       - uses: ./.github/actions/start-test-infra
-
-      - name: Create Authentik database
-        run: PGPASSWORD=llamenos psql -h localhost -U llamenos -d llamenos -c "SELECT 1 FROM pg_database WHERE datname = 'authentik'" | grep -q 1 || PGPASSWORD=llamenos createdb -h localhost -U llamenos authentik
 
       - name: Build frontend
         run: bun run build
@@ -347,14 +344,14 @@ jobs:
           AUTHENTIK_POSTGRESQL__PORT: 5432
           AUTHENTIK_POSTGRESQL__USER: llamenos
           AUTHENTIK_POSTGRESQL__PASSWORD: llamenos
-          AUTHENTIK_POSTGRESQL__NAME: authentik
+          AUTHENTIK_POSTGRESQL__NAME: llamenos
           AUTHENTIK_BOOTSTRAP_TOKEN: ci-bootstrap-token
         options: >-
           --health-cmd "ak healthcheck"
           --health-interval 15s
           --health-timeout 10s
-          --health-retries 10
-          --health-start-period 60s
+          --health-retries 15
+          --health-start-period 90s
         ports:
           - 9100:9000
 
@@ -366,9 +363,6 @@ jobs:
           install-playwright: "true"
 
       - uses: ./.github/actions/start-test-infra
-
-      - name: Create Authentik database
-        run: PGPASSWORD=llamenos psql -h localhost -U llamenos -d llamenos -c "SELECT 1 FROM pg_database WHERE datname = 'authentik'" | grep -q 1 || PGPASSWORD=llamenos createdb -h localhost -U llamenos authentik
 
       - name: Build frontend
         run: bun run build
