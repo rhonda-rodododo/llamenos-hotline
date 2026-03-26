@@ -135,17 +135,17 @@ vm-destroy:
 vm-ip:
     @ssh mac 'source ~/.zprofile && tart ip llamenos-test'
 
-# SSH into the VM through the Mac
+# SSH into the VM through the Mac (port 2222 after hardening)
 vm-ssh:
-    ssh -J mac admin@$(ssh mac 'source ~/.zprofile && tart ip llamenos-test')
+    ssh -J mac -p 2222 deploy@$(ssh mac 'source ~/.zprofile && tart ip llamenos-test')
 
 # Build the Docker image on the Mac (ARM64 native)
 vm-build-image:
-    ssh mac 'cd ~/projects/llamenos-hotline && docker build -f deploy/docker/Dockerfile -t llamenos:local .'
+    ssh mac 'export PATH="/usr/local/bin:/opt/homebrew/bin:$$PATH" && cd ~/projects/llamenos-hotline && docker build -f deploy/docker/Dockerfile -t llamenos:local .'
 
-# Load the built image into the VM
+# Load the built image into the VM (port 2222 after hardening)
 vm-load-image:
-    ssh mac 'source ~/.zprofile && docker save llamenos:local | gzip | ssh admin@$(tart ip llamenos-test) "gunzip | sudo docker load"'
+    ssh mac 'source ~/.zprofile && export PATH="/usr/local/bin:$$PATH" && docker save llamenos:local | gzip | ssh -p 2222 deploy@$$(tart ip llamenos-test) "gunzip | sudo docker load"'
 
 # Deploy to the VM using Ansible (run from Mac)
 vm-deploy *ARGS:
@@ -161,7 +161,7 @@ vm-update *ARGS:
 
 # Run E2E tests against the VM from the Mac
 vm-test *ARGS:
-    ssh mac 'cd ~/projects/llamenos-hotline && npx playwright test --config playwright.vm.config.ts {{ARGS}}'
+    ssh mac 'export PATH="/usr/local/bin:/opt/homebrew/bin:$$PATH" && cd ~/projects/llamenos-hotline && npx playwright test --config playwright.vm.config.ts {{ARGS}}'
 
 # Full cycle: build image, load into VM, deploy, run tests
 vm-cycle:

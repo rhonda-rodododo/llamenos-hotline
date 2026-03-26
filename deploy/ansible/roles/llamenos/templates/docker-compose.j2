@@ -81,6 +81,7 @@ services:
       - caddy-config:/config
     networks:
       - web
+      - internal  # Required for reverse_proxy to strfry (Nostr relay)
     logging:
       driver: json-file
       options:
