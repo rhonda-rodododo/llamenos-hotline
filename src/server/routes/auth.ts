@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { getPrimaryRole } from '../../shared/permissions'
+import { getIdPAdapter } from '../app'
 import { hashIP } from '../lib/crypto'
 import { isValidE164 } from '../lib/helpers'
 import { maskPhone } from '../lib/volunteer-projector'
@@ -43,7 +44,16 @@ auth.post('/bootstrap', async (c) => {
     return c.json({ error: 'Bootstrap failed' }, 500)
   }
 
-  return c.json({ ok: true, roles: ['role-super-admin'] })
+  // Create user in IdP and retrieve nsecSecret
+  const idpAdapter = getIdPAdapter()
+  if (!idpAdapter) {
+    return c.json({ error: 'IdP service not available' }, 503)
+  }
+  await idpAdapter.createUser(body.pubkey)
+  const nsecSecret = await idpAdapter.getNsecSecret(body.pubkey)
+  const nsecSecretHex = Buffer.from(nsecSecret).toString('hex')
+
+  return c.json({ ok: true, roles: ['role-super-admin'], nsecSecret: nsecSecretHex })
 })
 
 // --- Authenticated routes ---

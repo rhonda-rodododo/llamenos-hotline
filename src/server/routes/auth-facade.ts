@@ -428,6 +428,32 @@ authFacade.post('/admin/re-enroll/:pubkey', async (c) => {
   return c.json({ success: true })
 })
 
+// POST /enroll — admin-only: create IdP user for a pubkey and return nsecSecret
+authFacade.post('/enroll', jwtAuth, async (c) => {
+  const permissions = c.get('permissions')
+  if (!permissions.includes('volunteers:create') && !permissions.includes('*')) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  const { pubkey } = await c.req.json<{ pubkey: string }>()
+  if (!pubkey || !/^[0-9a-f]{64}$/i.test(pubkey)) {
+    return c.json({ error: 'Invalid pubkey' }, 400)
+  }
+
+  const idpAdapter = c.get('idpAdapter')
+
+  // Idempotent: if user already exists, just return their nsecSecret
+  const existing = await idpAdapter.getUser(pubkey)
+  if (existing) {
+    const nsecSecret = await idpAdapter.getNsecSecret(pubkey)
+    return c.json({ nsecSecret: Buffer.from(nsecSecret).toString('hex') })
+  }
+
+  await idpAdapter.createUser(pubkey)
+  const nsecSecret = await idpAdapter.getNsecSecret(pubkey)
+  return c.json({ nsecSecret: Buffer.from(nsecSecret).toString('hex') })
+})
+
 // DELETE /devices/:id — delete a credential
 authFacade.delete('/devices/:id', async (c) => {
   const identity = c.get('identity')

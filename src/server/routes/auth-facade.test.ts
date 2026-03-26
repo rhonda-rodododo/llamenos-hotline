@@ -521,6 +521,133 @@ describe('auth-facade', () => {
     })
   })
 
+  describe('POST /auth/enroll', () => {
+    test('creates user and returns nsecSecret with volunteers:create permission', async () => {
+      const idpAdapter = createMockIdpAdapter()
+      const { app } = createTestApp({ idpAdapter })
+      const token = await getAccessToken(['volunteers:create'])
+      const newPubkey = 'cd'.repeat(32)
+
+      // User does not exist yet
+      ;(idpAdapter.getUser as ReturnType<typeof mock>).mockImplementation(() =>
+        Promise.resolve(null)
+      )
+
+      const res = await app.request('/auth/enroll', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pubkey: newPubkey }),
+      })
+      expect(res.status).toBe(200)
+      const json = await res.json()
+      expect(json.nsecSecret).toBe('ab'.repeat(32))
+      expect(idpAdapter.createUser).toHaveBeenCalledWith(newPubkey)
+      expect(idpAdapter.getNsecSecret).toHaveBeenCalledWith(newPubkey)
+    })
+
+    test('is idempotent — returns existing nsecSecret without creating', async () => {
+      const idpAdapter = createMockIdpAdapter()
+      const { app } = createTestApp({ idpAdapter })
+      const token = await getAccessToken(['volunteers:create'])
+
+      // User already exists
+      const res = await app.request('/auth/enroll', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pubkey: TEST_PUBKEY }),
+      })
+      expect(res.status).toBe(200)
+      const json = await res.json()
+      expect(json.nsecSecret).toBe('ab'.repeat(32))
+      // createUser should NOT have been called since user exists
+      expect(idpAdapter.createUser).not.toHaveBeenCalled()
+    })
+
+    test('accepts wildcard * permission', async () => {
+      const { app } = createTestApp()
+      const token = await getAccessToken(['*'])
+      const res = await app.request('/auth/enroll', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pubkey: TEST_PUBKEY }),
+      })
+      expect(res.status).toBe(200)
+    })
+
+    test('returns 403 with insufficient permissions', async () => {
+      const { app } = createTestApp()
+      const token = await getAccessToken(['role-volunteer'])
+      const res = await app.request('/auth/enroll', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pubkey: TEST_PUBKEY }),
+      })
+      expect(res.status).toBe(403)
+      const json = await res.json()
+      expect(json.error).toBe('Forbidden')
+    })
+
+    test('returns 400 for invalid pubkey', async () => {
+      const { app } = createTestApp()
+      const token = await getAccessToken(['volunteers:create'])
+
+      // Too short
+      const res1 = await app.request('/auth/enroll', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pubkey: 'abc' }),
+      })
+      expect(res1.status).toBe(400)
+
+      // Not hex
+      const res2 = await app.request('/auth/enroll', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pubkey: 'zz'.repeat(32) }),
+      })
+      expect(res2.status).toBe(400)
+
+      // Missing
+      const res3 = await app.request('/auth/enroll', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      })
+      expect(res3.status).toBe(400)
+    })
+
+    test('returns 401 without auth header', async () => {
+      const { app } = createTestApp()
+      const res = await app.request('/auth/enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pubkey: TEST_PUBKEY }),
+      })
+      expect(res.status).toBe(401)
+    })
+  })
+
   describe('rate limiting', () => {
     test('blocks after 10 requests from same IP', async () => {
       const { app } = createTestApp()
