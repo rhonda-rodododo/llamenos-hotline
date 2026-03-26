@@ -65,6 +65,16 @@ services:
       # Nostr relay — required for all real-time events (presence, calls, messages)
       - "SERVER_NOSTR_SECRET=${SERVER_NOSTR_SECRET:?SERVER_NOSTR_SECRET is required — run ../../scripts/docker-setup.sh to generate}"
       - NOSTR_RELAY_URL=${NOSTR_RELAY_URL:-ws://strfry:7777}
+      # IdP Auth (Authentik)
+      - IDP_ADAPTER=${IDP_ADAPTER:-authentik}
+      - AUTHENTIK_URL=${AUTHENTIK_URL:-http://authentik-server:9000}
+      - "AUTHENTIK_API_TOKEN=${AUTHENTIK_API_TOKEN:?AUTHENTIK_API_TOKEN is required}"
+      - "IDP_VALUE_ENCRYPTION_KEY=${IDP_VALUE_ENCRYPTION_KEY:?IDP_VALUE_ENCRYPTION_KEY is required}"
+      - IDP_VALUE_KEY_VERSION=${IDP_VALUE_KEY_VERSION:-1}
+      - "JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}"
+      - AUTH_WEBAUTHN_RP_ID=${AUTH_WEBAUTHN_RP_ID:-${DOMAIN:-localhost}}
+      - AUTH_WEBAUTHN_RP_NAME=${AUTH_WEBAUTHN_RP_NAME:-Llamenos}
+      - AUTH_WEBAUTHN_ORIGIN=${AUTH_WEBAUTHN_ORIGIN:-https://${DOMAIN:-localhost}}
     networks:
       - web
       - internal
@@ -74,6 +84,8 @@ services:
       minio:
         condition: service_healthy
       strfry:
+        condition: service_healthy
+      authentik-server:
         condition: service_healthy
     logging:
       driver: json-file
@@ -95,6 +107,7 @@ services:
     restart: unless-stopped
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     environment:
       - POSTGRES_DB=llamenos
       - POSTGRES_USER=llamenos
@@ -166,6 +179,55 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  # ── Core: Authentik IdP ───────────────────────────────────
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2025.12
+    command: server
+    restart: unless-stopped
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?AUTHENTIK_SECRET_KEY is required}
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__PORT: 5432
+      AUTHENTIK_POSTGRESQL__USER: ${POSTGRES_USER:-llamenos}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASSWORD:?PG_PASSWORD is required}
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+    ports:
+      - "${AUTHENTIK_PORT:-9000}:9000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+    healthcheck:
+      test: ["CMD", "ak", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2025.12
+    command: worker
+    restart: unless-stopped
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?AUTHENTIK_SECRET_KEY is required}
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__PORT: 5432
+      AUTHENTIK_POSTGRESQL__USER: ${POSTGRES_USER:-llamenos}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASSWORD:?PG_PASSWORD is required}
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
 
   # ── Optional: Whisper Transcription ───────────────────────
   whisper:
@@ -254,6 +316,8 @@ volumes:
   minio-data:
   nostr-data:
   signal-data:
+  authentik-media:
+  authentik-templates:
 
 networks:
   web:

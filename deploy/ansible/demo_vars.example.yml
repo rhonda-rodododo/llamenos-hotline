@@ -135,6 +135,28 @@ turn_secret: ""
 # coturn Docker image
 coturn_image: coturn/coturn:4.6
 
+# ─── IdP Auth (Authentik) ───────────────────────────────────────
+# Secret key for Authentik (generate with: openssl rand -hex 32, must be >= 50 chars)
+authentik_secret_key: ""
+
+# API token — create in Authentik admin UI (Directory → Tokens → Create, intent: API)
+authentik_api_token: ""
+
+# 32-byte key for encrypting IdP attribute values (base64-encoded)
+# Generate with: openssl rand -base64 32
+idp_value_encryption_key: ""
+
+# Key version for rotation support (increment when rotating encryption key)
+idp_value_key_version: 1
+
+# JWT signing secret (generate with: openssl rand -hex 32)
+jwt_secret: ""
+
+# WebAuthn Relying Party settings (default to domain values)
+# auth_webauthn_rp_id: demo.llamenos-hotline.com
+# auth_webauthn_rp_name: Llamenos
+# auth_webauthn_origin: https://demo.llamenos-hotline.com
+
 # ─── Backup ─────────────────────────────────────────────────────
 # Disable backups on demo instance (data is ephemeral by design)
 backup_enabled: false

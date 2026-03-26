@@ -28,6 +28,17 @@
     - backups/weekly
     - backups/monthly
     - scripts
+    - postgres-init
+
+- name: Deploy PostgreSQL init scripts
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ app_dir }}/postgres-init/{{ item | basename }}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0640"
+  with_fileglob:
+    - "{{ playbook_dir }}/../docker/postgres-init/*.sql"
 
 - name: Template docker-compose.yml
   ansible.builtin.template:
