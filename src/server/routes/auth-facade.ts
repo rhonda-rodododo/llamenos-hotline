@@ -242,7 +242,6 @@ authFacade.post('/invite/accept', async (c) => {
 
 authFacade.use('/webauthn/register-options', jwtAuth)
 authFacade.use('/webauthn/register-verify', jwtAuth)
-authFacade.use('/token/refresh', jwtAuth)
 authFacade.use('/userinfo', jwtAuth)
 authFacade.use('/rotation/confirm', jwtAuth)
 authFacade.use('/session/revoke', jwtAuth)
