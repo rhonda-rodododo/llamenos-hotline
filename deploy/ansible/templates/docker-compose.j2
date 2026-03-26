@@ -39,7 +39,7 @@ services:
       # IdP Auth (Authentik)
       - IDP_ADAPTER=${IDP_ADAPTER}
       - AUTHENTIK_URL=${AUTHENTIK_URL}
-      - AUTHENTIK_API_TOKEN=${AUTHENTIK_API_TOKEN}
+      - AUTHENTIK_API_TOKEN=${AUTHENTIK_BOOTSTRAP_TOKEN}
       - IDP_VALUE_ENCRYPTION_KEY=${IDP_VALUE_ENCRYPTION_KEY}
       - IDP_VALUE_KEY_VERSION=${IDP_VALUE_KEY_VERSION}
       - JWT_SECRET=${JWT_SECRET}
@@ -261,6 +261,7 @@ services:
       AUTHENTIK_POSTGRESQL__USER: llamenos
       AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASSWORD}
       AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN}
     ports:
       - "{{ authentik_port | default(9000) }}:9000"
     depends_on:
@@ -271,6 +272,7 @@ services:
     volumes:
       - authentik-media:/media
       - authentik-templates:/templates
+      - {{ app_dir }}/authentik-blueprints:/blueprints/custom:ro
     healthcheck:
       test: ["CMD", "ak", "healthcheck"]
       interval: 30s
@@ -303,6 +305,7 @@ services:
     volumes:
       - authentik-media:/media
       - authentik-templates:/templates
+      - {{ app_dir }}/authentik-blueprints:/blueprints/custom:ro
     security_opt:
       - no-new-privileges:true
     deploy:

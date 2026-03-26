@@ -12,7 +12,7 @@
     "deploy": "bun run deploy:site",
     "deploy:site": "cd site && bun run deploy",
     "dev:server": "bun --watch src/server/server.ts",
-    "dev:docker": "docker compose --env-file deploy/docker/.env.dev.defaults -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.dev.yml --profile asterisk up -d postgres minio strfry asterisk asterisk-bridge",
+    "dev:docker": "docker compose --env-file deploy/docker/.env.dev.defaults -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.dev.yml --profile asterisk up -d postgres minio strfry authentik-server authentik-worker asterisk asterisk-bridge",
     "dev:docker:down": "docker compose --env-file deploy/docker/.env.dev.defaults -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.dev.yml --profile asterisk down",
     "start": "bun src/server/server.ts",
     "start:bun": "bun src/server/server.ts",

@@ -68,7 +68,7 @@ services:
       # IdP Auth (Authentik)
       - IDP_ADAPTER=${IDP_ADAPTER:-authentik}
       - AUTHENTIK_URL=${AUTHENTIK_URL:-http://authentik-server:9000}
-      - "AUTHENTIK_API_TOKEN=${AUTHENTIK_API_TOKEN:?AUTHENTIK_API_TOKEN is required}"
+      - "AUTHENTIK_API_TOKEN=${AUTHENTIK_BOOTSTRAP_TOKEN:?AUTHENTIK_BOOTSTRAP_TOKEN is required}"
       - "IDP_VALUE_ENCRYPTION_KEY=${IDP_VALUE_ENCRYPTION_KEY:?IDP_VALUE_ENCRYPTION_KEY is required}"
       - IDP_VALUE_KEY_VERSION=${IDP_VALUE_KEY_VERSION:-1}
       - "JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}"
@@ -192,6 +192,7 @@ services:
       AUTHENTIK_POSTGRESQL__USER: ${POSTGRES_USER:-llamenos}
       AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASSWORD:?PG_PASSWORD is required}
       AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:?AUTHENTIK_BOOTSTRAP_TOKEN is required}
     ports:
       - "${AUTHENTIK_PORT:-9000}:9000"
     depends_on:
@@ -202,6 +203,7 @@ services:
     volumes:
       - authentik-media:/media
       - authentik-templates:/templates
+      - ./authentik-blueprints:/blueprints/custom:ro
     healthcheck:
       test: ["CMD", "ak", "healthcheck"]
       interval: 30s
@@ -228,6 +230,7 @@ services:
     volumes:
       - authentik-media:/media
       - authentik-templates:/templates
+      - ./authentik-blueprints:/blueprints/custom:ro
 
   # ── Optional: Whisper Transcription ───────────────────────
   whisper:

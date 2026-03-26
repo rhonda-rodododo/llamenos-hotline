@@ -149,9 +149,9 @@ signal_image: bbernhard/signal-cli-rest-api:0.92
 # Generate with: openssl rand -hex 32
 authentik_secret_key: "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg"
 
-# REQUIRED: API token for the Llamenos app to authenticate with Authentik
-# Create via: Authentik admin UI → Directory → Tokens → Create token (intent: API)
-authentik_api_token: ""
+# REQUIRED: Bootstrap token — auto-created on first Authentik startup, used by the app as API token.
+# Generate with: openssl rand -hex 32
+authentik_bootstrap_token: ""
 
 # REQUIRED: 32-byte key for encrypting IdP attribute values at rest (base64-encoded)
 # Generate with: openssl rand -base64 32

@@ -139,8 +139,9 @@ coturn_image: coturn/coturn:4.6
 # Secret key for Authentik (generate with: openssl rand -hex 32, must be >= 50 chars)
 authentik_secret_key: ""
 
-# API token — create in Authentik admin UI (Directory → Tokens → Create, intent: API)
-authentik_api_token: ""
+# Bootstrap token — auto-created on first Authentik startup, used by the app as API token.
+# Generate with: openssl rand -hex 32
+authentik_bootstrap_token: ""
 
 # 32-byte key for encrypting IdP attribute values (base64-encoded)
 # Generate with: openssl rand -base64 32
