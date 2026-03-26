@@ -58,11 +58,82 @@ CI uses `docker compose` directly instead of GH Actions service containers:
   run: bun run start &
 ```
 
-The app's `depends_on: authentik-server: condition: service_healthy` ensures Authentik is ready before the app starts. No `--wait` flag needed.
+**Note on `depends_on`:** Within docker-compose, `depends_on: condition: service_healthy` ensures ordering. But in CI, the app runs outside the compose network (via `bun run start` directly on the runner), so `depends_on` doesn't apply. The CI health poll loop (`for i in $(seq 1 30)`) serves as the wait mechanism. The app connects to Authentik via `localhost:<mapped-port>`, not the Docker network name.
 
 ### Dev Strategy
 
-`bun run dev:docker` starts Authentik alongside Postgres, MinIO, and strfry. Developers always work against real Authentik.
+`bun run dev:docker` starts Authentik alongside Postgres, MinIO, and strfry. Developers always work against real Authentik. Authentik is exposed on a dev-specific port offset (e.g., `9100:9000`) in `docker-compose.dev.yml` to avoid conflicts.
+
+## Authentik Infrastructure
+
+### Postgres Init Script
+
+Authentik needs its own database. A Postgres init script creates it:
+
+```sql
+-- deploy/docker/postgres-init/01-authentik-db.sql
+-- Idempotent: safe to re-run on existing databases
+SELECT 'CREATE DATABASE authentik'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'authentik')\gexec
+```
+
+Mounted via Postgres `docker-entrypoint-initdb.d`:
+```yaml
+postgres:
+  volumes:
+    - ./postgres-init:/docker-entrypoint-initdb.d
+```
+
+### Redis/Valkey
+
+Authentik requires Redis (or Valkey) as a message broker for the worker process. Add a Redis container:
+
+```yaml
+redis:
+  image: redis:7-alpine
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD", "redis-cli", "ping"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+authentik-server:
+  environment:
+    AUTHENTIK_REDIS__HOST: redis
+  depends_on:
+    redis:
+      condition: service_healthy
+
+authentik-worker:
+  environment:
+    AUTHENTIK_REDIS__HOST: redis
+  depends_on:
+    redis:
+      condition: service_healthy
+```
+
+**Note:** Verify during implementation whether Authentik 2025.12 still requires Redis. The 2025.10 release notes claimed Redis removal, but the reviewer found evidence it's still needed. If Redis is truly not required, remove this.
+
+### Bootstrap Token
+
+`AUTHENTIK_BOOTSTRAP_TOKEN` is set on the **authentik-server** container (not the app):
+
+```yaml
+authentik-server:
+  environment:
+    AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN}
+```
+
+On first startup, Authentik auto-creates an API token with this value. The app uses the same value as `AUTHENTIK_API_TOKEN`:
+
+```yaml
+app:
+  environment:
+    AUTHENTIK_API_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN}
+```
+
+Both reference the same env var so they stay in sync.
 
 ## Authentik Blueprint
 
@@ -73,13 +144,13 @@ A declarative YAML file at `deploy/docker/authentik-blueprints/llamenos.yaml` au
 1. **OAuth2/OIDC Provider** — configured for the Llamenos application
 2. **Application** — registered in Authentik, linked to the provider
 3. **Custom Property Mapping** — exposes `user.attributes.nsec_secret` as a claim in the userinfo response
-4. **Service Account Group** — with appropriate API permissions for the Llamenos server's `AUTHENTIK_API_TOKEN`
+4. **Service Account Group** — with API permissions for user CRUD, session management, and invitation creation
 
-### How It Works
+### Blueprint YAML
 
 ```yaml
 # deploy/docker/authentik-blueprints/llamenos.yaml
-# Authentik auto-applies blueprints from /blueprints/custom/ on startup
+# Applied by authentik-worker on startup
 
 version: 1
 metadata:
@@ -88,6 +159,15 @@ metadata:
     blueprints.goauthentik.io/description: "Auto-provision Llamenos IdP integration"
 
 entries:
+  # Service account group with API permissions
+  - model: authentik_core.group
+    id: llamenos-service-group
+    attrs:
+      name: "Llamenos Service Accounts"
+      is_superuser: false
+      # Permissions granted via Authentik's RBAC — exact permission
+      # names to be verified against 2025.12 API docs during implementation
+
   # Property mapping: expose nsec_secret user attribute
   - model: authentik_providers_oauth2.scopemapping
     id: llamenos-nsec-secret-mapping
@@ -118,15 +198,17 @@ The exact blueprint schema will be verified against Authentik 2025.12 docs durin
 
 ### Volume Mount
 
+Blueprint must be mounted on **both** `authentik-server` and `authentik-worker` (the worker processes blueprints):
+
 ```yaml
 authentik-server:
   volumes:
     - ./authentik-blueprints:/blueprints/custom
+
+authentik-worker:
+  volumes:
+    - ./authentik-blueprints:/blueprints/custom
 ```
-
-### Bootstrap Token
-
-`AUTHENTIK_BOOTSTRAP_TOKEN` env var auto-creates an API token on first Authentik startup. Our server uses this token for all IdP adapter API calls.
 
 ## Bootstrap Flow (First Admin)
 
@@ -151,6 +233,21 @@ The very first user creation:
 
 No synthetic values. The Authentik user is created atomically with the volunteer record.
 
+## Token Refresh Bug Fix
+
+**Phase 1 bug:** `POST /auth/token/refresh` is behind the `jwtAuth` middleware, which requires a valid access JWT. But the entire purpose of refresh is to get a new access token when the current one has expired. If the access token is expired, the middleware rejects with 401, making refresh impossible.
+
+**Fix:** Remove `jwtAuth` middleware from `/token/refresh`. The endpoint authenticates via the httpOnly refresh cookie alone:
+
+1. Read `llamenos-refresh` cookie
+2. Verify the refresh JWT (separate from access JWT verification)
+3. Extract pubkey from refresh token's `sub` claim
+4. Call `idpAdapter.refreshSession(pubkey)` to confirm user is still active
+5. Sign new access JWT
+6. Return `{ accessToken }`
+
+No access token required. The refresh cookie IS the credential.
+
 ## Enrollment Endpoint
 
 New `POST /auth/enroll` endpoint in the facade. Used by all flows that create new users.
@@ -158,9 +255,9 @@ New `POST /auth/enroll` endpoint in the facade. Used by all flows that create ne
 ```
 POST /auth/enroll
   Body: { pubkey }
-  Auth: Valid JWT (admin creating a volunteer, or bootstrap flow)
+  Auth: Valid JWT with `volunteers:create` permission
 
-  1. Verify caller has enrollment permission
+  1. Verify caller has `volunteers:create` permission
   2. Call idpAdapter.createUser(pubkey)
   3. Return { nsecSecret: <hex> }
 ```
@@ -199,6 +296,30 @@ This matches how the existing `auth` middleware resolves permissions — the fac
 
 ## Server Startup
 
+## Authentik Adapter Fixes
+
+### Session Deletion API
+
+The current `AuthentikAdapter.revokeAllSessions()` uses `DELETE /api/v3/core/authenticated-sessions/?user=<pk>` which may not be a valid bulk deletion endpoint. During implementation, verify the correct approach:
+- Option A: List sessions via `GET /api/v3/core/authenticated-sessions/?user=<pk>`, then delete each individually
+- Option B: Use a user-specific session revocation endpoint if one exists in 2025.12
+- Option C: If bulk DELETE is supported, keep current approach
+
+### Bridge Middleware Null Guard
+
+The bridge middleware in `app.ts` should assert the adapter is non-null at request time as defense-in-depth:
+
+```typescript
+if (!_idpAdapter) {
+  return c.json({ error: 'IdP service not initialized' }, 503)
+}
+ctx.set('idpAdapter', _idpAdapter)
+```
+
+This catches the edge case where the adapter failed to initialize but the server somehow started (e.g., race condition).
+
+## Server Startup
+
 Hard failure replaces graceful fallback:
 
 ```typescript
@@ -233,6 +354,12 @@ New `tests/api/auth-facade.spec.ts`:
 | Admin re-enrollment wipes credentials | Recovery |
 | Rate limiting blocks excessive login attempts | Abuse prevention |
 | Full onboarding: invite -> accept -> enroll -> register passkey -> login | End-to-end volunteer flow |
+| IdP temporarily unavailable during token refresh -> clear error, not 500 | Graceful IdP error handling |
+| Concurrent enrollment of same pubkey -> proper error, not crash | Race condition handling |
+| nsecSecret rotation: rotate -> verify userinfo returns current -> confirm -> previous gone | Rotation lifecycle |
+| Bootstrap called twice -> 403 on second call | Idempotency |
+| JWT from different JWT_SECRET rejected | Cross-environment token isolation |
+| Volunteer deactivation cleans up Authentik user | User lifecycle |
 
 ### Existing Test Updates
 
@@ -315,7 +442,7 @@ No GH Actions service containers. Docker Compose handles everything.
 | `.github/workflows/ci.yml` | Docker Compose instead of service containers |
 | `src/server/server.ts` | Hard failure if IdP unavailable |
 | `src/server/app.ts` | Pass SettingsService to facade context |
-| `src/server/routes/auth.ts` | Bootstrap calls `idpAdapter.createUser()` |
+| `src/server/routes/auth.ts` | Bootstrap calls `idpAdapter.createUser()`. The bootstrap endpoint currently uses `AppEnv` and has no IdP adapter access — either move bootstrap into the facade, or inject the adapter via the existing bridge middleware (preferred: add `getIdPAdapter()` import from app.ts). |
 | `src/server/routes/auth-facade.ts` | Add `POST /auth/enroll`, fix permissions resolution |
 | `src/client/routes/onboarding.tsx` | Call `/auth/enroll` instead of synthetic value |
 | `src/client/components/setup/AdminBootstrap.tsx` | Receive real nsecSecret from bootstrap |
