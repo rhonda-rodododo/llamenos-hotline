@@ -1309,5 +1309,8 @@
     "summary": "Manage channels",
     "active": "Active",
     "currentProvider": "Current voice/SMS provider:"
+  },
+  "blast": {
+    "optOutFooter": "Antworten Sie STOP zum Abbestellen"
   }
 }

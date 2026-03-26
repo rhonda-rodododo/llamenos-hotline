@@ -1317,5 +1317,8 @@
     "summary": "Manage channels",
     "active": "Active",
     "currentProvider": "Current voice/SMS provider:"
+  },
+  "blast": {
+    "optOutFooter": "Responda STOP para cancelar la suscripción"
   }
 }
