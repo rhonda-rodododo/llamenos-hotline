@@ -334,13 +334,18 @@ describe('AuthentikAdapter', () => {
   // --- revokeSession / revokeAllSessions ---
 
   describe('revokeSession', () => {
-    test('deletes Authentik sessions for the user', async () => {
+    test('lists then deletes each Authentik session individually', async () => {
       const calls: string[] = []
+      const SESSION_UUID = 'session-uuid-abc123'
       globalThis.fetch = asFetch(
         mock((url: string, init?: RequestInit) => {
           const method = init?.method ?? 'GET'
           calls.push(`${method} ${url}`)
           if (method === 'GET') {
+            // Distinguish user lookup from session list by URL shape
+            if (url.includes('authenticated-sessions')) {
+              return Promise.resolve(listResponse([{ uuid: SESSION_UUID }]))
+            }
             return Promise.resolve(listResponse([makeUser()]))
           }
           return Promise.resolve(new Response(null, { status: 204 }))
@@ -349,10 +354,39 @@ describe('AuthentikAdapter', () => {
 
       await adapter.revokeSession(TEST_PUBKEY)
 
-      // First call: look up user; second: DELETE sessions
-      expect(calls).toHaveLength(2)
-      expect(calls[1]).toContain('DELETE')
+      // Call 1: user lookup GET
+      // Call 2: session list GET
+      // Call 3: DELETE individual session
+      expect(calls).toHaveLength(3)
+      expect(calls[0]).toContain('GET')
+      expect(calls[1]).toContain('GET')
       expect(calls[1]).toContain('authenticated-sessions')
+      expect(calls[2]).toContain('DELETE')
+      expect(calls[2]).toContain(`authenticated-sessions/${SESSION_UUID}/`)
+    })
+
+    test('skips session deletion when session list is empty', async () => {
+      const calls: string[] = []
+      globalThis.fetch = asFetch(
+        mock((url: string, init?: RequestInit) => {
+          const method = init?.method ?? 'GET'
+          calls.push(`${method} ${url}`)
+          if (method === 'GET') {
+            if (url.includes('authenticated-sessions')) {
+              return Promise.resolve(listResponse([]))
+            }
+            return Promise.resolve(listResponse([makeUser()]))
+          }
+          return Promise.resolve(new Response(null, { status: 204 }))
+        })
+      )
+
+      await adapter.revokeSession(TEST_PUBKEY)
+
+      // Call 1: user lookup, Call 2: session list — no DELETE calls
+      expect(calls).toHaveLength(2)
+      expect(calls[1]).toContain('authenticated-sessions')
+      expect(calls.some((c) => c.includes('DELETE'))).toBe(false)
     })
 
     test('does nothing when user not found', async () => {

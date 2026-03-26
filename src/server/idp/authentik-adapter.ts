@@ -254,11 +254,17 @@ export class AuthentikAdapter implements IdPAdapter {
     const user = await this.findUserByPubkey(pubkey)
     if (!user) return
 
-    // DELETE sessions filtered by user pk
-    const res = await this.apiCall('DELETE', `/api/v3/core/authenticated-sessions/?user=${user.pk}`)
-    // 404 is acceptable — user may have no active sessions
-    if (!res.ok && res.status !== 404) {
-      throw new Error(`Failed to delete sessions for user ${pubkey}: HTTP ${res.status}`)
+    // List all sessions for this user
+    const listRes = await this.apiCall(
+      'GET',
+      `/api/v3/core/authenticated-sessions/?user=${user.pk}`
+    )
+    if (!listRes.ok) return
+    const data = (await listRes.json()) as AuthentikListResponse<{ uuid: string }>
+
+    // Delete each session individually
+    for (const session of data.results) {
+      await this.apiCall('DELETE', `/api/v3/core/authenticated-sessions/${session.uuid}/`)
     }
   }
 
