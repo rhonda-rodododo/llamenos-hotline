@@ -6,6 +6,8 @@ import { generateHubKey, wrapHubKeyForMember } from './hub-key-manager'
 // ── Mock setup ────────────────────────────────────────────────────────────────
 // We must mock './api' before importing the module under test so the module
 // resolver picks up the mock at load time.
+// IMPORTANT: Spread all real exports so other modules that import from './api'
+// still get their exports (e.g. getWebRtcToken used by webrtc/manager.ts).
 
 type EnvelopeResult = {
   wrappedKey: string
@@ -15,7 +17,9 @@ type EnvelopeResult = {
 
 let mockGetMyHubKeyEnvelope: (hubId: string) => Promise<EnvelopeResult>
 
+const realApi = await import('./api')
 mock.module('./api', () => ({
+  ...realApi,
   getMyHubKeyEnvelope: (hubId: string) => mockGetMyHubKeyEnvelope(hubId),
 }))
 
