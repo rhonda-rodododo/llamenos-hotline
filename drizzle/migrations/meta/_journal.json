@@ -134,6 +134,13 @@
       "when": 1774882800000,
       "tag": "0018_blast_content_encryption",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1774969200000,
+      "tag": "0019_hub_storage_settings",
+      "breakpoints": true
     }
   ]
 }

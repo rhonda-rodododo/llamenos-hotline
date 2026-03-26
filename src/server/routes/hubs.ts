@@ -1,7 +1,10 @@
+import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import type { Hub } from '../../shared/types'
+import { getDb } from '../db'
+import { hubStorageSettings } from '../db/schema/storage'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
-import type { AppEnv } from '../types'
+import { type AppEnv, STORAGE_NAMESPACES, type StorageNamespace } from '../types'
 
 const routes = new Hono<AppEnv>()
 
@@ -277,6 +280,104 @@ routes.put('/:hubId/key', requirePermission('system:manage-hubs'), async (c) => 
     const message = err instanceof Error ? err.message : 'Failed to set hub key'
     return c.json({ error: message }, 500)
   }
+})
+
+// --- Hub Storage Settings ---
+
+// GET merged storage settings (hub overrides + platform defaults)
+routes.get('/:hubId/storage-settings', requirePermission('settings:manage'), async (c) => {
+  const hubId = c.req.param('hubId')
+  const db = getDb()
+
+  const overrides = await db
+    .select()
+    .from(hubStorageSettings)
+    .where(eq(hubStorageSettings.hubId, hubId))
+
+  const overrideMap = new Map(overrides.map((o) => [o.namespace, o.retentionDays]))
+
+  const settings = Object.entries(STORAGE_NAMESPACES).map(([ns, defaults]) => ({
+    namespace: ns as StorageNamespace,
+    retentionDays: overrideMap.has(ns) ? overrideMap.get(ns)! : defaults.defaultRetentionDays,
+    isOverridden: overrideMap.has(ns),
+    platformDefault: defaults.defaultRetentionDays,
+  }))
+
+  return c.json({ settings })
+})
+
+// PATCH update retention for a namespace
+routes.patch('/:hubId/storage-settings', requirePermission('settings:manage'), async (c) => {
+  const hubId = c.req.param('hubId')
+  const services = c.get('services')
+  const pubkey = c.get('pubkey')
+  const db = getDb()
+
+  const body = (await c.req.json()) as {
+    namespace: string
+    retentionDays: number | null
+  }
+
+  // Validate namespace
+  if (!body.namespace || !(body.namespace in STORAGE_NAMESPACES)) {
+    return c.json(
+      { error: `Invalid namespace. Must be one of: ${Object.keys(STORAGE_NAMESPACES).join(', ')}` },
+      400
+    )
+  }
+
+  const ns = body.namespace as StorageNamespace
+  const platformDefault = STORAGE_NAMESPACES[ns].defaultRetentionDays
+
+  // Enforce platform cap: hub can't set retention higher than platform default
+  if (
+    body.retentionDays !== null &&
+    platformDefault !== null &&
+    body.retentionDays > platformDefault
+  ) {
+    return c.json(
+      { error: `Retention cannot exceed platform default of ${platformDefault} days` },
+      400
+    )
+  }
+
+  // Validate retentionDays is a positive integer or null
+  if (body.retentionDays !== null) {
+    if (!Number.isInteger(body.retentionDays) || body.retentionDays < 1) {
+      return c.json({ error: 'retentionDays must be a positive integer or null' }, 400)
+    }
+  }
+
+  // Upsert into hub_storage_settings
+  await db
+    .insert(hubStorageSettings)
+    .values({
+      hubId,
+      namespace: ns,
+      retentionDays: body.retentionDays,
+    })
+    .onConflictDoUpdate({
+      target: [hubStorageSettings.hubId, hubStorageSettings.namespace],
+      set: { retentionDays: body.retentionDays },
+    })
+
+  // Apply to storage backend if available
+  if (services.storage) {
+    try {
+      await services.storage.setRetention(hubId, ns, body.retentionDays)
+    } catch (err) {
+      console.error('[hubs] Failed to apply retention to storage backend:', err)
+    }
+  }
+
+  // Audit log
+  await services.records.addAuditEntry(hubId, 'storage.retention.updated', pubkey, {
+    namespace: ns,
+    retentionDays: body.retentionDays,
+    platformDefault,
+  })
+
+  return c.json({ ok: true, namespace: ns, retentionDays: body.retentionDays })
 })
 
 export default routes
