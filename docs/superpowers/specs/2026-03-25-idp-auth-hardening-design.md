@@ -511,6 +511,16 @@ AUTH_WEBAUTHN_RP_NAME=Llamenos
 AUTH_WEBAUTHN_ORIGIN=https://app.llamenos.org
 ```
 
+## Bun Native Crypto Note
+
+Bun provides native `Bun.password` (Argon2id, bcrypt) and `Bun.CryptoHasher` (SHA-256, HMAC) APIs. Assessment for this spec:
+
+- **`Bun.password` Argon2id** — memory-hard, stronger than PBKDF2 against GPU brute-force. However, PIN derivation happens **client-side** in the browser where Bun APIs are unavailable. Could be used for any future server-side credential hashing.
+- **`Bun.CryptoHasher` HMAC** — could replace `@noble/hashes/hmac` for server-side HMAC operations (audit log, phone hashing). Marginal benefit since `@noble/*` is already a dependency.
+- **Not available in Bun**: HKDF, ChaCha20-Poly1305, secp256k1/ECDH. The `@noble/*` libraries (`ciphers`, `hashes`, `curves`) remain necessary for the core crypto stack.
+
+**Recommendation:** use `Bun.CryptoHasher` for new server-side HMAC/SHA-256 operations where no `@noble/*` import is already present. Keep `@noble/*` as the primary crypto library for consistency across client and server.
+
 ## Adapter Shipping Schedule
 
 **This spec:**
