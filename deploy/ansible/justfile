@@ -112,9 +112,9 @@ edit-demo-vars:
 # Requires: Tart + Docker on Mac, SSH access as 'mac'
 # See: docs/plans/2026-03-25-local-vm-ansible-testing.md
 
-# Create and configure a fresh Tart VM for testing
+# Create and configure a fresh Tart VM for testing (4 CPU / 8GB matches a small VPS)
 vm-create:
-    ssh mac 'source ~/.zprofile && tart clone ghcr.io/cirruslabs/ubuntu:24.04 llamenos-test && tart set llamenos-test --cpu 2 --memory 4096 --disk-size 20'
+    ssh mac 'source ~/.zprofile && tart clone ghcr.io/cirruslabs/ubuntu:24.04 llamenos-test && tart set llamenos-test --cpu 4 --memory 8192 --disk-size 20'
 
 # Start the VM headless
 vm-start:
