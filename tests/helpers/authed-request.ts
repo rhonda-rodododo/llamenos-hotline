@@ -94,3 +94,22 @@ export function createAuthedRequestFromNsec(
   if (decoded.type !== 'nsec') throw new Error(`Expected nsec, got ${decoded.type}`)
   return createAuthedRequest(request, decoded.data, permissions)
 }
+
+/**
+ * Enroll a pubkey in Authentik via POST /api/auth/enroll.
+ *
+ * The enroll endpoint is idempotent — calling it twice for the same pubkey is safe.
+ * Returns the hex-encoded nsecSecret assigned to the user in Authentik.
+ *
+ * @param adminApi - An AuthedRequest with `volunteers:create` or `*` permission
+ * @param pubkey - The hex pubkey of the user to enroll
+ * @returns The hex-encoded nsecSecret
+ */
+export async function enrollInAuthentik(adminApi: AuthedRequest, pubkey: string): Promise<string> {
+  const res = await adminApi.post('/api/auth/enroll', { pubkey })
+  if (!res.ok()) {
+    throw new Error(`Failed to enroll ${pubkey} in Authentik: ${res.status()} ${await res.text()}`)
+  }
+  const data = (await res.json()) as { nsecSecret: string }
+  return data.nsecSecret
+}
