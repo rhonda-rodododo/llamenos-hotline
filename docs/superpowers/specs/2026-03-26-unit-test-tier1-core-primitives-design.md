@@ -10,7 +10,7 @@ Unit tests for security-critical cryptographic primitives are almost entirely ab
 
 This spec covers two concerns:
 
-1. **Separate integration tests from unit tests** — 6 test files currently require PostgreSQL but live alongside pure unit tests. Rename to `*.integration.test.ts` and update scripts so `test:unit` runs fast without backing services.
+1. **Separate integration tests from unit tests** — 5 test files currently require PostgreSQL but live alongside pure unit tests. Rename to `*.integration.test.ts` and update scripts so `test:unit` runs fast without backing services.
 2. **Add pure unit tests for tier 1 crypto primitives** — the foundational functions that all higher-level E2EE operations depend on.
 
 ## Goals
@@ -82,14 +82,15 @@ This spec covers two concerns:
 | Truncated to 96 bits | Output is exactly 24 hex chars |
 | Different IPs | Different inputs = different hashes |
 
-### B3: `eciesWrapKeyServer / eciesUnwrapKeyServer` — ECIES primitives
+### B3: `eciesUnwrapKeyServer` — ECIES unwrap primitive
+
+`eciesWrapKeyServer` is private (not exported). It is tested indirectly through `encryptMessageForStorage` (B4) and `encryptBinaryForStorage` (existing tests). These tests focus on the exported `eciesUnwrapKeyServer`:
 
 | Test | Assert |
 |------|--------|
-| Roundtrip | Wrap key → unwrap with correct privkey = original key |
-| Wrong key rejects | Unwrap with different privkey throws |
-| Nonce uniqueness | Two wraps of same key produce different `wrappedKey` |
-| Domain separation | Wrap with label A, unwrap with label B throws |
+| Roundtrip via encryptMessageForStorage | Encrypt message → extract envelope → `eciesUnwrapKeyServer` recovers symmetric key → manual XChaCha20 decrypt matches original |
+| Wrong key rejects | `eciesUnwrapKeyServer` with different privkey throws |
+| Domain separation | Wrap with LABEL_MESSAGE, unwrap with LABEL_CALL_META throws |
 | Ephemeral pubkey format | 66 hex chars (33 bytes compressed) |
 
 ### B4: `encryptMessageForStorage` — Envelope encryption
