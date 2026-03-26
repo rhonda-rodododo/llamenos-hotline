@@ -1,11 +1,10 @@
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
-import { schnorr, secp256k1 } from '@noble/curves/secp256k1.js'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hkdf } from '@noble/hashes/hkdf.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import {
-  AUTH_PREFIX,
   HKDF_CONTEXT_DRAFTS,
   HKDF_CONTEXT_EXPORT,
   HKDF_CONTEXT_NOTES,
@@ -17,6 +16,7 @@ import {
 } from '@shared/crypto-labels'
 import type { NotePayload } from '@shared/types'
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools'
+import { getCryptoWorker } from './crypto-worker-client'
 
 function randomBytes(n: number): Uint8Array {
   const buf = new Uint8Array(n)
@@ -131,27 +131,13 @@ export function eciesWrapKey(
 /**
  * Unwrap a 32-byte symmetric key from an ECIES envelope.
  * Must use the same `label` that was used during wrapping.
+ *
+ * Delegates to the crypto worker — the secret key never touches the main thread.
  */
-export function eciesUnwrapKey(
-  envelope: KeyEnvelope,
-  secretKey: Uint8Array,
-  label: string
-): Uint8Array {
-  const ephemeralPub = hexToBytes(envelope.ephemeralPubkey)
-  const shared = secp256k1.getSharedSecret(secretKey, ephemeralPub)
-  const sharedX = shared.slice(1, 33)
-
-  const labelBytes = utf8ToBytes(label)
-  const keyInput = new Uint8Array(labelBytes.length + sharedX.length)
-  keyInput.set(labelBytes)
-  keyInput.set(sharedX, labelBytes.length)
-  const symmetricKey = sha256(keyInput)
-
-  const data = hexToBytes(envelope.wrappedKey)
-  const nonce = data.slice(0, 24)
-  const ciphertext = data.slice(24)
-  const cipher = xchacha20poly1305(symmetricKey, nonce)
-  return cipher.decrypt(ciphertext)
+export async function eciesUnwrapKey(envelope: KeyEnvelope, label: string): Promise<Uint8Array> {
+  const worker = getCryptoWorker()
+  const resultHex = await worker.decrypt(envelope.ephemeralPubkey, envelope.wrappedKey, label)
+  return hexToBytes(resultHex)
 }
 
 // --- Per-Note Ephemeral Key Encryption (V2 — forward secrecy) ---
@@ -196,14 +182,14 @@ export function encryptNoteV2(
 
 /**
  * Decrypt a V2 note using the appropriate envelope for the current user.
+ * Secret key operations are delegated to the crypto worker.
  */
-export function decryptNoteV2(
+export async function decryptNoteV2(
   encryptedContent: string,
-  envelope: KeyEnvelope,
-  secretKey: Uint8Array
-): NotePayload | null {
+  envelope: KeyEnvelope
+): Promise<NotePayload | null> {
   try {
-    const noteKey = eciesUnwrapKey(envelope, secretKey, LABEL_NOTE_KEY)
+    const noteKey = await eciesUnwrapKey(envelope, LABEL_NOTE_KEY)
     const data = hexToBytes(encryptedContent)
     const nonce = data.slice(0, 24)
     const ciphertext = data.slice(24)
@@ -266,25 +252,24 @@ export function encryptMessage(
 /**
  * Decrypt a message using the reader's envelope.
  * Finds the envelope matching the reader's pubkey and unwraps the message key.
+ * Secret key operations are delegated to the crypto worker.
  *
  * @param encryptedContent - hex: nonce(24) + ciphertext
  * @param readerEnvelopes - array of per-reader ECIES envelopes
- * @param secretKey - reader's secret key (Uint8Array)
  * @param readerPubkey - reader's x-only pubkey (hex) to find the matching envelope
  */
-export function decryptMessage(
+export async function decryptMessage(
   encryptedContent: string,
   readerEnvelopes: RecipientKeyEnvelope[],
-  secretKey: Uint8Array,
   readerPubkey: string
-): string | null {
+): Promise<string | null> {
   try {
     // Find the envelope for this reader
     const envelope = readerEnvelopes.find((e) => e.pubkey === readerPubkey)
     if (!envelope) return null
 
     // Unwrap the message key
-    const messageKey = eciesUnwrapKey(envelope, secretKey, LABEL_MESSAGE)
+    const messageKey = await eciesUnwrapKey(envelope, LABEL_MESSAGE)
 
     // Decrypt the message content
     const data = hexToBytes(encryptedContent)
@@ -305,18 +290,18 @@ export function decryptMessage(
 /**
  * Decrypt a call record's encrypted metadata.
  * Returns the decrypted fields or null if decryption fails.
+ * Secret key operations are delegated to the crypto worker.
  */
-export function decryptCallRecord(
+export async function decryptCallRecord(
   encryptedContent: string,
   adminEnvelopes: RecipientKeyEnvelope[],
-  secretKey: Uint8Array,
   readerPubkey: string
-): { answeredBy: string | null; callerNumber: string } | null {
+): Promise<{ answeredBy: string | null; callerNumber: string } | null> {
   try {
     const envelope = adminEnvelopes.find((e) => e.pubkey === readerPubkey)
     if (!envelope) return null
 
-    const recordKey = eciesUnwrapKey(envelope, secretKey, LABEL_CALL_META)
+    const recordKey = await eciesUnwrapKey(envelope, LABEL_CALL_META)
     const data = hexToBytes(encryptedContent)
     const nonce = data.slice(0, 24)
     const ciphertext = data.slice(24)
@@ -359,34 +344,23 @@ export function decryptNote(packed: string, secretKey: Uint8Array): NotePayload 
 // Decrypts server-encrypted transcriptions using ECDH with the volunteer's secret key
 // and the ephemeral public key stored alongside the ciphertext.
 
-export function decryptTranscription(
+/**
+ * Decrypt a transcription using the crypto worker.
+ * The worker performs ECDH + domain-separated key derivation + XChaCha20-Poly1305 decrypt.
+ */
+export async function decryptTranscription(
   packed: string,
-  ephemeralPubkeyHex: string,
-  secretKey: Uint8Array
-): string | null {
+  ephemeralPubkeyHex: string
+): Promise<string | null> {
   try {
-    // ephemeralPubkeyHex is already compressed (33 bytes / 66 hex chars)
-    const ephemeralPub = hexToBytes(ephemeralPubkeyHex)
-
-    // ECDH shared secret
-    const shared = secp256k1.getSharedSecret(secretKey, ephemeralPub)
-    const sharedX = shared.slice(1, 33)
-
-    // Derive symmetric key with same domain separation as server
-    const label = utf8ToBytes(LABEL_TRANSCRIPTION)
-    const keyInput = new Uint8Array(label.length + sharedX.length)
-    keyInput.set(label)
-    keyInput.set(sharedX, label.length)
-    const symmetricKey = sha256(keyInput)
-
-    // Unpack: nonce (24) + ciphertext
-    const data = hexToBytes(packed)
-    const nonce = data.slice(0, 24)
-    const ciphertext = data.slice(24)
-
-    const cipher = xchacha20poly1305(symmetricKey, nonce)
-    const plaintext = cipher.decrypt(ciphertext)
-    return new TextDecoder().decode(plaintext)
+    // The worker's decrypt performs the same ECIES unwrap:
+    // ECDH(secretKey, ephemeralPub) → SHA-256(label || sharedX) → XChaCha20-Poly1305
+    const resultHex = await getCryptoWorker().decrypt(
+      ephemeralPubkeyHex,
+      packed,
+      LABEL_TRANSCRIPTION
+    )
+    return new TextDecoder().decode(hexToBytes(resultHex))
   } catch {
     return null
   }
@@ -437,23 +411,4 @@ export function encryptExport(jsonString: string, secretKey: Uint8Array): Uint8A
   packed.set(nonce)
   packed.set(ciphertext, nonce.length)
   return packed
-}
-
-// --- Session Token ---
-// Create a signed challenge for API authentication
-
-export function createAuthToken(
-  secretKey: Uint8Array,
-  timestamp: number,
-  method: string,
-  path: string
-): string {
-  const publicKey = getPublicKey(secretKey)
-  // Bind token to specific request method+path to prevent cross-endpoint replay
-  const message = `${AUTH_PREFIX}${publicKey}:${timestamp}:${method}:${path}`
-  const messageHash = sha256(utf8ToBytes(message))
-  // Sign with Schnorr (BIP-340) — proves possession of the secret key
-  const signature = schnorr.sign(messageHash, secretKey)
-  const token = bytesToHex(signature)
-  return JSON.stringify({ pubkey: publicKey, timestamp, token })
 }
