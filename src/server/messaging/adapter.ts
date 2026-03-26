@@ -43,7 +43,7 @@ export interface IncomingMessage {
 export interface SendMessageParams {
   recipientIdentifier: string
   body: string
-  conversationId: string
+  conversationId?: string // optional — absent for blast deliveries
 }
 
 export interface SendMediaParams extends SendMessageParams {
