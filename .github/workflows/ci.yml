@@ -239,6 +239,24 @@ jobs:
         ports:
           - 5432:5432
 
+      authentik-server:
+        image: ghcr.io/goauthentik/server:2025.12
+        env:
+          AUTHENTIK_SECRET_KEY: ci-test-secret-key-not-for-production
+          AUTHENTIK_POSTGRESQL__HOST: postgres
+          AUTHENTIK_POSTGRESQL__PORT: 5432
+          AUTHENTIK_POSTGRESQL__USER: llamenos
+          AUTHENTIK_POSTGRESQL__PASSWORD: llamenos
+          AUTHENTIK_POSTGRESQL__NAME: authentik
+          AUTHENTIK_BOOTSTRAP_TOKEN: ci-bootstrap-token
+        options: >-
+          --health-cmd "ak healthcheck"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 10
+          --health-start-period 60s
+        ports:
+          - 9100:9000
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -248,6 +266,9 @@ jobs:
           install-playwright: "true"
 
       - uses: ./.github/actions/start-test-infra
+
+      - name: Create Authentik database
+        run: PGPASSWORD=llamenos psql -h localhost -U llamenos -d llamenos -c "SELECT 1 FROM pg_database WHERE datname = 'authentik'" | grep -q 1 || PGPASSWORD=llamenos createdb -h localhost -U llamenos authentik
 
       - name: Build frontend
         run: bun run build
@@ -265,11 +286,11 @@ jobs:
           NOSTR_RELAY_URL: ws://localhost:7777
           SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
           DEV_RESET_SECRET: test-reset-secret
-          JWT_SECRET: "0000000000000000000000000000000000000000000000000000000000000099"
+          JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
           IDP_ADAPTER: authentik
-          AUTHENTIK_URL: http://localhost:9000
-          AUTHENTIK_API_TOKEN: test-token
-          IDP_VALUE_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000088"
+          AUTHENTIK_URL: http://localhost:9100
+          AUTHENTIK_API_TOKEN: ci-bootstrap-token
+          IDP_VALUE_ENCRYPTION_KEY: ${{ env.TEST_IDP_VALUE_ENCRYPTION_KEY }}
           IDP_VALUE_KEY_VERSION: "1"
           AUTH_WEBAUTHN_RP_ID: localhost
           AUTH_WEBAUTHN_RP_NAME: Llamenos Test
@@ -318,6 +339,24 @@ jobs:
         ports:
           - 5432:5432
 
+      authentik-server:
+        image: ghcr.io/goauthentik/server:2025.12
+        env:
+          AUTHENTIK_SECRET_KEY: ci-test-secret-key-not-for-production
+          AUTHENTIK_POSTGRESQL__HOST: postgres
+          AUTHENTIK_POSTGRESQL__PORT: 5432
+          AUTHENTIK_POSTGRESQL__USER: llamenos
+          AUTHENTIK_POSTGRESQL__PASSWORD: llamenos
+          AUTHENTIK_POSTGRESQL__NAME: authentik
+          AUTHENTIK_BOOTSTRAP_TOKEN: ci-bootstrap-token
+        options: >-
+          --health-cmd "ak healthcheck"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 10
+          --health-start-period 60s
+        ports:
+          - 9100:9000
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -327,6 +366,9 @@ jobs:
           install-playwright: "true"
 
       - uses: ./.github/actions/start-test-infra
+
+      - name: Create Authentik database
+        run: PGPASSWORD=llamenos psql -h localhost -U llamenos -d llamenos -c "SELECT 1 FROM pg_database WHERE datname = 'authentik'" | grep -q 1 || PGPASSWORD=llamenos createdb -h localhost -U llamenos authentik
 
       - name: Build frontend
         run: bun run build
@@ -344,11 +386,11 @@ jobs:
           NOSTR_RELAY_URL: ws://localhost:7777
           SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
           DEV_RESET_SECRET: test-reset-secret
-          JWT_SECRET: "0000000000000000000000000000000000000000000000000000000000000099"
+          JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
           IDP_ADAPTER: authentik
-          AUTHENTIK_URL: http://localhost:9000
-          AUTHENTIK_API_TOKEN: test-token
-          IDP_VALUE_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000088"
+          AUTHENTIK_URL: http://localhost:9100
+          AUTHENTIK_API_TOKEN: ci-bootstrap-token
+          IDP_VALUE_ENCRYPTION_KEY: ${{ env.TEST_IDP_VALUE_ENCRYPTION_KEY }}
           IDP_VALUE_KEY_VERSION: "1"
           AUTH_WEBAUTHN_RP_ID: localhost
           AUTH_WEBAUTHN_RP_NAME: Llamenos Test
