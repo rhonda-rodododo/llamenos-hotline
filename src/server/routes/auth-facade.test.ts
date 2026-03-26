@@ -129,9 +129,13 @@ function createTestApp(
 }
 
 // Helper to get a valid access token for authenticated routes
-async function getAccessToken(): Promise<string> {
+async function getAccessToken(permissions = ['role-volunteer']): Promise<string> {
   const { signAccessToken } = await import('../lib/jwt')
-  return signAccessToken({ pubkey: TEST_PUBKEY, permissions: ['role-volunteer'] }, TEST_JWT_SECRET)
+  return signAccessToken({ pubkey: TEST_PUBKEY, permissions }, TEST_JWT_SECRET)
+}
+
+async function getAdminAccessToken(): Promise<string> {
+  return getAccessToken(['volunteers:update', 'volunteers:read'])
 }
 
 // ---------------------------------------------------------------------------
@@ -379,6 +383,96 @@ describe('auth-facade', () => {
         headers: { Authorization: `Bearer ${token}` },
       })
       expect(res.status).toBe(404)
+    })
+  })
+
+  describe('POST /auth/admin/re-enroll/:pubkey', () => {
+    const TARGET_PUBKEY = 'cd'.repeat(32)
+
+    test('revokes all sessions and deletes all credentials', async () => {
+      const identity = createMockIdentity({
+        getVolunteer: mock(() =>
+          Promise.resolve({
+            pubkey: TARGET_PUBKEY,
+            name: 'Target User',
+            phone: '+9999999999',
+            roles: ['role-volunteer'],
+            active: true,
+            createdAt: new Date().toISOString(),
+            encryptedSecretKey: '',
+            transcriptionEnabled: true,
+            spokenLanguages: ['en'],
+            uiLanguage: 'en',
+            profileCompleted: true,
+            onBreak: false,
+            callPreference: 'browser' as const,
+          })
+        ),
+        getWebAuthnCredentials: mock(() =>
+          Promise.resolve([
+            createMockCredential({ id: 'cred-1', ownerPubkey: TARGET_PUBKEY }),
+            createMockCredential({ id: 'cred-2', ownerPubkey: TARGET_PUBKEY }),
+          ])
+        ),
+        deleteWebAuthnCredential: mock(() => Promise.resolve()),
+      })
+      const idpAdapter = createMockIdpAdapter()
+      const { app } = createTestApp({ identity, idpAdapter })
+      const token = await getAdminAccessToken()
+      const res = await app.request(`/auth/admin/re-enroll/${TARGET_PUBKEY}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      expect(res.status).toBe(200)
+      const json = await res.json()
+      expect(json.success).toBe(true)
+      expect(idpAdapter.revokeAllSessions).toHaveBeenCalledWith(TARGET_PUBKEY)
+      expect(identity.deleteWebAuthnCredential).toHaveBeenCalledTimes(2)
+    })
+
+    test('returns 403 when requester lacks volunteers:update permission', async () => {
+      const { app } = createTestApp()
+      const token = await getAccessToken(['role-volunteer'])
+      const res = await app.request(`/auth/admin/re-enroll/${TARGET_PUBKEY}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      expect(res.status).toBe(403)
+    })
+
+    test('returns 404 when target volunteer does not exist', async () => {
+      const identity = createMockIdentity({
+        getVolunteer: mock(() => Promise.resolve(null)),
+      })
+      const { app } = createTestApp({ identity })
+      const token = await getAdminAccessToken()
+      const res = await app.request(`/auth/admin/re-enroll/${TARGET_PUBKEY}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      expect(res.status).toBe(404)
+    })
+
+    test('accepts wildcard * permission as admin', async () => {
+      const identity = createMockIdentity({
+        getWebAuthnCredentials: mock(() => Promise.resolve([])),
+      })
+      const idpAdapter = createMockIdpAdapter()
+      const { app } = createTestApp({ identity, idpAdapter })
+      const token = await getAccessToken(['*'])
+      const res = await app.request(`/auth/admin/re-enroll/${TARGET_PUBKEY}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      expect(res.status).toBe(200)
+    })
+
+    test('returns 401 without auth header', async () => {
+      const { app } = createTestApp()
+      const res = await app.request(`/auth/admin/re-enroll/${TARGET_PUBKEY}`, {
+        method: 'POST',
+      })
+      expect(res.status).toBe(401)
     })
   })
 

@@ -33,6 +33,8 @@ interface AuthFacadeEnv {
     idpAdapter: IdPAdapter
     /** Set by jwtAuth middleware on authenticated routes */
     pubkey: string
+    /** Set by jwtAuth middleware — permissions from the access token */
+    permissions: string[]
   }
 }
 
@@ -74,6 +76,7 @@ const jwtAuth = createMiddleware<AuthFacadeEnv>(async (c, next) => {
   try {
     const payload = await verifyAccessToken(token, c.env.JWT_SECRET)
     c.set('pubkey', payload.sub)
+    c.set('permissions', payload.permissions ?? [])
     await next()
   } catch {
     return c.json({ error: 'Invalid or expired token' }, 401)
@@ -245,6 +248,7 @@ authFacade.use('/rotation/confirm', jwtAuth)
 authFacade.use('/session/revoke', jwtAuth)
 authFacade.use('/devices', jwtAuth)
 authFacade.use('/devices/*', jwtAuth)
+authFacade.use('/admin/*', jwtAuth)
 
 // POST /webauthn/register-options
 authFacade.post('/webauthn/register-options', async (c) => {
@@ -396,11 +400,32 @@ authFacade.get('/devices', async (c) => {
       createdAt: cr.createdAt,
       lastUsedAt: cr.lastUsedAt,
     })),
-    warning:
-      credentials.length === 1
-        ? 'Only one credential registered. Consider adding a backup.'
-        : undefined,
+    warning: credentials.length === 1 ? 'Register a backup device to prevent lockout' : undefined,
   })
+})
+
+// POST /admin/re-enroll/:pubkey — admin-only: revoke all sessions + delete all WebAuthn credentials
+authFacade.post('/admin/re-enroll/:pubkey', async (c) => {
+  const permissions = c.get('permissions')
+  if (!permissions.includes('volunteers:update') && !permissions.includes('*')) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  const targetPubkey = c.req.param('pubkey')
+  const idpAdapter = c.get('idpAdapter')
+  const identity = c.get('identity')
+
+  const volunteer = await identity.getVolunteer(targetPubkey)
+  if (!volunteer) return c.json({ error: 'Volunteer not found' }, 404)
+
+  await idpAdapter.revokeAllSessions(targetPubkey)
+
+  const creds = await identity.getWebAuthnCredentials(targetPubkey)
+  for (const cred of creds) {
+    await identity.deleteWebAuthnCredential(targetPubkey, cred.id)
+  }
+
+  return c.json({ success: true })
 })
 
 // DELETE /devices/:id — delete a credential
