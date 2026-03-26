@@ -57,7 +57,7 @@ Generate a Drizzle migration for this change.
 ### Encryption Flow (Client → Server → DB)
 
 **Create blast (POST /api/blasts):**
-1. Client encrypts `BlastContent` JSON with `encryptMessageForStorage(JSON.stringify(content), adminPubkeys + serverPubkey, LABEL_BLAST_CONTENT)` — reuse existing function with custom label
+1. Client encrypts `BlastContent` JSON using the low-level `eciesWrapKey` + XChaCha20 pattern directly (the client's `encryptMessage` hardcodes `LABEL_MESSAGE` and doesn't accept a custom label). Generate random key, encrypt content, wrap key for each admin + server pubkey with `LABEL_BLAST_CONTENT`.
 2. Client sends `{ encryptedContent, contentEnvelopes, name, ... }` to API
 3. Server stores encrypted fields directly (no plaintext touches the DB)
 
@@ -84,9 +84,7 @@ Generate a Drizzle migration for this change.
 
 ### Server Pubkey in Envelopes
 
-The client needs the server's pubkey to include it in the envelope list. This is already available — the server's Nostr pubkey is derivable from `SERVER_NOSTR_SECRET` and is exposed to admins (it's used for hub key distribution).
-
-The client should fetch the server pubkey from `GET /api/auth/me` or a settings endpoint and include it when encrypting blast content.
+The client needs the server's pubkey to include it in the envelope list. This is already exposed via `GET /api/config` as `serverNostrPubkey` (derived from `SERVER_NOSTR_SECRET` via HKDF in `src/server/routes/config.ts`). The client fetches this at startup and includes it when encrypting blast content.
 
 ### Files Changed
 
@@ -106,9 +104,10 @@ The client should fetch the server pubkey from `GET /api/auth/me` or a settings 
 ### Reuse Existing Crypto
 
 No new crypto functions needed. Reuse:
-- **Client**: `encryptMessage(content, pubkeys)` with `LABEL_BLAST_CONTENT` label — or call the lower-level `eciesWrapKey` directly via the existing message encryption pattern
+- **Client**: New `encryptBlastContent(content, recipientPubkeys)` function using `eciesWrapKey` + XChaCha20 with `LABEL_BLAST_CONTENT` (can't reuse `encryptMessage` — it hardcodes `LABEL_MESSAGE`)
+- **Client**: New `decryptBlastContent(encryptedContent, envelopes, secretKey, pubkey)` for admin UI display
 - **Server**: `eciesUnwrapKeyServer(envelope, serverPrivateKey, LABEL_BLAST_CONTENT)` + XChaCha20 decrypt — same pattern as hub key unwrapping
-- **Server**: `encryptMessageForStorage(content, pubkeys, LABEL_BLAST_CONTENT)` if the server ever needs to encrypt (e.g., API-created blasts without client encryption)
+- **Server**: `encryptMessageForStorage(content, pubkeys, LABEL_BLAST_CONTENT)` — server-side already accepts a custom label param
 
 ### Error Handling
 
