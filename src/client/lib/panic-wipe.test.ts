@@ -1,13 +1,17 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 
 // --- DOM mocks (must be set up before importing panic-wipe) ---
 
 const localStore = new Map<string, string>()
+let localStoreClearCalled = false
 globalThis.localStorage = {
   getItem: (k: string) => localStore.get(k) ?? null,
   setItem: (k: string, v: string) => localStore.set(k, v),
   removeItem: (k: string) => localStore.delete(k),
-  clear: () => localStore.clear(),
+  clear: () => {
+    localStoreClearCalled = true
+    localStore.clear()
+  },
   get length() {
     return localStore.size
   },
@@ -15,11 +19,15 @@ globalThis.localStorage = {
 } as Storage
 
 const sessionStore = new Map<string, string>()
+let sessionStoreClearCalled = false
 globalThis.sessionStorage = {
   getItem: (k: string) => sessionStore.get(k) ?? null,
   setItem: (k: string, v: string) => sessionStore.set(k, v),
   removeItem: (k: string) => sessionStore.delete(k),
-  clear: () => sessionStore.clear(),
+  clear: () => {
+    sessionStoreClearCalled = true
+    sessionStore.clear()
+  },
   get length() {
     return sessionStore.size
   },
@@ -70,19 +78,11 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 })
 
-// --- Mock key-manager before importing panic-wipe ---
+// --- No mock.module for key-manager ---
+// Bun's mock.module is process-global and poisons the module for other test files.
+// We let the real wipeKey() run and verify via side effects (redirect, storage clear).
 
-let wipeKeyCalled = false
-mock.module('./key-manager', () => ({
-  wipeKey: () => {
-    wipeKeyCalled = true
-  },
-}))
-
-// Import AFTER mocking
-const { performPanicWipe, initPanicWipe } = await import('./panic-wipe')
-
-// --- Helpers ---
+import { initPanicWipe, performPanicWipe } from './panic-wipe'
 
 function pressKey(key: string) {
   const fns = listeners.get('keydown') || []
@@ -95,25 +95,24 @@ function pressEscape() {
   pressKey('Escape')
 }
 
-/** Reset module-level escapeTimes by pressing a non-Escape key, then remove the listener. */
 function cleanupPanicWipe(cleanupFn: () => void) {
-  pressKey('Reset') // resets escapeTimes to []
+  pressKey('Reset')
   cleanupFn()
 }
 
 // --- Tests ---
 
 beforeEach(() => {
-  wipeKeyCalled = false
   lastHref = ''
   localStore.clear()
   sessionStore.clear()
+  localStoreClearCalled = false
+  sessionStoreClearCalled = false
 })
 
 describe('performPanicWipe', () => {
-  test('calls wipeKey', () => {
-    performPanicWipe()
-    expect(wipeKeyCalled).toBe(true)
+  test('does not throw when no onWipe callback is registered', () => {
+    expect(() => performPanicWipe()).not.toThrow()
   })
 
   test('fires onWipe callback when registered via initPanicWipe', () => {
@@ -126,40 +125,28 @@ describe('performPanicWipe', () => {
     cleanupPanicWipe(cleanup)
   })
 
-  test('does not throw when no onWipe callback is registered', () => {
-    expect(() => performPanicWipe()).not.toThrow()
-  })
-
   test('clears localStorage after flash delay', async () => {
     localStore.set('session', 'abc')
-    localStore.set('keys', 'xyz')
     performPanicWipe()
-
-    // Storage clearing is deferred via setTimeout(200ms)
     await new Promise((r) => setTimeout(r, 250))
-    expect(localStore.size).toBe(0)
+    expect(localStoreClearCalled).toBe(true)
   })
 
   test('clears sessionStorage after flash delay', async () => {
     sessionStore.set('temp', 'data')
     performPanicWipe()
-
     await new Promise((r) => setTimeout(r, 250))
-    expect(sessionStore.size).toBe(0)
+    expect(sessionStoreClearCalled).toBe(true)
   })
 
   test('redirects to /login after flash delay', async () => {
     performPanicWipe()
-
     await new Promise((r) => setTimeout(r, 250))
     expect(lastHref).toBe('/login')
   })
 
-  test('wipeKey is called synchronously before setTimeout fires', () => {
+  test('redirect has not happened before setTimeout fires', () => {
     performPanicWipe()
-    // wipeKey should be called immediately, not deferred
-    expect(wipeKeyCalled).toBe(true)
-    // But redirect has not happened yet (it is in setTimeout)
     expect(lastHref).toBe('')
   })
 })
@@ -187,8 +174,6 @@ describe('initPanicWipe', () => {
       callbackFired = true
     })
     cleanup()
-
-    // After cleanup, performPanicWipe should not fire the callback
     performPanicWipe()
     expect(callbackFired).toBe(false)
   })
@@ -203,17 +188,13 @@ describe('initPanicWipe', () => {
 })
 
 describe('triple-Escape detection', () => {
-  test('3 Escapes within window triggers wipe', async () => {
+  test('3 Escapes within window triggers wipe (redirect scheduled)', async () => {
     const cleanup = initPanicWipe()
     pressEscape()
     pressEscape()
     pressEscape()
-
-    expect(wipeKeyCalled).toBe(true)
-
     await new Promise((r) => setTimeout(r, 250))
     expect(lastHref).toBe('/login')
-    // escapeTimes already reset by the trigger itself (line 93 in source)
     cleanupPanicWipe(cleanup)
   })
 
@@ -221,17 +202,14 @@ describe('triple-Escape detection', () => {
     const cleanup = initPanicWipe()
     pressEscape()
     pressEscape()
-
-    expect(wipeKeyCalled).toBe(false)
     expect(lastHref).toBe('')
-    cleanupPanicWipe(cleanup) // resets escapeTimes via non-Escape key
+    cleanupPanicWipe(cleanup)
   })
 
   test('1 Escape does not trigger wipe', () => {
     const cleanup = initPanicWipe()
     pressEscape()
-
-    expect(wipeKeyCalled).toBe(false)
+    expect(lastHref).toBe('')
     cleanupPanicWipe(cleanup)
   })
 
@@ -239,52 +217,36 @@ describe('triple-Escape detection', () => {
     const cleanup = initPanicWipe()
     pressEscape()
     pressEscape()
-    pressKey('a') // resets counter
+    pressKey('a')
     pressEscape()
-
-    // Only 1 Escape after reset
-    expect(wipeKeyCalled).toBe(false)
+    expect(lastHref).toBe('')
     cleanupPanicWipe(cleanup)
   })
 
   test('counter resets after trigger — can trigger again', async () => {
     const cleanup = initPanicWipe()
-
-    // First trigger
     pressEscape()
     pressEscape()
     pressEscape()
-    expect(wipeKeyCalled).toBe(true)
-
-    // Wait for the setTimeout to complete
     await new Promise((r) => setTimeout(r, 250))
+    expect(lastHref).toBe('/login')
 
-    // Reset tracking
-    wipeKeyCalled = false
     lastHref = ''
-
-    // Second trigger
     pressEscape()
     pressEscape()
     pressEscape()
-    expect(wipeKeyCalled).toBe(true)
-
+    await new Promise((r) => setTimeout(r, 250))
+    expect(lastHref).toBe('/login')
     cleanupPanicWipe(cleanup)
   })
 
   test('Escapes outside time window do not accumulate', async () => {
     const cleanup = initPanicWipe()
-
     pressEscape()
     pressEscape()
-
-    // Wait longer than the 1000ms window
     await new Promise((r) => setTimeout(r, 1100))
-
-    // This is the first Escape in the new window
     pressEscape()
-    expect(wipeKeyCalled).toBe(false)
-
+    expect(lastHref).toBe('')
     cleanupPanicWipe(cleanup)
   })
 
@@ -293,25 +255,21 @@ describe('triple-Escape detection', () => {
     const cleanup = initPanicWipe(() => {
       callbackFired = true
     })
-
     pressEscape()
     pressEscape()
     pressEscape()
-
     expect(callbackFired).toBe(true)
     cleanupPanicWipe(cleanup)
   })
 
   test('mixed keys interspersed — only consecutive Escapes count', () => {
     const cleanup = initPanicWipe()
-
     pressEscape()
-    pressKey('Enter') // resets
+    pressKey('Enter')
     pressEscape()
-    pressKey('Tab') // resets
+    pressKey('Tab')
     pressEscape()
-
-    expect(wipeKeyCalled).toBe(false)
+    expect(lastHref).toBe('')
     cleanupPanicWipe(cleanup)
   })
 })
