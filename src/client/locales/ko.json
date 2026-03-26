@@ -1309,5 +1309,8 @@
     "summary": "Manage channels",
     "active": "Active",
     "currentProvider": "Current voice/SMS provider:"
+  },
+  "blast": {
+    "optOutFooter": "STOP을 보내 구독을 취소하세요"
   }
 }
