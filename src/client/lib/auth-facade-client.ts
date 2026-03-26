@@ -278,6 +278,20 @@ class AuthFacadeClient {
   }
 
   /**
+   * Enroll a pubkey in the IdP (Authentik), creating the user and returning the
+   * nsec secret used for KEK derivation. Requires an authenticated session.
+   */
+  async enroll(pubkey: string): Promise<{ nsecSecret: Uint8Array }> {
+    const res = await this.authedFetch('/auth/enroll', {
+      method: 'POST',
+      body: JSON.stringify({ pubkey }),
+    })
+    await AuthFacadeClient.assertOk(res, 'Enrollment failed')
+    const data = (await res.json()) as { nsecSecret: string }
+    return { nsecSecret: hexToBytes(data.nsecSecret) }
+  }
+
+  /**
    * Delete a registered WebAuthn credential by its ID.
    */
   async deleteDevice(id: string): Promise<void> {

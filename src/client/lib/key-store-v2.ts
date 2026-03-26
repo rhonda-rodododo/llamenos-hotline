@@ -24,17 +24,17 @@ const PBKDF2_ITERATIONS = 600_000
 
 /**
  * Known synthetic IdP issuer prefixes. Keys stored with these issuers were created
- * before the user had a real IdP session (e.g., during onboarding, device linking,
- * recovery, bootstrap, or demo login). The `unlock()` flow will auto-rotate these
+ * before the user had a real IdP session (e.g., during device linking, recovery,
+ * or demo login without an IdP). The `unlock()` flow will auto-rotate these
  * to real IdP values on first successful unlock with a valid IdP session.
+ *
+ * Most flows now use real nsecSecret from the IdP at import time:
+ * - Bootstrap: nsecSecret returned from /api/auth/bootstrap
+ * - Onboarding: nsecSecret returned from /api/invites/redeem
+ *
+ * Only device-link (and recovery/demo fallbacks) still use synthetic values.
  */
-export const SYNTHETIC_ISSUERS = [
-  'bootstrap',
-  'demo',
-  'onboarding',
-  'device-link',
-  'recovery',
-] as const
+export const SYNTHETIC_ISSUERS = ['device-link'] as const
 export type SyntheticIssuer = (typeof SYNTHETIC_ISSUERS)[number]
 
 /**

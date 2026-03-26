@@ -11,7 +11,7 @@ import { useToast } from '@/lib/toast'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { schnorr } from '@noble/curves/secp256k1.js'
 import { sha256 } from '@noble/hashes/sha2.js'
-import { bytesToHex } from '@noble/hashes/utils.js'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { AUTH_PREFIX } from '@shared/crypto-labels'
 import { LANGUAGES } from '@shared/languages'
 import {
@@ -59,6 +59,7 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
   const [backupAcknowledged, setBackupAcknowledged] = useState(false)
   const [backupDownloaded, setBackupDownloaded] = useState(false)
   const [pubkey, setPubkey] = useState('')
+  const [idpNsecSecret, setIdpNsecSecret] = useState<Uint8Array | null>(null)
 
   const stepHeadingRef = useRef<HTMLHeadingElement>(null)
   const langGroupRef = useRef<HTMLDivElement>(null)
@@ -144,8 +145,9 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
       const signature = schnorr.sign(messageHash, kp.secretKey)
       const token = bytesToHex(signature)
 
-      // Call bootstrap endpoint
-      await bootstrapAdmin(kp.publicKey, ts, token)
+      // Call bootstrap endpoint — returns nsecSecret from IdP enrollment
+      const bootstrapResult = await bootstrapAdmin(kp.publicKey, ts, token)
+      setIdpNsecSecret(hexToBytes(bootstrapResult.nsecSecret))
 
       // Generate recovery key
       const rk = generateRecoveryKey()
@@ -170,16 +172,15 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
 
   async function handleComplete() {
     try {
-      // Import key via key manager (encrypts with PIN and loads into memory)
-      // Bootstrap flow: synthetic-to-real IdP rotation will happen on first unlock
-      const { syntheticIdpValue } = await import('@/lib/key-store-v2')
+      if (!idpNsecSecret) throw new Error('Missing IdP nsecSecret')
+      // Import key via key manager (encrypts with PIN and real IdP nsecSecret)
       await keyManager.importKey(
         nsec,
         confirmedPin,
         pubkey,
-        syntheticIdpValue('bootstrap'),
+        idpNsecSecret,
         undefined,
-        'bootstrap'
+        window.location.origin
       )
       // Mark bootstrap as complete BEFORE signIn triggers re-renders
       sessionStorage.setItem('bootstrapComplete', '1')

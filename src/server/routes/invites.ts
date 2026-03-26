@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { getIdPAdapter } from '../app'
 import { hashIP } from '../lib/crypto'
 import { isValidE164 } from '../lib/helpers'
 import { auth as authMiddleware } from '../middleware/auth'
@@ -48,7 +49,24 @@ invites.post('/redeem', async (c) => {
   if (limited) return c.json({ error: 'Too many requests' }, 429)
 
   const volunteer = await services.identity.redeemInvite({ code: body.code, pubkey: body.pubkey })
-  return c.json(volunteer)
+
+  // Enroll the new volunteer in the IdP and return their nsecSecret for KEK derivation
+  let nsecSecret: string | undefined
+  const idpAdapter = getIdPAdapter()
+  if (idpAdapter) {
+    try {
+      const existing = await idpAdapter.getUser(body.pubkey)
+      if (!existing) {
+        await idpAdapter.createUser(body.pubkey)
+      }
+      const secret = await idpAdapter.getNsecSecret(body.pubkey)
+      nsecSecret = Buffer.from(secret).toString('hex')
+    } catch {
+      // IdP enrollment failed — client will use synthetic value and rotate on first unlock
+    }
+  }
+
+  return c.json({ ...volunteer, nsecSecret })
 })
 
 // --- Authenticated routes (require invites permissions) ---

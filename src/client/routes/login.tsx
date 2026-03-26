@@ -212,15 +212,16 @@ function LoginPage() {
         const kpModule = await import('@/lib/crypto')
         const kp = kpModule.keyPairFromNsec(recoveredNsec)
         const recoveredPubkey = kp?.publicKey ?? ''
-        // Recovery flow: synthetic-to-real IdP rotation will happen on first unlock
+        // Recovery flow: user already exists in IdP, but we don't have a JWT yet.
+        // Use synthetic value — auto-rotation to real IdP value happens on first unlock.
         const { syntheticIdpValue } = await import('@/lib/key-store-v2')
         await keyManager.importKey(
           recoveredNsec,
           pin,
           recoveredPubkey,
-          syntheticIdpValue('recovery'),
+          syntheticIdpValue('device-link'),
           undefined,
-          'recovery'
+          'device-link'
         )
         await signIn(recoveredNsec)
         navigate({ to: '/' })
