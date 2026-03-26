@@ -331,7 +331,7 @@ export function createStorageManager(opts?: StorageManagerOptions): StorageManag
       try {
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), 5000)
-        const healthUrl = `${endpoint}/minio/health/live`
+        const healthUrl = `${endpoint}/health`
         const response = await fetch(healthUrl, { signal: controller.signal })
         clearTimeout(timeout)
         return response.ok

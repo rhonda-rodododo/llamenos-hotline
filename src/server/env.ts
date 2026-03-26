@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { createBlobStorage } from './lib/blob-storage'
+import { createStorageManager } from './lib/storage-manager'
 import { createTranscriptionService } from './lib/transcription'
 
 /**
@@ -48,7 +48,7 @@ export function loadEnv() {
     // Platform bindings
     ASSETS: null as null, // Static files served by Hono serveStatic
     AI: createTranscriptionService(),
-    R2_BUCKET: createBlobStorage(),
+    STORAGE: createStorageManager(),
   }
 }
 
