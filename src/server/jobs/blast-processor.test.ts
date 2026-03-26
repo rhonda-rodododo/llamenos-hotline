@@ -96,6 +96,7 @@ function createProcessor(services: ReturnType<typeof createMockServices>) {
   const processor = new BlastProcessor(services as never, 'server-secret', 'hmac-secret')
   // Override crypto/adapter helpers — no real crypto in unit tests
   processor._getHubKey = mock(() => Promise.resolve(new Uint8Array(32)))
+  processor._decryptBlastContent = mock(() => Promise.resolve('Hello world'))
   processor._decryptIdentifier = mock((_encrypted: string, _hubKey: Uint8Array) =>
     Promise.resolve(`+1555${_encrypted.replace('encrypted-', '')}`)
   )
