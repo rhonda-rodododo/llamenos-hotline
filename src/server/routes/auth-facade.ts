@@ -13,6 +13,7 @@ import {
   verifyRegResponse,
 } from '../lib/webauthn'
 import type { IdentityService } from '../services/identity'
+import type { SettingsService } from '../services/settings'
 import type { WebAuthnCredential } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -31,6 +32,7 @@ interface AuthFacadeEnv {
   Variables: {
     identity: IdentityService
     idpAdapter: IdPAdapter
+    settings: SettingsService
     /** Set by jwtAuth middleware on authenticated routes */
     pubkey: string
     /** Set by jwtAuth middleware — permissions from the access token */
@@ -88,18 +90,15 @@ const jwtAuth = createMiddleware<AuthFacadeEnv>(async (c, next) => {
 // ---------------------------------------------------------------------------
 
 async function resolveVolunteerPermissions(
+  pubkey: string,
   identity: IdentityService,
-  pubkey: string
+  settings: SettingsService
 ): Promise<string[]> {
   const vol = await identity.getVolunteer(pubkey)
   if (!vol || !vol.active) return []
-  // Import dynamically to avoid circular dependency issues
   const { resolvePermissions } = await import('../../shared/permissions')
-  // We need roles list — use a simplified approach: return the role IDs themselves
-  // The caller (app.ts Task 7) will set up proper role resolution.
-  // For now, return role IDs as permissions since we don't have SettingsService access here.
-  // In production, this will be enhanced when Task 7 wires everything together.
-  return vol.roles
+  const allRoles = await settings.listRoles()
+  return resolvePermissions(vol.roles, allRoles)
 }
 
 // ---------------------------------------------------------------------------
@@ -204,7 +203,8 @@ authFacade.post('/webauthn/login-verify', async (c) => {
       lastUsedAt: new Date().toISOString(),
     })
 
-    const permissions = await resolveVolunteerPermissions(identity, matched.ownerPubkey)
+    const settings = c.get('settings')
+    const permissions = await resolveVolunteerPermissions(matched.ownerPubkey, identity, settings)
     const accessToken = await signAccessToken(
       { pubkey: matched.ownerPubkey, permissions },
       c.env.JWT_SECRET
@@ -340,7 +340,8 @@ authFacade.post('/token/refresh', async (c) => {
     return c.json({ error: 'Session no longer valid' }, 401)
   }
 
-  const permissions = await resolveVolunteerPermissions(identity, pubkey)
+  const settings = c.get('settings')
+  const permissions = await resolveVolunteerPermissions(pubkey, identity, settings)
   const accessToken = await signAccessToken({ pubkey, permissions }, c.env.JWT_SECRET)
   return c.json({ accessToken })
 })

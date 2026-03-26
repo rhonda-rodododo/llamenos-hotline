@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import { Hono } from 'hono'
 import type { IdPAdapter, NsecSecretRotation } from '../idp/adapter'
 import type { IdentityService } from '../services/identity'
+import type { SettingsService } from '../services/settings'
 import type { WebAuthnCredential } from '../types'
 import authFacade, { type AuthFacadeEnv, rateLimitStore } from './auth-facade'
 
@@ -81,6 +82,47 @@ function createMockIdpAdapter(overrides: Record<string, unknown> = {}): IdPAdapt
   } as unknown as IdPAdapter
 }
 
+function createMockSettings(overrides: Record<string, unknown> = {}): SettingsService {
+  return {
+    listRoles: mock(() =>
+      Promise.resolve([
+        {
+          id: 'role-volunteer',
+          name: 'Volunteer',
+          slug: 'volunteer',
+          permissions: [
+            'calls:answer',
+            'calls:read-active',
+            'notes:create',
+            'notes:read-own',
+            'notes:update-own',
+            'notes:reply',
+            'shifts:read-own',
+            'volunteers:read',
+          ],
+          isDefault: true,
+          isSystem: false,
+          description: 'Answers calls and writes notes',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: 'role-super-admin',
+          name: 'Super Admin',
+          slug: 'super-admin',
+          permissions: ['*'],
+          isDefault: true,
+          isSystem: true,
+          description: 'Full system access',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ])
+    ),
+    ...overrides,
+  } as unknown as SettingsService
+}
+
 // ---------------------------------------------------------------------------
 // Test app factory — injects mocked services via middleware
 // ---------------------------------------------------------------------------
@@ -89,10 +131,12 @@ function createTestApp(
   opts: {
     identity?: IdentityService
     idpAdapter?: IdPAdapter
+    settings?: SettingsService
   } = {}
 ) {
   const identity = opts.identity ?? createMockIdentity()
   const idpAdapter = opts.idpAdapter ?? createMockIdpAdapter()
+  const settings = opts.settings ?? createMockSettings()
 
   const envBindings = {
     HMAC_SECRET: TEST_HMAC_SECRET,
@@ -109,6 +153,7 @@ function createTestApp(
   app.use('*', async (c, next) => {
     c.set('identity', identity)
     c.set('idpAdapter', idpAdapter)
+    c.set('settings', settings)
     await next()
   })
 
@@ -125,7 +170,7 @@ function createTestApp(
     )
   }
 
-  return { app: { ...app, request }, identity, idpAdapter }
+  return { app: { ...app, request }, identity, idpAdapter, settings }
 }
 
 // Helper to get a valid access token for authenticated routes
