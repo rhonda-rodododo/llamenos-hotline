@@ -75,12 +75,14 @@ api.route('/auth', authRoutes)
 const authFacadeBridge = new Hono<AppEnv>()
 authFacadeBridge.use('*', async (c, next) => {
   const services = c.get('services')
+  if (!_idpAdapter) {
+    return c.json({ error: 'IdP service not initialized' }, 503)
+  }
   // biome-ignore lint/suspicious/noExplicitAny: bridging between two Hono env types
   const ctx = c as any
   ctx.set('identity', services.identity)
-  if (_idpAdapter) {
-    ctx.set('idpAdapter', _idpAdapter)
-  }
+  ctx.set('idpAdapter', _idpAdapter)
+  ctx.set('settings', services.settings)
   // Bridge env bindings that AuthFacadeEnv expects
   c.env.JWT_SECRET = c.env.JWT_SECRET ?? process.env.JWT_SECRET ?? ''
   c.env.AUTH_WEBAUTHN_RP_ID =
