@@ -9,6 +9,11 @@ import { type ReactNode, createContext, useContext, useEffect, useRef, useState 
 import { RelayManager } from './relay'
 import type { RelayState } from './types'
 
+/** Async accessor for the current Nostr x-only pubkey (or null when locked). */
+export type GetPubkey = () => Promise<string | null>
+/** Async Schnorr signer delegated to the crypto worker. */
+export type SignEvent = (messageHex: string) => Promise<string>
+
 interface NostrContextValue {
   relay: RelayManager | null
   state: RelayState
@@ -27,8 +32,10 @@ interface NostrProviderProps {
   serverPubkey: string | undefined
   /** Whether the user is authenticated */
   isAuthenticated: boolean
-  /** Returns the user's Nostr secret key (32 bytes) or null if locked */
-  getSecretKey: () => Uint8Array | null
+  /** Returns the user's Nostr x-only pubkey hex, or null if the worker is locked */
+  getPubkey: GetPubkey
+  /** Signs a Nostr event hash (hex) via the crypto worker. Returns signature hex. */
+  signEvent: SignEvent
   /** Returns the hub symmetric key for a given hubId, or null if unavailable */
   getHubKey: (hubId: string) => Uint8Array | null
 }
@@ -38,15 +45,18 @@ export function NostrProvider({
   relayUrl,
   serverPubkey,
   isAuthenticated,
-  getSecretKey,
+  getPubkey,
+  signEvent,
   getHubKey,
 }: NostrProviderProps) {
   const [state, setState] = useState<RelayState>('disconnected')
   const relayRef = useRef<RelayManager | null>(null)
 
   // Stable refs for callbacks to avoid recreating RelayManager on every render
-  const getSecretKeyRef = useRef(getSecretKey)
-  getSecretKeyRef.current = getSecretKey
+  const getPubkeyRef = useRef(getPubkey)
+  getPubkeyRef.current = getPubkey
+  const signEventRef = useRef(signEvent)
+  signEventRef.current = signEvent
   const getHubKeyRef = useRef(getHubKey)
   getHubKeyRef.current = getHubKey
 
@@ -74,7 +84,8 @@ export function NostrProvider({
     const manager = new RelayManager({
       relayUrl: wsUrl,
       serverPubkey,
-      getSecretKey: () => getSecretKeyRef.current(),
+      getPubkey: () => getPubkeyRef.current(),
+      signEvent: (messageHex: string) => signEventRef.current(messageHex),
       getHubKey: (hubId: string) => getHubKeyRef.current(hubId),
       onStateChange: setState,
     })
