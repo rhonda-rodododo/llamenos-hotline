@@ -71,7 +71,9 @@ export const SAS_INFO = 'llamenos:provisioning-sas'
 
 // --- Auth Token ---
 
-/** Schnorr auth token message prefix */
+/** Schnorr auth token message prefix
+ * @deprecated Will be removed when Schnorr server auth is deleted in a later task
+ */
 export const AUTH_PREFIX = 'llamenos:auth:'
 
 // --- HMAC Domain Separation ---
@@ -132,3 +134,17 @@ export const LABEL_VOICEMAIL_WRAP = 'llamenos:voicemail-audio'
 
 /** Voicemail transcript encryption (domain-separated from generic LABEL_MESSAGE) */
 export const LABEL_VOICEMAIL_TRANSCRIPT = 'llamenos:voicemail-transcript'
+
+// --- IdP Auth Hardening (Epic 99) ---
+
+/** WebAuthn PRF evaluation salt for KEK derivation */
+export const LABEL_KEK_PRF = 'llamenos:kek-prf'
+
+/** HKDF info for 3-factor (PIN + PRF + IdP) KEK derivation */
+export const LABEL_NSEC_KEK_3F = 'llamenos:nsec-kek:3f'
+
+/** HKDF info for 2-factor (PIN + IdP) KEK derivation */
+export const LABEL_NSEC_KEK_2F = 'llamenos:nsec-kek:2f'
+
+/** Envelope encryption of idp_value at rest in the IdP */
+export const LABEL_IDP_VALUE_WRAP = 'llamenos:idp-value-wrap'
