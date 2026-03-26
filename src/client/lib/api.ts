@@ -1,4 +1,4 @@
-import * as keyManager from './key-manager'
+import { authFacadeClient } from './auth-facade-client'
 
 const API_BASE = '/api'
 
@@ -8,22 +8,10 @@ export function setOnAuthExpired(cb: (() => void) | null) {
   onAuthExpired = cb
 }
 
-function getAuthHeaders(method: string, apiPath: string): Record<string, string> {
-  // Prefer session token if available (WebAuthn-based sessions)
-  const sessionToken = sessionStorage.getItem('llamenos-session-token')
-  if (sessionToken) {
-    return { Authorization: `Session ${sessionToken}` }
-  }
-  // Use key manager for Schnorr auth if unlocked
-  if (keyManager.isUnlocked()) {
-    try {
-      const token = keyManager.createAuthToken(Date.now(), method, `${API_BASE}${apiPath}`)
-      return { Authorization: `Bearer ${token}` }
-    } catch {
-      return {}
-    }
-  }
-  return {}
+function getAuthHeaders(): Record<string, string> {
+  const token = authFacadeClient.getAccessToken()
+  if (!token) return {}
+  return { Authorization: `Bearer ${token}` }
 }
 
 // Activity tracking callback — set by AuthProvider
@@ -33,12 +21,9 @@ export function setOnApiActivity(cb: (() => void) | null) {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const method = ((options.method as string) || 'GET').toUpperCase()
-  // Strip query params from path for auth token signing (server uses url.pathname)
-  const pathOnly = path.split('?')[0]
   const headers = {
     'Content-Type': 'application/json',
-    ...getAuthHeaders(method, pathOnly),
+    ...getAuthHeaders(),
     ...options.headers,
   }
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
@@ -353,10 +338,8 @@ export async function getCallsTodayCount() {
 // --- Call Recording ---
 
 export async function getCallRecording(callId: string): Promise<ArrayBuffer> {
-  const pathOnly = hp(`/calls/${callId}/recording`).split('?')[0]
-  const method = 'GET'
   const headers = {
-    ...getAuthHeaders(method, pathOnly),
+    ...getAuthHeaders(),
   }
   const res = await fetch(`${API_BASE}${hp(`/calls/${callId}/recording`)}`, { headers })
   if (!res.ok) {
@@ -558,7 +541,7 @@ export async function uploadIvrAudio(promptType: string, language: string, audio
   const res = await fetch(`${API_BASE}/settings/ivr-audio/${promptType}/${language}`, {
     method: 'PUT',
     headers: {
-      ...getAuthHeaders('PUT', `/settings/ivr-audio/${promptType}/${language}`),
+      ...getAuthHeaders(),
       'Content-Type': audioBlob.type || 'audio/webm',
     },
     body: audioBlob,
@@ -1314,7 +1297,7 @@ export async function initUpload(data: import('@shared/types').UploadInit) {
 
 export async function uploadChunk(uploadId: string, chunkIndex: number, data: ArrayBuffer) {
   const headers = {
-    ...getAuthHeaders('PUT', `/uploads/${uploadId}/chunks/${chunkIndex}`),
+    ...getAuthHeaders(),
     'Content-Type': 'application/octet-stream',
   }
   const res = await fetch(`${API_BASE}/uploads/${uploadId}/chunks/${chunkIndex}`, {
@@ -1346,7 +1329,7 @@ export async function getUploadStatus(uploadId: string) {
 }
 
 export async function downloadFile(fileId: string): Promise<ArrayBuffer> {
-  const headers = getAuthHeaders('GET', `/files/${fileId}/content`)
+  const headers = getAuthHeaders()
   const res = await fetch(`${API_BASE}/files/${fileId}/content`, { headers })
   if (!res.ok) {
     if (res.status === 401) onAuthExpired?.()
@@ -1791,7 +1774,7 @@ export async function cancelAccountErasure() {
 }
 
 export async function downloadMyData() {
-  const headers = getAuthHeaders('GET', '/gdpr/export')
+  const headers = getAuthHeaders()
   const res = await fetch(`${API_BASE}/gdpr/export`, { headers })
   if (!res.ok) {
     if (res.status === 401) onAuthExpired?.()
