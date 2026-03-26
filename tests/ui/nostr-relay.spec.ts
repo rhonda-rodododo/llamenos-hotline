@@ -123,15 +123,12 @@ test.describe('Call ring Nostr events', () => {
     // Inject authedFetch for API calls
     await page.evaluate(() => {
       window.__authedFetch = async (url: string, options: RequestInit = {}) => {
-        const km = (window as any).__TEST_KEY_MANAGER
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           ...((options.headers as Record<string, string>) || {}),
         }
-        if (km?.isUnlocked()) {
-          const method = (options.method || 'GET').toUpperCase()
-          const path = new URL(url, location.origin).pathname
-          const token = km.createAuthToken(Date.now(), method, path)
+        const token = localStorage.getItem('access_token')
+        if (token) {
           headers.Authorization = `Bearer ${token}`
         }
         return fetch(url, { ...options, headers })
@@ -494,15 +491,12 @@ test.describe('REST polling fallback when relay unreachable', () => {
     await navigateAfterLogin(page, '/')
     await page.evaluate(() => {
       window.__authedFetch = async (url: string, options: RequestInit = {}) => {
-        const km = (window as any).__TEST_KEY_MANAGER
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           ...((options.headers as Record<string, string>) || {}),
         }
-        if (km?.isUnlocked()) {
-          const method = (options.method || 'GET').toUpperCase()
-          const path = new URL(url, location.origin).pathname
-          const token = km.createAuthToken(Date.now(), method, path)
+        const token = localStorage.getItem('access_token')
+        if (token) {
           headers.Authorization = `Bearer ${token}`
         }
         return fetch(url, { ...options, headers })

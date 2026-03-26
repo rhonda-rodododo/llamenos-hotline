@@ -1,6 +1,5 @@
 import { type APIRequestContext, type Page, expect, test } from '@playwright/test'
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools'
-import { createAuthToken } from '../../src/client/lib/crypto'
 import { ADMIN_NSEC, loginAsAdmin, loginAsVolunteer, uniquePhone } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
@@ -90,12 +89,8 @@ async function createReporterViaApi(request: APIRequestContext): Promise<string>
   const pubkey = getPublicKey(secretKey)
   const nsec = nip19.nsecEncode(secretKey)
 
-  const timestamp = Date.now()
-  const authJson = JSON.parse(createAuthToken(secretKey, timestamp, 'POST', '/api/invites/redeem'))
-  const token: string = authJson.token
-
   const redeemRes = await request.post('/api/invites/redeem', {
-    data: { code: inviteCode, pubkey, timestamp, token },
+    data: { code: inviteCode, pubkey },
     headers: { 'Content-Type': 'application/json' },
   })
   if (!redeemRes.ok()) {

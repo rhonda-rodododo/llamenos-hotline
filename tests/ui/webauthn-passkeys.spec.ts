@@ -10,20 +10,18 @@ declare global {
 
 /**
  * Inject authed fetch helper after login.
- * Uses the keyManager's createAuthToken for signed API requests.
+ * Uses the session JWT token stored in localStorage for signed API requests.
  */
 async function injectAuthedFetch(page: import('@playwright/test').Page) {
   await page.evaluate(() => {
     window.__authedFetch = async (url: string, options: RequestInit = {}) => {
-      const km = (window as any).__TEST_KEY_MANAGER
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...((options.headers as Record<string, string>) || {}),
       }
-      if (km?.isUnlocked()) {
-        const reqMethod = (options.method || 'GET').toUpperCase()
-        const reqPath = new URL(url, location.origin).pathname
-        const token = km.createAuthToken(Date.now(), reqMethod, reqPath)
+      // Use JWT token from localStorage (set during login)
+      const token = localStorage.getItem('access_token')
+      if (token) {
         headers.Authorization = `Bearer ${token}`
       }
       return fetch(url, { ...options, headers })
@@ -45,7 +43,7 @@ test.describe('WebAuthn passkey registration and login', () => {
 
     // Authenticated request should get options back
     const result = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/webauthn/register/options', {
+      const res = await window.__authedFetch('/api/auth/webauthn/register-options', {
         method: 'POST',
         body: JSON.stringify({ label: 'Test Passkey' }),
       })
@@ -60,7 +58,7 @@ test.describe('WebAuthn passkey registration and login', () => {
     await loginAsAdmin(page)
 
     const result = await page.evaluate(async () => {
-      const res = await fetch('/api/webauthn/register/options', {
+      const res = await fetch('/api/auth/webauthn/register-options', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -73,7 +71,7 @@ test.describe('WebAuthn passkey registration and login', () => {
     await loginAsAdmin(page)
 
     const result = await page.evaluate(async () => {
-      const res = await fetch('/api/webauthn/login/options', {
+      const res = await fetch('/api/auth/webauthn/login-options', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -120,7 +118,7 @@ test.describe('WebAuthn passkey registration and login', () => {
 
       // Get registration options via API
       const regOptions = await page.evaluate(async () => {
-        const res = await window.__authedFetch('/api/webauthn/register/options', {
+        const res = await window.__authedFetch('/api/auth/webauthn/register-options', {
           method: 'POST',
           body: JSON.stringify({ label: 'Test Passkey' }),
         })
@@ -178,7 +176,7 @@ test.describe('WebAuthn passkey registration and login', () => {
               label: 'Test Passkey',
             }
             if (challengeId) body.challengeId = challengeId
-            const res = await window.__authedFetch('/api/webauthn/register/verify', {
+            const res = await window.__authedFetch('/api/auth/webauthn/register-verify', {
               method: 'POST',
               body: JSON.stringify(body),
             })
@@ -207,7 +205,7 @@ test.describe('WebAuthn passkey registration and login', () => {
     await injectAuthedFetch(page)
 
     const result = await page.evaluate(async () => {
-      const res = await window.__authedFetch('/api/webauthn/credentials')
+      const res = await window.__authedFetch('/api/auth/devices')
       return { status: res.status, data: res.ok ? await res.json() : await res.text() }
     })
     expect(result.status).toBe(200)

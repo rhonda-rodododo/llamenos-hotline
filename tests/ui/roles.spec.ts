@@ -23,21 +23,10 @@ async function apiCall(
     async ({ method, path, body }) => {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
 
-      // Try session token first (WebAuthn sessions)
-      const sessionToken = sessionStorage.getItem('llamenos-session-token')
-      if (sessionToken) {
-        headers.Authorization = `Session ${sessionToken}`
-      } else {
-        // Use the test key manager exposed by main.tsx
-        const km = (window as any).__TEST_KEY_MANAGER
-        if (km?.isUnlocked?.()) {
-          try {
-            const token = km.createAuthToken(Date.now(), method, `/api${path}`)
-            headers.Authorization = `Bearer ${token}`
-          } catch {
-            /* key locked or unavailable */
-          }
-        }
+      // Use JWT token from localStorage
+      const token = localStorage.getItem('access_token')
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
       }
 
       const res = await fetch(`/api${path}`, {
