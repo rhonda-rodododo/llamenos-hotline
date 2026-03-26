@@ -1,0 +1,51 @@
+# CI-specific overrides — extends production docker-compose.yml
+# Port mappings expose services to the GH Actions runner via localhost.
+#
+# Usage:
+#   docker compose \
+#     -f deploy/docker/docker-compose.yml \
+#     -f deploy/docker/docker-compose.ci.yml \
+#     up -d
+#
+# The app is NOT started via compose in CI — it runs directly on the runner.
+# Asterisk / Asterisk Bridge are started separately by the start-test-infra action.
+
+# Override the internal network to allow port mappings on the host
+# (same pattern as docker-compose.dev.yml)
+networks:
+  internal:
+    internal: false
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  # strfry config — override default 1M nofile limit which exceeds the
+  # GH Actions runner ulimit of 65536
+  strfry:
+    ports:
+      - "7777:7777"
+    volumes:
+      - ./strfry-test.conf:/etc/strfry.conf:ro
+
+  authentik-server:
+    ports:
+      - "9100:9000"
+
+  minio:
+    ports:
+      - "9000:9000"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+
+  # Caddy is not needed in CI — the app runs directly on the runner
+  caddy:
+    profiles:
+      - disabled
+
+  # App is not started via compose in CI
+  app:
+    profiles:
+      - disabled

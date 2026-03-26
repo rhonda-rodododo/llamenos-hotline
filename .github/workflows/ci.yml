@@ -224,32 +224,30 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_DB: llamenos
-          POSTGRES_USER: llamenos
-          POSTGRES_PASSWORD: llamenos
-        options: >-
-          --health-cmd "pg_isready -U llamenos -d llamenos"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      # Authentik is NOT run in CI — the server gracefully handles a missing
-      # IdP adapter, and auth facade tests mock the adapter. Full Authentik
-      # integration testing will be added when a dedicated CI Authentik
-      # provisioning flow is implemented.
-
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: ./.github/actions/setup-bun
         with:
           bun-version: ${{ env.BUN_VERSION }}
           install-playwright: "true"
+
+      - name: Start backing services
+        run: >
+          docker compose
+          -f deploy/docker/docker-compose.yml
+          -f deploy/docker/docker-compose.ci.yml
+          up -d
+        env:
+          PG_PASSWORD: llamenos
+          AUTHENTIK_SECRET_KEY: ci-test-secret-key
+          AUTHENTIK_BOOTSTRAP_TOKEN: ci-bootstrap-token
+
+      - name: Wait for Authentik
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:9100/-/health/ready/ && break
+            sleep 5
+          done
 
       - uses: ./.github/actions/start-test-infra
 
@@ -272,7 +270,7 @@ jobs:
           JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
           IDP_ADAPTER: authentik
           AUTHENTIK_URL: http://localhost:9100
-          AUTHENTIK_API_TOKEN: not-available-in-ci
+          AUTHENTIK_API_TOKEN: ci-bootstrap-token
           IDP_VALUE_ENCRYPTION_KEY: ${{ env.TEST_IDP_VALUE_ENCRYPTION_KEY }}
           IDP_VALUE_KEY_VERSION: "1"
           AUTH_WEBAUTHN_RP_ID: localhost
@@ -307,32 +305,30 @@ jobs:
     # Non-blocking while UI tests are being stabilized
     continue-on-error: true
 
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_DB: llamenos
-          POSTGRES_USER: llamenos
-          POSTGRES_PASSWORD: llamenos
-        options: >-
-          --health-cmd "pg_isready -U llamenos -d llamenos"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      # Authentik is NOT run in CI — the server gracefully handles a missing
-      # IdP adapter, and auth facade tests mock the adapter. Full Authentik
-      # integration testing will be added when a dedicated CI Authentik
-      # provisioning flow is implemented.
-
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: ./.github/actions/setup-bun
         with:
           bun-version: ${{ env.BUN_VERSION }}
           install-playwright: "true"
+
+      - name: Start backing services
+        run: >
+          docker compose
+          -f deploy/docker/docker-compose.yml
+          -f deploy/docker/docker-compose.ci.yml
+          up -d
+        env:
+          PG_PASSWORD: llamenos
+          AUTHENTIK_SECRET_KEY: ci-test-secret-key
+          AUTHENTIK_BOOTSTRAP_TOKEN: ci-bootstrap-token
+
+      - name: Wait for Authentik
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:9100/-/health/ready/ && break
+            sleep 5
+          done
 
       - uses: ./.github/actions/start-test-infra
 
@@ -355,7 +351,7 @@ jobs:
           JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
           IDP_ADAPTER: authentik
           AUTHENTIK_URL: http://localhost:9100
-          AUTHENTIK_API_TOKEN: not-available-in-ci
+          AUTHENTIK_API_TOKEN: ci-bootstrap-token
           IDP_VALUE_ENCRYPTION_KEY: ${{ env.TEST_IDP_VALUE_ENCRYPTION_KEY }}
           IDP_VALUE_KEY_VERSION: "1"
           AUTH_WEBAUTHN_RP_ID: localhost
