@@ -239,24 +239,10 @@ jobs:
         ports:
           - 5432:5432
 
-      authentik-server:
-        image: ghcr.io/goauthentik/server:2025.12
-        env:
-          AUTHENTIK_SECRET_KEY: ci-test-secret-key-not-for-production
-          AUTHENTIK_POSTGRESQL__HOST: postgres
-          AUTHENTIK_POSTGRESQL__PORT: 5432
-          AUTHENTIK_POSTGRESQL__USER: llamenos
-          AUTHENTIK_POSTGRESQL__PASSWORD: llamenos
-          AUTHENTIK_POSTGRESQL__NAME: llamenos
-          AUTHENTIK_BOOTSTRAP_TOKEN: ci-bootstrap-token
-        options: >-
-          --health-cmd "ak healthcheck"
-          --health-interval 15s
-          --health-timeout 10s
-          --health-retries 15
-          --health-start-period 90s
-        ports:
-          - 9100:9000
+      # Authentik is NOT run in CI — the server gracefully handles a missing
+      # IdP adapter, and auth facade tests mock the adapter. Full Authentik
+      # integration testing will be added when a dedicated CI Authentik
+      # provisioning flow is implemented.
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -286,7 +272,7 @@ jobs:
           JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
           IDP_ADAPTER: authentik
           AUTHENTIK_URL: http://localhost:9100
-          AUTHENTIK_API_TOKEN: ci-bootstrap-token
+          AUTHENTIK_API_TOKEN: not-available-in-ci
           IDP_VALUE_ENCRYPTION_KEY: ${{ env.TEST_IDP_VALUE_ENCRYPTION_KEY }}
           IDP_VALUE_KEY_VERSION: "1"
           AUTH_WEBAUTHN_RP_ID: localhost
@@ -336,24 +322,10 @@ jobs:
         ports:
           - 5432:5432
 
-      authentik-server:
-        image: ghcr.io/goauthentik/server:2025.12
-        env:
-          AUTHENTIK_SECRET_KEY: ci-test-secret-key-not-for-production
-          AUTHENTIK_POSTGRESQL__HOST: postgres
-          AUTHENTIK_POSTGRESQL__PORT: 5432
-          AUTHENTIK_POSTGRESQL__USER: llamenos
-          AUTHENTIK_POSTGRESQL__PASSWORD: llamenos
-          AUTHENTIK_POSTGRESQL__NAME: llamenos
-          AUTHENTIK_BOOTSTRAP_TOKEN: ci-bootstrap-token
-        options: >-
-          --health-cmd "ak healthcheck"
-          --health-interval 15s
-          --health-timeout 10s
-          --health-retries 15
-          --health-start-period 90s
-        ports:
-          - 9100:9000
+      # Authentik is NOT run in CI — the server gracefully handles a missing
+      # IdP adapter, and auth facade tests mock the adapter. Full Authentik
+      # integration testing will be added when a dedicated CI Authentik
+      # provisioning flow is implemented.
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -383,7 +355,7 @@ jobs:
           JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
           IDP_ADAPTER: authentik
           AUTHENTIK_URL: http://localhost:9100
-          AUTHENTIK_API_TOKEN: ci-bootstrap-token
+          AUTHENTIK_API_TOKEN: not-available-in-ci
           IDP_VALUE_ENCRYPTION_KEY: ${{ env.TEST_IDP_VALUE_ENCRYPTION_KEY }}
           IDP_VALUE_KEY_VERSION: "1"
           AUTH_WEBAUTHN_RP_ID: localhost
