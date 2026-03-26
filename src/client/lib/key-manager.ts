@@ -1,21 +1,30 @@
 /**
- * Singleton Key Manager — holds the decrypted secret key in a closure variable.
+ * Singleton Key Manager — delegates all secret key operations to the crypto worker.
  *
- * The secretKey is NEVER stored in sessionStorage, window, or any globally
- * accessible object. It lives only in this module's closure scope.
+ * The main thread NEVER holds raw nsec bytes. All private-key operations
+ * are delegated to the crypto Web Worker via CryptoWorkerClient.
+ *
+ * Multi-factor unlock: PIN + IdP-bound value + optional WebAuthn PRF output.
  *
  * States:
- *   Locked:   secretKey === null — only session-token auth available
- *   Unlocked: secretKey is a Uint8Array in memory — full crypto available
+ *   Locked:   worker has no key — only session-token auth available
+ *   Unlocked: worker holds key in its closure — full crypto available
  */
 
-import { getPublicKey, nip19 } from 'nostr-tools'
-import { createAuthToken as _createAuthToken } from './crypto'
-import { clearStoredKey, decryptStoredKey, hasStoredKey, storeEncryptedKey } from './key-store'
-
-// --- Private state (closure-scoped, never exported) ---
-let secretKey: Uint8Array | null = null
-let publicKey: string | null = null
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
+import { type UserInfo, authFacadeClient } from './auth-facade-client'
+import { cryptoWorker } from './crypto-worker-client'
+import {
+  type EncryptedKeyDataV2,
+  type KEKFactors,
+  isValidPin as _isValidPin,
+  clearStoredKeyV2,
+  deriveKEK,
+  encryptNsec,
+  hasStoredKeyV2,
+  loadEncryptedKeyV2,
+  storeEncryptedKeyV2,
+} from './key-store-v2'
 
 // --- Auto-lock ---
 let idleTimer: ReturnType<typeof setTimeout> | null = null
@@ -24,12 +33,16 @@ const unlockCallbacks: Set<() => void> = new Set()
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 let autoLockDisabled = false
 
-function resetIdleTimer() {
+function resetAutoLockTimers() {
   if (autoLockDisabled) return
   if (idleTimer) clearTimeout(idleTimer)
-  if (secretKey) {
-    idleTimer = setTimeout(() => lock(), IDLE_TIMEOUT_MS)
-  }
+  idleTimer = setTimeout(() => {
+    void lock()
+  }, IDLE_TIMEOUT_MS)
+}
+
+function notifyCallbacks(callbacks: Set<() => void>) {
+  callbacks.forEach((cb) => cb())
 }
 
 // Lock on tab hide — with configurable grace period so users can switch windows to copy/paste
@@ -64,114 +77,178 @@ export function getLockDelayMs(): number {
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (autoLockDisabled) return
-    if (document.hidden && secretKey) {
-      const delay = getLockDelay()
-      if (delay === 0) {
-        lock()
-      } else {
-        visibilityTimer = setTimeout(() => lock(), delay)
+    // Check worker state asynchronously — the visibility handler
+    // needs to guard on whether the worker is unlocked
+    void (async () => {
+      const unlocked = await cryptoWorker.isUnlocked()
+      if (document.hidden && unlocked) {
+        const delay = getLockDelay()
+        if (delay === 0) {
+          await lock()
+        } else {
+          visibilityTimer = setTimeout(() => {
+            void lock()
+          }, delay)
+        }
+      } else if (!document.hidden && visibilityTimer) {
+        // User came back within grace period — cancel the lock
+        clearTimeout(visibilityTimer)
+        visibilityTimer = null
       }
-    } else if (!document.hidden && visibilityTimer) {
-      // User came back within grace period — cancel the lock
-      clearTimeout(visibilityTimer)
-      visibilityTimer = null
-    }
+    })()
   })
+}
+
+// --- Rotation handler ---
+
+async function handleRotation(
+  pin: string,
+  currentBlob: EncryptedKeyDataV2,
+  userInfo: UserInfo,
+  prfOutput?: Uint8Array
+): Promise<void> {
+  const newSalt = crypto.getRandomValues(new Uint8Array(32))
+  const newKek = deriveKEK({
+    pin,
+    idpValue: userInfo.nsecSecret, // new (current) value
+    prfOutput,
+    salt: newSalt,
+  })
+  // Ask worker to re-encrypt without exposing nsec to the main thread
+  const reEncrypted = await cryptoWorker.reEncrypt(bytesToHex(newKek))
+  const newBlob: EncryptedKeyDataV2 = {
+    ...currentBlob,
+    salt: bytesToHex(newSalt),
+    nonce: reEncrypted.nonce,
+    ciphertext: reEncrypted.ciphertext,
+  }
+  storeEncryptedKeyV2(newBlob)
+  await authFacadeClient.confirmRotation()
 }
 
 // --- Public API ---
 
 /**
- * Unlock the key store by decrypting the nsec with the user's PIN.
- * Returns the hex pubkey on success, null on wrong PIN.
+ * Unlock the key store by decrypting the nsec with multi-factor authentication.
+ * Factors: PIN + IdP-bound value + optional WebAuthn PRF output.
+ * Returns the hex pubkey on success, null on wrong PIN / missing factors.
  */
 export async function unlock(pin: string): Promise<string | null> {
-  const nsec = await decryptStoredKey(pin)
-  if (!nsec) return null
+  const blob = loadEncryptedKeyV2()
+  if (!blob) return null
 
+  // 1. Fetch idp_value from facade (requires valid session)
+  const userInfo = await authFacadeClient.getUserInfo()
+  if (!userInfo) return null
+
+  // 2. Request PRF if this device uses it
+  let prfOutput: Uint8Array | undefined
+  if (blob.prfUsed) {
+    // requestWebAuthnPRF is Task 12 — dynamically import to handle absence
+    try {
+      const webauthnModule = await import('./webauthn')
+      if ('requestWebAuthnPRF' in webauthnModule) {
+        const requestPRF = webauthnModule.requestWebAuthnPRF as () => Promise<Uint8Array | null>
+        prfOutput = (await requestPRF()) ?? undefined
+      }
+    } catch {
+      // PRF not available yet
+    }
+  }
+
+  // 3. Derive KEK
+  const salt = hexToBytes(blob.salt)
+  const kek = deriveKEK({ pin, idpValue: userInfo.nsecSecret, prfOutput, salt })
+
+  // 4. Send to worker for decryption
   try {
-    const decoded = nip19.decode(nsec)
-    if (decoded.type !== 'nsec') return null
-    secretKey = decoded.data
-    publicKey = getPublicKey(secretKey)
-    resetIdleTimer()
-    unlockCallbacks.forEach((cb) => cb())
-    return publicKey
+    const pubkey = await cryptoWorker.unlock(bytesToHex(kek), blob.nonce, blob.ciphertext)
+    if (pubkey) {
+      resetAutoLockTimers()
+      notifyCallbacks(unlockCallbacks)
+
+      // Handle idp_value rotation if pending
+      if (userInfo.pendingRotation) {
+        await handleRotation(pin, blob, userInfo, prfOutput)
+      }
+    }
+    return pubkey
   } catch {
     return null
   }
 }
 
 /**
- * Lock the key manager — zeros out the secret key bytes.
+ * Lock the key manager — delegates zeroing to the crypto worker.
  */
-export function lock() {
-  if (secretKey) {
-    secretKey.fill(0)
-  }
-  secretKey = null
-  // Don't clear publicKey — it's not secret and useful for display
+export async function lock(): Promise<void> {
+  await cryptoWorker.lock()
   if (idleTimer) {
     clearTimeout(idleTimer)
     idleTimer = null
   }
-  lockCallbacks.forEach((cb) => cb())
+  if (visibilityTimer) {
+    clearTimeout(visibilityTimer)
+    visibilityTimer = null
+  }
+  notifyCallbacks(lockCallbacks)
 }
 
 /**
- * Import a key (onboarding / recovery): encrypt and store, then load into memory.
+ * Import a key (onboarding / recovery): encrypt with multi-factor KEK and store,
+ * then load into the crypto worker.
+ *
+ * @param nsecHex - The nsec as a hex string (raw 32-byte secret key)
+ * @param pin - User's PIN (6-8 digits)
+ * @param pubkey - The corresponding x-only public key hex
+ * @param idpValue - The IdP-bound value for KEK derivation
+ * @param prfOutput - Optional WebAuthn PRF output
+ * @param idpIssuer - The IdP issuer identifier
  */
-export async function importKey(nsec: string, pin: string): Promise<string> {
-  const decoded = nip19.decode(nsec)
-  if (decoded.type !== 'nsec') throw new Error('Invalid nsec')
-  const sk = decoded.data
-  const pk = getPublicKey(sk)
+export async function importKey(
+  nsecHex: string,
+  pin: string,
+  pubkey: string,
+  idpValue: Uint8Array,
+  prfOutput: Uint8Array | undefined,
+  idpIssuer: string
+): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(32))
+  const kek = deriveKEK({ pin, idpValue, prfOutput, salt })
 
-  await storeEncryptedKey(nsec, pin, pk)
-  secretKey = sk
-  publicKey = pk
-  resetIdleTimer()
-  unlockCallbacks.forEach((cb) => cb())
-  return pk
+  // Encrypt and store as v2 blob
+  const blob = encryptNsec(nsecHex, kek, pubkey, !!prfOutput, idpIssuer, salt)
+  storeEncryptedKeyV2(blob)
+
+  // Load into worker
+  const workerPubkey = await cryptoWorker.unlock(bytesToHex(kek), blob.nonce, blob.ciphertext)
+
+  resetAutoLockTimers()
+  notifyCallbacks(unlockCallbacks)
+
+  return workerPubkey
 }
 
 /**
- * Get the secret key. Throws if locked.
+ * Check if the key manager is currently unlocked (delegates to worker).
  */
-export function getSecretKey(): Uint8Array {
-  if (!secretKey) throw new KeyLockedError()
-  resetIdleTimer()
-  return secretKey
+export async function isUnlocked(): Promise<boolean> {
+  return cryptoWorker.isUnlocked()
 }
 
 /**
- * Check if the key manager is currently unlocked.
+ * Get the public key (hex). Available when unlocked.
+ * Delegates to the crypto worker.
  */
-export function isUnlocked(): boolean {
-  return secretKey !== null
+export async function getPublicKeyHex(): Promise<string | null> {
+  return cryptoWorker.getPublicKey()
 }
 
 /**
- * Get the public key (hex). Available when unlocked OR if we can derive it
- * from the stored key ID.
+ * Check if there's an encrypted key in local storage (v2 format).
  */
-export function getPublicKeyHex(): string | null {
-  return publicKey
-}
-
-/**
- * Check if there's an encrypted key in local storage.
- */
-export { hasStoredKey } from './key-store'
-
-/**
- * Create a Schnorr auth token using the in-memory secret key.
- * Throws KeyLockedError if locked.
- */
-export function createAuthToken(timestamp: number, method: string, path: string): string {
-  if (!secretKey) throw new KeyLockedError()
-  resetIdleTimer()
-  return _createAuthToken(secretKey, timestamp, method, path)
+export function hasStoredKey(): boolean {
+  return hasStoredKeyV2()
 }
 
 /**
@@ -191,12 +268,12 @@ export function onUnlock(cb: () => void): () => void {
 }
 
 /**
- * Wipe the encrypted key from localStorage and lock.
- * Used when max PIN attempts exceeded.
+ * Wipe the encrypted key from localStorage and lock the worker.
+ * Used when max PIN attempts exceeded or account deletion.
  */
-export function wipeKey() {
-  lock()
-  clearStoredKey()
+export async function wipeKey(): Promise<void> {
+  await lock()
+  clearStoredKeyV2()
 }
 
 /**
@@ -225,16 +302,7 @@ export class KeyLockedError extends Error {
   }
 }
 
-/**
- * Get the nsec as bech32 string (for testing/backup only).
- * Returns null if locked.
- */
-export function getNsec(): string | null {
-  if (!secretKey) return null
-  return nip19.nsecEncode(secretKey)
-}
-
-/** Validate a PIN format (6-8 digits). */
+/** Validate a PIN format (6-8 digits). Re-exported from key-store-v2. */
 export function isValidPin(pin: string): boolean {
-  return /^\d{6,8}$/.test(pin)
+  return _isValidPin(pin)
 }
