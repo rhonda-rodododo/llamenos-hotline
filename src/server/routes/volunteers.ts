@@ -92,10 +92,7 @@ volunteers.patch('/:targetPubkey', requirePermission('volunteers:update'), async
       roles: body.roles,
     })
   }
-  // Revoke all sessions when deactivating or changing roles
-  if (body.active === false || body.roles) {
-    await services.identity.revokeAllSessions(targetPubkey)
-  }
+  // JWT tokens are short-lived; deactivated volunteers will fail auth on next request
 
   return c.json({ volunteer: projectVolunteer(updated, pubkey, true) })
 })
@@ -104,8 +101,6 @@ volunteers.delete('/:targetPubkey', requirePermission('volunteers:delete'), asyn
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const targetPubkey = c.req.param('targetPubkey')
-  // Revoke all sessions before deletion
-  await services.identity.revokeAllSessions(targetPubkey)
   await services.identity.deleteVolunteer(targetPubkey)
   await services.records.addAuditEntry('global', 'volunteerRemoved', pubkey, {
     target: targetPubkey,

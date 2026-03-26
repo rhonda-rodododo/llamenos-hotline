@@ -1,5 +1,4 @@
 import { Hono } from 'hono'
-import { verifyAuthToken } from '../lib/auth'
 import { hashIP } from '../lib/crypto'
 import { isValidE164 } from '../lib/helpers'
 import { auth as authMiddleware } from '../middleware/auth'
@@ -33,22 +32,10 @@ invites.post('/redeem', async (c) => {
   const body = (await c.req.json()) as {
     code: string
     pubkey: string
-    timestamp: number
-    token: string
   }
 
-  // Require proof of private key possession via Schnorr signature
-  if (!body.pubkey || !body.timestamp || !body.token) {
-    return c.json({ error: 'Signature proof required' }, 400)
-  }
-  const inviteUrl = new URL(c.req.url)
-  const isValid = await verifyAuthToken(
-    { pubkey: body.pubkey, timestamp: body.timestamp, token: body.token },
-    c.req.method,
-    inviteUrl.pathname
-  )
-  if (!isValid) {
-    return c.json({ error: 'Invalid signature' }, 401)
+  if (!body.pubkey || !body.code) {
+    return c.json({ error: 'Missing code or pubkey' }, 400)
   }
 
   // Rate limit redemption attempts (relaxed in dev for parallel test runs)

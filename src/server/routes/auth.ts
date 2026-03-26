@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { getPrimaryRole } from '../../shared/permissions'
-import { verifyAuthToken } from '../lib/auth'
 import { hashIP } from '../lib/crypto'
 import { isValidE164 } from '../lib/helpers'
 import { maskPhone } from '../lib/volunteer-projector'
@@ -9,40 +8,6 @@ import { checkPermission } from '../middleware/permission-guard'
 import type { AppEnv, WebAuthnCredential } from '../types'
 
 const auth = new Hono<AppEnv>()
-
-// --- Login (no auth) ---
-auth.post('/login', async (c) => {
-  const services = c.get('services')
-
-  // Rate limit login attempts by IP (skip in development for testing)
-  if (c.env.ENVIRONMENT !== 'development') {
-    const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
-    const limited = await services.settings.checkRateLimit(
-      `auth:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
-      10
-    )
-    if (limited) {
-      return c.json({ error: 'Too many login attempts. Try again later.' }, 429)
-    }
-  }
-
-  const body = (await c.req.json()) as { pubkey: string; timestamp: number; token: string }
-  // Verify Schnorr signature before returning any user information
-  if (!body.pubkey || !body.timestamp || !body.token) {
-    return c.json({ error: 'Invalid credentials' }, 401)
-  }
-  const url = new URL(c.req.url)
-  const isValid = await verifyAuthToken(
-    { pubkey: body.pubkey, timestamp: body.timestamp, token: body.token },
-    c.req.method,
-    url.pathname
-  )
-  if (!isValid) return c.json({ error: 'Invalid credentials' }, 401)
-
-  const volunteer = await services.identity.getVolunteer(body.pubkey)
-  if (!volunteer) return c.json({ error: 'Invalid credentials' }, 401)
-  return c.json({ ok: true, roles: volunteer.roles })
-})
 
 // --- Bootstrap (no auth — one-shot admin registration) ---
 auth.post('/bootstrap', async (c) => {
@@ -60,19 +25,10 @@ auth.post('/bootstrap', async (c) => {
     }
   }
 
-  const body = (await c.req.json()) as { pubkey: string; timestamp: number; token: string }
-  if (!body.pubkey || !body.timestamp || !body.token) {
+  const body = (await c.req.json()) as { pubkey: string }
+  if (!body.pubkey) {
     return c.json({ error: 'Invalid request' }, 400)
   }
-
-  // Verify Schnorr signature — proves caller owns the private key
-  const bootstrapUrl = new URL(c.req.url)
-  const isValid = await verifyAuthToken(
-    { pubkey: body.pubkey, timestamp: body.timestamp, token: body.token },
-    c.req.method,
-    bootstrapUrl.pathname
-  )
-  if (!isValid) return c.json({ error: 'Invalid signature' }, 401)
 
   // Check if admin already exists
   const hasAdmin = await services.identity.hasAdmin()
@@ -140,12 +96,6 @@ auth.get('/me', async (c) => {
 auth.post('/me/logout', async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const authHeader = c.req.header('Authorization') || ''
-  // Revoke the session token if using session-based auth
-  if (authHeader.startsWith('Session ')) {
-    const token = authHeader.slice(8).trim()
-    await services.identity.revokeSession(token)
-  }
   await services.records.addAuditEntry('global', 'logout', pubkey)
   return c.json({ ok: true })
 })
