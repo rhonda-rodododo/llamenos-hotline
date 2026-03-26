@@ -54,7 +54,7 @@ app_dir: /opt/llamenos
 hotline_name: Hotline
 
 # Application environment — MUST be 'demo' for demo instance
-environment: demo
+app_environment: demo
 
 # Demo mode flag — enables periodic auto-reset and demo UI banners
 demo_mode: "true"

@@ -62,7 +62,7 @@ app_dir: /opt/llamenos
 hotline_name: Hotline
 
 # OPTIONAL: Application environment
-environment: production
+app_environment: production
 
 # REQUIRED: Admin public key (generate with: bun run bootstrap-admin)
 # This is the Nostr pubkey of the admin account (64 lowercase hex chars)
