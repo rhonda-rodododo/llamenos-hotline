@@ -23,7 +23,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
+      rustfs:
         condition: service_healthy
       strfry:
         condition: service_healthy
@@ -91,15 +91,16 @@ services:
       app:
         condition: service_healthy
 
-  minio:
-    image: {{ minio_image }}
-    command: server /data --console-address ":9001"
+  rustfs:
+    image: {{ rustfs_image | default('rustfs/rustfs:latest') }}
+    command: server /data
     restart: unless-stopped
     volumes:
-      - minio-data:/data
+      - rustfs-data:/data
     environment:
-      - MINIO_ROOT_USER={{ minio_access_key }}
-      - MINIO_ROOT_PASSWORD={{ minio_secret_key }}
+      - RUSTFS_ACCESS_KEY={{ storage_access_key }}
+      - RUSTFS_SECRET_KEY={{ storage_secret_key }}
+      - RUSTFS_CONSOLE_ENABLE=true
     networks:
       - internal
     logging:
@@ -108,11 +109,11 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/health"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 20s
 
   strfry:
     image: dockurr/strfry:1.0.1
@@ -235,7 +236,7 @@ volumes:
   postgres-data:
   caddy-data:
   caddy-config:
-  minio-data:
+  rustfs-data:
   nostr-data:
 {% if 'asterisk' in (compose_profiles | default([])) %}
   asterisk-config:

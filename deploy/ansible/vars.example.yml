@@ -8,7 +8,7 @@
 #   2. cp inventory.example.yml inventory.yml
 #   3. bun run bootstrap-admin          # generates admin keypair
 #   4. openssl rand -hex 32             # generates hmac_secret and server_nostr_secret
-#   5. openssl rand -base64 24          # generates pg_password, minio keys, etc.
+#   5. openssl rand -base64 24          # generates pg_password, storage keys, etc.
 #   6. $EDITOR vars.yml                 # fill in all REQUIRED values
 #   7. ansible-vault encrypt vars.yml
 #   8. just setup-all
@@ -58,8 +58,8 @@ caddy_image: caddy:2.9-alpine
 # OPTIONAL: Docker image for PostgreSQL
 postgres_image: postgres:17-alpine
 
-# OPTIONAL: Docker image for MinIO
-minio_image: minio/minio:RELEASE.2025-01-20T14-49-07Z
+# OPTIONAL: Docker image for RustFS
+rustfs_image: rustfs/rustfs:latest
 
 # OPTIONAL: Directory on the host where app files are stored
 app_dir: /opt/llamenos
@@ -90,18 +90,11 @@ pg_password: "dddddddddddddddddddddddd"
 # OPTIONAL: Connection pool size
 pg_pool_size: 10
 
-# ─── MinIO (Blob Storage) ───────────────────────────────────────
+# ─── Storage (RustFS) ──────────────────────────────────────────
 # REQUIRED: Access credentials
 # Generate with: openssl rand -base64 24
-minio_access_key: "eeeeeeeeeeeeeeeeeeeeeeee"
-minio_secret_key: "ffffffffffffffffffffffff"
-minio_bucket: llamenos-files
-
-# OPTIONAL: Least-privilege app credentials for MinIO (created by init-minio.sh)
-# If set, the app uses these instead of root credentials.
-# Generate with: openssl rand -base64 24
-minio_app_user: llamenos-app
-minio_app_password: "gggggggggggggggggggggggg"
+storage_access_key: "eeeeeeeeeeeeeeeeeeeeeeee"
+storage_secret_key: "ffffffffffffffffffffffff"
 
 # ─── Telephony (Twilio) ─────────────────────────────────────────
 # OPTIONAL: Leave empty if configuring via the admin UI or using Asterisk

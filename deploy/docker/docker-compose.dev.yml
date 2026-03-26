@@ -1,6 +1,6 @@
 # v1 dev port offsets — avoids conflicts with llamenos v2 (~/projects/llamenos)
-# v2 uses: postgres:5432, minio:9000/9001, strfry:7777
-# v1 uses: postgres:5433, minio:9002/9003, strfry:7778, asterisk-ari:8089, asterisk-sip:5062, asterisk-wss:8090, coturn:3478
+# v2 uses: postgres:5432, rustfs:9000/9001, strfry:7777
+# v1 uses: postgres:5433, rustfs:9002/9003, strfry:7778, asterisk-ari:8089, asterisk-sip:5062, asterisk-wss:8090, coturn:3478
 #
 # Asterisk + bridge are enabled via --profile asterisk in the dev:docker script.
 #
@@ -21,7 +21,7 @@ services:
   postgres:
     ports:
       - "5433:5432"
-  minio:
+  rustfs:
     ports:
       - "9002:9000"
       - "9003:9001"

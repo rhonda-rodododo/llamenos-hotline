@@ -44,8 +44,8 @@ caddy_image: caddy:2.9-alpine
 # Docker image for PostgreSQL
 postgres_image: postgres:17-alpine
 
-# Docker image for MinIO
-minio_image: minio/minio:RELEASE.2025-01-20T14-49-07Z
+# Docker image for RustFS
+rustfs_image: rustfs/rustfs:latest
 
 # Directory on the host where app files are stored
 app_dir: /opt/llamenos
@@ -85,16 +85,10 @@ pg_password: ""
 # Connection pool size
 pg_pool_size: 10
 
-# ─── MinIO (Blob Storage) ───────────────────────────────────────
+# ─── Storage (RustFS) ──────────────────────────────────────────
 # Access credentials (generate with: openssl rand -base64 24)
-minio_access_key: ""
-minio_secret_key: ""
-minio_bucket: llamenos-files
-
-# Dedicated least-privilege IAM user for the app (created by init-minio.sh on deploy)
-# The app uses these credentials instead of root credentials
-minio_app_user: llamenos-app
-minio_app_password: ""  # Generate with: openssl rand -base64 24
+storage_access_key: ""
+storage_secret_key: ""
 
 # ─── Nostr Relay (Core) ─────────────────────────────────────────
 # Server secret for signing relay events (must be exactly 64 hex chars)

@@ -80,52 +80,6 @@
   until: pg_ready.rc == 0
   changed_when: false
 
-- name: Initialize MinIO — configure mc alias
-  ansible.builtin.command: >
-    docker compose -f {{ app_dir }}/docker-compose.yml
-    exec -T minio mc alias set local http://localhost:9000 {{ minio_access_key }} {{ minio_secret_key }}
-  changed_when: false
-  no_log: true
-
-- name: Initialize MinIO — create bucket
-  ansible.builtin.command: >
-    docker compose -f {{ app_dir }}/docker-compose.yml
-    exec -T minio mc mb --ignore-existing local/{{ minio_bucket }}
-  register: minio_bucket_result
-  changed_when: "'created' in minio_bucket_result.stdout"
-
-- name: Initialize MinIO — set recording lifecycle (90 days)
-  ansible.builtin.command: >
-    docker compose -f {{ app_dir }}/docker-compose.yml
-    exec -T minio mc ilm rule add --expire-days 90 local/{{ minio_bucket }} --prefix recordings/
-  register: minio_lifecycle_rec
-  changed_when: minio_lifecycle_rec.rc == 0
-  failed_when: false
-
-- name: Initialize MinIO — set voicemail lifecycle (365 days)
-  ansible.builtin.command: >
-    docker compose -f {{ app_dir }}/docker-compose.yml
-    exec -T minio mc ilm rule add --expire-days 365 local/{{ minio_bucket }} --prefix voicemails/
-  register: minio_lifecycle_vm
-  changed_when: minio_lifecycle_vm.rc == 0
-  failed_when: false
-
-- name: Initialize MinIO — create app IAM user
-  ansible.builtin.command: >
-    docker compose -f {{ app_dir }}/docker-compose.yml
-    exec -T minio mc admin user add local {{ minio_app_user | default('llamenos-app') }} {{ minio_app_password }}
-  register: minio_user_result
-  changed_when: "'Successfully' in minio_user_result.stdout"
-  failed_when: false
-
-- name: Initialize MinIO — create and attach IAM policy
-  ansible.builtin.shell: |
-    echo '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],"Resource":["arn:aws:s3:::{{ minio_bucket }}/*"]},{"Effect":"Allow","Action":["s3:ListBucket"],"Resource":["arn:aws:s3:::{{ minio_bucket }}"]}]}' | \
-      docker compose -f {{ app_dir }}/docker-compose.yml exec -T minio sh -c 'cat > /tmp/llamenos-policy.json'
-    docker compose -f {{ app_dir }}/docker-compose.yml exec -T minio mc admin policy create local llamenos-app /tmp/llamenos-policy.json 2>/dev/null || true
-    docker compose -f {{ app_dir }}/docker-compose.yml exec -T minio mc admin policy attach local llamenos-app --user {{ minio_app_user | default('llamenos-app') }} 2>/dev/null || true
-  changed_when: false
-
 - name: Install systemd service unit
   ansible.builtin.template:
     src: llamenos.service.j2

@@ -1,5 +1,5 @@
 name: Start Test Infrastructure
-description: Start strfry, MinIO, Asterisk PBX, and Asterisk Bridge for integration/E2E tests
+description: Start strfry, RustFS, Asterisk PBX, and Asterisk Bridge for integration/E2E tests
 
 runs:
   using: composite
@@ -18,21 +18,19 @@ runs:
           sleep 2
         done
 
-    - name: Start MinIO
+    - name: Start RustFS
       shell: bash
       run: |
-        docker run -d --name minio \
-          -e MINIO_ROOT_USER=minioadmin \
-          -e MINIO_ROOT_PASSWORD=minioadmin \
+        docker run -d --name rustfs \
+          -e RUSTFS_ACCESS_KEY=rustfsadmin \
+          -e RUSTFS_SECRET_KEY=rustfsadmin \
+          -e RUSTFS_CONSOLE_ENABLE=true \
           -p 9000:9000 \
-          minio/minio:RELEASE.2025-01-20T14-49-07Z server /data
+          rustfs/rustfs:latest server /data
         for i in $(seq 1 30); do
-          curl -sf http://localhost:9000/minio/health/live && break
+          curl -sf http://localhost:9000/health && break
           sleep 2
         done
-        # Create the default bucket for file uploads
-        docker exec minio mc alias set local http://localhost:9000 minioadmin minioadmin
-        docker exec minio mc mb --ignore-existing local/llamenos-files
 
     - name: Start Asterisk
       shell: bash
