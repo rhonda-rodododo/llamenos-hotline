@@ -13,6 +13,7 @@ import { migrate } from 'drizzle-orm/bun-sql/migrator'
 import { Hono } from 'hono'
 import { initDb } from './db'
 import { loadEnv } from './env'
+import { scheduleBlastProcessor } from './jobs/blast-processor'
 import { scheduleRetentionPurge } from './jobs/retention-purge'
 import { closeNostrPublisher, getMessagingAdapter, getTelephony } from './lib/adapters'
 import { createBlobStorage } from './lib/blob-storage'
@@ -124,6 +125,13 @@ async function main() {
   scheduleRetentionPurge(services)
   console.log('[llamenos] Data retention purge scheduled')
 
+  const blastProcessorInterval = scheduleBlastProcessor(
+    services,
+    env.SERVER_NOSTR_SECRET ?? '',
+    env.HMAC_SECRET ?? ''
+  )
+  console.log('[llamenos] Blast delivery processor started (30s poll)')
+
   const { default: serverApp } = await import('./app')
 
   // Create a top-level Hono app
@@ -170,6 +178,7 @@ async function main() {
 
     providerHealth.stop()
     closeNostrPublisher()
+    clearInterval(blastProcessorInterval)
 
     server.close(() => {
       console.log('[llamenos] Server stopped')
