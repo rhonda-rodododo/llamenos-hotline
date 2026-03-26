@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useConfig } from '@/lib/config'
 import * as keyManager from '@/lib/key-manager'
-import { hasStoredKey } from '@/lib/key-store'
+import { hasStoredKey } from '@/lib/key-manager'
 import {
   type ProvisioningSession,
   computeSASForNewDevice,
@@ -141,7 +141,11 @@ function LinkDevicePage() {
       return
     }
     try {
-      await keyManager.importKey(nsec, pin)
+      // Device linking: use synthetic IdP value; real IdP enrollment will happen at first login
+      const syntheticIdpValue = new TextEncoder().encode('device-link-pending')
+      const kp = await import('@/lib/crypto').then((m) => m.keyPairFromNsec(nsec))
+      const linkPubkey = kp?.publicKey ?? ''
+      await keyManager.importKey(nsec, pin, linkPubkey, syntheticIdpValue, undefined, 'device-link')
       // Zero out nsec from memory
       setNsec('')
       setStep('done')

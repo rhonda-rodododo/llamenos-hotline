@@ -22,7 +22,7 @@ import {
 import { useConfig } from '@/lib/config'
 import { isValidNsec } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
-import { hasStoredKey } from '@/lib/key-store'
+import { hasStoredKey } from '@/lib/key-manager'
 import { useTheme } from '@/lib/theme'
 import { isWebAuthnAvailable } from '@/lib/webauthn'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
@@ -209,7 +209,19 @@ function LoginPage() {
       }
       // Import the recovered key with the new PIN
       try {
-        await keyManager.importKey(recoveredNsec, pin)
+        const kpModule = await import('@/lib/crypto')
+        const kp = kpModule.keyPairFromNsec(recoveredNsec)
+        const recoveredPubkey = kp?.publicKey ?? ''
+        // Recovery flow: use synthetic IdP value; real IdP enrollment will happen after login
+        const syntheticIdpValue = new TextEncoder().encode('recovery-pending')
+        await keyManager.importKey(
+          recoveredNsec,
+          pin,
+          recoveredPubkey,
+          syntheticIdpValue,
+          undefined,
+          'recovery'
+        )
         await signIn(recoveredNsec)
         navigate({ to: '/' })
       } catch {

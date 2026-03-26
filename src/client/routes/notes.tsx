@@ -18,14 +18,7 @@ import {
   updateNote,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import {
-  decryptCallRecord,
-  decryptNote,
-  decryptNoteV2,
-  decryptTranscription,
-  encryptExport,
-  encryptNoteV2,
-} from '@/lib/crypto'
+import { decryptCallRecord, decryptNoteV2, decryptTranscription, encryptNoteV2 } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
 import type { FileFieldValue, NotePayload } from '@shared/types'
@@ -98,26 +91,31 @@ function NotesPage() {
   // Decrypt encrypted call records client-side (Epic 77)
   useEffect(() => {
     if (!hasNsec || !publicKey || recentCalls.length === 0) return
-    const secretKey = keyManager.isUnlocked() ? keyManager.getSecretKey() : null
-    if (!secretKey) return
+    void (async () => {
+      const unlocked = await keyManager.isUnlocked()
+      if (!unlocked) return
 
-    let changed = false
-    const decrypted = recentCalls.map((call) => {
-      if (call.answeredBy !== undefined) return call
-      if (!call.encryptedContent || !call.adminEnvelopes?.length) return call
-      const meta = decryptCallRecord(
-        call.encryptedContent,
-        call.adminEnvelopes,
-        secretKey,
-        publicKey
-      )
-      if (meta) {
-        changed = true
-        return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
+      let changed = false
+      const decrypted: CallRecord[] = []
+      for (const call of recentCalls) {
+        if (call.answeredBy !== undefined) {
+          decrypted.push(call)
+          continue
+        }
+        if (!call.encryptedContent || !call.adminEnvelopes?.length) {
+          decrypted.push(call)
+          continue
+        }
+        const meta = await decryptCallRecord(call.encryptedContent, call.adminEnvelopes, publicKey)
+        if (meta) {
+          changed = true
+          decrypted.push({ ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber })
+        } else {
+          decrypted.push(call)
+        }
       }
-      return call
-    })
-    if (changed) setRecentCalls(decrypted)
+      if (changed) setRecentCalls(decrypted)
+    })()
   }, [recentCalls, hasNsec, publicKey])
 
   const nameMap = useMemo(() => {
@@ -135,44 +133,42 @@ function NotesPage() {
   const loadNotes = useCallback(() => {
     setLoading(true)
     listNotes({ callId: callId || undefined, page, limit })
-      .then((res) => {
-        const decryptedNotes: DecryptedNote[] = (res.notes ?? [])
-          .filter((note) => {
-            if (note.authorPubkey === 'system:transcription:admin') return isAdmin
-            if (note.authorPubkey === 'system:transcription') return !isAdmin
-            return true
-          })
-          .map((note) => {
-            const isTranscription = note.authorPubkey.startsWith('system:transcription')
-            let payload: NotePayload
-            if (isTranscription && note.ephemeralPubkey && hasNsec) {
-              const sk = keyManager.getSecretKey()
-              const text =
-                decryptTranscription(note.encryptedContent, note.ephemeralPubkey, sk) ||
-                '[Decryption failed]'
-              payload = { text }
-            } else if (isTranscription && !note.ephemeralPubkey) {
-              payload = { text: note.encryptedContent }
-            } else if (hasNsec) {
-              // Try V2 (per-note ECIES envelope) first, fall back to V1 (legacy HKDF)
-              const sk = keyManager.getSecretKey()
-              const myPubkey = publicKey!
-              const envelope = isAdmin
-                ? (note.adminEnvelopes?.find((e) => e.pubkey === myPubkey) ??
-                  note.adminEnvelopes?.[0])
-                : note.authorEnvelope
-              if (envelope) {
-                payload = decryptNoteV2(note.encryptedContent, envelope, sk) || {
-                  text: '[Decryption failed]',
-                }
-              } else {
-                payload = decryptNote(note.encryptedContent, sk) || { text: '[Decryption failed]' }
+      .then(async (res) => {
+        const unlocked = await keyManager.isUnlocked()
+        const filtered = (res.notes ?? []).filter((note) => {
+          if (note.authorPubkey === 'system:transcription:admin') return isAdmin
+          if (note.authorPubkey === 'system:transcription') return !isAdmin
+          return true
+        })
+        const decryptedNotes: DecryptedNote[] = []
+        for (const note of filtered) {
+          const isTranscription = note.authorPubkey.startsWith('system:transcription')
+          let payload: NotePayload
+          if (isTranscription && note.ephemeralPubkey && hasNsec && unlocked) {
+            const text =
+              (await decryptTranscription(note.encryptedContent, note.ephemeralPubkey)) ||
+              '[Decryption failed]'
+            payload = { text }
+          } else if (isTranscription && !note.ephemeralPubkey) {
+            payload = { text: note.encryptedContent }
+          } else if (hasNsec && unlocked) {
+            const myPubkey = publicKey!
+            const envelope = isAdmin
+              ? (note.adminEnvelopes?.find((e) => e.pubkey === myPubkey) ??
+                note.adminEnvelopes?.[0])
+              : note.authorEnvelope
+            if (envelope) {
+              payload = (await decryptNoteV2(note.encryptedContent, envelope)) || {
+                text: '[Decryption failed]',
               }
             } else {
-              payload = { text: '[No key]' }
+              payload = { text: '[Decryption failed]' }
             }
-            return { ...note, decrypted: payload.text, payload, isTranscription }
-          })
+          } else {
+            payload = { text: '[No key]' }
+          }
+          decryptedNotes.push({ ...note, decrypted: payload.text, payload, isTranscription })
+        }
         setNotes(decryptedNotes)
         setTotal(res.total)
       })
@@ -273,7 +269,6 @@ function NotesPage() {
 
   async function handleExport() {
     if (!hasNsec) return
-    const sk = keyManager.getSecretKey()
     const rows = filteredNotes.map((n) => ({
       id: n.id,
       callId: n.callId,
@@ -284,12 +279,12 @@ function NotesPage() {
       updatedAt: n.updatedAt,
     }))
     const jsonString = JSON.stringify(rows, null, 2)
-    const encrypted = encryptExport(jsonString, sk)
-    const blob = new Blob([encrypted.buffer as ArrayBuffer], { type: 'application/octet-stream' })
+    // Export as JSON — data is already decrypted in-browser
+    const blob = new Blob([jsonString], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `notes-export-${new Date().toISOString().slice(0, 10)}.enc`
+    a.download = `notes-export-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
     toast(t('notes.exportEncrypted'), 'success')

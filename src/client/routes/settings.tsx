@@ -18,12 +18,7 @@ import {
 import { useAuth } from '@/lib/auth'
 import * as keyManager from '@/lib/key-manager'
 import { getNotificationPrefs, setNotificationPrefs } from '@/lib/notifications'
-import {
-  computeSASForPrimaryDevice,
-  encryptNsecForDevice,
-  getProvisioningRoom,
-  sendProvisionedKey,
-} from '@/lib/provisioning'
+import { getProvisioningRoom } from '@/lib/provisioning'
 import {
   isPushSubscribed,
   isPushSupported,
@@ -118,9 +113,8 @@ function SettingsPage() {
   const [profileError, setProfileError] = useState('')
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(spokenLanguages || ['en'])
 
-  // Get npub for display
-  const pk = keyManager.getPublicKeyHex() || publicKey
-  const npub = pk ? nip19.npubEncode(pk) : ''
+  // Get npub for display — use publicKey from auth context (already resolved)
+  const npub = publicKey ? nip19.npubEncode(publicKey) : ''
 
   useEffect(() => {
     const promises: Promise<void>[] = [
@@ -883,33 +877,21 @@ function LinkDeviceSection() {
         return
       }
 
-      // Get nsec from key-manager
-      const nsecStr = keyManager.getNsec()
-      if (!nsecStr) {
+      // Device provisioning requires worker-level nsec export — pending Task 15d
+      // TODO: Add worker API for device provisioning (nsec export + ECDH + SAS)
+      const workerPubkey = await keyManager.getPublicKeyHex()
+      if (!workerPubkey) {
         setStatus('error')
         setStatusMessage(t('pin.keyLocked'))
         return
       }
 
-      const secretKey = keyManager.getSecretKey()
-      const publicKey = keyManager.getPublicKeyHex()!
-
-      // Compute SAS for display BEFORE sending nsec
-      const sas = computeSASForPrimaryDevice(secretKey, room.ephemeralPubkey)
-      setSasCode(sas)
-
-      // ECDH encrypt nsec for the new device
-      const encrypted = encryptNsecForDevice(nsecStr, room.ephemeralPubkey, secretKey)
-
-      // Send encrypted payload (authenticated)
-      const provisionPath = `/api/provision/rooms/${roomId}/payload`
-      const authToken = keyManager.createAuthToken(Date.now(), 'POST', provisionPath)
-      await sendProvisionedKey(roomId, token, encrypted, publicKey, {
-        Authorization: `Bearer ${authToken}`,
-      })
-
-      setStatus('verify-sas')
-      setStatusMessage(t('deviceLink.verifySASPrimary'))
+      // Placeholder: device linking from primary requires nsec export from worker
+      // This will be implemented as a dedicated worker message type
+      setStatus('error')
+      setStatusMessage(
+        'Device linking from this device is temporarily unavailable while the key isolation upgrade is in progress.'
+      )
     } catch {
       setStatus('error')
       setStatusMessage(t('deviceLink.linkFailed'))

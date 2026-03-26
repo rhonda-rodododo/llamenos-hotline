@@ -87,26 +87,31 @@ function CallHistoryPage() {
   // Decrypt encrypted call records client-side (Epic 77)
   useEffect(() => {
     if (!hasNsec || !publicKey || calls.length === 0) return
-    const secretKey = keyManager.isUnlocked() ? keyManager.getSecretKey() : null
-    if (!secretKey) return
+    void (async () => {
+      const unlocked = await keyManager.isUnlocked()
+      if (!unlocked) return
 
-    let changed = false
-    const decrypted = calls.map((call) => {
-      if (call.answeredBy !== undefined) return call // already decrypted
-      if (!call.encryptedContent || !call.adminEnvelopes?.length) return call
-      const meta = decryptCallRecord(
-        call.encryptedContent,
-        call.adminEnvelopes,
-        secretKey,
-        publicKey
-      )
-      if (meta) {
-        changed = true
-        return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
+      let changed = false
+      const decrypted: CallRecord[] = []
+      for (const call of calls) {
+        if (call.answeredBy !== undefined) {
+          decrypted.push(call)
+          continue
+        }
+        if (!call.encryptedContent || !call.adminEnvelopes?.length) {
+          decrypted.push(call)
+          continue
+        }
+        const meta = await decryptCallRecord(call.encryptedContent, call.adminEnvelopes, publicKey)
+        if (meta) {
+          changed = true
+          decrypted.push({ ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber })
+        } else {
+          decrypted.push(call)
+        }
       }
-      return call
-    })
-    if (changed) setCalls(decrypted)
+      if (changed) setCalls(decrypted)
+    })()
   }, [calls, hasNsec, publicKey])
 
   useEffect(() => {

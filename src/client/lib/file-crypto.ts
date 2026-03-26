@@ -6,6 +6,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { LABEL_FILE_KEY, LABEL_FILE_METADATA } from '@shared/crypto-labels'
 import type { EncryptedFileMetadata, FileKeyEnvelope } from '@shared/types'
 import { eciesUnwrapKey, eciesWrapKey } from './crypto'
+import { getCryptoWorker } from './crypto-worker-client'
 
 function randomBytes(n: number): Uint8Array {
   const buf = new Uint8Array(n)
@@ -14,16 +15,14 @@ function randomBytes(n: number): Uint8Array {
 }
 
 /**
- * Unwrap a symmetric file key using the recipient's secret key.
+ * Unwrap a symmetric file key using the crypto worker (secret key never touches main thread).
  */
-export function unwrapFileKey(
+export async function unwrapFileKey(
   encryptedFileKeyHex: string,
-  ephemeralPubkeyHex: string,
-  secretKey: Uint8Array
-): Uint8Array {
+  ephemeralPubkeyHex: string
+): Promise<Uint8Array> {
   return eciesUnwrapKey(
     { wrappedKey: encryptedFileKeyHex, ephemeralPubkey: ephemeralPubkeyHex },
-    secretKey,
     LABEL_FILE_KEY
   )
 }
@@ -66,29 +65,21 @@ function encryptMetadataForPubkey(
 }
 
 /**
- * Decrypt file metadata using the recipient's secret key.
+ * Decrypt file metadata using the recipient's secret key (via crypto worker ECDH).
  */
-export function decryptFileMetadata(
+export async function decryptFileMetadata(
   encryptedContentHex: string,
-  ephemeralPubkeyHex: string,
-  secretKey: Uint8Array
-): EncryptedFileMetadata | null {
+  ephemeralPubkeyHex: string
+): Promise<EncryptedFileMetadata | null> {
   try {
-    const ephemeralPub = hexToBytes(ephemeralPubkeyHex)
-    const shared = secp256k1.getSharedSecret(secretKey, ephemeralPub)
-    const sharedX = shared.slice(1, 33)
-
-    const label = utf8ToBytes(LABEL_FILE_METADATA)
-    const keyInput = new Uint8Array(label.length + sharedX.length)
-    keyInput.set(label)
-    keyInput.set(sharedX, label.length)
-    const symmetricKey = sha256(keyInput)
-
-    const data = hexToBytes(encryptedContentHex)
-    const nonce = data.slice(0, 24)
-    const ciphertext = data.slice(24)
-    const cipher = xchacha20poly1305(symmetricKey, nonce)
-    const plaintext = cipher.decrypt(ciphertext)
+    // Delegate ECDH to the crypto worker — secret key never touches main thread
+    const worker = getCryptoWorker()
+    const resultHex = await worker.decrypt(
+      ephemeralPubkeyHex,
+      encryptedContentHex,
+      LABEL_FILE_METADATA
+    )
+    const plaintext = hexToBytes(resultHex)
     return JSON.parse(new TextDecoder().decode(plaintext))
   } catch {
     return null
@@ -157,15 +148,15 @@ export async function encryptFile(
 }
 
 /**
- * Decrypt a file given the encrypted content, key envelope, and user's secret key.
+ * Decrypt a file given the encrypted content and key envelope.
+ * Secret key operations are delegated to the crypto worker.
  */
 export async function decryptFile(
   encryptedContent: ArrayBuffer,
-  envelope: FileKeyEnvelope,
-  secretKey: Uint8Array
+  envelope: FileKeyEnvelope
 ): Promise<{ blob: Blob; checksum: string }> {
-  // Unwrap the file key
-  const fileKey = unwrapFileKey(envelope.encryptedFileKey, envelope.ephemeralPubkey, secretKey)
+  // Unwrap the file key via worker
+  const fileKey = await unwrapFileKey(envelope.encryptedFileKey, envelope.ephemeralPubkey)
 
   // Extract nonce and decrypt
   const data = new Uint8Array(encryptedContent)
@@ -186,16 +177,15 @@ export async function decryptFile(
 
 /**
  * Re-wrap a file's symmetric key for a new recipient.
- * Admin decrypts the key with their secret, then re-encrypts for the new pubkey.
+ * Admin decrypts the key via worker, then re-encrypts for the new pubkey.
  */
-export function rewrapFileKey(
+export async function rewrapFileKey(
   encryptedFileKeyHex: string,
   ephemeralPubkeyHex: string,
-  adminSecretKey: Uint8Array,
   newRecipientPubkeyHex: string
-): FileKeyEnvelope {
-  // Decrypt with admin key
-  const fileKey = unwrapFileKey(encryptedFileKeyHex, ephemeralPubkeyHex, adminSecretKey)
+): Promise<FileKeyEnvelope> {
+  // Decrypt with admin key via worker
+  const fileKey = await unwrapFileKey(encryptedFileKeyHex, ephemeralPubkeyHex)
 
   // Re-encrypt for new recipient
   const { wrappedKey: encryptedFileKey, ephemeralPubkey } = eciesWrapKey(

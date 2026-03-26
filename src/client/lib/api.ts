@@ -502,20 +502,12 @@ export async function validateInvite(code: string) {
   }>
 }
 
-export async function redeemInvite(code: string, pubkey: string, secretKey?: Uint8Array) {
-  // Include Schnorr signature to prove key possession
-  let authFields = {}
-  if (secretKey) {
-    const { createAuthToken } = await import('./crypto')
-    const timestamp = Date.now()
-    const tokenJson = createAuthToken(secretKey, timestamp, 'POST', '/api/invites/redeem')
-    const parsed = JSON.parse(tokenJson)
-    authFields = { timestamp: parsed.timestamp, token: parsed.token }
-  }
+export async function redeemInvite(code: string, pubkey: string) {
+  // JWT auth handles authentication now — no Schnorr token needed
   const res = await fetch(`${API_BASE}/invites/redeem`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code, pubkey, ...authFields }),
+    body: JSON.stringify({ code, pubkey }),
   })
   if (!res.ok) {
     const body = await res.text()

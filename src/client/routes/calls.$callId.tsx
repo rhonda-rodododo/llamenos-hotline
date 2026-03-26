@@ -10,7 +10,7 @@ import {
   listVolunteers,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { decryptCallRecord, decryptNote, decryptNoteV2, decryptTranscription } from '@/lib/crypto'
+import { decryptCallRecord, decryptNoteV2, decryptTranscription } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
 import type { NotePayload } from '@shared/types'
@@ -65,40 +65,41 @@ function CallDetailPage() {
         ? listVolunteers().catch(() => ({ volunteers: [] as Volunteer[] }))
         : Promise.resolve({ volunteers: [] as Volunteer[] }),
     ])
-      .then(([detail, volRes]) => {
+      .then(async ([detail, volRes]) => {
         setCall(detail.call)
         setAuditEntries(detail.auditEntries)
         setVolunteers(volRes.volunteers)
 
-        const sk = keyManager.isUnlocked() ? keyManager.getSecretKey() : null
+        const unlocked = await keyManager.isUnlocked()
         const myPubkey = publicKey ?? ''
-        const decrypted: DecryptedNote[] = detail.notes.map((note) => {
+        const decrypted: DecryptedNote[] = []
+        for (const note of detail.notes) {
           const isTranscription = note.authorPubkey.startsWith('system:transcription')
           let payload: NotePayload
-          if (isTranscription && note.ephemeralPubkey && hasNsec && sk) {
+          if (isTranscription && note.ephemeralPubkey && hasNsec && unlocked) {
             const text =
-              decryptTranscription(note.encryptedContent, note.ephemeralPubkey, sk) ||
+              (await decryptTranscription(note.encryptedContent, note.ephemeralPubkey)) ||
               '[Decryption failed]'
             payload = { text }
           } else if (isTranscription && !note.ephemeralPubkey) {
             payload = { text: note.encryptedContent }
-          } else if (hasNsec && sk) {
+          } else if (hasNsec && unlocked) {
             const envelope = isAdmin
               ? (note.adminEnvelopes?.find((e) => e.pubkey === myPubkey) ??
                 note.adminEnvelopes?.[0])
               : note.authorEnvelope
             if (envelope) {
-              payload = decryptNoteV2(note.encryptedContent, envelope, sk) || {
+              payload = (await decryptNoteV2(note.encryptedContent, envelope)) || {
                 text: '[Decryption failed]',
               }
             } else {
-              payload = decryptNote(note.encryptedContent, sk) || { text: '[Decryption failed]' }
+              payload = { text: '[Decryption failed]' }
             }
           } else {
             payload = { text: '[No key]' }
           }
-          return { ...note, decrypted: payload.text, payload, isTranscription }
-        })
+          decrypted.push({ ...note, decrypted: payload.text, payload, isTranscription })
+        }
         setNotes(decrypted)
       })
       .catch(() => toast(t('common.error'), 'error'))
@@ -106,15 +107,33 @@ function CallDetailPage() {
   }, [callId, hasNsec, publicKey, isAdmin])
 
   // Decrypt call record client-side (E2EE metadata)
-  const decryptedCall = useMemo(() => {
-    if (!call || !hasNsec || !publicKey) return call
-    if (call.answeredBy !== undefined) return call
-    if (!call.encryptedContent || !call.adminEnvelopes?.length) return call
-    const sk = keyManager.isUnlocked() ? keyManager.getSecretKey() : null
-    if (!sk) return call
-    const meta = decryptCallRecord(call.encryptedContent, call.adminEnvelopes, sk, publicKey)
-    if (meta) return { ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
-    return call
+  const [decryptedCall, setDecryptedCall] = useState<CallRecord | null>(null)
+  useEffect(() => {
+    if (!call || !hasNsec || !publicKey) {
+      setDecryptedCall(call)
+      return
+    }
+    if (call.answeredBy !== undefined) {
+      setDecryptedCall(call)
+      return
+    }
+    if (!call.encryptedContent || !call.adminEnvelopes?.length) {
+      setDecryptedCall(call)
+      return
+    }
+    void (async () => {
+      const unlocked = await keyManager.isUnlocked()
+      if (!unlocked) {
+        setDecryptedCall(call)
+        return
+      }
+      const meta = await decryptCallRecord(call.encryptedContent!, call.adminEnvelopes!, publicKey)
+      if (meta) {
+        setDecryptedCall({ ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber })
+      } else {
+        setDecryptedCall(call)
+      }
+    })()
   }, [call, hasNsec, publicKey])
 
   const nameMap = useMemo(() => {

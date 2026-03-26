@@ -9,7 +9,7 @@ import { useConfig } from '@/lib/config'
 import { generateKeyPair } from '@/lib/crypto'
 import { setLanguage } from '@/lib/i18n'
 import * as keyManager from '@/lib/key-manager'
-import { isValidPin } from '@/lib/key-store'
+import { isValidPin } from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
 import { LANGUAGES } from '@shared/languages'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
@@ -151,8 +151,8 @@ function OnboardingPage() {
       setPubkey(kp.publicKey)
       setConfirmedPin(pin)
 
-      // Redeem invite on server (with Schnorr signature proving key ownership)
-      await redeemInvite(inviteCode, kp.publicKey, kp.secretKey)
+      // Redeem invite on server (JWT auth handles authentication)
+      await redeemInvite(inviteCode, kp.publicKey)
 
       // Generate recovery key (shown to user instead of nsec)
       const rk = generateRecoveryKey()
@@ -175,7 +175,16 @@ function OnboardingPage() {
   async function handleComplete() {
     try {
       // Import key via key manager (encrypts with PIN and loads into memory)
-      await keyManager.importKey(nsec, confirmedPin)
+      // Onboarding flow: IdP enrollment happens after key import; use synthetic value for now
+      const syntheticIdpValue = new TextEncoder().encode('onboarding-pending')
+      await keyManager.importKey(
+        nsec,
+        confirmedPin,
+        pubkey,
+        syntheticIdpValue,
+        undefined,
+        'onboarding'
+      )
       await signIn(nsec)
       navigate({ to: '/profile-setup' })
     } catch {
