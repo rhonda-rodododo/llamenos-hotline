@@ -1,35 +1,15 @@
 /**
  * WebAuthn client-side helpers for passkey registration, login, and credential management.
  * Uses @simplewebauthn/browser for browser API interaction.
+ * Auth is handled via the auth facade client (JWT access tokens).
  */
 
-import {
-  type PublicKeyCredentialCreationOptionsJSON,
-  type PublicKeyCredentialRequestOptionsJSON,
-  startAuthentication,
-  startRegistration,
-} from '@simplewebauthn/browser'
-import * as keyManager from './key-manager'
+import { LABEL_KEK_PRF } from '@shared/crypto-labels'
+import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
+import { type WebAuthnCredentialInfo, authFacadeClient } from './auth-facade-client'
 
-const API_BASE = '/api'
-
-function getAuthHeaders(method: string, path: string): Record<string, string> {
-  // Prefer session token if available
-  const sessionToken = sessionStorage.getItem('llamenos-session-token')
-  if (sessionToken) {
-    return { Authorization: `Session ${sessionToken}` }
-  }
-  // Use key manager for Schnorr auth if unlocked
-  if (keyManager.isUnlocked()) {
-    try {
-      const token = keyManager.createAuthToken(Date.now(), method, `${API_BASE}${path}`)
-      return { Authorization: `Bearer ${token}` }
-    } catch {
-      return {}
-    }
-  }
-  return {}
-}
+// Re-export for consumers that import WebAuthnCredentialInfo from this module
+export type { WebAuthnCredentialInfo } from './auth-facade-client'
 
 /**
  * Check if WebAuthn is supported in this browser.
@@ -43,88 +23,86 @@ export function isWebAuthnAvailable(): boolean {
 }
 
 /**
+ * Request WebAuthn PRF evaluation for KEK derivation.
+ * Returns the PRF output (32 bytes) or null if PRF is not supported.
+ */
+export async function requestWebAuthnPRF(): Promise<Uint8Array | null> {
+  if (!isWebAuthnAvailable()) return null
+
+  try {
+    const saltBytes = new TextEncoder().encode(LABEL_KEK_PRF)
+    const salt: ArrayBuffer = saltBytes.buffer.slice(
+      saltBytes.byteOffset,
+      saltBytes.byteOffset + saltBytes.byteLength
+    ) as ArrayBuffer
+    const challengeBytes = new Uint8Array(32)
+    crypto.getRandomValues(challengeBytes)
+    const challenge: ArrayBuffer = challengeBytes.buffer.slice(0) as ArrayBuffer
+    const credential = (await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        rpId: window.location.hostname,
+        extensions: {
+          prf: { eval: { first: salt } },
+        },
+      },
+    })) as PublicKeyCredential
+
+    const results = credential.getClientExtensionResults() as Record<string, unknown>
+    const prf = results.prf as { results?: { first?: ArrayBuffer } } | undefined
+    if (!prf?.results?.first) return null
+
+    return new Uint8Array(prf.results.first)
+  } catch {
+    return null
+  }
+}
+
+/**
  * Register a new WebAuthn credential (passkey).
- * Requires existing auth (nsec or session token).
+ * Requires existing auth (access token via auth facade client).
  */
 export async function registerCredential(label: string): Promise<void> {
-  // 1. Get registration options from server
-  const optionsHeaders = getAuthHeaders('POST', '/webauthn/register/options')
-  const optionsRes = await fetch(`${API_BASE}/webauthn/register/options`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...optionsHeaders },
-    body: JSON.stringify({ label }),
-  })
-  if (!optionsRes.ok) throw new Error('Failed to get registration options')
-  const { challengeId, ...optionsJSON } =
-    (await optionsRes.json()) as PublicKeyCredentialCreationOptionsJSON & { challengeId: string }
+  // 1. Get registration options from server (authenticated)
+  const optionsResponse = await authFacadeClient.getRegisterOptions()
+  const { challengeId, ...optionsJSON } = optionsResponse
 
   // 2. Create credential via browser WebAuthn API
   const attestation = await startRegistration({ optionsJSON })
 
   // 3. Verify with server
-  const verifyHeaders = getAuthHeaders('POST', '/webauthn/register/verify')
-  const verifyRes = await fetch(`${API_BASE}/webauthn/register/verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...verifyHeaders },
-    body: JSON.stringify({ attestation, label, challengeId }),
-  })
-  if (!verifyRes.ok) throw new Error('Failed to verify registration')
+  await authFacadeClient.verifyRegistration(attestation, label, challengeId)
 }
 
 /**
- * Login with a passkey. Returns session token + pubkey.
+ * Login with a passkey. Returns access token + pubkey.
  * No auth required — uses discoverable credentials.
  */
 export async function loginWithPasskey(): Promise<{ token: string; pubkey: string }> {
   // 1. Get authentication options from server (no auth needed)
-  const optionsRes = await fetch(`${API_BASE}/webauthn/login/options`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  })
-  if (!optionsRes.ok) throw new Error('Failed to get authentication options')
-  const { challengeId, ...optionsJSON } =
-    (await optionsRes.json()) as PublicKeyCredentialRequestOptionsJSON & { challengeId: string }
+  const optionsResponse = await authFacadeClient.getLoginOptions()
+  const { challengeId, ...optionsJSON } = optionsResponse
 
   // 2. Authenticate via browser WebAuthn API
   const assertion = await startAuthentication({ optionsJSON })
 
-  // 3. Verify with server — returns session token
-  const verifyRes = await fetch(`${API_BASE}/webauthn/login/verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ assertion, challengeId }),
-  })
-  if (!verifyRes.ok) throw new Error('Failed to verify authentication')
-  return verifyRes.json() as Promise<{ token: string; pubkey: string }>
-}
+  // 3. Verify with server — returns access token
+  const { accessToken, pubkey } = await authFacadeClient.verifyLogin(assertion, challengeId)
 
-export interface WebAuthnCredentialInfo {
-  id: string
-  label: string
-  backedUp: boolean
-  createdAt: string
-  lastUsedAt: string
+  return { token: accessToken, pubkey }
 }
 
 /**
  * List registered credentials for the current user.
  */
 export async function listCredentials(): Promise<WebAuthnCredentialInfo[]> {
-  const headers = getAuthHeaders('GET', '/webauthn/credentials')
-  const res = await fetch(`${API_BASE}/webauthn/credentials`, { headers })
-  if (!res.ok) throw new Error('Failed to list credentials')
-  const data = (await res.json()) as { credentials: WebAuthnCredentialInfo[] }
-  return data.credentials
+  const { devices } = await authFacadeClient.listDevices()
+  return devices
 }
 
 /**
  * Delete a registered credential.
  */
 export async function deleteCredential(id: string): Promise<void> {
-  const headers = getAuthHeaders('DELETE', `/webauthn/credentials/${encodeURIComponent(id)}`)
-  const res = await fetch(`${API_BASE}/webauthn/credentials/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-    headers,
-  })
-  if (!res.ok) throw new Error('Failed to delete credential')
+  await authFacadeClient.deleteDevice(id)
 }
