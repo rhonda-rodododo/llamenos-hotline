@@ -193,8 +193,7 @@ services:
       AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASSWORD:?PG_PASSWORD is required}
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:?AUTHENTIK_BOOTSTRAP_TOKEN is required}
-    ports:
-      - "${AUTHENTIK_PORT:-9000}:9000"
+    # No host port mapping in base — override files add port mappings per environment
     depends_on:
       postgres:
         condition: service_healthy
