@@ -21,7 +21,7 @@ Tier 1 proved the crypto primitives work (ECIES, Schnorr, PBKDF2, HMAC, HKDF). T
 
 ## Non-Goals
 
-- Testing server-side encryption (covered in tier 1)
+- Standalone server-side encryption tests (covered in tier 1)
 - Testing key manager lifecycle, backup, provisioning (tier 3)
 - Integration testing against real APIs
 
@@ -166,11 +166,13 @@ Note: No `encryptNote` V1 function exists anymore — test manually constructs t
 
 Implementation note: Use `new File([bytes], 'test.txt', { type: 'text/plain' })` to create test files.
 
-### C2: `encryptMetadataForPubkey / decryptFileMetadata`
+### C2: `decryptFileMetadata` (via `encryptFile` output)
+
+`encryptMetadataForPubkey` is not exported — test `decryptFileMetadata` indirectly by extracting encrypted metadata from `encryptFile` results.
 
 | Test | Assert |
 |------|--------|
-| Roundtrip | Encrypt metadata → decrypt = original metadata object |
+| Roundtrip via encryptFile | encryptFile → extract encryptedMetadata entry → decryptFileMetadata = original metadata |
 | Fields preserved | originalName, mimeType, size, checksum all match |
 | Wrong key | Returns null |
 
