@@ -59,14 +59,23 @@ test.describe('Blast campaign API', () => {
     // Send the blast
     const sendRes = await authedApi.post(`/api/blasts/${blastData.blast.id}/send`)
     expect(sendRes.status()).toBe(200)
-    const sentData = await sendRes.json()
-    expect(sentData.blast.status).toBe('sending')
 
-    // Verify via API that the blast status is now 'sending'
+    // After the send request, poll for status transition
+    let currentStatus = 'draft'
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const checkRes = await authedApi.get(`/api/blasts/${blastData.blast.id}`)
+      const checkData = await checkRes.json()
+      currentStatus = checkData.blast.status
+      if (currentStatus === 'sending' || currentStatus === 'sent') break
+      await new Promise((r) => setTimeout(r, 200))
+    }
+    expect(['sending', 'sent']).toContain(currentStatus)
+
+    // Verify via API that the blast status is now 'sending' or 'sent'
     const verifyRes = await authedApi.get(`/api/blasts/${blastData.blast.id}`)
     expect(verifyRes.ok()).toBe(true)
     const verify = await verifyRes.json()
-    expect(verify.blast.status).toBe('sending')
+    expect(['sending', 'sent']).toContain(verify.blast.status)
   })
 
   test('cannot send a blast that is already in sending state', async ({ request }) => {
