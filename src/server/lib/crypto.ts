@@ -9,8 +9,11 @@ import {
   HMAC_IP_PREFIX,
   HMAC_PHONE_PREFIX,
   LABEL_CALL_META,
+  LABEL_HUB_KEY_WRAP,
   LABEL_MESSAGE,
   LABEL_PROVIDER_CREDENTIAL_WRAP,
+  LABEL_SERVER_NOSTR_KEY,
+  LABEL_SERVER_NOSTR_KEY_INFO,
 } from '@shared/crypto-labels'
 import type { RecipientEnvelope } from '@shared/types'
 import type { MessageKeyEnvelope } from '../types'
@@ -154,7 +157,7 @@ export function encryptCallRecordForStorage(
  * ECIES key unwrapping for a single recipient (server-side).
  * Inverse of eciesWrapKeyServer: recovers the symmetric key from an envelope.
  */
-function eciesUnwrapKeyServer(
+export function eciesUnwrapKeyServer(
   envelope: { wrappedKey: string; ephemeralPubkey: string },
   privateKey: Uint8Array,
   label: string
@@ -237,6 +240,69 @@ export function decryptBinaryFromStorage(
   const ciphertext = packed.slice(24)
   const cipher = xchacha20poly1305(dataKey, nonce)
   return cipher.decrypt(ciphertext)
+}
+
+// ── Hub Key Encryption ──
+
+/**
+ * Encrypt arbitrary data with a hub key using XChaCha20-Poly1305.
+ * Returns hex: nonce(24) + ciphertext.
+ * Server-side mirror of client-side hub-key-manager.ts function.
+ */
+export function encryptForHub(plaintext: string, hubKey: Uint8Array): string {
+  const nonce = crypto.getRandomValues(new Uint8Array(24))
+  const cipher = xchacha20poly1305(hubKey, nonce)
+  const ciphertext = cipher.encrypt(utf8ToBytes(plaintext))
+  const packed = new Uint8Array(nonce.length + ciphertext.length)
+  packed.set(nonce)
+  packed.set(ciphertext, nonce.length)
+  return bytesToHex(packed)
+}
+
+/**
+ * Decrypt hub-encrypted data using the hub key.
+ * Returns null on decryption failure.
+ */
+export function decryptFromHub(packed: string, hubKey: Uint8Array): string | null {
+  try {
+    const data = hexToBytes(packed)
+    const nonce = data.slice(0, 24)
+    const ciphertext = data.slice(24)
+    const cipher = xchacha20poly1305(hubKey, nonce)
+    const plaintext = cipher.decrypt(ciphertext)
+    return new TextDecoder().decode(plaintext)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Unwrap the hub key for server-side use (blast delivery, etc.).
+ * Derives the server's Nostr keypair from SERVER_NOSTR_SECRET via HKDF,
+ * finds the server's hub key envelope, and ECIES-unwraps the hub key.
+ *
+ * IMPORTANT: The HKDF derivation must exactly match nostr-publisher.ts.
+ */
+export function unwrapHubKeyForServer(
+  serverSecret: string,
+  envelopes: Array<{ pubkey: string; wrappedKey: string; ephemeralPubkey: string }>
+): Uint8Array {
+  const secretBytes = hexToBytes(serverSecret)
+  const serverPrivateKey = hkdf(
+    sha256,
+    secretBytes,
+    utf8ToBytes(LABEL_SERVER_NOSTR_KEY),
+    utf8ToBytes(LABEL_SERVER_NOSTR_KEY_INFO),
+    32
+  )
+  const serverPubkey = bytesToHex(secp256k1.getPublicKey(serverPrivateKey, true).slice(1))
+
+  const envelope = envelopes.find((e) => e.pubkey === serverPubkey)
+  if (!envelope) {
+    throw new Error(`No hub key envelope for server pubkey ${serverPubkey}`)
+  }
+
+  return eciesUnwrapKeyServer(envelope, serverPrivateKey, LABEL_HUB_KEY_WRAP)
 }
 
 // ── Provider Credential Encryption ──
