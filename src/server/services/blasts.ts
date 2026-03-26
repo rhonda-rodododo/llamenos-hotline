@@ -49,7 +49,14 @@ export class BlastService {
 
   async updateBlast(
     id: string,
-    data: Partial<CreateBlastData & { stats: Partial<BlastStats>; sentAt: Date }>
+    data: Partial<
+      CreateBlastData & {
+        stats: Partial<BlastStats>
+        sentAt: Date
+        scheduledAt?: Date
+        error?: string | null
+      }
+    >
   ): Promise<Blast> {
     const existing = await this.getBlast(id)
     if (!existing) throw new AppError(404, 'Blast not found')
@@ -66,6 +73,8 @@ export class BlastService {
         ...(data.targetTags !== undefined ? { targetTags: data.targetTags } : {}),
         ...(data.targetLanguages !== undefined ? { targetLanguages: data.targetLanguages } : {}),
         ...(data.sentAt !== undefined ? { sentAt: data.sentAt } : {}),
+        ...(data.scheduledAt !== undefined ? { scheduledAt: data.scheduledAt } : {}),
+        ...(data.error !== undefined ? { error: data.error } : {}),
         ...statsUpdate,
       })
       .where(eq(blasts.id, id))
@@ -117,6 +126,7 @@ export class BlastService {
         id,
         hubId: data.hubId ?? 'global',
         identifierHash: data.identifierHash,
+        ...(data.encryptedIdentifier ? { encryptedIdentifier: data.encryptedIdentifier } : {}),
         channels: data.channels ?? [],
         tags: data.tags ?? [],
         language: data.language ?? null,
@@ -182,6 +192,7 @@ export class BlastService {
         subscriberId: data.subscriberId,
         channelType: data.channelType ?? 'sms',
         status: data.status ?? 'pending',
+        ...(data.error ? { error: data.error } : {}),
       })
       .returning()
     return this.#rowToDelivery(row)
@@ -228,6 +239,8 @@ export class BlastService {
       stats: r.stats as BlastStats,
       createdAt: r.createdAt,
       sentAt: r.sentAt,
+      scheduledAt: r.scheduledAt ?? null,
+      error: r.error ?? null,
     }
   }
 
@@ -236,6 +249,7 @@ export class BlastService {
       id: r.id,
       hubId: r.hubId,
       identifierHash: r.identifierHash,
+      encryptedIdentifier: r.encryptedIdentifier ?? null,
       channels: r.channels as SubscriberChannel[],
       tags: r.tags as string[],
       language: r.language,
