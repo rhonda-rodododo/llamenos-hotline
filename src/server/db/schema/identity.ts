@@ -20,11 +20,15 @@ export const volunteers = pgTable('volunteers', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const serverSessions = pgTable('server_sessions', {
-  token: text('token').primaryKey(),
+export const jwtRevocations = pgTable('jwt_revocations', {
+  /** JWT ID (jti claim) */
+  jti: text('jti').primaryKey(),
+  /** Pubkey of the revoked user */
   pubkey: text('pubkey').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  /** When the JWT expires (rows can be cleaned up after this) */
+  expiresAt: timestamp('expires_at').notNull(),
+  /** When this revocation was created */
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
 export const webauthnCredentials = pgTable('webauthn_credentials', {

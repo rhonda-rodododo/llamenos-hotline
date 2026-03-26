@@ -120,6 +120,13 @@
       "when": 1774537200000,
       "tag": "0016_voicemail_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1774623600000,
+      "tag": "0017_jwt_revocations",
+      "breakpoints": true
     }
   ]
 }
