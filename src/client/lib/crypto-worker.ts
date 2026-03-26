@@ -11,8 +11,10 @@
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { schnorr, secp256k1 } from '@noble/curves/secp256k1.js'
+import { hkdf } from '@noble/hashes/hkdf.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
+import { LABEL_DEVICE_PROVISION, SAS_INFO, SAS_SALT } from '@shared/crypto-labels'
 
 // ---- Message protocol types ----
 
@@ -31,6 +33,7 @@ type WorkerRequest =
   | { type: 'getPublicKey'; id: string }
   | { type: 'isUnlocked'; id: string }
   | { type: 'reEncrypt'; id: string; newKekHex: string }
+  | { type: 'provisionNsec'; id: string; recipientEphemeralPubkeyHex: string }
 
 interface WorkerSuccessResponse {
   type: 'success'
@@ -261,6 +264,53 @@ function handleReEncrypt(newKekHex: string): { nonce: string; ciphertext: string
   }
 }
 
+function handleProvisionNsec(recipientEphemeralPubkeyHex: string): {
+  ciphertext: string
+  nonce: string
+  pubkey: string
+  sas: string
+} {
+  if (!secretKey || !publicKeyHex) throw new Error('Worker is locked')
+
+  // Support both x-only (64 hex chars) and compressed (66 hex chars) pubkeys
+  const recipientPub =
+    recipientEphemeralPubkeyHex.length === 64
+      ? hexToBytes(`02${recipientEphemeralPubkeyHex}`)
+      : hexToBytes(recipientEphemeralPubkeyHex)
+
+  // ECDH: our secretKey + recipient's ephemeral pubkey
+  const shared = secp256k1.getSharedSecret(secretKey, recipientPub)
+  const sharedX = shared.subarray(1, 33)
+
+  // Derive encryption key with domain separation
+  const labelBytes = utf8ToBytes(LABEL_DEVICE_PROVISION)
+  const keyInput = new Uint8Array(labelBytes.length + sharedX.length)
+  keyInput.set(labelBytes)
+  keyInput.set(sharedX, labelBytes.length)
+  const encKey = sha256(keyInput)
+
+  // Encrypt the nsec hex string
+  const nonce = randomBytes(24)
+  const cipher = xchacha20poly1305(encKey, nonce)
+  const nsecHex = bytesToHex(secretKey)
+  const ciphertext = cipher.encrypt(utf8ToBytes(nsecHex))
+
+  // Derive SAS (Short Authentication String) from the shared secret
+  // Both devices compute this independently — matching codes confirm no MITM
+  const sasBytes = hkdf(sha256, sharedX, utf8ToBytes(SAS_SALT), utf8ToBytes(SAS_INFO), 4)
+  const sasNum =
+    ((sasBytes[0] << 24) | (sasBytes[1] << 16) | (sasBytes[2] << 8) | sasBytes[3]) >>> 0
+  const sasCode = (sasNum % 1_000_000).toString().padStart(6, '0')
+  const sas = `${sasCode.slice(0, 3)} ${sasCode.slice(3)}`
+
+  return {
+    ciphertext: bytesToHex(ciphertext),
+    nonce: bytesToHex(nonce),
+    pubkey: publicKeyHex,
+    sas,
+  }
+}
+
 // ---- Message handler ----
 
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
@@ -295,6 +345,9 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         break
       case 'reEncrypt':
         result = handleReEncrypt(req.newKekHex)
+        break
+      case 'provisionNsec':
+        result = handleProvisionNsec(req.recipientEphemeralPubkeyHex)
         break
       default: {
         // Exhaustive check — if we get here, the type is never

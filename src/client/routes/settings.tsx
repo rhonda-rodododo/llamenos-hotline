@@ -18,14 +18,8 @@ import {
 import { useAuth } from '@/lib/auth'
 import { authFacadeClient } from '@/lib/auth-facade-client'
 import { cryptoWorker } from '@/lib/crypto-worker-client'
-import * as keyManager from '@/lib/key-manager'
 import { getNotificationPrefs, setNotificationPrefs } from '@/lib/notifications'
-import {
-  computeSASForPrimaryDevice,
-  getProvisioningRoom,
-  packProvisionPayload,
-  sendProvisionedKey,
-} from '@/lib/provisioning'
+import { getProvisioningRoom, packProvisionPayload, sendProvisionedKey } from '@/lib/provisioning'
 import {
   isPushSubscribed,
   isPushSupported,

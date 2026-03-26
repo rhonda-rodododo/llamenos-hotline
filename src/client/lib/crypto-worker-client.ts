@@ -31,6 +31,13 @@ interface ReEncryptResult {
   ciphertext: string
 }
 
+interface ProvisionNsecResult {
+  ciphertext: string
+  nonce: string
+  pubkey: string
+  sas: string
+}
+
 interface PendingRequest {
   resolve: (value: unknown) => void
   reject: (reason: Error) => void
@@ -160,6 +167,18 @@ export class CryptoWorkerClient {
    */
   async reEncrypt(newKekHex: string): Promise<ReEncryptResult> {
     return (await this.call({ type: 'reEncrypt', newKekHex })) as ReEncryptResult
+  }
+
+  /**
+   * Encrypt the held nsec for a recipient device using ECDH.
+   * The nsec is encrypted inside the worker and never exposed as plaintext to the main thread.
+   * Returns the encrypted payload plus our public key for the recipient to verify.
+   */
+  async provisionNsec(recipientEphemeralPubkeyHex: string): Promise<ProvisionNsecResult> {
+    return (await this.call({
+      type: 'provisionNsec',
+      recipientEphemeralPubkeyHex,
+    })) as ProvisionNsecResult
   }
 
   /**
