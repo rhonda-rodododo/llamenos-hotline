@@ -241,6 +241,15 @@ jobs:
           PG_PASSWORD: llamenos
           AUTHENTIK_SECRET_KEY: ci-test-secret-key
           AUTHENTIK_BOOTSTRAP_TOKEN: ci-bootstrap-token
+          # Required by compose variable validation (app service is disabled but vars still checked)
+          HMAC_SECRET: ${{ env.TEST_HMAC_SECRET }}
+          SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
+          JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
+          IDP_VALUE_ENCRYPTION_KEY: ${{ env.TEST_IDP_VALUE_ENCRYPTION_KEY }}
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+          ARI_PASSWORD: ci-ari-password
+          BRIDGE_SECRET: ci-bridge-secret
 
       - name: Wait for Authentik
         run: |
@@ -322,6 +331,15 @@ jobs:
           PG_PASSWORD: llamenos
           AUTHENTIK_SECRET_KEY: ci-test-secret-key
           AUTHENTIK_BOOTSTRAP_TOKEN: ci-bootstrap-token
+          # Required by compose variable validation (app service is disabled but vars still checked)
+          HMAC_SECRET: ${{ env.TEST_HMAC_SECRET }}
+          SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
+          JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
+          IDP_VALUE_ENCRYPTION_KEY: ${{ env.TEST_IDP_VALUE_ENCRYPTION_KEY }}
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+          ARI_PASSWORD: ci-ari-password
+          BRIDGE_SECRET: ci-bridge-secret
 
       - name: Wait for Authentik
         run: |
