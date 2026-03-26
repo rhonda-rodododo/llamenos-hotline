@@ -106,8 +106,8 @@ test.describe('File Custom Field', () => {
 
     await page.getByRole('button', { name: /new note/i }).click()
 
-    // File field dropzone should appear
-    await expect(page.getByTestId('file-field-dropzone')).toBeVisible()
+    // File field dropzone should appear (CI Chromium can be slow to render custom fields)
+    await expect(page.getByTestId('file-field-dropzone')).toBeVisible({ timeout: 15000 })
   })
 
   test('PATCH /api/uploads/:id/context endpoint binds context', async ({ page }) => {
@@ -231,9 +231,9 @@ test.describe('File Custom Field', () => {
     await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
     await page.getByRole('button', { name: /new note/i }).click()
 
-    // The file field dropzone should be visible
+    // The file field dropzone should be visible (CI Chromium can be slow to render custom fields)
     const dropzone = page.getByTestId('file-field-dropzone')
-    await expect(dropzone).toBeVisible()
+    await expect(dropzone).toBeVisible({ timeout: 15000 })
 
     // Verify the dropzone is interactive and the field renders correctly
     await expect(dropzone).toBeEnabled()
