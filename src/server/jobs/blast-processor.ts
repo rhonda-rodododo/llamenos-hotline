@@ -177,7 +177,7 @@ export class BlastProcessor {
 
         // Build message with opt-out footer
         const footer = OPT_OUT_FOOTERS[sub.language ?? 'en'] ?? OPT_OUT_FOOTERS.en
-        const body = `${blast.content}\n\n${footer}`
+        const body = `${blast.encryptedContent}\n\n${footer}`
 
         // Send the message
         const result = await adapter.sendMessage({

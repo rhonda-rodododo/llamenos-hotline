@@ -1,4 +1,5 @@
 import { and, eq, lte, or } from 'drizzle-orm'
+import type { RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
 import { blastDeliveries, blasts, subscribers } from '../db/schema'
 import { AppError } from '../lib/errors'
@@ -70,7 +71,7 @@ export class BlastService {
         id,
         hubId: data.hubId ?? 'global',
         name: data.name,
-        content: data.content ?? '',
+        encryptedContent: data.encryptedContent ?? '',
         targetChannels: data.targetChannels ?? [],
         targetTags: data.targetTags ?? [],
         targetLanguages: data.targetLanguages ?? [],
@@ -100,7 +101,8 @@ export class BlastService {
       .update(blasts)
       .set({
         ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.content !== undefined ? { content: data.content } : {}),
+        ...(data.encryptedContent !== undefined ? { encryptedContent: data.encryptedContent } : {}),
+        ...(data.contentEnvelopes !== undefined ? { contentEnvelopes: data.contentEnvelopes } : {}),
         ...(data.status !== undefined ? { status: data.status } : {}),
         ...(data.targetChannels !== undefined ? { targetChannels: data.targetChannels } : {}),
         ...(data.targetTags !== undefined ? { targetTags: data.targetTags } : {}),
@@ -293,7 +295,8 @@ export class BlastService {
       targetChannels: r.targetChannels as string[],
       targetTags: r.targetTags as string[],
       targetLanguages: r.targetLanguages as string[],
-      content: r.content,
+      encryptedContent: r.encryptedContent,
+      contentEnvelopes: (r.contentEnvelopes as RecipientEnvelope[]) ?? [],
       status: r.status,
       stats: r.stats as BlastStats,
       createdAt: r.createdAt,
