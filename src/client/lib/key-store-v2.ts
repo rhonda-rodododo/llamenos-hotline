@@ -22,6 +22,33 @@ import { HMAC_KEYID_PREFIX, LABEL_NSEC_KEK_2F, LABEL_NSEC_KEK_3F } from '@shared
 const STORAGE_KEY = 'llamenos-encrypted-key-v2'
 const PBKDF2_ITERATIONS = 600_000
 
+/**
+ * Known synthetic IdP issuer prefixes. Keys stored with these issuers were created
+ * before the user had a real IdP session (e.g., during onboarding, device linking,
+ * recovery, bootstrap, or demo login). The `unlock()` flow will auto-rotate these
+ * to real IdP values on first successful unlock with a valid IdP session.
+ */
+export const SYNTHETIC_ISSUERS = [
+  'bootstrap',
+  'demo',
+  'onboarding',
+  'device-link',
+  'recovery',
+] as const
+export type SyntheticIssuer = (typeof SYNTHETIC_ISSUERS)[number]
+
+/**
+ * Derive a deterministic 32-byte synthetic IdP value from an issuer string.
+ * Used during importKey when no real IdP session exists yet, and during unlock
+ * to reconstruct the same KEK for decryption before rotating to the real value.
+ *
+ * The domain-separated SHA-256 ensures consistent length (32 bytes) regardless
+ * of issuer string length.
+ */
+export function syntheticIdpValue(issuer: string): Uint8Array {
+  return sha256(new TextEncoder().encode(`llamenos:synthetic:${issuer}`))
+}
+
 export interface KEKFactors {
   pin: string
   idpValue: Uint8Array

@@ -212,13 +212,13 @@ function LoginPage() {
         const kpModule = await import('@/lib/crypto')
         const kp = kpModule.keyPairFromNsec(recoveredNsec)
         const recoveredPubkey = kp?.publicKey ?? ''
-        // Recovery flow: use synthetic IdP value; real IdP enrollment will happen after login
-        const syntheticIdpValue = new TextEncoder().encode('recovery-pending')
+        // Recovery flow: synthetic-to-real IdP rotation will happen on first unlock
+        const { syntheticIdpValue } = await import('@/lib/key-store-v2')
         await keyManager.importKey(
           recoveredNsec,
           pin,
           recoveredPubkey,
-          syntheticIdpValue,
+          syntheticIdpValue('recovery'),
           undefined,
           'recovery'
         )

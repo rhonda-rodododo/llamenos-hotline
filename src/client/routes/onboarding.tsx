@@ -175,13 +175,13 @@ function OnboardingPage() {
   async function handleComplete() {
     try {
       // Import key via key manager (encrypts with PIN and loads into memory)
-      // Onboarding flow: IdP enrollment happens after key import; use synthetic value for now
-      const syntheticIdpValue = new TextEncoder().encode('onboarding-pending')
+      // Onboarding flow: IdP enrollment happens after key import; synthetic-to-real rotation on first unlock
+      const { syntheticIdpValue } = await import('@/lib/key-store-v2')
       await keyManager.importKey(
         nsec,
         confirmedPin,
         pubkey,
-        syntheticIdpValue,
+        syntheticIdpValue('onboarding'),
         undefined,
         'onboarding'
       )

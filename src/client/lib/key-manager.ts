@@ -17,6 +17,8 @@ import { cryptoWorker } from './crypto-worker-client'
 import {
   type EncryptedKeyDataV2,
   type KEKFactors,
+  SYNTHETIC_ISSUERS,
+  type SyntheticIssuer,
   isValidPin as _isValidPin,
   clearStoredKeyV2,
   deriveKEK,
@@ -24,6 +26,7 @@ import {
   hasStoredKeyV2,
   loadEncryptedKeyV2,
   storeEncryptedKeyV2,
+  syntheticIdpValue,
 } from './key-store-v2'
 
 // --- Auto-lock ---
@@ -126,6 +129,42 @@ async function handleRotation(
   await authFacadeClient.confirmRotation()
 }
 
+/**
+ * Silently rotate a key encrypted with a synthetic IdP value to a real IdP value.
+ * Called after successful unlock when the stored blob has a synthetic issuer.
+ * If the IdP is unreachable, the rotation is skipped — it will retry on next unlock.
+ */
+async function rotateSyntheticToReal(
+  pin: string,
+  currentBlob: EncryptedKeyDataV2,
+  prfOutput?: Uint8Array
+): Promise<void> {
+  try {
+    const realUserInfo = await authFacadeClient.getUserInfo()
+    if (!realUserInfo) return // IdP not reachable — retry next unlock
+
+    const newSalt = crypto.getRandomValues(new Uint8Array(32))
+    const newKek = deriveKEK({
+      pin,
+      idpValue: realUserInfo.nsecSecret,
+      prfOutput,
+      salt: newSalt,
+    })
+    // Re-encrypt without exposing nsec to the main thread
+    const reEncrypted = await cryptoWorker.reEncrypt(bytesToHex(newKek))
+    const newBlob: EncryptedKeyDataV2 = {
+      ...currentBlob,
+      salt: bytesToHex(newSalt),
+      nonce: reEncrypted.nonce,
+      ciphertext: reEncrypted.ciphertext,
+      idpIssuer: realUserInfo.pubkey,
+    }
+    storeEncryptedKeyV2(newBlob)
+  } catch {
+    // IdP not reachable or re-encryption failed — rotation will happen on next unlock
+  }
+}
+
 // --- Public API ---
 
 /**
@@ -137,11 +176,24 @@ export async function unlock(pin: string): Promise<string | null> {
   const blob = loadEncryptedKeyV2()
   if (!blob) return null
 
-  // 1. Fetch idp_value from facade (requires valid session)
-  const userInfo = await authFacadeClient.getUserInfo()
-  if (!userInfo) return null
+  // 1. Determine if blob was encrypted with a synthetic IdP value
+  const isSynthetic = (SYNTHETIC_ISSUERS as readonly string[]).includes(blob.idpIssuer)
 
-  // 2. Request PRF if this device uses it
+  // 2. Resolve IdP value for KEK derivation
+  let idpValue: Uint8Array
+  let userInfo: UserInfo | null = null
+
+  if (isSynthetic) {
+    // Use the deterministic synthetic value that was used during importKey
+    idpValue = syntheticIdpValue(blob.idpIssuer)
+  } else {
+    // Fetch real IdP value from facade (requires valid session)
+    userInfo = await authFacadeClient.getUserInfo()
+    if (!userInfo) return null
+    idpValue = userInfo.nsecSecret
+  }
+
+  // 3. Request PRF if this device uses it
   let prfOutput: Uint8Array | undefined
   if (blob.prfUsed) {
     // requestWebAuthnPRF is Task 12 — dynamically import to handle absence
@@ -156,20 +208,25 @@ export async function unlock(pin: string): Promise<string | null> {
     }
   }
 
-  // 3. Derive KEK
+  // 4. Derive KEK
   const salt = hexToBytes(blob.salt)
-  const kek = deriveKEK({ pin, idpValue: userInfo.nsecSecret, prfOutput, salt })
+  const kek = deriveKEK({ pin, idpValue, prfOutput, salt })
 
-  // 4. Send to worker for decryption
+  // 5. Send to worker for decryption
   try {
     const pubkey = await cryptoWorker.unlock(bytesToHex(kek), blob.nonce, blob.ciphertext)
     if (pubkey) {
       resetAutoLockTimers()
       notifyCallbacks(unlockCallbacks)
 
-      // Handle idp_value rotation if pending
-      if (userInfo.pendingRotation) {
+      // Handle idp_value rotation if pending (real IdP changed)
+      if (userInfo?.pendingRotation) {
         await handleRotation(pin, blob, userInfo, prfOutput)
+      }
+
+      // Auto-rotate synthetic issuer to real IdP value (silent, no user interaction)
+      if (isSynthetic) {
+        await rotateSyntheticToReal(pin, blob, prfOutput)
       }
     }
     return pubkey

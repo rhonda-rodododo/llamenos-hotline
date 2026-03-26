@@ -16,9 +16,16 @@ import {
   updateMyTranscriptionPreference,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { authFacadeClient } from '@/lib/auth-facade-client'
+import { cryptoWorker } from '@/lib/crypto-worker-client'
 import * as keyManager from '@/lib/key-manager'
 import { getNotificationPrefs, setNotificationPrefs } from '@/lib/notifications'
-import { getProvisioningRoom } from '@/lib/provisioning'
+import {
+  computeSASForPrimaryDevice,
+  getProvisioningRoom,
+  packProvisionPayload,
+  sendProvisionedKey,
+} from '@/lib/provisioning'
 import {
   isPushSubscribed,
   isPushSupported,
@@ -877,21 +884,23 @@ function LinkDeviceSection() {
         return
       }
 
-      // Device provisioning requires worker-level nsec export — pending Task 15d
-      // TODO: Add worker API for device provisioning (nsec export + ECDH + SAS)
-      const workerPubkey = await keyManager.getPublicKeyHex()
-      if (!workerPubkey) {
-        setStatus('error')
-        setStatusMessage(t('pin.keyLocked'))
-        return
-      }
+      // Encrypt the nsec inside the worker via ECDH with the new device's ephemeral pubkey.
+      // The worker also computes the SAS from the shared secret — both devices derive the
+      // same 6-digit code independently, confirming no MITM is present.
+      const workerResult = await cryptoWorker.provisionNsec(room.ephemeralPubkey)
 
-      // Placeholder: device linking from primary requires nsec export from worker
-      // This will be implemented as a dedicated worker message type
-      setStatus('error')
-      setStatusMessage(
-        'Device linking from this device is temporarily unavailable while the key isolation upgrade is in progress.'
-      )
+      // Pack into wire format and send
+      const { encryptedNsec, primaryPubkey } = packProvisionPayload(workerResult)
+      const accessToken = authFacadeClient.getAccessToken()
+      const authHeaders: Record<string, string> = accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : {}
+      await sendProvisionedKey(roomId, accessToken ?? '', encryptedNsec, primaryPubkey, authHeaders)
+
+      // Show SAS for user to verify against the new device's display
+      setSasCode(workerResult.sas)
+      setStatusMessage(t('deviceLink.keySent'))
+      setStatus('verify-sas')
     } catch {
       setStatus('error')
       setStatusMessage(t('deviceLink.linkFailed'))

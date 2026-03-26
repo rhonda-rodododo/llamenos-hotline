@@ -171,9 +171,16 @@ export function AdminBootstrap({ onComplete }: AdminBootstrapProps) {
   async function handleComplete() {
     try {
       // Import key via key manager (encrypts with PIN and loads into memory)
-      // Bootstrap flow: IdP session should already exist; use synthetic value if not available
-      const demoIdpValue = new TextEncoder().encode('bootstrap-idp-value')
-      await keyManager.importKey(nsec, confirmedPin, pubkey, demoIdpValue, undefined, 'bootstrap')
+      // Bootstrap flow: synthetic-to-real IdP rotation will happen on first unlock
+      const { syntheticIdpValue } = await import('@/lib/key-store-v2')
+      await keyManager.importKey(
+        nsec,
+        confirmedPin,
+        pubkey,
+        syntheticIdpValue('bootstrap'),
+        undefined,
+        'bootstrap'
+      )
       // Mark bootstrap as complete BEFORE signIn triggers re-renders
       sessionStorage.setItem('bootstrapComplete', '1')
       await signIn(nsec)

@@ -141,11 +141,18 @@ function LinkDevicePage() {
       return
     }
     try {
-      // Device linking: use synthetic IdP value; real IdP enrollment will happen at first login
-      const syntheticIdpValue = new TextEncoder().encode('device-link-pending')
+      // Device linking: use synthetic IdP value; real IdP rotation will happen at first unlock
+      const { syntheticIdpValue } = await import('@/lib/key-store-v2')
       const kp = await import('@/lib/crypto').then((m) => m.keyPairFromNsec(nsec))
       const linkPubkey = kp?.publicKey ?? ''
-      await keyManager.importKey(nsec, pin, linkPubkey, syntheticIdpValue, undefined, 'device-link')
+      await keyManager.importKey(
+        nsec,
+        pin,
+        linkPubkey,
+        syntheticIdpValue('device-link'),
+        undefined,
+        'device-link'
+      )
       // Zero out nsec from memory
       setNsec('')
       setStep('done')

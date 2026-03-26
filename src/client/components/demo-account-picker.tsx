@@ -48,9 +48,16 @@ export function DemoAccountPicker() {
     setLoadingPubkey(pubkey)
     try {
       // Import key with demo PIN so it persists in local storage
-      // Demo mode uses a synthetic IdP value (not a real IdP session)
-      const demoIdpValue = new TextEncoder().encode('demo-idp-value')
-      await keyManager.importKey(nsec, DEMO_PIN, pubkey, demoIdpValue, undefined, 'demo')
+      // Demo mode uses a synthetic IdP value; rotation to real IdP on first unlock
+      const { syntheticIdpValue } = await import('@/lib/key-store-v2')
+      await keyManager.importKey(
+        nsec,
+        DEMO_PIN,
+        pubkey,
+        syntheticIdpValue('demo'),
+        undefined,
+        'demo'
+      )
       // Disable auto-lock in demo mode — frequent tab switches shouldn't force re-login
       keyManager.disableAutoLock()
       await signIn(nsec)
