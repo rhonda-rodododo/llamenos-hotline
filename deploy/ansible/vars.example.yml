@@ -27,6 +27,12 @@ domain: hotline.example.org
 # REQUIRED: Email for Let's Encrypt certificate notifications
 acme_email: admin@example.org
 
+# OPTIONAL: TLS mode for Caddy (default: acme = Let's Encrypt)
+# - acme: Production — auto-provisions TLS via Let's Encrypt (requires public DNS)
+# - internal: Staging/testing — uses Caddy's built-in CA (self-signed)
+# - off: HTTP only — NOT recommended (crypto.subtle requires HTTPS)
+# tls_mode: acme
+
 # ─── SSH Hardening ───────────────────────────────────────────────
 # OPTIONAL: Port to move SSH to (default 22 is heavily targeted by bots)
 ssh_port: 2222
@@ -90,6 +96,12 @@ pg_pool_size: 10
 minio_access_key: "eeeeeeeeeeeeeeeeeeeeeeee"
 minio_secret_key: "ffffffffffffffffffffffff"
 minio_bucket: llamenos-files
+
+# OPTIONAL: Least-privilege app credentials for MinIO (created by init-minio.sh)
+# If set, the app uses these instead of root credentials.
+# Generate with: openssl rand -base64 24
+minio_app_user: llamenos-app
+minio_app_password: "gggggggggggggggggggggggg"
 
 # ─── Telephony (Twilio) ─────────────────────────────────────────
 # OPTIONAL: Leave empty if configuring via the admin UI or using Asterisk
