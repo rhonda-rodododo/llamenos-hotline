@@ -478,7 +478,7 @@ src/client/
 | File / Code | Reason |
 |-------------|--------|
 | `src/server/routes/webauthn.ts` | Replaced by `src/server/routes/auth.ts` |
-| Schnorr auth in `src/server/lib/auth.ts` | No longer a server auth method |
+| Schnorr auth in `src/server/lib/auth.ts` | No longer a server auth method. Also remove/deprecate `AUTH_PREFIX` from `crypto-labels.ts`. |
 | `serverSessions` table + methods | Replaced by JWTs |
 | Custom login rate limiting | Facade handles uniformly |
 
@@ -520,7 +520,7 @@ AUTH_WEBAUTHN_ORIGIN=https://app.llamenos.org
 **Follow-up specs:**
 - `KeycloakAdapter`, `GenericOIDCAdapter`
 - Multi-tenant hosted Authentik instance
-- Account recovery flow
+- Extended account recovery (social recovery, backup codes)
 - IdP audit event federation
 
 ## WebAuthn Desktop Support
