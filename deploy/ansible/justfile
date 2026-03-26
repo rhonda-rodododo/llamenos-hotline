@@ -108,6 +108,78 @@ encrypt-demo-vars:
 edit-demo-vars:
     ansible-vault edit demo_vars.yml
 
+# ─── Local VM Testing (Tart on Mac) ──────────────────────────────
+# Requires: Tart + Docker on Mac, SSH access as 'mac'
+# See: docs/plans/2026-03-25-local-vm-ansible-testing.md
+
+# Create and configure a fresh Tart VM for testing
+vm-create:
+    ssh mac 'source ~/.zprofile && tart clone ghcr.io/cirruslabs/ubuntu:24.04 llamenos-test && tart set llamenos-test --cpu 2 --memory 4096 --disk-size 20'
+
+# Start the VM headless
+vm-start:
+    ssh mac 'source ~/.zprofile && tart run llamenos-test --no-graphics &'
+    @echo "Waiting for VM to boot..."
+    @sleep 10
+    @ssh mac 'source ~/.zprofile && tart ip llamenos-test'
+
+# Stop the VM
+vm-stop:
+    ssh mac 'source ~/.zprofile && tart stop llamenos-test'
+
+# Destroy the VM
+vm-destroy:
+    ssh mac 'source ~/.zprofile && tart delete llamenos-test'
+
+# Show VM IP
+vm-ip:
+    @ssh mac 'source ~/.zprofile && tart ip llamenos-test'
+
+# SSH into the VM through the Mac
+vm-ssh:
+    ssh -J mac admin@$(ssh mac 'source ~/.zprofile && tart ip llamenos-test')
+
+# Build the Docker image on the Mac (ARM64 native)
+vm-build-image:
+    ssh mac 'cd ~/projects/llamenos-hotline && docker build -f deploy/docker/Dockerfile -t llamenos:local .'
+
+# Load the built image into the VM
+vm-load-image:
+    ssh mac 'source ~/.zprofile && docker save llamenos:local | gzip | ssh admin@$(tart ip llamenos-test) "gunzip | sudo docker load"'
+
+# Deploy to the VM using Ansible (run from Mac)
+vm-deploy *ARGS:
+    ssh mac 'cd ~/projects/llamenos-hotline/deploy/ansible && source ~/.zprofile && ansible-playbook setup.yml -i inventory-local-vm.yml --extra-vars "@vars-local-vm.yml" {{ARGS}}'
+
+# Deploy only app changes (skip hardening)
+vm-deploy-app *ARGS:
+    ssh mac 'cd ~/projects/llamenos-hotline/deploy/ansible && source ~/.zprofile && ansible-playbook playbooks/deploy.yml -i inventory-local-vm.yml --extra-vars "@vars-local-vm.yml" {{ARGS}}'
+
+# Update app (pull new image + restart with health check)
+vm-update *ARGS:
+    ssh mac 'cd ~/projects/llamenos-hotline/deploy/ansible && source ~/.zprofile && ansible-playbook playbooks/update.yml -i inventory-local-vm.yml --extra-vars "@vars-local-vm.yml" {{ARGS}}'
+
+# Run E2E tests against the VM from the Mac
+vm-test *ARGS:
+    ssh mac 'cd ~/projects/llamenos-hotline && npx playwright test --config playwright.vm.config.ts {{ARGS}}'
+
+# Full cycle: build image, load into VM, deploy, run tests
+vm-cycle:
+    just vm-build-image
+    just vm-load-image
+    just vm-deploy-app
+    just vm-test
+
+# Snapshot the VM for fast iteration resets
+vm-snapshot:
+    ssh mac 'source ~/.zprofile && tart stop llamenos-test && tart clone llamenos-test llamenos-test-snapshot'
+    @echo "Snapshot created. Restore with: just vm-restore"
+
+# Restore VM from snapshot
+vm-restore:
+    ssh mac 'source ~/.zprofile && tart stop llamenos-test 2>/dev/null; tart delete llamenos-test 2>/dev/null; tart clone llamenos-test-snapshot llamenos-test'
+    just vm-start
+
 # Generate secrets for a new deployment
 generate-secrets:
     #!/usr/bin/env bash
@@ -118,6 +190,8 @@ generate-secrets:
     echo "hmac_secret: $(openssl rand -hex 32)"
     echo "minio_access_key: $(openssl rand -base64 24)"
     echo "minio_secret_key: $(openssl rand -base64 24)"
+    echo "minio_app_user: llamenos-app"
+    echo "minio_app_password: $(openssl rand -base64 24)"
     echo "ari_password: $(openssl rand -base64 24)"
     echo "bridge_secret: $(openssl rand -base64 24)"
     echo ""

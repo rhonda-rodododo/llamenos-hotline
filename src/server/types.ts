@@ -837,6 +837,8 @@ export interface Blast {
   stats: BlastStats
   createdAt: Date
   sentAt?: Date | null
+  scheduledAt: Date | null
+  error: string | null
 }
 
 export interface CreateBlastData {
@@ -847,12 +849,14 @@ export interface CreateBlastData {
   targetLanguages?: string[]
   content?: string
   status?: string
+  scheduledAt?: Date
 }
 
 export interface Subscriber {
   id: string
   hubId: string
   identifierHash: string
+  encryptedIdentifier: string | null
   channels: SubscriberChannel[]
   tags: string[]
   language?: string | null
@@ -866,6 +870,7 @@ export interface Subscriber {
 export interface CreateSubscriberData {
   hubId?: string
   identifierHash: string
+  encryptedIdentifier?: string
   channels?: SubscriberChannel[]
   tags?: string[]
   language?: string
@@ -889,4 +894,5 @@ export interface CreateDeliveryData {
   subscriberId: string
   channelType?: string
   status?: string
+  error?: string
 }

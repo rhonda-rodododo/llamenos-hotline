@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.0] - 2026-03-26
+
+### Documentation
+
+- add IdP auth facade & multi-factor nsec hardening spec
+- address spec review findings for IdP auth hardening
+- address R2 review suggestions for IdP auth hardening spec
+- production E2E testing plan with secure context analysis
+- add blast delivery engine design spec
+- add Bun native crypto note to IdP auth hardening spec
+- address spec review feedback for blast delivery engine
+- add IdP auth hardening implementation plan
+- address plan review findings for IdP auth hardening
+- add blast delivery engine implementation plan
+
+### Features
+
+- blast delivery engine — background processor with batching and rate limiting
+
+### Miscellaneous
+
+- v0.26.0 [skip ci]
+
+## [0.25.2] - 2026-03-26
+
+### Bug Fixes
+
+- ansible deploy improvements for E2E testing
+- run key encryption in browser to fix cross-platform tests
+
+### Miscellaneous
+
+- v0.25.2 [skip ci]
+
 ## [0.25.1] - 2026-03-26
 
 ### Bug Fixes

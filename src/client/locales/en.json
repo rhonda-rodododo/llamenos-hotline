@@ -1436,5 +1436,8 @@
     "testConnection": "Test Connection",
     "testSuccess": "Connection successful ({{latency}}ms)",
     "testFailed": "Connection test failed"
+  },
+  "blast": {
+    "optOutFooter": "Reply STOP to unsubscribe"
   }
 }

@@ -3,6 +3,7 @@ pre-commit:
   jobs:
     - name: lint-fix
       glob: "*.{ts,tsx,js,jsx}"
+      exclude: "*.config.{ts,js,mjs}"
       run: |
         bunx biome check --write --files-ignore-unknown=true {staged_files} >/dev/null 2>&1
         bunx biome check --diagnostic-level=error --files-ignore-unknown=true {staged_files}

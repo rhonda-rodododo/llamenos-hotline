@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, lte, or } from 'drizzle-orm'
 import type { Database } from '../db'
 import { blastDeliveries, blasts, subscribers } from '../db/schema'
 import { AppError } from '../lib/errors'
@@ -12,6 +12,39 @@ import type {
   Subscriber,
   SubscriberChannel,
 } from '../types'
+
+/** Pure filter: does a subscriber match the blast's targeting criteria? */
+export function matchesBlastFilters(
+  sub: Subscriber,
+  targetChannels: string[],
+  targetTags: string[],
+  targetLanguages: string[]
+): boolean {
+  if (sub.status !== 'active') return false
+  if (!sub.encryptedIdentifier) return false
+  if (targetChannels.length > 0) {
+    const hasVerifiedMatch = (sub.channels as SubscriberChannel[]).some(
+      (ch) => ch.verified && targetChannels.includes(ch.type)
+    )
+    if (!hasVerifiedMatch) return false
+  }
+  if (targetTags.length > 0) {
+    if (!sub.tags.some((t) => targetTags.includes(t))) return false
+  }
+  if (targetLanguages.length > 0) {
+    if (!sub.language || !targetLanguages.includes(sub.language)) return false
+  }
+  return true
+}
+
+/** Pick the first verified channel matching target channels (or any verified if no filter). */
+export function selectChannel(sub: Subscriber, targetChannels: string[]): SubscriberChannel | null {
+  const channels = sub.channels as SubscriberChannel[]
+  if (targetChannels.length === 0) {
+    return channels.find((ch) => ch.verified) ?? null
+  }
+  return channels.find((ch) => ch.verified && targetChannels.includes(ch.type)) ?? null
+}
 
 export class BlastService {
   constructor(protected readonly db: Database) {}
@@ -49,7 +82,14 @@ export class BlastService {
 
   async updateBlast(
     id: string,
-    data: Partial<CreateBlastData & { stats: Partial<BlastStats>; sentAt: Date }>
+    data: Partial<
+      CreateBlastData & {
+        stats: Partial<BlastStats>
+        sentAt: Date
+        scheduledAt?: Date
+        error?: string | null
+      }
+    >
   ): Promise<Blast> {
     const existing = await this.getBlast(id)
     if (!existing) throw new AppError(404, 'Blast not found')
@@ -66,6 +106,8 @@ export class BlastService {
         ...(data.targetTags !== undefined ? { targetTags: data.targetTags } : {}),
         ...(data.targetLanguages !== undefined ? { targetLanguages: data.targetLanguages } : {}),
         ...(data.sentAt !== undefined ? { sentAt: data.sentAt } : {}),
+        ...(data.scheduledAt !== undefined ? { scheduledAt: data.scheduledAt } : {}),
+        ...(data.error !== undefined ? { error: data.error } : {}),
         ...statsUpdate,
       })
       .where(eq(blasts.id, id))
@@ -117,6 +159,7 @@ export class BlastService {
         id,
         hubId: data.hubId ?? 'global',
         identifierHash: data.identifierHash,
+        ...(data.encryptedIdentifier ? { encryptedIdentifier: data.encryptedIdentifier } : {}),
         channels: data.channels ?? [],
         tags: data.tags ?? [],
         language: data.language ?? null,
@@ -182,6 +225,7 @@ export class BlastService {
         subscriberId: data.subscriberId,
         channelType: data.channelType ?? 'sms',
         status: data.status ?? 'pending',
+        ...(data.error ? { error: data.error } : {}),
       })
       .returning()
     return this.#rowToDelivery(row)
@@ -213,6 +257,32 @@ export class BlastService {
     return rows.map((r) => this.#rowToDelivery(r))
   }
 
+  // ------------------------------------------------------------------ Resume helpers
+
+  /** Get subscriber IDs that already have delivery records for a blast (for resume). */
+  async getDeliveredSubscriberIds(blastId: string): Promise<Set<string>> {
+    const rows = await this.db
+      .select({ subscriberId: blastDeliveries.subscriberId })
+      .from(blastDeliveries)
+      .where(eq(blastDeliveries.blastId, blastId))
+    return new Set(rows.map((r) => r.subscriberId))
+  }
+
+  /** Find blasts ready for processing (sending or due scheduled). */
+  async findBlastsToProcess(): Promise<Blast[]> {
+    const now = new Date()
+    const rows = await this.db
+      .select()
+      .from(blasts)
+      .where(
+        or(
+          eq(blasts.status, 'sending'),
+          and(eq(blasts.status, 'scheduled'), lte(blasts.scheduledAt, now))
+        )
+      )
+    return rows.map((r) => this.#rowToBlast(r))
+  }
+
   // ------------------------------------------------------------------ Private helpers
 
   #rowToBlast(r: typeof blasts.$inferSelect): Blast {
@@ -228,6 +298,8 @@ export class BlastService {
       stats: r.stats as BlastStats,
       createdAt: r.createdAt,
       sentAt: r.sentAt,
+      scheduledAt: r.scheduledAt ?? null,
+      error: r.error ?? null,
     }
   }
 
@@ -236,6 +308,7 @@ export class BlastService {
       id: r.id,
       hubId: r.hubId,
       identifierHash: r.identifierHash,
+      encryptedIdentifier: r.encryptedIdentifier ?? null,
       channels: r.channels as SubscriberChannel[],
       tags: r.tags as string[],
       language: r.language,

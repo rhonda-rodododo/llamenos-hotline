@@ -1309,5 +1309,8 @@
     "summary": "Manage channels",
     "active": "Active",
     "currentProvider": "Current voice/SMS provider:"
+  },
+  "blast": {
+    "optOutFooter": "Mag-reply ng STOP para mag-unsubscribe"
   }
 }

@@ -153,9 +153,15 @@ blasts.post('/:id/schedule', async (c) => {
   const body = (await c.req.json()) as { scheduledAt?: string }
   const blast = await services.blasts.getBlast(id)
   if (!blast) return c.json({ error: 'Blast not found' }, 404)
+  if (blast.status !== 'draft') {
+    return c.json({ error: 'Only draft blasts can be scheduled' }, 400)
+  }
+  if (!body.scheduledAt) {
+    return c.json({ error: 'scheduledAt is required' }, 400)
+  }
   const updated = await services.blasts.updateBlast(id, {
     status: 'scheduled',
-    ...(body.scheduledAt ? { sentAt: new Date(body.scheduledAt) } : {}),
+    scheduledAt: new Date(body.scheduledAt),
   })
   return c.json({ blast: blastWithParsedContent(updated) })
 })

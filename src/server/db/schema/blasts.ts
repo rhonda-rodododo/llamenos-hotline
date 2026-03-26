@@ -25,7 +25,7 @@ export const blasts = pgTable('blasts', {
   targetTags: jsonb<string[]>()('target_tags').notNull().default([]),
   /** Filter by subscriber preferred language (empty = all languages) */
   targetLanguages: jsonb<string[]>()('target_languages').notNull().default([]),
-  status: text('status').notNull().default('draft'), // 'draft' | 'sending' | 'sent' | 'failed'
+  status: text('status').notNull().default('draft'), // 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed' | 'cancelled'
   stats: jsonb<BlastStats>()('stats').notNull().default({
     totalRecipients: 0,
     sent: 0,
@@ -35,6 +35,8 @@ export const blasts = pgTable('blasts', {
   }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   sentAt: timestamp('sent_at', { withTimezone: true }),
+  scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
+  error: text('error'),
 })
 
 export const subscribers = pgTable(
@@ -45,6 +47,8 @@ export const subscribers = pgTable(
     /** HMAC-SHA256 hash of subscriber identifier (phone, email, etc.) — never plaintext.
      *  Uses HMAC_SUBSCRIBER label from crypto-labels.ts. */
     identifierHash: text('identifier_hash').notNull(),
+    /** XChaCha20-Poly1305 encrypted with hub key — hex(nonce(24) || ciphertext) */
+    encryptedIdentifier: text('encrypted_identifier'),
     /** Array of active channels with verification status */
     channels: jsonb<SubscriberChannel[]>()('channels').notNull().default([]),
     /** Subscriber-defined tags for targeting */
@@ -63,16 +67,20 @@ export const subscribers = pgTable(
   (table) => [unique().on(table.hubId, table.identifierHash)]
 )
 
-export const blastDeliveries = pgTable('blast_deliveries', {
-  id: text('id').primaryKey(),
-  blastId: text('blast_id').notNull(),
-  subscriberId: text('subscriber_id').notNull(),
-  channelType: text('channel_type').notNull().default('sms'),
-  status: text('status').notNull().default('pending'), // 'pending' | 'sent' | 'delivered' | 'failed' | 'opted_out'
-  error: text('error'),
-  sentAt: timestamp('sent_at', { withTimezone: true }),
-  deliveredAt: timestamp('delivered_at', { withTimezone: true }),
-})
+export const blastDeliveries = pgTable(
+  'blast_deliveries',
+  {
+    id: text('id').primaryKey(),
+    blastId: text('blast_id').notNull(),
+    subscriberId: text('subscriber_id').notNull(),
+    channelType: text('channel_type').notNull().default('sms'),
+    status: text('status').notNull().default('pending'), // 'pending' | 'sent' | 'delivered' | 'failed' | 'opted_out'
+    error: text('error'),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+  },
+  (table) => [unique().on(table.blastId, table.subscriberId)]
+)
 
 export const blastSettings = pgTable('blast_settings', {
   hubId: text('hub_id').primaryKey().default('global'),

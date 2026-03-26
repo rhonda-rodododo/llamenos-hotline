@@ -1,7 +1,7 @@
 # Production E2E Testing Against Ansible Deployment
 
 **Date:** 2026-03-25
-**Status:** Spec
+**Status:** In Progress
 **Depends on:** Local VM Ansible Testing (Complete)
 
 ## Problem Statement
@@ -110,3 +110,33 @@ Works for API tests but NOT for UI tests requiring `crypto.subtle`.
 
 ### Next step
 Add `/etc/hosts` entry on the Mac (one-time manual setup), switch to `tls_mode: internal` + `PLAYWRIGHT_IGNORE_HTTPS_ERRORS=1`, and run the full suite.
+
+## Fixes Applied (2026-03-26)
+
+### Fix 1: MinIO credentials — app now uses least-privilege IAM user
+**File:** `deploy/ansible/roles/llamenos/templates/env.j2`
+**Change:** `MINIO_ACCESS_KEY`/`MINIO_SECRET_KEY` now use `minio_app_user`/`minio_app_password` (falls back to root creds if not set). The Ansible deploy task already creates this user via `mc admin user add`.
+
+### Fix 2: CSP allows WebSocket over HTTP when tls_mode=off
+**File:** `deploy/ansible/roles/llamenos/templates/caddy.j2`
+**Change:** When `tls_mode: off`, CSP `connect-src` allows both `ws://` and `wss://`. HSTS header is skipped in HTTP-only mode. Production configs (`tls_mode: acme` or `internal`) are unchanged.
+
+### Fix 3: Dedicated Playwright config for VM testing
+**File:** `playwright.vm.config.ts`
+**Change:** New config with `ignoreHTTPSErrors: true`, longer timeouts for VM latency, serial execution. Usage: `npx playwright test --config playwright.vm.config.ts`
+
+### Fix 4: VM testing just commands
+**File:** `deploy/ansible/justfile`
+**Change:** Added `vm-*` commands for full lifecycle: create, build, deploy, test, snapshot/restore. Run from Mac via SSH.
+
+### Fix 5: vars.example.yml updated
+**File:** `deploy/ansible/vars.example.yml`
+**Change:** Added `tls_mode` and `minio_app_user`/`minio_app_password` documentation.
+
+## Recommended Test Configuration
+
+Use `tls_mode: internal` (NOT `off`) for VM testing:
+- `crypto.subtle` requires HTTPS — `tls_mode: off` breaks all WebCrypto operations
+- Caddy internal CA provides valid TLS without needing public DNS
+- Playwright's `ignoreHTTPSErrors: true` handles the self-signed cert
+- This is the closest simulation to production (`tls_mode: acme`)
