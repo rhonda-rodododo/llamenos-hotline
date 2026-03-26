@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, lte, or } from 'drizzle-orm'
 import type { Database } from '../db'
 import { blastDeliveries, blasts, subscribers } from '../db/schema'
 import { AppError } from '../lib/errors'
@@ -12,6 +12,39 @@ import type {
   Subscriber,
   SubscriberChannel,
 } from '../types'
+
+/** Pure filter: does a subscriber match the blast's targeting criteria? */
+export function matchesBlastFilters(
+  sub: Subscriber,
+  targetChannels: string[],
+  targetTags: string[],
+  targetLanguages: string[]
+): boolean {
+  if (sub.status !== 'active') return false
+  if (!sub.encryptedIdentifier) return false
+  if (targetChannels.length > 0) {
+    const hasVerifiedMatch = (sub.channels as SubscriberChannel[]).some(
+      (ch) => ch.verified && targetChannels.includes(ch.type)
+    )
+    if (!hasVerifiedMatch) return false
+  }
+  if (targetTags.length > 0) {
+    if (!sub.tags.some((t) => targetTags.includes(t))) return false
+  }
+  if (targetLanguages.length > 0) {
+    if (!sub.language || !targetLanguages.includes(sub.language)) return false
+  }
+  return true
+}
+
+/** Pick the first verified channel matching target channels (or any verified if no filter). */
+export function selectChannel(sub: Subscriber, targetChannels: string[]): SubscriberChannel | null {
+  const channels = sub.channels as SubscriberChannel[]
+  if (targetChannels.length === 0) {
+    return channels.find((ch) => ch.verified) ?? null
+  }
+  return channels.find((ch) => ch.verified && targetChannels.includes(ch.type)) ?? null
+}
 
 export class BlastService {
   constructor(protected readonly db: Database) {}
@@ -222,6 +255,32 @@ export class BlastService {
       .from(blastDeliveries)
       .where(eq(blastDeliveries.blastId, blastId))
     return rows.map((r) => this.#rowToDelivery(r))
+  }
+
+  // ------------------------------------------------------------------ Resume helpers
+
+  /** Get subscriber IDs that already have delivery records for a blast (for resume). */
+  async getDeliveredSubscriberIds(blastId: string): Promise<Set<string>> {
+    const rows = await this.db
+      .select({ subscriberId: blastDeliveries.subscriberId })
+      .from(blastDeliveries)
+      .where(eq(blastDeliveries.blastId, blastId))
+    return new Set(rows.map((r) => r.subscriberId))
+  }
+
+  /** Find blasts ready for processing (sending or due scheduled). */
+  async findBlastsToProcess(): Promise<Blast[]> {
+    const now = new Date()
+    const rows = await this.db
+      .select()
+      .from(blasts)
+      .where(
+        or(
+          eq(blasts.status, 'sending'),
+          and(eq(blasts.status, 'scheduled'), lte(blasts.scheduledAt, now))
+        )
+      )
+    return rows.map((r) => this.#rowToBlast(r))
   }
 
   // ------------------------------------------------------------------ Private helpers
