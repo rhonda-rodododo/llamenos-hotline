@@ -71,20 +71,24 @@ Task 3 (Authentik adapter) ──────────┘                    
 Task 4 (JWT utilities) ─────────────────────────────────────────────┤
 Task 5 (DB schema changes) ─────────────────────────────────────────┤
 Task 6 (Auth facade routes) ← depends on 2, 4, 5 ──────────────────┤
-Task 7 (Server auth middleware refactor) ← depends on 4, 6 ─────────┤
+Task 7 (Server auth middleware) ← depends on 4, 6 ─────────────────┤
 Task 8 (Crypto Web Worker) ← depends on 1 ─────────────────────────┤
 Task 9 (Key-store v2) ← depends on 1, 8 ───────────────────────────┤
-Task 10 (Key-manager refactor) ← depends on 8, 9 ──────────────────┤
+Task 10 (Key-manager refactor) ← depends on 8, 9, 11 ──────────────┤
 Task 11 (Auth facade client) ← depends on 6 ───────────────────────┤
 Task 12 (WebAuthn PRF + facade) ← depends on 11 ───────────────────┤
 Task 13 (Auth provider refactor) ← depends on 10, 11, 12 ──────────┤
 Task 14 (API client refactor) ← depends on 13 ─────────────────────┤
-Task 15 (Consumer component updates) ← depends on 10, 14 ──────────┤
+Task 15a (Crypto lib refactor) ← depends on 8, 10 ─────────────────┤
+Task 15b (Nostr relay refactor) ← depends on 8, 10 ────────────────┤
+Task 15c (UI component updates) ← depends on 10, 14 ───────────────┤
 Task 16 (Docker/Ansible Authentik) ← depends on 3 ─────────────────┤
-Task 17 (Integration tests) ← depends on all above ────────────────┘
+Task 17 (Integration tests) ← depends on all above ────────────────┤
+Task 18 (CSP headers) ← depends on 8 ──────────────────────────────┤
+Task 19 (Account recovery) ← depends on 6 ─────────────────────────┘
 ```
 
-Tasks 1-5 can run in parallel. Tasks 8-9 can run in parallel with 6-7. Task 16 is independent of client work.
+**Parallelism:** Tasks 1-5 can run in parallel. Tasks 8-9 can run in parallel with 6-7. Task 16 is independent of client work. Tasks 15a, 15b can run in parallel. Tasks 18, 19 can run in parallel with 15c.
 
 ---
 
@@ -368,10 +372,10 @@ describe('JWT utilities', () => {
     const token = await signAccessToken(
       { pubkey, permissions: [] },
       secret,
-      { expiresIn: '0s' }
+      { expiresIn: '1s' }
     )
-    // Wait a tick for expiry
-    await new Promise(r => setTimeout(r, 1100))
+    // Wait for token to expire
+    await new Promise(r => setTimeout(r, 1500))
     await expect(verifyAccessToken(token, secret)).rejects.toThrow()
   })
 
@@ -414,6 +418,7 @@ export async function signAccessToken(
   return new SignJWT({ permissions: data.permissions })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(data.pubkey)
+    .setJti(crypto.randomUUID())
     .setIssuedAt()
     .setExpirationTime(opts?.expiresIn ?? DEFAULT_EXPIRES_IN)
     .setIssuer('llamenos')
@@ -480,8 +485,9 @@ Expected: Migration file created in `src/server/db/migrations/`
 
 Grep for `serverSessions` across the codebase. Update imports in:
 - `src/server/services/identity.ts` — remove session CRUD methods
+- `src/server/services/gdpr.ts` — update GDPR data export to query `jwtRevocations` instead of `serverSessions`, update GDPR deletion to clear `jwtRevocations` for the user
 - `src/server/db/schema/index.ts` — remove export if present
-- Any test reset functions
+- Any test reset functions (e.g., `resetForTest()` in identity service)
 
 - [ ] **Step 5: Run typecheck**
 
@@ -642,8 +648,9 @@ Keep all WebAuthn methods and volunteer CRUD intact.
 
 Remove `POST /login` (Schnorr login). Update `POST /bootstrap` to work with the new auth facade. Keep `GET /me`.
 
-- [ ] **Step 5: Wire facade routes in `src/server/app.ts`**
+- [ ] **Step 5: Wire facade routes and delete old WebAuthn routes**
 
+In `src/server/app.ts`:
 ```typescript
 import { authFacadeRoutes } from './routes/auth-facade'
 // Add after existing route setup:
@@ -651,6 +658,10 @@ app.route('/auth', authFacadeRoutes)
 ```
 
 Inject the IdP adapter into the facade routes via Hono context or dependency injection.
+
+**Delete `src/server/routes/webauthn.ts`** — this file is fully replaced by `auth-facade.ts`. Remove its import from `app.ts`. If both exist, there will be duplicate endpoint conflicts.
+
+Also deprecate `AUTH_PREFIX` in `src/shared/crypto-labels.ts` by adding a `@deprecated` JSDoc comment.
 
 - [ ] **Step 6: Run typecheck + build**
 
@@ -1067,13 +1078,54 @@ export async function unlock(pin: string): Promise<string | null> {
     if (pubkey) {
       resetAutoLockTimers()
       notifyUnlockCallbacks()
+
+      // Handle idp_value rotation if pending
+      if (idpValue.pendingRotation) {
+        await handleIdpValueRotation(pin, blob, idpValue, prfOutput)
+      }
     }
     return pubkey
   } catch {
     return null
   }
 }
+
+/**
+ * Re-encrypt the nsec blob with the new idp_value and confirm rotation.
+ * Called automatically during unlock when a rotation is pending.
+ */
+async function handleIdpValueRotation(
+  pin: string,
+  currentBlob: EncryptedKeyDataV2,
+  userInfo: UserInfo,
+  prfOutput?: Uint8Array
+): Promise<void> {
+  // The nsec is already decrypted in the worker from the unlock above.
+  // We need the raw nsec hex to re-encrypt with the new idp_value.
+  // The worker exposes getPublicKey but NOT the nsec — so we ask the
+  // worker to re-export the nsec encrypted under a NEW KEK.
+  const newSalt = randomBytes(32)
+  const newKek = await deriveKEK({
+    pin,
+    idpValue: userInfo.nsecSecret, // new (current) value
+    prfOutput,
+    salt: newSalt,
+  })
+
+  // Ask worker to re-encrypt the nsec under the new KEK
+  const reEncrypted = await cryptoWorker.reEncrypt(bytesToHex(newKek))
+  const newBlob: EncryptedKeyDataV2 = {
+    ...currentBlob,
+    salt: bytesToHex(newSalt),
+    nonce: reEncrypted.nonce,
+    ciphertext: reEncrypted.ciphertext,
+  }
+  storeEncryptedKeyV2(newBlob)
+  await authFacadeClient.confirmRotation()
+}
 ```
+
+**Note:** This requires adding a `reEncrypt` operation to the crypto worker (Task 8) that re-encrypts the currently-held nsec under a new KEK without exposing the nsec to the main thread.
 
 - [ ] **Step 3: Update `lock()` to delegate to worker**
 
@@ -1455,52 +1507,113 @@ git commit -m "feat: simplify API client to JWT-only auth headers"
 
 ---
 
-## Task 15: Consumer Component Updates
+## Task 15a: Core Crypto Library Refactor
 
-**Files:** ~27 files that import from key-manager
+**Files:**
+- Modify: `src/client/lib/crypto.ts`
+- Modify: `src/client/lib/hub-key-cache.ts`
+
+**Depends on:** Task 10 (key-manager), Task 8 (crypto-worker)
+
+These files currently accept `secretKey: Uint8Array` as a parameter (passed by callers who got it from `getSecretKey()`). They must be rewritten to delegate to the crypto worker.
+
+- [ ] **Step 1: Refactor `crypto.ts` functions to use worker**
+
+Functions that currently take `secretKey` param:
+- `eciesUnwrapKey(envelope, secretKey, label)` → `eciesUnwrapKey(envelope, label)` (worker holds the key)
+- `decryptNoteV2(encrypted, secretKey)` → `decryptNoteV2(encrypted)` (worker decrypts)
+- `createAuthToken(secretKey, ...)` → DELETE (Schnorr auth removed)
+
+Functions that wrap for recipients (don't need the secret key, only the recipient's public key):
+- `eciesWrapKey(key, recipientPubkeyHex, label)` → unchanged (no secret key needed)
+- `encryptNoteV2(payload, authorPubkey, adminPubkeys)` → unchanged (uses ephemeral keys)
+
+The worker needs additional operations beyond sign/decrypt/encrypt — specifically ECIES unwrap. Add a `eciesUnwrap` message type to the worker protocol.
+
+- [ ] **Step 2: Refactor `hub-key-cache.ts`**
+
+Replace `getSecretKey()` calls with `cryptoWorker.eciesUnwrap()` for hub key unwrapping.
+
+- [ ] **Step 3: Run typecheck**
+
+Run: `bun run typecheck`
+Fix errors in callers of the changed function signatures.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/client/lib/crypto.ts src/client/lib/hub-key-cache.ts
+git commit -m "feat: refactor crypto and hub-key-cache to use worker isolation"
+```
+
+---
+
+## Task 15b: Nostr Relay Refactor
+
+**Files:**
+- Modify: `src/client/lib/nostr/relay.ts`
+
+**Depends on:** Task 10 (key-manager), Task 8 (crypto-worker)
+
+- [ ] **Step 1: Replace direct nsec signing with worker**
+
+The relay module signs Nostr events with the nsec directly. Replace with `cryptoWorker.sign()`:
+
+```typescript
+// Before: const sig = schnorr.sign(eventHash, secretKey)
+// After:  const sig = await cryptoWorker.sign(eventHashHex)
+```
+
+Event serialization (computing the event hash) stays in the main thread — only the signing step moves to the worker.
+
+- [ ] **Step 2: Run typecheck**
+
+Run: `bun run typecheck`
+Expected: PASS
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/client/lib/nostr/
+git commit -m "feat: sign Nostr relay events via crypto worker"
+```
+
+---
+
+## Task 15c: UI Component Updates (Async Lock State)
+
+**Files:** ~20 route and component files
 
 **Depends on:** Task 10 (key-manager), Task 14 (API client)
 
-This task updates all consumer files to work with the async key-manager API. The main changes:
+- [ ] **Step 1: Find all affected UI files**
 
-1. `keyManager.isUnlocked()` → `await keyManager.isUnlocked()` (now async)
-2. `keyManager.getPublicKeyHex()` → `await keyManager.getPublicKeyHex()` (now async)
-3. `keyManager.getSecretKey()` → use `cryptoWorker.sign()` / `cryptoWorker.decrypt()` / `cryptoWorker.encrypt()` instead
-4. Remove any direct use of `keyManager.createAuthToken()`
+Run: `grep -rl 'isUnlocked\|getPublicKeyHex\|getSecretKey\|createAuthToken' src/client/routes/ src/client/components/ --include='*.ts' --include='*.tsx'`
 
-- [ ] **Step 1: Find all affected files**
+- [ ] **Step 2: Establish async lock state pattern**
 
-Run: `grep -rl 'key-manager\|getSecretKey\|getNsec\|createAuthToken\|isUnlocked\|getPublicKeyHex' src/client/ --include='*.ts' --include='*.tsx'`
+Most UI files check lock state via the auth context (from `auth.tsx`). Since Task 13 already updated the auth context to track lock state via useEffect, most component changes are minimal — they read from context which is already async-aware.
 
-- [ ] **Step 2: Update each file systematically**
+For files that import `keyManager` directly (bypassing context):
+- Replace `keyManager.isUnlocked()` (sync boolean) with state from auth context
+- Replace `keyManager.getPublicKeyHex()` (sync) with value from auth context
+- Remove `keyManager.getSecretKey()` calls — use `cryptoWorker` methods
+- Remove `keyManager.createAuthToken()` calls — no longer needed
 
-For each file:
-- Replace sync `isUnlocked()` calls with async pattern (use state + effect, or await)
-- Replace `getSecretKey()` calls with appropriate crypto-worker-client method
-- Replace `createAuthToken()` with nothing (no longer needed for API calls)
-- Replace `getPublicKeyHex()` sync calls with async pattern
+- [ ] **Step 3: Update device linking route**
 
-**Key files requiring the most work:**
-- `src/client/lib/crypto.ts` — functions that accept `secretKey: Uint8Array` parameter need refactoring to delegate to the worker. Functions like `encryptNoteV2`, `decryptNoteV2`, `eciesWrapKey`, `eciesUnwrapKey` currently take a `secretKey` param passed by callers who got it from `getSecretKey()`. These need to be rewritten to call the worker's sign/decrypt/encrypt operations instead.
-- `src/client/lib/hub-key-cache.ts` — uses `getSecretKey()` for hub key unwrapping
-- `src/client/lib/nostr/relay.ts` — uses nsec for signing relay events
-- `src/client/components/` files that display lock state
+`src/client/routes/link-device.tsx` — **enforce ordering per spec**: WebAuthn registration and IdP enrollment must complete BEFORE nsec provisioning. Add a gate that checks for completed WebAuthn registration + valid IdP session before allowing the device linking protocol to proceed.
 
-- [ ] **Step 3: Run typecheck after each batch of files**
+- [ ] **Step 4: Run typecheck + build**
 
-Run: `bun run typecheck`
-Fix any remaining errors.
-
-- [ ] **Step 4: Run build**
-
-Run: `bun run build`
+Run: `bun run typecheck && bun run build`
 Expected: PASS — full client build succeeds
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add src/client/
-git commit -m "feat: update all consumer components for async key-manager and worker isolation"
+git commit -m "feat: update UI components for async key-manager and enforce device linking order"
 ```
 
 ---
@@ -1514,6 +1627,8 @@ git commit -m "feat: update all consumer components for async key-manager and wo
 **Depends on:** Task 3 (Authentik adapter)
 
 - [ ] **Step 1: Add Authentik services to docker-compose.yml**
+
+**Note:** Authentik 2025.10+ removed the Redis requirement — all caching, sessions, and task queuing use PostgreSQL. No Redis service needed.
 
 ```yaml
   authentik-server:
@@ -1561,6 +1676,8 @@ volumes:
   authentik-media:
   authentik-templates:
 ```
+
+**Verify:** After `docker compose up`, confirm Authentik starts without Redis by checking logs for successful startup (`authentik-server` should report ready on port 9000). If the 2025.12 image still requires Redis, add a `redis:alpine` service.
 
 - [ ] **Step 2: Add Authentik database creation to postgres init**
 
@@ -1647,23 +1764,148 @@ git commit -m "feat: add auth facade integration tests and update WebAuthn tests
 
 ---
 
-## CSP Headers (Cross-Cutting)
+## Task 18: CSP Headers and Security Headers
 
-During Tasks 6-8, ensure the server sets these headers:
+**Files:**
+- Create or modify: `src/server/middleware/security-headers.ts`
+- Modify: Caddy config or Hono middleware (whichever currently sets headers)
 
+**Depends on:** Task 8 (crypto worker must load under CSP)
+
+- [ ] **Step 1: Audit current external resource loading**
+
+Before setting COEP, check what external resources the app loads:
+```bash
+grep -r 'https://' src/client/ --include='*.ts' --include='*.tsx' --include='*.html' | grep -v node_modules
 ```
-Content-Security-Policy:
-  script-src 'self';
-  worker-src 'self';
-  service-worker-src 'self';
-  style-src 'self' 'unsafe-inline';
-  require-trusted-types-for 'script';
+Any CDN fonts, analytics, or external scripts will break under `Cross-Origin-Embedder-Policy: require-corp`. Document each and decide: inline it, proxy it, or add `crossorigin` attribute.
 
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: require-corp
+- [ ] **Step 2: Create security headers middleware**
+
+```typescript
+// src/server/middleware/security-headers.ts
+import type { MiddlewareHandler } from 'hono'
+
+export const securityHeaders: MiddlewareHandler = async (c, next) => {
+  await next()
+
+  // CSP
+  c.header('Content-Security-Policy', [
+    "script-src 'self'",
+    "worker-src 'self'",
+    "service-worker-src 'self'",
+    "style-src 'self' 'unsafe-inline'", // shadcn/ui needs unsafe-inline for now
+    "img-src 'self' data: blob:",
+    "connect-src 'self' wss:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+  ].join('; '))
+
+  // Cross-origin isolation for Spectre mitigation
+  c.header('Cross-Origin-Opener-Policy', 'same-origin')
+  c.header('Cross-Origin-Embedder-Policy', 'require-corp')
+
+  // Standard security headers
+  c.header('X-Content-Type-Options', 'nosniff')
+  c.header('X-Frame-Options', 'DENY')
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
+}
 ```
 
-Add these in the Hono middleware or Caddy reverse proxy config. Test that the crypto worker loads correctly under CSP restrictions.
+**Note:** `require-trusted-types-for 'script'` may break React — test carefully before enabling. Start without it and add in a follow-up if React is compatible.
+
+- [ ] **Step 3: Wire middleware in app.ts**
+
+```typescript
+import { securityHeaders } from './middleware/security-headers'
+app.use('*', securityHeaders)
+```
+
+- [ ] **Step 4: Test crypto worker loads under CSP**
+
+Run: `bun run dev:server` and open the app in a browser. Verify:
+- No CSP violation errors in console
+- Crypto worker loads and responds to messages
+- App renders correctly
+- WebAuthn operations work
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/server/middleware/security-headers.ts src/server/app.ts
+git commit -m "feat: add CSP and cross-origin isolation security headers"
+```
+
+---
+
+## Task 19: Account Recovery Endpoints
+
+**Files:**
+- Modify: `src/server/routes/auth-facade.ts` (add admin endpoints)
+
+**Depends on:** Task 6 (auth facade routes)
+
+- [ ] **Step 1: Add admin re-enrollment endpoint**
+
+```typescript
+// In auth-facade.ts, add admin-only routes:
+
+// POST /auth/admin/re-enroll/:pubkey
+// Requires admin permissions. Revokes all sessions, deregisters all credentials.
+// Volunteer must re-enroll as if setting up a new device.
+router.post('/admin/re-enroll/:pubkey', async (c) => {
+  const adminPubkey = c.get('pubkey')
+  const targetPubkey = c.req.param('pubkey')
+
+  // Verify admin permissions
+  const permissions = c.get('permissions')
+  if (!permissions.has('volunteers:update')) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  // Revoke all IdP sessions
+  await idpAdapter.revokeAllSessions(targetPubkey)
+
+  // Delete all WebAuthn credentials
+  const creds = await identity.getWebAuthnCredentials(targetPubkey)
+  for (const cred of creds) {
+    await identity.deleteWebAuthnCredential(targetPubkey, cred.id)
+  }
+
+  // Audit log
+  await audit.log({
+    action: 'volunteer.re-enrolled',
+    actorPubkey: adminPubkey,
+    targetPubkey,
+  })
+
+  return c.json({ success: true })
+})
+```
+
+- [ ] **Step 2: Add credential count warning to GET /auth/devices**
+
+When returning the device list, include a `warning` field if the user has only 1 registered credential:
+
+```typescript
+const creds = await identity.getWebAuthnCredentials(pubkey)
+return c.json({
+  devices: creds,
+  warning: creds.length === 1 ? 'Register a backup device to prevent lockout' : undefined,
+})
+```
+
+- [ ] **Step 3: Run typecheck**
+
+Run: `bun run typecheck`
+Expected: PASS
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/server/routes/auth-facade.ts
+git commit -m "feat: add admin re-enrollment and single-credential warning"
+```
 
 ---
 
@@ -1671,6 +1913,6 @@ Add these in the Hono middleware or Caddy reverse proxy config. Test that the cr
 
 After all tasks are complete and passing:
 
-- [ ] Remove or comment `AUTH_PREFIX` from `src/shared/crypto-labels.ts`
+- [ ] Remove `AUTH_PREFIX` from `src/shared/crypto-labels.ts` (deprecated in Task 7)
 - [ ] Remove old v1 key store localStorage key (`llamenos-encrypted-key`) during first v2 write
 - [ ] Update `docs/NEXT_BACKLOG.md` and `docs/COMPLETED_BACKLOG.md`
