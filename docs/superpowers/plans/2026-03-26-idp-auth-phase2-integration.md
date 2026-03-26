@@ -26,8 +26,12 @@
 
 | File | Change |
 |------|--------|
-| `deploy/docker/docker-compose.yml` | Add blueprint volume mount (server+worker), AUTHENTIK_BOOTSTRAP_TOKEN, Redis if needed |
-| `deploy/docker/docker-compose.dev.yml` | Add Authentik port offset (9100:9000), inherit from prod |
+| `deploy/docker/docker-compose.yml` | Add blueprint volume mount (server+worker), AUTHENTIK_BOOTSTRAP_TOKEN, Redis service, postgres-init mount |
+| `deploy/docker/docker-compose.dev.yml` | Add Authentik port offset (9100:9000), Redis port, inherit from prod |
+| `deploy/docker/postgres-init/01-authentik-db.sql` | Create authentik database on Postgres startup (idempotent) |
+| `src/client/lib/auth-facade-client.ts` | Add `enroll()` method |
+| `deploy/ansible/templates/docker-compose.j2` | Mirror Redis, blueprint, bootstrap token changes |
+| `deploy/docker/.env.example` | Add AUTHENTIK_BOOTSTRAP_TOKEN |
 | `.github/workflows/ci.yml` | Replace GH Actions service containers with docker-compose |
 | `src/server/server.ts:128-140` | Hard failure if IdP unavailable |
 | `src/server/app.ts:75-98` | Pass SettingsService to facade context, null-guard on idpAdapter |
@@ -59,7 +63,7 @@ Task 10 (API integration tests) ← depends on all above ───────�
 Task 11 (E2E test updates) ← depends on 9, 10 ────────────────────────┘
 ```
 
-Tasks 1, 3, 4, 7 can run in parallel. Tasks 8 is independent of server code.
+Task 1 and 7 can run in parallel. **Tasks 3 and 4 must be serialized** — both modify `auth-facade.ts`. Task 8 is independent of server code.
 
 ---
 
@@ -88,20 +92,50 @@ Create `deploy/docker/authentik-blueprints/llamenos.yaml` with entries for:
 3. OAuth2 provider linked to the property mapping (`authentik_providers_oauth2.oauth2provider`)
 4. Application linked to the provider (`authentik_core.application`)
 
-- [ ] **Step 3: Update docker-compose.yml**
+- [ ] **Step 3: Create Postgres init script**
 
-Add to `authentik-server` service:
-```yaml
-environment:
-  AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN}
-volumes:
-  - ./authentik-blueprints:/blueprints/custom
+Create `deploy/docker/postgres-init/01-authentik-db.sql`:
+
+```sql
+-- Create authentik database if it doesn't exist (idempotent)
+SELECT 'CREATE DATABASE authentik'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'authentik')\gexec
 ```
 
-Add to `authentik-worker` service:
+Verify the postgres service in docker-compose.yml mounts `./postgres-init:/docker-entrypoint-initdb.d:ro`.
+
+- [ ] **Step 4: Add Redis service to docker-compose.yml**
+
+Authentik requires Redis for its worker process. Add unconditionally:
+
 ```yaml
-volumes:
-  - ./authentik-blueprints:/blueprints/custom
+redis:
+  image: redis:7-alpine
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD", "redis-cli", "ping"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+```
+
+Add to BOTH `authentik-server` and `authentik-worker` environments:
+```yaml
+AUTHENTIK_REDIS__HOST: redis
+```
+
+Add `depends_on: redis: condition: service_healthy` to both authentik services.
+
+- [ ] **Step 5: Update docker-compose.yml — blueprint + bootstrap token**
+
+Add to `authentik-server` service environment (insert into existing env block, don't replace):
+```yaml
+AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN}
+```
+
+Add to BOTH `authentik-server` and `authentik-worker` volumes:
+```yaml
+- ./authentik-blueprints:/blueprints/custom
 ```
 
 Add to `app` service environment:
@@ -109,34 +143,41 @@ Add to `app` service environment:
 AUTHENTIK_API_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN}
 ```
 
-If Redis is still required, add:
-```yaml
-redis:
-  image: redis:7-alpine
-  restart: unless-stopped
-  healthcheck:
-    test: ["CMD", "redis-cli", "ping"]
-```
-And add `AUTHENTIK_REDIS__HOST: redis` + `depends_on` to both authentik services.
+- [ ] **Step 6: Update Ansible template**
 
-- [ ] **Step 4: Update docker-compose.dev.yml**
+Mirror all changes in `deploy/ansible/templates/docker-compose.j2`:
+- Redis service with Jinja2 vars
+- Blueprint volume mount on both authentik services
+- AUTHENTIK_BOOTSTRAP_TOKEN on authentik-server
+- AUTHENTIK_REDIS__HOST on both authentik services
 
-Add Authentik port offset for local dev:
+- [ ] **Step 7: Update docker-compose.dev.yml**
+
+Add port offsets for local dev:
 ```yaml
 authentik-server:
   ports:
     - "9100:9000"
+redis:
+  ports:
+    - "6380:6379"
 ```
 
-Update `bun run dev:docker` script in package.json if needed to include Authentik in the service list.
+Update `bun run dev:docker` script in package.json to include `authentik-server authentik-worker redis` in the service list.
 
-- [ ] **Step 5: Add AUTHENTIK_BOOTSTRAP_TOKEN to .env.dev.defaults**
+- [ ] **Step 8: Add AUTHENTIK_BOOTSTRAP_TOKEN to env files**
 
+In `.env.dev.defaults`:
 ```
 AUTHENTIK_BOOTSTRAP_TOKEN=dev-bootstrap-token-not-for-production
 ```
 
-- [ ] **Step 6: Test locally**
+In `.env.example`:
+```
+AUTHENTIK_BOOTSTRAP_TOKEN=<generate with: openssl rand -hex 32>
+```
+
+- [ ] **Step 9: Test locally**
 
 ```bash
 cd deploy/docker && docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
@@ -146,11 +187,11 @@ docker compose logs authentik-server | tail -20
 curl -s -H "Authorization: Bearer dev-bootstrap-token-not-for-production" http://localhost:9100/api/v3/core/applications/ | head
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add deploy/docker/
-git commit -m "feat: add Authentik blueprint and Docker infrastructure for all environments"
+git add deploy/
+git commit -m "feat: add Authentik blueprint, Redis, postgres-init, and Docker infrastructure"
 ```
 
 ---
@@ -224,17 +265,13 @@ git commit -m "feat: hard-fail on missing IdP, add null guard and settings bridg
 
 Read `src/server/routes/auth-facade.ts` lines 240-350 to understand the current middleware chain.
 
-- [ ] **Step 2: Remove jwtAuth from /token/refresh**
+- [ ] **Step 2: Remove jwtAuth middleware from /token/refresh**
 
-The `/token/refresh` endpoint must NOT require a valid access JWT — its whole purpose is getting a new one when the current one has expired. Authenticate via the httpOnly refresh cookie only.
+The existing handler at lines 315-347 already reads the refresh cookie, verifies the refresh JWT, and returns a new access token. The ONLY problem is line 245 which applies `jwtAuth` middleware to this route, blocking access when the access token has expired.
 
-Move `/token/refresh` from the authenticated section to a separate route that:
-1. Reads the `llamenos-refresh` cookie from the request
-2. Verifies the refresh JWT (check `type: 'refresh'` claim)
-3. Extracts pubkey from the refresh token's `sub` claim
-4. Calls `idpAdapter.refreshSession(pubkey)`
-5. Resolves permissions and signs a new access JWT
-6. Returns `{ accessToken }`
+**Fix:** Remove the `jwtAuth` middleware registration for `/token/refresh` at line 245. The handler itself already authenticates via the refresh cookie — no access JWT needed.
+
+Do NOT rewrite the handler — it's already correct. Just remove the middleware gatekeeping.
 
 - [ ] **Step 3: Run existing auth-facade tests**
 
@@ -350,21 +387,19 @@ import { getIdPAdapter } from '../app'
 After creating the volunteer in Postgres (line 41), add:
 
 ```typescript
-// Create user in Authentik
+// Create user in Authentik (required — server hard-fails without IdP)
 const idpAdapter = getIdPAdapter()
-let nsecSecretHex: string | undefined
-if (idpAdapter) {
-  try {
-    await idpAdapter.createUser(body.pubkey)
-    const nsecSecret = await idpAdapter.getNsecSecret(body.pubkey)
-    nsecSecretHex = Buffer.from(nsecSecret).toString('hex')
-  } catch (err) {
-    console.error('[bootstrap] Failed to create Authentik user:', err)
-  }
+if (!idpAdapter) {
+  return c.json({ error: 'IdP service not available' }, 503)
 }
+await idpAdapter.createUser(body.pubkey)
+const nsecSecret = await idpAdapter.getNsecSecret(body.pubkey)
+const nsecSecretHex = Buffer.from(nsecSecret).toString('hex')
 
 return c.json({ ok: true, roles: result.roles, nsecSecret: nsecSecretHex })
 ```
+
+No try/catch — if Authentik enrollment fails, the bootstrap fails. This is consistent with the hard-fail philosophy. The admin must fix the infrastructure before proceeding.
 
 - [ ] **Step 3: Run typecheck**
 
@@ -565,10 +600,10 @@ steps:
       AUTHENTIK_BOOTSTRAP_TOKEN: ci-bootstrap-token
       # ... other required env vars
 
-  - name: Wait for services
+  - name: Wait for Authentik
     run: |
       for i in $(seq 1 60); do
-        docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.ci.yml ps --format json | grep -q '"Health":"healthy"' && break
+        curl -sf http://localhost:9100/-/health/ready/ && break
         sleep 5
       done
 
