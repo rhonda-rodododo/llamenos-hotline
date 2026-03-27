@@ -98,6 +98,13 @@ async function main() {
       admin: iamAvailable ? admin : undefined,
     })
     console.log('[llamenos] RustFS storage manager connected')
+
+    // Ensure the "global" fallback buckets exist for operations without hub context
+    try {
+      await storage.provisionHub('global')
+    } catch {
+      // Buckets may already exist — safe to ignore
+    }
   } catch {
     console.warn('[llamenos] Storage not configured — file upload/download routes will return 503')
   }
