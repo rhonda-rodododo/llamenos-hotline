@@ -33,6 +33,9 @@ export const LABEL_TRANSCRIPTION = 'llamenos:transcription'
 /** E2EE message encryption (Epic 74) */
 export const LABEL_MESSAGE = 'llamenos:message'
 
+/** Blast content ECIES envelope encryption */
+export const LABEL_BLAST_CONTENT = 'llamenos:blast-content'
+
 /** Encrypted call record metadata (Epic 77) — call assignments in history */
 export const LABEL_CALL_META = 'llamenos:call-meta'
 

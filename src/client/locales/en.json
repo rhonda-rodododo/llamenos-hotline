@@ -1368,6 +1368,7 @@
     "failed": "Failed",
     "sent": "Blast sent",
     "fillRequired": "Please fill in name and message",
+    "encryptedContent": "Encrypted content",
     "subscribers": "Subscribers",
     "settings": "Settings",
     "totalSubscribers": "Total",

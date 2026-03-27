@@ -828,7 +828,8 @@ export interface Blast {
   targetChannels: string[]
   targetTags: string[]
   targetLanguages: string[]
-  content: string
+  encryptedContent: string
+  contentEnvelopes: RecipientEnvelope[]
   status: string
   stats: BlastStats
   createdAt: Date
@@ -843,7 +844,8 @@ export interface CreateBlastData {
   targetChannels?: string[]
   targetTags?: string[]
   targetLanguages?: string[]
-  content?: string
+  encryptedContent?: string
+  contentEnvelopes?: RecipientEnvelope[]
   status?: string
   scheduledAt?: Date
 }

@@ -4,6 +4,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createBlast } from '@/lib/api'
 import type { Blast } from '@/lib/api'
+import { useConfig } from '@/lib/config'
+import { encryptBlastContent } from '@/lib/crypto'
+import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
 import { Save } from 'lucide-react'
 import { useState } from 'react'
@@ -17,6 +20,7 @@ interface BlastComposerProps {
 export function BlastComposer({ onCreated, onCancel }: BlastComposerProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { serverNostrPubkey } = useConfig()
   const [name, setName] = useState('')
   const [text, setText] = useState('')
   const [channels, setChannels] = useState<string[]>(['sms'])
@@ -36,9 +40,21 @@ export function BlastComposer({ onCreated, onCancel }: BlastComposerProps) {
     }
     setSaving(true)
     try {
+      const adminPubkey = keyManager.getPublicKeyHex()
+      if (!adminPubkey) {
+        toast(t('common.error'), 'error')
+        setSaving(false)
+        return
+      }
+      const recipientPubkeys = [adminPubkey, ...(serverNostrPubkey ? [serverNostrPubkey] : [])]
+      const { encryptedContent, contentEnvelopes } = encryptBlastContent(
+        { text: text.trim() },
+        recipientPubkeys
+      )
       const res = await createBlast({
         name: name.trim(),
-        content: { text: text.trim() },
+        encryptedContent,
+        contentEnvelopes,
         targetChannels: channels,
       })
       onCreated(res.blast)
