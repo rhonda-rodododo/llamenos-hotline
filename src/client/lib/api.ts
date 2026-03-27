@@ -1840,7 +1840,13 @@ export async function deleteHub(hubId: string) {
   return request<{ ok: true }>(`/hubs/${hubId}`, { method: 'DELETE' })
 }
 
-export type HubExportCategory = 'notes' | 'calls' | 'conversations' | 'audit'
+export type HubExportCategory =
+  | 'notes'
+  | 'calls'
+  | 'conversations'
+  | 'audit'
+  | 'voicemails'
+  | 'attachments'
 
 export async function exportHubData(hubId: string, categories: HubExportCategory[]) {
   const params = new URLSearchParams({ categories: categories.join(',') })

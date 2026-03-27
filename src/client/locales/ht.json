@@ -1322,7 +1322,9 @@
         "notes": "Nòt",
         "calls": "Rejis apèl",
         "conversations": "Konvèsasyon",
-        "audit": "Jounal odit"
+        "audit": "Jounal odit",
+        "voicemails": "Mesaj vokal",
+        "attachments": "Fichye atache"
       },
       "download": "Telechaje ekspò",
       "downloading": "Ap prepare ekspò..."

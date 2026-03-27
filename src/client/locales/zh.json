@@ -1322,7 +1322,9 @@
         "notes": "笔记",
         "calls": "通话记录",
         "conversations": "对话",
-        "audit": "审计日志"
+        "audit": "审计日志",
+        "voicemails": "语音留言",
+        "attachments": "附件"
       },
       "download": "下载导出",
       "downloading": "正在准备导出..."

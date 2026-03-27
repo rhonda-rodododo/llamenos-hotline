@@ -139,12 +139,20 @@ routes.post('/:hubId/archive', requirePermission('system:manage-hubs'), async (c
   }
 })
 
-// Export hub data (super admin only — JSON download of encrypted hub records)
+// Export hub data as ZIP (super admin only — includes DB records + encrypted blob files)
 routes.get('/:hubId/export', requirePermission('system:manage-hubs'), async (c) => {
   const hubId = c.req.param('hubId')
   const services = c.get('services')
-  const categoriesParam = c.req.query('categories') || 'notes,calls,conversations,audit'
-  const validCategories = new Set(['notes', 'calls', 'conversations', 'audit'])
+  const categoriesParam =
+    c.req.query('categories') || 'notes,calls,conversations,audit,voicemails,attachments'
+  const validCategories = new Set([
+    'notes',
+    'calls',
+    'conversations',
+    'audit',
+    'voicemails',
+    'attachments',
+  ])
   const categories = categoriesParam
     .split(',')
     .map((s) => s.trim())
@@ -157,7 +165,12 @@ routes.get('/:hubId/export', requirePermission('system:manage-hubs'), async (c) 
   const hub = await services.settings.getHub(hubId)
   if (!hub) return c.json({ error: 'Hub not found' }, 404)
 
-  const exportData: Record<string, unknown> = {
+  const { zipSync, strToU8 } = await import('fflate')
+
+  const zipFiles: Record<string, Uint8Array> = {}
+
+  // Manifest with metadata
+  const manifest: Record<string, unknown> = {
     exportedAt: new Date().toISOString(),
     hubId,
     hubName: hub.name,
@@ -165,29 +178,87 @@ routes.get('/:hubId/export', requirePermission('system:manage-hubs'), async (c) 
     note: 'All content fields are E2EE ciphertext. Decryption requires the hub key.',
   }
 
+  // DB record exports as JSON files
   if (categories.includes('notes')) {
     const { notes, total } = await services.records.getNotes({ hubId })
-    exportData.notes = { total, records: notes }
+    zipFiles['records/notes.json'] = strToU8(JSON.stringify({ total, records: notes }, null, 2))
   }
   if (categories.includes('calls')) {
     const { calls, total } = await services.records.getCallHistory(1, 100_000, hubId)
-    exportData.calls = { total, records: calls }
+    zipFiles['records/calls.json'] = strToU8(JSON.stringify({ total, records: calls }, null, 2))
   }
   if (categories.includes('conversations')) {
     const { conversations, total } = await services.conversations.listConversations({ hubId })
-    exportData.conversations = { total, records: conversations }
+    zipFiles['records/conversations.json'] = strToU8(
+      JSON.stringify({ total, records: conversations }, null, 2)
+    )
   }
   if (categories.includes('audit')) {
     const { entries, total } = await services.records.getAuditLog({ hubId, limit: 100_000 })
-    exportData.audit = { total, records: entries }
+    zipFiles['records/audit.json'] = strToU8(JSON.stringify({ total, records: entries }, null, 2))
   }
 
-  const json = JSON.stringify(exportData, null, 2)
+  // Blob exports — encrypted files from object storage
+  const includeBlobs = categories.includes('voicemails') || categories.includes('attachments')
+  if (includeBlobs && services.files.hasStorage) {
+    const allFiles = await services.files.getFilesByHub(hubId)
+    let blobCount = 0
 
-  return new Response(json, {
+    for (const fileRecord of allFiles) {
+      const isVoicemail = fileRecord.contextType === 'voicemail'
+      const category = isVoicemail ? 'voicemails' : 'attachments'
+      if (!categories.includes(category)) continue
+
+      const namespace = isVoicemail ? ('voicemails' as const) : ('attachments' as const)
+      try {
+        const blob = await services.storage?.get(hubId, namespace, `${fileRecord.id}/content`)
+        if (blob) {
+          zipFiles[`${category}/${fileRecord.id}/content.bin`] = new Uint8Array(
+            await blob.arrayBuffer()
+          )
+          blobCount++
+        }
+      } catch {
+        // Skip files that can't be retrieved — may have been cleaned up by lifecycle
+      }
+
+      // Include metadata/envelopes if available
+      try {
+        const envelopes = await services.storage?.get(
+          hubId,
+          'attachments',
+          `${fileRecord.id}/envelopes`
+        )
+        if (envelopes) {
+          zipFiles[`${category}/${fileRecord.id}/envelopes.json`] = new Uint8Array(
+            await envelopes.arrayBuffer()
+          )
+        }
+      } catch {}
+      try {
+        const meta = await services.storage?.get(hubId, 'attachments', `${fileRecord.id}/metadata`)
+        if (meta) {
+          zipFiles[`${category}/${fileRecord.id}/metadata.json`] = new Uint8Array(
+            await meta.arrayBuffer()
+          )
+        }
+      } catch {}
+    }
+
+    manifest.blobsIncluded = blobCount
+    manifest.fileRecords = allFiles.length
+  }
+
+  zipFiles['manifest.json'] = strToU8(JSON.stringify(manifest, null, 2))
+
+  const zipData = zipSync(zipFiles)
+
+  const zipBuffer = new Uint8Array(zipData).buffer as ArrayBuffer
+  return new Response(zipBuffer, {
     headers: {
-      'Content-Type': 'application/json',
-      'Content-Disposition': `attachment; filename="hub-${hubId}-export.json"`,
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="hub-${hubId}-export.zip"`,
+      'Content-Length': String(zipData.length),
     },
   })
 })

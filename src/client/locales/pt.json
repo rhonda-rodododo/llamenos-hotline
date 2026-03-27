@@ -1322,7 +1322,9 @@
         "notes": "Notas",
         "calls": "Registros de chamadas",
         "conversations": "Conversas",
-        "audit": "Log de auditoria"
+        "audit": "Log de auditoria",
+        "voicemails": "Mensagens de voz",
+        "attachments": "Anexos"
       },
       "download": "Baixar exportação",
       "downloading": "Preparando exportação..."

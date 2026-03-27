@@ -1322,7 +1322,9 @@
         "notes": "Ghi chú",
         "calls": "Bản ghi cuộc gọi",
         "conversations": "Cuộc trò chuyện",
-        "audit": "Nhật ký kiểm tra"
+        "audit": "Nhật ký kiểm tra",
+        "voicemails": "Thư thoại",
+        "attachments": "Tệp đính kèm"
       },
       "download": "Tải xuất",
       "downloading": "Đang chuẩn bị xuất..."

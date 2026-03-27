@@ -106,6 +106,11 @@ export class FilesService {
     return rows.map((r) => this.#rowToFileRecord(r))
   }
 
+  async getFilesByHub(hubId: string): Promise<FileRecord[]> {
+    const rows = await this.db.select().from(fileRecords).where(eq(fileRecords.hubId, hubId))
+    return rows.map((r) => this.#rowToFileRecord(r))
+  }
+
   async addRecipientEnvelope(
     id: string,
     envelope: FileKeyEnvelope,

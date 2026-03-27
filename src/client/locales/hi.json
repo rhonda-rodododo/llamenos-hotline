@@ -1322,7 +1322,9 @@
         "notes": "नोट्स",
         "calls": "कॉल रिकॉर्ड",
         "conversations": "वार्तालाप",
-        "audit": "ऑडिट लॉग"
+        "audit": "ऑडिट लॉग",
+        "voicemails": "वॉइसमेल",
+        "attachments": "अटैचमेंट"
       },
       "download": "निर्यात डाउनलोड करें",
       "downloading": "निर्यात तैयार हो रहा है..."

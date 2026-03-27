@@ -618,6 +618,8 @@ const EXPORT_CATEGORIES: { key: HubExportCategory; labelKey: string }[] = [
   { key: 'calls', labelKey: 'hub.export.categories.calls' },
   { key: 'conversations', labelKey: 'hub.export.categories.conversations' },
   { key: 'audit', labelKey: 'hub.export.categories.audit' },
+  { key: 'voicemails', labelKey: 'hub.export.categories.voicemails' },
+  { key: 'attachments', labelKey: 'hub.export.categories.attachments' },
 ]
 
 function DeleteHubDialog({
@@ -664,7 +666,7 @@ function DeleteHubDialog({
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `hub-${hub.id}-export.json`
+      a.download = `hub-${hub.id}-export.zip`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)

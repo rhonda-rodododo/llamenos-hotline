@@ -1330,7 +1330,9 @@
         "notes": "Notas",
         "calls": "Registros de llamadas",
         "conversations": "Conversaciones",
-        "audit": "Registro de auditoría"
+        "audit": "Registro de auditoría",
+        "voicemails": "Mensajes de voz",
+        "attachments": "Archivos adjuntos"
       },
       "download": "Descargar exportación",
       "downloading": "Preparando exportación..."
