@@ -48,10 +48,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
@@ -78,10 +78,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
 
       - name: Scan Dockerfile.build with Trivy
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947e7f3b01b8e110e21 # v0.28.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: 'config'
           scan-ref: 'Dockerfile.build'
@@ -91,7 +91,7 @@ jobs:
           exit-code: '0'
 
       - name: Scan deploy/docker/Dockerfile with Trivy
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947e7f3b01b8e110e21 # v0.28.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: 'config'
           scan-ref: 'deploy/docker/Dockerfile'
@@ -101,7 +101,7 @@ jobs:
           exit-code: '0'
 
       - name: Scan Docker Compose files with Trivy
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947e7f3b01b8e110e21 # v0.28.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: 'config'
           scan-ref: 'deploy/docker'
@@ -111,21 +111,21 @@ jobs:
           exit-code: '0'
 
       - name: Upload Dockerfile.build scan results
-        uses: github/codeql-action/upload-sarif@45580472a5bb82c4681c4ac726cfdb60060c2ee1 # v3
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'dockerfile-build-results.sarif'
           category: 'dockerfile-build'
 
       - name: Upload deploy Dockerfile scan results
-        uses: github/codeql-action/upload-sarif@45580472a5bb82c4681c4ac726cfdb60060c2ee1 # v3
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'dockerfile-deploy-results.sarif'
           category: 'dockerfile-deploy'
 
       - name: Upload Docker Compose scan results
-        uses: github/codeql-action/upload-sarif@45580472a5bb82c4681c4ac726cfdb60060c2ee1 # v3
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'docker-compose-results.sarif'
@@ -154,13 +154,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+        uses: docker/setup-buildx-action@v3
 
       - name: Build image for scanning
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198571cfb76f00 # v6.12.0
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ matrix.image.dockerfile }}
@@ -170,7 +170,7 @@ jobs:
           cache-from: type=gha
 
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947e7f3b01b8e110e21 # v0.28.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: 'llamenos-scan:latest'
           format: 'sarif'
@@ -179,14 +179,14 @@ jobs:
           exit-code: '0'
 
       - name: Upload image scan results
-        uses: github/codeql-action/upload-sarif@45580472a5bb82c4681c4ac726cfdb60060c2ee1 # v3
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'image-results.sarif'
           category: 'image-scan'
 
       - name: Scan image with Trivy (table output for review)
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947e7f3b01b8e110e21 # v0.28.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: 'llamenos-scan:latest'
           format: 'table'
