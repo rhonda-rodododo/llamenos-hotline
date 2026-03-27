@@ -21,10 +21,13 @@ test.describe('Panic Wipe (L-9)', () => {
     const overlay = page.getByTestId('panic-wipe-overlay')
     await expect(overlay).toBeVisible({ timeout: 2000 })
 
-    // Should redirect to /login
-    await page.waitForURL('**/login', { timeout: 5000 })
-    // Wait for login page to fully load so execution context is stable
-    await page.waitForLoadState('domcontentloaded')
+    // Should redirect to /login — the wipe triggers multiple navigations
+    // (SPA detects auth loss → redirects → page reload), so wait for the
+    // final URL and a stable load state before inspecting storage.
+    await page.waitForURL('**/login', { timeout: 10000 })
+    await page.waitForLoadState('load')
+    // Extra settle time — the login page may trigger additional React renders
+    await page.waitForTimeout(500)
 
     // Verify storage was cleared
     const hasKeyAfter = await page.evaluate(() => !!localStorage.getItem('llamenos-encrypted-key'))

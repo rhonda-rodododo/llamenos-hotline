@@ -56,25 +56,28 @@ test.describe('Voicemail UI', () => {
       }),
     })
 
-    // Give the server time to process the webhooks before navigating.
-    // CI workers can be slow — voicemail recording + call status webhooks
-    // trigger async DB writes that must complete before the UI shows results.
-    await page.waitForTimeout(3000)
-
-    // Navigate to calls page — wait for the call history API to return
+    // Navigate to calls page — poll until the voicemail player appears.
+    // The webhooks trigger async DB writes; CI workers can be slow to process
+    // the voicemail recording + call status updates before the UI reflects them.
     await navigateAfterLogin(page, '/calls')
     await expect(page.getByRole('heading', { name: /call history/i })).toBeVisible({
       timeout: 15000,
     })
 
-    // Wait for call list to load (call-history-row is the actual testid in the component)
-    await expect(page.locator('[data-testid="call-history-row"]').first()).toBeVisible({
-      timeout: 15000,
-    })
-
-    // The VoicemailPlayer component renders with data-testid="voicemail-player"
-    // when call.hasVoicemail is true. Verify at least one voicemail player is visible.
+    // Poll: reload the page periodically until the voicemail player shows up,
+    // since the call may appear in the list before the voicemail flag is set.
     const voicemailPlayer = page.locator('[data-testid="voicemail-player"]')
-    await expect(voicemailPlayer.first()).toBeVisible({ timeout: 15000 })
+    for (let attempt = 0; attempt < 5; attempt++) {
+      if (
+        await voicemailPlayer
+          .first()
+          .isVisible({ timeout: 3000 })
+          .catch(() => false)
+      )
+        break
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await page.waitForTimeout(1000)
+    }
+    await expect(voicemailPlayer.first()).toBeVisible({ timeout: 5000 })
   })
 })
