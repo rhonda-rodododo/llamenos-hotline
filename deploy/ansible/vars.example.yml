@@ -160,6 +160,14 @@ backup_cron_minute: "0"
 # Examples: "s3:llamenos-backups", "b2:llamenos-backups"
 backup_rclone_remote: ""
 
+# ─── LUKS Disk Encryption (Optional) ──────────────────────────────
+# Defense-in-depth: encrypts the block device where RustFS stores data.
+# If an attacker gains physical disk access, files are unreadable.
+# A random keyfile at /root/.luks-keyfile enables auto-unlock on boot.
+# luks_enabled: true
+# luks_device: /dev/sdb              # Block device to encrypt (REQUIRED when enabled)
+# luks_mount_path: /var/data/rustfs  # Mount point for encrypted volume
+
 # ─── Docker Hardening ───────────────────────────────────────────
 # OPTIONAL: Enable user namespace remapping for Docker container isolation
 docker_userns_remap: true

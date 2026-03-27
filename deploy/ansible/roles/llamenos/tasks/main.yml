@@ -1,11 +1,16 @@
 ---
 # Llamenos application deployment role
 #
+# - (Optional) Sets up LUKS disk encryption for RustFS data volume
 # - Creates app directory structure
 # - Templates docker-compose.yml, .env, and Caddyfile
 # - Pulls Docker images
 # - Starts the stack with docker compose
 # - Waits for the health check endpoint to respond
+
+- name: Configure LUKS encryption for storage volume
+  ansible.builtin.include_tasks: luks.yml
+  when: luks_enabled | default(false) | bool
 
 - name: Create application directory
   ansible.builtin.file:

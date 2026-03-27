@@ -96,7 +96,11 @@ services:
     command: server /data
     restart: unless-stopped
     volumes:
+{% if luks_enabled | default(false) | bool %}
+      - {{ luks_mount_path | default('/var/data/rustfs') }}:/data
+{% else %}
       - rustfs-data:/data
+{% endif %}
     environment:
       - RUSTFS_ACCESS_KEY={{ storage_access_key }}
       - RUSTFS_SECRET_KEY={{ storage_secret_key }}
@@ -236,7 +240,9 @@ volumes:
   postgres-data:
   caddy-data:
   caddy-config:
+{% if not (luks_enabled | default(false) | bool) %}
   rustfs-data:
+{% endif %}
   nostr-data:
 {% if 'asterisk' in (compose_profiles | default([])) %}
   asterisk-config:
