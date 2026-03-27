@@ -13,8 +13,8 @@ export default defineConfig({
   testDir: './tests',
   testIgnore: [
     '**/live/**',
-    '**/pwa-offline*',      // SW requires trusted TLS cert, not internal CA
-    '**/device-linking*',   // Requires multi-device setup not available in VM
+    '**/pwa-offline**',     // SW requires trusted TLS cert, not internal CA
+    '**/device-linking**',  // Requires multi-device setup not available in VM
   ],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

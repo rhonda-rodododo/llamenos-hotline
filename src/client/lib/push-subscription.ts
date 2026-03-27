@@ -65,7 +65,9 @@ export async function isPushSubscribed(): Promise<boolean> {
     // Race with a 3s timeout to prevent blocking callers.
     const registration = await Promise.race([
       navigator.serviceWorker.ready,
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('SW ready timeout')), 3000)),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('SW ready timeout')), 3000)
+      ),
     ])
     const subscription = await registration.pushManager.getSubscription()
     return subscription !== null
