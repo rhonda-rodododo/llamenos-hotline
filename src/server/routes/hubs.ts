@@ -2,7 +2,8 @@ import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import type { Hub } from '../../shared/types'
 import { getDb } from '../db'
-import { hubStorageSettings } from '../db/schema/storage'
+import { hubStorageCredentials, hubStorageSettings } from '../db/schema/storage'
+import { encryptStorageCredential } from '../lib/crypto'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { type AppEnv, STORAGE_NAMESPACES, type StorageNamespace } from '../types'
 
@@ -68,7 +69,21 @@ routes.post('/', requirePermission('system:manage-hubs'), async (c) => {
 
   if (services.storage) {
     try {
-      await services.storage.provisionHub(hub.id)
+      const iamResult = await services.storage.provisionHub(hub.id)
+
+      // Store per-hub IAM credentials if created
+      if (iamResult) {
+        const serverSecret = c.env.HMAC_SECRET
+        const encrypted = encryptStorageCredential(iamResult.secretAccessKey, serverSecret)
+        const db = getDb()
+        await db.insert(hubStorageCredentials).values({
+          hubId: hub.id,
+          accessKeyId: iamResult.accessKeyId,
+          encryptedSecretKey: encrypted,
+          policyName: iamResult.policyName,
+          userName: iamResult.userName,
+        })
+      }
     } catch (err) {
       console.error(`[hubs] Failed to provision storage for hub ${hub.id}:`, err)
     }
@@ -189,11 +204,26 @@ routes.delete('/:hubId', requirePermission('system:manage-hubs'), async (c) => {
   }
 
   try {
+    // Look up IAM credentials BEFORE deleting hub (cascade would remove them)
+    let storedUserName: string | undefined
+    if (services.storage) {
+      try {
+        const db = getDb()
+        const [cred] = await db
+          .select({ userName: hubStorageCredentials.userName })
+          .from(hubStorageCredentials)
+          .where(eq(hubStorageCredentials.hubId, hubId))
+        storedUserName = cred?.userName
+      } catch {
+        // No credentials stored — hub may not have had IAM provisioned
+      }
+    }
+
     await services.settings.deleteHub(hubId)
 
     if (services.storage) {
       try {
-        await services.storage.destroyHub(hubId)
+        await services.storage.destroyHub(hubId, storedUserName)
       } catch (err) {
         console.error(`[hubs] Failed to destroy storage for hub ${hubId} — orphaned buckets:`, err)
       }

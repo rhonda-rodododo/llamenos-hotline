@@ -8,6 +8,11 @@
  *   1. STORAGE_ACCESS_KEY / STORAGE_SECRET_KEY — preferred (provider-agnostic)
  *   2. MINIO_APP_USER / MINIO_APP_PASSWORD — dedicated app IAM user (legacy)
  *   3. MINIO_ACCESS_KEY / MINIO_SECRET_KEY — root credentials (legacy dev fallback)
+ *
+ * Per-hub IAM isolation:
+ *   When a StorageAdminClient is provided and available, provisionHub() creates
+ *   a dedicated IAM user + bucket-scoped policy per hub. destroyHub() cleans up.
+ *   If the admin client is unavailable, falls back to root credentials (existing behavior).
  */
 import {
   CreateBucketCommand,
@@ -22,12 +27,16 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
+import { bytesToHex } from '@noble/hashes/utils.js'
 import {
   type BlobResult,
+  type HubStorageCredentialResult,
   STORAGE_NAMESPACES,
   type StorageManager,
   type StorageNamespace,
 } from '../types'
+import type { StorageAdminClient } from './storage-admin'
+import { buildBucketPolicy } from './storage-admin'
 
 function bucketName(hubId: string, namespace: StorageNamespace): string {
   return `${hubId}-${namespace}`
@@ -61,11 +70,20 @@ async function toBytes(
   return result
 }
 
+/** Generate a cryptographically random hex string of `byteLength` bytes. */
+function randomHex(byteLength: number): string {
+  const buf = new Uint8Array(byteLength)
+  crypto.getRandomValues(buf)
+  return bytesToHex(buf)
+}
+
 export interface StorageManagerOptions {
   endpoint?: string
   accessKeyId?: string
   secretAccessKey?: string
   region?: string
+  /** Optional admin client for per-hub IAM isolation */
+  admin?: StorageAdminClient
 }
 
 export function resolveStorageCredentials(): {
@@ -123,6 +141,7 @@ export function createStorageManager(opts?: StorageManagerOptions): StorageManag
 
   const endpoint = opts?.endpoint || resolved.endpoint
   const region = opts?.region || 'us-east-1'
+  const admin = opts?.admin
 
   const client = new S3Client({
     endpoint,
@@ -136,122 +155,229 @@ export function createStorageManager(opts?: StorageManagerOptions): StorageManag
 
   const namespaces = Object.keys(STORAGE_NAMESPACES) as StorageNamespace[]
 
-  return {
-    async put(hubId, namespace, key, body) {
-      const bodyBytes = await toBytes(body)
-      await client.send(
-        new PutObjectCommand({
-          Bucket: bucketName(hubId, namespace),
-          Key: key,
-          Body: bodyBytes,
-        })
-      )
-    },
-
-    async get(hubId, namespace, key): Promise<BlobResult | null> {
-      try {
-        const result = await client.send(
-          new GetObjectCommand({
+  function buildManager(s3: S3Client, adminClient?: StorageAdminClient): StorageManager {
+    return {
+      async put(hubId, namespace, key, body) {
+        const bodyBytes = await toBytes(body)
+        await s3.send(
+          new PutObjectCommand({
             Bucket: bucketName(hubId, namespace),
             Key: key,
+            Body: bodyBytes,
           })
         )
-        if (!result.Body) return null
+      },
 
-        const size = result.ContentLength ?? 0
-        const bodyBytes = await result.Body.transformToByteArray()
-
-        return {
-          body: new ReadableStream({
-            start(controller) {
-              controller.enqueue(bodyBytes)
-              controller.close()
-            },
-          }),
-          size,
-          async arrayBuffer() {
-            return bodyBytes.buffer.slice(
-              bodyBytes.byteOffset,
-              bodyBytes.byteOffset + bodyBytes.byteLength
-            ) as ArrayBuffer
-          },
-        }
-      } catch (err: unknown) {
-        if ((err as { name?: string }).name === 'NoSuchKey') return null
-        if ((err as { name?: string }).name === 'NoSuchBucket') return null
-        throw err
-      }
-    },
-
-    async delete(hubId, namespace, key) {
-      try {
-        await client.send(
-          new DeleteObjectCommand({
-            Bucket: bucketName(hubId, namespace),
-            Key: key,
-          })
-        )
-      } catch (err: unknown) {
-        // Deleting from a non-existent bucket is not an error
-        if ((err as { name?: string }).name === 'NoSuchBucket') return
-        throw err
-      }
-    },
-
-    async provisionHub(hubId) {
-      for (const ns of namespaces) {
-        const bucket = bucketName(hubId, ns)
-
-        // Create the bucket
+      async get(hubId, namespace, key): Promise<BlobResult | null> {
         try {
-          await client.send(new CreateBucketCommand({ Bucket: bucket }))
-        } catch (err: unknown) {
-          // Bucket already exists — safe to continue
-          const name = (err as { name?: string }).name
-          if (name !== 'BucketAlreadyOwnedByYou' && name !== 'BucketAlreadyExists') {
-            throw err
-          }
-        }
+          const result = await s3.send(
+            new GetObjectCommand({
+              Bucket: bucketName(hubId, namespace),
+              Key: key,
+            })
+          )
+          if (!result.Body) return null
 
-        // SSE-S3 (AES256) encryption at rest requires KES/KMS to be configured in RustFS.
-        // When available, enable it. When not (e.g., dev without KES), skip gracefully.
-        // Data is already E2EE at the application level — SSE is defense-in-depth.
-        if (process.env.STORAGE_SSE_ENABLED === 'true') {
+          const size = result.ContentLength ?? 0
+          const bodyBytes = await result.Body.transformToByteArray()
+
+          return {
+            body: new ReadableStream({
+              start(controller) {
+                controller.enqueue(bodyBytes)
+                controller.close()
+              },
+            }),
+            size,
+            async arrayBuffer() {
+              return bodyBytes.buffer.slice(
+                bodyBytes.byteOffset,
+                bodyBytes.byteOffset + bodyBytes.byteLength
+              ) as ArrayBuffer
+            },
+          }
+        } catch (err: unknown) {
+          if ((err as { name?: string }).name === 'NoSuchKey') return null
+          if ((err as { name?: string }).name === 'NoSuchBucket') return null
+          throw err
+        }
+      },
+
+      async delete(hubId, namespace, key) {
+        try {
+          await s3.send(
+            new DeleteObjectCommand({
+              Bucket: bucketName(hubId, namespace),
+              Key: key,
+            })
+          )
+        } catch (err: unknown) {
+          // Deleting from a non-existent bucket is not an error
+          if ((err as { name?: string }).name === 'NoSuchBucket') return
+          throw err
+        }
+      },
+
+      async provisionHub(hubId): Promise<HubStorageCredentialResult | undefined> {
+        // Create buckets
+        for (const ns of namespaces) {
+          const bucket = bucketName(hubId, ns)
+
           try {
-            await client.send(
-              new PutBucketEncryptionCommand({
+            await s3.send(new CreateBucketCommand({ Bucket: bucket }))
+          } catch (err: unknown) {
+            const name = (err as { name?: string }).name
+            if (name !== 'BucketAlreadyOwnedByYou' && name !== 'BucketAlreadyExists') {
+              throw err
+            }
+          }
+
+          // SSE-S3 defense-in-depth
+          if (process.env.STORAGE_SSE_ENABLED === 'true') {
+            try {
+              await s3.send(
+                new PutBucketEncryptionCommand({
+                  Bucket: bucket,
+                  ServerSideEncryptionConfiguration: {
+                    Rules: [
+                      {
+                        ApplyServerSideEncryptionByDefault: {
+                          SSEAlgorithm: 'AES256',
+                        },
+                      },
+                    ],
+                  },
+                })
+              )
+            } catch (err) {
+              console.warn(
+                `[storage] SSE-S3 failed for ${bucket} — KMS may not be configured:`,
+                (err as Error).message
+              )
+            }
+          }
+
+          // Lifecycle retention policy
+          const retentionDays = STORAGE_NAMESPACES[ns].defaultRetentionDays
+          if (retentionDays !== null) {
+            await s3.send(
+              new PutBucketLifecycleConfigurationCommand({
                 Bucket: bucket,
-                ServerSideEncryptionConfiguration: {
+                LifecycleConfiguration: {
                   Rules: [
                     {
-                      ApplyServerSideEncryptionByDefault: {
-                        SSEAlgorithm: 'AES256',
-                      },
+                      ID: `${ns}-retention`,
+                      Status: 'Enabled',
+                      Expiration: { Days: retentionDays },
+                      Filter: { Prefix: '' },
                     },
                   ],
                 },
               })
             )
-          } catch (err) {
-            console.warn(
-              `[storage] SSE-S3 failed for ${bucket} — KMS may not be configured:`,
-              (err as Error).message
-            )
           }
         }
 
-        // Set lifecycle policy for namespaces with default retention
-        const retentionDays = STORAGE_NAMESPACES[ns].defaultRetentionDays
-        if (retentionDays !== null) {
-          await client.send(
+        // Create per-hub IAM user + policy if admin client is available
+        if (adminClient && (await adminClient.available())) {
+          const hubPrefix = hubId.slice(0, 8)
+          const accessKeyId = `hub-${hubPrefix}-${randomHex(8)}`
+          const secretAccessKey = randomHex(32)
+          const userName = accessKeyId
+          const policyName = `hub-${hubPrefix}-policy`
+
+          const hubBuckets = namespaces.map((ns) => bucketName(hubId, ns))
+          const policy = buildBucketPolicy(hubBuckets)
+
+          await adminClient.createUser(accessKeyId, secretAccessKey)
+          await adminClient.createPolicy(policyName, policy)
+          await adminClient.attachPolicy(policyName, userName)
+
+          console.log(`[storage] Created IAM user ${userName} for hub ${hubId}`)
+
+          return { accessKeyId, secretAccessKey, policyName, userName }
+        }
+
+        return undefined
+      },
+
+      async destroyHub(hubId, userName?) {
+        // Clean up IAM resources first (if admin client available)
+        if (adminClient && (await adminClient.available())) {
+          const hubPrefix = hubId.slice(0, 8)
+          const policyName = `hub-${hubPrefix}-policy`
+
+          // Delete IAM user if caller provided the userName from DB
+          if (userName) {
+            await adminClient.deleteUser(userName)
+          }
+          await adminClient.deletePolicy(policyName)
+        }
+
+        // Delete all objects and buckets
+        for (const ns of namespaces) {
+          const bucket = bucketName(hubId, ns)
+
+          let continuationToken: string | undefined
+          do {
+            let response: ListObjectsV2CommandOutput
+            try {
+              response = await s3.send(
+                new ListObjectsV2Command({
+                  Bucket: bucket,
+                  ContinuationToken: continuationToken,
+                  MaxKeys: 1000,
+                })
+              )
+            } catch (err: unknown) {
+              if ((err as { name?: string }).name === 'NoSuchBucket') break
+              throw err
+            }
+
+            const objects = response.Contents
+            if (objects && objects.length > 0) {
+              await s3.send(
+                new DeleteObjectsCommand({
+                  Bucket: bucket,
+                  Delete: {
+                    Objects: objects.map((o: { Key?: string }) => ({ Key: o.Key })),
+                    Quiet: true,
+                  },
+                })
+              )
+            }
+
+            continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined
+          } while (continuationToken)
+
+          try {
+            await s3.send(new DeleteBucketCommand({ Bucket: bucket }))
+          } catch (err: unknown) {
+            if ((err as { name?: string }).name === 'NoSuchBucket') continue
+            throw err
+          }
+        }
+      },
+
+      async setRetention(hubId, namespace, days) {
+        const bucket = bucketName(hubId, namespace)
+        if (days === null) {
+          await s3.send(
+            new PutBucketLifecycleConfigurationCommand({
+              Bucket: bucket,
+              LifecycleConfiguration: { Rules: [] },
+            })
+          )
+        } else {
+          await s3.send(
             new PutBucketLifecycleConfigurationCommand({
               Bucket: bucket,
               LifecycleConfiguration: {
                 Rules: [
                   {
-                    ID: `${ns}-retention`,
+                    ID: `${namespace}-retention`,
                     Status: 'Enabled',
-                    Expiration: { Days: retentionDays },
+                    Expiration: { Days: days },
                     Filter: { Prefix: '' },
                   },
                 ],
@@ -259,96 +385,36 @@ export function createStorageManager(opts?: StorageManagerOptions): StorageManag
             })
           )
         }
-      }
-    },
+      },
 
-    async destroyHub(hubId) {
-      for (const ns of namespaces) {
-        const bucket = bucketName(hubId, ns)
-
-        // Paginated delete of all objects
-        let continuationToken: string | undefined
-        do {
-          let response: ListObjectsV2CommandOutput
-          try {
-            response = await client.send(
-              new ListObjectsV2Command({
-                Bucket: bucket,
-                ContinuationToken: continuationToken,
-                MaxKeys: 1000,
-              })
-            )
-          } catch (err: unknown) {
-            if ((err as { name?: string }).name === 'NoSuchBucket') break
-            throw err
-          }
-
-          const objects = response.Contents
-          if (objects && objects.length > 0) {
-            await client.send(
-              new DeleteObjectsCommand({
-                Bucket: bucket,
-                Delete: {
-                  Objects: objects.map((o: { Key?: string }) => ({ Key: o.Key })),
-                  Quiet: true,
-                },
-              })
-            )
-          }
-
-          continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined
-        } while (continuationToken)
-
-        // Delete the bucket
+      async healthy(): Promise<boolean> {
         try {
-          await client.send(new DeleteBucketCommand({ Bucket: bucket }))
-        } catch (err: unknown) {
-          if ((err as { name?: string }).name === 'NoSuchBucket') continue
-          throw err
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 5000)
+          const healthUrl = `${endpoint}/health`
+          const response = await fetch(healthUrl, { signal: controller.signal })
+          clearTimeout(timeout)
+          return response.ok
+        } catch {
+          return false
         }
-      }
-    },
+      },
 
-    async setRetention(hubId, namespace, days) {
-      const bucket = bucketName(hubId, namespace)
-      if (days === null) {
-        // Remove lifecycle rules by setting empty configuration
-        await client.send(
-          new PutBucketLifecycleConfigurationCommand({
-            Bucket: bucket,
-            LifecycleConfiguration: { Rules: [] },
-          })
-        )
-      } else {
-        await client.send(
-          new PutBucketLifecycleConfigurationCommand({
-            Bucket: bucket,
-            LifecycleConfiguration: {
-              Rules: [
-                {
-                  ID: `${namespace}-retention`,
-                  Status: 'Enabled',
-                  Expiration: { Days: days },
-                  Filter: { Prefix: '' },
-                },
-              ],
-            },
-          })
-        )
-      }
-    },
-
-    async healthy(): Promise<boolean> {
-      try {
-        const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 5000)
-        const healthUrl = `${endpoint}/health`
-        const response = await fetch(healthUrl, { signal: controller.signal })
-        clearTimeout(timeout)
-        return response.ok
-      } catch {
-        return false
-      }
-    },
+      withCredentials(newAccessKeyId: string, newSecretAccessKey: string): StorageManager {
+        const hubClient = new S3Client({
+          endpoint,
+          region,
+          credentials: {
+            accessKeyId: newAccessKeyId,
+            secretAccessKey: newSecretAccessKey,
+          },
+          forcePathStyle: true,
+        })
+        // Hub-scoped client does not get admin capabilities
+        return buildManager(hubClient)
+      },
+    }
   }
+
+  return buildManager(client, admin)
 }

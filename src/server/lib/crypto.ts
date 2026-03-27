@@ -14,6 +14,7 @@ import {
   LABEL_PROVIDER_CREDENTIAL_WRAP,
   LABEL_SERVER_NOSTR_KEY,
   LABEL_SERVER_NOSTR_KEY_INFO,
+  LABEL_STORAGE_CREDENTIAL_WRAP,
 } from '@shared/crypto-labels'
 import type { RecipientEnvelope } from '@shared/types'
 import type { MessageKeyEnvelope } from '../types'
@@ -334,6 +335,50 @@ export function decryptProviderCredentials(encrypted: string, serverSecret: stri
   const nonce = bytes.slice(0, 24)
   const ciphertext = bytes.slice(24)
   const key = deriveProviderKey(serverSecret)
+  const cipher = xchacha20poly1305(key, nonce)
+  return new TextDecoder().decode(cipher.decrypt(ciphertext))
+}
+
+// ── Storage Credential Encryption ──
+
+/**
+ * Derive a symmetric key for encrypting hub storage IAM secret keys.
+ * Uses HKDF with the server secret and LABEL_STORAGE_CREDENTIAL_WRAP.
+ */
+function deriveStorageCredentialKey(serverSecret: string): Uint8Array {
+  return hkdf(
+    sha256,
+    hexToBytes(serverSecret),
+    new Uint8Array(0),
+    utf8ToBytes(LABEL_STORAGE_CREDENTIAL_WRAP),
+    32
+  )
+}
+
+/**
+ * Encrypt a storage IAM secret key for database storage.
+ * Returns hex: nonce(24) + ciphertext.
+ */
+export function encryptStorageCredential(secretKey: string, serverSecret: string): string {
+  const key = deriveStorageCredentialKey(serverSecret)
+  const nonce = new Uint8Array(24)
+  crypto.getRandomValues(nonce)
+  const cipher = xchacha20poly1305(key, nonce)
+  const ciphertext = cipher.encrypt(utf8ToBytes(secretKey))
+  const packed = new Uint8Array(24 + ciphertext.length)
+  packed.set(nonce)
+  packed.set(ciphertext, 24)
+  return bytesToHex(packed)
+}
+
+/**
+ * Decrypt a storage IAM secret key from database storage.
+ */
+export function decryptStorageCredential(encrypted: string, serverSecret: string): string {
+  const bytes = hexToBytes(encrypted)
+  const nonce = bytes.slice(0, 24)
+  const ciphertext = bytes.slice(24)
+  const key = deriveStorageCredentialKey(serverSecret)
   const cipher = xchacha20poly1305(key, nonce)
   return new TextDecoder().decode(cipher.decrypt(ciphertext))
 }

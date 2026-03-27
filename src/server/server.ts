@@ -16,7 +16,8 @@ import { loadEnv } from './env'
 import { scheduleBlastProcessor } from './jobs/blast-processor'
 import { scheduleRetentionPurge } from './jobs/retention-purge'
 import { closeNostrPublisher, getMessagingAdapter, getTelephony } from './lib/adapters'
-import { createStorageManager } from './lib/storage-manager'
+import { createStorageAdmin } from './lib/storage-admin'
+import { createStorageManager, resolveStorageCredentials } from './lib/storage-manager'
 import { errorHandler } from './middleware/error'
 import { servicesMiddleware } from './middleware/services'
 import { createServices } from './services'
@@ -75,7 +76,27 @@ async function main() {
 
   let storage: StorageManager | null = null
   try {
-    storage = createStorageManager()
+    const storageCreds = resolveStorageCredentials()
+    const admin = createStorageAdmin({
+      endpoint: storageCreds.endpoint,
+      accessKeyId: storageCreds.accessKeyId,
+      secretAccessKey: storageCreds.secretAccessKey,
+    })
+
+    // Check if rc CLI is available for per-hub IAM
+    const iamAvailable = await admin.available()
+    if (iamAvailable) {
+      console.log('[llamenos] RustFS admin CLI (rc) available — per-hub IAM enabled')
+    } else {
+      console.warn(
+        '[llamenos] rc CLI not found — per-hub IAM disabled, using root credentials for all hubs'
+      )
+    }
+
+    storage = createStorageManager({
+      ...storageCreds,
+      admin: iamAvailable ? admin : undefined,
+    })
     console.log('[llamenos] RustFS storage manager connected')
   } catch {
     console.warn('[llamenos] Storage not configured — file upload/download routes will return 503')

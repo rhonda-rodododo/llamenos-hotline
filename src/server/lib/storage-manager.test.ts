@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
-import { resolveStorageCredentials } from './storage-manager'
+import { buildBucketPolicy } from './storage-admin'
+import { createStorageManager, resolveStorageCredentials } from './storage-manager'
 
 describe('resolveStorageCredentials', () => {
   const originalEnv = { ...process.env }
@@ -107,8 +108,7 @@ describe('StorageManager interface compliance', () => {
     expect(Object.keys(STORAGE_NAMESPACES)).toEqual(['voicemails', 'attachments'])
   })
 
-  it('createStorageManager returns object with all required methods', async () => {
-    const { createStorageManager } = await import('./storage-manager')
+  it('createStorageManager returns object with all required methods', () => {
     const manager = createStorageManager({
       endpoint: 'http://localhost:9999',
       accessKeyId: 'test',
@@ -122,10 +122,10 @@ describe('StorageManager interface compliance', () => {
     expect(typeof manager.destroyHub).toBe('function')
     expect(typeof manager.setRetention).toBe('function')
     expect(typeof manager.healthy).toBe('function')
+    expect(typeof manager.withCredentials).toBe('function')
   })
 
   it('healthy returns false when endpoint is unreachable', async () => {
-    const { createStorageManager } = await import('./storage-manager')
     const manager = createStorageManager({
       endpoint: 'http://localhost:1', // unreachable port
       accessKeyId: 'test',
@@ -134,5 +134,60 @@ describe('StorageManager interface compliance', () => {
 
     const result = await manager.healthy()
     expect(result).toBe(false)
+  })
+
+  it('withCredentials returns a new manager with all methods', () => {
+    const manager = createStorageManager({
+      endpoint: 'http://localhost:9999',
+      accessKeyId: 'root',
+      secretAccessKey: 'rootsecret',
+    })
+
+    const hubManager = manager.withCredentials('hub-key', 'hub-secret')
+    expect(typeof hubManager.put).toBe('function')
+    expect(typeof hubManager.get).toBe('function')
+    expect(typeof hubManager.delete).toBe('function')
+    expect(typeof hubManager.provisionHub).toBe('function')
+    expect(typeof hubManager.destroyHub).toBe('function')
+    expect(typeof hubManager.healthy).toBe('function')
+    expect(typeof hubManager.withCredentials).toBe('function')
+  })
+})
+
+describe('buildBucketPolicy', () => {
+  it('generates a valid S3 policy for given buckets', () => {
+    const buckets = ['hub-abc-voicemails', 'hub-abc-attachments']
+    const policy = buildBucketPolicy(buckets)
+
+    expect(policy.Version).toBe('2012-10-17')
+    expect(Array.isArray(policy.Statement)).toBe(true)
+
+    const statements = policy.Statement as Array<{
+      Effect: string
+      Action: string[]
+      Resource: string[]
+    }>
+    expect(statements).toHaveLength(2)
+
+    // Object-level actions
+    expect(statements[0].Effect).toBe('Allow')
+    expect(statements[0].Action).toContain('s3:GetObject')
+    expect(statements[0].Action).toContain('s3:PutObject')
+    expect(statements[0].Action).toContain('s3:DeleteObject')
+    expect(statements[0].Resource).toContain('arn:aws:s3:::hub-abc-voicemails/*')
+    expect(statements[0].Resource).toContain('arn:aws:s3:::hub-abc-attachments/*')
+
+    // Bucket-level actions
+    expect(statements[1].Effect).toBe('Allow')
+    expect(statements[1].Action).toContain('s3:ListBucket')
+    expect(statements[1].Resource).toContain('arn:aws:s3:::hub-abc-voicemails')
+    expect(statements[1].Resource).toContain('arn:aws:s3:::hub-abc-attachments')
+  })
+
+  it('handles single bucket', () => {
+    const policy = buildBucketPolicy(['my-bucket'])
+    const statements = policy.Statement as Array<{ Resource: string[] }>
+    expect(statements[0].Resource).toEqual(['arn:aws:s3:::my-bucket/*'])
+    expect(statements[1].Resource).toEqual(['arn:aws:s3:::my-bucket'])
   })
 })
