@@ -213,7 +213,7 @@ routes.get('/:hubId/export', requirePermission('system:manage-hubs'), async (c) 
       try {
         const blob = await services.storage?.get(hubId, namespace, `${fileRecord.id}/content`)
         if (blob) {
-          zipFiles[`${category}/${fileRecord.id}/content.bin`] = new Uint8Array(
+          zipFiles[`${category}/${fileRecord.id}/content.enc`] = new Uint8Array(
             await blob.arrayBuffer()
           )
           blobCount++
