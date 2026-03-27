@@ -213,21 +213,32 @@ export function createStorageManager(opts?: StorageManagerOptions): StorageManag
           }
         }
 
-        // Enable server-side encryption (AES256)
-        await client.send(
-          new PutBucketEncryptionCommand({
-            Bucket: bucket,
-            ServerSideEncryptionConfiguration: {
-              Rules: [
-                {
-                  ApplyServerSideEncryptionByDefault: {
-                    SSEAlgorithm: 'AES256',
-                  },
+        // SSE-S3 (AES256) encryption at rest requires KES/KMS to be configured in RustFS.
+        // When available, enable it. When not (e.g., dev without KES), skip gracefully.
+        // Data is already E2EE at the application level — SSE is defense-in-depth.
+        if (process.env.STORAGE_SSE_ENABLED === 'true') {
+          try {
+            await client.send(
+              new PutBucketEncryptionCommand({
+                Bucket: bucket,
+                ServerSideEncryptionConfiguration: {
+                  Rules: [
+                    {
+                      ApplyServerSideEncryptionByDefault: {
+                        SSEAlgorithm: 'AES256',
+                      },
+                    },
+                  ],
                 },
-              ],
-            },
-          })
-        )
+              })
+            )
+          } catch (err) {
+            console.warn(
+              `[storage] SSE-S3 failed for ${bucket} — KMS may not be configured:`,
+              (err as Error).message
+            )
+          }
+        }
 
         // Set lifecycle policy for namespaces with default retention
         const retentionDays = STORAGE_NAMESPACES[ns].defaultRetentionDays
