@@ -11,7 +11,11 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: './tests',
-  testIgnore: ['**/live/**'],
+  testIgnore: [
+    '**/live/**',
+    '**/pwa-offline*',      // SW requires trusted TLS cert, not internal CA
+    '**/device-linking*',   // Requires multi-device setup not available in VM
+  ],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 1,

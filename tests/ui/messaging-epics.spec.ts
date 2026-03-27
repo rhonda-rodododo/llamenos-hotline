@@ -99,7 +99,7 @@ test.describe('Epic 71: Message Delivery Status UI', () => {
 
     // Navigate to conversations page
     await page.goto('/conversations')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
 
     // The conversations page should load without errors
     // Even with no conversations, the page should render

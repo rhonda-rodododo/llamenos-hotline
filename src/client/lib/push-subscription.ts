@@ -59,7 +59,14 @@ export function getDeviceLabel(): string {
 export async function isPushSubscribed(): Promise<boolean> {
   if (!isPushSupported()) return false
   try {
-    const registration = await navigator.serviceWorker.ready
+    // navigator.serviceWorker.ready never rejects but can hang indefinitely
+    // if the service worker is registered but never activates (e.g. self-signed
+    // TLS certs, cert errors, or SW update stuck in waiting state).
+    // Race with a 3s timeout to prevent blocking callers.
+    const registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('SW ready timeout')), 3000)),
+    ])
     const subscription = await registration.pushManager.getSubscription()
     return subscription !== null
   } catch {
