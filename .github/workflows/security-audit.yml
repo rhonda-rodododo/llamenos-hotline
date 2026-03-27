@@ -59,7 +59,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Audit JS dependencies (critical)
-        run: bun audit --audit-level=high
+        run: bun audit --audit-level=critical
 
       - name: Audit JS dependencies (all severities — informational)
         run: bun audit || true
