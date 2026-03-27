@@ -35,7 +35,7 @@ export interface AuthedRequest {
 export function createAuthedRequest(
   request: APIRequestContext,
   secretKey: Uint8Array,
-  permissions: string[] = ['admin']
+  permissions: string[] = ['*']
 ): AuthedRequest {
   const pubkey = getPublicKey(secretKey)
   const jwtSecret = process.env.JWT_SECRET || 'test-jwt-secret'

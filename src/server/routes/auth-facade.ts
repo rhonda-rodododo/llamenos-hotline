@@ -449,7 +449,13 @@ authFacade.post('/enroll', jwtAuth, async (c) => {
     return c.json({ nsecSecret: Buffer.from(nsecSecret).toString('hex') })
   }
 
-  await idpAdapter.createUser(pubkey)
+  try {
+    await idpAdapter.createUser(pubkey)
+  } catch {
+    // Race condition: concurrent createUser for same pubkey — check if it was created
+    const raceCheck = await idpAdapter.getUser(pubkey)
+    if (!raceCheck) throw new Error(`Failed to create IdP user for ${pubkey}`)
+  }
   const nsecSecret = await idpAdapter.getNsecSecret(pubkey)
   return c.json({ nsecSecret: Buffer.from(nsecSecret).toString('hex') })
 })
