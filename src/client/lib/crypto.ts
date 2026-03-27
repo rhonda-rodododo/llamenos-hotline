@@ -141,6 +141,32 @@ export async function eciesUnwrapKey(envelope: KeyEnvelope, label: string): Prom
   return hexToBytes(resultHex)
 }
 
+/**
+ * ECIES unwrap with explicit secret key — for server-side and test usage
+ * where no crypto worker is available.
+ */
+export function eciesUnwrapKeyWithSecret(
+  envelope: KeyEnvelope,
+  secretKey: Uint8Array,
+  label: string
+): Uint8Array {
+  const ephemeralPub = hexToBytes(envelope.ephemeralPubkey)
+  const shared = secp256k1.getSharedSecret(secretKey, ephemeralPub)
+  const sharedX = shared.slice(1, 33)
+
+  const labelBytes = utf8ToBytes(label)
+  const keyInput = new Uint8Array(labelBytes.length + sharedX.length)
+  keyInput.set(labelBytes)
+  keyInput.set(sharedX, labelBytes.length)
+  const symmetricKey = sha256(keyInput)
+
+  const data = hexToBytes(envelope.wrappedKey)
+  const nonce = data.slice(0, 24)
+  const ciphertext = data.slice(24)
+  const cipher = xchacha20poly1305(symmetricKey, nonce)
+  return cipher.decrypt(ciphertext)
+}
+
 // --- Per-Note Ephemeral Key Encryption (V2 — forward secrecy) ---
 
 export interface EncryptedNoteV2 {
@@ -191,6 +217,37 @@ export async function decryptNoteV2(
 ): Promise<NotePayload | null> {
   try {
     const noteKey = await eciesUnwrapKey(envelope, LABEL_NOTE_KEY)
+    const data = hexToBytes(encryptedContent)
+    const nonce = data.slice(0, 24)
+    const ciphertext = data.slice(24)
+    const cipher = xchacha20poly1305(noteKey, nonce)
+    const plaintext = cipher.decrypt(ciphertext)
+    const decoded = new TextDecoder().decode(plaintext)
+    try {
+      const parsed = JSON.parse(decoded)
+      if (parsed && typeof parsed === 'object' && typeof parsed.text === 'string') {
+        return parsed as NotePayload
+      }
+    } catch {
+      // Not JSON
+    }
+    return { text: decoded }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Decrypt a V2 note with explicit secret key — for server-side and test usage
+ * where no crypto worker is available.
+ */
+export function decryptNoteV2WithKey(
+  encryptedContent: string,
+  envelope: KeyEnvelope,
+  secretKey: Uint8Array
+): NotePayload | null {
+  try {
+    const noteKey = eciesUnwrapKeyWithSecret(envelope, secretKey, LABEL_NOTE_KEY)
     const data = hexToBytes(encryptedContent)
     const nonce = data.slice(0, 24)
     const ciphertext = data.slice(24)
