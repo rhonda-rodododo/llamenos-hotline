@@ -1312,5 +1312,20 @@
   },
   "blast": {
     "optOutFooter": "回复 STOP 取消订阅"
+  },
+  "hub": {
+    "export": {
+      "title": "导出Hub数据",
+      "description": "在删除之前下载Hub数据的副本。所有导出的内容均为端到端加密密文。",
+      "selectCategories": "选择要包含的数据：",
+      "categories": {
+        "notes": "笔记",
+        "calls": "通话记录",
+        "conversations": "对话",
+        "audit": "审计日志"
+      },
+      "download": "下载导出",
+      "downloading": "正在准备导出..."
+    }
   }
 }

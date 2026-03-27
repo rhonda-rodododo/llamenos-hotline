@@ -1312,5 +1312,20 @@
   },
   "blast": {
     "optOutFooter": "Répondez STOP pour vous désabonner"
+  },
+  "hub": {
+    "export": {
+      "title": "Exporter les données du hub",
+      "description": "Téléchargez une copie des données de votre hub avant de supprimer. Tout le contenu exporté est du texte chiffré E2EE.",
+      "selectCategories": "Sélectionner les données à inclure :",
+      "categories": {
+        "notes": "Notes",
+        "calls": "Relevés d'appels",
+        "conversations": "Conversations",
+        "audit": "Journal d'audit"
+      },
+      "download": "Télécharger l'export",
+      "downloading": "Préparation de l'export..."
+    }
   }
 }

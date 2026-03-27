@@ -1312,5 +1312,20 @@
   },
   "blast": {
     "optOutFooter": "STOP을 보내 구독을 취소하세요"
+  },
+  "hub": {
+    "export": {
+      "title": "허브 데이터 내보내기",
+      "description": "삭제하기 전에 허브 데이터 사본을 다운로드하세요. 내보낸 모든 콘텐츠는 E2EE 암호문입니다.",
+      "selectCategories": "포함할 데이터 선택:",
+      "categories": {
+        "notes": "메모",
+        "calls": "통화 기록",
+        "conversations": "대화",
+        "audit": "감사 로그"
+      },
+      "download": "내보내기 다운로드",
+      "downloading": "내보내기 준비 중..."
+    }
   }
 }

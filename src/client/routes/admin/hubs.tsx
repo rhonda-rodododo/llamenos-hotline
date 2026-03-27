@@ -2,6 +2,7 @@ import { PhoneInput } from '@/components/phone-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -14,11 +15,30 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { type Hub, archiveHub, createHub, deleteHub, listHubs, updateHub } from '@/lib/api'
+import {
+  type Hub,
+  type HubExportCategory,
+  archiveHub,
+  createHub,
+  deleteHub,
+  exportHubData,
+  listHubs,
+  updateHub,
+} from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { createFileRoute } from '@tanstack/react-router'
-import { Archive, Building2, Pencil, Phone, Plus, Shield, ShieldOff, Trash2 } from 'lucide-react'
+import {
+  Archive,
+  Building2,
+  Download,
+  Pencil,
+  Phone,
+  Plus,
+  Shield,
+  ShieldOff,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -593,6 +613,13 @@ function EditHubDialog({
   )
 }
 
+const EXPORT_CATEGORIES: { key: HubExportCategory; labelKey: string }[] = [
+  { key: 'notes', labelKey: 'hub.export.categories.notes' },
+  { key: 'calls', labelKey: 'hub.export.categories.calls' },
+  { key: 'conversations', labelKey: 'hub.export.categories.conversations' },
+  { key: 'audit', labelKey: 'hub.export.categories.audit' },
+]
+
 function DeleteHubDialog({
   open,
   onOpenChange,
@@ -608,10 +635,47 @@ function DeleteHubDialog({
   const { toast } = useToast()
   const [confirmName, setConfirmName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState<Set<HubExportCategory>>(
+    new Set(EXPORT_CATEGORIES.map((c) => c.key))
+  )
 
   if (!hub) return null
 
   const canDelete = confirmName === hub.name
+
+  function toggleCategory(category: HubExportCategory) {
+    setSelectedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(category)) {
+        next.delete(category)
+      } else {
+        next.add(category)
+      }
+      return next
+    })
+  }
+
+  async function handleExport() {
+    if (!hub || selectedCategories.size === 0) return
+    setExporting(true)
+    try {
+      const blob = await exportHubData(hub.id, [...selectedCategories])
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `hub-${hub.id}-export.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast(t('common.success'), 'success')
+    } catch {
+      toast(t('common.error'), 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   async function handleConfirm() {
     if (!hub || !canDelete) return
@@ -633,12 +697,18 @@ function DeleteHubDialog({
     }
   }
 
+  function handleClose() {
+    onOpenChange(false)
+    setConfirmName('')
+    setSelectedCategories(new Set(EXPORT_CATEGORIES.map((c) => c.key)))
+  }
+
   return (
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        onOpenChange(v)
-        if (!v) setConfirmName('')
+        if (!v) handleClose()
+        else onOpenChange(v)
       }}
     >
       <DialogContent>
@@ -646,6 +716,45 @@ function DeleteHubDialog({
           <DialogTitle>{t('hubs.deleteHub')}</DialogTitle>
           <DialogDescription>{t('hubs.deleteHubConfirm', { name: hub.name })}</DialogDescription>
         </DialogHeader>
+
+        {/* Export section */}
+        <div className="space-y-3 rounded-lg border p-4" data-testid="hub-export-section">
+          <div className="flex items-center gap-2">
+            <Download className="h-4 w-4 text-primary" />
+            <Label className="text-sm font-semibold">{t('hub.export.title')}</Label>
+          </div>
+          <p className="text-xs text-muted-foreground">{t('hub.export.description')}</p>
+          <div className="space-y-2">
+            <p className="text-xs font-medium">{t('hub.export.selectCategories')}</p>
+            {EXPORT_CATEGORIES.map(({ key, labelKey }) => (
+              <div key={key} className="flex items-center gap-2">
+                <Checkbox
+                  id={`export-${key}`}
+                  checked={selectedCategories.has(key)}
+                  onCheckedChange={() => toggleCategory(key)}
+                  disabled={exporting}
+                  data-testid={`export-category-${key}`}
+                />
+                <Label htmlFor={`export-${key}`} className="text-sm">
+                  {t(labelKey)}
+                </Label>
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={exporting || selectedCategories.size === 0}
+            data-testid="hub-export-download-btn"
+          >
+            <Download className="mr-1 h-3 w-3" />
+            {exporting ? t('hub.export.downloading') : t('hub.export.download')}
+          </Button>
+        </div>
+
+        {/* Confirm deletion */}
         <div className="space-y-2">
           <Label htmlFor="delete-hub-confirm">{t('hubs.deleteHubNameLabel')}</Label>
           <Input
@@ -657,15 +766,7 @@ function DeleteHubDialog({
           />
         </div>
         <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              onOpenChange(false)
-              setConfirmName('')
-            }}
-            disabled={saving}
-          >
+          <Button type="button" variant="outline" onClick={handleClose} disabled={saving}>
             {t('common.cancel')}
           </Button>
           <Button

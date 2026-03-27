@@ -1312,5 +1312,20 @@
   },
   "blast": {
     "optOutFooter": "Mag-reply ng STOP para mag-unsubscribe"
+  },
+  "hub": {
+    "export": {
+      "title": "I-export ang data ng hub",
+      "description": "Mag-download ng kopya ng data ng iyong hub bago burahin. Lahat ng na-export na nilalaman ay E2EE ciphertext.",
+      "selectCategories": "Pumili ng data na isasama:",
+      "categories": {
+        "notes": "Mga tala",
+        "calls": "Mga rekord ng tawag",
+        "conversations": "Mga pag-uusap",
+        "audit": "Log ng pag-audit"
+      },
+      "download": "I-download ang export",
+      "downloading": "Inihahanda ang export..."
+    }
   }
 }

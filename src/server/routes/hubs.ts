@@ -124,6 +124,59 @@ routes.post('/:hubId/archive', requirePermission('system:manage-hubs'), async (c
   }
 })
 
+// Export hub data (super admin only — JSON download of encrypted hub records)
+routes.get('/:hubId/export', requirePermission('system:manage-hubs'), async (c) => {
+  const hubId = c.req.param('hubId')
+  const services = c.get('services')
+  const categoriesParam = c.req.query('categories') || 'notes,calls,conversations,audit'
+  const validCategories = new Set(['notes', 'calls', 'conversations', 'audit'])
+  const categories = categoriesParam
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => validCategories.has(s))
+
+  if (categories.length === 0) {
+    return c.json({ error: 'No valid categories specified' }, 400)
+  }
+
+  const hub = await services.settings.getHub(hubId)
+  if (!hub) return c.json({ error: 'Hub not found' }, 404)
+
+  const exportData: Record<string, unknown> = {
+    exportedAt: new Date().toISOString(),
+    hubId,
+    hubName: hub.name,
+    categories,
+    note: 'All content fields are E2EE ciphertext. Decryption requires the hub key.',
+  }
+
+  if (categories.includes('notes')) {
+    const { notes, total } = await services.records.getNotes({ hubId })
+    exportData.notes = { total, records: notes }
+  }
+  if (categories.includes('calls')) {
+    const { calls, total } = await services.records.getCallHistory(1, 100_000, hubId)
+    exportData.calls = { total, records: calls }
+  }
+  if (categories.includes('conversations')) {
+    const { conversations, total } = await services.conversations.listConversations({ hubId })
+    exportData.conversations = { total, records: conversations }
+  }
+  if (categories.includes('audit')) {
+    const { entries, total } = await services.records.getAuditLog({ hubId, limit: 100_000 })
+    exportData.audit = { total, records: entries }
+  }
+
+  const json = JSON.stringify(exportData, null, 2)
+
+  return new Response(json, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Disposition': `attachment; filename="hub-${hubId}-export.json"`,
+    },
+  })
+})
+
 // Delete hub (super admin only — cascades all hub data)
 routes.delete('/:hubId', requirePermission('system:manage-hubs'), async (c) => {
   const hubId = c.req.param('hubId')

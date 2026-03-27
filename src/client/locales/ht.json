@@ -1312,5 +1312,20 @@
   },
   "blast": {
     "optOutFooter": "Reponn STOP pou dezabòne"
+  },
+  "hub": {
+    "export": {
+      "title": "Ekspòte done hub la",
+      "description": "Telechaje yon kopi done hub ou anvan ou efase li. Tout kontni ekspòte a se E2EE chifre.",
+      "selectCategories": "Chwazi done pou enkli:",
+      "categories": {
+        "notes": "Nòt",
+        "calls": "Rejis apèl",
+        "conversations": "Konvèsasyon",
+        "audit": "Jounal odit"
+      },
+      "download": "Telechaje ekspò",
+      "downloading": "Ap prepare ekspò..."
+    }
   }
 }
