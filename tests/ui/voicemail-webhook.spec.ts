@@ -56,8 +56,10 @@ test.describe('Voicemail UI', () => {
       }),
     })
 
-    // Give the server a moment to process the webhooks before navigating
-    await page.waitForTimeout(1000)
+    // Give the server time to process the webhooks before navigating.
+    // CI workers can be slow — voicemail recording + call status webhooks
+    // trigger async DB writes that must complete before the UI shows results.
+    await page.waitForTimeout(3000)
 
     // Navigate to calls page — wait for the call history API to return
     await navigateAfterLogin(page, '/calls')

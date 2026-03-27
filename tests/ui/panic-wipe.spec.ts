@@ -23,6 +23,8 @@ test.describe('Panic Wipe (L-9)', () => {
 
     // Should redirect to /login
     await page.waitForURL('**/login', { timeout: 5000 })
+    // Wait for login page to fully load so execution context is stable
+    await page.waitForLoadState('domcontentloaded')
 
     // Verify storage was cleared
     const hasKeyAfter = await page.evaluate(() => !!localStorage.getItem('llamenos-encrypted-key'))

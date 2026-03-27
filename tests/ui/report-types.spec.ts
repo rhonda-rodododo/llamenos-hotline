@@ -160,12 +160,11 @@ test.describe('Report Types System', () => {
 
     // Show archived section
     await page.getByRole('button', { name: /show archived/i }).click()
-    await expect(page.getByTestId('report-type-row').filter({ hasText: archiveName })).toBeVisible({
-      timeout: 10000,
-    })
+    const archivedRow = page.getByTestId('report-type-row').filter({ hasText: archiveName })
+    await expect(archivedRow).toBeVisible({ timeout: 10000 })
 
-    // Unarchive it
-    await page.getByTestId('unarchive-report-type-btn').click()
+    // Unarchive it — scope to the specific row to avoid strict mode with parallel tests
+    await archivedRow.getByTestId('unarchive-report-type-btn').click()
     await expect(page.getByText(archiveName).first()).toBeVisible({ timeout: 10000 })
   })
 
