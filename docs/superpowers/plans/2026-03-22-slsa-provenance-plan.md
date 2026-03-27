@@ -34,7 +34,7 @@
 - [x] Trigger: `push` to tag matching `v*` (e.g. `v1.0.0`)
   - Implemented in `ci.yml` — release job runs after version bump creates a tag on main
 - [x] Job: `build-and-attest`
-  - **Checkout**: `actions/checkout@v4` with `fetch-depth: 0` (full history for SOURCE_DATE_EPOCH)
+  - **Checkout**: `actions/checkout@v6` with `fetch-depth: 0` (full history for SOURCE_DATE_EPOCH)
   - **Get SOURCE_DATE_EPOCH**: `git log -1 --format=%ct HEAD` (set in build job)
   - **Build Docker image**: CI uses `bun run build` directly; `Dockerfile.build` is for offline verification
   - **Extract build artifacts**: Uploaded as `app-build` artifact, downloaded in release job

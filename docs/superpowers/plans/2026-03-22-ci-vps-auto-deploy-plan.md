@@ -78,7 +78,7 @@
               sleep 30
             done
 
-        - uses: actions/checkout@v4
+        - uses: actions/checkout@v6
           with:
             ref: ${{ github.event.release.tag_name || github.ref }}
 
