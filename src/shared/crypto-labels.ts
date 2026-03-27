@@ -135,3 +135,8 @@ export const LABEL_VOICEMAIL_WRAP = 'llamenos:voicemail-audio'
 
 /** Voicemail transcript encryption (domain-separated from generic LABEL_MESSAGE) */
 export const LABEL_VOICEMAIL_TRANSCRIPT = 'llamenos:voicemail-transcript'
+
+// --- Storage Credential Encryption ---
+
+/** Hub storage credential (IAM secret key) wrapping with hub key */
+export const LABEL_STORAGE_CREDENTIAL_WRAP = 'llamenos:storage-credential'

@@ -61,6 +61,10 @@ jobs:
       - name: Audit JS dependencies (critical)
         run: bun audit --audit-level=critical
 
+      - name: Audit JS dependencies (high — informational, transitive dep fixes may lag)
+        run: bun audit --audit-level=high || true
+        continue-on-error: true
+
       - name: Audit JS dependencies (all severities — informational)
         run: bun audit || true
         continue-on-error: true

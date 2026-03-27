@@ -35,7 +35,12 @@ describe('storeVoicemailAudio', () => {
     })
 
     expect(mockAdapter.getRecordingAudio).toHaveBeenCalledWith('REC456')
-    expect(mockFiles.putAssembled).toHaveBeenCalled()
+    expect(mockFiles.putAssembled).toHaveBeenCalledWith(
+      'hub-1',
+      expect.any(String),
+      expect.any(Uint8Array),
+      'voicemails'
+    )
     expect(mockFiles.createFileRecord).toHaveBeenCalled()
     expect(mockFiles.completeUpload).toHaveBeenCalled()
     expect(mockAdapter.deleteRecording).toHaveBeenCalledWith('REC456')
@@ -105,7 +110,7 @@ describe('storeVoicemailAudio', () => {
     const mockFiles = {
       createFileRecord: mock(async () => ({ id: 'file-abc' })),
       putAssembled: mock(async () => {
-        throw new Error('MinIO unavailable')
+        throw new Error('Storage unavailable')
       }),
       completeUpload: mock(async () => {}),
     }
@@ -121,7 +126,7 @@ describe('storeVoicemailAudio', () => {
         records: { updateCallRecord: mock() } as any,
         maxBytes: 2097152,
       })
-    ).rejects.toThrow('MinIO unavailable')
+    ).rejects.toThrow('Storage unavailable')
 
     expect(mockAdapter.deleteRecording).not.toHaveBeenCalled()
   })

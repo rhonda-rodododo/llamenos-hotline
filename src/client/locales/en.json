@@ -1346,6 +1346,23 @@
       "restricted": "Admin Access Restricted"
     }
   },
+  "hub": {
+    "export": {
+      "title": "Export Hub Data",
+      "description": "Download a copy of your hub data before deleting. All exported content is E2EE ciphertext.",
+      "selectCategories": "Select data to include:",
+      "categories": {
+        "notes": "Notes",
+        "calls": "Call Records",
+        "conversations": "Conversations",
+        "audit": "Audit Log",
+        "voicemails": "Voicemails",
+        "attachments": "File Attachments"
+      },
+      "download": "Download Export",
+      "downloading": "Preparing export..."
+    }
+  },
   "blasts": {
     "title": "Message Blasts",
     "newBlast": "New Blast",

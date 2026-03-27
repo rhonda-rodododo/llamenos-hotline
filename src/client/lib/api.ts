@@ -1840,6 +1840,28 @@ export async function deleteHub(hubId: string) {
   return request<{ ok: true }>(`/hubs/${hubId}`, { method: 'DELETE' })
 }
 
+export type HubExportCategory =
+  | 'notes'
+  | 'calls'
+  | 'conversations'
+  | 'audit'
+  | 'voicemails'
+  | 'attachments'
+
+export async function exportHubData(hubId: string, categories: HubExportCategory[]) {
+  const params = new URLSearchParams({ categories: categories.join(',') })
+  const path = `/hubs/${hubId}/export?${params.toString()}`
+  const pathOnly = `/hubs/${hubId}/export`
+  const headers = getAuthHeaders('GET', pathOnly)
+  const res = await fetch(`${API_BASE}${path}`, { headers })
+  if (!res.ok) {
+    if (res.status === 401) onAuthExpired?.()
+    throw new ApiError(res.status, await res.text())
+  }
+  onApiActivity?.()
+  return res.blob()
+}
+
 // --- Push Notifications ---
 
 export async function subscribePush(data: {

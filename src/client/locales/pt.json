@@ -1312,5 +1312,22 @@
   },
   "blast": {
     "optOutFooter": "Responda STOP para cancelar a assinatura"
+  },
+  "hub": {
+    "export": {
+      "title": "Exportar dados do hub",
+      "description": "Baixe uma cópia dos dados do seu hub antes de excluir. Todo o conteúdo exportado é texto cifrado E2EE.",
+      "selectCategories": "Selecionar dados para incluir:",
+      "categories": {
+        "notes": "Notas",
+        "calls": "Registros de chamadas",
+        "conversations": "Conversas",
+        "audit": "Log de auditoria",
+        "voicemails": "Mensagens de voz",
+        "attachments": "Anexos"
+      },
+      "download": "Baixar exportação",
+      "downloading": "Preparando exportação..."
+    }
   }
 }
