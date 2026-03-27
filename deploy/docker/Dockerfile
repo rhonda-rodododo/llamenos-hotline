@@ -37,13 +37,10 @@ RUN bun run build
 # Pin SHA — update via Dependabot or on new minor release
 FROM oven/bun:1-slim@sha256:478281fdd196871c7e51ba6a820b7803a8ae97042ec86cdbc2e1c6b6626442d9
 
-# Install curl for healthcheck + rc CLI for per-hub IAM management
+# Install curl for healthcheck
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && (curl -fsSL https://github.com/rustfs/cli/releases/latest/download/rc-linux-amd64 -o /usr/local/bin/rc \
-        && chmod +x /usr/local/bin/rc \
-        || echo "[docker] rc CLI not available — per-hub IAM disabled")
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN groupadd -r llamenos && useradd -r -g llamenos -d /app -s /sbin/nologin llamenos

@@ -83,13 +83,13 @@ async function main() {
       secretAccessKey: storageCreds.secretAccessKey,
     })
 
-    // Check if rc CLI is available for per-hub IAM
+    // Check if RustFS admin API is available for per-hub IAM
     const iamAvailable = await admin.available()
     if (iamAvailable) {
-      console.log('[llamenos] RustFS admin CLI (rc) available — per-hub IAM enabled')
+      console.log('[llamenos] RustFS admin API available — per-hub IAM enabled')
     } else {
       console.warn(
-        '[llamenos] rc CLI not found — per-hub IAM disabled, using root credentials for all hubs'
+        '[llamenos] RustFS admin API not available — per-hub IAM disabled, using root credentials for all hubs'
       )
     }
 
