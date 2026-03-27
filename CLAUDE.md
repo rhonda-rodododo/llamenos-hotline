@@ -12,7 +12,7 @@ Llámenos is a secure crisis response hotline webapp. Callers dial a phone numbe
 
 - **Runtime/Package Manager**: Bun (runs TypeScript natively — no bundling step for server)
 - **Frontend**: Vite + TanStack Router (SPA, no SSR) + shadcn/ui (component installer)
-- **Backend**: Bun + Hono + PostgreSQL (self-hosted via Docker/Ansible)
+- **Backend**: Bun + Hono + PostgreSQL + RustFS (self-hosted via Docker/Ansible)
 - **Telephony**: Twilio via a `TelephonyAdapter` interface (designed for future provider swaps, e.g. SIP trunks)
 - **Auth**: Nostr keypairs (BIP-340 Schnorr signatures) + WebAuthn session tokens for multi-device support
 - **i18n**: Built-in from day one — all user-facing strings must be translatable
@@ -83,6 +83,7 @@ src/
 - **SIP WebRTC (JsSIP)**: Browser calling for self-hosted SIP providers (Asterisk, FreeSWITCH, Kamailio). `SipWebRTCAdapter` wraps JsSIP UA for SIP-over-WSS signaling + browser DTLS-SRTP media. Endpoints provisioned via `AsteriskProvisioner` → asterisk-bridge → ARI dynamic config. coturn provides TURN relay for NAT traversal. Caddy terminates TLS and proxies WSS to Asterisk.
 - **Reproducible builds**: `Dockerfile.build` with `SOURCE_DATE_EPOCH`, content-hashed filenames. `CHECKSUMS.txt` in GitHub Releases. SLSA provenance. Verification via `scripts/verify-build.sh`.
 - **Hash-chained audit log**: SHA-256 chain with `previousEntryHash` + `entryHash` for tamper detection (Epic 77).
+- **Blob storage (RustFS)**: S3-compatible object storage via `StorageManager` (`src/server/services/storage-manager.ts`). Per-hub buckets (`hub-{hubId}`) with lifecycle policies. Provider-agnostic `STORAGE_*` env vars (`STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`). Used for voicemail recordings, attachments, and encrypted exports.
 - **Domain separation**: All 25 crypto context constants in `src/shared/crypto-labels.ts` — NEVER use raw string literals for crypto contexts.
 
 ## Gotchas
@@ -99,6 +100,7 @@ src/
 - Asterisk WSS requires TLS — in production Caddy proxies WSS→WS; for local dev use `scripts/dev-certs.sh` (mkcert)
 - coturn TURN credentials use time-limited HMAC from shared secret — not static username/password
 - JsSIP `newRTCSession` fires for both incoming and outgoing — check `originator === 'remote'`
+- RustFS container runs as UID 10001 — volume ownership must match
 
 ## Development Commands
 
@@ -106,7 +108,7 @@ src/
 bun install                              # Install dependencies
 bun run dev                              # Vite dev server (frontend only)
 bun run dev:server                       # Bun watch server (localhost:3000)
-bun run dev:docker                       # Start backing services (postgres, minio, strfry) for local dev
+bun run dev:docker                       # Start backing services (postgres, rustfs, strfry) for local dev
 bun run dev:docker:down                  # Stop dev backing services
 bun run migrate                          # Apply pending Drizzle migrations
 bun run migrate:generate                 # Generate SQL migration files from schema changes
@@ -130,8 +132,8 @@ PLAYWRIGHT_WORKERS=3 bunx playwright test    # Run with 3 workers (after isolati
 ```
 
 **Local Dev Port Offsets** (v1 uses offsets to avoid conflicts with llamenos v2 at ~/projects/llamenos):
-- v2 (llamenos): postgres:5432, minio:9000/9001, strfry:7777
-- v1 (llamenos-hotline): postgres:5433, minio:9002/9003, strfry:7778
+- v2 (llamenos): postgres:5432, rustfs:9000/9001, strfry:7777
+- v1 (llamenos-hotline): postgres:5433, rustfs:9002/9003, strfry:7778
 
 **Deployment rules — NEVER run `wrangler pages deploy` directly** (site deploy only). Always use `bun run deploy:site` which runs from the `site/` directory via Astro. Running it from the root would deploy the wrong build.
 

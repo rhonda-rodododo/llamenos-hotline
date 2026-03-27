@@ -2,7 +2,7 @@
 # Copy to .dev.vars.local (gitignored) and fill in your values
 PLATFORM=node
 DATABASE_URL=postgresql://llamenos:yourpassword@localhost:5433/llamenos
-MINIO_ENDPOINT=http://localhost:9002
+STORAGE_ENDPOINT=http://localhost:9002
 NOSTR_RELAY_URL=ws://localhost:7778
 
 # Push notifications (Epic 86) — Web Push / VAPID

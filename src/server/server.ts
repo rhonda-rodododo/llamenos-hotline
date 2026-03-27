@@ -16,12 +16,13 @@ import { loadEnv } from './env'
 import { scheduleBlastProcessor } from './jobs/blast-processor'
 import { scheduleRetentionPurge } from './jobs/retention-purge'
 import { closeNostrPublisher, getMessagingAdapter, getTelephony } from './lib/adapters'
-import { createBlobStorage } from './lib/blob-storage'
+import { createStorageAdmin } from './lib/storage-admin'
+import { createStorageManager, resolveStorageCredentials } from './lib/storage-manager'
 import { errorHandler } from './middleware/error'
 import { servicesMiddleware } from './middleware/services'
 import { createServices } from './services'
 import { ProviderHealthService } from './services/provider-health'
-import type { BlobStorage } from './types'
+import type { StorageManager } from './types'
 
 async function main() {
   console.log('[llamenos] Starting server...')
@@ -73,15 +74,42 @@ async function main() {
   await migrate(db, { migrationsFolder: path.resolve(process.cwd(), 'drizzle', 'migrations') })
   console.log('[llamenos] Migrations applied')
 
-  let blob: BlobStorage | null = null
+  let storage: StorageManager | null = null
   try {
-    blob = createBlobStorage()
-    console.log('[llamenos] MinIO blob storage connected')
+    const storageCreds = resolveStorageCredentials()
+    const admin = createStorageAdmin({
+      endpoint: storageCreds.endpoint,
+      accessKeyId: storageCreds.accessKeyId,
+      secretAccessKey: storageCreds.secretAccessKey,
+    })
+
+    // Check if RustFS admin API is available for per-hub IAM
+    const iamAvailable = await admin.available()
+    if (iamAvailable) {
+      console.log('[llamenos] RustFS admin API available — per-hub IAM enabled')
+    } else {
+      console.warn(
+        '[llamenos] RustFS admin API not available — per-hub IAM disabled, using root credentials for all hubs'
+      )
+    }
+
+    storage = createStorageManager({
+      ...storageCreds,
+      admin: iamAvailable ? admin : undefined,
+    })
+    console.log('[llamenos] RustFS storage manager connected')
+
+    // Ensure the "global" fallback buckets exist for operations without hub context
+    try {
+      await storage.provisionHub('global')
+    } catch {
+      // Buckets may already exist — safe to ignore
+    }
   } catch {
-    console.warn('[llamenos] MinIO not configured — file upload/download routes will return 503')
+    console.warn('[llamenos] Storage not configured — file upload/download routes will return 503')
   }
 
-  const services = createServices(db, blob, env.SERVER_NOSTR_SECRET ?? '')
+  const services = createServices(db, storage, env.SERVER_NOSTR_SECRET ?? '')
 
   // Provider health monitoring
   const providerHealth = new ProviderHealthService()

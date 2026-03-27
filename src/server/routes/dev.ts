@@ -56,7 +56,7 @@ dev.post('/test-reset', async (c) => {
   await services.shifts.resetForTest()
   await services.calls.resetForTest()
   await services.conversations.resetForTest()
-  await services.files.resetForTest()
+  await services.files.resetForTest('global')
   await services.settings.resetForTest()
   // Re-seed default roles before bootstrapping admin — resetForTest deletes all roles,
   // and bootstrapAdmin assigns role-super-admin which must exist for permission resolution
@@ -124,7 +124,7 @@ dev.post('/test-reset-no-admin', async (c) => {
   await services.shifts.resetForTest()
   await services.calls.resetForTest()
   await services.conversations.resetForTest()
-  await services.files.resetForTest()
+  await services.files.resetForTest('global')
   await services.settings.resetForTest()
   // Delete the admin volunteer so bootstrap tests see needsBootstrap=true
   if (c.env.ADMIN_PUBKEY) {
@@ -161,7 +161,7 @@ dev.post('/test-reset-records', async (c) => {
   await services.shifts.resetForTest()
   await services.calls.resetForTest()
   await services.conversations.resetForTest()
-  await services.files.resetForTest()
+  await services.files.resetForTest('global')
   return c.json({ ok: true })
 })
 

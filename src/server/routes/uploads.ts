@@ -31,7 +31,7 @@ uploads.post('/init', async (c) => {
     return c.json({ error: 'Too many chunks (max 10000)' }, 400)
   }
 
-  if (!services.files.hasBlob) {
+  if (!services.files.hasStorage) {
     return c.json({ error: 'File storage not configured' }, 503)
   }
 
@@ -39,6 +39,7 @@ uploads.post('/init', async (c) => {
 
   await services.files.createFileRecord({
     id: uploadId,
+    hubId: hubId ?? 'global',
     conversationId: body.conversationId ?? '',
     uploadedBy: pubkey,
     recipientEnvelopes: body.recipientEnvelopes ?? [],
@@ -94,7 +95,8 @@ uploads.put('/:id/chunks/:chunkIndex', async (c) => {
     return c.json({ error: `Chunk too large (max ${MAX_CHUNK_SIZE / 1024 / 1024}MB)` }, 400)
   }
 
-  await services.files.putChunk(uploadId, chunkIndex, body)
+  const hubId = c.get('hubId')
+  await services.files.putChunk(hubId ?? 'global', uploadId, chunkIndex, body)
   const { completedChunks, totalChunks } = await services.files.incrementChunk(uploadId)
 
   return c.json({ chunkIndex, completedChunks, totalChunks })
@@ -131,7 +133,7 @@ uploads.post('/:id/complete', async (c) => {
   // Assemble chunks into a single buffer
   const chunkArrays: Uint8Array[] = []
   for (let i = 0; i < record.totalChunks; i++) {
-    const chunkData = await services.files.getChunk(uploadId, i)
+    const chunkData = await services.files.getChunk(hubId ?? 'global', uploadId, i)
     if (!chunkData) {
       await services.files.failUpload(uploadId)
       return c.json({ error: `Missing chunk ${i}` }, 500)
@@ -148,18 +150,18 @@ uploads.post('/:id/complete', async (c) => {
   }
 
   // Store assembled content
-  await services.files.putAssembled(uploadId, assembled)
+  await services.files.putAssembled(hubId ?? 'global', uploadId, assembled)
 
   // Write blob copies of envelopes and metadata for backward compat
-  await services.files.storeEnvelopesBlob(uploadId, record.recipientEnvelopes)
-  await services.files.storeMetadataBlob(uploadId, record.encryptedMetadata)
+  await services.files.storeEnvelopesBlob(hubId ?? 'global', uploadId, record.recipientEnvelopes)
+  await services.files.storeMetadataBlob(hubId ?? 'global', uploadId, record.encryptedMetadata)
 
   // Mark DB record as complete FIRST — chunks remain in blob storage and are
   // recoverable if this DB call fails. Never destroy source data before committing.
   await services.files.completeUpload(uploadId)
 
   // Delete individual chunks only after the record is durably marked complete
-  await services.files.deleteAllChunks(uploadId, record.totalChunks)
+  await services.files.deleteAllChunks(hubId ?? 'global', uploadId, record.totalChunks)
 
   await services.records.addAuditEntry(hubId ?? 'global', 'fileUploadCompleted', pubkey, {
     uploadId,

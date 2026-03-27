@@ -141,6 +141,20 @@
       "when": 1774882800000,
       "tag": "0019_blast_content_encryption",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1774969200000,
+      "tag": "0019_hub_storage_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1774969200001,
+      "tag": "0020_hub_storage_credentials",
+      "breakpoints": true
     }
   ]
 }

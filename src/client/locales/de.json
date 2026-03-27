@@ -1312,5 +1312,22 @@
   },
   "blast": {
     "optOutFooter": "Antworten Sie STOP zum Abbestellen"
+  },
+  "hub": {
+    "export": {
+      "title": "Hub-Daten exportieren",
+      "description": "Laden Sie eine Kopie Ihrer Hub-Daten herunter, bevor Sie löschen. Alle exportierten Inhalte sind E2EE-Chiffretext.",
+      "selectCategories": "Daten zum Einschließen auswählen:",
+      "categories": {
+        "notes": "Notizen",
+        "calls": "Anrufprotokolle",
+        "conversations": "Unterhaltungen",
+        "audit": "Prüfprotokoll",
+        "voicemails": "Sprachnachrichten",
+        "attachments": "Dateianhänge"
+      },
+      "download": "Export herunterladen",
+      "downloading": "Export wird vorbereitet..."
+    }
   }
 }

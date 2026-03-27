@@ -3,8 +3,10 @@ import { LABEL_VOICEMAIL_WRAP } from '@shared/crypto-labels'
 import {
   decryptBinaryFromStorage,
   decryptProviderCredentials,
+  decryptStorageCredential,
   encryptBinaryForStorage,
   encryptProviderCredentials,
+  encryptStorageCredential,
 } from './crypto'
 
 describe('provider credential encryption', () => {
@@ -35,6 +37,38 @@ describe('provider credential encryption', () => {
   test('encrypted output is nonce (48 hex = 24 bytes) + ciphertext', () => {
     const encrypted = encryptProviderCredentials('test', TEST_SECRET)
     expect(encrypted.length).toBeGreaterThan(48 + 32)
+  })
+})
+
+describe('storage credential encryption', () => {
+  const TEST_SECRET = 'c'.repeat(64)
+
+  test('encrypt then decrypt roundtrip', () => {
+    const secretKey = 'my-super-secret-iam-key-12345'
+    const encrypted = encryptStorageCredential(secretKey, TEST_SECRET)
+    expect(encrypted).not.toBe(secretKey)
+    expect(encrypted).toMatch(/^[0-9a-f]+$/)
+    const decrypted = decryptStorageCredential(encrypted, TEST_SECRET)
+    expect(decrypted).toBe(secretKey)
+  })
+
+  test('decrypt with wrong server secret throws', () => {
+    const encrypted = encryptStorageCredential('secret-key', TEST_SECRET)
+    const wrongSecret = 'd'.repeat(64)
+    expect(() => decryptStorageCredential(encrypted, wrongSecret)).toThrow()
+  })
+
+  test('each encryption produces different ciphertext (random nonce)', () => {
+    const secretKey = 'same-key-input'
+    const a = encryptStorageCredential(secretKey, TEST_SECRET)
+    const b = encryptStorageCredential(secretKey, TEST_SECRET)
+    expect(a).not.toBe(b)
+  })
+
+  test('encrypted output is nonce (48 hex = 24 bytes) + ciphertext', () => {
+    const encrypted = encryptStorageCredential('test-key', TEST_SECRET)
+    // 24 bytes nonce = 48 hex chars, plus ciphertext + poly1305 tag
+    expect(encrypted.length).toBeGreaterThan(48 + 16)
   })
 })
 

@@ -22,7 +22,7 @@ interface StoreVoicemailParams {
  * 1. Download audio from telephony provider
  * 2. Validate size — bail with 'oversized' if too large, keeping provider copy as fallback
  * 3. Encrypt with ECIES envelopes for each admin
- * 4. Store encrypted blob in MinIO via FilesService
+ * 4. Store encrypted blob in object storage via FilesService
  * 5. Delete from provider only after successful storage
  * 6. Update call record with voicemailFileId
  *
@@ -63,14 +63,15 @@ export async function storeVoicemailAudio(
     ephemeralPubkey: env.ephemeralPubkey,
   }))
 
-  // 4. Store encrypted blob in MinIO via FilesService
+  // 4. Store encrypted blob in object storage via FilesService
   const fileId = randomUUID()
   const encryptedBytes = Buffer.from(encryptedContent, 'hex')
 
   // putAssembled first — if this throws, we don't proceed to createFileRecord or deleteRecording
-  await files.putAssembled(fileId, new Uint8Array(encryptedBytes))
+  await files.putAssembled(hubId, fileId, new Uint8Array(encryptedBytes), 'voicemails')
   await files.createFileRecord({
     id: fileId,
+    hubId,
     conversationId: null,
     messageId: undefined,
     uploadedBy: 'system:voicemail',

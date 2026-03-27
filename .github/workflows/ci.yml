@@ -270,9 +270,9 @@ jobs:
           HMAC_SECRET: ${{ env.TEST_HMAC_SECRET }}
           ENVIRONMENT: development
           USE_TEST_ADAPTER: "true"
-          MINIO_ENDPOINT: http://localhost:9000
-          MINIO_ACCESS_KEY: minioadmin
-          MINIO_SECRET_KEY: minioadmin
+          STORAGE_ENDPOINT: http://localhost:9000
+          STORAGE_ACCESS_KEY: rustfsadmin
+          STORAGE_SECRET_KEY: rustfsadmin
           NOSTR_RELAY_URL: ws://localhost:7777
           SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
           DEV_RESET_SECRET: test-reset-secret
@@ -360,9 +360,9 @@ jobs:
           HMAC_SECRET: ${{ env.TEST_HMAC_SECRET }}
           ENVIRONMENT: development
           USE_TEST_ADAPTER: "true"
-          MINIO_ENDPOINT: http://localhost:9000
-          MINIO_ACCESS_KEY: minioadmin
-          MINIO_SECRET_KEY: minioadmin
+          STORAGE_ENDPOINT: http://localhost:9000
+          STORAGE_ACCESS_KEY: rustfsadmin
+          STORAGE_SECRET_KEY: rustfsadmin
           NOSTR_RELAY_URL: ws://localhost:7777
           SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
           DEV_RESET_SECRET: test-reset-secret
