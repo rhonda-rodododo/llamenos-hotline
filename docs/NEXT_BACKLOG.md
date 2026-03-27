@@ -305,6 +305,6 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 ## Storage & Infrastructure — Future Work
 
 - [x] **LUKS volume encryption for RustFS data** — dm-crypt/LUKS Ansible role (`luks.yml`), opt-in via `luks_enabled`. Defense-in-depth beneath SSE-S3 + E2EE.
-- [ ] **Per-hub IAM credentials** — Storage-level tenant isolation. Blocked on RustFS admin API/CLI maturity. Currently using app-level enforcement with single credential set.
+- [x] **Per-hub IAM credentials** — Per-hub IAM users with bucket-scoped policies via RustFS admin API. Credentials encrypted at rest with HKDF + XChaCha20-Poly1305.
 - [x] **Export-then-destroy on hub deletion** — Category checklist dialog + `GET /api/hubs/:hubId/export` JSON download. i18n for 13 locales.
 - [ ] **External KMS for SSE-KMS** — Replace RustFS-managed keys (SSE-S3) with Hashicorp Vault or similar for key management. For deployments with higher compliance requirements.
