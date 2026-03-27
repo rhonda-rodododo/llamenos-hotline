@@ -301,3 +301,10 @@ admin-flow (18), blast-sending (8), notes-crud (7), smoke (4), theme (7), health
 - [ ] WebRTCManager factory integration
 - [ ] Bridge ring command extension for browser endpoints
 - [ ] E2E tests against local Asterisk
+
+## Storage & Infrastructure — Future Work
+
+- [ ] **LUKS volume encryption for RustFS data** — dm-crypt/LUKS on the host volume that RustFS stores data on. Configure via Ansible. Defense-in-depth layer beneath SSE-S3 + E2EE.
+- [ ] **Per-hub IAM credentials** — Storage-level tenant isolation. Blocked on RustFS admin API/CLI maturity. Currently using app-level enforcement with single credential set.
+- [ ] **Export-then-destroy on hub deletion** — Download dialog with checklist (select data categories) before destructive hub delete. Allows users to export voicemails, attachments, notes before destroying all traces.
+- [ ] **External KMS for SSE-KMS** — Replace RustFS-managed keys (SSE-S3) with Hashicorp Vault or similar for key management. For deployments with higher compliance requirements.

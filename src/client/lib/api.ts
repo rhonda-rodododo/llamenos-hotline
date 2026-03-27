@@ -1502,7 +1502,8 @@ export async function listBlasts() {
 
 export async function createBlast(data: {
   name: string
-  content: BlastContent
+  encryptedContent: string
+  contentEnvelopes: Array<{ pubkey: string; wrappedKey: string; ephemeralPubkey: string }>
   targetChannels: string[]
   targetTags?: string[]
   targetLanguages?: string[]

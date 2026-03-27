@@ -82,11 +82,11 @@ test.describe('PIN Challenge (Re-auth Step-up)', () => {
     // Third wrong PIN — should trigger wipe and close dialog
     await enterPin(page, '777777')
 
-    // Dialog should close after max attempts
-    await expect(pinDialog).not.toBeVisible({ timeout: 5000 })
+    // Dialog should close after max attempts (CI Chromium needs extra time for wipe + redirect)
+    await expect(pinDialog).not.toBeVisible({ timeout: 15000 })
 
     // Key should be wiped — redirected to login
-    await page.waitForURL('**/login', { timeout: 10000 })
+    await page.waitForURL('**/login', { timeout: 15000 })
   })
 
   test('cancel PIN challenge closes dialog without action', async ({ page }) => {

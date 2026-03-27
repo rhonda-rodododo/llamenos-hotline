@@ -5,7 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.4] - 2026-03-27
+
+### Bug Fixes
+
+- replace fabricated SHA pins with semver tags, update trivy-action to v0.35.0
+
+### Miscellaneous
+
+- v0.26.4 [skip ci]
+
+## [0.26.3] - 2026-03-27
+
+### Bug Fixes
+
+- use domcontentloaded instead of networkidle for login helpers
+- remove storage-manager files accidentally committed to main
+
+### Documentation
+
+- add MinIO → RustFS migration implementation plan
+
+### Miscellaneous
+
+- v0.26.3 [skip ci]
+
+## [0.26.2] - 2026-03-26
+
+### Bug Fixes
+
+- stabilize loginAsAdmin for deployment E2E — verify key store, networkidle
+
+### Documentation
+
+- add implementation plan for tier 1 unit test expansion
+- add MinIO → RustFS migration design spec
+
+### Miscellaneous
+
+- v0.26.2 [skip ci]
+
+## [0.26.1] - 2026-03-26
+
+### Bug Fixes
+
+- increase CI timeouts for 4 flaky UI E2E tests
+- Caddy needs internal network to proxy WebSocket to strfry
+
+### Documentation
+
+- add unit test tier 1 spec — core crypto primitives + integration test separation
+- fix spec review issues — correct file count and private function testing
+
+### Miscellaneous
+
+- v0.26.1 [skip ci]
+
 ## [0.26.0] - 2026-03-26
+
+### Bug Fixes
+
+- deployment E2E bugs — MinIO creds, CSP WebSocket, VM test tooling
 
 ### Documentation
 

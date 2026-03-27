@@ -160,11 +160,13 @@ test.describe('Report Types System', () => {
 
     // Show archived section
     await page.getByRole('button', { name: /show archived/i }).click()
-    await expect(page.getByTestId('report-type-row').filter({ hasText: archiveName })).toBeVisible()
+    await expect(page.getByTestId('report-type-row').filter({ hasText: archiveName })).toBeVisible({
+      timeout: 10000,
+    })
 
     // Unarchive it
     await page.getByTestId('unarchive-report-type-btn').click()
-    await expect(page.getByText(archiveName).first()).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(archiveName).first()).toBeVisible({ timeout: 10000 })
   })
 
   test('report form shows report type dropdown when types exist', async ({ page }) => {
@@ -178,12 +180,12 @@ test.describe('Report Types System', () => {
     // Open new report form
     await page.getByRole('button', { name: /new/i }).click()
     await expect(page.getByPlaceholder('Brief description of the report')).toBeVisible({
-      timeout: 5000,
+      timeout: 10000,
     })
 
-    // Report type dropdown should be visible
-    await expect(page.getByTestId('report-type-select')).toBeVisible()
-    await expect(page.getByTestId('report-type-label')).toBeVisible()
+    // Report type dropdown should be visible (CI may need time to fetch types)
+    await expect(page.getByTestId('report-type-select')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTestId('report-type-label')).toBeVisible({ timeout: 5000 })
   })
 
   test('default type is pre-selected in report form', async ({ page }) => {

@@ -7,10 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cancelBlast, deleteBlast, listBlasts, sendBlast } from '@/lib/api'
 import type { Blast } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { decryptBlastContent } from '@/lib/crypto'
+import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
+import type { BlastContent } from '@shared/types'
 import { createFileRoute } from '@tanstack/react-router'
 import { Megaphone, Plus, Send, Settings2, Trash2, Users, XCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/blasts')({
@@ -27,6 +30,25 @@ function BlastsPage() {
   const [showComposer, setShowComposer] = useState(false)
   const [showSubscribers, setShowSubscribers] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [decryptedContent, setDecryptedContent] = useState<Record<string, BlastContent | null>>({})
+
+  const decryptBlasts = useCallback(async (blastList: Blast[]) => {
+    const unlocked = await keyManager.isUnlocked()
+    if (!unlocked) return
+    const pk = await keyManager.getPublicKeyHex()
+    if (!pk) return
+    const map: Record<string, BlastContent | null> = {}
+    for (const blast of blastList) {
+      if (blast.encryptedContent && blast.contentEnvelopes?.length) {
+        map[blast.id] = await decryptBlastContent(
+          blast.encryptedContent,
+          blast.contentEnvelopes,
+          pk
+        )
+      }
+    }
+    setDecryptedContent((prev) => ({ ...prev, ...map }))
+  }, [])
 
   useEffect(() => {
     loadBlasts()
@@ -36,6 +58,7 @@ function BlastsPage() {
     try {
       const res = await listBlasts()
       setBlasts(res.blasts)
+      await decryptBlasts(res.blasts)
     } catch {
       toast(t('common.error'), 'error')
     } finally {
@@ -176,8 +199,11 @@ function BlastsPage() {
                         </Badge>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground truncate">
-                        {(blast.content?.text ?? '').slice(0, 60)}
-                        {(blast.content?.text ?? '').length > 60 ? '...' : ''}
+                        {(decryptedContent[blast.id]?.text ?? t('blasts.encryptedContent')).slice(
+                          0,
+                          60
+                        )}
+                        {(decryptedContent[blast.id]?.text ?? '').length > 60 ? '...' : ''}
                       </p>
                       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                         <span>
@@ -203,6 +229,7 @@ function BlastsPage() {
             <BlastComposer
               onCreated={(blast) => {
                 setBlasts((prev) => [blast, ...prev])
+                void decryptBlasts([blast])
                 setShowComposer(false)
                 setSelectedBlast(blast)
               }}
@@ -220,7 +247,9 @@ function BlastsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="rounded-lg border border-border p-4">
-                  <p className="text-sm whitespace-pre-wrap">{selectedBlast.content.text}</p>
+                  <p className="text-sm whitespace-pre-wrap">
+                    {decryptedContent[selectedBlast.id]?.text ?? t('blasts.encryptedContent')}
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">

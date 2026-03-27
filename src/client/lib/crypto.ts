@@ -9,12 +9,13 @@ import {
   HKDF_CONTEXT_EXPORT,
   HKDF_CONTEXT_NOTES,
   HKDF_SALT,
+  LABEL_BLAST_CONTENT,
   LABEL_CALL_META,
   LABEL_MESSAGE,
   LABEL_NOTE_KEY,
   LABEL_TRANSCRIPTION,
 } from '@shared/crypto-labels'
-import type { NotePayload } from '@shared/types'
+import type { BlastContent, NotePayload } from '@shared/types'
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools'
 import { getCryptoWorker } from './crypto-worker-client'
 
@@ -278,6 +279,101 @@ export async function decryptMessage(
     const cipher = xchacha20poly1305(messageKey, nonce)
     const plaintext = cipher.decrypt(ciphertext)
     return new TextDecoder().decode(plaintext)
+  } catch {
+    return null
+  }
+}
+
+// --- Blast Content Encryption ---
+
+export interface EncryptedBlastContentPayload {
+  encryptedContent: string
+  contentEnvelopes: RecipientKeyEnvelope[]
+}
+
+export function encryptBlastContent(
+  content: BlastContent,
+  recipientPubkeys: string[]
+): EncryptedBlastContentPayload {
+  const blastKey = randomBytes(32)
+  const nonce = randomBytes(24)
+  const cipher = xchacha20poly1305(blastKey, nonce)
+  const ciphertext = cipher.encrypt(utf8ToBytes(JSON.stringify(content)))
+
+  const packed = new Uint8Array(nonce.length + ciphertext.length)
+  packed.set(nonce)
+  packed.set(ciphertext, nonce.length)
+
+  return {
+    encryptedContent: bytesToHex(packed),
+    contentEnvelopes: recipientPubkeys.map((pk) => ({
+      pubkey: pk,
+      ...eciesWrapKey(blastKey, pk, LABEL_BLAST_CONTENT),
+    })),
+  }
+}
+
+/**
+ * Decrypt blast content using the crypto worker (main thread, no secret key access).
+ * Used by the client UI when the worker is unlocked.
+ */
+export async function decryptBlastContent(
+  encryptedContent: string,
+  contentEnvelopes: RecipientKeyEnvelope[],
+  readerPubkey: string
+): Promise<BlastContent | null> {
+  try {
+    const envelope = contentEnvelopes.find((e) => e.pubkey === readerPubkey)
+    if (!envelope) return null
+
+    const blastKey = await eciesUnwrapKey(envelope, LABEL_BLAST_CONTENT)
+
+    const data = hexToBytes(encryptedContent)
+    const nonce = data.slice(0, 24)
+    const ciphertext = data.slice(24)
+    const cipher = xchacha20poly1305(blastKey, nonce)
+    const plaintext = cipher.decrypt(ciphertext)
+    return JSON.parse(new TextDecoder().decode(plaintext)) as BlastContent
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Decrypt blast content with an explicit secret key (no worker needed).
+ * Used by server-side code and unit tests where the secret key is directly available.
+ */
+export function decryptBlastContentWithKey(
+  encryptedContent: string,
+  contentEnvelopes: RecipientKeyEnvelope[],
+  secretKey: Uint8Array,
+  readerPubkey: string
+): BlastContent | null {
+  try {
+    const envelope = contentEnvelopes.find((e) => e.pubkey === readerPubkey)
+    if (!envelope) return null
+
+    // Inline ECIES unwrap — mirrors eciesUnwrapKey but with explicit secret key
+    const ephemeralPub = hexToBytes(envelope.ephemeralPubkey)
+    const shared = secp256k1.getSharedSecret(secretKey, ephemeralPub)
+    const sharedX = shared.slice(1, 33)
+    const labelBytes = utf8ToBytes(LABEL_BLAST_CONTENT)
+    const keyInput = new Uint8Array(labelBytes.length + sharedX.length)
+    keyInput.set(labelBytes)
+    keyInput.set(sharedX, labelBytes.length)
+    const symmetricKey = sha256(keyInput)
+    const wrappedData = hexToBytes(envelope.wrappedKey)
+    const wrappedNonce = wrappedData.slice(0, 24)
+    const wrappedCiphertext = wrappedData.slice(24)
+    const unwrapCipher = xchacha20poly1305(symmetricKey, wrappedNonce)
+    const blastKey = unwrapCipher.decrypt(wrappedCiphertext)
+
+    const data = hexToBytes(encryptedContent)
+    const nonce = data.slice(0, 24)
+    const ciphertext = data.slice(24)
+    const cipher = xchacha20poly1305(blastKey, nonce)
+    const plaintext = cipher.decrypt(ciphertext)
+    return JSON.parse(new TextDecoder().decode(plaintext)) as BlastContent
   } catch {
     return null
   }

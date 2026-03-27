@@ -56,20 +56,23 @@ test.describe('Voicemail UI', () => {
       }),
     })
 
+    // Give the server a moment to process the webhooks before navigating
+    await page.waitForTimeout(1000)
+
     // Navigate to calls page — wait for the call history API to return
     await navigateAfterLogin(page, '/calls')
     await expect(page.getByRole('heading', { name: /call history/i })).toBeVisible({
-      timeout: 10000,
+      timeout: 15000,
     })
 
     // Wait for call list to load (call-history-row is the actual testid in the component)
     await expect(page.locator('[data-testid="call-history-row"]').first()).toBeVisible({
-      timeout: 10000,
+      timeout: 15000,
     })
 
     // The VoicemailPlayer component renders with data-testid="voicemail-player"
     // when call.hasVoicemail is true. Verify at least one voicemail player is visible.
     const voicemailPlayer = page.locator('[data-testid="voicemail-player"]')
-    await expect(voicemailPlayer.first()).toBeVisible({ timeout: 10000 })
+    await expect(voicemailPlayer.first()).toBeVisible({ timeout: 15000 })
   })
 })

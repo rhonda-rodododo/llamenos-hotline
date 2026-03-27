@@ -49,6 +49,13 @@ async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promi
     },
     { nsec, pin }
   )
+
+  // Verify the key was actually stored before allowing reload.
+  // Under load, the localStorage write from importKey can be lost if the page
+  // reloads too quickly after evaluate() resolves.
+  await page.waitForFunction(() => localStorage.getItem('llamenos-encrypted-key') !== null, {
+    timeout: 5000,
+  })
 }
 
 /**
@@ -168,10 +175,10 @@ export async function reenterPinAfterReload(page: Page): Promise<void> {
  * Also installs a handler to auto-dismiss the session expired modal if it appears.
  */
 export async function loginAsAdmin(page: Page) {
-  await page.goto('/login')
+  await page.goto('/login', { waitUntil: 'domcontentloaded' })
   await page.evaluate(() => sessionStorage.clear())
   await preloadEncryptedKey(page, ADMIN_NSEC, TEST_PIN)
-  await page.reload()
+  await page.reload({ waitUntil: 'domcontentloaded' })
   await enterPin(page, TEST_PIN)
   await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
     timeout: 60000,
@@ -194,7 +201,7 @@ export async function loginAsAdmin(page: Page) {
  * Login as volunteer: pre-loads encrypted key into localStorage, then enters PIN.
  */
 export async function loginAsVolunteer(page: Page, nsec: string) {
-  await page.goto('/login')
+  await page.goto('/login', { waitUntil: 'domcontentloaded' })
   await page.evaluate(() => sessionStorage.clear())
   await preloadEncryptedKey(page, nsec, TEST_PIN)
   await page.reload({ waitUntil: 'domcontentloaded' })

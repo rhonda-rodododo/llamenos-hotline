@@ -138,6 +138,7 @@ services:
       - ACME_EMAIL=${ACME_EMAIL:-}
     networks:
       - web
+      - internal  # Required for reverse_proxy to strfry (Nostr relay)
     depends_on:
       app:
         condition: service_healthy
