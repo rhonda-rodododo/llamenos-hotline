@@ -34,6 +34,9 @@ async function createCustomTextField(page: Page, label: string) {
   await page.getByPlaceholder('e.g. Severity Rating').fill(label)
   await page.getByRole('button', { name: /save/i }).last().click()
   await expect(page.getByText(/success/i)).toBeVisible({ timeout: 10000 })
+
+  // Wait for the field to appear in the settings list before navigating away
+  await expect(page.getByText(label).first()).toBeVisible({ timeout: 5000 })
 }
 
 /** Create a note with a custom field value and return the note text for identification */
@@ -47,6 +50,8 @@ async function createNoteWithCustomField(
   await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
 
   await page.getByRole('button', { name: /new note/i }).click()
+  await expect(page.getByLabel(fieldLabel)).toBeVisible()
+
   await page.locator('#call-id').fill(`cf-test-${Date.now()}`)
   await page.locator('textarea').first().fill(noteText)
   await page.getByLabel(fieldLabel).fill(fieldValue)
@@ -57,6 +62,10 @@ async function createNoteWithCustomField(
 }
 
 test.describe('Custom Fields in Notes', () => {
+  // Serial: updateCustomFields replaces ALL fields for a hub atomically.
+  // Parallel workers would overwrite each other's fields.
+  test.describe.configure({ mode: 'serial' })
+
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })

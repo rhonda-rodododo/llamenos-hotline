@@ -10,6 +10,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import type { EncryptedMetaItem, FileKeyEnvelope, RecipientEnvelope } from '../../../shared/types'
 import { jsonb } from '../bun-jsonb'
+import { ciphertext } from '../crypto-columns'
 
 export const messageDeliveryStatusEnum = pgEnum('message_delivery_status', [
   'pending',
@@ -26,7 +27,10 @@ export const conversations = pgTable(
     hubId: text('hub_id').notNull().default('global'),
     channelType: text('channel_type').notNull(), // 'sms' | 'whatsapp' | 'signal' | 'rcs' | 'web'
     contactIdentifierHash: text('contact_identifier_hash').notNull(),
-    contactLast4: text('contact_last4'),
+    encryptedContactLast4: ciphertext('encrypted_contact_last4'),
+    contactLast4Envelopes: jsonb<RecipientEnvelope[]>()('contact_last4_envelopes')
+      .notNull()
+      .default([]),
     externalId: text('external_id'), // provider's thread/contact ID
     assignedTo: text('assigned_to'), // volunteer pubkey
     status: text('status').notNull().default('active'), // 'active' | 'waiting' | 'closed'

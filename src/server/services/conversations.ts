@@ -1,7 +1,9 @@
+import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
 import { and, desc, eq, sql } from 'drizzle-orm'
 import type { MessageDeliveryStatus, RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
-import { conversations, messageEnvelopes } from '../db/schema'
+import { conversations, messageEnvelopes, volunteers } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
   Conversation,
@@ -11,8 +13,14 @@ import type {
   EncryptedMessage,
 } from '../types'
 
+/** Check if a string is a valid 64-char hex secp256k1 x-only pubkey */
+const isValidPubkey = (pk: string) => /^[0-9a-f]{64}$/i.test(pk)
+
 export class ConversationService {
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    protected readonly crypto: CryptoService
+  ) {}
 
   // ------------------------------------------------------------------ Conversations
 
@@ -54,6 +62,28 @@ export class ConversationService {
   async createConversation(data: CreateConversationData): Promise<Conversation> {
     const id = crypto.randomUUID()
     const now = new Date()
+
+    // E2EE encrypt contactLast4 for assigned volunteer + admin pubkeys
+    let encryptedContactFields: Record<string, unknown> = {}
+    if (data.contactLast4) {
+      const adminPubkeys = (await this.#getSuperAdminPubkeys()).filter(isValidPubkey)
+      const recipientPubkeys = [
+        ...(data.assignedTo && isValidPubkey(data.assignedTo) ? [data.assignedTo] : []),
+        ...adminPubkeys,
+      ].filter((pk, i, arr) => arr.indexOf(pk) === i) // deduplicate
+      if (recipientPubkeys.length > 0) {
+        const envelope = this.crypto.envelopeEncrypt(
+          data.contactLast4,
+          recipientPubkeys,
+          LABEL_VOLUNTEER_PII
+        )
+        encryptedContactFields = {
+          encryptedContactLast4: envelope.encrypted,
+          contactLast4Envelopes: envelope.envelopes,
+        }
+      }
+    }
+
     const values = {
       id,
       hubId: data.hubId ?? 'global',
@@ -61,7 +91,6 @@ export class ConversationService {
       contactIdentifierHash: data.skipDedup
         ? `${data.contactIdentifierHash}:${id}`
         : data.contactIdentifierHash,
-      contactLast4: data.contactLast4 ?? null,
       externalId: data.externalId ?? null,
       assignedTo: data.assignedTo ?? null,
       status: data.status ?? 'waiting',
@@ -73,6 +102,7 @@ export class ConversationService {
       createdAt: now,
       updatedAt: now,
       lastMessageAt: now,
+      ...encryptedContactFields,
     }
 
     if (data.skipDedup) {
@@ -270,15 +300,29 @@ export class ConversationService {
     return result.length > 0
   }
 
+  // ------------------------------------------------------------------ Admin Pubkey Helper
+
+  /** Return pubkeys of all active super-admin volunteers for E2EE envelope recipients */
+  async #getSuperAdminPubkeys(): Promise<string[]> {
+    const rows = await this.db
+      .select({ pubkey: volunteers.pubkey, roles: volunteers.roles })
+      .from(volunteers)
+      .where(eq(volunteers.active, true))
+    return rows
+      .filter((r) => (r.roles as string[]).includes('role-super-admin'))
+      .map((r) => r.pubkey)
+  }
+
   // ------------------------------------------------------------------ Private helpers
 
   #rowToConversation(r: typeof conversations.$inferSelect): Conversation {
+    const cl4Env = (r.contactLast4Envelopes as import('@shared/types').RecipientEnvelope[]) ?? []
     return {
       id: r.id,
       hubId: r.hubId,
       channelType: r.channelType,
       contactIdentifierHash: r.contactIdentifierHash,
-      contactLast4: r.contactLast4,
+      contactLast4: cl4Env.length > 0 ? '[encrypted]' : undefined,
       externalId: r.externalId,
       assignedTo: r.assignedTo,
       status: r.status,
@@ -288,6 +332,13 @@ export class ConversationService {
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
       lastMessageAt: r.lastMessageAt,
+      // E2EE envelope fields for client-side decryption
+      ...(cl4Env.length > 0
+        ? {
+            encryptedContactLast4: r.encryptedContactLast4 as string,
+            contactLast4Envelopes: cl4Env,
+          }
+        : {}),
     }
   }
 

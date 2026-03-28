@@ -2,7 +2,9 @@
  * RCSAdapter — implements MessagingAdapter for Google RCS Business Messaging.
  */
 
+import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import type { RCSConfig } from '../../../shared/types'
+import type { CryptoService } from '../../lib/crypto-service'
 import type {
   ChannelStatus,
   IncomingMessage,
@@ -18,11 +20,11 @@ export class RCSAdapter implements MessagingAdapter {
   readonly channelType = 'rcs' as const
   private client: RBMClient
   private config: RCSConfig
-  private hmacSecret: string
+  private crypto: CryptoService
 
-  constructor(config: RCSConfig, hmacSecret: string) {
+  constructor(config: RCSConfig, crypto: CryptoService) {
     this.config = config
-    this.hmacSecret = hmacSecret
+    this.crypto = crypto
 
     const serviceAccountKey =
       typeof config.serviceAccountKey === 'string'
@@ -40,7 +42,7 @@ export class RCSAdapter implements MessagingAdapter {
     }
 
     const senderIdentifier = payload.senderId
-    const identifierHash = await hashIdentifier(senderIdentifier, this.hmacSecret)
+    const identifierHash = this.crypto.hmac(senderIdentifier, HMAC_PHONE_PREFIX)
 
     const mediaUrls: string[] = []
     const mediaTypes: string[] = []
@@ -121,24 +123,4 @@ export class RCSAdapter implements MessagingAdapter {
       error: result.error,
     }
   }
-}
-
-async function hashIdentifier(identifier: string, secret: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret) as Uint8Array<ArrayBuffer>,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  )
-  const sig = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    encoder.encode(identifier) as Uint8Array<ArrayBuffer>
-  )
-  return Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, 32)
 }

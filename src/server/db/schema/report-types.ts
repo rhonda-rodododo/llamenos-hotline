@@ -1,4 +1,5 @@
 import { boolean, index, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { ciphertext } from '../crypto-columns'
 import { hubs } from './settings'
 
 export const reportTypes = pgTable(
@@ -9,8 +10,8 @@ export const reportTypes = pgTable(
       .notNull()
       .default('global')
       .references(() => hubs.id),
-    name: text('name').notNull(),
-    description: text('description'),
+    encryptedName: ciphertext('encrypted_name').notNull(),
+    encryptedDescription: ciphertext('encrypted_description'),
     isDefault: boolean('is_default').notNull().default(false),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -25,7 +25,6 @@ test.describe('Multi-hub architecture — API', () => {
     const created = await createRes.json()
     expect(created).toHaveProperty('hub')
     expect(created.hub.name).toBe('Test Hub')
-    expect(created.hub.slug).toBe('test-hub')
     expect(created.hub.status).toBe('active')
     expect(created.hub.id).toBeTruthy()
 
@@ -130,17 +129,20 @@ test.describe('Multi-hub architecture — API', () => {
     })
     expect(banRes.ok()).toBe(true)
 
-    // Hub A should have the ban
+    // Hub A should have the ban (phone is E2EE envelope-encrypted — check structural presence)
     const hub1BansRes = await authedApi.get(`/api/hubs/${hub1.id}/bans`)
     expect(hub1BansRes.ok()).toBe(true)
     const hub1Bans = await hub1BansRes.json()
     expect(hub1Bans.bans.length).toBeGreaterThan(0)
-    expect(hub1Bans.bans.some((b: { phone: string }) => b.phone === '+15559990001')).toBe(true)
+    // Ban phone is E2EE: encryptedPhone present, phone sentinel is '[encrypted]'
+    expect(
+      hub1Bans.bans.some((b: { encryptedPhone?: string }) => b.encryptedPhone !== undefined)
+    ).toBe(true)
 
     // Hub B should NOT have the ban (isolated)
     const hub2BansRes = await authedApi.get(`/api/hubs/${hub2.id}/bans`)
     expect(hub2BansRes.ok()).toBe(true)
     const hub2Bans = await hub2BansRes.json()
-    expect(hub2Bans.bans.some((b: { phone: string }) => b.phone === '+15559990001')).toBe(false)
+    expect(hub2Bans.bans.length).toBe(0)
   })
 })

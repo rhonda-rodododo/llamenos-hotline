@@ -1,3 +1,5 @@
+import { LABEL_AUDIT_EVENT } from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, lt, sql } from 'drizzle-orm'
 import {
   CONSENT_VERSION,
@@ -22,6 +24,7 @@ import {
   volunteers,
   webauthnCredentials,
 } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 
 export interface GdprExport {
@@ -46,7 +49,10 @@ export interface PurgeSummary {
 }
 
 export class GdprService {
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    private readonly crypto: CryptoService
+  ) {}
 
   // ------------------------------------------------------------------ Consent
 
@@ -98,7 +104,7 @@ export class GdprService {
     const profile: Record<string, unknown> | null = vol
       ? {
           pubkey: vol.pubkey,
-          name: vol.name,
+          // name and phone are encrypted — omitted from export (client decrypts via envelopes)
           roles: vol.roles,
           hubRoles: vol.hubRoles,
           active: vol.active,
@@ -106,7 +112,6 @@ export class GdprService {
           uiLanguage: vol.uiLanguage,
           profileCompleted: vol.profileCompleted,
           createdAt: vol.createdAt.toISOString(),
-          // phone omitted — encrypted/sensitive
         }
       : null
 
@@ -127,7 +132,6 @@ export class GdprService {
     const credRows = await this.db
       .select({
         id: webauthnCredentials.id,
-        label: webauthnCredentials.label,
         createdAt: webauthnCredentials.createdAt,
         lastUsedAt: webauthnCredentials.lastUsedAt,
       })
@@ -135,7 +139,7 @@ export class GdprService {
       .where(eq(webauthnCredentials.pubkey, pubkey))
     const credentials = credRows.map((r) => ({
       id: r.id,
-      label: r.label,
+      label: '', // Plaintext dropped — E2EE label decrypted client-side
       createdAt: r.createdAt.toISOString(),
       lastUsedAt: r.lastUsedAt.toISOString(),
     }))
@@ -201,14 +205,14 @@ export class GdprService {
     const auditRows = await this.db
       .select({
         id: auditLog.id,
-        event: auditLog.event,
+        encryptedEvent: auditLog.encryptedEvent,
         createdAt: auditLog.createdAt,
       })
       .from(auditLog)
       .where(eq(auditLog.actorPubkey, pubkey))
     const auditEntries = auditRows.map((r) => ({
       id: r.id,
-      event: r.event,
+      event: this.crypto.serverDecrypt(r.encryptedEvent as Ciphertext, LABEL_AUDIT_EVENT),
       createdAt: r.createdAt.toISOString(),
     }))
 
@@ -328,14 +332,15 @@ export class GdprService {
         .set({ actorPubkey: '[erased]' })
         .where(eq(auditLog.actorPubkey, pubkey))
 
-      // Anonymize the volunteer record (replace PII, keep the row for relational integrity)
+      // Anonymize the volunteer record (clear encrypted PII, keep the row for relational integrity)
       await tx
         .update(volunteers)
         .set({
-          name: '[erased]',
-          phone: '',
           active: false,
           encryptedSecretKey: '',
+          encryptedName: '' as import('@shared/crypto-types').Ciphertext,
+          encryptedPhone: '' as import('@shared/crypto-types').Ciphertext,
+          nameEnvelopes: [],
           spokenLanguages: [],
           hubRoles: [],
         })

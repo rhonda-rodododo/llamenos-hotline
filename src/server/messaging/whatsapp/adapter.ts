@@ -1,5 +1,6 @@
+import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import type { WhatsAppConfig } from '../../../shared/types'
-import { hashPhone } from '../../lib/crypto'
+import type { CryptoService } from '../../lib/crypto-service'
 import type { MessageDeliveryStatus } from '../../types'
 import type {
   ChannelStatus,
@@ -33,11 +34,11 @@ export class WhatsAppAdapter implements MessagingAdapter {
   private readonly config: WhatsAppConfig
   private readonly client: WhatsAppClient
   private readonly integrationMode: 'twilio' | 'direct'
-  private readonly hmacSecret: string
+  private readonly crypto: CryptoService
 
-  constructor(config: WhatsAppConfig, hmacSecret: string) {
+  constructor(config: WhatsAppConfig, crypto: CryptoService) {
     this.config = config
-    this.hmacSecret = hmacSecret
+    this.crypto = crypto
     this.integrationMode = config.integrationMode
 
     if (config.integrationMode === 'direct') {
@@ -70,14 +71,14 @@ export class WhatsAppAdapter implements MessagingAdapter {
   static createWithTwilioClient(
     config: WhatsAppConfig,
     client: TwilioWhatsAppClient,
-    hmacSecret: string
+    crypto: CryptoService
   ): WhatsAppAdapter {
     const adapter = Object.create(WhatsAppAdapter.prototype) as WhatsAppAdapter
     Object.defineProperty(adapter, 'channelType', { value: 'whatsapp' as const })
     Object.defineProperty(adapter, 'config', { value: config })
     Object.defineProperty(adapter, 'client', { value: client })
     Object.defineProperty(adapter, 'integrationMode', { value: config.integrationMode })
-    Object.defineProperty(adapter, 'hmacSecret', { value: hmacSecret })
+    Object.defineProperty(adapter, 'crypto', { value: crypto })
     return adapter
   }
 
@@ -223,7 +224,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
       channelType: 'whatsapp',
       externalId: msg.id,
       senderIdentifier: msg.from,
-      senderIdentifierHash: hashPhone(msg.from, this.hmacSecret),
+      senderIdentifierHash: this.crypto.hmac(msg.from, HMAC_PHONE_PREFIX),
       body,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       mediaTypes: mediaTypes.length > 0 ? mediaTypes : undefined,
@@ -471,7 +472,7 @@ export class WhatsAppAdapter implements MessagingAdapter {
       channelType: 'whatsapp',
       externalId: data.MessageSid,
       senderIdentifier: rawFrom,
-      senderIdentifierHash: hashPhone(rawFrom, this.hmacSecret),
+      senderIdentifierHash: this.crypto.hmac(rawFrom, HMAC_PHONE_PREFIX),
       body: data.Body || undefined,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       mediaTypes: mediaTypes.length > 0 ? mediaTypes : undefined,

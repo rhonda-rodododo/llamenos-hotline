@@ -231,7 +231,7 @@ conversations.post('/:id/messages', async (c) => {
       const adapter = await getMessagingAdapter(
         conv.channelType as 'sms' | 'whatsapp' | 'signal',
         services.settings,
-        c.env.HMAC_SECRET,
+        services.crypto,
         hubId ?? undefined
       )
       // Use the conversation's externalId as the recipient identifier

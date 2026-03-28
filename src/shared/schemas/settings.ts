@@ -4,7 +4,6 @@ import { TelephonyProviderConfigSchema } from './providers'
 export const HubSchema = z.object({
   id: z.string(),
   name: z.string(),
-  slug: z.string(),
   description: z.string().optional(),
   status: z.enum(['active', 'suspended', 'archived']),
   phoneNumber: z.string().optional(),
@@ -17,7 +16,6 @@ export type Hub = z.infer<typeof HubSchema>
 
 export const CreateHubSchema = z.object({
   name: z.string().min(1).max(100),
-  slug: z.string().min(1).max(100).optional(),
   description: z.string().max(500).optional(),
   phoneNumber: z.string().optional(),
 })

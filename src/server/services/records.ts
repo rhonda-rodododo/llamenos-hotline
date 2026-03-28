@@ -1,9 +1,12 @@
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
+import { HMAC_PHONE_PREFIX, LABEL_AUDIT_EVENT, LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
 import { and, asc, desc, eq, gte, lte, or, sql } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
-import { auditLog, bans, callRecords, noteEnvelopes } from '../db/schema'
+import { auditLog, bans, callRecords, noteEnvelopes, volunteers } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
   AuditFilters,
@@ -22,32 +25,115 @@ import type {
   UpdateNoteData,
 } from '../types'
 
+/** Check if a string is a valid 64-char hex secp256k1 x-only pubkey */
+const isValidPubkey = (pk: string) => /^[0-9a-f]{64}$/i.test(pk)
+
 export class RecordsService {
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    protected readonly crypto: CryptoService
+  ) {}
 
   // ------------------------------------------------------------------ Bans
 
   async getBans(hubId?: string): Promise<BanEntry[]> {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(bans).where(eq(bans.hubId, hId))
-    return rows.map((r) => ({
-      phone: r.phone,
-      reason: r.reason,
-      bannedBy: r.bannedBy,
-      bannedAt: r.createdAt.toISOString(),
-    }))
+    return rows.map((r) => {
+      // Phone: if envelopes exist, this is E2EE — server can't decrypt
+      const pEnv = (r.phoneEnvelopes as RecipientEnvelope[]) ?? []
+      let phone = ''
+      if (pEnv.length > 0) {
+        phone = '[encrypted]'
+      } else {
+        try {
+          phone = this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
+        } catch {
+          // Decryption failed — leave empty
+        }
+      }
+
+      // Reason: if envelopes exist, this is E2EE — server can't decrypt
+      const rEnv = (r.reasonEnvelopes as RecipientEnvelope[]) ?? []
+      let reason = ''
+      if (rEnv.length > 0) {
+        reason = '[encrypted]'
+      } else {
+        try {
+          reason = this.crypto.serverDecrypt(r.encryptedReason as Ciphertext, LABEL_VOLUNTEER_PII)
+        } catch {
+          // Decryption failed — leave empty
+        }
+      }
+
+      return {
+        phone,
+        reason,
+        bannedBy: r.bannedBy,
+        bannedAt: r.createdAt.toISOString(),
+        // E2EE envelope fields for client-side decryption
+        ...(pEnv.length > 0
+          ? {
+              encryptedPhone: r.encryptedPhone as string,
+              phoneEnvelopes: pEnv,
+            }
+          : {}),
+        ...(rEnv.length > 0
+          ? {
+              encryptedReason: r.encryptedReason as string,
+              reasonEnvelopes: rEnv,
+            }
+          : {}),
+      }
+    })
   }
 
   async addBan(data: CreateBanData): Promise<BanEntry> {
     const hId = data.hubId ?? 'global'
     const id = crypto.randomUUID()
+
+    // HMAC hash phone for ban-check lookups
+    const phoneHash = this.crypto.hmac(data.phone, HMAC_PHONE_PREFIX)
+
+    // E2EE encrypt phone + reason for bannedBy + admin pubkeys
+    const adminPubkeys = (await this.#getSuperAdminPubkeys()).filter(isValidPubkey)
+    const recipientPubkeys = [
+      ...(isValidPubkey(data.bannedBy) ? [data.bannedBy] : []),
+      ...adminPubkeys,
+    ].filter((pk, i, arr) => arr.indexOf(pk) === i) // deduplicate
+    const phoneEnvelope =
+      recipientPubkeys.length > 0
+        ? this.crypto.envelopeEncrypt(data.phone, recipientPubkeys, LABEL_VOLUNTEER_PII)
+        : undefined
+    const reasonEnvelope =
+      data.reason && recipientPubkeys.length > 0
+        ? this.crypto.envelopeEncrypt(data.reason, recipientPubkeys, LABEL_VOLUNTEER_PII)
+        : undefined
+
+    // E2EE phone+reason: use envelope ciphertext if available, fallback to server-key
+    const encryptedPhone = phoneEnvelope
+      ? phoneEnvelope.encrypted
+      : this.crypto.serverEncrypt(data.phone, LABEL_VOLUNTEER_PII)
+    const encryptedReason = reasonEnvelope
+      ? reasonEnvelope.encrypted
+      : this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII)
+
     const [row] = await this.db
       .insert(bans)
-      .values({ id, hubId: hId, phone: data.phone, reason: data.reason, bannedBy: data.bannedBy })
+      .values({
+        id,
+        hubId: hId,
+        bannedBy: data.bannedBy,
+        phoneHash,
+        encryptedPhone,
+        phoneEnvelopes: phoneEnvelope?.envelopes ?? [],
+        encryptedReason,
+        reasonEnvelopes: reasonEnvelope?.envelopes ?? [],
+      })
       .returning()
     return {
-      phone: row.phone,
-      reason: row.reason,
+      phone: data.phone,
+      reason: data.reason ?? '',
       bannedBy: row.bannedBy,
       bannedAt: row.createdAt.toISOString(),
     }
@@ -55,25 +141,60 @@ export class RecordsService {
 
   async bulkAddBans(data: BulkBanData): Promise<number> {
     const hId = data.hubId ?? 'global'
-    const existing = await this.getBans(hId)
-    const existingPhones = new Set(existing.map((b) => b.phone))
-    const newPhones = data.phones.filter((p) => !existingPhones.has(p))
+    // Check existing bans by phone hash to avoid duplicates
+    const existingHashes = new Set<string>()
+    const existingRows = await this.db
+      .select({ phoneHash: bans.phoneHash })
+      .from(bans)
+      .where(eq(bans.hubId, hId))
+    for (const row of existingRows) {
+      if (row.phoneHash) existingHashes.add(row.phoneHash)
+    }
+    const newPhones = data.phones.filter((p) => {
+      const hash = this.crypto.hmac(p, HMAC_PHONE_PREFIX)
+      return !existingHashes.has(hash)
+    })
     if (newPhones.length === 0) return 0
+    const bulkAdminPubkeys = (await this.#getSuperAdminPubkeys()).filter(isValidPubkey)
     await this.db.insert(bans).values(
-      newPhones.map((phone) => ({
-        id: crypto.randomUUID(),
-        hubId: hId,
-        phone,
-        reason: data.reason,
-        bannedBy: data.bannedBy,
-      }))
+      newPhones.map((phone) => {
+        const phoneHash = this.crypto.hmac(phone, HMAC_PHONE_PREFIX)
+        const recipientPubkeys = [
+          ...(isValidPubkey(data.bannedBy) ? [data.bannedBy] : []),
+          ...bulkAdminPubkeys,
+        ].filter((pk, i, arr) => arr.indexOf(pk) === i)
+        const phoneEnvelope =
+          recipientPubkeys.length > 0
+            ? this.crypto.envelopeEncrypt(phone, recipientPubkeys, LABEL_VOLUNTEER_PII)
+            : undefined
+        const reasonEnvelope =
+          data.reason && recipientPubkeys.length > 0
+            ? this.crypto.envelopeEncrypt(data.reason, recipientPubkeys, LABEL_VOLUNTEER_PII)
+            : undefined
+        return {
+          id: crypto.randomUUID(),
+          hubId: hId,
+          bannedBy: data.bannedBy,
+          phoneHash,
+          // E2EE: use envelope ciphertext if available, fallback to server-key
+          encryptedPhone: phoneEnvelope
+            ? phoneEnvelope.encrypted
+            : this.crypto.serverEncrypt(phone, LABEL_VOLUNTEER_PII),
+          phoneEnvelopes: phoneEnvelope?.envelopes ?? [],
+          encryptedReason: reasonEnvelope
+            ? reasonEnvelope.encrypted
+            : this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII),
+          reasonEnvelopes: reasonEnvelope?.envelopes ?? [],
+        }
+      })
     )
     return newPhones.length
   }
 
   async removeBan(phone: string, hubId?: string): Promise<void> {
     const hId = hubId ?? 'global'
-    await this.db.delete(bans).where(and(eq(bans.hubId, hId), eq(bans.phone, phone)))
+    const phoneHash = this.crypto.hmac(phone, HMAC_PHONE_PREFIX)
+    await this.db.delete(bans).where(and(eq(bans.hubId, hId), eq(bans.phoneHash, phoneHash)))
   }
 
   async isBanned(phone: string, hubId?: string): Promise<boolean> {
@@ -84,10 +205,12 @@ export class RecordsService {
       hId === 'global'
         ? eq(bans.hubId, 'global')
         : or(eq(bans.hubId, hId), eq(bans.hubId, 'global'))
+
+    const phoneHash = this.crypto.hmac(phone, HMAC_PHONE_PREFIX)
     const rows = await this.db
       .select({ id: bans.id })
       .from(bans)
-      .where(and(hubConditions!, eq(bans.phone, phone)))
+      .where(and(hubConditions!, eq(bans.phoneHash, phoneHash)))
       .limit(1)
     return rows.length > 0
   }
@@ -95,12 +218,28 @@ export class RecordsService {
   // ------------------------------------------------------------------ Call Records
 
   async createCallRecord(data: CreateCallRecordData): Promise<EncryptedCallRecord> {
+    // E2EE encrypt callerLast4 for admin pubkeys if present
+    // Note: adminEnvelopes for callerLast4 are separate from the content adminEnvelopes
+    // For now, callerLast4 encryption uses the same admin envelopes pattern
+    // but the actual callerLast4Envelopes are for the callerLast4 field specifically
+    let encryptedCallerLast4: Ciphertext | undefined
+    let callerLast4Envelopes: RecipientEnvelope[] = []
+    if (data.callerLast4 && data.adminEnvelopes && data.adminEnvelopes.length > 0) {
+      const adminPubkeys = data.adminEnvelopes.map((e) => e.pubkey)
+      const envelope = this.crypto.envelopeEncrypt(
+        data.callerLast4,
+        adminPubkeys,
+        LABEL_VOLUNTEER_PII
+      )
+      encryptedCallerLast4 = envelope.encrypted
+      callerLast4Envelopes = envelope.envelopes
+    }
+
     const [row] = await this.db
       .insert(callRecords)
       .values({
         id: data.id,
         hubId: data.hubId ?? 'global',
-        callerLast4: data.callerLast4 ?? null,
         startedAt: data.startedAt,
         endedAt: data.endedAt ?? null,
         duration: data.duration ?? null,
@@ -111,6 +250,7 @@ export class RecordsService {
         recordingSid: data.recordingSid ?? null,
         encryptedContent: data.encryptedContent ?? null,
         adminEnvelopes: (data.adminEnvelopes ?? []) as RecipientEnvelope[],
+        ...(encryptedCallerLast4 ? { encryptedCallerLast4, callerLast4Envelopes } : {}),
       })
       .returning()
     return this.#rowToCallRecord(row)
@@ -401,15 +541,22 @@ export class RecordsService {
     const payload = `${event}${actorPubkey}${JSON.stringify(details ?? {})}${previousEntryHash ?? ''}${now.toISOString()}`
     const entryHash = bytesToHex(sha256(utf8ToBytes(payload)))
 
+    // Encrypt event and details with server-key (plaintext kept for transition)
+    const encryptedEvent = this.crypto.serverEncrypt(event, LABEL_AUDIT_EVENT)
+    const encryptedDetails = this.crypto.serverEncrypt(
+      JSON.stringify(details ?? {}),
+      LABEL_AUDIT_EVENT
+    )
+
     const id = crypto.randomUUID()
     const [row] = await this.db
       .insert(auditLog)
       .values({
         id,
         hubId: hId,
-        event,
         actorPubkey,
-        details: details ?? {},
+        encryptedEvent,
+        encryptedDetails,
         previousEntryHash,
         entryHash,
         createdAt: now,
@@ -418,9 +565,9 @@ export class RecordsService {
 
     return {
       id: row.id,
-      event: row.event,
+      event,
       actorPubkey: row.actorPubkey,
-      details: row.details as Record<string, unknown>,
+      details: details ?? {},
       createdAt: row.createdAt.toISOString(),
       previousEntryHash: row.previousEntryHash ?? undefined,
       entryHash: row.entryHash ?? undefined,
@@ -494,15 +641,25 @@ export class RecordsService {
       ],
     }
 
-    let entries = rows.map((r) => ({
-      id: r.id,
-      event: r.event,
-      actorPubkey: r.actorPubkey,
-      details: r.details as Record<string, unknown>,
-      createdAt: r.createdAt.toISOString(),
-      previousEntryHash: r.previousEntryHash ?? undefined,
-      entryHash: r.entryHash ?? undefined,
-    }))
+    let entries = rows.map((r) => {
+      const decryptedEvent = this.crypto.serverDecrypt(
+        r.encryptedEvent as Ciphertext,
+        LABEL_AUDIT_EVENT
+      )
+      const decryptedDetails = JSON.parse(
+        this.crypto.serverDecrypt(r.encryptedDetails as Ciphertext, LABEL_AUDIT_EVENT)
+      ) as Record<string, unknown>
+
+      return {
+        id: r.id,
+        event: decryptedEvent,
+        actorPubkey: r.actorPubkey,
+        details: decryptedDetails,
+        createdAt: r.createdAt.toISOString(),
+        previousEntryHash: r.previousEntryHash ?? undefined,
+        entryHash: r.entryHash ?? undefined,
+      }
+    })
 
     if (filters.eventType && eventCategories[filters.eventType]) {
       const allowed = eventCategories[filters.eventType]
@@ -592,35 +749,53 @@ export class RecordsService {
 
     // NOTE: answeredBy (volunteer pubkey) is stored inside encrypted content for privacy.
     // We can only do volunteer-level stats from the audit log where callAnswered events record actorPubkey.
+    // Event column is encrypted — fetch all entries in range and filter post-decrypt.
     const rows = await this.db
       .select({
         actorPubkey: auditLog.actorPubkey,
-        callsAnswered: sql<number>`COUNT(*)::int`.as('calls_answered'),
+        encryptedEvent: auditLog.encryptedEvent,
       })
       .from(auditLog)
-      .where(
-        and(
-          eq(auditLog.hubId, hId),
-          eq(auditLog.event, 'callAnswered'),
-          gte(auditLog.createdAt, since)
-        )
-      )
-      .groupBy(auditLog.actorPubkey)
-      .orderBy(sql`COUNT(*) DESC`)
+      .where(and(eq(auditLog.hubId, hId), gte(auditLog.createdAt, since)))
 
-    return rows.map((r) => ({
-      pubkey: r.actorPubkey,
-      callsAnswered: Number(r.callsAnswered),
-      avgDuration: 0, // Duration is encrypted; not available without decryption
-    }))
+    // Decrypt event and keep only callAnswered entries
+    const callAnsweredByPubkey = new Map<string, number>()
+    for (const r of rows) {
+      const event = this.crypto.serverDecrypt(r.encryptedEvent as Ciphertext, LABEL_AUDIT_EVENT)
+      if (event === 'callAnswered') {
+        callAnsweredByPubkey.set(r.actorPubkey, (callAnsweredByPubkey.get(r.actorPubkey) ?? 0) + 1)
+      }
+    }
+
+    return Array.from(callAnsweredByPubkey.entries())
+      .map(([pubkey, callsAnswered]) => ({
+        pubkey,
+        callsAnswered,
+        avgDuration: 0, // Duration is encrypted; not available without decryption
+      }))
+      .sort((a, b) => b.callsAnswered - a.callsAnswered)
+  }
+
+  // ------------------------------------------------------------------ Admin Pubkey Helper
+
+  /** Return pubkeys of all active super-admin volunteers for E2EE envelope recipients */
+  async #getSuperAdminPubkeys(): Promise<string[]> {
+    const rows = await this.db
+      .select({ pubkey: volunteers.pubkey, roles: volunteers.roles })
+      .from(volunteers)
+      .where(eq(volunteers.active, true))
+    return rows
+      .filter((r) => (r.roles as string[]).includes('role-super-admin'))
+      .map((r) => r.pubkey)
   }
 
   // ------------------------------------------------------------------ Private helpers
 
   #rowToCallRecord(r: typeof callRecords.$inferSelect): EncryptedCallRecord {
+    const cl4Env = (r.callerLast4Envelopes as RecipientEnvelope[]) ?? []
     return {
       id: r.id,
-      callerLast4: r.callerLast4 ?? undefined,
+      callerLast4: cl4Env.length > 0 ? '[encrypted]' : undefined,
       startedAt: r.startedAt.toISOString(),
       endedAt: r.endedAt?.toISOString(),
       duration: r.duration ?? undefined,
@@ -632,6 +807,13 @@ export class RecordsService {
       voicemailFileId: r.voicemailFileId ?? null,
       encryptedContent: r.encryptedContent ?? '',
       adminEnvelopes: (r.adminEnvelopes as RecipientEnvelope[]) ?? [],
+      // E2EE envelope fields for client-side decryption
+      ...(cl4Env.length > 0
+        ? {
+            encryptedCallerLast4: r.encryptedCallerLast4 as string,
+            callerLast4Envelopes: cl4Env,
+          }
+        : {}),
     }
   }
 

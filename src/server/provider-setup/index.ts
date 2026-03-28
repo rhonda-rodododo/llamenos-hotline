@@ -1,6 +1,8 @@
 import { bytesToHex } from '@noble/hashes/utils.js'
+import { LABEL_PROVIDER_CREDENTIAL_WRAP } from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
 import type { NumberInfo, ProviderConfig, SupportedProvider } from '../../shared/types'
-import { decryptProviderCredentials, encryptProviderCredentials } from '../lib/crypto'
+import type { CryptoService } from '../lib/crypto-service'
 import type { SettingsService } from '../services/settings'
 import { PlivoProvider } from './plivo'
 import { SignalWireProvider } from './signalwire'
@@ -38,13 +40,13 @@ export class ProviderSetup {
   private readonly plivo: PlivoProvider
   private readonly domain: string
   private readonly settings: SettingsService
-  private readonly serverSecret: string
+  private readonly crypto: CryptoService
 
   constructor(
     settings: SettingsService,
+    crypto: CryptoService,
     env: {
       HOTLINE_NAME?: string
-      SERVER_NOSTR_SECRET?: string
       TWILIO_OAUTH_CLIENT_ID?: string
       TWILIO_OAUTH_CLIENT_SECRET?: string
       TELNYX_OAUTH_CLIENT_ID?: string
@@ -52,7 +54,7 @@ export class ProviderSetup {
     }
   ) {
     this.settings = settings
-    this.serverSecret = env.SERVER_NOSTR_SECRET ?? ''
+    this.crypto = crypto
     this.domain = env.HOTLINE_NAME || 'localhost'
 
     this.twilio = new TwilioProvider(
@@ -108,16 +110,16 @@ export class ProviderSetup {
 
     if (provider === 'twilio') {
       const credentials = await this.twilio.oauthCallback(code)
-      encryptedCredentials = encryptProviderCredentials(
+      encryptedCredentials = this.crypto.serverEncrypt(
         JSON.stringify(credentials),
-        this.serverSecret
-      )
+        LABEL_PROVIDER_CREDENTIAL_WRAP
+      ) as string
     } else {
       const credentials = await this.telnyx.oauthCallback(code)
-      encryptedCredentials = encryptProviderCredentials(
+      encryptedCredentials = this.crypto.serverEncrypt(
         JSON.stringify(credentials),
-        this.serverSecret
-      )
+        LABEL_PROVIDER_CREDENTIAL_WRAP
+      ) as string
     }
 
     await this.settings.setProviderConfig(config, encryptedCredentials)
@@ -155,10 +157,10 @@ export class ProviderSetup {
       webhooksConfigured: false,
       sipConfigured: false,
     }
-    const encryptedCredentials = encryptProviderCredentials(
+    const encryptedCredentials = this.crypto.serverEncrypt(
       JSON.stringify(credentials),
-      this.serverSecret
-    )
+      LABEL_PROVIDER_CREDENTIAL_WRAP
+    ) as string
     await this.settings.setProviderConfig(config, encryptedCredentials)
 
     return { ok: true }
@@ -432,7 +434,7 @@ export class ProviderSetup {
   private async decryptCredentials(): Promise<string | null> {
     const encrypted = await this.settings.getEncryptedCredentials()
     if (!encrypted) return null
-    return decryptProviderCredentials(encrypted, this.serverSecret)
+    return this.crypto.serverDecrypt(encrypted as Ciphertext, LABEL_PROVIDER_CREDENTIAL_WRAP)
   }
 }
 

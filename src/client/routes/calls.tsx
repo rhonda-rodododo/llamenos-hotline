@@ -7,6 +7,7 @@ import { VoicemailPlayer } from '@/components/voicemail-player'
 import { type CallRecord, type Volunteer, getCallHistory, listVolunteers } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptCallRecord } from '@/lib/crypto'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
@@ -117,7 +118,8 @@ function CallHistoryPage() {
 
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of volunteers) map.set(v.pubkey, v.name)
+    for (const v of volunteers)
+      map.set(v.pubkey, tryDecryptField(v.encryptedName, v.nameEnvelopes, v.name))
     return map
   }, [volunteers])
 
@@ -298,11 +300,20 @@ function CallHistoryPage() {
                         </span>
                       </div>
                     )}
-                    {call.callerLast4 && (
-                      <code className="text-[10px] text-muted-foreground font-mono">
-                        ***{call.callerLast4}
-                      </code>
-                    )}
+                    {(() => {
+                      const cl4 = tryDecryptField(
+                        call.encryptedCallerLast4,
+                        call.callerLast4Envelopes,
+                        call.callerLast4 ?? ''
+                      )
+                      return cl4 && cl4 !== '[encrypted]' ? (
+                        <code className="text-[10px] text-muted-foreground font-mono">
+                          ***{cl4}
+                        </code>
+                      ) : cl4 === '[encrypted]' ? (
+                        <code className="text-[10px] text-muted-foreground font-mono">{cl4}</code>
+                      ) : null
+                    })()}
                   </Link>
                   {call.duration !== undefined && (
                     <Badge variant="outline" className="gap-1">

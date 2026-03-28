@@ -1,11 +1,11 @@
 import { boolean, integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 import { jsonb } from '../bun-jsonb'
+import { ciphertext } from '../crypto-columns'
 
 export const hubs = pgTable('hubs', {
   id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  slug: text('slug').notNull().default(''),
-  description: text('description'),
+  encryptedName: ciphertext('encrypted_name').notNull(),
+  encryptedDescription: ciphertext('encrypted_description'),
   status: text('status').notNull().default('active'),
   phoneNumber: text('phone_number'),
   createdBy: text('created_by').notNull().default(''),
@@ -32,9 +32,9 @@ export const hubKeys = pgTable(
 export const roles = pgTable('roles', {
   id: text('id').primaryKey(),
   hubId: text('hub_id'), // null = global role
-  name: text('name').notNull(),
   slug: text('slug').notNull(),
-  description: text('description').notNull().default(''),
+  encryptedName: ciphertext('encrypted_name').notNull(),
+  encryptedDescription: ciphertext('encrypted_description'),
   permissions: jsonb<string[]>()('permissions').notNull().default([]),
   isDefault: boolean('is_default').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -43,10 +43,7 @@ export const roles = pgTable('roles', {
 export const customFieldDefinitions = pgTable('custom_field_definitions', {
   id: text('id').primaryKey(),
   hubId: text('hub_id'), // null = global
-  fieldName: text('field_name').notNull(),
-  label: text('label').notNull(),
   fieldType: text('field_type').notNull(), // 'text' | 'select' | 'multiselect' | 'checkbox' | 'date'
-  options: jsonb<string[]>()('options').notNull().default([]),
   required: boolean('required').notNull().default(false),
   showInVolunteerView: boolean('show_in_volunteer_view').notNull().default(false),
   /** Context distinguishes where this field appears */
@@ -55,6 +52,9 @@ export const customFieldDefinitions = pgTable('custom_field_definitions', {
   reportTypeIds: jsonb<string[]>()('report_type_ids').notNull().default([]),
   order: integer('order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  encryptedFieldName: ciphertext('encrypted_field_name').notNull(),
+  encryptedLabel: ciphertext('encrypted_label').notNull(),
+  encryptedOptions: ciphertext('encrypted_options'),
 })
 
 export const telephonyConfig = pgTable('telephony_config', {
@@ -116,8 +116,8 @@ export const ivrAudio = pgTable(
     hubId: text('hub_id').notNull().default('global'),
     promptType: text('prompt_type').notNull(),
     language: text('language').notNull(),
-    audioData: text('audio_data').notNull(), // base64-encoded audio
     mimeType: text('mime_type').notNull().default('audio/mpeg'),
+    encryptedAudioData: ciphertext('encrypted_audio_data').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.hubId, table.promptType, table.language] })]
@@ -139,7 +139,7 @@ export const captchaState = pgTable('captcha_state', {
 
 export const reportCategories = pgTable('report_categories', {
   hubId: text('hub_id').primaryKey().default('global'),
-  categories: jsonb<string[]>()('categories').notNull().default([]),
+  encryptedCategories: ciphertext('encrypted_categories'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -171,7 +171,7 @@ export const retentionSettings = pgTable('retention_settings', {
 export const geocodingConfig = pgTable('geocoding_config', {
   id: text('id').primaryKey().default('global'),
   provider: text('provider'), // 'opencage' | 'geoapify' | null
-  apiKey: text('api_key').notNull().default(''),
+  encryptedApiKey: ciphertext('encrypted_api_key').notNull(),
   countries: jsonb<string[]>()('countries').notNull().default([]),
   enabled: boolean('enabled').notNull().default(false),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -194,17 +194,17 @@ export const providerConfig = pgTable('provider_config', {
   webhooksConfigured: boolean('webhooks_configured').notNull().default(false),
   sipConfigured: boolean('sip_configured').notNull().default(false),
   a2pStatus: text('a2p_status').default('not_started'),
-  brandSid: text('brand_sid'),
-  campaignSid: text('campaign_sid'),
-  messagingServiceSid: text('messaging_service_sid'),
-  encryptedCredentials: text('encrypted_credentials'),
+  encryptedBrandSid: ciphertext('encrypted_brand_sid'),
+  encryptedCampaignSid: ciphertext('encrypted_campaign_sid'),
+  encryptedMessagingServiceSid: ciphertext('encrypted_messaging_service_sid'),
+  encryptedCredentials: ciphertext('encrypted_credentials'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 /** Signal registration pending state (TTL-enforced) */
 export const signalRegistrationPending = pgTable('signal_registration_pending', {
   id: text('id').primaryKey().default('global'),
-  number: text('number').notNull(),
+  encryptedNumber: ciphertext('encrypted_number').notNull(),
   bridgeUrl: text('bridge_url').notNull(),
   method: text('method').notNull(), // 'sms' | 'voice'
   status: text('status').notNull().default('pending'),

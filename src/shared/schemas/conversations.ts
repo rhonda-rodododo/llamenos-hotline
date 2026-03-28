@@ -15,6 +15,9 @@ export const ConversationSchema = z.object({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   lastMessageAt: z.iso.datetime(),
+  // E2EE envelope-encrypted contactLast4 (Phase 2D)
+  encryptedContactLast4: z.string().optional(),
+  contactLast4Envelopes: z.array(RecipientEnvelopeSchema).optional(),
 })
 export type Conversation = z.infer<typeof ConversationSchema>
 

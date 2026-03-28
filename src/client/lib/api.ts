@@ -1,3 +1,4 @@
+import type { RecipientEnvelope } from '@shared/types'
 import * as keyManager from './key-manager'
 
 const API_BASE = '/api'
@@ -141,6 +142,8 @@ export async function getMe() {
     permissions: string[]
     primaryRole: { id: string; name: string; slug: string } | null
     name: string
+    encryptedName?: string
+    nameEnvelopes?: Array<{ pubkey: string; wrappedKey: string; ephemeralPubkey: string }>
     transcriptionEnabled: boolean
     spokenLanguages: string[]
     uiLanguage: string
@@ -686,6 +689,10 @@ export interface RoleDefinition {
   isDefault: boolean
   isSystem: boolean
   description: string
+  /** Hub-key encrypted name (hex ciphertext). */
+  encryptedName?: string
+  /** Hub-key encrypted description (hex ciphertext). */
+  encryptedDescription?: string
   createdAt: string
   updatedAt: string
 }
@@ -699,6 +706,8 @@ export async function createRole(data: {
   slug: string
   permissions: string[]
   description: string
+  encryptedName?: string
+  encryptedDescription?: string
 }) {
   return request<{ role: RoleDefinition }>('/settings/roles', {
     method: 'POST',
@@ -708,7 +717,13 @@ export async function createRole(data: {
 
 export async function updateRole(
   id: string,
-  data: Partial<{ name: string; permissions: string[]; description: string }>
+  data: Partial<{
+    name: string
+    permissions: string[]
+    description: string
+    encryptedName: string
+    encryptedDescription: string
+  }>
 ) {
   return request<{ role: RoleDefinition }>(`/settings/roles/${id}`, {
     method: 'PATCH',
@@ -745,11 +760,16 @@ export interface Volunteer {
   // Messaging capabilities (Epic 68)
   supportedMessagingChannels?: string[] // SMS, WhatsApp, Signal, RCS (empty = all)
   messagingEnabled?: boolean // Whether volunteer can handle messaging conversations
+  // E2EE envelope-encrypted name (Phase 2D)
+  encryptedName?: string
+  nameEnvelopes?: RecipientEnvelope[]
 }
 
 export interface Shift {
   id: string
   name: string
+  /** Hub-key encrypted name (hex ciphertext). */
+  encryptedName?: string
   startTime: string // HH:mm
   endTime: string // HH:mm
   days: number[] // 0=Sunday, 1=Monday, ..., 6=Saturday
@@ -762,6 +782,11 @@ export interface BanEntry {
   reason: string
   bannedBy: string
   bannedAt: string
+  // E2EE envelope-encrypted fields (Phase 2D)
+  encryptedPhone?: string
+  phoneEnvelopes?: RecipientEnvelope[]
+  encryptedReason?: string
+  reasonEnvelopes?: RecipientEnvelope[]
 }
 
 export interface EncryptedNote {
@@ -805,6 +830,10 @@ export interface CallRecord {
   // Decrypted fields (populated client-side after decryption)
   answeredBy?: string | null
   callerNumber?: string
+
+  // E2EE envelope-encrypted callerLast4 (Phase 2D)
+  encryptedCallerLast4?: string
+  callerLast4Envelopes?: RecipientEnvelope[]
 }
 
 export interface AuditLogEntry {
@@ -842,6 +871,9 @@ export interface InviteCode {
   usedAt?: string
   deliveryChannel?: string
   deliverySentAt?: string
+  // E2EE envelope-encrypted name (Phase 2D)
+  encryptedName?: string
+  nameEnvelopes?: RecipientEnvelope[]
 }
 
 // --- Conversations ---
@@ -864,6 +896,9 @@ export interface Conversation {
     reportTitle?: string
     reportCategory?: string
   }
+  // E2EE envelope-encrypted contactLast4 (Phase 2D)
+  encryptedContactLast4?: string
+  contactLast4Envelopes?: RecipientEnvelope[]
 }
 
 export type MessageDeliveryStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed'

@@ -152,6 +152,10 @@ export interface Role {
   isDefault: boolean // ships with system
   isSystem: boolean // can't be modified at all (super-admin)
   description: string
+  /** Hub-key encrypted name (hex ciphertext). */
+  encryptedName?: string
+  /** Hub-key encrypted description (hex ciphertext). */
+  encryptedDescription?: string
   createdAt: string
   updatedAt: string
 }

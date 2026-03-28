@@ -1,5 +1,5 @@
+import { HMAC_IP_PREFIX } from '@shared/crypto-labels'
 import { Hono } from 'hono'
-import { hashIP } from '../lib/crypto'
 import { uint8ArrayToBase64URL } from '../lib/helpers'
 import {
   generateAuthOptions,
@@ -19,7 +19,7 @@ webauthn.post('/login/options', async (c) => {
   // Rate limit WebAuthn login attempts to prevent challenge flooding
   const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
   const limited = await services.settings.checkRateLimit(
-    `webauthn:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
+    `webauthn:${services.crypto.hmac(clientIp, HMAC_IP_PREFIX).slice(0, 24)}`,
     10
   )
   if (limited) return c.json({ error: 'Too many requests. Try again later.' }, 429)
@@ -36,7 +36,7 @@ webauthn.post('/login/verify', async (c) => {
   // Rate limit verification attempts
   const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
   const verifyLimited = await services.settings.checkRateLimit(
-    `webauthn-verify:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
+    `webauthn-verify:${services.crypto.hmac(clientIp, HMAC_IP_PREFIX).slice(0, 24)}`,
     10
   )
   if (verifyLimited) return c.json({ error: 'Too many requests. Try again later.' }, 429)

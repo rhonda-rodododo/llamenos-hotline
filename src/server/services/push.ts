@@ -1,7 +1,14 @@
+import {
+  HMAC_PHONE_PREFIX,
+  LABEL_PUSH_CREDENTIAL,
+  LABEL_VOLUNTEER_PII,
+} from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, inArray } from 'drizzle-orm'
 import webpush from 'web-push'
 import type { Database } from '../db'
 import { pushSubscriptions } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 
 export interface PushSubscriptionData {
@@ -26,16 +33,50 @@ export interface PushSubscription {
 export class PushService {
   #vapidConfigured = false
 
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    protected readonly crypto: CryptoService
+  ) {}
 
   #rowToSubscription(row: typeof pushSubscriptions.$inferSelect): PushSubscription {
+    const endpoint = this.crypto.serverDecrypt(
+      row.encryptedEndpoint as Ciphertext,
+      LABEL_PUSH_CREDENTIAL
+    )
+    const authKey = this.crypto.serverDecrypt(
+      row.encryptedAuthKey as Ciphertext,
+      LABEL_PUSH_CREDENTIAL
+    )
+    const p256dhKey = this.crypto.serverDecrypt(
+      row.encryptedP256dhKey as Ciphertext,
+      LABEL_PUSH_CREDENTIAL
+    )
+
+    // Device label: if envelopes exist, this is E2EE — server can't decrypt.
+    // Otherwise try server-key decrypt for legacy data.
+    const dlEnvelopes =
+      (row.deviceLabelEnvelopes as import('@shared/types').RecipientEnvelope[]) ?? []
+    let deviceLabel: string | null = null
+    if (dlEnvelopes.length > 0) {
+      deviceLabel = '[encrypted]'
+    } else if (row.encryptedDeviceLabel) {
+      try {
+        deviceLabel = this.crypto.serverDecrypt(
+          row.encryptedDeviceLabel as Ciphertext,
+          LABEL_VOLUNTEER_PII
+        )
+      } catch {
+        // Decryption failed — leave as null
+      }
+    }
+
     return {
       id: row.id,
       pubkey: row.pubkey,
-      endpoint: row.endpoint,
-      authKey: row.authKey,
-      p256dhKey: row.p256dhKey,
-      deviceLabel: row.deviceLabel,
+      endpoint,
+      authKey,
+      p256dhKey,
+      deviceLabel,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }
@@ -44,23 +85,55 @@ export class PushService {
   /** Create or update a push subscription (upsert on endpoint). */
   async subscribe(data: PushSubscriptionData): Promise<PushSubscription> {
     const now = new Date()
+
+    // Encrypt push credentials with server key
+    const encryptedEndpoint = this.crypto.serverEncrypt(data.endpoint, LABEL_PUSH_CREDENTIAL)
+    const encryptedAuthKey = this.crypto.serverEncrypt(data.authKey, LABEL_PUSH_CREDENTIAL)
+    const encryptedP256dhKey = this.crypto.serverEncrypt(data.p256dhKey, LABEL_PUSH_CREDENTIAL)
+
+    // HMAC hash endpoint for dedup
+    const endpointHash = this.crypto.hmac(data.endpoint, HMAC_PHONE_PREFIX)
+
+    // E2EE envelope-encrypt device label for the volunteer's own pubkey (client-side decryption)
+    // Only attempt if pubkey looks like a valid 64-char hex secp256k1 x-only pubkey
+    let labelEnvelope: ReturnType<CryptoService['envelopeEncrypt']> | undefined
+    if (data.deviceLabel && /^[0-9a-f]{64}$/i.test(data.pubkey)) {
+      labelEnvelope = this.crypto.envelopeEncrypt(
+        data.deviceLabel,
+        [data.pubkey],
+        LABEL_VOLUNTEER_PII
+      )
+    }
+
+    // E2EE device label: use envelope ciphertext if available, fallback to server-key
+    const encryptedDeviceLabel = data.deviceLabel
+      ? labelEnvelope
+        ? labelEnvelope.encrypted
+        : this.crypto.serverEncrypt(data.deviceLabel, LABEL_VOLUNTEER_PII)
+      : undefined
+
     const [row] = await this.db
       .insert(pushSubscriptions)
       .values({
         pubkey: data.pubkey,
-        endpoint: data.endpoint,
-        authKey: data.authKey,
-        p256dhKey: data.p256dhKey,
-        deviceLabel: data.deviceLabel ?? null,
+        endpointHash,
+        encryptedEndpoint,
+        encryptedAuthKey,
+        encryptedP256dhKey,
+        ...(encryptedDeviceLabel ? { encryptedDeviceLabel } : {}),
+        ...(labelEnvelope ? { deviceLabelEnvelopes: labelEnvelope.envelopes } : {}),
         updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: pushSubscriptions.endpoint,
+        target: pushSubscriptions.endpointHash,
         set: {
           pubkey: data.pubkey,
-          authKey: data.authKey,
-          p256dhKey: data.p256dhKey,
-          deviceLabel: data.deviceLabel ?? null,
+          encryptedAuthKey,
+          encryptedP256dhKey,
+          encryptedEndpoint,
+          endpointHash,
+          ...(encryptedDeviceLabel ? { encryptedDeviceLabel } : {}),
+          ...(labelEnvelope ? { deviceLabelEnvelopes: labelEnvelope.envelopes } : {}),
           updatedAt: now,
         },
       })
@@ -70,10 +143,11 @@ export class PushService {
 
   /** Remove a subscription by endpoint, verifying ownership by pubkey. */
   async unsubscribe(endpoint: string, pubkey: string): Promise<void> {
+    const endpointHash = this.crypto.hmac(endpoint, HMAC_PHONE_PREFIX)
     const rows = await this.db
       .select()
       .from(pushSubscriptions)
-      .where(eq(pushSubscriptions.endpoint, endpoint))
+      .where(eq(pushSubscriptions.endpointHash, endpointHash))
       .limit(1)
 
     if (rows.length === 0) {
@@ -87,12 +161,15 @@ export class PushService {
 
     await this.db
       .delete(pushSubscriptions)
-      .where(and(eq(pushSubscriptions.endpoint, endpoint), eq(pushSubscriptions.pubkey, pubkey)))
+      .where(
+        and(eq(pushSubscriptions.endpointHash, endpointHash), eq(pushSubscriptions.pubkey, pubkey))
+      )
   }
 
   /** Remove a stale subscription by endpoint only (called when push delivery fails). */
   async removeStaleSubscription(endpoint: string): Promise<void> {
-    await this.db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint))
+    const endpointHash = this.crypto.hmac(endpoint, HMAC_PHONE_PREFIX)
+    await this.db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpointHash, endpointHash))
   }
 
   /** Get all subscriptions for a single volunteer pubkey. */

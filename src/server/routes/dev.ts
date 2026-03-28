@@ -73,7 +73,6 @@ dev.post('/test-reset', async (c) => {
       const hub = await services.settings.createHub({
         id: 'default-hub',
         name: 'Default Hub',
-        slug: 'default',
         createdBy: c.env.ADMIN_PUBKEY,
       })
       // Assign admin to the hub

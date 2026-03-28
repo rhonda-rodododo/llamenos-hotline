@@ -13,6 +13,8 @@ import {
   unarchiveReportType,
   updateReportType,
 } from '@/lib/api'
+import { useConfig } from '@/lib/config'
+import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
 import { useToast } from '@/lib/toast'
 import type { ReportType } from '@shared/types'
 import { Archive, ArchiveRestore, Plus, Save, Star, Tags } from 'lucide-react'
@@ -45,6 +47,8 @@ export function ReportTypesSection({
 }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const [editing, setEditing] = useState<EditingState | null>(null)
   const [saving, setSaving] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
@@ -68,9 +72,13 @@ export function ReportTypesSection({
     try {
       if (editing.id) {
         // Update existing
+        const trimmedName = editing.name.trim()
+        const trimmedDesc = editing.description.trim()
         const { reportType: updated } = await updateReportType(editing.id, {
-          name: editing.name.trim(),
-          description: editing.description.trim() || undefined,
+          name: trimmedName,
+          description: trimmedDesc || undefined,
+          encryptedName: encryptHubField(trimmedName, hubId),
+          encryptedDescription: trimmedDesc ? encryptHubField(trimmedDesc, hubId) : undefined,
         })
         onChange(reportTypes.map((rt) => (rt.id === editing.id ? updated : rt)))
         // Handle isDefault separately if changed
@@ -86,10 +94,14 @@ export function ReportTypesSection({
         }
       } else {
         // Create new
+        const trimmedName = editing.name.trim()
+        const trimmedDesc = editing.description.trim()
         const { reportType: created } = await createReportType({
-          name: editing.name.trim(),
-          description: editing.description.trim() || undefined,
+          name: trimmedName,
+          description: trimmedDesc || undefined,
           isDefault: editing.isDefault,
+          encryptedName: encryptHubField(trimmedName, hubId),
+          encryptedDescription: trimmedDesc ? encryptHubField(trimmedDesc, hubId) : undefined,
         })
         const newList = editing.isDefault
           ? [...reportTypes.map((rt) => ({ ...rt, isDefault: false })), created]
@@ -160,7 +172,9 @@ export function ReportTypesSection({
       >
         <div className="flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium">{rt.name}</p>
+            <p className="text-sm font-medium">
+              {decryptHubField(rt.encryptedName, hubId, rt.name)}
+            </p>
             {rt.isDefault && (
               <Badge variant="secondary" className="text-[10px]">
                 <Star className="mr-0.5 h-2.5 w-2.5" />
@@ -173,7 +187,11 @@ export function ReportTypesSection({
               </Badge>
             )}
           </div>
-          {rt.description && <p className="text-xs text-muted-foreground">{rt.description}</p>}
+          {rt.encryptedDescription && (
+            <p className="text-xs text-muted-foreground">
+              {decryptHubField(rt.encryptedDescription, hubId, rt.description)}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
             {t('settings.reportTypes.fields')}: {fieldCount}
           </p>
@@ -187,8 +205,8 @@ export function ReportTypesSection({
                 onClick={() =>
                   setEditing({
                     id: rt.id,
-                    name: rt.name,
-                    description: rt.description ?? '',
+                    name: decryptHubField(rt.encryptedName, hubId, rt.name),
+                    description: decryptHubField(rt.encryptedDescription, hubId, rt.description),
                     isDefault: rt.isDefault,
                   })
                 }
