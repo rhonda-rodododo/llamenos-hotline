@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { LABEL_VOICEMAIL_WRAP } from '@shared/crypto-labels'
 import type { FileKeyEnvelope } from '@shared/types'
+import type { CryptoService } from '../lib/crypto-service'
 import type { FilesService } from '../services/files'
 import type { RecordsService } from '../services/records'
 import type { TelephonyAdapter } from '../telephony/adapter'
-import { encryptBinaryForStorage } from './crypto'
 
 interface StoreVoicemailParams {
   callSid: string
@@ -15,6 +15,7 @@ interface StoreVoicemailParams {
   files: FilesService
   records: RecordsService
   maxBytes: number
+  crypto: CryptoService
 }
 
 /**
@@ -31,7 +32,8 @@ interface StoreVoicemailParams {
 export async function storeVoicemailAudio(
   params: StoreVoicemailParams
 ): Promise<string | 'oversized'> {
-  const { callSid, recordingSid, hubId, adminPubkeys, adapter, files, records, maxBytes } = params
+  const { callSid, recordingSid, hubId, adminPubkeys, adapter, files, records, maxBytes, crypto } =
+    params
 
   // 1. Download audio from provider
   const audioBuffer = await adapter.getRecordingAudio(recordingSid)
@@ -50,14 +52,14 @@ export async function storeVoicemailAudio(
   }
 
   // 3. Encrypt audio with ECIES envelopes for each admin
-  const { encryptedContent, readerEnvelopes } = encryptBinaryForStorage(
+  const { encrypted, envelopes } = crypto.envelopeEncryptBinary(
     audioBytes,
     adminPubkeys,
     LABEL_VOICEMAIL_WRAP
   )
 
   // Map RecipientEnvelope (wrappedKey) → FileKeyEnvelope (encryptedFileKey)
-  const recipientEnvelopes: FileKeyEnvelope[] = readerEnvelopes.map((env) => ({
+  const recipientEnvelopes: FileKeyEnvelope[] = envelopes.map((env) => ({
     pubkey: env.pubkey,
     encryptedFileKey: env.wrappedKey,
     ephemeralPubkey: env.ephemeralPubkey,
@@ -65,7 +67,7 @@ export async function storeVoicemailAudio(
 
   // 4. Store encrypted blob in object storage via FilesService
   const fileId = randomUUID()
-  const encryptedBytes = Buffer.from(encryptedContent, 'hex')
+  const encryptedBytes = Buffer.from(encrypted as string, 'hex')
 
   // putAssembled first — if this throws, we don't proceed to createFileRecord or deleteRecording
   await files.putAssembled(hubId, fileId, new Uint8Array(encryptedBytes), 'voicemails')

@@ -1,7 +1,7 @@
+import { HMAC_IP_PREFIX } from '@shared/crypto-labels'
 import { Hono } from 'hono'
 import { getPrimaryRole } from '../../shared/permissions'
 import { verifyAuthToken } from '../lib/auth'
-import { hashIP } from '../lib/crypto'
 import { isValidE164 } from '../lib/helpers'
 import { maskPhone } from '../lib/volunteer-projector'
 import { auth as authMiddleware } from '../middleware/auth'
@@ -18,7 +18,7 @@ auth.post('/login', async (c) => {
   if (c.env.ENVIRONMENT !== 'development') {
     const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
     const limited = await services.settings.checkRateLimit(
-      `auth:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
+      `auth:${services.crypto.hmac(clientIp, HMAC_IP_PREFIX).slice(0, 24)}`,
       10
     )
     if (limited) {
@@ -52,7 +52,7 @@ auth.post('/bootstrap', async (c) => {
   if (c.env.ENVIRONMENT !== 'development') {
     const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
     const limited = await services.settings.checkRateLimit(
-      `bootstrap:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
+      `bootstrap:${services.crypto.hmac(clientIp, HMAC_IP_PREFIX).slice(0, 24)}`,
       5
     )
     if (limited) {

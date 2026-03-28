@@ -8,12 +8,12 @@
  * checks at batch boundaries, per-channel rate limiting, opt-out footers.
  */
 
-import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
-import { hexToBytes } from '@noble/hashes/utils.js'
 import { LABEL_BLAST_CONTENT } from '@shared/crypto-labels'
+import { eciesUnwrapKey } from '@shared/crypto-primitives'
+import type { Ciphertext } from '@shared/crypto-types'
 import type { MessagingChannelType } from '@shared/types'
 import { getMessagingAdapter } from '../lib/adapters'
-import { decryptFromHub, eciesUnwrapKeyServer, unwrapHubKeyForServer } from '../lib/crypto'
+import type { CryptoService } from '../lib/crypto-service'
 import { deriveServerKeypair } from '../lib/nostr-publisher'
 import type { MessagingAdapter } from '../messaging/adapter'
 import type { Services } from '../services'
@@ -48,14 +48,14 @@ const BATCH_SIZE = 50
 
 export class BlastProcessor {
   private readonly services: Services
+  private readonly crypto: CryptoService
   private readonly serverSecret: string
-  private readonly hmacSecret: string
   private processing = false
 
-  constructor(services: Services, serverSecret: string, hmacSecret: string) {
+  constructor(services: Services, crypto: CryptoService, serverSecret: string) {
     this.services = services
+    this.crypto = crypto
     this.serverSecret = serverSecret
-    this.hmacSecret = hmacSecret
   }
 
   /**
@@ -264,12 +264,12 @@ export class BlastProcessor {
   /** Get the hub's decrypted hub key. Override in tests. */
   async _getHubKey(hubId: string): Promise<Uint8Array> {
     const envelopes = await this.services.settings.getHubKeyEnvelopes(hubId)
-    return unwrapHubKeyForServer(this.serverSecret, envelopes)
+    return this.crypto.unwrapHubKey(envelopes)
   }
 
   /** Decrypt an encrypted subscriber identifier. Override in tests. */
   async _decryptIdentifier(encrypted: string, hubKey: Uint8Array): Promise<string | null> {
-    return decryptFromHub(encrypted, hubKey)
+    return this.crypto.hubDecrypt(encrypted as Ciphertext, hubKey)
   }
 
   /**
@@ -285,15 +285,13 @@ export class BlastProcessor {
       throw new Error(`No blast content envelope for server pubkey ${pubkey}`)
     }
 
-    // ECIES-unwrap the per-blast symmetric key
-    const blastKey = eciesUnwrapKeyServer(envelope, secretKey, LABEL_BLAST_CONTENT)
-
-    // Decrypt the content: nonce(24) || ciphertext
-    const packed = hexToBytes(blast.encryptedContent)
-    const nonce = packed.slice(0, 24)
-    const ciphertext = packed.slice(24)
-    const cipher = xchacha20poly1305(blastKey, nonce)
-    const plaintext = new TextDecoder().decode(cipher.decrypt(ciphertext))
+    // ECIES-unwrap the per-blast symmetric key and decrypt content
+    const plaintext = this.crypto.envelopeDecrypt(
+      blast.encryptedContent as Ciphertext,
+      envelope,
+      secretKey,
+      LABEL_BLAST_CONTENT
+    )
 
     // Parse JSON payload and return text field
     const payload = JSON.parse(plaintext) as { text: string }
@@ -302,7 +300,7 @@ export class BlastProcessor {
 
   /** Get a messaging adapter for the given channel type. Override in tests. */
   async _getAdapter(channel: MessagingChannelType, hubId: string): Promise<MessagingAdapter> {
-    return getMessagingAdapter(channel, this.services.settings, this.hmacSecret, hubId)
+    return getMessagingAdapter(channel, this.services.settings, this.crypto, hubId)
   }
 }
 
@@ -312,10 +310,10 @@ export class BlastProcessor {
  */
 export function scheduleBlastProcessor(
   services: Services,
-  serverSecret: string,
-  hmacSecret: string
+  crypto: CryptoService,
+  serverSecret: string
 ): NodeJS.Timeout {
-  const processor = new BlastProcessor(services, serverSecret, hmacSecret)
+  const processor = new BlastProcessor(services, crypto, serverSecret)
   // Run once immediately on startup (resume any in-progress blasts)
   processor
     .processOnce()

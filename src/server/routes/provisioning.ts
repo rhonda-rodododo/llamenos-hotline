@@ -1,5 +1,5 @@
+import { HMAC_IP_PREFIX } from '@shared/crypto-labels'
 import { Hono } from 'hono'
-import { hashIP } from '../lib/crypto'
 import { auth } from '../middleware/auth'
 import type { AppEnv } from '../types'
 
@@ -33,7 +33,7 @@ provisioning.get('/rooms/:id', async (c) => {
   const services = c.get('services')
   const clientIp = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown'
   const limited = await services.settings.checkRateLimit(
-    `provision:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
+    `provision:${services.crypto.hmac(clientIp, HMAC_IP_PREFIX).slice(0, 24)}`,
     30
   )
   if (limited) return c.json({ error: 'Rate limited' }, 429)

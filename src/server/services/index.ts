@@ -43,6 +43,7 @@ export interface Services {
   push: PushService
   providerHealth?: ProviderHealthService
   storage: StorageManager | null
+  crypto: CryptoService
 }
 
 export function createServices(
@@ -63,5 +64,6 @@ export function createServices(
     reportTypes: new ReportTypeService(db),
     push: new PushService(db, crypto),
     storage,
+    crypto,
   }
 }

@@ -1,5 +1,6 @@
+import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import type { MessagingChannelType } from '../../../shared/types'
-import { hashPhone } from '../../lib/crypto'
+import type { CryptoService } from '../../lib/crypto-service'
 import type { MessageDeliveryStatus } from '../../types'
 import type {
   ChannelStatus,
@@ -22,13 +23,13 @@ export class TwilioSMSAdapter implements MessagingAdapter {
   protected accountSid: string
   protected authToken: string
   protected phoneNumber: string
-  protected hmacSecret: string
+  protected crypto: CryptoService
 
-  constructor(accountSid: string, authToken: string, phoneNumber: string, hmacSecret: string) {
+  constructor(accountSid: string, authToken: string, phoneNumber: string, crypto: CryptoService) {
     this.accountSid = accountSid
     this.authToken = authToken
     this.phoneNumber = phoneNumber
-    this.hmacSecret = hmacSecret
+    this.crypto = crypto
   }
 
   async parseIncomingMessage(request: Request): Promise<IncomingMessage> {
@@ -52,7 +53,7 @@ export class TwilioSMSAdapter implements MessagingAdapter {
       channelType: this.channelType,
       externalId: messageSid,
       senderIdentifier: from,
-      senderIdentifierHash: hashPhone(from, this.hmacSecret),
+      senderIdentifierHash: this.crypto.hmac(from, HMAC_PHONE_PREFIX),
       body,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       mediaTypes: mediaTypes.length > 0 ? mediaTypes : undefined,

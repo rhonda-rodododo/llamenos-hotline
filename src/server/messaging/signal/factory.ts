@@ -1,4 +1,5 @@
 import type { SignalConfig } from '../../../shared/types'
+import type { CryptoService } from '../../lib/crypto-service'
 import type { MessagingAdapter } from '../adapter'
 import { SignalAdapter } from './adapter'
 
@@ -6,7 +7,7 @@ import { SignalAdapter } from './adapter'
  * Create a validated SignalAdapter instance from a SignalConfig.
  * Throws if any required configuration fields are missing.
  */
-export function createSignalAdapter(config: SignalConfig, hmacSecret: string): MessagingAdapter {
+export function createSignalAdapter(config: SignalConfig, crypto: CryptoService): MessagingAdapter {
   if (
     !config.bridgeUrl ||
     !config.bridgeApiKey ||
@@ -15,5 +16,5 @@ export function createSignalAdapter(config: SignalConfig, hmacSecret: string): M
   ) {
     throw new Error('Signal bridge configuration is incomplete')
   }
-  return new SignalAdapter(config, hmacSecret)
+  return new SignalAdapter(config, crypto)
 }

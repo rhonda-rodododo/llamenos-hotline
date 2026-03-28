@@ -1,9 +1,9 @@
+import { LABEL_STORAGE_CREDENTIAL_WRAP } from '@shared/crypto-labels'
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import type { Hub } from '../../shared/types'
 import { getDb } from '../db'
 import { hubStorageCredentials, hubStorageSettings } from '../db/schema/storage'
-import { encryptStorageCredential } from '../lib/crypto'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { type AppEnv, STORAGE_NAMESPACES, type StorageNamespace } from '../types'
 
@@ -73,8 +73,10 @@ routes.post('/', requirePermission('system:manage-hubs'), async (c) => {
 
       // Store per-hub IAM credentials if created
       if (iamResult) {
-        const serverSecret = c.env.HMAC_SECRET
-        const encrypted = encryptStorageCredential(iamResult.secretAccessKey, serverSecret)
+        const encrypted = services.crypto.serverEncrypt(
+          iamResult.secretAccessKey,
+          LABEL_STORAGE_CREDENTIAL_WRAP
+        )
         const db = getDb()
         await db.insert(hubStorageCredentials).values({
           hubId: hub.id,

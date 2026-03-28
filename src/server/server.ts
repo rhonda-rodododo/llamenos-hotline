@@ -130,11 +130,7 @@ async function main() {
       const config = await services.settings.getMessagingConfig()
       for (const channel of config?.enabledChannels ?? []) {
         try {
-          const msgAdapter = await getMessagingAdapter(
-            channel,
-            services.settings,
-            env.HMAC_SECRET ?? ''
-          )
+          const msgAdapter = await getMessagingAdapter(channel, services.settings, crypto)
           await providerHealth.checkProvider('messaging', channel, {
             async testConnection() {
               const status = await msgAdapter.getChannelStatus()
@@ -157,8 +153,8 @@ async function main() {
 
   const blastProcessorInterval = scheduleBlastProcessor(
     services,
-    env.SERVER_NOSTR_SECRET ?? '',
-    env.HMAC_SECRET ?? ''
+    crypto,
+    env.SERVER_NOSTR_SECRET ?? ''
   )
   console.log('[llamenos] Blast delivery processor started (30s poll)')
 

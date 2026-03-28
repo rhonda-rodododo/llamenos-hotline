@@ -1,5 +1,6 @@
+import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import type { MessagingChannelType } from '../../../shared/types'
-import { hashPhone } from '../../lib/crypto'
+import type { CryptoService } from '../../lib/crypto-service'
 import type {
   ChannelStatus,
   IncomingMessage,
@@ -35,13 +36,13 @@ export class VonageSMSAdapter implements MessagingAdapter {
   private apiKey: string
   private apiSecret: string
   private phoneNumber: string
-  private hmacSecret: string
+  private crypto: CryptoService
 
-  constructor(apiKey: string, apiSecret: string, phoneNumber: string, hmacSecret: string) {
+  constructor(apiKey: string, apiSecret: string, phoneNumber: string, crypto: CryptoService) {
     this.apiKey = apiKey
     this.apiSecret = apiSecret
     this.phoneNumber = phoneNumber
-    this.hmacSecret = hmacSecret
+    this.crypto = crypto
   }
 
   async parseIncomingMessage(request: Request): Promise<IncomingMessage> {
@@ -54,7 +55,7 @@ export class VonageSMSAdapter implements MessagingAdapter {
       channelType: this.channelType,
       externalId: data.messageId,
       senderIdentifier: senderNumber,
-      senderIdentifierHash: hashPhone(senderNumber, this.hmacSecret),
+      senderIdentifierHash: this.crypto.hmac(senderNumber, HMAC_PHONE_PREFIX),
       body: data.text || undefined,
       timestamp: data['message-timestamp'] || data.timestamp || new Date().toISOString(),
       metadata: {

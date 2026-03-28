@@ -1,3 +1,4 @@
+import type { CryptoService } from '../../lib/crypto-service'
 import type { ChannelStatus } from '../adapter'
 import { TwilioSMSAdapter } from './twilio'
 
@@ -14,9 +15,9 @@ export class SignalWireSMSAdapter extends TwilioSMSAdapter {
     authToken: string,
     phoneNumber: string,
     space: string,
-    hmacSecret: string
+    crypto: CryptoService
   ) {
-    super(accountSid, authToken, phoneNumber, hmacSecret)
+    super(accountSid, authToken, phoneNumber, crypto)
     this.space = space
   }
 
