@@ -63,7 +63,8 @@ class AuthFacadeClient {
   private accessToken: string | null = null
 
   constructor() {
-    // Restore test JWT from sessionStorage (survives page reloads in E2E tests)
+    // Restore test JWT from sessionStorage (survives page reloads in E2E tests).
+    // Safe in production: __TEST_JWT is never set outside of Playwright test runs.
     if (typeof sessionStorage !== 'undefined') {
       const testJwt = sessionStorage.getItem('__TEST_JWT')
       if (testJwt) this.accessToken = testJwt

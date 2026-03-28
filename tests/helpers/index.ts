@@ -3,6 +3,8 @@ import { TestIds } from '../test-ids'
 
 export const ADMIN_NSEC = 'nsec174zsa94n3e7t0ugfldh9tgkkzmaxhalr78uxt9phjq3mmn6d6xas5jdffh'
 export const TEST_PIN = '123456'
+const TEST_JWT_SECRET =
+  process.env.JWT_SECRET || '0000000000000000000000000000000000000000000000000000000000000003'
 
 /**
  * Default timeout values for common operations.
@@ -207,8 +209,7 @@ export async function loginAsAdmin(page: Page) {
   const { nip19, getPublicKey } = await import('nostr-tools')
   const decoded = nip19.decode(ADMIN_NSEC) as { type: 'nsec'; data: Uint8Array }
   const adminPubkey = getPublicKey(decoded.data)
-  const jwtSecret =
-    process.env.JWT_SECRET || '0000000000000000000000000000000000000000000000000000000000000003'
+  const jwtSecret = TEST_JWT_SECRET
   const jwt = await signAccessToken({ pubkey: adminPubkey, permissions: ['*'] }, jwtSecret)
 
   await page.reload({ waitUntil: 'domcontentloaded' })
@@ -251,14 +252,14 @@ export async function loginAsVolunteer(page: Page, nsec: string) {
   const { nip19, getPublicKey } = await import('nostr-tools')
   const decoded = nip19.decode(nsec) as { type: 'nsec'; data: Uint8Array }
   const volPubkey = getPublicKey(decoded.data)
-  const jwtSecret =
-    process.env.JWT_SECRET || '0000000000000000000000000000000000000000000000000000000000000003'
+  const jwtSecret = TEST_JWT_SECRET
   const jwt = await signAccessToken({ pubkey: volPubkey, permissions: [] }, jwtSecret)
 
   await page.reload({ waitUntil: 'domcontentloaded' })
 
   await page.waitForFunction(() => window.__TEST_AUTH_FACADE, { timeout: 10000 })
   await page.evaluate((token) => {
+    sessionStorage.setItem('__TEST_JWT', token)
     window.__TEST_AUTH_FACADE.setAccessToken(token)
   }, jwt)
 
