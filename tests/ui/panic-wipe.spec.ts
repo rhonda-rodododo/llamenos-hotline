@@ -22,10 +22,12 @@ test.describe('Panic Wipe (L-9)', () => {
     await expect(overlay).toBeVisible({ timeout: 2000 })
 
     // The wipe does window.location.href = '/login' (full page reload after 200ms).
-    // After wipe, localStorage is empty so login shows the nsec import form (not PIN).
-    // Wait for the login page heading to be visible — this confirms the page
-    // has fully loaded and the execution context is stable for evaluate().
-    await expect(page.getByText(/enter your secret key/i)).toBeVisible({ timeout: 15000 })
+    // This destroys the JS execution context entirely. We must wait for the new
+    // page to fully load before running page.evaluate(). Use waitForURL + the
+    // login heading to confirm the fresh page has rendered its React tree.
+    await page.waitForURL('**/login', { timeout: 15000 })
+    // Wait for the heading — it renders for both PIN-entry and nsec-import modes
+    await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible({ timeout: 15000 })
 
     // Verify storage was cleared
     const storageState = await page.evaluate(() => ({

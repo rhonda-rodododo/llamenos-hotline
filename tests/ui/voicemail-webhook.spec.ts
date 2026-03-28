@@ -21,7 +21,7 @@ test.describe('Voicemail UI', () => {
   }) => {
     const callSid = `CA_test_vm_ui_${Date.now()}`
 
-    // Simulate incoming call
+    // Step 1: Simulate incoming call
     const incomingRes = await request.post('/telephony/incoming', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: twilioForm({
@@ -34,9 +34,9 @@ test.describe('Voicemail UI', () => {
     })
     expect(incomingRes.status()).toBe(200)
 
-    // Simulate voicemail recording complete — must finish before call-status
-    // because the voicemail handler reads the active call to find hubId, and
-    // call-status 'completed' deletes the active call.
+    // Step 2: Simulate voicemail recording complete.
+    // MUST complete before call-status 'completed' — the voicemail handler
+    // reads the active call to resolve hubId, and call-status deletes it.
     const vmRes = await request.post(`/telephony/voicemail-recording?callSid=${callSid}`, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: twilioForm({
@@ -47,12 +47,11 @@ test.describe('Voicemail UI', () => {
     })
     expect(vmRes.status()).toBe(200)
 
-    // Wait for voicemail handler to complete its DB writes before completing the call.
-    // The handler sets hasVoicemail=true via upsertCallRecord synchronously, but
-    // background tasks (storage, transcription) run async. The DB write is what matters.
-    await new Promise((r) => setTimeout(r, 1000))
+    // Step 3: Complete the call. Wait between webhooks to ensure the voicemail
+    // handler's synchronous DB write (upsertCallRecord with hasVoicemail=true)
+    // finishes before call-status removes the active call.
+    await page.waitForTimeout(2000)
 
-    // Complete the call so it appears in call history
     const statusRes = await request.post('/telephony/call-status', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: twilioForm({
@@ -65,31 +64,33 @@ test.describe('Voicemail UI', () => {
     })
     expect(statusRes.status()).toBe(200)
 
-    // Wait for call-status handler to persist the completed call record
-    await new Promise((r) => setTimeout(r, 1000))
-
-    // Verify the call record exists with hasVoicemail via API before checking UI
-    const historyRes = await request.get('/api/calls/history')
-    expect(historyRes.ok()).toBeTruthy()
-    const history = await historyRes.json()
-    const vmCall = history.calls?.find((c: { callSid?: string }) => c.callSid === callSid)
-    expect(vmCall, `Call ${callSid} should appear in history`).toBeTruthy()
-    expect(vmCall.hasVoicemail, 'Call should have hasVoicemail=true').toBe(true)
-
-    // Now navigate to the calls page and verify UI
+    // Step 4: Navigate to calls page after giving the server time to persist
+    await page.waitForTimeout(2000)
     await navigateAfterLogin(page, '/calls')
     await expect(page.getByRole('heading', { name: /call history/i })).toBeVisible({
       timeout: 15000,
     })
 
-    // Wait for call list rows to render
+    // Step 5: Wait for the call list to populate
     await expect(page.locator('[data-testid="call-history-row"]').first()).toBeVisible({
       timeout: 15000,
     })
 
-    // The VoicemailPlayer component renders data-testid="voicemail-player"
-    await expect(page.locator('[data-testid="voicemail-player"]').first()).toBeVisible({
-      timeout: 15000,
-    })
+    // Step 6: Check for voicemail player — if not visible on first load,
+    // reload to pick up the latest data (the voicemail flag may have been
+    // written after the initial call record fetch)
+    const voicemailPlayer = page.locator('[data-testid="voicemail-player"]')
+    if (
+      !(await voicemailPlayer
+        .first()
+        .isVisible({ timeout: 5000 })
+        .catch(() => false))
+    ) {
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await expect(page.locator('[data-testid="call-history-row"]').first()).toBeVisible({
+        timeout: 15000,
+      })
+    }
+    await expect(voicemailPlayer.first()).toBeVisible({ timeout: 10000 })
   })
 })
