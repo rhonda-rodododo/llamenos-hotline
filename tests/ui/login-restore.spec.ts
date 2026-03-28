@@ -36,11 +36,15 @@ test.describe('Login page — stored key exists (PIN view)', () => {
       localStorage.setItem(
         'llamenos-encrypted-key-v2',
         JSON.stringify({
-          salt: 'aa'.repeat(16),
-          iterations: 600000,
+          version: 2,
+          kdf: 'pbkdf2-sha256',
+          cipher: 'xchacha20-poly1305',
+          salt: 'aa'.repeat(32),
           nonce: 'bb'.repeat(24),
           ciphertext: 'cc'.repeat(32),
-          pubkey: 'dd'.repeat(8),
+          pubkeyHash: 'dd'.repeat(8),
+          prfUsed: false,
+          idpIssuer: 'device-link',
         })
       )
     })

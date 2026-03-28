@@ -62,6 +62,14 @@ export class AuthFacadeError extends Error {
 class AuthFacadeClient {
   private accessToken: string | null = null
 
+  constructor() {
+    // Restore test JWT from sessionStorage (survives page reloads in E2E tests)
+    if (typeof sessionStorage !== 'undefined') {
+      const testJwt = sessionStorage.getItem('__TEST_JWT')
+      if (testJwt) this.accessToken = testJwt
+    }
+  }
+
   // --- Token management ---
 
   getAccessToken(): string | null {

@@ -213,9 +213,10 @@ export async function loginAsAdmin(page: Page) {
 
   await page.reload({ waitUntil: 'domcontentloaded' })
 
-  // Inject JWT into the facade client so unlock → getMe() works
+  // Store JWT in sessionStorage (survives reloads) and inject into facade client
   await page.waitForFunction(() => window.__TEST_AUTH_FACADE, { timeout: 10000 })
   await page.evaluate((token) => {
+    sessionStorage.setItem('__TEST_JWT', token)
     window.__TEST_AUTH_FACADE.setAccessToken(token)
   }, jwt)
 
