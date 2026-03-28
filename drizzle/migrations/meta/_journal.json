@@ -155,6 +155,13 @@
       "when": 1774857600000,
       "tag": "0021_encrypted_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1775055600000,
+      "tag": "0022_drop_plaintext_columns",
+      "breakpoints": true
     }
   ]
 }

@@ -40,9 +40,9 @@ export class RecordsService {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(bans).where(eq(bans.hubId, hId))
     return rows.map((r) => ({
-      // Plaintext fallback for transition — encrypted phone/reason passed through for client decryption
-      phone: r.phone,
-      reason: r.reason,
+      // E2EE fields — server returns empty strings, client decrypts via envelopes
+      phone: '',
+      reason: '',
       bannedBy: r.bannedBy,
       bannedAt: r.createdAt.toISOString(),
     }))
@@ -66,26 +66,28 @@ export class RecordsService {
         ? this.crypto.envelopeEncrypt(data.reason, recipientPubkeys, LABEL_VOLUNTEER_PII)
         : undefined
 
+    // Server-encrypt phone+reason as fallback when no E2EE recipients available
+    const encryptedPhone =
+      phoneEnvelope?.encrypted ?? this.crypto.serverEncrypt(data.phone, LABEL_VOLUNTEER_PII)
+    const encryptedReason =
+      reasonEnvelope?.encrypted ?? this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII)
+
     const [row] = await this.db
       .insert(bans)
       .values({
         id,
         hubId: hId,
-        phone: data.phone,
-        reason: data.reason,
         bannedBy: data.bannedBy,
         phoneHash,
-        ...(phoneEnvelope
-          ? { encryptedPhone: phoneEnvelope.encrypted, phoneEnvelopes: phoneEnvelope.envelopes }
-          : {}),
-        ...(reasonEnvelope
-          ? { encryptedReason: reasonEnvelope.encrypted, reasonEnvelopes: reasonEnvelope.envelopes }
-          : {}),
+        encryptedPhone,
+        phoneEnvelopes: phoneEnvelope?.envelopes ?? [],
+        encryptedReason,
+        reasonEnvelopes: reasonEnvelope?.envelopes ?? [],
       })
       .returning()
     return {
-      phone: row.phone,
-      reason: row.reason,
+      phone: '', // E2EE — client decrypts via envelopes
+      reason: '',
       bannedBy: row.bannedBy,
       bannedAt: row.createdAt.toISOString(),
     }
@@ -93,9 +95,19 @@ export class RecordsService {
 
   async bulkAddBans(data: BulkBanData): Promise<number> {
     const hId = data.hubId ?? 'global'
-    const existing = await this.getBans(hId)
-    const existingPhones = new Set(existing.map((b) => b.phone))
-    const newPhones = data.phones.filter((p) => !existingPhones.has(p))
+    // Check existing bans by phone hash to avoid duplicates
+    const existingHashes = new Set<string>()
+    const existingRows = await this.db
+      .select({ phoneHash: bans.phoneHash })
+      .from(bans)
+      .where(eq(bans.hubId, hId))
+    for (const row of existingRows) {
+      if (row.phoneHash) existingHashes.add(row.phoneHash)
+    }
+    const newPhones = data.phones.filter((p) => {
+      const hash = this.crypto.hmac(p, HMAC_PHONE_PREFIX)
+      return !existingHashes.has(hash)
+    })
     if (newPhones.length === 0) return 0
     await this.db.insert(bans).values(
       newPhones.map((phone) => {
@@ -112,19 +124,15 @@ export class RecordsService {
         return {
           id: crypto.randomUUID(),
           hubId: hId,
-          phone,
-          reason: data.reason,
           bannedBy: data.bannedBy,
           phoneHash,
-          ...(phoneEnvelope
-            ? { encryptedPhone: phoneEnvelope.encrypted, phoneEnvelopes: phoneEnvelope.envelopes }
-            : {}),
-          ...(reasonEnvelope
-            ? {
-                encryptedReason: reasonEnvelope.encrypted,
-                reasonEnvelopes: reasonEnvelope.envelopes,
-              }
-            : {}),
+          encryptedPhone:
+            phoneEnvelope?.encrypted ?? this.crypto.serverEncrypt(phone, LABEL_VOLUNTEER_PII),
+          phoneEnvelopes: phoneEnvelope?.envelopes ?? [],
+          encryptedReason:
+            reasonEnvelope?.encrypted ??
+            this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII),
+          reasonEnvelopes: reasonEnvelope?.envelopes ?? [],
         }
       })
     )
@@ -133,11 +141,8 @@ export class RecordsService {
 
   async removeBan(phone: string, hubId?: string): Promise<void> {
     const hId = hubId ?? 'global'
-    // Dual-delete: match by HMAC hash OR plaintext (transition period)
     const phoneHash = this.crypto.hmac(phone, HMAC_PHONE_PREFIX)
-    await this.db
-      .delete(bans)
-      .where(and(eq(bans.hubId, hId), or(eq(bans.phoneHash, phoneHash), eq(bans.phone, phone))))
+    await this.db.delete(bans).where(and(eq(bans.hubId, hId), eq(bans.phoneHash, phoneHash)))
   }
 
   async isBanned(phone: string, hubId?: string): Promise<boolean> {
@@ -149,12 +154,11 @@ export class RecordsService {
         ? eq(bans.hubId, 'global')
         : or(eq(bans.hubId, hId), eq(bans.hubId, 'global'))
 
-    // Dual-check: HMAC hash lookup OR plaintext fallback (transition period)
     const phoneHash = this.crypto.hmac(phone, HMAC_PHONE_PREFIX)
     const rows = await this.db
       .select({ id: bans.id })
       .from(bans)
-      .where(and(hubConditions!, or(eq(bans.phoneHash, phoneHash), eq(bans.phone, phone))))
+      .where(and(hubConditions!, eq(bans.phoneHash, phoneHash)))
       .limit(1)
     return rows.length > 0
   }
@@ -184,7 +188,6 @@ export class RecordsService {
       .values({
         id: data.id,
         hubId: data.hubId ?? 'global',
-        callerLast4: data.callerLast4 ?? null,
         startedAt: data.startedAt,
         endedAt: data.endedAt ?? null,
         duration: data.duration ?? null,
@@ -705,7 +708,7 @@ export class RecordsService {
   #rowToCallRecord(r: typeof callRecords.$inferSelect): EncryptedCallRecord {
     return {
       id: r.id,
-      callerLast4: r.callerLast4 ?? undefined,
+      callerLast4: undefined, // Plaintext dropped — E2EE callerLast4 decrypted client-side
       startedAt: r.startedAt.toISOString(),
       endedAt: r.endedAt?.toISOString(),
       duration: r.duration ?? undefined,

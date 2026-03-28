@@ -75,9 +75,7 @@ export class IdentityService {
 
   async createVolunteer(data: CreateVolunteerData): Promise<Volunteer> {
     // Encrypt phone with server key (server can decrypt for routing)
-    const encryptedPhone = data.phone
-      ? this.crypto.serverEncrypt(data.phone, LABEL_VOLUNTEER_PII)
-      : undefined
+    const encryptedPhone = this.crypto.serverEncrypt(data.phone ?? '', LABEL_VOLUNTEER_PII)
 
     // E2EE envelope-encrypt name for admin pubkeys (server-side bootstrap)
     const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
@@ -90,8 +88,6 @@ export class IdentityService {
       .insert(volunteers)
       .values({
         pubkey: data.pubkey,
-        name: data.name,
-        phone: data.phone,
         roles: data.roleIds ?? data.roles ?? ['role-volunteer'],
         encryptedSecretKey: data.encryptedSecretKey,
         active: true,
@@ -101,11 +97,11 @@ export class IdentityService {
         profileCompleted: false,
         onBreak: false,
         callPreference: 'phone',
-        // Encrypted columns
-        ...(encryptedPhone ? { encryptedPhone } : {}),
-        ...(nameEnvelope
-          ? { encryptedName: nameEnvelope.encrypted, nameEnvelopes: nameEnvelope.envelopes }
-          : {}),
+        encryptedPhone,
+        encryptedName:
+          nameEnvelope?.encrypted ??
+          this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
+        ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
       })
       .returning()
     return this.#rowToVolunteer(row)
@@ -154,8 +150,6 @@ export class IdentityService {
     const [row] = await this.db
       .update(volunteers)
       .set({
-        ...(allowed.name !== undefined ? { name: allowed.name as string } : {}),
-        ...(allowed.phone !== undefined ? { phone: allowed.phone as string } : {}),
         ...(allowed.roles !== undefined ? { roles: allowed.roles as string[] } : {}),
         ...(allowed.active !== undefined ? { active: allowed.active as boolean } : {}),
         ...(allowed.transcriptionEnabled !== undefined
@@ -223,8 +217,6 @@ export class IdentityService {
         .insert(volunteers)
         .values({
           pubkey,
-          name: 'Admin',
-          phone: '',
           roles: ['role-super-admin'],
           encryptedSecretKey: '',
           active: true,
@@ -235,9 +227,9 @@ export class IdentityService {
           onBreak: false,
           callPreference: 'phone',
           encryptedPhone,
-          ...(nameEnvelope
-            ? { encryptedName: nameEnvelope.encrypted, nameEnvelopes: nameEnvelope.envelopes }
-            : {}),
+          encryptedName:
+            nameEnvelope?.encrypted ?? this.crypto.serverEncrypt('Admin', LABEL_VOLUNTEER_PII),
+          ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
         })
         .returning()
       return this.#rowToVolunteer(row)
@@ -289,9 +281,7 @@ export class IdentityService {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
     // Encrypt phone with server key
-    const encryptedPhone = data.phone
-      ? this.crypto.serverEncrypt(data.phone, LABEL_VOLUNTEER_PII)
-      : undefined
+    const encryptedPhone = this.crypto.serverEncrypt(data.phone ?? '', LABEL_VOLUNTEER_PII)
 
     // E2EE envelope-encrypt name for admin pubkeys
     const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
@@ -304,15 +294,14 @@ export class IdentityService {
       .insert(inviteCodes)
       .values({
         code,
-        name: data.name,
-        phone: data.phone,
         roleIds: data.roleIds ?? ['role-volunteer'],
         createdBy: data.createdBy,
         expiresAt,
-        ...(encryptedPhone ? { encryptedPhone } : {}),
-        ...(nameEnvelope
-          ? { encryptedName: nameEnvelope.encrypted, nameEnvelopes: nameEnvelope.envelopes }
-          : {}),
+        encryptedPhone,
+        encryptedName:
+          nameEnvelope?.encrypted ??
+          this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
+        ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
       })
       .returning()
     return this.#rowToInvite(row)
@@ -326,8 +315,14 @@ export class IdentityService {
     if (!row) return { valid: false, error: 'not_found' }
     if (row.usedAt !== null) return { valid: false, error: 'already_used' }
     if (row.expiresAt < new Date()) return { valid: false, error: 'expired' }
-    // Name is plaintext fallback (E2EE name decrypted client-side)
-    return { valid: true, name: row.name, roleIds: row.roleIds as string[] }
+    // Name is E2EE — server-side decrypt attempt for display (may be server-encrypted fallback)
+    let name: string | undefined
+    try {
+      name = this.crypto.serverDecrypt(row.encryptedName as Ciphertext, LABEL_VOLUNTEER_PII)
+    } catch {
+      // E2EE-only name — client will decrypt via envelopes
+    }
+    return { valid: true, name, roleIds: row.roleIds as string[] }
   }
 
   async redeemInvite(data: RedeemInviteData): Promise<Volunteer> {
@@ -348,15 +343,34 @@ export class IdentityService {
         .set({ usedAt: new Date(), usedBy: data.pubkey })
         .where(eq(inviteCodes.code, data.code))
 
+      // Decrypt invite PII from encrypted columns
+      let invitePhone = ''
+      try {
+        invitePhone = this.crypto.serverDecrypt(
+          invite.encryptedPhone as Ciphertext,
+          LABEL_VOLUNTEER_PII
+        )
+      } catch {
+        /* E2EE-only — leave empty */
+      }
+
+      let inviteName = ''
+      try {
+        inviteName = this.crypto.serverDecrypt(
+          invite.encryptedName as Ciphertext,
+          LABEL_VOLUNTEER_PII
+        )
+      } catch {
+        /* E2EE-only — leave empty */
+      }
+
       // Encrypt volunteer PII
-      const encryptedPhone = invite.phone
-        ? this.crypto.serverEncrypt(invite.phone, LABEL_VOLUNTEER_PII)
-        : undefined
+      const encryptedPhone = this.crypto.serverEncrypt(invitePhone, LABEL_VOLUNTEER_PII)
 
       const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
       const nameEnvelope =
-        invite.name && adminPubkeys.length > 0
-          ? this.crypto.envelopeEncrypt(invite.name, adminPubkeys, LABEL_VOLUNTEER_PII)
+        inviteName && adminPubkeys.length > 0
+          ? this.crypto.envelopeEncrypt(inviteName, adminPubkeys, LABEL_VOLUNTEER_PII)
           : undefined
 
       // Create volunteer
@@ -364,8 +378,6 @@ export class IdentityService {
         .insert(volunteers)
         .values({
           pubkey: data.pubkey,
-          name: invite.name,
-          phone: invite.phone,
           roles: (invite.roleIds as string[]) ?? ['role-volunteer'],
           encryptedSecretKey: '',
           active: true,
@@ -375,10 +387,10 @@ export class IdentityService {
           profileCompleted: false,
           onBreak: false,
           callPreference: 'phone',
-          ...(encryptedPhone ? { encryptedPhone } : {}),
-          ...(nameEnvelope
-            ? { encryptedName: nameEnvelope.encrypted, nameEnvelopes: nameEnvelope.envelopes }
-            : {}),
+          encryptedPhone,
+          encryptedName:
+            nameEnvelope?.encrypted ?? this.crypto.serverEncrypt(inviteName, LABEL_VOLUNTEER_PII),
+          ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
         })
         .returning()
       return this.#rowToVolunteer(row)
@@ -437,7 +449,6 @@ export class IdentityService {
       counter: String(cred.counter),
       transports: cred.transports,
       backedUp: cred.backedUp,
-      label: cred.label,
       lastUsedAt: new Date(cred.lastUsedAt),
       ...(labelEnvelope
         ? { encryptedLabel: labelEnvelope.encrypted, labelEnvelopes: labelEnvelope.envelopes }
@@ -720,14 +731,19 @@ export class IdentityService {
   // ------------------------------------------------------------------ Private helpers
 
   #rowToVolunteer(r: typeof volunteers.$inferSelect): Volunteer {
-    // Dual-read: prefer encrypted phone, fall back to plaintext
-    const phone = r.encryptedPhone
-      ? this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
-      : r.phone
+    const phone = this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
+
+    // Server-side name decrypt attempt (may be E2EE-only, in which case client decrypts via envelopes)
+    let name = ''
+    try {
+      name = this.crypto.serverDecrypt(r.encryptedName as Ciphertext, LABEL_VOLUNTEER_PII)
+    } catch {
+      // E2EE-only name — client will decrypt via envelopes
+    }
 
     return {
       pubkey: r.pubkey,
-      name: r.name, // Plaintext fallback — E2EE name decrypted client-side
+      name,
       phone,
       roles: r.roles as string[],
       hubRoles: r.hubRoles as Array<{ hubId: string; roleIds: string[] }>,
@@ -748,14 +764,18 @@ export class IdentityService {
   }
 
   #rowToInvite(r: typeof inviteCodes.$inferSelect): InviteCode {
-    // Dual-read: prefer encrypted phone, fall back to plaintext
-    const phone = r.encryptedPhone
-      ? this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
-      : r.phone
+    const phone = this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
+
+    let name = ''
+    try {
+      name = this.crypto.serverDecrypt(r.encryptedName as Ciphertext, LABEL_VOLUNTEER_PII)
+    } catch {
+      // E2EE-only name — client will decrypt via envelopes
+    }
 
     return {
       code: r.code,
-      name: r.name, // Plaintext fallback — E2EE name decrypted client-side
+      name,
       phone,
       roleIds: r.roleIds as string[],
       createdBy: r.createdBy,
@@ -776,7 +796,7 @@ export class IdentityService {
       counter: Number(r.counter),
       transports: r.transports as string[],
       backedUp: r.backedUp,
-      label: r.label,
+      label: '', // Plaintext label dropped — E2EE label decrypted client-side via envelopes
       createdAt: r.createdAt.toISOString(),
       lastUsedAt: r.lastUsedAt.toISOString(),
     }

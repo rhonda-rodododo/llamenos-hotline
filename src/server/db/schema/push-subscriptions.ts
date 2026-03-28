@@ -8,14 +8,10 @@ export const pushSubscriptions = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     pubkey: text('pubkey').notNull(),
-    endpoint: text('endpoint').notNull().unique(),
-    endpointHash: hmacHashed('endpoint_hash'),
-    encryptedEndpoint: ciphertext('encrypted_endpoint'),
-    authKey: text('auth_key').notNull(),
-    encryptedAuthKey: ciphertext('encrypted_auth_key'),
-    p256dhKey: text('p256dh_key').notNull(),
-    encryptedP256dhKey: ciphertext('encrypted_p256dh_key'),
-    deviceLabel: text('device_label'),
+    endpointHash: hmacHashed('endpoint_hash').notNull(),
+    encryptedEndpoint: ciphertext('encrypted_endpoint').notNull(),
+    encryptedAuthKey: ciphertext('encrypted_auth_key').notNull(),
+    encryptedP256dhKey: ciphertext('encrypted_p256dh_key').notNull(),
     encryptedDeviceLabel: ciphertext('encrypted_device_label'),
     deviceLabelEnvelopes: jsonb<RecipientEnvelope[]>()('device_label_envelopes')
       .notNull()

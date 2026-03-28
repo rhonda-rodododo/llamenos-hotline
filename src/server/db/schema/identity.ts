@@ -5,8 +5,6 @@ import { ciphertext, hmacHashed } from '../crypto-columns'
 
 export const volunteers = pgTable('volunteers', {
   pubkey: text('pubkey').primaryKey(),
-  name: text('name').notNull(),
-  phone: text('phone').notNull().default(''),
   roles: jsonb<string[]>()('roles').notNull().default([]),
   hubRoles: jsonb<Array<{ hubId: string; roleIds: string[] }>>()('hub_roles').notNull().default([]),
   encryptedSecretKey: text('encrypted_secret_key').notNull().default(''),
@@ -19,9 +17,9 @@ export const volunteers = pgTable('volunteers', {
   callPreference: text('call_preference').notNull().default('phone'),
   supportedMessagingChannels: jsonb<string[]>()('supported_messaging_channels'),
   messagingEnabled: boolean('messaging_enabled'),
-  encryptedName: ciphertext('encrypted_name'),
+  encryptedName: ciphertext('encrypted_name').notNull(),
   nameEnvelopes: jsonb<RecipientEnvelope[]>()('name_envelopes').notNull().default([]),
-  encryptedPhone: ciphertext('encrypted_phone'),
+  encryptedPhone: ciphertext('encrypted_phone').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -39,7 +37,6 @@ export const webauthnCredentials = pgTable('webauthn_credentials', {
   counter: text('counter').notNull().default('0'), // stored as text to avoid bigint issues
   transports: jsonb<string[]>()('transports').notNull().default([]),
   backedUp: boolean('backed_up').notNull().default(false),
-  label: text('label').notNull().default(''),
   encryptedLabel: ciphertext('encrypted_label'),
   labelEnvelopes: jsonb<RecipientEnvelope[]>()('label_envelopes').notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -56,17 +53,15 @@ export const webauthnChallenges = pgTable('webauthn_challenges', {
 
 export const inviteCodes = pgTable('invite_codes', {
   code: text('code').primaryKey(),
-  name: text('name').notNull(),
-  phone: text('phone').notNull().default(''),
   roleIds: jsonb<string[]>()('role_ids').notNull().default([]),
   createdBy: text('created_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
   usedBy: text('used_by'),
-  encryptedName: ciphertext('encrypted_name'),
+  encryptedName: ciphertext('encrypted_name').notNull(),
   nameEnvelopes: jsonb<RecipientEnvelope[]>()('name_envelopes').notNull().default([]),
-  encryptedPhone: ciphertext('encrypted_phone'),
+  encryptedPhone: ciphertext('encrypted_phone').notNull(),
   recipientPhoneHash: hmacHashed('recipient_phone_hash'),
   deliveryChannel: varchar('delivery_channel', { length: 16 }),
   deliverySentAt: timestamp('delivery_sent_at', { withTimezone: true }),

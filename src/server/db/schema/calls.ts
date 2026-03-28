@@ -7,8 +7,7 @@ export const callLegTypeEnum = pgEnum('call_leg_type', ['phone', 'browser'])
 export const activeCalls = pgTable('active_calls', {
   callSid: text('call_sid').primaryKey(),
   hubId: text('hub_id').notNull().default('global'),
-  callerNumber: text('caller_number').notNull(),
-  encryptedCallerNumber: ciphertext('encrypted_caller_number'),
+  encryptedCallerNumber: ciphertext('encrypted_caller_number').notNull(),
   status: text('status').notNull().default('ringing'), // 'ringing' | 'in-progress' | 'completed'
   assignedPubkey: text('assigned_pubkey'),
   startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
@@ -20,7 +19,6 @@ export const callLegs = pgTable('call_legs', {
   callSid: text('call_sid').notNull(),
   hubId: text('hub_id').notNull().default('global'),
   volunteerPubkey: text('volunteer_pubkey').notNull(),
-  phone: text('phone'),
   encryptedPhone: ciphertext('encrypted_phone'),
   type: callLegTypeEnum('type').notNull().default('phone'),
   status: text('status').notNull().default('ringing'),

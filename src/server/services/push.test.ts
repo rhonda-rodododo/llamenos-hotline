@@ -24,13 +24,15 @@ function makeEndpoint(label: string) {
 
 let db: ReturnType<typeof createDatabase>
 let service: PushService
+let cryptoService: CryptoService
 
 beforeAll(async () => {
   db = createDatabase(TEST_DB_URL)
   await migrate(db, {
     migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations'),
   })
-  service = new PushService(db, new CryptoService('', ''))
+  cryptoService = new CryptoService('', '')
+  service = new PushService(db, cryptoService)
   // Clean up any leftover data from previous failed runs
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.pubkey, PUBKEY_A))
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.pubkey, PUBKEY_B))
@@ -40,6 +42,17 @@ afterAll(async () => {
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.pubkey, PUBKEY_A))
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.pubkey, PUBKEY_B))
 })
+
+/** Helper: count subscriptions by endpointHash lookup */
+async function countByEndpoint(endpoint: string): Promise<number> {
+  const { HMAC_PHONE_PREFIX } = await import('@shared/crypto-labels')
+  const hash = cryptoService.hmac(endpoint, HMAC_PHONE_PREFIX)
+  const rows = await db
+    .select()
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.endpointHash, hash))
+  return rows.length
+}
 
 describe('PushService', () => {
   test('subscribe creates a new push subscription', async () => {
@@ -57,7 +70,8 @@ describe('PushService', () => {
     expect(sub.endpoint).toBe(endpoint)
     expect(sub.authKey).toBe('auth-key-1')
     expect(sub.p256dhKey).toBe('p256dh-key-1')
-    expect(sub.deviceLabel).toBe('Chrome on Desktop')
+    // deviceLabel is now E2EE-only, server returns null
+    expect(sub.deviceLabel).toBeNull()
     expect(sub.createdAt).toBeString()
     expect(sub.updatedAt).toBeString()
   })
@@ -84,14 +98,9 @@ describe('PushService', () => {
     expect(second.id).toBe(first.id) // Same row
     expect(second.authKey).toBe('auth-key-new')
     expect(second.p256dhKey).toBe('p256dh-key-new')
-    expect(second.deviceLabel).toBe('Firefox')
 
     // Only one row for this endpoint
-    const rows = await db
-      .select()
-      .from(pushSubscriptions)
-      .where(eq(pushSubscriptions.endpoint, endpoint))
-    expect(rows.length).toBe(1)
+    expect(await countByEndpoint(endpoint)).toBe(1)
   })
 
   test('unsubscribe removes subscription by endpoint + pubkey', async () => {
@@ -106,11 +115,7 @@ describe('PushService', () => {
 
     await service.unsubscribe(endpoint, PUBKEY_A)
 
-    const rows = await db
-      .select()
-      .from(pushSubscriptions)
-      .where(eq(pushSubscriptions.endpoint, endpoint))
-    expect(rows.length).toBe(0)
+    expect(await countByEndpoint(endpoint)).toBe(0)
   })
 
   test('unsubscribe rejects mismatched pubkey', async () => {
@@ -126,11 +131,7 @@ describe('PushService', () => {
     await expect(service.unsubscribe(endpoint, PUBKEY_B)).rejects.toThrow()
 
     // Subscription still exists
-    const rows = await db
-      .select()
-      .from(pushSubscriptions)
-      .where(eq(pushSubscriptions.endpoint, endpoint))
-    expect(rows.length).toBe(1)
+    expect(await countByEndpoint(endpoint)).toBe(1)
   })
 
   test('removeStaleSubscription deletes by endpoint', async () => {
@@ -145,11 +146,7 @@ describe('PushService', () => {
 
     await service.removeStaleSubscription(endpoint)
 
-    const rows = await db
-      .select()
-      .from(pushSubscriptions)
-      .where(eq(pushSubscriptions.endpoint, endpoint))
-    expect(rows.length).toBe(0)
+    expect(await countByEndpoint(endpoint)).toBe(0)
   })
 
   test('getSubscriptionsForPubkeys returns all subscriptions for given pubkeys', async () => {
@@ -215,9 +212,6 @@ describe('PushService', () => {
     })
 
     test('returns early with no subscriptions for given pubkeys', async () => {
-      // No subscriptions exist for this unique pubkey.
-      // setVapidDetails is called but getSubscriptionsForPubkeys returns [] so
-      // sendNotification is never called and the method returns without error.
       const noPubkey = `${RUN_PREFIX}-nobody`
       await expect(
         service.sendPushToVolunteers(
@@ -239,11 +233,7 @@ describe('PushService', () => {
       })
 
       // Verify it exists
-      const before = await db
-        .select()
-        .from(pushSubscriptions)
-        .where(eq(pushSubscriptions.endpoint, endpoint))
-      expect(before.length).toBe(1)
+      expect(await countByEndpoint(endpoint)).toBe(1)
 
       // Mock web-push to throw a 410 error so removeStaleSubscription is called
       const webpushModule = await import('web-push')
@@ -269,11 +259,7 @@ describe('PushService', () => {
       }
 
       // Subscription must have been deleted
-      const after = await db
-        .select()
-        .from(pushSubscriptions)
-        .where(eq(pushSubscriptions.endpoint, endpoint))
-      expect(after.length).toBe(0)
+      expect(await countByEndpoint(endpoint)).toBe(0)
     })
 
     test('does NOT remove subscription on non-410 push error', async () => {
@@ -307,11 +293,7 @@ describe('PushService', () => {
       }
 
       // Subscription must still exist (not removed for 500)
-      const after = await db
-        .select()
-        .from(pushSubscriptions)
-        .where(eq(pushSubscriptions.endpoint, endpoint))
-      expect(after.length).toBe(1)
+      expect(await countByEndpoint(endpoint)).toBe(1)
     })
   })
 })

@@ -1112,22 +1112,21 @@ export class SettingsService {
     if (!rows[0]) return null
     const r = rows[0]
 
-    // Dual-read for server-key encrypted SIDs
     const brandSid = r.encryptedBrandSid
       ? this.crypto.serverDecrypt(r.encryptedBrandSid as Ciphertext, LABEL_PROVIDER_CREDENTIAL_WRAP)
-      : r.brandSid
+      : undefined
     const campaignSid = r.encryptedCampaignSid
       ? this.crypto.serverDecrypt(
           r.encryptedCampaignSid as Ciphertext,
           LABEL_PROVIDER_CREDENTIAL_WRAP
         )
-      : r.campaignSid
+      : undefined
     const messagingServiceSid = r.encryptedMessagingServiceSid
       ? this.crypto.serverDecrypt(
           r.encryptedMessagingServiceSid as Ciphertext,
           LABEL_PROVIDER_CREDENTIAL_WRAP
         )
-      : r.messagingServiceSid
+      : undefined
 
     return {
       provider: r.provider as ProviderConfig['provider'],
@@ -1162,9 +1161,6 @@ export class SettingsService {
       webhooksConfigured: config.webhooksConfigured,
       sipConfigured: config.sipConfigured,
       a2pStatus: config.a2pStatus ?? 'not_started',
-      brandSid: config.brandSid ?? null,
-      campaignSid: config.campaignSid ?? null,
-      messagingServiceSid: config.messagingServiceSid ?? null,
       encryptedBrandSid,
       encryptedCampaignSid,
       encryptedMessagingServiceSid,
@@ -1191,10 +1187,10 @@ export class SettingsService {
     if (!rows[0]) return { provider: null, apiKey: '', countries: [], enabled: false }
     const r = rows[0]
 
-    // Dual-read: prefer encrypted API key, fall back to plaintext
-    const apiKey = r.encryptedApiKey
-      ? this.crypto.serverDecrypt(r.encryptedApiKey as Ciphertext, LABEL_PROVIDER_CREDENTIAL_WRAP)
-      : r.apiKey
+    const apiKey = this.crypto.serverDecrypt(
+      r.encryptedApiKey as Ciphertext,
+      LABEL_PROVIDER_CREDENTIAL_WRAP
+    )
 
     return {
       provider: r.provider as GeocodingConfigAdmin['provider'],
@@ -1209,16 +1205,16 @@ export class SettingsService {
     const updated = { ...current, ...data }
 
     // Encrypt API key with server key
-    const encryptedApiKey = updated.apiKey
-      ? this.crypto.serverEncrypt(updated.apiKey, LABEL_PROVIDER_CREDENTIAL_WRAP)
-      : null
+    const encryptedApiKey = this.crypto.serverEncrypt(
+      updated.apiKey ?? '',
+      LABEL_PROVIDER_CREDENTIAL_WRAP
+    )
 
     await this.db
       .insert(geocodingConfig)
       .values({
         id: 'global',
         provider: updated.provider,
-        apiKey: updated.apiKey,
         encryptedApiKey,
         countries: updated.countries,
         enabled: updated.enabled,
@@ -1228,7 +1224,6 @@ export class SettingsService {
         target: geocodingConfig.id,
         set: {
           provider: updated.provider,
-          apiKey: updated.apiKey,
           encryptedApiKey,
           countries: updated.countries,
           enabled: updated.enabled,
@@ -1251,10 +1246,10 @@ export class SettingsService {
     }
     const r = rows[0]
 
-    // Dual-read: prefer encrypted number, fall back to plaintext
-    const number = r.encryptedNumber
-      ? this.crypto.serverDecrypt(r.encryptedNumber as Ciphertext, LABEL_PROVIDER_CREDENTIAL_WRAP)
-      : r.number
+    const number = this.crypto.serverDecrypt(
+      r.encryptedNumber as Ciphertext,
+      LABEL_PROVIDER_CREDENTIAL_WRAP
+    )
 
     return {
       number,
@@ -1268,15 +1263,15 @@ export class SettingsService {
 
   async setSignalRegistrationPending(pending: SignalRegistrationPending): Promise<void> {
     // Encrypt phone number with server key
-    const encryptedNumber = pending.number
-      ? this.crypto.serverEncrypt(pending.number, LABEL_PROVIDER_CREDENTIAL_WRAP)
-      : null
+    const encryptedNumber = this.crypto.serverEncrypt(
+      pending.number,
+      LABEL_PROVIDER_CREDENTIAL_WRAP
+    )
 
     await this.db
       .insert(signalRegistrationPending)
       .values({
         id: 'global',
-        number: pending.number,
         encryptedNumber,
         bridgeUrl: pending.bridgeUrl,
         method: pending.method,
@@ -1287,7 +1282,6 @@ export class SettingsService {
       .onConflictDoUpdate({
         target: signalRegistrationPending.id,
         set: {
-          number: pending.number,
           encryptedNumber,
           bridgeUrl: pending.bridgeUrl,
           method: pending.method,

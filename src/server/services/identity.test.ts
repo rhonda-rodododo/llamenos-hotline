@@ -33,7 +33,6 @@ beforeAll(async () => {
     counter: '5',
     transports: [],
     backedUp: false,
-    label: 'test device',
     lastUsedAt: new Date(),
   })
 })

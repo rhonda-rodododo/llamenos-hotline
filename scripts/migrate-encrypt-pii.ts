@@ -1,5 +1,9 @@
 /**
- * One-time PII backfill migration.
+ * One-time PII backfill migration (Task 10).
+ *
+ * NOTE: This script references plaintext columns (name, phone, reason, etc.)
+ * that have been dropped in Task 12. It must be run BEFORE the Task 12 migration
+ * that drops those columns. On a fresh database, this script is not needed.
  *
  * Encrypts all existing plaintext values in the database using the same
  * encryption strategy as the service layer. Safe to re-run — uses

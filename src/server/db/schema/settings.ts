@@ -172,8 +172,7 @@ export const retentionSettings = pgTable('retention_settings', {
 export const geocodingConfig = pgTable('geocoding_config', {
   id: text('id').primaryKey().default('global'),
   provider: text('provider'), // 'opencage' | 'geoapify' | null
-  apiKey: text('api_key').notNull().default(''),
-  encryptedApiKey: ciphertext('encrypted_api_key'),
+  encryptedApiKey: ciphertext('encrypted_api_key').notNull(),
   countries: jsonb<string[]>()('countries').notNull().default([]),
   enabled: boolean('enabled').notNull().default(false),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -196,11 +195,8 @@ export const providerConfig = pgTable('provider_config', {
   webhooksConfigured: boolean('webhooks_configured').notNull().default(false),
   sipConfigured: boolean('sip_configured').notNull().default(false),
   a2pStatus: text('a2p_status').default('not_started'),
-  brandSid: text('brand_sid'),
   encryptedBrandSid: ciphertext('encrypted_brand_sid'),
-  campaignSid: text('campaign_sid'),
   encryptedCampaignSid: ciphertext('encrypted_campaign_sid'),
-  messagingServiceSid: text('messaging_service_sid'),
   encryptedMessagingServiceSid: ciphertext('encrypted_messaging_service_sid'),
   encryptedCredentials: ciphertext('encrypted_credentials'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -209,8 +205,7 @@ export const providerConfig = pgTable('provider_config', {
 /** Signal registration pending state (TTL-enforced) */
 export const signalRegistrationPending = pgTable('signal_registration_pending', {
   id: text('id').primaryKey().default('global'),
-  number: text('number').notNull(),
-  encryptedNumber: ciphertext('encrypted_number'),
+  encryptedNumber: ciphertext('encrypted_number').notNull(),
   bridgeUrl: text('bridge_url').notNull(),
   method: text('method').notNull(), // 'sms' | 'voice'
   status: text('status').notNull().default('pending'),

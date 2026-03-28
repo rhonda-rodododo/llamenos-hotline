@@ -86,7 +86,6 @@ export class ConversationService {
       contactIdentifierHash: data.skipDedup
         ? `${data.contactIdentifierHash}:${id}`
         : data.contactIdentifierHash,
-      contactLast4: data.contactLast4 ?? null,
       externalId: data.externalId ?? null,
       assignedTo: data.assignedTo ?? null,
       status: data.status ?? 'waiting',
@@ -304,7 +303,7 @@ export class ConversationService {
       hubId: r.hubId,
       channelType: r.channelType,
       contactIdentifierHash: r.contactIdentifierHash,
-      contactLast4: r.contactLast4,
+      contactLast4: undefined, // Plaintext dropped — E2EE contactLast4 decrypted client-side
       externalId: r.externalId,
       assignedTo: r.assignedTo,
       status: r.status,

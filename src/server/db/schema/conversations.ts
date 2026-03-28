@@ -27,7 +27,6 @@ export const conversations = pgTable(
     hubId: text('hub_id').notNull().default('global'),
     channelType: text('channel_type').notNull(), // 'sms' | 'whatsapp' | 'signal' | 'rcs' | 'web'
     contactIdentifierHash: text('contact_identifier_hash').notNull(),
-    contactLast4: text('contact_last4'),
     encryptedContactLast4: ciphertext('encrypted_contact_last4'),
     contactLast4Envelopes: jsonb<RecipientEnvelope[]>()('contact_last4_envelopes')
       .notNull()

@@ -39,16 +39,18 @@ export class PushService {
   ) {}
 
   #rowToSubscription(row: typeof pushSubscriptions.$inferSelect): PushSubscription {
-    // Dual-read: prefer encrypted fields, fall back to plaintext
-    const endpoint = row.encryptedEndpoint
-      ? this.crypto.serverDecrypt(row.encryptedEndpoint as Ciphertext, LABEL_PUSH_CREDENTIAL)
-      : row.endpoint
-    const authKey = row.encryptedAuthKey
-      ? this.crypto.serverDecrypt(row.encryptedAuthKey as Ciphertext, LABEL_PUSH_CREDENTIAL)
-      : row.authKey
-    const p256dhKey = row.encryptedP256dhKey
-      ? this.crypto.serverDecrypt(row.encryptedP256dhKey as Ciphertext, LABEL_PUSH_CREDENTIAL)
-      : row.p256dhKey
+    const endpoint = this.crypto.serverDecrypt(
+      row.encryptedEndpoint as Ciphertext,
+      LABEL_PUSH_CREDENTIAL
+    )
+    const authKey = this.crypto.serverDecrypt(
+      row.encryptedAuthKey as Ciphertext,
+      LABEL_PUSH_CREDENTIAL
+    )
+    const p256dhKey = this.crypto.serverDecrypt(
+      row.encryptedP256dhKey as Ciphertext,
+      LABEL_PUSH_CREDENTIAL
+    )
 
     return {
       id: row.id,
@@ -56,7 +58,7 @@ export class PushService {
       endpoint,
       authKey,
       p256dhKey,
-      deviceLabel: row.deviceLabel, // Plaintext fallback — E2EE device label decrypted client-side
+      deviceLabel: null, // Plaintext dropped — E2EE device label decrypted client-side via envelopes
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }
@@ -89,14 +91,10 @@ export class PushService {
       .insert(pushSubscriptions)
       .values({
         pubkey: data.pubkey,
-        endpoint: data.endpoint,
         endpointHash,
         encryptedEndpoint,
-        authKey: data.authKey,
         encryptedAuthKey,
-        p256dhKey: data.p256dhKey,
         encryptedP256dhKey,
-        deviceLabel: data.deviceLabel ?? null,
         ...(labelEnvelope
           ? {
               encryptedDeviceLabel: labelEnvelope.encrypted,
@@ -106,16 +104,13 @@ export class PushService {
         updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: pushSubscriptions.endpoint,
+        target: pushSubscriptions.endpointHash,
         set: {
           pubkey: data.pubkey,
-          authKey: data.authKey,
           encryptedAuthKey,
-          p256dhKey: data.p256dhKey,
           encryptedP256dhKey,
           encryptedEndpoint,
           endpointHash,
-          deviceLabel: data.deviceLabel ?? null,
           ...(labelEnvelope
             ? {
                 encryptedDeviceLabel: labelEnvelope.encrypted,
@@ -131,10 +126,11 @@ export class PushService {
 
   /** Remove a subscription by endpoint, verifying ownership by pubkey. */
   async unsubscribe(endpoint: string, pubkey: string): Promise<void> {
+    const endpointHash = this.crypto.hmac(endpoint, HMAC_PHONE_PREFIX)
     const rows = await this.db
       .select()
       .from(pushSubscriptions)
-      .where(eq(pushSubscriptions.endpoint, endpoint))
+      .where(eq(pushSubscriptions.endpointHash, endpointHash))
       .limit(1)
 
     if (rows.length === 0) {
@@ -148,12 +144,15 @@ export class PushService {
 
     await this.db
       .delete(pushSubscriptions)
-      .where(and(eq(pushSubscriptions.endpoint, endpoint), eq(pushSubscriptions.pubkey, pubkey)))
+      .where(
+        and(eq(pushSubscriptions.endpointHash, endpointHash), eq(pushSubscriptions.pubkey, pubkey))
+      )
   }
 
   /** Remove a stale subscription by endpoint only (called when push delivery fails). */
   async removeStaleSubscription(endpoint: string): Promise<void> {
-    await this.db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint))
+    const endpointHash = this.crypto.hmac(endpoint, HMAC_PHONE_PREFIX)
+    await this.db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpointHash, endpointHash))
   }
 
   /** Get all subscriptions for a single volunteer pubkey. */

@@ -6,12 +6,10 @@ import { ciphertext, hmacHashed } from '../crypto-columns'
 export const bans = pgTable('bans', {
   id: text('id').primaryKey(),
   hubId: text('hub_id').notNull().default('global'),
-  phone: text('phone').notNull(),
-  phoneHash: hmacHashed('phone_hash'),
-  encryptedPhone: ciphertext('encrypted_phone'),
+  phoneHash: hmacHashed('phone_hash').notNull(),
+  encryptedPhone: ciphertext('encrypted_phone').notNull(),
   phoneEnvelopes: jsonb<RecipientEnvelope[]>()('phone_envelopes').notNull().default([]),
-  reason: text('reason').notNull().default(''),
-  encryptedReason: ciphertext('encrypted_reason'),
+  encryptedReason: ciphertext('encrypted_reason').notNull(),
   reasonEnvelopes: jsonb<RecipientEnvelope[]>()('reason_envelopes').notNull().default([]),
   bannedBy: text('banned_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -31,7 +29,6 @@ export const auditLog = pgTable('audit_log', {
 export const callRecords = pgTable('call_records', {
   id: text('id').primaryKey(),
   hubId: text('hub_id').notNull().default('global'),
-  callerLast4: text('caller_last4'),
   encryptedCallerLast4: ciphertext('encrypted_caller_last4'),
   callerLast4Envelopes: jsonb<RecipientEnvelope[]>()('caller_last4_envelopes')
     .notNull()
