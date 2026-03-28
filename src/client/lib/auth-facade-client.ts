@@ -16,6 +16,9 @@ export interface WebAuthnCredentialInfo {
   backedUp: boolean
   createdAt: string
   lastUsedAt: string
+  // E2EE envelope-encrypted label (Phase 2D)
+  encryptedLabel?: string
+  labelEnvelopes?: import('@shared/types').RecipientEnvelope[]
 }
 
 export interface UserInfo {

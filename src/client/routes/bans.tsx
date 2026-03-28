@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { type BanEntry, addBan, bulkAddBans, listBans, removeBan } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { useToast } from '@/lib/toast'
 import { createFileRoute } from '@tanstack/react-router'
 import { Plus, ShieldBan, Trash2, Upload } from 'lucide-react'
@@ -199,14 +200,16 @@ function BanRow({
   const { t } = useTranslation()
   const { toast } = useToast()
   const [showConfirm, setShowConfirm] = useState(false)
+  const displayPhone = tryDecryptField(ban.encryptedPhone, ban.phoneEnvelopes, ban.phone)
+  const displayReason = tryDecryptField(ban.encryptedReason, ban.reasonEnvelopes, ban.reason)
 
   return (
     <div
       data-testid={`ban-row-${ban.phone.replace(/\+/g, '')}`}
       className="flex flex-wrap items-center gap-4 px-4 py-3 sm:px-6"
     >
-      <code className="text-xs font-mono">{ban.phone}</code>
-      <span className="flex-1 text-sm text-muted-foreground">{ban.reason}</span>
+      <code className="text-xs font-mono">{displayPhone}</code>
+      <span className="flex-1 text-sm text-muted-foreground">{displayReason}</span>
       <span className="text-xs text-muted-foreground">
         {new Date(ban.bannedAt).toLocaleDateString()}
       </span>
@@ -225,11 +228,13 @@ function BanRow({
         open={showConfirm}
         onOpenChange={setShowConfirm}
         title={t('banList.confirmUnban')}
-        description={ban.phone}
+        description={displayPhone}
         confirmLabel={t('banList.removeNumber')}
         onConfirm={async () => {
           try {
-            await removeBan(ban.phone)
+            // Use decrypted phone for HMAC-based removal; falls back to placeholder
+            // which will fail gracefully if key is locked
+            await removeBan(displayPhone)
             onRemoved()
           } catch {
             toast(t('common.error'), 'error')

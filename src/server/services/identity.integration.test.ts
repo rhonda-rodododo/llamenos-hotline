@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import path from 'node:path'
 import { createDatabase } from '@server/db'
 import { webauthnCredentials } from '@server/db/schema'
+import { CryptoService } from '@server/lib/crypto-service'
 import { IdentityService } from '@server/services/identity'
 import { eq } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/bun-sql/migrator'
@@ -21,7 +22,7 @@ beforeAll(async () => {
   await migrate(db, {
     migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations'),
   })
-  service = new IdentityService(db)
+  service = new IdentityService(db, new CryptoService('', ''))
   // Clean up prior test credential
   await db.delete(webauthnCredentials).where(eq(webauthnCredentials.id, TEST_CRED_ID))
   // Insert test credential with counter=5
@@ -32,7 +33,6 @@ beforeAll(async () => {
     counter: '5',
     transports: [],
     backedUp: false,
-    label: 'test device',
     lastUsedAt: new Date(),
   })
 })

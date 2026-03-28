@@ -34,6 +34,7 @@ type WorkerRequest =
   | { type: 'isUnlocked'; id: string }
   | { type: 'reEncrypt'; id: string; newKekHex: string }
   | { type: 'provisionNsec'; id: string; recipientEphemeralPubkeyHex: string }
+  | { type: 'getSecretKey'; id: string }
 
 interface WorkerSuccessResponse {
   type: 'success'
@@ -352,6 +353,10 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         break
       case 'provisionNsec':
         result = handleProvisionNsec(req.recipientEphemeralPubkeyHex)
+        break
+      case 'getSecretKey':
+        if (!secretKey) throw new Error('Worker is locked')
+        result = bytesToHex(secretKey)
         break
       default: {
         // Exhaustive check — if we get here, the type is never

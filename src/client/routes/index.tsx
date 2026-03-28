@@ -16,6 +16,7 @@ import {
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { encryptNoteV2 } from '@/lib/crypto'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { useCallTimer, useCalls, useShiftStatus } from '@/lib/hooks'
 import { useTranscription } from '@/lib/transcription'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
@@ -486,7 +487,9 @@ function DashboardPage() {
                         {call.answeredBy &&
                           (() => {
                             const vol = volunteers.find((v) => v.pubkey === call.answeredBy)
-                            return vol ? vol.name : t('calls.active')
+                            return vol
+                              ? tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)
+                              : t('calls.active')
                           })()}
                       </p>
                     </div>

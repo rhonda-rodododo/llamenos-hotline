@@ -1,5 +1,6 @@
+import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import type { MessagingChannelType } from '../../../shared/types'
-import { hashPhone } from '../../lib/crypto'
+import type { CryptoService } from '../../lib/crypto-service'
 import type {
   ChannelStatus,
   IncomingMessage,
@@ -20,13 +21,13 @@ export class PlivoSMSAdapter implements MessagingAdapter {
   private authId: string
   private authToken: string
   private phoneNumber: string
-  private hmacSecret: string
+  private crypto: CryptoService
 
-  constructor(authId: string, authToken: string, phoneNumber: string, hmacSecret: string) {
+  constructor(authId: string, authToken: string, phoneNumber: string, crypto: CryptoService) {
     this.authId = authId
     this.authToken = authToken
     this.phoneNumber = phoneNumber
-    this.hmacSecret = hmacSecret
+    this.crypto = crypto
   }
 
   async parseIncomingMessage(request: Request): Promise<IncomingMessage> {
@@ -49,7 +50,7 @@ export class PlivoSMSAdapter implements MessagingAdapter {
       channelType: this.channelType,
       externalId: messageUUID,
       senderIdentifier: from,
-      senderIdentifierHash: hashPhone(from, this.hmacSecret),
+      senderIdentifierHash: this.crypto.hmac(from, HMAC_PHONE_PREFIX),
       body: text,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       timestamp: new Date().toISOString(),

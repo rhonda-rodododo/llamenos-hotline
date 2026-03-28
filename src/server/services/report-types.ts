@@ -1,11 +1,33 @@
+import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { CreateReportTypeInput, ReportType, UpdateReportTypeInput } from '../../shared/types'
 import type { Database } from '../db'
-import { reportTypes } from '../db/schema'
+import { hubKeys, reportTypes } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 
 export class ReportTypeService {
-  constructor(private readonly db: Database) {}
+  constructor(
+    private readonly db: Database,
+    private readonly crypto: CryptoService
+  ) {}
+
+  async #getHubKey(hubId: string): Promise<Uint8Array | null> {
+    if (!hubId || hubId === 'global') return null
+    const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
+    if (envelopes.length === 0) return null
+    try {
+      return this.crypto.unwrapHubKey(
+        envelopes.map((r) => ({
+          pubkey: r.pubkey,
+          wrappedKey: r.encryptedKey,
+          ephemeralPubkey: r.ephemeralPubkey ?? '',
+        }))
+      )
+    } catch {
+      return null
+    }
+  }
 
   async listReportTypes(hubId: string): Promise<ReportType[]> {
     const rows = await this.db
@@ -13,7 +35,22 @@ export class ReportTypeService {
       .from(reportTypes)
       .where(eq(reportTypes.hubId, hubId))
       .orderBy(reportTypes.createdAt)
-    return rows.map(this.#rowToReportType)
+    const hubKey = await this.#getHubKey(hubId)
+    return rows.map((r) => {
+      const name = this.crypto.decryptField(
+        r.encryptedName as Ciphertext,
+        hubKey,
+        'llamenos:report-type-name'
+      )
+      const description = r.encryptedDescription
+        ? this.crypto.decryptField(
+            r.encryptedDescription as Ciphertext,
+            hubKey,
+            'llamenos:report-type-name'
+          ) || undefined
+        : undefined
+      return this.#rowToReportType(r, name, description)
+    })
   }
 
   async getReportType(hubId: string, id: string): Promise<ReportType | null> {
@@ -22,7 +59,22 @@ export class ReportTypeService {
       .from(reportTypes)
       .where(and(eq(reportTypes.id, id), eq(reportTypes.hubId, hubId)))
       .limit(1)
-    return rows[0] ? this.#rowToReportType(rows[0]) : null
+    if (!rows[0]) return null
+    const r = rows[0]
+    const hubKey = await this.#getHubKey(hubId)
+    const name = this.crypto.decryptField(
+      r.encryptedName as Ciphertext,
+      hubKey,
+      'llamenos:report-type-name'
+    )
+    const description = r.encryptedDescription
+      ? this.crypto.decryptField(
+          r.encryptedDescription as Ciphertext,
+          hubKey,
+          'llamenos:report-type-name'
+        ) || undefined
+      : undefined
+    return this.#rowToReportType(r, name, description)
   }
 
   async createReportType(hubId: string, data: CreateReportTypeInput): Promise<ReportType> {
@@ -43,20 +95,31 @@ export class ReportTypeService {
         )
     }
 
+    // Encrypt name/description — hub key for hub-scoped, server key as fallback
+    const hubKey = await this.#getHubKey(hubId)
+    const encryptedName = hubKey
+      ? this.crypto.hubEncrypt(data.name, hubKey)
+      : this.crypto.serverEncrypt(data.name, 'llamenos:report-type-name')
+    const encryptedDescription = data.description
+      ? hubKey
+        ? this.crypto.hubEncrypt(data.description, hubKey)
+        : this.crypto.serverEncrypt(data.description, 'llamenos:report-type-name')
+      : null
+
     const [row] = await this.db
       .insert(reportTypes)
       .values({
         id,
         hubId,
-        name: data.name,
-        description: data.description ?? null,
+        encryptedName,
+        encryptedDescription,
         isDefault: data.isDefault ?? false,
         createdAt: now,
         updatedAt: now,
       })
       .returning()
 
-    return this.#rowToReportType(row)
+    return this.#rowToReportType(row, data.name, data.description)
   }
 
   async updateReportType(
@@ -83,18 +146,45 @@ export class ReportTypeService {
         )
     }
 
+    // Encrypt updated name/description — hub key for hub-scoped, server key as fallback
+    const hubKey = await this.#getHubKey(hubId)
+    const encFields: Record<string, unknown> = {}
+    if (data.name !== undefined) {
+      encFields.encryptedName = hubKey
+        ? this.crypto.hubEncrypt(data.name, hubKey)
+        : this.crypto.serverEncrypt(data.name, 'llamenos:report-type-name')
+    }
+    if (data.description !== undefined) {
+      encFields.encryptedDescription = data.description
+        ? hubKey
+          ? this.crypto.hubEncrypt(data.description, hubKey)
+          : this.crypto.serverEncrypt(data.description, 'llamenos:report-type-name')
+        : null
+    }
+
     const [row] = await this.db
       .update(reportTypes)
       .set({
-        ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.description !== undefined ? { description: data.description } : {}),
         ...(data.isDefault !== undefined ? { isDefault: data.isDefault } : {}),
+        ...encFields,
         updatedAt: now,
       })
       .where(and(eq(reportTypes.id, id), eq(reportTypes.hubId, hubId)))
       .returning()
 
-    return this.#rowToReportType(row)
+    const name = this.crypto.decryptField(
+      row.encryptedName as Ciphertext,
+      hubKey,
+      'llamenos:report-type-name'
+    )
+    const description = row.encryptedDescription
+      ? this.crypto.decryptField(
+          row.encryptedDescription as Ciphertext,
+          hubKey,
+          'llamenos:report-type-name'
+        ) || undefined
+      : undefined
+    return this.#rowToReportType(row, name, description)
   }
 
   async archiveReportType(hubId: string, id: string): Promise<void> {
@@ -124,7 +214,20 @@ export class ReportTypeService {
       .where(and(eq(reportTypes.id, id), eq(reportTypes.hubId, hubId)))
       .returning()
 
-    return this.#rowToReportType(row)
+    const hubKey = await this.#getHubKey(hubId)
+    const name = this.crypto.decryptField(
+      row.encryptedName as Ciphertext,
+      hubKey,
+      'llamenos:report-type-name'
+    )
+    const description = row.encryptedDescription
+      ? this.crypto.decryptField(
+          row.encryptedDescription as Ciphertext,
+          hubKey,
+          'llamenos:report-type-name'
+        ) || undefined
+      : undefined
+    return this.#rowToReportType(row, name, description)
   }
 
   async setDefaultReportType(hubId: string, id: string): Promise<ReportType> {
@@ -148,15 +251,34 @@ export class ReportTypeService {
       .where(and(eq(reportTypes.id, id), eq(reportTypes.hubId, hubId)))
       .returning()
 
-    return this.#rowToReportType(row)
+    const hubKey = await this.#getHubKey(hubId)
+    const name = this.crypto.decryptField(
+      row.encryptedName as Ciphertext,
+      hubKey,
+      'llamenos:report-type-name'
+    )
+    const description = row.encryptedDescription
+      ? this.crypto.decryptField(
+          row.encryptedDescription as Ciphertext,
+          hubKey,
+          'llamenos:report-type-name'
+        ) || undefined
+      : undefined
+    return this.#rowToReportType(row, name, description)
   }
 
-  #rowToReportType(r: typeof reportTypes.$inferSelect): ReportType {
+  #rowToReportType(
+    r: typeof reportTypes.$inferSelect,
+    decryptedName?: string,
+    decryptedDescription?: string
+  ): ReportType {
     return {
       id: r.id,
       hubId: r.hubId,
-      name: r.name,
-      description: r.description ?? undefined,
+      name: decryptedName ?? '',
+      description: decryptedDescription,
+      encryptedName: r.encryptedName ?? undefined,
+      encryptedDescription: r.encryptedDescription ?? undefined,
       isDefault: r.isDefault,
       archivedAt: r.archivedAt ? r.archivedAt.toISOString() : null,
       createdAt: r.createdAt.toISOString(),

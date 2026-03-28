@@ -1,4 +1,5 @@
 import { ConsentGate } from '@/components/consent-gate'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { permissionGranted } from '@shared/permissions'
 import {
   type ReactNode,
@@ -17,7 +18,7 @@ import {
   updateMyAvailability,
 } from './api'
 import { authFacadeClient } from './auth-facade-client'
-import { clearHubKeyCache } from './hub-key-cache'
+import { clearHubKeyCache, loadHubKeysForUser } from './hub-key-cache'
 import * as keyManager from './key-manager'
 import { loginWithPasskey as webauthnLogin } from './webauthn'
 
@@ -254,6 +255,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await getMe()
       lastApiActivity.current = Date.now()
+      // Load hub keys after unlocking (crypto worker handles decryption internally)
+      const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
+      await loadHubKeysForUser(hubIds)
       setState(
         stateFromMe(me, {
           isKeyUnlocked: true,
@@ -301,7 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastApiActivity.current = Date.now()
       setState((s) => ({
         ...s,
-        name: me.name,
+        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
         roles: me.roles || [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,
@@ -330,7 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastApiActivity.current = Date.now()
       setState((s) => ({
         ...s,
-        name: me.name,
+        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
         roles: me.roles || [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,

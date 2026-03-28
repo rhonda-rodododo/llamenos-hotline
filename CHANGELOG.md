@@ -5,6 +5,73 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.0] - 2026-03-28
+
+### Bug Fixes
+
+- use serverEncrypt for all server-readable columns, guard GDPR-erased empty ciphertext
+- remove slug assertion from multi-hub API test
+- await hub key loading, add server-decrypted fallbacks
+- fix UI tests for encrypted fields
+- decrypt volunteer name in auth context via E2EE envelopes
+- make notes-custom-fields tests serial to prevent parallel overwrites
+
+### CI/CD
+
+- retrigger CI for E2E test fixes
+
+### Documentation
+
+- add field-level encryption design spec
+- expand field-level encryption spec with full PII audit
+- reframe spec around adversary intelligence, not just PII
+- add field-level encryption implementation plan
+- add Phase 2A-2D specs for operational metadata encryption
+- rewrite Phase 2B spec as hub-key E2EE (not server-key)
+- clean up Phase 2 specs — no backfill, tighten E2EE clarity
+- add Phase 2A implementation plan (10 tasks)
+- add Phase 2B implementation plan (10 tasks, full-stack E2EE)
+- add Phase 2D implementation plan — upgrade to ECIES E2EE
+
+### Features
+
+- add shared crypto primitives with tests
+- add CryptoService with server-key, hub-key, HMAC, and envelope encryption
+- add ClientCryptoService with envelope, hub-key, and draft encryption
+- wire CryptoService into server startup and all service constructors
+- add encrypted columns alongside plaintext for 12 tables
+- encrypt on write, dual-read for all 12 tables
+- add PII backfill migration script
+- drop plaintext columns, encrypted-only reads
+- add Phase 2A crypto labels and encrypted columns for audit, IVR, blast settings
+- drop hub slug column, use hub ID for routing
+- encrypt audit log and IVR audio with server-key
+- drop plaintext operational fields, encrypted-only reads
+- add encrypted columns for org metadata (8 tables, Phase 2B)
+- hub-key encrypt org metadata in all services (Phase 2B)
+- hub-key decrypt org metadata in all components (Phase 2B)
+- drop plaintext org metadata columns, hub-key encrypted-only
+- upgrade 7 display-only fields to ECIES E2EE envelopes
+- envelope decrypt for E2EE volunteer names, bans, caller IDs, device labels
+- field-level encryption — zero plaintext PII in database (#25)
+
+### Miscellaneous
+
+- v0.28.0 [skip ci]
+
+### Refactoring
+
+- migrate all callers to CryptoService, delete legacy crypto.ts
+
+### Testing
+
+- add E2EE verification tests, confirm zero plaintext PII
+- verify Phase 2D E2EE properties, fix API tests
+
+### Verify
+
+- API routes work with hub-key encrypted org metadata
+
 ## [0.27.2] - 2026-03-28
 
 ### Bug Fixes

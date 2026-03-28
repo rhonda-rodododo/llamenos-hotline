@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select'
 import { type AuditLogEntry, type Volunteer, listAuditLog, listVolunteers } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, ScrollText, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -130,7 +131,7 @@ function AuditPage() {
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
     for (const v of volunteers) {
-      map.set(v.pubkey, v.name)
+      map.set(v.pubkey, tryDecryptField(v.encryptedName, v.nameEnvelopes, v.name))
     }
     return map
   }, [volunteers])

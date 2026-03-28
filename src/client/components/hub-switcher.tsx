@@ -1,4 +1,5 @@
 import { useConfig } from '@/lib/config'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import { Building2, ChevronDown } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -38,7 +39,13 @@ export function HubSwitcher() {
       >
         <Building2 className="h-4 w-4 shrink-0 text-primary" />
         <span className="flex-1 truncate font-medium text-sidebar-foreground">
-          {currentHub?.name || t('hubs.selectHub', { defaultValue: 'Select hub' })}
+          {currentHub
+            ? decryptHubField(
+                currentHub.encryptedName,
+                currentHub.id,
+                currentHub.name || `Hub ${currentHub.id.slice(0, 8)}`
+              )
+            : t('hubs.selectHub', { defaultValue: 'Select hub' })}
         </span>
         <ChevronDown
           className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
@@ -63,7 +70,13 @@ export function HubSwitcher() {
               aria-pressed={hub.id === currentHubId}
             >
               <Building2 className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{hub.name}</span>
+              <span className="truncate">
+                {decryptHubField(
+                  hub.encryptedName,
+                  hub.id,
+                  hub.name || `Hub ${hub.id.slice(0, 8)}`
+                )}
+              </span>
             </button>
           ))}
         </div>

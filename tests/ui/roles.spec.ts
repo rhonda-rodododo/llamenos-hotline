@@ -9,37 +9,6 @@ import {
 import { ADMIN_NSEC } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
-/**
- * Helper to make authenticated API calls from the browser context.
- * Used only for test setup (creating/assigning roles) within UI test beforeAll hooks.
- */
-async function apiCall(
-  page: import('@playwright/test').Page,
-  method: string,
-  path: string,
-  body?: unknown
-) {
-  return page.evaluate(
-    async ({ method, path, body }) => {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-
-      // Use JWT from sessionStorage (injected by test helpers)
-      const token = sessionStorage.getItem('__TEST_JWT')
-      if (token) {
-        headers.Authorization = `Bearer ${token}`
-      }
-
-      const res = await fetch(`/api${path}`, {
-        method,
-        headers,
-        ...(body ? { body: JSON.stringify(body) } : {}),
-      })
-      return { status: res.status, body: await res.json().catch(() => null) }
-    },
-    { method, path, body }
-  )
-}
-
 // --- Role-based UI navigation ---
 
 test.describe('Role-based UI visibility', () => {
@@ -49,14 +18,15 @@ test.describe('Role-based UI visibility', () => {
     const page = await browser.newPage()
     await loginAsAdmin(page)
     reporterNsec = await createVolunteerAndGetNsec(page, 'UI Reporter', uniquePhone())
-    const listResult = await apiCall(page, 'GET', '/volunteers')
-    const reporter = listResult.body.volunteers.find(
-      (v: { name: string }) => v.name === 'UI Reporter'
-    )
-    await apiCall(page, 'PATCH', `/volunteers/${reporter.pubkey}`, {
+    await page.close()
+
+    // Derive pubkey from nsec and assign reporter role via server-side authed request
+    // (avoids browser-side name matching which fails because names are now E2EE)
+    const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+    const reporterApi = createAuthedRequestFromNsec(request, reporterNsec)
+    await adminApi.patch(`/api/volunteers/${reporterApi.pubkey}`, {
       roles: ['role-reporter'],
     })
-    await page.close()
   })
 
   test('reporter sees reports UI, not call/volunteer management', async ({ page }) => {

@@ -5,10 +5,14 @@
  * and role assignment workflows.
  */
 
-import { test, expect } from '@playwright/test'
-import { TestContext, uniquePhone, uniqueName, createVolunteerWithKey } from '../api-helpers'
-import { createAuthedRequestFromNsec, createAuthedRequest, type AuthedRequest } from '../helpers/authed-request'
+import { expect, test } from '@playwright/test'
+import { TestContext, createVolunteerWithKey, uniqueName, uniquePhone } from '../api-helpers'
 import { ADMIN_NSEC } from '../helpers'
+import {
+  type AuthedRequest,
+  createAuthedRequest,
+  createAuthedRequestFromNsec,
+} from '../helpers/authed-request'
 
 let ctx: TestContext
 let adminApi: AuthedRequest
@@ -45,7 +49,10 @@ test.describe('Volunteer Lifecycle', () => {
     const { volunteers } = await listRes.json()
     const found = volunteers.find((v: { pubkey: string }) => v.pubkey === pubkey)
     expect(found).toBeDefined()
-    expect(found.name).toBe('Lifecycle Create Test')
+    // Name is E2EE envelope-encrypted — server returns [encrypted] sentinel and envelope fields
+    expect(found.encryptedName).toBeTruthy()
+    expect(Array.isArray(found.nameEnvelopes)).toBe(true)
+    expect(found.nameEnvelopes.length).toBeGreaterThan(0)
   })
 
   test('create volunteer rejects invalid phone', async () => {

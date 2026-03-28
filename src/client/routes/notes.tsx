@@ -18,7 +18,15 @@ import {
   updateNote,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { decryptCallRecord, decryptNoteV2, decryptTranscription, encryptNoteV2 } from '@/lib/crypto'
+import {
+  decryptCallRecord,
+  decryptNote,
+  decryptNoteV2,
+  decryptTranscription,
+  encryptExport,
+  encryptNoteV2,
+} from '@/lib/crypto'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
 import type { FileFieldValue, NotePayload } from '@shared/types'
@@ -120,7 +128,8 @@ function NotesPage() {
 
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of volunteers) map.set(v.pubkey, v.name)
+    for (const v of volunteers)
+      map.set(v.pubkey, tryDecryptField(v.encryptedName, v.nameEnvelopes, v.name))
     return map
   }, [volunteers])
 
@@ -402,7 +411,12 @@ function NotesPage() {
                     const volunteerName = callInfo.answeredBy
                       ? nameMap.get(callInfo.answeredBy)
                       : null
-                    const phone = callInfo.callerLast4 ? `***${callInfo.callerLast4}` : ''
+                    const cl4 = tryDecryptField(
+                      callInfo.encryptedCallerLast4,
+                      callInfo.callerLast4Envelopes,
+                      callInfo.callerLast4 ?? ''
+                    )
+                    const phone = cl4 && cl4 !== '[encrypted]' ? `***${cl4}` : cl4 || ''
                     return (
                       <span className="flex flex-wrap items-center gap-1.5">
                         {callInfo.status === 'unanswered' ? (

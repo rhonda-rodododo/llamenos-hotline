@@ -1,8 +1,9 @@
+import { LABEL_MESSAGE } from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
 import { Hono } from 'hono'
 import { KIND_CONVERSATION_ASSIGNED, KIND_MESSAGE_NEW } from '../../shared/nostr-events'
 import type { MessagingChannelType, MessagingConfig, WhatsAppConfig } from '../../shared/types'
 import { getMessagingAdapter, getNostrPublisher } from '../lib/adapters'
-import { encryptMessageForStorage } from '../lib/crypto'
 import type { Services } from '../services'
 import type { AppEnv } from '../types'
 import type { IncomingMessage, MessageStatusUpdate, MessagingAdapter } from './adapter'
@@ -70,7 +71,7 @@ messaging.post('/:channel/webhook', async (c) => {
 
   let adapter: MessagingAdapter
   try {
-    adapter = await getMessagingAdapter(channel, services.settings, c.env.HMAC_SECRET, hubId)
+    adapter = await getMessagingAdapter(channel, services.settings, services.crypto, hubId)
   } catch {
     return c.json({ error: `${channel} channel is not configured` }, 404)
   }
@@ -176,15 +177,19 @@ messaging.post('/:channel/webhook', async (c) => {
   if (conversation.assignedTo && conversation.assignedTo !== adminDecryptionPubkey) {
     readerPubkeys.push(conversation.assignedTo)
   }
-  const encrypted = encryptMessageForStorage(incoming.body || '', readerPubkeys)
+  const encrypted = services.crypto.envelopeEncrypt(
+    incoming.body || '',
+    readerPubkeys,
+    LABEL_MESSAGE
+  )
 
   // Store the encrypted message
   await services.conversations.addMessage({
     conversationId: conversation.id,
     direction: 'inbound',
     authorPubkey: 'system:inbound',
-    encryptedContent: encrypted.encryptedContent,
-    readerEnvelopes: encrypted.readerEnvelopes,
+    encryptedContent: encrypted.encrypted as string,
+    readerEnvelopes: encrypted.envelopes,
     hasAttachments: !!(incoming.mediaUrls && incoming.mediaUrls.length > 0),
     externalId: incoming.externalId,
     status: 'delivered',

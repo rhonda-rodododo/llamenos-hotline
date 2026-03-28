@@ -10,7 +10,8 @@ import {
   listVolunteers,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { decryptCallRecord, decryptNoteV2, decryptTranscription } from '@/lib/crypto'
+import { decryptCallRecord, decryptNote, decryptNoteV2, decryptTranscription } from '@/lib/crypto'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
 import type { NotePayload } from '@shared/types'
@@ -138,7 +139,8 @@ function CallDetailPage() {
 
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of volunteers) map.set(v.pubkey, v.name)
+    for (const v of volunteers)
+      map.set(v.pubkey, tryDecryptField(v.encryptedName, v.nameEnvelopes, v.name))
     return map
   }, [volunteers])
 
@@ -223,12 +225,24 @@ function CallDetailPage() {
               </div>
             )}
 
-            {decryptedCall.callerLast4 && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="h-4 w-4" />
-                <code className="font-mono text-xs">***{decryptedCall.callerLast4}</code>
-              </div>
-            )}
+            {(() => {
+              const cl4 = tryDecryptField(
+                decryptedCall.encryptedCallerLast4,
+                decryptedCall.callerLast4Envelopes,
+                decryptedCall.callerLast4 ?? ''
+              )
+              return cl4 && cl4 !== '[encrypted]' ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Phone className="h-4 w-4" />
+                  <code className="font-mono text-xs">***{cl4}</code>
+                </div>
+              ) : cl4 === '[encrypted]' ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Phone className="h-4 w-4" />
+                  <code className="font-mono text-xs">{cl4}</code>
+                </div>
+              ) : null
+            })()}
 
             {decryptedCall.hasRecording && (
               <div className="pt-2">

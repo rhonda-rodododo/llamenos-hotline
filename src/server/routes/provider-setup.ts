@@ -183,7 +183,7 @@ providerSetup.post('/oauth/start', requirePermission('settings:manage'), async (
     if (provider !== 'twilio' && provider !== 'telnyx') {
       return c.json({ error: `OAuth not supported for provider: ${body.provider}` }, 400)
     }
-    const setup = new ProviderSetup(c.get('services').settings, c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.get('services').crypto, c.env)
     const result = await setup.oauthStart(provider)
     return c.json(result)
   } catch (err) {
@@ -201,7 +201,7 @@ providerSetup.get('/oauth/callback', async (c) => {
   }
 
   try {
-    const setup = new ProviderSetup(c.get('services').settings, c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.get('services').crypto, c.env)
     // Determine provider from state lookup if not in query
     const oauthProvider = provider ?? 'twilio'
     await setup.oauthCallback(oauthProvider, code, state)
@@ -233,7 +233,7 @@ providerSetup.get('/oauth/status/:stateToken', requirePermission('settings:manag
 
 providerSetup.post('/a2p/brand', requirePermission('settings:manage'), async (c) => {
   try {
-    const setup = new ProviderSetup(c.get('services').settings, c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.get('services').crypto, c.env)
     const body = (await c.req.json()) as Record<string, string>
     const result = await setup.submitA2pBrand(body)
     return c.json(result)
@@ -244,7 +244,7 @@ providerSetup.post('/a2p/brand', requirePermission('settings:manage'), async (c)
 
 providerSetup.get('/a2p/status', requirePermission('settings:manage'), async (c) => {
   try {
-    const setup = new ProviderSetup(c.get('services').settings, c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.get('services').crypto, c.env)
     const result = await setup.getA2pStatus()
     return c.json(result)
   } catch (err) {
@@ -254,7 +254,7 @@ providerSetup.get('/a2p/status', requirePermission('settings:manage'), async (c)
 
 providerSetup.post('/a2p/campaign', requirePermission('settings:manage'), async (c) => {
   try {
-    const setup = new ProviderSetup(c.get('services').settings, c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.get('services').crypto, c.env)
     const body = (await c.req.json()) as Record<string, unknown>
     const result = await setup.submitA2pCampaign(body)
     return c.json(result)
@@ -265,7 +265,7 @@ providerSetup.post('/a2p/campaign', requirePermission('settings:manage'), async 
 
 providerSetup.post('/a2p/skip', requirePermission('settings:manage'), async (c) => {
   try {
-    const setup = new ProviderSetup(c.get('services').settings, c.env)
+    const setup = new ProviderSetup(c.get('services').settings, c.get('services').crypto, c.env)
     await setup.skipA2p()
     return c.json({ ok: true })
   } catch (err) {

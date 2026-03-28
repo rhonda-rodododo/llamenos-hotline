@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cancelBlast, deleteBlast, listBlasts, sendBlast } from '@/lib/api'
 import type { Blast } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
 import { decryptBlastContent } from '@/lib/crypto'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
 import type { BlastContent } from '@shared/types'
@@ -23,6 +25,8 @@ export const Route = createFileRoute('/blasts')({
 function BlastsPage() {
   const { t } = useTranslation()
   const { hasPermission } = useAuth()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
   const [blasts, setBlasts] = useState<Blast[]>([])
   const [loading, setLoading] = useState(true)
@@ -193,7 +197,9 @@ function BlastsPage() {
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium truncate">{blast.name}</p>
+                        <p className="text-sm font-medium truncate">
+                          {decryptHubField(blast.encryptedName, hubId, blast.name)}
+                        </p>
                         <Badge className={statusColors[blast.status] || ''} variant="outline">
                           {t(`blasts.status.${blast.status}`)}
                         </Badge>
@@ -239,7 +245,9 @@ function BlastsPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>{selectedBlast.name}</CardTitle>
+                  <CardTitle>
+                    {decryptHubField(selectedBlast.encryptedName, hubId, selectedBlast.name)}
+                  </CardTitle>
                   <Badge className={statusColors[selectedBlast.status] || ''} variant="outline">
                     {t(`blasts.status.${selectedBlast.status}`)}
                   </Badge>

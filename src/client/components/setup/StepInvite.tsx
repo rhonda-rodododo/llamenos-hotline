@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { type InviteCode, createInvite } from '@/lib/api'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { useToast } from '@/lib/toast'
 import { Check, Copy, Loader2, UserPlus } from 'lucide-react'
 import { useState } from 'react'
@@ -132,7 +133,9 @@ export function StepInvite({ headingRef }: Props = {}) {
               >
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{invite.name}</span>
+                    <span className="text-sm font-medium">
+                      {tryDecryptField(invite.encryptedName, invite.nameEnvelopes, invite.name)}
+                    </span>
                     <Badge variant="outline" className="text-[10px]">
                       {invite.roleIds?.includes('role-super-admin')
                         ? t('volunteers.roleAdmin')

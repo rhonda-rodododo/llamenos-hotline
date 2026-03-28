@@ -17,6 +17,7 @@ import { loadEnv } from './env'
 import { scheduleBlastProcessor } from './jobs/blast-processor'
 import { scheduleRetentionPurge } from './jobs/retention-purge'
 import { closeNostrPublisher, getMessagingAdapter, getTelephony } from './lib/adapters'
+import { CryptoService } from './lib/crypto-service'
 import { createStorageAdmin } from './lib/storage-admin'
 import { createStorageManager, resolveStorageCredentials } from './lib/storage-manager'
 import { errorHandler } from './middleware/error'
@@ -117,7 +118,8 @@ async function main() {
     console.warn('[llamenos] Storage not configured — file upload/download routes will return 503')
   }
 
-  const services = createServices(db, storage, env.SERVER_NOSTR_SECRET ?? '')
+  const crypto = new CryptoService(env.SERVER_NOSTR_SECRET ?? '', env.HMAC_SECRET ?? '')
+  const services = createServices(db, crypto, storage)
 
   // Provider health monitoring
   const providerHealth = new ProviderHealthService()
@@ -136,11 +138,7 @@ async function main() {
       const config = await services.settings.getMessagingConfig()
       for (const channel of config?.enabledChannels ?? []) {
         try {
-          const msgAdapter = await getMessagingAdapter(
-            channel,
-            services.settings,
-            env.HMAC_SECRET ?? ''
-          )
+          const msgAdapter = await getMessagingAdapter(channel, services.settings, crypto)
           await providerHealth.checkProvider('messaging', channel, {
             async testConnection() {
               const status = await msgAdapter.getChannelStatus()
@@ -170,8 +168,8 @@ async function main() {
 
   const blastProcessorInterval = scheduleBlastProcessor(
     services,
-    env.SERVER_NOSTR_SECRET ?? '',
-    env.HMAC_SECRET ?? ''
+    crypto,
+    env.SERVER_NOSTR_SECRET ?? ''
   )
   console.log('[llamenos] Blast delivery processor started (30s poll)')
 

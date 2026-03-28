@@ -8,7 +8,7 @@
  *
  * NEVER call c.json(volunteer) directly — always project first.
  */
-import type { MessagingChannelType } from '../../shared/types'
+import type { MessagingChannelType, RecipientEnvelope } from '../../shared/types'
 
 // ── Discriminated-union view types ────────────────────────────────────────────
 
@@ -63,6 +63,9 @@ export interface VolunteerAdminView {
   callPreference: 'phone' | 'browser' | 'both'
   supportedMessagingChannels?: MessagingChannelType[]
   messagingEnabled?: boolean
+  // E2EE envelope fields (Phase 2D) — present when name is envelope-encrypted
+  encryptedName?: string
+  nameEnvelopes?: RecipientEnvelope[]
 }
 
 // ── Phone masking ──────────────────────────────────────────────────────────────
@@ -96,6 +99,9 @@ interface VolunteerSource {
   callPreference: 'phone' | 'browser' | 'both'
   supportedMessagingChannels?: MessagingChannelType[]
   messagingEnabled?: boolean
+  // E2EE envelope fields (Phase 2D)
+  encryptedName?: string
+  nameEnvelopes?: RecipientEnvelope[]
 }
 
 // ── Projection function ────────────────────────────────────────────────────────
@@ -134,6 +140,9 @@ export function projectVolunteer(
       callPreference: volunteer.callPreference,
       supportedMessagingChannels: volunteer.supportedMessagingChannels,
       messagingEnabled: volunteer.messagingEnabled,
+      // E2EE envelope fields — pass through for client-side decryption
+      encryptedName: volunteer.encryptedName,
+      nameEnvelopes: volunteer.nameEnvelopes,
     }
     return result
   }

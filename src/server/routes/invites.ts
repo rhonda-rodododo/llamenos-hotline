@@ -1,6 +1,7 @@
+import { HMAC_IP_PREFIX } from '@shared/crypto-labels'
 import { Hono } from 'hono'
 import { getIdPAdapter } from '../app'
-import { hashIP } from '../lib/crypto'
+import { hashIP } from '../lib/crypto-service'
 import { isValidE164 } from '../lib/helpers'
 import { auth as authMiddleware } from '../middleware/auth'
 import { requirePermission } from '../middleware/permission-guard'
@@ -20,7 +21,7 @@ invites.get('/validate/:code', async (c) => {
   // Rate limit invite validation to prevent enumeration
   const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
   const limited = await services.settings.checkRateLimit(
-    `invite-validate:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
+    `invite-validate:${services.crypto.hmac(clientIp, HMAC_IP_PREFIX).slice(0, 24)}`,
     5
   )
   if (limited) return c.json({ error: 'Too many requests' }, 429)
@@ -43,7 +44,7 @@ invites.post('/redeem', async (c) => {
   const clientIp = c.req.header('CF-Connecting-IP') || 'unknown'
   const maxAttempts = c.env.ENVIRONMENT === 'development' ? 50 : 5
   const limited = await services.settings.checkRateLimit(
-    `invite-redeem:${hashIP(clientIp, c.env.HMAC_SECRET)}`,
+    `invite-redeem:${services.crypto.hmac(clientIp, HMAC_IP_PREFIX).slice(0, 24)}`,
     maxAttempts
   )
   if (limited) return c.json({ error: 'Too many requests' }, 429)
@@ -179,7 +180,7 @@ invites.post('/:code/send', authMiddleware, requirePermission('invites:create'),
       channel: body.channel,
       expiresAt: new Date(invite.expiresAt),
       appUrl,
-      hmacSecret: c.env.HMAC_SECRET,
+      crypto: services.crypto,
     })
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : 'Failed to send invite' }, 502)

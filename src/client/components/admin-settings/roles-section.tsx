@@ -13,6 +13,8 @@ import {
   listRoles,
   updateRole,
 } from '@/lib/api'
+import { useConfig } from '@/lib/config'
+import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
 import { useToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 import {
@@ -50,6 +52,8 @@ interface RoleFormData {
 export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
 
   const [roles, setRoles] = useState<RoleDefinition[]>([])
   const [catalog, setCatalog] = useState<PermissionCatalog | null>(null)
@@ -96,9 +100,9 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
   function startEdit(role: RoleDefinition) {
     setEditingId(role.id)
     setForm({
-      name: role.name,
+      name: decryptHubField(role.encryptedName, hubId, role.name),
       slug: role.slug,
-      description: role.description,
+      description: decryptHubField(role.encryptedDescription, hubId, role.description),
       permissions: [...role.permissions],
     })
     // Expand domains that have selected permissions
@@ -168,19 +172,27 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     try {
       if (editingId === 'new') {
         const slug = form.slug.trim() || autoSlug(form.name)
+        const trimmedName = form.name.trim()
+        const trimmedDesc = form.description.trim()
         const res = await createRole({
-          name: form.name.trim(),
+          name: trimmedName,
           slug,
-          description: form.description.trim(),
+          description: trimmedDesc,
           permissions: form.permissions,
+          encryptedName: encryptHubField(trimmedName, hubId),
+          encryptedDescription: trimmedDesc ? encryptHubField(trimmedDesc, hubId) : undefined,
         })
         setRoles((prev) => [...prev, res.role])
         toast(t('roles.created', { defaultValue: 'Role created' }), 'success')
       } else if (editingId) {
+        const trimmedName = form.name.trim()
+        const trimmedDesc = form.description.trim()
         const res = await updateRole(editingId, {
-          name: form.name.trim(),
-          description: form.description.trim(),
+          name: trimmedName,
+          description: trimmedDesc,
           permissions: form.permissions,
+          encryptedName: encryptHubField(trimmedName, hubId),
+          encryptedDescription: trimmedDesc ? encryptHubField(trimmedDesc, hubId) : undefined,
         })
         setRoles((prev) => prev.map((r) => (r.id === editingId ? res.role : r)))
         toast(t('roles.updated', { defaultValue: 'Role updated' }), 'success')
@@ -250,7 +262,9 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate">{role.name}</span>
+                <span className="text-sm font-medium truncate">
+                  {decryptHubField(role.encryptedName, hubId, role.name)}
+                </span>
                 {role.isSystem && (
                   <Badge variant="secondary" className="text-[10px] gap-1">
                     <Lock className="h-2.5 w-2.5" />
@@ -263,8 +277,10 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
                   </Badge>
                 )}
               </div>
-              {role.description && (
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">{role.description}</p>
+              {role.encryptedDescription && (
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                  {decryptHubField(role.encryptedDescription, hubId, role.description)}
+                </p>
               )}
               <p className="text-xs text-muted-foreground mt-0.5">
                 {role.permissions.length}{' '}

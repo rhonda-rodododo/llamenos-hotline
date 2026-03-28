@@ -151,6 +151,9 @@ export interface Volunteer {
   // Messaging channel capabilities (Epic 68)
   supportedMessagingChannels?: MessagingChannelType[] // SMS, WhatsApp, Signal, RCS (empty = all)
   messagingEnabled?: boolean // Whether volunteer can handle messaging conversations
+  // E2EE envelope-encrypted name (Phase 2D)
+  encryptedName?: string // ECIES ciphertext
+  nameEnvelopes?: RecipientEnvelope[] // Per-recipient wrapped keys
 }
 
 export interface Shift {
@@ -168,6 +171,11 @@ export interface BanEntry {
   reason: string
   bannedBy: string
   bannedAt: string
+  // E2EE envelope-encrypted fields (Phase 2D)
+  encryptedPhone?: string
+  phoneEnvelopes?: RecipientEnvelope[]
+  encryptedReason?: string
+  reasonEnvelopes?: RecipientEnvelope[]
 }
 
 export interface CallRecord {
@@ -197,7 +205,7 @@ export interface CallRecord {
  */
 export interface EncryptedCallRecord {
   id: string
-  callerLast4?: string // For display (not sensitive)
+  callerLast4?: string // '[encrypted]' when E2EE, undefined for legacy
   startedAt: string // Needed for ordering/pagination
   endedAt?: string // Needed for duration display
   duration?: number // Acceptable trade-off (no PII)
@@ -211,6 +219,9 @@ export interface EncryptedCallRecord {
   // Envelope-pattern encryption for admin(s)
   encryptedContent: string // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
   adminEnvelopes: RecipientEnvelope[] // Per-record key wrapped for each admin
+  // E2EE envelope-encrypted callerLast4 (Phase 2D)
+  encryptedCallerLast4?: string
+  callerLast4Envelopes?: RecipientEnvelope[]
 }
 
 /**
@@ -279,6 +290,9 @@ export interface InviteCode {
   recipientPhoneHash?: string
   deliveryChannel?: string
   deliverySentAt?: string
+  // E2EE envelope-encrypted name (Phase 2D)
+  encryptedName?: string
+  nameEnvelopes?: RecipientEnvelope[]
 }
 
 export interface WebAuthnCredential {
@@ -287,9 +301,12 @@ export interface WebAuthnCredential {
   counter: number // Signature counter (clone detection)
   transports: string[] // ['internal', 'hybrid', etc.]
   backedUp: boolean // Cloud-synced passkey
-  label: string // User-assigned name ("My Phone")
+  label: string // User-assigned name ("My Phone") — '[encrypted]' when E2EE
   createdAt: string
   lastUsedAt: string
+  // E2EE envelope-encrypted label (Phase 2D)
+  encryptedLabel?: string
+  labelEnvelopes?: RecipientEnvelope[]
 }
 
 export interface WebAuthnSettings {
@@ -330,6 +347,9 @@ export interface Conversation {
   createdAt: Date
   updatedAt: Date
   lastMessageAt: Date
+  // E2EE envelope-encrypted contactLast4 (Phase 2D)
+  encryptedContactLast4?: string
+  contactLast4Envelopes?: RecipientEnvelope[]
 }
 
 export type { MessageDeliveryStatus } from '../shared/types'
@@ -563,7 +583,6 @@ export interface UpdateRoleData {
 export interface CreateHubData {
   id: string
   name: string
-  slug?: string
   description?: string
   status?: 'active' | 'suspended' | 'archived'
   phoneNumber?: string
@@ -685,6 +704,7 @@ export interface ShiftSchedule {
   id: string
   hubId: string
   name: string
+  encryptedName?: string
   startTime: string
   endTime: string
   days: number[]
@@ -725,6 +745,7 @@ export interface RingGroup {
   id: string
   hubId: string
   name: string
+  encryptedName?: string
   volunteerPubkeys: string[]
   createdAt: Date
 }
@@ -872,6 +893,7 @@ export interface Blast {
   id: string
   hubId: string
   name: string
+  encryptedName?: string
   targetChannels: string[]
   targetTags: string[]
   targetLanguages: string[]

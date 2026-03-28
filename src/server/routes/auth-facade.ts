@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory'
 import type { IdPAdapter } from '../idp/adapter'
-import { hashIP } from '../lib/crypto'
+import { hashIP } from '../lib/crypto-service'
 import { uint8ArrayToBase64URL } from '../lib/helpers'
 import { signAccessToken, verifyAccessToken } from '../lib/jwt'
 import {
