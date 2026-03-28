@@ -119,6 +119,7 @@ export const ivrAudio = pgTable(
     language: text('language').notNull(),
     audioData: text('audio_data').notNull(), // base64-encoded audio
     mimeType: text('mime_type').notNull().default('audio/mpeg'),
+    encryptedAudioData: ciphertext('encrypted_audio_data'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.hubId, table.promptType, table.language] })]

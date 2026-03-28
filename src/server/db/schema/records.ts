@@ -23,6 +23,8 @@ export const auditLog = pgTable('audit_log', {
   details: jsonb<Record<string, unknown>>()('details').notNull().default({}),
   previousEntryHash: text('previous_entry_hash'),
   entryHash: text('entry_hash'),
+  encryptedEvent: ciphertext('encrypted_event'),
+  encryptedDetails: ciphertext('encrypted_details'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

@@ -162,6 +162,13 @@
       "when": 1775055600000,
       "tag": "0022_drop_plaintext_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1775142000000,
+      "tag": "0023_phase2a_encrypted_columns",
+      "breakpoints": true
     }
   ]
 }

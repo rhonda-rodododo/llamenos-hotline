@@ -1,6 +1,7 @@
 import { boolean, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
 import type { RecipientEnvelope } from '../../../shared/types'
 import { jsonb } from '../bun-jsonb'
+import { ciphertext } from '../crypto-columns'
 
 interface SubscriberChannel {
   type: 'sms' | 'whatsapp' | 'signal' | 'rcs'
@@ -94,4 +95,7 @@ export const blastSettings = pgTable('blast_settings', {
   doubleOptInMessage: text('double_opt_in_message'),
   welcomeMessage: text('welcome_message'),
   byeMessage: text('bye_message'),
+  encryptedDoubleOptInMessage: ciphertext('encrypted_double_opt_in_message'),
+  encryptedWelcomeMessage: ciphertext('encrypted_welcome_message'),
+  encryptedByeMessage: ciphertext('encrypted_bye_message'),
 })
