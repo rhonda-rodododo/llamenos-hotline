@@ -207,10 +207,10 @@ export class CallService {
   // ------------------------------------------------------------------ Private helpers
 
   #rowToActiveCall(r: typeof activeCalls.$inferSelect): ActiveCall {
-    const callerNumber = this.crypto.serverDecrypt(
-      r.encryptedCallerNumber as Ciphertext,
-      LABEL_EPHEMERAL_CALL
-    )
+    // Guard: empty ciphertext means erased — return empty string
+    const callerNumber = r.encryptedCallerNumber
+      ? this.crypto.serverDecrypt(r.encryptedCallerNumber as Ciphertext, LABEL_EPHEMERAL_CALL)
+      : ''
 
     return {
       callSid: r.callSid,

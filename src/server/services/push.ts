@@ -52,13 +52,26 @@ export class PushService {
       LABEL_PUSH_CREDENTIAL
     )
 
+    // Server-side device label decrypt (may be null if not provided)
+    let deviceLabel: string | null = null
+    if (row.encryptedDeviceLabel) {
+      try {
+        deviceLabel = this.crypto.serverDecrypt(
+          row.encryptedDeviceLabel as Ciphertext,
+          LABEL_VOLUNTEER_PII
+        )
+      } catch {
+        // Decryption failed — leave as null
+      }
+    }
+
     return {
       id: row.id,
       pubkey: row.pubkey,
       endpoint,
       authKey,
       p256dhKey,
-      deviceLabel: null, // Plaintext dropped — E2EE device label decrypted client-side via envelopes
+      deviceLabel,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }
@@ -76,7 +89,12 @@ export class PushService {
     // HMAC hash endpoint for dedup
     const endpointHash = this.crypto.hmac(data.endpoint, HMAC_PHONE_PREFIX)
 
-    // E2EE encrypt device label for the volunteer's own pubkey (bootstrap)
+    // Server-encrypt device label so the server can read it back for API responses
+    const encryptedDeviceLabel = data.deviceLabel
+      ? this.crypto.serverEncrypt(data.deviceLabel, LABEL_VOLUNTEER_PII)
+      : undefined
+
+    // E2EE envelope-encrypt device label for the volunteer's own pubkey (client-side decryption)
     // Only attempt if pubkey looks like a valid 64-char hex secp256k1 x-only pubkey
     let labelEnvelope: ReturnType<CryptoService['envelopeEncrypt']> | undefined
     if (data.deviceLabel && /^[0-9a-f]{64}$/i.test(data.pubkey)) {
@@ -95,12 +113,8 @@ export class PushService {
         encryptedEndpoint,
         encryptedAuthKey,
         encryptedP256dhKey,
-        ...(labelEnvelope
-          ? {
-              encryptedDeviceLabel: labelEnvelope.encrypted,
-              deviceLabelEnvelopes: labelEnvelope.envelopes,
-            }
-          : {}),
+        ...(encryptedDeviceLabel ? { encryptedDeviceLabel } : {}),
+        ...(labelEnvelope ? { deviceLabelEnvelopes: labelEnvelope.envelopes } : {}),
         updatedAt: now,
       })
       .onConflictDoUpdate({
@@ -111,12 +125,8 @@ export class PushService {
           encryptedP256dhKey,
           encryptedEndpoint,
           endpointHash,
-          ...(labelEnvelope
-            ? {
-                encryptedDeviceLabel: labelEnvelope.encrypted,
-                deviceLabelEnvelopes: labelEnvelope.envelopes,
-              }
-            : {}),
+          ...(encryptedDeviceLabel ? { encryptedDeviceLabel } : {}),
+          ...(labelEnvelope ? { deviceLabelEnvelopes: labelEnvelope.envelopes } : {}),
           updatedAt: now,
         },
       })

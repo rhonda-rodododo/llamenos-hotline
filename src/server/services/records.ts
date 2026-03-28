@@ -39,13 +39,26 @@ export class RecordsService {
   async getBans(hubId?: string): Promise<BanEntry[]> {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(bans).where(eq(bans.hubId, hId))
-    return rows.map((r) => ({
-      // E2EE fields — server returns empty strings, client decrypts via envelopes
-      phone: '',
-      reason: '',
-      bannedBy: r.bannedBy,
-      bannedAt: r.createdAt.toISOString(),
-    }))
+    return rows.map((r) => {
+      let phone = ''
+      let reason = ''
+      try {
+        phone = this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
+      } catch {
+        // Decryption failed — leave empty
+      }
+      try {
+        reason = this.crypto.serverDecrypt(r.encryptedReason as Ciphertext, LABEL_VOLUNTEER_PII)
+      } catch {
+        // Decryption failed — leave empty
+      }
+      return {
+        phone,
+        reason,
+        bannedBy: r.bannedBy,
+        bannedAt: r.createdAt.toISOString(),
+      }
+    })
   }
 
   async addBan(data: CreateBanData): Promise<BanEntry> {
@@ -66,11 +79,9 @@ export class RecordsService {
         ? this.crypto.envelopeEncrypt(data.reason, recipientPubkeys, LABEL_VOLUNTEER_PII)
         : undefined
 
-    // Server-encrypt phone+reason as fallback when no E2EE recipients available
-    const encryptedPhone =
-      phoneEnvelope?.encrypted ?? this.crypto.serverEncrypt(data.phone, LABEL_VOLUNTEER_PII)
-    const encryptedReason =
-      reasonEnvelope?.encrypted ?? this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII)
+    // Always server-encrypt phone+reason so the server can decrypt for API responses
+    const encryptedPhone = this.crypto.serverEncrypt(data.phone, LABEL_VOLUNTEER_PII)
+    const encryptedReason = this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII)
 
     const [row] = await this.db
       .insert(bans)
@@ -86,8 +97,8 @@ export class RecordsService {
       })
       .returning()
     return {
-      phone: '', // E2EE — client decrypts via envelopes
-      reason: '',
+      phone: data.phone,
+      reason: data.reason ?? '',
       bannedBy: row.bannedBy,
       bannedAt: row.createdAt.toISOString(),
     }
@@ -126,12 +137,9 @@ export class RecordsService {
           hubId: hId,
           bannedBy: data.bannedBy,
           phoneHash,
-          encryptedPhone:
-            phoneEnvelope?.encrypted ?? this.crypto.serverEncrypt(phone, LABEL_VOLUNTEER_PII),
+          encryptedPhone: this.crypto.serverEncrypt(phone, LABEL_VOLUNTEER_PII),
           phoneEnvelopes: phoneEnvelope?.envelopes ?? [],
-          encryptedReason:
-            reasonEnvelope?.encrypted ??
-            this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII),
+          encryptedReason: this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII),
           reasonEnvelopes: reasonEnvelope?.envelopes ?? [],
         }
       })

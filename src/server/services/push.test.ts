@@ -70,8 +70,8 @@ describe('PushService', () => {
     expect(sub.endpoint).toBe(endpoint)
     expect(sub.authKey).toBe('auth-key-1')
     expect(sub.p256dhKey).toBe('p256dh-key-1')
-    // deviceLabel is now E2EE-only, server returns null
-    expect(sub.deviceLabel).toBeNull()
+    // deviceLabel is server-encrypted and returned for API responses
+    expect(sub.deviceLabel).toBe('Chrome on Desktop')
     expect(sub.createdAt).toBeString()
     expect(sub.updatedAt).toBeString()
   })

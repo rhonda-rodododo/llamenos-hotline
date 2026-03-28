@@ -98,9 +98,7 @@ export class IdentityService {
         onBreak: false,
         callPreference: 'phone',
         encryptedPhone,
-        encryptedName:
-          nameEnvelope?.encrypted ??
-          this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
+        encryptedName: this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
         ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
       })
       .returning()
@@ -177,8 +175,11 @@ export class IdentityService {
           : {}),
         // Encrypted columns
         ...(encryptedPhoneUpdate ? { encryptedPhone: encryptedPhoneUpdate } : {}),
-        ...(nameEnvelope
-          ? { encryptedName: nameEnvelope.encrypted, nameEnvelopes: nameEnvelope.envelopes }
+        ...(allowed.name !== undefined
+          ? {
+              encryptedName: this.crypto.serverEncrypt(allowed.name as string, LABEL_VOLUNTEER_PII),
+              ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
+            }
           : {}),
       })
       .where(eq(volunteers.pubkey, pubkey))
@@ -227,8 +228,7 @@ export class IdentityService {
           onBreak: false,
           callPreference: 'phone',
           encryptedPhone,
-          encryptedName:
-            nameEnvelope?.encrypted ?? this.crypto.serverEncrypt('Admin', LABEL_VOLUNTEER_PII),
+          encryptedName: this.crypto.serverEncrypt('Admin', LABEL_VOLUNTEER_PII),
           ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
         })
         .returning()
@@ -298,9 +298,7 @@ export class IdentityService {
         createdBy: data.createdBy,
         expiresAt,
         encryptedPhone,
-        encryptedName:
-          nameEnvelope?.encrypted ??
-          this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
+        encryptedName: this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
         ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
       })
       .returning()
@@ -388,8 +386,7 @@ export class IdentityService {
           onBreak: false,
           callPreference: 'phone',
           encryptedPhone,
-          encryptedName:
-            nameEnvelope?.encrypted ?? this.crypto.serverEncrypt(inviteName, LABEL_VOLUNTEER_PII),
+          encryptedName: this.crypto.serverEncrypt(inviteName, LABEL_VOLUNTEER_PII),
           ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
         })
         .returning()
@@ -731,14 +728,19 @@ export class IdentityService {
   // ------------------------------------------------------------------ Private helpers
 
   #rowToVolunteer(r: typeof volunteers.$inferSelect): Volunteer {
-    const phone = this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
+    // Guard: empty ciphertext means GDPR-erased (crypto-shredded) — return empty string
+    const phone = r.encryptedPhone
+      ? this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
+      : ''
 
-    // Server-side name decrypt attempt (may be E2EE-only, in which case client decrypts via envelopes)
+    // Server-side name decrypt (empty ciphertext = GDPR-erased)
     let name = ''
-    try {
-      name = this.crypto.serverDecrypt(r.encryptedName as Ciphertext, LABEL_VOLUNTEER_PII)
-    } catch {
-      // E2EE-only name — client will decrypt via envelopes
+    if (r.encryptedName) {
+      try {
+        name = this.crypto.serverDecrypt(r.encryptedName as Ciphertext, LABEL_VOLUNTEER_PII)
+      } catch {
+        // Decryption failed — leave empty
+      }
     }
 
     return {
@@ -764,13 +766,18 @@ export class IdentityService {
   }
 
   #rowToInvite(r: typeof inviteCodes.$inferSelect): InviteCode {
-    const phone = this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
+    // Guard: empty ciphertext means erased — return empty string
+    const phone = r.encryptedPhone
+      ? this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
+      : ''
 
     let name = ''
-    try {
-      name = this.crypto.serverDecrypt(r.encryptedName as Ciphertext, LABEL_VOLUNTEER_PII)
-    } catch {
-      // E2EE-only name — client will decrypt via envelopes
+    if (r.encryptedName) {
+      try {
+        name = this.crypto.serverDecrypt(r.encryptedName as Ciphertext, LABEL_VOLUNTEER_PII)
+      } catch {
+        // Decryption failed — leave empty
+      }
     }
 
     return {
