@@ -1,6 +1,6 @@
 import type { HmacHash } from '@shared/crypto-types'
 import type { Ciphertext } from '@shared/crypto-types'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, isNull } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
 import {
@@ -113,13 +113,13 @@ export class ContactService {
     const rows = await this.db
       .select()
       .from(contacts)
-      .where(and(eq(contacts.id, id), eq(contacts.hubId, hubId)))
+      .where(and(eq(contacts.id, id), eq(contacts.hubId, hubId), isNull(contacts.deletedAt)))
       .limit(1)
     return rows[0] ?? null
   }
 
   async listContacts(filters: ListContactsFilters): Promise<ContactRow[]> {
-    const conditions = [eq(contacts.hubId, filters.hubId)]
+    const conditions = [eq(contacts.hubId, filters.hubId), isNull(contacts.deletedAt)]
 
     if (filters.contactType) {
       conditions.push(eq(contacts.contactType, filters.contactType))
@@ -143,7 +143,11 @@ export class ContactService {
     return rows
   }
 
-  async updateContact(id: string, hubId: string, input: UpdateContactInput): Promise<ContactRow> {
+  async updateContact(
+    id: string,
+    hubId: string,
+    input: UpdateContactInput
+  ): Promise<ContactRow | null> {
     const [row] = await this.db
       .update(contacts)
       .set({
@@ -177,16 +181,18 @@ export class ContactService {
           : {}),
         updatedAt: new Date(),
       })
-      .where(and(eq(contacts.id, id), eq(contacts.hubId, hubId)))
+      .where(and(eq(contacts.id, id), eq(contacts.hubId, hubId), isNull(contacts.deletedAt)))
       .returning()
-    return row
+    return row ?? null
   }
 
-  async deleteContact(id: string, hubId: string): Promise<void> {
-    // Delete linked records first
-    await this.db.delete(contactCallLinks).where(eq(contactCallLinks.contactId, id))
-    await this.db.delete(contactConversationLinks).where(eq(contactConversationLinks.contactId, id))
-    await this.db.delete(contacts).where(and(eq(contacts.id, id), eq(contacts.hubId, hubId)))
+  async deleteContact(id: string, hubId: string): Promise<boolean> {
+    const [row] = await this.db
+      .update(contacts)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(contacts.id, id), eq(contacts.hubId, hubId), isNull(contacts.deletedAt)))
+      .returning({ id: contacts.id })
+    return !!row
   }
 
   // ------------------------------------------------------------------ Dedup
@@ -195,7 +201,13 @@ export class ContactService {
     const rows = await this.db
       .select()
       .from(contacts)
-      .where(and(eq(contacts.identifierHash, identifierHash), eq(contacts.hubId, hubId)))
+      .where(
+        and(
+          eq(contacts.identifierHash, identifierHash),
+          eq(contacts.hubId, hubId),
+          isNull(contacts.deletedAt)
+        )
+      )
       .limit(1)
     return rows[0] ?? null
   }

@@ -204,6 +204,13 @@
       "when": 1774721199829,
       "tag": "0028_left_mephisto",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1774723843179,
+      "tag": "0029_mute_cobalt_man",
+      "breakpoints": true
     }
   ]
 }

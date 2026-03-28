@@ -187,12 +187,13 @@ describe('ContactService', () => {
       displayNameEnvelopes: [{ pubkey: 'pk2', wrappedKey: 'wk2', ephemeralPubkey: 'epk2' }],
     })
 
-    expect(updated.riskLevel).toBe('high')
-    expect(updated.tags).toEqual(['updated-tag'])
-    expect(updated.encryptedDisplayName).toBe(fakeCiphertext('new-display'))
-    expect((updated.displayNameEnvelopes as unknown[]).length).toBe(1)
+    expect(updated).not.toBeNull()
+    expect(updated!.riskLevel).toBe('high')
+    expect(updated!.tags).toEqual(['updated-tag'])
+    expect(updated!.encryptedDisplayName).toBe(fakeCiphertext('new-display'))
+    expect((updated!.displayNameEnvelopes as unknown[]).length).toBe(1)
     // Unchanged field
-    expect(updated.contactType).toBe('caller')
+    expect(updated!.contactType).toBe('caller')
   })
 
   // ------------------------------------------------------------------ deleteContact

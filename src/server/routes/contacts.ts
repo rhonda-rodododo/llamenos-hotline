@@ -22,7 +22,7 @@ contacts.get('/check-duplicate', async (c) => {
   }
 
   const existing = await services.contacts.checkDuplicate(identifierHash as HmacHash, hubId)
-  return c.json({ exists: existing !== null, contact: existing ?? null })
+  return c.json({ exists: existing !== null, contactId: existing?.id ?? undefined })
 })
 
 // GET /contacts/relationships — list all relationships for hub
@@ -246,6 +246,10 @@ contacts.patch('/:id', async (c) => {
     piiEnvelopes: body.piiEnvelopes,
   })
 
+  if (!contact) {
+    return c.json({ error: 'Contact not found' }, 404)
+  }
+
   return c.json({ contact })
 })
 
@@ -298,12 +302,16 @@ contacts.post('/:id/link', requirePermission('contacts:link'), async (c) => {
   const pubkey = c.get('pubkey')
 
   const body = await c.req.json<{
-    callId?: string
-    conversationId?: string
+    type: 'call' | 'conversation'
+    targetId: string
   }>()
 
-  if (!body.callId && !body.conversationId) {
-    return c.json({ error: 'callId or conversationId is required' }, 400)
+  if (!body.type || !body.targetId) {
+    return c.json({ error: 'type and targetId are required' }, 400)
+  }
+
+  if (body.type !== 'call' && body.type !== 'conversation') {
+    return c.json({ error: 'type must be "call" or "conversation"' }, 400)
   }
 
   const contact = await services.contacts.getContact(id, hubId)
@@ -311,17 +319,12 @@ contacts.post('/:id/link', requirePermission('contacts:link'), async (c) => {
     return c.json({ error: 'Contact not found' }, 404)
   }
 
-  if (body.callId) {
-    const link = await services.contacts.linkCall(id, body.callId, hubId, pubkey ?? '')
+  if (body.type === 'call') {
+    const link = await services.contacts.linkCall(id, body.targetId, hubId, pubkey ?? '')
     return c.json({ link })
   }
 
-  const link = await services.contacts.linkConversation(
-    id,
-    body.conversationId as string,
-    hubId,
-    pubkey ?? ''
-  )
+  const link = await services.contacts.linkConversation(id, body.targetId, hubId, pubkey ?? '')
   return c.json({ link })
 })
 
@@ -332,12 +335,16 @@ contacts.delete('/:id/link', requirePermission('contacts:link'), async (c) => {
   const id = c.req.param('id')
 
   const body = await c.req.json<{
-    callId?: string
-    conversationId?: string
+    type: 'call' | 'conversation'
+    targetId: string
   }>()
 
-  if (!body.callId && !body.conversationId) {
-    return c.json({ error: 'callId or conversationId is required' }, 400)
+  if (!body.type || !body.targetId) {
+    return c.json({ error: 'type and targetId are required' }, 400)
+  }
+
+  if (body.type !== 'call' && body.type !== 'conversation') {
+    return c.json({ error: 'type must be "call" or "conversation"' }, 400)
   }
 
   const contact = await services.contacts.getContact(id, hubId)
@@ -345,10 +352,10 @@ contacts.delete('/:id/link', requirePermission('contacts:link'), async (c) => {
     return c.json({ error: 'Contact not found' }, 404)
   }
 
-  if (body.callId) {
-    await services.contacts.unlinkCall(id, body.callId)
+  if (body.type === 'call') {
+    await services.contacts.unlinkCall(id, body.targetId)
   } else {
-    await services.contacts.unlinkConversation(id, body.conversationId as string)
+    await services.contacts.unlinkConversation(id, body.targetId)
   }
 
   return c.json({ ok: true })
