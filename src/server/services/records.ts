@@ -1,6 +1,6 @@
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
-import { HMAC_PHONE_PREFIX, LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import { HMAC_PHONE_PREFIX, LABEL_AUDIT_EVENT, LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import { and, asc, desc, eq, gte, lte, or, sql } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
@@ -497,6 +497,13 @@ export class RecordsService {
     const payload = `${event}${actorPubkey}${JSON.stringify(details ?? {})}${previousEntryHash ?? ''}${now.toISOString()}`
     const entryHash = bytesToHex(sha256(utf8ToBytes(payload)))
 
+    // Encrypt event and details with server-key (plaintext kept for transition)
+    const encryptedEvent = this.crypto.serverEncrypt(event, LABEL_AUDIT_EVENT)
+    const encryptedDetails = this.crypto.serverEncrypt(
+      JSON.stringify(details ?? {}),
+      LABEL_AUDIT_EVENT
+    )
+
     const id = crypto.randomUUID()
     const [row] = await this.db
       .insert(auditLog)
@@ -506,6 +513,8 @@ export class RecordsService {
         event,
         actorPubkey,
         details: details ?? {},
+        encryptedEvent,
+        encryptedDetails,
         previousEntryHash,
         entryHash,
         createdAt: now,
@@ -590,15 +599,27 @@ export class RecordsService {
       ],
     }
 
-    let entries = rows.map((r) => ({
-      id: r.id,
-      event: r.event,
-      actorPubkey: r.actorPubkey,
-      details: r.details as Record<string, unknown>,
-      createdAt: r.createdAt.toISOString(),
-      previousEntryHash: r.previousEntryHash ?? undefined,
-      entryHash: r.entryHash ?? undefined,
-    }))
+    let entries = rows.map((r) => {
+      // Decrypt with plaintext fallback for pre-encryption rows
+      const decryptedEvent = r.encryptedEvent
+        ? this.crypto.serverDecrypt(r.encryptedEvent as Ciphertext, LABEL_AUDIT_EVENT)
+        : r.event
+      const decryptedDetails = r.encryptedDetails
+        ? (JSON.parse(
+            this.crypto.serverDecrypt(r.encryptedDetails as Ciphertext, LABEL_AUDIT_EVENT)
+          ) as Record<string, unknown>)
+        : (r.details as Record<string, unknown>)
+
+      return {
+        id: r.id,
+        event: decryptedEvent,
+        actorPubkey: r.actorPubkey,
+        details: decryptedDetails,
+        createdAt: r.createdAt.toISOString(),
+        previousEntryHash: r.previousEntryHash ?? undefined,
+        entryHash: r.entryHash ?? undefined,
+      }
+    })
 
     if (filters.eventType && eventCategories[filters.eventType]) {
       const allowed = eventCategories[filters.eventType]
