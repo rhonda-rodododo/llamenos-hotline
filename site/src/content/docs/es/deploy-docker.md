@@ -17,7 +17,7 @@ Esta guia te lleva paso a paso a traves del despliegue de Llamenos con Docker Co
 Para probar Llamenos localmente:
 
 ```bash
-git clone https://github.com/your-org/llamenos.git
+git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
 ./scripts/docker-setup.sh
 ```
@@ -27,13 +27,13 @@ Visita **http://localhost:8000** y sigue el asistente de configuracion para crea
 ## Despliegue en produccion
 
 ```bash
-git clone https://github.com/your-org/llamenos.git
+git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
 ./scripts/docker-setup.sh --domain linea.tuorg.com --email admin@tuorg.com
 ```
 
 El script de configuracion:
-1. Genera secretos aleatorios fuertes (contrasena de base de datos, clave HMAC, credenciales MinIO, secreto del relay Nostr)
+1. Genera secretos aleatorios fuertes (contrasena de base de datos, clave HMAC, credenciales de almacenamiento, secreto del relay Nostr)
 2. Los escribe en `deploy/docker/.env`
 3. Construye e inicia todos los servicios usando la **capa de produccion de Docker Compose** (`docker-compose.production.yml`)
 4. Espera a que la aplicacion este saludable
@@ -61,7 +61,7 @@ Edita `.env` y llena los secretos requeridos. Genera valores aleatorios:
 # Para secretos hex (HMAC_SECRET, SERVER_NOSTR_SECRET):
 openssl rand -hex 32
 
-# Para contrasenas (PG_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY):
+# Para contrasenas (PG_PASSWORD, STORAGE_ACCESS_KEY, STORAGE_SECRET_KEY):
 openssl rand -base64 24
 ```
 
@@ -94,10 +94,10 @@ La configuracion inicia cinco servicios principales:
 
 | Servicio | Proposito | Puerto |
 |----------|-----------|--------|
-| **app** | Aplicacion Llamenos (Node.js) | 3000 (interno) |
+| **app** | Aplicacion Llamenos (Bun) | 3000 (interno) |
 | **postgres** | Base de datos PostgreSQL | 5432 (interno) |
 | **caddy** | Proxy inverso + TLS automatico | 8000 (local), 80/443 (produccion) |
-| **minio** | Almacenamiento de archivos compatible con S3 | 9000, 9001 (interno) |
+| **rustfs** | Almacenamiento de archivos compatible con S3 (RustFS) | 9000 (interno) |
 | **strfry** | Relay Nostr para eventos en tiempo real | 7777 (interno) |
 
 Verifica que todo este funcionando:
@@ -181,7 +181,7 @@ docker compose -f docker-compose.yml -f docker-compose.production.yml build
 docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
 ```
 
-Los datos se mantienen en volumenes Docker (`postgres-data`, `minio-data`, etc.) y sobreviven a reinicios y reconstrucciones.
+Los datos se mantienen en volumenes Docker (`postgres-data`, `rustfs-data`, etc.) y sobreviven a reinicios y reconstrucciones.
 
 ## Respaldos
 
@@ -197,12 +197,9 @@ Para restaurar:
 docker compose -f docker-compose.yml -f docker-compose.production.yml exec -T postgres psql -U llamenos llamenos < backup-20250101.sql
 ```
 
-### Almacenamiento MinIO
+### Almacenamiento RustFS
 
-```bash
-docker compose exec minio mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
-docker compose exec minio mc mirror local/llamenos /tmp/minio-backup
-```
+RustFS almacena archivos subidos, grabaciones y adjuntos. Usa cualquier CLI compatible con S3 (por ejemplo, `mc` o `aws s3`) para respaldar los datos, o simplemente respalda el volumen Docker `rustfs-data` directamente.
 
 ### Respaldos automatizados
 
@@ -261,7 +258,7 @@ flowchart TD
     Caddy -->|":3000"| App["App<br/>(Node.js)"]
     Caddy -->|"/nostr"| Strfry["strfry<br/>(Relay Nostr)"]
     App --> PostgreSQL[("PostgreSQL<br/>:5432")]
-    App --> MinIO[("MinIO<br/>:9000")]
+    App --> RustFS[("RustFS<br/>:9000")]
     App -.->|"opcional"| Whisper["Whisper<br/>:8080"]
 ```
 
