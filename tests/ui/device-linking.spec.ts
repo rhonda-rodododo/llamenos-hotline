@@ -4,7 +4,7 @@ import { loginAsAdmin } from '../helpers'
 test.describe('Device linking — /link-device page', () => {
   test.beforeEach(async ({ page, request }) => {
     // Ensure no stored key so the page doesn't redirect to /login
-    await page.addInitScript(() => localStorage.removeItem('llamenos-encrypted-key'))
+    await page.addInitScript(() => localStorage.removeItem('llamenos-encrypted-key-v2'))
   })
 
   test('shows start linking button on initial load', async ({ page }) => {
@@ -17,7 +17,7 @@ test.describe('Device linking — /link-device page', () => {
     // Override the beforeEach — inject a fake encrypted key blob
     await page.addInitScript(() => {
       localStorage.setItem(
-        'llamenos-encrypted-key',
+        'llamenos-encrypted-key-v2',
         JSON.stringify({
           salt: 'aa'.repeat(16),
           iterations: 600000,
@@ -90,7 +90,7 @@ test.describe('Device linking — settings section', () => {
 
 test.describe('Device linking — login page integration', () => {
   test('recovery view shows link-this-device button when no stored key', async ({ page }) => {
-    await page.addInitScript(() => localStorage.removeItem('llamenos-encrypted-key'))
+    await page.addInitScript(() => localStorage.removeItem('llamenos-encrypted-key-v2'))
     await page.goto('/login')
     // No stored key → recovery view is default
     await expect(page.getByRole('link', { name: /link this device/i })).toBeVisible({
@@ -99,7 +99,7 @@ test.describe('Device linking — login page integration', () => {
   })
 
   test('link-this-device button navigates to /link-device', async ({ page }) => {
-    await page.addInitScript(() => localStorage.removeItem('llamenos-encrypted-key'))
+    await page.addInitScript(() => localStorage.removeItem('llamenos-encrypted-key-v2'))
     await page.goto('/login')
     await expect(page.getByRole('link', { name: /link this device/i })).toBeVisible({
       timeout: 10000,
@@ -113,7 +113,7 @@ test.describe('Device linking — login page integration', () => {
     // Inject fake stored key for PIN view
     await page.addInitScript(() => {
       localStorage.setItem(
-        'llamenos-encrypted-key',
+        'llamenos-encrypted-key-v2',
         JSON.stringify({
           salt: 'aa'.repeat(16),
           iterations: 600000,

@@ -182,10 +182,12 @@ function handleUnlock(kekHex: string, nonceHex: string, ciphertextHex: string): 
   const ciphertext = hexToBytes(ciphertextHex)
 
   const cipher = xchacha20poly1305(kek, nonce)
-  const nsecBytes = cipher.decrypt(ciphertext)
+  const decrypted = cipher.decrypt(ciphertext)
 
-  // Store the raw 32-byte secret key
-  secretKey = new Uint8Array(nsecBytes)
+  // The encrypted blob stores nsecHex (64 ASCII hex chars).
+  // Decode the hex string to get the raw 32-byte secret key.
+  const nsecHex = new TextDecoder().decode(decrypted)
+  secretKey = hexToBytes(nsecHex)
   // Derive x-only public key via schnorr (returns hex string)
   publicKeyHex = bytesToHex(schnorr.getPublicKey(secretKey))
 

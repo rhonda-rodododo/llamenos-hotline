@@ -7,7 +7,9 @@ test.describe('Panic Wipe (L-9)', () => {
 
     // Verify we're on the dashboard and storage has data
     await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
-    const hasKeyBefore = await page.evaluate(() => !!localStorage.getItem('llamenos-encrypted-key'))
+    const hasKeyBefore = await page.evaluate(
+      () => !!localStorage.getItem('llamenos-encrypted-key-v2')
+    )
     expect(hasKeyBefore).toBe(true)
 
     // Triple-tap Escape within 1 second
@@ -25,7 +27,9 @@ test.describe('Panic Wipe (L-9)', () => {
     await page.waitForURL('**/login', { timeout: 5000 })
 
     // Verify storage was cleared
-    const hasKeyAfter = await page.evaluate(() => !!localStorage.getItem('llamenos-encrypted-key'))
+    const hasKeyAfter = await page.evaluate(
+      () => !!localStorage.getItem('llamenos-encrypted-key-v2')
+    )
     expect(hasKeyAfter).toBe(false)
 
     const localStorageLength = await page.evaluate(() => localStorage.length)
@@ -53,7 +57,7 @@ test.describe('Panic Wipe (L-9)', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
 
     // Storage should still have the key
-    const hasKey = await page.evaluate(() => !!localStorage.getItem('llamenos-encrypted-key'))
+    const hasKey = await page.evaluate(() => !!localStorage.getItem('llamenos-encrypted-key-v2'))
     expect(hasKey).toBe(true)
   })
 })

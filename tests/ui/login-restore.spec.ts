@@ -34,7 +34,7 @@ test.describe('Login page — stored key exists (PIN view)', () => {
     // Inject a fake encrypted key blob to trigger the PIN entry UI
     await page.evaluate(() => {
       localStorage.setItem(
-        'llamenos-encrypted-key',
+        'llamenos-encrypted-key-v2',
         JSON.stringify({
           salt: 'aa'.repeat(16),
           iterations: 600000,
