@@ -3,8 +3,16 @@
  * All HTTP calls are intercepted by mocking globalThis.fetch.
  */
 
-import { beforeEach, describe, expect, mock, test } from 'bun:test'
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test'
 import { AuthentikAdapter } from './authentik-adapter'
+
+// --- Isolation: save/restore globalThis.fetch so other test files aren't affected ---
+
+const originalFetch = globalThis.fetch
+
+afterAll(() => {
+  globalThis.fetch = originalFetch
+})
 
 // --- Test fixtures ---
 

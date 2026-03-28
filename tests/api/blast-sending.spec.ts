@@ -112,12 +112,29 @@ test.describe('Blast campaign API', () => {
 
   test('subscriber list API returns imported subscribers', async ({ request }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
+
+    // Import subscribers directly so this test is self-sufficient after test-reset
+    const hash = async (phone: string) => {
+      const enc = new TextEncoder().encode(phone)
+      const buf = await crypto.subtle.digest('SHA-256', enc)
+      return Array.from(new Uint8Array(buf))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+    }
+    const phone1 = uniquePhone()
+    const phone2 = uniquePhone()
+    const importRes = await authedApi.post('/api/blasts/subscribers/import', [
+      { identifierHash: await hash(phone1), channels: [{ type: 'sms', verified: true }] },
+      { identifierHash: await hash(phone2), channels: [{ type: 'sms', verified: true }] },
+    ])
+    expect(importRes.status()).toBe(200)
+
     const res = await authedApi.get('/api/blasts/subscribers')
     expect(res.status()).toBe(200)
     const data = await res.json()
     expect(data).toHaveProperty('subscribers')
     expect(Array.isArray(data.subscribers)).toBe(true)
-    // Should have at least the 2 subscribers imported in the import test
+    // Should have at least the 2 subscribers we just imported
     expect(data.subscribers.length).toBeGreaterThanOrEqual(2)
   })
 })
