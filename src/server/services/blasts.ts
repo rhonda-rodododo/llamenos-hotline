@@ -79,11 +79,12 @@ export class BlastService {
     const rows = await this.db.select().from(blasts).where(eq(blasts.hubId, hId))
     const hubKey = await this.#getHubKey(hId)
     return rows.map((r) => {
-      let name = r.name
-      if (hubKey && r.encryptedName) {
-        name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
-      }
-      return this.#rowToBlast({ ...r, name })
+      const name = this.crypto.decryptField(
+        r.encryptedName as Ciphertext,
+        hubKey,
+        'llamenos:blast-name'
+      )
+      return this.#rowToBlast(r, name)
     })
   }
 
@@ -91,36 +92,37 @@ export class BlastService {
     const rows = await this.db.select().from(blasts).where(eq(blasts.id, id)).limit(1)
     if (!rows[0]) return null
     const r = rows[0]
-    let name = r.name
-    if (r.encryptedName) {
-      const hubKey = await this.#getHubKey(r.hubId)
-      if (hubKey) {
-        name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
-      }
-    }
-    return this.#rowToBlast({ ...r, name })
+    const hubKey = await this.#getHubKey(r.hubId)
+    const name = this.crypto.decryptField(
+      r.encryptedName as Ciphertext,
+      hubKey,
+      'llamenos:blast-name'
+    )
+    return this.#rowToBlast(r, name)
   }
 
   async createBlast(data: CreateBlastData): Promise<Blast> {
     const id = crypto.randomUUID()
     const hId = data.hubId ?? 'global'
     const hubKey = await this.#getHubKey(hId)
+    const encryptedName = hubKey
+      ? this.crypto.hubEncrypt(data.name, hubKey)
+      : this.crypto.serverEncrypt(data.name, 'llamenos:blast-name')
     const [row] = await this.db
       .insert(blasts)
       .values({
         id,
         hubId: hId,
-        name: data.name,
+        encryptedName,
         encryptedContent: data.encryptedContent ?? '',
         contentEnvelopes: data.contentEnvelopes ?? [],
         targetChannels: data.targetChannels ?? [],
         targetTags: data.targetTags ?? [],
         targetLanguages: data.targetLanguages ?? [],
         status: data.status ?? 'draft',
-        ...(hubKey ? { encryptedName: this.crypto.hubEncrypt(data.name, hubKey) } : {}),
       })
       .returning()
-    return this.#rowToBlast(row)
+    return this.#rowToBlast(row, data.name)
   }
 
   async updateBlast(
@@ -139,17 +141,18 @@ export class BlastService {
 
     const statsUpdate = data.stats ? { stats: { ...existing.stats, ...data.stats } } : {}
 
-    // Encrypt name with hub key if available
+    // Encrypt name — hub key for hub-scoped, server key as fallback
     const hubKey = await this.#getHubKey(existing.hubId)
     const encFields: Record<string, unknown> = {}
-    if (hubKey && data.name !== undefined) {
-      encFields.encryptedName = this.crypto.hubEncrypt(data.name, hubKey)
+    if (data.name !== undefined) {
+      encFields.encryptedName = hubKey
+        ? this.crypto.hubEncrypt(data.name, hubKey)
+        : this.crypto.serverEncrypt(data.name, 'llamenos:blast-name')
     }
 
     const [row] = await this.db
       .update(blasts)
       .set({
-        ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.encryptedContent !== undefined ? { encryptedContent: data.encryptedContent } : {}),
         ...(data.contentEnvelopes !== undefined ? { contentEnvelopes: data.contentEnvelopes } : {}),
         ...(data.status !== undefined ? { status: data.status } : {}),
@@ -164,7 +167,12 @@ export class BlastService {
       })
       .where(eq(blasts.id, id))
       .returning()
-    return this.#rowToBlast(row)
+    const name = this.crypto.decryptField(
+      row.encryptedName as Ciphertext,
+      hubKey,
+      'llamenos:blast-name'
+    )
+    return this.#rowToBlast(row, name)
   }
 
   async deleteBlast(id: string): Promise<void> {
@@ -334,25 +342,24 @@ export class BlastService {
       )
     const result: Blast[] = []
     for (const r of rows) {
-      let name = r.name
-      if (r.encryptedName) {
-        const hubKey = await this.#getHubKey(r.hubId)
-        if (hubKey) {
-          name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
-        }
-      }
-      result.push(this.#rowToBlast({ ...r, name }))
+      const hubKey = await this.#getHubKey(r.hubId)
+      const name = this.crypto.decryptField(
+        r.encryptedName as Ciphertext,
+        hubKey,
+        'llamenos:blast-name'
+      )
+      result.push(this.#rowToBlast(r, name))
     }
     return result
   }
 
   // ------------------------------------------------------------------ Private helpers
 
-  #rowToBlast(r: typeof blasts.$inferSelect): Blast {
+  #rowToBlast(r: typeof blasts.$inferSelect, decryptedName?: string): Blast {
     return {
       id: r.id,
       hubId: r.hubId,
-      name: r.name,
+      name: decryptedName ?? '',
       encryptedName: r.encryptedName ?? undefined,
       targetChannels: r.targetChannels as string[],
       targetTags: r.targetTags as string[],

@@ -172,9 +172,7 @@ export function ReportTypesSection({
       >
         <div className="flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium">
-              {decryptHubField(rt.encryptedName, rt.name, hubId)}
-            </p>
+            <p className="text-sm font-medium">{decryptHubField(rt.encryptedName, hubId)}</p>
             {rt.isDefault && (
               <Badge variant="secondary" className="text-[10px]">
                 <Star className="mr-0.5 h-2.5 w-2.5" />
@@ -187,9 +185,9 @@ export function ReportTypesSection({
               </Badge>
             )}
           </div>
-          {(rt.encryptedDescription || rt.description) && (
+          {rt.encryptedDescription && (
             <p className="text-xs text-muted-foreground">
-              {decryptHubField(rt.encryptedDescription, rt.description, hubId)}
+              {decryptHubField(rt.encryptedDescription, hubId)}
             </p>
           )}
           <p className="text-xs text-muted-foreground">
@@ -205,8 +203,8 @@ export function ReportTypesSection({
                 onClick={() =>
                   setEditing({
                     id: rt.id,
-                    name: decryptHubField(rt.encryptedName, rt.name, hubId),
-                    description: decryptHubField(rt.encryptedDescription, rt.description, hubId),
+                    name: decryptHubField(rt.encryptedName, hubId),
+                    description: decryptHubField(rt.encryptedDescription, hubId),
                     isDefault: rt.isDefault,
                   })
                 }

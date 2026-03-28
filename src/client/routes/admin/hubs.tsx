@@ -217,12 +217,12 @@ function HubRow({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">
-            {decryptHubField(hub.encryptedName, hub.name, hub.id)}
+            {decryptHubField(hub.encryptedName, hub.id)}
             <span className="ml-2 font-mono text-xs text-muted-foreground">{hub.id}</span>
           </p>
-          {(hub.encryptedDescription || hub.description) && (
+          {hub.encryptedDescription && (
             <p className="text-xs text-muted-foreground line-clamp-1">
-              {decryptHubField(hub.encryptedDescription, hub.description, hub.id)}
+              {decryptHubField(hub.encryptedDescription, hub.id)}
             </p>
           )}
         </div>
@@ -410,8 +410,8 @@ function EditHubDialog({
 }) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const decryptedName = decryptHubField(hub.encryptedName, hub.name, hub.id)
-  const decryptedDesc = decryptHubField(hub.encryptedDescription, hub.description, hub.id)
+  const decryptedName = decryptHubField(hub.encryptedName, hub.id)
+  const decryptedDesc = decryptHubField(hub.encryptedDescription, hub.id)
   const [name, setName] = useState(decryptedName)
   const [description, setDescription] = useState(decryptedDesc)
   const [phoneNumber, setPhoneNumber] = useState(hub.phoneNumber || '')
@@ -421,8 +421,8 @@ function EditHubDialog({
 
   // Reset form state when hub changes
   useEffect(() => {
-    setName(decryptHubField(hub.encryptedName, hub.name, hub.id))
-    setDescription(decryptHubField(hub.encryptedDescription, hub.description, hub.id))
+    setName(decryptHubField(hub.encryptedName, hub.id))
+    setDescription(decryptHubField(hub.encryptedDescription, hub.id))
     setPhoneNumber(hub.phoneNumber || '')
   }, [hub])
 

@@ -49,11 +49,12 @@ export class ShiftService {
     const rows = await this.db.select().from(shiftSchedules).where(eq(shiftSchedules.hubId, hId))
     const hubKey = await this.#getHubKey(hId)
     return rows.map((r) => {
-      let name = r.name
-      if (hubKey && r.encryptedName) {
-        name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
-      }
-      return this.#rowToSchedule({ ...r, name })
+      const name = this.crypto.decryptField(
+        r.encryptedName as Ciphertext,
+        hubKey,
+        'llamenos:shift-name'
+      )
+      return this.#rowToSchedule(r, name)
     })
   }
 
@@ -64,21 +65,23 @@ export class ShiftService {
     const id = crypto.randomUUID()
     const hId = data.hubId ?? 'global'
     const hubKey = await this.#getHubKey(hId)
+    const encryptedName = hubKey
+      ? this.crypto.hubEncrypt(data.name, hubKey)
+      : this.crypto.serverEncrypt(data.name, 'llamenos:shift-name')
     const [row] = await this.db
       .insert(shiftSchedules)
       .values({
         id,
         hubId: hId,
-        name: data.name,
+        encryptedName,
         startTime: data.startTime,
         endTime: data.endTime,
         days: data.days,
         volunteerPubkeys: data.volunteerPubkeys,
         ringGroupId: data.ringGroupId ?? null,
-        ...(hubKey ? { encryptedName: this.crypto.hubEncrypt(data.name, hubKey) } : {}),
       })
       .returning()
-    return this.#rowToSchedule(row)
+    return this.#rowToSchedule(row, data.name)
   }
 
   async updateSchedule(
@@ -98,14 +101,15 @@ export class ShiftService {
 
     const hubKey = await this.#getHubKey(hubId)
     const encFields: Record<string, unknown> = {}
-    if (hubKey && data.name !== undefined) {
-      encFields.encryptedName = this.crypto.hubEncrypt(data.name, hubKey)
+    if (data.name !== undefined) {
+      encFields.encryptedName = hubKey
+        ? this.crypto.hubEncrypt(data.name, hubKey)
+        : this.crypto.serverEncrypt(data.name, 'llamenos:shift-name')
     }
 
     const [row] = await this.db
       .update(shiftSchedules)
       .set({
-        ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.startTime !== undefined ? { startTime: data.startTime } : {}),
         ...(data.endTime !== undefined ? { endTime: data.endTime } : {}),
         ...(data.days !== undefined ? { days: data.days } : {}),
@@ -115,7 +119,12 @@ export class ShiftService {
       })
       .where(whereClause)
       .returning()
-    return this.#rowToSchedule(row)
+    const name = this.crypto.decryptField(
+      row.encryptedName as Ciphertext,
+      hubKey,
+      'llamenos:shift-name'
+    )
+    return this.#rowToSchedule(row, name)
   }
 
   async deleteSchedule(id: string, hubId: string): Promise<void> {
@@ -159,11 +168,12 @@ export class ShiftService {
     const rows = await this.db.select().from(ringGroups).where(eq(ringGroups.hubId, hId))
     const hubKey = await this.#getHubKey(hId)
     return rows.map((r) => {
-      let name = r.name
-      if (hubKey && r.encryptedName) {
-        name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
-      }
-      return this.#rowToRingGroup({ ...r, name })
+      const name = this.crypto.decryptField(
+        r.encryptedName as Ciphertext,
+        hubKey,
+        'llamenos:ring-group-name'
+      )
+      return this.#rowToRingGroup(r, name)
     })
   }
 
@@ -171,17 +181,19 @@ export class ShiftService {
     const id = crypto.randomUUID()
     const hId = data.hubId ?? 'global'
     const hubKey = await this.#getHubKey(hId)
+    const encryptedName = hubKey
+      ? this.crypto.hubEncrypt(data.name, hubKey)
+      : this.crypto.serverEncrypt(data.name, 'llamenos:ring-group-name')
     const [row] = await this.db
       .insert(ringGroups)
       .values({
         id,
         hubId: hId,
-        name: data.name,
+        encryptedName,
         volunteerPubkeys: data.volunteerPubkeys,
-        ...(hubKey ? { encryptedName: this.crypto.hubEncrypt(data.name, hubKey) } : {}),
       })
       .returning()
-    return this.#rowToRingGroup(row)
+    return this.#rowToRingGroup(row, data.name)
   }
 
   async updateRingGroup(id: string, data: Partial<CreateRingGroupData>): Promise<RingGroup> {
@@ -190,20 +202,26 @@ export class ShiftService {
 
     const hubKey = await this.#getHubKey(rows[0].hubId)
     const encFields: Record<string, unknown> = {}
-    if (hubKey && data.name !== undefined) {
-      encFields.encryptedName = this.crypto.hubEncrypt(data.name, hubKey)
+    if (data.name !== undefined) {
+      encFields.encryptedName = hubKey
+        ? this.crypto.hubEncrypt(data.name, hubKey)
+        : this.crypto.serverEncrypt(data.name, 'llamenos:ring-group-name')
     }
 
     const [row] = await this.db
       .update(ringGroups)
       .set({
-        ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.volunteerPubkeys !== undefined ? { volunteerPubkeys: data.volunteerPubkeys } : {}),
         ...encFields,
       })
       .where(eq(ringGroups.id, id))
       .returning()
-    return this.#rowToRingGroup(row)
+    const name = this.crypto.decryptField(
+      row.encryptedName as Ciphertext,
+      hubKey,
+      'llamenos:ring-group-name'
+    )
+    return this.#rowToRingGroup(row, name)
   }
 
   async deleteRingGroup(id: string): Promise<void> {
@@ -379,11 +397,11 @@ export class ShiftService {
 
   // ------------------------------------------------------------------ Private helpers
 
-  #rowToSchedule(r: typeof shiftSchedules.$inferSelect): ShiftSchedule {
+  #rowToSchedule(r: typeof shiftSchedules.$inferSelect, decryptedName?: string): ShiftSchedule {
     return {
       id: r.id,
       hubId: r.hubId,
-      name: r.name,
+      name: decryptedName ?? '',
       encryptedName: r.encryptedName ?? undefined,
       startTime: r.startTime,
       endTime: r.endTime,
@@ -406,11 +424,11 @@ export class ShiftService {
     }
   }
 
-  #rowToRingGroup(r: typeof ringGroups.$inferSelect): RingGroup {
+  #rowToRingGroup(r: typeof ringGroups.$inferSelect, decryptedName?: string): RingGroup {
     return {
       id: r.id,
       hubId: r.hubId,
-      name: r.name,
+      name: decryptedName ?? '',
       encryptedName: r.encryptedName ?? undefined,
       volunteerPubkeys: r.volunteerPubkeys as string[],
       createdAt: r.createdAt,

@@ -19,8 +19,7 @@ interface BlastStats {
 export const blasts = pgTable('blasts', {
   id: text('id').primaryKey(),
   hubId: text('hub_id').notNull().default('global'),
-  name: text('name').notNull(),
-  encryptedName: ciphertext('encrypted_name'),
+  encryptedName: ciphertext('encrypted_name').notNull(),
   encryptedContent: text('encrypted_content').notNull().default(''),
   contentEnvelopes: jsonb<RecipientEnvelope[]>()('content_envelopes').notNull().default([]),
   /** Array of channel types to send to: 'sms' | 'whatsapp' | 'signal' */

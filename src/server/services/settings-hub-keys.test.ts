@@ -21,11 +21,13 @@ beforeAll(async () => {
   await migrate(db, {
     migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations'),
   })
-  service = new SettingsService(db, new CryptoService('', ''))
-  // Create test hub
-  await db.insert(hubs).values({
+  const crypto = new CryptoService('a'.repeat(64), 'b'.repeat(64))
+  service = new SettingsService(db, crypto)
+  // Create test hub (encrypted-only schema)
+  await service.createHub({
     id: TEST_HUB_ID,
     name: 'Test Hub Envelopes',
+    createdBy: 'test-admin',
   })
 })
 

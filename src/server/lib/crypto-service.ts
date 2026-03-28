@@ -45,6 +45,22 @@ export class CryptoService {
     }
   }
 
+  /**
+   * Decrypt a field: try hub key first, then server key fallback.
+   * This handles the transition where data may be encrypted with either key.
+   */
+  decryptField(ct: Ciphertext, hubKey: Uint8Array | null, serverLabel: string): string {
+    if (hubKey) {
+      const result = this.hubDecrypt(ct, hubKey)
+      if (result) return result
+    }
+    try {
+      return this.serverDecrypt(ct, serverLabel)
+    } catch {
+      return ''
+    }
+  }
+
   hmac(input: string, label: string): HmacHash {
     const key = hexToBytes(this.hmacSecret)
     const data = utf8ToBytes(`${label}${input}`)

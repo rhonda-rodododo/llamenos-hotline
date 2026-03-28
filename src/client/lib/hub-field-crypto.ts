@@ -4,26 +4,25 @@
  * Client-side decryption/encryption of hub-scoped organizational metadata
  * (hub names, role names, custom field labels, etc.).
  *
- * During the transition period, the server returns both plaintext and
- * encrypted fields. The client prefers the encrypted value when the
- * hub key is available (after PIN unlock), falling back to plaintext.
+ * All org metadata is now encrypted-only. The client decrypts when the hub key
+ * is available (after PIN unlock), or shows a placeholder.
  */
 
 import { getHubKeyForId } from './hub-key-cache'
 import { decryptFromHub, encryptForHub } from './hub-key-manager'
 
 /**
- * Decrypt a hub-encrypted field, falling back to plaintext.
+ * Decrypt a hub-encrypted field.
  *
  * @param encrypted - Hex ciphertext from the server (encryptedName, etc.)
- * @param plaintext - Fallback plaintext value (name, etc.)
  * @param hubId - Hub ID to look up the hub key
- * @returns Decrypted string, or plaintext fallback, or empty string
+ * @param placeholder - Fallback placeholder when decryption fails (default: empty string)
+ * @returns Decrypted string, or placeholder
  */
 export function decryptHubField(
   encrypted: string | null | undefined,
-  plaintext: string | null | undefined,
-  hubId: string
+  hubId: string,
+  placeholder = ''
 ): string {
   if (encrypted) {
     const hubKey = getHubKeyForId(hubId)
@@ -32,7 +31,7 @@ export function decryptHubField(
       if (decrypted) return decrypted
     }
   }
-  return plaintext ?? ''
+  return placeholder
 }
 
 /**

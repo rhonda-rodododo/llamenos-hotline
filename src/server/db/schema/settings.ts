@@ -4,9 +4,7 @@ import { ciphertext } from '../crypto-columns'
 
 export const hubs = pgTable('hubs', {
   id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  description: text('description'),
-  encryptedName: ciphertext('encrypted_name'),
+  encryptedName: ciphertext('encrypted_name').notNull(),
   encryptedDescription: ciphertext('encrypted_description'),
   status: text('status').notNull().default('active'),
   phoneNumber: text('phone_number'),
@@ -34,10 +32,8 @@ export const hubKeys = pgTable(
 export const roles = pgTable('roles', {
   id: text('id').primaryKey(),
   hubId: text('hub_id'), // null = global role
-  name: text('name').notNull(),
   slug: text('slug').notNull(),
-  description: text('description').notNull().default(''),
-  encryptedName: ciphertext('encrypted_name'),
+  encryptedName: ciphertext('encrypted_name').notNull(),
   encryptedDescription: ciphertext('encrypted_description'),
   permissions: jsonb<string[]>()('permissions').notNull().default([]),
   isDefault: boolean('is_default').notNull().default(false),
@@ -47,10 +43,7 @@ export const roles = pgTable('roles', {
 export const customFieldDefinitions = pgTable('custom_field_definitions', {
   id: text('id').primaryKey(),
   hubId: text('hub_id'), // null = global
-  fieldName: text('field_name').notNull(),
-  label: text('label').notNull(),
   fieldType: text('field_type').notNull(), // 'text' | 'select' | 'multiselect' | 'checkbox' | 'date'
-  options: jsonb<string[]>()('options').notNull().default([]),
   required: boolean('required').notNull().default(false),
   showInVolunteerView: boolean('show_in_volunteer_view').notNull().default(false),
   /** Context distinguishes where this field appears */
@@ -59,8 +52,8 @@ export const customFieldDefinitions = pgTable('custom_field_definitions', {
   reportTypeIds: jsonb<string[]>()('report_type_ids').notNull().default([]),
   order: integer('order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  encryptedFieldName: ciphertext('encrypted_field_name'),
-  encryptedLabel: ciphertext('encrypted_label'),
+  encryptedFieldName: ciphertext('encrypted_field_name').notNull(),
+  encryptedLabel: ciphertext('encrypted_label').notNull(),
   encryptedOptions: ciphertext('encrypted_options'),
 })
 
@@ -146,7 +139,6 @@ export const captchaState = pgTable('captcha_state', {
 
 export const reportCategories = pgTable('report_categories', {
   hubId: text('hub_id').primaryKey().default('global'),
-  categories: jsonb<string[]>()('categories').notNull().default([]),
   encryptedCategories: ciphertext('encrypted_categories'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

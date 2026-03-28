@@ -10,9 +10,7 @@ export const reportTypes = pgTable(
       .notNull()
       .default('global')
       .references(() => hubs.id),
-    name: text('name').notNull(),
-    description: text('description'),
-    encryptedName: ciphertext('encrypted_name'),
+    encryptedName: ciphertext('encrypted_name').notNull(),
     encryptedDescription: ciphertext('encrypted_description'),
     isDefault: boolean('is_default').notNull().default(false),
     archivedAt: timestamp('archived_at', { withTimezone: true }),

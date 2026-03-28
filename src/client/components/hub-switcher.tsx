@@ -40,7 +40,11 @@ export function HubSwitcher() {
         <Building2 className="h-4 w-4 shrink-0 text-primary" />
         <span className="flex-1 truncate font-medium text-sidebar-foreground">
           {currentHub
-            ? decryptHubField(currentHub.encryptedName, currentHub.name, currentHub.id)
+            ? decryptHubField(
+                currentHub.encryptedName,
+                currentHub.id,
+                `Hub ${currentHub.id.slice(0, 8)}`
+              )
             : t('hubs.selectHub', { defaultValue: 'Select hub' })}
         </span>
         <ChevronDown
@@ -67,7 +71,7 @@ export function HubSwitcher() {
             >
               <Building2 className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">
-                {decryptHubField(hub.encryptedName, hub.name, hub.id)}
+                {decryptHubField(hub.encryptedName, hub.id, `Hub ${hub.id.slice(0, 8)}`)}
               </span>
             </button>
           ))}
