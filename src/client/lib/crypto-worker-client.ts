@@ -131,6 +131,26 @@ export class CryptoWorkerClient {
   }
 
   /**
+   * Decrypt an envelope-encrypted field entirely inside the worker.
+   * Combines ECIES unwrap + XChaCha20-Poly1305 decrypt in one round trip.
+   * Returns the decrypted plaintext string.
+   */
+  async decryptEnvelopeField(
+    encryptedHex: string,
+    ephemeralPubkeyHex: string,
+    wrappedKeyHex: string,
+    label: string
+  ): Promise<string> {
+    return (await this.call({
+      type: 'decryptEnvelopeField',
+      encryptedHex,
+      ephemeralPubkeyHex,
+      wrappedKeyHex,
+      label,
+    })) as string
+  }
+
+  /**
    * ECIES encrypt (wrap) for a recipient. Uses an ephemeral key inside the worker.
    * Returns the envelope (ephemeralPubkeyHex + wrappedKeyHex).
    */

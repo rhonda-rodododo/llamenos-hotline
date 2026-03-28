@@ -35,6 +35,14 @@ type WorkerRequest =
   | { type: 'reEncrypt'; id: string; newKekHex: string }
   | { type: 'provisionNsec'; id: string; recipientEphemeralPubkeyHex: string }
   | { type: 'getSecretKey'; id: string }
+  | {
+      type: 'decryptEnvelopeField'
+      id: string
+      encryptedHex: string
+      ephemeralPubkeyHex: string
+      wrappedKeyHex: string
+      label: string
+    }
 
 interface WorkerSuccessResponse {
   type: 'success'
@@ -354,6 +362,28 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       case 'provisionNsec':
         result = handleProvisionNsec(req.recipientEphemeralPubkeyHex)
         break
+      case 'decryptEnvelopeField': {
+        if (!secretKey) throw new Error('Worker is locked')
+        if (!checkRateLimit('decrypt')) {
+          autoLock()
+          throw new Error('Rate limit exceeded — worker auto-locked')
+        }
+        // Step 1: ECIES unwrap the per-field symmetric message key
+        const messageKey = eciesUnwrap(
+          req.ephemeralPubkeyHex,
+          req.wrappedKeyHex,
+          secretKey,
+          req.label
+        )
+        // Step 2: Symmetric decrypt the field ciphertext
+        const fieldData = hexToBytes(req.encryptedHex)
+        const fieldNonce = fieldData.slice(0, 24)
+        const fieldCiphertext = fieldData.slice(24)
+        const fieldCipher = xchacha20poly1305(messageKey, fieldNonce)
+        const plaintext = fieldCipher.decrypt(fieldCiphertext)
+        result = new TextDecoder().decode(plaintext)
+        break
+      }
       case 'getSecretKey':
         if (!secretKey) throw new Error('Worker is locked')
         result = bytesToHex(secretKey)
