@@ -183,6 +183,13 @@
       "when": 1775314800000,
       "tag": "0025_phase2a_drop_plaintext",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1775401200000,
+      "tag": "0026_phase2b_org_metadata",
+      "breakpoints": true
     }
   ]
 }

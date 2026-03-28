@@ -6,6 +6,8 @@ export const hubs = pgTable('hubs', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
+  encryptedName: ciphertext('encrypted_name'),
+  encryptedDescription: ciphertext('encrypted_description'),
   status: text('status').notNull().default('active'),
   phoneNumber: text('phone_number'),
   createdBy: text('created_by').notNull().default(''),
@@ -35,6 +37,8 @@ export const roles = pgTable('roles', {
   name: text('name').notNull(),
   slug: text('slug').notNull(),
   description: text('description').notNull().default(''),
+  encryptedName: ciphertext('encrypted_name'),
+  encryptedDescription: ciphertext('encrypted_description'),
   permissions: jsonb<string[]>()('permissions').notNull().default([]),
   isDefault: boolean('is_default').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -55,6 +59,9 @@ export const customFieldDefinitions = pgTable('custom_field_definitions', {
   reportTypeIds: jsonb<string[]>()('report_type_ids').notNull().default([]),
   order: integer('order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  encryptedFieldName: ciphertext('encrypted_field_name'),
+  encryptedLabel: ciphertext('encrypted_label'),
+  encryptedOptions: ciphertext('encrypted_options'),
 })
 
 export const telephonyConfig = pgTable('telephony_config', {
@@ -140,6 +147,7 @@ export const captchaState = pgTable('captcha_state', {
 export const reportCategories = pgTable('report_categories', {
   hubId: text('hub_id').primaryKey().default('global'),
   categories: jsonb<string[]>()('categories').notNull().default([]),
+  encryptedCategories: ciphertext('encrypted_categories'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
