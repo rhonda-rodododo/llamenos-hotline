@@ -1,11 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import { LABEL_HUB_KEY_WRAP } from '@shared/crypto-labels'
-import {
-  eciesUnwrapKeyServer,
-  decryptFromHub as serverDecryptFromHub,
-  encryptForHub as serverEncryptForHub,
-} from '../../server/lib/crypto'
+import { eciesUnwrapKey } from '@shared/crypto-primitives'
+import type { Ciphertext } from '@shared/crypto-types'
+import { CryptoService } from '../../server/lib/crypto-service'
 import { generateKeyPair } from './crypto'
 import {
   decryptFromHub,
@@ -16,6 +14,8 @@ import {
   wrapHubKeyForMember,
   wrapHubKeyForMembers,
 } from './hub-key-manager'
+
+const serverCrypto = new CryptoService('a'.repeat(64), 'b'.repeat(64))
 
 // ── B1: generateHubKey ────────────────────────────────────────────────────────
 
@@ -178,7 +178,7 @@ describe('client↔server interop', () => {
     const hubKey = generateHubKey()
 
     const envelope = wrapHubKeyForMember(hubKey, publicKey)
-    const recovered = eciesUnwrapKeyServer(
+    const recovered = eciesUnwrapKey(
       { wrappedKey: envelope.wrappedKey, ephemeralPubkey: envelope.ephemeralPubkey },
       secretKey,
       LABEL_HUB_KEY_WRAP
@@ -187,21 +187,21 @@ describe('client↔server interop', () => {
     expect(bytesToHex(recovered)).toBe(bytesToHex(hubKey))
   })
 
-  test('client encryptForHub → server decryptFromHub: recovers plaintext', () => {
+  test('client encryptForHub → server hubDecrypt: recovers plaintext', () => {
     const hubKey = generateHubKey()
     const plaintext = 'client encrypted, server reads'
 
     const encrypted = encryptForHub(plaintext, hubKey)
-    const decrypted = serverDecryptFromHub(encrypted, hubKey)
+    const decrypted = serverCrypto.hubDecrypt(encrypted as Ciphertext, hubKey)
 
     expect(decrypted).toBe(plaintext)
   })
 
-  test('server encryptForHub → client decryptFromHub: recovers plaintext', () => {
+  test('server hubEncrypt → client decryptFromHub: recovers plaintext', () => {
     const hubKey = generateHubKey()
     const plaintext = 'server encrypted, client reads'
 
-    const encrypted = serverEncryptForHub(plaintext, hubKey)
+    const encrypted = serverCrypto.hubEncrypt(plaintext, hubKey)
     const decrypted = decryptFromHub(encrypted, hubKey)
 
     expect(decrypted).toBe(plaintext)

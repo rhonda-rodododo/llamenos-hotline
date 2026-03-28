@@ -9,6 +9,7 @@ import {
   HKDF_CONTEXT_EXPORT,
   HKDF_CONTEXT_NOTES,
   HKDF_SALT,
+  LABEL_CALL_META,
   LABEL_MESSAGE,
   LABEL_NOTE_KEY,
   LABEL_TRANSCRIPTION,
@@ -395,12 +396,22 @@ describe('encryptMessage / decryptMessage', () => {
 describe('decryptCallRecord — cross-boundary interop', () => {
   const callMeta = { answeredBy: 'vol_abc123', callerNumber: '+15551234567' }
 
-  test('roundtrip: server encryptCallRecordForStorage → client decryptCallRecord', async () => {
-    const { encryptCallRecordForStorage } = await import('../../server/lib/crypto')
+  // Use CryptoService.envelopeEncrypt (replaced deleted encryptCallRecordForStorage)
+  function encryptCallRecord(metadata: Record<string, unknown>, adminPubkeys: string[]) {
+    const { CryptoService } = require('../../server/lib/crypto-service')
+    const svc = new CryptoService('a'.repeat(64), 'b'.repeat(64))
+    const { encrypted, envelopes } = svc.envelopeEncrypt(
+      JSON.stringify(metadata),
+      adminPubkeys,
+      LABEL_CALL_META
+    )
+    return { encryptedContent: encrypted, adminEnvelopes: envelopes }
+  }
 
+  test('roundtrip: server envelopeEncrypt → client decryptCallRecord', () => {
     const admin = generateKeyPair()
 
-    const encrypted = encryptCallRecordForStorage(callMeta, [admin.publicKey])
+    const encrypted = encryptCallRecord(callMeta, [admin.publicKey])
     const decrypted = decryptCallRecord(
       encrypted.encryptedContent,
       encrypted.adminEnvelopes,
@@ -411,13 +422,11 @@ describe('decryptCallRecord — cross-boundary interop', () => {
     expect(decrypted).toEqual(callMeta)
   })
 
-  test('multi-admin: 2 admins each decrypt', async () => {
-    const { encryptCallRecordForStorage } = await import('../../server/lib/crypto')
-
+  test('multi-admin: 2 admins each decrypt', () => {
     const admin1 = generateKeyPair()
     const admin2 = generateKeyPair()
 
-    const encrypted = encryptCallRecordForStorage(callMeta, [admin1.publicKey, admin2.publicKey])
+    const encrypted = encryptCallRecord(callMeta, [admin1.publicKey, admin2.publicKey])
 
     const dec1 = decryptCallRecord(
       encrypted.encryptedContent,
@@ -436,13 +445,11 @@ describe('decryptCallRecord — cross-boundary interop', () => {
     expect(dec2).toEqual(callMeta)
   })
 
-  test('non-admin pubkey returns null', async () => {
-    const { encryptCallRecordForStorage } = await import('../../server/lib/crypto')
-
+  test('non-admin pubkey returns null', () => {
     const admin = generateKeyPair()
     const nonAdmin = generateKeyPair()
 
-    const encrypted = encryptCallRecordForStorage(callMeta, [admin.publicKey])
+    const encrypted = encryptCallRecord(callMeta, [admin.publicKey])
     const result = decryptCallRecord(
       encrypted.encryptedContent,
       encrypted.adminEnvelopes,
