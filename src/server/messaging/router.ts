@@ -173,7 +173,10 @@ messaging.post('/:channel/webhook', async (c) => {
 
   // Encrypt the inbound message body before storage (server encrypts, plaintext is discarded)
   const adminDecryptionPubkey = c.env.ADMIN_DECRYPTION_PUBKEY || c.env.ADMIN_PUBKEY
-  const readerPubkeys = [adminDecryptionPubkey]
+  if (!adminDecryptionPubkey) {
+    return c.json({ error: 'Admin not configured — cannot encrypt message' }, 503)
+  }
+  const readerPubkeys: string[] = [adminDecryptionPubkey]
   if (conversation.assignedTo && conversation.assignedTo !== adminDecryptionPubkey) {
     readerPubkeys.push(conversation.assignedTo)
   }
