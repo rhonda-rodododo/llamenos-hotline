@@ -16,6 +16,7 @@ import {
   LABEL_NOTE_KEY,
   LABEL_TRANSCRIPTION,
 } from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
 import type { BlastContent, NotePayload } from '@shared/types'
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools'
 
@@ -84,7 +85,7 @@ function deriveEncryptionKey(secretKey: Uint8Array, label: string): Uint8Array {
 
 /** A symmetric key wrapped via ECIES for a single recipient. */
 export interface KeyEnvelope {
-  wrappedKey: string // hex: nonce(24) + ciphertext(48 = 32 key + 16 tag)
+  wrappedKey: Ciphertext // hex: nonce(24) + ciphertext(48 = 32 key + 16 tag)
   ephemeralPubkey: string // hex: compressed 33-byte pubkey
 }
 
@@ -124,7 +125,7 @@ export function eciesWrapKey(
   packed.set(ciphertext, nonce.length)
 
   return {
-    wrappedKey: bytesToHex(packed),
+    wrappedKey: bytesToHex(packed) as Ciphertext,
     ephemeralPubkey: bytesToHex(ephemeralPublicKey),
   }
 }
@@ -158,7 +159,7 @@ export function eciesUnwrapKey(
 // --- Per-Note Ephemeral Key Encryption (V2 — forward secrecy) ---
 
 export interface EncryptedNoteV2 {
-  encryptedContent: string // hex: nonce(24) + ciphertext
+  encryptedContent: Ciphertext // hex: nonce(24) + ciphertext
   authorEnvelope: KeyEnvelope // note key wrapped for the author
   adminEnvelopes: RecipientKeyEnvelope[] // note key wrapped for each admin (multi-admin)
 }
@@ -186,7 +187,7 @@ export function encryptNoteV2(
   packed.set(ciphertext, nonce.length)
 
   return {
-    encryptedContent: bytesToHex(packed),
+    encryptedContent: bytesToHex(packed) as Ciphertext,
     authorEnvelope: eciesWrapKey(noteKey, authorPubkey, LABEL_NOTE_KEY),
     adminEnvelopes: adminPubkeys.map((pk) => ({
       pubkey: pk,
@@ -230,7 +231,7 @@ export function decryptNoteV2(
 // Used for SMS, WhatsApp, Signal, and web report messages.
 
 export interface EncryptedMessagePayload {
-  encryptedContent: string // hex: nonce(24) + ciphertext
+  encryptedContent: Ciphertext // hex: nonce(24) + ciphertext
   readerEnvelopes: RecipientKeyEnvelope[] // message key wrapped for each reader
 }
 
@@ -256,7 +257,7 @@ export function encryptMessage(
   packed.set(ciphertext, nonce.length)
 
   return {
-    encryptedContent: bytesToHex(packed),
+    encryptedContent: bytesToHex(packed) as Ciphertext,
     readerEnvelopes: readerPubkeys.map((pk) => ({
       pubkey: pk,
       ...eciesWrapKey(messageKey, pk, LABEL_MESSAGE),
@@ -302,7 +303,7 @@ export function decryptMessage(
 // --- Blast Content Encryption ---
 
 export interface EncryptedBlastContentPayload {
-  encryptedContent: string
+  encryptedContent: Ciphertext
   contentEnvelopes: RecipientKeyEnvelope[]
 }
 
@@ -320,7 +321,7 @@ export function encryptBlastContent(
   packed.set(ciphertext, nonce.length)
 
   return {
-    encryptedContent: bytesToHex(packed),
+    encryptedContent: bytesToHex(packed) as Ciphertext,
     contentEnvelopes: recipientPubkeys.map((pk) => ({
       pubkey: pk,
       ...eciesWrapKey(blastKey, pk, LABEL_BLAST_CONTENT),

@@ -4,7 +4,8 @@ import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { LABEL_FILE_KEY, LABEL_FILE_METADATA } from '@shared/crypto-labels'
-import type { EncryptedFileMetadata, FileKeyEnvelope } from '@shared/types'
+import type { Ciphertext } from '@shared/crypto-types'
+import type { EncryptedFileMetadata, EncryptedMetaItem, FileKeyEnvelope } from '@shared/types'
 import { eciesUnwrapKey, eciesWrapKey } from './crypto'
 
 function randomBytes(n: number): Uint8Array {
@@ -22,7 +23,7 @@ export function unwrapFileKey(
   secretKey: Uint8Array
 ): Uint8Array {
   return eciesUnwrapKey(
-    { wrappedKey: encryptedFileKeyHex, ephemeralPubkey: ephemeralPubkeyHex },
+    { wrappedKey: encryptedFileKeyHex as Ciphertext, ephemeralPubkey: ephemeralPubkeyHex },
     secretKey,
     LABEL_FILE_KEY
   )
@@ -35,7 +36,7 @@ export function unwrapFileKey(
 function encryptMetadataForPubkey(
   metadata: EncryptedFileMetadata,
   recipientPubkeyHex: string
-): { pubkey: string; encryptedContent: string; ephemeralPubkey: string } {
+): EncryptedMetaItem {
   const ephemeralSecret = randomBytes(32)
   const ephemeralPublicKey = secp256k1.getPublicKey(ephemeralSecret, true)
 
@@ -60,7 +61,7 @@ function encryptMetadataForPubkey(
 
   return {
     pubkey: recipientPubkeyHex,
-    encryptedContent: bytesToHex(packed),
+    encryptedContent: bytesToHex(packed) as Ciphertext,
     ephemeralPubkey: bytesToHex(ephemeralPublicKey),
   }
 }
@@ -98,11 +99,7 @@ export function decryptFileMetadata(
 export interface EncryptedFileUpload {
   encryptedContent: Uint8Array
   recipientEnvelopes: FileKeyEnvelope[]
-  encryptedMetadata: Array<{
-    pubkey: string
-    encryptedContent: string
-    ephemeralPubkey: string
-  }>
+  encryptedMetadata: EncryptedMetaItem[]
 }
 
 /**
