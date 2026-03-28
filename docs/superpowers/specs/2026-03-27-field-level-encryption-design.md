@@ -1,25 +1,29 @@
-# Field-Level Encryption Phase 1: Crypto Foundation + PII Protection
+# Field-Level Encryption Phase 1: Crypto Foundation + Identity & Credential Protection
 
 **Date:** 2026-03-27
 **Status:** Draft
-**Scope:** Crypto infrastructure (CryptoService, branded types, shared primitives) + encryption of all PII and sensitive identity data across the database
-**Threat model:** Nation-state adversaries with the capability to obtain database dumps, compel cloud providers, or compromise server infrastructure. See `docs/security/THREAT_MODEL.md`.
+**Scope:** Crypto infrastructure (CryptoService, branded types, shared primitives) + encryption of all data that could identify people, expose credentials, fingerprint devices, or provide actionable intelligence to an adversary
+**Threat model:** Nation-state adversaries (Tier 1) with the capability to obtain database dumps, compel cloud providers, seize infrastructure, or use database contents as legal evidence against hotline operators, volunteers, or callers. See `docs/security/THREAT_MODEL.md`.
 
 ## Series Overview
 
 This is **Phase 1** of a two-phase encryption hardening effort:
 
-- **Phase 1 (this spec):** Build the generic crypto infrastructure (CryptoService, shared primitives, branded types, column helpers) and encrypt all PII, phone numbers, credentials, and user-identifying data. After this phase, a database dump reveals no personal information.
+- **Phase 1 (this spec):** Build the generic crypto infrastructure (CryptoService, shared primitives, branded types, column helpers) and encrypt all data that identifies people, exposes credentials, fingerprints devices, or could be used as evidence in legal proceedings against the hotline's operators or users. After this phase, a database dump reveals no information about who uses the system or how to impersonate it.
 
 - **Phase 2 (future spec):** Encrypt all operational metadata that reveals organizational structure and strategy — hub names, role definitions, report types, shift schedules, custom field definitions, audit log details, blast campaign names, IVR audio. After Phase 2, a database dump reveals nothing about what the organization does, how it's structured, or what it tracks.
+
+Together, these two phases achieve the goal that a seized or leaked database is **cryptographically useless** to any adversary — including the most powerful state actors. The database becomes a collection of opaque ciphertext, pseudonymous pubkeys, and structural metadata (timestamps, foreign keys, boolean flags) that reveals nothing about the humans behind it.
 
 Phase 1 builds the foundation that Phase 2 extends. The CryptoService, branded types, and shared primitives are designed to make Phase 2 a straightforward application of existing patterns to additional tables.
 
 ## Problem
 
-### Plaintext PII in the database
+### Actionable intelligence in plaintext
 
-The database audit reveals PII and sensitive data stored in plaintext across multiple tables, contradicting the project's zero-knowledge goals and the DATA_CLASSIFICATION.md classification of volunteer identity as "Encrypted-at-Rest":
+A database dump of the current system hands an adversary a detailed dossier: the real names and phone numbers of every volunteer, the phone numbers of every caller (including during active calls), the devices volunteers use, credentials for third-party services, and free-text ban reasons that may describe incidents in incriminating detail. This is not just a PII compliance issue — it is an existential threat to the safety of everyone who uses the hotline.
+
+The database audit reveals sensitive data stored in plaintext across multiple tables, contradicting the project's zero-knowledge goals and the DATA_CLASSIFICATION.md classification of volunteer identity as "Encrypted-at-Rest":
 
 | Table | Plaintext Fields | Adversary Value |
 |---|---|---|
@@ -42,11 +46,11 @@ The current encryption implementation has no generic mechanism. Each Epic added 
 
 ## Goals
 
-1. **Zero plaintext PII** — no personal information recoverable from a database dump
-2. **E2EE where the server doesn't need access** — envelope-encrypted fields the server literally cannot decrypt
-3. **Server-key encryption where operationally required** — encrypted at rest, decrypted JIT, discarded from memory immediately
-4. **Generic, type-safe crypto** — branded TypeScript types (`Ciphertext`, `HmacHash`) that make storing plaintext in an encrypted column a compile-time error
-5. **Unified CryptoService** — single API on both server and client replacing all scattered functions
+1. **Zero actionable intelligence from a database dump** — no names, phone numbers, device identifiers, credentials, or incriminating content recoverable from seized or leaked database files
+2. **E2EE where the server doesn't need access** — envelope-encrypted fields the server literally cannot decrypt, even under legal compulsion
+3. **Server-key encryption where operationally required** — encrypted at rest, decrypted JIT, discarded from memory immediately; protects against database dumps, backup theft, and replica compromise
+4. **Generic, type-safe crypto** — branded TypeScript types (`Ciphertext`, `HmacHash`) that make storing plaintext in an encrypted column a compile-time error, preventing future features from introducing new plaintext leaks
+5. **Unified CryptoService** — single API on both server and client replacing all scattered functions, making encryption the easy default rather than a per-feature afterthought
 6. **Shared crypto primitives** — one implementation of ECIES/XChaCha20/HMAC used by both server and client
 7. **Foundation for Phase 2** — the infrastructure built here is reusable for operational metadata encryption
 
@@ -55,19 +59,20 @@ The current encryption implementation has no generic mechanism. Each Epic added 
 - Key rotation automation (document the procedure, don't build it)
 - `volunteers` → `users` table rename (separate PR)
 - Operational metadata encryption (Phase 2: hub names, roles, report types, shifts, audit details, etc.)
-- Changing already-encrypted fields beyond refactoring to CryptoService
+- Changing already-encrypted fields' encryption behavior beyond refactoring to use CryptoService
 - Phone number normalization table (evaluated and rejected — see Design Decisions)
+- Encrypting structural metadata (timestamps, foreign keys, boolean flags, integer counters) — these reveal timing patterns but not identity or content; Phase 2 audit log encryption addresses the most sensitive timing correlations
 
 ## Design Decisions
 
 ### Encryption classification
 
-Every field is classified by what an adversary gains from it and whether the server needs runtime access:
+Every field is classified by two axes: **what would an adversary (including a state actor with legal authority) gain from it**, and **whether the running server needs runtime access**:
 
-**E2EE envelope** — server never sees plaintext. Client encrypts, client decrypts. Strongest protection.
-**Server-key** — encrypted at rest, server decrypts JIT for operational use, discards immediately. Protects against DB dumps.
-**HMAC hash** — one-way, for lookup/comparison only. Cannot be reversed.
-**Plaintext** — no sensitive content, or operationally impossible to encrypt.
+**E2EE envelope** — server never sees plaintext. Client encrypts, client decrypts. Cannot be compelled via legal process against the server operator because the server genuinely cannot decrypt. Strongest protection.
+**Server-key** — encrypted at rest, server decrypts JIT for operational use, discards immediately. Protects against database dumps, backup theft, replica compromise, and cloud provider compulsion. A running server *can* be compelled to decrypt, but a seized database alone cannot.
+**HMAC hash** — one-way, for lookup/comparison only. Cannot be reversed. Useful for ban checking and deduplication without storing the original value.
+**Plaintext** — no sensitive content, or operationally impossible to encrypt (e.g., foreign keys, timestamps, boolean flags).
 
 ### Complete field classification (Phase 1 scope)
 
@@ -653,6 +658,8 @@ Existing API and E2E tests pass unchanged — the service layer returns the same
 - Verify E2EE fields cannot be decrypted with just `SERVER_NOSTR_SECRET` (require recipient private key)
 
 ## Phase 2 Preview (Future Spec)
+
+Phase 2 completes the zero-knowledge database goal. After Phase 1, an adversary with a database dump knows that *people* use the system but not *who* they are. After Phase 2, they won't even know *what the system is for* — hub names like "Legal Observer Network" become opaque ciphertext, report types like "Police Violence" become unreadable, and audit logs that document organizational decisions become inaccessible.
 
 Phase 2 encrypts operational metadata using the same CryptoService infrastructure:
 
