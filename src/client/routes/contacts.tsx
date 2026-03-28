@@ -205,7 +205,11 @@ function ContactDirectoryPage() {
                   data-testid="contact-row"
                   className="flex w-full flex-wrap items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30 sm:px-6"
                   onClick={() => {
-                    window.location.href = `/contacts/${contact.id}`
+                    navigate({
+                      to: '/contacts/$contactId',
+                      params: { contactId: contact.id },
+                      search: (prev) => prev,
+                    })
                   }}
                 >
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
