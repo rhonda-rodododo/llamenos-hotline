@@ -23,7 +23,7 @@ export class ClientCryptoService {
   ): { encrypted: Ciphertext; envelopes: RecipientEnvelope[] } {
     const messageKey = new Uint8Array(32)
     crypto.getRandomValues(messageKey)
-    const encrypted = symmetricEncrypt(utf8ToBytes(plaintext), messageKey) as Ciphertext
+    const encrypted = symmetricEncrypt(utf8ToBytes(plaintext), messageKey)
     const envelopes: RecipientEnvelope[] = recipientPubkeys.map((pk) => ({
       pubkey: pk,
       ...eciesWrapKey(messageKey, pk, label),
@@ -39,7 +39,7 @@ export class ClientCryptoService {
   }
 
   hubEncrypt(plaintext: string, hubKey: Uint8Array): Ciphertext {
-    return symmetricEncrypt(utf8ToBytes(plaintext), hubKey) as Ciphertext
+    return symmetricEncrypt(utf8ToBytes(plaintext), hubKey)
   }
 
   hubDecrypt(ct: Ciphertext, hubKey: Uint8Array): string | null {
@@ -57,7 +57,7 @@ export class ClientCryptoService {
   ): { encrypted: Ciphertext; envelopes: RecipientEnvelope[] } {
     const dataKey = new Uint8Array(32)
     crypto.getRandomValues(dataKey)
-    const encrypted = symmetricEncrypt(data, dataKey) as Ciphertext
+    const encrypted = symmetricEncrypt(data, dataKey)
     const envelopes: RecipientEnvelope[] = recipientPubkeys.map((pk) => ({
       pubkey: pk,
       ...eciesWrapKey(dataKey, pk, label),
@@ -79,7 +79,7 @@ export class ClientCryptoService {
       utf8ToBytes('llamenos:drafts'),
       32
     )
-    return symmetricEncrypt(utf8ToBytes(plaintext), key) as Ciphertext
+    return symmetricEncrypt(utf8ToBytes(plaintext), key)
   }
 
   decryptDraft(ct: Ciphertext): string {

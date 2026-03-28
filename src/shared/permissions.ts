@@ -7,6 +7,8 @@
  * Wildcard "*" grants all permissions; "domain:*" grants all within domain.
  */
 
+import type { Ciphertext } from './crypto-types'
+
 // --- Permission Catalog ---
 
 export const PERMISSION_CATALOG = {
@@ -153,9 +155,9 @@ export interface Role {
   isSystem: boolean // can't be modified at all (super-admin)
   description: string
   /** Hub-key encrypted name (hex ciphertext). */
-  encryptedName?: string
+  encryptedName?: Ciphertext
   /** Hub-key encrypted description (hex ciphertext). */
-  encryptedDescription?: string
+  encryptedDescription?: Ciphertext
   createdAt: string
   updatedAt: string
 }

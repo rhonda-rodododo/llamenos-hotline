@@ -5,12 +5,13 @@ import { hkdf } from '@noble/hashes/hkdf.js'
 import { hmac } from '@noble/hashes/hmac.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
+import type { Ciphertext } from './crypto-types'
 
 /**
  * Symmetric encryption using XChaCha20-Poly1305.
  * Returns hex-encoded: nonce(24 bytes) || ciphertext.
  */
-export function symmetricEncrypt(plaintext: Uint8Array, key: Uint8Array): string {
+export function symmetricEncrypt(plaintext: Uint8Array, key: Uint8Array): Ciphertext {
   const nonce = new Uint8Array(24)
   crypto.getRandomValues(nonce)
   const cipher = xchacha20poly1305(key, nonce)
@@ -18,14 +19,14 @@ export function symmetricEncrypt(plaintext: Uint8Array, key: Uint8Array): string
   const packed = new Uint8Array(nonce.length + ciphertext.length)
   packed.set(nonce)
   packed.set(ciphertext, nonce.length)
-  return bytesToHex(packed)
+  return bytesToHex(packed) as Ciphertext
 }
 
 /**
  * Symmetric decryption using XChaCha20-Poly1305.
  * Input: hex-encoded nonce(24) || ciphertext.
  */
-export function symmetricDecrypt(packed: string, key: Uint8Array): Uint8Array {
+export function symmetricDecrypt(packed: string | Ciphertext, key: Uint8Array): Uint8Array {
   const data = hexToBytes(packed)
   const nonce = data.slice(0, 24)
   const ciphertext = data.slice(24)
@@ -42,7 +43,7 @@ export function eciesWrapKey(
   key: Uint8Array,
   recipientPubkeyHex: string,
   label: string
-): { wrappedKey: string; ephemeralPubkey: string } {
+): { wrappedKey: Ciphertext; ephemeralPubkey: string } {
   const ephemeralSecret = new Uint8Array(32)
   crypto.getRandomValues(ephemeralSecret)
   const ephemeralPublicKey = secp256k1.getPublicKey(ephemeralSecret, true)
@@ -67,7 +68,7 @@ export function eciesWrapKey(
   packed.set(ciphertext, nonce.length)
 
   return {
-    wrappedKey: bytesToHex(packed),
+    wrappedKey: bytesToHex(packed) as Ciphertext,
     ephemeralPubkey: bytesToHex(ephemeralPublicKey),
   }
 }
@@ -76,7 +77,7 @@ export function eciesWrapKey(
  * ECIES key unwrapping. Recovers the symmetric key from an ECIES envelope.
  */
 export function eciesUnwrapKey(
-  envelope: { wrappedKey: string; ephemeralPubkey: string },
+  envelope: { wrappedKey: string | Ciphertext; ephemeralPubkey: string },
   privateKey: Uint8Array,
   label: string
 ): Uint8Array {
