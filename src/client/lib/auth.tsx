@@ -1,5 +1,5 @@
 import { ConsentGate } from '@/components/consent-gate'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
+import { decryptObjectFields } from '@/lib/decrypt-fields'
 import { permissionGranted } from '@shared/permissions'
 import {
   type ReactNode,
@@ -303,9 +303,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await getMe()
       lastApiActivity.current = Date.now()
+      // Decrypt envelope-encrypted fields (e.g. name) via crypto worker
+      const pubkey = await keyManager.getPublicKeyHex()
+      if (pubkey) {
+        await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
+      }
       setState((s) => ({
         ...s,
-        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
+        name: me.name,
         roles: me.roles || [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,
@@ -332,9 +337,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await authFacadeClient.refreshToken()
       const me = await getMe()
       lastApiActivity.current = Date.now()
+      // Decrypt envelope-encrypted fields (e.g. name) via crypto worker
+      const pubkey = await keyManager.getPublicKeyHex()
+      if (pubkey) {
+        await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
+      }
       setState((s) => ({
         ...s,
-        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
+        name: me.name,
         roles: me.roles || [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,

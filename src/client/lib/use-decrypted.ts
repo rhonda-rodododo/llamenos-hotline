@@ -15,7 +15,7 @@ import * as keyManager from './key-manager'
  * Decrypt encrypted fields on a single object.
  * Returns the input immediately, then re-renders with decrypted values.
  */
-export function useDecryptedObject<T extends Record<string, unknown>>(
+export function useDecryptedObject<T extends object>(
   data: T | null,
   label: string = LABEL_VOLUNTEER_PII
 ): T | null {
@@ -43,9 +43,9 @@ export function useDecryptedObject<T extends Record<string, unknown>>(
       const pubkey = await keyManager.getPublicKeyHex()
       if (!pubkey || !mountedRef.current) return
 
-      const copy = { ...data }
+      const copy = { ...data } as Record<string, unknown>
       await decryptObjectFields(copy, pubkey, label)
-      if (mountedRef.current) setDecrypted(copy)
+      if (mountedRef.current) setDecrypted(copy as T)
     })()
   }, [data, label])
 
@@ -56,9 +56,9 @@ export function useDecryptedObject<T extends Record<string, unknown>>(
       void (async () => {
         const pubkey = await keyManager.getPublicKeyHex()
         if (!pubkey || !mountedRef.current) return
-        const copy = { ...data }
+        const copy = { ...data } as Record<string, unknown>
         await decryptObjectFields(copy, pubkey, label)
-        if (mountedRef.current) setDecrypted(copy)
+        if (mountedRef.current) setDecrypted(copy as T)
       })()
     })
     return unsubscribe
@@ -79,7 +79,7 @@ export function useDecryptedObject<T extends Record<string, unknown>>(
  * Decrypt encrypted fields on an array of objects.
  * Same pattern: immediate render with raw data, re-render with decrypted.
  */
-export function useDecryptedArray<T extends Record<string, unknown>>(
+export function useDecryptedArray<T extends object>(
   data: T[],
   label: string = LABEL_VOLUNTEER_PII
 ): T[] {
@@ -102,9 +102,9 @@ export function useDecryptedArray<T extends Record<string, unknown>>(
       const pubkey = await keyManager.getPublicKeyHex()
       if (!pubkey || !mountedRef.current) return
 
-      const copy = data.map((item) => ({ ...item }))
+      const copy = data.map((item) => ({ ...item })) as Record<string, unknown>[]
       await decryptArrayFields(copy, pubkey, label)
-      if (mountedRef.current) setDecrypted(copy)
+      if (mountedRef.current) setDecrypted(copy as T[])
     })()
   }, [data, label])
 
@@ -113,9 +113,9 @@ export function useDecryptedArray<T extends Record<string, unknown>>(
       void (async () => {
         const pubkey = await keyManager.getPublicKeyHex()
         if (!pubkey || !mountedRef.current) return
-        const copy = data.map((item) => ({ ...item }))
+        const copy = data.map((item) => ({ ...item })) as Record<string, unknown>[]
         await decryptArrayFields(copy, pubkey, label)
-        if (mountedRef.current) setDecrypted(copy)
+        if (mountedRef.current) setDecrypted(copy as T[])
       })()
     })
     return unsubscribe

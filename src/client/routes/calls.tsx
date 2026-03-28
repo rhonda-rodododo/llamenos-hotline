@@ -7,9 +7,9 @@ import { VoicemailPlayer } from '@/components/voicemail-player'
 import { type CallRecord, type Volunteer, getCallHistory, listVolunteers } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptCallRecord } from '@/lib/crypto'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Link } from '@tanstack/react-router'
 import {
@@ -121,12 +121,14 @@ function CallHistoryPage() {
       .catch(() => {})
   }, [])
 
+  const decryptedVolunteers = useDecryptedArray(volunteers)
+  const decryptedCalls = useDecryptedArray(calls)
+
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of volunteers)
-      map.set(v.pubkey, tryDecryptField(v.encryptedName, v.nameEnvelopes, v.name))
+    for (const v of decryptedVolunteers) map.set(v.pubkey, v.name)
     return map
-  }, [volunteers])
+  }, [decryptedVolunteers])
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -268,14 +270,14 @@ function CallHistoryPage() {
                 </div>
               ))}
             </div>
-          ) : calls.length === 0 ? (
+          ) : decryptedCalls.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               <PhoneIncoming className="mx-auto mb-2 h-8 w-8 opacity-40" />
               {hasFilters ? t('callHistory.noResults') : t('callHistory.noCalls')}
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {calls.map((call) => (
+              {decryptedCalls.map((call) => (
                 <div
                   key={call.id}
                   className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6 hover:bg-muted/30 transition-colors"
@@ -306,11 +308,7 @@ function CallHistoryPage() {
                       </div>
                     )}
                     {(() => {
-                      const cl4 = tryDecryptField(
-                        call.encryptedCallerLast4,
-                        call.callerLast4Envelopes,
-                        call.callerLast4 ?? ''
-                      )
+                      const cl4 = call.callerLast4 ?? ''
                       return cl4 && cl4 !== '[encrypted]' ? (
                         <code className="text-[10px] text-muted-foreground font-mono">
                           ***{cl4}

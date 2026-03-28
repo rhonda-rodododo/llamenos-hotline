@@ -10,8 +10,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { type InviteCode, createInvite } from '@/lib/api'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { useToast } from '@/lib/toast'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { Check, Copy, Loader2, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -28,6 +28,7 @@ export function StepInvite({ headingRef }: Props = {}) {
   const [roleId, setRoleId] = useState<string>('role-volunteer')
   const [generating, setGenerating] = useState(false)
   const [invites, setInvites] = useState<InviteCode[]>([])
+  const decryptedInvites = useDecryptedArray(invites)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
   async function handleGenerate() {
@@ -122,20 +123,18 @@ export function StepInvite({ headingRef }: Props = {}) {
       </div>
 
       {/* Generated invites list */}
-      {invites.length > 0 && (
+      {decryptedInvites.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold">{t('setup.generatedInvites')}</h3>
           <div className="space-y-2">
-            {invites.map((invite) => (
+            {decryptedInvites.map((invite) => (
               <div
                 key={invite.code}
                 className="flex items-center justify-between rounded-lg border bg-muted/50 p-3"
               >
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
-                      {tryDecryptField(invite.encryptedName, invite.nameEnvelopes, invite.name)}
-                    </span>
+                    <span className="text-sm font-medium">{invite.name}</span>
                     <Badge variant="outline" className="text-[10px]">
                       {invite.roleIds?.includes('role-super-admin')
                         ? t('volunteers.roleAdmin')

@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { type BanEntry, addBan, bulkAddBans, listBans, removeBan } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { useToast } from '@/lib/toast'
+import { useDecryptedObject } from '@/lib/use-decrypted'
 import { createFileRoute } from '@tanstack/react-router'
 import { Plus, ShieldBan, Trash2, Upload } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -200,8 +200,9 @@ function BanRow({
   const { t } = useTranslation()
   const { toast } = useToast()
   const [showConfirm, setShowConfirm] = useState(false)
-  const displayPhone = tryDecryptField(ban.encryptedPhone, ban.phoneEnvelopes, ban.phone)
-  const displayReason = tryDecryptField(ban.encryptedReason, ban.reasonEnvelopes, ban.reason)
+  const decryptedBan = useDecryptedObject(ban)
+  const displayPhone = decryptedBan?.phone ?? ban.phone
+  const displayReason = decryptedBan?.reason ?? ban.reason
 
   return (
     <div

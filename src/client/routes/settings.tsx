@@ -18,7 +18,6 @@ import {
 import { useAuth } from '@/lib/auth'
 import { authFacadeClient } from '@/lib/auth-facade-client'
 import { cryptoWorker } from '@/lib/crypto-worker-client'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { getNotificationPrefs, setNotificationPrefs } from '@/lib/notifications'
 import { getProvisioningRoom, packProvisionPayload, sendProvisionedKey } from '@/lib/provisioning'
 import {
@@ -34,6 +33,7 @@ import {
   getClientTranscriptionSettings,
   setClientTranscriptionSettings,
 } from '@/lib/transcription'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { useNotificationPermission } from '@/lib/use-notification-permission'
 import {
   type WebAuthnCredentialInfo,
@@ -90,6 +90,7 @@ function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [canOptOut, setCanOptOut] = useState(true)
   const [webauthnCreds, setWebauthnCreds] = useState<WebAuthnCredentialInfo[]>([])
+  const decryptedWebauthnCreds = useDecryptedArray(webauthnCreds)
   const [webauthnLabel, setWebauthnLabel] = useState('')
   const [webauthnRegistering, setWebauthnRegistering] = useState(false)
   const webauthnAvailable = isWebAuthnAvailable()
@@ -311,21 +312,18 @@ function SettingsPage() {
           expanded={expanded.has('passkeys')}
           onToggle={(open) => toggleSection('passkeys', open)}
         >
-          {webauthnCreds.length === 0 ? (
+          {decryptedWebauthnCreds.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('webauthn.noKeys')}</p>
           ) : (
             <div className="space-y-2">
-              {webauthnCreds.map((cred) => (
+              {decryptedWebauthnCreds.map((cred) => (
                 <div
                   key={cred.id}
                   data-testid="passkey-credential-row"
                   className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
                 >
                   <div className="space-y-0.5">
-                    <p className="text-sm font-medium">
-                      {tryDecryptField(cred.encryptedLabel, cred.labelEnvelopes, cred.label) ||
-                        cred.id.slice(0, 8)}
-                    </p>
+                    <p className="text-sm font-medium">{cred.label || cred.id.slice(0, 8)}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="outline" className="text-[10px]">
                         {cred.backedUp ? t('webauthn.syncedPasskey') : t('webauthn.singleDevice')}

@@ -15,8 +15,8 @@ import {
   updateVolunteer,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { useToast } from '@/lib/toast'
+import { useDecryptedObject } from '@/lib/use-decrypted'
 import { LANGUAGES } from '@shared/languages'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import {
@@ -98,6 +98,8 @@ function VolunteerProfilePage() {
     [shifts, pubkey]
   )
 
+  const decryptedVolunteer = useDecryptedObject(volunteer)
+
   if (!isAdmin) {
     return <div className="text-muted-foreground">Access denied</div>
   }
@@ -128,11 +130,7 @@ function VolunteerProfilePage() {
   }
 
   const auditTotalPages = Math.ceil(auditTotal / auditLimit)
-  const displayName = tryDecryptField(
-    volunteer.encryptedName,
-    volunteer.nameEnvelopes,
-    volunteer.name
-  )
+  const displayName = decryptedVolunteer?.name ?? volunteer.name
 
   const langMap = new Map(LANGUAGES.map((l) => [l.code, l]))
 

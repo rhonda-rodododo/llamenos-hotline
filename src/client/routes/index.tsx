@@ -16,9 +16,9 @@ import {
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { encryptNoteV2 } from '@/lib/crypto'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { useCallTimer, useCalls, useShiftStatus } from '@/lib/hooks'
 import { useTranscription } from '@/lib/transcription'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -69,6 +69,8 @@ function DashboardPage() {
   const [callsToday, setCallsToday] = useState<number | null>(null)
   const [presence, setPresence] = useState<VolunteerPresence[]>([])
   const [volunteers, setVolunteers] = useState<Volunteer[]>([])
+
+  const decryptedVolunteers = useDecryptedArray(volunteers)
 
   // Analytics state (lazy-loaded when section expands)
   const [analyticsOpen, setAnalyticsOpen] = useState(false)
@@ -486,10 +488,10 @@ function DashboardPage() {
                       <p className="text-xs text-muted-foreground">
                         {call.answeredBy &&
                           (() => {
-                            const vol = volunteers.find((v) => v.pubkey === call.answeredBy)
-                            return vol
-                              ? tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)
-                              : t('calls.active')
+                            const vol = decryptedVolunteers.find(
+                              (v) => v.pubkey === call.answeredBy
+                            )
+                            return vol ? vol.name : t('calls.active')
                           })()}
                       </p>
                     </div>

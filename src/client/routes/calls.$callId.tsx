@@ -11,9 +11,9 @@ import {
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { decryptCallRecord, decryptNote, decryptNoteV2, decryptTranscription } from '@/lib/crypto'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
+import { useDecryptedArray, useDecryptedObject } from '@/lib/use-decrypted'
 import type { NotePayload } from '@shared/types'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
@@ -137,12 +137,16 @@ function CallDetailPage() {
     })()
   }, [call, hasNsec, publicKey])
 
+  const decryptedVolunteers = useDecryptedArray(volunteers)
+  const decryptedCallWithFields = useDecryptedObject(
+    decryptedCall as Record<string, unknown> | null
+  ) as CallRecord | null
+
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of volunteers)
-      map.set(v.pubkey, tryDecryptField(v.encryptedName, v.nameEnvelopes, v.name))
+    for (const v of decryptedVolunteers) map.set(v.pubkey, v.name)
     return map
-  }, [volunteers])
+  }, [decryptedVolunteers])
 
   if (loading) {
     return (
@@ -154,14 +158,15 @@ function CallDetailPage() {
     )
   }
 
-  if (!decryptedCall) {
+  if (!decryptedCallWithFields) {
     return (
       <div className="py-8 text-center text-muted-foreground">{t('calls.detail.notFound')}</div>
     )
   }
 
-  const volunteerName = decryptedCall.answeredBy
-    ? nameMap.get(decryptedCall.answeredBy) || decryptedCall.answeredBy.slice(0, 8)
+  const volunteerName = decryptedCallWithFields.answeredBy
+    ? nameMap.get(decryptedCallWithFields.answeredBy) ||
+      decryptedCallWithFields.answeredBy.slice(0, 8)
     : null
 
   return (
@@ -196,7 +201,7 @@ function CallDetailPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2">
-              {decryptedCall.status === 'unanswered' ? (
+              {decryptedCallWithFields.status === 'unanswered' ? (
                 <>
                   <PhoneMissed className="h-4 w-4 text-destructive" />
                   <span className="text-sm text-destructive">{t('callHistory.unanswered')}</span>
@@ -213,24 +218,20 @@ function CallDetailPage() {
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
-              <span>{new Date(decryptedCall.startedAt).toLocaleString()}</span>
+              <span>{new Date(decryptedCallWithFields.startedAt).toLocaleString()}</span>
             </div>
 
-            {decryptedCall.duration !== undefined && (
+            {decryptedCallWithFields.duration !== undefined && (
               <div className="flex items-center gap-2 text-sm">
                 <Badge variant="outline" className="gap-1">
                   <Clock className="h-3 w-3" />
-                  {formatDuration(decryptedCall.duration)}
+                  {formatDuration(decryptedCallWithFields.duration)}
                 </Badge>
               </div>
             )}
 
             {(() => {
-              const cl4 = tryDecryptField(
-                decryptedCall.encryptedCallerLast4,
-                decryptedCall.callerLast4Envelopes,
-                decryptedCall.callerLast4 ?? ''
-              )
+              const cl4 = decryptedCallWithFields.callerLast4 ?? ''
               return cl4 && cl4 !== '[encrypted]' ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Phone className="h-4 w-4" />
@@ -244,12 +245,12 @@ function CallDetailPage() {
               ) : null
             })()}
 
-            {decryptedCall.hasRecording && (
+            {decryptedCallWithFields.hasRecording && (
               <div className="pt-2">
                 <p className="mb-2 text-xs font-medium text-muted-foreground">
                   {t('calls.detail.recording')}
                 </p>
-                <RecordingPlayer callId={decryptedCall.id} />
+                <RecordingPlayer callId={decryptedCallWithFields.id} />
               </div>
             )}
           </CardContent>
