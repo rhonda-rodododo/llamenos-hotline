@@ -34,8 +34,10 @@ test.describe('Voicemail UI', () => {
     })
     expect(incomingRes.status()).toBe(200)
 
-    // Simulate voicemail recording complete
-    await request.post(`/telephony/voicemail-recording?callSid=${callSid}`, {
+    // Simulate voicemail recording complete — must finish before call-status
+    // because the voicemail handler reads the active call to find hubId, and
+    // call-status 'completed' deletes the active call.
+    const vmRes = await request.post(`/telephony/voicemail-recording?callSid=${callSid}`, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: twilioForm({
         RecordingStatus: 'completed',
@@ -43,9 +45,15 @@ test.describe('Voicemail UI', () => {
         CallSid: callSid,
       }),
     })
+    expect(vmRes.status()).toBe(200)
+
+    // Wait for voicemail handler to complete its DB writes before completing the call.
+    // The handler sets hasVoicemail=true via upsertCallRecord synchronously, but
+    // background tasks (storage, transcription) run async. The DB write is what matters.
+    await new Promise((r) => setTimeout(r, 1000))
 
     // Complete the call so it appears in call history
-    await request.post('/telephony/call-status', {
+    const statusRes = await request.post('/telephony/call-status', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: twilioForm({
         CallSid: callSid,
@@ -55,29 +63,33 @@ test.describe('Voicemail UI', () => {
         Duration: '30',
       }),
     })
+    expect(statusRes.status()).toBe(200)
 
-    // Navigate to calls page — poll until the voicemail player appears.
-    // The webhooks trigger async DB writes; CI workers can be slow to process
-    // the voicemail recording + call status updates before the UI reflects them.
+    // Wait for call-status handler to persist the completed call record
+    await new Promise((r) => setTimeout(r, 1000))
+
+    // Verify the call record exists with hasVoicemail via API before checking UI
+    const historyRes = await request.get('/api/calls/history')
+    expect(historyRes.ok()).toBeTruthy()
+    const history = await historyRes.json()
+    const vmCall = history.calls?.find((c: { callSid?: string }) => c.callSid === callSid)
+    expect(vmCall, `Call ${callSid} should appear in history`).toBeTruthy()
+    expect(vmCall.hasVoicemail, 'Call should have hasVoicemail=true').toBe(true)
+
+    // Now navigate to the calls page and verify UI
     await navigateAfterLogin(page, '/calls')
     await expect(page.getByRole('heading', { name: /call history/i })).toBeVisible({
       timeout: 15000,
     })
 
-    // Poll: reload the page periodically until the voicemail player shows up,
-    // since the call may appear in the list before the voicemail flag is set.
-    const voicemailPlayer = page.locator('[data-testid="voicemail-player"]')
-    for (let attempt = 0; attempt < 5; attempt++) {
-      if (
-        await voicemailPlayer
-          .first()
-          .isVisible({ timeout: 3000 })
-          .catch(() => false)
-      )
-        break
-      await page.reload({ waitUntil: 'domcontentloaded' })
-      await page.waitForTimeout(1000)
-    }
-    await expect(voicemailPlayer.first()).toBeVisible({ timeout: 5000 })
+    // Wait for call list rows to render
+    await expect(page.locator('[data-testid="call-history-row"]').first()).toBeVisible({
+      timeout: 15000,
+    })
+
+    // The VoicemailPlayer component renders data-testid="voicemail-player"
+    await expect(page.locator('[data-testid="voicemail-player"]').first()).toBeVisible({
+      timeout: 15000,
+    })
   })
 })

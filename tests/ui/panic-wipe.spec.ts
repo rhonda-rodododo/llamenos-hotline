@@ -21,23 +21,21 @@ test.describe('Panic Wipe (L-9)', () => {
     const overlay = page.getByTestId('panic-wipe-overlay')
     await expect(overlay).toBeVisible({ timeout: 2000 })
 
-    // Should redirect to /login — the wipe triggers multiple navigations
-    // (SPA detects auth loss → redirects → page reload), so wait for the
-    // final URL and a stable load state before inspecting storage.
-    await page.waitForURL('**/login', { timeout: 10000 })
-    await page.waitForLoadState('load')
-    // Extra settle time — the login page may trigger additional React renders
-    await page.waitForTimeout(500)
+    // The wipe does window.location.href = '/login' (full page reload after 200ms).
+    // After wipe, localStorage is empty so login shows the nsec import form (not PIN).
+    // Wait for the login page heading to be visible — this confirms the page
+    // has fully loaded and the execution context is stable for evaluate().
+    await expect(page.getByText(/enter your secret key/i)).toBeVisible({ timeout: 15000 })
 
     // Verify storage was cleared
-    const hasKeyAfter = await page.evaluate(() => !!localStorage.getItem('llamenos-encrypted-key'))
-    expect(hasKeyAfter).toBe(false)
-
-    const localStorageLength = await page.evaluate(() => localStorage.length)
-    expect(localStorageLength).toBe(0)
-
-    const sessionStorageLength = await page.evaluate(() => sessionStorage.length)
-    expect(sessionStorageLength).toBe(0)
+    const storageState = await page.evaluate(() => ({
+      hasKey: !!localStorage.getItem('llamenos-encrypted-key'),
+      localStorageLength: localStorage.length,
+      sessionStorageLength: sessionStorage.length,
+    }))
+    expect(storageState.hasKey).toBe(false)
+    expect(storageState.localStorageLength).toBe(0)
+    expect(storageState.sessionStorageLength).toBe(0)
   })
 
   test('two Escapes then pause does not trigger wipe', async ({ page }) => {
