@@ -86,7 +86,7 @@ export interface Env {
   TWILIO_ACCOUNT_SID: string
   TWILIO_AUTH_TOKEN: string
   TWILIO_PHONE_NUMBER: string
-  ADMIN_PUBKEY: string
+  ADMIN_PUBKEY?: string
   ADMIN_DECRYPTION_PUBKEY?: string // Separate pubkey for note/hub key encryption (falls back to ADMIN_PUBKEY)
   HOTLINE_NAME: string
   ENVIRONMENT: string

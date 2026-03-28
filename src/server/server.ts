@@ -42,14 +42,13 @@ async function main() {
   if (env.HMAC_SECRET !== env.HMAC_SECRET.trim()) {
     throw new Error('HMAC_SECRET must not contain leading/trailing whitespace')
   }
-  if (!env.ADMIN_PUBKEY) {
-    throw new Error('ADMIN_PUBKEY is required')
-  }
-  if (env.ADMIN_PUBKEY !== env.ADMIN_PUBKEY.trim()) {
-    throw new Error('ADMIN_PUBKEY must not contain leading/trailing whitespace')
-  }
-  if (!/^[0-9a-f]{64}$/i.test(env.ADMIN_PUBKEY)) {
-    throw new Error('ADMIN_PUBKEY must be a 64-character hex string (x-only Nostr pubkey)')
+  if (env.ADMIN_PUBKEY) {
+    if (env.ADMIN_PUBKEY !== env.ADMIN_PUBKEY.trim()) {
+      throw new Error('ADMIN_PUBKEY must not contain leading/trailing whitespace')
+    }
+    if (!/^[0-9a-f]{64}$/i.test(env.ADMIN_PUBKEY)) {
+      throw new Error('ADMIN_PUBKEY must be a 64-character hex string (x-only Nostr pubkey)')
+    }
   }
   if (env.SERVER_NOSTR_SECRET && !/^[0-9a-f]{64}$/i.test(env.SERVER_NOSTR_SECRET)) {
     throw new Error('SERVER_NOSTR_SECRET must be exactly 64 lowercase hex characters')
