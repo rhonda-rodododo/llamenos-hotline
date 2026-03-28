@@ -371,7 +371,8 @@ function SettingsPage() {
                   setWebauthnCreds(updated)
                   setWebauthnLabel('')
                   toast(t('webauthn.registerSuccess'), 'success')
-                } catch {
+                } catch (err) {
+                  console.error('[passkey-register]', err)
                   toast(t('common.error'), 'error')
                 } finally {
                   setWebauthnRegistering(false)
