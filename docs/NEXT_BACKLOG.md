@@ -265,6 +265,14 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 - [x] **Health Monitoring** — ProviderHealthService with consecutive failure tracking (healthy→degraded→down). Background polling. GET /provider-health endpoint. ProviderHealthBadge React component. 5 E2E tests.
 - [x] **Infrastructure** — Fixed Asterisk bridge 44GB memory leak (WebSocket GC + reconnect limit). Docker compose dev cleanup (asterisk in Docker, bridge local). Bun upgraded to latest.
 
+### Contact Directory — Follow-Ups (PR #26)
+
+- [ ] **Relationship permission asymmetry** — `POST /contacts/relationships` requires `contacts:create` but `GET` requires `contacts:read-pii`. Volunteer can create relationships they can't read. Decide if this is intentional (blind record creation) or should require `contacts:read-pii` for creation too.
+- [ ] **Contact directory UI E2E tests** — Directory page, create contact, profile page, relationship navigation
+- [ ] **Contact import/export CSV** — future feature
+- [ ] **Contact merging UI** — dedup warns but doesn't merge; future feature
+- [ ] **Tag filtering server-side** — tags filter is in-memory; add GIN index + `@>` operator for large hubs
+
 ### Security Fixes — Pending
 
 - [ ] **Unknown API routes should return 404 instead of 401** — Auth middleware runs before route matching, so unauthenticated requests to non-existent routes get 401 (reveals route doesn't exist but requires auth). Fix: move route matching before auth middleware, or add a catch-all 404 handler after all routes that returns 404 regardless of auth state.
