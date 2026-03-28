@@ -23,8 +23,8 @@ async function apiCall(
     async ({ method, path, body }) => {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
 
-      // Use JWT token from localStorage
-      const token = localStorage.getItem('access_token')
+      // Use JWT from sessionStorage (injected by test helpers)
+      const token = sessionStorage.getItem('__TEST_JWT')
       if (token) {
         headers.Authorization = `Bearer ${token}`
       }

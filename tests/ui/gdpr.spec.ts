@@ -175,7 +175,7 @@ test.describe('GDPR Compliance', () => {
       await loginAsAdmin(page)
 
       // Use the page's JWT token to make an authenticated API request
-      const accessToken = await page.evaluate(() => localStorage.getItem('access_token'))
+      const accessToken = await page.evaluate(() => sessionStorage.getItem('__TEST_JWT'))
       const headers: Record<string, string> = {}
       if (accessToken) headers.Authorization = `Bearer ${accessToken}`
 

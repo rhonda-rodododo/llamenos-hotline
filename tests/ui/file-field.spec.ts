@@ -23,7 +23,7 @@ test.describe('File Custom Field', () => {
           'Content-Type': 'application/json',
           ...((options.headers as Record<string, string>) || {}),
         }
-        const token = localStorage.getItem('access_token')
+        const token = sessionStorage.getItem('__TEST_JWT')
         if (token) {
           headers.Authorization = `Bearer ${token}`
         }
@@ -140,7 +140,7 @@ test.describe('File Custom Field', () => {
 
         // Upload chunk
         const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream' }
-        const chunkToken = localStorage.getItem('access_token')
+        const chunkToken = sessionStorage.getItem('__TEST_JWT')
         if (chunkToken) {
           headers.Authorization = `Bearer ${chunkToken}`
         }

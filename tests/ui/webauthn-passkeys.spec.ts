@@ -20,7 +20,7 @@ async function injectAuthedFetch(page: import('@playwright/test').Page) {
         ...((options.headers as Record<string, string>) || {}),
       }
       // Use JWT token from localStorage (set during login)
-      const token = localStorage.getItem('access_token')
+      const token = sessionStorage.getItem('__TEST_JWT')
       if (token) {
         headers.Authorization = `Bearer ${token}`
       }

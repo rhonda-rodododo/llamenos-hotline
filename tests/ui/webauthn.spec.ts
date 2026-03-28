@@ -284,9 +284,17 @@ test.describe('Passkey authentication', () => {
     await passkeyBtn.click()
     await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15_000 })
 
-    // Verify the app stored a JWT access token (not a legacy session token)
-    const accessToken = await page.evaluate(() => localStorage.getItem('access_token'))
-    expect(accessToken, 'JWT access token must be stored after passkey login').toBeTruthy()
+    // Verify the facade client holds a JWT access token after passkey login
+    const accessToken = await page.evaluate(
+      () =>
+        (window as Record<string, unknown>).__TEST_AUTH_FACADE &&
+        (
+          (window as Record<string, unknown>).__TEST_AUTH_FACADE as {
+            getAccessToken(): string | null
+          }
+        ).getAccessToken()
+    )
+    expect(accessToken, 'JWT access token must be held by facade after passkey login').toBeTruthy()
     // Verify it is a JWT: 3 dot-separated base64url segments
     const jwtParts = (accessToken ?? '').split('.')
     expect(jwtParts, 'access_token must be a JWT (3 segments)').toHaveLength(3)
