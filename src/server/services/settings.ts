@@ -1,3 +1,8 @@
+import {
+  LABEL_PROVIDER_CREDENTIAL_WRAP,
+  LABEL_STORAGE_CREDENTIAL_WRAP,
+} from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { IVR_LANGUAGES } from '../../shared/languages'
 import { DEFAULT_ROLES } from '../../shared/permissions'
@@ -59,7 +64,7 @@ import {
   transcriptionSettings,
   volunteers,
 } from '../db/schema'
-import { decryptProviderCredentials, encryptProviderCredentials } from '../lib/crypto'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
   CallSettings,
@@ -74,14 +79,10 @@ import type {
 } from '../types'
 
 export class SettingsService {
-  private readonly serverSecret: string
-
   constructor(
     protected readonly db: Database,
-    serverSecret: string
-  ) {
-    this.serverSecret = serverSecret
-  }
+    private readonly crypto: CryptoService
+  ) {}
 
   // ------------------------------------------------------------------ Spam Settings
 
@@ -326,11 +327,11 @@ export class SettingsService {
     if (!configStr) return null
     let json: string
     try {
-      json = decryptProviderCredentials(configStr, this.serverSecret)
+      json = this.crypto.serverDecrypt(configStr as Ciphertext, LABEL_PROVIDER_CREDENTIAL_WRAP)
     } catch {
       // Legacy plaintext — re-encrypt and update
       json = configStr
-      const encrypted = encryptProviderCredentials(json, this.serverSecret)
+      const encrypted = this.crypto.serverEncrypt(json, LABEL_PROVIDER_CREDENTIAL_WRAP)
       await this.db
         .update(telephonyConfig)
         .set({ config: encrypted })
@@ -344,7 +345,10 @@ export class SettingsService {
     hubId?: string
   ): Promise<TelephonyProviderConfig> {
     const hId = hubId ?? 'global'
-    const encrypted = encryptProviderCredentials(JSON.stringify(config), this.serverSecret)
+    const encrypted = this.crypto.serverEncrypt(
+      JSON.stringify(config),
+      LABEL_PROVIDER_CREDENTIAL_WRAP
+    )
     await this.db
       .insert(telephonyConfig)
       .values({ hubId: hId, config: encrypted })
@@ -362,10 +366,9 @@ export class SettingsService {
       if (!row.config) continue
       let cfg: Record<string, unknown>
       try {
-        cfg = JSON.parse(decryptProviderCredentials(row.config, this.serverSecret)) as Record<
-          string,
-          unknown
-        >
+        cfg = JSON.parse(
+          this.crypto.serverDecrypt(row.config as Ciphertext, LABEL_PROVIDER_CREDENTIAL_WRAP)
+        ) as Record<string, unknown>
       } catch {
         try {
           cfg = JSON.parse(row.config) as Record<string, unknown>
@@ -464,11 +467,11 @@ export class SettingsService {
     const configStr = rows[0].config
     let json: string
     try {
-      json = decryptProviderCredentials(configStr, this.serverSecret)
+      json = this.crypto.serverDecrypt(configStr as Ciphertext, LABEL_PROVIDER_CREDENTIAL_WRAP)
     } catch {
       // Legacy plaintext — re-encrypt and update
       json = configStr
-      const encrypted = encryptProviderCredentials(json, this.serverSecret)
+      const encrypted = this.crypto.serverEncrypt(json, LABEL_PROVIDER_CREDENTIAL_WRAP)
       await this.db
         .update(messagingConfig)
         .set({ config: encrypted })
@@ -484,7 +487,10 @@ export class SettingsService {
     const hId = hubId ?? 'global'
     const current = await this.getMessagingConfig(hId)
     const updated = { ...current, ...data }
-    const encrypted = encryptProviderCredentials(JSON.stringify(updated), this.serverSecret)
+    const encrypted = this.crypto.serverEncrypt(
+      JSON.stringify(updated),
+      LABEL_PROVIDER_CREDENTIAL_WRAP
+    )
     await this.db
       .insert(messagingConfig)
       .values({ hubId: hId, config: encrypted })

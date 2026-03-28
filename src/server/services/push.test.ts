@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test'
 import path from 'node:path'
 import { createDatabase } from '@server/db'
 import { pushSubscriptions } from '@server/db/schema'
+import { CryptoService } from '@server/lib/crypto-service'
 import { PushService } from '@server/services/push'
 import { eq } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/bun-sql/migrator'
@@ -29,7 +30,7 @@ beforeAll(async () => {
   await migrate(db, {
     migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations'),
   })
-  service = new PushService(db)
+  service = new PushService(db, new CryptoService('', ''))
   // Clean up any leftover data from previous failed runs
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.pubkey, PUBKEY_A))
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.pubkey, PUBKEY_B))

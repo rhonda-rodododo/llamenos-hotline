@@ -16,6 +16,7 @@ import { loadEnv } from './env'
 import { scheduleBlastProcessor } from './jobs/blast-processor'
 import { scheduleRetentionPurge } from './jobs/retention-purge'
 import { closeNostrPublisher, getMessagingAdapter, getTelephony } from './lib/adapters'
+import { CryptoService } from './lib/crypto-service'
 import { createStorageAdmin } from './lib/storage-admin'
 import { createStorageManager, resolveStorageCredentials } from './lib/storage-manager'
 import { errorHandler } from './middleware/error'
@@ -109,7 +110,8 @@ async function main() {
     console.warn('[llamenos] Storage not configured — file upload/download routes will return 503')
   }
 
-  const services = createServices(db, storage, env.SERVER_NOSTR_SECRET ?? '')
+  const crypto = new CryptoService(env.SERVER_NOSTR_SECRET ?? '', env.HMAC_SECRET ?? '')
+  const services = createServices(db, crypto, storage)
 
   // Provider health monitoring
   const providerHealth = new ProviderHealthService()

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import path from 'node:path'
 import { createDatabase } from '@server/db'
 import { hubKeys, hubs } from '@server/db/schema'
+import { CryptoService } from '@server/lib/crypto-service'
 import { SettingsService } from '@server/services/settings'
 import { eq } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/bun-sql/migrator'
@@ -20,7 +21,7 @@ beforeAll(async () => {
   await migrate(db, {
     migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations'),
   })
-  service = new SettingsService(db, '')
+  service = new SettingsService(db, new CryptoService('', ''))
   // Create test hub using updated schema (no timezone, add slug)
   await db.insert(hubs).values({
     id: TEST_HUB_ID,

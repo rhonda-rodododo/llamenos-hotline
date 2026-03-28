@@ -10,6 +10,7 @@ import {
   webauthnCredentials,
   webauthnSettings,
 } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
   AddWebAuthnCredentialData,
@@ -46,7 +47,10 @@ const VOLUNTEER_SAFE_FIELDS = new Set([
 ])
 
 export class IdentityService {
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    protected readonly crypto: CryptoService
+  ) {}
 
   // ------------------------------------------------------------------ Volunteers
 

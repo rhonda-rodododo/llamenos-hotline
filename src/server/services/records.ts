@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gte, lte, or, sql } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
 import { auditLog, bans, callRecords, noteEnvelopes } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
   AuditFilters,
@@ -23,7 +24,10 @@ import type {
 } from '../types'
 
 export class RecordsService {
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    protected readonly crypto: CryptoService
+  ) {}
 
   // ------------------------------------------------------------------ Bans
 

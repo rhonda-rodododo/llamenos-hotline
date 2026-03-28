@@ -2,6 +2,7 @@ import { and, eq, inArray } from 'drizzle-orm'
 import webpush from 'web-push'
 import type { Database } from '../db'
 import { pushSubscriptions } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 
 export interface PushSubscriptionData {
@@ -26,7 +27,10 @@ export interface PushSubscription {
 export class PushService {
   #vapidConfigured = false
 
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    protected readonly crypto: CryptoService
+  ) {}
 
   #rowToSubscription(row: typeof pushSubscriptions.$inferSelect): PushSubscription {
     return {

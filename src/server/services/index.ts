@@ -1,4 +1,5 @@
 import type { Database } from '../db'
+import type { CryptoService } from '../lib/crypto-service'
 import type { StorageManager } from '../types'
 import { BlastService } from './blasts'
 import { CallService } from './calls'
@@ -46,21 +47,21 @@ export interface Services {
 
 export function createServices(
   db: Database,
-  storage: StorageManager | null = null,
-  serverSecret = ''
+  crypto: CryptoService,
+  storage: StorageManager | null = null
 ): Services {
   return {
-    identity: new IdentityService(db),
-    settings: new SettingsService(db, serverSecret),
-    records: new RecordsService(db),
+    identity: new IdentityService(db, crypto),
+    settings: new SettingsService(db, crypto),
+    records: new RecordsService(db, crypto),
     shifts: new ShiftService(db),
-    calls: new CallService(db),
-    conversations: new ConversationService(db),
+    calls: new CallService(db, crypto),
+    conversations: new ConversationService(db, crypto),
     blasts: new BlastService(db),
     files: new FilesService(db, storage),
     gdpr: new GdprService(db),
     reportTypes: new ReportTypeService(db),
-    push: new PushService(db),
+    push: new PushService(db, crypto),
     storage,
   }
 }

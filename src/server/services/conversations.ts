@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from 'drizzle-orm'
 import type { MessageDeliveryStatus, RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
 import { conversations, messageEnvelopes } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
   Conversation,
@@ -12,7 +13,10 @@ import type {
 } from '../types'
 
 export class ConversationService {
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    protected readonly crypto: CryptoService
+  ) {}
 
   // ------------------------------------------------------------------ Conversations
 

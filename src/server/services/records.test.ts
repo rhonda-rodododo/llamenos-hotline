@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import path from 'node:path'
 import { createDatabase } from '@server/db'
 import { auditLog } from '@server/db/schema'
+import { CryptoService } from '@server/lib/crypto-service'
 import { RecordsService } from '@server/services/records'
 import { eq } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/bun-sql/migrator'
@@ -21,7 +22,7 @@ beforeAll(async () => {
   await migrate(db, {
     migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations'),
   })
-  service = new RecordsService(db)
+  service = new RecordsService(db, new CryptoService('', ''))
 })
 
 afterAll(async () => {

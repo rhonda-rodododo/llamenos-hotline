@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import type { Database } from '../db'
 import { activeCalls, callLegs, callTokens } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
   ActiveCall,
@@ -12,7 +13,10 @@ import type {
 } from '../types'
 
 export class CallService {
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    protected readonly crypto: CryptoService
+  ) {}
 
   // ------------------------------------------------------------------ Active Calls
 
