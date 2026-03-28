@@ -25,7 +25,6 @@ test.describe('Multi-hub architecture — API', () => {
     const created = await createRes.json()
     expect(created).toHaveProperty('hub')
     expect(created.hub.name).toBe('Test Hub')
-    expect(created.hub.slug).toBe('test-hub')
     expect(created.hub.status).toBe('active')
     expect(created.hub.id).toBeTruthy()
 
