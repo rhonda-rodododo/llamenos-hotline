@@ -1,5 +1,7 @@
 import { boolean, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core'
+import type { RecipientEnvelope } from '../../../shared/types'
 import { jsonb } from '../bun-jsonb'
+import { ciphertext, hmacHashed } from '../crypto-columns'
 
 export const volunteers = pgTable('volunteers', {
   pubkey: text('pubkey').primaryKey(),
@@ -17,6 +19,9 @@ export const volunteers = pgTable('volunteers', {
   callPreference: text('call_preference').notNull().default('phone'),
   supportedMessagingChannels: jsonb<string[]>()('supported_messaging_channels'),
   messagingEnabled: boolean('messaging_enabled'),
+  encryptedName: ciphertext('encrypted_name'),
+  nameEnvelopes: jsonb<RecipientEnvelope[]>()('name_envelopes').notNull().default([]),
+  encryptedPhone: ciphertext('encrypted_phone'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -35,6 +40,8 @@ export const webauthnCredentials = pgTable('webauthn_credentials', {
   transports: jsonb<string[]>()('transports').notNull().default([]),
   backedUp: boolean('backed_up').notNull().default(false),
   label: text('label').notNull().default(''),
+  encryptedLabel: ciphertext('encrypted_label'),
+  labelEnvelopes: jsonb<RecipientEnvelope[]>()('label_envelopes').notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   lastUsedAt: timestamp('last_used_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -57,7 +64,10 @@ export const inviteCodes = pgTable('invite_codes', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
   usedBy: text('used_by'),
-  recipientPhoneHash: text('recipient_phone_hash'),
+  encryptedName: ciphertext('encrypted_name'),
+  nameEnvelopes: jsonb<RecipientEnvelope[]>()('name_envelopes').notNull().default([]),
+  encryptedPhone: ciphertext('encrypted_phone'),
+  recipientPhoneHash: hmacHashed('recipient_phone_hash'),
   deliveryChannel: varchar('delivery_channel', { length: 16 }),
   deliverySentAt: timestamp('delivery_sent_at', { withTimezone: true }),
 })

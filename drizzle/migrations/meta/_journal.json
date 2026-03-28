@@ -148,6 +148,13 @@
       "when": 1774969200001,
       "tag": "0020_hub_storage_credentials",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1774857600000,
+      "tag": "0021_encrypted_columns",
+      "breakpoints": true
     }
   ]
 }

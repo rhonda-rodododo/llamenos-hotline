@@ -1,5 +1,6 @@
 import { boolean, integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 import { jsonb } from '../bun-jsonb'
+import { ciphertext } from '../crypto-columns'
 
 export const hubs = pgTable('hubs', {
   id: text('id').primaryKey(),
@@ -172,6 +173,7 @@ export const geocodingConfig = pgTable('geocoding_config', {
   id: text('id').primaryKey().default('global'),
   provider: text('provider'), // 'opencage' | 'geoapify' | null
   apiKey: text('api_key').notNull().default(''),
+  encryptedApiKey: ciphertext('encrypted_api_key'),
   countries: jsonb<string[]>()('countries').notNull().default([]),
   enabled: boolean('enabled').notNull().default(false),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -195,9 +197,12 @@ export const providerConfig = pgTable('provider_config', {
   sipConfigured: boolean('sip_configured').notNull().default(false),
   a2pStatus: text('a2p_status').default('not_started'),
   brandSid: text('brand_sid'),
+  encryptedBrandSid: ciphertext('encrypted_brand_sid'),
   campaignSid: text('campaign_sid'),
+  encryptedCampaignSid: ciphertext('encrypted_campaign_sid'),
   messagingServiceSid: text('messaging_service_sid'),
-  encryptedCredentials: text('encrypted_credentials'),
+  encryptedMessagingServiceSid: ciphertext('encrypted_messaging_service_sid'),
+  encryptedCredentials: ciphertext('encrypted_credentials'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -205,6 +210,7 @@ export const providerConfig = pgTable('provider_config', {
 export const signalRegistrationPending = pgTable('signal_registration_pending', {
   id: text('id').primaryKey().default('global'),
   number: text('number').notNull(),
+  encryptedNumber: ciphertext('encrypted_number'),
   bridgeUrl: text('bridge_url').notNull(),
   method: text('method').notNull(), // 'sms' | 'voice'
   status: text('status').notNull().default('pending'),
