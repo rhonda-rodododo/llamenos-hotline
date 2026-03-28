@@ -369,7 +369,9 @@ export class SettingsService {
         }))
       )
       .returning()
-    return rows.map((r) => this.#rowToCustomField(r, '', '', []))
+    return rows.map((r, i) =>
+      this.#rowToCustomField(r, fields[i]?.name, fields[i]?.label, fields[i]?.options)
+    )
   }
 
   // ------------------------------------------------------------------ Telephony Provider
