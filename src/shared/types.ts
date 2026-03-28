@@ -182,7 +182,16 @@ export interface CustomFieldDefinition {
   id: string // unique UUID
   name: string // internal key (machine-readable, e.g. "severity")
   label: string // display label (e.g. "Severity Rating")
-  type: 'text' | 'number' | 'select' | 'checkbox' | 'textarea' | 'file' | 'location' | 'contact' | 'contacts'
+  type:
+    | 'text'
+    | 'number'
+    | 'select'
+    | 'checkbox'
+    | 'textarea'
+    | 'file'
+    | 'location'
+    | 'contact'
+    | 'contacts'
   required: boolean
   options?: string[] // for 'select' type only
   /** Hub-key encrypted field name (hex ciphertext). */
@@ -311,7 +320,7 @@ export interface UploadInit {
 /** What gets encrypted before storage — replaces plain text */
 export interface NotePayload {
   text: string
-  fields?: Record<string, string | number | boolean | FileFieldValue>
+  fields?: Record<string, string | string[] | number | boolean | FileFieldValue>
 }
 
 export const MAX_CUSTOM_FIELDS = 20

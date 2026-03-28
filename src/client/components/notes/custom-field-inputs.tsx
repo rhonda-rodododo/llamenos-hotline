@@ -1,3 +1,4 @@
+import { ContactSelect } from '@/components/contacts/contact-select'
 import { FileFieldInput } from '@/components/custom-fields/file-field-input'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,7 +14,7 @@ import { Switch } from '@/components/ui/switch'
 import type { CustomFieldDefinition, FileFieldValue, LocationFieldValue } from '@shared/types'
 import { useTranslation } from 'react-i18next'
 
-type FieldValue = string | number | boolean | FileFieldValue
+type FieldValue = string | string[] | number | boolean | FileFieldValue
 
 interface Props {
   fields: CustomFieldDefinition[]
@@ -206,6 +207,23 @@ function renderFieldInput(
         />
       )
     }
+    case 'contact':
+      return (
+        <ContactSelect
+          value={value as string | undefined}
+          onChange={(v) => onChange(v)}
+          disabled={disabled}
+        />
+      )
+    case 'contacts':
+      return (
+        <ContactSelect
+          value={value as string[] | undefined}
+          onChange={(v) => onChange(v)}
+          multiple
+          disabled={disabled}
+        />
+      )
     default:
       return null
   }
