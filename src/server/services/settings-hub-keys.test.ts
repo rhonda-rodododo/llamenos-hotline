@@ -22,11 +22,10 @@ beforeAll(async () => {
     migrationsFolder: path.resolve(import.meta.dir, '../../../drizzle/migrations'),
   })
   service = new SettingsService(db, new CryptoService('', ''))
-  // Create test hub using updated schema (no timezone, add slug)
+  // Create test hub
   await db.insert(hubs).values({
     id: TEST_HUB_ID,
     name: 'Test Hub Envelopes',
-    slug: 'test-hub-envelopes',
   })
 })
 

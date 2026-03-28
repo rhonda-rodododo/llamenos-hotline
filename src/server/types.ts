@@ -559,7 +559,6 @@ export interface UpdateRoleData {
 export interface CreateHubData {
   id: string
   name: string
-  slug?: string
   description?: string
   status?: 'active' | 'suspended' | 'archived'
   phoneNumber?: string

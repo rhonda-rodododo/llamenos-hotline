@@ -217,7 +217,7 @@ function HubRow({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">
             {hub.name}
-            <span className="ml-2 font-mono text-xs text-muted-foreground">/{hub.slug}</span>
+            <span className="ml-2 font-mono text-xs text-muted-foreground">{hub.id}</span>
           </p>
           {hub.description && (
             <p className="text-xs text-muted-foreground line-clamp-1">{hub.description}</p>
@@ -512,7 +512,7 @@ function EditHubDialog({
                 >
                   {t(`hubs.status.${hub.status}`)}
                 </Badge>
-                <span className="font-mono text-xs text-muted-foreground">/{hub.slug}</span>
+                <span className="font-mono text-xs text-muted-foreground">{hub.id}</span>
               </div>
             </div>
 

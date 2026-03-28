@@ -169,6 +169,13 @@
       "when": 1775142000000,
       "tag": "0023_phase2a_encrypted_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1775228400000,
+      "tag": "0024_drop_hub_slug",
+      "breakpoints": true
     }
   ]
 }

@@ -5,7 +5,6 @@ import { ciphertext } from '../crypto-columns'
 export const hubs = pgTable('hubs', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  slug: text('slug').notNull().default(''),
   description: text('description'),
   status: text('status').notNull().default('active'),
   phoneNumber: text('phone_number'),

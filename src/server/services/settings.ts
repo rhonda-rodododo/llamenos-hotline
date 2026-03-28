@@ -830,19 +830,12 @@ export class SettingsService {
   }
 
   async createHub(data: CreateHubData): Promise<Hub> {
-    const slug =
-      data.slug?.trim() ||
-      data.name
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
     const now = new Date()
     const [row] = await this.db
       .insert(hubs)
       .values({
         id: data.id || crypto.randomUUID(),
         name: data.name,
-        slug,
         description: data.description ?? null,
         status: data.status ?? 'active',
         phoneNumber: data.phoneNumber ?? null,
@@ -1060,7 +1053,6 @@ export class SettingsService {
     return {
       id: r.id,
       name: r.name,
-      slug: r.slug,
       description: r.description ?? undefined,
       status: r.status as Hub['status'],
       phoneNumber: r.phoneNumber ?? undefined,

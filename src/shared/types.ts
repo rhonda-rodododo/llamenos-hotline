@@ -516,7 +516,6 @@ export interface GdprErasureRequest {
 export interface Hub {
   id: string // UUID
   name: string // Display name (e.g., "NYC Hotline")
-  slug: string // URL-safe identifier
   description?: string
   status: 'active' | 'suspended' | 'archived'
   phoneNumber?: string // Primary hotline number (for routing)
