@@ -1,0 +1,120 @@
+---
+# LUKS disk encryption for RustFS data volume
+#
+# Security model:
+#   This provides defense-in-depth disk-level encryption beneath the application's
+#   SSE-S3 and E2EE layers. If an attacker gains physical access to the disk (stolen
+#   VPS image, decommissioned hardware, cloud provider breach), the RustFS data files
+#   are encrypted at the block device level via dm-crypt/LUKS2.
+#
+#   A random 4096-byte keyfile at /root/.luks-keyfile (mode 0400) enables automatic
+#   unlock on boot without manual passphrase entry. The keyfile lives on the root
+#   filesystem — operators who want full-stack encryption should also encrypt the root
+#   volume (out of scope for this role, typically handled by the VPS provider).
+#
+# Variables:
+#   luks_enabled    - bool, opt-in (default: false)
+#   luks_device     - block device path (required when luks_enabled)
+#   luks_mount_path - mount point (default: /var/data/rustfs)
+#
+# All tasks are idempotent and safe to re-run.
+
+- name: Validate LUKS variables
+  ansible.builtin.assert:
+    that:
+      - luks_device is defined
+      - luks_device | length > 0
+    fail_msg: "luks_device must be set when luks_enabled is true (e.g., /dev/sdb)"
+
+- name: Install cryptsetup
+  ansible.builtin.apt:
+    name: cryptsetup
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Check if device is already LUKS-formatted
+  ansible.builtin.command: cryptsetup isLuks {{ luks_device }}
+  register: luks_check
+  changed_when: false
+  failed_when: false
+
+- name: Generate LUKS keyfile
+  ansible.builtin.command: dd if=/dev/urandom of=/root/.luks-keyfile bs=4096 count=1
+  args:
+    creates: /root/.luks-keyfile
+  when: luks_check.rc != 0
+
+- name: Set keyfile permissions
+  ansible.builtin.file:
+    path: /root/.luks-keyfile
+    owner: root
+    group: root
+    mode: "0400"
+
+- name: Format device with LUKS
+  ansible.builtin.command: >
+    cryptsetup luksFormat
+    --batch-mode
+    --key-file /root/.luks-keyfile
+    {{ luks_device }}
+  when: luks_check.rc != 0
+
+- name: Check if LUKS device is already open
+  ansible.builtin.stat:
+    path: /dev/mapper/rustfs-crypt
+  register: luks_mapper
+
+- name: Open LUKS device
+  ansible.builtin.command: >
+    cryptsetup luksOpen
+    --key-file /root/.luks-keyfile
+    {{ luks_device }}
+    rustfs-crypt
+  when: not luks_mapper.stat.exists
+
+- name: Check if filesystem exists on encrypted device
+  ansible.builtin.command: blkid -s TYPE -o value /dev/mapper/rustfs-crypt
+  register: fs_check
+  changed_when: false
+  failed_when: false
+
+- name: Create ext4 filesystem on encrypted device
+  ansible.builtin.command: mkfs.ext4 -L rustfs-data /dev/mapper/rustfs-crypt
+  when: fs_check.rc != 0 or fs_check.stdout == ""
+
+- name: Create mount point directory
+  ansible.builtin.file:
+    path: "{{ luks_mount_path | default('/var/data/rustfs') }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Mount encrypted volume
+  ansible.posix.mount:
+    path: "{{ luks_mount_path | default('/var/data/rustfs') }}"
+    src: /dev/mapper/rustfs-crypt
+    fstype: ext4
+    opts: defaults
+    state: mounted
+
+- name: Add crypttab entry for auto-unlock on boot
+  ansible.builtin.lineinfile:
+    path: /etc/crypttab
+    regexp: "^rustfs-crypt\\s"
+    line: "rustfs-crypt {{ luks_device }} /root/.luks-keyfile luks"
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Ensure fstab entry exists for encrypted volume
+  ansible.posix.mount:
+    path: "{{ luks_mount_path | default('/var/data/rustfs') }}"
+    src: /dev/mapper/rustfs-crypt
+    fstype: ext4
+    opts: defaults
+    passno: "2"
+    dump: "0"
+    state: present

@@ -8,9 +8,13 @@
  * checks at batch boundaries, per-channel rate limiting, opt-out footers.
  */
 
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
+import { hexToBytes } from '@noble/hashes/utils.js'
+import { LABEL_BLAST_CONTENT } from '@shared/crypto-labels'
 import type { MessagingChannelType } from '@shared/types'
 import { getMessagingAdapter } from '../lib/adapters'
-import { decryptFromHub, unwrapHubKeyForServer } from '../lib/crypto'
+import { decryptFromHub, eciesUnwrapKeyServer, unwrapHubKeyForServer } from '../lib/crypto'
+import { deriveServerKeypair } from '../lib/nostr-publisher'
 import type { MessagingAdapter } from '../messaging/adapter'
 import type { Services } from '../services'
 import { matchesBlastFilters, selectChannel } from '../services/blasts'
@@ -106,6 +110,25 @@ export class BlastProcessor {
       return
     }
 
+    // Decrypt blast content from server's ECIES envelope
+    let blastText: string
+    try {
+      blastText = this._decryptBlastContent(blast)
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      console.error(`[blast-processor] Failed to decrypt blast content for ${blast.id}:`, errorMsg)
+      await this.services.blasts.updateBlast(blast.id, {
+        status: 'failed' as string,
+        error: `Blast decryption error: ${errorMsg}`,
+      })
+      await this.services.records.addAuditEntry(blast.hubId, 'blastFailed', 'system', {
+        blastId: blast.id,
+        name: blast.name,
+        error: `Blast decryption error: ${errorMsg}`,
+      })
+      return
+    }
+
     // Load all subscribers for this hub
     const allSubscribers = await this.services.blasts.listSubscribers(blast.hubId)
 
@@ -177,7 +200,7 @@ export class BlastProcessor {
 
         // Build message with opt-out footer
         const footer = OPT_OUT_FOOTERS[sub.language ?? 'en'] ?? OPT_OUT_FOOTERS.en
-        const body = `${blast.content}\n\n${footer}`
+        const body = `${blastText}\n\n${footer}`
 
         // Send the message
         const result = await adapter.sendMessage({
@@ -247,6 +270,34 @@ export class BlastProcessor {
   /** Decrypt an encrypted subscriber identifier. Override in tests. */
   async _decryptIdentifier(encrypted: string, hubKey: Uint8Array): Promise<string | null> {
     return decryptFromHub(encrypted, hubKey)
+  }
+
+  /**
+   * Decrypt blast content from the server's ECIES envelope.
+   * Derives server keypair, finds matching envelope, unwraps the blast key,
+   * then decrypts the content and returns the plaintext message text.
+   */
+  _decryptBlastContent(blast: Blast): string {
+    const { secretKey, pubkey } = deriveServerKeypair(this.serverSecret)
+
+    const envelope = blast.contentEnvelopes.find((e) => e.pubkey === pubkey)
+    if (!envelope) {
+      throw new Error(`No blast content envelope for server pubkey ${pubkey}`)
+    }
+
+    // ECIES-unwrap the per-blast symmetric key
+    const blastKey = eciesUnwrapKeyServer(envelope, secretKey, LABEL_BLAST_CONTENT)
+
+    // Decrypt the content: nonce(24) || ciphertext
+    const packed = hexToBytes(blast.encryptedContent)
+    const nonce = packed.slice(0, 24)
+    const ciphertext = packed.slice(24)
+    const cipher = xchacha20poly1305(blastKey, nonce)
+    const plaintext = new TextDecoder().decode(cipher.decrypt(ciphertext))
+
+    // Parse JSON payload and return text field
+    const payload = JSON.parse(plaintext) as { text: string }
+    return payload.text
   }
 
   /** Get a messaging adapter for the given channel type. Override in tests. */

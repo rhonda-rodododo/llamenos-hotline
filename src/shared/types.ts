@@ -224,6 +224,7 @@ export interface FileFieldValue {
 
 export interface FileRecord {
   id: string
+  hubId: string
   conversationId: string | null
   messageId?: string
   uploadedBy: string // pubkey of uploader
@@ -393,7 +394,8 @@ export interface SubscriberChannel {
 export interface Blast {
   id: string
   name: string
-  content: BlastContent
+  encryptedContent: string
+  contentEnvelopes: RecipientEnvelope[]
   status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'cancelled'
   targetChannels: MessagingChannelType[]
   targetTags: string[] // empty = all subscribers

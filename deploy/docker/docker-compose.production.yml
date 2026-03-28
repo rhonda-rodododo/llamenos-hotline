@@ -38,7 +38,7 @@ services:
         max-size: "10m"
         max-file: "5"
 
-  minio:
+  rustfs:
     logging:
       driver: json-file
       options:

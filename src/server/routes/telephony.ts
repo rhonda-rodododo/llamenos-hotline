@@ -623,7 +623,7 @@ telephony.post('/voicemail-recording', async (c) => {
       callSid,
     })
 
-    // Store encrypted audio in MinIO and delete from provider (background)
+    // Store encrypted audio in object storage and delete from provider (background)
     if (recordingSid) {
       void (async () => {
         try {

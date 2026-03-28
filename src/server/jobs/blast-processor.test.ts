@@ -28,7 +28,8 @@ const makeBlast = (overrides: Partial<Blast> = {}): Blast => ({
   targetChannels: [],
   targetTags: [],
   targetLanguages: [],
-  content: 'Hello world',
+  encryptedContent: 'Hello world',
+  contentEnvelopes: [],
   status: 'sending',
   stats: { totalRecipients: 0, sent: 0, delivered: 0, failed: 0, optedOut: 0 },
   createdAt: new Date(),
@@ -95,6 +96,7 @@ function createProcessor(services: ReturnType<typeof createMockServices>) {
   const processor = new BlastProcessor(services as never, 'server-secret', 'hmac-secret')
   // Override crypto/adapter helpers — no real crypto in unit tests
   processor._getHubKey = mock(() => Promise.resolve(new Uint8Array(32)))
+  processor._decryptBlastContent = mock(() => 'Hello world')
   processor._decryptIdentifier = mock((_encrypted: string, _hubKey: Uint8Array) =>
     Promise.resolve(`+1555${_encrypted.replace('encrypted-', '')}`)
   )

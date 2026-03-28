@@ -10,12 +10,13 @@ import {
   HKDF_CONTEXT_EXPORT,
   HKDF_CONTEXT_NOTES,
   HKDF_SALT,
+  LABEL_BLAST_CONTENT,
   LABEL_CALL_META,
   LABEL_MESSAGE,
   LABEL_NOTE_KEY,
   LABEL_TRANSCRIPTION,
 } from '@shared/crypto-labels'
-import type { NotePayload } from '@shared/types'
+import type { BlastContent, NotePayload } from '@shared/types'
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools'
 
 function randomBytes(n: number): Uint8Array {
@@ -293,6 +294,58 @@ export function decryptMessage(
     const cipher = xchacha20poly1305(messageKey, nonce)
     const plaintext = cipher.decrypt(ciphertext)
     return new TextDecoder().decode(plaintext)
+  } catch {
+    return null
+  }
+}
+
+// --- Blast Content Encryption ---
+
+export interface EncryptedBlastContentPayload {
+  encryptedContent: string
+  contentEnvelopes: RecipientKeyEnvelope[]
+}
+
+export function encryptBlastContent(
+  content: BlastContent,
+  recipientPubkeys: string[]
+): EncryptedBlastContentPayload {
+  const blastKey = randomBytes(32)
+  const nonce = randomBytes(24)
+  const cipher = xchacha20poly1305(blastKey, nonce)
+  const ciphertext = cipher.encrypt(utf8ToBytes(JSON.stringify(content)))
+
+  const packed = new Uint8Array(nonce.length + ciphertext.length)
+  packed.set(nonce)
+  packed.set(ciphertext, nonce.length)
+
+  return {
+    encryptedContent: bytesToHex(packed),
+    contentEnvelopes: recipientPubkeys.map((pk) => ({
+      pubkey: pk,
+      ...eciesWrapKey(blastKey, pk, LABEL_BLAST_CONTENT),
+    })),
+  }
+}
+
+export function decryptBlastContent(
+  encryptedContent: string,
+  contentEnvelopes: RecipientKeyEnvelope[],
+  secretKey: Uint8Array,
+  readerPubkey: string
+): BlastContent | null {
+  try {
+    const envelope = contentEnvelopes.find((e) => e.pubkey === readerPubkey)
+    if (!envelope) return null
+
+    const blastKey = eciesUnwrapKey(envelope, secretKey, LABEL_BLAST_CONTENT)
+
+    const data = hexToBytes(encryptedContent)
+    const nonce = data.slice(0, 24)
+    const ciphertext = data.slice(24)
+    const cipher = xchacha20poly1305(blastKey, nonce)
+    const plaintext = cipher.decrypt(ciphertext)
+    return JSON.parse(new TextDecoder().decode(plaintext)) as BlastContent
   } catch {
     return null
   }

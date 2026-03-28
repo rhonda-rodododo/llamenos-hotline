@@ -107,25 +107,25 @@
           Generate one with: openssl rand -base64 24
         success_msg: "pg_password: [set, {{ pg_password | length }} chars]"
 
-    - name: Assert minio_access_key is set
+    - name: Assert storage_access_key is set
       ansible.builtin.assert:
         that:
-          - minio_access_key is defined
-          - minio_access_key | length > 0
+          - storage_access_key is defined
+          - storage_access_key | length > 0
         fail_msg: >
-          REQUIRED: 'minio_access_key' must be set.
+          REQUIRED: 'storage_access_key' must be set.
           Generate one with: openssl rand -base64 24
-        success_msg: "minio_access_key: [set]"
+        success_msg: "storage_access_key: [set]"
 
-    - name: Assert minio_secret_key meets minimum length
+    - name: Assert storage_secret_key meets minimum length
       ansible.builtin.assert:
         that:
-          - minio_secret_key is defined
-          - minio_secret_key | length >= 16
+          - storage_secret_key is defined
+          - storage_secret_key | length >= 16
         fail_msg: >
-          REQUIRED: 'minio_secret_key' must be at least 16 characters long.
+          REQUIRED: 'storage_secret_key' must be at least 16 characters long.
           Generate one with: openssl rand -base64 24
-        success_msg: "minio_secret_key: [set, {{ minio_secret_key | length }} chars]"
+        success_msg: "storage_secret_key: [set, {{ storage_secret_key | length }} chars]"
 
     - name: Warn if SSH is open to the world
       ansible.builtin.debug:

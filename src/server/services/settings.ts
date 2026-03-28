@@ -34,6 +34,8 @@ import {
   fileRecords,
   geocodingConfig,
   hubKeys,
+  hubStorageCredentials,
+  hubStorageSettings,
   hubs,
   ivrAudio,
   ivrLanguages,
@@ -886,6 +888,10 @@ export class SettingsService {
     if (!rows[0]) throw new AppError(404, 'Hub not found')
 
     await this.db.transaction(async (tx) => {
+      // --- Storage settings + credentials ---
+      await tx.delete(hubStorageCredentials).where(eq(hubStorageCredentials.hubId, id))
+      await tx.delete(hubStorageSettings).where(eq(hubStorageSettings.hubId, id))
+
       // --- Settings singletons (hub-scoped) ---
       await tx.delete(spamSettings).where(eq(spamSettings.hubId, id))
       await tx.delete(transcriptionSettings).where(eq(transcriptionSettings.hubId, id))

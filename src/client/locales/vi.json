@@ -1312,5 +1312,22 @@
   },
   "blast": {
     "optOutFooter": "Trả lời STOP để hủy đăng ký"
+  },
+  "hub": {
+    "export": {
+      "title": "Xuất dữ liệu hub",
+      "description": "Tải xuống bản sao dữ liệu hub trước khi xóa. Tất cả nội dung xuất đều là bản mã E2EE.",
+      "selectCategories": "Chọn dữ liệu cần bao gồm:",
+      "categories": {
+        "notes": "Ghi chú",
+        "calls": "Bản ghi cuộc gọi",
+        "conversations": "Cuộc trò chuyện",
+        "audit": "Nhật ký kiểm tra",
+        "voicemails": "Thư thoại",
+        "attachments": "Tệp đính kèm"
+      },
+      "download": "Tải xuất",
+      "downloading": "Đang chuẩn bị xuất..."
+    }
   }
 }

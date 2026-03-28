@@ -1,4 +1,5 @@
 import { boolean, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
+import type { RecipientEnvelope } from '../../../shared/types'
 import { jsonb } from '../bun-jsonb'
 
 interface SubscriberChannel {
@@ -18,7 +19,8 @@ export const blasts = pgTable('blasts', {
   id: text('id').primaryKey(),
   hubId: text('hub_id').notNull().default('global'),
   name: text('name').notNull(),
-  content: text('content').notNull().default(''),
+  encryptedContent: text('encrypted_content').notNull().default(''),
+  contentEnvelopes: jsonb<RecipientEnvelope[]>()('content_envelopes').notNull().default([]),
   /** Array of channel types to send to: 'sms' | 'whatsapp' | 'signal' */
   targetChannels: jsonb<string[]>()('target_channels').notNull().default([]),
   /** Filter by subscriber tags (empty = all tags) */
