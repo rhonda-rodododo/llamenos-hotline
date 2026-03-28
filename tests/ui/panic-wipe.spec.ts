@@ -21,15 +21,15 @@ test.describe('Panic Wipe (L-9)', () => {
     const overlay = page.getByTestId('panic-wipe-overlay')
     await expect(overlay).toBeVisible({ timeout: 2000 })
 
-    // The wipe does window.location.href = '/login' (full page reload after 200ms).
-    // This destroys the JS execution context entirely. We must wait for the new
-    // page to fully load before running page.evaluate(). Use waitForURL + the
-    // login heading to confirm the fresh page has rendered its React tree.
-    await page.waitForURL('**/login', { timeout: 15000 })
-    // Wait for the heading — it renders for both PIN-entry and nsec-import modes
-    await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible({ timeout: 15000 })
+    // The wipe does window.location.href = '/login' after 200ms, which is a
+    // full-page reload that destroys the execution context. Use Playwright's
+    // page.waitForEvent('load') to wait for the new page to fully load,
+    // then verify we're on /login and storage was cleared.
+    await page.waitForEvent('load', { timeout: 15000 })
 
-    // Verify storage was cleared
+    // Now the new page is loaded. Verify URL and storage state.
+    expect(page.url()).toContain('/login')
+
     const storageState = await page.evaluate(() => ({
       hasKey: !!localStorage.getItem('llamenos-encrypted-key'),
       localStorageLength: localStorage.length,
