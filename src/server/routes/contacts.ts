@@ -1,139 +1,357 @@
+import type { Ciphertext, HmacHash } from '@shared/crypto-types'
+import type { RecipientEnvelope } from '@shared/types'
 import { Hono } from 'hono'
-import { requirePermission } from '../middleware/permission-guard'
+import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
 const contacts = new Hono<AppEnv>()
-contacts.use('*', requirePermission('contacts:read'))
 
-// GET /contacts — list contacts with note counts
-contacts.get('/', async (c) => {
+// Base permission — all routes require contacts:read-summary
+contacts.use('*', requirePermission('contacts:read-summary'))
+
+// ------------------------------------------------------------------ Static routes (MUST precede /:id)
+
+// GET /contacts/check-duplicate?identifierHash=<hash>
+contacts.get('/check-duplicate', async (c) => {
   const services = c.get('services')
-  const hubId = c.get('hubId')
-  const page = Number.parseInt(c.req.query('page') || '1', 10)
-  const limit = Number.parseInt(c.req.query('limit') || '50', 10)
+  const hubId = c.get('hubId') ?? 'global'
+  const identifierHash = c.req.query('identifierHash')
 
-  // Get contact data from RecordsService (notes with contactHash)
-  const { contacts: noteContacts, total } = await services.records.getContacts(
-    page,
-    limit,
-    hubId ?? undefined
-  )
-
-  // Enrich with conversation data (get all conversations and group by contactIdentifierHash)
-  const { conversations: allConvs } = await services.conversations.listConversations({
-    hubId: hubId ?? 'global',
-    limit: 1000,
-  })
-
-  const convByHash = new Map<
-    string,
-    {
-      last4?: string
-      conversationCount: number
-      reportCount: number
-      firstSeen: string
-      lastSeen: string
-    }
-  >()
-
-  for (const conv of allConvs) {
-    const hash = conv.contactIdentifierHash
-    const isReport = (conv.metadata as Record<string, unknown>)?.type === 'report'
-    const existing = convByHash.get(hash)
-    if (existing) {
-      existing.conversationCount += isReport ? 0 : 1
-      existing.reportCount += isReport ? 1 : 0
-      const convTime = conv.lastMessageAt.toISOString()
-      if (convTime > existing.lastSeen) existing.lastSeen = convTime
-      if (conv.createdAt.toISOString() < existing.firstSeen)
-        existing.firstSeen = conv.createdAt.toISOString()
-      if (conv.contactLast4 && !existing.last4) existing.last4 = conv.contactLast4 ?? undefined
-    } else {
-      convByHash.set(hash, {
-        last4: conv.contactLast4 ?? undefined,
-        conversationCount: isReport ? 0 : 1,
-        reportCount: isReport ? 1 : 0,
-        firstSeen: conv.createdAt.toISOString(),
-        lastSeen: conv.lastMessageAt.toISOString(),
-      })
-    }
+  if (!identifierHash) {
+    return c.json({ error: 'identifierHash query parameter is required' }, 400)
   }
 
-  // Merge data
-  const merged = new Map<
-    string,
-    {
-      contactHash: string
-      last4?: string
-      firstSeen: string
-      lastSeen: string
-      callCount: number
-      conversationCount: number
-      noteCount: number
-      reportCount: number
-    }
-  >()
-
-  for (const nc of noteContacts) {
-    merged.set(nc.contactHash, {
-      contactHash: nc.contactHash,
-      firstSeen: nc.firstSeen,
-      lastSeen: nc.lastSeen,
-      callCount: 0,
-      conversationCount: 0,
-      noteCount: nc.noteCount,
-      reportCount: 0,
-    })
-  }
-
-  for (const [hash, cd] of convByHash.entries()) {
-    const existing = merged.get(hash)
-    if (existing) {
-      existing.last4 = cd.last4
-      existing.conversationCount = cd.conversationCount
-      existing.reportCount = cd.reportCount
-      if (cd.firstSeen < existing.firstSeen) existing.firstSeen = cd.firstSeen
-      if (cd.lastSeen > existing.lastSeen) existing.lastSeen = cd.lastSeen
-    } else {
-      merged.set(hash, {
-        contactHash: hash,
-        last4: cd.last4,
-        firstSeen: cd.firstSeen,
-        lastSeen: cd.lastSeen,
-        callCount: 0,
-        conversationCount: cd.conversationCount,
-        noteCount: 0,
-        reportCount: cd.reportCount,
-      })
-    }
-  }
-
-  const contactsList = Array.from(merged.values()).sort(
-    (a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
-  )
-
-  return c.json({ contacts: contactsList, total: Math.max(total, contactsList.length) })
+  const existing = await services.contacts.checkDuplicate(identifierHash as HmacHash, hubId)
+  return c.json({ exists: existing !== null, contact: existing ?? null })
 })
 
-// GET /contacts/:hash — unified timeline for a contact
-contacts.get('/:hash', async (c) => {
+// GET /contacts/relationships — list all relationships for hub
+contacts.get('/relationships', requirePermission('contacts:read-pii'), async (c) => {
   const services = c.get('services')
-  const hubId = c.get('hubId')
-  const hash = c.req.param('hash')
+  const hubId = c.get('hubId') ?? 'global'
+  const relationships = await services.contacts.listRelationships(hubId)
+  return c.json({ relationships })
+})
 
-  // Parallel fetch from RecordsService (notes) and ConversationService (conversations by hash)
-  const [contactNotes, allConvs] = await Promise.all([
-    services.records.getContactNotes(hash, hubId ?? undefined),
-    services.conversations.listConversations({
-      hubId: hubId ?? 'global',
-      limit: 1000,
-    }),
+// POST /contacts/relationships — create relationship
+contacts.post('/relationships', requirePermission('contacts:create'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+  const pubkey = c.get('pubkey')
+
+  const body = await c.req.json<{
+    encryptedPayload: Ciphertext
+    payloadEnvelopes: RecipientEnvelope[]
+  }>()
+
+  if (!body.encryptedPayload || !body.payloadEnvelopes) {
+    return c.json({ error: 'encryptedPayload and payloadEnvelopes are required' }, 400)
+  }
+
+  const relationship = await services.contacts.createRelationship({
+    hubId,
+    encryptedPayload: body.encryptedPayload,
+    payloadEnvelopes: body.payloadEnvelopes,
+    createdBy: pubkey ?? '',
+  })
+
+  return c.json({ relationship }, 201)
+})
+
+// DELETE /contacts/relationships/:id — delete relationship
+contacts.delete('/relationships/:id', requirePermission('contacts:delete'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+  const id = c.req.param('id')
+
+  await services.contacts.deleteRelationship(id, hubId)
+  return c.json({ ok: true })
+})
+
+// ------------------------------------------------------------------ List / Create
+
+// GET /contacts — list contacts (filterable by contactType, riskLevel)
+contacts.get('/', async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+
+  const contactType = c.req.query('contactType')
+  const riskLevel = c.req.query('riskLevel')
+  const tag = c.req.query('tag')
+
+  const rows = await services.contacts.listContacts({
+    hubId,
+    contactType,
+    riskLevel,
+    tag,
+  })
+
+  return c.json({ contacts: rows })
+})
+
+// POST /contacts — create contact
+contacts.post('/', requirePermission('contacts:create'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+  const pubkey = c.get('pubkey')
+
+  const body = await c.req.json<{
+    contactType: string
+    riskLevel: string
+    tags?: string[]
+    identifierHash?: HmacHash
+    encryptedDisplayName: Ciphertext
+    displayNameEnvelopes: RecipientEnvelope[]
+    encryptedNotes?: Ciphertext
+    notesEnvelopes?: RecipientEnvelope[]
+    encryptedFullName?: Ciphertext
+    fullNameEnvelopes?: RecipientEnvelope[]
+    encryptedPhone?: Ciphertext
+    phoneEnvelopes?: RecipientEnvelope[]
+    encryptedPII?: Ciphertext
+    piiEnvelopes?: RecipientEnvelope[]
+  }>()
+
+  if (
+    !body.contactType ||
+    !body.riskLevel ||
+    !body.encryptedDisplayName ||
+    !body.displayNameEnvelopes
+  ) {
+    return c.json(
+      {
+        error:
+          'contactType, riskLevel, encryptedDisplayName, and displayNameEnvelopes are required',
+      },
+      400
+    )
+  }
+
+  const contact = await services.contacts.createContact({
+    hubId,
+    contactType: body.contactType,
+    riskLevel: body.riskLevel,
+    tags: body.tags ?? [],
+    identifierHash: body.identifierHash,
+    encryptedDisplayName: body.encryptedDisplayName,
+    displayNameEnvelopes: body.displayNameEnvelopes,
+    encryptedNotes: body.encryptedNotes,
+    notesEnvelopes: body.notesEnvelopes,
+    encryptedFullName: body.encryptedFullName,
+    fullNameEnvelopes: body.fullNameEnvelopes,
+    encryptedPhone: body.encryptedPhone,
+    phoneEnvelopes: body.phoneEnvelopes,
+    encryptedPII: body.encryptedPII,
+    piiEnvelopes: body.piiEnvelopes,
+    createdBy: pubkey ?? '',
+  })
+
+  return c.json({ contact }, 201)
+})
+
+// ------------------------------------------------------------------ Dynamic routes (/:id)
+
+// GET /contacts/:id — single contact
+contacts.get('/:id', async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+  const id = c.req.param('id')
+
+  const contact = await services.contacts.getContact(id, hubId)
+  if (!contact) {
+    return c.json({ error: 'Contact not found' }, 404)
+  }
+
+  return c.json({ contact })
+})
+
+// PATCH /contacts/:id — update contact (tiered permission check)
+contacts.patch('/:id', async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+  const id = c.req.param('id')
+  const permissions = c.get('permissions')
+
+  const body = await c.req.json<{
+    contactType?: string
+    riskLevel?: string
+    tags?: string[]
+    identifierHash?: HmacHash
+    // Summary-tier fields
+    encryptedDisplayName?: Ciphertext
+    displayNameEnvelopes?: RecipientEnvelope[]
+    encryptedNotes?: Ciphertext
+    notesEnvelopes?: RecipientEnvelope[]
+    // PII-tier fields
+    encryptedFullName?: Ciphertext
+    fullNameEnvelopes?: RecipientEnvelope[]
+    encryptedPhone?: Ciphertext
+    phoneEnvelopes?: RecipientEnvelope[]
+    encryptedPII?: Ciphertext
+    piiEnvelopes?: RecipientEnvelope[]
+  }>()
+
+  // Determine which permission tier is needed
+  const hasPiiFields =
+    body.encryptedFullName !== undefined ||
+    body.fullNameEnvelopes !== undefined ||
+    body.encryptedPhone !== undefined ||
+    body.phoneEnvelopes !== undefined ||
+    body.encryptedPII !== undefined ||
+    body.piiEnvelopes !== undefined
+
+  const hasSummaryFields =
+    body.encryptedDisplayName !== undefined ||
+    body.displayNameEnvelopes !== undefined ||
+    body.encryptedNotes !== undefined ||
+    body.notesEnvelopes !== undefined ||
+    body.contactType !== undefined ||
+    body.riskLevel !== undefined ||
+    body.tags !== undefined
+
+  if (hasPiiFields && !checkPermission(permissions, 'contacts:update-pii')) {
+    return c.json({ error: 'Forbidden', required: 'contacts:update-pii' }, 403)
+  }
+
+  if (
+    hasSummaryFields &&
+    !hasPiiFields &&
+    !checkPermission(permissions, 'contacts:update-summary')
+  ) {
+    return c.json({ error: 'Forbidden', required: 'contacts:update-summary' }, 403)
+  }
+
+  // Need at least one permission to update anything
+  if (
+    !checkPermission(permissions, 'contacts:update-summary') &&
+    !checkPermission(permissions, 'contacts:update-pii')
+  ) {
+    return c.json({ error: 'Forbidden', required: 'contacts:update-summary' }, 403)
+  }
+
+  const contact = await services.contacts.updateContact(id, hubId, {
+    contactType: body.contactType,
+    riskLevel: body.riskLevel,
+    tags: body.tags,
+    identifierHash: body.identifierHash,
+    encryptedDisplayName: body.encryptedDisplayName,
+    displayNameEnvelopes: body.displayNameEnvelopes,
+    encryptedNotes: body.encryptedNotes,
+    notesEnvelopes: body.notesEnvelopes,
+    encryptedFullName: body.encryptedFullName,
+    fullNameEnvelopes: body.fullNameEnvelopes,
+    encryptedPhone: body.encryptedPhone,
+    phoneEnvelopes: body.phoneEnvelopes,
+    encryptedPII: body.encryptedPII,
+    piiEnvelopes: body.piiEnvelopes,
+  })
+
+  return c.json({ contact })
+})
+
+// DELETE /contacts/:id — delete contact
+contacts.delete('/:id', requirePermission('contacts:delete'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+  const id = c.req.param('id')
+
+  await services.contacts.deleteContact(id, hubId)
+  return c.json({ ok: true })
+})
+
+// GET /contacts/:id/timeline — unified timeline (calls, conversations, notes)
+contacts.get('/:id/timeline', async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+  const id = c.req.param('id')
+
+  const contact = await services.contacts.getContact(id, hubId)
+  if (!contact) {
+    return c.json({ error: 'Contact not found' }, 404)
+  }
+
+  // Fetch linked IDs from contact links
+  const [callIds, conversationIds] = await Promise.all([
+    services.contacts.getLinkedCallIds(id),
+    services.contacts.getLinkedConversationIds(id),
   ])
 
-  // Filter conversations by contactIdentifierHash
-  const conversations = allConvs.conversations.filter((conv) => conv.contactIdentifierHash === hash)
+  // Fetch linked records and notes in parallel
+  const [calls, convs, notes] = await Promise.all([
+    services.records.getCallRecordsByIds(callIds, hubId),
+    services.conversations.getConversationsByIds(conversationIds, hubId),
+    services.records.getNotes({ hubId, contactHash: contact.identifierHash ?? undefined }),
+  ])
 
-  return c.json({ notes: contactNotes, conversations })
+  return c.json({
+    calls,
+    conversations: convs,
+    notes: notes.notes,
+  })
+})
+
+// POST /contacts/:id/link — manually link a call or conversation
+contacts.post('/:id/link', requirePermission('contacts:link'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+  const id = c.req.param('id')
+  const pubkey = c.get('pubkey')
+
+  const body = await c.req.json<{
+    callId?: string
+    conversationId?: string
+  }>()
+
+  if (!body.callId && !body.conversationId) {
+    return c.json({ error: 'callId or conversationId is required' }, 400)
+  }
+
+  const contact = await services.contacts.getContact(id, hubId)
+  if (!contact) {
+    return c.json({ error: 'Contact not found' }, 404)
+  }
+
+  if (body.callId) {
+    const link = await services.contacts.linkCall(id, body.callId, hubId, pubkey ?? '')
+    return c.json({ link })
+  }
+
+  const link = await services.contacts.linkConversation(
+    id,
+    body.conversationId as string,
+    hubId,
+    pubkey ?? ''
+  )
+  return c.json({ link })
+})
+
+// DELETE /contacts/:id/link — unlink a call or conversation
+contacts.delete('/:id/link', requirePermission('contacts:link'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+  const id = c.req.param('id')
+
+  const body = await c.req.json<{
+    callId?: string
+    conversationId?: string
+  }>()
+
+  if (!body.callId && !body.conversationId) {
+    return c.json({ error: 'callId or conversationId is required' }, 400)
+  }
+
+  const contact = await services.contacts.getContact(id, hubId)
+  if (!contact) {
+    return c.json({ error: 'Contact not found' }, 404)
+  }
+
+  if (body.callId) {
+    await services.contacts.unlinkCall(id, body.callId)
+  } else {
+    await services.contacts.unlinkConversation(id, body.conversationId as string)
+  }
+
+  return c.json({ ok: true })
 })
 
 export default contacts
