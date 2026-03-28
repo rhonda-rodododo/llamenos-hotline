@@ -1,8 +1,20 @@
+import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { Hono } from 'hono'
 import { isValidE164 } from '../lib/helpers'
 import { projectVolunteer } from '../lib/volunteer-projector'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
+
+/** Check that a string is a valid 64-char hex x-only secp256k1 pubkey (on the curve). */
+function isValidSecp256k1Pubkey(pk: string): boolean {
+  if (!/^[0-9a-f]{64}$/i.test(pk)) return false
+  try {
+    secp256k1.Point.fromHex(`02${pk}`)
+    return true
+  } catch {
+    return false
+  }
+}
 
 const volunteers = new Hono<AppEnv>()
 volunteers.use('*', requirePermission('volunteers:read'))
@@ -55,6 +67,13 @@ volunteers.post('/', requirePermission('volunteers:create'), async (c) => {
   const newPubkey = body.pubkey
   if (!newPubkey) {
     return c.json({ error: 'pubkey is required — generate keypair client-side' }, 400)
+  }
+
+  if (!isValidSecp256k1Pubkey(newPubkey)) {
+    return c.json(
+      { error: 'Invalid pubkey — must be a valid secp256k1 x-only public key (64 hex chars)' },
+      400
+    )
   }
 
   const volunteer = await services.identity.createVolunteer({

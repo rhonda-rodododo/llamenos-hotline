@@ -6,6 +6,7 @@
  */
 
 import type { MessagingChannelType, TelephonyProviderConfig } from '../../shared/types'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import { type NostrPublisher, createNostrPublisher } from '../lib/nostr-publisher'
 import type { MessagingAdapter } from '../messaging/adapter'
@@ -72,7 +73,7 @@ export async function getTelephony(
 export async function getMessagingAdapter(
   channel: MessagingChannelType,
   settings: SettingsService,
-  hmacSecret: string,
+  crypto: CryptoService,
   hubId?: string
 ): Promise<MessagingAdapter> {
   const config = await settings.getMessagingConfig(hubId)
@@ -89,19 +90,19 @@ export async function getMessagingAdapter(
           (await settings.getTelephonyProvider(undefined)))
         : await settings.getTelephonyProvider(undefined)
       if (!telConfig) throw new Error('SMS requires a configured telephony provider')
-      return createSMSAdapter(telConfig, config.sms, hmacSecret)
+      return createSMSAdapter(telConfig, config.sms, crypto)
     }
     case 'whatsapp': {
       if (!config.whatsapp) throw new Error('WhatsApp is not configured')
-      return createWhatsAppAdapter(config.whatsapp, hmacSecret)
+      return createWhatsAppAdapter(config.whatsapp, crypto)
     }
     case 'signal': {
       if (!config.signal) throw new Error('Signal is not configured')
-      return createSignalAdapter(config.signal, hmacSecret)
+      return createSignalAdapter(config.signal, crypto)
     }
     case 'rcs': {
       if (!config.rcs) throw new Error('RCS is not configured')
-      return createRCSAdapter(config.rcs, hmacSecret)
+      return createRCSAdapter(config.rcs, crypto)
     }
     default:
       throw new Error(`Unknown channel: ${channel}`)

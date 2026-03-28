@@ -1,5 +1,6 @@
+import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import type { SignalConfig } from '../../../shared/types'
-import { hashPhone } from '../../lib/crypto'
+import type { CryptoService } from '../../lib/crypto-service'
 import type {
   ChannelStatus,
   IncomingMessage,
@@ -29,15 +30,15 @@ export class SignalAdapter implements MessagingAdapter {
   private readonly bridgeApiKey: string
   private readonly webhookSecret: string
   private readonly registeredNumber: string
-  private readonly hmacSecret: string
+  private readonly crypto: CryptoService
 
-  constructor(config: SignalConfig, hmacSecret: string) {
+  constructor(config: SignalConfig, crypto: CryptoService) {
     // Strip trailing slash from bridge URL for consistent path construction
     this.bridgeUrl = config.bridgeUrl.replace(/\/+$/, '')
     this.bridgeApiKey = config.bridgeApiKey
     this.webhookSecret = config.webhookSecret
     this.registeredNumber = config.registeredNumber
-    this.hmacSecret = hmacSecret
+    this.crypto = crypto
   }
 
   /**
@@ -89,7 +90,7 @@ export class SignalAdapter implements MessagingAdapter {
       channelType: 'signal',
       externalId: String(envelope.timestamp),
       senderIdentifier,
-      senderIdentifierHash: hashPhone(source, this.hmacSecret),
+      senderIdentifierHash: this.crypto.hmac(source, HMAC_PHONE_PREFIX),
       body,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       mediaTypes: mediaTypes.length > 0 ? mediaTypes : undefined,

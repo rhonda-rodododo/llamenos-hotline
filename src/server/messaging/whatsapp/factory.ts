@@ -1,4 +1,5 @@
 import type { WhatsAppConfig } from '../../../shared/types'
+import type { CryptoService } from '../../lib/crypto-service'
 import type { MessagingAdapter } from '../adapter'
 import { WhatsAppAdapter } from './adapter'
 import { TwilioWhatsAppClient } from './twilio-client'
@@ -22,11 +23,11 @@ export interface TwilioCredentials {
  */
 export function createWhatsAppAdapter(
   config: WhatsAppConfig,
-  hmacSecret: string,
+  crypto: CryptoService,
   twilioCredentials?: TwilioCredentials
 ): MessagingAdapter {
   if (config.integrationMode === 'direct') {
-    return new WhatsAppAdapter(config, hmacSecret)
+    return new WhatsAppAdapter(config, crypto)
   }
 
   if (!twilioCredentials) {
@@ -41,5 +42,5 @@ export function createWhatsAppAdapter(
     twilioCredentials.whatsappNumber
   )
 
-  return WhatsAppAdapter.createWithTwilioClient(config, client, hmacSecret)
+  return WhatsAppAdapter.createWithTwilioClient(config, client, crypto)
 }

@@ -1,5 +1,4 @@
-import { LABEL_VOICEMAIL_TRANSCRIPT } from '@shared/crypto-labels'
-import { encryptMessageForStorage } from '../lib/crypto'
+import { LABEL_MESSAGE, LABEL_VOICEMAIL_TRANSCRIPT } from '@shared/crypto-labels'
 import type { Services } from '../services'
 import type { Env } from '../types'
 import { getTelephony } from './adapters'
@@ -46,16 +45,17 @@ export async function maybeTranscribe(
       const readerPubkeys = [volunteerPubkey]
       if (adminPubkey !== volunteerPubkey) readerPubkeys.push(adminPubkey)
 
-      const { encryptedContent, readerEnvelopes } = encryptMessageForStorage(
+      const { encrypted, envelopes } = services.crypto.envelopeEncrypt(
         result.text,
-        readerPubkeys
+        readerPubkeys,
+        LABEL_MESSAGE
       )
 
       await services.records.createNote({
         callId: parentCallSid,
         authorPubkey: 'system:transcription',
-        encryptedContent,
-        adminEnvelopes: readerEnvelopes,
+        encryptedContent: encrypted as string,
+        adminEnvelopes: envelopes,
       })
 
       // Mark call record as having a transcription and persist the recording SID
@@ -102,7 +102,7 @@ export async function transcribeVoicemail(
         console.error('[transcription] ADMIN_PUBKEY not configured — cannot encrypt voicemail')
         return
       }
-      const { encryptedContent, readerEnvelopes } = encryptMessageForStorage(
+      const { encrypted, envelopes } = services.crypto.envelopeEncrypt(
         result.text,
         [adminPubkey],
         LABEL_VOICEMAIL_TRANSCRIPT
@@ -111,8 +111,8 @@ export async function transcribeVoicemail(
       await services.records.createNote({
         callId: callSid,
         authorPubkey: 'system:voicemail',
-        encryptedContent,
-        adminEnvelopes: readerEnvelopes,
+        encryptedContent: encrypted as string,
+        adminEnvelopes: envelopes,
       })
 
       // Mark call record as having a transcription

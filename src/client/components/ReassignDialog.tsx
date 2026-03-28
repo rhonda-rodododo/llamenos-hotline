@@ -16,6 +16,7 @@ import {
   listVolunteers,
   updateConversation,
 } from '@/lib/api'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { useToast } from '@/lib/toast'
 import { AlertCircle, Loader2, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -171,11 +172,15 @@ export function ReassignDialog({
                     }`}
                   >
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                      {vol.name.charAt(0).toUpperCase()}
+                      {tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)
+                        .charAt(0)
+                        .toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium truncate">{vol.name}</span>
+                        <span className="font-medium truncate">
+                          {tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)}
+                        </span>
                         {vol.onBreak && (
                           <Badge
                             variant="outline"

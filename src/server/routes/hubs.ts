@@ -1,9 +1,9 @@
+import { LABEL_STORAGE_CREDENTIAL_WRAP } from '@shared/crypto-labels'
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import type { Hub } from '../../shared/types'
 import { getDb } from '../db'
 import { hubStorageCredentials, hubStorageSettings } from '../db/schema/storage'
-import { encryptStorageCredential } from '../lib/crypto'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import { type AppEnv, STORAGE_NAMESPACES, type StorageNamespace } from '../types'
 
@@ -33,38 +33,19 @@ routes.post('/', requirePermission('system:manage-hubs'), async (c) => {
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as {
     name: string
-    slug?: string
     description?: string
     phoneNumber?: string
   }
 
   if (!body.name?.trim()) return c.json({ error: 'Name required' }, 400)
 
-  const hubData = {
+  const hub = await services.settings.createHub({
     id: crypto.randomUUID(),
     name: body.name.trim(),
-    slug:
-      body.slug?.trim() ||
-      body.name
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-'),
     description: body.description?.trim(),
-    status: 'active' as const,
+    status: 'active',
     phoneNumber: body.phoneNumber?.trim(),
     createdBy: pubkey,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
-
-  const hub = await services.settings.createHub({
-    id: hubData.id,
-    name: hubData.name,
-    slug: hubData.slug,
-    description: hubData.description,
-    status: hubData.status,
-    phoneNumber: hubData.phoneNumber,
-    createdBy: hubData.createdBy,
   })
 
   if (services.storage) {
@@ -73,8 +54,10 @@ routes.post('/', requirePermission('system:manage-hubs'), async (c) => {
 
       // Store per-hub IAM credentials if created
       if (iamResult) {
-        const serverSecret = c.env.HMAC_SECRET
-        const encrypted = encryptStorageCredential(iamResult.secretAccessKey, serverSecret)
+        const encrypted = services.crypto.serverEncrypt(
+          iamResult.secretAccessKey,
+          LABEL_STORAGE_CREDENTIAL_WRAP
+        )
         const db = getDb()
         await db.insert(hubStorageCredentials).values({
           hubId: hub.id,

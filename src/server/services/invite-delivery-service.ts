@@ -1,8 +1,6 @@
-import { hmac } from '@noble/hashes/hmac.js'
-import { sha256 } from '@noble/hashes/sha2.js'
-import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js'
 import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import { getMessagingAdapter } from '../lib/adapters'
+import type { CryptoService } from '../lib/crypto-service'
 import type { SettingsService } from './settings'
 
 export type InviteDeliveryChannel = 'signal' | 'whatsapp' | 'sms'
@@ -13,7 +11,7 @@ export interface SendInviteParams {
   channel: InviteDeliveryChannel
   expiresAt: Date
   appUrl: string
-  hmacSecret: string
+  crypto: CryptoService
 }
 
 export interface SendInviteResult {
@@ -34,7 +32,7 @@ export class InviteDeliveryService {
   constructor(private readonly settings: SettingsService) {}
 
   async sendInvite(params: SendInviteParams): Promise<SendInviteResult> {
-    const { recipientPhone, inviteCode, channel, expiresAt, appUrl, hmacSecret } = params
+    const { recipientPhone, inviteCode, channel, expiresAt, appUrl, crypto } = params
 
     const inviteLink = `${appUrl}/onboarding?code=${inviteCode}`
     const expiryDate = expiresAt.toLocaleDateString('en-US', {
@@ -48,7 +46,7 @@ export class InviteDeliveryService {
       `(Expires ${expiryDate})`,
     ].join(' ')
 
-    const adapter = await getMessagingAdapter(channel, this.settings, hmacSecret)
+    const adapter = await getMessagingAdapter(channel, this.settings, crypto)
 
     const result = await adapter.sendMessage({
       recipientIdentifier: recipientPhone,
@@ -63,17 +61,7 @@ export class InviteDeliveryService {
     return {
       sent: true,
       channel,
-      recipientPhoneHash: hashPhone(recipientPhone, hmacSecret),
+      recipientPhoneHash: crypto.hmac(recipientPhone, HMAC_PHONE_PREFIX),
     }
   }
-}
-
-/**
- * Hash a phone number for storage (one-way — compare by re-hashing).
- * Uses HMAC-SHA256 with server HMAC_SECRET and HMAC_PHONE_PREFIX domain separation.
- */
-function hashPhone(phone: string, secret: string): string {
-  const key = hexToBytes(secret)
-  const input = utf8ToBytes(`${HMAC_PHONE_PREFIX}${phone}`)
-  return bytesToHex(hmac(sha256, key, input))
 }

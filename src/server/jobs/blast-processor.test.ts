@@ -1,7 +1,13 @@
 import { describe, expect, mock, test } from 'bun:test'
+import { bytesToHex } from '@noble/hashes/utils.js'
+import { CryptoService } from '../lib/crypto-service'
 import type { MessagingAdapter, SendMessageParams, SendResult } from '../messaging/adapter'
 import type { Blast, BlastDelivery, Subscriber, SubscriberChannel } from '../types'
 import { BlastProcessor } from './blast-processor'
+
+const testServerSecret = bytesToHex(crypto.getRandomValues(new Uint8Array(32)))
+const testHmacSecret = bytesToHex(crypto.getRandomValues(new Uint8Array(32)))
+const testCrypto = new CryptoService(testServerSecret, testHmacSecret)
 
 // ── Helpers ──
 
@@ -93,7 +99,7 @@ function createMockServices(overrides: Record<string, unknown> = {}) {
 }
 
 function createProcessor(services: ReturnType<typeof createMockServices>) {
-  const processor = new BlastProcessor(services as never, 'server-secret', 'hmac-secret')
+  const processor = new BlastProcessor(services as never, testCrypto, 'server-secret')
   // Override crypto/adapter helpers — no real crypto in unit tests
   processor._getHubKey = mock(() => Promise.resolve(new Uint8Array(32)))
   processor._decryptBlastContent = mock(() => 'Hello world')

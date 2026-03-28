@@ -1,3 +1,4 @@
+import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import { KIND_CALL_VOICEMAIL } from '@shared/nostr-events'
 import { Hono } from 'hono'
 import {
@@ -7,7 +8,6 @@ import {
 } from '../../shared/languages'
 import { permissionGranted, resolvePermissions } from '../../shared/permissions'
 import { getTelephony } from '../lib/adapters'
-import { hashPhone } from '../lib/crypto'
 import { telephonyResponse } from '../lib/helpers'
 import { publishNostrEvent } from '../lib/nostr-events'
 import { startParallelRinging } from '../lib/ringing'
@@ -201,7 +201,7 @@ telephony.post('/language-selected', async (c) => {
   let rateLimited = false
   if (spamSettings.rateLimitEnabled) {
     rateLimited = await services.settings.checkRateLimit(
-      `phone:${hashPhone(callerNumber, env.HMAC_SECRET)}`,
+      `phone:${services.crypto.hmac(callerNumber, HMAC_PHONE_PREFIX)}`,
       spamSettings.maxCallsPerMinute
     )
   }
@@ -651,6 +651,7 @@ telephony.post('/voicemail-recording', async (c) => {
             files: services.files,
             records: services.records,
             maxBytes: settings.voicemailMaxBytes,
+            crypto: services.crypto,
           })
 
           // Publish voicemail Nostr event (hub-key encrypted, fire-and-forget)

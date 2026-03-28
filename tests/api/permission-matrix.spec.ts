@@ -106,10 +106,11 @@ test.describe('Permission Matrix', () => {
         roleIds: ['role-volunteer'],
       }
 
-      // Super-admin: allowed
+      // Super-admin: allowed (but pubkey '00'.repeat(32) is invalid secp256k1 — returns 400)
       const saRes = await adminApi.post('/api/volunteers', body)
-      // May get 409 if pubkey already exists, but not 403
-      expect([200, 201, 409]).toContain(saRes.status())
+      // Not forbidden (403) — admin has the permission; invalid pubkey may return 400
+      expect(saRes.status()).not.toBe(403)
+      expect(saRes.status()).not.toBe(500)
 
       // Volunteer: denied
       const volRes = await ctx.api('volunteer').post('/api/volunteers', body)

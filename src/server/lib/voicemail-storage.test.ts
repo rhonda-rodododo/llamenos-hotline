@@ -1,11 +1,18 @@
 import { describe, expect, mock, test } from 'bun:test'
 import { schnorr } from '@noble/curves/secp256k1.js'
+import { bytesToHex } from '@noble/hashes/utils.js'
+import { CryptoService } from './crypto-service'
 import { storeVoicemailAudio } from './voicemail-storage'
 
 // Use real crypto with real keypairs instead of mocking the module
 // (mock.module leaks across test files in Bun's test runner)
 const privkey = schnorr.utils.randomSecretKey()
 const pubkey = Buffer.from(schnorr.getPublicKey(privkey)).toString('hex')
+
+// Create a real CryptoService for tests
+const testServerSecret = bytesToHex(crypto.getRandomValues(new Uint8Array(32)))
+const testHmacSecret = bytesToHex(crypto.getRandomValues(new Uint8Array(32)))
+const cryptoService = new CryptoService(testServerSecret, testHmacSecret)
 
 describe('storeVoicemailAudio', () => {
   test('downloads, encrypts, stores, and deletes recording', async () => {
@@ -32,6 +39,7 @@ describe('storeVoicemailAudio', () => {
       files: mockFiles as any,
       records: mockRecords as any,
       maxBytes: 2097152,
+      crypto: cryptoService,
     })
 
     expect(mockAdapter.getRecordingAudio).toHaveBeenCalledWith('REC456')
@@ -74,6 +82,7 @@ describe('storeVoicemailAudio', () => {
       files: mockFiles as any,
       records: { updateCallRecord: mock() } as any,
       maxBytes: 2097152,
+      crypto: cryptoService,
     })
 
     expect(result).toBe('oversized')
@@ -97,6 +106,7 @@ describe('storeVoicemailAudio', () => {
         files: {} as any,
         records: {} as any,
         maxBytes: 2097152,
+        crypto: cryptoService,
       })
     ).rejects.toThrow('Failed to download recording REC_NULL')
   })
@@ -125,6 +135,7 @@ describe('storeVoicemailAudio', () => {
         files: mockFiles as any,
         records: { updateCallRecord: mock() } as any,
         maxBytes: 2097152,
+        crypto: cryptoService,
       })
     ).rejects.toThrow('Storage unavailable')
 

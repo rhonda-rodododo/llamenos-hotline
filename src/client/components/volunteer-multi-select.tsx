@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { Volunteer } from '@/lib/api'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { cn } from '@/lib/utils'
 import { Check, ChevronsUpDown, X } from 'lucide-react'
 import { useState } from 'react'
@@ -61,13 +62,18 @@ export function VolunteerMultiSelect({
           {selectedVolunteers.length > 0 ? (
             selectedVolunteers.map((vol) => (
               <Badge key={vol.pubkey} variant="secondary" className="max-w-[150px] gap-0.5 pr-0.5">
-                <span className="truncate" title={vol.name}>
-                  {vol.name}
+                <span
+                  className="truncate"
+                  title={tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)}
+                >
+                  {tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)}
                 </span>
                 <span
                   role="button"
                   tabIndex={0}
-                  aria-label={t('shifts.removeVolunteer', { name: vol.name })}
+                  aria-label={t('shifts.removeVolunteer', {
+                    name: tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name),
+                  })}
                   className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20"
                   onClick={(e) => remove(vol.pubkey, e)}
                   onKeyDown={(e) => {
@@ -94,7 +100,8 @@ export function VolunteerMultiSelect({
           filter={(value, search) => {
             const vol = volunteers.find((v) => v.pubkey === value)
             if (!vol) return 0
-            const haystack = `${vol.name} ${vol.phone} ${vol.pubkey}`.toLowerCase()
+            const haystack =
+              `${tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)} ${vol.phone} ${vol.pubkey}`.toLowerCase()
             return haystack.includes(search.toLowerCase()) ? 1 : 0
           }}
         >
@@ -114,7 +121,9 @@ export function VolunteerMultiSelect({
                       selected.includes(vol.pubkey) ? 'opacity-100' : 'opacity-0'
                     )}
                   />
-                  <span className="truncate">{vol.name}</span>
+                  <span className="truncate">
+                    {tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)}
+                  </span>
                   <span className="ml-auto font-mono text-xs text-muted-foreground">
                     {vol.pubkey.slice(0, 8)}…
                   </span>

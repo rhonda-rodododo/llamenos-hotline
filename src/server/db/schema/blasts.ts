@@ -1,6 +1,7 @@
 import { boolean, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
 import type { RecipientEnvelope } from '../../../shared/types'
 import { jsonb } from '../bun-jsonb'
+import { ciphertext } from '../crypto-columns'
 
 interface SubscriberChannel {
   type: 'sms' | 'whatsapp' | 'signal' | 'rcs'
@@ -18,7 +19,7 @@ interface BlastStats {
 export const blasts = pgTable('blasts', {
   id: text('id').primaryKey(),
   hubId: text('hub_id').notNull().default('global'),
-  name: text('name').notNull(),
+  encryptedName: ciphertext('encrypted_name').notNull(),
   encryptedContent: text('encrypted_content').notNull().default(''),
   contentEnvelopes: jsonb<RecipientEnvelope[]>()('content_envelopes').notNull().default([]),
   /** Array of channel types to send to: 'sms' | 'whatsapp' | 'signal' */
@@ -91,7 +92,7 @@ export const blastSettings = pgTable('blast_settings', {
     .notNull()
     .default(['STOP', 'UNSUBSCRIBE', 'CANCEL']),
   doubleOptInEnabled: boolean('double_opt_in_enabled').notNull().default(false),
-  doubleOptInMessage: text('double_opt_in_message'),
-  welcomeMessage: text('welcome_message'),
-  byeMessage: text('bye_message'),
+  encryptedDoubleOptInMessage: ciphertext('encrypted_double_opt_in_message'),
+  encryptedWelcomeMessage: ciphertext('encrypted_welcome_message'),
+  encryptedByeMessage: ciphertext('encrypted_bye_message'),
 })

@@ -1,3 +1,5 @@
+import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { MessagingChannelType } from '../../shared/types'
 import type { Database } from '../db'
@@ -10,6 +12,7 @@ import {
   webauthnCredentials,
   webauthnSettings,
 } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
   AddWebAuthnCredentialData,
@@ -33,6 +36,9 @@ import type {
   WebAuthnSettings,
 } from '../types'
 
+/** Check if a string is a valid 64-char hex secp256k1 x-only pubkey */
+const isValidPubkey = (pk: string) => /^[0-9a-f]{64}$/i.test(pk)
+
 /** Fields volunteers can update on their own profile */
 const VOLUNTEER_SAFE_FIELDS = new Set([
   'name',
@@ -46,7 +52,10 @@ const VOLUNTEER_SAFE_FIELDS = new Set([
 ])
 
 export class IdentityService {
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    protected readonly crypto: CryptoService
+  ) {}
 
   // ------------------------------------------------------------------ Volunteers
 
@@ -65,12 +74,24 @@ export class IdentityService {
   }
 
   async createVolunteer(data: CreateVolunteerData): Promise<Volunteer> {
+    // Encrypt phone with server key (server can decrypt for routing)
+    const encryptedPhone = this.crypto.serverEncrypt(data.phone ?? '', LABEL_VOLUNTEER_PII)
+
+    // E2EE envelope-encrypt name for volunteer + admin pubkeys
+    const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
+    const nameRecipients = [
+      ...(isValidPubkey(data.pubkey) ? [data.pubkey] : []),
+      ...adminPubkeys,
+    ].filter((pk, i, arr) => arr.indexOf(pk) === i)
+    const nameEnvelope =
+      data.name && nameRecipients.length > 0
+        ? this.crypto.envelopeEncrypt(data.name, nameRecipients, LABEL_VOLUNTEER_PII)
+        : undefined
+
     const [row] = await this.db
       .insert(volunteers)
       .values({
         pubkey: data.pubkey,
-        name: data.name,
-        phone: data.phone,
         roles: data.roleIds ?? data.roles ?? ['role-volunteer'],
         encryptedSecretKey: data.encryptedSecretKey,
         active: true,
@@ -80,6 +101,12 @@ export class IdentityService {
         profileCompleted: false,
         onBreak: false,
         callPreference: 'phone',
+        encryptedPhone,
+        // E2EE name: use envelope ciphertext if available, fallback to server-key
+        encryptedName: nameEnvelope
+          ? nameEnvelope.encrypted
+          : this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
+        ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
       })
       .returning()
     return this.#rowToVolunteer(row)
@@ -104,11 +131,33 @@ export class IdentityService {
       }
     }
 
+    // Encrypt phone if being updated
+    const encryptedPhoneUpdate =
+      allowed.phone !== undefined
+        ? this.crypto.serverEncrypt(allowed.phone as string, LABEL_VOLUNTEER_PII)
+        : undefined
+
+    // E2EE envelope-encrypt name if being updated (for volunteer + admin pubkeys)
+    let nameEnvelope:
+      | { encrypted: Ciphertext; envelopes: import('@shared/types').RecipientEnvelope[] }
+      | undefined
+    if (allowed.name !== undefined) {
+      const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
+      const nameRecipients = [...(isValidPubkey(pubkey) ? [pubkey] : []), ...adminPubkeys].filter(
+        (pk, i, arr) => arr.indexOf(pk) === i
+      )
+      if (nameRecipients.length > 0) {
+        nameEnvelope = this.crypto.envelopeEncrypt(
+          allowed.name as string,
+          nameRecipients,
+          LABEL_VOLUNTEER_PII
+        )
+      }
+    }
+
     const [row] = await this.db
       .update(volunteers)
       .set({
-        ...(allowed.name !== undefined ? { name: allowed.name as string } : {}),
-        ...(allowed.phone !== undefined ? { phone: allowed.phone as string } : {}),
         ...(allowed.roles !== undefined ? { roles: allowed.roles as string[] } : {}),
         ...(allowed.active !== undefined ? { active: allowed.active as boolean } : {}),
         ...(allowed.transcriptionEnabled !== undefined
@@ -133,6 +182,17 @@ export class IdentityService {
           : {}),
         ...(allowed.messagingEnabled !== undefined
           ? { messagingEnabled: allowed.messagingEnabled as boolean }
+          : {}),
+        // Encrypted columns
+        ...(encryptedPhoneUpdate ? { encryptedPhone: encryptedPhoneUpdate } : {}),
+        ...(allowed.name !== undefined
+          ? {
+              // E2EE name: use envelope ciphertext if available, fallback to server-key
+              encryptedName: nameEnvelope
+                ? nameEnvelope.encrypted
+                : this.crypto.serverEncrypt(allowed.name as string, LABEL_VOLUNTEER_PII),
+              ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
+            }
           : {}),
       })
       .where(eq(volunteers.pubkey, pubkey))
@@ -161,12 +221,16 @@ export class IdentityService {
       const adminExists = existing.some((r) => (r.roles as string[]).includes('role-super-admin'))
       if (adminExists) throw new AppError(403, 'Admin already exists')
 
+      // Encrypt bootstrap admin fields
+      const encryptedPhone = this.crypto.serverEncrypt('', LABEL_VOLUNTEER_PII)
+      const nameEnvelope = isValidPubkey(pubkey)
+        ? this.crypto.envelopeEncrypt('Admin', [pubkey], LABEL_VOLUNTEER_PII)
+        : undefined
+
       const [row] = await tx
         .insert(volunteers)
         .values({
           pubkey,
-          name: 'Admin',
-          phone: '',
           roles: ['role-super-admin'],
           encryptedSecretKey: '',
           active: true,
@@ -176,6 +240,12 @@ export class IdentityService {
           profileCompleted: false,
           onBreak: false,
           callPreference: 'phone',
+          encryptedPhone,
+          // E2EE name: use envelope ciphertext if available, fallback to server-key
+          encryptedName: nameEnvelope
+            ? nameEnvelope.encrypted
+            : this.crypto.serverEncrypt('Admin', LABEL_VOLUNTEER_PII),
+          ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
         })
         .returning()
       return this.#rowToVolunteer(row)
@@ -225,15 +295,34 @@ export class IdentityService {
   async createInvite(data: CreateInviteData): Promise<InviteCode> {
     const code = crypto.randomUUID()
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+    // Encrypt phone with server key
+    const encryptedPhone = this.crypto.serverEncrypt(data.phone ?? '', LABEL_VOLUNTEER_PII)
+
+    // E2EE envelope-encrypt name for createdBy + admin pubkeys
+    const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
+    const inviteNameRecipients = [
+      ...(data.createdBy && isValidPubkey(data.createdBy) ? [data.createdBy] : []),
+      ...adminPubkeys,
+    ].filter((pk, i, arr) => arr.indexOf(pk) === i)
+    const nameEnvelope =
+      data.name && inviteNameRecipients.length > 0
+        ? this.crypto.envelopeEncrypt(data.name, inviteNameRecipients, LABEL_VOLUNTEER_PII)
+        : undefined
+
     const [row] = await this.db
       .insert(inviteCodes)
       .values({
         code,
-        name: data.name,
-        phone: data.phone,
         roleIds: data.roleIds ?? ['role-volunteer'],
         createdBy: data.createdBy,
         expiresAt,
+        encryptedPhone,
+        // E2EE name: use envelope ciphertext if available, fallback to server-key
+        encryptedName: nameEnvelope
+          ? nameEnvelope.encrypted
+          : this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
+        ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
       })
       .returning()
     return this.#rowToInvite(row)
@@ -247,7 +336,14 @@ export class IdentityService {
     if (!row) return { valid: false, error: 'not_found' }
     if (row.usedAt !== null) return { valid: false, error: 'already_used' }
     if (row.expiresAt < new Date()) return { valid: false, error: 'expired' }
-    return { valid: true, name: row.name, roleIds: row.roleIds as string[] }
+    // Name is E2EE — server-side decrypt attempt for display (may be server-encrypted fallback)
+    let name: string | undefined
+    try {
+      name = this.crypto.serverDecrypt(row.encryptedName as Ciphertext, LABEL_VOLUNTEER_PII)
+    } catch {
+      // E2EE-only name — client will decrypt via envelopes
+    }
+    return { valid: true, name, roleIds: row.roleIds as string[] }
   }
 
   async redeemInvite(data: RedeemInviteData): Promise<Volunteer> {
@@ -268,13 +364,45 @@ export class IdentityService {
         .set({ usedAt: new Date(), usedBy: data.pubkey })
         .where(eq(inviteCodes.code, data.code))
 
+      // Decrypt invite PII from encrypted columns
+      let invitePhone = ''
+      try {
+        invitePhone = this.crypto.serverDecrypt(
+          invite.encryptedPhone as Ciphertext,
+          LABEL_VOLUNTEER_PII
+        )
+      } catch {
+        /* E2EE-only — leave empty */
+      }
+
+      let inviteName = ''
+      try {
+        inviteName = this.crypto.serverDecrypt(
+          invite.encryptedName as Ciphertext,
+          LABEL_VOLUNTEER_PII
+        )
+      } catch {
+        /* E2EE-only — leave empty */
+      }
+
+      // Encrypt volunteer PII
+      const encryptedPhone = this.crypto.serverEncrypt(invitePhone, LABEL_VOLUNTEER_PII)
+
+      const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
+      const redeemNameRecipients = [
+        ...(isValidPubkey(data.pubkey) ? [data.pubkey] : []),
+        ...adminPubkeys,
+      ].filter((pk, i, arr) => arr.indexOf(pk) === i)
+      const nameEnvelope =
+        inviteName && redeemNameRecipients.length > 0
+          ? this.crypto.envelopeEncrypt(inviteName, redeemNameRecipients, LABEL_VOLUNTEER_PII)
+          : undefined
+
       // Create volunteer
       const [row] = await tx
         .insert(volunteers)
         .values({
           pubkey: data.pubkey,
-          name: invite.name,
-          phone: invite.phone,
           roles: (invite.roleIds as string[]) ?? ['role-volunteer'],
           encryptedSecretKey: '',
           active: true,
@@ -284,6 +412,12 @@ export class IdentityService {
           profileCompleted: false,
           onBreak: false,
           callPreference: 'phone',
+          encryptedPhone,
+          // E2EE name: use envelope ciphertext if available, fallback to server-key
+          encryptedName: nameEnvelope
+            ? nameEnvelope.encrypted
+            : this.crypto.serverEncrypt(inviteName, LABEL_VOLUNTEER_PII),
+          ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
         })
         .returning()
       return this.#rowToVolunteer(row)
@@ -301,7 +435,7 @@ export class IdentityService {
     const [row] = await this.db
       .update(inviteCodes)
       .set({
-        recipientPhoneHash: data.recipientPhoneHash,
+        recipientPhoneHash: data.recipientPhoneHash as import('@shared/crypto-types').HmacHash,
         deliveryChannel: data.deliveryChannel,
         deliverySentAt: data.deliverySentAt,
       })
@@ -328,6 +462,13 @@ export class IdentityService {
 
   async addWebAuthnCredential(data: AddWebAuthnCredentialData): Promise<void> {
     const cred = data.credential
+
+    // E2EE encrypt label for the credential owner's pubkey
+    const labelEnvelope =
+      cred.label && isValidPubkey(data.pubkey)
+        ? this.crypto.envelopeEncrypt(cred.label, [data.pubkey], LABEL_VOLUNTEER_PII)
+        : undefined
+
     await this.db.insert(webauthnCredentials).values({
       id: cred.id,
       pubkey: data.pubkey,
@@ -335,8 +476,10 @@ export class IdentityService {
       counter: String(cred.counter),
       transports: cred.transports,
       backedUp: cred.backedUp,
-      label: cred.label,
       lastUsedAt: new Date(cred.lastUsedAt),
+      ...(labelEnvelope
+        ? { encryptedLabel: labelEnvelope.encrypted, labelEnvelopes: labelEnvelope.envelopes }
+        : {}),
     })
   }
 
@@ -615,10 +758,29 @@ export class IdentityService {
   // ------------------------------------------------------------------ Private helpers
 
   #rowToVolunteer(r: typeof volunteers.$inferSelect): Volunteer {
+    // Guard: empty ciphertext means GDPR-erased (crypto-shredded) — return empty string
+    const phone = r.encryptedPhone
+      ? this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
+      : ''
+
+    // Name: if envelopes exist, this is E2EE — server can't decrypt.
+    // Otherwise try server-key decrypt for legacy data.
+    let name = ''
+    const nameEnvelopes = (r.nameEnvelopes as import('@shared/types').RecipientEnvelope[]) ?? []
+    if (nameEnvelopes.length > 0) {
+      name = '[encrypted]'
+    } else if (r.encryptedName) {
+      try {
+        name = this.crypto.serverDecrypt(r.encryptedName as Ciphertext, LABEL_VOLUNTEER_PII)
+      } catch {
+        // Decryption failed — leave empty
+      }
+    }
+
     return {
       pubkey: r.pubkey,
-      name: r.name,
-      phone: r.phone,
+      name,
+      phone,
       roles: r.roles as string[],
       hubRoles: r.hubRoles as Array<{ hubId: string; roleIds: string[] }>,
       active: r.active,
@@ -634,14 +796,40 @@ export class IdentityService {
         | MessagingChannelType[]
         | undefined,
       messagingEnabled: r.messagingEnabled ?? undefined,
+      // E2EE envelope fields for client-side decryption
+      ...(nameEnvelopes.length > 0
+        ? {
+            encryptedName: r.encryptedName as string,
+            nameEnvelopes,
+          }
+        : {}),
     }
   }
 
   #rowToInvite(r: typeof inviteCodes.$inferSelect): InviteCode {
+    // Guard: empty ciphertext means erased — return empty string
+    const phone = r.encryptedPhone
+      ? this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
+      : ''
+
+    // Name: if envelopes exist, this is E2EE — server can't decrypt.
+    const inviteNameEnvelopes =
+      (r.nameEnvelopes as import('@shared/types').RecipientEnvelope[]) ?? []
+    let name = ''
+    if (inviteNameEnvelopes.length > 0) {
+      name = '[encrypted]'
+    } else if (r.encryptedName) {
+      try {
+        name = this.crypto.serverDecrypt(r.encryptedName as Ciphertext, LABEL_VOLUNTEER_PII)
+      } catch {
+        // Decryption failed — leave empty
+      }
+    }
+
     return {
       code: r.code,
-      name: r.name,
-      phone: r.phone,
+      name,
+      phone,
       roleIds: r.roleIds as string[],
       createdBy: r.createdBy,
       createdAt: r.createdAt.toISOString(),
@@ -651,19 +839,34 @@ export class IdentityService {
       recipientPhoneHash: r.recipientPhoneHash ?? undefined,
       deliveryChannel: r.deliveryChannel ?? undefined,
       deliverySentAt: r.deliverySentAt?.toISOString() ?? undefined,
+      // E2EE envelope fields for client-side decryption
+      ...(inviteNameEnvelopes.length > 0
+        ? {
+            encryptedName: r.encryptedName as string,
+            nameEnvelopes: inviteNameEnvelopes,
+          }
+        : {}),
     }
   }
 
   #rowToCredential(r: typeof webauthnCredentials.$inferSelect): WebAuthnCredential {
+    const labelEnvelopes = (r.labelEnvelopes as import('@shared/types').RecipientEnvelope[]) ?? []
     return {
       id: r.id,
       publicKey: r.publicKey,
       counter: Number(r.counter),
       transports: r.transports as string[],
       backedUp: r.backedUp,
-      label: r.label,
+      label: labelEnvelopes.length > 0 ? '[encrypted]' : '', // E2EE label decrypted client-side
       createdAt: r.createdAt.toISOString(),
       lastUsedAt: r.lastUsedAt.toISOString(),
+      // E2EE envelope fields for client-side decryption
+      ...(labelEnvelopes.length > 0
+        ? {
+            encryptedLabel: r.encryptedLabel as string,
+            labelEnvelopes,
+          }
+        : {}),
     }
   }
 }

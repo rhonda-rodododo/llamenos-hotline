@@ -15,6 +15,7 @@ import {
   updateVolunteer,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { useToast } from '@/lib/toast'
 import { LANGUAGES } from '@shared/languages'
 import { Link, createFileRoute } from '@tanstack/react-router'
@@ -127,6 +128,11 @@ function VolunteerProfilePage() {
   }
 
   const auditTotalPages = Math.ceil(auditTotal / auditLimit)
+  const displayName = tryDecryptField(
+    volunteer.encryptedName,
+    volunteer.nameEnvelopes,
+    volunteer.name
+  )
 
   const langMap = new Map(LANGUAGES.map((l) => [l.code, l]))
 
@@ -146,11 +152,11 @@ function VolunteerProfilePage() {
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl font-semibold text-primary">
-              {volunteer.name.charAt(0).toUpperCase()}
+              {displayName.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 space-y-3">
               <div>
-                <h1 className="text-xl font-bold">{volunteer.name}</h1>
+                <h1 className="text-xl font-bold">{displayName}</h1>
                 <code className="text-xs text-muted-foreground">{volunteer.pubkey}</code>
               </div>
               <div className="flex flex-wrap gap-2">

@@ -1,4 +1,5 @@
 import type { SMSConfig, TelephonyProviderConfig } from '../../../shared/types'
+import type { CryptoService } from '../../lib/crypto-service'
 import type { MessagingAdapter } from '../adapter'
 import { PlivoSMSAdapter } from './plivo'
 import { SignalWireSMSAdapter } from './signalwire'
@@ -17,7 +18,7 @@ import { VonageSMSAdapter } from './vonage'
 export function createSMSAdapter(
   telephonyConfig: TelephonyProviderConfig,
   _smsConfig: SMSConfig,
-  hmacSecret: string
+  crypto: CryptoService
 ): MessagingAdapter {
   const phoneNumber = telephonyConfig.phoneNumber
 
@@ -30,7 +31,7 @@ export function createSMSAdapter(
         telephonyConfig.accountSid,
         telephonyConfig.authToken,
         phoneNumber,
-        hmacSecret
+        crypto
       )
     }
 
@@ -47,7 +48,7 @@ export function createSMSAdapter(
         telephonyConfig.authToken,
         phoneNumber,
         telephonyConfig.signalwireSpace,
-        hmacSecret
+        crypto
       )
     }
 
@@ -59,7 +60,7 @@ export function createSMSAdapter(
         telephonyConfig.apiKey,
         telephonyConfig.apiSecret,
         phoneNumber,
-        hmacSecret
+        crypto
       )
     }
 
@@ -71,7 +72,7 @@ export function createSMSAdapter(
         telephonyConfig.authId,
         telephonyConfig.authToken,
         phoneNumber,
-        hmacSecret
+        crypto
       )
     }
 

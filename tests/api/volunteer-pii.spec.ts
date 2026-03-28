@@ -120,8 +120,10 @@ test.describe('Volunteer PII enforcement', () => {
     const meRes = await carolApi.get('/api/auth/me')
     const me = await meRes.json()
 
-    // Own name is visible
-    expect(me.name).toBe(myName)
+    // Name is E2EE envelope-encrypted — server returns envelope fields for client-side decryption
+    expect(me.encryptedName).toBeTruthy()
+    expect(Array.isArray(me.nameEnvelopes)).toBe(true)
+    expect(me.nameEnvelopes.length).toBeGreaterThan(0)
     // Own phone is present but masked (not plaintext)
     expect(me).toHaveProperty('phone')
     expect(me.phone).not.toBe(myPhone)
@@ -146,8 +148,10 @@ test.describe('Volunteer PII enforcement', () => {
     const volEntry = listResult.volunteers.find((v: { pubkey: string }) => v.pubkey === vol.pubkey)
     expect(volEntry).toBeDefined()
 
-    // Admin can see the name
-    expect(volEntry.name).toBe(volName)
+    // Name is E2EE envelope-encrypted — admin also gets encrypted sentinel + envelope data
+    expect(volEntry.encryptedName).toBeTruthy()
+    expect(Array.isArray(volEntry.nameEnvelopes)).toBe(true)
+    expect(volEntry.nameEnvelopes.length).toBeGreaterThan(0)
     // Admin view discriminant
     expect(volEntry.view).toBe('admin')
     // Phone is present but masked

@@ -143,6 +143,12 @@ export interface CustomFieldDefinition {
   type: 'text' | 'number' | 'select' | 'checkbox' | 'textarea' | 'file' | 'location'
   required: boolean
   options?: string[] // for 'select' type only
+  /** Hub-key encrypted field name (hex ciphertext). */
+  encryptedFieldName?: string
+  /** Hub-key encrypted label (hex ciphertext). */
+  encryptedLabel?: string
+  /** Hub-key encrypted JSON.stringify(options) (hex ciphertext). */
+  encryptedOptions?: string
   validation?: {
     minLength?: number // text/textarea
     maxLength?: number // text/textarea
@@ -174,6 +180,10 @@ export interface ReportType {
   hubId: string
   name: string
   description?: string
+  /** Hub-key encrypted name (hex ciphertext). */
+  encryptedName?: string
+  /** Hub-key encrypted description (hex ciphertext). */
+  encryptedDescription?: string
   isDefault: boolean
   archivedAt?: string | null
   createdAt: string
@@ -184,12 +194,16 @@ export interface CreateReportTypeInput {
   name: string
   description?: string
   isDefault?: boolean
+  encryptedName?: string
+  encryptedDescription?: string
 }
 
 export interface UpdateReportTypeInput {
   name?: string
   description?: string
   isDefault?: boolean
+  encryptedName?: string
+  encryptedDescription?: string
 }
 
 // --- Encrypted File Upload Types ---
@@ -394,6 +408,8 @@ export interface SubscriberChannel {
 export interface Blast {
   id: string
   name: string
+  /** Hub-key encrypted blast name (hex ciphertext). */
+  encryptedName?: string
   encryptedContent: string
   contentEnvelopes: RecipientEnvelope[]
   status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'cancelled'
@@ -516,8 +532,11 @@ export interface GdprErasureRequest {
 export interface Hub {
   id: string // UUID
   name: string // Display name (e.g., "NYC Hotline")
-  slug: string // URL-safe identifier
   description?: string
+  /** Hub-key encrypted name (hex ciphertext). Client decrypts when hub key available. */
+  encryptedName?: string
+  /** Hub-key encrypted description (hex ciphertext). */
+  encryptedDescription?: string
   status: 'active' | 'suspended' | 'archived'
   phoneNumber?: string // Primary hotline number (for routing)
   createdBy: string // Super admin pubkey

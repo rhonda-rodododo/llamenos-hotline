@@ -15,6 +15,7 @@ import {
 import { useAuth } from '@/lib/auth'
 import { useConfig } from '@/lib/config'
 import { encryptMessage } from '@/lib/crypto'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { useConversations } from '@/lib/hooks'
 import { useToast } from '@/lib/toast'
 import { createFileRoute } from '@tanstack/react-router'
@@ -196,9 +197,18 @@ function ConversationsPage() {
                   <ChannelBadge channelType={selectedConv.channelType} />
                   <div>
                     <p className="font-medium">
-                      {selectedConv.contactLast4
-                        ? `...${selectedConv.contactLast4}`
-                        : t('conversations.unknownContact', { defaultValue: 'Unknown' })}
+                      {(() => {
+                        const cl4 = tryDecryptField(
+                          selectedConv.encryptedContactLast4,
+                          selectedConv.contactLast4Envelopes,
+                          selectedConv.contactLast4 ?? ''
+                        )
+                        return cl4 && cl4 !== '[encrypted]'
+                          ? `...${cl4}`
+                          : cl4 === '[encrypted]'
+                            ? cl4
+                            : t('conversations.unknownContact', { defaultValue: 'Unknown' })
+                      })()}
                     </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Lock className="h-3 w-3" />

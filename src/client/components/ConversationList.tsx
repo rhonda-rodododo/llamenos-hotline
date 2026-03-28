@@ -1,5 +1,6 @@
 import { ChannelBadge } from '@/components/ChannelBadge'
 import type { Conversation } from '@/lib/api'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { Clock, MessageSquare, User } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -33,9 +34,17 @@ function ConversationCard({
 }) {
   const { t } = useTranslation()
 
-  const contactDisplay = conversation.contactLast4
-    ? `...${conversation.contactLast4}`
-    : t('conversations.unknownContact', 'Unknown')
+  const cl4 = tryDecryptField(
+    conversation.encryptedContactLast4,
+    conversation.contactLast4Envelopes,
+    conversation.contactLast4 ?? ''
+  )
+  const contactDisplay =
+    cl4 && cl4 !== '[encrypted]'
+      ? `...${cl4}`
+      : cl4 === '[encrypted]'
+        ? cl4
+        : t('conversations.unknownContact', 'Unknown')
 
   const assigneeDisplay = conversation.assignedTo
     ? conversation.assignedTo.slice(0, 8)
