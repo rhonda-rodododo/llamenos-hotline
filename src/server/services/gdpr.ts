@@ -1,3 +1,5 @@
+import { LABEL_AUDIT_EVENT } from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, lt, sql } from 'drizzle-orm'
 import {
   CONSENT_VERSION,
@@ -22,6 +24,7 @@ import {
   volunteers,
   webauthnCredentials,
 } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 
 export interface GdprExport {
@@ -46,7 +49,10 @@ export interface PurgeSummary {
 }
 
 export class GdprService {
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    private readonly crypto: CryptoService
+  ) {}
 
   // ------------------------------------------------------------------ Consent
 
@@ -199,14 +205,14 @@ export class GdprService {
     const auditRows = await this.db
       .select({
         id: auditLog.id,
-        event: auditLog.event,
+        encryptedEvent: auditLog.encryptedEvent,
         createdAt: auditLog.createdAt,
       })
       .from(auditLog)
       .where(eq(auditLog.actorPubkey, pubkey))
     const auditEntries = auditRows.map((r) => ({
       id: r.id,
-      event: r.event,
+      event: this.crypto.serverDecrypt(r.encryptedEvent as Ciphertext, LABEL_AUDIT_EVENT),
       createdAt: r.createdAt.toISOString(),
     }))
 

@@ -18,13 +18,11 @@ export const bans = pgTable('bans', {
 export const auditLog = pgTable('audit_log', {
   id: text('id').primaryKey(),
   hubId: text('hub_id').notNull().default('global'),
-  event: text('event').notNull(),
   actorPubkey: text('actor_pubkey').notNull(),
-  details: jsonb<Record<string, unknown>>()('details').notNull().default({}),
   previousEntryHash: text('previous_entry_hash'),
   entryHash: text('entry_hash'),
-  encryptedEvent: ciphertext('encrypted_event'),
-  encryptedDetails: ciphertext('encrypted_details'),
+  encryptedEvent: ciphertext('encrypted_event').notNull(),
+  encryptedDetails: ciphertext('encrypted_details').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

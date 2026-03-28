@@ -60,25 +60,42 @@ describe('audit-chain', () => {
 
   test('tampered entry breaks hash chain verification', async () => {
     const hub = `${RUN_PREFIX}-t4`
+    const cryptoSvc = new CryptoService('', '')
+    const { LABEL_AUDIT_EVENT } = await import('@shared/crypto-labels')
+    type CT = import('@shared/crypto-types').Ciphertext
+
     const e1 = await service.addAuditEntry(hub, 'event.real', 'pubkey-y', { safe: true })
     const e2 = await service.addAuditEntry(hub, 'event.after', 'pubkey-y')
 
-    // Tamper with e1's details directly in the DB
+    // Tamper with e1's encrypted details by replacing with different encrypted content
+    const tamperedEncryptedDetails = cryptoSvc.serverEncrypt(
+      JSON.stringify({ safe: false, TAMPERED: true }),
+      LABEL_AUDIT_EVENT
+    )
     await db
       .update(auditLog)
-      .set({ details: { safe: false, TAMPERED: true } })
+      .set({ encryptedDetails: tamperedEncryptedDetails })
       .where(eq(auditLog.id, e1.id))
 
     // e2 still references the old e1 hash — chain is now broken
-    // Verify by reading e1 back and re-computing what its hash should be
+    // Verify by reading e1 back, decrypting, and re-computing what its hash should be
     const [tamperedRow] = await db.select().from(auditLog).where(eq(auditLog.id, e1.id))
     const { sha256 } = await import('@noble/hashes/sha2.js')
     const { bytesToHex, utf8ToBytes } = await import('@noble/hashes/utils.js')
 
+    const decryptedEvent = cryptoSvc.serverDecrypt(
+      tamperedRow.encryptedEvent as CT,
+      LABEL_AUDIT_EVENT
+    )
+    const decryptedDetails = cryptoSvc.serverDecrypt(
+      tamperedRow.encryptedDetails as CT,
+      LABEL_AUDIT_EVENT
+    )
+
     const recomputed = bytesToHex(
       sha256(
         utf8ToBytes(
-          `${tamperedRow.event}${tamperedRow.actorPubkey}${JSON.stringify(tamperedRow.details)}${tamperedRow.previousEntryHash ?? ''}${tamperedRow.createdAt.toISOString()}`
+          `${decryptedEvent}${tamperedRow.actorPubkey}${decryptedDetails}${tamperedRow.previousEntryHash ?? ''}${tamperedRow.createdAt.toISOString()}`
         )
       )
     )

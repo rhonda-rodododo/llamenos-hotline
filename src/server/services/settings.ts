@@ -419,10 +419,10 @@ export class SettingsService {
       )
       .limit(1)
     if (!rows[0]) return null
-    // Decrypt with plaintext fallback for pre-encryption rows
-    const audioData = rows[0].encryptedAudioData
-      ? this.crypto.serverDecrypt(rows[0].encryptedAudioData as Ciphertext, LABEL_IVR_AUDIO)
-      : rows[0].audioData
+    const audioData = this.crypto.serverDecrypt(
+      rows[0].encryptedAudioData as Ciphertext,
+      LABEL_IVR_AUDIO
+    )
     return {
       hubId: rows[0].hubId,
       promptType: rows[0].promptType,
@@ -433,19 +433,20 @@ export class SettingsService {
   }
 
   async upsertIvrAudio(entry: IvrAudioEntry): Promise<void> {
-    // Encrypt audio data with server-key (plaintext kept for transition)
     const encryptedAudioData = this.crypto.serverEncrypt(entry.audioData, LABEL_IVR_AUDIO)
 
     await this.db
       .insert(ivrAudio)
       .values({
-        ...entry,
+        hubId: entry.hubId,
+        promptType: entry.promptType,
+        language: entry.language,
+        mimeType: entry.mimeType,
         encryptedAudioData,
       })
       .onConflictDoUpdate({
         target: [ivrAudio.hubId, ivrAudio.promptType, ivrAudio.language],
         set: {
-          audioData: entry.audioData,
           encryptedAudioData,
           mimeType: entry.mimeType,
           createdAt: new Date(),

@@ -176,6 +176,13 @@
       "when": 1775228400000,
       "tag": "0024_drop_hub_slug",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1775314800000,
+      "tag": "0025_phase2a_drop_plaintext",
+      "breakpoints": true
     }
   ]
 }

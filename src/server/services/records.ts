@@ -510,9 +510,7 @@ export class RecordsService {
       .values({
         id,
         hubId: hId,
-        event,
         actorPubkey,
-        details: details ?? {},
         encryptedEvent,
         encryptedDetails,
         previousEntryHash,
@@ -523,9 +521,9 @@ export class RecordsService {
 
     return {
       id: row.id,
-      event: row.event,
+      event,
       actorPubkey: row.actorPubkey,
-      details: row.details as Record<string, unknown>,
+      details: details ?? {},
       createdAt: row.createdAt.toISOString(),
       previousEntryHash: row.previousEntryHash ?? undefined,
       entryHash: row.entryHash ?? undefined,
@@ -600,15 +598,13 @@ export class RecordsService {
     }
 
     let entries = rows.map((r) => {
-      // Decrypt with plaintext fallback for pre-encryption rows
-      const decryptedEvent = r.encryptedEvent
-        ? this.crypto.serverDecrypt(r.encryptedEvent as Ciphertext, LABEL_AUDIT_EVENT)
-        : r.event
-      const decryptedDetails = r.encryptedDetails
-        ? (JSON.parse(
-            this.crypto.serverDecrypt(r.encryptedDetails as Ciphertext, LABEL_AUDIT_EVENT)
-          ) as Record<string, unknown>)
-        : (r.details as Record<string, unknown>)
+      const decryptedEvent = this.crypto.serverDecrypt(
+        r.encryptedEvent as Ciphertext,
+        LABEL_AUDIT_EVENT
+      )
+      const decryptedDetails = JSON.parse(
+        this.crypto.serverDecrypt(r.encryptedDetails as Ciphertext, LABEL_AUDIT_EVENT)
+      ) as Record<string, unknown>
 
       return {
         id: r.id,
@@ -709,27 +705,31 @@ export class RecordsService {
 
     // NOTE: answeredBy (volunteer pubkey) is stored inside encrypted content for privacy.
     // We can only do volunteer-level stats from the audit log where callAnswered events record actorPubkey.
+    // Event column is encrypted — fetch all entries in range and filter post-decrypt.
     const rows = await this.db
       .select({
         actorPubkey: auditLog.actorPubkey,
-        callsAnswered: sql<number>`COUNT(*)::int`.as('calls_answered'),
+        encryptedEvent: auditLog.encryptedEvent,
       })
       .from(auditLog)
-      .where(
-        and(
-          eq(auditLog.hubId, hId),
-          eq(auditLog.event, 'callAnswered'),
-          gte(auditLog.createdAt, since)
-        )
-      )
-      .groupBy(auditLog.actorPubkey)
-      .orderBy(sql`COUNT(*) DESC`)
+      .where(and(eq(auditLog.hubId, hId), gte(auditLog.createdAt, since)))
 
-    return rows.map((r) => ({
-      pubkey: r.actorPubkey,
-      callsAnswered: Number(r.callsAnswered),
-      avgDuration: 0, // Duration is encrypted; not available without decryption
-    }))
+    // Decrypt event and keep only callAnswered entries
+    const callAnsweredByPubkey = new Map<string, number>()
+    for (const r of rows) {
+      const event = this.crypto.serverDecrypt(r.encryptedEvent as Ciphertext, LABEL_AUDIT_EVENT)
+      if (event === 'callAnswered') {
+        callAnsweredByPubkey.set(r.actorPubkey, (callAnsweredByPubkey.get(r.actorPubkey) ?? 0) + 1)
+      }
+    }
+
+    return Array.from(callAnsweredByPubkey.entries())
+      .map(([pubkey, callsAnswered]) => ({
+        pubkey,
+        callsAnswered,
+        avgDuration: 0, // Duration is encrypted; not available without decryption
+      }))
+      .sort((a, b) => b.callsAnswered - a.callsAnswered)
   }
 
   // ------------------------------------------------------------------ Private helpers

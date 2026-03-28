@@ -92,9 +92,6 @@ export const blastSettings = pgTable('blast_settings', {
     .notNull()
     .default(['STOP', 'UNSUBSCRIBE', 'CANCEL']),
   doubleOptInEnabled: boolean('double_opt_in_enabled').notNull().default(false),
-  doubleOptInMessage: text('double_opt_in_message'),
-  welcomeMessage: text('welcome_message'),
-  byeMessage: text('bye_message'),
   encryptedDoubleOptInMessage: ciphertext('encrypted_double_opt_in_message'),
   encryptedWelcomeMessage: ciphertext('encrypted_welcome_message'),
   encryptedByeMessage: ciphertext('encrypted_bye_message'),

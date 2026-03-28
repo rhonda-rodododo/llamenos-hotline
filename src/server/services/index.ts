@@ -60,7 +60,7 @@ export function createServices(
     conversations: new ConversationService(db, crypto),
     blasts: new BlastService(db),
     files: new FilesService(db, storage),
-    gdpr: new GdprService(db),
+    gdpr: new GdprService(db, crypto),
     reportTypes: new ReportTypeService(db),
     push: new PushService(db, crypto),
     storage,
