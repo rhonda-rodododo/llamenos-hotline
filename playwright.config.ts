@@ -6,8 +6,14 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 3 : parseInt(process.env.PLAYWRIGHT_WORKERS || '3'),
-  reporter: [["html"], ["json"], ["list"]],
+  workers: process.env.CI ? 3 : parseInt(process.env.PLAYWRIGHT_WORKERS || "3"),
+  reporter: process.env.CI
+    ? [
+        ["github"],
+        ["junit", { outputFile: "test-results.xml" }],
+        ["list"],
+      ]
+    : [["html"], ["list"]],
   timeout: 30_000,
   expect: {
     timeout: 10_000,
@@ -28,7 +34,9 @@ export default defineConfig({
       // API integration tests — no browser, request fixture only
       name: "api",
       testDir: "./tests/api",
-      use: { /* no device — request fixture only */ },
+      use: {
+        /* no device — request fixture only */
+      },
       dependencies: ["setup"],
     },
     {
@@ -68,7 +76,7 @@ export default defineConfig({
         reuseExistingServer: !process.env.CI,
         env: {
           ...process.env,
-          USE_TEST_ADAPTER: 'true',
+          USE_TEST_ADAPTER: "true",
         },
       },
 });
