@@ -1,3 +1,9 @@
+import {
+  HMAC_PHONE_PREFIX,
+  LABEL_PUSH_CREDENTIAL,
+  LABEL_VOLUNTEER_PII,
+} from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, inArray } from 'drizzle-orm'
 import webpush from 'web-push'
 import type { Database } from '../db'
@@ -33,13 +39,24 @@ export class PushService {
   ) {}
 
   #rowToSubscription(row: typeof pushSubscriptions.$inferSelect): PushSubscription {
+    // Dual-read: prefer encrypted fields, fall back to plaintext
+    const endpoint = row.encryptedEndpoint
+      ? this.crypto.serverDecrypt(row.encryptedEndpoint as Ciphertext, LABEL_PUSH_CREDENTIAL)
+      : row.endpoint
+    const authKey = row.encryptedAuthKey
+      ? this.crypto.serverDecrypt(row.encryptedAuthKey as Ciphertext, LABEL_PUSH_CREDENTIAL)
+      : row.authKey
+    const p256dhKey = row.encryptedP256dhKey
+      ? this.crypto.serverDecrypt(row.encryptedP256dhKey as Ciphertext, LABEL_PUSH_CREDENTIAL)
+      : row.p256dhKey
+
     return {
       id: row.id,
       pubkey: row.pubkey,
-      endpoint: row.endpoint,
-      authKey: row.authKey,
-      p256dhKey: row.p256dhKey,
-      deviceLabel: row.deviceLabel,
+      endpoint,
+      authKey,
+      p256dhKey,
+      deviceLabel: row.deviceLabel, // Plaintext fallback — E2EE device label decrypted client-side
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }
@@ -48,14 +65,44 @@ export class PushService {
   /** Create or update a push subscription (upsert on endpoint). */
   async subscribe(data: PushSubscriptionData): Promise<PushSubscription> {
     const now = new Date()
+
+    // Encrypt push credentials with server key
+    const encryptedEndpoint = this.crypto.serverEncrypt(data.endpoint, LABEL_PUSH_CREDENTIAL)
+    const encryptedAuthKey = this.crypto.serverEncrypt(data.authKey, LABEL_PUSH_CREDENTIAL)
+    const encryptedP256dhKey = this.crypto.serverEncrypt(data.p256dhKey, LABEL_PUSH_CREDENTIAL)
+
+    // HMAC hash endpoint for dedup
+    const endpointHash = this.crypto.hmac(data.endpoint, HMAC_PHONE_PREFIX)
+
+    // E2EE encrypt device label for the volunteer's own pubkey (bootstrap)
+    // Only attempt if pubkey looks like a valid 64-char hex secp256k1 x-only pubkey
+    let labelEnvelope: ReturnType<CryptoService['envelopeEncrypt']> | undefined
+    if (data.deviceLabel && /^[0-9a-f]{64}$/i.test(data.pubkey)) {
+      labelEnvelope = this.crypto.envelopeEncrypt(
+        data.deviceLabel,
+        [data.pubkey],
+        LABEL_VOLUNTEER_PII
+      )
+    }
+
     const [row] = await this.db
       .insert(pushSubscriptions)
       .values({
         pubkey: data.pubkey,
         endpoint: data.endpoint,
+        endpointHash,
+        encryptedEndpoint,
         authKey: data.authKey,
+        encryptedAuthKey,
         p256dhKey: data.p256dhKey,
+        encryptedP256dhKey,
         deviceLabel: data.deviceLabel ?? null,
+        ...(labelEnvelope
+          ? {
+              encryptedDeviceLabel: labelEnvelope.encrypted,
+              deviceLabelEnvelopes: labelEnvelope.envelopes,
+            }
+          : {}),
         updatedAt: now,
       })
       .onConflictDoUpdate({
@@ -63,8 +110,18 @@ export class PushService {
         set: {
           pubkey: data.pubkey,
           authKey: data.authKey,
+          encryptedAuthKey,
           p256dhKey: data.p256dhKey,
+          encryptedP256dhKey,
+          encryptedEndpoint,
+          endpointHash,
           deviceLabel: data.deviceLabel ?? null,
+          ...(labelEnvelope
+            ? {
+                encryptedDeviceLabel: labelEnvelope.encrypted,
+                deviceLabelEnvelopes: labelEnvelope.envelopes,
+              }
+            : {}),
           updatedAt: now,
         },
       })

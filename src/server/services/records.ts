@@ -1,5 +1,7 @@
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
+import { HMAC_PHONE_PREFIX, LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
 import { and, asc, desc, eq, gte, lte, or, sql } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
@@ -23,6 +25,9 @@ import type {
   UpdateNoteData,
 } from '../types'
 
+/** Check if a string is a valid 64-char hex secp256k1 x-only pubkey */
+const isValidPubkey = (pk: string) => /^[0-9a-f]{64}$/i.test(pk)
+
 export class RecordsService {
   constructor(
     protected readonly db: Database,
@@ -35,6 +40,7 @@ export class RecordsService {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(bans).where(eq(bans.hubId, hId))
     return rows.map((r) => ({
+      // Plaintext fallback for transition — encrypted phone/reason passed through for client decryption
       phone: r.phone,
       reason: r.reason,
       bannedBy: r.bannedBy,
@@ -45,9 +51,37 @@ export class RecordsService {
   async addBan(data: CreateBanData): Promise<BanEntry> {
     const hId = data.hubId ?? 'global'
     const id = crypto.randomUUID()
+
+    // HMAC hash phone for ban-check lookups
+    const phoneHash = this.crypto.hmac(data.phone, HMAC_PHONE_PREFIX)
+
+    // E2EE encrypt phone + reason for admin display (if bannedBy is a valid pubkey)
+    const recipientPubkeys = isValidPubkey(data.bannedBy) ? [data.bannedBy] : []
+    const phoneEnvelope =
+      recipientPubkeys.length > 0
+        ? this.crypto.envelopeEncrypt(data.phone, recipientPubkeys, LABEL_VOLUNTEER_PII)
+        : undefined
+    const reasonEnvelope =
+      data.reason && recipientPubkeys.length > 0
+        ? this.crypto.envelopeEncrypt(data.reason, recipientPubkeys, LABEL_VOLUNTEER_PII)
+        : undefined
+
     const [row] = await this.db
       .insert(bans)
-      .values({ id, hubId: hId, phone: data.phone, reason: data.reason, bannedBy: data.bannedBy })
+      .values({
+        id,
+        hubId: hId,
+        phone: data.phone,
+        reason: data.reason,
+        bannedBy: data.bannedBy,
+        phoneHash,
+        ...(phoneEnvelope
+          ? { encryptedPhone: phoneEnvelope.encrypted, phoneEnvelopes: phoneEnvelope.envelopes }
+          : {}),
+        ...(reasonEnvelope
+          ? { encryptedReason: reasonEnvelope.encrypted, reasonEnvelopes: reasonEnvelope.envelopes }
+          : {}),
+      })
       .returning()
     return {
       phone: row.phone,
@@ -64,20 +98,46 @@ export class RecordsService {
     const newPhones = data.phones.filter((p) => !existingPhones.has(p))
     if (newPhones.length === 0) return 0
     await this.db.insert(bans).values(
-      newPhones.map((phone) => ({
-        id: crypto.randomUUID(),
-        hubId: hId,
-        phone,
-        reason: data.reason,
-        bannedBy: data.bannedBy,
-      }))
+      newPhones.map((phone) => {
+        const phoneHash = this.crypto.hmac(phone, HMAC_PHONE_PREFIX)
+        const recipientPubkeys = isValidPubkey(data.bannedBy) ? [data.bannedBy] : []
+        const phoneEnvelope =
+          recipientPubkeys.length > 0
+            ? this.crypto.envelopeEncrypt(phone, recipientPubkeys, LABEL_VOLUNTEER_PII)
+            : undefined
+        const reasonEnvelope =
+          data.reason && recipientPubkeys.length > 0
+            ? this.crypto.envelopeEncrypt(data.reason, recipientPubkeys, LABEL_VOLUNTEER_PII)
+            : undefined
+        return {
+          id: crypto.randomUUID(),
+          hubId: hId,
+          phone,
+          reason: data.reason,
+          bannedBy: data.bannedBy,
+          phoneHash,
+          ...(phoneEnvelope
+            ? { encryptedPhone: phoneEnvelope.encrypted, phoneEnvelopes: phoneEnvelope.envelopes }
+            : {}),
+          ...(reasonEnvelope
+            ? {
+                encryptedReason: reasonEnvelope.encrypted,
+                reasonEnvelopes: reasonEnvelope.envelopes,
+              }
+            : {}),
+        }
+      })
     )
     return newPhones.length
   }
 
   async removeBan(phone: string, hubId?: string): Promise<void> {
     const hId = hubId ?? 'global'
-    await this.db.delete(bans).where(and(eq(bans.hubId, hId), eq(bans.phone, phone)))
+    // Dual-delete: match by HMAC hash OR plaintext (transition period)
+    const phoneHash = this.crypto.hmac(phone, HMAC_PHONE_PREFIX)
+    await this.db
+      .delete(bans)
+      .where(and(eq(bans.hubId, hId), or(eq(bans.phoneHash, phoneHash), eq(bans.phone, phone))))
   }
 
   async isBanned(phone: string, hubId?: string): Promise<boolean> {
@@ -88,10 +148,13 @@ export class RecordsService {
       hId === 'global'
         ? eq(bans.hubId, 'global')
         : or(eq(bans.hubId, hId), eq(bans.hubId, 'global'))
+
+    // Dual-check: HMAC hash lookup OR plaintext fallback (transition period)
+    const phoneHash = this.crypto.hmac(phone, HMAC_PHONE_PREFIX)
     const rows = await this.db
       .select({ id: bans.id })
       .from(bans)
-      .where(and(hubConditions!, eq(bans.phone, phone)))
+      .where(and(hubConditions!, or(eq(bans.phoneHash, phoneHash), eq(bans.phone, phone))))
       .limit(1)
     return rows.length > 0
   }
@@ -99,6 +162,23 @@ export class RecordsService {
   // ------------------------------------------------------------------ Call Records
 
   async createCallRecord(data: CreateCallRecordData): Promise<EncryptedCallRecord> {
+    // E2EE encrypt callerLast4 for admin pubkeys if present
+    // Note: adminEnvelopes for callerLast4 are separate from the content adminEnvelopes
+    // For now, callerLast4 encryption uses the same admin envelopes pattern
+    // but the actual callerLast4Envelopes are for the callerLast4 field specifically
+    let encryptedCallerLast4: Ciphertext | undefined
+    let callerLast4Envelopes: RecipientEnvelope[] = []
+    if (data.callerLast4 && data.adminEnvelopes && data.adminEnvelopes.length > 0) {
+      const adminPubkeys = data.adminEnvelopes.map((e) => e.pubkey)
+      const envelope = this.crypto.envelopeEncrypt(
+        data.callerLast4,
+        adminPubkeys,
+        LABEL_VOLUNTEER_PII
+      )
+      encryptedCallerLast4 = envelope.encrypted
+      callerLast4Envelopes = envelope.envelopes
+    }
+
     const [row] = await this.db
       .insert(callRecords)
       .values({
@@ -115,6 +195,7 @@ export class RecordsService {
         recordingSid: data.recordingSid ?? null,
         encryptedContent: data.encryptedContent ?? null,
         adminEnvelopes: (data.adminEnvelopes ?? []) as RecipientEnvelope[],
+        ...(encryptedCallerLast4 ? { encryptedCallerLast4, callerLast4Envelopes } : {}),
       })
       .returning()
     return this.#rowToCallRecord(row)

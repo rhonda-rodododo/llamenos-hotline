@@ -1,3 +1,4 @@
+import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
 import { and, desc, eq, sql } from 'drizzle-orm'
 import type { MessageDeliveryStatus, RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
@@ -58,6 +59,26 @@ export class ConversationService {
   async createConversation(data: CreateConversationData): Promise<Conversation> {
     const id = crypto.randomUUID()
     const now = new Date()
+
+    // E2EE encrypt contactLast4 for assigned volunteer + admin pubkeys if available
+    let encryptedContactFields: Record<string, unknown> = {}
+    if (data.contactLast4) {
+      const recipientPubkeys: string[] = []
+      if (data.assignedTo) recipientPubkeys.push(data.assignedTo)
+      // We encrypt with available recipients; if none, skip E2EE (plaintext fallback remains)
+      if (recipientPubkeys.length > 0) {
+        const envelope = this.crypto.envelopeEncrypt(
+          data.contactLast4,
+          recipientPubkeys,
+          LABEL_VOLUNTEER_PII
+        )
+        encryptedContactFields = {
+          encryptedContactLast4: envelope.encrypted,
+          contactLast4Envelopes: envelope.envelopes,
+        }
+      }
+    }
+
     const values = {
       id,
       hubId: data.hubId ?? 'global',
@@ -77,6 +98,7 @@ export class ConversationService {
       createdAt: now,
       updatedAt: now,
       lastMessageAt: now,
+      ...encryptedContactFields,
     }
 
     if (data.skipDedup) {

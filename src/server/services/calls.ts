@@ -1,3 +1,5 @@
+import { LABEL_EPHEMERAL_CALL } from '@shared/crypto-labels'
+import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq } from 'drizzle-orm'
 import type { Database } from '../db'
 import { activeCalls, callLegs, callTokens } from '../db/schema'
@@ -41,6 +43,11 @@ export class CallService {
   }
 
   async createActiveCall(data: CreateActiveCallData): Promise<ActiveCall> {
+    // Encrypt caller number with server key (server can decrypt for routing)
+    const encryptedCallerNumber = data.callerNumber
+      ? this.crypto.serverEncrypt(data.callerNumber, LABEL_EPHEMERAL_CALL)
+      : undefined
+
     const [row] = await this.db
       .insert(activeCalls)
       .values({
@@ -51,6 +58,7 @@ export class CallService {
         assignedPubkey: data.assignedPubkey ?? null,
         startedAt: new Date(),
         metadata: {},
+        ...(encryptedCallerNumber ? { encryptedCallerNumber } : {}),
       })
       .returning()
     return this.#rowToActiveCall(row)
@@ -100,6 +108,11 @@ export class CallService {
   }
 
   async createCallLeg(data: CreateCallLegData): Promise<CallLeg> {
+    // Encrypt volunteer phone with server key
+    const encryptedPhone = data.phone
+      ? this.crypto.serverEncrypt(data.phone, LABEL_EPHEMERAL_CALL)
+      : undefined
+
     const [row] = await this.db
       .insert(callLegs)
       .values({
@@ -110,6 +123,7 @@ export class CallService {
         phone: data.phone ?? null,
         type: data.type ?? 'phone',
         status: data.status ?? 'ringing',
+        ...(encryptedPhone ? { encryptedPhone } : {}),
       })
       .returning()
     return this.#rowToCallLeg(row)
@@ -197,10 +211,15 @@ export class CallService {
   // ------------------------------------------------------------------ Private helpers
 
   #rowToActiveCall(r: typeof activeCalls.$inferSelect): ActiveCall {
+    // Dual-read: prefer encrypted caller number, fall back to plaintext
+    const callerNumber = r.encryptedCallerNumber
+      ? this.crypto.serverDecrypt(r.encryptedCallerNumber as Ciphertext, LABEL_EPHEMERAL_CALL)
+      : r.callerNumber
+
     return {
       callSid: r.callSid,
       hubId: r.hubId,
-      callerNumber: r.callerNumber,
+      callerNumber,
       status: r.status,
       assignedPubkey: r.assignedPubkey,
       startedAt: r.startedAt,
@@ -209,12 +228,17 @@ export class CallService {
   }
 
   #rowToCallLeg(r: typeof callLegs.$inferSelect): CallLeg {
+    // Dual-read: prefer encrypted phone, fall back to plaintext
+    const phone = r.encryptedPhone
+      ? this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_EPHEMERAL_CALL)
+      : r.phone
+
     return {
       legSid: r.legSid,
       callSid: r.callSid,
       hubId: r.hubId,
       volunteerPubkey: r.volunteerPubkey,
-      phone: r.phone,
+      phone,
       type: r.type,
       status: r.status,
       createdAt: r.createdAt,
