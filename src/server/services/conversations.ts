@@ -2,7 +2,7 @@ import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
 import { and, desc, eq, sql } from 'drizzle-orm'
 import type { MessageDeliveryStatus, RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
-import { conversations, messageEnvelopes } from '../db/schema'
+import { conversations, messageEnvelopes, volunteers } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
@@ -12,6 +12,9 @@ import type {
   CreateMessageData,
   EncryptedMessage,
 } from '../types'
+
+/** Check if a string is a valid 64-char hex secp256k1 x-only pubkey */
+const isValidPubkey = (pk: string) => /^[0-9a-f]{64}$/i.test(pk)
 
 export class ConversationService {
   constructor(
@@ -60,12 +63,14 @@ export class ConversationService {
     const id = crypto.randomUUID()
     const now = new Date()
 
-    // E2EE encrypt contactLast4 for assigned volunteer + admin pubkeys if available
+    // E2EE encrypt contactLast4 for assigned volunteer + admin pubkeys
     let encryptedContactFields: Record<string, unknown> = {}
     if (data.contactLast4) {
-      const recipientPubkeys: string[] = []
-      if (data.assignedTo) recipientPubkeys.push(data.assignedTo)
-      // We encrypt with available recipients; if none, skip E2EE (plaintext fallback remains)
+      const adminPubkeys = (await this.#getSuperAdminPubkeys()).filter(isValidPubkey)
+      const recipientPubkeys = [
+        ...(data.assignedTo && isValidPubkey(data.assignedTo) ? [data.assignedTo] : []),
+        ...adminPubkeys,
+      ].filter((pk, i, arr) => arr.indexOf(pk) === i) // deduplicate
       if (recipientPubkeys.length > 0) {
         const envelope = this.crypto.envelopeEncrypt(
           data.contactLast4,
@@ -293,6 +298,19 @@ export class ConversationService {
       .where(eq(messageEnvelopes.providerMessageId, providerMessageId))
       .returning({ id: messageEnvelopes.id })
     return result.length > 0
+  }
+
+  // ------------------------------------------------------------------ Admin Pubkey Helper
+
+  /** Return pubkeys of all active super-admin volunteers for E2EE envelope recipients */
+  async #getSuperAdminPubkeys(): Promise<string[]> {
+    const rows = await this.db
+      .select({ pubkey: volunteers.pubkey, roles: volunteers.roles })
+      .from(volunteers)
+      .where(eq(volunteers.active, true))
+    return rows
+      .filter((r) => (r.roles as string[]).includes('role-super-admin'))
+      .map((r) => r.pubkey)
   }
 
   // ------------------------------------------------------------------ Private helpers

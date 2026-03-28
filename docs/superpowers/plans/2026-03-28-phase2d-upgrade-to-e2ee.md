@@ -14,15 +14,15 @@
 
 ## Fields to Upgrade
 
-| Field | Current | Target | Envelope Recipients |
-|---|---|---|---|
-| `volunteer.encryptedName` | serverEncrypt | envelopeEncrypt | Self + admin pubkeys |
-| `ban.encryptedPhone` | serverEncrypt | envelopeEncrypt | Creating admin + global admins |
-| `ban.encryptedReason` | serverEncrypt | envelopeEncrypt | Creating admin + global admins |
-| `invite.encryptedName` | serverEncrypt | envelopeEncrypt | Creating admin |
-| `call_records.encryptedCallerLast4` | serverEncrypt | envelopeEncrypt | Admin pubkeys |
-| `conversations.encryptedContactLast4` | serverEncrypt | envelopeEncrypt | Assigned vol + admin pubkeys |
-| `push_subscriptions.encryptedDeviceLabel` | serverEncrypt | envelopeEncrypt | Volunteer's own pubkey |
+| Field                                     | Current       | Target          | Envelope Recipients            |
+| ----------------------------------------- | ------------- | --------------- | ------------------------------ |
+| `volunteer.encryptedName`                 | serverEncrypt | envelopeEncrypt | Self + admin pubkeys           |
+| `ban.encryptedPhone`                      | serverEncrypt | envelopeEncrypt | Creating admin + global admins |
+| `ban.encryptedReason`                     | serverEncrypt | envelopeEncrypt | Creating admin + global admins |
+| `invite.encryptedName`                    | serverEncrypt | envelopeEncrypt | Creating admin                 |
+| `call_records.encryptedCallerLast4`       | serverEncrypt | envelopeEncrypt | Admin pubkeys                  |
+| `conversations.encryptedContactLast4`     | serverEncrypt | envelopeEncrypt | Assigned vol + admin pubkeys   |
+| `push_subscriptions.encryptedDeviceLabel` | serverEncrypt | envelopeEncrypt | Volunteer's own pubkey         |
 
 No schema changes needed — `nameEnvelopes`, `phoneEnvelopes`, `reasonEnvelopes`, `callerLast4Envelopes`, `contactLast4Envelopes`, `deviceLabelEnvelopes`, `labelEnvelopes` columns all exist and default to `[]`.
 
@@ -31,6 +31,7 @@ No schema changes needed — `nameEnvelopes`, `phoneEnvelopes`, `reasonEnvelopes
 ## Task 1: Server Services — Switch to Envelope Encryption
 
 **Files:**
+
 - Modify: `src/server/services/identity.ts` — volunteer name, invite name
 - Modify: `src/server/services/records.ts` — ban phone/reason, callerLast4
 - Modify: `src/server/services/conversations.ts` — contactLast4
@@ -39,12 +40,17 @@ No schema changes needed — `nameEnvelopes`, `phoneEnvelopes`, `reasonEnvelopes
 ### For each field, the change is:
 
 **Write (server-originated data like callerLast4, contactLast4):**
+
 ```typescript
 // Before:
-const encrypted = this.crypto.serverEncrypt(value, LABEL_VOLUNTEER_PII)
+const encrypted = this.crypto.serverEncrypt(value, LABEL_VOLUNTEER_PII);
 
 // After:
-const { encrypted, envelopes } = this.crypto.envelopeEncrypt(value, recipientPubkeys, LABEL_VOLUNTEER_PII)
+const { encrypted, envelopes } = this.crypto.envelopeEncrypt(
+  value,
+  recipientPubkeys,
+  LABEL_VOLUNTEER_PII,
+);
 // Store both: encryptedX = encrypted, xEnvelopes = envelopes
 ```
 
@@ -52,16 +58,17 @@ const { encrypted, envelopes } = this.crypto.envelopeEncrypt(value, recipientPub
 For now, server still encrypts on behalf of the client (the client sends plaintext over TLS, server envelope-encrypts for the right recipients). True client-side encryption will come when clients are updated.
 
 **Read — server can NO LONGER decrypt:**
+
 ```typescript
 // Before:
-const name = this.crypto.serverDecrypt(row.encryptedName, LABEL_VOLUNTEER_PII)
+const name = this.crypto.serverDecrypt(row.encryptedName, LABEL_VOLUNTEER_PII);
 
 // After — server returns ciphertext + envelopes, client decrypts:
 return {
   encryptedName: row.encryptedName,
   nameEnvelopes: row.nameEnvelopes,
   // No plaintext 'name' field — E2EE means server can't see it
-}
+};
 ```
 
 ### Specific recipient lists:
@@ -108,28 +115,29 @@ git commit -m "feat(crypto): upgrade 7 display-only fields to ECIES E2EE envelop
 ## Task 2: Client — Envelope Decrypt for E2EE Fields
 
 **Files:**
+
 - Modify: client components that display volunteer names, ban details, caller IDs, device labels
 
 ### Pattern:
 
 ```typescript
-import { useAuth } from '../../lib/auth-context'  // or however keyManager is accessed
+import { useAuth } from "../../lib/auth-context"; // or however keyManager is accessed
 
 // Get the user's crypto service (need secretKey + pubkey for envelope decrypt)
-const keyManager = useKeyManager()
-const secretKey = keyManager.getSecretKey()
-const pubkey = keyManager.getPublicKeyHex()
+const keyManager = useKeyManager();
+const secretKey = keyManager.getSecretKey();
+const pubkey = keyManager.getPublicKeyHex();
 
 // Decrypt envelope-encrypted field:
-import { ClientCryptoService } from '../../lib/crypto-service'
-import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import { ClientCryptoService } from "../../lib/crypto-service";
+import { LABEL_VOLUNTEER_PII } from "@shared/crypto-labels";
 
-const crypto = new ClientCryptoService(secretKey, pubkey)
+const crypto = new ClientCryptoService(secretKey, pubkey);
 const name = crypto.envelopeDecrypt(
   volunteer.encryptedName as Ciphertext,
   volunteer.nameEnvelopes,
-  LABEL_VOLUNTEER_PII
-)
+  LABEL_VOLUNTEER_PII,
+);
 ```
 
 ### Components to update:
@@ -147,6 +155,7 @@ Find each component by searching for where these fields are currently displayed.
 ### Client-side encryption on write:
 
 For forms that create volunteers, bans, invites, or device labels:
+
 - Client encrypts with `ClientCryptoService.envelopeEncrypt()` for the appropriate recipients
 - Sends `{ encryptedName, nameEnvelopes }` instead of `{ name }`
 - The admin pubkey should be available from the auth context or config
@@ -175,6 +184,7 @@ git commit -m "feat(client): envelope decrypt for E2EE volunteer names, bans, ca
 Reset DB, start server, run playwright API tests. Fix failures.
 
 The main issue: API tests that assert `volunteer.name === 'expected'` will fail because the server no longer returns plaintext `name`. Tests need to either:
+
 - Accept encrypted response and skip plaintext assertions
 - Or the test helper needs to decrypt with the admin key
 
@@ -185,11 +195,11 @@ For tests that create data and read it back, the simplest fix: accept that the r
 Add to `src/server/lib/e2ee-verification.test.ts`:
 
 ```typescript
-test('volunteer name cannot be decrypted with server key after E2EE upgrade', () => {
+test("volunteer name cannot be decrypted with server key after E2EE upgrade", () => {
   // Server creates volunteer with envelope encryption
   // Attempt to serverDecrypt the encryptedName → must fail
   // Only the envelope recipient can decrypt
-})
+});
 ```
 
 - [ ] **Step 3: Commit**

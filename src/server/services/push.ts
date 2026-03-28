@@ -52,9 +52,14 @@ export class PushService {
       LABEL_PUSH_CREDENTIAL
     )
 
-    // Server-side device label decrypt (may be null if not provided)
+    // Device label: if envelopes exist, this is E2EE — server can't decrypt.
+    // Otherwise try server-key decrypt for legacy data.
+    const dlEnvelopes =
+      (row.deviceLabelEnvelopes as import('@shared/types').RecipientEnvelope[]) ?? []
     let deviceLabel: string | null = null
-    if (row.encryptedDeviceLabel) {
+    if (dlEnvelopes.length > 0) {
+      deviceLabel = '[encrypted]'
+    } else if (row.encryptedDeviceLabel) {
       try {
         deviceLabel = this.crypto.serverDecrypt(
           row.encryptedDeviceLabel as Ciphertext,
@@ -89,11 +94,6 @@ export class PushService {
     // HMAC hash endpoint for dedup
     const endpointHash = this.crypto.hmac(data.endpoint, HMAC_PHONE_PREFIX)
 
-    // Server-encrypt device label so the server can read it back for API responses
-    const encryptedDeviceLabel = data.deviceLabel
-      ? this.crypto.serverEncrypt(data.deviceLabel, LABEL_VOLUNTEER_PII)
-      : undefined
-
     // E2EE envelope-encrypt device label for the volunteer's own pubkey (client-side decryption)
     // Only attempt if pubkey looks like a valid 64-char hex secp256k1 x-only pubkey
     let labelEnvelope: ReturnType<CryptoService['envelopeEncrypt']> | undefined
@@ -104,6 +104,13 @@ export class PushService {
         LABEL_VOLUNTEER_PII
       )
     }
+
+    // E2EE device label: use envelope ciphertext if available, fallback to server-key
+    const encryptedDeviceLabel = data.deviceLabel
+      ? labelEnvelope
+        ? labelEnvelope.encrypted
+        : this.crypto.serverEncrypt(data.deviceLabel, LABEL_VOLUNTEER_PII)
+      : undefined
 
     const [row] = await this.db
       .insert(pushSubscriptions)

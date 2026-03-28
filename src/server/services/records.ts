@@ -5,7 +5,7 @@ import type { Ciphertext } from '@shared/crypto-types'
 import { and, asc, desc, eq, gte, lte, or, sql } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
-import { auditLog, bans, callRecords, noteEnvelopes } from '../db/schema'
+import { auditLog, bans, callRecords, noteEnvelopes, volunteers } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
@@ -40,18 +40,32 @@ export class RecordsService {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(bans).where(eq(bans.hubId, hId))
     return rows.map((r) => {
+      // Phone: if envelopes exist, this is E2EE — server can't decrypt
+      const pEnv = (r.phoneEnvelopes as RecipientEnvelope[]) ?? []
       let phone = ''
+      if (pEnv.length > 0) {
+        phone = '[encrypted]'
+      } else {
+        try {
+          phone = this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
+        } catch {
+          // Decryption failed — leave empty
+        }
+      }
+
+      // Reason: if envelopes exist, this is E2EE — server can't decrypt
+      const rEnv = (r.reasonEnvelopes as RecipientEnvelope[]) ?? []
       let reason = ''
-      try {
-        phone = this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
-      } catch {
-        // Decryption failed — leave empty
+      if (rEnv.length > 0) {
+        reason = '[encrypted]'
+      } else {
+        try {
+          reason = this.crypto.serverDecrypt(r.encryptedReason as Ciphertext, LABEL_VOLUNTEER_PII)
+        } catch {
+          // Decryption failed — leave empty
+        }
       }
-      try {
-        reason = this.crypto.serverDecrypt(r.encryptedReason as Ciphertext, LABEL_VOLUNTEER_PII)
-      } catch {
-        // Decryption failed — leave empty
-      }
+
       return {
         phone,
         reason,
@@ -68,8 +82,12 @@ export class RecordsService {
     // HMAC hash phone for ban-check lookups
     const phoneHash = this.crypto.hmac(data.phone, HMAC_PHONE_PREFIX)
 
-    // E2EE encrypt phone + reason for admin display (if bannedBy is a valid pubkey)
-    const recipientPubkeys = isValidPubkey(data.bannedBy) ? [data.bannedBy] : []
+    // E2EE encrypt phone + reason for bannedBy + admin pubkeys
+    const adminPubkeys = (await this.#getSuperAdminPubkeys()).filter(isValidPubkey)
+    const recipientPubkeys = [
+      ...(isValidPubkey(data.bannedBy) ? [data.bannedBy] : []),
+      ...adminPubkeys,
+    ].filter((pk, i, arr) => arr.indexOf(pk) === i) // deduplicate
     const phoneEnvelope =
       recipientPubkeys.length > 0
         ? this.crypto.envelopeEncrypt(data.phone, recipientPubkeys, LABEL_VOLUNTEER_PII)
@@ -79,9 +97,13 @@ export class RecordsService {
         ? this.crypto.envelopeEncrypt(data.reason, recipientPubkeys, LABEL_VOLUNTEER_PII)
         : undefined
 
-    // Always server-encrypt phone+reason so the server can decrypt for API responses
-    const encryptedPhone = this.crypto.serverEncrypt(data.phone, LABEL_VOLUNTEER_PII)
-    const encryptedReason = this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII)
+    // E2EE phone+reason: use envelope ciphertext if available, fallback to server-key
+    const encryptedPhone = phoneEnvelope
+      ? phoneEnvelope.encrypted
+      : this.crypto.serverEncrypt(data.phone, LABEL_VOLUNTEER_PII)
+    const encryptedReason = reasonEnvelope
+      ? reasonEnvelope.encrypted
+      : this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII)
 
     const [row] = await this.db
       .insert(bans)
@@ -120,10 +142,14 @@ export class RecordsService {
       return !existingHashes.has(hash)
     })
     if (newPhones.length === 0) return 0
+    const bulkAdminPubkeys = (await this.#getSuperAdminPubkeys()).filter(isValidPubkey)
     await this.db.insert(bans).values(
       newPhones.map((phone) => {
         const phoneHash = this.crypto.hmac(phone, HMAC_PHONE_PREFIX)
-        const recipientPubkeys = isValidPubkey(data.bannedBy) ? [data.bannedBy] : []
+        const recipientPubkeys = [
+          ...(isValidPubkey(data.bannedBy) ? [data.bannedBy] : []),
+          ...bulkAdminPubkeys,
+        ].filter((pk, i, arr) => arr.indexOf(pk) === i)
         const phoneEnvelope =
           recipientPubkeys.length > 0
             ? this.crypto.envelopeEncrypt(phone, recipientPubkeys, LABEL_VOLUNTEER_PII)
@@ -137,9 +163,14 @@ export class RecordsService {
           hubId: hId,
           bannedBy: data.bannedBy,
           phoneHash,
-          encryptedPhone: this.crypto.serverEncrypt(phone, LABEL_VOLUNTEER_PII),
+          // E2EE: use envelope ciphertext if available, fallback to server-key
+          encryptedPhone: phoneEnvelope
+            ? phoneEnvelope.encrypted
+            : this.crypto.serverEncrypt(phone, LABEL_VOLUNTEER_PII),
           phoneEnvelopes: phoneEnvelope?.envelopes ?? [],
-          encryptedReason: this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII),
+          encryptedReason: reasonEnvelope
+            ? reasonEnvelope.encrypted
+            : this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII),
           reasonEnvelopes: reasonEnvelope?.envelopes ?? [],
         }
       })
@@ -730,6 +761,19 @@ export class RecordsService {
         avgDuration: 0, // Duration is encrypted; not available without decryption
       }))
       .sort((a, b) => b.callsAnswered - a.callsAnswered)
+  }
+
+  // ------------------------------------------------------------------ Admin Pubkey Helper
+
+  /** Return pubkeys of all active super-admin volunteers for E2EE envelope recipients */
+  async #getSuperAdminPubkeys(): Promise<string[]> {
+    const rows = await this.db
+      .select({ pubkey: volunteers.pubkey, roles: volunteers.roles })
+      .from(volunteers)
+      .where(eq(volunteers.active, true))
+    return rows
+      .filter((r) => (r.roles as string[]).includes('role-super-admin'))
+      .map((r) => r.pubkey)
   }
 
   // ------------------------------------------------------------------ Private helpers

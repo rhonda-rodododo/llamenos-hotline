@@ -77,11 +77,15 @@ export class IdentityService {
     // Encrypt phone with server key (server can decrypt for routing)
     const encryptedPhone = this.crypto.serverEncrypt(data.phone ?? '', LABEL_VOLUNTEER_PII)
 
-    // E2EE envelope-encrypt name for admin pubkeys (server-side bootstrap)
+    // E2EE envelope-encrypt name for volunteer + admin pubkeys
     const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
+    const nameRecipients = [
+      ...(isValidPubkey(data.pubkey) ? [data.pubkey] : []),
+      ...adminPubkeys,
+    ].filter((pk, i, arr) => arr.indexOf(pk) === i)
     const nameEnvelope =
-      data.name && adminPubkeys.length > 0
-        ? this.crypto.envelopeEncrypt(data.name, adminPubkeys, LABEL_VOLUNTEER_PII)
+      data.name && nameRecipients.length > 0
+        ? this.crypto.envelopeEncrypt(data.name, nameRecipients, LABEL_VOLUNTEER_PII)
         : undefined
 
     const [row] = await this.db
@@ -98,7 +102,10 @@ export class IdentityService {
         onBreak: false,
         callPreference: 'phone',
         encryptedPhone,
-        encryptedName: this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
+        // E2EE name: use envelope ciphertext if available, fallback to server-key
+        encryptedName: nameEnvelope
+          ? nameEnvelope.encrypted
+          : this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
         ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
       })
       .returning()
@@ -130,16 +137,19 @@ export class IdentityService {
         ? this.crypto.serverEncrypt(allowed.phone as string, LABEL_VOLUNTEER_PII)
         : undefined
 
-    // E2EE envelope-encrypt name if being updated
+    // E2EE envelope-encrypt name if being updated (for volunteer + admin pubkeys)
     let nameEnvelope:
       | { encrypted: Ciphertext; envelopes: import('@shared/types').RecipientEnvelope[] }
       | undefined
     if (allowed.name !== undefined) {
       const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
-      if (adminPubkeys.length > 0) {
+      const nameRecipients = [...(isValidPubkey(pubkey) ? [pubkey] : []), ...adminPubkeys].filter(
+        (pk, i, arr) => arr.indexOf(pk) === i
+      )
+      if (nameRecipients.length > 0) {
         nameEnvelope = this.crypto.envelopeEncrypt(
           allowed.name as string,
-          adminPubkeys,
+          nameRecipients,
           LABEL_VOLUNTEER_PII
         )
       }
@@ -177,7 +187,10 @@ export class IdentityService {
         ...(encryptedPhoneUpdate ? { encryptedPhone: encryptedPhoneUpdate } : {}),
         ...(allowed.name !== undefined
           ? {
-              encryptedName: this.crypto.serverEncrypt(allowed.name as string, LABEL_VOLUNTEER_PII),
+              // E2EE name: use envelope ciphertext if available, fallback to server-key
+              encryptedName: nameEnvelope
+                ? nameEnvelope.encrypted
+                : this.crypto.serverEncrypt(allowed.name as string, LABEL_VOLUNTEER_PII),
               ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
             }
           : {}),
@@ -228,7 +241,10 @@ export class IdentityService {
           onBreak: false,
           callPreference: 'phone',
           encryptedPhone,
-          encryptedName: this.crypto.serverEncrypt('Admin', LABEL_VOLUNTEER_PII),
+          // E2EE name: use envelope ciphertext if available, fallback to server-key
+          encryptedName: nameEnvelope
+            ? nameEnvelope.encrypted
+            : this.crypto.serverEncrypt('Admin', LABEL_VOLUNTEER_PII),
           ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
         })
         .returning()
@@ -283,11 +299,15 @@ export class IdentityService {
     // Encrypt phone with server key
     const encryptedPhone = this.crypto.serverEncrypt(data.phone ?? '', LABEL_VOLUNTEER_PII)
 
-    // E2EE envelope-encrypt name for admin pubkeys
+    // E2EE envelope-encrypt name for createdBy + admin pubkeys
     const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
+    const inviteNameRecipients = [
+      ...(data.createdBy && isValidPubkey(data.createdBy) ? [data.createdBy] : []),
+      ...adminPubkeys,
+    ].filter((pk, i, arr) => arr.indexOf(pk) === i)
     const nameEnvelope =
-      data.name && adminPubkeys.length > 0
-        ? this.crypto.envelopeEncrypt(data.name, adminPubkeys, LABEL_VOLUNTEER_PII)
+      data.name && inviteNameRecipients.length > 0
+        ? this.crypto.envelopeEncrypt(data.name, inviteNameRecipients, LABEL_VOLUNTEER_PII)
         : undefined
 
     const [row] = await this.db
@@ -298,7 +318,10 @@ export class IdentityService {
         createdBy: data.createdBy,
         expiresAt,
         encryptedPhone,
-        encryptedName: this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
+        // E2EE name: use envelope ciphertext if available, fallback to server-key
+        encryptedName: nameEnvelope
+          ? nameEnvelope.encrypted
+          : this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
         ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
       })
       .returning()
@@ -366,9 +389,13 @@ export class IdentityService {
       const encryptedPhone = this.crypto.serverEncrypt(invitePhone, LABEL_VOLUNTEER_PII)
 
       const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
+      const redeemNameRecipients = [
+        ...(isValidPubkey(data.pubkey) ? [data.pubkey] : []),
+        ...adminPubkeys,
+      ].filter((pk, i, arr) => arr.indexOf(pk) === i)
       const nameEnvelope =
-        inviteName && adminPubkeys.length > 0
-          ? this.crypto.envelopeEncrypt(inviteName, adminPubkeys, LABEL_VOLUNTEER_PII)
+        inviteName && redeemNameRecipients.length > 0
+          ? this.crypto.envelopeEncrypt(inviteName, redeemNameRecipients, LABEL_VOLUNTEER_PII)
           : undefined
 
       // Create volunteer
@@ -386,7 +413,10 @@ export class IdentityService {
           onBreak: false,
           callPreference: 'phone',
           encryptedPhone,
-          encryptedName: this.crypto.serverEncrypt(inviteName, LABEL_VOLUNTEER_PII),
+          // E2EE name: use envelope ciphertext if available, fallback to server-key
+          encryptedName: nameEnvelope
+            ? nameEnvelope.encrypted
+            : this.crypto.serverEncrypt(inviteName, LABEL_VOLUNTEER_PII),
           ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
         })
         .returning()
@@ -733,9 +763,13 @@ export class IdentityService {
       ? this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
       : ''
 
-    // Server-side name decrypt (empty ciphertext = GDPR-erased)
+    // Name: if envelopes exist, this is E2EE — server can't decrypt.
+    // Otherwise try server-key decrypt for legacy data.
     let name = ''
-    if (r.encryptedName) {
+    const nameEnvelopes = (r.nameEnvelopes as import('@shared/types').RecipientEnvelope[]) ?? []
+    if (nameEnvelopes.length > 0) {
+      name = '[encrypted]'
+    } else if (r.encryptedName) {
       try {
         name = this.crypto.serverDecrypt(r.encryptedName as Ciphertext, LABEL_VOLUNTEER_PII)
       } catch {
@@ -771,8 +805,13 @@ export class IdentityService {
       ? this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
       : ''
 
+    // Name: if envelopes exist, this is E2EE — server can't decrypt.
+    const inviteNameEnvelopes =
+      (r.nameEnvelopes as import('@shared/types').RecipientEnvelope[]) ?? []
     let name = ''
-    if (r.encryptedName) {
+    if (inviteNameEnvelopes.length > 0) {
+      name = '[encrypted]'
+    } else if (r.encryptedName) {
       try {
         name = this.crypto.serverDecrypt(r.encryptedName as Ciphertext, LABEL_VOLUNTEER_PII)
       } catch {
