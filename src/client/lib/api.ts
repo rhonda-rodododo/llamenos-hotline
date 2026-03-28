@@ -142,6 +142,8 @@ export async function getMe() {
     permissions: string[]
     primaryRole: { id: string; name: string; slug: string } | null
     name: string
+    encryptedName?: string
+    nameEnvelopes?: Array<{ pubkey: string; wrappedKey: string; ephemeralPubkey: string }>
     transcriptionEnabled: boolean
     spokenLanguages: string[]
     uiLanguage: string

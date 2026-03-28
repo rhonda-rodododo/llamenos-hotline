@@ -1,4 +1,5 @@
 import { ConsentGate } from '@/components/consent-gate'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { permissionGranted } from '@shared/permissions'
 import {
   type ReactNode,
@@ -164,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             hubRoles: me.hubRoles ?? [],
             permissions: me.permissions || [],
             primaryRoleName: me.primaryRole?.name || null,
-            name: me.name,
+            name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
             isLoading: false,
             error: null,
             transcriptionEnabled: me.transcriptionEnabled,
@@ -201,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             hubRoles: me.hubRoles ?? [],
             permissions: me.permissions || [],
             primaryRoleName: me.primaryRole?.name || null,
-            name: me.name,
+            name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
             isLoading: false,
             error: null,
             transcriptionEnabled: me.transcriptionEnabled,
@@ -248,7 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hubRoles: me.hubRoles ?? [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,
-        name: me.name,
+        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
         isLoading: false,
         error: null,
         transcriptionEnabled: me.transcriptionEnabled,
@@ -291,7 +292,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hubRoles: me.hubRoles ?? [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,
-        name: me.name,
+        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
         isLoading: false,
         error: null,
         transcriptionEnabled: me.transcriptionEnabled,
@@ -331,7 +332,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hubRoles: me.hubRoles ?? [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,
-        name: me.name,
+        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
         isLoading: false,
         error: null,
         transcriptionEnabled: me.transcriptionEnabled,
@@ -360,7 +361,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastApiActivity.current = Date.now()
       setState((s) => ({
         ...s,
-        name: me.name,
+        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
         roles: me.roles || [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,
@@ -387,7 +388,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastApiActivity.current = Date.now()
       setState((s) => ({
         ...s,
-        name: me.name,
+        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
         roles: me.roles || [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,
