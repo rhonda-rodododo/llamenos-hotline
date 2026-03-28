@@ -230,7 +230,8 @@ export async function unlock(pin: string): Promise<string | null> {
       }
     }
     return pubkey
-  } catch {
+  } catch (err) {
+    console.error('[key-manager] unlock failed:', err)
     return null
   }
 }

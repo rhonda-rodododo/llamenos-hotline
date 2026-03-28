@@ -257,8 +257,10 @@ function handleReEncrypt(newKekHex: string): { nonce: string; ciphertext: string
   const newKek = hexToBytes(newKekHex)
   const nonce = randomBytes(24)
   const cipher = xchacha20poly1305(newKek, nonce)
-  // Encrypt the raw secret key bytes under the new KEK
-  const ciphertext = cipher.encrypt(secretKey)
+  // Encrypt the nsec as hex string (same format as encryptNsec in key-store-v2)
+  // so that handleUnlock can decode it consistently
+  const nsecHexBytes = new TextEncoder().encode(bytesToHex(secretKey))
+  const ciphertext = cipher.encrypt(nsecHexBytes)
 
   return {
     nonce: bytesToHex(nonce),
