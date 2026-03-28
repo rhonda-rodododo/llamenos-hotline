@@ -33,17 +33,3 @@ export function decryptEnvelopeField(
     return null // Not an authorized recipient, or wrong key
   }
 }
-
-/**
- * @deprecated Use useDecryptedObject/useDecryptedArray hooks instead.
- * This function previously required the nsec on the main thread.
- * Now returns the fallback — components using hooks get decrypted values.
- */
-export function tryDecryptField(
-  encrypted: string | null | undefined,
-  envelopes: RecipientEnvelope[] | null | undefined,
-  fallback: string,
-  _label: string = LABEL_VOLUNTEER_PII
-): string {
-  return fallback
-}
