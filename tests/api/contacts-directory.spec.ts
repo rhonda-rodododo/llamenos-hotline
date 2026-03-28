@@ -15,7 +15,11 @@ import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 // Minimal stub ciphertext/envelope structures — the server treats these as
 // opaque blobs and never decrypts them (zero-knowledge design).
 const stubCiphertext = 'aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899'
-const stubEnvelope = { wrappedKey: 'deadbeefdeadbeef', ephemeralPubkey: 'cafe0000cafe0000' }
+const stubEnvelope = {
+  pubkey: 'aabb0000aabb0000',
+  wrappedKey: 'deadbeefdeadbeef',
+  ephemeralPubkey: 'cafe0000cafe0000',
+}
 
 test.describe('Contacts Directory — API', () => {
   test.describe.configure({ mode: 'serial' })
