@@ -85,7 +85,7 @@ export function encryptForHub(plaintext: string, hubKey: Uint8Array): Ciphertext
  * Decrypt hub-encrypted data using the hub key.
  * Returns null on decryption failure (wrong key, corrupted data, etc.).
  */
-export function decryptFromHub(packed: string | Ciphertext, hubKey: Uint8Array): string | null {
+export function decryptFromHub(packed: Ciphertext, hubKey: Uint8Array): string | null {
   try {
     const data = hexToBytes(packed)
     const nonce = data.slice(0, 24)
