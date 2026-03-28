@@ -82,7 +82,9 @@ describe('ContactService', () => {
       tags: ['repeat', 'vip'],
       identifierHash: idHash,
       encryptedDisplayName: fakeCiphertext('enc-display-2'),
-      displayNameEnvelopes: [{ pubkey: 'admin-pk', wrappedKey: 'wk', ephemeralPubkey: 'epk' }],
+      displayNameEnvelopes: [
+        { pubkey: 'admin-pk', wrappedKey: fakeCiphertext('wk'), ephemeralPubkey: 'epk' },
+      ],
       encryptedFullName: fakeCiphertext('enc-fullname'),
       fullNameEnvelopes: [],
       encryptedPhone: fakeCiphertext('enc-phone'),
@@ -184,7 +186,9 @@ describe('ContactService', () => {
       riskLevel: 'high',
       tags: ['updated-tag'],
       encryptedDisplayName: fakeCiphertext('new-display'),
-      displayNameEnvelopes: [{ pubkey: 'pk2', wrappedKey: 'wk2', ephemeralPubkey: 'epk2' }],
+      displayNameEnvelopes: [
+        { pubkey: 'pk2', wrappedKey: fakeCiphertext('wk2'), ephemeralPubkey: 'epk2' },
+      ],
     })
 
     expect(updated).not.toBeNull()
@@ -253,7 +257,9 @@ describe('ContactService', () => {
     const rel = await service.createRelationship({
       hubId: hub,
       encryptedPayload: fakeCiphertext('enc-rel-payload'),
-      payloadEnvelopes: [{ pubkey: 'pk-a', wrappedKey: 'wk', ephemeralPubkey: 'epk' }],
+      payloadEnvelopes: [
+        { pubkey: 'pk-a', wrappedKey: fakeCiphertext('wk'), ephemeralPubkey: 'epk' },
+      ],
       createdBy: 'pk-a',
     })
 

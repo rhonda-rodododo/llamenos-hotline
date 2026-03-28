@@ -8,11 +8,16 @@
  * is available (after PIN unlock), or shows a placeholder.
  */
 
+import type { Ciphertext } from '@shared/crypto-types'
 import { getHubKeyForId } from './hub-key-cache'
 import { decryptFromHub, encryptForHub } from './hub-key-manager'
 
 /**
  * Decrypt a hub-encrypted field.
+ *
+ * Boundary adapter: accepts unbranded `string` from API responses and casts to
+ * `Ciphertext` for the crypto layer. Once shared API types are branded (tracked
+ * in field-encryption backlog), this cast can be removed.
  *
  * @param encrypted - Hex ciphertext from the server (encryptedName, etc.)
  * @param hubId - Hub ID to look up the hub key
@@ -27,7 +32,7 @@ export function decryptHubField(
   if (encrypted) {
     const hubKey = getHubKeyForId(hubId)
     if (hubKey) {
-      const decrypted = decryptFromHub(encrypted, hubKey)
+      const decrypted = decryptFromHub(encrypted as Ciphertext, hubKey)
       if (decrypted) return decrypted
     }
   }
@@ -36,9 +41,9 @@ export function decryptHubField(
 
 /**
  * Encrypt a value with the hub key for sending to the server.
- * Returns the ciphertext hex string, or undefined if the hub key is not available.
+ * Returns the ciphertext, or undefined if the hub key is not available.
  */
-export function encryptHubField(value: string, hubId: string): string | undefined {
+export function encryptHubField(value: string, hubId: string): Ciphertext | undefined {
   const hubKey = getHubKeyForId(hubId)
   if (!hubKey) return undefined
   return encryptForHub(value, hubKey)

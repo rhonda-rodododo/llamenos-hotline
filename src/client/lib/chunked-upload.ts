@@ -1,4 +1,4 @@
-import type { FileKeyEnvelope, UploadInit } from '@shared/types'
+import type { EncryptedMetaItem, FileKeyEnvelope, UploadInit } from '@shared/types'
 import { completeUpload, getUploadStatus, initUpload, uploadChunk } from './api'
 
 const DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024 // 5MB
@@ -7,7 +7,7 @@ export interface ChunkedUploadOptions {
   encryptedContent: Uint8Array
   conversationId: string
   recipientEnvelopes: FileKeyEnvelope[]
-  encryptedMetadata: Array<{ pubkey: string; encryptedContent: string; ephemeralPubkey: string }>
+  encryptedMetadata: EncryptedMetaItem[]
   chunkSize?: number
   onProgress?: (completed: number, total: number) => void
 }

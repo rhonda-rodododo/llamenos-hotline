@@ -25,7 +25,7 @@ export class CryptoService {
 
   serverEncrypt(plaintext: string, label: string): Ciphertext {
     const key = hkdfDerive(hexToBytes(this.serverSecret), new Uint8Array(0), utf8ToBytes(label), 32)
-    return symmetricEncrypt(utf8ToBytes(plaintext), key) as Ciphertext
+    return symmetricEncrypt(utf8ToBytes(plaintext), key)
   }
 
   serverDecrypt(ct: Ciphertext, label: string): string {
@@ -34,7 +34,7 @@ export class CryptoService {
   }
 
   hubEncrypt(plaintext: string, hubKey: Uint8Array): Ciphertext {
-    return symmetricEncrypt(utf8ToBytes(plaintext), hubKey) as Ciphertext
+    return symmetricEncrypt(utf8ToBytes(plaintext), hubKey)
   }
 
   hubDecrypt(ct: Ciphertext, hubKey: Uint8Array): string | null {
@@ -74,7 +74,7 @@ export class CryptoService {
   ): { encrypted: Ciphertext; envelopes: RecipientEnvelope[] } {
     const messageKey = new Uint8Array(32)
     crypto.getRandomValues(messageKey)
-    const encrypted = symmetricEncrypt(utf8ToBytes(plaintext), messageKey) as Ciphertext
+    const encrypted = symmetricEncrypt(utf8ToBytes(plaintext), messageKey)
     const envelopes: RecipientEnvelope[] = recipientPubkeys.map((pk) => ({
       pubkey: pk,
       ...eciesWrapKey(messageKey, pk, label),
@@ -99,7 +99,7 @@ export class CryptoService {
   ): { encrypted: Ciphertext; envelopes: RecipientEnvelope[] } {
     const dataKey = new Uint8Array(32)
     crypto.getRandomValues(dataKey)
-    const encrypted = symmetricEncrypt(data, dataKey) as Ciphertext
+    const encrypted = symmetricEncrypt(data, dataKey)
     const envelopes: RecipientEnvelope[] = recipientPubkeys.map((pk) => ({
       pubkey: pk,
       ...eciesWrapKey(dataKey, pk, label),

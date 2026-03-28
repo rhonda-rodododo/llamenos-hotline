@@ -1,7 +1,7 @@
-# CADDY_SITE_ADDRESS overrides the site address (e.g., "http://localhost" for local HTTP-only).
-# If not set, uses DOMAIN (which defaults to "localhost" → Caddy auto-HTTPS with local CA).
-# For production: set DOMAIN to your real domain, leave CADDY_SITE_ADDRESS empty.
-{$CADDY_SITE_ADDRESS:{$DOMAIN:localhost}} {
+# CADDY_SITE_ADDRESS sets the site address.
+# Local: "http://localhost" (HTTP-only, no TLS).
+# Production: leave empty and set DOMAIN for automatic TLS via Let's Encrypt.
+{$CADDY_SITE_ADDRESS:localhost} {
 	# API, telephony, and messaging routes → app
 	handle /api/* {
 		reverse_proxy app:3000

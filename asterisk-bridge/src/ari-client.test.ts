@@ -9,7 +9,7 @@ describe('AriClient.deleteDynamic', () => {
       capturedUrl = typeof url === 'string' ? url : url.toString()
       capturedMethod = init?.method ?? 'GET'
       return new Response(null, { status: 204 })
-    }) as typeof fetch
+    }) as unknown as typeof fetch
 
     const { AriClient } = await import('./ari-client')
     const client = new AriClient({

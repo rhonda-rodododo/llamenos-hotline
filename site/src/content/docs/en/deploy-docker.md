@@ -17,7 +17,7 @@ This guide walks you through deploying Llamenos with Docker Compose on a single 
 To try Llamenos locally:
 
 ```bash
-git clone https://github.com/your-org/llamenos.git
+git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
 ./scripts/docker-setup.sh
 ```
@@ -27,13 +27,13 @@ Visit **http://localhost:8000** and follow the setup wizard to create your admin
 ## Production deployment
 
 ```bash
-git clone https://github.com/your-org/llamenos.git
+git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
 ./scripts/docker-setup.sh --domain hotline.yourorg.com --email admin@yourorg.com
 ```
 
 The setup script:
-1. Generates strong random secrets (database password, HMAC key, MinIO credentials, Nostr relay secret)
+1. Generates strong random secrets (database password, HMAC key, storage credentials, Nostr relay secret)
 2. Writes them to `deploy/docker/.env`
 3. Builds and starts all services using the **production Docker Compose overlay** (`docker-compose.production.yml`)
 4. Waits for the app to become healthy
@@ -61,7 +61,7 @@ Edit `.env` and fill in the required secrets. Generate random values:
 # For hex secrets (HMAC_SECRET, SERVER_NOSTR_SECRET):
 openssl rand -hex 32
 
-# For passwords (PG_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY):
+# For passwords (PG_PASSWORD, STORAGE_ACCESS_KEY, STORAGE_SECRET_KEY):
 openssl rand -base64 24
 ```
 
@@ -94,10 +94,10 @@ The setup starts five core services:
 
 | Service | Purpose | Port |
 |---------|---------|------|
-| **app** | Llamenos application (Node.js) | 3000 (internal) |
+| **app** | Llamenos application (Bun) | 3000 (internal) |
 | **postgres** | PostgreSQL database | 5432 (internal) |
 | **caddy** | Reverse proxy + automatic TLS | 8000 (local), 80/443 (production) |
-| **minio** | S3-compatible file storage | 9000, 9001 (internal) |
+| **rustfs** | S3-compatible file storage (RustFS) | 9000 (internal) |
 | **strfry** | Nostr relay for real-time events | 7777 (internal) |
 
 Check that everything is running:
@@ -182,7 +182,7 @@ docker compose -f docker-compose.yml -f docker-compose.production.yml build
 docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
 ```
 
-Data is persisted in Docker volumes (`postgres-data`, `minio-data`, etc.) and survives container restarts and rebuilds.
+Data is persisted in Docker volumes (`postgres-data`, `rustfs-data`, etc.) and survives container restarts and rebuilds.
 
 ## Backups
 
@@ -198,14 +198,9 @@ To restore:
 docker compose -f docker-compose.yml -f docker-compose.production.yml exec -T postgres psql -U llamenos llamenos < backup-20250101.sql
 ```
 
-### MinIO storage
+### RustFS storage
 
-MinIO stores uploaded files, recordings, and attachments:
-
-```bash
-docker compose exec minio mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
-docker compose exec minio mc mirror local/llamenos /tmp/minio-backup
-```
+RustFS stores uploaded files, recordings, and attachments. Use any S3-compatible CLI (e.g., `mc` or `aws s3`) to back up the data, or simply back up the `rustfs-data` Docker volume directly.
 
 ### Automated backups
 
@@ -264,7 +259,7 @@ flowchart TD
     Caddy -->|":3000"| App["App<br/>(Node.js)"]
     Caddy -->|"/nostr"| Strfry["strfry<br/>(Nostr relay)"]
     App --> PostgreSQL[("PostgreSQL<br/>:5432")]
-    App --> MinIO[("MinIO<br/>:9000")]
+    App --> RustFS[("RustFS<br/>:9000")]
     App -.->|"optional"| Whisper["Whisper<br/>:8080"]
 ```
 
@@ -273,4 +268,4 @@ flowchart TD
 - [Admin Guide](/docs/admin-guide) — configure the hotline
 - [Self-Hosting Overview](/docs/self-hosting) — compare deployment options
 - [Kubernetes Deployment](/docs/deploy-kubernetes) — migrate to Helm
-- [QUICKSTART.md](https://github.com/your-org/llamenos/blob/main/docs/QUICKSTART.md) — VPS provisioning and server hardening
+- [QUICKSTART.md](https://github.com/rhonda-rodododo/llamenos/blob/main/docs/QUICKSTART.md) — VPS provisioning and server hardening

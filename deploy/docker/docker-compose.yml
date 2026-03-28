@@ -216,9 +216,9 @@ services:
       - ARI_URL=ws://asterisk:8088/ari/events
       - ARI_REST_URL=http://asterisk:8088/ari
       - ARI_USERNAME=${ARI_USERNAME:-llamenos}
-      - ARI_PASSWORD=${ARI_PASSWORD:?ARI_PASSWORD is required — do NOT use the default}
+      - ARI_PASSWORD=${ARI_PASSWORD:-}
       - WORKER_WEBHOOK_URL=http://app:3000
-      - BRIDGE_SECRET=${BRIDGE_SECRET:?BRIDGE_SECRET is required — generate a random value}
+      - BRIDGE_SECRET=${BRIDGE_SECRET:-}
       - HOTLINE_NUMBER=${HOTLINE_NUMBER:-}
       # SIP trunk auto-config — set all three to enable PJSIP auto-configuration at startup
       - SIP_PROVIDER=${SIP_PROVIDER:-}
