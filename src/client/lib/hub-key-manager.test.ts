@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import { LABEL_HUB_KEY_WRAP } from '@shared/crypto-labels'
 import { eciesUnwrapKey } from '@shared/crypto-primitives'
-import type { Ciphertext } from '@shared/crypto-types'
 import { CryptoService } from '../../server/lib/crypto-service'
 import { generateKeyPair } from './crypto'
 import {
@@ -192,7 +191,7 @@ describe('client↔server interop', () => {
     const plaintext = 'client encrypted, server reads'
 
     const encrypted = encryptForHub(plaintext, hubKey)
-    const decrypted = serverCrypto.hubDecrypt(encrypted as Ciphertext, hubKey)
+    const decrypted = serverCrypto.hubDecrypt(encrypted, hubKey)
 
     expect(decrypted).toBe(plaintext)
   })
