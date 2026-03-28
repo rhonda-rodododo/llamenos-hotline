@@ -33,12 +33,9 @@ services:
     ports:
       - "9100:9000"
 
-  minio:
+  rustfs:
     ports:
       - "9000:9000"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
 
   # Caddy is not needed in CI — the app runs directly on the runner
   caddy:

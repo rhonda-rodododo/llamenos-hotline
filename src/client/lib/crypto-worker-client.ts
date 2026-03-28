@@ -215,19 +215,11 @@ export class CryptoWorkerClient {
   }
 }
 
-/**
- * Singleton instance for the app.
- * Lazy-initialized to avoid creating a worker during SSR or tests.
- */
-let _instance: CryptoWorkerClient | null = null
-
-export function getCryptoWorker(): CryptoWorkerClient {
-  if (!_instance) {
-    _instance = new CryptoWorkerClient()
-  }
-  return _instance
-}
-
-/** Export for direct use where singleton is appropriate */
+/** Singleton instance — shared by key-manager and decrypt-fields. */
 export const cryptoWorker =
   typeof Worker !== 'undefined' ? new CryptoWorkerClient() : (null as unknown as CryptoWorkerClient)
+
+/** @deprecated Use `cryptoWorker` directly. Kept for backward compatibility. */
+export function getCryptoWorker(): CryptoWorkerClient {
+  return cryptoWorker
+}

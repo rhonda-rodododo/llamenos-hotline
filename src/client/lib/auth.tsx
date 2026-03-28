@@ -199,6 +199,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const pubkey = isUnlocked ? await keyManager.getPublicKeyHex() : null
         if (cancelled) return
 
+        // Decrypt envelope-encrypted fields (e.g. name) via crypto worker
+        if (pubkey) {
+          await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
+        }
+
         setState(
           stateFromMe(me, {
             isKeyUnlocked: isUnlocked,
@@ -255,6 +260,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await getMe()
       lastApiActivity.current = Date.now()
+      // Decrypt envelope-encrypted fields (e.g. name) via crypto worker
+      await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
       // Load hub keys after unlocking (crypto worker handles decryption internally)
       const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
       await loadHubKeysForUser(hubIds)
@@ -284,6 +291,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await getMe()
       lastApiActivity.current = Date.now()
       const isUnlocked = await keyManager.isUnlocked()
+      // Decrypt envelope-encrypted fields (e.g. name) via crypto worker
+      if (isUnlocked) {
+        await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
+      }
       setState(
         stateFromMe(me, {
           isKeyUnlocked: isUnlocked,

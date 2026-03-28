@@ -72,7 +72,7 @@ interface RateBucket {
 
 const rateLimits: Record<string, RateBucket> = {
   sign: { timestamps: [], maxPerSec: 10, maxPerMin: 100 },
-  decrypt: { timestamps: [], maxPerSec: 5, maxPerMin: 50 },
+  decrypt: { timestamps: [], maxPerSec: 100, maxPerMin: 1000 },
   encrypt: { timestamps: [], maxPerSec: 10, maxPerMin: 100 },
 }
 
