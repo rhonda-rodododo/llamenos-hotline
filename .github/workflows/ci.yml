@@ -290,8 +290,8 @@ jobs:
           SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
           JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
           IDP_VALUE_ENCRYPTION_KEY: ${{ env.TEST_IDP_VALUE_ENCRYPTION_KEY }}
-          MINIO_ACCESS_KEY: minioadmin
-          MINIO_SECRET_KEY: minioadmin
+          STORAGE_ACCESS_KEY: rustfsadmin
+          STORAGE_SECRET_KEY: rustfsadmin
           ARI_PASSWORD: ci-ari-password
           BRIDGE_SECRET: ci-bridge-secret
 
@@ -391,8 +391,8 @@ jobs:
           SERVER_NOSTR_SECRET: ${{ env.TEST_SERVER_NOSTR_SECRET }}
           JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
           IDP_VALUE_ENCRYPTION_KEY: ${{ env.TEST_IDP_VALUE_ENCRYPTION_KEY }}
-          MINIO_ACCESS_KEY: minioadmin
-          MINIO_SECRET_KEY: minioadmin
+          STORAGE_ACCESS_KEY: rustfsadmin
+          STORAGE_SECRET_KEY: rustfsadmin
           ARI_PASSWORD: ci-ari-password
           BRIDGE_SECRET: ci-bridge-secret
 
