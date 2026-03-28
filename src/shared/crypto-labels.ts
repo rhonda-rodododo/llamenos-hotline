@@ -140,3 +140,14 @@ export const LABEL_VOICEMAIL_TRANSCRIPT = 'llamenos:voicemail-transcript'
 
 /** Hub storage credential (IAM secret key) wrapping with hub key */
 export const LABEL_STORAGE_CREDENTIAL_WRAP = 'llamenos:storage-credential'
+
+// --- Field-Level Encryption (Phase 1) ---
+
+/** Server-key encryption of volunteer/invite PII (phone numbers) */
+export const LABEL_VOLUNTEER_PII = 'llamenos:volunteer-pii:v1'
+
+/** Server-key encryption of ephemeral call data (caller numbers during active calls) */
+export const LABEL_EPHEMERAL_CALL = 'llamenos:ephemeral-call:v1'
+
+/** Server-key encryption of push notification credentials (endpoints, auth keys) */
+export const LABEL_PUSH_CREDENTIAL = 'llamenos:push-credential:v1'
