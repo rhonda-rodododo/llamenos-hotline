@@ -232,6 +232,8 @@ export class ReportTypeService {
       hubId: r.hubId,
       name: r.name,
       description: r.description ?? undefined,
+      encryptedName: r.encryptedName ?? undefined,
+      encryptedDescription: r.encryptedDescription ?? undefined,
       isDefault: r.isDefault,
       archivedAt: r.archivedAt ? r.archivedAt.toISOString() : null,
       createdAt: r.createdAt.toISOString(),

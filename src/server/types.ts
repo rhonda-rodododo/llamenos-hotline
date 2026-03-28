@@ -680,6 +680,7 @@ export interface ShiftSchedule {
   id: string
   hubId: string
   name: string
+  encryptedName?: string
   startTime: string
   endTime: string
   days: number[]
@@ -720,6 +721,7 @@ export interface RingGroup {
   id: string
   hubId: string
   name: string
+  encryptedName?: string
   volunteerPubkeys: string[]
   createdAt: Date
 }
@@ -867,6 +869,7 @@ export interface Blast {
   id: string
   hubId: string
   name: string
+  encryptedName?: string
   targetChannels: string[]
   targetTags: string[]
   targetLanguages: string[]

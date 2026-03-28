@@ -686,6 +686,10 @@ export interface RoleDefinition {
   isDefault: boolean
   isSystem: boolean
   description: string
+  /** Hub-key encrypted name (hex ciphertext). */
+  encryptedName?: string
+  /** Hub-key encrypted description (hex ciphertext). */
+  encryptedDescription?: string
   createdAt: string
   updatedAt: string
 }
@@ -699,6 +703,8 @@ export async function createRole(data: {
   slug: string
   permissions: string[]
   description: string
+  encryptedName?: string
+  encryptedDescription?: string
 }) {
   return request<{ role: RoleDefinition }>('/settings/roles', {
     method: 'POST',
@@ -708,7 +714,13 @@ export async function createRole(data: {
 
 export async function updateRole(
   id: string,
-  data: Partial<{ name: string; permissions: string[]; description: string }>
+  data: Partial<{
+    name: string
+    permissions: string[]
+    description: string
+    encryptedName: string
+    encryptedDescription: string
+  }>
 ) {
   return request<{ role: RoleDefinition }>(`/settings/roles/${id}`, {
     method: 'PATCH',
@@ -750,6 +762,8 @@ export interface Volunteer {
 export interface Shift {
   id: string
   name: string
+  /** Hub-key encrypted name (hex ciphertext). */
+  encryptedName?: string
   startTime: string // HH:mm
   endTime: string // HH:mm
   days: number[] // 0=Sunday, 1=Monday, ..., 6=Saturday

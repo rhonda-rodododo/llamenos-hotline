@@ -384,6 +384,7 @@ export class ShiftService {
       id: r.id,
       hubId: r.hubId,
       name: r.name,
+      encryptedName: r.encryptedName ?? undefined,
       startTime: r.startTime,
       endTime: r.endTime,
       days: r.days as number[],
@@ -410,6 +411,7 @@ export class ShiftService {
       id: r.id,
       hubId: r.hubId,
       name: r.name,
+      encryptedName: r.encryptedName ?? undefined,
       volunteerPubkeys: r.volunteerPubkeys as string[],
       createdAt: r.createdAt,
     }

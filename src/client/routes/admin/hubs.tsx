@@ -26,6 +26,7 @@ import {
   updateHub,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
 import { useToast } from '@/lib/toast'
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -216,11 +217,13 @@ function HubRow({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">
-            {hub.name}
+            {decryptHubField(hub.encryptedName, hub.name, hub.id)}
             <span className="ml-2 font-mono text-xs text-muted-foreground">{hub.id}</span>
           </p>
-          {hub.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1">{hub.description}</p>
+          {(hub.encryptedDescription || hub.description) && (
+            <p className="text-xs text-muted-foreground line-clamp-1">
+              {decryptHubField(hub.encryptedDescription, hub.description, hub.id)}
+            </p>
           )}
         </div>
       </div>
@@ -407,8 +410,10 @@ function EditHubDialog({
 }) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const [name, setName] = useState(hub.name)
-  const [description, setDescription] = useState(hub.description || '')
+  const decryptedName = decryptHubField(hub.encryptedName, hub.name, hub.id)
+  const decryptedDesc = decryptHubField(hub.encryptedDescription, hub.description, hub.id)
+  const [name, setName] = useState(decryptedName)
+  const [description, setDescription] = useState(decryptedDesc)
   const [phoneNumber, setPhoneNumber] = useState(hub.phoneNumber || '')
   const [saving, setSaving] = useState(false)
   const [showAccessConfirm, setShowAccessConfirm] = useState<'enable' | 'disable' | null>(null)
@@ -416,8 +421,8 @@ function EditHubDialog({
 
   // Reset form state when hub changes
   useEffect(() => {
-    setName(hub.name)
-    setDescription(hub.description || '')
+    setName(decryptHubField(hub.encryptedName, hub.name, hub.id))
+    setDescription(decryptHubField(hub.encryptedDescription, hub.description, hub.id))
     setPhoneNumber(hub.phoneNumber || '')
   }, [hub])
 
@@ -426,10 +431,14 @@ function EditHubDialog({
     if (!name.trim()) return
     setSaving(true)
     try {
+      const trimmedName = name.trim()
+      const trimmedDesc = description.trim()
       const res = await updateHub(hub.id, {
-        name: name.trim(),
-        description: description.trim() || undefined,
+        name: trimmedName,
+        description: trimmedDesc || undefined,
         phoneNumber: phoneNumber.trim() || undefined,
+        encryptedName: encryptHubField(trimmedName, hub.id),
+        encryptedDescription: trimmedDesc ? encryptHubField(trimmedDesc, hub.id) : undefined,
       })
       onUpdated(res.hub)
       toast(t('hubs.hubUpdated'), 'success')

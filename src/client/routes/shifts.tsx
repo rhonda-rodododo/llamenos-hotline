@@ -16,6 +16,8 @@ import {
   updateShift,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
+import { decryptHubField, encryptHubField } from '@/lib/hub-field-crypto'
 import { useToast } from '@/lib/toast'
 import { createFileRoute } from '@tanstack/react-router'
 import { CalendarPlus, Clock, LifeBuoy, Pencil, Trash2, Users } from 'lucide-react'
@@ -39,6 +41,8 @@ const DAY_KEYS = [
 function ShiftsPage() {
   const { t } = useTranslation()
   const { isAdmin } = useAuth()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const { toast } = useToast()
   const [shifts, setShifts] = useState<Shift[]>([])
   const [volunteers, setVolunteers] = useState<Volunteer[]>([])
@@ -93,6 +97,7 @@ function ShiftsPage() {
         <ShiftForm
           shift={editingShift}
           volunteers={volunteers}
+          hubId={hubId}
           onSave={async (data) => {
             try {
               if (editingShift) {
@@ -149,7 +154,9 @@ function ShiftsPage() {
               <CardContent>
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="font-medium">{shift.name}</h3>
+                    <h3 className="font-medium">
+                      {decryptHubField(shift.encryptedName, shift.name, hubId)}
+                    </h3>
                     <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
                       <Clock className="h-3.5 w-3.5" />
                       {shift.startTime} - {shift.endTime}
@@ -228,16 +235,20 @@ function ShiftsPage() {
 function ShiftForm({
   shift,
   volunteers,
+  hubId,
   onSave,
   onCancel,
 }: {
   shift: Shift | null
   volunteers: Volunteer[]
+  hubId: string
   onSave: (data: Partial<Shift>) => Promise<void>
   onCancel: () => void
 }) {
   const { t } = useTranslation()
-  const [name, setName] = useState(shift?.name || '')
+  const [name, setName] = useState(
+    shift ? decryptHubField(shift.encryptedName, shift.name, hubId) : ''
+  )
   const [startTime, setStartTime] = useState(shift?.startTime || '09:00')
   const [endTime, setEndTime] = useState(shift?.endTime || '17:00')
   const [days, setDays] = useState<number[]>(shift?.days || [1, 2, 3, 4, 5])
@@ -250,7 +261,14 @@ function ShiftForm({
     e.preventDefault()
     setSaving(true)
     try {
-      await onSave({ name, startTime, endTime, days, volunteerPubkeys: selectedVolunteers })
+      await onSave({
+        name,
+        encryptedName: encryptHubField(name, hubId),
+        startTime,
+        endTime,
+        days,
+        volunteerPubkeys: selectedVolunteers,
+      })
     } finally {
       setSaving(false)
     }

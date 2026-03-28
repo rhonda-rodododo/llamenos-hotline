@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { type CustomFieldDefinition, updateCustomFields } from '@/lib/api'
+import { useConfig } from '@/lib/config'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import { useToast } from '@/lib/toast'
 import { type LocationPrecision, MAX_CUSTOM_FIELDS } from '@shared/types'
 import { ChevronDown, ChevronUp, Plus, Save, StickyNote, Trash2 } from 'lucide-react'
@@ -28,6 +30,8 @@ export function CustomFieldsSection({
 }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
   const [editing, setEditing] = useState<Partial<CustomFieldDefinition> | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -129,7 +133,9 @@ export function CustomFieldsSection({
                 </Button>
               </div>
               <div className="flex-1 space-y-0.5">
-                <p className="text-sm font-medium">{field.label}</p>
+                <p className="text-sm font-medium">
+                  {decryptHubField(field.encryptedLabel, field.label, hubId)}
+                </p>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-[10px]">
                     {t(`customFields.types.${field.type}`)}

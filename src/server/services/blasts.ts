@@ -353,6 +353,7 @@ export class BlastService {
       id: r.id,
       hubId: r.hubId,
       name: r.name,
+      encryptedName: r.encryptedName ?? undefined,
       targetChannels: r.targetChannels as string[],
       targetTags: r.targetTags as string[],
       targetLanguages: r.targetLanguages as string[],
