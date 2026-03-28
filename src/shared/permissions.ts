@@ -28,8 +28,13 @@ export const PERMISSION_CATALOG = {
   'notes:reply': 'Reply to notes',
 
   // Contacts
-  'contacts:read': 'View contacts page and contact timelines',
-  'contacts:read-history': 'View past interactions from other volunteers for a contact',
+  'contacts:create': 'Create new contacts and relationships',
+  'contacts:read-summary': 'View contact summaries (display name, notes, tags)',
+  'contacts:read-pii': 'View contact PII (full name, phone, email, address)',
+  'contacts:update-summary': 'Edit contact summary fields',
+  'contacts:update-pii': 'Edit contact PII fields',
+  'contacts:delete': 'Delete contacts',
+  'contacts:link': 'Link/unlink calls and conversations to contacts',
 
   // Reports
   'reports:create': 'Submit reports',
@@ -192,8 +197,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'calls:*',
       'blasts:*',
       'files:*',
-      'contacts:read',
-      'contacts:read-history',
+      'contacts:*',
       'voicemail:*',
     ],
     isDefault: true,
@@ -252,6 +256,8 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'gdpr:erase-self',
       'voicemail:read',
       'calls:read-history',
+      'contacts:create',
+      'contacts:read-summary',
     ],
     isDefault: true,
     isSystem: false,
@@ -281,7 +287,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'voicemail:read',
       'voicemail:notify',
       'notes:read-all',
-      'contacts:read',
+      'contacts:read-summary',
       'calls:read-history',
     ],
     isDefault: true,
