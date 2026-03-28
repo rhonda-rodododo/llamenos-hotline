@@ -1,7 +1,9 @@
+import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, lte, or } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
-import { blastDeliveries, blasts, subscribers } from '../db/schema'
+import { blastDeliveries, blasts, hubKeys, subscribers } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
   Blast,
@@ -48,28 +50,66 @@ export function selectChannel(sub: Subscriber, targetChannels: string[]): Subscr
 }
 
 export class BlastService {
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    private readonly crypto: CryptoService
+  ) {}
+
+  async #getHubKey(hubId: string): Promise<Uint8Array | null> {
+    if (!hubId || hubId === 'global') return null
+    const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
+    if (envelopes.length === 0) return null
+    try {
+      return this.crypto.unwrapHubKey(
+        envelopes.map((r) => ({
+          pubkey: r.pubkey,
+          wrappedKey: r.encryptedKey,
+          ephemeralPubkey: r.ephemeralPubkey ?? '',
+        }))
+      )
+    } catch {
+      return null
+    }
+  }
 
   // ------------------------------------------------------------------ Blasts
 
   async listBlasts(hubId?: string): Promise<Blast[]> {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(blasts).where(eq(blasts.hubId, hId))
-    return rows.map((r) => this.#rowToBlast(r))
+    const hubKey = await this.#getHubKey(hId)
+    return rows.map((r) => {
+      let name = r.name
+      if (hubKey && r.encryptedName) {
+        name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
+      }
+      return this.#rowToBlast({ ...r, name })
+    })
   }
 
   async getBlast(id: string): Promise<Blast | null> {
     const rows = await this.db.select().from(blasts).where(eq(blasts.id, id)).limit(1)
-    return rows[0] ? this.#rowToBlast(rows[0]) : null
+    if (!rows[0]) return null
+    const r = rows[0]
+    let name = r.name
+    if (r.encryptedName) {
+      const hubKey = await this.#getHubKey(r.hubId)
+      if (hubKey) {
+        name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
+      }
+    }
+    return this.#rowToBlast({ ...r, name })
   }
 
   async createBlast(data: CreateBlastData): Promise<Blast> {
     const id = crypto.randomUUID()
+    const hId = data.hubId ?? 'global'
+    const hubKey = await this.#getHubKey(hId)
     const [row] = await this.db
       .insert(blasts)
       .values({
         id,
-        hubId: data.hubId ?? 'global',
+        hubId: hId,
         name: data.name,
         encryptedContent: data.encryptedContent ?? '',
         contentEnvelopes: data.contentEnvelopes ?? [],
@@ -77,6 +117,7 @@ export class BlastService {
         targetTags: data.targetTags ?? [],
         targetLanguages: data.targetLanguages ?? [],
         status: data.status ?? 'draft',
+        ...(hubKey ? { encryptedName: this.crypto.hubEncrypt(data.name, hubKey) } : {}),
       })
       .returning()
     return this.#rowToBlast(row)
@@ -98,6 +139,13 @@ export class BlastService {
 
     const statsUpdate = data.stats ? { stats: { ...existing.stats, ...data.stats } } : {}
 
+    // Encrypt name with hub key if available
+    const hubKey = await this.#getHubKey(existing.hubId)
+    const encFields: Record<string, unknown> = {}
+    if (hubKey && data.name !== undefined) {
+      encFields.encryptedName = this.crypto.hubEncrypt(data.name, hubKey)
+    }
+
     const [row] = await this.db
       .update(blasts)
       .set({
@@ -112,6 +160,7 @@ export class BlastService {
         ...(data.scheduledAt !== undefined ? { scheduledAt: data.scheduledAt } : {}),
         ...(data.error !== undefined ? { error: data.error } : {}),
         ...statsUpdate,
+        ...encFields,
       })
       .where(eq(blasts.id, id))
       .returning()
@@ -283,7 +332,18 @@ export class BlastService {
           and(eq(blasts.status, 'scheduled'), lte(blasts.scheduledAt, now))
         )
       )
-    return rows.map((r) => this.#rowToBlast(r))
+    const result: Blast[] = []
+    for (const r of rows) {
+      let name = r.name
+      if (r.encryptedName) {
+        const hubKey = await this.#getHubKey(r.hubId)
+        if (hubKey) {
+          name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
+        }
+      }
+      result.push(this.#rowToBlast({ ...r, name }))
+    }
+    return result
   }
 
   // ------------------------------------------------------------------ Private helpers

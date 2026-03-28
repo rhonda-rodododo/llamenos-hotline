@@ -1,6 +1,8 @@
+import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq } from 'drizzle-orm'
 import type { Database } from '../db'
-import { activeShifts, ringGroups, shiftOverrides, shiftSchedules } from '../db/schema'
+import { activeShifts, hubKeys, ringGroups, shiftOverrides, shiftSchedules } from '../db/schema'
+import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
   ActiveShift,
@@ -18,14 +20,41 @@ function isValidTimeFormat(time: string): boolean {
 }
 
 export class ShiftService {
-  constructor(protected readonly db: Database) {}
+  constructor(
+    protected readonly db: Database,
+    private readonly crypto: CryptoService
+  ) {}
+
+  async #getHubKey(hubId: string): Promise<Uint8Array | null> {
+    if (!hubId || hubId === 'global') return null
+    const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
+    if (envelopes.length === 0) return null
+    try {
+      return this.crypto.unwrapHubKey(
+        envelopes.map((r) => ({
+          pubkey: r.pubkey,
+          wrappedKey: r.encryptedKey,
+          ephemeralPubkey: r.ephemeralPubkey ?? '',
+        }))
+      )
+    } catch {
+      return null
+    }
+  }
 
   // ------------------------------------------------------------------ Schedules
 
   async getSchedules(hubId?: string): Promise<ShiftSchedule[]> {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(shiftSchedules).where(eq(shiftSchedules.hubId, hId))
-    return rows.map((r) => this.#rowToSchedule(r))
+    const hubKey = await this.#getHubKey(hId)
+    return rows.map((r) => {
+      let name = r.name
+      if (hubKey && r.encryptedName) {
+        name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
+      }
+      return this.#rowToSchedule({ ...r, name })
+    })
   }
 
   async createSchedule(data: CreateScheduleData): Promise<ShiftSchedule> {
@@ -33,17 +62,20 @@ export class ShiftService {
       throw new AppError(400, 'Invalid time format — expected HH:MM (00:00–23:59)')
     }
     const id = crypto.randomUUID()
+    const hId = data.hubId ?? 'global'
+    const hubKey = await this.#getHubKey(hId)
     const [row] = await this.db
       .insert(shiftSchedules)
       .values({
         id,
-        hubId: data.hubId ?? 'global',
+        hubId: hId,
         name: data.name,
         startTime: data.startTime,
         endTime: data.endTime,
         days: data.days,
         volunteerPubkeys: data.volunteerPubkeys,
         ringGroupId: data.ringGroupId ?? null,
+        ...(hubKey ? { encryptedName: this.crypto.hubEncrypt(data.name, hubKey) } : {}),
       })
       .returning()
     return this.#rowToSchedule(row)
@@ -64,6 +96,12 @@ export class ShiftService {
     const rows = await this.db.select().from(shiftSchedules).where(whereClause).limit(1)
     if (!rows[0]) throw new AppError(404, 'Schedule not found')
 
+    const hubKey = await this.#getHubKey(hubId)
+    const encFields: Record<string, unknown> = {}
+    if (hubKey && data.name !== undefined) {
+      encFields.encryptedName = this.crypto.hubEncrypt(data.name, hubKey)
+    }
+
     const [row] = await this.db
       .update(shiftSchedules)
       .set({
@@ -73,6 +111,7 @@ export class ShiftService {
         ...(data.days !== undefined ? { days: data.days } : {}),
         ...(data.volunteerPubkeys !== undefined ? { volunteerPubkeys: data.volunteerPubkeys } : {}),
         ...(data.ringGroupId !== undefined ? { ringGroupId: data.ringGroupId } : {}),
+        ...encFields,
       })
       .where(whereClause)
       .returning()
@@ -118,18 +157,28 @@ export class ShiftService {
   async getRingGroups(hubId?: string): Promise<RingGroup[]> {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(ringGroups).where(eq(ringGroups.hubId, hId))
-    return rows.map((r) => this.#rowToRingGroup(r))
+    const hubKey = await this.#getHubKey(hId)
+    return rows.map((r) => {
+      let name = r.name
+      if (hubKey && r.encryptedName) {
+        name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
+      }
+      return this.#rowToRingGroup({ ...r, name })
+    })
   }
 
   async createRingGroup(data: CreateRingGroupData): Promise<RingGroup> {
     const id = crypto.randomUUID()
+    const hId = data.hubId ?? 'global'
+    const hubKey = await this.#getHubKey(hId)
     const [row] = await this.db
       .insert(ringGroups)
       .values({
         id,
-        hubId: data.hubId ?? 'global',
+        hubId: hId,
         name: data.name,
         volunteerPubkeys: data.volunteerPubkeys,
+        ...(hubKey ? { encryptedName: this.crypto.hubEncrypt(data.name, hubKey) } : {}),
       })
       .returning()
     return this.#rowToRingGroup(row)
@@ -138,11 +187,19 @@ export class ShiftService {
   async updateRingGroup(id: string, data: Partial<CreateRingGroupData>): Promise<RingGroup> {
     const rows = await this.db.select().from(ringGroups).where(eq(ringGroups.id, id)).limit(1)
     if (!rows[0]) throw new AppError(404, 'Ring group not found')
+
+    const hubKey = await this.#getHubKey(rows[0].hubId)
+    const encFields: Record<string, unknown> = {}
+    if (hubKey && data.name !== undefined) {
+      encFields.encryptedName = this.crypto.hubEncrypt(data.name, hubKey)
+    }
+
     const [row] = await this.db
       .update(ringGroups)
       .set({
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.volunteerPubkeys !== undefined ? { volunteerPubkeys: data.volunteerPubkeys } : {}),
+        ...encFields,
       })
       .where(eq(ringGroups.id, id))
       .returning()

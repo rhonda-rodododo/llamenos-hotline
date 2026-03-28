@@ -85,6 +85,25 @@ export class SettingsService {
     private readonly crypto: CryptoService
   ) {}
 
+  // ------------------------------------------------------------------ Hub Key Helper
+
+  async #getHubKey(hubId: string): Promise<Uint8Array | null> {
+    if (!hubId || hubId === 'global') return null
+    const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
+    if (envelopes.length === 0) return null
+    try {
+      return this.crypto.unwrapHubKey(
+        envelopes.map((r) => ({
+          pubkey: r.pubkey,
+          wrappedKey: r.encryptedKey,
+          ephemeralPubkey: r.ephemeralPubkey ?? '',
+        }))
+      )
+    } catch {
+      return null // Server not in hub key envelope list
+    }
+  }
+
   // ------------------------------------------------------------------ Spam Settings
 
   async getSpamSettings(hubId?: string): Promise<SpamSettings> {
@@ -273,7 +292,32 @@ export class SettingsService {
           .from(customFieldDefinitions)
           .where(sql`${customFieldDefinitions.hubId} IS NULL`)
 
-    const fields = rows.sort((a, b) => a.order - b.order).map((r) => this.#rowToCustomField(r))
+    // Decrypt if hub key available
+    const hubKey = hId ? await this.#getHubKey(hId) : null
+    const sorted = rows.sort((a, b) => a.order - b.order)
+    const fields = sorted.map((r) => {
+      let fieldName = r.fieldName
+      let label = r.label
+      let options = r.options as string[]
+      if (hubKey) {
+        if (r.encryptedFieldName) {
+          fieldName =
+            this.crypto.hubDecrypt(r.encryptedFieldName as Ciphertext, hubKey) ?? r.fieldName
+        }
+        if (r.encryptedLabel) {
+          label = this.crypto.hubDecrypt(r.encryptedLabel as Ciphertext, hubKey) ?? r.label
+        }
+        if (r.encryptedOptions) {
+          try {
+            const decrypted = this.crypto.hubDecrypt(r.encryptedOptions as Ciphertext, hubKey)
+            if (decrypted) options = JSON.parse(decrypted) as string[]
+          } catch {
+            // Fall back to plaintext options
+          }
+        }
+      }
+      return this.#rowToCustomField({ ...r, fieldName, label, options })
+    })
 
     return role !== 'admin' ? fields.filter((f) => f.visibleToVolunteers) : fields
   }
@@ -295,6 +339,9 @@ export class SettingsService {
 
     if (fields.length === 0) return []
 
+    // Encrypt field metadata with hub key if available
+    const hubKey = hId ? await this.#getHubKey(hId) : null
+
     const rows = await this.db
       .insert(customFieldDefinitions)
       .values(
@@ -308,6 +355,16 @@ export class SettingsService {
           required: f.required,
           showInVolunteerView: f.visibleToVolunteers,
           order: i,
+          ...(hubKey
+            ? {
+                encryptedFieldName: this.crypto.hubEncrypt(f.name, hubKey),
+                encryptedLabel: this.crypto.hubEncrypt(f.label, hubKey),
+                encryptedOptions:
+                  f.options && f.options.length > 0
+                    ? this.crypto.hubEncrypt(JSON.stringify(f.options), hubKey)
+                    : null,
+              }
+            : {}),
         }))
       )
       .returning()
@@ -380,7 +437,22 @@ export class SettingsService {
       if (cfg.phoneNumber === phone) {
         // Look up the hub
         const hubRows = await this.db.select().from(hubs).where(eq(hubs.id, row.hubId)).limit(1)
-        if (hubRows[0]) return this.#rowToHub(hubRows[0])
+        if (hubRows[0]) {
+          const h = hubRows[0]
+          let hName = h.name
+          let hDesc = h.description
+          if (h.encryptedName) {
+            const hk = await this.#getHubKey(h.id)
+            if (hk) {
+              hName = this.crypto.hubDecrypt(h.encryptedName as Ciphertext, hk) ?? h.name
+              hDesc = h.encryptedDescription
+                ? (this.crypto.hubDecrypt(h.encryptedDescription as Ciphertext, hk) ??
+                  h.description)
+                : h.description
+            }
+          }
+          return this.#rowToHub({ ...h, name: hName, description: hDesc })
+        }
       }
     }
     return null
@@ -567,25 +639,42 @@ export class SettingsService {
       .from(reportCategories)
       .where(eq(reportCategories.hubId, hId))
       .limit(1)
+    const row = rows[0]
+    if (!row) return ['Incident Report', 'Field Observation', 'Evidence', 'Other']
+
+    // Decrypt if encrypted column populated
+    if (row.encryptedCategories) {
+      const hubKey = await this.#getHubKey(hId)
+      if (hubKey) {
+        try {
+          const decrypted = this.crypto.hubDecrypt(row.encryptedCategories as Ciphertext, hubKey)
+          if (decrypted) return JSON.parse(decrypted) as string[]
+        } catch {
+          // Fall through to plaintext
+        }
+      }
+    }
     return (
-      (rows[0]?.categories as string[]) ?? [
-        'Incident Report',
-        'Field Observation',
-        'Evidence',
-        'Other',
-      ]
+      (row.categories as string[]) ?? ['Incident Report', 'Field Observation', 'Evidence', 'Other']
     )
   }
 
   async updateReportCategories(categories: string[], hubId?: string): Promise<string[]> {
     const hId = hubId ?? 'global'
     const capped = categories.slice(0, 50)
+
+    // Encrypt categories with hub key if available
+    const hubKey = await this.#getHubKey(hId)
+    const encryptedCategories = hubKey
+      ? this.crypto.hubEncrypt(JSON.stringify(capped), hubKey)
+      : null
+
     await this.db
       .insert(reportCategories)
-      .values({ hubId: hId, categories: capped })
+      .values({ hubId: hId, categories: capped, encryptedCategories })
       .onConflictDoUpdate({
         target: reportCategories.hubId,
-        set: { categories: capped, updatedAt: new Date() },
+        set: { categories: capped, encryptedCategories, updatedAt: new Date() },
       })
     return capped
   }
@@ -764,11 +853,11 @@ export class SettingsService {
         const refetched = hId
           ? await this.db.select().from(roles).where(eq(roles.hubId, hId))
           : await this.db.select().from(roles).where(sql`${roles.hubId} IS NULL`)
-        return refetched.map((r) => this.#rowToRole(r))
+        return this.#decryptRoles(refetched)
       }
       return seeded.map((r) => this.#rowToRole(r))
     }
-    return rows.map((r) => this.#rowToRole(r))
+    return this.#decryptRoles(rows)
   }
 
   async createRole(data: CreateRoleData): Promise<Role> {
@@ -784,6 +873,16 @@ export class SettingsService {
       .limit(1)
     if (existing[0]) throw new AppError(409, `Role slug "${data.slug}" already exists`)
 
+    // Encrypt name/description with hub key if available
+    const hubKey = hubId ? await this.#getHubKey(hubId) : null
+    const encFields: Record<string, unknown> = {}
+    if (hubKey) {
+      encFields.encryptedName = this.crypto.hubEncrypt(data.name, hubKey)
+      if (data.description) {
+        encFields.encryptedDescription = this.crypto.hubEncrypt(data.description, hubKey)
+      }
+    }
+
     const id = `role-${crypto.randomUUID()}`
     const [row] = await this.db
       .insert(roles)
@@ -796,6 +895,7 @@ export class SettingsService {
         permissions: data.permissions,
         isDefault: false,
         createdAt: new Date(),
+        ...encFields,
       })
       .returning()
     return this.#rowToRole(row)
@@ -810,12 +910,27 @@ export class SettingsService {
       throw new AppError(403, 'Cannot modify the super-admin role')
     }
 
+    // Encrypt updated name/description with hub key if available
+    const hubKey = role.hubId ? await this.#getHubKey(role.hubId) : null
+    const encFields: Record<string, unknown> = {}
+    if (hubKey) {
+      if (data.name) {
+        encFields.encryptedName = this.crypto.hubEncrypt(data.name, hubKey)
+      }
+      if (data.description !== undefined) {
+        encFields.encryptedDescription = data.description
+          ? this.crypto.hubEncrypt(data.description, hubKey)
+          : null
+      }
+    }
+
     const [updated] = await this.db
       .update(roles)
       .set({
         ...(data.name ? { name: data.name } : {}),
         ...(data.permissions ? { permissions: data.permissions } : {}),
         ...(data.description !== undefined ? { description: data.description } : {}),
+        ...encFields,
       })
       .where(eq(roles.id, id))
       .returning()
@@ -834,20 +949,50 @@ export class SettingsService {
 
   async getHubs(): Promise<Hub[]> {
     const rows = await this.db.select().from(hubs)
-    return rows.map((r) => this.#rowToHub(r))
+    const result: Hub[] = []
+    for (const r of rows) {
+      let name = r.name
+      let description = r.description
+      if (r.encryptedName) {
+        const hubKey = await this.#getHubKey(r.id)
+        if (hubKey) {
+          name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
+          description = r.encryptedDescription
+            ? (this.crypto.hubDecrypt(r.encryptedDescription as Ciphertext, hubKey) ??
+              r.description)
+            : r.description
+        }
+      }
+      result.push(this.#rowToHub({ ...r, name, description }))
+    }
+    return result
   }
 
   async getHub(id: string): Promise<Hub | null> {
     const rows = await this.db.select().from(hubs).where(eq(hubs.id, id)).limit(1)
-    return rows[0] ? this.#rowToHub(rows[0]) : null
+    if (!rows[0]) return null
+    const r = rows[0]
+    let name = r.name
+    let description = r.description
+    if (r.encryptedName) {
+      const hubKey = await this.#getHubKey(r.id)
+      if (hubKey) {
+        name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
+        description = r.encryptedDescription
+          ? (this.crypto.hubDecrypt(r.encryptedDescription as Ciphertext, hubKey) ?? r.description)
+          : r.description
+      }
+    }
+    return this.#rowToHub({ ...r, name, description })
   }
 
   async createHub(data: CreateHubData): Promise<Hub> {
     const now = new Date()
+    const hubId = data.id || crypto.randomUUID()
     const [row] = await this.db
       .insert(hubs)
       .values({
-        id: data.id || crypto.randomUUID(),
+        id: hubId,
         name: data.name,
         description: data.description ?? null,
         status: data.status ?? 'active',
@@ -857,12 +1002,42 @@ export class SettingsService {
         updatedAt: now,
       })
       .returning()
+
+    // Encrypt name/description with hub key if available
+    const hubKey = await this.#getHubKey(hubId)
+    if (hubKey) {
+      const encryptedName = this.crypto.hubEncrypt(data.name, hubKey)
+      const encryptedDescription = data.description
+        ? this.crypto.hubEncrypt(data.description, hubKey)
+        : null
+      await this.db
+        .update(hubs)
+        .set({ encryptedName, encryptedDescription })
+        .where(eq(hubs.id, hubId))
+      return this.#rowToHub({ ...row, encryptedName, encryptedDescription })
+    }
+
     return this.#rowToHub(row)
   }
 
   async updateHub(id: string, data: Partial<Hub>): Promise<Hub> {
     const rows = await this.db.select().from(hubs).where(eq(hubs.id, id)).limit(1)
     if (!rows[0]) throw new AppError(404, 'Hub not found')
+
+    // Build encrypted fields if hub key available
+    const hubKey = await this.#getHubKey(id)
+    const encFields: Record<string, unknown> = {}
+    if (hubKey) {
+      if (data.name !== undefined) {
+        encFields.encryptedName = this.crypto.hubEncrypt(data.name, hubKey)
+      }
+      if (data.description !== undefined) {
+        encFields.encryptedDescription = data.description
+          ? this.crypto.hubEncrypt(data.description, hubKey)
+          : null
+      }
+    }
+
     const [row] = await this.db
       .update(hubs)
       .set({
@@ -873,6 +1048,7 @@ export class SettingsService {
         ...(data.allowSuperAdminAccess !== undefined && {
           allowSuperAdminAccess: data.allowSuperAdminAccess,
         }),
+        ...encFields,
         updatedAt: new Date(),
       })
       .where(eq(hubs.id, id))
@@ -1046,6 +1222,23 @@ export class SettingsService {
     await this.db.delete(setupState)
     // Delete all roles — DEFAULT_ROLES are re-seeded on first use via getRole/listRoles
     await this.db.delete(roles)
+  }
+
+  async #decryptRoles(rows: (typeof roles.$inferSelect)[]): Promise<Role[]> {
+    // Batch: all rows share the same hubId in practice (listRoles filters by hubId)
+    const hubId = rows[0]?.hubId
+    const hubKey = hubId ? await this.#getHubKey(hubId) : null
+    return rows.map((r) => {
+      let name = r.name
+      let description = r.description
+      if (hubKey && r.encryptedName) {
+        name = this.crypto.hubDecrypt(r.encryptedName as Ciphertext, hubKey) ?? r.name
+        description = r.encryptedDescription
+          ? (this.crypto.hubDecrypt(r.encryptedDescription as Ciphertext, hubKey) ?? r.description)
+          : r.description
+      }
+      return this.#rowToRole({ ...r, name, description: description ?? '' })
+    })
   }
 
   #rowToRole(r: typeof roles.$inferSelect): Role {
