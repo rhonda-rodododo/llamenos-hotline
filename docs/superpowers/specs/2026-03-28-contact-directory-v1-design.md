@@ -289,6 +289,50 @@ When a volunteer answers a call matched to a known contact:
 
 ---
 
+## Implementation Notes: Reusable Components & Patterns
+
+### Existing Components to Reuse
+
+- **PhoneInput** (`components/phone-input.tsx`) — international phone input with validation and country selector. Use for contact phone number entry.
+- **ConfirmDialog** (`components/confirm-dialog.tsx`) — async-capable confirmation dialog. Use for delete contact, remove relationship.
+- **CustomFieldInputs** (`components/notes/custom-field-inputs.tsx`) — renders all custom field types with validation. Extend to support `'contact' | 'contacts'` field type.
+- **VolunteerMultiSelect** (`components/volunteer-multi-select.tsx`) — searchable multi-select with badges. Follow this pattern for the contact picker (new `ContactSelect` / `ContactMultiSelect` components).
+- **SettingsSection** (`components/settings-section.tsx`) — collapsible card with copy-link. Use for profile sidebar sections (Summary, PII, Support Contacts).
+- **ChannelBadge** (`components/ChannelBadge.tsx`) — channel type + encryption status badge. Use in timeline entries.
+- **CommandPalette** (`components/command-palette.tsx`) — global Cmd+K search. Add contact search results.
+- **FileUpload/FilePreview** (`components/FileUpload.tsx`, `components/FilePreview.tsx`) — encrypted file handling. Available if contacts need attachments.
+- **ErrorBoundary** (`components/error-boundary.tsx`) — wrap contact pages.
+
+### Design System
+
+- **Tailwind CSS v4** with `@theme` block defining OKLch color tokens in `app.css`
+- **shadcn/ui** (new-york style) — 22 primitives in `components/ui/` including Card, Dialog, Sheet, Badge, Input, Select, Checkbox, Switch, Tooltip, ScrollArea, Command, Popover
+- **lucide-react** icons
+- **Font:** DM Sans for headings, system-ui fallback
+
+### UI Patterns to Follow
+
+- **List rendering:** `divide-y divide-border` with `hover:bg-muted/30 transition-colors` rows (see calls page)
+- **Responsive:** `flex flex-col` + `sm:flex-row` breakpoints
+- **Badge variants:** `<Badge variant="outline">` for tags, `<Badge variant="secondary">` for types, destructive for risk
+- **Text hierarchy:** `text-sm text-muted-foreground` for secondary, `font-medium` for primary
+- **Loading states:** `<Skeleton>` component for placeholder UI
+- **i18n:** every user-facing string via `useTranslation()` — add contact-related keys to all 13 locale files
+- **Encryption UI:** check `keyManager.isUnlocked()` before decrypt, show lock indicator when locked, use `tryDecryptField()` for graceful fallback
+- **Data attributes:** `data-testid` on interactive elements for E2E test stability
+
+### Crypto Labels
+
+New labels needed in `crypto-labels.ts`:
+- `LABEL_CONTACT_SUMMARY = 'llamenos:contact-summary'` — Tier 1 envelope encryption
+- `LABEL_CONTACT_PII = 'llamenos:contact-pii'` — Tier 2 envelope encryption
+- `LABEL_CONTACT_RELATIONSHIP = 'llamenos:contact-relationship'` — relationship payload encryption
+
+Existing label reused:
+- `HMAC_PHONE_PREFIX` — phone number hashing for `identifierHash`
+
+---
+
 ## Non-Goals (Future)
 
 - Contact import/export CSV
