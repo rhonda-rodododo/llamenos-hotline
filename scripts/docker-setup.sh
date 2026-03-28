@@ -7,12 +7,15 @@ set -euo pipefail
 # The setup wizard in the browser creates the admin account — no
 # additional tools (Bun, Node.js, etc.) are needed.
 #
+# Local mode includes Asterisk (self-hosted PBX) and Signal bridge
+# so you can demo SIP trunk auto-configuration and messaging.
+#
 # Prerequisites: Docker (with Docker Compose), openssl
 #
 # Usage:
-#   ./scripts/docker-setup.sh                                  # Local (HTTP)
-#   ./scripts/docker-setup.sh --domain hotline.org --email a@b # Production (TLS)
-#   ./scripts/docker-setup.sh --demo                           # Demo mode
+#   ./scripts/docker-setup.sh                                  # Local (HTTP) + Asterisk + Signal
+#   ./scripts/docker-setup.sh --domain hotline.org --email a@b # Production (TLS, core only)
+#   ./scripts/docker-setup.sh --demo                           # Demo mode + Asterisk + Signal
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -79,8 +82,12 @@ fi
 # ── Build compose command ────────────────────────────────────────
 
 COMPOSE_FILES="-f $COMPOSE_DIR/docker-compose.yml"
+COMPOSE_PROFILES=""
 if [[ "$LOCAL_MODE" == false ]]; then
   COMPOSE_FILES="$COMPOSE_FILES -f $COMPOSE_DIR/docker-compose.production.yml"
+else
+  # Local demo includes Asterisk + Signal for self-hosted telephony and messaging demo
+  COMPOSE_PROFILES="--profile asterisk --profile signal"
 fi
 
 # ── Generate .env ────────────────────────────────────────────────
@@ -111,6 +118,10 @@ ACME_EMAIL=${ACME_EMAIL}
 HOTLINE_NAME=Hotline
 ENVIRONMENT=${ENVIRONMENT}
 ${DEMO_MODE:+DEMO_MODE=true}
+
+# Asterisk bridge — ARI_PASSWORD must match asterisk-bridge/asterisk-config/ari.conf
+ARI_PASSWORD=changeme
+BRIDGE_SECRET=$(openssl rand -hex 32)
 EOF
 
 echo "  Written to deploy/docker/.env"
@@ -119,10 +130,10 @@ echo "  Written to deploy/docker/.env"
 
 echo ""
 echo "Building (first run may take a few minutes)..."
-docker compose $COMPOSE_FILES build --quiet 2>&1 | tail -5
+docker compose $COMPOSE_FILES $COMPOSE_PROFILES build --quiet 2>&1 | tail -5
 
 echo "Starting services..."
-docker compose $COMPOSE_FILES up -d
+docker compose $COMPOSE_FILES $COMPOSE_PROFILES up -d
 
 # ── Wait for health ──────────────────────────────────────────────
 
@@ -140,7 +151,7 @@ done
 
 if [[ "$LOCAL_MODE" == true ]]; then
   URL="http://localhost:8000"
-  COMPOSE_CMD="docker compose -f deploy/docker/docker-compose.yml"
+  COMPOSE_CMD="docker compose -f deploy/docker/docker-compose.yml --profile asterisk --profile signal"
 else
   URL="https://${DOMAIN}"
   COMPOSE_CMD="docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.production.yml"
