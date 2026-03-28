@@ -43,7 +43,7 @@ export function HubSwitcher() {
             ? decryptHubField(
                 currentHub.encryptedName,
                 currentHub.id,
-                `Hub ${currentHub.id.slice(0, 8)}`
+                currentHub.name || `Hub ${currentHub.id.slice(0, 8)}`
               )
             : t('hubs.selectHub', { defaultValue: 'Select hub' })}
         </span>
@@ -71,7 +71,11 @@ export function HubSwitcher() {
             >
               <Building2 className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">
-                {decryptHubField(hub.encryptedName, hub.id, `Hub ${hub.id.slice(0, 8)}`)}
+                {decryptHubField(
+                  hub.encryptedName,
+                  hub.id,
+                  hub.name || `Hub ${hub.id.slice(0, 8)}`
+                )}
               </span>
             </button>
           ))}

@@ -189,11 +189,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // try to authenticate with Schnorr token
     if (keyManager.isUnlocked()) {
       getMe()
-        .then((me) => {
+        .then(async (me) => {
           lastApiActivity.current = Date.now()
           const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
           const secretKey = keyManager.getSecretKey()
-          if (secretKey) loadHubKeysForUser(hubIds, secretKey)
+          if (secretKey) await loadHubKeysForUser(hubIds, secretKey)
           setState({
             isKeyUnlocked: true,
             publicKey: me.pubkey,
@@ -240,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await getMe()
       lastApiActivity.current = Date.now()
       const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
-      loadHubKeysForUser(hubIds, keyPair.secretKey)
+      await loadHubKeysForUser(hubIds, keyPair.secretKey)
       setState({
         isKeyUnlocked: keyManager.isUnlocked(),
         publicKey: keyPair.publicKey,
@@ -282,7 +282,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const secretKey = keyManager.getSecretKey()
       if (secretKey) {
         const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
-        loadHubKeysForUser(hubIds, secretKey)
+        await loadHubKeysForUser(hubIds, secretKey)
       }
       setState({
         isKeyUnlocked: true,

@@ -154,7 +154,9 @@ function ShiftsPage() {
               <CardContent>
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="font-medium">{decryptHubField(shift.encryptedName, hubId)}</h3>
+                    <h3 className="font-medium">
+                      {decryptHubField(shift.encryptedName, hubId, shift.name)}
+                    </h3>
                     <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
                       <Clock className="h-3.5 w-3.5" />
                       {shift.startTime} - {shift.endTime}
@@ -244,7 +246,9 @@ function ShiftForm({
   onCancel: () => void
 }) {
   const { t } = useTranslation()
-  const [name, setName] = useState(shift ? decryptHubField(shift.encryptedName, hubId) : '')
+  const [name, setName] = useState(
+    shift ? decryptHubField(shift.encryptedName, hubId, shift.name) : ''
+  )
   const [startTime, setStartTime] = useState(shift?.startTime || '09:00')
   const [endTime, setEndTime] = useState(shift?.endTime || '17:00')
   const [days, setDays] = useState<number[]>(shift?.days || [1, 2, 3, 4, 5])

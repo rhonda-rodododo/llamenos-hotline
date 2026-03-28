@@ -134,7 +134,7 @@ export function CustomFieldsSection({
               </div>
               <div className="flex-1 space-y-0.5">
                 <p className="text-sm font-medium">
-                  {decryptHubField(field.encryptedLabel, hubId)}
+                  {decryptHubField(field.encryptedLabel, hubId, field.label)}
                 </p>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-[10px]">

@@ -100,9 +100,9 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
   function startEdit(role: RoleDefinition) {
     setEditingId(role.id)
     setForm({
-      name: decryptHubField(role.encryptedName, hubId),
+      name: decryptHubField(role.encryptedName, hubId, role.name),
       slug: role.slug,
-      description: decryptHubField(role.encryptedDescription, hubId),
+      description: decryptHubField(role.encryptedDescription, hubId, role.description),
       permissions: [...role.permissions],
     })
     // Expand domains that have selected permissions
@@ -263,7 +263,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium truncate">
-                  {decryptHubField(role.encryptedName, hubId)}
+                  {decryptHubField(role.encryptedName, hubId, role.name)}
                 </span>
                 {role.isSystem && (
                   <Badge variant="secondary" className="text-[10px] gap-1">
@@ -279,7 +279,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
               </div>
               {role.encryptedDescription && (
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                  {decryptHubField(role.encryptedDescription, hubId)}
+                  {decryptHubField(role.encryptedDescription, hubId, role.description)}
                 </p>
               )}
               <p className="text-xs text-muted-foreground mt-0.5">

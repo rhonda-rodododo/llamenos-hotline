@@ -193,7 +193,7 @@ function BlastsPage() {
                     >
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-medium truncate">
-                          {decryptHubField(blast.encryptedName, hubId)}
+                          {decryptHubField(blast.encryptedName, hubId, blast.name)}
                         </p>
                         <Badge className={statusColors[blast.status] || ''} variant="outline">
                           {t(`blasts.status.${blast.status}`)}
@@ -240,7 +240,9 @@ function BlastsPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>{decryptHubField(selectedBlast.encryptedName, hubId)}</CardTitle>
+                  <CardTitle>
+                    {decryptHubField(selectedBlast.encryptedName, hubId, selectedBlast.name)}
+                  </CardTitle>
                   <Badge className={statusColors[selectedBlast.status] || ''} variant="outline">
                     {t(`blasts.status.${selectedBlast.status}`)}
                   </Badge>
