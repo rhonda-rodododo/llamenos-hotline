@@ -43,6 +43,45 @@ describe('E2EE verification', () => {
     expect(decrypted).toBe('Jane Smith')
   })
 
+  test('volunteer name with envelopes cannot be decrypted with server key', () => {
+    const volunteerSecret = new Uint8Array(32)
+    globalThis.crypto.getRandomValues(volunteerSecret)
+    const volunteerPub = bytesToHex(secp256k1.getPublicKey(volunteerSecret, true).slice(1))
+
+    const adminSecret = new Uint8Array(32)
+    globalThis.crypto.getRandomValues(adminSecret)
+    const adminPub = bytesToHex(secp256k1.getPublicKey(adminSecret, true).slice(1))
+
+    // Envelope encrypt name for volunteer + admin
+    const { encrypted, envelopes } = crypto.envelopeEncrypt(
+      'Jane Smith',
+      [volunteerPub, adminPub],
+      LABEL_VOLUNTEER_PII
+    )
+
+    // Server key CANNOT decrypt envelope-encrypted data
+    expect(() => {
+      crypto.serverDecrypt(encrypted, LABEL_VOLUNTEER_PII)
+    }).toThrow()
+
+    // But authorized recipients CAN decrypt
+    const volunteerDecrypted = crypto.envelopeDecrypt(
+      encrypted,
+      envelopes.find((e) => e.pubkey === volunteerPub)!,
+      volunteerSecret,
+      LABEL_VOLUNTEER_PII
+    )
+    expect(volunteerDecrypted).toBe('Jane Smith')
+
+    const adminDecrypted = crypto.envelopeDecrypt(
+      encrypted,
+      envelopes.find((e) => e.pubkey === adminPub)!,
+      adminSecret,
+      LABEL_VOLUNTEER_PII
+    )
+    expect(adminDecrypted).toBe('Jane Smith')
+  })
+
   test('server CAN decrypt server-key encrypted data', () => {
     const ct = crypto.serverEncrypt('+15551234567', LABEL_VOLUNTEER_PII)
     const pt = crypto.serverDecrypt(ct, LABEL_VOLUNTEER_PII)

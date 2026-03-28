@@ -120,6 +120,9 @@ auth.get('/me', async (c) => {
       ? { id: primaryRole.id, name: primaryRole.name, slug: primaryRole.slug }
       : null,
     name: volunteer.name,
+    // E2EE envelope fields — client uses these to decrypt name with their private key
+    ...(volunteer.encryptedName !== undefined ? { encryptedName: volunteer.encryptedName } : {}),
+    ...(volunteer.nameEnvelopes !== undefined ? { nameEnvelopes: volunteer.nameEnvelopes } : {}),
     // PII: phone always masked in self-view (client shows masked; unmask via PIN challenge + ?unmask=true on /volunteers/:pubkey)
     phone: maskPhone(volunteer.phone),
     transcriptionEnabled: volunteer.transcriptionEnabled,
