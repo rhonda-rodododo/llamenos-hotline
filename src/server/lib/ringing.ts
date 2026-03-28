@@ -1,3 +1,4 @@
+import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import { KIND_CALL_RING } from '@shared/nostr-events'
 import type { Services } from '../services'
 import type { Env } from '../types'
@@ -76,6 +77,20 @@ export async function startParallelRinging(
       callerNumber,
       status: 'ringing',
     })
+
+    // Auto-link to contact if phone hash matches a known contact
+    try {
+      const callerPhoneHash = services.crypto.hmac(callerNumber, HMAC_PHONE_PREFIX)
+      const contact = await services.contacts.findByIdentifierHash(
+        callerPhoneHash,
+        hubId ?? 'global'
+      )
+      if (contact) {
+        await services.contacts.linkCall(contact.id, callSid, hubId ?? 'global', 'auto')
+      }
+    } catch (err) {
+      console.error('[ringing] auto-link contact failed (non-fatal):', err)
+    }
 
     // Publish call:ring event to Nostr relay for real-time client notification
     publishNostrEvent(

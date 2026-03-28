@@ -1,5 +1,5 @@
 import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { MessageDeliveryStatus, RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
 import { conversations, messageEnvelopes, volunteers } from '../db/schema'
@@ -364,6 +364,15 @@ export class ConversationService {
       retryCount: r.retryCount,
       createdAt: r.createdAt,
     }
+  }
+
+  async getConversationsByIds(ids: string[], hubId: string) {
+    if (ids.length === 0) return []
+    return this.db
+      .select()
+      .from(conversations)
+      .where(and(eq(conversations.hubId, hubId), inArray(conversations.id, ids)))
+      .orderBy(desc(conversations.lastMessageAt))
   }
 
   // ------------------------------------------------------------------ Test Reset

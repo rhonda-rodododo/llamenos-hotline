@@ -137,12 +137,63 @@ export interface LocationFieldSettings {
 
 export type CustomFieldContext = 'call-notes' | 'conversation-notes' | 'reports' | 'all'
 
+// --- Contact Directory ---
+
+export type ContactType = 'caller' | 'partner-org' | 'referral-resource' | 'other'
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
+
+export const CONTACT_TYPE_LABELS: Record<ContactType, string> = {
+  caller: 'Caller',
+  'partner-org': 'Partner Org',
+  'referral-resource': 'Referral Resource',
+  other: 'Other',
+}
+
+export const RISK_LEVEL_LABELS: Record<RiskLevel, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  critical: 'Critical',
+}
+
+/** Decrypted relationship between two contacts (from encrypted payload) */
+export interface RelationshipPayload {
+  fromContactId: string
+  toContactId: string
+  relationship: string
+  isEmergency: boolean
+}
+
+/** Contact summary fields (Tier 1 — all members with contacts:read-summary) */
+export interface ContactSummary {
+  displayName: string
+  notes: string
+  languages: string[]
+}
+
+/** Contact PII fields (Tier 2 — per-field encrypted for contacts:read-pii) */
+export interface ContactPIIBlob {
+  emailAddresses: string[]
+  address: string
+  dateOfBirth: string
+  identifiers: { label: string; value: string }[]
+}
+
 /** Custom field definition — stored as config in SessionManager DO */
 export interface CustomFieldDefinition {
   id: string // unique UUID
   name: string // internal key (machine-readable, e.g. "severity")
   label: string // display label (e.g. "Severity Rating")
-  type: 'text' | 'number' | 'select' | 'checkbox' | 'textarea' | 'file' | 'location'
+  type:
+    | 'text'
+    | 'number'
+    | 'select'
+    | 'checkbox'
+    | 'textarea'
+    | 'file'
+    | 'location'
+    | 'contact'
+    | 'contacts'
   required: boolean
   options?: string[] // for 'select' type only
   /** Hub-key encrypted field name (hex ciphertext). */
@@ -271,7 +322,7 @@ export interface UploadInit {
 /** What gets encrypted before storage — replaces plain text */
 export interface NotePayload {
   text: string
-  fields?: Record<string, string | number | boolean | FileFieldValue>
+  fields?: Record<string, string | string[] | number | boolean | FileFieldValue>
 }
 
 export const MAX_CUSTOM_FIELDS = 20

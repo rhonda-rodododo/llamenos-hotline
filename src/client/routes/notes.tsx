@@ -189,7 +189,7 @@ function NotesPage() {
   async function handleSaveEdit(
     noteId: string,
     text: string,
-    fields: Record<string, string | number | boolean | FileFieldValue>
+    fields: Record<string, string | string[] | number | boolean | FileFieldValue>
   ) {
     if (!hasNsec || !publicKey || !text.trim()) return
     setSaving(true)
@@ -222,7 +222,7 @@ function NotesPage() {
   async function handleCreateNote(
     callId: string,
     text: string,
-    fields: Record<string, string | number | boolean | FileFieldValue>
+    fields: Record<string, string | string[] | number | boolean | FileFieldValue>
   ) {
     if (!hasNsec || !publicKey || !text.trim() || !callId.trim()) return
     setSaving(true)

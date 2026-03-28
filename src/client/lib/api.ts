@@ -1917,3 +1917,140 @@ export async function unsubscribePush(endpoint: string) {
     body: JSON.stringify({ endpoint }),
   })
 }
+
+// --- Contacts ---
+
+export interface ContactRecord {
+  id: string
+  hubId: string
+  contactType: string
+  riskLevel: string
+  tags: string[]
+  identifierHash: string | null
+  encryptedDisplayName: string
+  displayNameEnvelopes: RecipientEnvelope[]
+  encryptedNotes: string | null
+  notesEnvelopes: RecipientEnvelope[]
+  encryptedFullName: string | null
+  fullNameEnvelopes: RecipientEnvelope[]
+  encryptedPhone: string | null
+  phoneEnvelopes: RecipientEnvelope[]
+  encryptedPII: string | null
+  piiEnvelopes: RecipientEnvelope[]
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  lastInteractionAt: string | null
+}
+
+export interface ContactRelationshipRecord {
+  id: string
+  hubId: string
+  encryptedPayload: string
+  payloadEnvelopes: RecipientEnvelope[]
+  createdBy: string
+  createdAt: string
+}
+
+export async function listContacts(filters?: {
+  contactType?: string
+  riskLevel?: string
+}): Promise<{ contacts: ContactRecord[]; total: number }> {
+  const params = new URLSearchParams()
+  if (filters?.contactType) params.set('contactType', filters.contactType)
+  if (filters?.riskLevel) params.set('riskLevel', filters.riskLevel)
+  const qs = params.toString()
+  return request(hp(`/contacts${qs ? `?${qs}` : ''}`))
+}
+
+export async function getContact(id: string): Promise<ContactRecord> {
+  return request(hp(`/contacts/${id}`))
+}
+
+export async function createContact(data: {
+  contactType: string
+  riskLevel: string
+  tags: string[]
+  identifierHash?: string
+  encryptedDisplayName: string
+  displayNameEnvelopes: RecipientEnvelope[]
+  encryptedNotes?: string
+  notesEnvelopes?: RecipientEnvelope[]
+  encryptedFullName?: string
+  fullNameEnvelopes?: RecipientEnvelope[]
+  encryptedPhone?: string
+  phoneEnvelopes?: RecipientEnvelope[]
+  encryptedPII?: string
+  piiEnvelopes?: RecipientEnvelope[]
+}): Promise<ContactRecord> {
+  return request(hp('/contacts'), { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateContact(
+  id: string,
+  data: Record<string, unknown>
+): Promise<ContactRecord> {
+  return request(hp(`/contacts/${id}`), { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteContact(id: string): Promise<void> {
+  return request(hp(`/contacts/${id}`), { method: 'DELETE' })
+}
+
+export async function getContactTimeline(id: string): Promise<{
+  calls: unknown[]
+  conversations: unknown[]
+  notes: unknown[]
+}> {
+  return request(hp(`/contacts/${id}/timeline`))
+}
+
+export async function linkToContact(
+  contactId: string,
+  type: 'call' | 'conversation',
+  targetId: string
+): Promise<void> {
+  return request(hp(`/contacts/${contactId}/link`), {
+    method: 'POST',
+    body: JSON.stringify({ type, targetId }),
+  })
+}
+
+export async function checkContactDuplicate(phone: string): Promise<{
+  exists: boolean
+  contactId?: string
+}> {
+  return request(hp(`/contacts/check-duplicate?phone=${encodeURIComponent(phone)}`))
+}
+
+export async function hashContactPhone(phone: string): Promise<{ identifierHash: string }> {
+  return request(hp('/contacts/hash-phone'), {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  })
+}
+
+export async function getContactRecipients(): Promise<{
+  summaryPubkeys: string[]
+  piiPubkeys: string[]
+}> {
+  return request(hp('/contacts/recipients'))
+}
+
+export async function listContactRelationships(): Promise<ContactRelationshipRecord[]> {
+  return request(hp('/contacts/relationships'))
+}
+
+export async function createContactRelationship(data: {
+  encryptedPayload: string
+  payloadEnvelopes: RecipientEnvelope[]
+}): Promise<ContactRelationshipRecord> {
+  return request(hp('/contacts/relationships'), {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteContactRelationship(id: string): Promise<void> {
+  return request(hp(`/contacts/relationships/${id}`), { method: 'DELETE' })
+}

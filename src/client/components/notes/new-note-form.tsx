@@ -17,7 +17,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CustomFieldInputs } from './custom-field-inputs'
 
-type FieldValue = string | number | boolean | FileFieldValue
+type FieldValue = string | string[] | number | boolean | FileFieldValue
 
 interface Props {
   recentCalls: CallRecord[]

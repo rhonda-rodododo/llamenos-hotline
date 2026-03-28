@@ -1,6 +1,6 @@
 {
-  "id": "d5e9f3a4-b6c7-4ad8-9e1f-4a3b5c6d7e8f",
-  "prevId": "c4d8e2f3-a5b6-49c7-8d0e-3f2a4b5c6d7e",
+  "id": "c4d8e2f3-a5b6-49c7-8d0e-3f2a4b5c6d7e",
+  "prevId": "b3c7d1e2-f4a5-48b6-9c0d-2e1f3a4b5c6d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -605,11 +605,30 @@
           "primaryKey": false,
           "notNull": false
         },
+        "field_name": {
+          "name": "field_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "field_type": {
           "name": "field_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "options": {
+          "name": "options",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "required": {
           "name": "required",
@@ -657,13 +676,13 @@
           "name": "encrypted_field_name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "encrypted_label": {
           "name": "encrypted_label",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "encrypted_options": {
           "name": "encrypted_options",
@@ -894,6 +913,18 @@
           "primaryKey": true,
           "notNull": true
         },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "status": {
           "name": "status",
           "type": "text",
@@ -939,7 +970,7 @@
           "name": "encrypted_name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "encrypted_description": {
           "name": "encrypted_description",
@@ -1251,6 +1282,13 @@
           "notNull": true,
           "default": "'global'"
         },
+        "categories": {
+          "name": "categories",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -1323,11 +1361,24 @@
           "primaryKey": false,
           "notNull": false
         },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "slug": {
           "name": "slug",
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
         },
         "permissions": {
           "name": "permissions",
@@ -1354,7 +1405,7 @@
           "name": "encrypted_name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "encrypted_description": {
           "name": "encrypted_description",
@@ -2060,6 +2111,12 @@
           "notNull": true,
           "default": "'global'"
         },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "volunteer_pubkeys": {
           "name": "volunteer_pubkeys",
           "type": "jsonb",
@@ -2078,7 +2135,7 @@
           "name": "encrypted_name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -2163,6 +2220,12 @@
           "notNull": true,
           "default": "'global'"
         },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "start_time": {
           "name": "start_time",
           "type": "text",
@@ -2206,7 +2269,7 @@
           "name": "encrypted_name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -2906,6 +2969,12 @@
           "notNull": true,
           "default": "'global'"
         },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "encrypted_content": {
           "name": "encrypted_content",
           "type": "text",
@@ -2984,7 +3053,7 @@
           "name": "encrypted_name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -3114,6 +3183,18 @@
           "notNull": true,
           "default": "'global'"
         },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "is_default": {
           "name": "is_default",
           "type": "boolean",
@@ -3145,7 +3226,7 @@
           "name": "encrypted_name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "encrypted_description": {
           "name": "encrypted_description",

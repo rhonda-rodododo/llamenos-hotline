@@ -169,6 +169,19 @@ messaging.post('/:channel/webhook', async (c) => {
       externalId: incoming.senderIdentifier,
       status: 'waiting',
     })
+
+    // Auto-link to contact if identifier hash matches a known contact
+    try {
+      const contact = await services.contacts.findByIdentifierHash(
+        incoming.senderIdentifierHash as import('@shared/crypto-types').HmacHash,
+        hId
+      )
+      if (contact) {
+        await services.contacts.linkConversation(contact.id, conversation.id, hId, 'auto')
+      }
+    } catch (err) {
+      console.error('[messaging] auto-link contact failed (non-fatal):', err)
+    }
   }
 
   // Encrypt the inbound message body before storage (server encrypts, plaintext is discarded)
