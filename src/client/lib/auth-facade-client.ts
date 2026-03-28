@@ -121,7 +121,7 @@ class AuthFacadeClient {
    * The returned object includes a `challengeId` that must be passed to `verifyLogin`.
    */
   async getLoginOptions(): Promise<LoginOptionsResponse> {
-    const res = await fetch('/auth/webauthn/login-options', { method: 'POST' })
+    const res = await fetch('/api/auth/webauthn/login-options', { method: 'POST' })
     await AuthFacadeClient.assertOk(res, 'Failed to get login options')
     return res.json() as Promise<LoginOptionsResponse>
   }
@@ -137,7 +137,7 @@ class AuthFacadeClient {
     assertion: AuthenticationResponseJSON,
     challengeId: string
   ): Promise<{ accessToken: string; pubkey: string }> {
-    const res = await fetch('/auth/webauthn/login-verify', {
+    const res = await fetch('/api/auth/webauthn/login-verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ assertion, challengeId }),
@@ -154,7 +154,7 @@ class AuthFacadeClient {
    * Returns `{ valid: true, roles }` on success or `{ valid: false }` on failure.
    */
   async acceptInvite(code: string): Promise<{ valid: boolean; roles?: string[] }> {
-    const res = await fetch('/auth/invite/accept', {
+    const res = await fetch('/api/auth/invite/accept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code }),
@@ -174,7 +174,7 @@ class AuthFacadeClient {
    * The returned object includes a `challengeId` that must be passed to `verifyRegistration`.
    */
   async getRegisterOptions(): Promise<RegisterOptionsResponse> {
-    const res = await this.authedFetch('/auth/webauthn/register-options', { method: 'POST' })
+    const res = await this.authedFetch('/api/auth/webauthn/register-options', { method: 'POST' })
     await AuthFacadeClient.assertOk(res, 'Failed to get register options')
     return res.json() as Promise<RegisterOptionsResponse>
   }
@@ -191,7 +191,7 @@ class AuthFacadeClient {
     label: string,
     challengeId: string
   ): Promise<void> {
-    const res = await this.authedFetch('/auth/webauthn/register-verify', {
+    const res = await this.authedFetch('/api/auth/webauthn/register-verify', {
       method: 'POST',
       body: JSON.stringify({ attestation, label, challengeId }),
     })
@@ -203,7 +203,7 @@ class AuthFacadeClient {
    * Stores the returned access token in memory.
    */
   async refreshToken(): Promise<{ accessToken: string }> {
-    const res = await fetch('/auth/token/refresh', {
+    const res = await fetch('/api/auth/token/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
@@ -221,7 +221,7 @@ class AuthFacadeClient {
    */
   async getUserInfo(): Promise<UserInfo | null> {
     try {
-      const res = await this.authedFetch('/auth/userinfo')
+      const res = await this.authedFetch('/api/auth/userinfo')
       if (!res.ok) return null
       const data = (await res.json()) as {
         pubkey: string
@@ -245,7 +245,7 @@ class AuthFacadeClient {
    * The server will discard the previous nsec secret after this call.
    */
   async confirmRotation(): Promise<void> {
-    const res = await this.authedFetch('/auth/rotation/confirm', {
+    const res = await this.authedFetch('/api/auth/rotation/confirm', {
       method: 'POST',
       body: JSON.stringify({}),
     })
@@ -257,7 +257,7 @@ class AuthFacadeClient {
    * Clears the in-memory access token.
    */
   async revokeSession(): Promise<void> {
-    const res = await this.authedFetch('/auth/session/revoke', {
+    const res = await this.authedFetch('/api/auth/session/revoke', {
       method: 'POST',
       body: JSON.stringify({}),
       credentials: 'include', // required to clear the httpOnly refresh cookie
@@ -273,7 +273,7 @@ class AuthFacadeClient {
    */
   async listDevices(): Promise<DeviceListResponse> {
     try {
-      const res = await this.authedFetch('/auth/devices')
+      const res = await this.authedFetch('/api/auth/devices')
       if (!res.ok) return { devices: [] }
       // Server returns `credentials`, normalise to `devices` for the client interface
       const data = (await res.json()) as {
@@ -291,7 +291,7 @@ class AuthFacadeClient {
    * nsec secret used for KEK derivation. Requires an authenticated session.
    */
   async enroll(pubkey: string): Promise<{ nsecSecret: Uint8Array }> {
-    const res = await this.authedFetch('/auth/enroll', {
+    const res = await this.authedFetch('/api/auth/enroll', {
       method: 'POST',
       body: JSON.stringify({ pubkey }),
     })
