@@ -25,7 +25,7 @@ test.describe('Admin flow', () => {
 
     // Add volunteer — wait for data to load, then use force click to bypass
     // React re-render instability (button detaches during async state updates)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
     await page.waitForTimeout(1000)
     await page.getByTestId('volunteer-add-btn').click({ force: true })
     await page.getByLabel('Name').fill(volName)
@@ -152,7 +152,7 @@ test.describe('Admin flow', () => {
 
   test('phone validation rejects bad numbers', async ({ page }) => {
     await page.getByRole('link', { name: 'Volunteers' }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
     await page.waitForTimeout(1000)
     await page.getByTestId('volunteer-add-btn').click({ force: true })
 
@@ -174,7 +174,7 @@ test.describe('Admin flow', () => {
 
   test('admin settings page loads with all sections', async ({ page }) => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
     await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({
       timeout: 15000,
     })
@@ -191,7 +191,7 @@ test.describe('Admin flow', () => {
 
   test('admin settings toggles work', async ({ page }) => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
     await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({
       timeout: 15000,
     })
@@ -223,7 +223,7 @@ test.describe('Admin flow', () => {
 
   test('notes page loads', async ({ page }) => {
     await page.getByRole('link', { name: 'Call Notes' }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
     await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible({ timeout: 15000 })
     await expect(page.getByText(/encrypted end-to-end/i)).toBeVisible()
   })
@@ -243,7 +243,7 @@ test.describe('Admin flow', () => {
 
   test('admin settings shows status summaries when collapsed', async ({ page }) => {
     await page.getByRole('link', { name: 'Hub Settings' }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
     await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible({
       timeout: 15000,
     })
