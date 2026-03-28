@@ -136,10 +136,12 @@ export const LABEL_IVR_AUDIO = 'llamenos:ivr-audio:v1'
 
 ## Migration
 
-Same three-phase pattern as Phase 1:
-1. Add encrypted columns alongside plaintext
-2. Backfill: encrypt existing data, compute hashes
-3. Drop plaintext columns
+**No existing data to migrate.** Clean schema change:
+1. Add encrypted columns alongside plaintext (Drizzle migration)
+2. Deploy server code (all new writes go to encrypted columns)
+3. Drop plaintext columns (Phase 2C)
+
+No backfill script needed. No dual-read fallback code — the server encrypts on write and decrypts on read from day one.
 
 ## Testing
 

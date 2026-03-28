@@ -98,17 +98,12 @@ For fields where the SERVER creates the data (callerLast4, contactLast4):
 
 ### Re-encryption of Existing Data
 
-Existing server-key encrypted values must be re-encrypted as E2EE envelopes:
-1. Server decrypts with `serverDecrypt()`
-2. Re-encrypts with `envelopeEncrypt()` for appropriate recipients
-3. Stores new ciphertext + envelopes
-
-This is a one-time migration script, similar to the Phase 1 backfill.
+**No existing data to migrate** — the database has no production data. The service layer changes take effect immediately for all new writes. No backfill or re-encryption script needed.
 
 ## Testing
 
 - Verify server cannot decrypt E2EE fields (same test pattern as `e2ee-verification.test.ts`)
 - Client components display decrypted values after key unlock
 - Write path: client-originated data arrives as ciphertext, server stores without decrypting
-- Re-encryption migration: verify all existing data re-encrypted with envelopes
 - API tests updated to handle encrypted response format
+- Verify envelope columns are populated (not empty `[]`) for all E2EE fields

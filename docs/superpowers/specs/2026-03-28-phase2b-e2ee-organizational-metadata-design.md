@@ -323,23 +323,13 @@ This infrastructure is already built. Phase 2B just adds more consumers of the h
 
 ## Migration
 
-### Phase 1: Add encrypted columns (transition period)
+No existing data to migrate — the database has no production data yet. The migration is a clean schema change:
 
-Drizzle migration adds encrypted columns alongside plaintext. During transition:
-- Writes: server hub-key encrypts (bootstrap — same as Phase 1 pattern for existing data)
-- Reads: server returns both plaintext (legacy) and ciphertext (new)
-- Client uses plaintext during transition, switches to decrypting ciphertext once client code is deployed
+1. Add encrypted columns alongside plaintext (Drizzle migration)
+2. Deploy server + client code simultaneously (all new writes are hub-key encrypted by the client)
+3. Drop plaintext columns (Phase 2C migration)
 
-### Phase 2: Client deployment
-
-Client code updated to:
-- Encrypt on write (admin forms send ciphertext)
-- Decrypt on read (components decrypt with hub key)
-- UI shows placeholders before key unlock
-
-### Phase 3: Backfill + drop plaintext (Phase 2C)
-
-After client deployment verified, backfill existing data and drop plaintext columns.
+**No backfill script needed.** No dual-read fallback code. The server never encrypts or decrypts these fields — it's pure pass-through of client-provided ciphertext from day one.
 
 ## Testing
 
