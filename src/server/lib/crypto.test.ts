@@ -4,18 +4,18 @@ import {
   decryptBinaryFromStorage,
   decryptFromHub,
   decryptProviderCredentials,
-  eciesUnwrapKeyServer,
   decryptStorageCredential,
+  eciesUnwrapKeyServer,
   encryptBinaryForStorage,
   encryptCallRecordForStorage,
   encryptForHub,
   encryptMessageForStorage,
   encryptProviderCredentials,
+  encryptStorageCredential,
   hashAuditEntry,
   hashIP,
   hashPhone,
   unwrapHubKeyForServer,
-  encryptStorageCredential,
 } from './crypto'
 
 describe('provider credential encryption', () => {
