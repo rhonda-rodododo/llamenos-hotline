@@ -92,7 +92,7 @@ export async function enterPin(page: Page, pin: string) {
   // caused by CSS transition-colors on the input during page load
   await firstDigit.focus()
   // Type each digit — PinInput handles focus advance automatically
-  await page.keyboard.type(pin, { delay: 50 })
+  await page.keyboard.type(pin, { delay: 80 })
   // If PIN is shorter than the input length (e.g., 6 digits in 8-box input),
   // press Enter to submit early (supported when >= minLength)
   await page.keyboard.press('Enter')

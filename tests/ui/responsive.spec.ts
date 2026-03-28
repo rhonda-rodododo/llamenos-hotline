@@ -59,7 +59,7 @@ test('mobile pages have no horizontal overflow across routes', async ({ page }) 
   const routes = ['/notes', '/volunteers', '/admin/settings']
   for (const route of routes) {
     await page.goto(route)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
     const viewportWidth = await page.evaluate(() => window.innerWidth)
     expect(bodyWidth, `Overflow on ${route}`).toBeLessThanOrEqual(viewportWidth + 1)

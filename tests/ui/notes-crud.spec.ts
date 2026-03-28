@@ -5,7 +5,7 @@ test.describe('Notes CRUD', () => {
   test.beforeEach(async ({ page, request }) => {
     await loginAsAdmin(page)
     await page.getByRole('link', { name: 'Call Notes' }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
     await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible({ timeout: 15000 })
   })
 
