@@ -71,6 +71,19 @@ export class RecordsService {
         reason,
         bannedBy: r.bannedBy,
         bannedAt: r.createdAt.toISOString(),
+        // E2EE envelope fields for client-side decryption
+        ...(pEnv.length > 0
+          ? {
+              encryptedPhone: r.encryptedPhone as string,
+              phoneEnvelopes: pEnv,
+            }
+          : {}),
+        ...(rEnv.length > 0
+          ? {
+              encryptedReason: r.encryptedReason as string,
+              reasonEnvelopes: rEnv,
+            }
+          : {}),
       }
     })
   }
@@ -779,9 +792,10 @@ export class RecordsService {
   // ------------------------------------------------------------------ Private helpers
 
   #rowToCallRecord(r: typeof callRecords.$inferSelect): EncryptedCallRecord {
+    const cl4Env = (r.callerLast4Envelopes as RecipientEnvelope[]) ?? []
     return {
       id: r.id,
-      callerLast4: undefined, // Plaintext dropped — E2EE callerLast4 decrypted client-side
+      callerLast4: cl4Env.length > 0 ? '[encrypted]' : undefined,
       startedAt: r.startedAt.toISOString(),
       endedAt: r.endedAt?.toISOString(),
       duration: r.duration ?? undefined,
@@ -793,6 +807,13 @@ export class RecordsService {
       voicemailFileId: r.voicemailFileId ?? null,
       encryptedContent: r.encryptedContent ?? '',
       adminEnvelopes: (r.adminEnvelopes as RecipientEnvelope[]) ?? [],
+      // E2EE envelope fields for client-side decryption
+      ...(cl4Env.length > 0
+        ? {
+            encryptedCallerLast4: r.encryptedCallerLast4 as string,
+            callerLast4Envelopes: cl4Env,
+          }
+        : {}),
     }
   }
 

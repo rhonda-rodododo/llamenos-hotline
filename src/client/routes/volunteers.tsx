@@ -33,6 +33,7 @@ import {
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { generateKeyPair } from '@/lib/crypto'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { useToast } from '@/lib/toast'
 import { usePinChallenge } from '@/lib/use-pin-challenge'
 import { createFileRoute } from '@tanstack/react-router'
@@ -292,7 +293,9 @@ function VolunteersPage() {
                   className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium">{invite.name}</p>
+                    <p className="text-sm font-medium">
+                      {tryDecryptField(invite.encryptedName, invite.nameEnvelopes, invite.name)}
+                    </p>
                     <p className="text-xs text-muted-foreground">{maskedPhone(invite.phone)}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {invite.deliverySentAt
@@ -616,6 +619,11 @@ function VolunteerRow({
   const primaryRoleId = volunteer.roles[0] || 'role-volunteer'
   const primaryRole = roles.find((r) => r.id === primaryRoleId)
   const isAdminRole = primaryRoleId === 'role-super-admin' || primaryRoleId === 'role-hub-admin'
+  const displayName = tryDecryptField(
+    volunteer.encryptedName,
+    volunteer.nameEnvelopes,
+    volunteer.name
+  )
 
   async function changeRole(newRoleId: string) {
     if (newRoleId === primaryRoleId) return
@@ -652,11 +660,11 @@ function VolunteerRow({
     >
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-          {volunteer.name.charAt(0).toUpperCase()}
+          {displayName.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">
-            {volunteer.name}{' '}
+            {displayName}{' '}
             <span className="font-mono text-xs text-muted-foreground">
               ({volunteer.pubkey.slice(0, 8)})
             </span>
@@ -748,7 +756,7 @@ function VolunteerRow({
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
         title={t('volunteers.removeVolunteer')}
-        description={`${volunteer.name} (${volunteer.phone})`}
+        description={`${displayName} (${volunteer.phone})`}
         confirmLabel={t('common.delete')}
         onConfirm={handleDelete}
       />

@@ -316,12 +316,13 @@ export class ConversationService {
   // ------------------------------------------------------------------ Private helpers
 
   #rowToConversation(r: typeof conversations.$inferSelect): Conversation {
+    const cl4Env = (r.contactLast4Envelopes as import('@shared/types').RecipientEnvelope[]) ?? []
     return {
       id: r.id,
       hubId: r.hubId,
       channelType: r.channelType,
       contactIdentifierHash: r.contactIdentifierHash,
-      contactLast4: undefined, // Plaintext dropped — E2EE contactLast4 decrypted client-side
+      contactLast4: cl4Env.length > 0 ? '[encrypted]' : undefined,
       externalId: r.externalId,
       assignedTo: r.assignedTo,
       status: r.status,
@@ -331,6 +332,13 @@ export class ConversationService {
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
       lastMessageAt: r.lastMessageAt,
+      // E2EE envelope fields for client-side decryption
+      ...(cl4Env.length > 0
+        ? {
+            encryptedContactLast4: r.encryptedContactLast4 as string,
+            contactLast4Envelopes: cl4Env,
+          }
+        : {}),
     }
   }
 

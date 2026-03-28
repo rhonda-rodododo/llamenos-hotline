@@ -1,3 +1,4 @@
+import type { RecipientEnvelope } from '@shared/types'
 import * as keyManager from './key-manager'
 
 const API_BASE = '/api'
@@ -757,6 +758,9 @@ export interface Volunteer {
   // Messaging capabilities (Epic 68)
   supportedMessagingChannels?: string[] // SMS, WhatsApp, Signal, RCS (empty = all)
   messagingEnabled?: boolean // Whether volunteer can handle messaging conversations
+  // E2EE envelope-encrypted name (Phase 2D)
+  encryptedName?: string
+  nameEnvelopes?: RecipientEnvelope[]
 }
 
 export interface Shift {
@@ -776,6 +780,11 @@ export interface BanEntry {
   reason: string
   bannedBy: string
   bannedAt: string
+  // E2EE envelope-encrypted fields (Phase 2D)
+  encryptedPhone?: string
+  phoneEnvelopes?: RecipientEnvelope[]
+  encryptedReason?: string
+  reasonEnvelopes?: RecipientEnvelope[]
 }
 
 export interface EncryptedNote {
@@ -819,6 +828,10 @@ export interface CallRecord {
   // Decrypted fields (populated client-side after decryption)
   answeredBy?: string | null
   callerNumber?: string
+
+  // E2EE envelope-encrypted callerLast4 (Phase 2D)
+  encryptedCallerLast4?: string
+  callerLast4Envelopes?: RecipientEnvelope[]
 }
 
 export interface AuditLogEntry {
@@ -856,6 +869,9 @@ export interface InviteCode {
   usedAt?: string
   deliveryChannel?: string
   deliverySentAt?: string
+  // E2EE envelope-encrypted name (Phase 2D)
+  encryptedName?: string
+  nameEnvelopes?: RecipientEnvelope[]
 }
 
 // --- Conversations ---
@@ -878,6 +894,9 @@ export interface Conversation {
     reportTitle?: string
     reportCategory?: string
   }
+  // E2EE envelope-encrypted contactLast4 (Phase 2D)
+  encryptedContactLast4?: string
+  contactLast4Envelopes?: RecipientEnvelope[]
 }
 
 export type MessageDeliveryStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed'

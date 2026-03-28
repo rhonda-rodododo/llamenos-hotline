@@ -16,6 +16,7 @@ import {
   updateMyTranscriptionPreference,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import * as keyManager from '@/lib/key-manager'
 import { getNotificationPrefs, setNotificationPrefs } from '@/lib/notifications'
 import {
@@ -326,7 +327,10 @@ function SettingsPage() {
                   className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
                 >
                   <div className="space-y-0.5">
-                    <p className="text-sm font-medium">{cred.label}</p>
+                    <p className="text-sm font-medium">
+                      {tryDecryptField(cred.encryptedLabel, cred.labelEnvelopes, cred.label) ||
+                        cred.id.slice(0, 8)}
+                    </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="outline" className="text-[10px]">
                         {cred.backedUp ? t('webauthn.syncedPasskey') : t('webauthn.singleDevice')}

@@ -796,6 +796,13 @@ export class IdentityService {
         | MessagingChannelType[]
         | undefined,
       messagingEnabled: r.messagingEnabled ?? undefined,
+      // E2EE envelope fields for client-side decryption
+      ...(nameEnvelopes.length > 0
+        ? {
+            encryptedName: r.encryptedName as string,
+            nameEnvelopes,
+          }
+        : {}),
     }
   }
 
@@ -832,19 +839,34 @@ export class IdentityService {
       recipientPhoneHash: r.recipientPhoneHash ?? undefined,
       deliveryChannel: r.deliveryChannel ?? undefined,
       deliverySentAt: r.deliverySentAt?.toISOString() ?? undefined,
+      // E2EE envelope fields for client-side decryption
+      ...(inviteNameEnvelopes.length > 0
+        ? {
+            encryptedName: r.encryptedName as string,
+            nameEnvelopes: inviteNameEnvelopes,
+          }
+        : {}),
     }
   }
 
   #rowToCredential(r: typeof webauthnCredentials.$inferSelect): WebAuthnCredential {
+    const labelEnvelopes = (r.labelEnvelopes as import('@shared/types').RecipientEnvelope[]) ?? []
     return {
       id: r.id,
       publicKey: r.publicKey,
       counter: Number(r.counter),
       transports: r.transports as string[],
       backedUp: r.backedUp,
-      label: '', // Plaintext label dropped — E2EE label decrypted client-side via envelopes
+      label: labelEnvelopes.length > 0 ? '[encrypted]' : '', // E2EE label decrypted client-side
       createdAt: r.createdAt.toISOString(),
       lastUsedAt: r.lastUsedAt.toISOString(),
+      // E2EE envelope fields for client-side decryption
+      ...(labelEnvelopes.length > 0
+        ? {
+            encryptedLabel: r.encryptedLabel as string,
+            labelEnvelopes,
+          }
+        : {}),
     }
   }
 }
