@@ -17,14 +17,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { type ContactRecord, checkContactDuplicate, createContact } from '@/lib/api'
+import {
+  type ContactRecord,
+  checkContactDuplicate,
+  createContact,
+  getContactRecipients,
+  hashContactPhone,
+} from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { ClientCryptoService } from '@/lib/crypto-service'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
-import { sha256 } from '@noble/hashes/sha2.js'
-import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
-import { HMAC_PHONE_PREFIX, LABEL_CONTACT_PII, LABEL_CONTACT_SUMMARY } from '@shared/crypto-labels'
+import { LABEL_CONTACT_PII, LABEL_CONTACT_SUMMARY } from '@shared/crypto-labels'
 import type { HmacHash } from '@shared/crypto-types'
 import { AlertTriangle, Loader2, Lock } from 'lucide-react'
 import { useCallback, useState } from 'react'
@@ -60,17 +64,6 @@ const INITIAL_FORM: FormState = {
   phone: '',
 }
 
-/**
- * Hash a phone number for dedup using SHA-256 with the domain prefix.
- * The server stores whatever hash the client provides — we use SHA-256 with
- * HMAC_PHONE_PREFIX as a domain separator since the client doesn't have the
- * server HMAC secret.
- */
-function hashPhone(phone: string): HmacHash {
-  const input = utf8ToBytes(`${HMAC_PHONE_PREFIX}${phone}`)
-  return bytesToHex(sha256(input)) as HmacHash
-}
-
 export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
   const { t } = useTranslation()
   const { toast } = useToast()
@@ -99,8 +92,7 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
     setCheckingDup(true)
     setDupWarning(null)
     try {
-      const hash = hashPhone(form.phone)
-      const result = await checkContactDuplicate(hash)
+      const result = await checkContactDuplicate(form.phone)
       if (result.exists) {
         setDupWarning({ exists: true, contactId: result.contactId })
       }
@@ -137,10 +129,11 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
       }
 
       const crypto = new ClientCryptoService(sk, pk)
-      // For now, encrypt for current user only — server will re-wrap for additional
-      // recipients in a future task
-      const summaryRecipients = [pk]
-      const piiRecipients = [pk]
+
+      // Fetch authorized recipients from server — ensure current user is always included
+      const { summaryPubkeys, piiPubkeys } = await getContactRecipients()
+      if (!summaryPubkeys.includes(pk)) summaryPubkeys.push(pk)
+      if (!piiPubkeys.includes(pk)) piiPubkeys.push(pk)
 
       const tags = form.tags
         .split(',')
@@ -149,7 +142,7 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
 
       // Encrypt Tier 1: display name (required)
       const { encrypted: encryptedDisplayName, envelopes: displayNameEnvelopes } =
-        crypto.envelopeEncrypt(form.displayName.trim(), summaryRecipients, LABEL_CONTACT_SUMMARY)
+        crypto.envelopeEncrypt(form.displayName.trim(), summaryPubkeys, LABEL_CONTACT_SUMMARY)
 
       // Encrypt notes if present
       let encryptedNotes: string | undefined
@@ -157,7 +150,7 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
       if (form.notes.trim()) {
         const result = crypto.envelopeEncrypt(
           form.notes.trim(),
-          summaryRecipients,
+          summaryPubkeys,
           LABEL_CONTACT_SUMMARY
         )
         encryptedNotes = result.encrypted
@@ -173,20 +166,18 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
 
       if (canViewPii) {
         if (form.fullName.trim()) {
-          const result = crypto.envelopeEncrypt(
-            form.fullName.trim(),
-            piiRecipients,
-            LABEL_CONTACT_PII
-          )
+          const result = crypto.envelopeEncrypt(form.fullName.trim(), piiPubkeys, LABEL_CONTACT_PII)
           encryptedFullName = result.encrypted
           fullNameEnvelopes = result.envelopes
         }
 
         if (form.phone.trim()) {
-          const result = crypto.envelopeEncrypt(form.phone.trim(), piiRecipients, LABEL_CONTACT_PII)
+          // Get HMAC from server (client doesn't have the HMAC secret)
+          const { identifierHash: hash } = await hashContactPhone(form.phone.trim())
+          identifierHash = hash as HmacHash
+          const result = crypto.envelopeEncrypt(form.phone.trim(), piiPubkeys, LABEL_CONTACT_PII)
           encryptedPhone = result.encrypted
           phoneEnvelopes = result.envelopes
-          identifierHash = hashPhone(form.phone.trim())
         }
       }
 

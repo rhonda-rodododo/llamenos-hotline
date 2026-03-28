@@ -2015,13 +2015,25 @@ export async function linkToContact(
   })
 }
 
-export async function checkContactDuplicate(identifierHash: string): Promise<{
+export async function checkContactDuplicate(phone: string): Promise<{
   exists: boolean
   contactId?: string
 }> {
-  return request(
-    hp(`/contacts/check-duplicate?identifierHash=${encodeURIComponent(identifierHash)}`)
-  )
+  return request(hp(`/contacts/check-duplicate?phone=${encodeURIComponent(phone)}`))
+}
+
+export async function hashContactPhone(phone: string): Promise<{ identifierHash: string }> {
+  return request(hp('/contacts/hash-phone'), {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  })
+}
+
+export async function getContactRecipients(): Promise<{
+  summaryPubkeys: string[]
+  piiPubkeys: string[]
+}> {
+  return request(hp('/contacts/recipients'))
 }
 
 export async function listContactRelationships(): Promise<ContactRelationshipRecord[]> {

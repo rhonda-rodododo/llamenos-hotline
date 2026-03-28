@@ -1,4 +1,6 @@
+import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import type { Ciphertext, HmacHash } from '@shared/crypto-types'
+import { permissionGranted, resolveHubPermissions } from '@shared/permissions'
 import type { RecipientEnvelope } from '@shared/types'
 import { Hono } from 'hono'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
@@ -11,18 +13,62 @@ contacts.use('*', requirePermission('contacts:read-summary'))
 
 // ------------------------------------------------------------------ Static routes (MUST precede /:id)
 
-// GET /contacts/check-duplicate?identifierHash=<hash>
+// GET /contacts/recipients — pubkeys by contact permission tier
+contacts.get('/recipients', async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+
+  const [allVolunteers, allRoles] = await Promise.all([
+    services.identity.getVolunteers(),
+    services.settings.listRoles(),
+  ])
+
+  const summaryPubkeys: string[] = []
+  const piiPubkeys: string[] = []
+
+  for (const vol of allVolunteers) {
+    if (!vol.active) continue
+    const perms = resolveHubPermissions(vol.roles, vol.hubRoles ?? [], allRoles, hubId)
+    if (permissionGranted(perms, 'contacts:read-summary')) {
+      summaryPubkeys.push(vol.pubkey)
+    }
+    if (permissionGranted(perms, 'contacts:read-pii')) {
+      piiPubkeys.push(vol.pubkey)
+    }
+  }
+
+  return c.json({ summaryPubkeys, piiPubkeys })
+})
+
+// GET /contacts/check-duplicate?identifierHash=<hash> OR ?phone=<phone>
 contacts.get('/check-duplicate', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId') ?? 'global'
-  const identifierHash = c.req.query('identifierHash')
 
-  if (!identifierHash) {
-    return c.json({ error: 'identifierHash query parameter is required' }, 400)
+  let hash = c.req.query('identifierHash') as HmacHash | undefined
+  const phone = c.req.query('phone')
+
+  if (!hash && phone) {
+    hash = services.crypto.hmac(phone, HMAC_PHONE_PREFIX) as HmacHash
   }
 
-  const existing = await services.contacts.checkDuplicate(identifierHash as HmacHash, hubId)
+  if (!hash) {
+    return c.json({ error: 'identifierHash or phone query parameter is required' }, 400)
+  }
+
+  const existing = await services.contacts.checkDuplicate(hash, hubId)
   return c.json({ exists: existing !== null, contactId: existing?.id ?? undefined })
+})
+
+// POST /contacts/hash-phone — compute HMAC for a phone number (server-side, returns identifierHash)
+contacts.post('/hash-phone', async (c) => {
+  const services = c.get('services')
+  const body = await c.req.json<{ phone?: string }>()
+  if (!body.phone) {
+    return c.json({ error: 'phone is required' }, 400)
+  }
+  const identifierHash = services.crypto.hmac(body.phone, HMAC_PHONE_PREFIX)
+  return c.json({ identifierHash })
 })
 
 // GET /contacts/relationships — list all relationships for hub
