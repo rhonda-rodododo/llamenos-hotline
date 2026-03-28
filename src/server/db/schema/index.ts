@@ -8,3 +8,9 @@ export * from './blasts'
 export * from './report-types'
 export * from './push-subscriptions'
 export * from './storage'
+export {
+  contacts,
+  contactRelationships,
+  contactCallLinks,
+  contactConversationLinks,
+} from './contacts'
