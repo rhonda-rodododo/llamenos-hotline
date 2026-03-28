@@ -99,9 +99,8 @@ cat > "$ENV_FILE" << EOF
 
 PG_PASSWORD=$(openssl rand -base64 24)
 HMAC_SECRET=$(openssl rand -hex 32)
-MINIO_ACCESS_KEY=$(openssl rand -base64 16)
-MINIO_SECRET_KEY=$(openssl rand -base64 24)
-MINIO_BUCKET=llamenos-files
+STORAGE_ACCESS_KEY=$(openssl rand -base64 16)
+STORAGE_SECRET_KEY=$(openssl rand -base64 24)
 SERVER_NOSTR_SECRET=$(openssl rand -hex 32)
 
 DOMAIN=${DOMAIN}

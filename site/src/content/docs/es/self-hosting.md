@@ -48,7 +48,7 @@ Ambos objetivos de despliegue ejecutan **exactamente el mismo codigo de aplicaci
 |------------|------------|-------------|
 | **Runtime del backend** | Cloudflare Workers | Node.js (via Hono) |
 | **Almacenamiento de datos** | Durable Objects (KV) | PostgreSQL |
-| **Almacenamiento de archivos** | R2 | MinIO (compatible con S3) |
+| **Almacenamiento de archivos** | R2 | RustFS (compatible con S3) |
 | **Transcripcion** | Whisper del lado del cliente (WASM) | Whisper del lado del cliente (WASM) |
 | **Archivos estaticos** | Workers Assets | Caddy / Hono serveStatic |
 | **Eventos en tiempo real** | Relay Nostr (Nosflare) | Relay Nostr (strfry) |
@@ -96,8 +96,8 @@ El autoalojamiento te da mas control pero tambien mas responsabilidad:
 - **Datos en reposo**: Los datos de PostgreSQL se almacenan sin cifrar por defecto. Usa cifrado de disco completo (LUKS, dm-crypt) en tu servidor, o habilita PostgreSQL TDE si esta disponible. Ten en cuenta que las notas de llamadas y transcripciones ya son E2EE — el servidor nunca ve texto plano.
 - **Seguridad de red**: Usa un firewall para restringir acceso. Solo los puertos 80/443 deben ser accesibles publicamente.
 - **Secretos**: Nunca pongas secretos en archivos Docker Compose o control de versiones. Usa archivos `.env` (excluidos de imagenes) o secretos de Docker/Kubernetes.
-- **Actualizaciones**: Descarga nuevas imagenes regularmente. Consulta el [changelog](https://github.com/your-org/llamenos/blob/main/CHANGELOG.md) para correcciones de seguridad.
-- **Respaldos**: Respalda la base de datos PostgreSQL y el almacenamiento MinIO regularmente. Consulta la seccion de respaldos en cada guia de despliegue.
+- **Actualizaciones**: Descarga nuevas imagenes regularmente. Consulta el [changelog](https://github.com/rhonda-rodododo/llamenos/blob/main/CHANGELOG.md) para correcciones de seguridad.
+- **Respaldos**: Respalda la base de datos PostgreSQL y el almacenamiento RustFS regularmente. Consulta la seccion de respaldos en cada guia de despliegue.
 
 ## Siguientes pasos
 
