@@ -1,3 +1,5 @@
+> **Status: DRAFT — Needs Review.** Verify against codebase, check third-party docs, and review with user before writing implementation plan. May need revision after other specs land.
+
 # Post-Call Data Entry — Design Spec
 
 **Goal:** Provide a permission-scoped structured form for users to contribute contact information after a call without seeing existing PII — enabling volunteers to capture what they learned during a call while a triaging role (case manager) structures it into the contact record.

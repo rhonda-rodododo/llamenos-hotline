@@ -1,3 +1,5 @@
+> **Status: DRAFT — Needs Review.** Verify against codebase, check third-party docs, and review with user before writing implementation plan. May need revision after other specs land.
+
 # User Identity & PBAC Redesign — Design Spec
 
 **Goal:** Rename `volunteer` → `user` as the identity concept, upgrade the permission system with strongly-typed hierarchical scoping, and make the role editor admin-friendly — establishing the foundation for contact directory enhancements, case management workflows, and future role expansion.

@@ -1,3 +1,5 @@
+> **Status: DRAFT — Needs Review.** Verify against codebase, check third-party docs, and review with user before writing implementation plan. May need revision after other specs land.
+
 # Bulk Operations — Design Spec
 
 **Goal:** Add multi-select and bulk actions to the contact directory — bulk tag/untag, bulk risk level update, bulk soft delete, and bulk message blast to selected contacts via their preferred channels.

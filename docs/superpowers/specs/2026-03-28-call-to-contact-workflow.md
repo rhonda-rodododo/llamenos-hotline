@@ -1,3 +1,5 @@
+> **Status: DRAFT — Needs Review.** Verify against codebase, check third-party docs, and review with user before writing implementation plan. May need revision after other specs land.
+
 # Call-to-Contact Workflow — Design Spec
 
 **Goal:** Enable users to create and link contacts directly from the call detail page, extract contact information from transcripts and notes, and add support contacts from call context — turning call data into structured contact records.

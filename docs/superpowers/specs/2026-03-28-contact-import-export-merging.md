@@ -1,3 +1,5 @@
+> **Status: DRAFT — Needs Review.** Verify against codebase, check third-party docs, and review with user before writing implementation plan. May need revision after other specs land.
+
 # Contact Import/Export & Merging — Design Spec
 
 **Goal:** Enable admin-level CSV import with dedup, encrypted export for backup/portability, and a merge UI for resolving duplicate contacts.

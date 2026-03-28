@@ -1,3 +1,5 @@
+> **Status: DRAFT — Needs Review.** Verify against codebase, check third-party docs, and review with user before writing implementation plan. May need revision after other specs land.
+
 # Contact Profile Actions — Design Spec
 
 **Goal:** Add actionable capabilities to the contact profile page — message support contacts via their preferred channel, add reports from contact view, and fix the relationship permission asymmetry.

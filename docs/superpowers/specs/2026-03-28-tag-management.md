@@ -1,3 +1,5 @@
+> **Status: DRAFT — Needs Review.** Verify against codebase, check third-party docs, and review with user before writing implementation plan. May need revision after other specs land.
+
 # Tag Management — Design Spec
 
 **Goal:** Replace freeform string tags with a managed tag system — admin-defined vocabulary with colors, autocomplete, permission-gated freeform creation, and server-side GIN index filtering for scale.
