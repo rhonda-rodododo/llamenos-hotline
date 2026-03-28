@@ -13,7 +13,6 @@ import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import type { RecipientEnvelope } from '@shared/types'
 import { ClientCryptoService } from './crypto-service'
-import * as keyManager from './key-manager'
 
 /**
  * Decrypt an ECIES envelope-encrypted field using the user's secret key.
@@ -36,27 +35,15 @@ export function decryptEnvelopeField(
 }
 
 /**
- * Higher-level helper: attempt to decrypt an envelope field using the
- * current key manager state. Returns the decrypted value, or the provided
- * fallback (typically the `[encrypted]` placeholder from the server).
- *
- * Safe to call at render time — returns fallback if key is locked.
+ * @deprecated Use useDecryptedObject/useDecryptedArray hooks instead.
+ * This function previously required the nsec on the main thread.
+ * Now returns the fallback — components using hooks get decrypted values.
  */
 export function tryDecryptField(
   encrypted: string | null | undefined,
   envelopes: RecipientEnvelope[] | null | undefined,
   fallback: string,
-  label: string = LABEL_VOLUNTEER_PII
+  _label: string = LABEL_VOLUNTEER_PII
 ): string {
-  if (!encrypted || !envelopes?.length) return fallback
-  if (!keyManager.isUnlockedSync()) return fallback
-  try {
-    const sk = keyManager.getSecretKey()
-    const pk = keyManager.getPublicKeyHexSync()
-    if (!sk || !pk) return fallback
-    const decrypted = decryptEnvelopeField(encrypted, envelopes, sk, pk, label)
-    return decrypted ?? fallback
-  } catch {
-    return fallback
-  }
+  return fallback
 }

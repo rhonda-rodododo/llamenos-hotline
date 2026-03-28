@@ -177,18 +177,6 @@ export class CryptoWorkerClient {
   /**
    * Check if the worker is currently unlocked.
    */
-  /**
-   * Get the secret key hex from the worker. Returns null if locked.
-   * Used by envelope-field-crypto for sync field decryption (cached on main thread).
-   */
-  async getSecretKey(): Promise<string | null> {
-    try {
-      return (await this.call({ type: 'getSecretKey' })) as string
-    } catch {
-      return null
-    }
-  }
-
   async isUnlocked(): Promise<boolean> {
     return (await this.call({ type: 'isUnlocked' })) as boolean
   }

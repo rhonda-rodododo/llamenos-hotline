@@ -34,7 +34,6 @@ type WorkerRequest =
   | { type: 'isUnlocked'; id: string }
   | { type: 'reEncrypt'; id: string; newKekHex: string }
   | { type: 'provisionNsec'; id: string; recipientEphemeralPubkeyHex: string }
-  | { type: 'getSecretKey'; id: string }
   | {
       type: 'decryptEnvelopeField'
       id: string
@@ -384,10 +383,6 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         result = new TextDecoder().decode(plaintext)
         break
       }
-      case 'getSecretKey':
-        if (!secretKey) throw new Error('Worker is locked')
-        result = bytesToHex(secretKey)
-        break
       default: {
         // Exhaustive check — if we get here, the type is never
         const _exhaustive: never = req

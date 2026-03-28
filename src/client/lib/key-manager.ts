@@ -29,12 +29,6 @@ import {
   syntheticIdpValue,
 } from './key-store-v2'
 
-// --- Sync cached state for render-time decryption ---
-// Updated on lock/unlock events. Allows tryDecryptField to work synchronously.
-let _cachedUnlocked = false
-let _cachedPubkey: string | null = null
-let _cachedSecretKey: Uint8Array | null = null
-
 // --- Auto-lock ---
 let idleTimer: ReturnType<typeof setTimeout> | null = null
 const lockCallbacks: Set<() => void> = new Set()
@@ -222,12 +216,6 @@ export async function unlock(pin: string): Promise<string | null> {
   try {
     const pubkey = await cryptoWorker.unlock(bytesToHex(kek), blob.nonce, blob.ciphertext)
     if (pubkey) {
-      // Populate sync cache for render-time field decryption
-      _cachedUnlocked = true
-      _cachedPubkey = pubkey
-      const skHex = await cryptoWorker.getSecretKey()
-      _cachedSecretKey = skHex ? hexToBytes(skHex) : null
-
       resetAutoLockTimers()
       notifyCallbacks(unlockCallbacks)
 
@@ -253,13 +241,6 @@ export async function unlock(pin: string): Promise<string | null> {
  */
 export async function lock(): Promise<void> {
   await cryptoWorker.lock()
-  // Clear sync cache
-  _cachedUnlocked = false
-  _cachedPubkey = null
-  if (_cachedSecretKey) {
-    _cachedSecretKey.fill(0)
-    _cachedSecretKey = null
-  }
   if (idleTimer) {
     clearTimeout(idleTimer)
     idleTimer = null
@@ -299,11 +280,6 @@ export async function importKey(
 
   // Load into worker
   const workerPubkey = await cryptoWorker.unlock(bytesToHex(kek), blob.nonce, blob.ciphertext)
-
-  // Populate sync cache for render-time field decryption
-  _cachedUnlocked = true
-  _cachedPubkey = workerPubkey
-  _cachedSecretKey = hexToBytes(nsecHex)
 
   resetAutoLockTimers()
   notifyCallbacks(unlockCallbacks)
@@ -387,36 +363,4 @@ export class KeyLockedError extends Error {
 /** Validate a PIN format (6-8 digits). Re-exported from key-store-v2. */
 export function isValidPin(pin: string): boolean {
   return _isValidPin(pin)
-}
-
-// --- Sync accessors (cached state for render-time field decryption) ---
-// These use main-thread cached copies updated on lock/unlock events.
-// Needed by tryDecryptField which runs synchronously during React renders.
-
-/**
- * Sync check if the key manager is currently unlocked.
- * Uses cached state — may briefly lag behind the worker.
- * @deprecated Prefer the async `isUnlocked()` for non-render contexts.
- */
-export function isUnlockedSync(): boolean {
-  return _cachedUnlocked
-}
-
-/**
- * Sync access to the public key hex. Returns null if locked.
- * @deprecated Prefer the async `getPublicKeyHex()` for non-render contexts.
- */
-export function getPublicKeyHexSync(): string | null {
-  return _cachedPubkey
-}
-
-/**
- * Sync access to the raw secret key. Returns the cached copy or null if locked.
- * The secret key is zeroed on lock. Used by envelope-field-crypto for
- * synchronous field decryption during React renders.
- * @deprecated This exposes the secret key on the main thread. Prefer async
- * worker-based decryption for new code.
- */
-export function getSecretKey(): Uint8Array | null {
-  return _cachedSecretKey
 }
