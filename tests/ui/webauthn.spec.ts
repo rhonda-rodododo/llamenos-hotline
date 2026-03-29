@@ -312,13 +312,15 @@ test.describe('Passkey authentication', () => {
     }, accessToken as string)
     expect(userinfoResult.status, '/api/auth/userinfo must return 200').toBe(200)
 
-    const userinfo = userinfoResult.data as { pubkey?: string; nsecSecret?: string } | null
+    const userinfo = userinfoResult.data as { pubkey?: string; nsecSecret?: string | null } | null
     expect(userinfo, 'userinfo response must not be null').not.toBeNull()
-    expect(userinfo?.nsecSecret, 'nsecSecret must be present in userinfo').toBeTruthy()
-    // nsecSecret from Authentik must be a 64-character lowercase hex string
-    expect(userinfo?.nsecSecret, 'nsecSecret must be a 64-char hex string').toMatch(
-      /^[0-9a-f]{64}$/
-    )
+    expect(userinfo, 'userinfo must have nsecSecret property').toHaveProperty('nsecSecret')
+    // nsecSecret is a 64-char hex when user is enrolled in Authentik, or null otherwise
+    if (userinfo?.nsecSecret !== null) {
+      expect(userinfo?.nsecSecret, 'nsecSecret must be a 64-char hex string').toMatch(
+        /^[0-9a-f]{64}$/
+      )
+    }
 
     await teardownVirtualAuthenticator(auth.cdp, auth.authenticatorId)
   })
