@@ -101,8 +101,9 @@ function LoginPage() {
     }
   }
 
-  function handlePinWipe() {
-    keyManager.wipeKey()
+  async function handlePinWipe() {
+    await keyManager.wipeKey()
+    sessionStorage.removeItem('returnTo')
     setValidationError(
       t('lock.keyWiped', {
         defaultValue: 'Key wiped after too many failed attempts. Please restore from backup.',

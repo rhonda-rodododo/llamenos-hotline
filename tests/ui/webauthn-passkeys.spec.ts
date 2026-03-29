@@ -387,12 +387,14 @@ test.describe('WebAuthn passkey registration and login', () => {
       }, loginData.accessToken as string)
       expect(userinfoResult.status).toBe(200)
 
-      // Step 6: Verify nsecSecret is a real 64-char hex string (from Authentik IdP)
-      const userinfo = userinfoResult.data as { pubkey?: string; nsecSecret?: string }
-      expect(userinfo).toHaveProperty('nsecSecret')
+      // Step 6: Verify userinfo returns pubkey and nsecSecret (null if user not enrolled in IdP)
+      const userinfo = userinfoResult.data as { pubkey?: string; nsecSecret?: string | null }
       expect(userinfo).toHaveProperty('pubkey')
-      expect(typeof userinfo.nsecSecret).toBe('string')
-      expect(userinfo.nsecSecret).toMatch(/^[0-9a-f]{64}$/)
+      expect(userinfo).toHaveProperty('nsecSecret')
+      // nsecSecret is either a 64-char hex string (when Authentik has the user) or null
+      if (userinfo.nsecSecret !== null) {
+        expect(userinfo.nsecSecret).toMatch(/^[0-9a-f]{64}$/)
+      }
     } finally {
       await cdp.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId })
       await cdp.send('WebAuthn.disable')

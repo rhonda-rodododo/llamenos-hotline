@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { redeemInvite, validateInvite } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { authFacadeClient } from '@/lib/auth-facade-client'
 import { createBackup, downloadBackupFile, generateRecoveryKey } from '@/lib/backup'
 import { useConfig } from '@/lib/config'
 import { generateKeyPair } from '@/lib/crypto'
@@ -60,6 +61,9 @@ function OnboardingPage() {
   const [nsec, setNsec] = useState('')
   const [pubkey, setPubkey] = useState('')
   const [idpNsecSecret, setIdpNsecSecret] = useState<Uint8Array | null>(null)
+
+  // Access token from invite redemption (needed before signIn)
+  const [redeemAccessToken, setRedeemAccessToken] = useState('')
 
   // Recovery key & backup
   const [recoveryKeyStr, setRecoveryKeyStr] = useState('')
@@ -153,10 +157,13 @@ function OnboardingPage() {
       setPubkey(kp.publicKey)
       setConfirmedPin(pin)
 
-      // Redeem invite on server — also enrolls in IdP and returns nsecSecret
+      // Redeem invite on server — also enrolls in IdP and returns nsecSecret + accessToken
       const redeemResult = await redeemInvite(inviteCode, kp.publicKey)
       if (redeemResult.nsecSecret) {
         setIdpNsecSecret(hexToBytes(redeemResult.nsecSecret))
+      }
+      if (redeemResult.accessToken) {
+        setRedeemAccessToken(redeemResult.accessToken)
       }
 
       // Generate recovery key (shown to user instead of nsec)
@@ -185,6 +192,10 @@ function OnboardingPage() {
       const idpValue = idpNsecSecret ?? syntheticIdpValue('device-link')
       const issuer = idpNsecSecret ? window.location.origin : 'device-link'
       await keyManager.importKey(nsec, confirmedPin, pubkey, idpValue, undefined, issuer)
+      // Set the JWT from invite redemption so signIn's getMe() call succeeds
+      if (redeemAccessToken) {
+        authFacadeClient.setAccessToken(redeemAccessToken)
+      }
       await signIn(nsec)
       navigate({ to: '/profile-setup' })
     } catch {

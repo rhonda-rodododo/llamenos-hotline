@@ -518,7 +518,7 @@ export async function redeemInvite(code: string, pubkey: string) {
     const body = await res.text()
     throw new ApiError(res.status, body)
   }
-  return res.json() as Promise<{ volunteer: Volunteer; nsecSecret?: string }>
+  return res.json() as Promise<{ volunteer: Volunteer; nsecSecret?: string; accessToken?: string }>
 }
 
 // --- IVR Audio ---

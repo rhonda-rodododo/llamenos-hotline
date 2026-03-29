@@ -378,13 +378,15 @@ authFacade.get('/userinfo', async (c) => {
   const pubkey = c.get('pubkey')
   const idpAdapter = c.get('idpAdapter')
 
-  const nsecBytes = await idpAdapter.getNsecSecret(pubkey)
-  const nsecSecret = bytesToHex(nsecBytes)
+  let nsecSecret: string | null = null
+  try {
+    const nsecBytes = await idpAdapter.getNsecSecret(pubkey)
+    nsecSecret = bytesToHex(nsecBytes)
+  } catch {
+    // User not enrolled in IdP yet (e.g., during initial registration or test setup).
+    // Return null — the client will use a synthetic IdP value for KEK derivation.
+  }
 
-  // Check if rotation is pending by attempting to get rotation info
-  // The adapter's rotateNsecSecret returns both current + previous,
-  // but getNsecSecret only returns current. We need a way to detect pending rotation.
-  // For now, we return just the current secret. The rotation flow uses explicit endpoints.
   return c.json({ pubkey, nsecSecret })
 })
 

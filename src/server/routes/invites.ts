@@ -1,8 +1,10 @@
 import { HMAC_IP_PREFIX } from '@shared/crypto-labels'
+import { resolvePermissions } from '@shared/permissions'
 import { Hono } from 'hono'
 import { getIdPAdapter } from '../app'
 import { hashIP } from '../lib/crypto-service'
 import { isValidE164 } from '../lib/helpers'
+import { signAccessToken } from '../lib/jwt'
 import { auth as authMiddleware } from '../middleware/auth'
 import { requirePermission } from '../middleware/permission-guard'
 import {
@@ -67,7 +69,15 @@ invites.post('/redeem', async (c) => {
     }
   }
 
-  return c.json({ ...volunteer, nsecSecret })
+  // Issue a JWT so the client can call authenticated endpoints (e.g. getMe) immediately
+  const allRoles = await services.settings.listRoles()
+  const permissions = resolvePermissions(volunteer.roles, allRoles)
+  const accessToken = await signAccessToken(
+    { pubkey: body.pubkey, permissions: [...new Set(permissions)] },
+    c.env.JWT_SECRET
+  )
+
+  return c.json({ ...volunteer, nsecSecret, accessToken })
 })
 
 // --- Authenticated routes (require invites permissions) ---
