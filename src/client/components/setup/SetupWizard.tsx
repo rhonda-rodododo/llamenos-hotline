@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { completeSetup, getConfig, seedDemoData, setActiveHub, updateSetupState } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import * as keyManager from '@/lib/key-manager'
+import { queryKeys } from '@/lib/queries/keys'
 import { useToast } from '@/lib/toast'
 import type {
   ChannelType,
@@ -12,6 +13,7 @@ import type {
   TelephonyProviderDraft,
   WhatsAppConfig,
 } from '@shared/types'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, ArrowRight, KeyRound, SkipForward } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -61,6 +63,7 @@ const DEFAULT_SETUP_DATA: SetupData = {
 export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boolean }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { unlockWithPin, isKeyUnlocked } = useAuth()
   const { toast } = useToast()
   const [bootstrapComplete, setBootstrapComplete] = useState(
@@ -166,6 +169,10 @@ export function SetupWizard({ needsBootstrap = false }: { needsBootstrap?: boole
             setActiveHub(hubId)
           }
           await seedDemoData()
+          // Invalidate volunteers and shifts caches so newly-created demo data
+          // is immediately visible when navigating to those pages.
+          void queryClient.invalidateQueries({ queryKey: queryKeys.volunteers.all })
+          void queryClient.invalidateQueries({ queryKey: queryKeys.shifts.all })
         } catch {
           toast(
             t('setup.demoSeedFailed', { defaultValue: 'Sample data partially created' }),
