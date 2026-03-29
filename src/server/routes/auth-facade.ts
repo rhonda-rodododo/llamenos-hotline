@@ -240,9 +240,21 @@ authFacade.post('/invite/accept', async (c) => {
   return c.json({ valid: true, roles: result.roleIds })
 })
 
-// POST /demo-login — issue JWT for a demo account (DEMO_MODE only)
+// POST /demo-login — issue JWT for a demo account (demo mode only)
 authFacade.post('/demo-login', async (c) => {
-  if (c.env.DEMO_MODE !== 'true') {
+  // Demo mode can be enabled via env var or via setup wizard (database setting)
+  const envDemo = c.env.DEMO_MODE === 'true'
+  let dbDemo = false
+  if (!envDemo) {
+    try {
+      const settings = c.get('settings')
+      const setupState = await settings.getSetupState()
+      dbDemo = !!(setupState as unknown as Record<string, unknown>)?.demoMode
+    } catch {
+      /* settings not available yet */
+    }
+  }
+  if (!envDemo && !dbDemo) {
     return c.json({ error: 'Demo mode is not enabled' }, 403)
   }
   const body = (await c.req.json()) as { pubkey: string }
