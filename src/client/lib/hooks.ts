@@ -11,11 +11,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   type ActiveCall,
   type Conversation,
-  type ShiftStatus,
   answerCall as apiAnswerCall,
   hangupCall as apiHangupCall,
   reportCallSpam as apiReportSpam,
-  getMyShiftStatus,
 } from './api'
 import { useConfig } from './config'
 import { useNostrSubscription } from './nostr/hooks'
@@ -24,6 +22,7 @@ import { startRinging, stopRinging } from './notifications'
 import { useActiveCalls } from './queries/calls'
 import { useConversationsList } from './queries/conversations'
 import { queryKeys } from './queries/keys'
+import { useShiftStatus as useShiftStatusQuery } from './queries/shifts'
 import { acceptCall as acceptWebRtcCall, hasIncomingCall } from './webrtc/manager'
 
 /** All call-related Nostr event kinds */
@@ -195,40 +194,16 @@ export function useCalls() {
 
 /**
  * Hook to fetch and periodically refresh the current user's shift status.
+ * Delegates to the React Query hook from queries/shifts (60s polling + stale time).
  */
 export function useShiftStatus() {
-  const [status, setStatus] = useState<ShiftStatus>({
-    onShift: false,
-    currentShift: null,
-    nextShift: null,
-  })
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let mounted = true
-
-    function fetch() {
-      getMyShiftStatus()
-        .then((s) => {
-          if (mounted) {
-            setStatus(s)
-            setLoading(false)
-          }
-        })
-        .catch(() => {
-          if (mounted) setLoading(false)
-        })
-    }
-
-    fetch()
-    const interval = setInterval(fetch, 60_000) // Refresh every 60s
-    return () => {
-      mounted = false
-      clearInterval(interval)
-    }
-  }, [])
-
-  return { ...status, loading }
+  const { data, isLoading: loading } = useShiftStatusQuery()
+  return {
+    onShift: data?.onShift ?? false,
+    currentShift: data?.currentShift ?? null,
+    nextShift: data?.nextShift ?? null,
+    loading,
+  }
 }
 
 /**
