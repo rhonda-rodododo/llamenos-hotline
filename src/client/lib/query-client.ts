@@ -26,6 +26,7 @@ export const ENCRYPTED_QUERY_KEYS = [
   'reports',
   'conversations',
   'invites',
+  'bans',
 ] as const
 
 // On lock: remove all encrypted queries so stale ciphertext is not

@@ -1,9 +1,9 @@
 /**
- * Decrypt-on-fetch field cache and utilities.
+ * Decrypt-on-fetch field utilities.
  *
- * Caches decrypted field values keyed by (ciphertext, label) to avoid
- * redundant crypto worker round-trips. Scans API response objects for
- * encrypted field pairs and decrypts them in place.
+ * Scans API response objects for encrypted field pairs and decrypts them
+ * in place via the crypto worker. The worker has its own internal cache,
+ * so no client-side cache is needed here.
  *
  * Field convention: `encryptedFoo` (ciphertext) + `fooEnvelopes` (envelopes array)
  * → decrypted value written to `foo`.
@@ -12,41 +12,6 @@
 import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
 import type { RecipientEnvelope } from '@shared/types'
 import { getCryptoWorker } from './crypto-worker-client'
-
-// ---------------------------------------------------------------------------
-// DecryptCache
-// ---------------------------------------------------------------------------
-
-/**
- * Simple Map-backed cache keyed by (ciphertext, label).
- * One global singleton is cleared when the key manager locks.
- */
-export class DecryptCache {
-  private map: Map<string, string> = new Map()
-
-  private key(ciphertext: string, label: string): string {
-    return `${label}:${ciphertext}`
-  }
-
-  get(ciphertext: string, label: string): string | null {
-    return this.map.get(this.key(ciphertext, label)) ?? null
-  }
-
-  set(ciphertext: string, label: string, plaintext: string): void {
-    this.map.set(this.key(ciphertext, label), plaintext)
-  }
-
-  clear(): void {
-    this.map.clear()
-  }
-
-  get size(): number {
-    return this.map.size
-  }
-}
-
-/** Global singleton — cleared on key lock via key-manager lock callbacks. */
-export const decryptCache = new DecryptCache()
 
 // ---------------------------------------------------------------------------
 // EncryptedFieldRef
@@ -118,8 +83,8 @@ export function resolveEncryptedFields(
 
 /**
  * Decrypt all encrypted field pairs on `obj` in-place, writing plaintext to
- * the corresponding `foo` key. Uses the global `decryptCache` to skip
- * redundant worker calls.
+ * the corresponding `foo` key. Delegates to the crypto worker; caching is
+ * handled internally by the worker.
  *
  * @param obj           Plain object with `encryptedFoo` + `fooEnvelopes` pairs.
  * @param readerPubkey  The current user's x-only public key hex.
@@ -138,13 +103,6 @@ export async function decryptObjectFields<T extends Record<string, unknown>>(
 
   await Promise.all(
     refs.map(async ({ plaintextKey, ciphertext, envelope }) => {
-      // Check cache first
-      const cached = decryptCache.get(ciphertext, label)
-      if (cached !== null) {
-        ;(obj as Record<string, unknown>)[plaintextKey] = cached
-        return
-      }
-
       try {
         const plaintext = await worker.decryptEnvelopeField(
           ciphertext,
@@ -152,7 +110,6 @@ export async function decryptObjectFields<T extends Record<string, unknown>>(
           envelope.wrappedKey,
           label
         )
-        decryptCache.set(ciphertext, label, plaintext)
         ;(obj as Record<string, unknown>)[plaintextKey] = plaintext
       } catch {
         // Leave field as-is (placeholder value from server)

@@ -1,26 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { Ciphertext } from '@shared/crypto-types'
-import { DecryptCache, resolveEncryptedFields } from './decrypt-fields'
-
-describe('DecryptCache', () => {
-  test('returns null for unknown keys', () => {
-    const cache = new DecryptCache()
-    expect(cache.get('abc', 'label')).toBeNull()
-  })
-
-  test('stores and retrieves decrypted values', () => {
-    const cache = new DecryptCache()
-    cache.set('abc', 'label', 'hello')
-    expect(cache.get('abc', 'label')).toBe('hello')
-  })
-
-  test('clear removes all entries', () => {
-    const cache = new DecryptCache()
-    cache.set('abc', 'label', 'hello')
-    cache.clear()
-    expect(cache.get('abc', 'label')).toBeNull()
-  })
-})
+import { resolveEncryptedFields } from './decrypt-fields'
 
 describe('resolveEncryptedFields', () => {
   test('identifies encrypted field pairs from object', () => {
