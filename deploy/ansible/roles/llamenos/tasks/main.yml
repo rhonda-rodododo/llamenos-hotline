@@ -18,7 +18,7 @@
     state: directory
     owner: "{{ deploy_user }}"
     group: "{{ deploy_group }}"
-    mode: "0750"
+    mode: "0755"
 
 - name: Create data directories
   ansible.builtin.file:
@@ -26,7 +26,7 @@
     state: directory
     owner: "{{ deploy_user }}"
     group: "{{ deploy_group }}"
-    mode: "0750"
+    mode: "0755"
   loop:
     - backups
     - backups/daily
@@ -41,7 +41,7 @@
     dest: "{{ app_dir }}/postgres-init/{{ item | basename }}"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_group }}"
-    mode: "0640"
+    mode: "0644"
   with_fileglob:
     - "{{ playbook_dir }}/../docker/postgres-init/*.sql"
 
@@ -51,7 +51,7 @@
     state: directory
     owner: "{{ deploy_user }}"
     group: "{{ deploy_group }}"
-    mode: "0750"
+    mode: "0755"
 
 - name: Deploy Authentik blueprints
   ansible.builtin.copy:
@@ -59,7 +59,7 @@
     dest: "{{ app_dir }}/authentik-blueprints/{{ item | basename }}"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_group }}"
-    mode: "0640"
+    mode: "0644"
   with_fileglob:
     - "{{ playbook_dir }}/../docker/authentik-blueprints/*.yaml"
     - "{{ playbook_dir }}/../docker/authentik-blueprints/*.yml"
@@ -70,7 +70,7 @@
     dest: "{{ app_dir }}/docker-compose.yml"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_group }}"
-    mode: "0640"
+    mode: "0644"
   notify: Restart llamenos stack
 
 - name: Template .env file
