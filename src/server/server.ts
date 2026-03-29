@@ -54,6 +54,17 @@ async function main() {
   if (env.SERVER_NOSTR_SECRET && !/^[0-9a-f]{64}$/i.test(env.SERVER_NOSTR_SECRET)) {
     throw new Error('SERVER_NOSTR_SECRET must be exactly 64 lowercase hex characters')
   }
+  if (!env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is required')
+  }
+  if (env.JWT_SECRET !== env.JWT_SECRET.trim()) {
+    throw new Error('JWT_SECRET must not contain leading/trailing whitespace')
+  }
+  if (env.IDP_VALUE_ENCRYPTION_KEY) {
+    if (!/^[0-9a-f]{64}$/i.test(env.IDP_VALUE_ENCRYPTION_KEY)) {
+      throw new Error('IDP_VALUE_ENCRYPTION_KEY must be a 64-character hex string')
+    }
+  }
 
   // Phase 4: Startup diagnostics for optional env vars
   if (!env.APP_URL) {
