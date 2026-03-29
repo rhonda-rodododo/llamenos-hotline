@@ -18,8 +18,11 @@ import { getHubKeyForId } from '@/lib/hub-key-cache'
 import * as keyManager from '@/lib/key-manager'
 import { NostrProvider } from '@/lib/nostr/context'
 import { subscribeToPush } from '@/lib/push-subscription'
+import { queryClient } from '@/lib/query-client'
 import { useTheme } from '@/lib/theme'
 import { useKeyboardShortcuts } from '@/lib/use-keyboard-shortcuts'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { Link, Outlet, createRootRoute, useLocation, useNavigate } from '@tanstack/react-router'
 import {
   Building2,
@@ -173,11 +176,12 @@ function RootLayout() {
   }
 
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
       <PanicWipeIndicator />
       <OfflineBanner />
       <ErrorBoundary scope="root">{content}</ErrorBoundary>
-    </>
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+    </QueryClientProvider>
   )
 }
 
