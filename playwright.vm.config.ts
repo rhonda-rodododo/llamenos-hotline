@@ -21,16 +21,16 @@ export default defineConfig({
   retries: 1,
   workers: 1, // Serial — single VM instance
   reporter: 'html',
-  timeout: 60_000, // Longer timeouts for VM latency
+  timeout: 120_000, // VM is slower than local — 2min per test
   expect: {
-    timeout: 15_000,
+    timeout: 30_000, // Decrypt-on-fetch + Authentik warmup needs time
   },
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://llamenos.local',
     ignoreHTTPSErrors: true, // Caddy internal CA (self-signed)
     trace: 'on-first-retry',
-    actionTimeout: 15_000,
-    navigationTimeout: 20_000,
+    actionTimeout: 30_000,
+    navigationTimeout: 30_000,
   },
   projects: [
     {
