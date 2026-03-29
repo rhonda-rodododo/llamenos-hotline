@@ -428,6 +428,10 @@ authFacade.get('/devices', async (c) => {
       backedUp: cr.backedUp,
       createdAt: cr.createdAt,
       lastUsedAt: cr.lastUsedAt,
+      // E2EE envelope fields for client-side label decryption
+      ...(cr.encryptedLabel && cr.labelEnvelopes
+        ? { encryptedLabel: cr.encryptedLabel, labelEnvelopes: cr.labelEnvelopes }
+        : {}),
     })),
     warning: credentials.length === 1 ? 'Register a backup device to prevent lockout' : undefined,
   })
