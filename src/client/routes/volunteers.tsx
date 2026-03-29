@@ -20,21 +20,24 @@ import {
   type RoleDefinition,
   type Volunteer,
   createInvite,
-  createVolunteer,
-  deleteVolunteer,
   getAvailableInviteChannels,
   getVolunteerUnmasked,
   listInvites,
   listRoles,
-  listVolunteers,
   revokeInvite,
   sendInvite,
-  updateVolunteer,
+  type updateVolunteer,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { generateKeyPair } from '@/lib/crypto'
+import {
+  useCreateVolunteer,
+  useDeleteVolunteer,
+  useUpdateVolunteer,
+  useVolunteers,
+} from '@/lib/queries/volunteers'
 import { useToast } from '@/lib/toast'
-import { useDecryptedArray, useDecryptedObject } from '@/lib/use-decrypted'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { usePinChallenge } from '@/lib/use-pin-challenge'
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -82,45 +85,54 @@ function VolunteersPage() {
   const { t } = useTranslation()
   const { isAdmin } = useAuth()
   const { toast } = useToast()
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([])
+
+  // --- React Query: volunteers ---
+  const { data: volunteers = [], isLoading: volunteersLoading } = useVolunteers()
+  const createVolunteerMutation = useCreateVolunteer()
+  const updateVolunteerMutation = useUpdateVolunteer()
+  const deleteVolunteerMutation = useDeleteVolunteer()
+
+  // --- Local state: invites / roles / channels (hooks in Task 4) ---
   const [invites, setInvites] = useState<InviteCode[]>([])
   const [roles, setRoles] = useState<RoleDefinition[]>([])
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [showInviteForm, setShowInviteForm] = useState(false)
-  const [generatedNsec, setGeneratedNsec] = useState<string | null>(null)
-  const [inviteLink, setInviteLink] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [sendInviteForCode, setSendInviteForCode] = useState<string | null>(null)
+  const [invitesLoading, setInvitesLoading] = useState(true)
   const [availableChannels, setAvailableChannels] = useState<{
     signal: boolean
     whatsapp: boolean
     sms: boolean
   } | null>(null)
 
+  // --- UI-only state ---
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [showInviteForm, setShowInviteForm] = useState(false)
+  const [generatedNsec, setGeneratedNsec] = useState<string | null>(null)
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [sendInviteForCode, setSendInviteForCode] = useState<string | null>(null)
+
   useEffect(() => {
-    loadData()
+    void loadInvitesAndRoles()
   }, [])
 
-  async function loadData() {
+  async function loadInvitesAndRoles() {
     try {
-      const [volRes, invRes, rolesRes, channelsRes] = await Promise.all([
-        listVolunteers(),
+      const [invRes, rolesRes, channelsRes] = await Promise.all([
         listInvites(),
         listRoles(),
         getAvailableInviteChannels().catch(() => ({ signal: false, whatsapp: false, sms: false })),
       ])
-      setVolunteers(volRes.volunteers)
       setInvites(invRes.invites)
       setRoles(rolesRes.roles)
       setAvailableChannels(channelsRes)
     } catch {
       toast(t('common.error'), 'error')
     } finally {
-      setLoading(false)
+      setInvitesLoading(false)
     }
   }
 
   const decryptedInvites = useDecryptedArray(invites)
+
+  const loading = volunteersLoading || invitesLoading
 
   if (!isAdmin) {
     return <div className="text-muted-foreground">Access denied</div>
@@ -269,8 +281,8 @@ function VolunteersPage() {
       {showAddForm && (
         <AddVolunteerForm
           roles={roles}
-          onCreated={(vol, nsec) => {
-            setVolunteers((prev) => [...prev, vol])
+          createMutation={createVolunteerMutation}
+          onCreated={(nsec) => {
             setGeneratedNsec(nsec)
             setShowAddForm(false)
           }}
@@ -394,14 +406,8 @@ function VolunteersPage() {
                   key={vol.pubkey}
                   volunteer={vol}
                   roles={roles}
-                  onUpdate={(updated) => {
-                    setVolunteers((prev) =>
-                      prev.map((v) => (v.pubkey === updated.pubkey ? updated : v))
-                    )
-                  }}
-                  onDelete={() => {
-                    setVolunteers((prev) => prev.filter((v) => v.pubkey !== vol.pubkey))
-                  }}
+                  onUpdate={(pubkey, data) => updateVolunteerMutation.mutate({ pubkey, data })}
+                  onDelete={(pubkey) => deleteVolunteerMutation.mutate(pubkey)}
                 />
               ))}
             </div>
@@ -502,11 +508,13 @@ function InviteForm({
 
 function AddVolunteerForm({
   roles,
+  createMutation,
   onCreated,
   onCancel,
 }: {
   roles: RoleDefinition[]
-  onCreated: (vol: Volunteer, nsec: string) => void
+  createMutation: ReturnType<typeof useCreateVolunteer>
+  onCreated: (nsec: string) => void
   onCancel: () => void
 }) {
   const { t } = useTranslation()
@@ -514,7 +522,6 @@ function AddVolunteerForm({
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [roleId, setRoleId] = useState('role-volunteer')
-  const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -522,22 +529,19 @@ function AddVolunteerForm({
       toast(t('volunteers.invalidPhone'), 'error')
       return
     }
-    setSaving(true)
-    try {
-      const keyPair = generateKeyPair()
-      const res = await createVolunteer({
-        name,
-        phone,
-        roleIds: [roleId],
-        pubkey: keyPair.publicKey,
-      })
-      onCreated(res.volunteer, keyPair.nsec)
-      toast(t('volunteers.volunteerAdded'), 'success')
-    } catch {
-      toast(t('common.error'), 'error')
-    } finally {
-      setSaving(false)
-    }
+    const keyPair = generateKeyPair()
+    createMutation.mutate(
+      { name, phone, roleIds: [roleId], pubkey: keyPair.publicKey },
+      {
+        onSuccess: () => {
+          onCreated(keyPair.nsec)
+          toast(t('volunteers.volunteerAdded'), 'success')
+        },
+        onError: () => {
+          toast(t('common.error'), 'error')
+        },
+      }
+    )
   }
 
   return (
@@ -581,8 +585,8 @@ function AddVolunteerForm({
             </Select>
           </div>
           <div className="flex gap-2">
-            <Button data-testid="form-save-btn" type="submit" disabled={saving}>
-              {saving ? t('common.loading') : t('common.save')}
+            <Button data-testid="form-save-btn" type="submit" disabled={createMutation.isPending}>
+              {createMutation.isPending ? t('common.loading') : t('common.save')}
             </Button>
             <Button
               data-testid="form-cancel-btn"
@@ -607,8 +611,8 @@ function VolunteerRow({
 }: {
   volunteer: Volunteer
   roles: RoleDefinition[]
-  onUpdate: (vol: Volunteer) => void
-  onDelete: () => void
+  onUpdate: (pubkey: string, data: Parameters<typeof updateVolunteer>[1]) => void
+  onDelete: (pubkey: string) => void
 }) {
   const { t } = useTranslation()
   const { toast } = useToast()
@@ -616,39 +620,24 @@ function VolunteerRow({
   const [unmaskedPhone, setUnmaskedPhone] = useState<string | null>(null)
   const pinChallenge = usePinChallenge()
 
-  const decryptedVolunteer = useDecryptedObject(volunteer)
-
+  // Volunteer data is already decrypted by useVolunteers() in the parent.
+  // No useDecryptedObject needed here.
   const primaryRoleId = volunteer.roles[0] || 'role-volunteer'
   const primaryRole = roles.find((r) => r.id === primaryRoleId)
   const isAdminRole = primaryRoleId === 'role-super-admin' || primaryRoleId === 'role-hub-admin'
-  const displayName = decryptedVolunteer?.name ?? volunteer.name
+  const displayName = volunteer.name
 
-  async function changeRole(newRoleId: string) {
+  function changeRole(newRoleId: string) {
     if (newRoleId === primaryRoleId) return
-    try {
-      const res = await updateVolunteer(volunteer.pubkey, { roles: [newRoleId] })
-      onUpdate(res.volunteer)
-    } catch {
-      toast(t('common.error'), 'error')
-    }
+    onUpdate(volunteer.pubkey, { roles: [newRoleId] })
   }
 
-  async function toggleActive() {
-    try {
-      const res = await updateVolunteer(volunteer.pubkey, { active: !volunteer.active })
-      onUpdate(res.volunteer)
-    } catch {
-      toast(t('common.error'), 'error')
-    }
+  function toggleActive() {
+    onUpdate(volunteer.pubkey, { active: !volunteer.active })
   }
 
-  async function handleDelete() {
-    try {
-      await deleteVolunteer(volunteer.pubkey)
-      onDelete()
-    } catch {
-      toast(t('common.error'), 'error')
-    }
+  function handleDelete() {
+    onDelete(volunteer.pubkey)
   }
 
   return (
@@ -790,7 +779,6 @@ function SendInviteDialog({
   const { t } = useTranslation()
   const { toast } = useToast()
   const [phone, setPhone] = useState('')
-  const [channel, setChannel] = useState<InviteDeliveryChannel>('signal')
   const [acknowledgedInsecure, setAcknowledgedInsecure] = useState(false)
   const [sending, setSending] = useState(false)
 
