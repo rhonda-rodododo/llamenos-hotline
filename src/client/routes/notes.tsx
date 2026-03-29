@@ -5,30 +5,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import {
-  type CallRecord,
-  type CustomFieldDefinition,
-  type EncryptedNote,
-  type Volunteer,
-  createNote,
-  getCallHistory,
-  getCustomFields,
-  listNotes,
-  listVolunteers,
-  updateNote,
-} from '@/lib/api'
+import type { CallRecord } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import {
-  decryptCallRecord,
-  decryptNote,
-  decryptNoteV2,
-  decryptTranscription,
-  encryptExport,
-  encryptNoteV2,
-} from '@/lib/crypto'
-import * as keyManager from '@/lib/key-manager'
+import { encryptNoteV2 } from '@/lib/crypto'
+import { useCallHistory } from '@/lib/queries/calls'
+import { useCreateNote, useCustomFields, useNotes, useUpdateNote } from '@/lib/queries/notes'
+import { useVolunteers } from '@/lib/queries/volunteers'
 import { useToast } from '@/lib/toast'
-import { useDecryptedArray } from '@/lib/use-decrypted'
 import type { FileFieldValue, NotePayload } from '@shared/types'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
@@ -44,7 +27,7 @@ import {
   StickyNote,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 type NotesSearch = { page: number; callId: string; search: string }
@@ -58,138 +41,48 @@ export const Route = createFileRoute('/notes')({
   component: NotesPage,
 })
 
-interface DecryptedNote extends EncryptedNote {
-  decrypted: string
-  payload: NotePayload
-  isTranscription: boolean
-}
-
 function NotesPage() {
   const { t } = useTranslation()
   const { hasNsec, publicKey, isAdmin, adminDecryptionPubkey } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate({ from: '/notes' })
   const { page, callId, search } = Route.useSearch()
-  const [notes, setNotes] = useState<DecryptedNote[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [showNewNote, setShowNewNote] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [recentCalls, setRecentCalls] = useState<CallRecord[]>([])
-  const [searchInput, setSearchInput] = useState(search)
-  const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([])
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([])
   const limit = 50
 
-  useEffect(() => {
-    getCustomFields()
-      .then((r) => setCustomFields(r.fields ?? []))
-      .catch(() => {})
-    if (isAdmin) {
-      getCallHistory({ limit: 100 })
-        .then((r) => setRecentCalls(r.calls))
-        .catch(() => {})
-      listVolunteers()
-        .then((r) => setVolunteers(r.volunteers))
-        .catch(() => {})
-    }
-  }, [isAdmin])
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [showNewNote, setShowNewNote] = useState(false)
+  const [searchInput, setSearchInput] = useState(search)
 
-  // Decrypt encrypted call records client-side (Epic 77)
-  useEffect(() => {
-    if (!hasNsec || !publicKey || recentCalls.length === 0) return
-    void (async () => {
-      const unlocked = await keyManager.isUnlocked()
-      if (!unlocked) return
+  // Query hooks
+  const { data: notesData, isLoading: loading } = useNotes({
+    callId: callId || undefined,
+    page,
+    limit,
+  })
+  const { data: customFieldsData } = useCustomFields()
+  const { data: volunteersData } = useVolunteers()
+  const { data: callHistoryData } = useCallHistory(isAdmin ? { limit: 100 } : undefined)
 
-      let changed = false
-      const decrypted: CallRecord[] = []
-      for (const call of recentCalls) {
-        if (call.answeredBy !== undefined) {
-          decrypted.push(call)
-          continue
-        }
-        if (!call.encryptedContent || !call.adminEnvelopes?.length) {
-          decrypted.push(call)
-          continue
-        }
-        const meta = await decryptCallRecord(call.encryptedContent, call.adminEnvelopes, publicKey)
-        if (meta) {
-          changed = true
-          decrypted.push({ ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber })
-        } else {
-          decrypted.push(call)
-        }
-      }
-      if (changed) setRecentCalls(decrypted)
-    })()
-  }, [recentCalls, hasNsec, publicKey])
+  const createNoteMutation = useCreateNote()
+  const updateNoteMutation = useUpdateNote()
 
-  const decryptedVolunteers = useDecryptedArray(volunteers)
-  const decryptedRecentCalls = useDecryptedArray(recentCalls)
+  const notes = notesData?.notes ?? []
+  const total = notesData?.total ?? 0
+  const customFields = customFieldsData ?? []
+  const volunteers = volunteersData ?? []
+  const recentCalls: CallRecord[] = callHistoryData?.calls ?? []
 
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of decryptedVolunteers) map.set(v.pubkey, v.name)
+    for (const v of volunteers) map.set(v.pubkey, v.name)
     return map
-  }, [decryptedVolunteers])
+  }, [volunteers])
 
   const callInfoMap = useMemo(() => {
     const map = new Map<string, CallRecord>()
-    for (const c of decryptedRecentCalls) map.set(c.id, c)
+    for (const c of recentCalls) map.set(c.id, c)
     return map
-  }, [decryptedRecentCalls])
-
-  const loadNotes = useCallback(() => {
-    setLoading(true)
-    listNotes({ callId: callId || undefined, page, limit })
-      .then(async (res) => {
-        const unlocked = await keyManager.isUnlocked()
-        const filtered = (res.notes ?? []).filter((note) => {
-          if (note.authorPubkey === 'system:transcription:admin') return isAdmin
-          if (note.authorPubkey === 'system:transcription') return !isAdmin
-          return true
-        })
-        const decryptedNotes: DecryptedNote[] = []
-        for (const note of filtered) {
-          const isTranscription = note.authorPubkey.startsWith('system:transcription')
-          let payload: NotePayload
-          if (isTranscription && note.ephemeralPubkey && hasNsec && unlocked) {
-            const text =
-              (await decryptTranscription(note.encryptedContent, note.ephemeralPubkey)) ||
-              '[Decryption failed]'
-            payload = { text }
-          } else if (isTranscription && !note.ephemeralPubkey) {
-            payload = { text: note.encryptedContent }
-          } else if (hasNsec && unlocked) {
-            const myPubkey = publicKey!
-            const envelope = isAdmin
-              ? (note.adminEnvelopes?.find((e) => e.pubkey === myPubkey) ??
-                note.adminEnvelopes?.[0])
-              : note.authorEnvelope
-            if (envelope) {
-              payload = (await decryptNoteV2(note.encryptedContent, envelope)) || {
-                text: '[Decryption failed]',
-              }
-            } else {
-              payload = { text: '[Decryption failed]' }
-            }
-          } else {
-            payload = { text: '[No key]' }
-          }
-          decryptedNotes.push({ ...note, decrypted: payload.text, payload, isTranscription })
-        }
-        setNotes(decryptedNotes)
-        setTotal(res.total)
-      })
-      .catch(() => toast(t('common.error'), 'error'))
-      .finally(() => setLoading(false))
-  }, [page, callId, hasNsec, isAdmin])
-
-  useEffect(() => {
-    loadNotes()
-  }, [loadNotes])
+  }, [recentCalls])
 
   async function handleSaveEdit(
     noteId: string,
@@ -197,7 +90,6 @@ function NotesPage() {
     fields: Record<string, string | string[] | number | boolean | FileFieldValue>
   ) {
     if (!hasNsec || !publicKey || !text.trim()) return
-    setSaving(true)
     try {
       const payload: NotePayload = { text }
       if (Object.keys(fields).length > 0) payload.fields = fields
@@ -208,29 +100,22 @@ function NotesPage() {
         authorPub,
         [adminPub]
       )
-      const res = await updateNote(noteId, { encryptedContent, authorEnvelope, adminEnvelopes })
-      setNotes((prev) =>
-        prev.map((n) =>
-          n.id === noteId
-            ? { ...res.note, decrypted: text, payload, isTranscription: n.isTranscription }
-            : n
-        )
-      )
+      await updateNoteMutation.mutateAsync({
+        id: noteId,
+        data: { encryptedContent, authorEnvelope, adminEnvelopes },
+      })
       setEditingId(null)
     } catch {
       toast(t('common.error'), 'error')
-    } finally {
-      setSaving(false)
     }
   }
 
   async function handleCreateNote(
-    callId: string,
+    selectedCallId: string,
     text: string,
     fields: Record<string, string | string[] | number | boolean | FileFieldValue>
   ) {
-    if (!hasNsec || !publicKey || !text.trim() || !callId.trim()) return
-    setSaving(true)
+    if (!hasNsec || !publicKey || !text.trim() || !selectedCallId.trim()) return
     try {
       const payload: NotePayload = { text }
       if (Object.keys(fields).length > 0) payload.fields = fields
@@ -241,17 +126,15 @@ function NotesPage() {
         authorPub,
         [adminPub]
       )
-      const res = await createNote({ callId, encryptedContent, authorEnvelope, adminEnvelopes })
-      setNotes((prev) => [
-        { ...res.note, decrypted: text, payload, isTranscription: false },
-        ...prev,
-      ])
-      setTotal((prev) => prev + 1)
+      await createNoteMutation.mutateAsync({
+        callId: selectedCallId,
+        encryptedContent,
+        authorEnvelope,
+        adminEnvelopes,
+      })
       setShowNewNote(false)
     } catch {
       toast(t('common.error'), 'error')
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -268,7 +151,7 @@ function NotesPage() {
     ? notes.filter((n) => n.decrypted.toLowerCase().includes(search.toLowerCase()))
     : notes
 
-  const notesByCall = filteredNotes.reduce<Record<string, DecryptedNote[]>>((acc, note) => {
+  const notesByCall = filteredNotes.reduce<Record<string, typeof filteredNotes>>((acc, note) => {
     const key = note.callId
     if (!acc[key]) acc[key] = []
     acc[key].push(note)
@@ -277,6 +160,7 @@ function NotesPage() {
 
   const totalPages = Math.ceil(total / limit)
   const visibleFields = customFields.filter((f) => isAdmin || f.visibleToVolunteers)
+  const saving = createNoteMutation.isPending || updateNoteMutation.isPending
 
   async function handleExport() {
     if (!hasNsec) return
@@ -290,7 +174,6 @@ function NotesPage() {
       updatedAt: n.updatedAt,
     }))
     const jsonString = JSON.stringify(rows, null, 2)
-    // Export as JSON — data is already decrypted in-browser
     const blob = new Blob([jsonString], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
