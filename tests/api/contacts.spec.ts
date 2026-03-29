@@ -14,9 +14,7 @@ test.describe('Contacts API', () => {
     expect(Array.isArray(data.contacts)).toBe(true)
   })
 
-  test('contact timeline API returns notes and conversations for existing contact', async ({
-    request,
-  }) => {
+  test('contact timeline API returns calls, conversations, and notes', async ({ request }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
     // Fetch contacts list first
@@ -26,32 +24,28 @@ test.describe('Contacts API', () => {
 
     // Only test timeline if there are contacts (may be empty after reset)
     if (listResult.contacts.length > 0) {
-      const hash = listResult.contacts[0].contactHash
-      const timelineRes = await authedApi.get(`/api/contacts/${hash}`)
+      const id = listResult.contacts[0].id
+      const timelineRes = await authedApi.get(`/api/contacts/${id}/timeline`)
       expect(timelineRes.status()).toBe(200)
       const timeline = await timelineRes.json()
-      expect(timeline).toHaveProperty('notes')
+      expect(timeline).toHaveProperty('calls')
       expect(timeline).toHaveProperty('conversations')
+      expect(timeline).toHaveProperty('notes')
     } else {
       console.log('[contacts test] No contacts found after reset -- skipping timeline assertion')
     }
   })
 
   test('contacts API rejects unauthenticated requests', async ({ request }) => {
-    // Raw request without auth headers
     const res = await request.get('/api/contacts', {
       headers: { 'Content-Type': 'application/json' },
     })
-    // Should return 401 Unauthorized (not 200)
     expect(res.status()).toBe(401)
   })
 
-  test('contact timeline returns 404 for unknown hash', async ({ request }) => {
+  test('contact returns 404 for unknown ID', async ({ request }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-    const res = await authedApi.get(
-      '/api/contacts/0000000000000000deadbeefcafebabe00000000000000000000000000000000'
-    )
-    expect([404, 200]).toContain(res.status())
-    // 200 with empty arrays is also acceptable; 404 is preferred
+    const res = await authedApi.get('/api/contacts/00000000-0000-0000-0000-000000000000')
+    expect(res.status()).toBe(404)
   })
 })

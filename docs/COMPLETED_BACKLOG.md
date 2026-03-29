@@ -1,5 +1,34 @@
 # Completed Backlog
 
+## 2026-03-28: Contact Directory v1 (`feat/contact-directory` worktree, PR #26)
+
+- [x] Design spec: two-tier E2EE (summary + PII) with fully opaque relationships
+- [x] 3 crypto labels (LABEL_CONTACT_SUMMARY, LABEL_CONTACT_PII, LABEL_CONTACT_RELATIONSHIP)
+- [x] 7 new permissions (contacts:create, read-summary, read-pii, update-summary, update-pii, delete, link)
+- [x] 4 new DB tables (contacts, contact_relationships, contact_call_links, contact_conversation_links)
+- [x] ContactService — full CRUD, soft delete, dedup, auto-linking, relationships, timeline
+- [x] Full CRUD API routes with permission-gated endpoints
+- [x] Auto-linking inbound calls/conversations to contacts via phone HMAC
+- [x] Server-side phone HMAC endpoint (POST /contacts/hash-phone) — client can't access HMAC secret
+- [x] Recipient resolution endpoint (GET /contacts/recipients) — returns pubkeys by permission tier
+- [x] Contact directory page (table view with search/filters)
+- [x] Create contact dialog with client-side E2EE envelope encryption
+- [x] Contact profile page (sidebar + timeline layout)
+- [x] Contact relationship section (forward/reverse support contacts, emergency badges)
+- [x] Contact select custom field type (contact/contacts in notes/reports)
+- [x] i18n keys across all 13 locales (54 keys)
+- [x] 10 unit tests + 20 permission boundary API tests
+- [x] Spec compliance review addressed (soft delete, response shapes, not-found guards)
+
+## 2026-03-27: Field-Level Encryption (merged to main)
+
+- [x] Phase 1: PII field encryption (12 tables, branded Ciphertext/HmacHash types)
+- [x] Phase 2A: Server-key encrypted operational fields (audit log, IVR audio)
+- [x] Phase 2B: Hub-key encrypted org metadata (hub names, role names, custom fields)
+- [x] Phase 2D: ECIES E2EE for display-only PII (volunteer names, ban phone/reason, caller IDs)
+- [x] CryptoService (server) + ClientCryptoService (client) + hub-field-crypto + envelope-field-crypto helpers
+- [x] Zero plaintext PII in database verified via E2EE verification tests
+
 ## 2026-03-22: Shared Test Helpers (`cf-removal` worktree)
 
 - [x] Refactored `tests/helpers.ts` into `tests/helpers/` directory: `auth.ts`, `crypto.ts`, `db.ts`, `call-simulator.ts`, `index.ts`

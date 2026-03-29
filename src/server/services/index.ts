@@ -3,6 +3,7 @@ import type { CryptoService } from '../lib/crypto-service'
 import type { StorageManager } from '../types'
 import { BlastService } from './blasts'
 import { CallService } from './calls'
+import { ContactService } from './contacts'
 import { ConversationService } from './conversations'
 import { FilesService } from './files'
 import { GdprService } from './gdpr'
@@ -17,6 +18,7 @@ import { ShiftService } from './shifts'
 export type {
   BlastService,
   CallService,
+  ContactService,
   ConversationService,
   FilesService,
   GdprService,
@@ -41,6 +43,7 @@ export interface Services {
   gdpr: GdprService
   reportTypes: ReportTypeService
   push: PushService
+  contacts: ContactService
   providerHealth?: ProviderHealthService
   storage: StorageManager | null
   crypto: CryptoService
@@ -63,6 +66,7 @@ export function createServices(
     gdpr: new GdprService(db, crypto),
     reportTypes: new ReportTypeService(db, crypto),
     push: new PushService(db, crypto),
+    contacts: new ContactService(db, crypto),
     storage,
     crypto,
   }

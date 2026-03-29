@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import type { Ciphertext } from '@shared/crypto-types'
 import { DecryptCache, resolveEncryptedFields } from './decrypt-fields'
 
 describe('DecryptCache', () => {
@@ -34,7 +35,7 @@ describe('resolveEncryptedFields', () => {
     expect(fields[0]).toEqual({
       plaintextKey: 'name',
       ciphertext: 'deadbeef',
-      envelope: { pubkey: 'pk1', wrappedKey: 'wk1', ephemeralPubkey: 'ep1' },
+      envelope: { pubkey: 'pk1', wrappedKey: 'wk1' as Ciphertext, ephemeralPubkey: 'ep1' },
     })
   })
 

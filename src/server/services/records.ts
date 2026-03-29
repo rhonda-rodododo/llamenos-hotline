@@ -2,8 +2,8 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 import { HMAC_PHONE_PREFIX, LABEL_AUDIT_EVENT, LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
-import { and, asc, desc, eq, gte, lte, or, sql } from 'drizzle-orm'
-import type { RecipientEnvelope } from '../../shared/types'
+import { and, asc, desc, eq, gte, inArray, lte, or, sql } from 'drizzle-orm'
+import type { KeyEnvelope, RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
 import { auditLog, bans, callRecords, noteEnvelopes, volunteers } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
@@ -828,12 +828,19 @@ export class RecordsService {
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
       ephemeralPubkey: r.ephemeralPubkey ?? undefined,
-      authorEnvelope: r.authorEnvelope as
-        | { wrappedKey: string; ephemeralPubkey: string }
-        | undefined,
+      authorEnvelope: r.authorEnvelope as KeyEnvelope | undefined,
       adminEnvelopes: (r.adminEnvelopes as RecipientEnvelope[]) ?? undefined,
       replyCount: r.replyCount,
     }
+  }
+
+  async getCallRecordsByIds(ids: string[], hubId: string) {
+    if (ids.length === 0) return []
+    return this.db
+      .select()
+      .from(callRecords)
+      .where(and(eq(callRecords.hubId, hubId), inArray(callRecords.id, ids)))
+      .orderBy(desc(callRecords.startedAt))
   }
 
   // ------------------------------------------------------------------ Test Reset

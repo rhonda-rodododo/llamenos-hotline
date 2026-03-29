@@ -4,7 +4,7 @@ import type { CustomFieldDefinition, FileFieldValue } from '@shared/types'
 
 interface Props {
   fields: CustomFieldDefinition[]
-  values: Record<string, string | number | boolean | FileFieldValue>
+  values: Record<string, string | string[] | number | boolean | FileFieldValue>
 }
 
 /**
@@ -30,7 +30,14 @@ export function CustomFieldBadges({ fields, values }: Props) {
         )
       }
 
-      const displayVal = field.type === 'checkbox' ? (val ? '\u2713' : '\u2717') : String(val)
+      const displayVal =
+        field.type === 'checkbox'
+          ? val
+            ? '\u2713'
+            : '\u2717'
+          : Array.isArray(val)
+            ? val.join(', ')
+            : String(val)
       return (
         <Badge key={field.id} variant="outline" className="text-xs">
           {field.label}: {displayVal}

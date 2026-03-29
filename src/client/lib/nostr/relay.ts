@@ -9,6 +9,7 @@
  * - Event deduplication and validation
  */
 
+import type { Ciphertext } from '@shared/crypto-types'
 import type { Event as NostrEvent } from 'nostr-tools/core'
 import { getEventHash, verifyEvent } from 'nostr-tools/pure'
 import { decryptFromHub } from '../hub-key-manager'
@@ -298,7 +299,7 @@ export class RelayManager {
     let content: LlamenosEvent | null = null
 
     if (hubKey) {
-      const decrypted = decryptFromHub(event.content, hubKey)
+      const decrypted = decryptFromHub(event.content as Ciphertext, hubKey)
       content = parseLlamenosContent(decrypted)
     }
 

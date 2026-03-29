@@ -169,11 +169,27 @@ messaging.post('/:channel/webhook', async (c) => {
       externalId: incoming.senderIdentifier,
       status: 'waiting',
     })
+
+    // Auto-link to contact if identifier hash matches a known contact
+    try {
+      const contact = await services.contacts.findByIdentifierHash(
+        incoming.senderIdentifierHash as import('@shared/crypto-types').HmacHash,
+        hId
+      )
+      if (contact) {
+        await services.contacts.linkConversation(contact.id, conversation.id, hId, 'auto')
+      }
+    } catch (err) {
+      console.error('[messaging] auto-link contact failed (non-fatal):', err)
+    }
   }
 
   // Encrypt the inbound message body before storage (server encrypts, plaintext is discarded)
   const adminDecryptionPubkey = c.env.ADMIN_DECRYPTION_PUBKEY || c.env.ADMIN_PUBKEY
-  const readerPubkeys = [adminDecryptionPubkey]
+  if (!adminDecryptionPubkey) {
+    return c.json({ error: 'Admin not configured — cannot encrypt message' }, 503)
+  }
+  const readerPubkeys: string[] = [adminDecryptionPubkey]
   if (conversation.assignedTo && conversation.assignedTo !== adminDecryptionPubkey) {
     readerPubkeys.push(conversation.assignedTo)
   }

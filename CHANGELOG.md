@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.29.0] - 2026-03-28
+
+### Features
+
+- contact directory v1 — E2EE privacy-preserving case management (#26)
+
+### Miscellaneous
+
+- v0.29.0 [skip ci]
+
+## [0.28.3] - 2026-03-28
+
+### Bug Fixes
+
+- Caddyfile nested env var substitution breaks host matching
+- resolve @types/bun typecheck error and optional ADMIN_PUBKEY cascade
+- asterisk-bridge test mock type for Bun fetch.preconnect
+
+### Features
+
+- include Asterisk + Signal in local demo setup
+
+### Miscellaneous
+
+- v0.28.3 [skip ci]
+
+## [0.28.2] - 2026-03-28
+
+### Bug Fixes
+
+- local demo Docker Compose — env var mismatch and stale docs (#27)
+- use defaults for profiled service env vars in docker-compose
+- make ADMIN_PUBKEY optional for in-browser admin bootstrap
+- URL-safe password generation in docker-setup.sh
+
+### Miscellaneous
+
+- v0.28.2 [skip ci]
+
+## [0.28.1] - 2026-03-28
+
+### Miscellaneous
+
+- v0.28.1 [skip ci]
+
+### Testing
+
+- comprehensive crypto unit test suite — 396 tests across 3 tiers (#19)
+
 ## [0.28.0] - 2026-03-28
 
 ### Bug Fixes

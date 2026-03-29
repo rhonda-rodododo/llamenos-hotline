@@ -1,3 +1,5 @@
+import type { Ciphertext } from './crypto-types'
+
 // --- ECIES Key Envelopes ---
 // Used across notes, messages, files, and hub key wrapping.
 
@@ -10,7 +12,7 @@ export interface RecipientEnvelope {
   /** Recipient's x-only public key (hex). */
   pubkey: string
   /** Nonce (24 bytes) + ciphertext: ECIES-wrapped symmetric key (hex). */
-  wrappedKey: string
+  wrappedKey: Ciphertext
   /** Ephemeral secp256k1 compressed public key used for ECDH (hex). */
   ephemeralPubkey: string
 }
@@ -135,20 +137,71 @@ export interface LocationFieldSettings {
 
 export type CustomFieldContext = 'call-notes' | 'conversation-notes' | 'reports' | 'all'
 
+// --- Contact Directory ---
+
+export type ContactType = 'caller' | 'partner-org' | 'referral-resource' | 'other'
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
+
+export const CONTACT_TYPE_LABELS: Record<ContactType, string> = {
+  caller: 'Caller',
+  'partner-org': 'Partner Org',
+  'referral-resource': 'Referral Resource',
+  other: 'Other',
+}
+
+export const RISK_LEVEL_LABELS: Record<RiskLevel, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  critical: 'Critical',
+}
+
+/** Decrypted relationship between two contacts (from encrypted payload) */
+export interface RelationshipPayload {
+  fromContactId: string
+  toContactId: string
+  relationship: string
+  isEmergency: boolean
+}
+
+/** Contact summary fields (Tier 1 — all members with contacts:read-summary) */
+export interface ContactSummary {
+  displayName: string
+  notes: string
+  languages: string[]
+}
+
+/** Contact PII fields (Tier 2 — per-field encrypted for contacts:read-pii) */
+export interface ContactPIIBlob {
+  emailAddresses: string[]
+  address: string
+  dateOfBirth: string
+  identifiers: { label: string; value: string }[]
+}
+
 /** Custom field definition — stored as config in SessionManager DO */
 export interface CustomFieldDefinition {
   id: string // unique UUID
   name: string // internal key (machine-readable, e.g. "severity")
   label: string // display label (e.g. "Severity Rating")
-  type: 'text' | 'number' | 'select' | 'checkbox' | 'textarea' | 'file' | 'location'
+  type:
+    | 'text'
+    | 'number'
+    | 'select'
+    | 'checkbox'
+    | 'textarea'
+    | 'file'
+    | 'location'
+    | 'contact'
+    | 'contacts'
   required: boolean
   options?: string[] // for 'select' type only
   /** Hub-key encrypted field name (hex ciphertext). */
-  encryptedFieldName?: string
+  encryptedFieldName?: Ciphertext
   /** Hub-key encrypted label (hex ciphertext). */
-  encryptedLabel?: string
+  encryptedLabel?: Ciphertext
   /** Hub-key encrypted JSON.stringify(options) (hex ciphertext). */
-  encryptedOptions?: string
+  encryptedOptions?: Ciphertext
   validation?: {
     minLength?: number // text/textarea
     maxLength?: number // text/textarea
@@ -181,9 +234,9 @@ export interface ReportType {
   name: string
   description?: string
   /** Hub-key encrypted name (hex ciphertext). */
-  encryptedName?: string
+  encryptedName?: Ciphertext
   /** Hub-key encrypted description (hex ciphertext). */
-  encryptedDescription?: string
+  encryptedDescription?: Ciphertext
   isDefault: boolean
   archivedAt?: string | null
   createdAt: string
@@ -194,16 +247,16 @@ export interface CreateReportTypeInput {
   name: string
   description?: string
   isDefault?: boolean
-  encryptedName?: string
-  encryptedDescription?: string
+  encryptedName?: Ciphertext
+  encryptedDescription?: Ciphertext
 }
 
 export interface UpdateReportTypeInput {
   name?: string
   description?: string
   isDefault?: boolean
-  encryptedName?: string
-  encryptedDescription?: string
+  encryptedName?: Ciphertext
+  encryptedDescription?: Ciphertext
 }
 
 // --- Encrypted File Upload Types ---
@@ -220,13 +273,13 @@ export interface EncryptedFileMetadata {
 /** ECIES-wrapped file encryption key for one recipient. */
 export interface FileKeyEnvelope {
   pubkey: string
-  encryptedFileKey: string
+  encryptedFileKey: Ciphertext
   ephemeralPubkey: string
 }
 
 export interface EncryptedMetaItem {
   pubkey: string
-  encryptedContent: string
+  encryptedContent: Ciphertext
   ephemeralPubkey: string
 }
 
@@ -269,7 +322,7 @@ export interface UploadInit {
 /** What gets encrypted before storage — replaces plain text */
 export interface NotePayload {
   text: string
-  fields?: Record<string, string | number | boolean | FileFieldValue>
+  fields?: Record<string, string | string[] | number | boolean | FileFieldValue>
 }
 
 export const MAX_CUSTOM_FIELDS = 20
@@ -409,8 +462,8 @@ export interface Blast {
   id: string
   name: string
   /** Hub-key encrypted blast name (hex ciphertext). */
-  encryptedName?: string
-  encryptedContent: string
+  encryptedName?: Ciphertext
+  encryptedContent: Ciphertext
   contentEnvelopes: RecipientEnvelope[]
   status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'cancelled'
   targetChannels: MessagingChannelType[]
@@ -534,9 +587,9 @@ export interface Hub {
   name: string // Display name (e.g., "NYC Hotline")
   description?: string
   /** Hub-key encrypted name (hex ciphertext). Client decrypts when hub key available. */
-  encryptedName?: string
+  encryptedName?: Ciphertext
   /** Hub-key encrypted description (hex ciphertext). */
-  encryptedDescription?: string
+  encryptedDescription?: Ciphertext
   status: 'active' | 'suspended' | 'archived'
   phoneNumber?: string // Primary hotline number (for routing)
   createdBy: string // Super admin pubkey

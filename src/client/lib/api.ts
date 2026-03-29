@@ -1,5 +1,7 @@
-import type { RecipientEnvelope } from '@shared/types'
+import type { Ciphertext } from '@shared/crypto-types'
+import type { EncryptedMetaItem, KeyEnvelope, RecipientEnvelope } from '@shared/types'
 import { authFacadeClient } from './auth-facade-client'
+import * as keyManager from './key-manager'
 
 const API_BASE = '/api'
 
@@ -127,8 +129,8 @@ export async function getMe() {
     permissions: string[]
     primaryRole: { id: string; name: string; slug: string } | null
     name: string
-    encryptedName?: string
-    nameEnvelopes?: Array<{ pubkey: string; wrappedKey: string; ephemeralPubkey: string }>
+    encryptedName?: Ciphertext
+    nameEnvelopes?: RecipientEnvelope[]
     transcriptionEnabled: boolean
     spokenLanguages: string[]
     uiLanguage: string
@@ -264,9 +266,9 @@ export async function listNotes(params?: { callId?: string; page?: number; limit
 
 export async function createNote(data: {
   callId: string
-  encryptedContent: string
-  authorEnvelope?: { wrappedKey: string; ephemeralPubkey: string }
-  adminEnvelopes?: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
+  encryptedContent: Ciphertext
+  authorEnvelope?: KeyEnvelope
+  adminEnvelopes?: RecipientEnvelope[]
 }) {
   return request<{ note: EncryptedNote }>(hp('/notes'), {
     method: 'POST',
@@ -277,9 +279,9 @@ export async function createNote(data: {
 export async function updateNote(
   id: string,
   data: {
-    encryptedContent: string
-    authorEnvelope?: { wrappedKey: string; ephemeralPubkey: string }
-    adminEnvelopes?: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
+    encryptedContent: Ciphertext
+    authorEnvelope?: KeyEnvelope
+    adminEnvelopes?: RecipientEnvelope[]
   }
 ) {
   return request<{ note: EncryptedNote }>(hp(`/notes/${id}`), {
@@ -665,9 +667,9 @@ export interface RoleDefinition {
   isSystem: boolean
   description: string
   /** Hub-key encrypted name (hex ciphertext). */
-  encryptedName?: string
+  encryptedName?: Ciphertext
   /** Hub-key encrypted description (hex ciphertext). */
-  encryptedDescription?: string
+  encryptedDescription?: Ciphertext
   createdAt: string
   updatedAt: string
 }
@@ -681,8 +683,8 @@ export async function createRole(data: {
   slug: string
   permissions: string[]
   description: string
-  encryptedName?: string
-  encryptedDescription?: string
+  encryptedName?: Ciphertext
+  encryptedDescription?: Ciphertext
 }) {
   return request<{ role: RoleDefinition }>('/settings/roles', {
     method: 'POST',
@@ -696,8 +698,8 @@ export async function updateRole(
     name: string
     permissions: string[]
     description: string
-    encryptedName: string
-    encryptedDescription: string
+    encryptedName: Ciphertext
+    encryptedDescription: Ciphertext
   }>
 ) {
   return request<{ role: RoleDefinition }>(`/settings/roles/${id}`, {
@@ -736,7 +738,7 @@ export interface Volunteer {
   supportedMessagingChannels?: string[] // SMS, WhatsApp, Signal, RCS (empty = all)
   messagingEnabled?: boolean // Whether volunteer can handle messaging conversations
   // E2EE envelope-encrypted name (Phase 2D)
-  encryptedName?: string
+  encryptedName?: Ciphertext
   nameEnvelopes?: RecipientEnvelope[]
 }
 
@@ -744,7 +746,7 @@ export interface Shift {
   id: string
   name: string
   /** Hub-key encrypted name (hex ciphertext). */
-  encryptedName?: string
+  encryptedName?: Ciphertext
   startTime: string // HH:mm
   endTime: string // HH:mm
   days: number[] // 0=Sunday, 1=Monday, ..., 6=Saturday
@@ -758,9 +760,9 @@ export interface BanEntry {
   bannedBy: string
   bannedAt: string
   // E2EE envelope-encrypted fields (Phase 2D)
-  encryptedPhone?: string
+  encryptedPhone?: Ciphertext
   phoneEnvelopes?: RecipientEnvelope[]
-  encryptedReason?: string
+  encryptedReason?: Ciphertext
   reasonEnvelopes?: RecipientEnvelope[]
 }
 
@@ -768,13 +770,13 @@ export interface EncryptedNote {
   id: string
   callId: string
   authorPubkey: string
-  encryptedContent: string
+  encryptedContent: Ciphertext
   createdAt: string
   updatedAt: string
   ephemeralPubkey?: string
   // V2 per-note ECIES envelopes (forward secrecy)
-  authorEnvelope?: { wrappedKey: string; ephemeralPubkey: string }
-  adminEnvelopes?: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[]
+  authorEnvelope?: KeyEnvelope
+  adminEnvelopes?: RecipientEnvelope[]
 }
 
 export interface ActiveCall {
@@ -799,7 +801,7 @@ export interface CallRecord {
   status: 'completed' | 'unanswered'
 
   // Envelope-encrypted metadata (Epic 77)
-  encryptedContent?: string
+  encryptedContent?: Ciphertext
   adminEnvelopes?: MessageKeyEnvelope[]
 
   // Decrypted fields (populated client-side after decryption)
@@ -807,7 +809,7 @@ export interface CallRecord {
   callerNumber?: string
 
   // E2EE envelope-encrypted callerLast4 (Phase 2D)
-  encryptedCallerLast4?: string
+  encryptedCallerLast4?: Ciphertext
   callerLast4Envelopes?: RecipientEnvelope[]
 }
 
@@ -847,7 +849,7 @@ export interface InviteCode {
   deliveryChannel?: string
   deliverySentAt?: string
   // E2EE envelope-encrypted name (Phase 2D)
-  encryptedName?: string
+  encryptedName?: Ciphertext
   nameEnvelopes?: RecipientEnvelope[]
 }
 
@@ -872,7 +874,7 @@ export interface Conversation {
     reportCategory?: string
   }
   // E2EE envelope-encrypted contactLast4 (Phase 2D)
-  encryptedContactLast4?: string
+  encryptedContactLast4?: Ciphertext
   contactLast4Envelopes?: RecipientEnvelope[]
 }
 
@@ -881,7 +883,7 @@ export type MessageDeliveryStatus = 'pending' | 'sent' | 'delivered' | 'read' | 
 /** ECIES-wrapped message key for a specific reader. */
 export interface MessageKeyEnvelope {
   pubkey: string // reader's x-only pubkey (hex)
-  wrappedKey: string // hex: nonce(24) + ciphertext(48)
+  wrappedKey: Ciphertext // hex: nonce(24) + ciphertext(48)
   ephemeralPubkey: string // hex: compressed 33-byte ephemeral pubkey
 }
 
@@ -890,7 +892,7 @@ export interface ConversationMessage {
   conversationId: string
   direction: 'inbound' | 'outbound'
   authorPubkey: string
-  encryptedContent: string // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
+  encryptedContent: Ciphertext // hex: nonce(24) + ciphertext (XChaCha20-Poly1305)
   readerEnvelopes: MessageKeyEnvelope[] // per-reader ECIES-wrapped message keys
   hasAttachments: boolean
   attachmentIds?: string[]
@@ -946,7 +948,7 @@ export async function getConversationMessages(
 export async function sendConversationMessage(
   id: string,
   data: {
-    encryptedContent: string
+    encryptedContent: Ciphertext
     readerEnvelopes: MessageKeyEnvelope[]
     plaintextForSending?: string
   }
@@ -1214,7 +1216,7 @@ export async function createReport(data: {
   title: string
   category?: string
   reportTypeId?: string
-  encryptedContent: string
+  encryptedContent: Ciphertext
   readerEnvelopes: MessageKeyEnvelope[]
 }) {
   return request<Report>(hp('/reports'), {
@@ -1239,7 +1241,7 @@ export async function getReportMessages(id: string, params?: { page?: number; li
 export async function sendReportMessage(
   id: string,
   data: {
-    encryptedContent: string
+    encryptedContent: Ciphertext
     readerEnvelopes: MessageKeyEnvelope[]
     attachmentIds?: string[]
   }
@@ -1374,7 +1376,7 @@ export async function getFileEnvelopes(fileId: string) {
 
 export async function getFileMetadata(fileId: string) {
   return request<{
-    metadata: Array<{ pubkey: string; encryptedContent: string; ephemeralPubkey: string }>
+    metadata: EncryptedMetaItem[]
   }>(`/files/${fileId}/metadata`)
 }
 
@@ -1382,7 +1384,7 @@ export async function shareFile(
   fileId: string,
   data: {
     envelope: import('@shared/types').FileKeyEnvelope
-    encryptedMetadata: { pubkey: string; encryptedContent: string; ephemeralPubkey: string }
+    encryptedMetadata: EncryptedMetaItem
   }
 ) {
   return request<{ ok: true }>(`/files/${fileId}/share`, {
@@ -1537,8 +1539,8 @@ export async function listBlasts() {
 
 export async function createBlast(data: {
   name: string
-  encryptedContent: string
-  contentEnvelopes: Array<{ pubkey: string; wrappedKey: string; ephemeralPubkey: string }>
+  encryptedContent: Ciphertext
+  contentEnvelopes: RecipientEnvelope[]
   targetChannels: string[]
   targetTags?: string[]
   targetLanguages?: string[]
@@ -1743,7 +1745,7 @@ export async function submitConsent(version: string) {
 
 export async function getMyHubKeyEnvelope(hubId: string) {
   return request<{
-    wrappedKey: string
+    wrappedKey: Ciphertext
     ephemeralPubkey: string
     ephemeralPk?: string
   } | null>(`/hubs/${hubId}/key-envelope`)
@@ -1890,4 +1892,141 @@ export async function unsubscribePush(endpoint: string) {
     method: 'DELETE',
     body: JSON.stringify({ endpoint }),
   })
+}
+
+// --- Contacts ---
+
+export interface ContactRecord {
+  id: string
+  hubId: string
+  contactType: string
+  riskLevel: string
+  tags: string[]
+  identifierHash: string | null
+  encryptedDisplayName: string
+  displayNameEnvelopes: RecipientEnvelope[]
+  encryptedNotes: string | null
+  notesEnvelopes: RecipientEnvelope[]
+  encryptedFullName: string | null
+  fullNameEnvelopes: RecipientEnvelope[]
+  encryptedPhone: string | null
+  phoneEnvelopes: RecipientEnvelope[]
+  encryptedPII: string | null
+  piiEnvelopes: RecipientEnvelope[]
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  lastInteractionAt: string | null
+}
+
+export interface ContactRelationshipRecord {
+  id: string
+  hubId: string
+  encryptedPayload: string
+  payloadEnvelopes: RecipientEnvelope[]
+  createdBy: string
+  createdAt: string
+}
+
+export async function listContacts(filters?: {
+  contactType?: string
+  riskLevel?: string
+}): Promise<{ contacts: ContactRecord[]; total: number }> {
+  const params = new URLSearchParams()
+  if (filters?.contactType) params.set('contactType', filters.contactType)
+  if (filters?.riskLevel) params.set('riskLevel', filters.riskLevel)
+  const qs = params.toString()
+  return request(hp(`/contacts${qs ? `?${qs}` : ''}`))
+}
+
+export async function getContact(id: string): Promise<ContactRecord> {
+  return request(hp(`/contacts/${id}`))
+}
+
+export async function createContact(data: {
+  contactType: string
+  riskLevel: string
+  tags: string[]
+  identifierHash?: string
+  encryptedDisplayName: string
+  displayNameEnvelopes: RecipientEnvelope[]
+  encryptedNotes?: string
+  notesEnvelopes?: RecipientEnvelope[]
+  encryptedFullName?: string
+  fullNameEnvelopes?: RecipientEnvelope[]
+  encryptedPhone?: string
+  phoneEnvelopes?: RecipientEnvelope[]
+  encryptedPII?: string
+  piiEnvelopes?: RecipientEnvelope[]
+}): Promise<ContactRecord> {
+  return request(hp('/contacts'), { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateContact(
+  id: string,
+  data: Record<string, unknown>
+): Promise<ContactRecord> {
+  return request(hp(`/contacts/${id}`), { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteContact(id: string): Promise<void> {
+  return request(hp(`/contacts/${id}`), { method: 'DELETE' })
+}
+
+export async function getContactTimeline(id: string): Promise<{
+  calls: unknown[]
+  conversations: unknown[]
+  notes: unknown[]
+}> {
+  return request(hp(`/contacts/${id}/timeline`))
+}
+
+export async function linkToContact(
+  contactId: string,
+  type: 'call' | 'conversation',
+  targetId: string
+): Promise<void> {
+  return request(hp(`/contacts/${contactId}/link`), {
+    method: 'POST',
+    body: JSON.stringify({ type, targetId }),
+  })
+}
+
+export async function checkContactDuplicate(phone: string): Promise<{
+  exists: boolean
+  contactId?: string
+}> {
+  return request(hp(`/contacts/check-duplicate?phone=${encodeURIComponent(phone)}`))
+}
+
+export async function hashContactPhone(phone: string): Promise<{ identifierHash: string }> {
+  return request(hp('/contacts/hash-phone'), {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  })
+}
+
+export async function getContactRecipients(): Promise<{
+  summaryPubkeys: string[]
+  piiPubkeys: string[]
+}> {
+  return request(hp('/contacts/recipients'))
+}
+
+export async function listContactRelationships(): Promise<ContactRelationshipRecord[]> {
+  return request(hp('/contacts/relationships'))
+}
+
+export async function createContactRelationship(data: {
+  encryptedPayload: string
+  payloadEnvelopes: RecipientEnvelope[]
+}): Promise<ContactRelationshipRecord> {
+  return request(hp('/contacts/relationships'), {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteContactRelationship(id: string): Promise<void> {
+  return request(hp(`/contacts/relationships/${id}`), { method: 'DELETE' })
 }

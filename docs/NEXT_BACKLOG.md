@@ -265,6 +265,20 @@ All items below have a design spec and implementation plan in `docs/superpowers/
 - [x] **Health Monitoring** — ProviderHealthService with consecutive failure tracking (healthy→degraded→down). Background polling. GET /provider-health endpoint. ProviderHealthBadge React component. 5 E2E tests.
 - [x] **Infrastructure** — Fixed Asterisk bridge 44GB memory leak (WebSocket GC + reconnect limit). Docker compose dev cleanup (asterisk in Docker, bridge local). Bun upgraded to latest.
 
+### Contact Directory v2 — Specs (Draft, Needs Review)
+
+> All specs below are drafts from 2026-03-28 brainstorming. They need review against the codebase and may need revision after Spec 0 (PBAC redesign) lands or other work changes assumptions. Review each spec before writing an implementation plan.
+
+**Dependency order:** 0 → 1 → (2, 3 parallel) → 4 → 5 → 6
+
+- [ ] **Spec 0: User Identity & PBAC Redesign** (`2026-03-28-user-identity-pbac-redesign.md`) — FOUNDATION. Rename volunteer→user, strongly-typed hierarchical permission scoping (`:own` ⊃ `:assigned` ⊃ `:all`), permission catalog with metadata for admin-friendly role editor, new Case Manager default role. ~109 files touched.
+- [ ] **Spec 1: Tag Management** (`2026-03-28-tag-management.md`) — Admin-defined tag vocabulary with colors/categories, autocomplete, `tags:create` permission, strict mode toggle, GIN index for server-side filtering, default tag seeds.
+- [ ] **Spec 2: Contact Profile Actions** (`2026-03-28-contact-profile-actions.md`) — Contact channels model (SMS/Signal username/WhatsApp/Telegram/email), notify support contacts via preferred channel, add report from contact view, relationship permission documentation.
+- [ ] **Spec 3: Call-to-Contact Workflow** (`2026-03-28-call-to-contact-workflow.md`) — Add/link contacts from call detail page, client-side regex extraction of phone/name/email from transcripts, post-call contact creation flow, convenience API endpoints.
+- [ ] **Spec 4: Bulk Operations** (`2026-03-28-bulk-operations.md`) — Multi-select in directory, bulk tag/untag, bulk risk level, bulk soft delete, bulk message blast to contacts via preferred channels. Depends on Spec 1 (tags) + Spec 2 (channels).
+- [ ] **Spec 5: Post-Call Data Entry** (`2026-03-28-post-call-data-entry.md`) — Permission-scoped intake forms for volunteers, triage queue for case managers, encrypted intake submissions merged into contact records. New `contact_intakes` table + `contacts:triage` permission.
+- [ ] **Spec 6: Contact Import/Export & Merging** (`2026-03-28-contact-import-export-merging.md`) — Client-side CSV import with dedup, encrypted JSON export, side-by-side merge UI, duplicate detection. Batch API + `mergedInto` column.
+
 ### Security Fixes — Pending
 
 - [ ] **Unknown API routes should return 404 instead of 401** — Auth middleware runs before route matching, so unauthenticated requests to non-existent routes get 401 (reveals route doesn't exist but requires auth). Fix: move route matching before auth middleware, or add a catch-all 404 handler after all routes that returns 404 regardless of auth state.
