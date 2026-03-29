@@ -1,96 +1,89 @@
 ---
 title: Pagsisimula
-description: I-deploy ang sarili mong Llamenos hotline sa loob ng isang oras.
+description: I-deploy ang sarili mong Llamenos hotline sa loob ng ilang minuto.
 ---
 
-I-deploy ang sarili mong Llamenos hotline sa loob ng isang oras. Kakailanganin mo ang isang Cloudflare account, isang telephony provider account, at isang machine na may nakainstall na Bun.
+Patakbuhin ang isang Llamenos hotline nang lokal o sa isang server. Docker lang ang kailangan — hindi kailangan ng Node.js, Bun, o iba pang runtime.
 
-## Mga Kinakailangan
+## Paano ito gumagana
 
-- [Bun](https://bun.sh) v1.0 o mas bago (runtime at package manager)
-- Isang [Cloudflare](https://www.cloudflare.com) account (gumagana ang free tier para sa development)
-- Isang telephony provider account -- ang [Twilio](https://www.twilio.com) ang pinakamadaling simulan, ngunit sinusuportahan din ng Llamenos ang [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), at [self-hosted Asterisk](/docs/setup-asterisk). Tingnan ang paghahambing ng [Mga Telephony Provider](/docs/telephony-providers) para sa tulong sa pagpili.
+Kapag may tumawag sa numero ng iyong hotline, iruruta ng Llamenos ang tawag sa lahat ng on-shift na volunteer nang sabay-sabay. Ang unang volunteer na sumagot ay ikokonekta, at titigil ang pag-ring sa iba. Pagkatapos ng tawag, maaaring mag-save ang volunteer ng naka-encrypt na mga tala tungkol sa pag-uusap.
+
+```mermaid
+flowchart TD
+    A["Papasok na tawag"] --> B{"May shift?"}
+    B -->|Oo| C["I-ring lahat ng on-shift na volunteer"]
+    B -->|Hindi| D["I-ring ang fallback group"]
+    C --> E{"Unang sumagot"}
+    D --> E
+    E -->|"Sinagot"| F["Ikonekta ang tawag"]
+    E -->|"Walang sagot"| G["Voicemail"]
+    F --> H["I-save ang naka-encrypt na tala"]
+```
+
+Pareho rin ito sa mga SMS, WhatsApp, at Signal na mensahe — lalabas ang mga ito sa pinag-isang **Conversations** view kung saan makakapag-reply ang mga volunteer.
+
+## Mga kinakailangan
+
+- [Docker](https://docs.docker.com/get-docker/) na may Docker Compose v2
+- `openssl` (naka-install na sa karamihan ng Linux at macOS na sistema)
 - Git
 
-## 1. I-clone at i-install
+## Mabilis na pagsisimula
 
 ```bash
 git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
-bun install
+./scripts/docker-setup.sh
 ```
 
-## 2. I-bootstrap ang admin keypair
+Gagawa ito ng lahat ng kinakailangang secret, magbu-build ng application, at magsi-start ng mga serbisyo. Kapag tapos na, bisitahin ang **http://localhost:8000** at gagabayan ka ng setup wizard sa:
 
-Bumuo ng Nostr keypair para sa admin account. Gumagawa ito ng secret key (nsec) at public key (npub/hex).
+1. **Gumawa ng admin account** — magge-generate ng cryptographic keypair sa iyong browser
+2. **Pangalanan ang iyong hotline** — itakda ang display name
+3. **Pumili ng mga channel** — i-enable ang Voice, SMS, WhatsApp, Signal, at/o Reports
+4. **I-configure ang mga provider** — ilagay ang mga credential para sa bawat naka-enable na channel
+5. **Suriin at tapusin**
+
+### Subukan ang demo mode
+
+Para mag-explore gamit ang pre-seeded na sample data at one-click login (hindi kailangan gumawa ng account):
 
 ```bash
-bun run bootstrap-admin
+./scripts/docker-setup.sh --demo
 ```
 
-Itago nang ligtas ang `nsec` -- ito ang iyong admin login credential. Kakailanganin mo ang hex public key para sa susunod na hakbang.
+## Production deployment
 
-## 3. I-configure ang mga secret
-
-Lumikha ng `.dev.vars` file sa project root para sa local development. Ang halimbawang ito ay gumagamit ng Twilio -- kung gumagamit ka ng ibang provider, maaari mong laktawan ang mga Twilio variable at i-configure ang iyong provider sa pamamagitan ng admin UI pagkatapos ng unang pag-login.
+Para sa server na may totoong domain at automatic TLS:
 
 ```bash
-# .dev.vars
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
-ADMIN_PUBKEY=your_hex_public_key_from_step_2
-ENVIRONMENT=development
+./scripts/docker-setup.sh --domain hotline.yourorg.com --email admin@yourorg.com
 ```
 
-Para sa production, itakda ang mga ito bilang Wrangler secret:
+Awtomatikong magpo-provision ang Caddy ng Let's Encrypt TLS certificate. Siguraduhin na bukas ang port 80 at 443. Ang `--domain` flag ay nag-a-activate ng production Docker Compose overlay, na nagdadagdag ng TLS, log rotation, at resource limit.
 
-```bash
-bunx wrangler secret put ADMIN_PUBKEY
-# Kung gumagamit ng Twilio bilang default provider sa pamamagitan ng env vars:
-bunx wrangler secret put TWILIO_ACCOUNT_SID
-bunx wrangler secret put TWILIO_AUTH_TOKEN
-bunx wrangler secret put TWILIO_PHONE_NUMBER
-```
+Tingnan ang [Docker Compose deployment guide](/docs/deploy-docker) para sa kumpletong detalye tungkol sa server hardening, backup, monitoring, at opsyonal na mga serbisyo.
 
-> **Tandaan**: Maaari mo ring i-configure ang iyong telephony provider sa pamamagitan ng admin Settings UI sa halip na gumamit ng environment variable. Ito ay kinakailangan para sa mga provider na hindi Twilio. Tingnan ang [gabay sa setup para sa iyong provider](/docs/telephony-providers).
+## I-configure ang mga webhook
 
-## 4. I-configure ang mga telephony webhook
+Pagkatapos mag-deploy, ituro ang mga webhook ng iyong telephony provider sa iyong deployment URL:
 
-I-configure ang iyong telephony provider para magpadala ng voice webhook sa iyong Worker. Pareho ang mga webhook URL anuman ang provider:
+| Webhook | URL |
+|---------|-----|
+| Voice (papasok) | `https://your-domain/api/telephony/incoming` |
+| Voice (status) | `https://your-domain/api/telephony/status` |
+| SMS | `https://your-domain/api/messaging/sms/webhook` |
+| WhatsApp | `https://your-domain/api/messaging/whatsapp/webhook` |
+| Signal | I-configure ang bridge para mag-forward sa `https://your-domain/api/messaging/signal/webhook` |
 
-- **Incoming call URL**: `https://your-worker.your-domain.com/telephony/incoming` (POST)
-- **Status callback URL**: `https://your-worker.your-domain.com/telephony/status` (POST)
+Para sa provider-specific na setup: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk), [SMS](/docs/setup-sms), [WhatsApp](/docs/setup-whatsapp), [Signal](/docs/setup-signal).
 
-Para sa mga tagubilin sa pag-setup ng webhook na tiyak sa provider, tingnan ang: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), o [Asterisk](/docs/setup-asterisk).
+## Mga susunod na hakbang
 
-Para sa local development, kakailanganin mo ng tunnel (tulad ng Cloudflare Tunnel o ngrok) para i-expose ang iyong lokal na Worker sa iyong telephony provider.
-
-## 5. I-run nang lokal
-
-Simulan ang Worker dev server (backend + frontend):
-
-```bash
-# I-build muna ang mga frontend asset
-bun run build
-
-# Simulan ang Worker dev server
-bun run dev:worker
-```
-
-Makikita ang app sa `http://localhost:8787`. Mag-log in gamit ang admin nsec mula sa hakbang 2.
-
-## 6. I-deploy sa Cloudflare
-
-```bash
-bun run deploy
-```
-
-Ito ay nagbu-build ng frontend at nagde-deploy ng Worker na may Durable Objects sa Cloudflare. Pagkatapos mag-deploy, i-update ang mga webhook URL ng iyong telephony provider para tumuro sa production Worker URL.
-
-## Mga Susunod na Hakbang
-
-- [Gabay para sa Admin](/docs/admin-guide) -- magdagdag ng mga boluntaryo, lumikha ng mga shift, i-configure ang mga setting
-- [Gabay para sa Boluntaryo](/docs/volunteer-guide) -- ibahagi sa iyong mga boluntaryo
-- [Mga Telephony Provider](/docs/telephony-providers) -- ihambing ang mga provider at lumipat mula sa Twilio kung kailangan
-- [Modelo ng Seguridad](/security) -- unawain ang encryption at threat model
+- [Docker Compose Deployment](/docs/deploy-docker) — kumpletong production deployment guide na may backup at monitoring
+- [Admin Guide](/docs/admin-guide) — magdagdag ng mga volunteer, gumawa ng mga shift, i-configure ang mga channel at setting
+- [Volunteer Guide](/docs/volunteer-guide) — ibahagi sa iyong mga volunteer
+- [Reporter Guide](/docs/reporter-guide) — i-setup ang reporter role para sa naka-encrypt na report submission
+- [Telephony Providers](/docs/telephony-providers) — ikumpara ang mga voice provider
+- [Security Model](/security) — unawain ang encryption at threat model

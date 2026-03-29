@@ -1,96 +1,89 @@
 ---
-title: Kijan Pou Kòmanse
-description: Deplwaye pwòp liy dirèk Llamenos ou nan mwens ke yon èdtan.
+title: Kijan Pou Komanse
+description: Deplwaye pwop liy direkt Llamenos ou nan kek minit.
 ---
 
-Deplwaye pwòp liy dirèk Llamenos ou nan mwens ke yon èdtan. W ap bezwen yon kont Cloudflare, yon kont founisè telefoni, ak yon machin ki gen Bun enstale.
+Mete yon liy Llamenos ap mache lokalman oswa sou yon serve. Se Docker selman ki nesese — pa bezwen Node.js, Bun oswa lot anviwonman egzekisyon.
 
-## Kondisyon Prealab
+## Kijan li fonksyone
 
-- [Bun](https://bun.sh) v1.0 oswa pi resan (runtime ak package manager)
-- Yon kont [Cloudflare](https://www.cloudflare.com) (nivo gratis la mache pou devlopman)
-- Yon kont founisè telefoni -- [Twilio](https://www.twilio.com) se sa ki pi fasil pou kòmanse, men Llamenos sipòte tou [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), ak [Asterisk ebèje pa ou menm](/docs/setup-asterisk). Gade konparezon [Founisè Telefoni yo](/docs/telephony-providers) pou ede ou chwazi.
+Le yon moun rele nimewo liy direkt ou a, Llamenos voye apel la bay tout volonte ki sou shif la anmenm tan. Premye volonte ki reponn nan konekte, epi lot yo sispann sonnen. Apre apel la, volonte a ka anrejistre not chifre sou konvesasyon an.
+
+```mermaid
+flowchart TD
+    A["Apel k ap antre"] --> B{"Shif aktif?"}
+    B -->|Wi| C["Sonnen tout volonte ki sou shif"]
+    B -->|Non| D["Sonnen gwoup sekou"]
+    C --> E{"Premye reponn"}
+    D --> E
+    E -->|"Reponn"| F["Konekte apel la"]
+    E -->|"Pa gen repons"| G["Mesajri vokal"]
+    F --> H["Anrejistre not chifre"]
+```
+
+Menm bagay la aplike pou mesaj SMS, WhatsApp ak Signal — yo parèt nan yon vi inifye **Konvesasyon** kote volonte yo ka reponn.
+
+## Kondisyon prealab
+
+- [Docker](https://docs.docker.com/get-docker/) ak Docker Compose v2
+- `openssl` (pre-enstale sou pifò sistem Linux ak macOS)
 - Git
 
-## 1. Klone epi enstale
+## Demaraj rapid
 
 ```bash
 git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
-bun install
+./scripts/docker-setup.sh
 ```
 
-## 2. Bootstrap admin keypair la
+Sa a jenere tout sekrè ki nesesè yo, bati aplikasyon an, epi demarè sèvis yo. Yon fwa li fini, vizite **http://localhost:8000** epi asistan konfigirasyon an ap gide w nan:
 
-Jenere yon Nostr keypair pou kont administratè a. Sa pwodui yon kle sekrè (nsec) ak yon kle piblik (npub/hex).
+1. **Kreye kont administratè w** — jenere yon pè kle kriptografik nan navigatè w
+2. **Bay liy ou yon non** — chwazi non pou afiche
+3. **Chwazi kanal yo** — aktive Vwa, SMS, WhatsApp, Signal ak/oswa Rapò
+4. **Konfigire founisè yo** — antre idantifyan pou chak kanal ki aktive
+5. **Revize epi fini**
+
+### Eseye mòd demonstrasyon
+
+Pou eksplore ak done egzanp ki deja la ak koneksyon yon klik (pa bezwen kreye kont):
 
 ```bash
-bun run bootstrap-admin
+./scripts/docker-setup.sh --demo
 ```
 
-Sere `nsec` la nan yon kote ki an sekirite -- sa se idantifyan koneksyon administratè ou. W ap bezwen kle piblik hex la pou pwochen etap la.
+## Depleman an pwodiksyon
 
-## 3. Konfigire sekrè yo
-
-Kreye yon fichye `.dev.vars` nan rasin pwojè a pou devlopman lokal. Egzanp sa a itilize Twilio -- si w ap itilize yon lòt founisè, ou ka sote varyab Twilio yo epi konfigire founisè ou a atravè admin UI a apre premye koneksyon.
+Pou yon sèvè ak vre domèn ak TLS otomatik:
 
 ```bash
-# .dev.vars
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
-ADMIN_PUBKEY=your_hex_public_key_from_step_2
-ENVIRONMENT=development
+./scripts/docker-setup.sh --domain hotline.yourorg.com --email admin@yourorg.com
 ```
 
-Pou pwodiksyon, mete sa yo kòm sekrè Wrangler:
+Caddy otomatikman bay sètifika TLS Let's Encrypt. Asire w pò 80 ak 443 ouvè. Opsyon `--domain` nan aktive kouch pwodiksyon Docker Compose, ki ajoute TLS, wotasyon log ak limit resous.
 
-```bash
-bunx wrangler secret put ADMIN_PUBKEY
-# Si w ap itilize Twilio kòm founisè default atravè env vars:
-bunx wrangler secret put TWILIO_ACCOUNT_SID
-bunx wrangler secret put TWILIO_AUTH_TOKEN
-bunx wrangler secret put TWILIO_PHONE_NUMBER
-```
+Gade [gid depleman Docker Compose](/docs/deploy-docker) pou tout detay sou sekirite sèvè, backup, siveyans ak sèvis opsyonèl.
 
-> **Nòt**: Ou kapab tou konfigire founisè telefoni ou a antiyèman atravè admin Settings UI a olye ke ou itilize varyab anviwònman. Sa obligatwa pou founisè ki pa Twilio. Gade [gid setup pou founisè ou a](/docs/telephony-providers).
+## Konfigire webhooks
 
-## 4. Konfigire webhook telefoni yo
+Apre depleman an, dirije webhooks founisè telefoni w nan URL depleman w:
 
-Konfigire founisè telefoni ou a pou voye webhook vwa bay Worker ou a. URL webhook yo menm kèlkeswa founisè a:
+| Webhook | URL |
+|---------|-----|
+| Vwa (k ap antre) | `https://your-domain/api/telephony/incoming` |
+| Vwa (estati) | `https://your-domain/api/telephony/status` |
+| SMS | `https://your-domain/api/messaging/sms/webhook` |
+| WhatsApp | `https://your-domain/api/messaging/whatsapp/webhook` |
+| Signal | Konfigire pon pou voye bay `https://your-domain/api/messaging/signal/webhook` |
 
-- **URL apèl antre**: `https://your-worker.your-domain.com/telephony/incoming` (POST)
-- **URL callback estati**: `https://your-worker.your-domain.com/telephony/status` (POST)
+Pou konfigirasyon espesifik pa founisè: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk), [SMS](/docs/setup-sms), [WhatsApp](/docs/setup-whatsapp), [Signal](/docs/setup-signal).
 
-Pou enstriksyon konfigirasyon webhook espesifik pou chak founisè, gade: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), oswa [Asterisk](/docs/setup-asterisk).
+## Pwochen etap
 
-Pou devlopman lokal, w ap bezwen yon tinèl (tankou Cloudflare Tunnel oswa ngrok) pou ekspoze Worker lokal ou a bay founisè telefoni ou a.
-
-## 5. Egzekite lokalman
-
-Demarè sèvè dev Worker la (backend + frontend):
-
-```bash
-# Bati resous frontend yo anvan
-bun run build
-
-# Demarè sèvè dev Worker la
-bun run dev:worker
-```
-
-Aplikasyon an ap disponib nan `http://localhost:8787`. Konekte ak nsec administratè a nan etap 2.
-
-## 6. Deplwaye sou Cloudflare
-
-```bash
-bun run deploy
-```
-
-Sa a bati frontend la epi deplwaye Worker la ak Durable Objects sou Cloudflare. Apre deplwaman, mete ajou URL webhook founisè telefoni ou a pou dirije yo nan URL Worker pwodiksyon an.
-
-## Pwochen Etap yo
-
-- [Gid pou Administratè](/docs/admin-guide) -- ajoute volontè, kreye ekip travay, konfigire paramèt
-- [Gid pou Volontè](/docs/volunteer-guide) -- pataje ak volontè ou yo
-- [Founisè Telefoni yo](/docs/telephony-providers) -- konpare founisè yo epi chanje soti nan Twilio si sa nesesè
-- [Modèl Sekirite](/security) -- konprann chifraj la ak modèl menas la
+- [Depleman Docker Compose](/docs/deploy-docker) — gid konplè depleman pwodiksyon ak backup ak siveyans
+- [Gid Administratè](/docs/admin-guide) — ajoute volontè, kreye shif, konfigire kanal ak paramèt
+- [Gid Volontè](/docs/volunteer-guide) — pataje ak volontè w yo
+- [Gid Rapòtè](/docs/reporter-guide) — konfigire wòl rapòtè pou soumisyon rapò chifre
+- [Founisè Telefoni](/docs/telephony-providers) — konpare founisè vwa
+- [Modèl Sekirite](/security) — konprann chifreman ak modèl menas

@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - [Bun](https://bun.sh/) (v1.0+) — runtime and package manager
-- [Wrangler](https://developers.cloudflare.com/workers/wrangler/) — Cloudflare Workers CLI (installed via `bun install`)
+- [Docker](https://docs.docker.com/get-docker/) with Docker Compose v2 — backing services (PostgreSQL, RustFS, strfry)
 - [Playwright](https://playwright.dev/) — E2E testing (installed via `bun install`)
 
 ## Setup
@@ -11,73 +11,58 @@
 ```bash
 bun install
 bun run bootstrap-admin    # Generate admin keypair
-cp .dev.vars.example .dev.vars   # Configure env vars
+cp .env.local.example .env # Configure env vars
+bun run dev:docker         # Start backing services (postgres, rustfs, strfry)
+bun run migrate            # Apply database migrations
 ```
 
 ## Commands
 
 ```bash
-bun run dev          # Vite dev server (frontend only, hot reload)
-bun run dev:worker   # Wrangler dev server (full app with Workers + DOs)
-bun run build        # Vite build → dist/client/
-bun run deploy       # Build + wrangler deploy
-bun run typecheck    # TypeScript type checking (tsc --noEmit)
-bunx playwright test # Run all E2E tests
-bunx playwright test tests/smoke.spec.ts  # Run a single test file
-bun run test:ui      # Playwright UI mode
+bun run dev              # Vite dev server (frontend only, hot reload)
+bun run dev:server       # Bun watch server (full backend, localhost:3000)
+bun run dev:docker       # Start backing services
+bun run dev:docker:down  # Stop backing services
+bun run build            # Vite build → dist/client/
+bun run migrate          # Apply pending Drizzle migrations
+bun run migrate:generate # Generate SQL migration files from schema changes
+bun run typecheck        # TypeScript type checking (tsc --noEmit)
+bun run lint             # Biome lint check
+bun run lint:fix         # Biome lint auto-fix
+bun run test:unit        # Run colocated unit tests (bun:test)
+bun run test:api         # Run API integration tests (no browser)
+bun run test:e2e         # Run UI E2E tests (Chromium)
+bun run test:all         # Run all tests (unit + playwright)
+bun run start            # Start Bun server (production)
+bun run deploy:site      # Deploy marketing site
 ```
 
 ## Project Structure
 
 ```
 src/
-  client/              # Frontend SPA
+  client/              # Frontend SPA (Vite + React)
     routes/            # TanStack Router file-based routes
-      setup.tsx        # Admin setup wizard (first-login flow)
-      conversations.tsx # Threaded messaging conversations
-      reports.tsx      # Reporter submission + admin review
-      help.tsx         # In-app FAQ and role-specific guides
-      link-device.tsx  # Device linking page (standalone, no auth required)
     components/        # App components + ui/ (shadcn primitives)
-    lib/               # Client utilities
-      api.ts           # REST API client
-      auth.tsx         # Auth context (Nostr + WebAuthn)
-      key-manager.ts   # PIN-encrypted local key store (closure-based)
-      provisioning.ts  # Device linking (QR/code provisioning protocol)
-      crypto.ts        # E2EE encryption/decryption (notes, reports, export)
-      webrtc.ts        # WebRTC call handling
-      ws.ts            # WebSocket connection
-      backup.ts        # Encrypted backup/recovery key generation
+    lib/               # Client utilities (auth, crypto, ws, i18n, hooks)
     locales/           # 13 locale JSON files
-  worker/              # Cloudflare Worker backend
-    routes/            # Hono API route handlers
-    durable-objects/   # 6 singleton DOs
-      identity-do.ts       # Auth, WebSocket, presence, device provisioning
-      settings-do.ts       # Settings, custom fields, IVR audio, messaging config
-      records-do.ts        # Audit log, call history, recordings
-      shift-manager.ts     # Shifts, volunteers, invites
-      call-router.ts       # Calls, notes, active call state
-      conversation-do.ts   # Threaded messaging conversations
-    telephony/         # Voice provider adapters
-      adapter.ts       # TelephonyAdapter interface
-      twilio.ts        # Twilio implementation
-      signalwire.ts    # SignalWire (extends Twilio)
-      vonage.ts        # Vonage (NCCO format)
-      plivo.ts         # Plivo (Plivo XML format)
-      asterisk.ts      # Asterisk ARI (JSON commands)
-      webrtc-tokens.ts # WebRTC token generation
-    messaging/         # Messaging channel adapters
-      adapter.ts       # MessagingAdapter interface
-      sms/             # SMS adapters (Twilio, SignalWire, Vonage, Plivo)
-      whatsapp.ts      # WhatsApp Business Cloud API (Meta Graph API v21.0)
-      signal.ts        # Signal via signal-cli-rest-api bridge
-    lib/               # Server utilities
-  shared/              # Cross-boundary code
-    types.ts           # Shared types (UserRole, ConversationMessage, ReportPayload, etc.)
+  server/              # Bun/Hono backend
+    routes/            # REST API route handlers
+    services/          # Business logic services (PostgreSQL-backed)
+    telephony/         # TelephonyAdapter interface + 5 adapters
+    messaging/         # MessagingAdapter interface + SMS, WhatsApp, Signal
+    lib/               # Server utilities (auth, crypto, webauthn)
+    db/                # Drizzle ORM schema + migrations
+    server.ts          # Entry point
+    app.ts             # Hono app wiring
+  shared/              # Cross-boundary types and config
+    types.ts           # Shared types
     languages.ts       # Language config (codes, labels, voice IDs)
-tests/                 # Playwright E2E tests (214+ tests)
+    crypto-labels.ts   # Domain separation constants
+tests/                 # Playwright tests (API + UI E2E)
 site/                  # Marketing site (Astro + Tailwind)
 asterisk-bridge/       # ARI bridge service (standalone Bun service)
+deploy/                # Docker Compose + Ansible deployment configs
 ```
 
 ## Path Aliases
@@ -85,33 +70,32 @@ asterisk-bridge/       # ARI bridge service (standalone Bun service)
 Configured in both `tsconfig.json` and `vite.config.ts`:
 
 - `@/*` → `./src/client/*`
-- `@worker/*` → `./src/worker/*`
+- `@server/*` → `./src/server/*`
 - `@shared/*` → `./src/shared/*`
 
 ## Key Config Files
 
-- `wrangler.jsonc` — Worker config, DO bindings, env vars
 - `playwright.config.ts` — E2E test config
-- `.dev.vars` — Local secrets (gitignored): Twilio creds, ADMIN_PUBKEY
+- `.env` — Local secrets (gitignored): DATABASE_URL, HMAC_SECRET, Twilio creds, ADMIN_PUBKEY
 - `vite.config.ts` — Frontend build config
 - `tsconfig.json` — TypeScript config
+- `docker-compose.dev.yml` — Local backing services
 
 ## Architecture
 
-### Durable Objects
+### Services
 
-Six singleton DOs accessed via `idFromName()`:
+Seven PostgreSQL-backed services (replacing former Durable Objects):
 
-| DO | ID | Purpose |
-|----|-----|---------|
-| IdentityDO | `global-identity` | Auth, WebSocket, presence, device provisioning |
-| SettingsDO | `global-settings` | Settings, custom fields, IVR audio, messaging config |
-| RecordsDO | `global-records` | Audit log, call history, recordings |
-| ShiftManagerDO | `global-shifts` | Shifts, volunteers, invites |
-| CallRouterDO | `global-calls` | Calls, notes, active call state |
-| ConversationDO | `global-conversations` | Threaded messaging conversations (SMS, WhatsApp, Signal) |
-
-> **Note:** The original `SessionManagerDO` was split into IdentityDO, SettingsDO, and RecordsDO (Epics 37-41) for separation of concerns.
+| Service | Purpose |
+|---------|---------|
+| IdentityService | Auth, WebSocket, presence, device provisioning |
+| SettingsService | Settings, custom fields, IVR audio, messaging config |
+| RecordsService | Audit log, call history, recordings |
+| ShiftManagerService | Shifts, volunteers, invites |
+| CallRouterService | Calls, notes, active call state |
+| ConversationService | Threaded messaging conversations |
+| AuditService | Hash-chained audit logging |
 
 ### Authentication
 
@@ -126,9 +110,7 @@ Client-side key protection via `src/client/lib/key-manager.ts`:
 - **PIN-encrypted local store** — nsec encrypted with PBKDF2 (600K iterations) + XChaCha20-Poly1305, stored in localStorage
 - **In-memory closure** — decrypted nsec held in a closure variable only, never in sessionStorage or any browser API
 - **Auto-lock** — key zeroed on idle timeout or `document.hidden`; components show "Enter PIN" overlay when locked
-- **Two-tier access** — "authenticated but locked" (session token) vs "authenticated and unlocked" (PIN entered, full crypto)
-- **Device linking** — Signal-style QR provisioning via ephemeral ECDH key exchange through IdentityDO relay rooms (5-min TTL)
-- **Recovery keys** — 128-bit Base32 recovery keys with mandatory encrypted backup download during onboarding
+- **Device linking** — Signal-style QR provisioning via ephemeral ECDH key exchange through relay rooms (5-min TTL)
 
 ### Telephony (Voice)
 
@@ -150,11 +132,7 @@ The `MessagingAdapter` interface abstracts text messaging across channels. Each 
 | WhatsApp | Meta Graph API v21.0 | `POST /api/messaging/whatsapp/webhook` |
 | Signal | signal-cli-rest-api bridge | `POST /api/messaging/signal/webhook` |
 
-All inbound messages are routed to the ConversationDO and broadcast via WebSocket (`conversation:new`, `message:new`).
-
 ### Roles
-
-Four user roles defined in `src/shared/types.ts` (`UserRole`):
 
 | Role | Permissions |
 |------|------------|
@@ -162,43 +140,54 @@ Four user roles defined in `src/shared/types.ts` (`UserRole`):
 | `volunteer` | Answer calls, write notes, respond to conversations, view own data |
 | `reporter` | Submit encrypted reports with file attachments, view own reports |
 
-The `reporter` role has restricted navigation (reports + help only). Reporters are invited via the same invite flow as volunteers, with a role selector.
-
 ### Encryption
 
-- **Notes**: Per-note forward secrecy — each note encrypted with unique random 32-byte key (XChaCha20-Poly1305), key wrapped via ECIES for each reader (author + admin envelopes). Compromising identity key does not reveal past notes.
+- **Notes**: Per-note forward secrecy — unique random key per note, wrapped via ECIES for each reader
 - **Transcriptions**: ECIES — ephemeral ECDH (secp256k1) + XChaCha20-Poly1305, dual-encrypted for volunteer + admin
 - **Reports**: ECIES encrypted body + encrypted file attachments, dual-encrypted for reporter + admin
-- **Data export**: Notes export encrypted with user's key (XChaCha20-Poly1305, .enc format)
 - **Key derivation**: HKDF-SHA256 with application salt (`llamenos:hkdf-salt:v1`)
 
 ## Testing
 
-E2E tests only (no unit tests). Tests run against the Wrangler dev server.
+Three test suites:
 
 ```bash
-# Full suite
-bunx playwright test
+# Unit tests (bun:test, colocated .test.ts files)
+bun run test:unit
+
+# API integration tests (Playwright, no browser)
+bun run test:api
+
+# UI E2E tests (Playwright, Chromium)
+bun run test:e2e
+
+# All tests
+bun run test:all
+
+# Interactive UI mode
+bun run test:interactive
 
 # Single file
-bunx playwright test tests/smoke.spec.ts
-
-# UI mode (interactive)
-bun run test:ui
-
-# Debug mode
-bunx playwright test --debug
+bunx playwright test tests/ui/smoke.spec.ts
 ```
 
-Test helpers in `tests/helpers.ts` provide `loginAsAdmin()`, `loginAsVolunteer()`, `loginAsReporter()`, `resetTestState()`.
+Test helpers in `tests/helpers/` provide `authedRequest()` for authenticated API tests and `resetTestState()` for state cleanup.
 
 ### Writing Tests
 
-- Always reset state in `beforeAll` or `beforeEach`
-- Use `{ exact: true }` for heading/text matchers to avoid ambiguity
-- For Settings navigation: `page.getByRole('link', { name: 'Settings' }).last()` (`.first()` matches "Admin Settings")
-- `PhoneInput` onBlur can swallow clicks — `await input.blur()` before clicking Save
-- Playwright runs with `workers: 1` for serial execution
+- Always reset state via global-setup or `beforeAll`
+- Use `data-testid` selectors for stability in E2E tests
+- Some unit tests require PostgreSQL — start backing services with `bun run dev:docker` first
+
+## Local Dev Port Offsets
+
+V1 and V2 run concurrently with different ports:
+
+| Service | V2 (llamenos) | V1 (llamenos-hotline) |
+|---------|---------------|----------------------|
+| PostgreSQL | 5432 | 5433 |
+| RustFS | 9000/9001 | 9002/9003 |
+| strfry | 7777 | 7778 |
 
 ## Common Gotchas
 
@@ -217,7 +206,6 @@ cd site
 bun install
 bun run dev         # Local dev server
 bun run build       # Build static site
-bunx wrangler pages deploy dist --project-name llamenos-site  # Deploy
 ```
 
-Content collections in `site/src/content/docs/` for documentation pages (en + es).
+**Deploy via** `bun run deploy:site` from the project root. Never run `wrangler pages deploy` directly from root.
