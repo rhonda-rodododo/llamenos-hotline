@@ -5,7 +5,15 @@
  * (answeredBy, callerNumber) decrypted client-side via ECIES.
  */
 
-import { type CallRecord, getCallHistory } from '@/lib/api'
+import {
+  type ActiveCall,
+  type CallRecord,
+  type VolunteerPresence,
+  getCallHistory,
+  getCallsTodayCount,
+  getVolunteerPresence,
+  listActiveCalls,
+} from '@/lib/api'
 import { decryptCallRecord } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useQuery } from '@tanstack/react-query'
@@ -62,6 +70,67 @@ export function useCallHistory(filters?: CallHistoryFilters) {
 }
 
 // ---------------------------------------------------------------------------
-// Re-export type for convenience
+// useActiveCalls
 // ---------------------------------------------------------------------------
-export type { CallRecord }
+
+/**
+ * Fetch the current list of active/ringing calls.
+ * staleTime=0 ensures the data is always considered stale (Nostr is primary
+ * for real-time updates; this is the REST fallback/seed).
+ * refetchInterval=30_000 polls every 30s as a safety net.
+ */
+export function useActiveCalls() {
+  return useQuery({
+    queryKey: queryKeys.calls.active(),
+    queryFn: async (): Promise<ActiveCall[]> => {
+      const { calls } = await listActiveCalls()
+      return calls
+    },
+    staleTime: 0,
+    refetchInterval: 30_000,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// useCallsTodayCount
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch the number of calls received today.
+ * Refreshes every 60s — used by dashboard stats.
+ */
+export function useCallsTodayCount() {
+  return useQuery({
+    queryKey: queryKeys.calls.todayCount(),
+    queryFn: async (): Promise<number> => {
+      const { count } = await getCallsTodayCount()
+      return count
+    },
+    staleTime: 60_000,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// usePresence
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch volunteer presence/availability (admin only).
+ * Refreshes every 15s to keep the dashboard sidebar current.
+ */
+export function usePresence() {
+  return useQuery({
+    queryKey: queryKeys.presence.list(),
+    queryFn: async (): Promise<VolunteerPresence[]> => {
+      const { volunteers } = await getVolunteerPresence()
+      return volunteers
+    },
+    staleTime: 15_000,
+    refetchInterval: 15_000,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Re-export types for convenience
+// ---------------------------------------------------------------------------
+export type { ActiveCall, CallRecord, VolunteerPresence }
