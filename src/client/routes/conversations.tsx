@@ -5,22 +5,20 @@ import { MessageComposer } from '@/components/MessageComposer'
 import { ReassignDialog } from '@/components/ReassignDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  type ConversationMessage,
-  claimConversation,
-  getConversationMessages,
-  sendConversationMessage,
-  updateConversation,
-} from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useConfig } from '@/lib/config'
 import { encryptMessage } from '@/lib/crypto'
 import { useConversations } from '@/lib/hooks'
+import {
+  useClaimConversation,
+  useConversationMessages,
+  useSendConversationMessage,
+  useUpdateConversation,
+} from '@/lib/queries/conversations'
 import { useToast } from '@/lib/toast'
-import { useDecryptedArray } from '@/lib/use-decrypted'
 import { createFileRoute } from '@tanstack/react-router'
 import { Lock, MessageSquare, UserCheck, UserCog, X } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/conversations')({
@@ -32,47 +30,25 @@ function ConversationsPage() {
   const { isAdmin, hasNsec, publicKey, adminDecryptionPubkey } = useAuth()
   const { channels } = useConfig()
   const { toast } = useToast()
-  const { conversations: rawConversations, waitingConversations } = useConversations()
-  const conversations = useDecryptedArray(rawConversations)
+  const { conversations, waitingConversations } = useConversations()
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<ConversationMessage[]>([])
-  const [messagesLoading, setMessagesLoading] = useState(false)
   const [reassignOpen, setReassignOpen] = useState(false)
 
   const selectedConv = conversations.find((c) => c.id === selectedId)
 
-  // Load messages when conversation is selected
-  useEffect(() => {
-    if (!selectedId) {
-      setMessages([])
-      return
-    }
+  const messagesQuery = useConversationMessages(selectedId)
+  const { messages = [] } = messagesQuery.data ?? {}
+  const messagesLoading = messagesQuery.isLoading
 
-    setMessagesLoading(true)
-    getConversationMessages(selectedId, { limit: 100 })
-      .then(({ messages: msgs }) => setMessages(msgs))
-      .catch(() =>
-        toast(t('conversations.loadError', { defaultValue: 'Failed to load messages' }), 'error')
-      )
-      .finally(() => setMessagesLoading(false))
-  }, [selectedId, t, toast])
-
-  // Refresh messages periodically when a conversation is selected
-  useEffect(() => {
-    if (!selectedId) return
-    const interval = setInterval(() => {
-      getConversationMessages(selectedId, { limit: 100 })
-        .then(({ messages: msgs }) => setMessages(msgs))
-        .catch(() => {})
-    }, 10_000)
-    return () => clearInterval(interval)
-  }, [selectedId])
+  const claimMutation = useClaimConversation()
+  const closeMutation = useUpdateConversation()
+  const sendMutation = useSendConversationMessage(selectedId ?? '')
 
   const handleClaim = useCallback(
     async (convId: string) => {
       try {
-        await claimConversation(convId)
+        await claimMutation.mutateAsync(convId)
         toast(t('conversations.claimed', { defaultValue: 'Conversation claimed' }))
       } catch {
         toast(
@@ -81,13 +57,13 @@ function ConversationsPage() {
         )
       }
     },
-    [t, toast]
+    [claimMutation, t, toast]
   )
 
   const handleClose = useCallback(
     async (convId: string) => {
       try {
-        await updateConversation(convId, { status: 'closed' })
+        await closeMutation.mutateAsync({ conversationId: convId, data: { status: 'closed' } })
         if (selectedId === convId) setSelectedId(null)
         toast(t('conversations.closed', { defaultValue: 'Conversation closed' }))
       } catch {
@@ -97,7 +73,7 @@ function ConversationsPage() {
         )
       }
     },
-    [selectedId, t, toast]
+    [closeMutation, selectedId, t, toast]
   )
 
   // Encrypt and send a message using envelope pattern
@@ -105,7 +81,6 @@ function ConversationsPage() {
     async (plaintext: string) => {
       if (!selectedId || !hasNsec || !publicKey) return
 
-      // Build reader list: current user + admin decryption pubkey
       const readerPubkeys = [publicKey]
       if (adminDecryptionPubkey && adminDecryptionPubkey !== publicKey) {
         readerPubkeys.push(adminDecryptionPubkey)
@@ -114,17 +89,16 @@ function ConversationsPage() {
       const encrypted = encryptMessage(plaintext, readerPubkeys)
 
       try {
-        const msg = await sendConversationMessage(selectedId, {
+        await sendMutation.mutateAsync({
           encryptedContent: encrypted.encryptedContent,
           readerEnvelopes: encrypted.readerEnvelopes,
           plaintextForSending: plaintext,
         })
-        setMessages((prev) => [msg, ...prev])
       } catch {
         toast(t('conversations.sendError', { defaultValue: 'Failed to send message' }), 'error')
       }
     },
-    [selectedId, hasNsec, publicKey, adminDecryptionPubkey, t, toast]
+    [selectedId, hasNsec, publicKey, adminDecryptionPubkey, sendMutation, t, toast]
   )
 
   const hasAnyMessaging = channels.sms || channels.whatsapp || channels.signal || channels.reports
@@ -215,7 +189,7 @@ function ConversationsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {selectedConv.status === 'waiting' && (
-                    <Button size="sm" onClick={() => handleClaim(selectedConv.id)}>
+                    <Button size="sm" onClick={() => void handleClaim(selectedConv.id)}>
                       <UserCheck className="h-3.5 w-3.5 mr-1" />
                       {t('conversations.claim', { defaultValue: 'Claim' })}
                     </Button>
@@ -231,7 +205,7 @@ function ConversationsPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleClose(selectedConv.id)}
+                      onClick={() => void handleClose(selectedConv.id)}
                     >
                       <X className="h-3.5 w-3.5 mr-1" />
                       {t('conversations.close', { defaultValue: 'Close' })}

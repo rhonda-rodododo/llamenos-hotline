@@ -16,11 +16,11 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
-import { createReport, getReportCategories, listReportTypes } from '@/lib/api'
+import { createReport } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { encryptMessage } from '@/lib/crypto'
+import { useReportCategories, useReportTypes } from '@/lib/queries/reports'
 import { useToast } from '@/lib/toast'
-import type { ReportType } from '@shared/types'
 import { Loader2, Lock, Send } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -40,27 +40,22 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
   const [category, setCategory] = useState('')
   const [reportTypeId, setReportTypeId] = useState<string>('')
   const [body, setBody] = useState('')
-  const [categories, setCategories] = useState<string[]>([])
-  const [reportTypes, setReportTypes] = useState<ReportType[]>([])
   const [submitting, setSubmitting] = useState(false)
 
+  // Only fetch when open — enabled flag prevents unnecessary fetches
+  const categoriesQuery = useReportCategories()
+  const reportTypesQuery = useReportTypes()
+
+  const categories = categoriesQuery.data ?? []
+  const reportTypes = reportTypesQuery.data ?? []
   const activeReportTypes = reportTypes.filter((rt) => !rt.archivedAt)
 
+  // Pre-select the default report type when types load and none is selected
   useEffect(() => {
-    if (!open) return
-    getReportCategories()
-      .then(({ categories: cats }) => setCategories(cats))
-      .catch(() => setCategories([]))
-    listReportTypes()
-      .then(({ reportTypes: types }) => {
-        const active = types.filter((rt) => !rt.archivedAt)
-        setReportTypes(types)
-        // Pre-select default type if one exists
-        const defaultType = active.find((rt) => rt.isDefault)
-        if (defaultType) setReportTypeId(defaultType.id)
-      })
-      .catch(() => setReportTypes([]))
-  }, [open])
+    if (!open || reportTypeId) return
+    const defaultType = activeReportTypes.find((rt) => rt.isDefault)
+    if (defaultType) setReportTypeId(defaultType.id)
+  }, [open, activeReportTypes, reportTypeId])
 
   const resetForm = useCallback(() => {
     setTitle('')
@@ -227,7 +222,10 @@ export function ReportForm({ open, onOpenChange, onCreated }: ReportFormProps) {
           </div>
 
           <div className="flex justify-end pt-2">
-            <Button onClick={handleSubmit} disabled={submitting || !title.trim() || !body.trim()}>
+            <Button
+              onClick={() => void handleSubmit()}
+              disabled={submitting || !title.trim() || !body.trim()}
+            >
               {submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (

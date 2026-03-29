@@ -16,13 +16,13 @@ import {
   hangupCall as apiHangupCall,
   reportCallSpam as apiReportSpam,
   getMyShiftStatus,
-  listConversations,
 } from './api'
 import { useConfig } from './config'
 import { useNostrSubscription } from './nostr/hooks'
 import type { LlamenosEvent } from './nostr/types'
 import { startRinging, stopRinging } from './notifications'
 import { useActiveCalls } from './queries/calls'
+import { useConversationsList } from './queries/conversations'
 import { queryKeys } from './queries/keys'
 import { acceptCall as acceptWebRtcCall, hasIncomingCall } from './webrtc/manager'
 
@@ -232,78 +232,43 @@ export function useShiftStatus() {
 }
 
 /**
- * Hook to manage real-time conversation state via Nostr relay + REST polling.
+ * Hook to manage real-time conversation state via Nostr relay + React Query REST polling fallback.
  *
- * Nostr delivers real-time updates (new messages, assignments, closures).
- * REST polling (every 30s) provides the full conversation list as a fallback.
+ * Real-time updates arrive via Nostr subscription and trigger cache invalidation via
+ * `queryClient.invalidateQueries`. The React Query cache (useConversationsList) handles
+ * REST polling (every 30s) as a safety net — no manual setInterval needed here.
+ *
+ * For `message:new` events, the messages query for the specific conversation is also
+ * invalidated so the thread refreshes immediately.
  */
 export function useConversations() {
-  const [conversations, setConversations] = useState<Conversation[]>([])
+  const queryClient = useQueryClient()
   const { currentHubId } = useConfig()
 
-  // --- Nostr subscription for conversation events ---
+  // React Query manages the canonical conversation list (REST polling every 30s)
+  const { data: conversations = [] } = useConversationsList()
+
+  // --- Nostr subscription for real-time conversation events ---
   useNostrSubscription(currentHubId, CONVERSATION_KINDS, (_event, content: LlamenosEvent) => {
     switch (content.type) {
-      case 'conversation:new': {
-        const { conversationId } = content as LlamenosEvent & { conversationId: string }
-        // We don't have the full conversation object from the event —
-        // trigger a re-fetch on the next poll cycle. For now, add a stub
-        // that will be replaced by the poll.
-        setConversations((prev) => {
-          if (prev.some((c) => c.id === conversationId)) return prev
-          // Return unchanged — the poll will pick up the full object
-          return prev
-        })
-        break
-      }
-      case 'conversation:assigned': {
-        const { conversationId, assignedTo } = content as LlamenosEvent & {
-          conversationId: string
-          assignedTo: string
-        }
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === conversationId ? { ...c, assignedTo, status: 'active' as const } : c
-          )
-        )
-        break
-      }
+      case 'conversation:new':
+      case 'conversation:assigned':
       case 'conversation:closed': {
-        const { conversationId } = content as LlamenosEvent & { conversationId: string }
-        setConversations((prev) => prev.filter((c) => c.id !== conversationId))
+        // Invalidate the full list so REST refetch picks up the change
+        void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all })
         break
       }
       case 'message:new': {
         const { conversationId } = content as LlamenosEvent & { conversationId: string }
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === conversationId
-              ? { ...c, lastMessageAt: new Date().toISOString(), messageCount: c.messageCount + 1 }
-              : c
-          )
-        )
+        // Invalidate list (message count / lastMessageAt changed) and the specific thread
+        void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all })
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.conversations.messages(conversationId),
+        })
         break
       }
     }
   })
-
-  // --- REST polling fallback (every 30s) ---
-  useEffect(() => {
-    let mounted = true
-    const poll = () => {
-      listConversations()
-        .then(({ conversations: polled }) => {
-          if (mounted) setConversations(polled)
-        })
-        .catch(() => {})
-    }
-    poll()
-    const interval = setInterval(poll, 30_000)
-    return () => {
-      mounted = false
-      clearInterval(interval)
-    }
-  }, [])
 
   const waitingConversations = conversations.filter((c) => c.status === 'waiting')
   const activeConversations = conversations.filter((c) => c.status === 'active')
