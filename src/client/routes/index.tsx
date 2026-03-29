@@ -1,22 +1,14 @@
-import {
-  type ActiveCall,
-  type CallHourBucket,
-  type CallVolumeDay,
-  type Volunteer,
-  type VolunteerPresence,
-  type VolunteerStatEntry,
-  addBan,
-  createNote,
-  getCallAnalytics,
-  getCallHoursAnalytics,
-  getCallsTodayCount,
-  getVolunteerPresence,
-  getVolunteerStats,
-  listVolunteers,
-} from '@/lib/api'
+import { type ActiveCall, addBan, createNote } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { encryptNoteV2 } from '@/lib/crypto'
 import { useCallTimer, useCalls, useShiftStatus } from '@/lib/hooks'
+import {
+  useCallAnalytics,
+  useCallHoursAnalytics,
+  useVolunteerStatsAnalytics,
+} from '@/lib/queries/analytics'
+import { useCallsTodayCount, usePresence } from '@/lib/queries/calls'
+import { useVolunteers } from '@/lib/queries/volunteers'
 import { useTranscription } from '@/lib/transcription'
 import { useDecryptedArray } from '@/lib/use-decrypted'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
@@ -66,20 +58,32 @@ function DashboardPage() {
   const { calls, currentCall, answerCall, hangupCall, reportSpam, ringingCalls, activeCalls } =
     useCalls()
   const { onShift, currentShift, nextShift } = useShiftStatus()
-  const [callsToday, setCallsToday] = useState<number | null>(null)
-  const [presence, setPresence] = useState<VolunteerPresence[]>([])
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([])
 
-  const decryptedVolunteers = useDecryptedArray(volunteers)
-
-  // Analytics state (lazy-loaded when section expands)
+  // Analytics UI state (lazy-loaded when section expands)
   const [analyticsOpen, setAnalyticsOpen] = useState(false)
-  const [analyticsLoaded, setAnalyticsLoaded] = useState(false)
   const [analyticsDays, setAnalyticsDays] = useState<7 | 30>(7)
-  const [callVolumeData, setCallVolumeData] = useState<CallVolumeDay[]>([])
-  const [callHoursData, setCallHoursData] = useState<CallHourBucket[]>([])
-  const [volunteerStatsData, setVolunteerStatsData] = useState<VolunteerStatEntry[]>([])
-  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
+  // React Query data
+  const { data: callsToday = null } = useCallsTodayCount()
+  const { data: presence = [] } = usePresence()
+  const { data: volunteersRaw = [] } = useVolunteers()
+
+  // Analytics — enabled only when the section is open
+  const { data: callVolumeData = [], isFetching: volumeLoading } = useCallAnalytics(
+    analyticsDays,
+    isAdmin && analyticsOpen
+  )
+  const { data: callHoursData = [], isFetching: hoursLoading } = useCallHoursAnalytics(
+    isAdmin && analyticsOpen
+  )
+  const { data: volunteerStatsData = [], isFetching: statsLoading } = useVolunteerStatsAnalytics(
+    isAdmin && analyticsOpen
+  )
+
+  const analyticsLoading = volumeLoading || hoursLoading || statsLoading
+
+  const volunteers = volunteersRaw
+  const decryptedVolunteers = useDecryptedArray(volunteers)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -119,54 +123,6 @@ function DashboardPage() {
       navigator.serviceWorker.removeEventListener('message', handleMessage)
     }
   }, [answerCall])
-
-  // Fetch calls today count
-  useEffect(() => {
-    if (!isAuthenticated) return
-    getCallsTodayCount()
-      .then((r) => setCallsToday(r.count))
-      .catch(() => {})
-  }, [isAuthenticated, activeCalls.length])
-
-  // Fetch volunteer presence (admin only) with periodic refresh
-  useEffect(() => {
-    if (!isAuthenticated || !isAdmin) return
-    let mounted = true
-    const fetchPresence = () => {
-      getVolunteerPresence()
-        .then((r) => {
-          if (mounted) setPresence(r.volunteers)
-        })
-        .catch(() => {})
-    }
-    fetchPresence()
-    listVolunteers()
-      .then((r) => {
-        if (mounted) setVolunteers(r.volunteers)
-      })
-      .catch(() => {})
-    // Poll presence every 15s (replaces WS-based real-time presence)
-    const interval = setInterval(fetchPresence, 15_000)
-    return () => {
-      mounted = false
-      clearInterval(interval)
-    }
-  }, [isAuthenticated, isAdmin])
-
-  // Fetch analytics data lazily when the section is opened
-  useEffect(() => {
-    if (!isAdmin || !analyticsOpen) return
-    setAnalyticsLoading(true)
-    Promise.all([getCallAnalytics(analyticsDays), getCallHoursAnalytics(), getVolunteerStats()])
-      .then(([vol, hours, stats]) => {
-        setCallVolumeData(vol.data)
-        setCallHoursData(hours.data)
-        setVolunteerStatsData(stats.data)
-        setAnalyticsLoaded(true)
-      })
-      .catch(() => {})
-      .finally(() => setAnalyticsLoading(false))
-  }, [isAdmin, analyticsOpen, analyticsDays])
 
   if (!isAuthenticated) return null
 
@@ -439,10 +395,7 @@ function DashboardPage() {
                 {/* Peak Hours Chart */}
                 <div>
                   <h3 className="mb-3 text-sm font-medium">{t('dashboard.analytics.peakHours')}</h3>
-                  <CallHoursChart
-                    data={callHoursData}
-                    loading={analyticsLoading && !analyticsLoaded}
-                  />
+                  <CallHoursChart data={callHoursData} loading={analyticsLoading} />
                 </div>
 
                 {/* Team Performance Table */}
@@ -450,10 +403,7 @@ function DashboardPage() {
                   <h3 className="mb-3 text-sm font-medium">
                     {t('dashboard.analytics.teamPerformance')}
                   </h3>
-                  <VolunteerStatsTable
-                    data={volunteerStatsData}
-                    loading={analyticsLoading && !analyticsLoaded}
-                  />
+                  <VolunteerStatsTable data={volunteerStatsData} loading={analyticsLoading} />
                 </div>
               </CardContent>
             </CollapsibleContent>

@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { getBlastSettings, updateBlastSettings } from '@/lib/api'
 import type { BlastSettings } from '@/lib/api'
+import { useBlastSettings, useUpdateBlastSettings } from '@/lib/queries/blasts'
 import { useToast } from '@/lib/toast'
 import { DEFAULT_BLAST_SETTINGS } from '@shared/types'
 import { Settings2 } from 'lucide-react'
@@ -14,36 +14,31 @@ import { useTranslation } from 'react-i18next'
 export function BlastSettingsPanel() {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const [settings, setSettings] = useState<BlastSettings | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
 
+  const { data: fetchedSettings, isLoading } = useBlastSettings()
+  const updateMutation = useUpdateBlastSettings()
+
+  // Local draft for editing before save
+  const [settings, setSettings] = useState<BlastSettings>({ ...DEFAULT_BLAST_SETTINGS })
+
+  // Sync local draft when remote data loads
   useEffect(() => {
-    getBlastSettings()
-      .then(setSettings)
-      .catch(() => {
-        // Use defaults if not configured yet
-        setSettings({ ...DEFAULT_BLAST_SETTINGS })
-      })
-      .finally(() => setLoading(false))
-  }, [])
+    if (fetchedSettings) {
+      setSettings(fetchedSettings)
+    }
+  }, [fetchedSettings])
 
   async function handleSave() {
-    if (!settings) return
-    setSaving(true)
     try {
-      const updated = await updateBlastSettings(settings)
+      const updated = await updateMutation.mutateAsync(settings)
       setSettings(updated)
       toast(t('common.success'), 'success')
     } catch {
       toast(t('common.error'), 'error')
-    } finally {
-      setSaving(false)
     }
   }
 
-  if (loading || !settings)
-    return <div className="text-muted-foreground">{t('common.loading')}</div>
+  if (isLoading) return <div className="text-muted-foreground">{t('common.loading')}</div>
 
   return (
     <Card>
@@ -134,8 +129,8 @@ export function BlastSettingsPanel() {
           </div>
         </div>
 
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? t('common.loading') : t('common.save')}
+        <Button onClick={handleSave} disabled={updateMutation.isPending}>
+          {updateMutation.isPending ? t('common.loading') : t('common.save')}
         </Button>
       </CardContent>
     </Card>

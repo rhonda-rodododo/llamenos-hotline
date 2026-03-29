@@ -1,8 +1,6 @@
-import { type HealthCheckResult, type ProviderHealthStatus, getProviderHealth } from '@/lib/api'
-import { useCallback, useEffect, useState } from 'react'
+import type { HealthCheckResult } from '@/lib/api'
+import { useProviderHealth } from '@/lib/queries/provider'
 import { useTranslation } from 'react-i18next'
-
-const POLL_INTERVAL = 30_000
 
 function StatusDot({ status }: { status: HealthCheckResult['status'] }) {
   const colors: Record<string, string> = {
@@ -45,22 +43,7 @@ function HealthEntry({ result }: { result: HealthCheckResult }) {
 
 export function ProviderHealthBadge() {
   const { t } = useTranslation()
-  const [health, setHealth] = useState<ProviderHealthStatus | null>(null)
-
-  const fetchHealth = useCallback(async () => {
-    try {
-      const data = await getProviderHealth()
-      setHealth(data)
-    } catch {
-      // Silently ignore — badge just won't display
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchHealth()
-    const id = setInterval(fetchHealth, POLL_INTERVAL)
-    return () => clearInterval(id)
-  }, [fetchHealth])
+  const { data: health } = useProviderHealth()
 
   if (!health) return null
 
