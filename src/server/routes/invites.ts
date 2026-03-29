@@ -1,6 +1,7 @@
 import { HMAC_IP_PREFIX } from '@shared/crypto-labels'
 import { Hono } from 'hono'
-import { verifyAuthToken } from '../lib/auth'
+import { getIdPAdapter } from '../app'
+import { hashIP } from '../lib/crypto-service'
 import { isValidE164 } from '../lib/helpers'
 import { auth as authMiddleware } from '../middleware/auth'
 import { requirePermission } from '../middleware/permission-guard'
@@ -33,22 +34,10 @@ invites.post('/redeem', async (c) => {
   const body = (await c.req.json()) as {
     code: string
     pubkey: string
-    timestamp: number
-    token: string
   }
 
-  // Require proof of private key possession via Schnorr signature
-  if (!body.pubkey || !body.timestamp || !body.token) {
-    return c.json({ error: 'Signature proof required' }, 400)
-  }
-  const inviteUrl = new URL(c.req.url)
-  const isValid = await verifyAuthToken(
-    { pubkey: body.pubkey, timestamp: body.timestamp, token: body.token },
-    c.req.method,
-    inviteUrl.pathname
-  )
-  if (!isValid) {
-    return c.json({ error: 'Invalid signature' }, 401)
+  if (!body.pubkey || !body.code) {
+    return c.json({ error: 'Missing code or pubkey' }, 400)
   }
 
   // Rate limit redemption attempts (relaxed in dev for parallel test runs)
@@ -61,7 +50,24 @@ invites.post('/redeem', async (c) => {
   if (limited) return c.json({ error: 'Too many requests' }, 429)
 
   const volunteer = await services.identity.redeemInvite({ code: body.code, pubkey: body.pubkey })
-  return c.json(volunteer)
+
+  // Enroll the new volunteer in the IdP and return their nsecSecret for KEK derivation
+  let nsecSecret: string | undefined
+  const idpAdapter = getIdPAdapter()
+  if (idpAdapter) {
+    try {
+      const existing = await idpAdapter.getUser(body.pubkey)
+      if (!existing) {
+        await idpAdapter.createUser(body.pubkey)
+      }
+      const secret = await idpAdapter.getNsecSecret(body.pubkey)
+      nsecSecret = Buffer.from(secret).toString('hex')
+    } catch {
+      // IdP enrollment failed — client will use synthetic value and rotate on first unlock
+    }
+  }
+
+  return c.json({ ...volunteer, nsecSecret })
 })
 
 // --- Authenticated routes (require invites permissions) ---

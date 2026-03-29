@@ -1,5 +1,5 @@
 import { ConsentGate } from '@/components/consent-gate'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
+import { decryptObjectFields } from '@/lib/decrypt-fields'
 import { permissionGranted } from '@shared/permissions'
 import {
   type ReactNode,
@@ -13,15 +13,13 @@ import {
 import {
   logout as apiLogout,
   getMe,
-  login,
   setOnApiActivity,
   setOnAuthExpired,
   updateMyAvailability,
 } from './api'
-import { createAuthToken, keyPairFromNsec } from './crypto'
+import { authFacadeClient } from './auth-facade-client'
 import { clearHubKeyCache, loadHubKeysForUser } from './hub-key-cache'
 import * as keyManager from './key-manager'
-import { hasStoredKey } from './key-store'
 import { loginWithPasskey as webauthnLogin } from './webauthn'
 
 interface AuthState {
@@ -65,6 +63,38 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+/** Helper to build a full AuthState from a /auth/me response */
+function stateFromMe(
+  me: Awaited<ReturnType<typeof getMe>>,
+  overrides: Partial<AuthState> = {}
+): AuthState {
+  return {
+    isKeyUnlocked: false,
+    publicKey: me.pubkey,
+    roles: me.roles || [],
+    hubRoles: me.hubRoles ?? [],
+    permissions: me.permissions || [],
+    primaryRoleName: me.primaryRole?.name || null,
+    name: me.name,
+    isLoading: false,
+    error: null,
+    transcriptionEnabled: me.transcriptionEnabled,
+    spokenLanguages: me.spokenLanguages || ['en'],
+    uiLanguage: me.uiLanguage || 'en',
+    profileCompleted: me.profileCompleted ?? true,
+    onBreak: me.onBreak ?? false,
+    callPreference: me.callPreference ?? 'phone',
+    adminPubkey: me.adminDecryptionPubkey || '',
+    adminDecryptionPubkey: me.adminDecryptionPubkey || '',
+    sessionExpiring: false,
+    sessionExpired: false,
+    ...overrides,
+  }
+}
+
+/** Interval for silent JWT refresh (10 minutes) */
+const TOKEN_REFRESH_INTERVAL_MS = 10 * 60 * 1000
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     isKeyUnlocked: false,
@@ -102,11 +132,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, isKeyUnlocked: false }))
     })
     const unsubUnlock = keyManager.onUnlock(() => {
-      setState((s) => ({
-        ...s,
-        isKeyUnlocked: true,
-        publicKey: keyManager.getPublicKeyHex(),
-      }))
+      // getPublicKeyHex is async now — update state when it resolves
+      void keyManager.getPublicKeyHex().then((pubkey) => {
+        setState((s) => ({
+          ...s,
+          isKeyUnlocked: true,
+          publicKey: pubkey ?? s.publicKey,
+        }))
+      })
     })
     return () => {
       unsubLock()
@@ -136,10 +169,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [markActivity])
 
   // Session expiry warning — check every 60s if idle > 30 min.
-  // Server uses sliding expiry (extends 8h on each validated request), so only truly
-  // idle sessions expire. The 30-min client threshold gives ample warning.
   useEffect(() => {
-    if (!state.isKeyUnlocked && !sessionStorage.getItem('llamenos-session-token')) return
+    const hasToken = !!authFacadeClient.getAccessToken()
+    if (!state.isKeyUnlocked && !hasToken) return
     const interval = setInterval(() => {
       const elapsed = Date.now() - lastApiActivity.current
       const WARN_THRESHOLD = 30 * 60 * 1000 // 30 minutes
@@ -150,129 +182,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval)
   }, [state.isKeyUnlocked, state.sessionExpired])
 
-  // Restore session on mount
+  // Restore session on mount — try JWT refresh (httpOnly cookie)
   useEffect(() => {
-    // Try session token (WebAuthn session) — always try this first
-    const sessionToken = sessionStorage.getItem('llamenos-session-token')
-    if (sessionToken) {
-      getMe()
-        .then((me) => {
-          lastApiActivity.current = Date.now()
-          setState({
-            isKeyUnlocked: keyManager.isUnlocked(),
-            publicKey: me.pubkey,
-            roles: me.roles || [],
-            hubRoles: me.hubRoles ?? [],
-            permissions: me.permissions || [],
-            primaryRoleName: me.primaryRole?.name || null,
-            name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
-            isLoading: false,
-            error: null,
-            transcriptionEnabled: me.transcriptionEnabled,
-            spokenLanguages: me.spokenLanguages || ['en'],
-            uiLanguage: me.uiLanguage || 'en',
-            profileCompleted: me.profileCompleted ?? true,
-            onBreak: me.onBreak ?? false,
-            callPreference: me.callPreference ?? 'phone',
-            adminPubkey: me.adminDecryptionPubkey || '',
-            adminDecryptionPubkey: me.adminDecryptionPubkey || '',
-            sessionExpiring: false,
-            sessionExpired: false,
+    let cancelled = false
+    async function restoreSession() {
+      try {
+        // Attempt silent token refresh using the httpOnly refresh cookie
+        await authFacadeClient.refreshToken()
+        if (cancelled) return
+
+        const me = await getMe()
+        if (cancelled) return
+
+        lastApiActivity.current = Date.now()
+        const isUnlocked = await keyManager.isUnlocked()
+        const pubkey = isUnlocked ? await keyManager.getPublicKeyHex() : null
+        if (cancelled) return
+
+        // Decrypt envelope-encrypted fields (e.g. name) via crypto worker
+        if (pubkey) {
+          await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
+        }
+
+        setState(
+          stateFromMe(me, {
+            isKeyUnlocked: isUnlocked,
+            publicKey: pubkey ?? me.pubkey,
           })
-        })
-        .catch(() => {
-          sessionStorage.removeItem('llamenos-session-token')
+        )
+      } catch {
+        // No valid refresh cookie — user needs to log in
+        if (!cancelled) {
           setState((s) => ({ ...s, isLoading: false }))
-        })
-      return
+        }
+      }
     }
-    // If key manager is already unlocked (e.g., still in memory from tab switch),
-    // try to authenticate with Schnorr token
-    if (keyManager.isUnlocked()) {
-      getMe()
-        .then(async (me) => {
-          lastApiActivity.current = Date.now()
-          const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
-          const secretKey = keyManager.getSecretKey()
-          if (secretKey) await loadHubKeysForUser(hubIds, secretKey)
-          setState({
-            isKeyUnlocked: true,
-            publicKey: me.pubkey,
-            roles: me.roles || [],
-            hubRoles: me.hubRoles ?? [],
-            permissions: me.permissions || [],
-            primaryRoleName: me.primaryRole?.name || null,
-            name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
-            isLoading: false,
-            error: null,
-            transcriptionEnabled: me.transcriptionEnabled,
-            spokenLanguages: me.spokenLanguages || ['en'],
-            uiLanguage: me.uiLanguage || 'en',
-            profileCompleted: me.profileCompleted ?? true,
-            onBreak: me.onBreak ?? false,
-            callPreference: me.callPreference ?? 'phone',
-            adminPubkey: me.adminDecryptionPubkey || '',
-            adminDecryptionPubkey: me.adminDecryptionPubkey || '',
-            sessionExpiring: false,
-            sessionExpired: false,
-          })
-        })
-        .catch(() => {
-          keyManager.lock()
-          setState((s) => ({ ...s, isLoading: false }))
-        })
-      return
+    void restoreSession()
+    return () => {
+      cancelled = true
     }
-    setState((s) => ({ ...s, isLoading: false }))
   }, [])
 
-  // Sign in with nsec (import flow — onboarding/recovery only)
-  const signIn = useCallback(async (nsec: string) => {
-    setState((s) => ({ ...s, isLoading: true, error: null }))
-    const keyPair = keyPairFromNsec(nsec)
-    if (!keyPair) {
-      setState((s) => ({ ...s, isLoading: false, error: 'Invalid secret key' }))
-      return
-    }
-    try {
-      const token = createAuthToken(keyPair.secretKey, Date.now(), 'POST', '/api/auth/login')
-      const parsed = JSON.parse(token)
-      await login(parsed.pubkey, parsed.timestamp, parsed.token)
-      const me = await getMe()
-      lastApiActivity.current = Date.now()
-      const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
-      await loadHubKeysForUser(hubIds, keyPair.secretKey)
-      setState({
-        isKeyUnlocked: keyManager.isUnlocked(),
-        publicKey: keyPair.publicKey,
-        roles: me.roles || [],
-        hubRoles: me.hubRoles ?? [],
-        permissions: me.permissions || [],
-        primaryRoleName: me.primaryRole?.name || null,
-        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
-        isLoading: false,
-        error: null,
-        transcriptionEnabled: me.transcriptionEnabled,
-        spokenLanguages: me.spokenLanguages || ['en'],
-        uiLanguage: me.uiLanguage || 'en',
-        profileCompleted: me.profileCompleted ?? true,
-        onBreak: me.onBreak ?? false,
-        callPreference: me.callPreference ?? 'phone',
-        adminPubkey: me.adminDecryptionPubkey || '',
-        adminDecryptionPubkey: me.adminDecryptionPubkey || '',
-        sessionExpiring: false,
-        sessionExpired: false,
+  // Silent JWT refresh on interval (10 minutes)
+  useEffect(() => {
+    const hasToken = !!authFacadeClient.getAccessToken()
+    if (!hasToken) return
+
+    const interval = setInterval(() => {
+      void authFacadeClient.refreshToken().catch(() => {
+        // Refresh failed — token will expire, 401 handler will catch it
       })
-    } catch (err) {
-      setState((s) => ({
-        ...s,
-        isLoading: false,
-        error: err instanceof Error ? err.message : 'Login failed',
-      }))
-    }
+    }, TOKEN_REFRESH_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [state.publicKey]) // re-establish when auth state changes
+
+  // Sign in with nsec (admin bootstrap / recovery only)
+  // NOTE: This flow is kept for admin bootstrap. It does NOT use the facade
+  // because nsec import is a local-only operation (encrypt + store + worker load).
+  const signIn = useCallback(async (_nsec: string) => {
+    setState((s) => ({ ...s, isLoading: true, error: null }))
+    // The nsec import flow now requires the facade's IdP-bound value and a PIN.
+    // This path is only used during admin bootstrap which has its own onboarding flow.
+    // For now, mark as an error — callers should use the full onboarding flow.
+    setState((s) => ({
+      ...s,
+      isLoading: false,
+      error:
+        'Direct nsec sign-in is no longer supported. Use passkey login or the onboarding flow.',
+    }))
   }, [])
 
-  // Unlock with PIN (primary day-to-day auth)
+  // Unlock with PIN (primary day-to-day auth after passkey session)
   const unlockWithPin = useCallback(async (pin: string): Promise<boolean> => {
     const pubkey = await keyManager.unlock(pin)
     if (!pubkey) return false
@@ -280,72 +260,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await getMe()
       lastApiActivity.current = Date.now()
-      const secretKey = keyManager.getSecretKey()
-      if (secretKey) {
-        const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
-        await loadHubKeysForUser(hubIds, secretKey)
-      }
-      setState({
-        isKeyUnlocked: true,
-        publicKey: pubkey,
-        roles: me.roles || [],
-        hubRoles: me.hubRoles ?? [],
-        permissions: me.permissions || [],
-        primaryRoleName: me.primaryRole?.name || null,
-        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
-        isLoading: false,
-        error: null,
-        transcriptionEnabled: me.transcriptionEnabled,
-        spokenLanguages: me.spokenLanguages || ['en'],
-        uiLanguage: me.uiLanguage || 'en',
-        profileCompleted: me.profileCompleted ?? true,
-        onBreak: me.onBreak ?? false,
-        callPreference: me.callPreference ?? 'phone',
-        adminPubkey: me.adminDecryptionPubkey || '',
-        adminDecryptionPubkey: me.adminDecryptionPubkey || '',
-        sessionExpiring: false,
-        sessionExpired: false,
-      })
+      // Decrypt envelope-encrypted fields (e.g. name) via crypto worker
+      await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
+      // Load hub keys after unlocking (crypto worker handles decryption internally)
+      const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
+      await loadHubKeysForUser(hubIds)
+      setState(
+        stateFromMe(me, {
+          isKeyUnlocked: true,
+          publicKey: pubkey,
+        })
+      )
       return true
     } catch {
-      keyManager.lock()
+      await keyManager.lock()
       return false
     }
   }, [])
 
   const lockKey = useCallback(() => {
-    keyManager.lock()
+    void keyManager.lock()
   }, [])
 
   const signInWithPasskey = useCallback(async () => {
     setState((s) => ({ ...s, isLoading: true, error: null }))
     try {
-      const { token, pubkey } = await webauthnLogin()
-      // Store session token (not nsec — user doesn't have it)
-      sessionStorage.setItem('llamenos-session-token', token)
+      const { pubkey } = await webauthnLogin()
+      // The facade client already holds the JWT access token from verifyLogin.
+      // The httpOnly refresh cookie is also set by the server response.
       const me = await getMe()
       lastApiActivity.current = Date.now()
-      setState({
-        isKeyUnlocked: false, // No nsec available — crypto locked
-        publicKey: pubkey,
-        roles: me.roles || [],
-        hubRoles: me.hubRoles ?? [],
-        permissions: me.permissions || [],
-        primaryRoleName: me.primaryRole?.name || null,
-        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
-        isLoading: false,
-        error: null,
-        transcriptionEnabled: me.transcriptionEnabled,
-        spokenLanguages: me.spokenLanguages || ['en'],
-        uiLanguage: me.uiLanguage || 'en',
-        profileCompleted: me.profileCompleted ?? true,
-        onBreak: me.onBreak ?? false,
-        callPreference: me.callPreference ?? 'phone',
-        adminPubkey: me.adminDecryptionPubkey || '',
-        adminDecryptionPubkey: me.adminDecryptionPubkey || '',
-        sessionExpiring: false,
-        sessionExpired: false,
-      })
+      const isUnlocked = await keyManager.isUnlocked()
+      // Decrypt envelope-encrypted fields (e.g. name) via crypto worker
+      if (isUnlocked) {
+        await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
+      }
+      setState(
+        stateFromMe(me, {
+          isKeyUnlocked: isUnlocked,
+          publicKey: pubkey,
+        })
+      )
     } catch (err) {
       setState((s) => ({
         ...s,
@@ -359,9 +314,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await getMe()
       lastApiActivity.current = Date.now()
+      // Decrypt envelope-encrypted fields (e.g. name) via crypto worker
+      const pubkey = await keyManager.getPublicKeyHex()
+      if (pubkey) {
+        await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
+      }
       setState((s) => ({
         ...s,
-        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
+        name: me.name,
         roles: me.roles || [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,
@@ -384,11 +344,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const renewSession = useCallback(async () => {
     try {
+      // Use facade to refresh the JWT, then fetch fresh profile
+      await authFacadeClient.refreshToken()
       const me = await getMe()
       lastApiActivity.current = Date.now()
+      // Decrypt envelope-encrypted fields (e.g. name) via crypto worker
+      const pubkey = await keyManager.getPublicKeyHex()
+      if (pubkey) {
+        await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
+      }
       setState((s) => ({
         ...s,
-        name: tryDecryptField(me.encryptedName, me.nameEnvelopes, me.name),
+        name: me.name,
         roles: me.roles || [],
         permissions: me.permissions || [],
         primaryRoleName: me.primaryRole?.name || null,
@@ -422,14 +389,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [state.onBreak])
 
   const signOut = useCallback(() => {
-    // Revoke server-side session token before clearing local state
-    apiLogout()
-    keyManager.lock()
+    // Revoke server-side session via facade (clears httpOnly cookie + server session)
+    void authFacadeClient.revokeSession().catch(() => {
+      // Best-effort — clear local state regardless
+    })
+    // Also call the old API logout endpoint for backward compatibility during migration
+    void apiLogout()
+    void keyManager.lock()
     clearHubKeyCache()
-    sessionStorage.removeItem('llamenos-session-token')
     // Clean up encrypted drafts from localStorage
     const draftKeys = Object.keys(localStorage).filter((k) => k.startsWith('llamenos-draft:'))
-    draftKeys.forEach((k) => localStorage.removeItem(k))
+    for (const k of draftKeys) localStorage.removeItem(k)
     setState({
       isKeyUnlocked: false,
       publicKey: null,
@@ -453,8 +423,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const hasSessionToken =
-    typeof window !== 'undefined' && !!sessionStorage.getItem('llamenos-session-token')
+  const hasAccessToken = typeof window !== 'undefined' && !!authFacadeClient.getAccessToken()
 
   const value: AuthContextValue = {
     ...state,
@@ -468,7 +437,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lockKey,
     hasPermission: (permission: string) => permissionGranted(state.permissions, permission),
     isAdmin: permissionGranted(state.permissions, 'settings:manage'),
-    isAuthenticated: (state.isKeyUnlocked || hasSessionToken) && state.roles.length > 0,
+    isAuthenticated: (state.isKeyUnlocked || hasAccessToken) && state.roles.length > 0,
     hasNsec: state.isKeyUnlocked,
   }
 

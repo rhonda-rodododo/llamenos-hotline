@@ -1,10 +1,10 @@
 name: Start Test Infrastructure
-description: Start strfry, RustFS, Asterisk PBX, and Asterisk Bridge for integration/E2E tests
+description: Start strfry, RustFS, Asterisk PBX, Asterisk Bridge, and Authentik for integration/E2E tests
 
 runs:
   using: composite
   steps:
-    - name: Start strfry (Nostr relay)
+    - name: Start strfry
       shell: bash
       run: |
         docker run -d --name strfry \

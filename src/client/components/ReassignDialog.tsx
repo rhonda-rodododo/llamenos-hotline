@@ -16,8 +16,8 @@ import {
   listVolunteers,
   updateConversation,
 } from '@/lib/api'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
 import { useToast } from '@/lib/toast'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { AlertCircle, Loader2, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -42,6 +42,8 @@ export function ReassignDialog({
   const [loading, setLoading] = useState(true)
   const [reassigning, setReassigning] = useState(false)
   const [selectedPubkey, setSelectedPubkey] = useState<string | null>(null)
+
+  const decryptedVolunteers = useDecryptedArray(volunteers)
 
   // Load volunteers and their current loads when dialog opens
   useEffect(() => {
@@ -113,7 +115,7 @@ export function ReassignDialog({
   }
 
   // Sort volunteers: capable first, then by load (ascending)
-  const sortedVolunteers = [...volunteers].sort((a, b) => {
+  const sortedVolunteers = [...decryptedVolunteers].sort((a, b) => {
     const aCanHandle = canHandleChannel(a)
     const bCanHandle = canHandleChannel(b)
     if (aCanHandle && !bCanHandle) return -1
@@ -172,15 +174,11 @@ export function ReassignDialog({
                     }`}
                   >
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                      {tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)
-                        .charAt(0)
-                        .toUpperCase()}
+                      {vol.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium truncate">
-                          {tryDecryptField(vol.encryptedName, vol.nameEnvelopes, vol.name)}
-                        </span>
+                        <span className="font-medium truncate">{vol.name}</span>
                         {vol.onBreak && (
                           <Badge
                             variant="outline"

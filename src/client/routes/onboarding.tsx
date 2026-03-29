@@ -9,8 +9,9 @@ import { useConfig } from '@/lib/config'
 import { generateKeyPair } from '@/lib/crypto'
 import { setLanguage } from '@/lib/i18n'
 import * as keyManager from '@/lib/key-manager'
-import { isValidPin } from '@/lib/key-store'
+import { isValidPin } from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
+import { hexToBytes } from '@noble/hashes/utils.js'
 import { LANGUAGES } from '@shared/languages'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
@@ -58,6 +59,7 @@ function OnboardingPage() {
   // Keypair state (nsec never displayed to user)
   const [nsec, setNsec] = useState('')
   const [pubkey, setPubkey] = useState('')
+  const [idpNsecSecret, setIdpNsecSecret] = useState<Uint8Array | null>(null)
 
   // Recovery key & backup
   const [recoveryKeyStr, setRecoveryKeyStr] = useState('')
@@ -151,8 +153,11 @@ function OnboardingPage() {
       setPubkey(kp.publicKey)
       setConfirmedPin(pin)
 
-      // Redeem invite on server (with Schnorr signature proving key ownership)
-      await redeemInvite(inviteCode, kp.publicKey, kp.secretKey)
+      // Redeem invite on server — also enrolls in IdP and returns nsecSecret
+      const redeemResult = await redeemInvite(inviteCode, kp.publicKey)
+      if (redeemResult.nsecSecret) {
+        setIdpNsecSecret(hexToBytes(redeemResult.nsecSecret))
+      }
 
       // Generate recovery key (shown to user instead of nsec)
       const rk = generateRecoveryKey()
@@ -174,8 +179,12 @@ function OnboardingPage() {
 
   async function handleComplete() {
     try {
-      // Import key via key manager (encrypts with PIN and loads into memory)
-      await keyManager.importKey(nsec, confirmedPin)
+      // Import key via key manager (encrypts with PIN and real IdP nsecSecret)
+      // Falls back to synthetic device-link value if IdP enrollment failed during redeem
+      const { syntheticIdpValue } = await import('@/lib/key-store-v2')
+      const idpValue = idpNsecSecret ?? syntheticIdpValue('device-link')
+      const issuer = idpNsecSecret ? window.location.origin : 'device-link'
+      await keyManager.importKey(nsec, confirmedPin, pubkey, idpValue, undefined, issuer)
       await signIn(nsec)
       navigate({ to: '/profile-setup' })
     } catch {

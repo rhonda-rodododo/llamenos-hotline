@@ -26,13 +26,14 @@ export function getHubKeyForId(hubId: string): Uint8Array | null {
 
 /**
  * Fetch hub key envelopes for all given hub IDs and decrypt them using the
- * member's private key. Populates the module-level cache.
+ * crypto worker (secret key never touches the main thread).
+ * Populates the module-level cache.
  *
  * Called after successful authentication. Errors on individual hubs are
  * silently ignored — the cache will simply lack that hub's key, and Nostr
  * decryption will fall back to REST polling for that hub.
  */
-export async function loadHubKeysForUser(hubIds: string[], secretKey: Uint8Array): Promise<void> {
+export async function loadHubKeysForUser(hubIds: string[]): Promise<void> {
   if (!hubIds.length) return
 
   // Increment generation BEFORE clearing so concurrent in-flight fetches from a
@@ -50,7 +51,7 @@ export async function loadHubKeysForUser(hubIds: string[], secretKey: Uint8Array
           wrappedKey: raw.wrappedKey,
           ephemeralPubkey: raw.ephemeralPubkey || raw.ephemeralPk || '',
         }
-        const hubKey = unwrapHubKey(envelope, secretKey)
+        const hubKey = await unwrapHubKey(envelope)
         // Only write if this load is still the current generation
         if (cacheGeneration === myGeneration) {
           hubKeyCache.set(hubId, hubKey)

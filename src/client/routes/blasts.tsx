@@ -36,14 +36,19 @@ function BlastsPage() {
   const [showSettings, setShowSettings] = useState(false)
   const [decryptedContent, setDecryptedContent] = useState<Record<string, BlastContent | null>>({})
 
-  const decryptBlasts = useCallback((blastList: Blast[]) => {
-    const sk = keyManager.isUnlocked() ? keyManager.getSecretKey() : null
-    const pk = keyManager.getPublicKeyHex()
-    if (!sk || !pk) return
+  const decryptBlasts = useCallback(async (blastList: Blast[]) => {
+    const unlocked = await keyManager.isUnlocked()
+    if (!unlocked) return
+    const pk = await keyManager.getPublicKeyHex()
+    if (!pk) return
     const map: Record<string, BlastContent | null> = {}
     for (const blast of blastList) {
       if (blast.encryptedContent && blast.contentEnvelopes?.length) {
-        map[blast.id] = decryptBlastContent(blast.encryptedContent, blast.contentEnvelopes, sk, pk)
+        map[blast.id] = await decryptBlastContent(
+          blast.encryptedContent,
+          blast.contentEnvelopes,
+          pk
+        )
       }
     }
     setDecryptedContent((prev) => ({ ...prev, ...map }))
@@ -57,7 +62,7 @@ function BlastsPage() {
     try {
       const res = await listBlasts()
       setBlasts(res.blasts)
-      decryptBlasts(res.blasts)
+      await decryptBlasts(res.blasts)
     } catch {
       toast(t('common.error'), 'error')
     } finally {
@@ -230,7 +235,7 @@ function BlastsPage() {
             <BlastComposer
               onCreated={(blast) => {
                 setBlasts((prev) => [blast, ...prev])
-                decryptBlasts([blast])
+                void decryptBlasts([blast])
                 setShowComposer(false)
                 setSelectedBlast(blast)
               }}

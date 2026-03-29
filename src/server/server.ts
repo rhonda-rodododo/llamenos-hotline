@@ -9,6 +9,7 @@ import path from 'node:path'
  */
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
+import { sql } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/bun-sql/migrator'
 import { Hono } from 'hono'
 import { initDb } from './db'
@@ -72,6 +73,13 @@ async function main() {
 
   const db = initDb(env.DATABASE_URL)
   await migrate(db, { migrationsFolder: path.resolve(process.cwd(), 'drizzle', 'migrations') })
+  // Ensure jwt_revocations exists (migration may be skipped due to cross-branch tracking mismatch)
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS jwt_revocations (
+    jti text PRIMARY KEY NOT NULL,
+    pubkey text NOT NULL,
+    expires_at timestamp NOT NULL,
+    created_at timestamp DEFAULT now() NOT NULL
+  )`)
   console.log('[llamenos] Migrations applied')
 
   let storage: StorageManager | null = null
@@ -149,6 +157,13 @@ async function main() {
   // Schedule daily retention purge at 03:00 UTC
   scheduleRetentionPurge(services)
   console.log('[llamenos] Data retention purge scheduled')
+
+  // Initialize IdP adapter (Authentik by default) — hard-fail on error; Docker restarts via restart: unless-stopped
+  const { createIdPAdapter } = await import('./idp/index')
+  const idpAdapter = await createIdPAdapter()
+  const { setIdPAdapter } = await import('./app')
+  setIdPAdapter(idpAdapter)
+  console.log(`[llamenos] IdP adapter initialized (${process.env.IDP_ADAPTER || 'authentik'})`)
 
   const blastProcessorInterval = scheduleBlastProcessor(
     services,

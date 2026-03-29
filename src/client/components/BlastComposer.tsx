@@ -40,7 +40,7 @@ export function BlastComposer({ onCreated, onCancel }: BlastComposerProps) {
     }
     setSaving(true)
     try {
-      const adminPubkey = keyManager.getPublicKeyHex()
+      const adminPubkey = await keyManager.getPublicKeyHex()
       if (!adminPubkey) {
         toast(t('common.error'), 'error')
         setSaving(false)

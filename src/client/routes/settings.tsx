@@ -16,15 +16,10 @@ import {
   updateMyTranscriptionPreference,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { tryDecryptField } from '@/lib/envelope-field-crypto'
-import * as keyManager from '@/lib/key-manager'
+import { authFacadeClient } from '@/lib/auth-facade-client'
+import { cryptoWorker } from '@/lib/crypto-worker-client'
 import { getNotificationPrefs, setNotificationPrefs } from '@/lib/notifications'
-import {
-  computeSASForPrimaryDevice,
-  encryptNsecForDevice,
-  getProvisioningRoom,
-  sendProvisionedKey,
-} from '@/lib/provisioning'
+import { getProvisioningRoom, packProvisionPayload, sendProvisionedKey } from '@/lib/provisioning'
 import {
   isPushSubscribed,
   isPushSupported,
@@ -38,6 +33,7 @@ import {
   getClientTranscriptionSettings,
   setClientTranscriptionSettings,
 } from '@/lib/transcription'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { useNotificationPermission } from '@/lib/use-notification-permission'
 import {
   type WebAuthnCredentialInfo,
@@ -94,6 +90,7 @@ function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [canOptOut, setCanOptOut] = useState(true)
   const [webauthnCreds, setWebauthnCreds] = useState<WebAuthnCredentialInfo[]>([])
+  const decryptedWebauthnCreds = useDecryptedArray(webauthnCreds)
   const [webauthnLabel, setWebauthnLabel] = useState('')
   const [webauthnRegistering, setWebauthnRegistering] = useState(false)
   const webauthnAvailable = isWebAuthnAvailable()
@@ -119,9 +116,8 @@ function SettingsPage() {
   const [profileError, setProfileError] = useState('')
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(spokenLanguages || ['en'])
 
-  // Get npub for display
-  const pk = keyManager.getPublicKeyHex() || publicKey
-  const npub = pk ? nip19.npubEncode(pk) : ''
+  // Get npub for display — use publicKey from auth context (already resolved)
+  const npub = publicKey ? nip19.npubEncode(publicKey) : ''
 
   useEffect(() => {
     const promises: Promise<void>[] = [
@@ -316,21 +312,18 @@ function SettingsPage() {
           expanded={expanded.has('passkeys')}
           onToggle={(open) => toggleSection('passkeys', open)}
         >
-          {webauthnCreds.length === 0 ? (
+          {decryptedWebauthnCreds.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('webauthn.noKeys')}</p>
           ) : (
             <div className="space-y-2">
-              {webauthnCreds.map((cred) => (
+              {decryptedWebauthnCreds.map((cred) => (
                 <div
                   key={cred.id}
                   data-testid="passkey-credential-row"
                   className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
                 >
                   <div className="space-y-0.5">
-                    <p className="text-sm font-medium">
-                      {tryDecryptField(cred.encryptedLabel, cred.labelEnvelopes, cred.label) ||
-                        cred.id.slice(0, 8)}
-                    </p>
+                    <p className="text-sm font-medium">{cred.label || cred.id.slice(0, 8)}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="outline" className="text-[10px]">
                         {cred.backedUp ? t('webauthn.syncedPasskey') : t('webauthn.singleDevice')}
@@ -380,7 +373,8 @@ function SettingsPage() {
                   setWebauthnCreds(updated)
                   setWebauthnLabel('')
                   toast(t('webauthn.registerSuccess'), 'success')
-                } catch {
+                } catch (err) {
+                  console.error('[passkey-register]', err)
                   toast(t('common.error'), 'error')
                 } finally {
                   setWebauthnRegistering(false)
@@ -887,33 +881,23 @@ function LinkDeviceSection() {
         return
       }
 
-      // Get nsec from key-manager
-      const nsecStr = keyManager.getNsec()
-      if (!nsecStr) {
-        setStatus('error')
-        setStatusMessage(t('pin.keyLocked'))
-        return
-      }
+      // Encrypt the nsec inside the worker via ECDH with the new device's ephemeral pubkey.
+      // The worker also computes the SAS from the shared secret — both devices derive the
+      // same 6-digit code independently, confirming no MITM is present.
+      const workerResult = await cryptoWorker.provisionNsec(room.ephemeralPubkey)
 
-      const secretKey = keyManager.getSecretKey()
-      const publicKey = keyManager.getPublicKeyHex()!
+      // Pack into wire format and send
+      const { encryptedNsec, primaryPubkey } = packProvisionPayload(workerResult)
+      const accessToken = authFacadeClient.getAccessToken()
+      const authHeaders: Record<string, string> = accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : {}
+      await sendProvisionedKey(roomId, accessToken ?? '', encryptedNsec, primaryPubkey, authHeaders)
 
-      // Compute SAS for display BEFORE sending nsec
-      const sas = computeSASForPrimaryDevice(secretKey, room.ephemeralPubkey)
-      setSasCode(sas)
-
-      // ECDH encrypt nsec for the new device
-      const encrypted = encryptNsecForDevice(nsecStr, room.ephemeralPubkey, secretKey)
-
-      // Send encrypted payload (authenticated)
-      const provisionPath = `/api/provision/rooms/${roomId}/payload`
-      const authToken = keyManager.createAuthToken(Date.now(), 'POST', provisionPath)
-      await sendProvisionedKey(roomId, token, encrypted, publicKey, {
-        Authorization: `Bearer ${authToken}`,
-      })
-
+      // Show SAS for user to verify against the new device's display
+      setSasCode(workerResult.sas)
+      setStatusMessage(t('deviceLink.keySent'))
       setStatus('verify-sas')
-      setStatusMessage(t('deviceLink.verifySASPrimary'))
     } catch {
       setStatus('error')
       setStatusMessage(t('deviceLink.linkFailed'))

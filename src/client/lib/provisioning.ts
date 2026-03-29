@@ -154,6 +154,29 @@ export function decryptProvisionedNsec(
   return new TextDecoder().decode(plaintext)
 }
 
+// --- Primary Device Side (Worker-based) ---
+
+/**
+ * Pack the worker's provisionNsec result into the wire format expected by
+ * decryptProvisionedNsec: nonce(24 bytes) || ciphertext, packed as hex.
+ */
+export function packProvisionPayload(workerResult: {
+  ciphertext: string
+  nonce: string
+  pubkey: string
+  sas?: string
+}): { encryptedNsec: string; primaryPubkey: string } {
+  const nonceBytes = hexToBytes(workerResult.nonce)
+  const ciphertextBytes = hexToBytes(workerResult.ciphertext)
+  const packed = new Uint8Array(nonceBytes.length + ciphertextBytes.length)
+  packed.set(nonceBytes)
+  packed.set(ciphertextBytes, nonceBytes.length)
+  return {
+    encryptedNsec: bytesToHex(packed),
+    primaryPubkey: workerResult.pubkey,
+  }
+}
+
 // --- Primary Device Side ---
 
 export async function getProvisioningRoom(

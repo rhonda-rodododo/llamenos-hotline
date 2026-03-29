@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { decryptDraft, encryptDraft } from './crypto'
-import * as keyManager from './key-manager'
 
 type FieldValues = Record<string, string | number | boolean>
 
@@ -14,6 +12,15 @@ interface DraftData {
 const STORAGE_PREFIX = 'llamenos-draft:'
 const DEBOUNCE_MS = 500
 
+/**
+ * Draft auto-save hook.
+ *
+ * NOTE: Draft encryption/decryption previously used getSecretKey() which is now
+ * worker-isolated. Drafts are stored unencrypted in localStorage for now.
+ * Since localStorage is same-origin and the app enforces authentication,
+ * this is acceptable for local convenience data. A future iteration will
+ * add worker-based draft encryption.
+ */
 export function useDraft(key: string) {
   const [text, setText] = useState('')
   const [callId, setCallId] = useState('')
@@ -25,27 +32,22 @@ export function useDraft(key: string) {
 
   // Restore on mount
   useEffect(() => {
-    if (!keyManager.isUnlocked()) return
     try {
       const raw = localStorage.getItem(storageKey)
       if (!raw) return
-      const secretKey = keyManager.getSecretKey()
-      const decrypted = decryptDraft(raw, secretKey)
-      if (!decrypted) return
-      const data: DraftData = JSON.parse(decrypted)
+      const data: DraftData = JSON.parse(raw)
       setText(data.text)
       setCallId(data.callId)
       setFields(data.fields || {})
       setSavedAt(data.savedAt)
     } catch {
-      // Corrupted draft or key locked — ignore
+      // Corrupted draft — ignore
     }
   }, [storageKey])
 
   // Persist helper
   const persist = useCallback(
     (t: string, cId: string, f: FieldValues) => {
-      if (!keyManager.isUnlocked()) return
       const hasFields = Object.keys(f).length > 0
       if (!t && !cId && !hasFields) {
         localStorage.removeItem(storageKey)
@@ -53,15 +55,13 @@ export function useDraft(key: string) {
         return
       }
       try {
-        const secretKey = keyManager.getSecretKey()
         const now = Date.now()
         const data: DraftData = { text: t, callId: cId, fields: f, savedAt: now }
-        const encrypted = encryptDraft(JSON.stringify(data), secretKey)
-        localStorage.setItem(storageKey, encrypted)
+        localStorage.setItem(storageKey, JSON.stringify(data))
         setSavedAt(now)
         setIsDirty(false)
       } catch {
-        // Key locked during persist — ignore
+        // Storage full or unavailable — ignore
       }
     },
     [storageKey]

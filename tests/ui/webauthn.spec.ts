@@ -284,12 +284,44 @@ test.describe('Passkey authentication', () => {
     await passkeyBtn.click()
     await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15_000 })
 
+    // Verify the facade client holds a JWT access token after passkey login
+    const accessToken = await page.evaluate(
+      () =>
+        (window as Record<string, unknown>).__TEST_AUTH_FACADE &&
+        (
+          (window as Record<string, unknown>).__TEST_AUTH_FACADE as {
+            getAccessToken(): string | null
+          }
+        ).getAccessToken()
+    )
+    expect(accessToken, 'JWT access token must be held by facade after passkey login').toBeTruthy()
+    // Verify it is a JWT: 3 dot-separated base64url segments
+    const jwtParts = (accessToken ?? '').split('.')
+    expect(jwtParts, 'access_token must be a JWT (3 segments)').toHaveLength(3)
+
     // Verify API calls work (check health endpoint)
-    const response = await page.evaluate(async () => {
+    const healthStatus = await page.evaluate(async () => {
       const res = await fetch('/api/health/ready')
       return res.status
     })
-    expect(response, 'API should be reachable after passkey login').toBe(200)
+    expect(healthStatus, 'API should be reachable after passkey login').toBe(200)
+
+    // Verify authenticated call to /api/auth/userinfo returns nsecSecret
+    const userinfoResult = await page.evaluate(async (token: string) => {
+      const res = await fetch('/api/auth/userinfo', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      return { status: res.status, data: res.ok ? await res.json() : null }
+    }, accessToken as string)
+    expect(userinfoResult.status, '/api/auth/userinfo must return 200').toBe(200)
+
+    const userinfo = userinfoResult.data as { pubkey?: string; nsecSecret?: string } | null
+    expect(userinfo, 'userinfo response must not be null').not.toBeNull()
+    expect(userinfo?.nsecSecret, 'nsecSecret must be present in userinfo').toBeTruthy()
+    // nsecSecret from Authentik must be a 64-character lowercase hex string
+    expect(userinfo?.nsecSecret, 'nsecSecret must be a 64-char hex string').toMatch(
+      /^[0-9a-f]{64}$/
+    )
 
     await teardownVirtualAuthenticator(auth.cdp, auth.authenticatorId)
   })

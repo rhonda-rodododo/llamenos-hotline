@@ -15,15 +15,12 @@ import {
   LABEL_TRANSCRIPTION,
 } from '@shared/crypto-labels'
 import type { NotePayload } from '@shared/types'
+import type { KeyEnvelope } from './crypto'
 import {
-  createAuthToken,
-  decryptCallRecord,
   decryptDraft,
-  decryptMessage,
   decryptNote,
-  decryptNoteV2,
-  decryptTranscription,
-  eciesUnwrapKey,
+  decryptNoteV2WithKey,
+  eciesUnwrapKeyWithSecret,
   eciesWrapKey,
   encryptDraft,
   encryptExport,
@@ -105,7 +102,7 @@ describe('keyPairFromNsec / isValidNsec', () => {
   })
 })
 
-describe('eciesWrapKey / eciesUnwrapKey', () => {
+describe('eciesWrapKey / eciesUnwrapKeyWithSecret', () => {
   const TEST_LABEL = 'test:ecies-wrap'
   const OTHER_LABEL = 'test:ecies-other'
 
@@ -120,7 +117,7 @@ describe('eciesWrapKey / eciesUnwrapKey', () => {
     const symmetricKey = randomKey()
 
     const envelope = eciesWrapKey(symmetricKey, kp.publicKey, TEST_LABEL)
-    const unwrapped = eciesUnwrapKey(envelope, kp.secretKey, TEST_LABEL)
+    const unwrapped = eciesUnwrapKeyWithSecret(envelope, kp.secretKey, TEST_LABEL)
 
     expect(bytesToHex(unwrapped)).toBe(bytesToHex(symmetricKey))
   })
@@ -132,7 +129,7 @@ describe('eciesWrapKey / eciesUnwrapKey', () => {
 
     const envelope = eciesWrapKey(symmetricKey, recipient.publicKey, TEST_LABEL)
 
-    expect(() => eciesUnwrapKey(envelope, attacker.secretKey, TEST_LABEL)).toThrow()
+    expect(() => eciesUnwrapKeyWithSecret(envelope, attacker.secretKey, TEST_LABEL)).toThrow()
   })
 
   test('nonce uniqueness: two wraps of same key produce different wrappedKey', () => {
@@ -152,7 +149,7 @@ describe('eciesWrapKey / eciesUnwrapKey', () => {
 
     const envelope = eciesWrapKey(symmetricKey, kp.publicKey, TEST_LABEL)
 
-    expect(() => eciesUnwrapKey(envelope, kp.secretKey, OTHER_LABEL)).toThrow()
+    expect(() => eciesUnwrapKeyWithSecret(envelope, kp.secretKey, OTHER_LABEL)).toThrow()
   })
 
   test('ephemeral pubkey is 66 hex chars (33 bytes compressed)', () => {
@@ -167,78 +164,9 @@ describe('eciesWrapKey / eciesUnwrapKey', () => {
   })
 })
 
-describe('createAuthToken', () => {
-  test('returns valid JSON with pubkey, timestamp, token fields', () => {
-    const kp = generateKeyPair()
-    const timestamp = Date.now()
-    const tokenJson = createAuthToken(kp.secretKey, timestamp, 'GET', '/api/test')
+// ── A1: encryptNoteV2 / decryptNoteV2WithKey ──
 
-    const parsed = JSON.parse(tokenJson)
-    expect(typeof parsed.pubkey).toBe('string')
-    expect(typeof parsed.timestamp).toBe('number')
-    expect(typeof parsed.token).toBe('string')
-  })
-
-  test('pubkey in output matches input key publicKey', () => {
-    const kp = generateKeyPair()
-    const timestamp = Date.now()
-    const tokenJson = createAuthToken(kp.secretKey, timestamp, 'POST', '/api/notes')
-
-    const parsed = JSON.parse(tokenJson)
-    expect(parsed.pubkey).toBe(kp.publicKey)
-  })
-
-  test('timestamp in output matches the provided timestamp', () => {
-    const kp = generateKeyPair()
-    const timestamp = Date.now()
-    const tokenJson = createAuthToken(kp.secretKey, timestamp, 'GET', '/api/calls')
-
-    const parsed = JSON.parse(tokenJson)
-    expect(parsed.timestamp).toBe(timestamp)
-  })
-
-  test('cross-validate: server verifyAuthToken accepts the token', async () => {
-    const { verifyAuthToken } = await import('../../server/lib/auth')
-
-    const kp = generateKeyPair()
-    const method = 'GET'
-    const path = '/api/volunteers'
-    const timestamp = Date.now()
-    const tokenJson = createAuthToken(kp.secretKey, timestamp, method, path)
-
-    const auth = JSON.parse(tokenJson)
-    const isValid = await verifyAuthToken(auth, method, path)
-    expect(isValid).toBe(true)
-  })
-
-  test('cross-validate: server rejects token with wrong method', async () => {
-    const { verifyAuthToken } = await import('../../server/lib/auth')
-
-    const kp = generateKeyPair()
-    const timestamp = Date.now()
-    const tokenJson = createAuthToken(kp.secretKey, timestamp, 'GET', '/api/volunteers')
-
-    const auth = JSON.parse(tokenJson)
-    const isValid = await verifyAuthToken(auth, 'POST', '/api/volunteers')
-    expect(isValid).toBe(false)
-  })
-
-  test('cross-validate: server rejects token with wrong path', async () => {
-    const { verifyAuthToken } = await import('../../server/lib/auth')
-
-    const kp = generateKeyPair()
-    const timestamp = Date.now()
-    const tokenJson = createAuthToken(kp.secretKey, timestamp, 'GET', '/api/volunteers')
-
-    const auth = JSON.parse(tokenJson)
-    const isValid = await verifyAuthToken(auth, 'GET', '/api/notes')
-    expect(isValid).toBe(false)
-  })
-})
-
-// ── A1: encryptNoteV2 / decryptNoteV2 ──
-
-describe('encryptNoteV2 / decryptNoteV2', () => {
+describe('encryptNoteV2 / decryptNoteV2WithKey', () => {
   const samplePayload: NotePayload = {
     text: 'Caller reported unsafe conditions at home.',
     fields: { urgency: 'high', followUp: true },
@@ -249,7 +177,7 @@ describe('encryptNoteV2 / decryptNoteV2', () => {
     const admin = generateKeyPair()
 
     const encrypted = encryptNoteV2(samplePayload, author.publicKey, [admin.publicKey])
-    const decrypted = decryptNoteV2(
+    const decrypted = decryptNoteV2WithKey(
       encrypted.encryptedContent,
       encrypted.authorEnvelope,
       author.secretKey
@@ -273,8 +201,8 @@ describe('encryptNoteV2 / decryptNoteV2', () => {
     const env1 = encrypted.adminEnvelopes.find((e) => e.pubkey === admin1.publicKey)!
     const env2 = encrypted.adminEnvelopes.find((e) => e.pubkey === admin2.publicKey)!
 
-    const dec1 = decryptNoteV2(encrypted.encryptedContent, env1, admin1.secretKey)
-    const dec2 = decryptNoteV2(encrypted.encryptedContent, env2, admin2.secretKey)
+    const dec1 = decryptNoteV2WithKey(encrypted.encryptedContent, env1, admin1.secretKey)
+    const dec2 = decryptNoteV2WithKey(encrypted.encryptedContent, env2, admin2.secretKey)
 
     expect(dec1).toEqual(samplePayload)
     expect(dec2).toEqual(samplePayload)
@@ -285,7 +213,7 @@ describe('encryptNoteV2 / decryptNoteV2', () => {
     const attacker = generateKeyPair()
 
     const encrypted = encryptNoteV2(samplePayload, author.publicKey, [])
-    const result = decryptNoteV2(
+    const result = decryptNoteV2WithKey(
       encrypted.encryptedContent,
       encrypted.authorEnvelope,
       attacker.secretKey
@@ -309,21 +237,47 @@ describe('encryptNoteV2 / decryptNoteV2', () => {
     const encrypted = encryptNoteV2(samplePayload, author.publicKey, [])
 
     expect(() =>
-      eciesUnwrapKey(encrypted.authorEnvelope, author.secretKey, LABEL_MESSAGE)
+      eciesUnwrapKeyWithSecret(encrypted.authorEnvelope, author.secretKey, LABEL_MESSAGE)
     ).toThrow()
   })
 })
 
 // ── A2: encryptMessage / decryptMessage ──
 
-describe('encryptMessage / decryptMessage', () => {
+describe('encryptMessage / decryptMessage (manual)', () => {
   const plaintext = 'Hola, necesito ayuda urgente.'
+
+  /** Manually decrypt a message using eciesUnwrapKeyWithSecret + symmetric decrypt */
+  function decryptMessageWithKey(
+    encryptedContent: string,
+    readerEnvelopes: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[],
+    secretKey: Uint8Array,
+    readerPubkey: string
+  ): string | null {
+    try {
+      const envelope = readerEnvelopes.find((e) => e.pubkey === readerPubkey)
+      if (!envelope) return null
+      const messageKey = eciesUnwrapKeyWithSecret(
+        envelope as unknown as KeyEnvelope,
+        secretKey,
+        LABEL_MESSAGE
+      )
+      const data = hexToBytes(encryptedContent)
+      const nonce = data.slice(0, 24)
+      const ciphertext = data.slice(24)
+      const cipher = xchacha20poly1305(messageKey, nonce)
+      const decrypted = cipher.decrypt(ciphertext)
+      return new TextDecoder().decode(decrypted)
+    } catch {
+      return null
+    }
+  }
 
   test('single-reader roundtrip', () => {
     const reader = generateKeyPair()
 
     const encrypted = encryptMessage(plaintext, [reader.publicKey])
-    const decrypted = decryptMessage(
+    const decrypted = decryptMessageWithKey(
       encrypted.encryptedContent,
       encrypted.readerEnvelopes,
       reader.secretKey,
@@ -341,7 +295,7 @@ describe('encryptMessage / decryptMessage', () => {
     const encrypted = encryptMessage(plaintext, [r1.publicKey, r2.publicKey, r3.publicKey])
 
     for (const r of [r1, r2, r3]) {
-      const dec = decryptMessage(
+      const dec = decryptMessageWithKey(
         encrypted.encryptedContent,
         encrypted.readerEnvelopes,
         r.secretKey,
@@ -356,7 +310,7 @@ describe('encryptMessage / decryptMessage', () => {
     const other = generateKeyPair()
 
     const encrypted = encryptMessage(plaintext, [reader.publicKey])
-    const result = decryptMessage(
+    const result = decryptMessageWithKey(
       encrypted.encryptedContent,
       encrypted.readerEnvelopes,
       other.secretKey,
@@ -371,7 +325,7 @@ describe('encryptMessage / decryptMessage', () => {
     const attacker = generateKeyPair()
 
     const encrypted = encryptMessage(plaintext, [reader.publicKey])
-    const result = decryptMessage(
+    const result = decryptMessageWithKey(
       encrypted.encryptedContent,
       encrypted.readerEnvelopes,
       attacker.secretKey,
@@ -408,11 +362,37 @@ describe('decryptCallRecord — cross-boundary interop', () => {
     return { encryptedContent: encrypted, adminEnvelopes: envelopes }
   }
 
+  /** Manually decrypt a call record using eciesUnwrapKeyWithSecret + symmetric decrypt */
+  function decryptCallRecordWithKey(
+    encryptedContent: string,
+    adminEnvelopes: { pubkey: string; wrappedKey: string; ephemeralPubkey: string }[],
+    secretKey: Uint8Array,
+    readerPubkey: string
+  ): { answeredBy: string | null; callerNumber: string } | null {
+    try {
+      const envelope = adminEnvelopes.find((e) => e.pubkey === readerPubkey)
+      if (!envelope) return null
+      const recordKey = eciesUnwrapKeyWithSecret(
+        envelope as unknown as KeyEnvelope,
+        secretKey,
+        LABEL_CALL_META
+      )
+      const data = hexToBytes(encryptedContent)
+      const nonce = data.slice(0, 24)
+      const ciphertext = data.slice(24)
+      const cipher = xchacha20poly1305(recordKey, nonce)
+      const plaintext = cipher.decrypt(ciphertext)
+      return JSON.parse(new TextDecoder().decode(plaintext))
+    } catch {
+      return null
+    }
+  }
+
   test('roundtrip: server envelopeEncrypt → client decryptCallRecord', () => {
     const admin = generateKeyPair()
 
     const encrypted = encryptCallRecord(callMeta, [admin.publicKey])
-    const decrypted = decryptCallRecord(
+    const decrypted = decryptCallRecordWithKey(
       encrypted.encryptedContent,
       encrypted.adminEnvelopes,
       admin.secretKey,
@@ -428,13 +408,13 @@ describe('decryptCallRecord — cross-boundary interop', () => {
 
     const encrypted = encryptCallRecord(callMeta, [admin1.publicKey, admin2.publicKey])
 
-    const dec1 = decryptCallRecord(
+    const dec1 = decryptCallRecordWithKey(
       encrypted.encryptedContent,
       encrypted.adminEnvelopes,
       admin1.secretKey,
       admin1.publicKey
     )
-    const dec2 = decryptCallRecord(
+    const dec2 = decryptCallRecordWithKey(
       encrypted.encryptedContent,
       encrypted.adminEnvelopes,
       admin2.secretKey,
@@ -450,7 +430,7 @@ describe('decryptCallRecord — cross-boundary interop', () => {
     const nonAdmin = generateKeyPair()
 
     const encrypted = encryptCallRecord(callMeta, [admin.publicKey])
-    const result = decryptCallRecord(
+    const result = decryptCallRecordWithKey(
       encrypted.encryptedContent,
       encrypted.adminEnvelopes,
       nonAdmin.secretKey,
@@ -463,7 +443,7 @@ describe('decryptCallRecord — cross-boundary interop', () => {
 
 // ── A4: decryptTranscription ──
 
-describe('decryptTranscription', () => {
+describe('decryptTranscription (manual)', () => {
   const transcriptionText = 'This is a test transcription of the call.'
 
   function encryptTranscriptionManually(plaintext: string, recipientPubkey: string) {
@@ -492,6 +472,34 @@ describe('decryptTranscription', () => {
     return { packedHex, ephemeralPubkeyHex }
   }
 
+  /** Manually decrypt a transcription using ECDH + domain-separated key + XChaCha20 */
+  function decryptTranscriptionWithKey(
+    packed: string,
+    ephemeralPubkeyHex: string,
+    secretKey: Uint8Array
+  ): string | null {
+    try {
+      const ephemeralPub = hexToBytes(ephemeralPubkeyHex)
+      const shared = secp256k1.getSharedSecret(secretKey, ephemeralPub)
+      const sharedX = shared.slice(1, 33)
+
+      const labelBytes = utf8ToBytes(LABEL_TRANSCRIPTION)
+      const keyInput = new Uint8Array(labelBytes.length + sharedX.length)
+      keyInput.set(labelBytes)
+      keyInput.set(sharedX, labelBytes.length)
+      const symmetricKey = sha256(keyInput)
+
+      const data = hexToBytes(packed)
+      const nonce = data.slice(0, 24)
+      const ciphertext = data.slice(24)
+      const cipher = xchacha20poly1305(symmetricKey, nonce)
+      const plaintext = cipher.decrypt(ciphertext)
+      return new TextDecoder().decode(plaintext)
+    } catch {
+      return null
+    }
+  }
+
   test('roundtrip: manually ECDH-encrypt → decryptTranscription recovers plaintext', () => {
     const recipient = generateKeyPair()
 
@@ -500,7 +508,7 @@ describe('decryptTranscription', () => {
       recipient.publicKey
     )
 
-    const result = decryptTranscription(packedHex, ephemeralPubkeyHex, recipient.secretKey)
+    const result = decryptTranscriptionWithKey(packedHex, ephemeralPubkeyHex, recipient.secretKey)
     expect(result).toBe(transcriptionText)
   })
 
@@ -513,7 +521,7 @@ describe('decryptTranscription', () => {
       recipient.publicKey
     )
 
-    const result = decryptTranscription(packedHex, ephemeralPubkeyHex, wrongKey.secretKey)
+    const result = decryptTranscriptionWithKey(packedHex, ephemeralPubkeyHex, wrongKey.secretKey)
     expect(result).toBeNull()
   })
 })

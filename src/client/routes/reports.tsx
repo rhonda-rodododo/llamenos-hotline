@@ -451,34 +451,29 @@ function ReportDetail({
   // Decrypt messages using envelope pattern
   useEffect(() => {
     if (messages.length === 0 || !publicKey) return
+    if (!hasNsec) return
 
-    let secretKey: Uint8Array | null = null
-    if (hasNsec) {
-      try {
-        secretKey = keyManager.getSecretKey()
-      } catch {
-        /* locked */
-      }
-    }
-    if (!secretKey) return
+    void (async () => {
+      const unlocked = await keyManager.isUnlocked()
+      if (!unlocked) return
 
-    const decrypted = new Map<string, string>()
+      const decrypted = new Map<string, string>()
 
-    for (const msg of messages) {
-      if (msg.encryptedContent && msg.readerEnvelopes?.length) {
-        const plaintext = decryptMessage(
-          msg.encryptedContent,
-          msg.readerEnvelopes,
-          secretKey,
-          publicKey
-        )
-        if (plaintext !== null) {
-          decrypted.set(msg.id, plaintext)
+      for (const msg of messages) {
+        if (msg.encryptedContent && msg.readerEnvelopes?.length) {
+          const plaintext = await decryptMessage(
+            msg.encryptedContent,
+            msg.readerEnvelopes,
+            publicKey
+          )
+          if (plaintext !== null) {
+            decrypted.set(msg.id, plaintext)
+          }
         }
       }
-    }
 
-    setDecryptedContent(decrypted)
+      setDecryptedContent(decrypted)
+    })()
   }, [messages, hasNsec, publicKey])
 
   const isReporter = hasPermission('reports:create') && !hasPermission('calls:answer')

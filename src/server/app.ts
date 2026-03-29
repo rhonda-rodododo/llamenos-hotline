@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { createMiddleware } from 'hono/factory'
+import type { IdPAdapter } from './idp/adapter'
 import messagingRoutes from './messaging/router'
 import { auth } from './middleware/auth'
 import { cors } from './middleware/cors'
@@ -10,6 +11,7 @@ import { securityHeaders } from './middleware/security-headers'
 import analyticsRoutes from './routes/analytics'
 import auditRoutes from './routes/audit'
 import authRoutes from './routes/auth'
+import authFacadeRoutes from './routes/auth-facade'
 import bansRoutes from './routes/bans'
 import blastsRoutes from './routes/blasts'
 import callsRoutes from './routes/calls'
@@ -37,9 +39,19 @@ import shiftsRoutes from './routes/shifts'
 import telephonyRoutes from './routes/telephony'
 import uploadsRoutes from './routes/uploads'
 import volunteersRoutes from './routes/volunteers'
-import webauthnRoutes from './routes/webauthn'
 import webrtcRoutes from './routes/webrtc'
 import type { AppEnv } from './types'
+
+// Lazy-initialized IdP adapter (set up in server.ts via setIdPAdapter)
+let _idpAdapter: IdPAdapter | null = null
+
+export function setIdPAdapter(adapter: IdPAdapter): void {
+  _idpAdapter = adapter
+}
+
+export function getIdPAdapter(): IdPAdapter | null {
+  return _idpAdapter
+}
 
 const app = new Hono<AppEnv>()
 
@@ -58,7 +70,35 @@ api.use('*', cors)
 api.route('/config', configRoutes)
 api.route('/', devRoutes)
 api.route('/auth', authRoutes)
-api.route('/webauthn', webauthnRoutes)
+
+// Auth facade — bridge AppEnv services to AuthFacadeEnv variables
+const authFacadeBridge = new Hono<AppEnv>()
+authFacadeBridge.use('*', async (c, next) => {
+  const services = c.get('services')
+  if (!_idpAdapter) {
+    return c.json({ error: 'IdP service not initialized' }, 503)
+  }
+  // biome-ignore lint/suspicious/noExplicitAny: bridging between two Hono env types
+  const ctx = c as any
+  ctx.set('identity', services.identity)
+  ctx.set('idpAdapter', _idpAdapter)
+  ctx.set('settings', services.settings)
+  // Bridge env bindings that AuthFacadeEnv expects
+  c.env.JWT_SECRET = c.env.JWT_SECRET ?? process.env.JWT_SECRET ?? ''
+  c.env.AUTH_WEBAUTHN_RP_ID =
+    c.env.AUTH_WEBAUTHN_RP_ID ?? process.env.AUTH_WEBAUTHN_RP_ID ?? new URL(c.req.url).hostname
+  c.env.AUTH_WEBAUTHN_RP_NAME =
+    c.env.AUTH_WEBAUTHN_RP_NAME ??
+    process.env.AUTH_WEBAUTHN_RP_NAME ??
+    c.env.HOTLINE_NAME ??
+    'Hotline'
+  c.env.AUTH_WEBAUTHN_ORIGIN =
+    c.env.AUTH_WEBAUTHN_ORIGIN ?? process.env.AUTH_WEBAUTHN_ORIGIN ?? new URL(c.req.url).origin
+  await next()
+})
+authFacadeBridge.route('/', authFacadeRoutes)
+api.route('/auth', authFacadeBridge)
+
 api.route('/invites', invitesRoutes)
 
 // Device provisioning (mixed auth — room creation is public, payload submission is authenticated)

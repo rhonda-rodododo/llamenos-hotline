@@ -1,4 +1,5 @@
 import { useAuth } from '@/lib/auth'
+import { keyPairFromNsec } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useNavigate } from '@tanstack/react-router'
 import { FileText, Info, LogIn, Shield, UserCog, Users } from 'lucide-react'
@@ -47,7 +48,16 @@ export function DemoAccountPicker() {
     setLoadingPubkey(pubkey)
     try {
       // Import key with demo PIN so it persists in local storage
-      await keyManager.importKey(nsec, DEMO_PIN)
+      // Demo mode uses a synthetic IdP value; auto-rotation to real IdP on first unlock
+      const { syntheticIdpValue } = await import('@/lib/key-store-v2')
+      await keyManager.importKey(
+        nsec,
+        DEMO_PIN,
+        pubkey,
+        syntheticIdpValue('device-link'),
+        undefined,
+        'device-link'
+      )
       // Disable auto-lock in demo mode — frequent tab switches shouldn't force re-login
       keyManager.disableAutoLock()
       await signIn(nsec)

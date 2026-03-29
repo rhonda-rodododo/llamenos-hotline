@@ -1,9 +1,9 @@
-import Twilio from 'twilio'
-import { expect, type Page, type APIRequestContext } from '@playwright/test'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { utf8ToBytes } from '@noble/ciphers/utils.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
+import { type APIRequestContext, type Page, expect } from '@playwright/test'
 import { getPublicKey, nip19 } from 'nostr-tools'
+import Twilio from 'twilio'
 
 // Re-export helpers that don't depend on ADMIN_NSEC
 export { enterPin } from '../helpers'
@@ -43,11 +43,13 @@ async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promi
   const pinBytes = encoder.encode(pin)
   const salt = crypto.getRandomValues(new Uint8Array(16))
 
-  const keyMaterial = await crypto.subtle.importKey('raw', pinBytes, 'PBKDF2', false, ['deriveBits'])
+  const keyMaterial = await crypto.subtle.importKey('raw', pinBytes, 'PBKDF2', false, [
+    'deriveBits',
+  ])
   const derivedBits = await crypto.subtle.deriveBits(
     { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 600_000 },
     keyMaterial,
-    256,
+    256
   )
   const kek = new Uint8Array(derivedBits)
 
@@ -70,10 +72,10 @@ async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promi
     pubkey: pubkeyHash,
   }
 
-  await page.evaluate(
-    ({ key, value }) => localStorage.setItem(key, value),
-    { key: 'llamenos-encrypted-key', value: JSON.stringify(data) },
-  )
+  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), {
+    key: 'llamenos-encrypted-key-v2',
+    value: JSON.stringify(data),
+  })
 }
 
 /**
@@ -92,7 +94,9 @@ export async function loginAsAdmin(page: Page) {
   await firstDigit.click()
   await page.keyboard.type(STAGING_PIN, { delay: 50 })
 
-  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({ timeout: 15000 })
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible({
+    timeout: 15000,
+  })
 }
 
 interface CallHotlineOptions {
@@ -118,10 +122,12 @@ export async function callHotline(options: CallHotlineOptions = {}) {
     url: `${config.baseURL}/api/telephony/incoming`,
     timeout: options.timeout ?? 60,
     ...(options.sendDigits ? { sendDigits: options.sendDigits } : {}),
-    ...(options.statusCallback ? {
-      statusCallback: options.statusCallback,
-      statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
-    } : {}),
+    ...(options.statusCallback
+      ? {
+          statusCallback: options.statusCallback,
+          statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+        }
+      : {}),
   })
 
   return {
@@ -149,7 +155,15 @@ export async function sendSMS(body: string) {
   }
 }
 
-type CallStatus = 'queued' | 'ringing' | 'in-progress' | 'completed' | 'busy' | 'failed' | 'no-answer' | 'canceled'
+type CallStatus =
+  | 'queued'
+  | 'ringing'
+  | 'in-progress'
+  | 'completed'
+  | 'busy'
+  | 'failed'
+  | 'no-answer'
+  | 'canceled'
 
 /**
  * Poll Twilio API until a call reaches the expected status.
@@ -157,7 +171,7 @@ type CallStatus = 'queued' | 'ringing' | 'in-progress' | 'completed' | 'busy' | 
 export async function waitForCallStatus(
   sid: string,
   targetStatus: CallStatus | CallStatus[],
-  timeoutMs = 60_000,
+  timeoutMs = 60_000
 ): Promise<string> {
   const client = createTwilioClient()
   const targets = Array.isArray(targetStatus) ? targetStatus : [targetStatus]
@@ -169,18 +183,24 @@ export async function waitForCallStatus(
     if (targets.includes(call.status as CallStatus)) {
       return call.status
     }
-    if (['completed', 'failed', 'busy', 'no-answer', 'canceled'].includes(call.status) &&
-        !targets.some(t => ['completed', 'failed', 'busy', 'no-answer', 'canceled'].includes(t))) {
-      throw new Error(`Call ${sid} reached terminal status '${call.status}' while waiting for ${targets.join('|')}`)
+    if (
+      ['completed', 'failed', 'busy', 'no-answer', 'canceled'].includes(call.status) &&
+      !targets.some((t) => ['completed', 'failed', 'busy', 'no-answer', 'canceled'].includes(t))
+    ) {
+      throw new Error(
+        `Call ${sid} reached terminal status '${call.status}' while waiting for ${targets.join('|')}`
+      )
     }
-    await new Promise(r => setTimeout(r, pollInterval))
+    await new Promise((r) => setTimeout(r, pollInterval))
   }
 
   const call = await client.calls(sid).fetch()
   if (targets.includes(call.status as CallStatus)) {
     return call.status
   }
-  throw new Error(`Timed out waiting for call ${sid} to reach status ${targets.join('|')} (current: ${call.status})`)
+  throw new Error(
+    `Timed out waiting for call ${sid} to reach status ${targets.join('|')} (current: ${call.status})`
+  )
 }
 
 /**
@@ -210,5 +230,5 @@ export async function resetStaging(request: APIRequestContext) {
  * Wait a fixed number of milliseconds.
  */
 export function sleep(ms: number) {
-  return new Promise(r => setTimeout(r, ms))
+  return new Promise((r) => setTimeout(r, ms))
 }

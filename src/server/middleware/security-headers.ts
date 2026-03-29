@@ -14,6 +14,11 @@ export const securityHeaders = createMiddleware<AppEnv>(async (c, next) => {
   )
   c.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
   c.header('Cross-Origin-Opener-Policy', 'same-origin')
+  // COEP require-corp enables full cross-origin isolation (SharedArrayBuffer, Spectre mitigation).
+  // NOTE: This will block Google Fonts (fonts.googleapis.com / fonts.gstatic.com) which lack
+  // CORP headers. Self-host fonts before enabling this in production, or remove the Google Fonts
+  // <link> tags from index.html and serve fonts locally.
+  c.header('Cross-Origin-Embedder-Policy', 'require-corp')
   c.header('Cross-Origin-Resource-Policy', 'same-origin')
   c.header('X-Permitted-Cross-Domain-Policies', 'none')
   // style-src 'unsafe-inline' is required by Tailwind CSS which injects runtime styles.

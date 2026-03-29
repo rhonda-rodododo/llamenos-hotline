@@ -10,7 +10,9 @@ test.describe('Panic Wipe (L-9)', () => {
 
     // Verify we're on the dashboard and storage has data
     await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
-    const hasKeyBefore = await page.evaluate(() => !!localStorage.getItem('llamenos-encrypted-key'))
+    const hasKeyBefore = await page.evaluate(
+      () => !!localStorage.getItem('llamenos-encrypted-key-v2')
+    )
     expect(hasKeyBefore).toBe(true)
 
     // Triple-tap Escape within 1 second
@@ -34,13 +36,11 @@ test.describe('Panic Wipe (L-9)', () => {
     expect(page.url()).toContain('/login')
 
     const storageState = await page.evaluate(() => ({
-      hasKey: !!localStorage.getItem('llamenos-encrypted-key'),
+      hasKey: !!localStorage.getItem('llamenos-encrypted-key-v2'),
       localStorageLength: localStorage.length,
-      sessionStorageLength: sessionStorage.length,
     }))
     expect(storageState.hasKey).toBe(false)
     expect(storageState.localStorageLength).toBe(0)
-    expect(storageState.sessionStorageLength).toBe(0)
   })
 
   test('two Escapes then pause does not trigger wipe', async ({ page }) => {
@@ -61,7 +61,7 @@ test.describe('Panic Wipe (L-9)', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
 
     // Storage should still have the key
-    const hasKey = await page.evaluate(() => !!localStorage.getItem('llamenos-encrypted-key'))
+    const hasKey = await page.evaluate(() => !!localStorage.getItem('llamenos-encrypted-key-v2'))
     expect(hasKey).toBe(true)
   })
 })

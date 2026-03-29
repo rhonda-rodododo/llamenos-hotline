@@ -34,16 +34,12 @@ declare global {
 function injectAuthedFetch(page: import('@playwright/test').Page) {
   return page.evaluate(() => {
     window.__authedFetch = async (url: string, options: RequestInit = {}) => {
-      // biome-ignore lint/suspicious/noExplicitAny: test-only window property
-      const km = (window as any).__TEST_KEY_MANAGER
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...((options.headers as Record<string, string>) || {}),
       }
-      if (km?.isUnlocked()) {
-        const reqMethod = (options.method || 'GET').toUpperCase()
-        const reqPath = new URL(url, location.origin).pathname
-        const token = km.createAuthToken(Date.now(), reqMethod, reqPath)
+      const token = sessionStorage.getItem('__TEST_JWT')
+      if (token) {
         headers.Authorization = `Bearer ${token}`
       }
       return fetch(url, { ...options, headers })

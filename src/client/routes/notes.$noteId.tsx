@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { type CustomFieldDefinition, type EncryptedNote, getCustomFields, getNote } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { decryptNote, decryptNoteV2, decryptTranscription } from '@/lib/crypto'
+import { decryptNoteV2, decryptTranscription } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useToast } from '@/lib/toast'
 import type { NotePayload } from '@shared/types'
@@ -37,33 +37,33 @@ function NoteDetailPage() {
   useEffect(() => {
     setLoading(true)
     Promise.all([getNote(noteId), getCustomFields().catch(() => ({ fields: [] }))])
-      .then(([res, cfRes]) => {
+      .then(async ([res, cfRes]) => {
         setCustomFields(cfRes.fields)
 
         const rawNote = res.note
         const isTranscription = rawNote.authorPubkey.startsWith('system:transcription')
-        const sk = keyManager.isUnlocked() ? keyManager.getSecretKey() : null
+        const unlocked = await keyManager.isUnlocked()
         const myPubkey = publicKey ?? ''
         let payload: NotePayload
 
-        if (isTranscription && rawNote.ephemeralPubkey && hasNsec && sk) {
+        if (isTranscription && rawNote.ephemeralPubkey && hasNsec && unlocked) {
           const text =
-            decryptTranscription(rawNote.encryptedContent, rawNote.ephemeralPubkey, sk) ||
+            (await decryptTranscription(rawNote.encryptedContent, rawNote.ephemeralPubkey)) ||
             '[Decryption failed]'
           payload = { text }
         } else if (isTranscription && !rawNote.ephemeralPubkey) {
           payload = { text: rawNote.encryptedContent }
-        } else if (hasNsec && sk) {
+        } else if (hasNsec && unlocked) {
           const envelope = isAdmin
             ? (rawNote.adminEnvelopes?.find((e) => e.pubkey === myPubkey) ??
               rawNote.adminEnvelopes?.[0])
             : rawNote.authorEnvelope
           if (envelope) {
-            payload = decryptNoteV2(rawNote.encryptedContent, envelope, sk) || {
+            payload = (await decryptNoteV2(rawNote.encryptedContent, envelope)) || {
               text: '[Decryption failed]',
             }
           } else {
-            payload = decryptNote(rawNote.encryptedContent, sk) || { text: '[Decryption failed]' }
+            payload = { text: '[Decryption failed]' }
           }
         } else {
           payload = { text: '[No key]' }

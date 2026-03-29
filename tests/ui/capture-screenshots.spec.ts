@@ -79,7 +79,7 @@ async function preloadEncryptedKey(page: Page, nsec: string, pin: string): Promi
   }
 
   await page.evaluate(({ key, value }) => localStorage.setItem(key, value), {
-    key: 'llamenos-encrypted-key',
+    key: 'llamenos-encrypted-key-v2',
     value: JSON.stringify(data),
   })
 }
@@ -293,7 +293,7 @@ test.describe('Screenshot Capture', () => {
     // Clear session to show login
     await page.evaluate(() => {
       sessionStorage.clear()
-      localStorage.removeItem('llamenos-encrypted-key')
+      localStorage.removeItem('llamenos-encrypted-key-v2')
     })
     await page.goto('/login')
     await page.waitForTimeout(500)

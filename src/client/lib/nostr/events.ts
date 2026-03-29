@@ -2,8 +2,8 @@
  * Nostr event creation, validation, and deduplication.
  */
 
-import type { EventTemplate, Event as NostrEvent, VerifiedEvent } from 'nostr-tools/core'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import type { Event as NostrEvent } from 'nostr-tools/core'
+import { getEventHash, verifyEvent } from 'nostr-tools/pure'
 import type { LlamenosEvent } from './types'
 
 /** Max age for event deduplication (5 minutes) */
@@ -60,23 +60,29 @@ export class EventDeduplicator {
 /**
  * Create a signed Nostr event for a hub.
  * Content is the raw encrypted string (caller handles encryption).
+ *
+ * Signs via the crypto worker — never touches the raw secret key.
  */
-export function createHubEvent(
+export async function createHubEvent(
   hubId: string,
   kind: number,
   encryptedContent: string,
-  secretKey: Uint8Array
-): VerifiedEvent {
-  const template: EventTemplate = {
+  pubkey: string,
+  signEvent: (messageHex: string) => Promise<string>
+): Promise<NostrEvent> {
+  const template = {
     kind,
     created_at: Math.floor(Date.now() / 1000),
     tags: [
       ['d', hubId],
       ['t', 'llamenos:event'],
-    ],
+    ] as string[][],
     content: encryptedContent,
+    pubkey,
   }
-  return finalizeEvent(template, secretKey)
+  const id = getEventHash(template)
+  const sig = await signEvent(id)
+  return { ...template, id, sig }
 }
 
 /**

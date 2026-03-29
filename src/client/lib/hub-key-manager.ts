@@ -60,10 +60,11 @@ export function wrapHubKeyForMembers(
 }
 
 /**
- * Unwrap a hub key from an ECIES envelope using the member's secret key.
+ * Unwrap a hub key from an ECIES envelope.
+ * Secret key operations are delegated to the crypto worker.
  */
-export function unwrapHubKey(envelope: KeyEnvelope, secretKey: Uint8Array): Uint8Array {
-  return eciesUnwrapKey(envelope, secretKey, LABEL_HUB_KEY_WRAP)
+export async function unwrapHubKey(envelope: KeyEnvelope): Promise<Uint8Array> {
+  return eciesUnwrapKey(envelope, LABEL_HUB_KEY_WRAP)
 }
 
 /**
