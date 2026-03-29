@@ -174,22 +174,33 @@ export const queryKeys = {
 }
 ```
 
-### Hook Pattern
+### Hook Pattern — `queryOptions()` Helper
 
-Each resource hook follows the same shape:
+Each resource uses the `queryOptions()` helper from React Query v5 for type-safe, reusable query configurations. The options object can be shared across `useQuery`, `queryClient.prefetchQuery`, `queryClient.setQueryData`, and `useQueries` with full type inference:
 
 ```ts
-export function useVolunteers(filters?: VolunteerFilters) {
-  const { pubkey } = useAuth()
-  return useQuery({
-    queryKey: queryKeys.volunteers.list(filters),
+import { queryOptions, useQuery } from '@tanstack/react-query'
+
+export const volunteersListOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.volunteers.list(),
     queryFn: async () => {
-      const data = await api.listVolunteers(filters)
-      await decryptArrayFields(data, pubkey, LABEL_VOLUNTEER_PII)
-      return data
+      const { volunteers } = await listVolunteers()
+      const pubkey = await keyManager.getPublicKeyHex()
+      if (pubkey && (await keyManager.isUnlocked())) {
+        await decryptArrayFields(volunteers as Record<string, unknown>[], pubkey, LABEL_VOLUNTEER_PII)
+      }
+      return volunteers
     },
   })
+
+export function useVolunteers() {
+  return useQuery(volunteersListOptions())
 }
+
+// Reusable with full type safety:
+// queryClient.prefetchQuery(volunteersListOptions())
+// queryClient.setQueryData(volunteersListOptions().queryKey, newData)
 ```
 
 ### Mutation Pattern
