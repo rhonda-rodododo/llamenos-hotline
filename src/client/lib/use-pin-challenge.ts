@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react'
+import { authFacadeClient } from './auth-facade-client'
 import * as keyManager from './key-manager'
 
 const MAX_ATTEMPTS = 3
@@ -66,10 +67,12 @@ export function usePinChallenge(): PinChallengeReturn {
         // Wrong PIN — check attempts outside setState to allow async wipe
         const currentAttempts = state.attempts + 1
         if (currentAttempts >= MAX_ATTEMPTS) {
-          // Max attempts exceeded — wipe key, then close dialog
+          // Max attempts exceeded — wipe key + clear session, then close dialog.
           // await ensures key is fully wiped and onLock callbacks fire
-          // before we resolve, so auth state updates before dialog closes
+          // before we resolve, so auth state updates before dialog closes.
+          // clearAccessToken ensures isAuthenticated becomes false immediately.
           await keyManager.wipeKey()
+          authFacadeClient.clearAccessToken()
           setState({ isOpen: false, attempts: 0, error: false })
           resolveRef.current?.(false)
           resolveRef.current = null
