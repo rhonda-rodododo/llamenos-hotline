@@ -9,17 +9,20 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { type ContactRecord, listContacts } from '@/lib/api'
-import { useDecryptedArray } from '@/lib/use-decrypted'
+import { useContacts } from '@/lib/queries/contacts'
 import { cn } from '@/lib/utils'
-import { LABEL_CONTACT_SUMMARY } from '@shared/crypto-labels'
 import { CONTACT_TYPE_LABELS, type ContactType } from '@shared/types'
 import { Check, ChevronsUpDown, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 /** ContactRecord with decrypted displayName field populated by decrypt-on-fetch. */
-type DecryptedContactRecord = ContactRecord & { displayName?: string }
+type DecryptedContactRecord = {
+  id: string
+  contactType: string
+  displayName?: string
+  [key: string]: unknown
+}
 
 interface ContactSelectProps {
   value: string | string[] | undefined
@@ -31,16 +34,10 @@ interface ContactSelectProps {
 export function ContactSelect({ value, onChange, multiple, disabled }: ContactSelectProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
-  const [rawContacts, setRawContacts] = useState<ContactRecord[]>([])
 
-  useEffect(() => {
-    listContacts()
-      .then(({ contacts: c }) => setRawContacts(c))
-      .catch(() => {})
-  }, [])
-
-  // Decrypt-on-fetch: decrypts encryptedDisplayName -> displayName
-  const contacts = useDecryptedArray(rawContacts, LABEL_CONTACT_SUMMARY) as DecryptedContactRecord[]
+  // useContacts returns already-decrypted contacts (displayName populated)
+  const { data: rawContacts = [] } = useContacts()
+  const contacts = rawContacts as unknown as DecryptedContactRecord[]
 
   function getDisplayName(contact: DecryptedContactRecord): string {
     return contact.displayName ?? contact.id.slice(0, 8)

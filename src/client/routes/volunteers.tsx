@@ -14,22 +14,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  type InviteCode,
-  type InviteDeliveryChannel,
-  type RoleDefinition,
-  type Volunteer,
-  createInvite,
-  getAvailableInviteChannels,
-  getVolunteerUnmasked,
-  listInvites,
-  listRoles,
-  revokeInvite,
-  sendInvite,
-  type updateVolunteer,
-} from '@/lib/api'
+import { type InviteDeliveryChannel, getVolunteerUnmasked, type updateVolunteer } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { generateKeyPair } from '@/lib/crypto'
+import {
+  useCreateInvite,
+  useInviteChannels,
+  useInvites,
+  useRevokeInvite,
+  useSendInvite,
+} from '@/lib/queries/invites'
+import { useRoles } from '@/lib/queries/roles'
 import {
   useCreateVolunteer,
   useDeleteVolunteer,
@@ -37,7 +32,6 @@ import {
   useVolunteers,
 } from '@/lib/queries/volunteers'
 import { useToast } from '@/lib/toast'
-import { useDecryptedArray } from '@/lib/use-decrypted'
 import { usePinChallenge } from '@/lib/use-pin-challenge'
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -56,7 +50,7 @@ import {
   UserPlus,
   X,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/volunteers')({
@@ -92,15 +86,11 @@ function VolunteersPage() {
   const updateVolunteerMutation = useUpdateVolunteer()
   const deleteVolunteerMutation = useDeleteVolunteer()
 
-  // --- Local state: invites / roles / channels (hooks in Task 4) ---
-  const [invites, setInvites] = useState<InviteCode[]>([])
-  const [roles, setRoles] = useState<RoleDefinition[]>([])
-  const [invitesLoading, setInvitesLoading] = useState(true)
-  const [availableChannels, setAvailableChannels] = useState<{
-    signal: boolean
-    whatsapp: boolean
-    sms: boolean
-  } | null>(null)
+  // --- React Query: invites, roles, channels ---
+  const { data: invites = [], isLoading: invitesLoading } = useInvites()
+  const { data: roles = [] } = useRoles()
+  const { data: availableChannels } = useInviteChannels()
+  const revokeInviteMutation = useRevokeInvite()
 
   // --- UI-only state ---
   const [showAddForm, setShowAddForm] = useState(false)
@@ -108,29 +98,6 @@ function VolunteersPage() {
   const [generatedNsec, setGeneratedNsec] = useState<string | null>(null)
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [sendInviteForCode, setSendInviteForCode] = useState<string | null>(null)
-
-  useEffect(() => {
-    void loadInvitesAndRoles()
-  }, [])
-
-  async function loadInvitesAndRoles() {
-    try {
-      const [invRes, rolesRes, channelsRes] = await Promise.all([
-        listInvites(),
-        listRoles(),
-        getAvailableInviteChannels().catch(() => ({ signal: false, whatsapp: false, sms: false })),
-      ])
-      setInvites(invRes.invites)
-      setRoles(rolesRes.roles)
-      setAvailableChannels(channelsRes)
-    } catch {
-      toast(t('common.error'), 'error')
-    } finally {
-      setInvitesLoading(false)
-    }
-  }
-
-  const decryptedInvites = useDecryptedArray(invites)
 
   const loading = volunteersLoading || invitesLoading
 
@@ -268,7 +235,6 @@ function VolunteersPage() {
         <InviteForm
           roles={roles}
           onCreated={(invite) => {
-            setInvites((prev) => [...prev, invite])
             setInviteLink(`${window.location.origin}/onboarding?code=${invite.code}`)
             setSendInviteForCode(invite.code)
             setShowInviteForm(false)
@@ -301,7 +267,7 @@ function VolunteersPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border">
-              {decryptedInvites.map((invite) => (
+              {invites.map((invite) => (
                 <div
                   key={invite.code}
                   className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6"
@@ -333,15 +299,13 @@ function VolunteersPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={async () => {
-                        try {
-                          await revokeInvite(invite.code)
-                          setInvites((prev) => prev.filter((i) => i.code !== invite.code))
-                          toast(t('volunteers.inviteRevoked'), 'success')
-                        } catch {
-                          toast(t('common.error'), 'error')
-                        }
+                      onClick={() => {
+                        revokeInviteMutation.mutate(invite.code, {
+                          onSuccess: () => toast(t('volunteers.inviteRevoked'), 'success'),
+                          onError: () => toast(t('common.error'), 'error'),
+                        })
                       }}
+                      disabled={revokeInviteMutation.isPending}
                       className="text-destructive hover:text-destructive"
                     >
                       <X className="h-3 w-3" />
@@ -361,13 +325,6 @@ function VolunteersPage() {
           inviteCode={sendInviteForCode}
           availableChannels={availableChannels ?? { signal: false, whatsapp: false, sms: false }}
           onSent={(channel) => {
-            setInvites((prev) =>
-              prev.map((i) =>
-                i.code === sendInviteForCode
-                  ? { ...i, deliveryChannel: channel, deliverySentAt: new Date().toISOString() }
-                  : i
-              )
-            )
             setSendInviteForCode(null)
             toast(t('volunteers.inviteSentSuccess', { channel: channelLabel(channel) }), 'success')
           }}
@@ -423,8 +380,8 @@ function InviteForm({
   onCreated,
   onCancel,
 }: {
-  roles: RoleDefinition[]
-  onCreated: (invite: InviteCode) => void
+  roles: import('@/lib/api').RoleDefinition[]
+  onCreated: (invite: import('@/lib/api').InviteCode) => void
   onCancel: () => void
 }) {
   const { t } = useTranslation()
@@ -432,7 +389,7 @@ function InviteForm({
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [roleId, setRoleId] = useState('role-volunteer')
-  const [saving, setSaving] = useState(false)
+  const createInviteMutation = useCreateInvite()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -440,16 +397,18 @@ function InviteForm({
       toast(t('volunteers.invalidPhone'), 'error')
       return
     }
-    setSaving(true)
-    try {
-      const res = await createInvite({ name, phone, roleIds: [roleId] })
-      onCreated(res.invite)
-      toast(t('volunteers.inviteCreated'), 'success')
-    } catch {
-      toast(t('common.error'), 'error')
-    } finally {
-      setSaving(false)
-    }
+    createInviteMutation.mutate(
+      { name, phone, roleIds: [roleId] },
+      {
+        onSuccess: (res) => {
+          onCreated(res.invite)
+          toast(t('volunteers.inviteCreated'), 'success')
+        },
+        onError: () => {
+          toast(t('common.error'), 'error')
+        },
+      }
+    )
   }
 
   return (
@@ -493,8 +452,8 @@ function InviteForm({
             </Select>
           </div>
           <div className="flex gap-2">
-            <Button type="submit" disabled={saving}>
-              {saving ? t('common.loading') : t('volunteers.createInvite')}
+            <Button type="submit" disabled={createInviteMutation.isPending}>
+              {createInviteMutation.isPending ? t('common.loading') : t('volunteers.createInvite')}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               {t('common.cancel')}
@@ -512,7 +471,7 @@ function AddVolunteerForm({
   onCreated,
   onCancel,
 }: {
-  roles: RoleDefinition[]
+  roles: import('@/lib/api').RoleDefinition[]
   createMutation: ReturnType<typeof useCreateVolunteer>
   onCreated: (nsec: string) => void
   onCancel: () => void
@@ -609,8 +568,8 @@ function VolunteerRow({
   onUpdate,
   onDelete,
 }: {
-  volunteer: Volunteer
-  roles: RoleDefinition[]
+  volunteer: import('@/lib/queries/volunteers').Volunteer
+  roles: import('@/lib/api').RoleDefinition[]
   onUpdate: (pubkey: string, data: Parameters<typeof updateVolunteer>[1]) => void
   onDelete: (pubkey: string) => void
 }) {
@@ -780,7 +739,7 @@ function SendInviteDialog({
   const { toast } = useToast()
   const [phone, setPhone] = useState('')
   const [acknowledgedInsecure, setAcknowledgedInsecure] = useState(false)
-  const [sending, setSending] = useState(false)
+  const sendInviteMutation = useSendInvite()
 
   const hasAnyChannel =
     availableChannels.signal || availableChannels.whatsapp || availableChannels.sms
@@ -794,7 +753,7 @@ function SendInviteDialog({
 
   const [selectedChannel, setSelectedChannel] = useState<InviteDeliveryChannel>(defaultChannel)
 
-  async function handleSend() {
+  function handleSend() {
     if (!isValidE164(phone)) {
       toast(t('volunteers.invalidPhone'), 'error')
       return
@@ -803,20 +762,23 @@ function SendInviteDialog({
       toast(t('volunteers.smsAcknowledgeRequired'), 'error')
       return
     }
-    setSending(true)
-    try {
-      await sendInvite(inviteCode, {
-        recipientPhone: phone,
-        channel: selectedChannel,
-        acknowledgedInsecure: selectedChannel === 'sms' ? acknowledgedInsecure : undefined,
-      })
-      onSent(selectedChannel)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : t('common.error')
-      toast(message, 'error')
-    } finally {
-      setSending(false)
-    }
+    sendInviteMutation.mutate(
+      {
+        code: inviteCode,
+        data: {
+          recipientPhone: phone,
+          channel: selectedChannel,
+          acknowledgedInsecure: selectedChannel === 'sms' ? acknowledgedInsecure : undefined,
+        },
+      },
+      {
+        onSuccess: () => onSent(selectedChannel),
+        onError: (err) => {
+          const message = err instanceof Error ? err.message : t('common.error')
+          toast(message, 'error')
+        },
+      }
+    )
   }
 
   return (
@@ -891,12 +853,15 @@ function SendInviteDialog({
               <div className="flex gap-2">
                 <Button
                   onClick={handleSend}
-                  disabled={sending || (selectedChannel === 'sms' && !acknowledgedInsecure)}
+                  disabled={
+                    sendInviteMutation.isPending ||
+                    (selectedChannel === 'sms' && !acknowledgedInsecure)
+                  }
                   data-testid="send-invite-submit"
                   className="flex-1"
                 >
                   <Send className="h-4 w-4" />
-                  {sending ? t('common.loading') : t('volunteers.sendInvite')}
+                  {sendInviteMutation.isPending ? t('common.loading') : t('volunteers.sendInvite')}
                 </Button>
                 <Button variant="outline" onClick={onCopyLink} data-testid="copy-invite-link-btn">
                   <Copy className="h-4 w-4" />
