@@ -26,6 +26,8 @@ export const queryKeys = {
     list: (filters?: { contactType?: string; riskLevel?: string }) =>
       ['contacts', 'list', filters ?? {}] as const,
     detail: (id: string) => ['contacts', 'detail', id] as const,
+    timeline: (id: string) => ['contacts', 'timeline', id] as const,
+    relationships: () => ['contacts', 'relationships'] as const,
   },
 
   notes: {
@@ -128,6 +130,10 @@ export const queryKeys = {
 
   preferences: {
     mine: () => ['preferences', 'mine'] as const,
+  },
+
+  credentials: {
+    mine: () => ['credentials', 'mine'] as const,
   },
 
   analytics: {

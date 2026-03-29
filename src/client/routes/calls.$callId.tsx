@@ -1,19 +1,14 @@
 import { RecordingPlayer } from '@/components/recording-player'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  type AuditLogEntry,
-  type CallRecord,
-  type EncryptedNote,
-  type Volunteer,
-  getCallDetail,
-  listVolunteers,
-} from '@/lib/api'
+import { type AuditLogEntry, type CallRecord, type EncryptedNote, getCallDetail } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { decryptCallRecord, decryptNote, decryptNoteV2, decryptTranscription } from '@/lib/crypto'
+import { decryptCallRecord, decryptNoteV2, decryptTranscription } from '@/lib/crypto'
+import { decryptObjectFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
+import { useVolunteers } from '@/lib/queries/volunteers'
 import { useToast } from '@/lib/toast'
-import { useDecryptedArray, useDecryptedObject } from '@/lib/use-decrypted'
+import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
 import type { NotePayload } from '@shared/types'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
@@ -55,21 +50,17 @@ function CallDetailPage() {
   const [call, setCall] = useState<CallRecord | null>(null)
   const [notes, setNotes] = useState<DecryptedNote[]>([])
   const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([])
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([])
   const [loading, setLoading] = useState(true)
+
+  // useVolunteers decrypts PII fields (name) in the query fn
+  const { data: volunteers = [] } = useVolunteers()
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([
-      getCallDetail(callId),
-      isAdmin
-        ? listVolunteers().catch(() => ({ volunteers: [] as Volunteer[] }))
-        : Promise.resolve({ volunteers: [] as Volunteer[] }),
-    ])
-      .then(async ([detail, volRes]) => {
+    getCallDetail(callId)
+      .then(async (detail) => {
         setCall(detail.call)
         setAuditEntries(detail.auditEntries)
-        setVolunteers(volRes.volunteers)
 
         const unlocked = await keyManager.isUnlocked()
         const myPubkey = publicKey ?? ''
@@ -107,46 +98,49 @@ function CallDetailPage() {
       .finally(() => setLoading(false))
   }, [callId, hasNsec, publicKey, isAdmin])
 
-  // Decrypt call record client-side (E2EE metadata)
+  // Decrypt call record client-side (E2EE metadata + envelope-encrypted fields)
   const [decryptedCall, setDecryptedCall] = useState<CallRecord | null>(null)
   useEffect(() => {
     if (!call || !hasNsec || !publicKey) {
       setDecryptedCall(call)
       return
     }
-    if (call.answeredBy !== undefined) {
-      setDecryptedCall(call)
-      return
-    }
-    if (!call.encryptedContent || !call.adminEnvelopes?.length) {
-      setDecryptedCall(call)
-      return
-    }
     void (async () => {
       const unlocked = await keyManager.isUnlocked()
-      if (!unlocked) {
-        setDecryptedCall(call)
-        return
+      let result = { ...call }
+
+      // Decrypt E2EE admin envelope (answeredBy, callerNumber)
+      if (
+        call.answeredBy === undefined &&
+        call.encryptedContent &&
+        call.adminEnvelopes?.length &&
+        unlocked
+      ) {
+        const meta = await decryptCallRecord(call.encryptedContent, call.adminEnvelopes, publicKey)
+        if (meta) {
+          result = { ...result, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber }
+        }
       }
-      const meta = await decryptCallRecord(call.encryptedContent!, call.adminEnvelopes!, publicKey)
-      if (meta) {
-        setDecryptedCall({ ...call, answeredBy: meta.answeredBy, callerNumber: meta.callerNumber })
-      } else {
-        setDecryptedCall(call)
+
+      // Decrypt ECIES envelope fields (e.g. encryptedCallerLast4 → callerLast4)
+      if (unlocked) {
+        await decryptObjectFields(
+          result as unknown as Record<string, unknown>,
+          publicKey,
+          LABEL_VOLUNTEER_PII
+        )
       }
+
+      setDecryptedCall(result)
     })()
   }, [call, hasNsec, publicKey])
 
-  const decryptedVolunteers = useDecryptedArray(volunteers)
-  const decryptedCallWithFields = useDecryptedObject(
-    decryptedCall as Record<string, unknown> | null
-  ) as CallRecord | null
-
+  // useVolunteers already decrypts name/phone in the query fn
   const nameMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const v of decryptedVolunteers) map.set(v.pubkey, v.name)
+    for (const v of volunteers) map.set(v.pubkey, v.name)
     return map
-  }, [decryptedVolunteers])
+  }, [volunteers])
 
   if (loading) {
     return (
@@ -158,15 +152,14 @@ function CallDetailPage() {
     )
   }
 
-  if (!decryptedCallWithFields) {
+  if (!decryptedCall) {
     return (
       <div className="py-8 text-center text-muted-foreground">{t('calls.detail.notFound')}</div>
     )
   }
 
-  const volunteerName = decryptedCallWithFields.answeredBy
-    ? nameMap.get(decryptedCallWithFields.answeredBy) ||
-      decryptedCallWithFields.answeredBy.slice(0, 8)
+  const volunteerName = decryptedCall.answeredBy
+    ? nameMap.get(decryptedCall.answeredBy) || decryptedCall.answeredBy.slice(0, 8)
     : null
 
   return (
@@ -201,7 +194,7 @@ function CallDetailPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2">
-              {decryptedCallWithFields.status === 'unanswered' ? (
+              {decryptedCall.status === 'unanswered' ? (
                 <>
                   <PhoneMissed className="h-4 w-4 text-destructive" />
                   <span className="text-sm text-destructive">{t('callHistory.unanswered')}</span>
@@ -218,20 +211,20 @@ function CallDetailPage() {
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
-              <span>{new Date(decryptedCallWithFields.startedAt).toLocaleString()}</span>
+              <span>{new Date(decryptedCall.startedAt).toLocaleString()}</span>
             </div>
 
-            {decryptedCallWithFields.duration !== undefined && (
+            {decryptedCall.duration !== undefined && (
               <div className="flex items-center gap-2 text-sm">
                 <Badge variant="outline" className="gap-1">
                   <Clock className="h-3 w-3" />
-                  {formatDuration(decryptedCallWithFields.duration)}
+                  {formatDuration(decryptedCall.duration)}
                 </Badge>
               </div>
             )}
 
             {(() => {
-              const cl4 = decryptedCallWithFields.callerLast4 ?? ''
+              const cl4 = decryptedCall.callerLast4 ?? ''
               return cl4 && cl4 !== '[encrypted]' ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Phone className="h-4 w-4" />
@@ -245,12 +238,12 @@ function CallDetailPage() {
               ) : null
             })()}
 
-            {decryptedCallWithFields.hasRecording && (
+            {decryptedCall.hasRecording && (
               <div className="pt-2">
                 <p className="mb-2 text-xs font-medium text-muted-foreground">
                   {t('calls.detail.recording')}
                 </p>
-                <RecordingPlayer callId={decryptedCallWithFields.id} />
+                <RecordingPlayer callId={decryptedCall.id} />
               </div>
             )}
           </CardContent>

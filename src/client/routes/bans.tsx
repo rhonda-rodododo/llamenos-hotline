@@ -8,7 +8,6 @@ import type { BanEntry } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useAddBan, useBans, useBulkAddBans, useRemoveBan } from '@/lib/queries/bans'
 import { useToast } from '@/lib/toast'
-import { useDecryptedObject } from '@/lib/use-decrypted'
 import { createFileRoute } from '@tanstack/react-router'
 import { Plus, ShieldBan, Trash2, Upload } from 'lucide-react'
 import { useState } from 'react'
@@ -190,9 +189,9 @@ function BanRow({
   const { t } = useTranslation()
   const { toast } = useToast()
   const [showConfirm, setShowConfirm] = useState(false)
-  const decryptedBan = useDecryptedObject(ban)
-  const displayPhone = decryptedBan?.phone ?? ban.phone
-  const displayReason = decryptedBan?.reason ?? ban.reason
+  // useBans() decrypts phone/reason in the query fn — use values directly
+  const displayPhone = ban.phone
+  const displayReason = ban.reason
 
   return (
     <div

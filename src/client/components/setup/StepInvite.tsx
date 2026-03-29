@@ -9,9 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { type InviteCode, createInvite } from '@/lib/api'
+import { useCreateInvite, useInvites } from '@/lib/queries/invites'
 import { useToast } from '@/lib/toast'
-import { useDecryptedArray } from '@/lib/use-decrypted'
 import { Check, Copy, Loader2, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -26,28 +25,24 @@ export function StepInvite({ headingRef }: Props = {}) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [roleId, setRoleId] = useState<string>('role-volunteer')
-  const [generating, setGenerating] = useState(false)
-  const [invites, setInvites] = useState<InviteCode[]>([])
-  const decryptedInvites = useDecryptedArray(invites)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
+
+  const { data: invites = [] } = useInvites()
+  const createInvite = useCreateInvite()
 
   async function handleGenerate() {
     if (!name.trim() || !phone.trim()) return
-    setGenerating(true)
     try {
-      const { invite } = await createInvite({
+      await createInvite.mutateAsync({
         name: name.trim(),
         phone: phone.trim(),
         roleIds: [roleId],
       })
-      setInvites((prev) => [invite, ...prev])
       setName('')
       setPhone('')
       toast(t('setup.inviteCreated'), 'success')
     } catch (err) {
       toast(err instanceof Error ? err.message : t('common.error'), 'error')
-    } finally {
-      setGenerating(false)
     }
   }
 
@@ -108,26 +103,26 @@ export function StepInvite({ headingRef }: Props = {}) {
         </div>
 
         <Button
-          onClick={handleGenerate}
-          disabled={generating || !name.trim() || !phone.trim()}
-          aria-busy={generating}
+          onClick={() => void handleGenerate()}
+          disabled={createInvite.isPending || !name.trim() || !phone.trim()}
+          aria-busy={createInvite.isPending}
           className="w-full"
         >
-          {generating ? (
+          {createInvite.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <UserPlus className="h-4 w-4" />
           )}
-          {generating ? t('common.loading') : t('setup.generateInvite')}
+          {createInvite.isPending ? t('common.loading') : t('setup.generateInvite')}
         </Button>
       </div>
 
       {/* Generated invites list */}
-      {decryptedInvites.length > 0 && (
+      {invites.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold">{t('setup.generatedInvites')}</h3>
           <div className="space-y-2">
-            {decryptedInvites.map((invite) => (
+            {invites.map((invite) => (
               <div
                 key={invite.code}
                 className="flex items-center justify-between rounded-lg border bg-muted/50 p-3"

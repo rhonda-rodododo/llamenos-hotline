@@ -10,7 +10,6 @@ import {
 import { useCallsTodayCount, usePresence } from '@/lib/queries/calls'
 import { useVolunteers } from '@/lib/queries/volunteers'
 import { useTranscription } from '@/lib/transcription'
-import { useDecryptedArray } from '@/lib/use-decrypted'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -82,8 +81,8 @@ function DashboardPage() {
 
   const analyticsLoading = volumeLoading || hoursLoading || statsLoading
 
+  // useVolunteers already decrypts PII fields in the query fn
   const volunteers = volunteersRaw
-  const decryptedVolunteers = useDecryptedArray(volunteers)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -438,9 +437,7 @@ function DashboardPage() {
                       <p className="text-xs text-muted-foreground">
                         {call.answeredBy &&
                           (() => {
-                            const vol = decryptedVolunteers.find(
-                              (v) => v.pubkey === call.answeredBy
-                            )
+                            const vol = volunteers.find((v) => v.pubkey === call.answeredBy)
                             return vol ? vol.name : t('calls.active')
                           })()}
                       </p>

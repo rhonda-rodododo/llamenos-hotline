@@ -13,7 +13,6 @@ import type { Conversation } from '@/lib/api'
 import { useUpdateConversation } from '@/lib/queries/conversations'
 import { useVolunteers } from '@/lib/queries/volunteers'
 import { useToast } from '@/lib/toast'
-import { useDecryptedArray } from '@/lib/use-decrypted'
 import { AlertCircle, Loader2, User, Users } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -42,12 +41,9 @@ export function ReassignDialog({
   const updateConversation = useUpdateConversation()
   const reassigning = updateConversation.isPending
 
-  // useVolunteers already decrypts PII fields, but use useDecryptedArray as
-  // a pass-through to satisfy TypeScript — the data is already decrypted
-  const decryptedVolunteers = useDecryptedArray(rawVolunteers)
-
+  // useVolunteers already decrypts PII fields in the query fn
   // Filter to eligible volunteers: active, messaging enabled, not the current assignee
-  const eligibleVolunteers = decryptedVolunteers.filter(
+  const eligibleVolunteers = rawVolunteers.filter(
     (v) => v.active && v.messagingEnabled !== false && v.pubkey !== conversation.assignedTo
   )
 

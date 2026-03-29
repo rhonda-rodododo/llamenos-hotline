@@ -6,6 +6,9 @@
  */
 
 import { type BanEntry, addBan, bulkAddBans, listBans, removeBan } from '@/lib/api'
+import { decryptArrayFields } from '@/lib/decrypt-fields'
+import * as keyManager from '@/lib/key-manager'
+import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
@@ -18,6 +21,15 @@ export const bansListOptions = () =>
     queryKey: queryKeys.bans.list(),
     queryFn: async () => {
       const { bans } = await listBans()
+      const pubkey = await keyManager.getPublicKeyHex()
+      if (pubkey && (await keyManager.isUnlocked())) {
+        // Ban phone/reason fields use LABEL_VOLUNTEER_PII envelope encryption
+        await decryptArrayFields(
+          bans as unknown as Record<string, unknown>[],
+          pubkey,
+          LABEL_VOLUNTEER_PII
+        )
+      }
       return bans
     },
   })

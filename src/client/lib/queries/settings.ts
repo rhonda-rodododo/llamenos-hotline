@@ -35,6 +35,10 @@ import {
   updateTranscriptionSettings,
   updateWebAuthnSettings,
 } from '@/lib/api'
+import { decryptArrayFields } from '@/lib/decrypt-fields'
+import * as keyManager from '@/lib/key-manager'
+import { type WebAuthnCredentialInfo, listCredentials } from '@/lib/webauthn'
+import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
 import type { MessagingConfig, RetentionSettings, TelephonyProviderDraft } from '@shared/types'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
@@ -323,6 +327,35 @@ export function useUpdateRetentionSettings() {
 }
 
 // ---------------------------------------------------------------------------
+// webAuthnCredsOptions / useWebAuthnCreds
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch and decrypt the current user's WebAuthn credentials.
+ * Label names (encryptedLabel → label) are encrypted with LABEL_VOLUNTEER_PII.
+ */
+export const webAuthnCredsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.credentials.mine(),
+    queryFn: async (): Promise<WebAuthnCredentialInfo[]> => {
+      const creds = await listCredentials()
+      const pubkey = await keyManager.getPublicKeyHex()
+      if (pubkey && (await keyManager.isUnlocked())) {
+        await decryptArrayFields(
+          creds as unknown as Record<string, unknown>[],
+          pubkey,
+          LABEL_VOLUNTEER_PII
+        )
+      }
+      return creds
+    },
+  })
+
+export function useWebAuthnCreds() {
+  return useQuery(webAuthnCredsOptions())
+}
+
+// ---------------------------------------------------------------------------
 // Re-export types for convenience
 // ---------------------------------------------------------------------------
 export type {
@@ -335,5 +368,6 @@ export type {
   SpamSettings,
   TelephonyProviderConfig,
   TranscriptionSettings,
+  WebAuthnCredentialInfo,
   WebAuthnSettings,
 }

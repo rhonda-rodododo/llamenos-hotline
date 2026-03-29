@@ -6,10 +6,24 @@
  * contacts cache on success.
  */
 
-import { type ContactRecord, createContact, listContacts, updateContact } from '@/lib/api'
-import { decryptArrayFields } from '@/lib/decrypt-fields'
+import {
+  type ContactRecord,
+  type ContactRelationshipRecord,
+  createContact,
+  deleteContact,
+  getContact,
+  getContactTimeline,
+  listContactRelationships,
+  listContacts,
+  updateContact,
+} from '@/lib/api'
+import { decryptArrayFields, decryptObjectFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
-import { LABEL_CONTACT_SUMMARY } from '@shared/crypto-labels'
+import {
+  LABEL_CONTACT_PII,
+  LABEL_CONTACT_RELATIONSHIP,
+  LABEL_CONTACT_SUMMARY,
+} from '@shared/crypto-labels'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
@@ -85,6 +99,106 @@ export function useUpdateContact() {
 }
 
 // ---------------------------------------------------------------------------
+// contactDetailOptions
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch and decrypt a single contact. Decrypts both summary-tier and PII-tier
+ * encrypted fields via separate ECIES labels.
+ */
+export const contactDetailOptions = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.contacts.detail(id),
+    queryFn: async () => {
+      const contact = await getContact(id)
+      const pubkey = await keyManager.getPublicKeyHex()
+      if (pubkey && (await keyManager.isUnlocked())) {
+        const obj = contact as unknown as Record<string, unknown>
+        // Decrypt summary-tier fields (displayName, notes)
+        await decryptObjectFields(obj, pubkey, LABEL_CONTACT_SUMMARY)
+        // Decrypt PII-tier fields (fullName, phone, email, address)
+        await decryptObjectFields(obj, pubkey, LABEL_CONTACT_PII)
+      }
+      return contact
+    },
+    enabled: !!id,
+  })
+
+// ---------------------------------------------------------------------------
+// useContact
+// ---------------------------------------------------------------------------
+
+export function useContact(id: string) {
+  return useQuery(contactDetailOptions(id))
+}
+
+// ---------------------------------------------------------------------------
+// contactTimelineOptions
+// ---------------------------------------------------------------------------
+
+export const contactTimelineOptions = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.contacts.timeline(id),
+    queryFn: () => getContactTimeline(id),
+    enabled: !!id,
+  })
+
+// ---------------------------------------------------------------------------
+// useContactTimeline
+// ---------------------------------------------------------------------------
+
+export function useContactTimeline(id: string) {
+  return useQuery(contactTimelineOptions(id))
+}
+
+// ---------------------------------------------------------------------------
+// contactRelationshipsOptions
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch and decrypt all contact relationships.
+ * Payload field is encrypted with LABEL_CONTACT_RELATIONSHIP.
+ */
+export const contactRelationshipsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.contacts.relationships(),
+    queryFn: async () => {
+      const relationships = await listContactRelationships()
+      const pubkey = await keyManager.getPublicKeyHex()
+      if (pubkey && (await keyManager.isUnlocked())) {
+        await decryptArrayFields(
+          relationships as unknown as Record<string, unknown>[],
+          pubkey,
+          LABEL_CONTACT_RELATIONSHIP
+        )
+      }
+      return relationships
+    },
+  })
+
+// ---------------------------------------------------------------------------
+// useContactRelationships
+// ---------------------------------------------------------------------------
+
+export function useContactRelationships() {
+  return useQuery(contactRelationshipsOptions())
+}
+
+// ---------------------------------------------------------------------------
+// useDeleteContact
+// ---------------------------------------------------------------------------
+
+export function useDeleteContact() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteContact(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Re-export type for convenience
 // ---------------------------------------------------------------------------
-export type { ContactRecord }
+export type { ContactRecord, ContactRelationshipRecord }
