@@ -1,44 +1,140 @@
 import { describe, expect, test } from 'bun:test'
 import { signAccessToken, verifyAccessToken } from './jwt'
 
-describe('JWT utilities', () => {
-  const secret = '0'.repeat(64)
-  const pubkey = 'a'.repeat(64)
+const TEST_SECRET = 'test-secret-at-least-32-chars-long!!'
+const TEST_PUBKEY = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789'
+const TEST_PERMISSIONS = ['notes:read', 'notes:write', 'calls:answer']
 
-  test('signAccessToken returns a JWT string', async () => {
-    const token = await signAccessToken({ pubkey, permissions: ['calls:answer'] }, secret)
+describe('signAccessToken', () => {
+  test('returns a string with 3 dot-separated parts (JWS compact)', async () => {
+    const token = await signAccessToken(
+      { pubkey: TEST_PUBKEY, permissions: TEST_PERMISSIONS },
+      TEST_SECRET
+    )
     expect(typeof token).toBe('string')
     expect(token.split('.')).toHaveLength(3)
   })
 
-  test('verifyAccessToken decodes a valid token', async () => {
-    const token = await signAccessToken({ pubkey, permissions: ['calls:answer'] }, secret)
-    const payload = await verifyAccessToken(token, secret)
-    expect(payload.sub).toBe(pubkey)
-    expect(payload.permissions).toContain('calls:answer')
+  test('produces unique tokens on each call (different jti)', async () => {
+    const t1 = await signAccessToken(
+      { pubkey: TEST_PUBKEY, permissions: TEST_PERMISSIONS },
+      TEST_SECRET
+    )
+    const t2 = await signAccessToken(
+      { pubkey: TEST_PUBKEY, permissions: TEST_PERMISSIONS },
+      TEST_SECRET
+    )
+    expect(t1).not.toBe(t2)
   })
 
-  test('verifyAccessToken includes jti claim', async () => {
-    const token = await signAccessToken({ pubkey, permissions: [] }, secret)
-    const payload = await verifyAccessToken(token, secret)
-    expect(payload.jti).toBeDefined()
+  test('respects custom expiresIn option', async () => {
+    const token = await signAccessToken(
+      { pubkey: TEST_PUBKEY, permissions: TEST_PERMISSIONS },
+      TEST_SECRET,
+      { expiresIn: '1h' }
+    )
+    const payload = await verifyAccessToken(token, TEST_SECRET)
+    const delta = payload.exp! - payload.iat!
+    // 1h = 3600s, allow small tolerance
+    expect(delta).toBeGreaterThanOrEqual(3599)
+    expect(delta).toBeLessThanOrEqual(3601)
+  })
+
+  test('uses default 15m expiry when no option provided', async () => {
+    const token = await signAccessToken(
+      { pubkey: TEST_PUBKEY, permissions: TEST_PERMISSIONS },
+      TEST_SECRET
+    )
+    const payload = await verifyAccessToken(token, TEST_SECRET)
+    const delta = payload.exp! - payload.iat!
+    // 15m = 900s
+    expect(delta).toBeGreaterThanOrEqual(899)
+    expect(delta).toBeLessThanOrEqual(901)
+  })
+})
+
+describe('verifyAccessToken', () => {
+  test('decodes a valid token with correct claims', async () => {
+    const token = await signAccessToken(
+      { pubkey: TEST_PUBKEY, permissions: TEST_PERMISSIONS },
+      TEST_SECRET
+    )
+    const payload = await verifyAccessToken(token, TEST_SECRET)
+
+    expect(payload.sub).toBe(TEST_PUBKEY)
+    expect(payload.permissions).toEqual(TEST_PERMISSIONS)
+    expect(payload.iss).toBe('llamenos')
+    expect(typeof payload.iat).toBe('number')
+    expect(typeof payload.exp).toBe('number')
     expect(typeof payload.jti).toBe('string')
+    expect(payload.jti!.length).toBeGreaterThan(0)
   })
 
-  test('verifyAccessToken rejects expired token', async () => {
-    const token = await signAccessToken({ pubkey, permissions: [] }, secret, { expiresIn: '1s' })
-    await new Promise((r) => setTimeout(r, 1500))
-    await expect(verifyAccessToken(token, secret)).rejects.toThrow()
+  test('iat is close to current time', async () => {
+    const before = Math.floor(Date.now() / 1000)
+    const token = await signAccessToken(
+      { pubkey: TEST_PUBKEY, permissions: TEST_PERMISSIONS },
+      TEST_SECRET
+    )
+    const after = Math.floor(Date.now() / 1000)
+    const payload = await verifyAccessToken(token, TEST_SECRET)
+
+    expect(payload.iat).toBeGreaterThanOrEqual(before)
+    expect(payload.iat).toBeLessThanOrEqual(after + 1)
   })
 
-  test('verifyAccessToken rejects tampered token', async () => {
-    const token = await signAccessToken({ pubkey, permissions: [] }, secret)
-    const tampered = `${token.slice(0, -5)}XXXXX`
-    await expect(verifyAccessToken(tampered, secret)).rejects.toThrow()
+  test('rejects token signed with wrong secret', async () => {
+    const token = await signAccessToken(
+      { pubkey: TEST_PUBKEY, permissions: TEST_PERMISSIONS },
+      TEST_SECRET
+    )
+    await expect(verifyAccessToken(token, 'wrong-secret-entirely-different')).rejects.toThrow()
   })
 
-  test('verifyAccessToken rejects wrong secret', async () => {
-    const token = await signAccessToken({ pubkey, permissions: [] }, secret)
-    await expect(verifyAccessToken(token, '1'.repeat(64))).rejects.toThrow()
+  test('rejects expired token', async () => {
+    // Sign with 1-second expiry then wait for it to expire
+    const token = await signAccessToken(
+      { pubkey: TEST_PUBKEY, permissions: TEST_PERMISSIONS },
+      TEST_SECRET,
+      { expiresIn: '1s' }
+    )
+    // Wait 2 seconds to ensure expiry
+    await new Promise((r) => setTimeout(r, 2000))
+    await expect(verifyAccessToken(token, TEST_SECRET)).rejects.toThrow()
+  })
+
+  test('rejects malformed token string', async () => {
+    await expect(verifyAccessToken('not-a-jwt', TEST_SECRET)).rejects.toThrow()
+  })
+
+  test('rejects token with tampered payload', async () => {
+    const token = await signAccessToken(
+      { pubkey: TEST_PUBKEY, permissions: TEST_PERMISSIONS },
+      TEST_SECRET
+    )
+    const [header, _payload, signature] = token.split('.')
+    // Replace payload with a different base64url-encoded JSON
+    const tamperedPayload = btoa(JSON.stringify({ sub: 'attacker', permissions: ['admin'] }))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '')
+    const tampered = `${header}.${tamperedPayload}.${signature}`
+    await expect(verifyAccessToken(tampered, TEST_SECRET)).rejects.toThrow()
+  })
+
+  test('rejects empty string', async () => {
+    await expect(verifyAccessToken('', TEST_SECRET)).rejects.toThrow()
+  })
+})
+
+describe('token header', () => {
+  test('uses HS256 algorithm', async () => {
+    const token = await signAccessToken(
+      { pubkey: TEST_PUBKEY, permissions: TEST_PERMISSIONS },
+      TEST_SECRET
+    )
+    const [headerB64] = token.split('.')
+    const header = JSON.parse(atob(headerB64.replace(/-/g, '+').replace(/_/g, '/')))
+    expect(header.alg).toBe('HS256')
   })
 })
