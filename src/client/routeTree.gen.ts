@@ -30,7 +30,7 @@ import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VolunteersPubkeyRouteImport } from './routes/volunteers_.$pubkey'
 import { Route as NotesNoteIdRouteImport } from './routes/notes.$noteId'
-import { Route as ContactsContactIdRouteImport } from './routes/contacts.$contactId'
+import { Route as ContactsContactIdRouteImport } from './routes/contacts_.$contactId'
 import { Route as CallsCallIdRouteImport } from './routes/calls.$callId'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminHubsRouteImport } from './routes/admin/hubs'
@@ -141,9 +141,9 @@ const NotesNoteIdRoute = NotesNoteIdRouteImport.update({
   getParentRoute: () => NotesRoute,
 } as any)
 const ContactsContactIdRoute = ContactsContactIdRouteImport.update({
-  id: '/$contactId',
-  path: '/$contactId',
-  getParentRoute: () => ContactsRoute,
+  id: '/contacts_/$contactId',
+  path: '/contacts/$contactId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CallsCallIdRoute = CallsCallIdRouteImport.update({
   id: '/$callId',
@@ -167,7 +167,7 @@ export interface FileRoutesByFullPath {
   '/bans': typeof BansRoute
   '/blasts': typeof BlastsRoute
   '/calls': typeof CallsRouteWithChildren
-  '/contacts': typeof ContactsRouteWithChildren
+  '/contacts': typeof ContactsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
@@ -194,7 +194,7 @@ export interface FileRoutesByTo {
   '/bans': typeof BansRoute
   '/blasts': typeof BlastsRoute
   '/calls': typeof CallsRouteWithChildren
-  '/contacts': typeof ContactsRouteWithChildren
+  '/contacts': typeof ContactsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
@@ -222,7 +222,7 @@ export interface FileRoutesById {
   '/bans': typeof BansRoute
   '/blasts': typeof BlastsRoute
   '/calls': typeof CallsRouteWithChildren
-  '/contacts': typeof ContactsRouteWithChildren
+  '/contacts': typeof ContactsRoute
   '/conversations': typeof ConversationsRoute
   '/help': typeof HelpRoute
   '/link-device': typeof LinkDeviceRoute
@@ -239,7 +239,7 @@ export interface FileRoutesById {
   '/admin/hubs': typeof AdminHubsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/calls/$callId': typeof CallsCallIdRoute
-  '/contacts/$contactId': typeof ContactsContactIdRoute
+  '/contacts_/$contactId': typeof ContactsContactIdRoute
   '/notes/$noteId': typeof NotesNoteIdRoute
   '/volunteers_/$pubkey': typeof VolunteersPubkeyRoute
 }
@@ -322,7 +322,7 @@ export interface FileRouteTypes {
     | '/admin/hubs'
     | '/admin/settings'
     | '/calls/$callId'
-    | '/contacts/$contactId'
+    | '/contacts_/$contactId'
     | '/notes/$noteId'
     | '/volunteers_/$pubkey'
   fileRoutesById: FileRoutesById
@@ -333,7 +333,7 @@ export interface RootRouteChildren {
   BansRoute: typeof BansRoute
   BlastsRoute: typeof BlastsRoute
   CallsRoute: typeof CallsRouteWithChildren
-  ContactsRoute: typeof ContactsRouteWithChildren
+  ContactsRoute: typeof ContactsRoute
   ConversationsRoute: typeof ConversationsRoute
   HelpRoute: typeof HelpRoute
   LinkDeviceRoute: typeof LinkDeviceRoute
@@ -349,6 +349,7 @@ export interface RootRouteChildren {
   VolunteersRoute: typeof VolunteersRoute
   AdminHubsRoute: typeof AdminHubsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
+  ContactsContactIdRoute: typeof ContactsContactIdRoute
   VolunteersPubkeyRoute: typeof VolunteersPubkeyRoute
 }
 
@@ -501,12 +502,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotesNoteIdRouteImport
       parentRoute: typeof NotesRoute
     }
-    '/contacts/$contactId': {
-      id: '/contacts/$contactId'
-      path: '/$contactId'
+    '/contacts_/$contactId': {
+      id: '/contacts_/$contactId'
+      path: '/contacts/$contactId'
       fullPath: '/contacts/$contactId'
       preLoaderRoute: typeof ContactsContactIdRouteImport
-      parentRoute: typeof ContactsRoute
+      parentRoute: typeof rootRouteImport
     }
     '/calls/$callId': {
       id: '/calls/$callId'
@@ -542,18 +543,6 @@ const CallsRouteChildren: CallsRouteChildren = {
 
 const CallsRouteWithChildren = CallsRoute._addFileChildren(CallsRouteChildren)
 
-interface ContactsRouteChildren {
-  ContactsContactIdRoute: typeof ContactsContactIdRoute
-}
-
-const ContactsRouteChildren: ContactsRouteChildren = {
-  ContactsContactIdRoute: ContactsContactIdRoute,
-}
-
-const ContactsRouteWithChildren = ContactsRoute._addFileChildren(
-  ContactsRouteChildren,
-)
-
 interface NotesRouteChildren {
   NotesNoteIdRoute: typeof NotesNoteIdRoute
 }
@@ -570,7 +559,7 @@ const rootRouteChildren: RootRouteChildren = {
   BansRoute: BansRoute,
   BlastsRoute: BlastsRoute,
   CallsRoute: CallsRouteWithChildren,
-  ContactsRoute: ContactsRouteWithChildren,
+  ContactsRoute: ContactsRoute,
   ConversationsRoute: ConversationsRoute,
   HelpRoute: HelpRoute,
   LinkDeviceRoute: LinkDeviceRoute,
@@ -586,6 +575,7 @@ const rootRouteChildren: RootRouteChildren = {
   VolunteersRoute: VolunteersRoute,
   AdminHubsRoute: AdminHubsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
+  ContactsContactIdRoute: ContactsContactIdRoute,
   VolunteersPubkeyRoute: VolunteersPubkeyRoute,
 }
 export const routeTree = rootRouteImport

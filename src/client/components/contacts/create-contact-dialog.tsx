@@ -232,9 +232,11 @@ export function CreateContactDialog({ open, onOpenChange, onCreated }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg" data-testid="create-contact-dialog">
         <DialogHeader>
-          <DialogTitle>{t('contacts.createTitle', 'New Contact')}</DialogTitle>
+          <DialogTitle data-testid="create-contact-title">
+            {t('contacts.createTitle', 'New Contact')}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">

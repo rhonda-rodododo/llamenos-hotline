@@ -1940,7 +1940,8 @@ export async function listContacts(filters?: {
 }
 
 export async function getContact(id: string): Promise<ContactRecord> {
-  return request(hp(`/contacts/${id}`))
+  const data = await request<{ contact: ContactRecord }>(hp(`/contacts/${id}`))
+  return data.contact
 }
 
 export async function createContact(data: {
@@ -2014,7 +2015,10 @@ export async function getContactRecipients(): Promise<{
 }
 
 export async function listContactRelationships(): Promise<ContactRelationshipRecord[]> {
-  return request(hp('/contacts/relationships'))
+  const data = await request<{ relationships: ContactRelationshipRecord[] }>(
+    hp('/contacts/relationships')
+  )
+  return data.relationships
 }
 
 export async function createContactRelationship(data: {

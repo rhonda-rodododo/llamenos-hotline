@@ -228,20 +228,17 @@ test.describe('Passkey authentication', () => {
       page.getByTestId('passkey-credential-row').filter({ hasText: 'Login Test Key' })
     ).toBeVisible({ timeout: 10_000 })
 
-    // Now log out and attempt passkey login
-    await page.evaluate(() => sessionStorage.clear())
+    // Now log out and attempt passkey login — clear both storages to simulate a
+    // fresh device so the login page shows the passkey button instead of PIN entry
+    await page.evaluate(() => {
+      sessionStorage.clear()
+      localStorage.clear()
+    })
     await page.goto('/login')
-    await page.waitForLoadState('domcontentloaded')
+    await page.waitForLoadState('networkidle')
 
     const passkeyBtn = page.getByTestId('passkey-login-btn')
-    if (!(await passkeyBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-      test.skip(
-        true,
-        'Passkey login button not visible — WebAuthn may not be available in test env'
-      )
-      await teardownVirtualAuthenticator(auth.cdp, auth.authenticatorId)
-      return
-    }
+    await expect(passkeyBtn).toBeVisible({ timeout: 10_000 })
 
     await passkeyBtn.click()
 
@@ -270,16 +267,16 @@ test.describe('Passkey authentication', () => {
       page.getByTestId('passkey-credential-row').filter({ hasText: 'API Session Key' })
     ).toBeVisible({ timeout: 10_000 })
 
-    // Log out, log back in via passkey
-    await page.evaluate(() => sessionStorage.clear())
+    // Log out, log back in via passkey — clear all storage to get the full login form
+    await page.evaluate(() => {
+      sessionStorage.clear()
+      localStorage.clear()
+    })
     await page.goto('/login')
+    await page.waitForLoadState('networkidle')
 
     const passkeyBtn = page.getByTestId('passkey-login-btn')
-    if (!(await passkeyBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-      test.skip(true, 'Passkey login button not visible')
-      await teardownVirtualAuthenticator(auth.cdp, auth.authenticatorId)
-      return
-    }
+    await expect(passkeyBtn).toBeVisible({ timeout: 10_000 })
 
     await passkeyBtn.click()
     await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: 15_000 })
