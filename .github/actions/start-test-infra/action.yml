@@ -1,37 +1,9 @@
 name: Start Test Infrastructure
-description: Start strfry, RustFS, Asterisk PBX, Asterisk Bridge, and Authentik for integration/E2E tests
+description: Start Asterisk PBX and Asterisk Bridge for integration/E2E tests (strfry, RustFS, Postgres, and Authentik are started by docker-compose.ci.yml)
 
 runs:
   using: composite
   steps:
-    - name: Start strfry
-      shell: bash
-      run: |
-        docker run -d --name strfry \
-          --ulimit nofile=65536:65536 \
-          -v ${{ github.workspace }}/deploy/docker/strfry-test.conf:/etc/strfry.conf:ro \
-          --tmpfs /app/strfry-db \
-          -p 7777:7777 \
-          dockurr/strfry:1.0.1
-        for i in $(seq 1 30); do
-          curl -sf http://localhost:7777 2>/dev/null && break
-          sleep 2
-        done
-
-    - name: Start RustFS
-      shell: bash
-      run: |
-        docker run -d --name rustfs \
-          -e RUSTFS_ACCESS_KEY=rustfsadmin \
-          -e RUSTFS_SECRET_KEY=rustfsadmin \
-          -e RUSTFS_CONSOLE_ENABLE=true \
-          -p 9000:9000 \
-          rustfs/rustfs:latest server /data
-        for i in $(seq 1 30); do
-          curl -sf http://localhost:9000/health && break
-          sleep 2
-        done
-
     - name: Start Asterisk
       shell: bash
       run: |

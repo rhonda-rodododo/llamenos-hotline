@@ -23,7 +23,7 @@
     "bootstrap-admin": "bun run scripts/bootstrap-admin.ts",
     "test": "bunx playwright test",
     "test:unit": "bun test src/ --bail --path-ignore-patterns='**/*.integration.test.ts'",
-    "test:integration": "bun test src/**/*.integration.test.ts",
+    "test:integration": "bun test ./src/**/*.integration.test.ts",
     "test:api": "bunx playwright test --project=api",
     "test:e2e": "bunx playwright test --project=ui",
     "test:interactive": "bunx playwright test --ui",
