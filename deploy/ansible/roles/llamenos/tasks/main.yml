@@ -45,6 +45,25 @@
   with_fileglob:
     - "{{ playbook_dir }}/../docker/postgres-init/*.sql"
 
+- name: Create Authentik blueprints directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}/authentik-blueprints"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0750"
+
+- name: Deploy Authentik blueprints
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ app_dir }}/authentik-blueprints/{{ item | basename }}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0640"
+  with_fileglob:
+    - "{{ playbook_dir }}/../docker/authentik-blueprints/*.yaml"
+    - "{{ playbook_dir }}/../docker/authentik-blueprints/*.yml"
+
 - name: Template docker-compose.yml
   ansible.builtin.template:
     src: docker-compose.j2
