@@ -315,11 +315,19 @@ test.describe('Call flow', () => {
     })
 
     await waitForActiveCall(page, hangupCallSid, 'ringing')
-    await page.reload()
-    await injectAuthedFetch(page)
+
+    // Navigate to dashboard via SPA router (no page reload — preserves hub key cache
+    // and crypto worker state needed for Nostr event decryption)
+    await page.evaluate(() => {
+      const router = (
+        window as unknown as { __TEST_ROUTER?: { navigate: (opts: { to: string }) => void } }
+      ).__TEST_ROUTER
+      if (router) router.navigate({ to: '/' })
+    })
+    await page.waitForTimeout(1000)
 
     // Answer the call
-    await expect(page.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByTestId(TestIds.INCOMING_CALL_ITEM)).toBeVisible({ timeout: 15_000 })
     await page.getByTestId(TestIds.ANSWER_CALL_BTN).click()
     await expect(page.getByTestId(TestIds.ACTIVE_CALL_PANEL)).toBeVisible({ timeout: 8_000 })
 

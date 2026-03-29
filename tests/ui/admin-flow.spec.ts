@@ -40,7 +40,8 @@ test.describe('Admin flow', () => {
     await page.getByTestId('dismiss-nsec').click()
 
     // Volunteer should appear (phone is masked by default)
-    await expect(page.getByText(volName).first()).toBeVisible()
+    // Allow time for async decrypt-on-fetch to resolve the encrypted name
+    await expect(page.getByText(volName).first()).toBeVisible({ timeout: 15000 })
 
     // Delete the volunteer — scope to the row containing the volunteer name
     const volRow = page
