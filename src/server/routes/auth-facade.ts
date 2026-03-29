@@ -2,6 +2,7 @@ import { bytesToHex } from '@noble/hashes/utils.js'
 import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory'
+import { resolvePermissions } from '../../shared/permissions'
 import type { IdPAdapter } from '../idp/adapter'
 import { hashIP } from '../lib/crypto-service'
 import { uint8ArrayToBase64URL } from '../lib/helpers'
@@ -28,6 +29,7 @@ interface AuthFacadeEnv {
     AUTH_WEBAUTHN_RP_ID: string
     AUTH_WEBAUTHN_RP_NAME: string
     AUTH_WEBAUTHN_ORIGIN: string
+    DEMO_MODE?: string
   }
   Variables: {
     identity: IdentityService
@@ -236,6 +238,31 @@ authFacade.post('/invite/accept', async (c) => {
     return c.json({ error: result.error ?? 'Invalid invite' }, 400)
   }
   return c.json({ valid: true, roles: result.roleIds })
+})
+
+// POST /demo-login — issue JWT for a demo account (DEMO_MODE only)
+authFacade.post('/demo-login', async (c) => {
+  if (c.env.DEMO_MODE !== 'true') {
+    return c.json({ error: 'Demo mode is not enabled' }, 403)
+  }
+  const body = (await c.req.json()) as { pubkey: string }
+  if (!body.pubkey) return c.json({ error: 'Missing pubkey' }, 400)
+
+  const identity = c.get('identity')
+  const volunteer = await identity.getVolunteer(body.pubkey)
+  if (!volunteer) return c.json({ error: 'Demo account not found' }, 404)
+
+  // Resolve permissions from roles
+  const settings = c.get('settings')
+  const allRoles = await settings.listRoles()
+  const permissions = resolvePermissions(volunteer.roles, allRoles)
+
+  const token = await signAccessToken(
+    { pubkey: body.pubkey, permissions: [...new Set(permissions)] },
+    c.env.JWT_SECRET
+  )
+
+  return c.json({ token })
 })
 
 // ===== Authenticated routes =====

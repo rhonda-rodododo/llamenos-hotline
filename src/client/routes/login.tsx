@@ -40,7 +40,7 @@ import {
   Sun,
   Upload,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/login')({
@@ -49,7 +49,7 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const { t } = useTranslation()
-  const { signIn, signInWithPasskey, unlockWithPin, error, isLoading } = useAuth()
+  const { signIn, signInWithPasskey, unlockWithPin, error, isLoading, isAuthenticated } = useAuth()
   const { hotlineName, demoMode, needsBootstrap } = useConfig()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
@@ -58,6 +58,13 @@ function LoginPage() {
   const [passkeyLoading, setPasskeyLoading] = useState(false)
   const webauthnAvailable = isWebAuthnAvailable()
   const storedKeyExists = hasStoredKey()
+
+  // Redirect to dashboard if already authenticated (e.g., after demo login or session restore)
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate({ to: '/' })
+    }
+  }, [isAuthenticated, navigate])
 
   // Recovery state
   const [recoveryMode, setRecoveryMode] = useState<'none' | 'nsec' | 'backup'>('none')

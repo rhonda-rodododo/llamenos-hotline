@@ -239,17 +239,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sign in with nsec (admin bootstrap / recovery only)
   // NOTE: This flow is kept for admin bootstrap. It does NOT use the facade
   // because nsec import is a local-only operation (encrypt + store + worker load).
+  // Sign in after key import + JWT acquisition (used by demo mode and admin bootstrap).
+  // Assumes: (1) crypto worker already holds the nsec (via importKey), (2) authFacadeClient
+  // already has a valid access token. Just fetches the profile and sets auth state.
   const signIn = useCallback(async (_nsec: string) => {
     setState((s) => ({ ...s, isLoading: true, error: null }))
-    // The nsec import flow now requires the facade's IdP-bound value and a PIN.
-    // This path is only used during admin bootstrap which has its own onboarding flow.
-    // For now, mark as an error — callers should use the full onboarding flow.
-    setState((s) => ({
-      ...s,
-      isLoading: false,
-      error:
-        'Direct nsec sign-in is no longer supported. Use passkey login or the onboarding flow.',
-    }))
+    try {
+      const isUnlocked = await keyManager.isUnlocked()
+      const pubkey = isUnlocked ? await keyManager.getPublicKeyHex() : null
+      if (!isUnlocked || !pubkey) {
+        setState((s) => ({
+          ...s,
+          isLoading: false,
+          error: 'Key not loaded. Use the full onboarding flow.',
+        }))
+        return
+      }
+      const me = await getMe()
+      lastApiActivity.current = Date.now()
+      await decryptObjectFields(me as unknown as Record<string, unknown>, pubkey)
+      const hubIds = (me.hubRoles ?? []).map((hr) => hr.hubId)
+      await loadHubKeysForUser(hubIds)
+      setState(
+        stateFromMe(me, {
+          isKeyUnlocked: true,
+          publicKey: pubkey,
+        })
+      )
+    } catch (err) {
+      setState((s) => ({
+        ...s,
+        isLoading: false,
+        error: err instanceof Error ? err.message : 'Sign-in failed',
+      }))
+    }
   }, [])
 
   // Unlock with PIN (primary day-to-day auth after passkey session)

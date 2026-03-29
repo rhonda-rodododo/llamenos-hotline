@@ -1,4 +1,5 @@
 import { useAuth } from '@/lib/auth'
+import { authFacadeClient } from '@/lib/auth-facade-client'
 import { keyPairFromNsec } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
 import { useNavigate } from '@tanstack/react-router'
@@ -47,11 +48,16 @@ export function DemoAccountPicker() {
   async function handleDemoLogin(nsec: string, pubkey: string) {
     setLoadingPubkey(pubkey)
     try {
-      // Import key with demo PIN so it persists in local storage
-      // Demo mode uses a synthetic IdP value; auto-rotation to real IdP on first unlock
+      // Decode bech32 nsec to hex for importKey
+      const kp = keyPairFromNsec(nsec)
+      if (!kp) throw new Error('Invalid demo nsec')
+      const { bytesToHex } = await import('@noble/hashes/utils.js')
+      const nsecHex = bytesToHex(kp.secretKey)
+
+      // 1. Import key with demo PIN — encrypts nsec with multi-factor KEK, loads into worker
       const { syntheticIdpValue } = await import('@/lib/key-store-v2')
       await keyManager.importKey(
-        nsec,
+        nsecHex,
         DEMO_PIN,
         pubkey,
         syntheticIdpValue('device-link'),
@@ -60,6 +66,18 @@ export function DemoAccountPicker() {
       )
       // Disable auto-lock in demo mode — frequent tab switches shouldn't force re-login
       keyManager.disableAutoLock()
+
+      // 2. Acquire JWT from demo-login endpoint (no IdP needed in demo mode)
+      const res = await fetch('/api/auth/demo-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pubkey }),
+      })
+      if (!res.ok) throw new Error('Demo login failed')
+      const { token } = (await res.json()) as { token: string }
+      authFacadeClient.setAccessToken(token)
+
+      // 3. Load profile into auth context (signIn fetches /auth/me + sets isKeyUnlocked)
       await signIn(nsec)
       navigate({ to: '/' })
     } catch {
