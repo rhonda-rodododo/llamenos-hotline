@@ -6,8 +6,16 @@
  * roles rarely change.
  */
 
-import { type RoleDefinition, listRoles } from '@/lib/api'
-import { useQuery } from '@tanstack/react-query'
+import {
+  type RoleDefinition,
+  createRole,
+  deleteRole,
+  getPermissionsCatalog,
+  listRoles,
+  updateRole,
+} from '@/lib/api'
+import type { Ciphertext } from '@shared/crypto-types'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
 // ---------------------------------------------------------------------------
@@ -26,6 +34,79 @@ export function useRoles() {
       return roles
     },
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// usePermissionsCatalog
+// ---------------------------------------------------------------------------
+
+export function usePermissionsCatalog() {
+  return useQuery({
+    queryKey: queryKeys.roles.permissions(),
+    queryFn: getPermissionsCatalog,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// useCreateRole
+// ---------------------------------------------------------------------------
+
+export function useCreateRole() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: {
+      name: string
+      slug: string
+      permissions: string[]
+      description: string
+      encryptedName?: Ciphertext
+      encryptedDescription?: Ciphertext
+    }) => createRole(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.roles.all })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// useUpdateRole
+// ---------------------------------------------------------------------------
+
+export function useUpdateRole() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string
+      data: Partial<{
+        name: string
+        permissions: string[]
+        description: string
+        encryptedName: Ciphertext
+        encryptedDescription: Ciphertext
+      }>
+    }) => updateRole(id, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.roles.all })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// useDeleteRole
+// ---------------------------------------------------------------------------
+
+export function useDeleteRole() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteRole(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.roles.all })
+    },
   })
 }
 

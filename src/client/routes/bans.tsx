@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { type BanEntry, addBan, bulkAddBans, listBans, removeBan } from '@/lib/api'
+import type { BanEntry } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useAddBan, useBans, useBulkAddBans, useRemoveBan } from '@/lib/queries/bans'
 import { useToast } from '@/lib/toast'
 import { useDecryptedObject } from '@/lib/use-decrypted'
 import { createFileRoute } from '@tanstack/react-router'
 import { Plus, ShieldBan, Trash2, Upload } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export const Route = createFileRoute('/bans')({
@@ -21,17 +22,13 @@ function BansPage() {
   const { t } = useTranslation()
   const { isAdmin } = useAuth()
   const { toast } = useToast()
-  const [bans, setBans] = useState<BanEntry[]>([])
-  const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [showBulk, setShowBulk] = useState(false)
 
-  useEffect(() => {
-    listBans()
-      .then((r) => setBans(r.bans))
-      .catch(() => toast(t('common.error'), 'error'))
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: bans = [], isLoading: loading } = useBans()
+  const addBan = useAddBan()
+  const bulkAddBans = useBulkAddBans()
+  const removeBan = useRemoveBan()
 
   if (!isAdmin) {
     return <div className="text-muted-foreground">Access denied</div>
@@ -62,21 +59,17 @@ function BansPage() {
 
       {showAdd && (
         <AddBanForm
-          onAdded={(ban) => {
-            setBans((prev) => [ban, ...prev])
-            setShowAdd(false)
-          }}
+          onAdded={() => setShowAdd(false)}
           onCancel={() => setShowAdd(false)}
+          addBan={addBan}
         />
       )}
 
       {showBulk && (
         <BulkImportForm
-          onImported={() => {
-            listBans().then((r) => setBans(r.bans))
-            setShowBulk(false)
-          }}
+          onImported={() => setShowBulk(false)}
           onCancel={() => setShowBulk(false)}
+          bulkAddBans={bulkAddBans}
         />
       )}
 
@@ -101,11 +94,7 @@ function BansPage() {
           ) : (
             <div data-testid="ban-list" className="divide-y divide-border">
               {bans.map((ban) => (
-                <BanRow
-                  key={ban.phone}
-                  ban={ban}
-                  onRemoved={() => setBans((prev) => prev.filter((b) => b.phone !== ban.phone))}
-                />
+                <BanRow key={ban.phone} ban={ban} removeBan={removeBan} />
               ))}
             </div>
           )}
@@ -118,15 +107,16 @@ function BansPage() {
 function AddBanForm({
   onAdded,
   onCancel,
+  addBan,
 }: {
-  onAdded: (ban: BanEntry) => void
+  onAdded: () => void
   onCancel: () => void
+  addBan: ReturnType<typeof useAddBan>
 }) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [phone, setPhone] = useState('')
   const [reason, setReason] = useState('')
-  const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -134,16 +124,16 @@ function AddBanForm({
       toast(t('volunteers.invalidPhone'), 'error')
       return
     }
-    setSaving(true)
-    try {
-      const res = await addBan({ phone, reason })
-      onAdded(res.ban)
-      toast(t('common.success'), 'success')
-    } catch {
-      toast(t('common.error'), 'error')
-    } finally {
-      setSaving(false)
-    }
+    addBan.mutate(
+      { phone, reason },
+      {
+        onSuccess: () => {
+          onAdded()
+          toast(t('common.success'), 'success')
+        },
+        onError: () => toast(t('common.error'), 'error'),
+      }
+    )
   }
 
   return (
@@ -172,8 +162,8 @@ function AddBanForm({
             </div>
           </div>
           <div className="flex gap-2">
-            <Button data-testid="form-save-btn" type="submit" disabled={saving}>
-              {saving ? t('common.loading') : t('common.save')}
+            <Button data-testid="form-save-btn" type="submit" disabled={addBan.isPending}>
+              {addBan.isPending ? t('common.loading') : t('common.save')}
             </Button>
             <Button
               data-testid="form-cancel-btn"
@@ -192,10 +182,10 @@ function AddBanForm({
 
 function BanRow({
   ban,
-  onRemoved,
+  removeBan,
 }: {
   ban: BanEntry
-  onRemoved: () => void
+  removeBan: ReturnType<typeof useRemoveBan>
 }) {
   const { t } = useTranslation()
   const { toast } = useToast()
@@ -232,14 +222,9 @@ function BanRow({
         description={displayPhone}
         confirmLabel={t('banList.removeNumber')}
         onConfirm={async () => {
-          try {
-            // Use decrypted phone for HMAC-based removal; falls back to placeholder
-            // which will fail gracefully if key is locked
-            await removeBan(displayPhone)
-            onRemoved()
-          } catch {
-            toast(t('common.error'), 'error')
-          }
+          removeBan.mutate(displayPhone, {
+            onError: () => toast(t('common.error'), 'error'),
+          })
         }}
       />
     </div>
@@ -249,38 +234,38 @@ function BanRow({
 function BulkImportForm({
   onImported,
   onCancel,
+  bulkAddBans,
 }: {
   onImported: (count: number) => void
   onCancel: () => void
+  bulkAddBans: ReturnType<typeof useBulkAddBans>
 }) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [text, setText] = useState('')
   const [reason, setReason] = useState('')
-  const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
-    try {
-      const phones = text
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean)
-      const invalid = phones.filter((p) => !/^\+\d{7,15}$/.test(p))
-      if (invalid.length > 0) {
-        toast(`${t('volunteers.invalidPhone')}: ${invalid[0]}`, 'error')
-        setSaving(false)
-        return
-      }
-      const res = await bulkAddBans({ phones, reason })
-      onImported(res.count)
-      toast(t('common.success'), 'success')
-    } catch {
-      toast(t('common.error'), 'error')
-    } finally {
-      setSaving(false)
+    const phones = text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+    const invalid = phones.filter((p) => !/^\+\d{7,15}$/.test(p))
+    if (invalid.length > 0) {
+      toast(`${t('volunteers.invalidPhone')}: ${invalid[0]}`, 'error')
+      return
     }
+    bulkAddBans.mutate(
+      { phones, reason },
+      {
+        onSuccess: (res) => {
+          onImported(res.count)
+          toast(t('common.success'), 'success')
+        },
+        onError: () => toast(t('common.error'), 'error'),
+      }
+    )
   }
 
   return (
@@ -314,8 +299,8 @@ function BulkImportForm({
             />
           </div>
           <div className="flex gap-2">
-            <Button data-testid="form-submit-btn" type="submit" disabled={saving}>
-              {saving ? t('common.loading') : t('common.submit')}
+            <Button data-testid="form-submit-btn" type="submit" disabled={bulkAddBans.isPending}>
+              {bulkAddBans.isPending ? t('common.loading') : t('common.submit')}
             </Button>
             <Button
               data-testid="form-cancel-btn"
