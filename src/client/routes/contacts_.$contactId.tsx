@@ -23,14 +23,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-/** ContactRecord augmented with fields populated by decryptObjectFields */
-type DecryptedContact = ContactRecord & {
-  displayName?: string
-  notes?: string
-  fullName?: string
-  phone?: string
-}
-
 export const Route = createFileRoute('/contacts_/$contactId')({
   component: ContactProfilePage,
 })
@@ -82,33 +74,31 @@ function ContactProfilePage() {
       .finally(() => setLoading(false))
   }, [contactId, t])
 
-  // Decrypt summary-tier fields (displayName, notes)
-  const summaryDecrypted = useDecryptedObject(
-    contact,
-    LABEL_CONTACT_SUMMARY
-  ) as DecryptedContact | null
-  // Decrypt PII-tier fields (fullName, phone)
-  const piiDecrypted = useDecryptedObject(contact, LABEL_CONTACT_PII) as DecryptedContact | null
+  // Decrypt contact summary-tier and PII-tier fields via Web Worker
+  const decSummary = useDecryptedObject(contact, LABEL_CONTACT_SUMMARY)
+  const decPii = useDecryptedObject(contact, LABEL_CONTACT_PII)
+  const decAllContacts = useDecryptedArray(allContacts, LABEL_CONTACT_SUMMARY)
 
-  const displayName = summaryDecrypted?.displayName ?? '[encrypted]'
-  const decryptedNotes = summaryDecrypted?.notes || null
-  const decryptedFullName = canReadPii ? piiDecrypted?.fullName || null : null
-  const decryptedPhone = canReadPii ? piiDecrypted?.phone || null : null
-
-  // Decrypt all contacts' display names for relationship labels
-  const decryptedAllContacts = useDecryptedArray(
-    allContacts,
-    LABEL_CONTACT_SUMMARY
-  ) as DecryptedContact[]
+  const displayName =
+    ((decSummary as Record<string, unknown> | null)?.displayName as string) ?? '[encrypted]'
+  const decryptedNotes = ((decSummary as Record<string, unknown> | null)?.notes as string) || null
+  const decryptedFullName = canReadPii
+    ? ((decPii as Record<string, unknown> | null)?.fullName as string) || null
+    : null
+  const decryptedPhone = canReadPii
+    ? ((decPii as Record<string, unknown> | null)?.phone as string) || null
+    : null
 
   // Build a map of contactId → display name for relationships
   const contactNames = useMemo(() => {
     const map = new Map<string, string>()
-    for (const c of decryptedAllContacts) {
-      map.set(c.id, c.displayName ?? '[encrypted]')
+    for (const c of decAllContacts) {
+      const name =
+        ((c as unknown as Record<string, unknown>).displayName as string) ?? '[encrypted]'
+      map.set(c.id, name)
     }
     return map
-  }, [decryptedAllContacts])
+  }, [decAllContacts])
 
   function getContactTypeLabel(type: string): string {
     if (type === 'partner-org') return t('contacts.partnerOrg')
