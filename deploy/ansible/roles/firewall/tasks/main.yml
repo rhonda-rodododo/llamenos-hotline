@@ -10,9 +10,9 @@
     name: ufw
     state: present
 
-- name: Reset UFW to defaults
+- name: Disable UFW before reconfiguration (idempotent — avoids reset flushing iptables)
   community.general.ufw:
-    state: reset
+    state: disabled
 
 - name: Set default incoming policy to deny
   community.general.ufw:
@@ -29,9 +29,17 @@
     rule: allow
     port: "{{ ssh_port }}"
     proto: tcp
-    src: "{{ item }}"
     comment: "SSH access"
+
+- name: Allow SSH from specific CIDRs (if restricted)
+  community.general.ufw:
+    rule: allow
+    port: "{{ ssh_port }}"
+    proto: tcp
+    src: "{{ item }}"
+    comment: "SSH access (restricted)"
   loop: "{{ ssh_allowed_cidrs }}"
+  when: ssh_allowed_cidrs | default([]) | length > 0 and ssh_allowed_cidrs != ['0.0.0.0/0']
 
 - name: Allow HTTP (port 80)
   community.general.ufw:
