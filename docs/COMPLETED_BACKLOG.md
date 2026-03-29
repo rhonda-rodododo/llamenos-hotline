@@ -1,5 +1,21 @@
 # Completed Backlog
 
+## 2026-03-29: React Query Refactor (`feat/react-query-refactor` worktree)
+
+- [x] Replace all useState/useEffect fetch patterns with @tanstack/react-query across ~15 routes
+- [x] Integrate decryption into queryFn — single async pipeline, single loading state
+- [x] queryOptions() helper for type-safe, reusable query configs (React Query v5 best practice)
+- [x] Eliminate DecryptCache, useDecryptedArray, useDecryptedObject — worker caches internally
+- [x] 17 resource-level query hook files with exported queryOptions functions
+- [x] Mutation hooks with automatic cache invalidation via invalidateQueries
+- [x] Nostr real-time events push into React Query cache (setQueryData for calls, invalidateQueries for conversations)
+- [x] Key lock clears encrypted query caches, unlock triggers refetch
+- [x] Query key factories for targeted invalidation
+- [x] Optimistic updates for report close and hub archive/delete
+- [x] Migrated all components: contact-select, ReassignDialog, note-sheet, ReportForm, BlastSettingsPanel, SubscriberManager, provider-health-badge, roles-section, StepInvite, volunteer-multi-select
+- [x] 30 query key factory unit tests
+- [x] 448/458 E2E tests passing (remaining 8 are infrastructure/environment, not React Query)
+
 ## 2026-03-28: Contact Directory v1 (`feat/contact-directory` worktree, PR #26)
 
 - [x] Design spec: two-tier E2EE (summary + PII) with fully opaque relationships
