@@ -174,7 +174,7 @@ describe('queryKeys', () => {
 
   // --- prefix matching correctness ---
   test('key factories return arrays starting with their resource name', () => {
-    const resourceChecks: [readonly string[], string][] = [
+    const resourceChecks: [readonly unknown[], string][] = [
       [queryKeys.volunteers.list(), 'volunteers'],
       [queryKeys.notes.list(), 'notes'],
       [queryKeys.calls.active(), 'calls'],
