@@ -299,17 +299,10 @@ export class IdentityService {
     // Encrypt phone with server key
     const encryptedPhone = this.crypto.serverEncrypt(data.phone ?? '', LABEL_VOLUNTEER_PII)
 
-    // E2EE envelope-encrypt name for createdBy + admin pubkeys
-    const adminPubkeys = (await this.getSuperAdminPubkeys()).filter(isValidPubkey)
-    const inviteNameRecipients = [
-      ...(data.createdBy && isValidPubkey(data.createdBy) ? [data.createdBy] : []),
-      ...adminPubkeys,
-    ].filter((pk, i, arr) => arr.indexOf(pk) === i)
-    const nameEnvelope =
-      data.name && inviteNameRecipients.length > 0
-        ? this.crypto.envelopeEncrypt(data.name, inviteNameRecipients, LABEL_VOLUNTEER_PII)
-        : undefined
-
+    // Invite names always use server encryption so validateInvite (public, no auth)
+    // can decrypt the name for the welcome page. E2EE envelopes are stored alongside
+    // for authenticated admin list decryption. The volunteer record created on redeem
+    // uses proper E2EE-only encryption.
     const [row] = await this.db
       .insert(inviteCodes)
       .values({
@@ -318,11 +311,7 @@ export class IdentityService {
         createdBy: data.createdBy,
         expiresAt,
         encryptedPhone,
-        // E2EE name: use envelope ciphertext if available, fallback to server-key
-        encryptedName: nameEnvelope
-          ? nameEnvelope.encrypted
-          : this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
-        ...(nameEnvelope ? { nameEnvelopes: nameEnvelope.envelopes } : {}),
+        encryptedName: this.crypto.serverEncrypt(data.name ?? '', LABEL_VOLUNTEER_PII),
       })
       .returning()
     return this.#rowToInvite(row)

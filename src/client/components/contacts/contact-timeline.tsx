@@ -78,7 +78,7 @@ export function ContactTimeline({ calls, conversations, notes }: ContactTimeline
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
   return (
-    <Card>
+    <Card data-testid="contact-timeline-card">
       <CardHeader className="pb-3">
         <CardTitle className="text-base">{t('contacts.timeline')}</CardTitle>
       </CardHeader>

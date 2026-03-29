@@ -133,9 +133,13 @@ export async function navigateAfterLogin(page: Page, url: string): Promise<void>
     },
     { pathname: parsed.pathname, search: searchParams }
   )
-  await page.waitForURL((u) => u.toString().includes(parsed.pathname), {
-    timeout: Timeouts.NAVIGATION,
-  })
+  await page.waitForURL(
+    (u) => {
+      const p = new URL(u.toString()).pathname
+      return p === parsed.pathname || p === `${parsed.pathname}/`
+    },
+    { timeout: Timeouts.NAVIGATION }
+  )
 
   // Allow route component to mount and initial API calls to complete
   await page.waitForTimeout(Timeouts.ASYNC_SETTLE)

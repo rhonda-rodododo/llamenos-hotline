@@ -1284,6 +1284,7 @@ export class SettingsService {
     await this.db.delete(ivrLanguages)
     await this.db.delete(messagingConfig)
     await this.db.delete(telephonyConfig)
+    await this.db.delete(geocodingConfig)
     await this.db.delete(setupState)
     // Delete all roles — DEFAULT_ROLES are re-seeded on first use via getRole/listRoles
     await this.db.delete(roles)

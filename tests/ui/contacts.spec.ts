@@ -55,8 +55,10 @@ test.describe('Contact Directory', () => {
   test.describe('create contact flow', () => {
     test('opens dialog when New Contact button clicked', async ({ page }) => {
       await page.getByTestId('new-contact-btn').click()
-      await expect(page.getByRole('dialog')).toBeVisible({ timeout: Timeouts.ELEMENT })
-      await expect(page.getByRole('heading', { name: /new contact/i })).toBeVisible()
+      await expect(page.getByTestId('create-contact-dialog')).toBeVisible({
+        timeout: Timeouts.ELEMENT,
+      })
+      await expect(page.getByTestId('create-contact-title')).toBeVisible()
     })
 
     test('dialog contains display name input', async ({ page }) => {
@@ -81,9 +83,11 @@ test.describe('Contact Directory', () => {
 
     test('dialog can be cancelled', async ({ page }) => {
       await page.getByTestId('new-contact-btn').click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      await expect(page.getByTestId('create-contact-dialog')).toBeVisible()
       await page.getByRole('button', { name: /cancel/i }).click()
-      await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: Timeouts.ELEMENT })
+      await expect(page.getByTestId('create-contact-dialog')).not.toBeVisible({
+        timeout: Timeouts.ELEMENT,
+      })
     })
 
     test('display name field accepts input', async ({ page }) => {
@@ -132,7 +136,9 @@ test.describe('Contact Directory', () => {
       await page.getByRole('button', { name: /create contact/i }).click()
 
       // Dialog should close on success
-      await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: Timeouts.API })
+      await expect(page.getByTestId('create-contact-dialog')).not.toBeVisible({
+        timeout: Timeouts.API,
+      })
     })
   })
 
@@ -146,8 +152,10 @@ test.describe('Contact Directory', () => {
       await page.getByTestId('new-contact-btn').click()
       await page.locator('#displayName').fill(createdContactName)
       await page.getByRole('button', { name: /create contact/i }).click()
-      // Wait for dialog to close and list to refresh
-      await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: Timeouts.API })
+      // Wait for create-contact dialog to close and list to refresh
+      await expect(page.getByTestId('create-contact-dialog')).not.toBeVisible({
+        timeout: Timeouts.API,
+      })
       await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
     })
 
@@ -164,8 +172,9 @@ test.describe('Contact Directory', () => {
       await row.click()
       await page.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
       await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
-      // Summary card should be visible
-      await expect(page.getByText(/summary/i)).toBeVisible({ timeout: Timeouts.ELEMENT })
+      await expect(page.getByTestId('contact-summary-card')).toBeVisible({
+        timeout: Timeouts.ELEMENT,
+      })
     })
 
     test('profile page shows PII section', async ({ page }) => {
@@ -174,8 +183,7 @@ test.describe('Contact Directory', () => {
       await row.click()
       await page.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
       await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
-      // PII card title (either "Personal Information" or "PII")
-      await expect(page.getByText(/personal information|pii/i).first()).toBeVisible({
+      await expect(page.getByTestId('contact-pii-card')).toBeVisible({
         timeout: Timeouts.ELEMENT,
       })
     })
@@ -186,10 +194,9 @@ test.describe('Contact Directory', () => {
       await row.click()
       await page.waitForURL(/\/contacts\/[^/]+$/, { timeout: Timeouts.NAVIGATION })
       await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
-      // Timeline section heading or empty state should be visible
-      await expect(
-        page.getByText(/timeline|activity|no calls|no conversations/i).first()
-      ).toBeVisible({ timeout: Timeouts.ELEMENT })
+      await expect(page.getByTestId('contact-timeline-card')).toBeVisible({
+        timeout: Timeouts.ELEMENT,
+      })
     })
 
     test('back button navigates to directory', async ({ page }) => {
@@ -200,7 +207,7 @@ test.describe('Contact Directory', () => {
       await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 
       await page.getByTestId('contact-back-btn').click()
-      await expect(page).toHaveURL(/\/contacts$/, { timeout: Timeouts.NAVIGATION })
+      await expect(page).toHaveURL(/\/contacts(\?|$)/, { timeout: Timeouts.NAVIGATION })
     })
 
     test('delete button visible on profile for admin', async ({ page }) => {

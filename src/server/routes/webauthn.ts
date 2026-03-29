@@ -141,6 +141,10 @@ webauthn.get('/credentials', async (c) => {
       backedUp: cr.backedUp,
       createdAt: cr.createdAt,
       lastUsedAt: cr.lastUsedAt,
+      // E2EE envelope fields for client-side label decryption
+      ...(cr.encryptedLabel && cr.labelEnvelopes
+        ? { encryptedLabel: cr.encryptedLabel, labelEnvelopes: cr.labelEnvelopes }
+        : {}),
     })),
   })
 })

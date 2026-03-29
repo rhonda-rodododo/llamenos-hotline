@@ -23,7 +23,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-export const Route = createFileRoute('/contacts/$contactId')({
+export const Route = createFileRoute('/contacts_/$contactId')({
   component: ContactProfilePage,
 })
 
@@ -218,7 +218,7 @@ function ContactProfilePage() {
         {/* Left sidebar */}
         <div className="space-y-4">
           {/* Summary card */}
-          <Card>
+          <Card data-testid="contact-summary-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">{t('contacts.summary')}</CardTitle>
             </CardHeader>
@@ -272,7 +272,7 @@ function ContactProfilePage() {
           </Card>
 
           {/* PII card */}
-          <Card>
+          <Card data-testid="contact-pii-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">{t('contacts.pii')}</CardTitle>
             </CardHeader>
