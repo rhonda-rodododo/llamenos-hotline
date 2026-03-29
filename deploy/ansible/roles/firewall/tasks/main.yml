@@ -63,6 +63,24 @@
   loop: "{{ firewall_extra_ports }}"
   when: firewall_extra_ports | length > 0
 
+- name: Configure UFW to allow Docker container networking
+  ansible.builtin.blockinfile:
+    path: /etc/ufw/after.rules
+    marker: "# {mark} ANSIBLE MANAGED - Docker forwarding"
+    block: |
+      # Allow Docker container networking (FORWARD chain)
+      -A ufw-after-forward -i docker0 -j ACCEPT
+      -A ufw-after-forward -o docker0 -j ACCEPT
+      -A ufw-after-forward -i br-+ -j ACCEPT
+      -A ufw-after-forward -o br-+ -j ACCEPT
+    insertbefore: "COMMIT"
+
+- name: Set UFW default forward policy to ACCEPT for Docker
+  ansible.builtin.lineinfile:
+    path: /etc/default/ufw
+    regexp: '^DEFAULT_FORWARD_POLICY='
+    line: 'DEFAULT_FORWARD_POLICY="ACCEPT"'
+
 - name: Enable UFW
   community.general.ufw:
     state: enabled
