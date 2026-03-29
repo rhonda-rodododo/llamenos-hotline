@@ -6,21 +6,28 @@
  */
 
 import { type BanEntry, addBan, bulkAddBans, listBans, removeBan } from '@/lib/api'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
 // ---------------------------------------------------------------------------
-// useBans
+// bansListOptions
 // ---------------------------------------------------------------------------
 
-export function useBans() {
-  return useQuery({
+export const bansListOptions = () =>
+  queryOptions({
     queryKey: queryKeys.bans.list(),
     queryFn: async () => {
       const { bans } = await listBans()
       return bans
     },
   })
+
+// ---------------------------------------------------------------------------
+// useBans
+// ---------------------------------------------------------------------------
+
+export function useBans() {
+  return useQuery(bansListOptions())
 }
 
 // ---------------------------------------------------------------------------

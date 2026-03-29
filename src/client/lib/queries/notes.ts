@@ -23,7 +23,7 @@ import { useAuth } from '@/lib/auth'
 import { decryptNoteV2, decryptTranscription } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
 import type { NotePayload } from '@shared/types'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
 // ---------------------------------------------------------------------------
@@ -42,26 +42,26 @@ type NoteFilters = {
   limit?: number
 }
 
+type NotesAuth = {
+  isAdmin: boolean
+  publicKey: string | null
+  hasNsec: boolean
+}
+
 // ---------------------------------------------------------------------------
-// useNotes
+// notesListOptions
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch and decrypt the notes list with optional filters.
- *
- * Replicates the exact decryption + role-based filtering logic from the
- * legacy `loadNotes` callback in notes.tsx:
- *   - Admins see system:transcription:admin notes; non-admins see system:transcription
- *   - Transcriptions with ephemeralPubkey are ECIES-decrypted via decryptTranscription
- *   - Transcriptions without ephemeralPubkey use encryptedContent as plain text
- *   - Regular notes: admin looks up their envelope in adminEnvelopes, volunteer uses authorEnvelope
+ * queryOptions factory for the notes list.
+ * auth values must be passed explicitly (extracted from useAuth() in the hook wrapper)
+ * since queryOptions cannot call React hooks.
  */
-export function useNotes(filters?: NoteFilters) {
-  const { hasNsec, publicKey, isAdmin } = useAuth()
-
-  return useQuery({
+export const notesListOptions = (filters: NoteFilters | undefined, auth: NotesAuth) =>
+  queryOptions({
     queryKey: queryKeys.notes.list(filters),
     queryFn: async (): Promise<{ notes: DecryptedNote[]; total: number }> => {
+      const { isAdmin, publicKey, hasNsec } = auth
       const res = await listNotes(filters)
       const unlocked = await keyManager.isUnlocked()
 
@@ -106,7 +106,39 @@ export function useNotes(filters?: NoteFilters) {
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
   })
+
+// ---------------------------------------------------------------------------
+// useNotes
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch and decrypt the notes list with optional filters.
+ *
+ * Replicates the exact decryption + role-based filtering logic from the
+ * legacy `loadNotes` callback in notes.tsx:
+ *   - Admins see system:transcription:admin notes; non-admins see system:transcription
+ *   - Transcriptions with ephemeralPubkey are ECIES-decrypted via decryptTranscription
+ *   - Transcriptions without ephemeralPubkey use encryptedContent as plain text
+ *   - Regular notes: admin looks up their envelope in adminEnvelopes, volunteer uses authorEnvelope
+ */
+export function useNotes(filters?: NoteFilters) {
+  const { hasNsec, publicKey, isAdmin } = useAuth()
+  return useQuery(notesListOptions(filters, { isAdmin, publicKey, hasNsec }))
 }
+
+// ---------------------------------------------------------------------------
+// customFieldsOptions
+// ---------------------------------------------------------------------------
+
+export const customFieldsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.settings.customFields(),
+    queryFn: async (): Promise<CustomFieldDefinition[]> => {
+      const res = await getCustomFields()
+      return res.fields ?? []
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  })
 
 // ---------------------------------------------------------------------------
 // useCustomFields
@@ -116,14 +148,7 @@ export function useNotes(filters?: NoteFilters) {
  * Fetch custom field definitions from settings.
  */
 export function useCustomFields() {
-  return useQuery({
-    queryKey: queryKeys.settings.customFields(),
-    queryFn: async (): Promise<CustomFieldDefinition[]> => {
-      const res = await getCustomFields()
-      return res.fields ?? []
-    },
-    staleTime: 10 * 60 * 1000, // 10 minutes
-  })
+  return useQuery(customFieldsOptions())
 }
 
 // ---------------------------------------------------------------------------

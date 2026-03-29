@@ -1,0 +1,339 @@
+/**
+ * React Query hooks for all admin settings endpoints.
+ *
+ * Each settings domain has a dedicated query hook (staleTime 10min) and an
+ * update mutation that invalidates the relevant query on success.
+ */
+
+import {
+  type CallSettings,
+  type CustomFieldDefinition,
+  type GeocodingConfigAdmin,
+  type IvrAudioRecording,
+  type SpamSettings,
+  type TelephonyProviderConfig,
+  type WebAuthnSettings,
+  getCallSettings,
+  getCustomFields,
+  getGeocodingSettings,
+  getIvrLanguages,
+  getMessagingConfig,
+  getRetentionSettings,
+  getSpamSettings,
+  getTelephonyProvider,
+  getTranscriptionSettings,
+  getWebAuthnSettings,
+  listIvrAudio,
+  updateCallSettings,
+  updateCustomFields,
+  updateGeocodingSettings,
+  updateIvrLanguages,
+  updateMessagingConfig,
+  updateRetentionSettings,
+  updateSpamSettings,
+  updateTelephonyProvider,
+  updateTranscriptionSettings,
+  updateWebAuthnSettings,
+} from '@/lib/api'
+import type { MessagingConfig, RetentionSettings, TelephonyProviderDraft } from '@shared/types'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from './keys'
+
+const STALE_10_MIN = 10 * 60_000
+
+// ---------------------------------------------------------------------------
+// spamSettingsOptions / useSpamSettings
+// ---------------------------------------------------------------------------
+
+export const spamSettingsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.settings.spam(),
+    queryFn: (): Promise<SpamSettings> => getSpamSettings(),
+    staleTime: STALE_10_MIN,
+  })
+
+export function useSpamSettings() {
+  return useQuery(spamSettingsOptions())
+}
+
+export function useUpdateSpamSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Partial<SpamSettings>) => updateSpamSettings(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.spam() })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// callSettingsOptions / useCallSettings
+// ---------------------------------------------------------------------------
+
+export const callSettingsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.settings.call(),
+    queryFn: (): Promise<CallSettings> => getCallSettings(),
+    staleTime: STALE_10_MIN,
+  })
+
+export function useCallSettings() {
+  return useQuery(callSettingsOptions())
+}
+
+export function useUpdateCallSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Partial<CallSettings>) => updateCallSettings(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.call() })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// transcriptionSettingsOptions / useTranscriptionSettings
+// ---------------------------------------------------------------------------
+
+interface TranscriptionSettings {
+  globalEnabled: boolean
+  allowVolunteerOptOut: boolean
+}
+
+export const transcriptionSettingsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.settings.transcription(),
+    queryFn: (): Promise<TranscriptionSettings> => getTranscriptionSettings(),
+    staleTime: STALE_10_MIN,
+  })
+
+export function useTranscriptionSettings() {
+  return useQuery(transcriptionSettingsOptions())
+}
+
+export function useUpdateTranscriptionSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { globalEnabled?: boolean; allowVolunteerOptOut?: boolean }) =>
+      updateTranscriptionSettings(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.transcription() })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// ivrLanguagesOptions / useIvrLanguages
+// ---------------------------------------------------------------------------
+
+export const ivrLanguagesOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.settings.ivrLanguages(),
+    queryFn: async (): Promise<string[]> => {
+      const res = await getIvrLanguages()
+      return res.enabledLanguages ?? []
+    },
+    staleTime: STALE_10_MIN,
+  })
+
+export function useIvrLanguages() {
+  return useQuery(ivrLanguagesOptions())
+}
+
+export function useUpdateIvrLanguages() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (enabledLanguages: string[]) => updateIvrLanguages({ enabledLanguages }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.ivrLanguages() })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// ivrAudioOptions / useIvrAudio
+// ---------------------------------------------------------------------------
+
+export const ivrAudioOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.settings.ivrAudio(),
+    queryFn: async (): Promise<IvrAudioRecording[]> => {
+      const res = await listIvrAudio()
+      return res.recordings
+    },
+    staleTime: STALE_10_MIN,
+  })
+
+export function useIvrAudio() {
+  return useQuery(ivrAudioOptions())
+}
+
+// ---------------------------------------------------------------------------
+// webAuthnSettingsOptions / useWebAuthnSettings
+// ---------------------------------------------------------------------------
+
+export const webAuthnSettingsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.settings.webauthn(),
+    queryFn: (): Promise<WebAuthnSettings> => getWebAuthnSettings(),
+    staleTime: STALE_10_MIN,
+  })
+
+export function useWebAuthnSettings() {
+  return useQuery(webAuthnSettingsOptions())
+}
+
+export function useUpdateWebAuthnSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Partial<WebAuthnSettings>) => updateWebAuthnSettings(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.webauthn() })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// customFieldsOptions / useCustomFields
+// ---------------------------------------------------------------------------
+
+export const customFieldsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.settings.customFields(),
+    queryFn: async (): Promise<CustomFieldDefinition[]> => {
+      const res = await getCustomFields()
+      return res.fields
+    },
+    staleTime: STALE_10_MIN,
+  })
+
+export function useCustomFields() {
+  return useQuery(customFieldsOptions())
+}
+
+export function useUpdateCustomFields() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (fields: CustomFieldDefinition[]) => updateCustomFields(fields),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.customFields() })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// providerConfigOptions / useProviderConfig
+// ---------------------------------------------------------------------------
+
+export const providerConfigOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.settings.provider(),
+    queryFn: (): Promise<TelephonyProviderConfig | null> => getTelephonyProvider(),
+    staleTime: STALE_10_MIN,
+  })
+
+export function useProviderConfig() {
+  return useQuery(providerConfigOptions())
+}
+
+export function useUpdateProviderConfig() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (config: TelephonyProviderDraft) =>
+      updateTelephonyProvider(config as TelephonyProviderConfig),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.provider() })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// messagingConfigOptions / useMessagingConfig
+// ---------------------------------------------------------------------------
+
+export const messagingConfigOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.settings.messaging(),
+    queryFn: (): Promise<MessagingConfig> => getMessagingConfig(),
+    staleTime: STALE_10_MIN,
+  })
+
+export function useMessagingConfig() {
+  return useQuery(messagingConfigOptions())
+}
+
+export function useUpdateMessagingConfig() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Partial<MessagingConfig>) => updateMessagingConfig(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.messaging() })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// geocodingConfigOptions / useGeocodingConfig
+// ---------------------------------------------------------------------------
+
+export const geocodingConfigOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.settings.geocoding(),
+    queryFn: (): Promise<GeocodingConfigAdmin> => getGeocodingSettings(),
+    staleTime: STALE_10_MIN,
+  })
+
+export function useGeocodingConfig() {
+  return useQuery(geocodingConfigOptions())
+}
+
+export function useUpdateGeocodingConfig() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Partial<GeocodingConfigAdmin>) => updateGeocodingSettings(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.geocoding() })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// retentionSettingsOptions / useRetentionSettings
+// ---------------------------------------------------------------------------
+
+export const retentionSettingsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.settings.retention(),
+    queryFn: (): Promise<RetentionSettings> => getRetentionSettings(),
+    staleTime: STALE_10_MIN,
+  })
+
+export function useRetentionSettings() {
+  return useQuery(retentionSettingsOptions())
+}
+
+export function useUpdateRetentionSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Partial<RetentionSettings>) => updateRetentionSettings(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.retention() })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Re-export types for convenience
+// ---------------------------------------------------------------------------
+export type {
+  CallSettings,
+  CustomFieldDefinition,
+  GeocodingConfigAdmin,
+  IvrAudioRecording,
+  MessagingConfig,
+  RetentionSettings,
+  SpamSettings,
+  TelephonyProviderConfig,
+  TranscriptionSettings,
+  WebAuthnSettings,
+}

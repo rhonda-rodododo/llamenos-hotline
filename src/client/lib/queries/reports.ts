@@ -20,7 +20,7 @@ import {
 import { useAuth } from '@/lib/auth'
 import { decryptMessage } from '@/lib/crypto'
 import * as keyManager from '@/lib/key-manager'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
 // ---------------------------------------------------------------------------
@@ -37,20 +37,25 @@ export interface DecryptedReportMessages {
   decryptedContent: Map<string, string>
 }
 
+type ReportMessagesAuth = {
+  hasNsec: boolean
+  publicKey: string | null
+}
+
 // ---------------------------------------------------------------------------
-// useReports
+// reportsListOptions
 // ---------------------------------------------------------------------------
 
 /**
  * Fetch the list of reports with optional filters.
  * Polls every 30s as a safety net alongside Nostr real-time events.
  */
-export function useReports(filters?: ReportFilters) {
+export const reportsListOptions = (filters?: ReportFilters) => {
   const normalizedFilters: { status?: string; category?: string } = {}
   if (filters?.status && filters.status !== 'all') normalizedFilters.status = filters.status
   if (filters?.category && filters.category !== 'all') normalizedFilters.category = filters.category
 
-  return useQuery({
+  return queryOptions({
     queryKey: queryKeys.reports.list(normalizedFilters),
     queryFn: async (): Promise<Report[]> => {
       const { conversations } = await listReports(normalizedFilters)
@@ -62,23 +67,29 @@ export function useReports(filters?: ReportFilters) {
 }
 
 // ---------------------------------------------------------------------------
-// useReportMessages
+// useReports
+// ---------------------------------------------------------------------------
+
+export function useReports(filters?: ReportFilters) {
+  return useQuery(reportsListOptions(filters))
+}
+
+// ---------------------------------------------------------------------------
+// reportMessagesOptions
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch and decrypt messages for a selected report.
- * Only enabled when a reportId is provided.
- * Returns messages + a Map of decrypted content keyed by message id.
+ * queryOptions factory for report messages.
+ * auth values must be passed explicitly since queryOptions cannot call React hooks.
  */
-export function useReportMessages(reportId: string | null) {
-  const { hasNsec, publicKey } = useAuth()
-
-  return useQuery({
+export const reportMessagesOptions = (reportId: string | null, auth: ReportMessagesAuth) =>
+  queryOptions({
     queryKey: reportId ? queryKeys.reports.messages(reportId) : ['reports', 'messages', null],
     enabled: !!reportId,
     queryFn: async (): Promise<DecryptedReportMessages> => {
       if (!reportId) return { messages: [], decryptedContent: new Map() }
 
+      const { hasNsec, publicKey } = auth
       const { messages } = await getReportMessages(reportId, { limit: 100 })
       const decryptedContent = new Map<string, string>()
 
@@ -103,6 +114,19 @@ export function useReportMessages(reportId: string | null) {
     staleTime: 10_000,
     refetchInterval: 10_000,
   })
+
+// ---------------------------------------------------------------------------
+// useReportMessages
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch and decrypt messages for a selected report.
+ * Only enabled when a reportId is provided.
+ * Returns messages + a Map of decrypted content keyed by message id.
+ */
+export function useReportMessages(reportId: string | null) {
+  const { hasNsec, publicKey } = useAuth()
+  return useQuery(reportMessagesOptions(reportId, { hasNsec, publicKey }))
 }
 
 // ---------------------------------------------------------------------------
@@ -166,15 +190,15 @@ export function useAssignReport() {
 }
 
 // ---------------------------------------------------------------------------
-// useReportCategories
+// reportCategoriesOptions
 // ---------------------------------------------------------------------------
 
 /**
  * Fetch available report category strings.
  * Used by ReportForm to populate the category select.
  */
-export function useReportCategories() {
-  return useQuery({
+export const reportCategoriesOptions = () =>
+  queryOptions({
     queryKey: ['reports', 'categories'] as const,
     queryFn: async (): Promise<string[]> => {
       const { categories } = await getReportCategories()
@@ -182,18 +206,25 @@ export function useReportCategories() {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
+
+// ---------------------------------------------------------------------------
+// useReportCategories
+// ---------------------------------------------------------------------------
+
+export function useReportCategories() {
+  return useQuery(reportCategoriesOptions())
 }
 
 // ---------------------------------------------------------------------------
-// useReportTypes
+// reportTypesOptions
 // ---------------------------------------------------------------------------
 
 /**
  * Fetch report type definitions (admin-configured).
  * Used by ReportForm to populate the report type select.
  */
-export function useReportTypes() {
-  return useQuery({
+export const reportTypesOptions = () =>
+  queryOptions({
     queryKey: queryKeys.settings.reportTypes(),
     queryFn: async (): Promise<ReportType[]> => {
       const { reportTypes } = await listReportTypes()
@@ -201,6 +232,13 @@ export function useReportTypes() {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
+
+// ---------------------------------------------------------------------------
+// useReportTypes
+// ---------------------------------------------------------------------------
+
+export function useReportTypes() {
+  return useQuery(reportTypesOptions())
 }
 
 // ---------------------------------------------------------------------------

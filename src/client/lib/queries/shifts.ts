@@ -16,48 +16,69 @@ import {
   setFallbackGroup,
   updateShift,
 } from '@/lib/api'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
 // ---------------------------------------------------------------------------
-// useShifts
+// shiftsListOptions
 // ---------------------------------------------------------------------------
 
-export function useShifts() {
-  return useQuery({
+export const shiftsListOptions = () =>
+  queryOptions({
     queryKey: queryKeys.shifts.list(),
     queryFn: async () => {
       const { shifts } = await listShifts()
       return shifts
     },
   })
+
+// ---------------------------------------------------------------------------
+// useShifts
+// ---------------------------------------------------------------------------
+
+export function useShifts() {
+  return useQuery(shiftsListOptions())
 }
 
 // ---------------------------------------------------------------------------
-// useFallbackGroup
+// fallbackGroupOptions
 // ---------------------------------------------------------------------------
 
-export function useFallbackGroup() {
-  return useQuery({
+export const fallbackGroupOptions = () =>
+  queryOptions({
     queryKey: queryKeys.shifts.fallback(),
     queryFn: async () => {
       const { volunteers } = await getFallbackGroup()
       return volunteers
     },
   })
+
+// ---------------------------------------------------------------------------
+// useFallbackGroup
+// ---------------------------------------------------------------------------
+
+export function useFallbackGroup() {
+  return useQuery(fallbackGroupOptions())
 }
+
+// ---------------------------------------------------------------------------
+// shiftStatusOptions
+// ---------------------------------------------------------------------------
+
+export const shiftStatusOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.shifts.myStatus(),
+    queryFn: getMyShiftStatus,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  })
 
 // ---------------------------------------------------------------------------
 // useShiftStatus
 // ---------------------------------------------------------------------------
 
 export function useShiftStatus() {
-  return useQuery({
-    queryKey: queryKeys.shifts.myStatus(),
-    queryFn: getMyShiftStatus,
-    staleTime: 60_000,
-    refetchInterval: 60_000,
-  })
+  return useQuery(shiftStatusOptions())
 }
 
 // ---------------------------------------------------------------------------

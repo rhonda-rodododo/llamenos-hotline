@@ -10,7 +10,7 @@ import { type AuditLogEntry, listAuditLog } from '@/lib/api'
 import { decryptArrayFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
 import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
-import { useQuery } from '@tanstack/react-query'
+import { queryOptions, useQuery } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
 // ---------------------------------------------------------------------------
@@ -28,11 +28,11 @@ export interface AuditLogFilters {
 }
 
 // ---------------------------------------------------------------------------
-// useAuditLog
+// auditLogOptions
 // ---------------------------------------------------------------------------
 
-export function useAuditLog(filters?: AuditLogFilters) {
-  return useQuery({
+export const auditLogOptions = (filters?: AuditLogFilters) =>
+  queryOptions({
     queryKey: queryKeys.audit.list(filters),
     queryFn: async () => {
       const { entries, total } = await listAuditLog(filters)
@@ -48,6 +48,13 @@ export function useAuditLog(filters?: AuditLogFilters) {
     },
     staleTime: 60_000,
   })
+
+// ---------------------------------------------------------------------------
+// useAuditLog
+// ---------------------------------------------------------------------------
+
+export function useAuditLog(filters?: AuditLogFilters) {
+  return useQuery(auditLogOptions(filters))
 }
 
 // ---------------------------------------------------------------------------

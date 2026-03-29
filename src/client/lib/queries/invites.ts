@@ -18,19 +18,19 @@ import {
 import { decryptArrayFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
 import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
 // ---------------------------------------------------------------------------
-// useInvites
+// invitesListOptions
 // ---------------------------------------------------------------------------
 
 /**
  * Fetch and decrypt the full pending invite list.
  * Invite name/phone fields are encrypted with LABEL_VOLUNTEER_PII.
  */
-export function useInvites() {
-  return useQuery({
+export const invitesListOptions = () =>
+  queryOptions({
     queryKey: queryKeys.invites.list(),
     queryFn: async () => {
       const { invites } = await listInvites()
@@ -45,23 +45,37 @@ export function useInvites() {
       return invites
     },
   })
+
+// ---------------------------------------------------------------------------
+// useInvites
+// ---------------------------------------------------------------------------
+
+export function useInvites() {
+  return useQuery(invitesListOptions())
 }
 
 // ---------------------------------------------------------------------------
-// useInviteChannels
+// inviteChannelsOptions
 // ---------------------------------------------------------------------------
 
 /**
  * Fetch available invite delivery channels (Signal, WhatsApp, SMS).
  * Stale for 10 minutes since channel availability rarely changes.
  */
-export function useInviteChannels() {
-  return useQuery({
+export const inviteChannelsOptions = () =>
+  queryOptions({
     queryKey: queryKeys.invites.channels(),
     queryFn: () =>
       getAvailableInviteChannels().catch(() => ({ signal: false, whatsapp: false, sms: false })),
     staleTime: 10 * 60 * 1000,
   })
+
+// ---------------------------------------------------------------------------
+// useInviteChannels
+// ---------------------------------------------------------------------------
+
+export function useInviteChannels() {
+  return useQuery(inviteChannelsOptions())
 }
 
 // ---------------------------------------------------------------------------

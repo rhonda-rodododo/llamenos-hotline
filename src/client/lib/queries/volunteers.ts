@@ -17,20 +17,15 @@ import {
 import { decryptArrayFields, decryptObjectFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
 import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
 // ---------------------------------------------------------------------------
-// useVolunteers
+// volunteersListOptions
 // ---------------------------------------------------------------------------
 
-/**
- * Fetch and decrypt the full volunteer list.
- * Returns already-decrypted Volunteer objects — no further decryption needed
- * by consumers (e.g. VolunteerMultiSelect).
- */
-export function useVolunteers() {
-  return useQuery({
+export const volunteersListOptions = () =>
+  queryOptions({
     queryKey: queryKeys.volunteers.list(),
     queryFn: async () => {
       const { volunteers } = await listVolunteers()
@@ -45,17 +40,26 @@ export function useVolunteers() {
       return volunteers
     },
   })
-}
 
 // ---------------------------------------------------------------------------
-// useVolunteer
+// useVolunteers
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch and decrypt a single volunteer's unmasked data (admin only).
+ * Fetch and decrypt the full volunteer list.
+ * Returns already-decrypted Volunteer objects — no further decryption needed
+ * by consumers (e.g. VolunteerMultiSelect).
  */
-export function useVolunteer(pubkey: string) {
-  return useQuery({
+export function useVolunteers() {
+  return useQuery(volunteersListOptions())
+}
+
+// ---------------------------------------------------------------------------
+// volunteerDetailOptions
+// ---------------------------------------------------------------------------
+
+export const volunteerDetailOptions = (pubkey: string) =>
+  queryOptions({
     queryKey: queryKeys.volunteers.detail(pubkey),
     queryFn: async () => {
       const { volunteer } = await getVolunteerUnmasked(pubkey)
@@ -71,6 +75,16 @@ export function useVolunteer(pubkey: string) {
     },
     enabled: !!pubkey,
   })
+
+// ---------------------------------------------------------------------------
+// useVolunteer
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch and decrypt a single volunteer's unmasked data (admin only).
+ */
+export function useVolunteer(pubkey: string) {
+  return useQuery(volunteerDetailOptions(pubkey))
 }
 
 // ---------------------------------------------------------------------------

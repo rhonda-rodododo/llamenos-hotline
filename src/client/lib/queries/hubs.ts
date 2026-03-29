@@ -8,15 +8,15 @@
  */
 
 import { type Hub, archiveHub, createHub, deleteHub, listHubs, updateHub } from '@/lib/api'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
 // ---------------------------------------------------------------------------
-// useHubs
+// hubsListOptions
 // ---------------------------------------------------------------------------
 
-export function useHubs() {
-  return useQuery({
+export const hubsListOptions = () =>
+  queryOptions({
     queryKey: queryKeys.hubs.list(),
     queryFn: async () => {
       const { hubs } = await listHubs()
@@ -24,6 +24,13 @@ export function useHubs() {
     },
     staleTime: 10 * 60 * 1000,
   })
+
+// ---------------------------------------------------------------------------
+// useHubs
+// ---------------------------------------------------------------------------
+
+export function useHubs() {
+  return useQuery(hubsListOptions())
 }
 
 // ---------------------------------------------------------------------------

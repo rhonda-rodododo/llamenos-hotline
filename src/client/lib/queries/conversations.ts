@@ -23,7 +23,7 @@ import { decryptMessage } from '@/lib/crypto'
 import { decryptArrayFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
 import { LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
 // ---------------------------------------------------------------------------
@@ -35,8 +35,13 @@ export interface DecryptedConversationMessages {
   decryptedContent: Map<string, string>
 }
 
+type ConversationMessagesAuth = {
+  hasNsec: boolean
+  publicKey: string | null
+}
+
 // ---------------------------------------------------------------------------
-// useConversationsList
+// conversationsListOptions
 // ---------------------------------------------------------------------------
 
 /**
@@ -45,8 +50,8 @@ export interface DecryptedConversationMessages {
  * staleTime=0: Nostr is primary for real-time updates; REST is the fallback/seed.
  * refetchInterval=30_000 polls every 30s as safety net.
  */
-export function useConversationsList() {
-  return useQuery({
+export const conversationsListOptions = () =>
+  queryOptions({
     queryKey: queryKeys.conversations.list(),
     queryFn: async (): Promise<Conversation[]> => {
       const { conversations } = await listConversations()
@@ -63,21 +68,28 @@ export function useConversationsList() {
     staleTime: 0,
     refetchInterval: 30_000,
   })
+
+// ---------------------------------------------------------------------------
+// useConversationsList
+// ---------------------------------------------------------------------------
+
+export function useConversationsList() {
+  return useQuery(conversationsListOptions())
 }
 
 // ---------------------------------------------------------------------------
-// useConversationMessages
+// conversationMessagesOptions
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch and decrypt messages for a selected conversation.
- * Only enabled when a conversationId is provided.
- * Returns messages + a Map of decrypted content keyed by message id.
+ * queryOptions factory for conversation messages.
+ * auth values must be passed explicitly since queryOptions cannot call React hooks.
  */
-export function useConversationMessages(conversationId: string | null) {
-  const { hasNsec, publicKey } = useAuth()
-
-  return useQuery({
+export const conversationMessagesOptions = (
+  conversationId: string | null,
+  auth: ConversationMessagesAuth
+) =>
+  queryOptions({
     queryKey: conversationId
       ? queryKeys.conversations.messages(conversationId)
       : ['conversations', 'messages', null],
@@ -85,6 +97,7 @@ export function useConversationMessages(conversationId: string | null) {
     queryFn: async (): Promise<DecryptedConversationMessages> => {
       if (!conversationId) return { messages: [], decryptedContent: new Map() }
 
+      const { hasNsec, publicKey } = auth
       const { messages } = await getConversationMessages(conversationId, { limit: 100 })
       const decryptedContent = new Map<string, string>()
 
@@ -108,6 +121,19 @@ export function useConversationMessages(conversationId: string | null) {
     },
     staleTime: 0,
   })
+
+// ---------------------------------------------------------------------------
+// useConversationMessages
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch and decrypt messages for a selected conversation.
+ * Only enabled when a conversationId is provided.
+ * Returns messages + a Map of decrypted content keyed by message id.
+ */
+export function useConversationMessages(conversationId: string | null) {
+  const { hasNsec, publicKey } = useAuth()
+  return useQuery(conversationMessagesOptions(conversationId, { hasNsec, publicKey }))
 }
 
 // ---------------------------------------------------------------------------

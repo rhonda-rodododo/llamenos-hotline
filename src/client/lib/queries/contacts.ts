@@ -10,11 +10,11 @@ import { type ContactRecord, createContact, listContacts, updateContact } from '
 import { decryptArrayFields } from '@/lib/decrypt-fields'
 import * as keyManager from '@/lib/key-manager'
 import { LABEL_CONTACT_SUMMARY } from '@shared/crypto-labels'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
 // ---------------------------------------------------------------------------
-// useContacts
+// Types
 // ---------------------------------------------------------------------------
 
 type ContactFilters = {
@@ -22,12 +22,16 @@ type ContactFilters = {
   riskLevel?: string
 }
 
+// ---------------------------------------------------------------------------
+// contactsListOptions
+// ---------------------------------------------------------------------------
+
 /**
  * Fetch and decrypt the contact list with optional filters.
  * Decrypts encryptedDisplayName -> displayName via LABEL_CONTACT_SUMMARY.
  */
-export function useContacts(filters?: ContactFilters) {
-  return useQuery({
+export const contactsListOptions = (filters?: ContactFilters) =>
+  queryOptions({
     queryKey: queryKeys.contacts.list(filters),
     queryFn: async () => {
       const { contacts } = await listContacts(filters)
@@ -42,6 +46,13 @@ export function useContacts(filters?: ContactFilters) {
       return contacts
     },
   })
+
+// ---------------------------------------------------------------------------
+// useContacts
+// ---------------------------------------------------------------------------
+
+export function useContacts(filters?: ContactFilters) {
+  return useQuery(contactsListOptions(filters))
 }
 
 // ---------------------------------------------------------------------------

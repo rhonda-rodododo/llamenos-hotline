@@ -15,19 +15,19 @@ import {
   updateRole,
 } from '@/lib/api'
 import type { Ciphertext } from '@shared/crypto-types'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from './keys'
 
 // ---------------------------------------------------------------------------
-// useRoles
+// rolesListOptions
 // ---------------------------------------------------------------------------
 
 /**
  * Fetch the list of role definitions.
  * Stale for 5 minutes since roles change infrequently.
  */
-export function useRoles() {
-  return useQuery({
+export const rolesListOptions = () =>
+  queryOptions({
     queryKey: queryKeys.roles.list(),
     queryFn: async () => {
       const { roles } = await listRoles()
@@ -35,18 +35,32 @@ export function useRoles() {
     },
     staleTime: 5 * 60 * 1000,
   })
+
+// ---------------------------------------------------------------------------
+// useRoles
+// ---------------------------------------------------------------------------
+
+export function useRoles() {
+  return useQuery(rolesListOptions())
 }
+
+// ---------------------------------------------------------------------------
+// permissionsCatalogOptions
+// ---------------------------------------------------------------------------
+
+export const permissionsCatalogOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.roles.permissions(),
+    queryFn: getPermissionsCatalog,
+    staleTime: 5 * 60 * 1000,
+  })
 
 // ---------------------------------------------------------------------------
 // usePermissionsCatalog
 // ---------------------------------------------------------------------------
 
 export function usePermissionsCatalog() {
-  return useQuery({
-    queryKey: queryKeys.roles.permissions(),
-    queryFn: getPermissionsCatalog,
-    staleTime: 5 * 60 * 1000,
-  })
+  return useQuery(permissionsCatalogOptions())
 }
 
 // ---------------------------------------------------------------------------
