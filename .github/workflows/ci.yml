@@ -339,6 +339,7 @@ jobs:
       - name: Run API integration tests
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
+          JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
         run: bunx playwright test --project=setup --project=api
 
       - name: API test report
@@ -440,6 +441,7 @@ jobs:
       - name: Run UI E2E tests
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
+          JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
         run: bunx playwright test --project=setup --project=ui --project=bootstrap --project=mobile
 
       - name: E2E test report
