@@ -5,6 +5,11 @@
  * decryption happens client-side via decryptHubField at render time.
  * Cache is long-lived (10 min) since hubs rarely change.
  * Mutations invalidate the full hubs cache on success.
+ *
+ * Archive/delete mutations also immediately remove the hub from the cache
+ * to match the original useState behavior (filter out archived/deleted hubs).
+ * The server returns all hubs (including archived) for super admins, so without
+ * the immediate cache update, the hub would reappear after the invalidation refetch.
  */
 
 import { type Hub, archiveHub, createHub, deleteHub, listHubs, updateHub } from '@/lib/api'
@@ -70,8 +75,13 @@ export function useDeleteHub() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => deleteHub(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.hubs.all })
+    onSuccess: (_result, id) => {
+      // Immediately remove the deleted hub from cache so it disappears from the UI.
+      // No immediate invalidation: the server-side list is now stale but since deleted
+      // hubs are gone for good, the next navigation will fetch fresh data naturally.
+      queryClient.setQueryData<Hub[]>(queryKeys.hubs.list(), (old) =>
+        old?.filter((h) => h.id !== id)
+      )
     },
   })
 }
@@ -84,8 +94,16 @@ export function useArchiveHub() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => archiveHub(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.hubs.all })
+    onSuccess: (_result, id) => {
+      // Immediately remove the archived hub from the cache so it disappears from the UI
+      // (matches original useState behavior: setHubs(prev => prev.filter(h => h.id !== id))).
+      // No immediate invalidation: the server returns all hubs (including archived) for super
+      // admins, so calling invalidateQueries would immediately re-add the archived hub via
+      // background refetch, undoing the optimistic removal. The next page navigation triggers
+      // a fresh fetch which correctly shows archived hubs with their archived badge.
+      queryClient.setQueryData<Hub[]>(queryKeys.hubs.list(), (old) =>
+        old?.filter((h) => h.id !== id)
+      )
     },
   })
 }

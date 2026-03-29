@@ -154,7 +154,9 @@ export function useSendReportMessage(reportId: string) {
 
 /**
  * Mutation to update a report (e.g. close it).
- * Invalidates the full reports cache on success.
+ * When a report is closed, removes it from all cached report lists immediately
+ * (matching the original useState behavior of filtering out closed reports).
+ * Then invalidates the full reports cache to sync with the server.
  */
 export function useUpdateReport() {
   const queryClient = useQueryClient()
@@ -164,7 +166,21 @@ export function useUpdateReport() {
       data,
     }: { reportId: string; data: Parameters<typeof updateReport>[1] }) =>
       updateReport(reportId, data),
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
+      // If the report was closed, immediately remove it from all cached lists and
+      // skip immediate cache invalidation. This matches the original useState behavior
+      // (setReports(prev => prev.filter(r => r.id !== reportId))) where closing a report
+      // removes it from the current view. Calling invalidateQueries immediately after
+      // setQueriesData would trigger a background refetch that re-adds the closed report
+      // (server returns closed reports in the 'all' filter), undoing the optimistic removal.
+      // The next navigation or filter change will fetch fresh data from the server.
+      if (variables.data.status === 'closed') {
+        queryClient.setQueriesData<Report[]>(
+          { queryKey: queryKeys.reports.all, exact: false },
+          (oldData) => oldData?.filter((r) => r.id !== variables.reportId)
+        )
+        return
+      }
       void queryClient.invalidateQueries({ queryKey: queryKeys.reports.all })
     },
   })
