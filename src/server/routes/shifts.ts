@@ -9,7 +9,7 @@ shifts.get('/my-status', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
-  const status = await services.shifts.getVolunteerStatus(pubkey, hubId)
+  const status = await services.shifts.getUserStatus(pubkey, hubId)
   return c.json(status)
 })
 
@@ -19,14 +19,14 @@ shifts.get('/fallback', requirePermission('shifts:manage-fallback'), async (c) =
   const services = c.get('services')
   const hubId = c.get('hubId')
   const fallback = await services.settings.getFallbackGroup(hubId)
-  return c.json({ volunteers: fallback })
+  return c.json({ users: fallback })
 })
 
 shifts.put('/fallback', requirePermission('shifts:manage-fallback'), async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
-  const body = (await c.req.json()) as { volunteers: string[] }
-  await services.settings.setFallbackGroup(body.volunteers || [], hubId)
+  const body = (await c.req.json()) as { users: string[] }
+  await services.settings.setFallbackGroup(body.users || [], hubId)
   return c.json({ ok: true })
 })
 

@@ -66,7 +66,7 @@ dev.post('/test-reset', async (c) => {
   if (c.env.ADMIN_PUBKEY) {
     try {
       await services.identity.bootstrapAdmin(c.env.ADMIN_PUBKEY)
-      await services.identity.updateVolunteer(c.env.ADMIN_PUBKEY, { profileCompleted: true })
+      await services.identity.updateUser(c.env.ADMIN_PUBKEY, { profileCompleted: true })
     } catch {
       // Admin may already exist
     }
@@ -127,10 +127,10 @@ dev.post('/test-reset-no-admin', async (c) => {
   await services.conversations.resetForTest()
   await services.files.resetForTest('global')
   await services.settings.resetForTest()
-  // Delete the admin volunteer so bootstrap tests see needsBootstrap=true
+  // Delete the admin user so bootstrap tests see needsBootstrap=true
   if (c.env.ADMIN_PUBKEY) {
     try {
-      await services.identity.deleteVolunteer(c.env.ADMIN_PUBKEY)
+      await services.identity.deleteUser(c.env.ADMIN_PUBKEY)
     } catch {
       // May not exist
     }

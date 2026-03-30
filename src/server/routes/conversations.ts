@@ -43,7 +43,7 @@ conversations.get('/', async (c) => {
   const hubId = c.get('hubId')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
-  const volunteer = c.get('volunteer')
+  const user = c.get('user')
   const canReadAll = checkPermission(permissions, 'conversations:read-all')
   const status = c.req.query('status')
   const channel = c.req.query('channel')
@@ -70,9 +70,9 @@ conversations.get('/', async (c) => {
       }),
     ])
 
-    // Filter waiting conversations by channels the volunteer can claim
+    // Filter waiting conversations by channels the user can claim
     const claimableChannels = getClaimableChannels(permissions)
-    const volunteerChannels = volunteer.supportedMessagingChannels
+    const userChannels = user.supportedMessagingChannels
 
     let filteredWaiting = waitingResult.conversations
     // Filter by permission-based claimable channels
@@ -81,14 +81,14 @@ conversations.get('/', async (c) => {
         claimableChannels.includes(conv.channelType)
       )
     }
-    // Also filter by volunteer's configured supported channels (if set)
-    if (volunteerChannels && volunteerChannels.length > 0) {
+    // Also filter by user's configured supported channels (if set)
+    if (userChannels && userChannels.length > 0) {
       filteredWaiting = filteredWaiting.filter((conv) =>
-        volunteerChannels.includes(conv.channelType as MessagingChannelType)
+        userChannels.includes(conv.channelType as MessagingChannelType)
       )
     }
-    // Hide all waiting if messaging is disabled for this volunteer
-    if (volunteer.messagingEnabled === false) {
+    // Hide all waiting if messaging is disabled for this user
+    if (user.messagingEnabled === false) {
       filteredWaiting = []
     }
 
@@ -121,7 +121,7 @@ conversations.get('/stats', async (c) => {
 })
 
 /**
- * GET /conversations/load — get volunteer load counts (active conversations per volunteer)
+ * GET /conversations/load — get user load counts (active conversations per user)
  * Admin only — used for reassignment UI
  */
 conversations.get('/load', async (c) => {
@@ -307,7 +307,7 @@ conversations.patch('/:id', async (c) => {
   const canUpdate = checkPermission(permissions, 'conversations:update')
   const body = (await c.req.json()) as { status?: string; assignedTo?: string }
 
-  // Only users with update permission or assigned volunteer can update
+  // Only users with update permission or assigned user can update
   const existing = await services.conversations.getConversation(id)
   if (!existing) return c.json({ error: 'Not found' }, 404)
   if (!canUpdate && existing.assignedTo !== pubkey) {
@@ -345,8 +345,8 @@ conversations.patch('/:id', async (c) => {
 })
 
 /**
- * POST /conversations/:id/claim — volunteer claims a waiting conversation
- * Channel-specific permission check: volunteer must have claim permission for the conversation's channel
+ * POST /conversations/:id/claim — user claims a waiting conversation
+ * Channel-specific permission check: user must have claim permission for the conversation's channel
  */
 conversations.post('/:id/claim', async (c) => {
   const services = c.get('services')
@@ -354,7 +354,7 @@ conversations.post('/:id/claim', async (c) => {
   const id = c.req.param('id')
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
-  const volunteer = c.get('volunteer')
+  const user = c.get('user')
 
   // Fetch conversation to check channel type
   const conv = await services.conversations.getConversation(id)
@@ -372,23 +372,23 @@ conversations.post('/:id/claim', async (c) => {
     )
   }
 
-  // Check volunteer's supported messaging channels (if defined)
-  if (volunteer.supportedMessagingChannels && volunteer.supportedMessagingChannels.length > 0) {
-    if (!volunteer.supportedMessagingChannels.includes(conv.channelType as MessagingChannelType)) {
+  // Check user's supported messaging channels (if defined)
+  if (user.supportedMessagingChannels && user.supportedMessagingChannels.length > 0) {
+    if (!user.supportedMessagingChannels.includes(conv.channelType as MessagingChannelType)) {
       return c.json(
         {
-          error: 'Volunteer not configured for this channel',
+          error: 'User not configured for this channel',
           channelType: conv.channelType,
-          supportedChannels: volunteer.supportedMessagingChannels,
+          supportedChannels: user.supportedMessagingChannels,
         },
         403
       )
     }
   }
 
-  // Check if volunteer has messaging enabled (defaults to true for backwards compatibility)
-  if (volunteer.messagingEnabled === false) {
-    return c.json({ error: 'Messaging not enabled for this volunteer' }, 403)
+  // Check if user has messaging enabled (defaults to true for backwards compatibility)
+  if (user.messagingEnabled === false) {
+    return c.json({ error: 'Messaging not enabled for this user' }, 403)
   }
 
   // Only waiting conversations can be claimed

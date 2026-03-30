@@ -12,7 +12,7 @@ const routes = new Hono<AppEnv>()
 // List hubs (filtered by user's membership, super admin sees all)
 routes.get('/', async (c) => {
   const services = c.get('services')
-  const volunteer = c.get('volunteer')
+  const user = c.get('user')
   const permissions = c.get('permissions')
 
   const allHubs = await services.settings.getHubs()
@@ -23,7 +23,7 @@ routes.get('/', async (c) => {
   }
 
   // Others see only their hubs
-  const userHubIds = new Set((volunteer.hubRoles || []).map((hr) => hr.hubId))
+  const userHubIds = new Set((user.hubRoles || []).map((hr) => hr.hubId))
   return c.json({ hubs: allHubs.filter((h) => h.status === 'active' && userHubIds.has(h.id)) })
 })
 
@@ -79,7 +79,7 @@ routes.post('/', requirePermission('system:manage-hubs'), async (c) => {
 routes.get('/:hubId', async (c) => {
   const hubId = c.req.param('hubId')
   const services = c.get('services')
-  const volunteer = c.get('volunteer')
+  const user = c.get('user')
   const permissions = c.get('permissions')
 
   const hub = await services.settings.getHub(hubId)
@@ -87,7 +87,7 @@ routes.get('/:hubId', async (c) => {
 
   // Check access
   const isSuperAdmin = checkPermission(permissions, '*')
-  const hasHubAccess = (volunteer.hubRoles || []).some((hr) => hr.hubId === hubId)
+  const hasHubAccess = (user.hubRoles || []).some((hr) => hr.hubId === hubId)
   if (!isSuperAdmin && !hasHubAccess) {
     return c.json({ error: 'Access denied' }, 403)
   }
@@ -375,13 +375,13 @@ routes.get('/:hubId/key-envelope', async (c) => {
 routes.get('/:hubId/key', async (c) => {
   const hubId = c.req.param('hubId')
   const pubkey = c.get('pubkey')
-  const volunteer = c.get('volunteer')
+  const user = c.get('user')
   const permissions = c.get('permissions')
   const services = c.get('services')
 
   // Enforce hub membership — only members and super-admins may fetch hub key envelopes
   const isSuperAdmin = checkPermission(permissions, '*')
-  const isMember = (volunteer.hubRoles || []).some((hr) => hr.hubId === hubId)
+  const isMember = (user.hubRoles || []).some((hr) => hr.hubId === hubId)
   if (!isSuperAdmin && !isMember) {
     return c.json({ error: 'Access denied' }, 403)
   }

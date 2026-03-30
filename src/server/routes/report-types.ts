@@ -4,7 +4,7 @@ import type { AppEnv } from '../types'
 
 const reportTypesRoutes = new Hono<AppEnv>()
 
-// GET /api/report-types — list all (active + archived) for hub; admin + volunteer
+// GET /api/report-types — list all (active + archived) for hub; admin + user
 reportTypesRoutes.get('/', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId') ?? 'global'

@@ -6,16 +6,16 @@ const webrtc = new Hono<AppEnv>()
 
 /**
  * GET /api/telephony/webrtc-token
- * Generate a provider-specific WebRTC access token for the authenticated volunteer.
+ * Generate a provider-specific WebRTC access token for the authenticated user.
  * Requires: provider config with webrtcEnabled=true and appropriate credentials.
  */
 webrtc.get('/webrtc-token', async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const volunteer = c.get('volunteer')
+  const user = c.get('user')
 
-  // Check volunteer's call preference allows browser calls
-  const callPref = volunteer.callPreference ?? 'phone'
+  // Check user's call preference allows browser calls
+  const callPref = user.callPreference ?? 'phone'
   if (callPref === 'phone') {
     return c.json(
       { error: 'Call preference is set to phone only. Enable browser calling in settings.' },
@@ -36,7 +36,7 @@ webrtc.get('/webrtc-token', async (c) => {
   }
 
   try {
-    // Use a sanitized identity (pubkey prefix — unique per volunteer)
+    // Use a sanitized identity (pubkey prefix — unique per user)
     const identity = `vol_${pubkey.slice(0, 16)}`
     const result = await generateWebRtcToken(config, identity)
     return c.json({ token: result.token, provider: result.provider, identity, ttl: result.ttl })

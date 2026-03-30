@@ -1,7 +1,7 @@
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { Hono } from 'hono'
 import { isValidE164 } from '../lib/helpers'
-import { projectVolunteer } from '../lib/volunteer-projector'
+import { projectUser } from '../lib/user-projector'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
@@ -16,28 +16,28 @@ function isValidSecp256k1Pubkey(pk: string): boolean {
   }
 }
 
-const volunteers = new Hono<AppEnv>()
-volunteers.use('*', requirePermission('volunteers:read'))
+const users = new Hono<AppEnv>()
+users.use('*', requirePermission('volunteers:read'))
 
-volunteers.get('/', async (c) => {
+users.get('/', async (c) => {
   const services = c.get('services')
   const requestorPubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const isAdmin = checkPermission(permissions, 'settings:manage')
 
-  const vols = await services.identity.getVolunteers()
-  return c.json({ volunteers: vols.map((v) => projectVolunteer(v, requestorPubkey, isAdmin)) })
+  const allUsers = await services.identity.getUsers()
+  return c.json({ users: allUsers.map((u) => projectUser(u, requestorPubkey, isAdmin)) })
 })
 
-volunteers.get('/:targetPubkey', async (c) => {
+users.get('/:targetPubkey', async (c) => {
   const services = c.get('services')
   const requestorPubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const isAdmin = checkPermission(permissions, 'settings:manage')
   const targetPubkey = c.req.param('targetPubkey')
 
-  const volunteer = await services.identity.getVolunteer(targetPubkey)
-  if (!volunteer) return c.json({ error: 'Not found' }, 404)
+  const user = await services.identity.getUser(targetPubkey)
+  if (!user) return c.json({ error: 'Not found' }, 404)
 
   // ?unmask=true: admin-only; creates audit entry
   const unmask = isAdmin && c.req.query('unmask') === 'true'
@@ -47,10 +47,10 @@ volunteers.get('/:targetPubkey', async (c) => {
     })
   }
 
-  return c.json(projectVolunteer(volunteer, requestorPubkey, isAdmin, unmask))
+  return c.json(projectUser(user, requestorPubkey, isAdmin, unmask))
 })
 
-volunteers.post('/', requirePermission('volunteers:create'), async (c) => {
+users.post('/', requirePermission('volunteers:create'), async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as {
@@ -76,7 +76,7 @@ volunteers.post('/', requirePermission('volunteers:create'), async (c) => {
     )
   }
 
-  const volunteer = await services.identity.createVolunteer({
+  const user = await services.identity.createUser({
     pubkey: newPubkey,
     name: body.name,
     phone: body.phone,
@@ -84,24 +84,24 @@ volunteers.post('/', requirePermission('volunteers:create'), async (c) => {
     encryptedSecretKey: '',
   })
 
-  await services.records.addAuditEntry('global', 'volunteerAdded', pubkey, {
+  await services.records.addAuditEntry('global', 'userAdded', pubkey, {
     target: newPubkey,
     roles: body.roleIds,
   })
 
   // Return admin view for the creator (always an admin)
-  return c.json({ volunteer: projectVolunteer(volunteer, pubkey, true) }, 201)
+  return c.json({ user: projectUser(user, pubkey, true) }, 201)
 })
 
-volunteers.patch('/:targetPubkey', requirePermission('volunteers:update'), async (c) => {
+users.patch('/:targetPubkey', requirePermission('volunteers:update'), async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const targetPubkey = c.req.param('targetPubkey')
   const body = (await c.req.json()) as Record<string, unknown>
 
-  const updated = await services.identity.updateVolunteer(
+  const updated = await services.identity.updateUser(
     targetPubkey,
-    body as Parameters<typeof services.identity.updateVolunteer>[1],
+    body as Parameters<typeof services.identity.updateUser>[1],
     true // isAdmin=true for admin update
   )
 
@@ -111,20 +111,20 @@ volunteers.patch('/:targetPubkey', requirePermission('volunteers:update'), async
       roles: body.roles,
     })
   }
-  // JWT tokens are short-lived; deactivated volunteers will fail auth on next request
+  // JWT tokens are short-lived; deactivated users will fail auth on next request
 
-  return c.json({ volunteer: projectVolunteer(updated, pubkey, true) })
+  return c.json({ user: projectUser(updated, pubkey, true) })
 })
 
-volunteers.delete('/:targetPubkey', requirePermission('volunteers:delete'), async (c) => {
+users.delete('/:targetPubkey', requirePermission('volunteers:delete'), async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const targetPubkey = c.req.param('targetPubkey')
-  await services.identity.deleteVolunteer(targetPubkey)
-  await services.records.addAuditEntry('global', 'volunteerRemoved', pubkey, {
+  await services.identity.deleteUser(targetPubkey)
+  await services.records.addAuditEntry('global', 'userRemoved', pubkey, {
     target: targetPubkey,
   })
   return c.json({ ok: true })
 })
 
-export default volunteers
+export default users

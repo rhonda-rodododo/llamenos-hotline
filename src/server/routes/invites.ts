@@ -51,9 +51,9 @@ invites.post('/redeem', async (c) => {
   )
   if (limited) return c.json({ error: 'Too many requests' }, 429)
 
-  const volunteer = await services.identity.redeemInvite({ code: body.code, pubkey: body.pubkey })
+  const user = await services.identity.redeemInvite({ code: body.code, pubkey: body.pubkey })
 
-  // Enroll the new volunteer in the IdP and return their nsecSecret for KEK derivation
+  // Enroll the new user in the IdP and return their nsecSecret for KEK derivation
   let nsecSecret: string | undefined
   const idpAdapter = getIdPAdapter()
   if (idpAdapter) {
@@ -71,13 +71,13 @@ invites.post('/redeem', async (c) => {
 
   // Issue a JWT so the client can call authenticated endpoints (e.g. getMe) immediately
   const allRoles = await services.settings.listRoles()
-  const permissions = resolvePermissions(volunteer.roles, allRoles)
+  const permissions = resolvePermissions(user.roles, allRoles)
   const accessToken = await signAccessToken(
     { pubkey: body.pubkey, permissions: [...new Set(permissions)] },
     c.env.JWT_SECRET
   )
 
-  return c.json({ ...volunteer, nsecSecret, accessToken })
+  return c.json({ ...user, nsecSecret, accessToken })
 })
 
 // --- Authenticated routes (require invites permissions) ---

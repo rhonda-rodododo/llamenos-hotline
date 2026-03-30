@@ -87,12 +87,12 @@ export interface TelephonyAdapter {
   hangupCall(callSid: string): Promise<void>
 
   /**
-   * Initiate parallel outbound calls to volunteers' phones.
+   * Initiate parallel outbound calls to users' phones.
    */
-  ringVolunteers(params: RingVolunteersParams): Promise<string[]>
+  ringUsers(params: RingUsersParams): Promise<string[]>
 
   /**
-   * Cancel ringing for all volunteers except the one who answered.
+   * Cancel ringing for all users except the one who answered.
    */
   cancelRinging(callSids: string[], exceptSid?: string): Promise<void>
 
@@ -204,12 +204,12 @@ export interface CaptchaResponseParams {
 }
 
 export interface CallAnsweredParams {
-  /** The incoming call SID, used as the queue name to bridge caller → volunteer */
+  /** The incoming call SID, used as the queue name to bridge caller → user */
   parentCallSid: string
   /** Origin URL for recording status callbacks */
   callbackUrl: string
-  /** Volunteer pubkey for recording callback routing */
-  volunteerPubkey: string
+  /** User pubkey for recording callback routing */
+  userPubkey: string
   /** Hub ID for multi-hub routing — appended to callback URLs as &hub= */
   hubId?: string
 }
@@ -224,7 +224,7 @@ export interface VoicemailParams {
   hubId?: string
 }
 
-export interface RingVolunteersParams {
+export interface RingUsersParams {
   callSid: string
   callerNumber: string
   volunteers: Array<{

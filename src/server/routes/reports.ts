@@ -261,7 +261,7 @@ reports.post('/:id/messages', async (c) => {
     if (canSendOwn && isReportOwner(report, pubkey)) {
       // Reporter can reply to own report
     } else if (report.assignedTo === pubkey) {
-      // Assigned volunteer can reply
+      // Assigned user can reply
     } else {
       return c.json({ error: 'Forbidden' }, 403)
     }
@@ -301,7 +301,7 @@ reports.post('/:id/messages', async (c) => {
   return c.json(msg)
 })
 
-// Assign a volunteer to a report (requires reports:assign)
+// Assign a user to a report (requires reports:assign)
 reports.post('/:id/assign', requirePermission('reports:assign'), async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')

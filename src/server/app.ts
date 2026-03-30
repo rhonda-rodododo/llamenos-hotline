@@ -38,7 +38,7 @@ import setupRoutes from './routes/setup'
 import shiftsRoutes from './routes/shifts'
 import telephonyRoutes from './routes/telephony'
 import uploadsRoutes from './routes/uploads'
-import volunteersRoutes from './routes/volunteers'
+import usersRoutes from './routes/users'
 import webrtcRoutes from './routes/webrtc'
 import type { AppEnv } from './types'
 
@@ -188,7 +188,7 @@ const requireHubOrSuperAdmin = createMiddleware<AppEnv>(async (c, next) => {
 // Authenticated routes
 const authenticated = new Hono<AppEnv>()
 authenticated.use('*', auth)
-authenticated.route('/volunteers', volunteersRoutes)
+authenticated.route('/users', usersRoutes)
 // Resource routes shared with hub-scoped router: require hub context for non-super-admins
 authenticated.use('/shifts/*', requireHubOrSuperAdmin)
 authenticated.use('/shifts', requireHubOrSuperAdmin)

@@ -5,7 +5,7 @@ import type { AppEnv } from '../types'
 
 const gdpr = new Hono<AppEnv>()
 
-// GET /api/gdpr/consent — check consent status for authenticated volunteer
+// GET /api/gdpr/consent — check consent status for authenticated user
 gdpr.get('/consent', async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
@@ -28,11 +28,11 @@ gdpr.post('/consent', async (c) => {
   return c.json({ ok: true })
 })
 
-// GET /api/gdpr/export — GDPR data export for authenticated volunteer
+// GET /api/gdpr/export — GDPR data export for authenticated user
 gdpr.get('/export', requirePermission('gdpr:export'), async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const data = await services.gdpr.exportForVolunteer(pubkey)
+  const data = await services.gdpr.exportForUser(pubkey)
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
   return new Response(JSON.stringify(data, null, 2), {
     headers: {
@@ -42,13 +42,13 @@ gdpr.get('/export', requirePermission('gdpr:export'), async (c) => {
   })
 })
 
-// GET /api/gdpr/export/:pubkey — admin export of any volunteer's data
+// GET /api/gdpr/export/:pubkey — admin export of any user's data
 gdpr.get('/export/:targetPubkey', requirePermission('gdpr:admin'), async (c) => {
   const services = c.get('services')
   const adminPubkey = c.get('pubkey')
   const hubId = c.get('hubId')
   const targetPubkey = c.req.param('targetPubkey')
-  const data = await services.gdpr.exportForVolunteer(targetPubkey)
+  const data = await services.gdpr.exportForUser(targetPubkey)
   await services.records.addAuditEntry(hubId ?? 'global', 'gdprExportRequested', adminPubkey, {
     targetPubkey,
   })
@@ -96,7 +96,7 @@ gdpr.delete('/:targetPubkey', requirePermission('gdpr:admin'), async (c) => {
   const adminPubkey = c.get('pubkey')
   const hubId = c.get('hubId')
   const targetPubkey = c.req.param('targetPubkey')
-  await services.gdpr.eraseVolunteer(targetPubkey)
+  await services.gdpr.eraseUser(targetPubkey)
   await services.records.addAuditEntry(hubId ?? 'global', 'gdprErasureExecuted', adminPubkey, {
     targetPubkey,
     initiator: adminPubkey,

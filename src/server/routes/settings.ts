@@ -41,7 +41,7 @@ settings.get('/custom-fields', async (c) => {
   const permissions = c.get('permissions')
   const canManageFields = checkPermission(permissions, 'settings:manage-fields')
   const fields = await services.settings.getCustomFields(
-    canManageFields ? 'admin' : 'volunteer',
+    canManageFields ? 'admin' : 'user',
     hubId ?? undefined
   )
   return c.json({ fields })

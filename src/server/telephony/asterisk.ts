@@ -6,7 +6,7 @@ import type {
   CaptchaResponseParams,
   IncomingCallParams,
   LanguageMenuParams,
-  RingVolunteersParams,
+  RingUsersParams,
   TelephonyAdapter,
   TelephonyResponse,
   VoicemailParams,
@@ -245,7 +245,7 @@ export class AsteriskAdapter implements TelephonyAdapter {
     await this.bridge.request('POST', '/commands/hangup', { channelId: callSid })
   }
 
-  async ringVolunteers(params: RingVolunteersParams): Promise<string[]> {
+  async ringUsers(params: RingUsersParams): Promise<string[]> {
     const { callSid, callerNumber, volunteers, callbackUrl, hubId } = params
     const result = await this.bridge.request('POST', '/ring', {
       parentCallSid: callSid,

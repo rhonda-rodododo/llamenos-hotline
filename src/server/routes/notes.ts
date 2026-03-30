@@ -72,7 +72,7 @@ notes.get('/:id', async (c) => {
   const note = await services.records.getNote(id)
   if (!note) return c.json({ error: 'Note not found' }, 404)
 
-  // Volunteers can only view their own notes
+  // Users can only view their own notes
   if (!canReadAll && note.authorPubkey !== pubkey) {
     return c.json({ error: 'Forbidden' }, 403)
   }

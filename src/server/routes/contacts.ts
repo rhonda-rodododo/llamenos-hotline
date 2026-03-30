@@ -18,22 +18,22 @@ contacts.get('/recipients', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId') ?? 'global'
 
-  const [allVolunteers, allRoles] = await Promise.all([
-    services.identity.getVolunteers(),
+  const [allUsers, allRoles] = await Promise.all([
+    services.identity.getUsers(),
     services.settings.listRoles(),
   ])
 
   const summaryPubkeys: string[] = []
   const piiPubkeys: string[] = []
 
-  for (const vol of allVolunteers) {
-    if (!vol.active) continue
-    const perms = resolveHubPermissions(vol.roles, vol.hubRoles ?? [], allRoles, hubId)
+  for (const usr of allUsers) {
+    if (!usr.active) continue
+    const perms = resolveHubPermissions(usr.roles, usr.hubRoles ?? [], allRoles, hubId)
     if (permissionGranted(perms, 'contacts:read-summary')) {
-      summaryPubkeys.push(vol.pubkey)
+      summaryPubkeys.push(usr.pubkey)
     }
     if (permissionGranted(perms, 'contacts:read-pii')) {
-      piiPubkeys.push(vol.pubkey)
+      piiPubkeys.push(usr.pubkey)
     }
   }
 

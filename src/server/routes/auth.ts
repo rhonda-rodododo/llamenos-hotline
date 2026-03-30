@@ -4,7 +4,7 @@ import { getPrimaryRole } from '../../shared/permissions'
 import { getIdPAdapter } from '../app'
 import { hashIP } from '../lib/crypto-service'
 import { isValidE164 } from '../lib/helpers'
-import { maskPhone } from '../lib/volunteer-projector'
+import { maskPhone } from '../lib/user-projector'
 import { auth as authMiddleware } from '../middleware/auth'
 import { checkPermission } from '../middleware/permission-guard'
 import type { AppEnv, WebAuthnCredential } from '../types'
@@ -64,7 +64,7 @@ auth.use('/me/*', authMiddleware)
 auth.get('/me', async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
-  const volunteer = c.get('volunteer')
+  const user = c.get('user')
   const permissions = c.get('permissions')
   const allRoles = c.get('allRoles')
 
@@ -74,30 +74,30 @@ auth.get('/me', async (c) => {
   const isAdmin = checkPermission(permissions, 'settings:manage')
   const webauthnRequired = isAdmin
     ? webauthnSettings.requireForAdmins
-    : webauthnSettings.requireForVolunteers
+    : webauthnSettings.requireForUsers
 
-  const primaryRole = getPrimaryRole(volunteer.roles, allRoles)
+  const primaryRole = getPrimaryRole(user.roles, allRoles)
 
   return c.json({
-    pubkey: volunteer.pubkey,
-    roles: volunteer.roles,
-    hubRoles: volunteer.hubRoles ?? [],
+    pubkey: user.pubkey,
+    roles: user.roles,
+    hubRoles: user.hubRoles ?? [],
     permissions,
     primaryRole: primaryRole
       ? { id: primaryRole.id, name: primaryRole.name, slug: primaryRole.slug }
       : null,
-    name: volunteer.name,
+    name: user.name,
     // E2EE envelope fields — client uses these to decrypt name with their private key
-    ...(volunteer.encryptedName !== undefined ? { encryptedName: volunteer.encryptedName } : {}),
-    ...(volunteer.nameEnvelopes !== undefined ? { nameEnvelopes: volunteer.nameEnvelopes } : {}),
-    // PII: phone always masked in self-view (client shows masked; unmask via PIN challenge + ?unmask=true on /volunteers/:pubkey)
-    phone: maskPhone(volunteer.phone),
-    transcriptionEnabled: volunteer.transcriptionEnabled,
-    spokenLanguages: volunteer.spokenLanguages || ['en'],
-    uiLanguage: volunteer.uiLanguage || 'en',
-    profileCompleted: volunteer.profileCompleted ?? true,
-    onBreak: volunteer.onBreak ?? false,
-    callPreference: volunteer.callPreference ?? 'phone',
+    ...(user.encryptedName !== undefined ? { encryptedName: user.encryptedName } : {}),
+    ...(user.nameEnvelopes !== undefined ? { nameEnvelopes: user.nameEnvelopes } : {}),
+    // PII: phone always masked in self-view (client shows masked; unmask via PIN challenge + ?unmask=true on /users/:pubkey)
+    phone: maskPhone(user.phone),
+    transcriptionEnabled: user.transcriptionEnabled,
+    spokenLanguages: user.spokenLanguages || ['en'],
+    uiLanguage: user.uiLanguage || 'en',
+    profileCompleted: user.profileCompleted ?? true,
+    onBreak: user.onBreak ?? false,
+    callPreference: user.callPreference ?? 'phone',
     webauthnRequired,
     webauthnRegistered: webauthnCreds.length > 0,
     // H17: Removed adminPubkey (signing key identity) — only decryption pubkey needed
@@ -128,7 +128,7 @@ auth.patch('/me/profile', async (c) => {
   if (body.phone && !isValidE164(body.phone)) {
     return c.json({ error: 'Invalid phone number. Use E.164 format (e.g. +12125551234)' }, 400)
   }
-  await services.identity.updateVolunteer(pubkey, body)
+  await services.identity.updateUser(pubkey, body)
   return c.json({ ok: true })
 })
 
@@ -136,10 +136,10 @@ auth.patch('/me/availability', async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as { onBreak: boolean }
-  await services.identity.updateVolunteer(pubkey, { onBreak: body.onBreak })
+  await services.identity.updateUser(pubkey, { onBreak: body.onBreak })
   await services.records.addAuditEntry(
     'global',
-    body.onBreak ? 'volunteerOnBreak' : 'volunteerAvailable',
+    body.onBreak ? 'userOnBreak' : 'userAvailable',
     pubkey
   )
   return c.json({ ok: true })
@@ -150,14 +150,14 @@ auth.patch('/me/transcription', async (c) => {
   const pubkey = c.get('pubkey')
   const permissions = c.get('permissions')
   const body = (await c.req.json()) as { enabled: boolean }
-  // If volunteer is trying to disable, check if admin allows opt-out
+  // If user is trying to disable, check if admin allows opt-out
   if (!body.enabled && !checkPermission(permissions, 'settings:manage-transcription')) {
     const transSettings = await services.settings.getTranscriptionSettings()
-    if (!transSettings.allowVolunteerOptOut) {
+    if (!transSettings.allowUserOptOut) {
       return c.json({ error: 'Transcription opt-out is not allowed' }, 403)
     }
   }
-  await services.identity.updateVolunteer(pubkey, { transcriptionEnabled: body.enabled })
+  await services.identity.updateUser(pubkey, { transcriptionEnabled: body.enabled })
   await services.records.addAuditEntry('global', 'transcriptionToggled', pubkey, {
     enabled: body.enabled,
   })

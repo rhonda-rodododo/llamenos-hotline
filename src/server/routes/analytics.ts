@@ -32,14 +32,14 @@ analytics.get('/hours', requirePermission('calls:read-history'), async (c) => {
 })
 
 /**
- * GET /api/analytics/volunteers?days=30
- * Returns per-volunteer call stats for the last N days.
+ * GET /api/analytics/users?days=30
+ * Returns per-user call stats for the last N days.
  * Permission: audit:read (admin only)
  */
-analytics.get('/volunteers', requirePermission('audit:read'), async (c) => {
+analytics.get('/users', requirePermission('audit:read'), async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
-  const data = await services.records.getVolunteerCallStats(hubId, 30)
+  const data = await services.records.getUserCallStats(hubId, 30)
   return c.json({ days: 30, data })
 })
 

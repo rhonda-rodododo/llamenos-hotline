@@ -138,7 +138,7 @@ export async function startParallelRinging(
         console.warn('[ringing] no telephony adapter configured — phone users cannot be rung')
         // Don't return — browser-only users can still handle the call via WebSocket
       } else {
-        await adapter.ringVolunteers({
+        await adapter.ringUsers({
           callSid,
           callerNumber,
           volunteers: toRing,

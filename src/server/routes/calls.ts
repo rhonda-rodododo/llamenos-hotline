@@ -39,7 +39,7 @@ calls.get('/presence', requirePermission('calls:read-presence'), async (c) => {
   return c.json({
     activeCalls: activeCalls.length,
     onShift: onShift.length,
-    volunteers: onShift.map((s) => s.pubkey),
+    users: onShift.map((s) => s.pubkey),
   })
 })
 
@@ -60,7 +60,7 @@ calls.get('/history', requirePermission('calls:read-history'), async (c) => {
 
 // --- Call Detail ---
 
-// Permission: admin (calls:read-history) or volunteer who answered the call
+// Permission: admin (calls:read-history) or user who answered the call
 calls.get('/:callId/detail', async (c) => {
   const callId = c.req.param('callId')
   const services = c.get('services')
@@ -73,18 +73,18 @@ calls.get('/:callId/detail', async (c) => {
   const call = await services.records.getCallRecord(callId, hubId)
   if (!call) return c.json({ error: 'Call not found' }, 404)
 
-  // Volunteers can only view calls they answered (check active + metadata)
+  // Users can only view calls they answered (check active + metadata)
   if (!isAdmin) {
     const activeCall = await services.calls.getActiveCall(callId, hubId)
     // For archived calls, check by decrypted answeredBy — we can't do server-side,
-    // so we allow the volunteer to fetch and let client validate via E2EE decryption.
-    // At minimum, if there's an active call that another volunteer answered, deny.
+    // so we allow the user to fetch and let client validate via E2EE decryption.
+    // At minimum, if there's an active call that another user answered, deny.
     if (activeCall?.assignedPubkey && activeCall.assignedPubkey !== pubkey) {
       return c.json({ error: 'Forbidden' }, 403)
     }
   }
 
-  // Fetch notes for this call (admin sees all, volunteer sees own)
+  // Fetch notes for this call (admin sees all, user sees own)
   const notesResult = await services.records.getNotes({
     callId,
     hubId: hubId ?? 'global',
@@ -112,7 +112,7 @@ calls.get('/:callId/detail', async (c) => {
 
 // --- Call Actions (REST endpoints for WS→Nostr migration) ---
 
-// Answer a ringing call (volunteer)
+// Answer a ringing call (user)
 calls.post('/:callId/answer', requirePermission('calls:answer'), async (c) => {
   const callId = c.req.param('callId')
   const pubkey = c.get('pubkey')
@@ -156,14 +156,14 @@ calls.post('/:callId/answer', requirePermission('calls:answer'), async (c) => {
   return c.json({ call: updated })
 })
 
-// Hang up an active call (volunteer who answered it)
+// Hang up an active call (user who answered it)
 calls.post('/:callId/hangup', requirePermission('calls:answer'), async (c) => {
   const callId = c.req.param('callId')
   const pubkey = c.get('pubkey')
   const services = c.get('services')
   const hubId = c.get('hubId')
 
-  // Verify the volunteer answered this call
+  // Verify the user answered this call
   const call = await services.calls.getActiveCall(callId, hubId)
   if (!call) return c.json({ error: 'Call not found' }, 404)
   if (call.assignedPubkey !== pubkey) return c.json({ error: 'Not your call' }, 403)
@@ -172,14 +172,14 @@ calls.post('/:callId/hangup', requirePermission('calls:answer'), async (c) => {
   return c.json({ ok: true })
 })
 
-// Report a call as spam (volunteer who answered it)
+// Report a call as spam (user who answered it)
 calls.post('/:callId/spam', requirePermission('calls:answer'), async (c) => {
   const callId = c.req.param('callId')
   const pubkey = c.get('pubkey')
   const services = c.get('services')
   const hubId = c.get('hubId')
 
-  // Verify the volunteer answered this call
+  // Verify the user answered this call
   const call = await services.calls.getActiveCall(callId, hubId)
   if (!call) return c.json({ error: 'Call not found' }, 404)
   if (call.assignedPubkey !== pubkey) return c.json({ error: 'Not your call' }, 403)
@@ -192,7 +192,7 @@ calls.post('/:callId/spam', requirePermission('calls:answer'), async (c) => {
   return c.json({ ok: true })
 })
 
-// Permission checked inside handler: admin (calls:read-recording) or assigned volunteer
+// Permission checked inside handler: admin (calls:read-recording) or assigned user
 calls.get('/:callId/recording', async (c) => {
   const callId = c.req.param('callId')
   const services = c.get('services')
@@ -208,15 +208,15 @@ calls.get('/:callId/recording', async (c) => {
     return c.json({ error: 'No recording available for this call' }, 404)
   }
 
-  // Permission check: admin (calls:read-recording) or the volunteer who answered
+  // Permission check: admin (calls:read-recording) or the user who answered
   const isAdmin = checkPermission(permissions, 'calls:read-recording')
   // Note: answeredBy is in encrypted content; for permission check we use the active call's assignedPubkey
   // If the call record is archived, the metadata is encrypted — admin check is the safe fallback
   if (!isAdmin) {
     // Check active calls for current assignment
     const activeCall = await services.calls.getActiveCall(callId, hubId)
-    const isAnsweringVolunteer = activeCall?.assignedPubkey === pubkey
-    if (!isAnsweringVolunteer) {
+    const isAnsweringUser = activeCall?.assignedPubkey === pubkey
+    if (!isAnsweringUser) {
       return c.json({ error: 'Forbidden' }, 403)
     }
   }
