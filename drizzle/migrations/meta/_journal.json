@@ -232,6 +232,13 @@
       "when": 1743292800001,
       "tag": "0031_pbac_permission_renames",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1743379200000,
+      "tag": "0032_teams",
+      "breakpoints": true
     }
   ]
 }
