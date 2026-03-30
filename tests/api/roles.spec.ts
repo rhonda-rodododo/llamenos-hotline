@@ -458,7 +458,7 @@ test.describe('Custom role with specific permissions', () => {
     const auditRes = await customApi.get('/api/audit')
     expect([400, 403]).toContain(auditRes.status())
 
-    // Cannot create shifts (only has shifts:read, not shifts:create)
+    // Cannot create shifts (only has shifts:read-all, not shifts:create)
     // May return 400 if hub context required at API level
     const createShiftRes = await customApi.post('/api/shifts', {
       name: 'Unauthorized Shift',

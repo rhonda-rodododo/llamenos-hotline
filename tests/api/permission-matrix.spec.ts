@@ -179,7 +179,7 @@ test.describe('Permission Matrix', () => {
       const haRes = await ctx.api('hub-admin').get(ctx.hubPath('/shifts'))
       expect(haRes.status()).toBe(200)
 
-      // User: has shifts:read-own but not shifts:read (may vary)
+      // User: has shifts:read-own but not shifts:read-all (may vary)
       const volRes = await ctx.api('volunteer').get(ctx.hubPath('/shifts'))
       // User might get 200 (shifts:read-own allows list) or 403
       expect(volRes.status()).not.toBe(500)

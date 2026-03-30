@@ -167,4 +167,9 @@ describe('volunteer role permission renames', () => {
     const vol = DEFAULT_ROLES.find((r) => r.id === 'role-volunteer')!
     expect(vol.permissions).toContain('contacts:read-own')
   })
+
+  test('Volunteer does not have contacts:envelope-full', () => {
+    const volunteerRole = DEFAULT_ROLES.find((r) => r.id === 'role-volunteer')!
+    expect(volunteerRole.permissions).not.toContain('contacts:envelope-full')
+  })
 })
