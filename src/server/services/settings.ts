@@ -83,6 +83,8 @@ import type {
 export class SettingsService {
   private hubKeyCache = new TtlCache<Uint8Array | null>(30_000)
   private roleCache = new TtlCache<Role[]>(10_000) // 10s TTL
+  private telephonyConfigCache = new TtlCache<TelephonyProviderConfig | null>(30_000) // 30s TTL
+  private phoneToHubCache = new TtlCache<string | null>(60_000) // 60s TTL
 
   constructor(
     protected readonly db: Database,
@@ -394,27 +396,29 @@ export class SettingsService {
 
   async getTelephonyProvider(hubId?: string): Promise<TelephonyProviderConfig | null> {
     const hId = hubId ?? 'global'
-    const rows = await this.db
-      .select()
-      .from(telephonyConfig)
-      .where(eq(telephonyConfig.hubId, hId))
-      .limit(1)
-    if (!rows[0]) return null
-    const configStr = rows[0].config
-    if (!configStr) return null
-    let json: string
-    try {
-      json = this.crypto.serverDecrypt(configStr as Ciphertext, LABEL_PROVIDER_CREDENTIAL_WRAP)
-    } catch {
-      // Legacy plaintext — re-encrypt and update
-      json = configStr
-      const encrypted = this.crypto.serverEncrypt(json, LABEL_PROVIDER_CREDENTIAL_WRAP)
-      await this.db
-        .update(telephonyConfig)
-        .set({ config: encrypted })
+    return this.telephonyConfigCache.getOrSet(hId, async () => {
+      const rows = await this.db
+        .select()
+        .from(telephonyConfig)
         .where(eq(telephonyConfig.hubId, hId))
-    }
-    return JSON.parse(json) as TelephonyProviderConfig
+        .limit(1)
+      if (!rows[0]) return null
+      const configStr = rows[0].config
+      if (!configStr) return null
+      let json: string
+      try {
+        json = this.crypto.serverDecrypt(configStr as Ciphertext, LABEL_PROVIDER_CREDENTIAL_WRAP)
+      } catch {
+        // Legacy plaintext — re-encrypt and update
+        json = configStr
+        const encrypted = this.crypto.serverEncrypt(json, LABEL_PROVIDER_CREDENTIAL_WRAP)
+        await this.db
+          .update(telephonyConfig)
+          .set({ config: encrypted })
+          .where(eq(telephonyConfig.hubId, hId))
+      }
+      return JSON.parse(json) as TelephonyProviderConfig
+    })
   }
 
   async updateTelephonyProvider(
@@ -422,6 +426,8 @@ export class SettingsService {
     hubId?: string
   ): Promise<TelephonyProviderConfig> {
     const hId = hubId ?? 'global'
+    this.telephonyConfigCache.delete(hId)
+    this.phoneToHubCache.clear() // phone mapping may have changed
     const encrypted = this.crypto.serverEncrypt(
       JSON.stringify(config),
       LABEL_PROVIDER_CREDENTIAL_WRAP
@@ -437,6 +443,11 @@ export class SettingsService {
   }
 
   async getHubByPhone(phone: string): Promise<Hub | null> {
+    const cachedHubId = this.phoneToHubCache.get(phone)
+    if (cachedHubId !== undefined) {
+      return cachedHubId ? this.getHub(cachedHubId) : null
+    }
+
     // Fetch all telephony configs and filter by phone in decrypted config
     const rows = await this.db.select().from(telephonyConfig)
     for (const row of rows) {
@@ -454,27 +465,11 @@ export class SettingsService {
         }
       }
       if (cfg.phoneNumber === phone) {
-        // Look up the hub
-        const hubRows = await this.db.select().from(hubs).where(eq(hubs.id, row.hubId)).limit(1)
-        if (hubRows[0]) {
-          const h = hubRows[0]
-          const hk = await this.#getHubKey(h.id)
-          const hName = this.crypto.decryptField(
-            h.encryptedName as Ciphertext,
-            hk,
-            'llamenos:hub-name'
-          )
-          const hDesc = h.encryptedDescription
-            ? this.crypto.decryptField(
-                h.encryptedDescription as Ciphertext,
-                hk,
-                'llamenos:hub-name'
-              ) || undefined
-            : undefined
-          return this.#rowToHub(h, hName, hDesc)
-        }
+        this.phoneToHubCache.set(phone, row.hubId)
+        return this.getHub(row.hubId)
       }
     }
+    this.phoneToHubCache.set(phone, null)
     return null
   }
 
