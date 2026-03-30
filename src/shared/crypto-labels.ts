@@ -117,7 +117,7 @@ export const LABEL_SERVER_NOSTR_KEY_INFO = 'llamenos:server-nostr-key:v1'
 /** Wake-tier ECIES push payload — decryptable without PIN (minimal metadata only) */
 export const LABEL_PUSH_WAKE = 'llamenos:push-wake'
 
-/** Full-tier ECIES push payload — decryptable only with volunteer's nsec */
+/** Full-tier ECIES push payload — decryptable only with user's nsec */
 export const LABEL_PUSH_FULL = 'llamenos:push-full'
 
 // --- Contact Identifier Encryption (Epic 255) ---
@@ -181,8 +181,8 @@ export const LABEL_BLAST_SETTINGS = 'llamenos:blast-settings:v1'
 
 // --- Field-Level Encryption (Phase 1) ---
 
-/** Server-key encryption of volunteer/invite PII (phone numbers) */
-export const LABEL_VOLUNTEER_PII = 'llamenos:volunteer-pii:v1'
+/** Server-key encryption of user/invite PII (phone numbers) */
+export const LABEL_USER_PII = 'llamenos:volunteer-pii:v1'
 
 /** Server-key encryption of ephemeral call data (caller numbers during active calls) */
 export const LABEL_EPHEMERAL_CALL = 'llamenos:ephemeral-call:v1'

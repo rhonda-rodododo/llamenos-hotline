@@ -13,7 +13,7 @@
 
 // --- Regular Events (persisted) ---
 
-/** Incoming call notification — triggers volunteer ringing */
+/** Incoming call notification — triggers user ringing */
 export const KIND_CALL_RING = 1000
 
 /** Call state update — answered, completed, etc. */
@@ -36,7 +36,7 @@ export const KIND_SETTINGS_CHANGED = 1030
 
 // --- Ephemeral Events (not persisted, broadcast only) ---
 
-/** Volunteer presence update — online counts, availability */
+/** User presence update — online counts, availability */
 export const KIND_PRESENCE_UPDATE = 20000
 
 /** Call answer/hangup signals — real-time coordination */

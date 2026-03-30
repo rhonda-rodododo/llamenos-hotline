@@ -17,7 +17,7 @@ export const PERMISSION_CATALOG = {
   'calls:read-active': 'See active calls (caller info redacted)',
   'calls:read-active-full': 'See active calls with full caller info',
   'calls:read-history': 'View call history',
-  'calls:read-presence': 'View volunteer presence',
+  'calls:read-presence': 'View user presence',
   'calls:read-recording': 'Listen to call recordings',
   'calls:debug': 'Debug call state',
 
@@ -25,7 +25,7 @@ export const PERMISSION_CATALOG = {
   'notes:create': 'Create call notes',
   'notes:read-own': 'Read own notes',
   'notes:read-all': 'Read all notes',
-  'notes:read-assigned': 'Read notes from assigned volunteers',
+  'notes:read-assigned': 'Read notes from assigned users',
   'notes:update-own': 'Update own notes',
   'notes:reply': 'Reply to notes',
 
@@ -43,7 +43,7 @@ export const PERMISSION_CATALOG = {
   'reports:read-own': 'Read own reports',
   'reports:read-all': 'Read all reports',
   'reports:read-assigned': 'Read assigned reports',
-  'reports:assign': 'Assign reports to reviewers/volunteers',
+  'reports:assign': 'Assign reports to reviewers/users',
   'reports:update': 'Update report status',
   'reports:send-message-own': 'Send messages in own reports',
   'reports:send-message': 'Send messages in any report',
@@ -62,12 +62,12 @@ export const PERMISSION_CATALOG = {
   'conversations:send-any': 'Send messages in any conversation',
   'conversations:update': 'Reassign/close/reopen conversations',
 
-  // Volunteers
-  'volunteers:read': 'List/view volunteer profiles',
-  'volunteers:create': 'Create new volunteers',
-  'volunteers:update': 'Update volunteer profiles',
-  'volunteers:delete': 'Deactivate/delete volunteers',
-  'volunteers:manage-roles': 'Assign/change volunteer roles',
+  // Users
+  'users:read': 'List/view user profiles',
+  'users:create': 'Create new users',
+  'users:update': 'Update user profiles',
+  'users:delete': 'Deactivate/delete users',
+  'users:manage-roles': 'Assign/change user roles',
 
   // Shifts
   'shifts:read-own': 'Check own shift status',
@@ -184,7 +184,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     name: 'Hub Admin',
     slug: 'hub-admin',
     permissions: [
-      'volunteers:*',
+      'users:*',
       'shifts:*',
       'settings:*',
       'audit:read',
@@ -204,7 +204,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     ],
     isDefault: true,
     isSystem: false,
-    description: 'Full control within assigned hub(s) — manages volunteers, shifts, settings',
+    description: 'Full control within assigned hub(s) — manages users, shifts, settings',
   },
   {
     id: 'role-reviewer',
@@ -225,7 +225,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
     ],
     isDefault: true,
     isSystem: false,
-    description: 'Reviews notes and reports from assigned volunteers or shifts',
+    description: 'Reviews notes and reports from assigned users or shifts',
   },
   {
     id: 'role-volunteer',
@@ -247,7 +247,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'conversations:claim-rcs',
       'conversations:claim-web',
       'shifts:read-own',
-      'volunteers:read',
+      'users:read',
       'bans:report',
       'reports:read-assigned',
       'reports:send-message',
