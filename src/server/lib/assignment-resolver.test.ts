@@ -17,7 +17,6 @@ function createMockDb(opts: {
   callLinkRows?: unknown[]
   listRows?: { id: string }[]
 }) {
-  let executeCallCount = 0
   return {
     select: () => ({
       from: () => ({
@@ -30,9 +29,6 @@ function createMockDb(opts: {
       // In isAssigned, execute is called once (call link check).
       // In listAssignedIds, execute is called once (the big SELECT DISTINCT).
       // We use callLinkRows for isAssigned and listRows for listAssignedIds.
-      executeCallCount++
-      // If listRows are provided and this is a listAssignedIds call, return them.
-      // If callLinkRows are provided, return them (isAssigned call link check).
       // The test distinguishes by setting only the relevant option.
       if (opts.listRows !== undefined) {
         return Promise.resolve(opts.listRows)
@@ -84,7 +80,7 @@ describe('ContactsAssignmentResolver.isAssigned', () => {
   test('returns true when user is linked via call leg', async () => {
     const db = createMockDb({
       contact: { createdBy: 'other-user', assignedTo: null },
-      callLinkRows: [{ '?column?': 1 }],
+      callLinkRows: [{ found: 1 }],
     })
     const resolver = new ContactsAssignmentResolver(db)
     expect(await resolver.isAssigned(baseCheck)).toBe(true)

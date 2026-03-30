@@ -44,7 +44,7 @@ export class ContactsAssignmentResolver implements AssignmentResolver {
     const callLink = await this.db.execute<{ found: number }>(sql`
       SELECT 1 AS found FROM contact_call_links ccl
       JOIN call_legs cl ON cl.call_sid = ccl.call_id
-      WHERE ccl.contact_id = ${contactId} AND cl.user_pubkey = ${userPubkey}
+      WHERE ccl.contact_id = ${contactId} AND cl.user_pubkey = ${userPubkey} AND ccl.hub_id = ${hubId}
       LIMIT 1
     `)
     if (callLink.length > 0) return true
@@ -62,7 +62,7 @@ export class ContactsAssignmentResolver implements AssignmentResolver {
         OR c.id IN (
           SELECT ccl.contact_id FROM contact_call_links ccl
           JOIN call_legs cl ON cl.call_sid = ccl.call_id
-          WHERE cl.user_pubkey = ${userPubkey}
+          WHERE cl.user_pubkey = ${userPubkey} AND ccl.hub_id = ${hubId}
         )
       )
     `)

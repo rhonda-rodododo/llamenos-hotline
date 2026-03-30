@@ -423,6 +423,7 @@ contacts.post('/:id/link', requirePermission('contacts:link'), async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId') ?? 'global'
   const id = c.req.param('id')
+  const permissions = c.get('permissions')
   const pubkey = c.get('pubkey')
 
   const body = await c.req.json<{
@@ -443,6 +444,19 @@ contacts.post('/:id/link', requirePermission('contacts:link'), async (c) => {
     return c.json({ error: 'Contact not found' }, 404)
   }
 
+  // Scope enforcement — user must have update access to link/unlink
+  const updateScope = getContactUpdateScope(permissions)
+  if (!updateScope) return c.json({ error: 'Forbidden' }, 403)
+  if (updateScope !== 'all') {
+    const accessible = await services.contacts.isContactAccessible(
+      id,
+      hubId,
+      updateScope,
+      pubkey ?? ''
+    )
+    if (!accessible) return c.json({ error: 'Contact not found' }, 404)
+  }
+
   if (body.type === 'call') {
     const link = await services.contacts.linkCall(id, body.targetId, hubId, pubkey ?? '')
     return c.json({ link })
@@ -457,6 +471,8 @@ contacts.delete('/:id/link', requirePermission('contacts:link'), async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId') ?? 'global'
   const id = c.req.param('id')
+  const permissions = c.get('permissions')
+  const pubkey = c.get('pubkey')
 
   const body = await c.req.json<{
     type: 'call' | 'conversation'
@@ -474,6 +490,19 @@ contacts.delete('/:id/link', requirePermission('contacts:link'), async (c) => {
   const contact = await services.contacts.getContact(id, hubId)
   if (!contact) {
     return c.json({ error: 'Contact not found' }, 404)
+  }
+
+  // Scope enforcement — user must have update access to link/unlink
+  const updateScope = getContactUpdateScope(permissions)
+  if (!updateScope) return c.json({ error: 'Forbidden' }, 403)
+  if (updateScope !== 'all') {
+    const accessible = await services.contacts.isContactAccessible(
+      id,
+      hubId,
+      updateScope,
+      pubkey ?? ''
+    )
+    if (!accessible) return c.json({ error: 'Contact not found' }, 404)
   }
 
   if (body.type === 'call') {
