@@ -174,20 +174,6 @@ helm install llamenos deploy/helm/llamenos/ \
   --set ingress.hosts[0].host=hotline.yourdomain.com
 ```
 
-### Cloudflare Workers (alternative)
-
-For development or low-traffic deployments on managed infrastructure:
-
-```bash
-bun install
-bun run bootstrap-admin        # generate admin keypair
-cp .dev.vars.example .dev.vars # configure secrets
-bun run dev:worker             # local dev server
-bun run deploy                 # deploy to Cloudflare
-```
-
-Requires [Bun](https://bun.sh/) and a Cloudflare account.
-
 ## Telephony Providers
 
 Configure your provider in **Admin Settings > Telephony Provider** or during the setup wizard.
@@ -243,25 +229,19 @@ src/
     components/    # shadcn/ui components
     locales/       # Translation files (13 locales)
     lib/           # Auth, crypto, WebRTC, API client
-  worker/          # Backend (Cloudflare Workers or Node.js)
-    durable-objects/
-      identity-do.ts       # Auth, WebSocket, presence, device provisioning
-      settings-do.ts       # Settings, custom fields, IVR audio, messaging config
-      records-do.ts        # Audit log, call history, recordings
-      shift-manager.ts     # Shift scheduling, volunteer management
-      call-router.ts       # Call routing, notes, active calls
-      conversation-do.ts   # Threaded messaging conversations
+  server/          # Bun/Hono backend
+    services/      # PostgreSQL-backed business logic services
     telephony/     # Voice provider adapters (Twilio, SignalWire, Vonage, Plivo, Asterisk)
     messaging/     # Messaging channel adapters (SMS, WhatsApp, Signal)
     routes/        # API route handlers
-  platform/        # Platform abstraction layer
-    cloudflare.ts  # Cloudflare Workers implementation
-    node/          # Node.js implementation (PostgreSQL, MinIO, Whisper HTTP)
-  shared/          # Code shared between client and worker
+    db/            # Drizzle ORM schema + migrations
+    lib/           # Server utilities (auth, crypto, webauthn)
+  shared/          # Code shared between client and server
     types.ts       # Shared types (roles, conversations, reports, etc.)
     languages.ts   # Centralized language config
 deploy/
   docker/          # Docker Compose deployment (Dockerfile, Caddyfile, .env.example)
+  ansible/         # Ansible deployment for VPS
   helm/            # Kubernetes Helm chart
 asterisk-bridge/   # Standalone ARI bridge for self-hosted Asterisk
 site/              # Marketing site (Astro + Tailwind, Cloudflare Pages)
@@ -291,15 +271,17 @@ site/              # Marketing site (Astro + Tailwind, Cloudflare Pages)
 
 ## Development
 
-Requires [Bun](https://bun.sh/) for local development against Cloudflare Workers.
+Requires [Bun](https://bun.sh/) and [Docker](https://docs.docker.com/get-docker/) for local development.
 
 ```bash
 bun install
+bun run dev:docker   # Start backing services (postgres, rustfs, strfry)
+bun run migrate      # Apply database migrations
 bun run dev          # Vite dev server (frontend)
-bun run dev:worker   # Wrangler dev server (backend)
+bun run dev:server   # Bun watch server (backend, localhost:3000)
 bun run build        # Build frontend
 bun run typecheck    # TypeScript type checking
-bunx playwright test # Run E2E tests
+bun run test:all     # Run all tests
 ```
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the full development guide.

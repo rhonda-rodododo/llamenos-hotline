@@ -1,96 +1,89 @@
 ---
 title: البدء
-description: انشر خط الطوارئ الخاص بك باستخدام Llamenos في أقل من ساعة.
+description: انشر خط الطوارئ الخاص بك باستخدام Llamenos في دقائق.
 ---
 
-انشر خط الطوارئ الخاص بك باستخدام Llamenos في أقل من ساعة. ستحتاج إلى حساب Cloudflare، وحساب لدى مزود خدمة الاتصالات الهاتفية، وجهاز مثبت عليه Bun.
+قم بتشغيل خط Llamenos محليًا أو على خادم. كل ما تحتاجه هو Docker — لا حاجة لـ Node.js أو Bun أو أي بيئات تشغيل أخرى.
 
-## المتطلبات الأساسية
+## كيف يعمل
 
-- [Bun](https://bun.sh) الإصدار 1.0 أو أحدث (بيئة التشغيل ومدير الحزم)
-- حساب [Cloudflare](https://www.cloudflare.com) (الخطة المجانية تكفي للتطوير)
-- حساب لدى مزود خدمة اتصالات هاتفية — [Twilio](https://www.twilio.com) هو الأسهل للبدء، لكن Llamenos يدعم أيضاً [SignalWire](/docs/setup-signalwire) و[Vonage](/docs/setup-vonage) و[Plivo](/docs/setup-plivo) و[Asterisk المستضاف ذاتياً](/docs/setup-asterisk). راجع [مقارنة مزودي خدمات الاتصالات](/docs/telephony-providers) للمساعدة في الاختيار.
+عندما يتصل شخص ما برقم الخط الساخن، يوجّه Llamenos المكالمة إلى جميع المتطوعين في المناوبة في آن واحد. أول متطوع يرد يتم توصيله، ويتوقف الرنين عند الآخرين. بعد انتهاء المكالمة، يمكن للمتطوع حفظ ملاحظات مشفّرة عن المحادثة.
+
+```mermaid
+flowchart TD
+    A["مكالمة واردة"] --> B{"مناوبة نشطة؟"}
+    B -->|نعم| C["رنين جميع متطوعي المناوبة"]
+    B -->|لا| D["رنين مجموعة الاحتياط"]
+    C --> E{"أول رد"}
+    D --> E
+    E -->|"تم الرد"| F["توصيل المكالمة"]
+    E -->|"لا رد"| G["البريد الصوتي"]
+    F --> H["حفظ ملاحظة مشفّرة"]
+```
+
+ينطبق الأمر نفسه على رسائل SMS وWhatsApp وSignal — تظهر في عرض **المحادثات** الموحّد حيث يمكن للمتطوعين الرد.
+
+## المتطلبات المسبقة
+
+- [Docker](https://docs.docker.com/get-docker/) مع Docker Compose v2
+- `openssl` (مثبّت مسبقًا في معظم أنظمة Linux وmacOS)
 - Git
 
-## 1. استنساخ المشروع والتثبيت
+## البدء السريع
 
 ```bash
 git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
-bun install
+./scripts/docker-setup.sh
 ```
 
-## 2. إنشاء مفتاح المسؤول
+يقوم هذا بتوليد جميع المفاتيح السرية المطلوبة، وبناء التطبيق، وتشغيل الخدمات. بمجرد الانتهاء، قم بزيارة **http://localhost:8000** وسيرشدك معالج الإعداد خلال:
 
-أنشئ زوج مفاتيح Nostr لحساب المسؤول. ينتج هذا الأمر مفتاحاً سرياً (nsec) ومفتاحاً عاماً (npub/hex).
+1. **إنشاء حساب المسؤول** — يولّد زوج مفاتيح تشفير في متصفحك
+2. **تسمية خط الطوارئ** — حدد اسم العرض
+3. **اختيار القنوات** — فعّل الصوت، SMS، WhatsApp، Signal، و/أو التقارير
+4. **تكوين مزودي الخدمة** — أدخل بيانات الاعتماد لكل قناة مفعّلة
+5. **المراجعة والإنهاء**
+
+### تجربة الوضع التجريبي
+
+للاستكشاف مع بيانات نموذجية وتسجيل دخول بنقرة واحدة (بدون الحاجة لإنشاء حساب):
 
 ```bash
-bun run bootstrap-admin
+./scripts/docker-setup.sh --demo
 ```
 
-احفظ `nsec` بشكل آمن — هذا هو بيانات اعتماد تسجيل دخول المسؤول. ستحتاج إلى المفتاح العام بصيغة hex للخطوة التالية.
+## النشر في بيئة الإنتاج
 
-## 3. تكوين المتغيرات السرية
-
-أنشئ ملف `.dev.vars` في جذر المشروع للتطوير المحلي. يستخدم هذا المثال Twilio — إذا كنت تستخدم مزوداً مختلفاً، يمكنك تخطي متغيرات Twilio وتكوين مزودك من خلال واجهة المسؤول بعد أول تسجيل دخول.
+لخادم بنطاق حقيقي وشهادات TLS تلقائية:
 
 ```bash
-# .dev.vars
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
-ADMIN_PUBKEY=your_hex_public_key_from_step_2
-ENVIRONMENT=development
+./scripts/docker-setup.sh --domain hotline.yourorg.com --email admin@yourorg.com
 ```
 
-للإنتاج، قم بتعيين هذه كمتغيرات سرية في Wrangler:
+يقوم Caddy تلقائيًا بتوفير شهادات TLS من Let's Encrypt. تأكد من أن المنفذين 80 و443 مفتوحان. يُفعّل خيار `--domain` طبقة الإنتاج في Docker Compose، التي تضيف TLS وتدوير السجلات وحدود الموارد.
 
-```bash
-bunx wrangler secret put ADMIN_PUBKEY
-# إذا كنت تستخدم Twilio كمزود افتراضي عبر متغيرات البيئة:
-bunx wrangler secret put TWILIO_ACCOUNT_SID
-bunx wrangler secret put TWILIO_AUTH_TOKEN
-bunx wrangler secret put TWILIO_PHONE_NUMBER
-```
+راجع [دليل النشر باستخدام Docker Compose](/docs/deploy-docker) للحصول على تفاصيل كاملة حول تأمين الخادم والنسخ الاحتياطي والمراقبة والخدمات الاختيارية.
 
-> **ملاحظة**: يمكنك أيضاً تكوين مزود خدمة الاتصالات بالكامل من خلال واجهة إعدادات المسؤول بدلاً من استخدام متغيرات البيئة. هذا مطلوب للمزودين غير Twilio. راجع [دليل الإعداد لمزودك](/docs/telephony-providers).
+## تكوين Webhooks
 
-## 4. تكوين webhooks الاتصالات الهاتفية
+بعد النشر، وجّه webhooks مزود الاتصالات إلى عنوان URL الخاص بنشرك:
 
-قم بتكوين مزود خدمة الاتصالات لإرسال webhooks الصوتية إلى Worker الخاص بك. عناوين URL لـ webhook هي نفسها بغض النظر عن المزود:
+| Webhook | URL |
+|---------|-----|
+| الصوت (وارد) | `https://your-domain/api/telephony/incoming` |
+| الصوت (الحالة) | `https://your-domain/api/telephony/status` |
+| SMS | `https://your-domain/api/messaging/sms/webhook` |
+| WhatsApp | `https://your-domain/api/messaging/whatsapp/webhook` |
+| Signal | قم بتكوين الجسر لإعادة التوجيه إلى `https://your-domain/api/messaging/signal/webhook` |
 
-- **عنوان URL للمكالمات الواردة**: `https://your-worker.your-domain.com/telephony/incoming` (POST)
-- **عنوان URL لإشعار الحالة**: `https://your-worker.your-domain.com/telephony/status` (POST)
-
-لتعليمات إعداد webhook الخاصة بكل مزود، راجع: [Twilio](/docs/setup-twilio)، [SignalWire](/docs/setup-signalwire)، [Vonage](/docs/setup-vonage)، [Plivo](/docs/setup-plivo)، أو [Asterisk](/docs/setup-asterisk).
-
-للتطوير المحلي، ستحتاج إلى نفق (مثل Cloudflare Tunnel أو ngrok) لكشف Worker المحلي لمزود خدمة الاتصالات.
-
-## 5. التشغيل محلياً
-
-ابدأ خادم Worker للتطوير (الواجهة الخلفية + الأمامية):
-
-```bash
-# بناء أصول الواجهة الأمامية أولاً
-bun run build
-
-# بدء خادم Worker للتطوير
-bun run dev:worker
-```
-
-سيكون التطبيق متاحاً على `http://localhost:8787`. سجّل الدخول باستخدام nsec المسؤول من الخطوة 2.
-
-## 6. النشر على Cloudflare
-
-```bash
-bun run deploy
-```
-
-يقوم هذا ببناء الواجهة الأمامية ونشر Worker مع Durable Objects على Cloudflare. بعد النشر، حدّث عناوين URL لـ webhook لدى مزود الاتصالات للإشارة إلى عنوان URL الخاص بـ Worker في الإنتاج.
+لإعداد خاص بكل مزود: [Twilio](/docs/setup-twilio)، [SignalWire](/docs/setup-signalwire)، [Vonage](/docs/setup-vonage)، [Plivo](/docs/setup-plivo)، [Asterisk](/docs/setup-asterisk)، [SMS](/docs/setup-sms)، [WhatsApp](/docs/setup-whatsapp)، [Signal](/docs/setup-signal).
 
 ## الخطوات التالية
 
-- [دليل المسؤول](/docs/admin-guide) — إضافة متطوعين، إنشاء مناوبات، تكوين الإعدادات
+- [النشر باستخدام Docker Compose](/docs/deploy-docker) — دليل النشر الكامل في بيئة الإنتاج مع النسخ الاحتياطي والمراقبة
+- [دليل المسؤول](/docs/admin-guide) — إضافة متطوعين وإنشاء مناوبات وتكوين القنوات والإعدادات
 - [دليل المتطوع](/docs/volunteer-guide) — شاركه مع متطوعيك
-- [مزودو خدمات الاتصالات](/docs/telephony-providers) — مقارنة المزودين والتبديل من Twilio إذا لزم الأمر
-- [نموذج الأمان](/security) — فهم التشفير ونموذج التهديدات
+- [دليل المراسل](/docs/reporter-guide) — إعداد دور المراسل لتقديم تقارير مشفّرة
+- [مزودو الاتصالات](/docs/telephony-providers) — مقارنة مزودي الصوت
+- [نموذج الأمان](/security) — فهم التشفير ونموذج التهديد

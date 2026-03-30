@@ -1,96 +1,89 @@
 ---
 title: Primeiros passos
-description: Implante sua propria linha Llamenos em menos de uma hora.
+description: Implante sua propria linha Llamenos em minutos.
 ---
 
-Implante sua propria linha Llamenos em menos de uma hora. Voce precisara de uma conta Cloudflare, uma conta de provedor de telefonia e uma maquina com Bun instalado.
+Coloque uma linha Llamenos em funcionamento localmente ou em um servidor. Apenas o Docker e necessario — nao e preciso Node.js, Bun ou outros ambientes de execucao.
+
+## Como funciona
+
+Quando alguem liga para o numero da sua linha, o Llamenos encaminha a chamada simultaneamente para todos os voluntarios de plantao. O primeiro voluntario a atender e conectado, e os demais param de tocar. Apos a chamada, o voluntario pode salvar notas criptografadas sobre a conversa.
+
+```mermaid
+flowchart TD
+    A["Chamada recebida"] --> B{"Plantao ativo?"}
+    B -->|Sim| C["Tocar para todos os voluntarios de plantao"]
+    B -->|Nao| D["Tocar para o grupo de reserva"]
+    C --> E{"Primeiro atendimento"}
+    D --> E
+    E -->|"Atendida"| F["Conectar chamada"]
+    E -->|"Sem resposta"| G["Correio de voz"]
+    F --> H["Salvar nota criptografada"]
+```
+
+O mesmo se aplica a mensagens SMS, WhatsApp e Signal — elas aparecem em uma visualizacao unificada de **Conversas** onde os voluntarios podem responder.
 
 ## Pre-requisitos
 
-- [Bun](https://bun.sh) v1.0 ou superior (runtime e gerenciador de pacotes)
-- Uma conta [Cloudflare](https://www.cloudflare.com) (o plano gratuito funciona para desenvolvimento)
-- Uma conta de provedor de telefonia -- [Twilio](https://www.twilio.com) e o mais facil para comecar, mas o Llamenos tambem suporta [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo) e [Asterisk auto-hospedado](/docs/setup-asterisk). Consulte a [comparacao de provedores de telefonia](/docs/telephony-providers) para ajudar na escolha.
+- [Docker](https://docs.docker.com/get-docker/) com Docker Compose v2
+- `openssl` (pre-instalado na maioria dos sistemas Linux e macOS)
 - Git
 
-## 1. Clonar e instalar
+## Inicio rapido
 
 ```bash
 git clone https://github.com/rhonda-rodododo/llamenos.git
 cd llamenos
-bun install
+./scripts/docker-setup.sh
 ```
 
-## 2. Gerar o par de chaves do administrador
+Isso gera todos os segredos necessarios, constroi a aplicacao e inicia os servicos. Quando concluido, visite **http://localhost:8000** e o assistente de configuracao guiara voce para:
 
-Gere um par de chaves Nostr para a conta de administrador. Isso produz uma chave secreta (nsec) e uma chave publica (npub/hex).
+1. **Criar sua conta de administrador** — gera um par de chaves criptograficas no seu navegador
+2. **Nomear sua linha** — defina o nome de exibicao
+3. **Escolher canais** — ative Voz, SMS, WhatsApp, Signal e/ou Relatorios
+4. **Configurar provedores** — insira as credenciais para cada canal ativado
+5. **Revisar e finalizar**
+
+### Experimentar o modo demo
+
+Para explorar com dados de exemplo pre-carregados e login com um clique (sem necessidade de criar conta):
 
 ```bash
-bun run bootstrap-admin
+./scripts/docker-setup.sh --demo
 ```
 
-Guarde o `nsec` com seguranca -- essa e sua credencial de login de administrador. Voce precisara da chave publica hexadecimal para o proximo passo.
+## Implantacao em producao
 
-## 3. Configurar os secrets
-
-Crie um arquivo `.dev.vars` na raiz do projeto para desenvolvimento local. Este exemplo usa Twilio -- se voce estiver usando outro provedor, pode pular as variaveis do Twilio e configurar seu provedor pela interface de administracao apos o primeiro login.
+Para um servidor com dominio real e TLS automatico:
 
 ```bash
-# .dev.vars
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=+1234567890
-ADMIN_PUBKEY=your_hex_public_key_from_step_2
-ENVIRONMENT=development
+./scripts/docker-setup.sh --domain linha.suaorg.com --email admin@suaorg.com
 ```
 
-Para producao, defina-os como secrets do Wrangler:
+O Caddy provisiona automaticamente certificados TLS do Let's Encrypt. Certifique-se de que as portas 80 e 443 estejam abertas. A opcao `--domain` ativa a camada de producao do Docker Compose, que adiciona TLS, rotacao de logs e limites de recursos.
 
-```bash
-bunx wrangler secret put ADMIN_PUBKEY
-# Se estiver usando Twilio como provedor padrao via variaveis de ambiente:
-bunx wrangler secret put TWILIO_ACCOUNT_SID
-bunx wrangler secret put TWILIO_AUTH_TOKEN
-bunx wrangler secret put TWILIO_PHONE_NUMBER
-```
+Consulte o [guia de implantacao Docker Compose](/docs/deploy-docker) para detalhes completos sobre fortalecimento do servidor, backups, monitoramento e servicos opcionais.
 
-> **Nota**: Voce tambem pode configurar seu provedor de telefonia inteiramente pela interface de configuracoes do administrador, em vez de usar variaveis de ambiente. Isso e obrigatorio para provedores que nao sejam Twilio. Consulte o [guia de configuracao do seu provedor](/docs/telephony-providers).
+## Configurar webhooks
 
-## 4. Configurar os webhooks de telefonia
+Apos a implantacao, aponte os webhooks do seu provedor de telefonia para a URL da sua implantacao:
 
-Configure seu provedor de telefonia para enviar webhooks de voz ao seu Worker. As URLs de webhook sao as mesmas independentemente do provedor:
+| Webhook | URL |
+|---------|-----|
+| Voz (recebida) | `https://seu-dominio/api/telephony/incoming` |
+| Voz (status) | `https://seu-dominio/api/telephony/status` |
+| SMS | `https://seu-dominio/api/messaging/sms/webhook` |
+| WhatsApp | `https://seu-dominio/api/messaging/whatsapp/webhook` |
+| Signal | Configure a bridge para encaminhar para `https://seu-dominio/api/messaging/signal/webhook` |
 
-- **URL de chamada recebida**: `https://your-worker.your-domain.com/telephony/incoming` (POST)
-- **URL de callback de status**: `https://your-worker.your-domain.com/telephony/status` (POST)
-
-Para instrucoes de configuracao de webhook especificas de cada provedor, consulte: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo) ou [Asterisk](/docs/setup-asterisk).
-
-Para desenvolvimento local, voce precisara de um tunel (como Cloudflare Tunnel ou ngrok) para expor seu Worker local ao seu provedor de telefonia.
-
-## 5. Executar localmente
-
-Inicie o servidor de desenvolvimento do Worker (backend + frontend):
-
-```bash
-# Construir os assets do frontend primeiro
-bun run build
-
-# Iniciar o servidor de desenvolvimento do Worker
-bun run dev:worker
-```
-
-O aplicativo estara disponivel em `http://localhost:8787`. Faca login com o nsec de administrador do passo 2.
-
-## 6. Implantar no Cloudflare
-
-```bash
-bun run deploy
-```
-
-Isso constroi o frontend e implanta o Worker com Durable Objects no Cloudflare. Apos a implantacao, atualize as URLs de webhook do seu provedor de telefonia para apontar para a URL do Worker de producao.
+Para configuracao especifica por provedor: [Twilio](/docs/setup-twilio), [SignalWire](/docs/setup-signalwire), [Vonage](/docs/setup-vonage), [Plivo](/docs/setup-plivo), [Asterisk](/docs/setup-asterisk), [SMS](/docs/setup-sms), [WhatsApp](/docs/setup-whatsapp), [Signal](/docs/setup-signal).
 
 ## Proximos passos
 
-- [Guia do administrador](/docs/admin-guide) -- adicionar voluntarios, criar turnos, configurar parametros
-- [Guia do voluntario](/docs/volunteer-guide) -- compartilhe com seus voluntarios
-- [Provedores de telefonia](/docs/telephony-providers) -- comparar provedores e trocar do Twilio se necessario
-- [Modelo de seguranca](/security) -- entender a criptografia e o modelo de ameacas
+- [Implantacao Docker Compose](/docs/deploy-docker) — guia completo de implantacao em producao com backups e monitoramento
+- [Guia do Administrador](/docs/admin-guide) — adicionar voluntarios, criar plantoes, configurar canais e ajustes
+- [Guia do Voluntario](/docs/volunteer-guide) — compartilhe com seus voluntarios
+- [Guia do Reporter](/docs/reporter-guide) — configure o papel de reporter para envio de relatorios criptografados
+- [Provedores de Telefonia](/docs/telephony-providers) — compare provedores de voz
+- [Modelo de Seguranca](/security) — entenda a criptografia e o modelo de ameacas

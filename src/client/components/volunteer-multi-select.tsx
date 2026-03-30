@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { Volunteer } from '@/lib/api'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { cn } from '@/lib/utils'
 import { Check, ChevronsUpDown, X } from 'lucide-react'
 import { useState } from 'react'
@@ -31,9 +32,9 @@ export function VolunteerMultiSelect({
 }: VolunteerMultiSelectProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
+  const decryptedVolunteers = useDecryptedArray(volunteers)
 
-  // Volunteers are already decrypted by the parent (useVolunteers hook).
-  const selectedVolunteers = volunteers.filter((v) => selected.includes(v.pubkey))
+  const selectedVolunteers = decryptedVolunteers.filter((v) => selected.includes(v.pubkey))
 
   function toggle(pubkey: string) {
     onSelectionChange(
@@ -95,7 +96,7 @@ export function VolunteerMultiSelect({
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command
           filter={(value, search) => {
-            const vol = volunteers.find((v) => v.pubkey === value)
+            const vol = decryptedVolunteers.find((v) => v.pubkey === value)
             if (!vol) return 0
             const haystack = `${vol.name} ${vol.phone} ${vol.pubkey}`.toLowerCase()
             return haystack.includes(search.toLowerCase()) ? 1 : 0
@@ -105,7 +106,7 @@ export function VolunteerMultiSelect({
           <CommandList className="max-h-[200px]">
             <CommandEmpty>{t('shifts.noVolunteersFound')}</CommandEmpty>
             <CommandGroup>
-              {volunteers.map((vol) => (
+              {decryptedVolunteers.map((vol) => (
                 <CommandItem
                   key={vol.pubkey}
                   value={vol.pubkey}

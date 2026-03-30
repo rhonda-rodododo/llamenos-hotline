@@ -47,7 +47,7 @@ services:
       - ../asterisk-bridge/dev-certs/asterisk.pem:/etc/asterisk/keys/asterisk.pem:ro
       - ../asterisk-bridge/dev-certs/asterisk.key:/etc/asterisk/keys/asterisk.key:ro
 
-  # ARI bridge — dev-friendly defaults, webhook to local wrangler dev server
+  # ARI bridge — dev-friendly defaults, webhook to local dev server
   asterisk-bridge:
     environment:
       - ARI_URL=ws://asterisk:8088/ari/events

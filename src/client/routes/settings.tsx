@@ -34,6 +34,7 @@ import {
   getClientTranscriptionSettings,
   setClientTranscriptionSettings,
 } from '@/lib/transcription'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { useNotificationPermission } from '@/lib/use-notification-permission'
 import { deleteCredential, isWebAuthnAvailable, registerCredential } from '@/lib/webauthn'
 import { LANGUAGES } from '@shared/languages'

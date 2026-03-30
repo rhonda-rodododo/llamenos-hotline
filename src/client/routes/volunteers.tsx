@@ -101,6 +101,9 @@ function VolunteersPage() {
 
   const loading = volunteersLoading || invitesLoading
 
+  // useInvites() already decrypts in the query fn
+  const decryptedInvites = invites
+
   if (!isAdmin) {
     return <div className="text-muted-foreground">Access denied</div>
   }
@@ -267,7 +270,7 @@ function VolunteersPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border">
-              {invites.map((invite) => (
+              {decryptedInvites.map((invite) => (
                 <div
                   key={invite.code}
                   className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6"
@@ -580,7 +583,6 @@ function VolunteerRow({
   const pinChallenge = usePinChallenge()
 
   // Volunteer data is already decrypted by useVolunteers() in the parent.
-  // No useDecryptedObject needed here.
   const primaryRoleId = volunteer.roles[0] || 'role-volunteer'
   const primaryRole = roles.find((r) => r.id === primaryRoleId)
   const isAdminRole = primaryRoleId === 'role-super-admin' || primaryRoleId === 'role-hub-admin'

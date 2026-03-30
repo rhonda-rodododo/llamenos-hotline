@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select'
 import { useCreateInvite, useInvites } from '@/lib/queries/invites'
 import { useToast } from '@/lib/toast'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { Check, Copy, Loader2, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -28,12 +29,13 @@ export function StepInvite({ headingRef }: Props = {}) {
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
   const { data: invites = [] } = useInvites()
-  const createInvite = useCreateInvite()
+  const createInviteMutation = useCreateInvite()
+  const decryptedInvites = useDecryptedArray(invites)
 
   async function handleGenerate() {
     if (!name.trim() || !phone.trim()) return
     try {
-      await createInvite.mutateAsync({
+      await createInviteMutation.mutateAsync({
         name: name.trim(),
         phone: phone.trim(),
         roleIds: [roleId],
@@ -104,25 +106,25 @@ export function StepInvite({ headingRef }: Props = {}) {
 
         <Button
           onClick={() => void handleGenerate()}
-          disabled={createInvite.isPending || !name.trim() || !phone.trim()}
-          aria-busy={createInvite.isPending}
+          disabled={createInviteMutation.isPending || !name.trim() || !phone.trim()}
+          aria-busy={createInviteMutation.isPending}
           className="w-full"
         >
-          {createInvite.isPending ? (
+          {createInviteMutation.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <UserPlus className="h-4 w-4" />
           )}
-          {createInvite.isPending ? t('common.loading') : t('setup.generateInvite')}
+          {createInviteMutation.isPending ? t('common.loading') : t('setup.generateInvite')}
         </Button>
       </div>
 
       {/* Generated invites list */}
-      {invites.length > 0 && (
+      {decryptedInvites.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold">{t('setup.generatedInvites')}</h3>
           <div className="space-y-2">
-            {invites.map((invite) => (
+            {decryptedInvites.map((invite) => (
               <div
                 key={invite.code}
                 className="flex items-center justify-between rounded-lg border bg-muted/50 p-3"

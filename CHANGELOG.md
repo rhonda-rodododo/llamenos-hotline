@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.29.2] - 2026-03-29
+
+### Bug Fixes
+
+- add Playwright globalTeardown to kill orphaned test server processes
+
+### Miscellaneous
+
+- add playwright-cli skill and update site screenshots
+- remove .dev.vars and Cloudflare Workers references
+- v0.29.2 [skip ci]
+
 ## [0.29.1] - 2026-03-29
 
 ### Bug Fixes

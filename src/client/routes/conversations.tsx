@@ -16,6 +16,7 @@ import {
   useUpdateConversation,
 } from '@/lib/queries/conversations'
 import { useToast } from '@/lib/toast'
+import { useDecryptedArray } from '@/lib/use-decrypted'
 import { createFileRoute } from '@tanstack/react-router'
 import { Lock, MessageSquare, UserCheck, UserCog, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
@@ -30,7 +31,8 @@ function ConversationsPage() {
   const { isAdmin, hasNsec, publicKey, adminDecryptionPubkey } = useAuth()
   const { channels } = useConfig()
   const { toast } = useToast()
-  const { conversations, waitingConversations } = useConversations()
+  const { conversations: rawConversations, waitingConversations } = useConversations()
+  const conversations = useDecryptedArray(rawConversations)
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [reassignOpen, setReassignOpen] = useState(false)

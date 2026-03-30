@@ -2,7 +2,7 @@ node_modules
 dist
 .git
 .wrangler
-.dev.vars
+.env
 *.log
 tests
 site
