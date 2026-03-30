@@ -1,4 +1,9 @@
+import { ReportForm } from '@/components/ReportForm'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import {
+  type ContactChannel,
+  ContactChannelsCard,
+} from '@/components/contacts/contact-channels-card'
 import { ContactRelationshipSection } from '@/components/contacts/contact-relationship-section'
 import { ContactTimeline } from '@/components/contacts/contact-timeline'
 import { TagBadge, useTagLookup } from '@/components/tag-input'
@@ -30,7 +35,7 @@ import {
   useUnassignTeamContact,
 } from '@/lib/queries/teams'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, BookUser, Lock, Users, X } from 'lucide-react'
+import { ArrowLeft, BookUser, FileText, Lock, Users, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -53,9 +58,11 @@ function ContactProfilePage() {
   const { contactId } = Route.useParams()
 
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
 
   const canReadPii = hasPermission('contacts:envelope-full')
   const canDelete = hasPermission('contacts:delete')
+  const canCreateReport = hasPermission('reports:create')
 
   // React Query: contact detail (decrypts summary+PII tiers in query fn),
   // timeline, relationships, and all contacts list (for relationship names)
@@ -78,6 +85,39 @@ function ContactProfilePage() {
   const decryptedNotes = (contactAny?.notes as string) || null
   const decryptedFullName = canReadPii ? (contactAny?.fullName as string) || null : null
   const decryptedPhone = canReadPii ? (contactAny?.phone as string) || null : null
+
+  // Derive channel list from decrypted PII fields
+  const channels = useMemo<ContactChannel[]>(() => {
+    if (!canReadPii) return []
+    const result: ContactChannel[] = []
+
+    // Phone field → phone/sms channel
+    if (decryptedPhone) {
+      result.push({ type: 'phone', identifier: decryptedPhone, preferred: true })
+      result.push({ type: 'sms', identifier: decryptedPhone })
+    }
+
+    // If there's a decrypted PII blob with structured channels, merge those
+    const piiBlobRaw = contactAny?.pii
+    if (piiBlobRaw && typeof piiBlobRaw === 'string') {
+      try {
+        const piiBlob = JSON.parse(piiBlobRaw) as Record<string, unknown>
+        const blobChannels = piiBlob.channels as ContactChannel[] | undefined
+        if (Array.isArray(blobChannels)) {
+          for (const ch of blobChannels) {
+            // Avoid duplicate entries from the phone field
+            if (!result.some((r) => r.type === ch.type && r.identifier === ch.identifier)) {
+              result.push(ch)
+            }
+          }
+        }
+      } catch {
+        // PII blob isn't valid JSON or doesn't have channels — ignore
+      }
+    }
+
+    return result
+  }, [canReadPii, decryptedPhone, contactAny?.pii])
 
   // Build a map of contactId → display name for relationships
   // useContacts already decrypts displayName via LABEL_CONTACT_SUMMARY
@@ -175,16 +215,29 @@ function ContactProfilePage() {
             </Badge>
           )}
         </div>
-        {canDelete && (
-          <Button
-            data-testid="contact-delete-btn"
-            variant="destructive"
-            size="sm"
-            onClick={() => setDeleteOpen(true)}
-          >
-            {t('common.delete', { defaultValue: 'Delete' })}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {canCreateReport && (
+            <Button
+              data-testid="contact-add-report-btn"
+              variant="outline"
+              size="sm"
+              onClick={() => setReportOpen(true)}
+            >
+              <FileText className="mr-1 h-4 w-4" />
+              {t('contacts.addReport', { defaultValue: 'Add Report' })}
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              data-testid="contact-delete-btn"
+              variant="destructive"
+              size="sm"
+              onClick={() => setDeleteOpen(true)}
+            >
+              {t('common.delete', { defaultValue: 'Delete' })}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Layout: sidebar + timeline */}
@@ -285,6 +338,15 @@ function ContactProfilePage() {
             </CardContent>
           </Card>
 
+          {/* Channels (PII-gated) */}
+          {canReadPii && channels.length > 0 && (
+            <ContactChannelsCard
+              contactId={contactId}
+              channels={channels}
+              contactName={displayName}
+            />
+          )}
+
           {/* Teams */}
           <ContactTeamsCard
             contactId={contactId}
@@ -344,6 +406,20 @@ function ContactProfilePage() {
         variant="destructive"
         onConfirm={handleDelete}
       />
+
+      {canCreateReport && (
+        <ReportForm
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+          onCreated={(reportId) => {
+            setReportOpen(false)
+            toast.success(
+              t('contacts.reportCreated', { defaultValue: 'Report created successfully' })
+            )
+            navigate({ to: '/reports', search: {} })
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -2168,3 +2168,25 @@ export async function createContactRelationship(data: {
 export async function deleteContactRelationship(id: string): Promise<void> {
   return request(hp(`/contacts/relationships/${id}`), { method: 'DELETE' })
 }
+
+export interface ContactNotification {
+  contactId: string
+  channel: { type: string; identifier: string }
+  message: string
+}
+
+export interface NotifyResult {
+  contactId: string
+  status: 'sent' | 'failed'
+  error?: string
+}
+
+export async function notifyContacts(
+  contactId: string,
+  notifications: ContactNotification[]
+): Promise<{ results: NotifyResult[] }> {
+  return request(hp(`/contacts/${contactId}/notify`), {
+    method: 'POST',
+    body: JSON.stringify({ notifications }),
+  })
+}

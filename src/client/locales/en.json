@@ -1437,7 +1437,17 @@
     "low": "Low",
     "medium": "Medium",
     "high": "High",
-    "critical": "Critical"
+    "critical": "Critical",
+    "channels": "Channels",
+    "preferred": "Preferred",
+    "notify": "Notify",
+    "notifyTitle": "Send Notification",
+    "notifyDescription": "Send a message to {{name}} via {{channel}}",
+    "notifyPlaceholder": "Type your message...",
+    "notifySent": "Notification sent to {{name}}",
+    "notifyFailed": "Failed to send: {{error}}",
+    "addReport": "Add Report",
+    "reportCreated": "Report created successfully"
   },
   "users": {
     "title": "Users",

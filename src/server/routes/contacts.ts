@@ -1,8 +1,10 @@
 import { HMAC_PHONE_PREFIX } from '@shared/crypto-labels'
 import type { Ciphertext, HmacHash } from '@shared/crypto-types'
 import { permissionGranted, resolveHubPermissions } from '@shared/permissions'
+import type { MessagingChannelType } from '@shared/types'
 import type { RecipientEnvelope } from '@shared/types'
 import { Hono } from 'hono'
+import { getMessagingAdapter } from '../lib/adapters'
 import { checkPermission, requirePermission } from '../middleware/permission-guard'
 import type { AppEnv } from '../types'
 
@@ -514,5 +516,62 @@ contacts.delete('/:id/link', requirePermission('contacts:link'), async (c) => {
 
   return c.json({ ok: true })
 })
+
+// POST /contacts/:id/notify — send notifications to support contacts
+contacts.post(
+  '/:id/notify',
+  requirePermission('contacts:envelope-full', 'conversations:send'),
+  async (c) => {
+    const services = c.get('services')
+    const hubId = c.get('hubId') ?? 'global'
+    const id = c.req.param('id')
+
+    const contact = await services.contacts.getContact(id, hubId)
+    if (!contact) return c.json({ error: 'Contact not found' }, 404)
+
+    const body = await c.req.json<{
+      notifications: Array<{
+        contactId: string
+        channel: { type: string; identifier: string }
+        message: string
+      }>
+    }>()
+
+    if (!body.notifications?.length) {
+      return c.json({ error: 'notifications array is required' }, 400)
+    }
+
+    const results: Array<{ contactId: string; status: 'sent' | 'failed'; error?: string }> = []
+
+    for (const notification of body.notifications) {
+      try {
+        const channelType = notification.channel.type as MessagingChannelType
+        const adapter = await getMessagingAdapter(
+          channelType,
+          services.settings,
+          services.crypto,
+          hubId !== 'global' ? hubId : undefined
+        )
+        const result = await adapter.sendMessage({
+          recipientIdentifier: notification.channel.identifier,
+          body: notification.message,
+        })
+        results.push({
+          contactId: notification.contactId,
+          status: result.success ? 'sent' : 'failed',
+          error: result.success ? undefined : result.error,
+        })
+      } catch (err) {
+        results.push({
+          contactId: notification.contactId,
+          status: 'failed',
+          error: err instanceof Error ? err.message : 'Unknown error',
+        })
+      }
+    }
+
+    return c.json({ results })
+  }
+)
 
 export default contacts
