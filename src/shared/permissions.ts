@@ -412,6 +412,12 @@ export type Permission = keyof typeof PERMISSION_CATALOG
 /** All permission domains (first part before the colon) */
 export type PermissionDomain = Permission extends `${infer D}:${string}` ? D : never
 
+/** Domain wildcard (e.g. "contacts:*") or global wildcard "*" */
+export type WildcardPermission = `${PermissionDomain}:*` | '*'
+
+/** A concrete permission or a wildcard */
+export type PermissionOrWildcard = Permission | WildcardPermission
+
 /** Group permissions by domain for the role editor UI */
 export function getPermissionsByDomain(): Record<
   string,

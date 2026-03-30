@@ -8,6 +8,22 @@ import type { AppEnv } from '../types'
 
 const contacts = new Hono<AppEnv>()
 
+// ------------------------------------------------------------------ Scope helpers
+
+function getContactReadScope(permissions: string[]): 'own' | 'assigned' | 'all' | null {
+  if (permissionGranted(permissions, 'contacts:read-all')) return 'all'
+  if (permissionGranted(permissions, 'contacts:read-assigned')) return 'assigned'
+  if (permissionGranted(permissions, 'contacts:read-own')) return 'own'
+  return null
+}
+
+function getContactUpdateScope(permissions: string[]): 'own' | 'assigned' | 'all' | null {
+  if (permissionGranted(permissions, 'contacts:update-all')) return 'all'
+  if (permissionGranted(permissions, 'contacts:update-assigned')) return 'assigned'
+  if (permissionGranted(permissions, 'contacts:update-own')) return 'own'
+  return null
+}
+
 // Base permission — all routes require contacts:envelope-summary
 contacts.use('*', requirePermission('contacts:envelope-summary'))
 
@@ -116,21 +132,28 @@ contacts.delete('/relationships/:id', requirePermission('contacts:delete'), asyn
 
 // ------------------------------------------------------------------ List / Create
 
-// GET /contacts — list contacts (filterable by contactType, riskLevel)
+// GET /contacts — list contacts (filterable by contactType, riskLevel, assignedTo)
 contacts.get('/', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId') ?? 'global'
+  const permissions = c.get('permissions')
+  const pubkey = c.get('pubkey')
+
+  const readScope = getContactReadScope(permissions)
+  if (!readScope) {
+    return c.json({ error: 'Forbidden', required: 'contacts:read-own' }, 403)
+  }
 
   const contactType = c.req.query('contactType')
   const riskLevel = c.req.query('riskLevel')
   const tag = c.req.query('tag')
+  const assignedTo = c.req.query('assignedTo')
 
-  const rows = await services.contacts.listContacts({
-    hubId,
-    contactType,
-    riskLevel,
-    tag,
-  })
+  const rows = await services.contacts.listContactsByScope(
+    { hubId, contactType, riskLevel, tag, assignedTo },
+    readScope,
+    pubkey
+  )
 
   return c.json({ contacts: rows })
 })
@@ -146,6 +169,7 @@ contacts.post('/', requirePermission('contacts:create'), async (c) => {
     riskLevel: string
     tags?: string[]
     identifierHash?: HmacHash
+    assignedTo?: string
     encryptedDisplayName: Ciphertext
     displayNameEnvelopes: RecipientEnvelope[]
     encryptedNotes?: Ciphertext
@@ -179,6 +203,7 @@ contacts.post('/', requirePermission('contacts:create'), async (c) => {
     riskLevel: body.riskLevel,
     tags: body.tags ?? [],
     identifierHash: body.identifierHash,
+    assignedTo: body.assignedTo,
     encryptedDisplayName: body.encryptedDisplayName,
     displayNameEnvelopes: body.displayNameEnvelopes,
     encryptedNotes: body.encryptedNotes,
@@ -197,32 +222,47 @@ contacts.post('/', requirePermission('contacts:create'), async (c) => {
 
 // ------------------------------------------------------------------ Dynamic routes (/:id)
 
-// GET /contacts/:id — single contact
+// GET /contacts/:id — single contact (scope-enforced)
 contacts.get('/:id', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId') ?? 'global'
   const id = c.req.param('id')
+  const permissions = c.get('permissions')
+  const pubkey = c.get('pubkey')
+
+  const readScope = getContactReadScope(permissions)
+  if (!readScope) {
+    return c.json({ error: 'Forbidden', required: 'contacts:read-own' }, 403)
+  }
 
   const contact = await services.contacts.getContact(id, hubId)
   if (!contact) {
     return c.json({ error: 'Contact not found' }, 404)
   }
 
+  // Scope enforcement — check if user can access this specific contact
+  const accessible = await services.contacts.isContactAccessible(id, hubId, readScope, pubkey)
+  if (!accessible) {
+    return c.json({ error: 'Contact not found' }, 404)
+  }
+
   return c.json({ contact })
 })
 
-// PATCH /contacts/:id — update contact (tiered permission check)
+// PATCH /contacts/:id — update contact (tiered permission check + scope enforcement)
 contacts.patch('/:id', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId') ?? 'global'
   const id = c.req.param('id')
   const permissions = c.get('permissions')
+  const pubkey = c.get('pubkey')
 
   const body = await c.req.json<{
     contactType?: string
     riskLevel?: string
     tags?: string[]
     identifierHash?: HmacHash
+    assignedTo?: string | null
     // Summary-tier fields
     encryptedDisplayName?: Ciphertext
     displayNameEnvelopes?: RecipientEnvelope[]
@@ -275,11 +315,23 @@ contacts.patch('/:id', async (c) => {
     return c.json({ error: 'Forbidden', required: 'contacts:update-summary' }, 403)
   }
 
+  // Scope enforcement — check if user can update this specific contact
+  const updateScope = getContactUpdateScope(permissions)
+  if (!updateScope) {
+    return c.json({ error: 'Forbidden', required: 'contacts:update-own' }, 403)
+  }
+
+  const accessible = await services.contacts.isContactAccessible(id, hubId, updateScope, pubkey)
+  if (!accessible) {
+    return c.json({ error: 'Contact not found' }, 404)
+  }
+
   const contact = await services.contacts.updateContact(id, hubId, {
     contactType: body.contactType,
     riskLevel: body.riskLevel,
     tags: body.tags,
     identifierHash: body.identifierHash,
+    assignedTo: body.assignedTo,
     encryptedDisplayName: body.encryptedDisplayName,
     displayNameEnvelopes: body.displayNameEnvelopes,
     encryptedNotes: body.encryptedNotes,
@@ -299,11 +351,24 @@ contacts.patch('/:id', async (c) => {
   return c.json({ contact })
 })
 
-// DELETE /contacts/:id — delete contact
+// DELETE /contacts/:id — delete contact (scope-enforced)
 contacts.delete('/:id', requirePermission('contacts:delete'), async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId') ?? 'global'
   const id = c.req.param('id')
+  const permissions = c.get('permissions')
+  const pubkey = c.get('pubkey')
+
+  // Scope enforcement for delete — use update scope
+  const updateScope = getContactUpdateScope(permissions)
+  if (!updateScope) {
+    return c.json({ error: 'Forbidden', required: 'contacts:update-own' }, 403)
+  }
+
+  const accessible = await services.contacts.isContactAccessible(id, hubId, updateScope, pubkey)
+  if (!accessible) {
+    return c.json({ error: 'Contact not found' }, 404)
+  }
 
   await services.contacts.deleteContact(id, hubId)
   return c.json({ ok: true })
@@ -314,9 +379,22 @@ contacts.get('/:id/timeline', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId') ?? 'global'
   const id = c.req.param('id')
+  const permissions = c.get('permissions')
+  const pubkey = c.get('pubkey')
+
+  // Scope enforcement
+  const readScope = getContactReadScope(permissions)
+  if (!readScope) {
+    return c.json({ error: 'Forbidden', required: 'contacts:read-own' }, 403)
+  }
 
   const contact = await services.contacts.getContact(id, hubId)
   if (!contact) {
+    return c.json({ error: 'Contact not found' }, 404)
+  }
+
+  const accessible = await services.contacts.isContactAccessible(id, hubId, readScope, pubkey)
+  if (!accessible) {
     return c.json({ error: 'Contact not found' }, 404)
   }
 

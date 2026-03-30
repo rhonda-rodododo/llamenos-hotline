@@ -4,7 +4,10 @@ import {
   PERMISSION_CATALOG,
   PERMISSION_GROUP_LABELS,
   type Permission,
+  type PermissionDomain,
   type PermissionMeta,
+  type PermissionOrWildcard,
+  type WildcardPermission,
   hasPermission,
   permissionGranted,
 } from './permissions'
@@ -153,6 +156,32 @@ describe('case manager role', () => {
     expect(cm.permissions).not.toContain('settings:manage')
     expect(cm.permissions).not.toContain('contacts:delete')
     expect(cm.permissions).not.toContain('contacts:read-all')
+  })
+})
+
+describe('wildcard types', () => {
+  test('WildcardPermission accepts domain wildcards', () => {
+    const w1: WildcardPermission = 'contacts:*'
+    const w2: WildcardPermission = '*'
+    const w3: WildcardPermission = 'notes:*'
+    expect(w1).toBe('contacts:*')
+    expect(w2).toBe('*')
+    expect(w3).toBe('notes:*')
+  })
+
+  test('PermissionOrWildcard accepts both concrete and wildcard', () => {
+    const p1: PermissionOrWildcard = 'contacts:create'
+    const p2: PermissionOrWildcard = 'contacts:*'
+    const p3: PermissionOrWildcard = '*'
+    expect(p1).toBe('contacts:create')
+    expect(p2).toBe('contacts:*')
+    expect(p3).toBe('*')
+  })
+
+  test('PermissionDomain extracts all domains', () => {
+    // This is a compile-time check — just verify it narrows correctly
+    const domain: PermissionDomain = 'contacts'
+    expect(domain).toBe('contacts')
   })
 })
 
