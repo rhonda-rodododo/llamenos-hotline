@@ -11,7 +11,7 @@ test.describe('Demo Mode', () => {
 
   async function clickNext(page: import('@playwright/test').Page) {
     await page.getByRole('button', { name: /next/i }).click()
-    await page.waitForTimeout(500)
+    await page.waitForTimeout(1000)
   }
 
   async function selectChannel(page: import('@playwright/test').Page, label: string) {
@@ -22,7 +22,10 @@ test.describe('Demo Mode', () => {
   }
 
   async function clickSkip(page: import('@playwright/test').Page) {
-    await page.getByRole('button', { name: /skip/i }).click()
+    const skipBtn = page.getByRole('button', { name: /skip/i })
+    await skipBtn.waitFor({ state: 'visible', timeout: 10000 })
+    await skipBtn.click()
+    await page.waitForTimeout(500)
   }
 
   async function navigateToSummaryWithDemoMode(page: import('@playwright/test').Page) {

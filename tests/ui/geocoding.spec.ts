@@ -92,12 +92,15 @@ test.describe('Geocoding & Location Fields', () => {
     await page.getByTestId('geocoding-provider-select').selectOption('opencage')
     await page.getByTestId('geocoding-api-key-input').fill('test-key')
     await page.getByTestId('geocoding-save-btn').click()
-    await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/success/i).first()).toBeVisible({ timeout: 5000 })
+
+    // Wait for first toast to dismiss before triggering another
+    await page.waitForTimeout(1500)
 
     // Now disable
     await page.getByTestId('geocoding-provider-select').selectOption('')
     await page.getByTestId('geocoding-save-btn').click()
-    await expect(page.getByText(/success/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/success/i).first()).toBeVisible({ timeout: 5000 })
   })
 
   test('admin can add a location custom field', async ({ page }) => {
