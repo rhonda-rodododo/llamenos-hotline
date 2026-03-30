@@ -13,25 +13,27 @@
 ## File Map
 
 ### New files
-- `src/server/lib/cache.ts` — Generic TTL cache utility used across all services
+- `src/server/lib/cache.ts` — Generic TTL cache utility
+- `src/server/lib/cache.test.ts` — Unit tests for TTL cache
+- `src/server/lib/crypto-service.test.ts` — Unit tests for CryptoService key caching
 
 ### Modified files
-- `src/server/lib/cache.ts` — New: TTL cache class
-- `src/server/lib/crypto-service.ts` — Cache HKDF-derived keys and server private key
-- `src/server/lib/nostr-publisher.ts` — Eager connect, bounded queue, cancel auth timeout early
-- `src/server/services/settings.ts` — Hub key cache, role cache, config cache, SQL pagination for getHubByPhone
-- `src/server/services/records.ts` — SQL pagination, SQL aggregation for getContacts, O(n) dedup
-- `src/server/services/conversations.ts` — SQL pagination
-- `src/server/services/blasts.ts` — Batch hub key lookups
-- `src/server/services/shifts.ts` — Remove duplicated #getHubKey, delegate to shared cache
-- `src/server/services/index.ts` — Wire hub key cache as shared dependency
-- `src/server/server.ts` — Eager Nostr connect on startup
-- `src/server/db/schema/records.ts` — Add missing indexes
-- `src/server/db/schema/calls.ts` — Add missing indexes
-- `src/server/db/schema/conversations.ts` — Add missing indexes
-- `src/server/db/schema/settings.ts` — Add missing indexes
-- `src/server/db/schema/shifts.ts` — Add missing indexes
-- `asterisk-bridge/src/webhook-sender.ts` — Cache crypto import and encoded key
+- `src/server/lib/crypto-service.ts` — Cache HKDF-derived keys, HMAC key, server private key
+- `src/server/lib/nostr-publisher.ts` — Bounded queue (500 max), cancel auth timeout on AUTH, eager connect
+- `src/server/services/settings.ts` — Hub key cache (30s TTL), role cache (10s TTL), telephony config cache (30s), phone→hub cache (60s), expose public `getHubKey()`
+- `src/server/services/records.ts` — SQL LIMIT/OFFSET pagination, SQL GROUP BY for getContacts, `count()` for totals, Set-based dedup
+- `src/server/services/conversations.ts` — SQL LIMIT/OFFSET pagination, `count()` for totals, Set-based dedup
+- `src/server/services/identity.ts` — Set-based dedup (3 instances at lines 78, 140, 377)
+- `src/server/services/blasts.ts` — Delegate to SettingsService.getHubKey(), remove duplicated `#getHubKey`
+- `src/server/services/shifts.ts` — Delegate to SettingsService.getHubKey(), remove duplicated `#getHubKey`
+- `src/server/services/report-types.ts` — Delegate to SettingsService.getHubKey(), remove duplicated `#getHubKey`
+- `src/server/services/index.ts` — Wire SettingsService into dependent service constructors
+- `src/server/server.ts` — Eager Nostr publisher `.connect()` on startup
+- `src/server/db/schema/records.ts` — Add `index` import + 8 indexes (bans, auditLog, callRecords, noteEnvelopes)
+- `src/server/db/schema/calls.ts` — Add `index` import + 2 indexes (activeCalls, callLegs)
+- `src/server/db/schema/conversations.ts` — Add `index` import + 2 indexes (conversations, messageEnvelopes)
+- `src/server/db/schema/shifts.ts` — Add `index` import + 1 index (shiftSchedules)
+- `asterisk-bridge/src/webhook-sender.ts` — Cache crypto import and encoded HMAC key
 
 ---
 
@@ -394,6 +396,20 @@ export class BlastService {
   // Remove #getHubKey, use this.settings.getHubKey(hubId) everywhere
 ```
 
+- [ ] **Step 3b: Update ReportTypeService similarly**
+
+In `src/server/services/report-types.ts`, add `settings: SettingsService` to constructor and replace `#getHubKey` (line 15-30):
+
+```typescript
+export class ReportTypeService {
+  constructor(
+    private readonly db: Database,
+    private readonly crypto: CryptoService,
+    private readonly settings: SettingsService
+  ) {}
+  // Remove #getHubKey (lines 15-30), use this.settings.getHubKey(hubId) everywhere
+```
+
 - [ ] **Step 4: Update createServices in index.ts**
 
 ```typescript
@@ -413,7 +429,7 @@ export function createServices(
     blasts: new BlastService(db, crypto, settings),
     files: new FilesService(db, storage),
     gdpr: new GdprService(db, crypto),
-    reportTypes: new ReportTypeService(db, crypto),
+    reportTypes: new ReportTypeService(db, crypto, settings),
     push: new PushService(db, crypto),
     contacts: new ContactService(db, crypto),
     storage,
@@ -607,7 +623,24 @@ Read each schema file to find the exact `pgTable` calls and their existing const
 
 - [ ] **Step 2: Add indexes**
 
-Add `index()` calls to each table's constraint function. The indexes to add:
+Each schema file needs `index` added to its `drizzle-orm/pg-core` import. Tables without a constraint function (3rd arg to `pgTable`) need one added.
+
+**Import change for each file:**
+```typescript
+// records.ts: add 'index' to existing import
+import { boolean, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+
+// calls.ts: add 'index'
+import { boolean, index, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+
+// conversations.ts: add 'index' (already has 'unique')
+import { boolean, index, integer, pgEnum, pgTable, text, timestamp, unique, varchar } from 'drizzle-orm/pg-core'
+
+// shifts.ts: add 'index'
+import { boolean, index, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
+```
+
+Add constraint function (3rd arg to `pgTable`) with `index()` calls. Tables that already have a constraint fn (conversations) get indexes added to the existing array.
 
 **records.ts** — `noteEnvelopes` table:
 ```typescript
@@ -684,7 +717,13 @@ git commit -m "perf: add 12 missing database indexes for hot query paths"
 - Modify: `src/server/services/records.ts`
 - Modify: `src/server/services/conversations.ts`
 
-Replace in-memory pagination (load all, `.slice()`) with SQL `LIMIT`/`OFFSET` and a separate `COUNT(*)` query.
+Replace in-memory pagination (load all, `.slice()`) with SQL `LIMIT`/`OFFSET` and Drizzle's `count()` helper.
+
+**Import change for records.ts and conversations.ts:**
+```typescript
+// Add count to the drizzle-orm import:
+import { and, count, desc, eq, gte, lte, sql } from 'drizzle-orm'
+```
 
 - [ ] **Step 1: Fix getCallHistory in records.ts**
 
@@ -713,7 +752,7 @@ async getCallHistory(
 
   // Count total (without voicemail/search filters — those are post-decrypt)
   const [{ count: rawTotal }] = await this.db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: count() })
     .from(callRecords)
     .where(whereClause)
   const total = Number(rawTotal)
@@ -771,7 +810,7 @@ async getNotes(filters: NoteFilters): Promise<{ notes: EncryptedNote[]; total: n
   const whereClause = and(...conditions)
 
   const [{ count: rawTotal }] = await this.db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: count() })
     .from(noteEnvelopes)
     .where(whereClause)
   const total = Number(rawTotal)
@@ -808,7 +847,7 @@ async getMessages(
   limit = 50
 ): Promise<{ messages: EncryptedMessage[]; total: number }> {
   const [{ count: rawTotal }] = await this.db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: count() })
     .from(messageEnvelopes)
     .where(eq(messageEnvelopes.conversationId, conversationId))
   const total = Number(rawTotal)
@@ -843,7 +882,7 @@ async listConversations(
   const whereClause = and(...conditions)
 
   const [{ count: rawTotal }] = await this.db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: count() })
     .from(conversations)
     .where(whereClause)
   const total = Number(rawTotal)
@@ -883,7 +922,7 @@ async getContacts(
       contactHash: noteEnvelopes.contactHash,
       firstSeen: sql<Date>`min(${noteEnvelopes.createdAt})`,
       lastSeen: sql<Date>`max(${noteEnvelopes.createdAt})`,
-      noteCount: sql<number>`count(*)`,
+      noteCount: count(),
     })
     .from(noteEnvelopes)
     .where(and(eq(noteEnvelopes.hubId, hId), sql`${noteEnvelopes.contactHash} IS NOT NULL`))
@@ -916,7 +955,7 @@ async getCallsTodayCount(hubId?: string): Promise<number> {
   const todayStart = new Date()
   todayStart.setUTCHours(0, 0, 0, 0)
   const [{ count }] = await this.db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: count() })
     .from(callRecords)
     .where(and(eq(callRecords.hubId, hId), gte(callRecords.startedAt, todayStart)))
   return Number(count)
@@ -945,20 +984,31 @@ git commit -m "perf: SQL pagination and COUNT(*) — stop loading entire result 
 
 Replace `.filter((pk, i, arr) => arr.indexOf(pk) === i)` with `[...new Set(arr)]`.
 
-- [ ] **Step 1: Find and replace all O(n^2) dedup patterns**
+- [ ] **Step 1: Find and replace all 6 O(n^2) dedup patterns**
 
-Search for `.indexOf(pk) === i` across the codebase and replace:
+Replace `.filter((pk, i, arr) => arr.indexOf(pk) === i)` with `[...new Set(array)]` at these locations:
 
-In `records.ts` line 165:
+1. `records.ts:103` — `addBan()` recipient pubkeys
+2. `records.ts:165` — `bulkAddBans()` recipient pubkeys
+3. `conversations.ts:73` — `createConversation()` recipient pubkeys
+4. `identity.ts:78` — `createVolunteer()` name recipients
+5. `identity.ts:140` — `updateVolunteer()` name recipients
+6. `identity.ts:377` — `redeemInvite()` name recipients
+
+Pattern for each:
 ```typescript
 // Before:
+const recipientPubkeys = [
+  ...(isValidPubkey(data.pubkey) ? [data.pubkey] : []),
+  ...adminPubkeys,
 ].filter((pk, i, arr) => arr.indexOf(pk) === i)
-// After:
-]
-const recipientPubkeys = [...new Set(rawPubkeys)]
-```
 
-Apply the same fix in any other file that uses this pattern (identity.ts, etc.).
+// After:
+const recipientPubkeys = [...new Set([
+  ...(isValidPubkey(data.pubkey) ? [data.pubkey] : []),
+  ...adminPubkeys,
+])]
+```
 
 - [ ] **Step 2: Run typecheck**
 
@@ -969,8 +1019,8 @@ Expected: No errors
 
 ```bash
 cd /media/rikki/recover2/projects/llamenos-perf-backend
-git add -A
-git commit -m "perf: replace O(n^2) array dedup with Set"
+git add src/server/services/records.ts src/server/services/conversations.ts src/server/services/identity.ts
+git commit -m "perf: replace O(n^2) array dedup with Set (6 instances)"
 ```
 
 ---
@@ -1095,12 +1145,11 @@ close(): void {
 
 - [ ] **Step 2: Eager connect on server startup**
 
-In `src/server/server.ts`, after `createNostrPublisher` is called (via `getNostrPublisher`), eagerly connect. Find where the publisher is first referenced and add:
+In `src/server/server.ts`, `getNostrPublisher` is already imported from `./lib/adapters` (line 19 — aliased as part of the named imports). After services are created (~line 183), add eager connect. Note: `getNostrPublisher` is a lazy singleton in `adapters.ts` — calling it creates the publisher but doesn't connect.
 
 ```typescript
-// After line ~183 (after services are created, before server.listen)
+// After line ~183 (after blast processor started, before app import)
 // Eagerly connect Nostr publisher
-import { getNostrPublisher } from './lib/adapters'
 const publisher = getNostrPublisher(env)
 if ('connect' in publisher && typeof publisher.connect === 'function') {
   ;(publisher as { connect(): Promise<void> }).connect().catch((err) => {
@@ -1108,6 +1157,11 @@ if ('connect' in publisher && typeof publisher.connect === 'function') {
   })
   console.log('[llamenos] Nostr publisher connecting eagerly')
 }
+```
+
+Note: `getNostrPublisher` is not currently imported in `server.ts` — it's imported via `{ closeNostrPublisher }`. Add it to the import:
+```typescript
+import { closeNostrPublisher, getMessagingAdapter, getNostrPublisher, getTelephony } from './lib/adapters'
 ```
 
 - [ ] **Step 3: Run typecheck**
