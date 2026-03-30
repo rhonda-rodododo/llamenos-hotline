@@ -27,6 +27,9 @@ export interface NostrPublisher {
   /** Get the server's public key (hex, x-only 32 bytes) */
   readonly serverPubkey: string
 
+  /** Eager connection (optional — implementations without persistent connections can no-op) */
+  connect?(): Promise<void>
+
   /** Graceful shutdown (close connections, flush queues) */
   close(): void
 }

@@ -1243,6 +1243,7 @@ export class SettingsService {
   }
 
   async setHubKeyEnvelopes(hubId: string, envelopes: HubKeyEntry[]): Promise<void> {
+    this.hubKeyCache.delete(hubId)
     // Verify hub exists
     const hubRows = await this.db
       .select({ id: hubs.id })
@@ -1291,6 +1292,11 @@ export class SettingsService {
   }
 
   async resetForTest(): Promise<void> {
+    // Clear all runtime caches
+    this.hubKeyCache.clear()
+    this.roleCache.clear()
+    this.telephonyConfigCache.clear()
+    this.phoneToHubCache.clear()
     // Clear runtime state only — preserve system roles (they are code defaults, not user data)
     await this.db.delete(captchaState)
     await this.db.delete(rateLimitCounters)

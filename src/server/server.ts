@@ -190,8 +190,8 @@ async function main() {
 
   // Eagerly connect Nostr publisher
   const publisher = getNostrPublisher(env)
-  if ('connect' in publisher && typeof publisher.connect === 'function') {
-    ;(publisher as { connect(): Promise<void> }).connect().catch((err) => {
+  if (publisher.connect) {
+    publisher.connect().catch((err) => {
       console.warn('[llamenos] Nostr publisher eager connect failed (will retry):', err)
     })
     console.log('[llamenos] Nostr publisher connecting eagerly')
