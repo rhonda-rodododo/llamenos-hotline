@@ -15,3 +15,4 @@ export {
   contactConversationLinks,
 } from './contacts'
 export * from './teams'
+export * from './tags'

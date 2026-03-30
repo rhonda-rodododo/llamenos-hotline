@@ -11,6 +11,8 @@ export const hubs = pgTable('hubs', {
   createdBy: text('created_by').notNull().default(''),
   /** Allow super-admin visibility into this hub's data (zero-trust opt-in per hub) */
   allowSuperAdminAccess: boolean('allow_super_admin_access').notNull().default(false),
+  /** When true, volunteers can only use pre-defined tags (no free-text tag creation) */
+  strictTags: boolean('strict_tags').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

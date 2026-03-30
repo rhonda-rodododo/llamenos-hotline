@@ -19,6 +19,7 @@ export interface PermissionMeta {
 
 export const PERMISSION_GROUP_LABELS: Record<string, string> = {
   contacts: 'Contact Directory',
+  tags: 'Tags',
   notes: 'Notes',
   calls: 'Calls',
   reports: 'Reports',
@@ -109,6 +110,13 @@ export const PERMISSION_CATALOG = {
   'contacts:link': {
     label: 'Link/unlink calls and conversations to contacts',
     group: 'contacts',
+    subgroup: 'actions',
+  },
+
+  // --- Tags: Actions ---
+  'tags:create': {
+    label: 'Create new tags',
+    group: 'tags',
     subgroup: 'actions',
   },
 
@@ -521,6 +529,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'contacts:envelope-full',
       'contacts:create',
       'contacts:link',
+      'tags:create',
       'notes:read-all',
       'notes:create',
       'notes:update-own',
