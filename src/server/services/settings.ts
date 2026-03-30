@@ -82,6 +82,7 @@ import type {
 
 export class SettingsService {
   private hubKeyCache = new TtlCache<Uint8Array | null>(30_000)
+  private roleCache = new TtlCache<Role[]>(10_000) // 10s TTL
 
   constructor(
     protected readonly db: Database,
@@ -845,6 +846,10 @@ export class SettingsService {
   // ------------------------------------------------------------------ Roles
 
   async listRoles(hubId?: string): Promise<Role[]> {
+    const cacheKey = hubId ?? '__global__'
+    const cached = this.roleCache.get(cacheKey)
+    if (cached) return cached
+
     const hId = hubId ?? null
     const rows = hId
       ? await this.db.select().from(roles).where(eq(roles.hubId, hId))
@@ -882,9 +887,11 @@ export class SettingsService {
         const refetched = hId
           ? await this.db.select().from(roles).where(eq(roles.hubId, hId))
           : await this.db.select().from(roles).where(sql`${roles.hubId} IS NULL`)
-        return this.#decryptRoles(refetched)
+        const result = await this.#decryptRoles(refetched)
+        this.roleCache.set(cacheKey, result)
+        return result
       }
-      return seeded.map((r) => {
+      const result = seeded.map((r) => {
         const name = this.crypto.decryptField(
           r.encryptedName as Ciphertext,
           hubKey,
@@ -899,11 +906,16 @@ export class SettingsService {
           : ''
         return this.#rowToRole(r, name, desc)
       })
+      this.roleCache.set(cacheKey, result)
+      return result
     }
-    return this.#decryptRoles(rows)
+    const result = await this.#decryptRoles(rows)
+    this.roleCache.set(cacheKey, result)
+    return result
   }
 
   async createRole(data: CreateRoleData): Promise<Role> {
+    this.roleCache.clear()
     const hubId = data.hubId ?? null
     const existing = await this.db
       .select({ id: roles.id })
@@ -945,6 +957,7 @@ export class SettingsService {
   }
 
   async updateRole(id: string, data: UpdateRoleData): Promise<Role> {
+    this.roleCache.clear()
     const rows = await this.db.select().from(roles).where(eq(roles.id, id)).limit(1)
     const role = rows[0]
     if (!role) throw new AppError(404, 'Role not found')
@@ -994,6 +1007,7 @@ export class SettingsService {
   }
 
   async deleteRole(id: string): Promise<void> {
+    this.roleCache.clear()
     const rows = await this.db.select().from(roles).where(eq(roles.id, id)).limit(1)
     const role = rows[0]
     if (!role) throw new AppError(404, 'Role not found')
