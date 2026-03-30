@@ -36,6 +36,7 @@ import reportsRoutes from './routes/reports'
 import settingsRoutes from './routes/settings'
 import setupRoutes from './routes/setup'
 import shiftsRoutes from './routes/shifts'
+import teamsRoutes from './routes/teams'
 import telephonyRoutes from './routes/telephony'
 import uploadsRoutes from './routes/uploads'
 import usersRoutes from './routes/users'
@@ -212,6 +213,8 @@ authenticated.use('/blasts/*', requireHubOrSuperAdmin)
 authenticated.use('/blasts', requireHubOrSuperAdmin)
 authenticated.use('/contacts/*', requireHubOrSuperAdmin)
 authenticated.use('/contacts', requireHubOrSuperAdmin)
+authenticated.use('/teams/*', requireHubOrSuperAdmin)
+authenticated.use('/teams', requireHubOrSuperAdmin)
 authenticated.route('/analytics', analyticsRoutes)
 authenticated.route('/shifts', shiftsRoutes)
 authenticated.route('/bans', bansRoutes)
@@ -230,6 +233,7 @@ authenticated.route('/setup/provider', providerSetupRoutes)
 authenticated.route('/hubs', hubRoutes)
 authenticated.route('/blasts', blastsRoutes)
 authenticated.route('/contacts', contactsRoutes)
+authenticated.route('/teams', teamsRoutes)
 authenticated.route('/gdpr', gdprRoutes)
 authenticated.route('/geocoding', geocodingRoutes)
 authenticated.route('/notifications', notificationsRoutes)
@@ -248,6 +252,7 @@ hubScoped.route('/reports', reportsRoutes)
 hubScoped.route('/report-types', reportTypesRoutes)
 hubScoped.route('/blasts', blastsRoutes)
 hubScoped.route('/contacts', contactsRoutes)
+hubScoped.route('/teams', teamsRoutes)
 
 authenticated.route('/hubs/:hubId', hubScoped)
 
