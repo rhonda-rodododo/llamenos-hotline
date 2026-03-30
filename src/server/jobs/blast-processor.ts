@@ -46,6 +46,9 @@ const CHANNEL_DELAYS: Record<string, number> = {
 
 const BATCH_SIZE = 50
 
+/** Max concurrent sends per batch per channel. Keeps DB pool and external API load reasonable. */
+const CONCURRENCY = 10
+
 export class BlastProcessor {
   private readonly services: Services
   private readonly crypto: CryptoService
@@ -149,99 +152,137 @@ export class BlastProcessor {
     let sentCount = delivered.size // start from already-delivered count
     let failedCount = 0
 
-    // Process in batches
-    for (let i = 0; i < remaining.length; i++) {
-      // Check for cancellation at batch boundaries
-      if (i > 0 && i % BATCH_SIZE === 0) {
-        const current = await this.services.blasts.getBlast(blast.id)
-        if (current?.status === 'cancelled') {
-          await this.services.blasts.updateBlast(blast.id, {
-            stats: { sent: sentCount, failed: failedCount },
-          })
-          await this.services.records.addAuditEntry(blast.hubId, 'blastCancelled', 'system', {
-            blastId: blast.id,
-            name: blast.name,
-            sent: sentCount,
-            remaining: remaining.length - i,
-          })
-          return
-        }
-
-        // Update stats at batch boundary
-        await this.services.blasts.updateBlast(blast.id, {
-          stats: { sent: sentCount, failed: failedCount },
-        })
-      }
-
-      const sub = remaining[i]
+    // Group remaining subscribers by channel type so each channel queue can
+    // be processed concurrently with its own rate-limit cadence.
+    const channelBatches = new Map<string, Array<{ sub: Subscriber; channel: SubscriberChannel }>>()
+    for (const sub of remaining) {
       const channel = selectChannel(sub, blast.targetChannels)
       if (!channel) {
         failedCount++
         continue
       }
-
-      try {
-        // Decrypt subscriber identifier using hub key
-        const identifier = await this._decryptIdentifier(sub.encryptedIdentifier!, hubKey)
-        if (!identifier) {
-          failedCount++
-          await this.services.blasts.createDelivery({
-            blastId: blast.id,
-            subscriberId: sub.id,
-            channelType: channel.type,
-            status: 'failed',
-            error: 'Failed to decrypt identifier',
-          })
-          continue
-        }
-
-        // Get messaging adapter for this channel
-        const adapter = await this._getAdapter(channel.type, blast.hubId)
-
-        // Build message with opt-out footer
-        const footer = OPT_OUT_FOOTERS[sub.language ?? 'en'] ?? OPT_OUT_FOOTERS.en
-        const body = `${blastText}\n\n${footer}`
-
-        // Send the message
-        const result = await adapter.sendMessage({
-          recipientIdentifier: identifier,
-          body,
-        })
-
-        if (result.success) {
-          sentCount++
-          await this.services.blasts.createDelivery({
-            blastId: blast.id,
-            subscriberId: sub.id,
-            channelType: channel.type,
-            status: 'sent',
-          })
-        } else {
-          failedCount++
-          await this.services.blasts.createDelivery({
-            blastId: blast.id,
-            subscriberId: sub.id,
-            channelType: channel.type,
-            status: 'failed',
-            error: result.error ?? 'Send failed',
-          })
-        }
-
-        // Rate limit between sends
-        const delay = CHANNEL_DELAYS[channel.type] ?? CHANNEL_DELAYS.sms
-        await new Promise((resolve) => setTimeout(resolve, delay))
-      } catch (err) {
-        failedCount++
-        const errorMsg = err instanceof Error ? err.message : String(err)
-        await this.services.blasts.createDelivery({
-          blastId: blast.id,
-          subscriberId: sub.id,
-          channelType: channel.type,
-          status: 'failed',
-          error: errorMsg,
-        })
-      }
+      const key = channel.type
+      if (!channelBatches.has(key)) channelBatches.set(key, [])
+      channelBatches.get(key)!.push({ sub, channel })
     }
+
+    // Each channel type runs its own queue concurrently. Within a channel we
+    // send CONCURRENCY recipients in parallel, then apply the per-channel
+    // rate-limit delay once per batch (amortising it across the batch).
+    let wasCancelled = false
+
+    const channelPromises = Array.from(channelBatches.entries()).map(
+      async ([channelType, recipients]) => {
+        const delay = CHANNEL_DELAYS[channelType] ?? CHANNEL_DELAYS.sms
+        let adapter: MessagingAdapter | null = null
+
+        for (let i = 0; i < recipients.length; i += CONCURRENCY) {
+          // Check cancellation at BATCH_SIZE boundaries (same semantics as before)
+          if (i > 0 && i % BATCH_SIZE === 0) {
+            const current = await this.services.blasts.getBlast(blast.id)
+            if (current?.status === 'cancelled') {
+              wasCancelled = true
+              await this.services.blasts.updateBlast(blast.id, {
+                stats: { sent: sentCount, failed: failedCount },
+              })
+              await this.services.records.addAuditEntry(blast.hubId, 'blastCancelled', 'system', {
+                blastId: blast.id,
+                name: blast.name,
+                sent: sentCount,
+                remaining: recipients.length - i,
+              })
+              return
+            }
+
+            // Periodic stats update at batch boundary
+            await this.services.blasts.updateBlast(blast.id, {
+              stats: { sent: sentCount, failed: failedCount },
+            })
+          }
+
+          const batch = recipients.slice(i, i + CONCURRENCY)
+
+          // Get adapter once per channel type (lazy init)
+          if (!adapter) {
+            adapter = await this._getAdapter(channelType as MessagingChannelType, blast.hubId)
+          }
+
+          // Send the batch concurrently
+          const results = await Promise.allSettled(
+            batch.map(async ({ sub, channel }) => {
+              const identifier = await this._decryptIdentifier(sub.encryptedIdentifier!, hubKey)
+              if (!identifier) {
+                failedCount++
+                await this.services.blasts.createDelivery({
+                  blastId: blast.id,
+                  subscriberId: sub.id,
+                  channelType: channel.type,
+                  status: 'failed',
+                  error: 'Failed to decrypt identifier',
+                })
+                return
+              }
+
+              const footer = OPT_OUT_FOOTERS[sub.language ?? 'en'] ?? OPT_OUT_FOOTERS.en
+              const body = `${blastText}\n\n${footer}`
+
+              try {
+                const result = await adapter!.sendMessage({
+                  recipientIdentifier: identifier,
+                  body,
+                })
+
+                if (result.success) {
+                  sentCount++
+                  await this.services.blasts.createDelivery({
+                    blastId: blast.id,
+                    subscriberId: sub.id,
+                    channelType: channel.type,
+                    status: 'sent',
+                  })
+                } else {
+                  failedCount++
+                  await this.services.blasts.createDelivery({
+                    blastId: blast.id,
+                    subscriberId: sub.id,
+                    channelType: channel.type,
+                    status: 'failed',
+                    error: result.error ?? 'Send failed',
+                  })
+                }
+              } catch (err) {
+                failedCount++
+                const errorMsg = err instanceof Error ? err.message : String(err)
+                await this.services.blasts.createDelivery({
+                  blastId: blast.id,
+                  subscriberId: sub.id,
+                  channelType: channel.type,
+                  status: 'failed',
+                  error: errorMsg,
+                })
+              }
+            })
+          )
+
+          // Log any unexpected Promise.allSettled rejections (should not occur — inner catch covers it)
+          for (const r of results) {
+            if (r.status === 'rejected') {
+              failedCount++
+              console.error('[blast-processor] Unexpected send error:', r.reason)
+            }
+          }
+
+          // Apply rate-limit delay once per concurrent batch (amortised over CONCURRENCY sends)
+          await new Promise((resolve) => setTimeout(resolve, delay))
+        }
+      }
+    )
+
+    // Wait for all channel queues to complete
+    await Promise.all(channelPromises)
+
+    // If any channel triggered a cancellation we already emitted the audit entry; skip final update
+    if (wasCancelled) return
 
     // Final status update
     await this.services.blasts.updateBlast(blast.id, {
