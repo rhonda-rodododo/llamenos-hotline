@@ -3,11 +3,14 @@ import { and, eq, sql } from 'drizzle-orm'
 import type { Database } from '../db'
 import { hubs } from '../db/schema/settings'
 import { tags } from '../db/schema/tags'
+import { TtlCache } from '../lib/cache'
 import type { CryptoService } from '../lib/crypto-service'
 
 export type TagRow = typeof tags.$inferSelect
 
 export class TagsService {
+  private tagListCache = new TtlCache<TagRow[]>(30_000) // 30s TTL — tags change less frequently
+
   constructor(
     protected readonly db: Database,
     protected readonly crypto: CryptoService
@@ -35,11 +38,16 @@ export class TagsService {
         createdAt: new Date(),
       })
       .returning()
+    this.tagListCache.clear()
     return row
   }
 
   async listTags(hubId: string): Promise<TagRow[]> {
-    return this.db.select().from(tags).where(eq(tags.hubId, hubId)).orderBy(tags.name)
+    const cached = this.tagListCache.get(hubId)
+    if (cached) return cached
+    const result = await this.db.select().from(tags).where(eq(tags.hubId, hubId)).orderBy(tags.name)
+    this.tagListCache.set(hubId, result)
+    return result
   }
 
   async getTag(id: string, hubId: string): Promise<TagRow | null> {
@@ -81,6 +89,7 @@ export class TagsService {
       })
       .where(and(eq(tags.id, id), eq(tags.hubId, hubId)))
       .returning()
+    this.tagListCache.clear()
     return row ?? null
   }
 
@@ -89,6 +98,7 @@ export class TagsService {
       .delete(tags)
       .where(and(eq(tags.id, id), eq(tags.hubId, hubId)))
       .returning({ id: tags.id })
+    this.tagListCache.clear()
     return !!row
   }
 

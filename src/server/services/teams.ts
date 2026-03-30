@@ -2,6 +2,7 @@ import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, sql } from 'drizzle-orm'
 import type { Database } from '../db'
 import { contactTeamAssignments, teamMembers, teams } from '../db/schema/teams'
+import { TtlCache } from '../lib/cache'
 import type { CryptoService } from '../lib/crypto-service'
 
 export type TeamRow = typeof teams.$inferSelect
@@ -14,6 +15,8 @@ export interface TeamWithCounts extends TeamRow {
 }
 
 export class TeamsService {
+  private teamListCache = new TtlCache<TeamWithCounts[]>(10_000) // 10s TTL
+
   constructor(
     protected readonly db: Database,
     protected readonly crypto: CryptoService
@@ -39,10 +42,14 @@ export class TeamsService {
         updatedAt: now,
       })
       .returning()
+    this.teamListCache.clear()
     return row
   }
 
   async listTeams(hubId: string): Promise<TeamWithCounts[]> {
+    const cached = this.teamListCache.get(hubId)
+    if (cached) return cached
+
     const rows = await this.db.execute<{
       id: string
       hub_id: string
@@ -61,7 +68,7 @@ export class TeamsService {
       WHERE t.hub_id = ${hubId}
       ORDER BY t.created_at DESC
     `)
-    return rows.map((r) => ({
+    const result = rows.map((r) => ({
       id: r.id,
       hubId: r.hub_id,
       encryptedName: r.encrypted_name,
@@ -72,6 +79,8 @@ export class TeamsService {
       memberCount: r.member_count,
       contactCount: r.contact_count,
     }))
+    this.teamListCache.set(hubId, result)
+    return result
   }
 
   async getTeam(id: string, hubId: string): Promise<TeamRow | null> {
@@ -102,6 +111,7 @@ export class TeamsService {
       })
       .where(and(eq(teams.id, id), eq(teams.hubId, hubId)))
       .returning()
+    this.teamListCache.clear()
     return row ?? null
   }
 
@@ -113,6 +123,7 @@ export class TeamsService {
       .delete(teams)
       .where(and(eq(teams.id, id), eq(teams.hubId, hubId)))
       .returning({ id: teams.id })
+    this.teamListCache.clear()
     return !!row
   }
 
@@ -133,6 +144,7 @@ export class TeamsService {
       )
       .onConflictDoNothing()
       .returning()
+    this.teamListCache.clear()
     return rows
   }
 
@@ -141,6 +153,7 @@ export class TeamsService {
       .delete(teamMembers)
       .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userPubkey, pubkey)))
       .returning()
+    this.teamListCache.clear()
     return rows.length > 0
   }
 
@@ -185,6 +198,7 @@ export class TeamsService {
       )
       .onConflictDoNothing()
       .returning()
+    this.teamListCache.clear()
     return { assigned: rows.length, skipped: contactIds.length - rows.length }
   }
 
@@ -198,6 +212,7 @@ export class TeamsService {
         )
       )
       .returning()
+    this.teamListCache.clear()
     return rows.length > 0
   }
 

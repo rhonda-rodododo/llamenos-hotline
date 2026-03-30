@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { index, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 import { ciphertext } from '../crypto-columns'
 
 export const tags = pgTable(
@@ -13,5 +13,8 @@ export const tags = pgTable(
     createdBy: text('created_by').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex('tags_hub_name_unique').on(table.hubId, table.name)]
+  (table) => [
+    uniqueIndex('tags_hub_name_unique').on(table.hubId, table.name),
+    index('tags_hub_idx').on(table.hubId),
+  ]
 )
