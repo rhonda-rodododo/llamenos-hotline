@@ -40,6 +40,10 @@ export function loadEnv() {
     APP_URL: process.env.APP_URL || undefined,
     NOSTR_RELAY_URL: process.env.NOSTR_RELAY_URL || undefined,
     NOSTR_RELAY_PUBLIC_URL: process.env.NOSTR_RELAY_PUBLIC_URL || undefined,
+    // Auth / IdP
+    JWT_SECRET: readSecret('jwt-secret', 'JWT_SECRET'),
+    IDP_VALUE_ENCRYPTION_KEY:
+      readSecret('idp-value-encryption-key', 'IDP_VALUE_ENCRYPTION_KEY') || undefined,
     // Push notification keys
     APNS_KEY_P8: process.env.APNS_KEY_P8 || undefined,
     APNS_KEY_ID: process.env.APNS_KEY_ID || undefined,

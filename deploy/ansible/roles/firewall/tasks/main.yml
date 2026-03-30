@@ -4,71 +4,60 @@
 # Default deny incoming, allow outgoing.
 # Opens SSH (custom port), HTTP (80), and HTTPS (443).
 # Supports additional ports via firewall_extra_ports variable.
+#
+# NOTE: Uses shell commands instead of community.general.ufw module
+# to avoid iptables corruption issues observed on Tart VMs and some
+# cloud instances where the module's disable/enable cycle breaks TCP.
 
 - name: Install UFW
   ansible.builtin.apt:
     name: ufw
     state: present
 
-- name: Reset UFW to defaults
-  community.general.ufw:
-    state: reset
+- name: Set UFW default forward policy to ACCEPT for Docker
+  ansible.builtin.lineinfile:
+    path: /etc/default/ufw
+    regexp: '^DEFAULT_FORWARD_POLICY='
+    line: 'DEFAULT_FORWARD_POLICY="ACCEPT"'
 
-- name: Set default incoming policy to deny
-  community.general.ufw:
-    direction: incoming
-    default: deny
-
-- name: Set default outgoing policy to allow
-  community.general.ufw:
-    direction: outgoing
-    default: allow
-
-- name: Allow SSH on port {{ ssh_port }}
-  community.general.ufw:
-    rule: allow
-    port: "{{ ssh_port }}"
-    proto: tcp
-    src: "{{ item }}"
-    comment: "SSH access"
-  loop: "{{ ssh_allowed_cidrs }}"
-
-- name: Allow HTTP (port 80)
-  community.general.ufw:
-    rule: allow
-    port: "80"
-    proto: tcp
-    comment: "HTTP for ACME challenge and redirect"
-
-- name: Allow HTTPS (port 443)
-  community.general.ufw:
-    rule: allow
-    port: "443"
-    proto: tcp
-    comment: "HTTPS"
-
-- name: Allow HTTPS/UDP (port 443, HTTP/3 QUIC)
-  community.general.ufw:
-    rule: allow
-    port: "443"
-    proto: udp
-    comment: "HTTP/3 QUIC"
+- name: Configure UFW rules via shell
+  ansible.builtin.shell: |
+    set -e
+    # Allow SSH first (before enabling deny policy)
+    ufw allow {{ ssh_port }}/tcp comment 'SSH'
+    ufw allow 80/tcp comment 'HTTP'
+    ufw allow 443/tcp comment 'HTTPS'
+    ufw allow 443/udp comment 'HTTP/3 QUIC'
+    # Set default policies
+    ufw default deny incoming
+    ufw default allow outgoing
+    # Enable (--force avoids interactive prompt)
+    ufw --force enable
+    echo "UFW configured and enabled"
+  args:
+    executable: /bin/bash
+  changed_when: true
 
 - name: Allow extra ports
-  community.general.ufw:
-    rule: allow
-    port: "{{ item.port | string }}"
-    proto: "{{ item.proto | default('tcp') }}"
-    comment: "{{ item.comment | default('Extra port') }}"
+  ansible.builtin.shell: "ufw allow {{ item.port }}/{{ item.proto | default('tcp') }} comment '{{ item.comment | default('Extra') }}'"
   loop: "{{ firewall_extra_ports }}"
   when: firewall_extra_ports | length > 0
+  changed_when: true
 
-- name: Enable UFW
-  community.general.ufw:
-    state: enabled
-    logging: "on"
+- name: Configure UFW Docker forwarding rules
+  ansible.builtin.blockinfile:
+    path: /etc/ufw/after.rules
+    marker: "# {mark} ANSIBLE MANAGED - Docker forwarding"
+    block: |
+      -A ufw-after-forward -i docker0 -j ACCEPT
+      -A ufw-after-forward -o docker0 -j ACCEPT
+      -A ufw-after-forward -i br-+ -j ACCEPT
+      -A ufw-after-forward -o br-+ -j ACCEPT
+    insertbefore: "COMMIT"
+  notify: Reload UFW
 
 - name: Enable UFW at boot
   ansible.builtin.systemd:
     name: ufw
     enabled: true
+

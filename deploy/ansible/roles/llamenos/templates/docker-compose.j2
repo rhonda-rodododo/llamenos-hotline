@@ -27,6 +27,8 @@ services:
         condition: service_healthy
       strfry:
         condition: service_healthy
+      authentik-server:
+        condition: service_healthy
     logging:
       driver: json-file
       options:
@@ -50,6 +52,7 @@ services:
     restart: unless-stopped
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     environment:
       - POSTGRES_DB=llamenos
       - POSTGRES_USER=llamenos
@@ -141,6 +144,67 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+  # ── Identity Provider (Authentik) ─────────────────────────────
+  authentik-server:
+    image: {{ authentik_image | default('ghcr.io/goauthentik/server:2025.12') }}
+    command: server
+    restart: unless-stopped
+    environment:
+      - AUTHENTIK_SECRET_KEY={{ authentik_secret_key }}
+      - AUTHENTIK_POSTGRESQL__HOST=postgres
+      - AUTHENTIK_POSTGRESQL__PORT=5432
+      - AUTHENTIK_POSTGRESQL__USER=llamenos
+      - AUTHENTIK_POSTGRESQL__PASSWORD={{ pg_password }}
+      - AUTHENTIK_POSTGRESQL__NAME=authentik
+      - AUTHENTIK_BOOTSTRAP_TOKEN={{ authentik_bootstrap_token }}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - ./authentik-blueprints:/blueprints/custom:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "ak", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  authentik-worker:
+    image: {{ authentik_image | default('ghcr.io/goauthentik/server:2025.12') }}
+    command: worker
+    restart: unless-stopped
+    environment:
+      - AUTHENTIK_SECRET_KEY={{ authentik_secret_key }}
+      - AUTHENTIK_POSTGRESQL__HOST=postgres
+      - AUTHENTIK_POSTGRESQL__PORT=5432
+      - AUTHENTIK_POSTGRESQL__USER=llamenos
+      - AUTHENTIK_POSTGRESQL__PASSWORD={{ pg_password }}
+      - AUTHENTIK_POSTGRESQL__NAME=authentik
+      - AUTHENTIK_BOOTSTRAP_TOKEN={{ authentik_bootstrap_token }}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - ./authentik-blueprints:/blueprints/custom:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 {% if watchtower_enabled | default(false) %}
 
   # ── Optional: Watchtower (Auto-Updates) ─────────────────────
@@ -244,6 +308,8 @@ volumes:
   rustfs-data:
 {% endif %}
   nostr-data:
+  authentik-media:
+  authentik-templates:
 {% if 'asterisk' in (compose_profiles | default([])) %}
   asterisk-config:
 {% endif %}
