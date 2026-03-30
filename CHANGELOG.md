@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.30.0] - 2026-03-30
+
+### Features
+
+- IdP-agnostic auth facade & multi-factor nsec hardening (#18)
+
+### Miscellaneous
+
+- v0.30.0 [skip ci]
+
 ## [0.29.2] - 2026-03-29
 
 ### Bug Fixes
