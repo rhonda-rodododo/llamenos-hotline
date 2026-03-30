@@ -11,6 +11,7 @@ import {
 } from '../db/schema/contacts'
 import { ContactsAssignmentResolver } from '../lib/assignment-resolver'
 import type { CryptoService } from '../lib/crypto-service'
+import type { TeamsService } from './teams'
 
 // ------------------------------------------------------------------ Input/Output types
 
@@ -75,10 +76,16 @@ export type ContactConversationLinkRow = typeof contactConversationLinks.$inferS
 // ------------------------------------------------------------------ Service
 
 export class ContactService {
+  private teamsService?: TeamsService
+
   constructor(
     protected readonly db: Database,
     protected readonly crypto: CryptoService
   ) {}
+
+  setTeamsService(teamsService: TeamsService): void {
+    this.teamsService = teamsService
+  }
 
   // ------------------------------------------------------------------ CRUD
 
@@ -331,6 +338,11 @@ export class ContactService {
       .set({ lastInteractionAt: new Date(), updatedAt: new Date() })
       .where(and(eq(contacts.id, contactId), eq(contacts.hubId, hubId)))
 
+    // Auto-assign contact to handler's teams (skip for system-generated links)
+    if (this.teamsService && linkedBy !== 'auto') {
+      await this.teamsService.autoAssignForUser(contactId, linkedBy, hubId)
+    }
+
     return row
   }
 
@@ -364,6 +376,11 @@ export class ContactService {
       .update(contacts)
       .set({ lastInteractionAt: new Date(), updatedAt: new Date() })
       .where(and(eq(contacts.id, contactId), eq(contacts.hubId, hubId)))
+
+    // Auto-assign contact to handler's teams (skip for system-generated links)
+    if (this.teamsService && linkedBy !== 'auto') {
+      await this.teamsService.autoAssignForUser(contactId, linkedBy, hubId)
+    }
 
     return row
   }

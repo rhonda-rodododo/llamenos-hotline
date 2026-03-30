@@ -57,6 +57,12 @@ export function createServices(
   crypto: CryptoService,
   storage: StorageManager | null = null
 ): Services {
+  const contactService = new ContactService(db, crypto)
+  const teamsService = new TeamsService(db, crypto)
+
+  // Late-bind cross-service dependencies to avoid circular constructor coupling
+  contactService.setTeamsService(teamsService)
+
   return {
     identity: new IdentityService(db, crypto),
     settings: new SettingsService(db, crypto),
@@ -69,8 +75,8 @@ export function createServices(
     gdpr: new GdprService(db, crypto),
     reportTypes: new ReportTypeService(db, crypto),
     push: new PushService(db, crypto),
-    contacts: new ContactService(db, crypto),
-    teams: new TeamsService(db, crypto),
+    contacts: contactService,
+    teams: teamsService,
     storage,
     crypto,
   }
