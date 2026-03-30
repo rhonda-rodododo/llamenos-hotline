@@ -10,7 +10,6 @@ import {
 import { useCallsTodayCount, usePresence } from '@/lib/queries/calls'
 import { useUsers } from '@/lib/queries/users'
 import { useTranscription } from '@/lib/transcription'
-import { useDecryptedArray } from '@/lib/use-decrypted'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'

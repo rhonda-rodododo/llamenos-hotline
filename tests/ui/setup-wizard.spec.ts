@@ -37,18 +37,22 @@ test.describe('Setup Wizard', () => {
   // --- Helper: click Next and wait for the step to advance ---
   async function clickNext(page: import('@playwright/test').Page) {
     await page.getByRole('button', { name: /next/i }).click()
-    // Wait for any save operation to complete (Next saves progress to server)
-    await page.waitForTimeout(500)
+    // Wait for save + re-render (react-query adds context overhead)
+    await page.waitForTimeout(1000)
   }
 
   // --- Helper: click Back ---
   async function clickBack(page: import('@playwright/test').Page) {
     await page.getByRole('button', { name: /back/i }).click()
+    await page.waitForTimeout(500)
   }
 
   // --- Helper: click Skip ---
   async function clickSkip(page: import('@playwright/test').Page) {
-    await page.getByRole('button', { name: /skip/i }).click()
+    const skipBtn = page.getByRole('button', { name: /skip/i })
+    await skipBtn.waitFor({ state: 'visible', timeout: 10000 })
+    await skipBtn.click()
+    await page.waitForTimeout(500)
   }
 
   // =====================================================================

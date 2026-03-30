@@ -9,7 +9,6 @@ import {
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { User } from '@/lib/api'
-import { useDecryptedArray } from '@/lib/use-decrypted'
 import { cn } from '@/lib/utils'
 import { Check, ChevronsUpDown, X } from 'lucide-react'
 import { useState } from 'react'
@@ -32,9 +31,9 @@ export function UserMultiSelect({
 }: UserMultiSelectProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
-  const decryptedUsers = useDecryptedArray(users)
 
-  const selectedUsers = decryptedUsers.filter((v) => selected.includes(v.pubkey))
+  // Users are already decrypted by the parent (useUsers hook)
+  const selectedUsers = users.filter((v) => selected.includes(v.pubkey))
 
   function toggle(pubkey: string) {
     onSelectionChange(
@@ -94,7 +93,7 @@ export function UserMultiSelect({
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command
           filter={(value, search) => {
-            const u = decryptedUsers.find((v) => v.pubkey === value)
+            const u = users.find((v) => v.pubkey === value)
             if (!u) return 0
             const haystack = `${u.name} ${u.phone} ${u.pubkey}`.toLowerCase()
             return haystack.includes(search.toLowerCase()) ? 1 : 0
@@ -104,7 +103,7 @@ export function UserMultiSelect({
           <CommandList className="max-h-[200px]">
             <CommandEmpty>{t('shifts.noUsersFound')}</CommandEmpty>
             <CommandGroup>
-              {decryptedUsers.map((u) => (
+              {users.map((u) => (
                 <CommandItem key={u.pubkey} value={u.pubkey} onSelect={() => toggle(u.pubkey)}>
                   <Check
                     className={cn(

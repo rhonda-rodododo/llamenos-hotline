@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/select'
 import { useCreateInvite, useInvites } from '@/lib/queries/invites'
 import { useToast } from '@/lib/toast'
-import { useDecryptedArray } from '@/lib/use-decrypted'
 import { Check, Copy, Loader2, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -28,9 +27,9 @@ export function StepInvite({ headingRef }: Props = {}) {
   const [roleId, setRoleId] = useState<string>('role-volunteer')
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
+  // useInvites() decrypts PII fields in the queryFn — no need for useDecryptedArray
   const { data: invites = [] } = useInvites()
   const createInviteMutation = useCreateInvite()
-  const decryptedInvites = useDecryptedArray(invites)
 
   async function handleGenerate() {
     if (!name.trim() || !phone.trim()) return
@@ -120,11 +119,11 @@ export function StepInvite({ headingRef }: Props = {}) {
       </div>
 
       {/* Generated invites list */}
-      {decryptedInvites.length > 0 && (
+      {invites.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold">{t('setup.generatedInvites')}</h3>
           <div className="space-y-2">
-            {decryptedInvites.map((invite) => (
+            {invites.map((invite) => (
               <div
                 key={invite.code}
                 className="flex items-center justify-between rounded-lg border bg-muted/50 p-3"
