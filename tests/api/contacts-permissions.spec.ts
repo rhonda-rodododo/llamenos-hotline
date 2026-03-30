@@ -3,64 +3,45 @@
  *
  * Verifies that each endpoint enforces the correct permission tier:
  *
- *   contacts:envelope-summary  — base gate on all routes (user has this)
- *   contacts:create            — POST /contacts, POST /contacts/relationships (user has this)
- *   contacts:envelope-full     — GET /contacts/relationships (user LACKS this)
- *   contacts:update-summary — PATCH /contacts/:id with summary fields (user LACKS this)
- *   contacts:update-pii    — PATCH /contacts/:id with PII fields (user LACKS this)
- *   contacts:delete        — DELETE /contacts/:id (user LACKS this)
- *   contacts:link          — POST/DELETE /contacts/:id/link (user LACKS this)
+ *   contacts:envelope-summary  — base gate on all routes (volunteer has this)
+ *   contacts:create            — POST /contacts, POST /contacts/relationships (volunteer has this)
+ *   contacts:envelope-full     — GET /contacts/relationships (volunteer LACKS this)
+ *   contacts:update-summary — PATCH /contacts/:id with summary fields (volunteer LACKS this)
+ *   contacts:update-pii    — PATCH /contacts/:id with PII fields (volunteer LACKS this)
+ *   contacts:delete        — DELETE /contacts/:id (volunteer LACKS this)
+ *   contacts:link          — POST/DELETE /contacts/:id/link (volunteer LACKS this)
  *
  * Permission concern noted: POST /contacts/relationships only requires contacts:create,
  * but GET /contacts/relationships requires contacts:envelope-full. This asymmetry means a
  * user can create relationships they cannot read — likely intentional (blind record
  * creation) but worth flagging for spec review.
+ *
+ * Uses TestContext for hub-based test isolation. Non-admin users access hub-scoped routes
+ * (/api/hubs/:hubId/contacts) because requireHubOrSuperAdmin blocks global routes.
  */
 
 import { expect, test } from '@playwright/test'
-import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
-import { uniquePhone } from '../api-helpers'
-import { ADMIN_NSEC } from '../helpers'
-import {
-  type AuthedRequest,
-  createAuthedRequest,
-  createAuthedRequestFromNsec,
-} from '../helpers/authed-request'
+import { TestContext } from '../api-helpers'
 
 test.describe('Contact Directory — Permission Boundaries', () => {
   test.describe.configure({ mode: 'serial' })
 
-  // Shared user keypair for the test run — registered in the setup test
-  const userSk = generateSecretKey()
-  const userPk = getPublicKey(userSk)
-  let contactId: string
+  let ctx: TestContext
+  let adminContactId: string
+  let volunteerContactId: string
 
-  // Helper: create admin API from per-test request fixture
-  function adminApi(request: import('@playwright/test').APIRequestContext) {
-    return createAuthedRequestFromNsec(request, ADMIN_NSEC)
-  }
-
-  // Helper: create user API from per-test request fixture
-  function userApiFor(request: import('@playwright/test').APIRequestContext) {
-    return createAuthedRequest(request, userSk)
-  }
-
-  // Setup test: register the user (must run first in serial mode)
-  test('setup: register test user', async ({ request }) => {
-    const admin = adminApi(request)
-    const regRes = await admin.post('/api/users', {
-      pubkey: userPk,
-      name: 'Perm-Test User',
-      phone: uniquePhone(),
-      roleIds: ['role-volunteer'],
+  test.beforeAll(async ({ request }) => {
+    ctx = await TestContext.create(request, {
+      roles: ['volunteer'],
     })
-    if (!regRes.ok()) {
-      const body = await regRes.text()
-      // 409 = already exists from prior run — acceptable
-      if (regRes.status() !== 409) {
-        throw new Error(`Failed to register test user: ${regRes.status()} ${body}`)
-      }
-    }
+  })
+
+  test.beforeEach(async ({ request }) => {
+    ctx.refreshApis(request)
+  })
+
+  test.afterAll(async () => {
+    await ctx.cleanup()
   })
 
   // ─── Unauthenticated access ──────────────────────────────────────────────
@@ -87,8 +68,8 @@ test.describe('Contact Directory — Permission Boundaries', () => {
 
   // ─── Admin creates a contact (baseline fixture) ───────────────────────────
 
-  test('admin can create a contact', async ({ request }) => {
-    const res = await adminApi(request).post('/api/contacts', {
+  test('admin can create a contact', async () => {
+    const res = await ctx.adminApi.post(ctx.hubPath('/contacts'), {
       contactType: 'caller',
       riskLevel: 'medium',
       tags: ['perm-test'],
@@ -103,30 +84,13 @@ test.describe('Contact Directory — Permission Boundaries', () => {
     const data = await res.json()
     expect(data).toHaveProperty('contact')
     expect(data.contact).toHaveProperty('id')
-    contactId = data.contact.id
+    adminContactId = data.contact.id
   })
 
-  // ─── User — allowed operations ──────────────────────────────────────
+  // ─── Volunteer — allowed operations ──────────────────────────────────────
 
-  // NOTE: User tests below require hub-scoped routes (/api/hubs/:hubId/contacts)
-  // because requireHubOrSuperAdmin middleware blocks non-super-admin access to global routes.
-  // Currently these tests use global routes which return 400 for users.
-  // TODO: Set up hub + hub membership for user to test hub-scoped permission boundaries.
-
-  test.skip('user can list contacts (contacts:envelope-summary)', async ({ request }) => {
-    const res = await userApiFor(request).get('/api/contacts')
-    expect(res.status()).toBe(200)
-    const data = await res.json()
-    expect(data).toHaveProperty('contacts')
-  })
-
-  test.skip('user can get a single contact (contacts:envelope-summary)', async ({ request }) => {
-    const res = await userApiFor(request).get(`/api/contacts/${contactId}`)
-    expect(res.status()).toBe(200)
-  })
-
-  test.skip('user can create a contact (contacts:create)', async ({ request }) => {
-    const res = await userApiFor(request).post('/api/contacts', {
+  test('volunteer can create a contact (contacts:create)', async () => {
+    const res = await ctx.api('volunteer').post(ctx.hubPath('/contacts'), {
       contactType: 'caller',
       riskLevel: 'low',
       tags: [],
@@ -134,31 +98,47 @@ test.describe('Contact Directory — Permission Boundaries', () => {
       displayNameEnvelopes: [],
     })
     expect(res.status()).toBe(201)
+    const data = await res.json()
+    volunteerContactId = data.contact.id
   })
 
-  test.skip('user can create a relationship (contacts:create)', async ({ request }) => {
-    // POST /contacts/relationships only requires contacts:create — user has this.
+  test('volunteer can list contacts (contacts:envelope-summary)', async () => {
+    const res = await ctx.api('volunteer').get(ctx.hubPath('/contacts'))
+    expect(res.status()).toBe(200)
+    const data = await res.json()
+    expect(data).toHaveProperty('contacts')
+  })
+
+  test('volunteer can get a single contact they created (contacts:envelope-summary)', async () => {
+    const res = await ctx.api('volunteer').get(ctx.hubPath(`/contacts/${volunteerContactId}`))
+    expect(res.status()).toBe(200)
+  })
+
+  test('volunteer can create a relationship (contacts:create)', async () => {
+    // POST /contacts/relationships only requires contacts:create — volunteer has this.
     // NOTE: This is an asymmetry: the user can create relationships they cannot read
     // (GET /relationships requires contacts:envelope-full). See file-level comment.
-    const res = await userApiFor(request).post('/api/contacts/relationships', {
+    const res = await ctx.api('volunteer').post(ctx.hubPath('/contacts/relationships'), {
       encryptedPayload: 'vol-rel-payload',
       payloadEnvelopes: [],
     })
     expect(res.status()).toBe(201)
   })
 
-  test.skip('user can query check-duplicate endpoint (contacts:envelope-summary)', async ({
-    request,
-  }) => {
-    const res = await userApiFor(request).get(
-      '/api/contacts/check-duplicate?identifierHash=aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899'
-    )
+  test('volunteer can query check-duplicate endpoint (contacts:envelope-summary)', async () => {
+    const res = await ctx
+      .api('volunteer')
+      .get(
+        ctx.hubPath(
+          '/contacts/check-duplicate?identifierHash=aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899'
+        )
+      )
     // Returns 200 with { exists: false } for an unknown hash
     expect(res.status()).toBe(200)
   })
 
-  test.skip('user can use hash-phone endpoint (contacts:envelope-summary)', async ({ request }) => {
-    const res = await userApiFor(request).post('/api/contacts/hash-phone', {
+  test('volunteer can use hash-phone endpoint (contacts:envelope-summary)', async () => {
+    const res = await ctx.api('volunteer').post(ctx.hubPath('/contacts/hash-phone'), {
       phone: '+15550001234',
     })
     expect(res.status()).toBe(200)
@@ -166,94 +146,84 @@ test.describe('Contact Directory — Permission Boundaries', () => {
     expect(data).toHaveProperty('identifierHash')
   })
 
-  test.skip('user can get recipients list (contacts:envelope-summary)', async ({ request }) => {
-    const res = await userApiFor(request).get('/api/contacts/recipients')
+  test('volunteer can get recipients list (contacts:envelope-summary)', async () => {
+    const res = await ctx.api('volunteer').get(ctx.hubPath('/contacts/recipients'))
     expect(res.status()).toBe(200)
   })
 
-  // ─── User — blocked operations ──────────────────────────────────────
+  // ─── Volunteer — blocked operations ──────────────────────────────────────
 
-  test.skip('user cannot delete a contact (missing contacts:delete)', async ({ request }) => {
-    const res = await userApiFor(request).delete(`/api/contacts/${contactId}`)
+  test('volunteer cannot delete a contact (missing contacts:delete)', async () => {
+    const res = await ctx.api('volunteer').delete(ctx.hubPath(`/contacts/${adminContactId}`))
     expect(res.status()).toBe(403)
   })
 
-  test.skip('user cannot update PII fields (missing contacts:update-pii)', async ({ request }) => {
-    const res = await userApiFor(request).patch(`/api/contacts/${contactId}`, {
+  test('volunteer cannot update PII fields (missing contacts:update-pii)', async () => {
+    const res = await ctx.api('volunteer').patch(ctx.hubPath(`/contacts/${adminContactId}`), {
       encryptedFullName: 'hacked-name',
       fullNameEnvelopes: [],
     })
     expect(res.status()).toBe(403)
   })
 
-  test.skip('user cannot update summary fields (missing contacts:update-summary)', async ({
-    request,
-  }) => {
-    // User only has contacts:create and contacts:envelope-summary —
+  test('volunteer cannot update summary fields (missing contacts:update-summary)', async () => {
+    // Volunteer only has contacts:create and contacts:envelope-summary —
     // contacts:update-summary is NOT included in role-volunteer
-    const res = await userApiFor(request).patch(`/api/contacts/${contactId}`, {
+    const res = await ctx.api('volunteer').patch(ctx.hubPath(`/contacts/${adminContactId}`), {
       riskLevel: 'critical',
     })
     expect(res.status()).toBe(403)
   })
 
-  test.skip('user cannot update display name (missing contacts:update-summary)', async ({
-    request,
-  }) => {
-    const res = await userApiFor(request).patch(`/api/contacts/${contactId}`, {
+  test('volunteer cannot update display name (missing contacts:update-summary)', async () => {
+    const res = await ctx.api('volunteer').patch(ctx.hubPath(`/contacts/${adminContactId}`), {
       encryptedDisplayName: 'new-display',
       displayNameEnvelopes: [],
     })
     expect(res.status()).toBe(403)
   })
 
-  test.skip('user cannot link calls to contacts (missing contacts:link)', async ({ request }) => {
-    const res = await userApiFor(request).post(`/api/contacts/${contactId}/link`, {
+  test('volunteer cannot link calls to contacts (missing contacts:link)', async () => {
+    const res = await ctx.api('volunteer').post(ctx.hubPath(`/contacts/${adminContactId}/link`), {
       type: 'call',
       targetId: 'some-call-id',
     })
     expect(res.status()).toBe(403)
   })
 
-  test.skip('user cannot unlink calls from contacts (missing contacts:link)', async ({
-    request,
-  }) => {
-    const res = await userApiFor(request).delete(`/api/contacts/${contactId}/link`, {
+  test('volunteer cannot unlink calls from contacts (missing contacts:link)', async () => {
+    const res = await ctx.api('volunteer').delete(ctx.hubPath(`/contacts/${adminContactId}/link`), {
       type: 'call',
       targetId: 'some-call-id',
     })
     expect(res.status()).toBe(403)
   })
 
-  test.skip('user cannot list relationships (missing contacts:envelope-full)', async ({
-    request,
-  }) => {
-    const res = await userApiFor(request).get('/api/contacts/relationships')
+  test('volunteer cannot list relationships (missing contacts:envelope-full)', async () => {
+    const res = await ctx.api('volunteer').get(ctx.hubPath('/contacts/relationships'))
     expect(res.status()).toBe(403)
   })
 
   // ─── Admin — full access verification ────────────────────────────────────
 
-  test('admin can update summary fields (contacts:update-summary via contacts:*)', async ({
-    request,
-  }) => {
-    const res = await adminApi(request).patch(`/api/contacts/${contactId}`, {
+  test('admin can update summary fields (contacts:update-summary via contacts:*)', async () => {
+    const res = await ctx.adminApi.patch(ctx.hubPath(`/contacts/${adminContactId}`), {
       riskLevel: 'high',
       tags: ['perm-test', 'updated'],
     })
     expect(res.status()).toBe(200)
   })
 
-  test('admin can update PII fields (contacts:update-pii via contacts:*)', async ({ request }) => {
-    const res = await adminApi(request).patch(`/api/contacts/${contactId}`, {
+  test('admin can update PII fields (contacts:update-pii via contacts:*)', async () => {
+    const res = await ctx.adminApi.patch(ctx.hubPath(`/contacts/${adminContactId}`), {
       encryptedFullName: 'updated-name',
       fullNameEnvelopes: [],
     })
     expect(res.status()).toBe(200)
   })
 
-  test('admin can link a call to a contact (contacts:link via contacts:*)', async ({ request }) => {
-    const res = await adminApi(request).post(`/api/contacts/${contactId}/link`, {
+  test('admin can link a call to a contact (contacts:link via contacts:*)', async () => {
+    const res = await ctx.adminApi.post(ctx.hubPath(`/contacts/${adminContactId}/link`), {
       type: 'call',
       targetId: 'nonexistent-call-id',
     })
@@ -262,17 +232,15 @@ test.describe('Contact Directory — Permission Boundaries', () => {
     expect([200, 404]).toContain(res.status())
   })
 
-  test('admin can list relationships (contacts:envelope-full via contacts:*)', async ({
-    request,
-  }) => {
-    const res = await adminApi(request).get('/api/contacts/relationships')
+  test('admin can list relationships (contacts:envelope-full via contacts:*)', async () => {
+    const res = await ctx.adminApi.get(ctx.hubPath('/contacts/relationships'))
     expect(res.status()).toBe(200)
     const data = await res.json()
     expect(data).toHaveProperty('relationships')
   })
 
-  test('admin can delete a contact (contacts:delete via contacts:*)', async ({ request }) => {
-    const res = await adminApi(request).delete(`/api/contacts/${contactId}`)
+  test('admin can delete a contact (contacts:delete via contacts:*)', async () => {
+    const res = await ctx.adminApi.delete(ctx.hubPath(`/contacts/${adminContactId}`))
     expect(res.status()).toBe(200)
   })
 })

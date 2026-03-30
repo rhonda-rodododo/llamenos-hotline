@@ -4,48 +4,56 @@
  * Verifies that the scope hierarchy (own < assigned < all) is enforced
  * at the API layer for contact CRUD operations.
  *
- * Admin tests use the global `/api/contacts` route (super-admin access).
- * Hub-scoped tests (non-admin users) are marked `test.skip()` because they
- * require `/api/hubs/:hubId/contacts` with hub membership setup — see
- * contacts-permissions.spec.ts for the same pattern.
+ * Uses TestContext for hub-based test isolation. Non-admin users access
+ * hub-scoped routes (/api/hubs/:hubId/contacts) because requireHubOrSuperAdmin
+ * blocks global routes for non-super-admin users.
+ *
+ * Scope levels tested:
+ *   - Volunteer: contacts:read-own (can only see contacts they created)
+ *   - Case Manager: contacts:read-assigned (can see contacts assigned to them)
+ *   - Hub Admin: contacts:read-all via contacts:* (can see all contacts)
+ *   - Volunteer: contacts:update-own (can only update contacts they created)
  */
 
 import { expect, test } from '@playwright/test'
-import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
-import { uniquePhone } from '../api-helpers'
-import { ADMIN_NSEC } from '../helpers'
-import {
-  type AuthedRequest,
-  createAuthedRequest,
-  createAuthedRequestFromNsec,
-} from '../helpers/authed-request'
+import { TestContext } from '../api-helpers'
 
 test.describe('PBAC Scope Hierarchy — Admin (global routes)', () => {
   test.describe.configure({ mode: 'serial' })
 
+  let ctx: TestContext
   let contactId: string
 
-  function adminApi(request: import('@playwright/test').APIRequestContext) {
-    return createAuthedRequestFromNsec(request, ADMIN_NSEC)
-  }
+  test.beforeAll(async ({ request }) => {
+    ctx = await TestContext.create(request, {
+      roles: [],
+    })
+  })
 
-  test('admin can list all contacts via contacts:* wildcard', async ({ request }) => {
-    const res = await adminApi(request).get('/api/contacts')
+  test.beforeEach(async ({ request }) => {
+    ctx.refreshApis(request)
+  })
+
+  test.afterAll(async () => {
+    await ctx.cleanup()
+  })
+
+  test('admin can list all contacts via contacts:* wildcard', async () => {
+    const res = await ctx.adminApi.get('/api/contacts')
     expect(res.status()).toBe(200)
     const data = await res.json()
     expect(data).toHaveProperty('contacts')
     expect(Array.isArray(data.contacts)).toBe(true)
   })
 
-  test('admin can create a contact with assignedTo field', async ({ request }) => {
-    const admin = adminApi(request)
-    const res = await admin.post('/api/contacts', {
+  test('admin can create a contact with assignedTo field', async () => {
+    const res = await ctx.adminApi.post(ctx.hubPath('/contacts'), {
       contactType: 'caller',
       riskLevel: 'low',
       tags: ['pbac-scope-test'],
       encryptedDisplayName: 'scope-test-display',
       displayNameEnvelopes: [],
-      assignedTo: admin.pubkey,
+      assignedTo: ctx.adminApi.pubkey,
     })
     expect(res.status()).toBe(201)
     const data = await res.json()
@@ -54,220 +62,159 @@ test.describe('PBAC Scope Hierarchy — Admin (global routes)', () => {
     contactId = data.contact.id
   })
 
-  test('admin can filter contacts by assignedTo query parameter', async ({ request }) => {
-    const admin = adminApi(request)
-    const res = await admin.get(`/api/contacts?assignedTo=${admin.pubkey}`)
+  test('admin can filter contacts by assignedTo query parameter', async () => {
+    const res = await ctx.adminApi.get(ctx.hubPath(`/contacts?assignedTo=${ctx.adminApi.pubkey}`))
     expect(res.status()).toBe(200)
     const data = await res.json()
     expect(data).toHaveProperty('contacts')
-    // The contact we created with assignedTo should be in results
-    // (if the server supports this filter — 200 is the key assertion)
   })
 
-  test('admin contacts:* subsumes contacts:read-own check', async ({ request }) => {
+  test('admin contacts:* subsumes contacts:read-own check', async () => {
     // Admin with '*' wildcard should be able to read any contact,
     // demonstrating that wildcard subsumes scoped permissions.
-    const res = await adminApi(request).get(`/api/contacts/${contactId}`)
+    const res = await ctx.adminApi.get(ctx.hubPath(`/contacts/${contactId}`))
     expect(res.status()).toBe(200)
     const data = await res.json()
     expect(data).toHaveProperty('contact')
     expect(data.contact.id).toBe(contactId)
   })
 
-  test('cleanup: admin deletes test contact', async ({ request }) => {
-    const res = await adminApi(request).delete(`/api/contacts/${contactId}`)
+  test('cleanup: admin deletes test contact', async () => {
+    const res = await ctx.adminApi.delete(ctx.hubPath(`/contacts/${contactId}`))
     expect(res.status()).toBe(200)
   })
 })
 
 test.describe('PBAC Scope Hierarchy — Hub-Scoped (non-admin users)', () => {
-  // ─────────────────────────────────────────────────────────────────────────
-  // TODO: These tests require hub-scoped routes (/api/hubs/:hubId/contacts).
-  // Non-admin users cannot access global /api/contacts — the middleware
-  // requires super-admin for global routes. To unskip these tests:
-  //   1. Create a test hub via admin API
-  //   2. Add the test user as a hub member with specific role
-  //   3. Use /api/hubs/:hubId/contacts routes
-  // See contacts-permissions.spec.ts for the same limitation.
-  // ─────────────────────────────────────────────────────────────────────────
+  test.describe.configure({ mode: 'serial' })
 
-  const readOwnSk = generateSecretKey()
-  const readOwnPk = getPublicKey(readOwnSk)
-  const readAssignedSk = generateSecretKey()
-  const readAssignedPk = getPublicKey(readAssignedSk)
-  const readAllSk = generateSecretKey()
-  const readAllPk = getPublicKey(readAllSk)
-  const updateOwnSk = generateSecretKey()
-  const updateOwnPk = getPublicKey(updateOwnSk)
+  let ctx: TestContext
 
-  function adminApi(request: import('@playwright/test').APIRequestContext) {
-    return createAuthedRequestFromNsec(request, ADMIN_NSEC)
-  }
+  // Track contact IDs for assertions
+  let volunteerContactId: string
+  let adminContactId: string
+  let assignedContactId: string
 
-  // Users with specific scoped permissions (not full admin).
-  // In a real setup, these would be hub members with custom roles.
-  function readOwnApi(request: import('@playwright/test').APIRequestContext) {
-    return createAuthedRequest(request, readOwnSk, [
-      'contacts:read-own',
-      'contacts:envelope-summary',
-      'contacts:create',
-    ])
-  }
-
-  function readAssignedApi(request: import('@playwright/test').APIRequestContext) {
-    return createAuthedRequest(request, readAssignedSk, [
-      'contacts:read-assigned',
-      'contacts:envelope-summary',
-      'contacts:envelope-full',
-      'contacts:create',
-    ])
-  }
-
-  function readAllApi(request: import('@playwright/test').APIRequestContext) {
-    return createAuthedRequest(request, readAllSk, [
-      'contacts:read-all',
-      'contacts:envelope-summary',
-      'contacts:create',
-    ])
-  }
-
-  function updateOwnApi(request: import('@playwright/test').APIRequestContext) {
-    return createAuthedRequest(request, updateOwnSk, [
-      'contacts:read-own',
-      'contacts:update-own',
-      'contacts:envelope-summary',
-      'contacts:update-summary',
-      'contacts:create',
-    ])
-  }
-
-  // --- Scope: read-own ---
-
-  test.skip('user with contacts:read-own can only fetch contacts they created', async ({
-    request,
-  }) => {
-    // TODO: Requires hub-scoped route. When hub infra is ready:
-    // 1. readOwnApi creates a contact in the hub
-    // 2. readOwnApi lists contacts — should see only their own
-    // 3. Admin creates another contact — readOwnApi should NOT see it
-    const api = readOwnApi(request)
-    const createRes = await api.post('/api/contacts', {
-      contactType: 'caller',
-      riskLevel: 'low',
-      encryptedDisplayName: 'own-contact',
-      displayNameEnvelopes: [],
+  test.beforeAll(async ({ request }) => {
+    ctx = await TestContext.create(request, {
+      roles: ['volunteer', 'case-manager'],
     })
-    expect(createRes.status()).toBe(201)
-
-    const listRes = await api.get('/api/contacts')
-    expect(listRes.status()).toBe(200)
-    const data = await listRes.json()
-    // Should only contain contacts created by this user
-    for (const contact of data.contacts) {
-      expect(contact.createdBy).toBe(api.pubkey)
-    }
   })
 
-  // --- Scope: read-assigned ---
-
-  test.skip('user with contacts:read-assigned can fetch contacts assigned to them', async ({
-    request,
-  }) => {
-    // TODO: Requires hub-scoped route. When hub infra is ready:
-    // 1. Admin creates a contact with assignedTo = readAssignedPk
-    // 2. readAssignedApi lists contacts — should see the assigned contact
-    const admin = adminApi(request)
-    await admin.post('/api/contacts', {
-      contactType: 'caller',
-      riskLevel: 'low',
-      encryptedDisplayName: 'assigned-contact',
-      displayNameEnvelopes: [],
-      assignedTo: readAssignedPk,
-    })
-
-    const api = readAssignedApi(request)
-    const listRes = await api.get('/api/contacts')
-    expect(listRes.status()).toBe(200)
-    const data = await listRes.json()
-    expect(data.contacts.length).toBeGreaterThan(0)
-    // All returned contacts should be assigned to this user
-    for (const contact of data.contacts) {
-      expect(contact.assignedTo).toBe(api.pubkey)
-    }
+  test.beforeEach(async ({ request }) => {
+    ctx.refreshApis(request)
   })
 
-  // --- Scope: read-all ---
-
-  test.skip('user with contacts:read-all can fetch all contacts in hub', async ({ request }) => {
-    // TODO: Requires hub-scoped route. When hub infra is ready:
-    // 1. Admin creates multiple contacts in the hub
-    // 2. readAllApi lists contacts — should see all of them
-    const api = readAllApi(request)
-    const listRes = await api.get('/api/contacts')
-    expect(listRes.status()).toBe(200)
-    const data = await listRes.json()
-    expect(data.contacts.length).toBeGreaterThan(0)
+  test.afterAll(async () => {
+    await ctx.cleanup()
   })
 
-  // --- Scope: update-own ---
+  // --- Setup: create contacts owned by different users ---
 
-  test.skip('user with contacts:update-own can PATCH contacts they created', async ({
-    request,
-  }) => {
-    // TODO: Requires hub-scoped route.
-    const api = updateOwnApi(request)
-    const createRes = await api.post('/api/contacts', {
+  test('volunteer creates a contact', async () => {
+    const res = await ctx.api('volunteer').post(ctx.hubPath('/contacts'), {
       contactType: 'caller',
       riskLevel: 'low',
-      encryptedDisplayName: 'update-own-test',
+      encryptedDisplayName: 'vol-created-contact',
       displayNameEnvelopes: [],
     })
-    expect(createRes.status()).toBe(201)
-    const { contact } = await createRes.json()
+    expect(res.status()).toBe(201)
+    const data = await res.json()
+    volunteerContactId = data.contact.id
+  })
 
-    const patchRes = await api.patch(`/api/contacts/${contact.id}`, {
+  test('admin creates a contact (not owned by volunteer)', async () => {
+    const res = await ctx.adminApi.post(ctx.hubPath('/contacts'), {
+      contactType: 'caller',
       riskLevel: 'medium',
-    })
-    expect(patchRes.status()).toBe(200)
-  })
-
-  test.skip('user with contacts:update-own gets 404 on PATCH for contacts created by others', async ({
-    request,
-  }) => {
-    // TODO: Requires hub-scoped route.
-    // Admin creates a contact, then updateOwnApi tries to patch it — should fail
-    const admin = adminApi(request)
-    const createRes = await admin.post('/api/contacts', {
-      contactType: 'caller',
-      riskLevel: 'low',
-      encryptedDisplayName: 'not-my-contact',
+      encryptedDisplayName: 'admin-created-contact',
       displayNameEnvelopes: [],
     })
-    expect(createRes.status()).toBe(201)
-    const { contact } = await createRes.json()
+    expect(res.status()).toBe(201)
+    const data = await res.json()
+    adminContactId = data.contact.id
+  })
 
-    const api = updateOwnApi(request)
-    const patchRes = await api.patch(`/api/contacts/${contact.id}`, {
+  test('admin creates a contact assigned to case-manager', async () => {
+    const res = await ctx.adminApi.post(ctx.hubPath('/contacts'), {
+      contactType: 'caller',
+      riskLevel: 'low',
+      encryptedDisplayName: 'assigned-to-cm',
+      displayNameEnvelopes: [],
+      assignedTo: ctx.user('case-manager').pubkey,
+    })
+    expect(res.status()).toBe(201)
+    const data = await res.json()
+    assignedContactId = data.contact.id
+  })
+
+  // --- Scope: read-own (volunteer) ---
+
+  test('volunteer with contacts:read-own can only fetch own contacts', async () => {
+    const res = await ctx.api('volunteer').get(ctx.hubPath('/contacts'))
+    expect(res.status()).toBe(200)
+    const { contacts } = await res.json()
+    // Volunteer should only see contacts they created (scope: own)
+    expect(contacts.length).toBeGreaterThan(0)
+    for (const c of contacts) {
+      expect(c.createdBy).toBe(ctx.user('volunteer').pubkey)
+    }
+  })
+
+  // --- Scope: read-assigned (case-manager) ---
+
+  test('case-manager with contacts:read-assigned can fetch contacts assigned to them', async () => {
+    const res = await ctx.api('case-manager').get(ctx.hubPath('/contacts'))
+    expect(res.status()).toBe(200)
+    const { contacts } = await res.json()
+    expect(contacts.length).toBeGreaterThan(0)
+    // All returned contacts should be assigned to the case-manager or created by them
+    for (const c of contacts) {
+      const isAssigned = c.assignedTo === ctx.user('case-manager').pubkey
+      const isOwned = c.createdBy === ctx.user('case-manager').pubkey
+      expect(isAssigned || isOwned).toBe(true)
+    }
+  })
+
+  // --- Scope: read-all (admin via wildcard) ---
+
+  test('admin with contacts:read-all can fetch all contacts in hub', async () => {
+    const res = await ctx.adminApi.get(ctx.hubPath('/contacts'))
+    expect(res.status()).toBe(200)
+    const { contacts } = await res.json()
+    // Admin should see all contacts in the hub (at least the 3 we created)
+    expect(contacts.length).toBeGreaterThanOrEqual(3)
+  })
+
+  // --- Scope: update-own (volunteer) ---
+
+  test('volunteer with contacts:update-own cannot PATCH contacts they did not create', async () => {
+    // Volunteer lacks contacts:update-summary entirely, so any patch is 403
+    const res = await ctx.api('volunteer').patch(ctx.hubPath(`/contacts/${adminContactId}`), {
       riskLevel: 'high',
     })
-    // Server should return 404 (contact not visible to this user) or 403
-    expect([403, 404]).toContain(patchRes.status())
+    // Server should return 403 (no update permission)
+    expect(res.status()).toBe(403)
   })
 
   // --- Case Manager composite check ---
 
-  test.skip('Case Manager with contacts:read-assigned + contacts:envelope-full sees assigned contacts', async ({
-    request,
-  }) => {
-    // TODO: Requires hub-scoped route.
-    // Case Manager has: contacts:read-assigned, contacts:envelope-summary,
-    // contacts:envelope-full, contacts:create, contacts:link
-    const api = readAssignedApi(request) // simulates Case Manager scope
-    const listRes = await api.get('/api/contacts')
-    expect(listRes.status()).toBe(200)
-    const data = await listRes.json()
+  test('case-manager with contacts:read-assigned + contacts:envelope-full sees assigned contacts', async () => {
+    const res = await ctx.api('case-manager').get(ctx.hubPath('/contacts'))
+    expect(res.status()).toBe(200)
+    const data = await res.json()
     // With envelope-full, the response should include PII fields
     // (when the contact has them and they're assigned to this user)
     expect(data).toHaveProperty('contacts')
+    // The assigned contact should be in the list
+    const assignedContact = data.contacts.find((c: { id: string }) => c.id === assignedContactId)
+    expect(assignedContact).toBeDefined()
+  })
+
+  test('case-manager can list relationships (has contacts:envelope-full)', async () => {
+    const res = await ctx.api('case-manager').get(ctx.hubPath('/contacts/relationships'))
+    expect(res.status()).toBe(200)
+    const data = await res.json()
+    expect(data).toHaveProperty('relationships')
   })
 })
