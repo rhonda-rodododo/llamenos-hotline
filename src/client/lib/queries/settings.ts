@@ -101,7 +101,7 @@ export function useUpdateCallSettings() {
 
 interface TranscriptionSettings {
   globalEnabled: boolean
-  allowVolunteerOptOut: boolean
+  allowUserOptOut: boolean
 }
 
 export const transcriptionSettingsOptions = () =>
@@ -118,7 +118,7 @@ export function useTranscriptionSettings() {
 export function useUpdateTranscriptionSettings() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: { globalEnabled?: boolean; allowVolunteerOptOut?: boolean }) =>
+    mutationFn: (data: { globalEnabled?: boolean; allowUserOptOut?: boolean }) =>
       updateTranscriptionSettings(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.settings.transcription() })

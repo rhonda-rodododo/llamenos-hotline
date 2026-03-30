@@ -22,7 +22,7 @@ export interface CallRingEvent extends LlamenosEvent {
 export interface CallAnsweredEvent extends LlamenosEvent {
   type: 'call:answered'
   callId: string
-  volunteerPubkey: string
+  userPubkey: string
 }
 
 /** Call ended notification */

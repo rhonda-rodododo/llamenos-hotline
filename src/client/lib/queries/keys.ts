@@ -2,17 +2,17 @@
  * Query key factories for all API resources.
  *
  * Structured keys enable targeted cache invalidation:
- *   queryClient.invalidateQueries({ queryKey: queryKeys.volunteers.all })
+ *   queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
  *
  * Each `all` entry is a plain array (not a function) so it serves as the
  * prefix for all sub-keys in that resource, enabling wildcard invalidation.
  */
 
 export const queryKeys = {
-  volunteers: {
-    all: ['volunteers'] as const,
-    list: () => ['volunteers', 'list'] as const,
-    detail: (pubkey: string) => ['volunteers', 'detail', pubkey] as const,
+  users: {
+    all: ['users'] as const,
+    list: () => ['users', 'list'] as const,
+    detail: (pubkey: string) => ['users', 'detail', pubkey] as const,
   },
 
   invites: {
@@ -139,7 +139,7 @@ export const queryKeys = {
   analytics: {
     callVolume: (days?: number) => ['analytics', 'callVolume', days ?? null] as const,
     callHours: () => ['analytics', 'callHours'] as const,
-    volunteerStats: () => ['analytics', 'volunteerStats'] as const,
+    userStats: () => ['analytics', 'userStats'] as const,
   },
 
   presence: {

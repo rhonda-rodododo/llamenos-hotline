@@ -8,10 +8,10 @@
 import {
   type ActiveCall,
   type CallRecord,
-  type VolunteerPresence,
+  type UserPresence,
   getCallHistory,
   getCallsTodayCount,
-  getVolunteerPresence,
+  getUserPresence,
   listActiveCalls,
 } from '@/lib/api'
 import { decryptCallRecord } from '@/lib/crypto'
@@ -149,9 +149,9 @@ export function useCallsTodayCount() {
 export const presenceOptions = () =>
   queryOptions({
     queryKey: queryKeys.presence.list(),
-    queryFn: async (): Promise<VolunteerPresence[]> => {
-      const { volunteers } = await getVolunteerPresence()
-      return volunteers
+    queryFn: async (): Promise<UserPresence[]> => {
+      const { users } = await getUserPresence()
+      return users
     },
     staleTime: 15_000,
     refetchInterval: 15_000,
@@ -162,7 +162,7 @@ export const presenceOptions = () =>
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch volunteer presence/availability (admin only).
+ * Fetch user presence/availability (admin only).
  */
 export function usePresence() {
   return useQuery(presenceOptions())
@@ -171,4 +171,4 @@ export function usePresence() {
 // ---------------------------------------------------------------------------
 // Re-export types for convenience
 // ---------------------------------------------------------------------------
-export type { ActiveCall, CallRecord, VolunteerPresence }
+export type { ActiveCall, CallRecord, UserPresence }

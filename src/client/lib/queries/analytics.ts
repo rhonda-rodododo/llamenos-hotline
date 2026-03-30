@@ -8,10 +8,10 @@
 import {
   type CallHourBucket,
   type CallVolumeDay,
-  type VolunteerStatEntry,
+  type UserStatEntry,
   getCallAnalytics,
   getCallHoursAnalytics,
-  getVolunteerStats,
+  getUserStats,
 } from '@/lib/api'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { queryKeys } from './keys'
@@ -73,18 +73,18 @@ export function useCallHoursAnalytics(enabled = true) {
 }
 
 // ---------------------------------------------------------------------------
-// volunteerStatsAnalyticsOptions
+// userStatsAnalyticsOptions
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch volunteer performance stats.
+ * Fetch user performance stats.
  * Pass enabled=false to defer loading.
  */
-export const volunteerStatsAnalyticsOptions = (enabled = true) =>
+export const userStatsAnalyticsOptions = (enabled = true) =>
   queryOptions({
-    queryKey: queryKeys.analytics.volunteerStats(),
-    queryFn: async (): Promise<VolunteerStatEntry[]> => {
-      const res = await getVolunteerStats()
+    queryKey: queryKeys.analytics.userStats(),
+    queryFn: async (): Promise<UserStatEntry[]> => {
+      const res = await getUserStats()
       return res.data
     },
     staleTime: STALE_5_MIN,
@@ -92,14 +92,14 @@ export const volunteerStatsAnalyticsOptions = (enabled = true) =>
   })
 
 // ---------------------------------------------------------------------------
-// useVolunteerStatsAnalytics
+// useUserStatsAnalytics
 // ---------------------------------------------------------------------------
 
-export function useVolunteerStatsAnalytics(enabled = true) {
-  return useQuery(volunteerStatsAnalyticsOptions(enabled))
+export function useUserStatsAnalytics(enabled = true) {
+  return useQuery(userStatsAnalyticsOptions(enabled))
 }
 
 // ---------------------------------------------------------------------------
 // Re-export types for convenience
 // ---------------------------------------------------------------------------
-export type { CallHourBucket, CallVolumeDay, VolunteerStatEntry }
+export type { CallHourBucket, CallVolumeDay, UserStatEntry }

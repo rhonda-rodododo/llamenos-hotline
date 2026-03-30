@@ -144,25 +144,25 @@ export async function getMe() {
   }>('/auth/me')
 }
 
-// --- Volunteers (admin only) ---
+// --- Users (admin only) ---
 
-export async function listVolunteers() {
-  return request<{ volunteers: Volunteer[] }>('/volunteers')
+export async function listUsers() {
+  return request<{ users: User[] }>('/users')
 }
 
-export async function createVolunteer(data: {
+export async function createUser(data: {
   name: string
   phone: string
   roleIds: string[]
   pubkey: string
 }) {
-  return request<{ volunteer: Volunteer }>('/volunteers', {
+  return request<{ user: User }>('/users', {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
-export async function updateVolunteer(
+export async function updateUser(
   pubkey: string,
   data: Partial<{
     name: string
@@ -173,14 +173,14 @@ export async function updateVolunteer(
     messagingEnabled: boolean
   }>
 ) {
-  return request<{ volunteer: Volunteer }>(`/volunteers/${pubkey}`, {
+  return request<{ user: User }>(`/users/${pubkey}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   })
 }
 
-export async function deleteVolunteer(pubkey: string) {
-  return request<{ ok: true }>(`/volunteers/${pubkey}`, { method: 'DELETE' })
+export async function deleteUser(pubkey: string) {
+  return request<{ ok: true }>(`/users/${pubkey}`, { method: 'DELETE' })
 }
 
 // --- Shift Status (all users) ---
@@ -220,13 +220,13 @@ export async function deleteShift(id: string) {
 }
 
 export async function getFallbackGroup() {
-  return request<{ volunteers: string[] }>(hp('/shifts/fallback'))
+  return request<{ users: string[] }>(hp('/shifts/fallback'))
 }
 
-export async function setFallbackGroup(volunteers: string[]) {
+export async function setFallbackGroup(users: string[]) {
   return request<{ ok: true }>(hp('/shifts/fallback'), {
     method: 'PUT',
-    body: JSON.stringify({ volunteers }),
+    body: JSON.stringify({ users }),
   })
 }
 
@@ -355,10 +355,10 @@ export async function getCallRecording(callId: string): Promise<ArrayBuffer> {
   return res.arrayBuffer()
 }
 
-// --- Volunteer Presence (admin only) ---
+// --- User Presence (admin only) ---
 
-export async function getVolunteerPresence() {
-  return request<{ volunteers: VolunteerPresence[] }>(hp('/calls/presence'))
+export async function getUserPresence() {
+  return request<{ users: UserPresence[] }>(hp('/calls/presence'))
 }
 
 // --- Audit Log (admin only) ---
@@ -434,22 +434,17 @@ export async function updateIvrLanguages(data: { enabledLanguages: string[] }) {
 // --- Transcription Settings ---
 
 export async function getTranscriptionSettings() {
-  return request<{ globalEnabled: boolean; allowVolunteerOptOut: boolean }>(
-    '/settings/transcription'
-  )
+  return request<{ globalEnabled: boolean; allowUserOptOut: boolean }>('/settings/transcription')
 }
 
 export async function updateTranscriptionSettings(data: {
   globalEnabled?: boolean
-  allowVolunteerOptOut?: boolean
+  allowUserOptOut?: boolean
 }) {
-  return request<{ globalEnabled: boolean; allowVolunteerOptOut: boolean }>(
-    '/settings/transcription',
-    {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }
-  )
+  return request<{ globalEnabled: boolean; allowUserOptOut: boolean }>('/settings/transcription', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
 }
 
 export async function updateMyTranscriptionPreference(enabled: boolean) {
@@ -518,7 +513,7 @@ export async function redeemInvite(code: string, pubkey: string) {
     const body = await res.text()
     throw new ApiError(res.status, body)
   }
-  return res.json() as Promise<{ volunteer: Volunteer; nsecSecret?: string; accessToken?: string }>
+  return res.json() as Promise<{ user: User; nsecSecret?: string; accessToken?: string }>
 }
 
 // --- IVR Audio ---
@@ -642,7 +637,7 @@ export async function getWebRtcStatus() {
 
 export interface WebAuthnSettings {
   requireForAdmins: boolean
-  requireForVolunteers: boolean
+  requireForUsers: boolean
 }
 
 export async function getWebAuthnSettings() {
@@ -724,7 +719,7 @@ export async function getPermissionsCatalog() {
 /** @deprecated Use roles array + permissions */
 export type UserRole = 'volunteer' | 'admin' | 'reporter'
 
-export interface Volunteer {
+export interface User {
   pubkey: string
   name: string
   phone: string
@@ -736,7 +731,7 @@ export interface Volunteer {
   callPreference: 'phone' | 'browser' | 'both'
   // Messaging capabilities (Epic 68)
   supportedMessagingChannels?: string[] // SMS, WhatsApp, Signal, RCS (empty = all)
-  messagingEnabled?: boolean // Whether volunteer can handle messaging conversations
+  messagingEnabled?: boolean // Whether user can handle messaging conversations
   // E2EE envelope-encrypted name (Phase 2D)
   encryptedName?: Ciphertext
   nameEnvelopes?: RecipientEnvelope[]
@@ -750,7 +745,7 @@ export interface Shift {
   startTime: string // HH:mm
   endTime: string // HH:mm
   days: number[] // 0=Sunday, 1=Monday, ..., 6=Saturday
-  volunteerPubkeys: string[]
+  userPubkeys: string[]
   createdAt: string
 }
 
@@ -824,7 +819,7 @@ export interface AuditLogEntry {
   entryHash?: string
 }
 
-export interface VolunteerPresence {
+export interface UserPresence {
   pubkey: string
   status: 'available' | 'on-call' | 'online'
 }
@@ -979,7 +974,7 @@ export async function getConversationStats() {
   )
 }
 
-export async function getVolunteerLoads() {
+export async function getUserLoads() {
   return request<{ loads: Record<string, number> }>(hp('/conversations/load'))
 }
 
@@ -1398,11 +1393,11 @@ export async function shareFile(
 export async function seedDemoData() {
   const { DEMO_ACCOUNTS } = await import('@shared/demo-accounts')
 
-  // Create demo volunteers (admin is already created via ADMIN_PUBKEY)
+  // Create demo users (admin is already created via ADMIN_PUBKEY)
   const nonAdminAccounts = DEMO_ACCOUNTS.filter((a) => !a.roleIds.includes('role-super-admin'))
   for (const account of nonAdminAccounts) {
     try {
-      await createVolunteer({
+      await createUser({
         name: account.name,
         phone: account.phone,
         roleIds: account.roleIds,
@@ -1413,11 +1408,11 @@ export async function seedDemoData() {
     }
   }
 
-  // Deactivate Fatima (inactive volunteer demo)
+  // Deactivate Fatima (inactive user demo)
   const fatima = DEMO_ACCOUNTS.find((a) => a.name === 'Fatima Al-Rashid')
   if (fatima) {
     try {
-      await request(`/volunteers/${fatima.pubkey}`, {
+      await request(`/users/${fatima.pubkey}`, {
         method: 'PATCH',
         body: JSON.stringify({ active: false }),
       })
@@ -1429,7 +1424,7 @@ export async function seedDemoData() {
   // Mark all demo profiles as completed and set browser call preference
   for (const account of nonAdminAccounts) {
     try {
-      await request(`/volunteers/${account.pubkey}`, {
+      await request(`/users/${account.pubkey}`, {
         method: 'PATCH',
         body: JSON.stringify({
           profileCompleted: true,
@@ -1451,7 +1446,7 @@ export async function seedDemoData() {
       startTime: '08:00',
       endTime: '16:00',
       days: [1, 2, 3, 4, 5],
-      volunteerPubkeys: [maria.pubkey, james.pubkey],
+      userPubkeys: [maria.pubkey, james.pubkey],
       createdAt: new Date().toISOString(),
     },
     {
@@ -1459,7 +1454,7 @@ export async function seedDemoData() {
       startTime: '16:00',
       endTime: '23:59',
       days: [1, 2, 3, 4, 5],
-      volunteerPubkeys: [maria.pubkey],
+      userPubkeys: [maria.pubkey],
       createdAt: new Date().toISOString(),
     },
     {
@@ -1467,7 +1462,7 @@ export async function seedDemoData() {
       startTime: '10:00',
       endTime: '18:00',
       days: [0, 6],
-      volunteerPubkeys: [james.pubkey],
+      userPubkeys: [james.pubkey],
       createdAt: new Date().toISOString(),
     },
   ]
@@ -1482,7 +1477,7 @@ export async function seedDemoData() {
   // Add sample bans
   const bans = [
     { phone: '+15559999001', reason: 'Repeated prank calls' },
-    { phone: '+15559999002', reason: 'Threatening language towards volunteers' },
+    { phone: '+15559999002', reason: 'Threatening language towards users' },
   ]
   for (const ban of bans) {
     try {
@@ -1706,7 +1701,7 @@ export interface CallVolumeDay {
   voicemail: number
 }
 
-export interface VolunteerStatEntry {
+export interface UserStatEntry {
   pubkey: string
   name: string
   callsAnswered: number
@@ -1724,8 +1719,8 @@ export async function getCallHoursAnalytics() {
   return request<{ data: CallHourBucket[] }>(hp('/analytics/call-hours'))
 }
 
-export async function getVolunteerStats() {
-  return request<{ data: VolunteerStatEntry[] }>(hp('/analytics/volunteer-stats'))
+export async function getUserStats() {
+  return request<{ data: UserStatEntry[] }>(hp('/analytics/user-stats'))
 }
 
 // --- Consent (GDPR) ---
@@ -1836,10 +1831,10 @@ export async function sendInvite(
   })
 }
 
-// --- Volunteer Admin (unmasked) ---
+// --- User Admin (unmasked) ---
 
-export async function getVolunteerUnmasked(pubkey: string) {
-  return request<{ volunteer: Volunteer & { phone: string } }>(`/volunteers/${pubkey}/unmasked`)
+export async function getUserUnmasked(pubkey: string) {
+  return request<{ user: User & { phone: string } }>(`/users/${pubkey}/unmasked`)
 }
 
 // --- Hub Archive & Delete ---

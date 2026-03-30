@@ -48,8 +48,8 @@ export const fallbackGroupOptions = () =>
   queryOptions({
     queryKey: queryKeys.shifts.fallback(),
     queryFn: async () => {
-      const { volunteers } = await getFallbackGroup()
-      return volunteers
+      const { users } = await getFallbackGroup()
+      return users
     },
   })
 
@@ -130,7 +130,7 @@ export function useDeleteShift() {
 export function useSetFallbackGroup() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (volunteers: string[]) => setFallbackGroup(volunteers),
+    mutationFn: (users: string[]) => setFallbackGroup(users),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.shifts.fallback() })
     },

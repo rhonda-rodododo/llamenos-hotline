@@ -17,7 +17,7 @@ export const queryClient = new QueryClient({
  * and invalidated on unlock to force re-fetch with fresh decryption.
  */
 export const ENCRYPTED_QUERY_KEYS = [
-  'volunteers',
+  'users',
   'contacts',
   'notes',
   'calls',
