@@ -79,10 +79,12 @@ test.describe('In-Browser Admin Bootstrap', () => {
   // =====================================================================
   // Test 3: Full bootstrap flow — generate keypair, set PIN, backup, verify
   // =====================================================================
+  // PBKDF2 600K iterations runs twice (keygen + importKey) — very slow on CI VMs
   test('complete bootstrap flow creates admin and advances to wizard', async ({
     page,
     request,
   }) => {
+    test.setTimeout(120_000)
     // Fresh state
     await request.post('/api/test-reset-no-admin', {
       headers: { 'X-Test-Secret': process.env.DEV_RESET_SECRET || 'test-reset-secret' },
