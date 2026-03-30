@@ -9,6 +9,8 @@
 import {
   type ContactRecord,
   type ContactRelationshipRecord,
+  bulkDeleteContacts,
+  bulkUpdateContacts,
   createContact,
   deleteContact,
   getContact,
@@ -192,6 +194,34 @@ export function useDeleteContact() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => deleteContact(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// useBulkUpdateContacts
+// ---------------------------------------------------------------------------
+
+export function useBulkUpdateContacts() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: bulkUpdateContacts,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// useBulkDeleteContacts
+// ---------------------------------------------------------------------------
+
+export function useBulkDeleteContacts() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: bulkDeleteContacts,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all })
     },

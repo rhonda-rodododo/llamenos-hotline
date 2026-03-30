@@ -2108,6 +2108,24 @@ export async function deleteContact(id: string): Promise<void> {
   return request(hp(`/contacts/${id}`), { method: 'DELETE' })
 }
 
+export async function bulkUpdateContacts(data: {
+  contactIds: string[]
+  addTags?: string[]
+  removeTags?: string[]
+  riskLevel?: string
+}): Promise<{ updated: number; skipped: number }> {
+  return request(hp('/contacts/bulk'), { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function bulkDeleteContacts(
+  contactIds: string[]
+): Promise<{ deleted: number; skipped: number }> {
+  return request(hp('/contacts/bulk'), {
+    method: 'DELETE',
+    body: JSON.stringify({ contactIds }),
+  })
+}
+
 export async function getContactTimeline(id: string): Promise<{
   calls: unknown[]
   conversations: unknown[]

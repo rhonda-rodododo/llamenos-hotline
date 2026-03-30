@@ -193,6 +193,100 @@ contacts.delete('/relationships/:id', requirePermission('contacts:delete'), asyn
   return c.json({ ok: true })
 })
 
+// ------------------------------------------------------------------ Bulk operations
+
+// PATCH /contacts/bulk — bulk update tags/risk level
+contacts.patch('/bulk', requirePermission('contacts:update-own'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+  const permissions = c.get('permissions')
+  const pubkey = c.get('pubkey')
+
+  const body = await c.req.json<{
+    contactIds: string[]
+    addTags?: string[]
+    removeTags?: string[]
+    riskLevel?: string
+  }>()
+
+  if (!body.contactIds?.length) {
+    return c.json({ error: 'contactIds array is required' }, 400)
+  }
+
+  // Scope filter — only update contacts within user's scope
+  const scope = getContactUpdateScope(permissions)
+  if (!scope) return c.json({ error: 'Forbidden' }, 403)
+
+  let accessibleIds = body.contactIds
+  if (scope !== 'all') {
+    const accessible = await Promise.all(
+      body.contactIds.map(async (id) => {
+        const ok = await services.contacts.isContactAccessible(id, hubId, scope, pubkey ?? '')
+        return ok ? id : null
+      })
+    )
+    accessibleIds = accessible.filter((id): id is string => id !== null)
+  }
+
+  let updated = 0
+  for (const contactId of accessibleIds) {
+    const updateData: Record<string, unknown> = {}
+    if (body.riskLevel) updateData.riskLevel = body.riskLevel
+
+    // For tags, we need to get current tags and modify
+    if (body.addTags || body.removeTags) {
+      const contact = await services.contacts.getContact(contactId, hubId)
+      if (contact) {
+        let currentTags = (contact.tags as string[]) ?? []
+        if (body.addTags) currentTags = [...new Set([...currentTags, ...body.addTags])]
+        if (body.removeTags) currentTags = currentTags.filter((t) => !body.removeTags!.includes(t))
+        updateData.tags = currentTags
+      }
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await services.contacts.updateContact(contactId, hubId, updateData)
+      updated++
+    }
+  }
+
+  return c.json({
+    updated,
+    skipped: body.contactIds.length - accessibleIds.length,
+  })
+})
+
+// DELETE /contacts/bulk — bulk delete
+contacts.delete('/bulk', requirePermission('contacts:delete'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+  const permissions = c.get('permissions')
+  const pubkey = c.get('pubkey')
+
+  const body = await c.req.json<{ contactIds: string[] }>()
+  if (!body.contactIds?.length) {
+    return c.json({ error: 'contactIds array is required' }, 400)
+  }
+
+  const scope = getContactUpdateScope(permissions)
+  if (!scope) return c.json({ error: 'Forbidden' }, 403)
+
+  let deleted = 0
+  for (const contactId of body.contactIds) {
+    if (scope !== 'all') {
+      const ok = await services.contacts.isContactAccessible(contactId, hubId, scope, pubkey ?? '')
+      if (!ok) continue
+    }
+    const result = await services.contacts.deleteContact(contactId, hubId)
+    if (result) deleted++
+  }
+
+  return c.json({
+    deleted,
+    skipped: body.contactIds.length - deleted,
+  })
+})
+
 // ------------------------------------------------------------------ List / Create
 
 // GET /contacts — list contacts (filterable by contactType, riskLevel, assignedTo)
