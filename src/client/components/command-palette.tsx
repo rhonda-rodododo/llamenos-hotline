@@ -10,11 +10,13 @@ import {
 } from '@/components/ui/command'
 import { useAuth } from '@/lib/auth'
 import { useNoteSheet } from '@/lib/note-sheet-context'
+import { useContacts } from '@/lib/queries/contacts'
 import { useTheme } from '@/lib/theme'
 import { useNavigate } from '@tanstack/react-router'
 import {
   Clock,
   Coffee,
+  Contact,
   HelpCircle,
   Keyboard,
   LayoutDashboard,
@@ -31,7 +33,7 @@ import {
   Sun,
   Users,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 let openCommandPalette: (() => void) | null = null
@@ -48,9 +50,22 @@ export function CommandPalette() {
   const { setTheme } = useTheme()
   const noteSheet = useNoteSheet()
   const navigate = useNavigate()
+  const { data: contacts } = useContacts()
 
   const isMac = typeof navigator !== 'undefined' && navigator.platform?.includes('Mac')
   const mod = isMac ? '⌘' : 'Ctrl'
+
+  // Filter contacts by search query (uses cached decrypted data)
+  const matchedContacts = useMemo(() => {
+    if (!contacts || searchQuery.trim().length < 2) return []
+    const lower = searchQuery.toLowerCase()
+    return contacts
+      .filter((c) => {
+        const name = (c as unknown as { displayName?: string }).displayName
+        return name?.toLowerCase().includes(lower)
+      })
+      .slice(0, 5)
+  }, [contacts, searchQuery])
 
   useEffect(() => {
     openCommandPalette = () => setOpen(true)
@@ -128,6 +143,31 @@ export function CommandPalette() {
                   {t('commandPalette.searchCalls', { query: searchQuery.trim() })}
                 </CommandItem>
               )}
+            </CommandGroup>
+          )}
+
+          {/* Contacts — shown when search matches cached contacts */}
+          {matchedContacts.length > 0 && (
+            <CommandGroup heading={t('nav.contacts', { defaultValue: 'Contacts' })}>
+              {matchedContacts.map((contact) => {
+                const name = (contact as unknown as { displayName?: string }).displayName
+                return (
+                  <CommandItem
+                    key={contact.id}
+                    onSelect={() =>
+                      runCommand(() =>
+                        navigate({ to: '/contacts/$contactId', params: { contactId: contact.id } })
+                      )
+                    }
+                  >
+                    <Contact className="h-4 w-4" />
+                    <span className="flex-1 truncate">{name ?? contact.id}</span>
+                    <span className="text-xs text-muted-foreground capitalize">
+                      {contact.contactType}
+                    </span>
+                  </CommandItem>
+                )
+              })}
             </CommandGroup>
           )}
 
