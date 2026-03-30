@@ -24,17 +24,17 @@ ALTER TABLE volunteers RENAME TO users;
 
 ### Column renames
 
-| Table | Old Column | New Column |
-|-------|-----------|------------|
-| `users` (formerly `volunteers`) | — | — (columns already generic) |
-| `call_legs` | `volunteer_pubkey` | `user_pubkey` |
-| `shift_schedules` | `volunteer_pubkeys` | `user_pubkeys` |
-| `shift_overrides` | `volunteer_pubkeys` | `user_pubkeys` |
-| `ring_groups` | `volunteer_pubkeys` | `user_pubkeys` |
-| `fallback_group` | `volunteer_pubkeys` | `user_pubkeys` |
-| `webauthn_settings` | `require_for_volunteers` | `require_for_users` |
-| `custom_field_definitions` | `show_in_volunteer_view` | `show_in_user_view` |
-| `transcription_settings` | `allow_volunteer_opt_out` | `allow_user_opt_out` |
+| Table                           | Old Column                | New Column                  |
+| ------------------------------- | ------------------------- | --------------------------- |
+| `users` (formerly `volunteers`) | —                         | — (columns already generic) |
+| `call_legs`                     | `volunteer_pubkey`        | `user_pubkey`               |
+| `shift_schedules`               | `volunteer_pubkeys`       | `user_pubkeys`              |
+| `shift_overrides`               | `volunteer_pubkeys`       | `user_pubkeys`              |
+| `ring_groups`                   | `volunteer_pubkeys`       | `user_pubkeys`              |
+| `fallback_group`                | `volunteer_pubkeys`       | `user_pubkeys`              |
+| `webauthn_settings`             | `require_for_volunteers`  | `require_for_users`         |
+| `custom_field_definitions`      | `show_in_volunteer_view`  | `show_in_user_view`         |
+| `transcription_settings`        | `allow_volunteer_opt_out` | `allow_user_opt_out`        |
 
 ### Permission string migration
 
@@ -67,39 +67,43 @@ All column definitions stay identical (they're already generic — `pubkey`, `en
 
 ```typescript
 // Before
-volunteerPubkey: text('volunteer_pubkey').notNull()
+volunteerPubkey: text("volunteer_pubkey").notNull();
 
 // After
-userPubkey: text('user_pubkey').notNull()
+userPubkey: text("user_pubkey").notNull();
 ```
 
 ### `src/server/db/schema/shifts.ts`
 
 ```typescript
 // Before (on shiftSchedules, shiftOverrides, ringGroups)
-volunteerPubkeys: jsonb<string[]>()('volunteer_pubkeys').notNull().default([])
+volunteerPubkeys: jsonb<string[]>()("volunteer_pubkeys").notNull().default([]);
 
 // After
-userPubkeys: jsonb<string[]>()('user_pubkeys').notNull().default([])
+userPubkeys: jsonb<string[]>()("user_pubkeys").notNull().default([]);
 ```
 
 ### `src/server/db/schema/settings.ts`
 
 ```typescript
 // Before
-showInVolunteerView: boolean('show_in_volunteer_view').notNull().default(false)
+showInVolunteerView: boolean("show_in_volunteer_view").notNull().default(false);
 // After
-showInUserView: boolean('show_in_user_view').notNull().default(false)
+showInUserView: boolean("show_in_user_view").notNull().default(false);
 
 // Before (webauthnSettings)
-requireForVolunteers: boolean('require_for_volunteers').notNull().default(false)
+requireForVolunteers: boolean("require_for_volunteers")
+  .notNull()
+  .default(false);
 // After
-requireForUsers: boolean('require_for_users').notNull().default(false)
+requireForUsers: boolean("require_for_users").notNull().default(false);
 
 // Before (transcriptionSettings)
-allowVolunteerOptOut: boolean('allow_volunteer_opt_out').notNull().default(true)
+allowVolunteerOptOut: boolean("allow_volunteer_opt_out")
+  .notNull()
+  .default(true);
 // After
-allowUserOptOut: boolean('allow_user_opt_out').notNull().default(true)
+allowUserOptOut: boolean("allow_user_opt_out").notNull().default(true);
 ```
 
 ---
@@ -154,7 +158,7 @@ The export name can optionally be aliased for clarity, but the value stays:
 
 ```typescript
 // The string value is a cryptographic constant — never change it
-export const LABEL_USER_PII = 'llamenos:volunteer-pii:v1'
+export const LABEL_USER_PII = "llamenos:volunteer-pii:v1";
 // Optionally keep the old name as a deprecated alias during transition
 ```
 
@@ -177,18 +181,19 @@ All endpoints change path prefix:
 
 ### Service method renames (`src/server/services/identity.ts`)
 
-| Before | After |
-|--------|-------|
-| `getVolunteers()` | `getUsers()` |
-| `getVolunteer(pubkey)` | `getUser(pubkey)` |
-| `createVolunteer(data)` | `createUser(data)` |
+| Before                          | After                      |
+| ------------------------------- | -------------------------- |
+| `getVolunteers()`               | `getUsers()`               |
+| `getVolunteer(pubkey)`          | `getUser(pubkey)`          |
+| `createVolunteer(data)`         | `createUser(data)`         |
 | `updateVolunteer(pubkey, data)` | `updateUser(pubkey, data)` |
-| `deleteVolunteer(pubkey)` | `deleteUser(pubkey)` |
-| `VOLUNTEER_SAFE_FIELDS` | `USER_SAFE_FIELDS` |
+| `deleteVolunteer(pubkey)`       | `deleteUser(pubkey)`       |
+| `VOLUNTEER_SAFE_FIELDS`         | `USER_SAFE_FIELDS`         |
 
 ### Other server files
 
 All files importing from the volunteers route or referencing `volunteerPubkey` in queries update to the new names. This includes:
+
 - `src/server/services/call-router.ts` (shift lookup by `userPubkeys`)
 - `src/server/services/shift-manager.ts`
 - `src/server/routes/shifts.ts`
@@ -205,18 +210,18 @@ If this file exists, rename to `user-projector.ts` and update all references.
 
 ### Route file renames
 
-| Before | After |
-|--------|-------|
-| `src/client/routes/volunteers.tsx` | `src/client/routes/users.tsx` |
+| Before                                      | After                                 |
+| ------------------------------------------- | ------------------------------------- |
+| `src/client/routes/volunteers.tsx`          | `src/client/routes/users.tsx`         |
 | `src/client/routes/volunteers_.$pubkey.tsx` | `src/client/routes/users.$pubkey.tsx` |
 
 TanStack Router file-based routing means the URL changes automatically with the filename.
 
 ### Component file renames
 
-| Before | After |
-|--------|-------|
-| `src/client/components/volunteer-multi-select.tsx` | `src/client/components/user-multi-select.tsx` |
+| Before                                                      | After                                                  |
+| ----------------------------------------------------------- | ------------------------------------------------------ |
+| `src/client/components/volunteer-multi-select.tsx`          | `src/client/components/user-multi-select.tsx`          |
 | `src/client/components/dashboard/volunteer-stats-table.tsx` | `src/client/components/dashboard/user-stats-table.tsx` |
 
 All internal component names, props, and exports rename accordingly.
@@ -227,10 +232,12 @@ All internal component names, props, and exports rename accordingly.
 
 ```typescript
 // Before
-queryKeys.volunteers.all, queryKeys.volunteers.list(), queryKeys.volunteers.detail(id)
+(queryKeys.volunteers.all,
+  queryKeys.volunteers.list(),
+  queryKeys.volunteers.detail(id));
 
 // After
-queryKeys.users.all, queryKeys.users.list(), queryKeys.users.detail(id)
+(queryKeys.users.all, queryKeys.users.list(), queryKeys.users.detail(id));
 ```
 
 API calls update from `/api/volunteers` to `/api/users`.
@@ -251,27 +258,28 @@ Every locale file (`src/client/locales/{en,es,zh,tl,vi,ar,fr,ht,ko,ru,hi,pt,de}.
 
 ### Key renames (structural)
 
-| Old Key Pattern | New Key Pattern |
-|-----------------|-----------------|
-| `volunteers` (section) | `users` |
-| `volunteerStatus` | `userStatus` |
-| `volunteerProfile` (object) | `userProfile` |
-| `searchVolunteers` | `searchUsers` |
-| `noVolunteersFound` | `noUsersFound` |
-| `noVolunteersOnline` | `noUsersOnline` |
-| `volunteerAdded` | `userAdded` |
-| `volunteerRemoved` | `userRemoved` |
-| `volunteerOnBreak` | `userOnBreak` |
-| `volunteerAvailable` | `userAvailable` |
-| `requireForVolunteers` | `requireForUsers` |
-| `visibleToVolunteers` | `visibleToUsers` |
-| `editableByVolunteers` | `editableByUsers` |
+| Old Key Pattern             | New Key Pattern   |
+| --------------------------- | ----------------- |
+| `volunteers` (section)      | `users`           |
+| `volunteerStatus`           | `userStatus`      |
+| `volunteerProfile` (object) | `userProfile`     |
+| `searchVolunteers`          | `searchUsers`     |
+| `noVolunteersFound`         | `noUsersFound`    |
+| `noVolunteersOnline`        | `noUsersOnline`   |
+| `volunteerAdded`            | `userAdded`       |
+| `volunteerRemoved`          | `userRemoved`     |
+| `volunteerOnBreak`          | `userOnBreak`     |
+| `volunteerAvailable`        | `userAvailable`   |
+| `requireForVolunteers`      | `requireForUsers` |
+| `visibleToVolunteers`       | `visibleToUsers`  |
+| `editableByVolunteers`      | `editableByUsers` |
 
 ### Value updates (display text)
 
 English values change from "Volunteer(s)" to "User(s)" where referring to the identity concept. Values referring to the **role** (e.g., "Volunteer role") stay as-is.
 
 For non-English locales, translate "User"/"Users" appropriately:
+
 - es: "Usuario"/"Usuarios"
 - fr: "Utilisateur"/"Utilisateurs"
 - zh: "用户"
@@ -282,15 +290,15 @@ For non-English locales, translate "User"/"Users" appropriately:
 
 ## 7. What Does NOT Change
 
-| Item | Reason |
-|------|--------|
-| `role-volunteer` role ID | "Volunteer" is a valid role name |
+| Item                               | Reason                                              |
+| ---------------------------------- | --------------------------------------------------- |
+| `role-volunteer` role ID           | "Volunteer" is a valid role name                    |
 | `LABEL_VOLUNTEER_PII` string value | Cryptographic constant — changing breaks decryption |
-| IdP facade / Authentik adapter | Already uses "user" terminology |
-| `assignedPubkey` on `active_calls` | Already generic |
-| Hub key infrastructure | No volunteer references |
-| Envelope encryption patterns | No volunteer references |
-| `LABEL_*` other crypto labels | No volunteer references |
+| IdP facade / Authentik adapter     | Already uses "user" terminology                     |
+| `assignedPubkey` on `active_calls` | Already generic                                     |
+| Hub key infrastructure             | No volunteer references                             |
+| Envelope encryption patterns       | No volunteer references                             |
+| `LABEL_*` other crypto labels      | No volunteer references                             |
 
 ---
 

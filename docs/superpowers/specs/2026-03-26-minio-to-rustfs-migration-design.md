@@ -1,7 +1,7 @@
 # MinIO → RustFS Migration + Per-Hub Storage Architecture
 
 **Date:** 2026-03-26
-**Status:** Draft
+**Status:** Completed
 **Scope:** Replace MinIO with RustFS, introduce per-hub bucket isolation, admin-configurable retention, SSE-S3 encryption at rest
 
 ## Motivation

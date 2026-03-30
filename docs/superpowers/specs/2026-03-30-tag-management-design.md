@@ -76,7 +76,7 @@ When `strictTags` is true: only admin-defined tags can be used, regardless of `t
 
 ### Default role assignments
 
-- **Hub Admin**: `tags:create` (via `contacts:*` or explicit)
+- **Hub Admin**: `tags:create` (via global `*` wildcard or explicit grant)
 - **Case Manager**: `tags:create`
 - **Volunteer**: no `tags:create` — picks from the list only
 - **Reporter**: no tag permissions

@@ -48,9 +48,13 @@ These fields already have `RecipientEnvelope[]` and are truly E2EE:
 Add envelope columns where missing:
 
 ```sql
-ALTER TABLE volunteers ADD COLUMN phone_envelopes JSONB NOT NULL DEFAULT '[]';
+-- Table name depends on whether Volunteer → User rename has been applied
+-- Use 'users' if rename is done, 'volunteers' if not
+ALTER TABLE users ADD COLUMN phone_envelopes JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE invite_codes ADD COLUMN phone_envelopes JSONB NOT NULL DEFAULT '[]';
 ```
+
+**Dependency:** This spec should be implemented after the Volunteer → User rename spec.
 
 ### Fields that MUST stay server-key
 

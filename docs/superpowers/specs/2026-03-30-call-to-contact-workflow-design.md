@@ -154,7 +154,7 @@ export const useCreateSupportContact = () => useMutation({
   mutationFn: ({ contactId, data }) => createSupportContact(contactId, data),
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all })
-    queryClient.invalidateQueries({ queryKey: queryKeys.contactRelationships.all })
+    queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all })
   },
 })
 ```

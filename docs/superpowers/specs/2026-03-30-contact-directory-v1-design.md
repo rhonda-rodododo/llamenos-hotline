@@ -104,6 +104,7 @@ interface ContactsTable {
   createdAt: Date
   updatedAt: Date
   lastInteractionAt: Date | null
+  deletedAt: Date | null
 }
 ```
 
@@ -289,10 +290,10 @@ This integrates with the existing auto-linking flow.
 
 ## 9. Remaining Work: Custom Field `visibleTo`
 
-Replace the `showInUserView` boolean on `customFieldDefinitions` with a permission-based visibility control:
+Replace the `showInVolunteerView` boolean on `customFieldDefinitions` (renamed to `showInUserView` by the Volunteer → User rename spec) with a permission-based visibility control:
 
 ```typescript
-// Old
+// Old (after rename spec)
 showInUserView: boolean
 
 // New
@@ -304,6 +305,7 @@ Each custom field gets a permission string that gates its visibility. Default: `
 ### Schema migration
 
 ```sql
+-- Run after Volunteer → User rename spec has applied
 ALTER TABLE custom_field_definitions ADD COLUMN visible_to TEXT NOT NULL DEFAULT 'contacts:envelope-summary';
 ALTER TABLE custom_field_definitions DROP COLUMN show_in_user_view;
 ```

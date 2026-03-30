@@ -957,6 +957,16 @@ Pre-production, clean cut. No backwards compatibility.
 2. Add `assigned_to` column to `contacts` table
 3. Rename `shifts:read` → `shifts:read-all` in stored permissions
 
+### New permissions (not renames — added fresh)
+
+These are new scope tiers that don't exist in the current codebase:
+- `contacts:read-own`, `contacts:read-assigned`, `contacts:read-all` (scope)
+- `contacts:update-own`, `contacts:update-assigned`, `contacts:update-all` (scope)
+- `notes:update-assigned`, `notes:update-all` (scope — only `notes:update-own` exists)
+- `conversations:read-own` (scope — only `read-assigned` and `read-all` exist)
+- `files:download-assigned` (scope — only `download-own` and `download-all` exist)
+- `shifts:read-assigned` (scope — only `read-own` exists, `read` becomes `read-all`)
+
 ### Code changes
 
 1. Replace `PERMISSION_CATALOG` values from strings to `PermissionMeta` objects
@@ -965,9 +975,10 @@ Pre-production, clean cut. No backwards compatibility.
 4. Add `PERMISSION_GROUP_LABELS`
 5. Add `AssignmentResolver` interface and default implementations per domain
 6. Rename contact tier permissions in all route guards, service checks, and client permission checks
-7. Add Case Manager to `DEFAULT_ROLES`
-8. Update role editor UI to use metadata-driven rendering
-9. Update all tests
+7. Add new scope permissions to default roles where appropriate
+8. Add Case Manager to `DEFAULT_ROLES`
+9. Update role editor UI to use metadata-driven rendering
+10. Update all tests
 
 ### Verification
 

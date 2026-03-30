@@ -1,7 +1,7 @@
 # Field-Level Encryption Phase 1: Crypto Foundation + Identity & Credential Protection
 
 **Date:** 2026-03-27
-**Status:** Draft
+**Status:** Completed
 **Scope:** Crypto infrastructure (CryptoService, branded types, shared primitives) + encryption of all data that could identify people, expose credentials, fingerprint devices, or provide actionable intelligence to an adversary
 **Threat model:** Nation-state adversaries (Tier 1) with the capability to obtain database dumps, compel cloud providers, seize infrastructure, or use database contents as legal evidence against hotline operators, volunteers, or callers. See `docs/security/THREAT_MODEL.md`.
 
@@ -25,20 +25,20 @@ A database dump of the current system hands an adversary a detailed dossier: the
 
 The database audit reveals sensitive data stored in plaintext across multiple tables, contradicting the project's zero-knowledge goals and the DATA_CLASSIFICATION.md classification of volunteer identity as "Encrypted-at-Rest":
 
-| Table | Plaintext Fields | Adversary Value |
-|---|---|---|
-| `volunteers` | `name`, `phone` | **CRITICAL** — directly identifies who volunteers for the hotline |
-| `active_calls` | `caller_number` | **CRITICAL** — full caller phone number during active calls |
-| `call_legs` | `phone` | **HIGH** — volunteer phone exposed during call ringing |
-| `bans` | `phone`, `reason` | **HIGH** — banned caller phones; reasons may contain identifying details |
-| `invite_codes` | `name`, `phone` | **HIGH** — identifies who is being recruited |
-| `call_records` | `caller_last4` | **MEDIUM** — last 4 digits + timing data narrows caller identification |
-| `conversations` | `contact_last4` | **MEDIUM** — same risk as caller_last4 |
-| `geocoding_config` | `api_key` | **HIGH** — third-party API key enables impersonation |
-| `signal_registration_pending` | `number` | **HIGH** — phone number in plaintext |
-| `provider_config` | `brand_sid`, `campaign_sid`, `messaging_service_sid` | **MEDIUM** — links database to specific Twilio account |
-| `push_subscriptions` | `device_label` | **MEDIUM** — "John's iPhone" is direct PII |
-| `webauthn_credentials` | `label` | **MEDIUM** — "Work Laptop" reveals device ownership |
+| Table                         | Plaintext Fields                                     | Adversary Value                                                          |
+| ----------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------ |
+| `volunteers`                  | `name`, `phone`                                      | **CRITICAL** — directly identifies who volunteers for the hotline        |
+| `active_calls`                | `caller_number`                                      | **CRITICAL** — full caller phone number during active calls              |
+| `call_legs`                   | `phone`                                              | **HIGH** — volunteer phone exposed during call ringing                   |
+| `bans`                        | `phone`, `reason`                                    | **HIGH** — banned caller phones; reasons may contain identifying details |
+| `invite_codes`                | `name`, `phone`                                      | **HIGH** — identifies who is being recruited                             |
+| `call_records`                | `caller_last4`                                       | **MEDIUM** — last 4 digits + timing data narrows caller identification   |
+| `conversations`               | `contact_last4`                                      | **MEDIUM** — same risk as caller_last4                                   |
+| `geocoding_config`            | `api_key`                                            | **HIGH** — third-party API key enables impersonation                     |
+| `signal_registration_pending` | `number`                                             | **HIGH** — phone number in plaintext                                     |
+| `provider_config`             | `brand_sid`, `campaign_sid`, `messaging_service_sid` | **MEDIUM** — links database to specific Twilio account                   |
+| `push_subscriptions`          | `device_label`                                       | **MEDIUM** — "John's iPhone" is direct PII                               |
+| `webauthn_credentials`        | `label`                                              | **MEDIUM** — "Work Laptop" reveals device ownership                      |
 
 ### Bespoke per-feature encryption
 
@@ -70,7 +70,7 @@ The current encryption implementation has no generic mechanism. Each Epic added 
 Every field is classified by two axes: **what would an adversary (including a state actor with legal authority) gain from it**, and **whether the running server needs runtime access**:
 
 **E2EE envelope** — server never sees plaintext. Client encrypts, client decrypts. Cannot be compelled via legal process against the server operator because the server genuinely cannot decrypt. Strongest protection.
-**Server-key** — encrypted at rest, server decrypts JIT for operational use, discards immediately. Protects against database dumps, backup theft, replica compromise, and cloud provider compulsion. A running server *can* be compelled to decrypt, but a seized database alone cannot.
+**Server-key** — encrypted at rest, server decrypts JIT for operational use, discards immediately. Protects against database dumps, backup theft, replica compromise, and cloud provider compulsion. A running server _can_ be compelled to decrypt, but a seized database alone cannot.
 **HMAC hash** — one-way, for lookup/comparison only. Cannot be reversed. Useful for ban checking and deduplication without storing the original value.
 **Plaintext** — no sensitive content, or operationally impossible to encrypt (e.g., foreign keys, timestamps, boolean flags).
 
@@ -78,89 +78,90 @@ Every field is classified by two axes: **what would an adversary (including a st
 
 #### Volunteers
 
-| Field | Mode | Rationale |
-|---|---|---|
-| `name` | **E2EE envelope** | Server never needs display names. Recipients: volunteer's own pubkey + all global admin pubkeys. |
-| `phone` | **Server-key** | Server decrypts JIT for call routing (SIP dial, Twilio API), then discards. |
+| Field   | Mode              | Rationale                                                                                        |
+| ------- | ----------------- | ------------------------------------------------------------------------------------------------ |
+| `name`  | **E2EE envelope** | Server never needs display names. Recipients: volunteer's own pubkey + all global admin pubkeys. |
+| `phone` | **Server-key**    | Server decrypts JIT for call routing (SIP dial, Twilio API), then discards.                      |
 
 #### Active calls (ephemeral — call duration)
 
-| Field | Mode | Rationale |
-|---|---|---|
+| Field           | Mode           | Rationale                                                                             |
+| --------------- | -------------- | ------------------------------------------------------------------------------------- |
 | `caller_number` | **Server-key** | Full caller phone needed for routing; rows are ephemeral and deleted after call ends. |
 
 #### Call legs (ephemeral — ring duration)
 
-| Field | Mode | Rationale |
-|---|---|---|
+| Field   | Mode           | Rationale                                                       |
+| ------- | -------------- | --------------------------------------------------------------- |
 | `phone` | **Server-key** | Volunteer phone needed during ringing; deleted after ring ends. |
 
 #### Call records (persistent)
 
-| Field | Mode | Rationale |
-|---|---|---|
+| Field          | Mode              | Rationale                                                                                         |
+| -------------- | ----------------- | ------------------------------------------------------------------------------------------------- |
 | `caller_last4` | **E2EE envelope** | Display-only for admins. Server doesn't need last-4 for any operation. Recipients: admin pubkeys. |
 
 #### Conversations (persistent)
 
-| Field | Mode | Rationale |
-|---|---|---|
+| Field           | Mode              | Rationale                                                                                                                                         |
+| --------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `contact_last4` | **E2EE envelope** | Display-only for assigned volunteer + admins. Server doesn't need it. On reassignment, re-encrypt with new volunteer's pubkey added to envelopes. |
 
 #### Bans
 
-| Field | Mode | Rationale |
-|---|---|---|
-| `phone` → `phone_hash` | **HMAC hash** | Lookup-only. Server compares hashes, never needs to recover the number. |
-| `phone` → `encrypted_phone` | **E2EE envelope** | Display copy for admin who created the ban. |
-| `reason` | **E2EE envelope** | Ban reasons may contain identifying info ("Threatened volunteer at the march"). Recipients: creating admin + global admins. |
+| Field                       | Mode              | Rationale                                                                                                                   |
+| --------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `phone` → `phone_hash`      | **HMAC hash**     | Lookup-only. Server compares hashes, never needs to recover the number.                                                     |
+| `phone` → `encrypted_phone` | **E2EE envelope** | Display copy for admin who created the ban.                                                                                 |
+| `reason`                    | **E2EE envelope** | Ban reasons may contain identifying info ("Threatened volunteer at the march"). Recipients: creating admin + global admins. |
 
 #### Invite codes
 
-| Field | Mode | Rationale |
-|---|---|---|
-| `name` | **E2EE envelope** | Display-only for creating admin. |
-| `phone` | **Server-key** | Server needs it for SMS invite delivery. |
+| Field   | Mode              | Rationale                                |
+| ------- | ----------------- | ---------------------------------------- |
+| `name`  | **E2EE envelope** | Display-only for creating admin.         |
+| `phone` | **Server-key**    | Server needs it for SMS invite delivery. |
 
 #### Geocoding config
 
-| Field | Mode | Rationale |
-|---|---|---|
+| Field     | Mode           | Rationale                                                                       |
+| --------- | -------------- | ------------------------------------------------------------------------------- |
 | `api_key` | **Server-key** | Server needs it for geocoding API calls. Uses `LABEL_PROVIDER_CREDENTIAL_WRAP`. |
 
 #### Signal registration
 
-| Field | Mode | Rationale |
-|---|---|---|
+| Field    | Mode           | Rationale                                          |
+| -------- | -------------- | -------------------------------------------------- |
 | `number` | **Server-key** | Server needs it for Signal registration API calls. |
 
 #### Provider config
 
-| Field | Mode | Rationale |
-|---|---|---|
-| `brand_sid` | **Server-key** | Operational — server needs for A2P registration. |
-| `campaign_sid` | **Server-key** | Operational — server needs for messaging service. |
-| `messaging_service_sid` | **Server-key** | Operational — server needs for SMS routing. |
-| `phone_number` | **Plaintext** | Public hotline number — already published. |
+| Field                   | Mode           | Rationale                                         |
+| ----------------------- | -------------- | ------------------------------------------------- |
+| `brand_sid`             | **Server-key** | Operational — server needs for A2P registration.  |
+| `campaign_sid`          | **Server-key** | Operational — server needs for messaging service. |
+| `messaging_service_sid` | **Server-key** | Operational — server needs for SMS routing.       |
+| `phone_number`          | **Plaintext**  | Public hotline number — already published.        |
 
 #### Push subscriptions
 
-| Field | Mode | Rationale |
-|---|---|---|
-| `endpoint` | **Server-key** | Server must call these URLs to deliver push notifications. |
-| `auth_key` | **Server-key** | Server needs for Web Push protocol. |
-| `p256dh_key` | **Server-key** | Server needs for Web Push protocol. |
+| Field          | Mode              | Rationale                                                                                          |
+| -------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| `endpoint`     | **Server-key**    | Server must call these URLs to deliver push notifications.                                         |
+| `auth_key`     | **Server-key**    | Server needs for Web Push protocol.                                                                |
+| `p256dh_key`   | **Server-key**    | Server needs for Web Push protocol.                                                                |
 | `device_label` | **E2EE envelope** | "John's iPhone" is PII. Display-only for the volunteer themselves. Recipients: volunteer's pubkey. |
 
 #### WebAuthn credentials
 
-| Field | Mode | Rationale |
-|---|---|---|
+| Field   | Mode              | Rationale                                                                                               |
+| ------- | ----------------- | ------------------------------------------------------------------------------------------------------- |
 | `label` | **E2EE envelope** | "Work Laptop" reveals device ownership. Display-only for the volunteer. Recipients: volunteer's pubkey. |
 
 ### Why not a normalized phone table?
 
 Evaluated and rejected. Phone numbers appear in different contexts (volunteer identity, incoming caller, banned number, invite recipient) with different lifecycles (persistent, ephemeral, one-way hash). A shared table would:
+
 - Add writes to the hot path for every incoming call (ephemeral `active_calls`)
 - Create cross-context correlation (matching a caller's phone to a volunteer's phone via shared row)
 - Add JOINs to the call routing critical path
@@ -182,10 +183,10 @@ Drizzle's `customType` `toDriver`/`fromDriver` transforms are synchronous and st
 
 ```typescript
 /** Encrypted ciphertext — cannot be assigned from or to a plain string */
-export type Ciphertext = string & { readonly __brand: 'Ciphertext' }
+export type Ciphertext = string & { readonly __brand: "Ciphertext" };
 
 /** HMAC hash — one-way, cannot be reversed to plaintext */
-export type HmacHash = string & { readonly __brand: 'HmacHash' }
+export type HmacHash = string & { readonly __brand: "HmacHash" };
 ```
 
 `RecipientEnvelope` already exists in `shared/types.ts` and is unchanged.
@@ -196,20 +197,34 @@ Extracted from the duplicated implementations in `server/lib/crypto.ts` and `cli
 
 ```typescript
 // ECIES key wrapping (secp256k1 ECDH + SHA256 + XChaCha20-Poly1305)
-export function eciesWrapKey(key: Uint8Array, recipientPubkeyHex: string, label: string):
-  { wrappedKey: string; ephemeralPubkey: string }
-export function eciesUnwrapKey(envelope: { wrappedKey: string; ephemeralPubkey: string },
-  privateKey: Uint8Array, label: string): Uint8Array
+export function eciesWrapKey(
+  key: Uint8Array,
+  recipientPubkeyHex: string,
+  label: string,
+): { wrappedKey: string; ephemeralPubkey: string };
+export function eciesUnwrapKey(
+  envelope: { wrappedKey: string; ephemeralPubkey: string },
+  privateKey: Uint8Array,
+  label: string,
+): Uint8Array;
 
 // Symmetric encryption (XChaCha20-Poly1305)
-export function symmetricEncrypt(plaintext: Uint8Array, key: Uint8Array): string  // hex: nonce(24) || ciphertext
-export function symmetricDecrypt(packed: string, key: Uint8Array): Uint8Array
+export function symmetricEncrypt(
+  plaintext: Uint8Array,
+  key: Uint8Array,
+): string; // hex: nonce(24) || ciphertext
+export function symmetricDecrypt(packed: string, key: Uint8Array): Uint8Array;
 
 // HMAC-SHA256
-export function hmacSha256(key: Uint8Array, input: Uint8Array): Uint8Array
+export function hmacSha256(key: Uint8Array, input: Uint8Array): Uint8Array;
 
 // HKDF-SHA256
-export function hkdfDerive(secret: Uint8Array, salt: Uint8Array, info: Uint8Array, length: number): Uint8Array
+export function hkdfDerive(
+  secret: Uint8Array,
+  salt: Uint8Array,
+  info: Uint8Array,
+  length: number,
+): Uint8Array;
 ```
 
 All existing crypto implementations on both server and client collapse into calls to these primitives.
@@ -219,9 +234,9 @@ All existing crypto implementations on both server and client collapse into call
 New constants:
 
 ```typescript
-export const LABEL_VOLUNTEER_PII = 'llamenos:volunteer-pii:v1'
-export const LABEL_EPHEMERAL_CALL = 'llamenos:ephemeral-call:v1'
-export const LABEL_PUSH_CREDENTIAL = 'llamenos:push-credential:v1'
+export const LABEL_VOLUNTEER_PII = "llamenos:volunteer-pii:v1";
+export const LABEL_EPHEMERAL_CALL = "llamenos:ephemeral-call:v1";
+export const LABEL_PUSH_CREDENTIAL = "llamenos:push-credential:v1";
 ```
 
 ### Server layer (`src/server/lib/`)
@@ -229,43 +244,66 @@ export const LABEL_PUSH_CREDENTIAL = 'llamenos:push-credential:v1'
 #### `crypto-service.ts` — CryptoService
 
 ```typescript
-import type { Ciphertext, HmacHash } from '@shared/crypto-types'
-import type { RecipientEnvelope } from '@shared/types'
+import type { Ciphertext, HmacHash } from "@shared/crypto-types";
+import type { RecipientEnvelope } from "@shared/types";
 
 export class CryptoService {
-  constructor(private serverSecret: string, private hmacSecret: string) {}
+  constructor(
+    private serverSecret: string,
+    private hmacSecret: string,
+  ) {}
 
   // ── Server-key encryption ──
   // HKDF(SERVER_NOSTR_SECRET, label) → symmetric key → XChaCha20-Poly1305
   // Server can encrypt and decrypt. Protects against database dumps.
-  serverEncrypt(plaintext: string, label: string): Ciphertext
-  serverDecrypt(ct: Ciphertext, label: string): string
+  serverEncrypt(plaintext: string, label: string): Ciphertext;
+  serverDecrypt(ct: Ciphertext, label: string): string;
 
   // ── Hub-key encryption ──
   // Caller provides hub key (obtained via unwrapHubKey)
-  hubEncrypt(plaintext: string, hubKey: Uint8Array): Ciphertext
-  hubDecrypt(ct: Ciphertext, hubKey: Uint8Array): string | null
+  hubEncrypt(plaintext: string, hubKey: Uint8Array): Ciphertext;
+  hubDecrypt(ct: Ciphertext, hubKey: Uint8Array): string | null;
 
   // ── HMAC hashing ──
   // HMAC-SHA256(hmacSecret, label + input) → hex digest. One-way.
-  hmac(input: string, label: string): HmacHash
+  hmac(input: string, label: string): HmacHash;
 
   // ── Envelope encryption (ECIES per-reader) ──
   // Random per-item symmetric key, wrapped via ECIES for each recipient.
   // Server can create envelopes but cannot decrypt without a recipient's private key.
-  envelopeEncrypt(plaintext: string, recipientPubkeys: string[], label: string):
-    { encrypted: Ciphertext; envelopes: RecipientEnvelope[] }
-  envelopeDecrypt(ct: Ciphertext, envelope: RecipientEnvelope,
-    secretKey: Uint8Array, label: string): string
+  envelopeEncrypt(
+    plaintext: string,
+    recipientPubkeys: string[],
+    label: string,
+  ): { encrypted: Ciphertext; envelopes: RecipientEnvelope[] };
+  envelopeDecrypt(
+    ct: Ciphertext,
+    envelope: RecipientEnvelope,
+    secretKey: Uint8Array,
+    label: string,
+  ): string;
 
   // ── Binary envelope ──
-  envelopeEncryptBinary(data: Uint8Array, recipientPubkeys: string[], label: string):
-    { encrypted: Ciphertext; envelopes: RecipientEnvelope[] }
-  envelopeDecryptBinary(ct: Ciphertext, envelope: RecipientEnvelope,
-    secretKey: Uint8Array, label: string): Uint8Array
+  envelopeEncryptBinary(
+    data: Uint8Array,
+    recipientPubkeys: string[],
+    label: string,
+  ): { encrypted: Ciphertext; envelopes: RecipientEnvelope[] };
+  envelopeDecryptBinary(
+    ct: Ciphertext,
+    envelope: RecipientEnvelope,
+    secretKey: Uint8Array,
+    label: string,
+  ): Uint8Array;
 
   // ── Hub key management ──
-  unwrapHubKey(envelopes: Array<{ pubkey: string; wrappedKey: string; ephemeralPubkey: string }>): Uint8Array
+  unwrapHubKey(
+    envelopes: Array<{
+      pubkey: string;
+      wrappedKey: string;
+      ephemeralPubkey: string;
+    }>,
+  ): Uint8Array;
 }
 ```
 
@@ -273,22 +311,22 @@ export class CryptoService {
 
 **Existing function migration:**
 
-| Existing function | CryptoService method |
-|---|---|
-| `encryptProviderCredentials(text, secret)` | `crypto.serverEncrypt(text, LABEL_PROVIDER_CREDENTIAL_WRAP)` |
-| `decryptProviderCredentials(ct, secret)` | `crypto.serverDecrypt(ct, LABEL_PROVIDER_CREDENTIAL_WRAP)` |
-| `encryptStorageCredential(text, secret)` | `crypto.serverEncrypt(text, LABEL_STORAGE_CREDENTIAL_WRAP)` |
-| `decryptStorageCredential(ct, secret)` | `crypto.serverDecrypt(ct, LABEL_STORAGE_CREDENTIAL_WRAP)` |
-| `encryptForHub(text, hubKey)` | `crypto.hubEncrypt(text, hubKey)` |
-| `decryptFromHub(ct, hubKey)` | `crypto.hubDecrypt(ct, hubKey)` |
-| `encryptMessageForStorage(text, pubkeys)` | `crypto.envelopeEncrypt(text, pubkeys, LABEL_MESSAGE)` |
-| `encryptCallRecordForStorage(meta, pubkeys)` | `crypto.envelopeEncrypt(JSON.stringify(meta), pubkeys, LABEL_CALL_META)` |
-| `encryptBinaryForStorage(data, pubkeys, label)` | `crypto.envelopeEncryptBinary(data, pubkeys, label)` |
-| `decryptBinaryFromStorage(ct, env, key, label)` | `crypto.envelopeDecryptBinary(ct, env, key, label)` |
-| `hashPhone(phone, secret)` | `crypto.hmac(phone, HMAC_PHONE_PREFIX)` |
-| `hashIP(ip, secret)` | `crypto.hmac(ip, HMAC_IP_PREFIX)` (truncated to 24 hex chars) |
-| `unwrapHubKeyForServer(secret, envelopes)` | `crypto.unwrapHubKey(envelopes)` |
-| `hashAuditEntry(entry)` | Stays standalone — integrity hashing, not encryption |
+| Existing function                               | CryptoService method                                                     |
+| ----------------------------------------------- | ------------------------------------------------------------------------ |
+| `encryptProviderCredentials(text, secret)`      | `crypto.serverEncrypt(text, LABEL_PROVIDER_CREDENTIAL_WRAP)`             |
+| `decryptProviderCredentials(ct, secret)`        | `crypto.serverDecrypt(ct, LABEL_PROVIDER_CREDENTIAL_WRAP)`               |
+| `encryptStorageCredential(text, secret)`        | `crypto.serverEncrypt(text, LABEL_STORAGE_CREDENTIAL_WRAP)`              |
+| `decryptStorageCredential(ct, secret)`          | `crypto.serverDecrypt(ct, LABEL_STORAGE_CREDENTIAL_WRAP)`                |
+| `encryptForHub(text, hubKey)`                   | `crypto.hubEncrypt(text, hubKey)`                                        |
+| `decryptFromHub(ct, hubKey)`                    | `crypto.hubDecrypt(ct, hubKey)`                                          |
+| `encryptMessageForStorage(text, pubkeys)`       | `crypto.envelopeEncrypt(text, pubkeys, LABEL_MESSAGE)`                   |
+| `encryptCallRecordForStorage(meta, pubkeys)`    | `crypto.envelopeEncrypt(JSON.stringify(meta), pubkeys, LABEL_CALL_META)` |
+| `encryptBinaryForStorage(data, pubkeys, label)` | `crypto.envelopeEncryptBinary(data, pubkeys, label)`                     |
+| `decryptBinaryFromStorage(ct, env, key, label)` | `crypto.envelopeDecryptBinary(ct, env, key, label)`                      |
+| `hashPhone(phone, secret)`                      | `crypto.hmac(phone, HMAC_PHONE_PREFIX)`                                  |
+| `hashIP(ip, secret)`                            | `crypto.hmac(ip, HMAC_IP_PREFIX)` (truncated to 24 hex chars)            |
+| `unwrapHubKeyForServer(secret, envelopes)`      | `crypto.unwrapHubKey(envelopes)`                                         |
+| `hashAuditEntry(entry)`                         | Stays standalone — integrity hashing, not encryption                     |
 
 Old standalone functions are deleted after all callers migrate.
 
@@ -297,31 +335,48 @@ Old standalone functions are deleted after all callers migrate.
 #### `crypto-service.ts` — ClientCryptoService
 
 ```typescript
-import type { Ciphertext } from '@shared/crypto-types'
-import type { RecipientEnvelope } from '@shared/types'
+import type { Ciphertext } from "@shared/crypto-types";
+import type { RecipientEnvelope } from "@shared/types";
 
 export class ClientCryptoService {
-  constructor(private secretKey: Uint8Array, private pubkey: string) {}
+  constructor(
+    private secretKey: Uint8Array,
+    private pubkey: string,
+  ) {}
 
   // ── Envelope encryption ──
   // Used for: volunteer name, ban reason/phone display, invite name, device labels,
   //           notes, messages, call records (existing)
-  envelopeEncrypt(plaintext: string, recipientPubkeys: string[], label: string):
-    { encrypted: Ciphertext; envelopes: RecipientEnvelope[] }
-  envelopeDecrypt(ct: Ciphertext, envelopes: RecipientEnvelope[], label: string): string
+  envelopeEncrypt(
+    plaintext: string,
+    recipientPubkeys: string[],
+    label: string,
+  ): { encrypted: Ciphertext; envelopes: RecipientEnvelope[] };
+  envelopeDecrypt(
+    ct: Ciphertext,
+    envelopes: RecipientEnvelope[],
+    label: string,
+  ): string;
 
   // ── Hub-key operations ──
-  hubEncrypt(plaintext: string, hubKey: Uint8Array): Ciphertext
-  hubDecrypt(ct: Ciphertext, hubKey: Uint8Array): string | null
+  hubEncrypt(plaintext: string, hubKey: Uint8Array): Ciphertext;
+  hubDecrypt(ct: Ciphertext, hubKey: Uint8Array): string | null;
 
   // ── Binary envelope ──
-  envelopeEncryptBinary(data: Uint8Array, recipientPubkeys: string[], label: string):
-    { encrypted: Ciphertext; envelopes: RecipientEnvelope[] }
-  envelopeDecryptBinary(ct: Ciphertext, envelopes: RecipientEnvelope[], label: string): Uint8Array
+  envelopeEncryptBinary(
+    data: Uint8Array,
+    recipientPubkeys: string[],
+    label: string,
+  ): { encrypted: Ciphertext; envelopes: RecipientEnvelope[] };
+  envelopeDecryptBinary(
+    ct: Ciphertext,
+    envelopes: RecipientEnvelope[],
+    label: string,
+  ): Uint8Array;
 
   // ── Draft encryption (self-only, auto-save) ──
-  encryptDraft(plaintext: string): Ciphertext
-  decryptDraft(ct: Ciphertext): string
+  encryptDraft(plaintext: string): Ciphertext;
+  decryptDraft(ct: Ciphertext): string;
 }
 ```
 
@@ -332,14 +387,14 @@ Mirrors the server CryptoService API. Both use the same `crypto-primitives.ts` u
 #### `crypto-columns.ts` — Column helpers
 
 ```typescript
-import { text } from 'drizzle-orm/pg-core'
-import type { Ciphertext, HmacHash } from '@shared/crypto-types'
+import { text } from "drizzle-orm/pg-core";
+import type { Ciphertext, HmacHash } from "@shared/crypto-types";
 
 /** Text column storing XChaCha20-Poly1305 ciphertext (hex-encoded nonce || ciphertext) */
-export const ciphertext = (name: string) => text(name).$type<Ciphertext>()
+export const ciphertext = (name: string) => text(name).$type<Ciphertext>();
 
 /** Text column storing an HMAC-SHA256 hash (hex-encoded) */
-export const hmacHashed = (name: string) => text(name).$type<HmacHash>()
+export const hmacHashed = (name: string) => text(name).$type<HmacHash>();
 ```
 
 ## Schema Changes
@@ -347,166 +402,190 @@ export const hmacHashed = (name: string) => text(name).$type<HmacHash>()
 ### `volunteers` (identity.ts)
 
 ```typescript
-export const volunteers = pgTable('volunteers', {
-  pubkey: text('pubkey').primaryKey(),
-  encryptedName: ciphertext('encrypted_name').notNull(),           // E2EE envelope (self + admins)
-  nameEnvelopes: jsonb<RecipientEnvelope[]>()('name_envelopes')
-    .notNull().default([]),
-  encryptedPhone: ciphertext('encrypted_phone').notNull(),         // Server-key
+export const volunteers = pgTable("volunteers", {
+  pubkey: text("pubkey").primaryKey(),
+  encryptedName: ciphertext("encrypted_name").notNull(), // E2EE envelope (self + admins)
+  nameEnvelopes: jsonb<RecipientEnvelope[]>()("name_envelopes")
+    .notNull()
+    .default([]),
+  encryptedPhone: ciphertext("encrypted_phone").notNull(), // Server-key
   // Unchanged: roles, hubRoles, encryptedSecretKey, active, transcriptionEnabled,
   //   spokenLanguages, uiLanguage, profileCompleted, onBreak, callPreference,
   //   supportedMessagingChannels, messagingEnabled, createdAt
-})
+});
 ```
 
 ### `active_calls` (calls.ts)
 
 ```typescript
-export const activeCalls = pgTable('active_calls', {
-  callSid: text('call_sid').primaryKey(),
-  hubId: text('hub_id').notNull().default('global'),
-  encryptedCallerNumber: ciphertext('encrypted_caller_number').notNull(), // Server-key (ephemeral)
-  status: text('status').notNull().default('ringing'),
-  assignedPubkey: text('assigned_pubkey'),
-  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
-  metadata: jsonb<Record<string, unknown>>()('metadata').notNull().default({}),
-})
+export const activeCalls = pgTable("active_calls", {
+  callSid: text("call_sid").primaryKey(),
+  hubId: text("hub_id").notNull().default("global"),
+  encryptedCallerNumber: ciphertext("encrypted_caller_number").notNull(), // Server-key (ephemeral)
+  status: text("status").notNull().default("ringing"),
+  assignedPubkey: text("assigned_pubkey"),
+  startedAt: timestamp("started_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  metadata: jsonb<Record<string, unknown>>()("metadata").notNull().default({}),
+});
 ```
 
 ### `call_legs` (calls.ts)
 
 ```typescript
-export const callLegs = pgTable('call_legs', {
-  legSid: text('leg_sid').primaryKey(),
-  callSid: text('call_sid').notNull(),
-  hubId: text('hub_id').notNull().default('global'),
-  volunteerPubkey: text('volunteer_pubkey').notNull(),
-  encryptedPhone: ciphertext('encrypted_phone'),                   // Server-key (ephemeral)
-  status: text('status').notNull().default('ringing'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  type: callLegTypeEnum('type').notNull().default('phone'),
-})
+export const callLegs = pgTable("call_legs", {
+  legSid: text("leg_sid").primaryKey(),
+  callSid: text("call_sid").notNull(),
+  hubId: text("hub_id").notNull().default("global"),
+  volunteerPubkey: text("volunteer_pubkey").notNull(),
+  encryptedPhone: ciphertext("encrypted_phone"), // Server-key (ephemeral)
+  status: text("status").notNull().default("ringing"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  type: callLegTypeEnum("type").notNull().default("phone"),
+});
 ```
 
 ### `call_records` (records.ts)
 
 ```typescript
-export const callRecords = pgTable('call_records', {
-  id: text('id').primaryKey(),
-  hubId: text('hub_id').notNull().default('global'),
-  encryptedCallerLast4: ciphertext('encrypted_caller_last4'),      // E2EE envelope (admins)
-  callerLast4Envelopes: jsonb<RecipientEnvelope[]>()('caller_last4_envelopes')
-    .notNull().default([]),
+export const callRecords = pgTable("call_records", {
+  id: text("id").primaryKey(),
+  hubId: text("hub_id").notNull().default("global"),
+  encryptedCallerLast4: ciphertext("encrypted_caller_last4"), // E2EE envelope (admins)
+  callerLast4Envelopes: jsonb<RecipientEnvelope[]>()("caller_last4_envelopes")
+    .notNull()
+    .default([]),
   // Unchanged: startedAt, endedAt, duration, status, hasTranscription, hasVoicemail,
   //   hasRecording, recordingSid, encryptedContent, adminEnvelopes, voicemailFileId
-})
+});
 ```
 
 ### `conversations` (conversations.ts)
 
 ```typescript
-export const conversations = pgTable('conversations', {
-  id: text('id').primaryKey(),
-  hubId: text('hub_id').notNull().default('global'),
-  channelType: text('channel_type').notNull(),
-  contactIdentifierHash: text('contact_identifier_hash').notNull(),
-  encryptedContactLast4: ciphertext('encrypted_contact_last4'),    // E2EE envelope (assigned vol + admins)
-  contactLast4Envelopes: jsonb<RecipientEnvelope[]>()('contact_last4_envelopes')
-    .notNull().default([]),
+export const conversations = pgTable("conversations", {
+  id: text("id").primaryKey(),
+  hubId: text("hub_id").notNull().default("global"),
+  channelType: text("channel_type").notNull(),
+  contactIdentifierHash: text("contact_identifier_hash").notNull(),
+  encryptedContactLast4: ciphertext("encrypted_contact_last4"), // E2EE envelope (assigned vol + admins)
+  contactLast4Envelopes: jsonb<RecipientEnvelope[]>()("contact_last4_envelopes")
+    .notNull()
+    .default([]),
   // Unchanged: externalId, assignedTo, status, metadata, reportTypeId,
   //   messageCount, createdAt, updatedAt, lastMessageAt
-})
+});
 ```
 
 ### `bans` (records.ts)
 
 ```typescript
-export const bans = pgTable('bans', {
-  id: text('id').primaryKey(),
-  hubId: text('hub_id').notNull().default('global'),
-  phoneHash: hmacHashed('phone_hash').notNull(),                   // HMAC for lookup
-  encryptedPhone: ciphertext('encrypted_phone').notNull(),         // E2EE envelope (creating admin)
-  phoneEnvelopes: jsonb<RecipientEnvelope[]>()('phone_envelopes')
-    .notNull().default([]),
-  encryptedReason: ciphertext('encrypted_reason').notNull(),       // E2EE envelope (creating admin + global admins)
-  reasonEnvelopes: jsonb<RecipientEnvelope[]>()('reason_envelopes')
-    .notNull().default([]),
-  bannedBy: text('banned_by').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-})
+export const bans = pgTable("bans", {
+  id: text("id").primaryKey(),
+  hubId: text("hub_id").notNull().default("global"),
+  phoneHash: hmacHashed("phone_hash").notNull(), // HMAC for lookup
+  encryptedPhone: ciphertext("encrypted_phone").notNull(), // E2EE envelope (creating admin)
+  phoneEnvelopes: jsonb<RecipientEnvelope[]>()("phone_envelopes")
+    .notNull()
+    .default([]),
+  encryptedReason: ciphertext("encrypted_reason").notNull(), // E2EE envelope (creating admin + global admins)
+  reasonEnvelopes: jsonb<RecipientEnvelope[]>()("reason_envelopes")
+    .notNull()
+    .default([]),
+  bannedBy: text("banned_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 ```
 
 ### `invite_codes` (identity.ts)
 
 ```typescript
-export const inviteCodes = pgTable('invite_codes', {
-  code: text('code').primaryKey(),
-  encryptedName: ciphertext('encrypted_name').notNull(),           // E2EE envelope (creating admin)
-  nameEnvelopes: jsonb<RecipientEnvelope[]>()('name_envelopes')
-    .notNull().default([]),
-  encryptedPhone: ciphertext('encrypted_phone').notNull(),         // Server-key (SMS delivery)
+export const inviteCodes = pgTable("invite_codes", {
+  code: text("code").primaryKey(),
+  encryptedName: ciphertext("encrypted_name").notNull(), // E2EE envelope (creating admin)
+  nameEnvelopes: jsonb<RecipientEnvelope[]>()("name_envelopes")
+    .notNull()
+    .default([]),
+  encryptedPhone: ciphertext("encrypted_phone").notNull(), // Server-key (SMS delivery)
   // Unchanged: roleIds, createdBy, createdAt, expiresAt, usedAt, usedBy,
   //   deliveryChannel, deliverySentAt
-  recipientPhoneHash: hmacHashed('recipient_phone_hash'),          // Re-typed from text
-})
+  recipientPhoneHash: hmacHashed("recipient_phone_hash"), // Re-typed from text
+});
 ```
 
 ### `geocoding_config` (settings.ts)
 
 ```typescript
-export const geocodingConfig = pgTable('geocoding_config', {
-  id: text('id').primaryKey().default('global'),
-  provider: text('provider'),
-  encryptedApiKey: ciphertext('encrypted_api_key').notNull().default('' as Ciphertext), // Server-key
+export const geocodingConfig = pgTable("geocoding_config", {
+  id: text("id").primaryKey().default("global"),
+  provider: text("provider"),
+  encryptedApiKey: ciphertext("encrypted_api_key")
+    .notNull()
+    .default("" as Ciphertext), // Server-key
   // Unchanged: countries, enabled, updatedAt
-})
+});
 ```
 
 ### `signal_registration_pending` (settings.ts)
 
 ```typescript
-export const signalRegistrationPending = pgTable('signal_registration_pending', {
-  id: text('id').primaryKey().default('global'),
-  encryptedNumber: ciphertext('encrypted_number').notNull(),       // Server-key
-  // Unchanged: bridgeUrl, method, status, error, expiresAt, createdAt
-})
+export const signalRegistrationPending = pgTable(
+  "signal_registration_pending",
+  {
+    id: text("id").primaryKey().default("global"),
+    encryptedNumber: ciphertext("encrypted_number").notNull(), // Server-key
+    // Unchanged: bridgeUrl, method, status, error, expiresAt, createdAt
+  },
+);
 ```
 
 ### `provider_config` (settings.ts)
 
 ```typescript
-export const providerConfig = pgTable('provider_config', {
-  id: text('id').primaryKey().default('global'),
-  provider: text('provider').notNull(),
-  connected: boolean('connected').notNull().default(false),
-  phoneNumber: text('phone_number'),                               // Public hotline number — plaintext OK
-  webhooksConfigured: boolean('webhooks_configured').notNull().default(false),
-  sipConfigured: boolean('sip_configured').notNull().default(false),
-  a2pStatus: text('a2p_status').default('not_started'),
-  encryptedBrandSid: ciphertext('encrypted_brand_sid'),            // Server-key
-  encryptedCampaignSid: ciphertext('encrypted_campaign_sid'),      // Server-key
-  encryptedMessagingServiceSid: ciphertext('encrypted_messaging_service_sid'), // Server-key
-  encryptedCredentials: ciphertext('encrypted_credentials'),       // Already encrypted — re-type only
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-})
+export const providerConfig = pgTable("provider_config", {
+  id: text("id").primaryKey().default("global"),
+  provider: text("provider").notNull(),
+  connected: boolean("connected").notNull().default(false),
+  phoneNumber: text("phone_number"), // Public hotline number — plaintext OK
+  webhooksConfigured: boolean("webhooks_configured").notNull().default(false),
+  sipConfigured: boolean("sip_configured").notNull().default(false),
+  a2pStatus: text("a2p_status").default("not_started"),
+  encryptedBrandSid: ciphertext("encrypted_brand_sid"), // Server-key
+  encryptedCampaignSid: ciphertext("encrypted_campaign_sid"), // Server-key
+  encryptedMessagingServiceSid: ciphertext("encrypted_messaging_service_sid"), // Server-key
+  encryptedCredentials: ciphertext("encrypted_credentials"), // Already encrypted — re-type only
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 ```
 
 ### `push_subscriptions` (push-subscriptions.ts)
 
 ```typescript
-export const pushSubscriptions = pgTable('push_subscriptions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  pubkey: text('pubkey').notNull(),
-  endpointHash: hmacHashed('endpoint_hash').notNull().unique(),    // HMAC for dedup (replaces unique constraint on plaintext)
-  encryptedEndpoint: ciphertext('encrypted_endpoint').notNull(),   // Server-key (server must call)
-  encryptedAuthKey: ciphertext('encrypted_auth_key').notNull(),    // Server-key (Web Push protocol)
-  encryptedP256dhKey: ciphertext('encrypted_p256dh_key').notNull(),// Server-key (Web Push protocol)
-  encryptedDeviceLabel: ciphertext('encrypted_device_label'),      // E2EE envelope (volunteer only)
-  deviceLabelEnvelopes: jsonb<RecipientEnvelope[]>()('device_label_envelopes')
-    .notNull().default([]),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-})
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  pubkey: text("pubkey").notNull(),
+  endpointHash: hmacHashed("endpoint_hash").notNull().unique(), // HMAC for dedup (replaces unique constraint on plaintext)
+  encryptedEndpoint: ciphertext("encrypted_endpoint").notNull(), // Server-key (server must call)
+  encryptedAuthKey: ciphertext("encrypted_auth_key").notNull(), // Server-key (Web Push protocol)
+  encryptedP256dhKey: ciphertext("encrypted_p256dh_key").notNull(), // Server-key (Web Push protocol)
+  encryptedDeviceLabel: ciphertext("encrypted_device_label"), // E2EE envelope (volunteer only)
+  deviceLabelEnvelopes: jsonb<RecipientEnvelope[]>()("device_label_envelopes")
+    .notNull()
+    .default([]),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 ```
 
 Note: The existing `endpoint` column has a `UNIQUE` constraint. Once encrypted, identical URLs produce different ciphertexts (random nonce), so uniqueness is enforced via `endpointHash` (HMAC) instead.
@@ -514,19 +593,26 @@ Note: The existing `endpoint` column has a `UNIQUE` constraint. Once encrypted, 
 ### `webauthn_credentials` (identity.ts)
 
 ```typescript
-export const webauthnCredentials = pgTable('webauthn_credentials', {
-  id: text('id').primaryKey(),
-  pubkey: text('pubkey').notNull(),
-  publicKey: text('public_key').notNull(),
-  counter: text('counter').notNull().default('0'),
-  transports: jsonb<string[]>()('transports').notNull().default([]),
-  backedUp: boolean('backed_up').notNull().default(false),
-  encryptedLabel: ciphertext('encrypted_label').notNull().default('' as Ciphertext), // E2EE envelope (volunteer only)
-  labelEnvelopes: jsonb<RecipientEnvelope[]>()('label_envelopes')
-    .notNull().default([]),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  lastUsedAt: timestamp('last_used_at', { withTimezone: true }).notNull().defaultNow(),
-})
+export const webauthnCredentials = pgTable("webauthn_credentials", {
+  id: text("id").primaryKey(),
+  pubkey: text("pubkey").notNull(),
+  publicKey: text("public_key").notNull(),
+  counter: text("counter").notNull().default("0"),
+  transports: jsonb<string[]>()("transports").notNull().default([]),
+  backedUp: boolean("backed_up").notNull().default(false),
+  encryptedLabel: ciphertext("encrypted_label")
+    .notNull()
+    .default("" as Ciphertext), // E2EE envelope (volunteer only)
+  labelEnvelopes: jsonb<RecipientEnvelope[]>()("label_envelopes")
+    .notNull()
+    .default([]),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 ```
 
 ## Service Layer Integration
@@ -621,7 +707,7 @@ During phases 1-2, services read from encrypted columns if populated, falling ba
 // Server-key fields — server-side fallback
 const phone = row.encryptedPhone
   ? crypto.serverDecrypt(row.encryptedPhone, LABEL_VOLUNTEER_PII)
-  : row.phone
+  : row.phone;
 
 // E2EE fields — API returns both during transition
 // Client prefers encrypted when present, falls back to plaintext
@@ -659,23 +745,23 @@ Existing API and E2E tests pass unchanged — the service layer returns the same
 
 ## Phase 2 Preview (Future Spec)
 
-Phase 2 completes the zero-knowledge database goal. After Phase 1, an adversary with a database dump knows that *people* use the system but not *who* they are. After Phase 2, they won't even know *what the system is for* — hub names like "Legal Observer Network" become opaque ciphertext, report types like "Police Violence" become unreadable, and audit logs that document organizational decisions become inaccessible.
+Phase 2 completes the zero-knowledge database goal. After Phase 1, an adversary with a database dump knows that _people_ use the system but not _who_ they are. After Phase 2, they won't even know _what the system is for_ — hub names like "Legal Observer Network" become opaque ciphertext, report types like "Police Violence" become unreadable, and audit logs that document organizational decisions become inaccessible.
 
 Phase 2 encrypts operational metadata using the same CryptoService infrastructure:
 
-| Table | Fields | Mode |
-|---|---|---|
-| `hubs` | `name`, `description`, `slug` | E2EE envelope |
-| `roles` | `name`, `description` | E2EE envelope |
-| `custom_field_definitions` | `field_name`, `label`, `options` | E2EE envelope |
-| `report_types` | `name`, `description` | E2EE envelope |
-| `report_categories` | `categories` | Hub-key |
-| `shift_schedules` | `name` | E2EE envelope |
-| `ring_groups` | `name` | E2EE envelope |
-| `blasts` | `name` | E2EE envelope |
-| `blast_settings` | `welcome_message`, `bye_message`, `double_opt_in_message` | Hub-key |
-| `audit_log` | `event`, `details` | E2EE envelope |
-| `ivr_audio` | `audio_data` | Hub-key |
+| Table                      | Fields                                                    | Mode          |
+| -------------------------- | --------------------------------------------------------- | ------------- |
+| `hubs`                     | `name`, `description`, `slug`                             | E2EE envelope |
+| `roles`                    | `name`, `description`                                     | E2EE envelope |
+| `custom_field_definitions` | `field_name`, `label`, `options`                          | E2EE envelope |
+| `report_types`             | `name`, `description`                                     | E2EE envelope |
+| `report_categories`        | `categories`                                              | Hub-key       |
+| `shift_schedules`          | `name`                                                    | E2EE envelope |
+| `ring_groups`              | `name`                                                    | E2EE envelope |
+| `blasts`                   | `name`                                                    | E2EE envelope |
+| `blast_settings`           | `welcome_message`, `bye_message`, `double_opt_in_message` | Hub-key       |
+| `audit_log`                | `event`, `details`                                        | E2EE envelope |
+| `ivr_audio`                | `audio_data`                                              | Hub-key       |
 
 Phase 2 is a straightforward application of the Phase 1 patterns to additional tables — no new crypto infrastructure needed.
 

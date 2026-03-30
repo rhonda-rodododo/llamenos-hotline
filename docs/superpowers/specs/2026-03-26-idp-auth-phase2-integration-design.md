@@ -78,6 +78,7 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'authentik')\gexec
 ```
 
 Mounted via Postgres `docker-entrypoint-initdb.d`:
+
 ```yaml
 postgres:
   volumes:
@@ -182,9 +183,16 @@ entries:
     id: llamenos-provider
     attrs:
       name: "Llamenos Provider"
-      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      authorization_flow:
+        !Find [
+          authentik_flows.flow,
+          [slug, default-provider-authorization-implicit-consent],
+        ]
       property_mappings:
-        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, llamenos_nsec]]
+        - !Find [
+            authentik_providers_oauth2.scopemapping,
+            [scope_name, llamenos_nsec],
+          ]
 
   # Application
   - model: authentik_core.application
@@ -264,13 +272,13 @@ POST /auth/enroll
 
 ### Flow-by-Flow Impact
 
-| Flow | Before (Phase 1) | After (Phase 2) |
-|------|-------------------|------------------|
-| Admin bootstrap | Synthetic `bootstrap` value | Bootstrap endpoint calls `createUser` -> real nsecSecret |
-| Volunteer onboarding | Synthetic `onboarding` value | After invite accept + WebAuthn register, call `POST /auth/enroll` -> real nsecSecret |
-| Recovery (backup restore) | Synthetic `recovery` value | Recovery flow calls `POST /auth/enroll` (re-creates Authentik user) -> real nsecSecret |
-| Demo accounts | Synthetic `demo` value | Demo setup calls `POST /auth/enroll` -> real nsecSecret |
-| Device linking | Synthetic `device-link` value | **Still synthetic** — new device has no IdP session. Auto-rotates on first real unlock. |
+| Flow                      | Before (Phase 1)              | After (Phase 2)                                                                         |
+| ------------------------- | ----------------------------- | --------------------------------------------------------------------------------------- |
+| Admin bootstrap           | Synthetic `bootstrap` value   | Bootstrap endpoint calls `createUser` -> real nsecSecret                                |
+| Volunteer onboarding      | Synthetic `onboarding` value  | After invite accept + WebAuthn register, call `POST /auth/enroll` -> real nsecSecret    |
+| Recovery (backup restore) | Synthetic `recovery` value    | Recovery flow calls `POST /auth/enroll` (re-creates Authentik user) -> real nsecSecret  |
+| Demo accounts             | Synthetic `demo` value        | Demo setup calls `POST /auth/enroll` -> real nsecSecret                                 |
+| Device linking            | Synthetic `device-link` value | **Still synthetic** — new device has no IdP session. Auto-rotates on first real unlock. |
 
 Synthetic values and auto-rotation logic are retained **only for device linking**.
 
@@ -285,11 +293,11 @@ Synthetic values and auto-rotation logic are retained **only for device linking*
 The facade bridge middleware in `app.ts` passes `SettingsService` into the facade context. The facade uses it to resolve roles into permissions:
 
 ```typescript
-const settings = c.get('settings')
-const allRoles = await settings.getRoles()
-const permissions = resolvePermissions(volunteer.roles, allRoles)
+const settings = c.get("settings");
+const allRoles = await settings.getRoles();
+const permissions = resolvePermissions(volunteer.roles, allRoles);
 // Sign JWT with resolved permissions
-const token = await signAccessToken({ pubkey, permissions }, jwtSecret)
+const token = await signAccessToken({ pubkey, permissions }, jwtSecret);
 ```
 
 This matches how the existing `auth` middleware resolves permissions — the facade just needs access to the same service.
@@ -301,6 +309,7 @@ This matches how the existing `auth` middleware resolves permissions — the fac
 ### Session Deletion API
 
 The current `AuthentikAdapter.revokeAllSessions()` uses `DELETE /api/v3/core/authenticated-sessions/?user=<pk>` which may not be a valid bulk deletion endpoint. During implementation, verify the correct approach:
+
 - Option A: List sessions via `GET /api/v3/core/authenticated-sessions/?user=<pk>`, then delete each individually
 - Option B: Use a user-specific session revocation endpoint if one exists in 2025.12
 - Option C: If bulk DELETE is supported, keep current approach
@@ -311,9 +320,9 @@ The bridge middleware in `app.ts` should assert the adapter is non-null at reque
 
 ```typescript
 if (!_idpAdapter) {
-  return c.json({ error: 'IdP service not initialized' }, 503)
+  return c.json({ error: "IdP service not initialized" }, 503);
 }
-ctx.set('idpAdapter', _idpAdapter)
+ctx.set("idpAdapter", _idpAdapter);
 ```
 
 This catches the edge case where the adapter failed to initialize but the server somehow started (e.g., race condition).
@@ -324,12 +333,14 @@ Hard failure replaces graceful fallback:
 
 ```typescript
 // server.ts — IdP adapter initialization
-const { createIdPAdapter } = await import('./idp/index')
-const idpAdapter = await createIdPAdapter()
+const { createIdPAdapter } = await import("./idp/index");
+const idpAdapter = await createIdPAdapter();
 if (!idpAdapter) {
-  throw new Error('IdP adapter initialization failed — cannot start without IdP')
+  throw new Error(
+    "IdP adapter initialization failed — cannot start without IdP",
+  );
 }
-setIdPAdapter(idpAdapter)
+setIdPAdapter(idpAdapter);
 ```
 
 Docker Compose's `depends_on: authentik-server: condition: service_healthy` ensures Authentik is ready. If it's not, the app crashes and Docker restarts it.
@@ -342,24 +353,24 @@ All tests run against real Authentik via docker-compose.
 
 New `tests/api/auth-facade.spec.ts`:
 
-| Test | Flow Exercised |
-|------|----------------|
-| Bootstrap creates Authentik user + returns real nsecSecret | First admin setup |
-| WebAuthn login via virtual authenticator returns JWT | Facade login |
-| JWT authenticates subsequent API calls | Token validation |
-| Token refresh via httpOnly cookie returns new JWT | Refresh flow |
-| GET /auth/userinfo returns real nsecSecret from Authentik | IdP value retrieval |
-| POST /auth/enroll creates user in Authentik | Volunteer enrollment |
-| Session revocation invalidates refresh | Revocation |
-| Admin re-enrollment wipes credentials | Recovery |
-| Rate limiting blocks excessive login attempts | Abuse prevention |
-| Full onboarding: invite -> accept -> enroll -> register passkey -> login | End-to-end volunteer flow |
-| IdP temporarily unavailable during token refresh -> clear error, not 500 | Graceful IdP error handling |
-| Concurrent enrollment of same pubkey -> proper error, not crash | Race condition handling |
-| nsecSecret rotation: rotate -> verify userinfo returns current -> confirm -> previous gone | Rotation lifecycle |
-| Bootstrap called twice -> 403 on second call | Idempotency |
-| JWT from different JWT_SECRET rejected | Cross-environment token isolation |
-| Volunteer deactivation cleans up Authentik user | User lifecycle |
+| Test                                                                                       | Flow Exercised                    |
+| ------------------------------------------------------------------------------------------ | --------------------------------- |
+| Bootstrap creates Authentik user + returns real nsecSecret                                 | First admin setup                 |
+| WebAuthn login via virtual authenticator returns JWT                                       | Facade login                      |
+| JWT authenticates subsequent API calls                                                     | Token validation                  |
+| Token refresh via httpOnly cookie returns new JWT                                          | Refresh flow                      |
+| GET /auth/userinfo returns real nsecSecret from Authentik                                  | IdP value retrieval               |
+| POST /auth/enroll creates user in Authentik                                                | Volunteer enrollment              |
+| Session revocation invalidates refresh                                                     | Revocation                        |
+| Admin re-enrollment wipes credentials                                                      | Recovery                          |
+| Rate limiting blocks excessive login attempts                                              | Abuse prevention                  |
+| Full onboarding: invite -> accept -> enroll -> register passkey -> login                   | End-to-end volunteer flow         |
+| IdP temporarily unavailable during token refresh -> clear error, not 500                   | Graceful IdP error handling       |
+| Concurrent enrollment of same pubkey -> proper error, not crash                            | Race condition handling           |
+| nsecSecret rotation: rotate -> verify userinfo returns current -> confirm -> previous gone | Rotation lifecycle                |
+| Bootstrap called twice -> 403 on second call                                               | Idempotency                       |
+| JWT from different JWT_SECRET rejected                                                     | Cross-environment token isolation |
+| Volunteer deactivation cleans up Authentik user                                            | User lifecycle                    |
 
 ### Existing Test Updates
 
@@ -368,11 +379,14 @@ The test setup helper needs to create users in Authentik after creating voluntee
 ```typescript
 // tests/helpers/authed-request.ts (or setup project)
 // After creating volunteer in Postgres:
-await fetch('/auth/enroll', {
-  method: 'POST',
-  headers: { Authorization: `Bearer ${adminJwt}`, 'Content-Type': 'application/json' },
+await fetch("/auth/enroll", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${adminJwt}`,
+    "Content-Type": "application/json",
+  },
   body: JSON.stringify({ pubkey }),
-})
+});
 ```
 
 This ensures every test user exists in Authentik and can get a real `nsecSecret`.
@@ -380,6 +394,7 @@ This ensures every test user exists in Authentik and can get a real `nsecSecret`
 ### WebAuthn Passkey Tests
 
 `tests/ui/webauthn-passkeys.spec.ts` updated to exercise the full flow:
+
 1. Register passkey via `/auth/webauthn/register-options` + `/register-verify`
 2. Login via `/auth/webauthn/login-options` + `/login-verify`
 3. Verify JWT returned
@@ -427,36 +442,36 @@ No GH Actions service containers. Docker Compose handles everything.
 
 ### New Files
 
-| File | Purpose |
-|------|---------|
+| File                                               | Purpose                            |
+| -------------------------------------------------- | ---------------------------------- |
 | `deploy/docker/authentik-blueprints/llamenos.yaml` | Declarative Authentik provisioning |
-| `deploy/docker/docker-compose.ci.yml` | CI-specific compose overrides |
-| `tests/api/auth-facade.spec.ts` | Facade integration tests |
+| `deploy/docker/docker-compose.ci.yml`              | CI-specific compose overrides      |
+| `tests/api/auth-facade.spec.ts`                    | Facade integration tests           |
 
 ### Modified Files
 
-| File | Change |
-|------|--------|
-| `deploy/docker/docker-compose.yml` | Blueprint volume mount, ensure healthcheck |
-| `deploy/docker/docker-compose.dev.yml` | Inherit Authentik from base, add port offsets |
-| `.github/workflows/ci.yml` | Docker Compose instead of service containers |
-| `src/server/server.ts` | Hard failure if IdP unavailable |
-| `src/server/app.ts` | Pass SettingsService to facade context |
-| `src/server/routes/auth.ts` | Bootstrap calls `idpAdapter.createUser()`. The bootstrap endpoint currently uses `AppEnv` and has no IdP adapter access — either move bootstrap into the facade, or inject the adapter via the existing bridge middleware (preferred: add `getIdPAdapter()` import from app.ts). |
-| `src/server/routes/auth-facade.ts` | Add `POST /auth/enroll`, fix permissions resolution |
-| `src/client/routes/onboarding.tsx` | Call `/auth/enroll` instead of synthetic value |
-| `src/client/components/setup/AdminBootstrap.tsx` | Receive real nsecSecret from bootstrap |
-| `src/client/routes/login.tsx` | Recovery calls `/auth/enroll` |
-| `src/client/components/demo-account-picker.tsx` | Call `/auth/enroll` |
-| `src/client/lib/key-store-v2.ts` | Remove unused synthetic helpers (keep only for device-link) |
-| `tests/helpers/authed-request.ts` | Enroll test users in Authentik |
-| `tests/ui/webauthn-passkeys.spec.ts` | Full facade flow |
+| File                                             | Change                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deploy/docker/docker-compose.yml`               | Blueprint volume mount, ensure healthcheck                                                                                                                                                                                                                                       |
+| `deploy/docker/docker-compose.dev.yml`           | Inherit Authentik from base, add port offsets                                                                                                                                                                                                                                    |
+| `.github/workflows/ci.yml`                       | Docker Compose instead of service containers                                                                                                                                                                                                                                     |
+| `src/server/server.ts`                           | Hard failure if IdP unavailable                                                                                                                                                                                                                                                  |
+| `src/server/app.ts`                              | Pass SettingsService to facade context                                                                                                                                                                                                                                           |
+| `src/server/routes/auth.ts`                      | Bootstrap calls `idpAdapter.createUser()`. The bootstrap endpoint currently uses `AppEnv` and has no IdP adapter access — either move bootstrap into the facade, or inject the adapter via the existing bridge middleware (preferred: add `getIdPAdapter()` import from app.ts). |
+| `src/server/routes/auth-facade.ts`               | Add `POST /auth/enroll`, fix permissions resolution                                                                                                                                                                                                                              |
+| `src/client/routes/onboarding.tsx`               | Call `/auth/enroll` instead of synthetic value                                                                                                                                                                                                                                   |
+| `src/client/components/setup/AdminBootstrap.tsx` | Receive real nsecSecret from bootstrap                                                                                                                                                                                                                                           |
+| `src/client/routes/login.tsx`                    | Recovery calls `/auth/enroll`                                                                                                                                                                                                                                                    |
+| `src/client/components/demo-account-picker.tsx`  | Call `/auth/enroll`                                                                                                                                                                                                                                                              |
+| `src/client/lib/key-store-v2.ts`                 | Remove unused synthetic helpers (keep only for device-link)                                                                                                                                                                                                                      |
+| `tests/helpers/authed-request.ts`                | Enroll test users in Authentik                                                                                                                                                                                                                                                   |
+| `tests/ui/webauthn-passkeys.spec.ts`             | Full facade flow                                                                                                                                                                                                                                                                 |
 
 ### Removed
 
-| Item | Reason |
-|------|--------|
-| Synthetic values in 4 of 5 flows | Replaced by real IdP values |
-| Graceful IdP fallback in server.ts | Hard failure — IdP is required |
-| GH Actions service containers for Authentik | Replaced by docker-compose |
-| `SYNTHETIC_ISSUERS` entries for bootstrap/onboarding/recovery/demo | Only `device-link` retained |
+| Item                                                               | Reason                         |
+| ------------------------------------------------------------------ | ------------------------------ |
+| Synthetic values in 4 of 5 flows                                   | Replaced by real IdP values    |
+| Graceful IdP fallback in server.ts                                 | Hard failure — IdP is required |
+| GH Actions service containers for Authentik                        | Replaced by docker-compose     |
+| `SYNTHETIC_ISSUERS` entries for bootstrap/onboarding/recovery/demo | Only `device-link` retained    |
