@@ -1,6 +1,6 @@
 import type { HmacHash } from '@shared/crypto-types'
 import type { Ciphertext } from '@shared/crypto-types'
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
 import {
@@ -58,6 +58,7 @@ export interface ListContactsFilters {
   contactType?: string
   riskLevel?: string
   tag?: string
+  tags?: string[] // multiple tags, any match
   assignedTo?: string
 }
 
@@ -142,20 +143,25 @@ export class ContactService {
     if (filters.assignedTo) {
       conditions.push(eq(contacts.assignedTo, filters.assignedTo))
     }
+    // GIN-indexed single tag containment check (@> operator)
+    if (filters.tag) {
+      conditions.push(sql`${contacts.tags} @> ${JSON.stringify([filters.tag])}::jsonb`)
+    }
+    // GIN-indexed multi-tag any-match (?| operator)
+    if (filters.tags && filters.tags.length > 0) {
+      conditions.push(
+        sql`${contacts.tags} ?| array[${sql.join(
+          filters.tags.map((t) => sql`${t}`),
+          sql`, `
+        )}]`
+      )
+    }
 
-    const rows = await this.db
+    return this.db
       .select()
       .from(contacts)
       .where(and(...conditions))
       .orderBy(desc(contacts.createdAt))
-
-    // Tag filter in-memory (jsonb array contains check)
-    if (filters.tag) {
-      const tag = filters.tag
-      return rows.filter((r) => (r.tags as string[]).includes(tag))
-    }
-
-    return rows
   }
 
   async listContactsByScope(
@@ -176,18 +182,23 @@ export class ContactService {
       if (filters.contactType) conditions.push(eq(contacts.contactType, filters.contactType))
       if (filters.riskLevel) conditions.push(eq(contacts.riskLevel, filters.riskLevel))
       if (filters.assignedTo) conditions.push(eq(contacts.assignedTo, filters.assignedTo))
+      if (filters.tag) {
+        conditions.push(sql`${contacts.tags} @> ${JSON.stringify([filters.tag])}::jsonb`)
+      }
+      if (filters.tags && filters.tags.length > 0) {
+        conditions.push(
+          sql`${contacts.tags} ?| array[${sql.join(
+            filters.tags.map((t) => sql`${t}`),
+            sql`, `
+          )}]`
+        )
+      }
 
-      const rows = await this.db
+      return this.db
         .select()
         .from(contacts)
         .where(and(...conditions))
         .orderBy(desc(contacts.createdAt))
-
-      if (filters.tag) {
-        const tag = filters.tag
-        return rows.filter((r) => (r.tags as string[]).includes(tag))
-      }
-      return rows
     }
 
     // scope === 'assigned'
@@ -203,18 +214,23 @@ export class ContactService {
     if (filters.contactType) conditions.push(eq(contacts.contactType, filters.contactType))
     if (filters.riskLevel) conditions.push(eq(contacts.riskLevel, filters.riskLevel))
     if (filters.assignedTo) conditions.push(eq(contacts.assignedTo, filters.assignedTo))
+    if (filters.tag) {
+      conditions.push(sql`${contacts.tags} @> ${JSON.stringify([filters.tag])}::jsonb`)
+    }
+    if (filters.tags && filters.tags.length > 0) {
+      conditions.push(
+        sql`${contacts.tags} ?| array[${sql.join(
+          filters.tags.map((t) => sql`${t}`),
+          sql`, `
+        )}]`
+      )
+    }
 
-    const rows = await this.db
+    return this.db
       .select()
       .from(contacts)
       .where(and(...conditions))
       .orderBy(desc(contacts.createdAt))
-
-    if (filters.tag) {
-      const tag = filters.tag
-      return rows.filter((r) => (r.tags as string[]).includes(tag))
-    }
-    return rows
   }
 
   async isContactAccessible(

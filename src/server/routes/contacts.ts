@@ -147,10 +147,11 @@ contacts.get('/', async (c) => {
   const contactType = c.req.query('contactType')
   const riskLevel = c.req.query('riskLevel')
   const tag = c.req.query('tag')
+  const tags = c.req.query('tags')?.split(',').filter(Boolean)
   const assignedTo = c.req.query('assignedTo')
 
   const rows = await services.contacts.listContactsByScope(
-    { hubId, contactType, riskLevel, tag, assignedTo },
+    { hubId, contactType, riskLevel, tag, tags, assignedTo },
     readScope,
     pubkey
   )
