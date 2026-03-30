@@ -293,7 +293,7 @@ routes.delete('/:hubId', requirePermission('system:manage-hubs'), async (c) => {
 })
 
 // Add member to hub
-routes.post('/:hubId/members', requirePermission('volunteers:manage-roles'), async (c) => {
+routes.post('/:hubId/members', requirePermission('users:manage-roles'), async (c) => {
   const hubId = c.req.param('hubId')
   const services = c.get('services')
   const body = (await c.req.json()) as { pubkey: string; roleIds: string[] }
@@ -315,22 +315,18 @@ routes.post('/:hubId/members', requirePermission('volunteers:manage-roles'), asy
 })
 
 // Remove member from hub
-routes.delete(
-  '/:hubId/members/:pubkey',
-  requirePermission('volunteers:manage-roles'),
-  async (c) => {
-    const hubId = c.req.param('hubId')
-    const pubkey = c.req.param('pubkey')
-    const services = c.get('services')
+routes.delete('/:hubId/members/:pubkey', requirePermission('users:manage-roles'), async (c) => {
+  const hubId = c.req.param('hubId')
+  const pubkey = c.req.param('pubkey')
+  const services = c.get('services')
 
-    try {
-      await services.identity.removeHubRole(pubkey, hubId)
-      return c.json({ ok: true })
-    } catch {
-      return c.json({ error: 'Failed to remove member' }, 500)
-    }
+  try {
+    await services.identity.removeHubRole(pubkey, hubId)
+    return c.json({ ok: true })
+  } catch {
+    return c.json({ error: 'Failed to remove member' }, 500)
   }
-)
+})
 
 // --- Hub Settings (zero-trust visibility) ---
 

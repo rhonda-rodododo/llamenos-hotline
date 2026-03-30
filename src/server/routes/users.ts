@@ -17,7 +17,7 @@ function isValidSecp256k1Pubkey(pk: string): boolean {
 }
 
 const users = new Hono<AppEnv>()
-users.use('*', requirePermission('volunteers:read'))
+users.use('*', requirePermission('users:read'))
 
 users.get('/', async (c) => {
   const services = c.get('services')
@@ -50,7 +50,7 @@ users.get('/:targetPubkey', async (c) => {
   return c.json(projectUser(user, requestorPubkey, isAdmin, unmask))
 })
 
-users.post('/', requirePermission('volunteers:create'), async (c) => {
+users.post('/', requirePermission('users:create'), async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const body = (await c.req.json()) as {
@@ -93,7 +93,7 @@ users.post('/', requirePermission('volunteers:create'), async (c) => {
   return c.json({ user: projectUser(user, pubkey, true) }, 201)
 })
 
-users.patch('/:targetPubkey', requirePermission('volunteers:update'), async (c) => {
+users.patch('/:targetPubkey', requirePermission('users:update'), async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const targetPubkey = c.req.param('targetPubkey')
@@ -116,7 +116,7 @@ users.patch('/:targetPubkey', requirePermission('volunteers:update'), async (c) 
   return c.json({ user: projectUser(updated, pubkey, true) })
 })
 
-users.delete('/:targetPubkey', requirePermission('volunteers:delete'), async (c) => {
+users.delete('/:targetPubkey', requirePermission('users:delete'), async (c) => {
   const services = c.get('services')
   const pubkey = c.get('pubkey')
   const targetPubkey = c.req.param('targetPubkey')

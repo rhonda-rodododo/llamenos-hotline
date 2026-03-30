@@ -11,7 +11,7 @@ export interface SimulateCallParams {
   digits?: string
   status?: string
   parentCallSid?: string
-  volunteerPubkey?: string
+  userPubkey?: string
   recordingSid?: string
   hubId?: string
 }
@@ -495,8 +495,9 @@ export async function simulateEndCall(
   const resolvedParams = { ...params, status: params.status || 'completed' }
   const { contentType, body } = buildCallStatusPayload(provider, resolvedParams)
   const queryParts: string[] = []
-  if (params.parentCallSid) queryParts.push(`parentCallSid=${encodeURIComponent(params.parentCallSid)}`)
-  if (params.volunteerPubkey) queryParts.push(`pubkey=${encodeURIComponent(params.volunteerPubkey)}`)
+  if (params.parentCallSid)
+    queryParts.push(`parentCallSid=${encodeURIComponent(params.parentCallSid)}`)
+  if (params.userPubkey) queryParts.push(`pubkey=${encodeURIComponent(params.userPubkey)}`)
   if (params.hubId) queryParts.push(`hub=${encodeURIComponent(params.hubId)}`)
   const query = queryParts.length > 0 ? `?${queryParts.join('&')}` : ''
   const res = await request.post(`/telephony/call-status${query}`, {

@@ -1,39 +1,39 @@
 import { expect, test } from '@playwright/test'
 import {
   completeProfileSetup,
-  createVolunteerAndGetNsec,
+  createUserAndGetNsec,
   loginAsAdmin,
-  loginAsVolunteer,
+  loginAsUser,
   uniquePhone,
 } from '../helpers'
 
-test.describe('Volunteer flow', () => {
-  let volunteerNsec: string
-  let volunteerPhone: string
+test.describe('User flow', () => {
+  let userNsec: string
+  let userPhone: string
 
   test.beforeAll(async ({ browser }) => {
-    // Create a volunteer via admin
+    // Create a user via admin
     const page = await browser.newPage()
-    volunteerPhone = uniquePhone()
+    userPhone = uniquePhone()
     await loginAsAdmin(page)
-    volunteerNsec = await createVolunteerAndGetNsec(page, 'E2E Vol', volunteerPhone)
+    userNsec = await createUserAndGetNsec(page, 'E2E Vol', userPhone)
     await page.close()
   })
 
-  test('volunteer can login', async ({ page }) => {
-    await loginAsVolunteer(page, volunteerNsec)
+  test('user can login', async ({ page }) => {
+    await loginAsUser(page, userNsec)
     // Should be on profile-setup or dashboard
     await expect(page).toHaveURL(/\/(profile-setup)?$/)
   })
 
-  test('volunteer completes profile setup', async ({ page }) => {
-    await loginAsVolunteer(page, volunteerNsec)
+  test('user completes profile setup', async ({ page }) => {
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
     await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
   })
 
-  test('volunteer sees limited navigation', async ({ page }) => {
-    await loginAsVolunteer(page, volunteerNsec)
+  test('user sees limited navigation', async ({ page }) => {
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
 
     // Should see Dashboard, Notes, Settings
@@ -42,13 +42,13 @@ test.describe('Volunteer flow', () => {
     await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible()
 
     // Should NOT see admin links
-    await expect(page.getByRole('link', { name: 'Volunteers' })).not.toBeVisible()
+    await expect(page.getByRole('link', { name: 'Users' })).not.toBeVisible()
     await expect(page.getByRole('link', { name: 'Shifts' })).not.toBeVisible()
     await expect(page.getByRole('link', { name: 'Ban List' })).not.toBeVisible()
   })
 
-  test('volunteer can toggle on-break', async ({ page }) => {
-    await loginAsVolunteer(page, volunteerNsec)
+  test('user can toggle on-break', async ({ page }) => {
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
 
     // Find the break button
@@ -59,17 +59,17 @@ test.describe('Volunteer flow', () => {
     }
   })
 
-  test('volunteer cannot access admin pages via URL', async ({ page }) => {
-    await loginAsVolunteer(page, volunteerNsec)
+  test('user cannot access admin pages via URL', async ({ page }) => {
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
 
     // Use SPA navigation to avoid full page reload clearing the key manager
-    await page.evaluate(() => (window as any).__TEST_ROUTER?.navigate({ to: '/volunteers' }))
+    await page.evaluate(() => (window as any).__TEST_ROUTER?.navigate({ to: '/users' }))
     await expect(page.getByText(/access denied/i)).toBeVisible({ timeout: 10000 })
   })
 
-  test('volunteer cannot access /shifts via URL', async ({ page }) => {
-    await loginAsVolunteer(page, volunteerNsec)
+  test('user cannot access /shifts via URL', async ({ page }) => {
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
 
     // Use SPA navigation to avoid full page reload clearing the key manager
@@ -77,8 +77,8 @@ test.describe('Volunteer flow', () => {
     await expect(page.getByText(/access denied/i)).toBeVisible({ timeout: 10000 })
   })
 
-  test('volunteer cannot access /bans via URL', async ({ page }) => {
-    await loginAsVolunteer(page, volunteerNsec)
+  test('user cannot access /bans via URL', async ({ page }) => {
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
 
     // Use SPA navigation to avoid full page reload clearing the key manager
@@ -86,16 +86,16 @@ test.describe('Volunteer flow', () => {
     await expect(page.getByText(/access denied/i)).toBeVisible({ timeout: 10000 })
   })
 
-  test('volunteer can navigate to notes', async ({ page }) => {
-    await loginAsVolunteer(page, volunteerNsec)
+  test('user can navigate to notes', async ({ page }) => {
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
 
     await page.getByRole('link', { name: 'Notes' }).click()
     await expect(page.getByRole('heading', { name: /call notes/i })).toBeVisible()
   })
 
-  test('volunteer can navigate to settings', async ({ page }) => {
-    await loginAsVolunteer(page, volunteerNsec)
+  test('user can navigate to settings', async ({ page }) => {
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
 
     await page.getByRole('link', { name: 'Settings' }).click()

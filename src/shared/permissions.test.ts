@@ -19,11 +19,11 @@ describe('voicemail permissions', () => {
     expect(hasPermission([hubAdmin.id], DEFAULT_ROLES as any, 'voicemail:manage')).toBe(true)
   })
 
-  test('Volunteer has voicemail:read and calls:read-history', () => {
-    const volunteer = DEFAULT_ROLES.find((r) => r.id === 'role-volunteer')!
-    expect(volunteer.permissions).toContain('voicemail:read')
-    expect(volunteer.permissions).toContain('calls:read-history')
-    expect(volunteer.permissions).not.toContain('voicemail:listen')
+  test('User role has voicemail:read and calls:read-history', () => {
+    const volunteerRole = DEFAULT_ROLES.find((r) => r.id === 'role-volunteer')!
+    expect(volunteerRole.permissions).toContain('voicemail:read')
+    expect(volunteerRole.permissions).toContain('calls:read-history')
+    expect(volunteerRole.permissions).not.toContain('voicemail:listen')
   })
 
   test('Voicemail Reviewer role exists with correct permissions', () => {

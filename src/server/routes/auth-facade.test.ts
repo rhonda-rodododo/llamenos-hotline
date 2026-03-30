@@ -41,7 +41,7 @@ function createMockIdentity(overrides: Record<string, unknown> = {}): IdentitySe
     updateWebAuthnCounter: mock(() => Promise.resolve()),
     addWebAuthnCredential: mock(() => Promise.resolve()),
     deleteWebAuthnCredential: mock(() => Promise.resolve()),
-    getVolunteer: mock(() =>
+    getUser: mock(() =>
       Promise.resolve({
         pubkey: TEST_PUBKEY,
         name: 'Test User',
@@ -98,7 +98,7 @@ function createMockSettings(overrides: Record<string, unknown> = {}): SettingsSe
             'notes:update-own',
             'notes:reply',
             'shifts:read-own',
-            'volunteers:read',
+            'users:read',
           ],
           isDefault: true,
           isSystem: false,
@@ -180,7 +180,7 @@ async function getAccessToken(permissions = ['role-volunteer']): Promise<string>
 }
 
 async function getAdminAccessToken(): Promise<string> {
-  return getAccessToken(['volunteers:update', 'volunteers:read'])
+  return getAccessToken(['users:update', 'users:read'])
 }
 
 // ---------------------------------------------------------------------------
@@ -436,7 +436,7 @@ describe('auth-facade', () => {
 
     test('revokes all sessions and deletes all credentials', async () => {
       const identity = createMockIdentity({
-        getVolunteer: mock(() =>
+        getUser: mock(() =>
           Promise.resolve({
             pubkey: TARGET_PUBKEY,
             name: 'Target User',
@@ -475,7 +475,7 @@ describe('auth-facade', () => {
       expect(identity.deleteWebAuthnCredential).toHaveBeenCalledTimes(2)
     })
 
-    test('returns 403 when requester lacks volunteers:update permission', async () => {
+    test('returns 403 when requester lacks users:update permission', async () => {
       const { app } = createTestApp()
       const token = await getAccessToken(['role-volunteer'])
       const res = await app.request(`/auth/admin/re-enroll/${TARGET_PUBKEY}`, {
@@ -485,9 +485,9 @@ describe('auth-facade', () => {
       expect(res.status).toBe(403)
     })
 
-    test('returns 404 when target volunteer does not exist', async () => {
+    test('returns 404 when target user does not exist', async () => {
       const identity = createMockIdentity({
-        getVolunteer: mock(() => Promise.resolve(null)),
+        getUser: mock(() => Promise.resolve(null)),
       })
       const { app } = createTestApp({ identity })
       const token = await getAdminAccessToken()
@@ -522,10 +522,10 @@ describe('auth-facade', () => {
   })
 
   describe('POST /auth/enroll', () => {
-    test('creates user and returns nsecSecret with volunteers:create permission', async () => {
+    test('creates user and returns nsecSecret with users:create permission', async () => {
       const idpAdapter = createMockIdpAdapter()
       const { app } = createTestApp({ idpAdapter })
-      const token = await getAccessToken(['volunteers:create'])
+      const token = await getAccessToken(['users:create'])
       const newPubkey = 'cd'.repeat(32)
 
       // User does not exist yet
@@ -551,7 +551,7 @@ describe('auth-facade', () => {
     test('is idempotent — returns existing nsecSecret without creating', async () => {
       const idpAdapter = createMockIdpAdapter()
       const { app } = createTestApp({ idpAdapter })
-      const token = await getAccessToken(['volunteers:create'])
+      const token = await getAccessToken(['users:create'])
 
       // User already exists
       const res = await app.request('/auth/enroll', {
@@ -601,7 +601,7 @@ describe('auth-facade', () => {
 
     test('returns 400 for invalid pubkey', async () => {
       const { app } = createTestApp()
-      const token = await getAccessToken(['volunteers:create'])
+      const token = await getAccessToken(['users:create'])
 
       // Too short
       const res1 = await app.request('/auth/enroll', {

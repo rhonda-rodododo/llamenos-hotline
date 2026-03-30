@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { createVolunteerAndGetNsec, dismissNsecCard, loginAsAdmin, uniquePhone } from '../helpers'
+import { createUserAndGetNsec, dismissNsecCard, loginAsAdmin, uniquePhone } from '../helpers'
 
 test.describe('Shift management', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -120,12 +120,12 @@ test.describe('Shift management', () => {
     await expect(page.getByText(shiftName)).toBeVisible()
   })
 
-  test('assign volunteers to shift', async ({ page }) => {
-    // Create a volunteer first
+  test('assign users to shift', async ({ page }) => {
+    // Create a user first
     const phone = uniquePhone()
-    const volName = `ShiftVol ${Date.now()}`
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await createVolunteerAndGetNsec(page, volName, phone)
+    const userName = `ShiftVol ${Date.now()}`
+    await page.getByRole('link', { name: 'Users' }).click()
+    await createUserAndGetNsec(page, userName, phone)
     await dismissNsecCard(page)
 
     // Go to shifts
@@ -136,35 +136,35 @@ test.describe('Shift management', () => {
     await page.getByRole('button', { name: /create shift/i }).click()
     await page.getByLabel(/shift name/i).fill(shiftName)
 
-    // Open volunteer multi-select — scope to the form
+    // Open user multi-select — scope to the form
     const volSelect = page.locator('form').getByRole('combobox')
     await volSelect.click()
-    // Select the volunteer from the dropdown
-    await page.getByRole('option', { name: new RegExp(volName) }).click()
+    // Select the user from the dropdown
+    await page.getByRole('option', { name: new RegExp(userName) }).click()
     // Close the popover by pressing Escape
     await page.keyboard.press('Escape')
 
     await page.getByRole('button', { name: /save/i }).click()
     await expect(page.getByText(shiftName)).toBeVisible({ timeout: 10000 })
 
-    // Should show 1 volunteer count (scoped to this shift's card)
+    // Should show 1 user count (scoped to this shift's card)
     const shiftCard = page.locator('h3').filter({ hasText: shiftName }).locator('..').locator('..')
-    await expect(shiftCard.getByText(/1 volunteer/i)).toBeVisible()
+    await expect(shiftCard.getByText(/1 user/i)).toBeVisible()
   })
 
   test('fallback group selection', async ({ page }) => {
-    // Create a volunteer first
+    // Create a user first
     const phone = uniquePhone()
-    const volName = `FallbackVol ${Date.now()}`
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await createVolunteerAndGetNsec(page, volName, phone)
+    const userName = `FallbackVol ${Date.now()}`
+    await page.getByRole('link', { name: 'Users' }).click()
+    await createUserAndGetNsec(page, userName, phone)
     await dismissNsecCard(page)
 
     // Go to shifts
     await page.getByRole('link', { name: 'Shifts' }).click()
     await expect(page.getByText(/fallback group/i)).toBeVisible()
 
-    // Open the fallback volunteer multi-select (in the Fallback Group card)
+    // Open the fallback user multi-select (in the Fallback Group card)
     const fallbackCard = page
       .locator('main')
       .filter({ hasText: /fallback group/i })
@@ -172,23 +172,23 @@ test.describe('Shift management', () => {
     const fallbackSelect = fallbackCard.getByRole('combobox')
     await fallbackSelect.click()
 
-    // Select the volunteer
-    await page.getByRole('option', { name: new RegExp(volName) }).click()
+    // Select the user
+    await page.getByRole('option', { name: new RegExp(userName) }).click()
     await page.keyboard.press('Escape')
 
-    // Volunteer badge should appear
-    await expect(fallbackCard.getByText(volName)).toBeVisible({ timeout: 5000 })
+    // User badge should appear
+    await expect(fallbackCard.getByText(userName)).toBeVisible({ timeout: 5000 })
   })
 
-  test('shift shows volunteer count', async ({ page }) => {
+  test('shift shows user count', async ({ page }) => {
     const shiftName = `CountShift ${Date.now()}`
     await page.getByRole('button', { name: /create shift/i }).click()
     await page.getByLabel(/shift name/i).fill(shiftName)
     await page.getByRole('button', { name: /save/i }).click()
     await expect(page.getByText(shiftName)).toBeVisible({ timeout: 10000 })
 
-    // Should show 0 volunteers
+    // Should show 0 users
     const shiftCard = page.locator('h3').filter({ hasText: shiftName }).locator('..').locator('..')
-    await expect(shiftCard.getByText(/0 volunteer/i)).toBeVisible()
+    await expect(shiftCard.getByText(/0 user/i)).toBeVisible()
   })
 })

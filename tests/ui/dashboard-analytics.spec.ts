@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 import {
   completeProfileSetup,
-  createVolunteerAndGetNsec,
+  createUserAndGetNsec,
   loginAsAdmin,
-  loginAsVolunteer,
+  loginAsUser,
   uniquePhone,
 } from '../helpers'
 
@@ -24,7 +24,7 @@ test.describe('Dashboard Analytics', () => {
     // Charts should not be visible when collapsed
     await expect(page.getByTestId('call-volume-chart')).not.toBeVisible()
     await expect(page.getByTestId('call-hours-chart')).not.toBeVisible()
-    await expect(page.getByTestId('volunteer-stats-table')).not.toBeVisible()
+    await expect(page.getByTestId('user-stats-table')).not.toBeVisible()
     // Skeleton loaders also hidden
     await expect(page.getByTestId('call-volume-chart-skeleton')).not.toBeVisible()
   })
@@ -41,7 +41,7 @@ test.describe('Dashboard Analytics', () => {
       page.getByTestId('call-hours-chart').or(page.getByTestId('call-hours-no-data'))
     ).toBeVisible({ timeout: 10000 })
     await expect(
-      page.getByTestId('volunteer-stats-table').or(page.getByTestId('volunteer-stats-no-data'))
+      page.getByTestId('user-stats-table').or(page.getByTestId('user-stats-no-data'))
     ).toBeVisible({ timeout: 10000 })
   })
 
@@ -109,21 +109,21 @@ test.describe('Dashboard Analytics', () => {
   })
 })
 
-test.describe('Dashboard Analytics — volunteer visibility', () => {
-  test('analytics section is hidden from volunteers', async ({ page, request }) => {
+test.describe('Dashboard Analytics — user visibility', () => {
+  test('analytics section is hidden from users', async ({ page, request }) => {
     await loginAsAdmin(page)
 
-    // Create a volunteer and get their nsec
+    // Create a user and get their nsec
     const phone = uniquePhone()
-    const nsec = await createVolunteerAndGetNsec(page, 'Test Volunteer', phone)
+    const nsec = await createUserAndGetNsec(page, 'Test User', phone)
 
-    // Login as the volunteer
-    await loginAsVolunteer(page, nsec)
+    // Login as the user
+    await loginAsUser(page, nsec)
     await completeProfileSetup(page)
 
     await page.goto('/')
 
-    // Analytics trigger should NOT be visible for volunteers
+    // Analytics trigger should NOT be visible for users
     await expect(page.getByTestId('analytics-section-trigger')).not.toBeVisible()
   })
 })

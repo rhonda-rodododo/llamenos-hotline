@@ -244,20 +244,20 @@ export async function loginAsAdmin(page: Page) {
 }
 
 /**
- * Login as volunteer: pre-loads encrypted key into localStorage, then enters PIN.
+ * Login as user: pre-loads encrypted key into localStorage, then enters PIN.
  */
-export async function loginAsVolunteer(page: Page, nsec: string) {
+export async function loginAsUser(page: Page, nsec: string) {
   await page.goto('/login', { waitUntil: 'domcontentloaded' })
   await page.evaluate(() => sessionStorage.clear())
   await preloadEncryptedKey(page, nsec, TEST_PIN)
 
-  // Generate JWT for the volunteer and inject into the auth facade client
+  // Generate JWT for the user and inject into the auth facade client
   const { signAccessToken } = await import('../../src/server/lib/jwt')
   const { nip19, getPublicKey } = await import('nostr-tools')
   const decoded = nip19.decode(nsec) as { type: 'nsec'; data: Uint8Array }
-  const volPubkey = getPublicKey(decoded.data)
+  const userPubkey = getPublicKey(decoded.data)
   const jwtSecret = TEST_JWT_SECRET
-  const jwt = await signAccessToken({ pubkey: volPubkey, permissions: [] }, jwtSecret)
+  const jwt = await signAccessToken({ pubkey: userPubkey, permissions: [] }, jwtSecret)
 
   await page.reload({ waitUntil: 'domcontentloaded' })
 
@@ -271,7 +271,7 @@ export async function loginAsVolunteer(page: Page, nsec: string) {
   await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: Timeouts.AUTH })
   // Wait for potential client-side redirect to profile-setup (async auth guard)
   await page.waitForTimeout(1500)
-  // Complete profile setup if redirected there (first-time volunteer login)
+  // Complete profile setup if redirected there (first-time user login)
   if (page.url().includes('profile-setup')) {
     await completeProfileSetup(page)
   }
@@ -296,13 +296,13 @@ export async function logout(page: Page) {
   await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
 }
 
-export async function createVolunteerAndGetNsec(
+export async function createUserAndGetNsec(
   page: Page,
   name: string,
   phone: string
 ): Promise<string> {
-  await page.getByRole('link', { name: 'Volunteers' }).click()
-  await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+  await page.getByRole('link', { name: 'Users' }).click()
+  await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
   await page.getByTestId(TestIds.VOLUNTEER_ADD_BTN).click()
   await page.getByLabel('Name').fill(name)
@@ -317,7 +317,7 @@ export async function createVolunteerAndGetNsec(
   return nsec
 }
 
-/** Dismiss the nsec card shown after volunteer creation. */
+/** Dismiss the nsec card shown after user creation. */
 export async function dismissNsecCard(page: Page): Promise<void> {
   await page.getByTestId('dismiss-nsec').click()
   await expect(page.getByTestId('dismiss-nsec')).not.toBeVisible()

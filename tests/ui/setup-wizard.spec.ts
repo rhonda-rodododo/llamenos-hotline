@@ -218,7 +218,7 @@ test.describe('Setup Wizard', () => {
 
     // Skip again to step 5 (Invite)
     await clickSkip(page)
-    await expect(page.getByText('Invite Volunteers')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('Invite Users')).toBeVisible({ timeout: 5000 })
 
     // Skip again to step 6 (Summary)
     await clickSkip(page)
@@ -299,13 +299,13 @@ test.describe('Setup Wizard', () => {
     await expect(page.getByText('Messaging Settings')).toBeVisible()
     await expect(page.getByText('Auto-Response Template')).toBeVisible()
     await expect(page.getByText('Inactivity Timeout (minutes)')).toBeVisible()
-    await expect(page.getByText('Max Concurrent Per Volunteer')).toBeVisible()
+    await expect(page.getByText('Max Concurrent Per User')).toBeVisible()
   })
 
   // =====================================================================
   // Test 7: Step 5 - Generate invite
   // =====================================================================
-  test('step 5: generate invite for a volunteer', async ({ page }) => {
+  test('step 5: generate invite for a user', async ({ page }) => {
     await goToSetup(page)
 
     // Complete step 1
@@ -322,19 +322,19 @@ test.describe('Setup Wizard', () => {
     await clickSkip(page)
 
     // Should be on Invite step
-    await expect(page.getByText('Invite Volunteers')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('Invite Users')).toBeVisible({ timeout: 5000 })
 
     // Generate invite button should be disabled without name/phone
     const genBtn = page.getByRole('button', { name: /generate invite/i })
     await expect(genBtn).toBeDisabled()
 
     // Fill invite form
-    const volName = `Wizard Vol ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `Wizard Vol ${Date.now()}`
+    const userPhone = uniquePhone()
 
     // Find the name and phone inputs within the invite form
-    await page.getByPlaceholder('Volunteer name').fill(volName)
-    await page.getByPlaceholder('+12125551234').fill(volPhone)
+    await page.getByPlaceholder('User name').fill(userName)
+    await page.getByPlaceholder('+12125551234').fill(userPhone)
 
     // Generate invite button should now be enabled
     await expect(genBtn).toBeEnabled()
@@ -342,7 +342,7 @@ test.describe('Setup Wizard', () => {
 
     // Wait for invite to be generated (shown in the Generated Invites list)
     await expect(page.getByText('Generated Invites')).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText(volName)).toBeVisible()
+    await expect(page.getByText(userName)).toBeVisible()
 
     // An invite code should appear (rendered in a monospace font-mono text)
     const inviteCode = page.locator('.font-mono')
@@ -450,7 +450,7 @@ test.describe('Setup Wizard', () => {
 
     // Step 4: Skip settings
     await clickSkip(page)
-    await expect(page.getByText('Invite Volunteers')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('Invite Users')).toBeVisible({ timeout: 5000 })
 
     // Step 5: Skip invite
     await clickSkip(page)

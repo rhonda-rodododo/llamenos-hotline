@@ -101,7 +101,7 @@ test.describe('Voicemail mode routing', () => {
     await setVoicemailMode(request, 'auto')
   })
 
-  test('voicemailMode=never with no volunteers returns unavailable message (no Record, no Enqueue)', async ({
+  test('voicemailMode=never with no users returns unavailable message (no Record, no Enqueue)', async ({
     request,
   }) => {
     test.skip(!telephonyAvailable, 'Telephony not configured')
@@ -109,7 +109,7 @@ test.describe('Voicemail mode routing', () => {
     // Set voicemailMode to 'never'
     await setVoicemailMode(request, 'never')
 
-    // With no shifts and no fallback group, there are no available volunteers.
+    // With no shifts and no fallback group, there are no available users.
     // The auto mode would go to voicemail, but 'never' should play unavailable.
     const callSid = `CA_vm_never_${Date.now()}`
     const { status, body } = await simulateLanguageSelected(request, callSid)
@@ -128,7 +128,7 @@ test.describe('Voicemail mode routing', () => {
   test('voicemailMode=auto with no shifts returns voicemail TwiML', async ({ request }) => {
     test.skip(!telephonyAvailable, 'Telephony not configured')
 
-    // Mode is 'auto', and no shifts/fallback configured means no available volunteers → voicemail
+    // Mode is 'auto', and no shifts/fallback configured means no available users → voicemail
     await setVoicemailMode(request, 'auto')
 
     const callSid = `CA_vm_auto_noshifts_${Date.now()}`

@@ -4,26 +4,26 @@ import { loginAsAdmin, uniquePhone } from '../helpers'
 test.describe('Invite-based onboarding', () => {
   let inviteLink: string
 
-  test('admin creates invite and volunteer completes onboarding', async ({ page }) => {
+  test('admin creates invite and user completes onboarding', async ({ page }) => {
     // --- Step 1: Admin creates invite ---
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const volName = `Onboard ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `Onboard ${Date.now()}`
+    const userPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
+    await page.getByRole('button', { name: /invite user/i }).click()
 
     // Wait for the invite form to render
     const nameInput = page.getByLabel('Name')
     await expect(nameInput).toBeVisible({ timeout: 10000 })
-    await nameInput.fill(volName)
+    await nameInput.fill(userName)
 
     // PhoneInput is a complex component — use the input with the invite-phone id
     const phoneInput = page.locator('#invite-phone')
     await expect(phoneInput).toBeVisible({ timeout: 5000 })
-    await phoneInput.fill(volPhone)
+    await phoneInput.fill(userPhone)
     await phoneInput.blur()
 
     await page.getByRole('button', { name: /create invite/i }).click()
@@ -42,10 +42,10 @@ test.describe('Invite-based onboarding', () => {
     await page.getByRole('button', { name: /log out/i }).click()
     await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
 
-    // --- Step 3: Volunteer opens invite link ---
+    // --- Step 3: User opens invite link ---
     await page.goto(inviteLink)
     await expect(page.getByText(/welcome/i)).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText(volName)).toBeVisible()
+    await expect(page.getByText(userName)).toBeVisible()
 
     // A11y: language selector should be a radiogroup with roving tabindex
     const langGroup = page.locator('[role="radiogroup"]')
@@ -112,24 +112,24 @@ test.describe('Invite-based onboarding', () => {
 
   test('admin can see pending invites and revoke them', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
     // Create an invite
-    const volName = `Revoke ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `Revoke ${Date.now()}`
+    const userPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
+    await page.getByRole('button', { name: /invite user/i }).click()
 
     // Wait for the invite form to render
     const nameInput = page.getByLabel('Name')
     await expect(nameInput).toBeVisible({ timeout: 10000 })
-    await nameInput.fill(volName)
+    await nameInput.fill(userName)
 
     // PhoneInput is a complex component — use the input with the invite-phone id
     const phoneInput = page.locator('#invite-phone')
     await expect(phoneInput).toBeVisible({ timeout: 5000 })
-    await phoneInput.fill(volPhone)
+    await phoneInput.fill(userPhone)
     await phoneInput.blur()
 
     await page.getByRole('button', { name: /create invite/i }).click()
@@ -143,13 +143,13 @@ test.describe('Invite-based onboarding', () => {
     await page.getByTestId('dismiss-invite').click()
 
     // Pending invites section should show our invite
-    await expect(page.getByText(volName)).toBeVisible()
+    await expect(page.getByText(userName)).toBeVisible()
 
-    // Revoke it — find the paragraph with the volunteer name, then go up to the parent container
-    const inviteEntry = page.locator('p').filter({ hasText: volName }).locator('..').locator('..')
+    // Revoke it — find the paragraph with the user name, then go up to the parent container
+    const inviteEntry = page.locator('p').filter({ hasText: userName }).locator('..').locator('..')
     await inviteEntry.getByRole('button', { name: /revoke/i }).click()
 
     // Invite should be removed
-    await expect(page.locator('main').getByText(volName)).not.toBeVisible({ timeout: 5000 })
+    await expect(page.locator('main').getByText(userName)).not.toBeVisible({ timeout: 5000 })
   })
 })

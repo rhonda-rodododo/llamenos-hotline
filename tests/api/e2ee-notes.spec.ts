@@ -7,7 +7,7 @@
  *   1.1: Note content is encrypted at rest (plaintext never in raw API response)
  *   1.2: Admin can decrypt their own note via authorEnvelope
  *   1.3: Per-note forward secrecy — two notes have different envelopes
- *   1.4: Unauthorized volunteer cannot decrypt another volunteer's note
+ *   1.4: Unauthorized user cannot decrypt another user's note
  *
  * Uses direct crypto imports — no browser context needed.
  */
@@ -153,18 +153,18 @@ test.describe('E2EE note encryption', () => {
     expect(env1).not.toBe(env2)
   })
 
-  // ── Test 1.4: Unauthorized volunteer cannot decrypt admin's note ──────────
+  // ── Test 1.4: Unauthorized user cannot decrypt admin's note ──────────
 
-  test('unauthorized volunteer cannot decrypt note (wrong envelope)', async ({ request }) => {
+  test('unauthorized user cannot decrypt note (wrong envelope)', async ({ request }) => {
     const authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
-    // Create a volunteer via the API with a generated keypair
+    // Create a user via the API with a generated keypair
     const volSecretKey = generateSecretKey()
-    const volPubkey = getPublicKey(volSecretKey)
-    const createRes = await authedApi.post('/api/volunteers', {
-      name: 'E2EE Test Volunteer',
+    const userPubkey = getPublicKey(volSecretKey)
+    const createRes = await authedApi.post('/api/users', {
+      name: 'E2EE Test User',
       phone: `+1555${Date.now().toString().slice(-7)}`,
-      pubkey: volPubkey,
+      pubkey: userPubkey,
       roleIds: ['role-volunteer'],
     })
     expect(createRes.ok()).toBeTruthy()
@@ -174,14 +174,14 @@ test.describe('E2EE note encryption', () => {
     const note = notes.find((n) => n.id === noteId)
     expect(note).toBeTruthy()
 
-    // Attempt decryption using the volunteer's secret key — should fail
+    // Attempt decryption using the user's secret key — should fail
     const payload = decryptNoteV2WithKey(
       note!.encryptedContent!,
       note!.authorEnvelope!,
       volSecretKey
     )
 
-    // The volunteer's key is not in this note's envelopes — decryption must fail
+    // The user's key is not in this note's envelopes — decryption must fail
     expect(payload).toBeNull()
   })
 })

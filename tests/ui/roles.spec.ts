@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 import {
   completeProfileSetup,
-  createVolunteerAndGetNsec,
+  createUserAndGetNsec,
   loginAsAdmin,
-  loginAsVolunteer,
+  loginAsUser,
   uniquePhone,
 } from '../helpers'
 import { ADMIN_NSEC } from '../helpers'
@@ -17,27 +17,27 @@ test.describe('Role-based UI visibility', () => {
   test.beforeAll(async ({ browser, request }) => {
     const page = await browser.newPage()
     await loginAsAdmin(page)
-    reporterNsec = await createVolunteerAndGetNsec(page, 'UI Reporter', uniquePhone())
+    reporterNsec = await createUserAndGetNsec(page, 'UI Reporter', uniquePhone())
     await page.close()
 
     // Derive pubkey from nsec and assign reporter role via server-side authed request
     // (avoids browser-side name matching which fails because names are now E2EE)
     const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     const reporterApi = createAuthedRequestFromNsec(request, reporterNsec)
-    await adminApi.patch(`/api/volunteers/${reporterApi.pubkey}`, {
+    await adminApi.patch(`/api/users/${reporterApi.pubkey}`, {
       roles: ['role-reporter'],
     })
   })
 
-  test('reporter sees reports UI, not call/volunteer management', async ({ page }) => {
-    await loginAsVolunteer(page, reporterNsec)
+  test('reporter sees reports UI, not call/user management', async ({ page }) => {
+    await loginAsUser(page, reporterNsec)
     await completeProfileSetup(page)
 
     // Reporter should see Reports link
     await expect(page.getByRole('link', { name: 'Reports' })).toBeVisible()
 
-    // Reporter should NOT see volunteer management links
-    await expect(page.getByRole('link', { name: 'Volunteers' })).not.toBeVisible()
+    // Reporter should NOT see user management links
+    await expect(page.getByRole('link', { name: 'Users' })).not.toBeVisible()
     await expect(page.getByRole('link', { name: 'Shifts' })).not.toBeVisible()
     await expect(page.getByRole('link', { name: 'Ban List' })).not.toBeVisible()
     await expect(page.getByRole('link', { name: 'Audit Log' })).not.toBeVisible()
@@ -53,7 +53,7 @@ test.describe('Role-based UI visibility', () => {
 
     await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Notes' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Volunteers' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Users' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Shifts' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Ban List' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Call History' })).toBeVisible()
@@ -67,9 +67,9 @@ test.describe('Role-based UI visibility', () => {
 test.describe('Role Assignment UI', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test('role selector dropdown in volunteer list shows all default roles', async ({ page }) => {
+  test('role selector dropdown in user list shows all default roles', async ({ page }) => {
     await loginAsAdmin(page)
-    await createVolunteerAndGetNsec(page, 'RoleUI Vol', uniquePhone())
+    await createUserAndGetNsec(page, 'RoleUI Vol', uniquePhone())
     await page.getByText('Close').click()
 
     // Find the role selector trigger (the Select with aria-label "Change role")
@@ -88,9 +88,9 @@ test.describe('Role Assignment UI', () => {
     await page.keyboard.press('Escape')
   })
 
-  test('changing a volunteer role from Volunteer to Hub Admin via dropdown', async ({ page }) => {
+  test('changing a user role from Volunteer to Hub Admin via dropdown', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
+    await page.getByRole('link', { name: 'Users' }).click()
     await expect(page.getByText('RoleUI Vol')).toBeVisible()
 
     // Find the specific row containing "RoleUI Vol" text — use the row-level container
@@ -110,7 +110,7 @@ test.describe('Role Assignment UI', () => {
 
   test('Hub Admin badge displays correctly after role change', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
+    await page.getByRole('link', { name: 'Users' }).click()
 
     const volText = page.getByText('RoleUI Vol')
     const volRow = page.locator('.divide-y > div').filter({ has: volText })
@@ -121,10 +121,10 @@ test.describe('Role Assignment UI', () => {
     ).toBeVisible()
   })
 
-  test('Add Volunteer form shows all available roles', async ({ page }) => {
+  test('Add User form shows all available roles', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await page.getByRole('button', { name: /add volunteer/i }).click()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await page.getByRole('button', { name: /add user/i }).click()
 
     // Click the role dropdown
     const roleDropdown = page.locator('#vol-role')
@@ -143,8 +143,8 @@ test.describe('Role Assignment UI', () => {
 
   test('Invite form shows all available roles', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await page.getByRole('button', { name: /invite user/i }).click()
 
     // Click the role dropdown
     const roleDropdown = page.locator('#invite-role')

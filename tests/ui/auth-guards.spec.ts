@@ -56,7 +56,7 @@ test.describe('Auth guards', () => {
 
   test('API returns 401 for unauthenticated requests', async ({ page }) => {
     // Direct API call without auth
-    const response = await page.request.get('/api/volunteers')
+    const response = await page.request.get('/api/users')
     expect(response.status()).toBe(401)
   })
 })

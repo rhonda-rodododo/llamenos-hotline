@@ -12,26 +12,26 @@ import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 test.describe('PIN Challenge (Re-auth Step-up)', () => {
   test.beforeEach(async ({ request }) => {
-    // Ensure at least one volunteer with a phone exists for the toggle button
+    // Ensure at least one user with a phone exists for the toggle button
     const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
     const sk = generateSecretKey()
     const pk = getPublicKey(sk)
-    await adminApi.post('/api/volunteers', {
+    await adminApi.post('/api/users', {
       pubkey: pk,
-      name: 'PIN Test Volunteer',
+      name: 'PIN Test User',
       phone: uniquePhone(),
       roleIds: ['role-volunteer'],
     })
   })
 
-  test('phone unmask on volunteers page requires PIN', async ({ page }) => {
+  test('phone unmask on users page requires PIN', async ({ page }) => {
     await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/volunteers')
+    await navigateAfterLogin(page, '/users')
 
-    // Wait for volunteers list to load
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    // Wait for users list to load
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    // Find a volunteer row with a phone toggle button
+    // Find a user row with a phone toggle button
     const toggleBtn = page.getByTestId('toggle-phone-visibility').first()
     await expect(toggleBtn).toBeVisible({ timeout: 5000 })
 
@@ -55,9 +55,9 @@ test.describe('PIN Challenge (Re-auth Step-up)', () => {
 
   test('wrong PIN shows error, 3 failures wipes key', async ({ page }) => {
     await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/volunteers')
+    await navigateAfterLogin(page, '/users')
 
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
     const toggleBtn = page.getByTestId('toggle-phone-visibility').first()
     await expect(toggleBtn).toBeVisible({ timeout: 5000 })
@@ -91,9 +91,9 @@ test.describe('PIN Challenge (Re-auth Step-up)', () => {
 
   test('cancel PIN challenge closes dialog without action', async ({ page }) => {
     await loginAsAdmin(page)
-    await navigateAfterLogin(page, '/volunteers')
+    await navigateAfterLogin(page, '/users')
 
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
     const toggleBtn = page.getByTestId('toggle-phone-visibility').first()
     await expect(toggleBtn).toBeVisible({ timeout: 5000 })
@@ -110,7 +110,7 @@ test.describe('PIN Challenge (Re-auth Step-up)', () => {
     // Dialog should close
     await expect(pinDialog).not.toBeVisible({ timeout: 5000 })
 
-    // Should still be on volunteers page
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    // Should still be on users page
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
   })
 })

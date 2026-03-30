@@ -105,7 +105,7 @@ export function createAuthedRequestFromNsec(
  * The enroll endpoint is idempotent — calling it twice for the same pubkey is safe.
  * Returns the hex-encoded nsecSecret assigned to the user in Authentik.
  *
- * @param adminApi - An AuthedRequest with `volunteers:create` or `*` permission
+ * @param adminApi - An AuthedRequest with `users:create` or `*` permission
  * @param pubkey - The hex pubkey of the user to enroll
  * @returns The hex-encoded nsecSecret
  */

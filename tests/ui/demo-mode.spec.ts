@@ -74,7 +74,7 @@ test.describe('Demo Mode', () => {
 
     // The demo toggle should be visible
     await expect(page.getByText('Populate with sample data')).toBeVisible()
-    await expect(page.getByText('Creates sample volunteer accounts')).toBeVisible()
+    await expect(page.getByText('Creates sample user accounts')).toBeVisible()
 
     // Toggle should be off by default
     const toggle = page.getByRole('switch')
@@ -88,11 +88,11 @@ test.describe('Demo Mode', () => {
     await loginAsAdmin(page)
     await completeSetupWithDemoMode(page)
 
-    // Verify demo volunteers were created
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible({ timeout: 10000 })
+    // Verify demo users were created
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible({ timeout: 10000 })
 
-    // Check for demo volunteer names (use .first() in case of duplicate entries from parallel resets)
+    // Check for demo user names (use .first() in case of duplicate entries from parallel resets)
     await expect(page.getByText('Maria Santos').first()).toBeVisible({ timeout: 10000 })
     await expect(page.getByText('James Chen').first()).toBeVisible()
     await expect(page.getByText('Community Reporter').first()).toBeVisible()

@@ -2,21 +2,21 @@ import { expect, test } from '@playwright/test'
 import {
   TEST_PIN,
   completeProfileSetup,
-  createVolunteerAndGetNsec,
+  createUserAndGetNsec,
   enterPin,
   loginAsAdmin,
-  loginAsVolunteer,
+  loginAsUser,
   navigateAfterLogin,
   uniquePhone,
 } from '../helpers'
 
 test.describe('Profile self-service', () => {
-  let volunteerNsec: string
+  let userNsec: string
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage()
     await loginAsAdmin(page)
-    volunteerNsec = await createVolunteerAndGetNsec(page, 'Profile Vol', uniquePhone())
+    userNsec = await createUserAndGetNsec(page, 'Profile Vol', uniquePhone())
     await page.close()
   })
 
@@ -82,8 +82,8 @@ test.describe('Profile self-service', () => {
     await expect(page.getByText(/invalid phone/i)).toBeVisible({ timeout: 5000 })
   })
 
-  test('volunteer sees profile card in settings', async ({ page }) => {
-    await loginAsVolunteer(page, volunteerNsec)
+  test('user sees profile card in settings', async ({ page }) => {
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
 
     await page.getByRole('link', { name: 'Settings' }).click()
@@ -121,8 +121,8 @@ test.describe('Profile self-service', () => {
     await expect(page.getByRole('heading', { name: /passkeys/i })).toBeVisible()
   })
 
-  test('volunteer does not see admin settings link', async ({ page }) => {
-    await loginAsVolunteer(page, volunteerNsec)
+  test('user does not see admin settings link', async ({ page }) => {
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
 
     await page.getByRole('link', { name: 'Settings' }).click()
@@ -136,8 +136,8 @@ test.describe('Profile self-service', () => {
     await expect(page.getByRole('heading', { name: /spam mitigation/i })).not.toBeVisible()
   })
 
-  test('volunteer can update name and phone', async ({ page }) => {
-    await loginAsVolunteer(page, volunteerNsec)
+  test('user can update name and phone', async ({ page }) => {
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
 
     await page.getByRole('link', { name: 'Settings' }).click()
@@ -189,7 +189,7 @@ test.describe('Profile self-service', () => {
     await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
 
     // Transcription section should be expanded — content should be visible
-    // When allowVolunteerOptOut is false (default), shows "managed by admin" instead of toggle
+    // When allowUserOptOut is false (default), shows "managed by admin" instead of toggle
     await expect(page.getByText(/transcription is managed by your admin/i)).toBeVisible()
   })
 

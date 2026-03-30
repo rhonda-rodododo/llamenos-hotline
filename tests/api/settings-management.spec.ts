@@ -5,10 +5,10 @@
  * IVR languages, WebAuthn policy, data retention, setup state, and provider health.
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { TestContext } from '../api-helpers'
-import { createAuthedRequestFromNsec, type AuthedRequest } from '../helpers/authed-request'
 import { ADMIN_NSEC } from '../helpers'
+import { type AuthedRequest, createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 let ctx: TestContext
 let adminApi: AuthedRequest
@@ -51,12 +51,12 @@ test.describe('Settings Management', () => {
       expect(res.status()).toBe(200)
     })
 
-    test('volunteer cannot read call settings', async () => {
+    test('user cannot read call settings', async () => {
       const res = await ctx.api('volunteer').get('/api/settings/call')
       expect(res.status()).toBe(403)
     })
 
-    test('volunteer cannot update call settings', async () => {
+    test('user cannot update call settings', async () => {
       const res = await ctx.api('volunteer').patch('/api/settings/call', {
         queueTimeoutSeconds: 999,
       })
@@ -79,7 +79,7 @@ test.describe('Settings Management', () => {
       expect(res.status()).toBe(200)
     })
 
-    test('volunteer cannot read spam settings', async () => {
+    test('user cannot read spam settings', async () => {
       const res = await ctx.api('volunteer').get('/api/settings/spam')
       expect(res.status()).toBe(403)
     })
@@ -103,17 +103,17 @@ test.describe('Settings Management', () => {
           label: 'Test Field',
           type: 'text',
           required: false,
-          visibleToVolunteers: true,
-          editableByVolunteers: false,
+          visibleToUsers: true,
+          editableByUsers: false,
           context: 'notes',
         },
       ])
       expect(res.status()).toBe(200)
     })
 
-    test('volunteer can read custom fields (filtered view)', async () => {
+    test('user can read custom fields (filtered view)', async () => {
       const res = await ctx.api('volunteer').get('/api/settings/custom-fields')
-      // Volunteers can read fields (needed for note forms) but get filtered view
+      // Users can read fields (needed for note forms) but get filtered view
       expect(res.status()).toBe(200)
     })
   })
@@ -129,12 +129,12 @@ test.describe('Settings Management', () => {
     test('admin can update transcription settings', async () => {
       const res = await adminApi.patch('/api/settings/transcription', {
         enabled: true,
-        allowVolunteerOptOut: true,
+        allowUserOptOut: true,
       })
       expect(res.status()).toBe(200)
     })
 
-    test('volunteer cannot update global transcription settings', async () => {
+    test('user cannot update global transcription settings', async () => {
       const res = await ctx.api('volunteer').patch('/api/settings/transcription', {
         enabled: false,
       })
@@ -155,7 +155,7 @@ test.describe('Settings Management', () => {
       expect(res.status()).toBe(200)
     })
 
-    test('volunteer cannot read IVR languages', async () => {
+    test('user cannot read IVR languages', async () => {
       const res = await ctx.api('volunteer').get('/api/settings/ivr-languages')
       expect(res.status()).toBe(403)
     })
@@ -176,7 +176,7 @@ test.describe('Settings Management', () => {
       expect(res.status()).toBe(200)
     })
 
-    test('volunteer cannot manage WebAuthn settings', async () => {
+    test('user cannot manage WebAuthn settings', async () => {
       const res = await ctx.api('volunteer').get('/api/settings/webauthn')
       expect(res.status()).toBe(403)
     })
@@ -198,7 +198,7 @@ test.describe('Settings Management', () => {
       expect(res.status()).toBe(200)
     })
 
-    test('volunteer cannot manage retention settings', async () => {
+    test('user cannot manage retention settings', async () => {
       const res = await ctx.api('volunteer').get('/api/settings/retention')
       expect(res.status()).toBe(403)
     })
@@ -212,7 +212,7 @@ test.describe('Settings Management', () => {
       expect(res.status()).toBe(200)
     })
 
-    test('volunteer cannot read setup state', async () => {
+    test('user cannot read setup state', async () => {
       const res = await ctx.api('volunteer').get('/api/settings/setup')
       expect(res.status()).toBe(403)
     })
@@ -239,13 +239,13 @@ test.describe('Settings Management', () => {
       expect(body.byDomain).toBeDefined()
 
       // Verify key domains exist
-      const expectedDomains = ['calls', 'notes', 'bans', 'shifts', 'settings', 'audit', 'volunteers']
+      const expectedDomains = ['calls', 'notes', 'bans', 'shifts', 'settings', 'audit', 'users']
       for (const domain of expectedDomains) {
         expect(body.byDomain[domain], `domain '${domain}' should exist`).toBeDefined()
       }
     })
 
-    test('volunteer cannot read permissions catalog', async () => {
+    test('user cannot read permissions catalog', async () => {
       const res = await ctx.api('volunteer').get('/api/settings/permissions')
       expect(res.status()).toBe(403)
     })

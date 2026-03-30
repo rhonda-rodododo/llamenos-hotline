@@ -5,10 +5,10 @@
  * Fallback group management and my-status endpoint.
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { TestContext, uniqueName } from '../api-helpers'
-import { createAuthedRequestFromNsec, type AuthedRequest } from '../helpers/authed-request'
 import { ADMIN_NSEC } from '../helpers'
+import { type AuthedRequest, createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 let ctx: TestContext
 let adminApi: AuthedRequest
@@ -42,7 +42,7 @@ test.describe('Shift CRUD and Scheduling', () => {
       startTime: '08:00',
       endTime: '14:00',
       days: [1, 2, 3, 4, 5],
-      volunteerPubkeys: [ctx.user('volunteer').pubkey],
+      userPubkeys: [ctx.user('volunteer').pubkey],
     })
     expect([200, 201]).toContain(res.status())
     const body = await res.json()
@@ -90,9 +90,9 @@ test.describe('Shift CRUD and Scheduling', () => {
     expect(body.shift.name).toBe('Updated Morning Shift')
   })
 
-  test('update shift volunteers', async () => {
+  test('update shift users', async () => {
     const res = await adminApi.patch(ctx.hubPath(`/shifts/${shiftId}`), {
-      volunteerPubkeys: [ctx.user('volunteer').pubkey, ctx.user('hub-admin').pubkey],
+      userPubkeys: [ctx.user('volunteer').pubkey, ctx.user('hub-admin').pubkey],
     })
     expect(res.status()).toBe(200)
   })
@@ -117,13 +117,13 @@ test.describe('Shift CRUD and Scheduling', () => {
     const res = await adminApi.get(ctx.hubPath('/shifts/fallback'))
     expect(res.status()).toBe(200)
     const body = await res.json()
-    expect(body.volunteers).toBeDefined()
-    expect(Array.isArray(body.volunteers)).toBe(true)
+    expect(body.users).toBeDefined()
+    expect(Array.isArray(body.users)).toBe(true)
   })
 
   // ─── My Status ───────────────────────────────────────────────────────────
 
-  test('volunteer can check own shift status', async () => {
+  test('user can check own shift status', async () => {
     const res = await ctx.api('volunteer').get(ctx.hubPath('/shifts/my-status'))
     expect(res.status()).toBe(200)
   })
@@ -149,25 +149,25 @@ test.describe('Shift CRUD and Scheduling', () => {
 
   // ─── Permission Enforcement ──────────────────────────────────────────────
 
-  test('volunteer cannot create shifts', async () => {
+  test('user cannot create shifts', async () => {
     const res = await ctx.api('volunteer').post(ctx.hubPath('/shifts'), {
       name: 'Unauthorized Shift',
       startTime: '09:00',
       endTime: '17:00',
       days: [1],
-      volunteerPubkeys: [],
+      userPubkeys: [],
     })
     expect(res.status()).toBe(403)
   })
 
-  test('volunteer cannot delete shifts', async () => {
+  test('user cannot delete shifts', async () => {
     // Create a shift first
     const createRes = await adminApi.post(ctx.hubPath('/shifts'), {
       name: 'Temp Shift',
       startTime: '09:00',
       endTime: '17:00',
       days: [1],
-      volunteerPubkeys: [],
+      userPubkeys: [],
     })
     const { shift } = await createRes.json()
 

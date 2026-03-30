@@ -38,8 +38,8 @@ test.beforeAll(async ({ request }) => {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Create a fresh volunteer via admin API and return their secret key + pubkey. */
-async function createTestVolunteer(adminApi: AuthedRequest): Promise<{
+/** Create a fresh user via admin API and return their secret key + pubkey. */
+async function createTestUser(adminApi: AuthedRequest): Promise<{
   sk: Uint8Array
   pubkey: string
 }> {
@@ -48,14 +48,14 @@ async function createTestVolunteer(adminApi: AuthedRequest): Promise<{
   const name = uniqueName('AuthFacadeVol')
   const phone = uniquePhone()
 
-  const res = await adminApi.post('/api/volunteers', {
+  const res = await adminApi.post('/api/users', {
     name,
     phone,
     pubkey,
     roleIds: ['role-volunteer'],
   })
   if (!res.ok()) {
-    throw new Error(`Failed to create volunteer: ${res.status()} ${await res.text()}`)
+    throw new Error(`Failed to create user: ${res.status()} ${await res.text()}`)
   }
 
   return { sk, pubkey }
@@ -75,7 +75,7 @@ test.describe('Auth Facade API', () => {
   // ===== 1. Enrollment =====
 
   test('POST /api/auth/enroll creates user and returns nsecSecret', async ({ request }) => {
-    const { pubkey } = await createTestVolunteer(adminApi)
+    const { pubkey } = await createTestUser(adminApi)
 
     const res = await adminApi.post('/api/auth/enroll', { pubkey })
     expect(res.status()).toBe(200)
@@ -88,7 +88,7 @@ test.describe('Auth Facade API', () => {
   })
 
   test('POST /api/auth/enroll is idempotent', async ({ request }) => {
-    const { pubkey } = await createTestVolunteer(adminApi)
+    const { pubkey } = await createTestUser(adminApi)
 
     const res1 = await adminApi.post('/api/auth/enroll', { pubkey })
     expect(res1.status()).toBe(200)
@@ -117,31 +117,31 @@ test.describe('Auth Facade API', () => {
   })
 
   test('POST /api/auth/enroll rejects insufficient permissions', async ({ request }) => {
-    // Create a volunteer-level authed request (no volunteers:create permission)
+    // Create a user-level authed request (no users:create permission)
     const sk = generateSecretKey()
     const pubkey = getPublicKey(sk)
-    const volApi = createAuthedRequest(request, sk, ['calls:answer', 'notes:create'])
+    const userApi = createAuthedRequest(request, sk, ['calls:answer', 'notes:create'])
 
     const targetSk = generateSecretKey()
     const targetPubkey = getPublicKey(targetSk)
 
-    const res = await volApi.post('/api/auth/enroll', { pubkey: targetPubkey })
+    const res = await userApi.post('/api/auth/enroll', { pubkey: targetPubkey })
     expect(res.status()).toBe(403)
   })
 
   // ===== 2. Userinfo =====
 
   test('GET /api/auth/userinfo returns real nsecSecret', async ({ request }) => {
-    const { sk, pubkey } = await createTestVolunteer(adminApi)
+    const { sk, pubkey } = await createTestUser(adminApi)
 
-    // Enroll the volunteer first
+    // Enroll the user first
     const enrollRes = await adminApi.post('/api/auth/enroll', { pubkey })
     expect(enrollRes.status()).toBe(200)
     const { nsecSecret: enrolledSecret } = await enrollRes.json()
 
-    // Now call userinfo as the volunteer
-    const volApi = createAuthedRequest(request, sk)
-    const res = await volApi.get('/api/auth/userinfo')
+    // Now call userinfo as the user
+    const userApi = createAuthedRequest(request, sk)
+    const res = await userApi.get('/api/auth/userinfo')
     expect(res.status()).toBe(200)
 
     const body = await res.json()
@@ -177,11 +177,11 @@ test.describe('Auth Facade API', () => {
   // ===== 4. Session revocation =====
 
   test('POST /api/auth/session/revoke returns ok', async ({ request }) => {
-    const { sk, pubkey } = await createTestVolunteer(adminApi)
+    const { sk, pubkey } = await createTestUser(adminApi)
     await enrollInAuthentik(adminApi, pubkey)
 
-    const volApi = createAuthedRequest(request, sk)
-    const res = await volApi.post('/api/auth/session/revoke', {})
+    const userApi = createAuthedRequest(request, sk)
+    const res = await userApi.post('/api/auth/session/revoke', {})
     expect(res.status()).toBe(200)
 
     const body = await res.json()
@@ -191,10 +191,10 @@ test.describe('Auth Facade API', () => {
   // ===== 5. Admin re-enrollment =====
 
   test('POST /api/auth/admin/re-enroll wipes credentials', async () => {
-    const { pubkey } = await createTestVolunteer(adminApi)
+    const { pubkey } = await createTestUser(adminApi)
     await enrollInAuthentik(adminApi, pubkey)
 
-    // Admin re-enrolls the volunteer
+    // Admin re-enrolls the user
     const res = await adminApi.post(`/api/auth/admin/re-enroll/${pubkey}`)
     expect(res.status()).toBe(200)
 
@@ -203,20 +203,20 @@ test.describe('Auth Facade API', () => {
   })
 
   test('POST /api/auth/admin/re-enroll rejects non-admin', async ({ request }) => {
-    const { sk: volSk, pubkey: volPubkey } = await createTestVolunteer(adminApi)
-    await enrollInAuthentik(adminApi, volPubkey)
+    const { sk: userSk, pubkey: userPubkey } = await createTestUser(adminApi)
+    await enrollInAuthentik(adminApi, userPubkey)
 
-    // Create a second volunteer as the target
-    const { pubkey: targetPubkey } = await createTestVolunteer(adminApi)
+    // Create a second user as the target
+    const { pubkey: targetPubkey } = await createTestUser(adminApi)
     await enrollInAuthentik(adminApi, targetPubkey)
 
-    // Volunteer tries to re-enroll target — should be 403
-    const volApi = createAuthedRequest(request, volSk, ['calls:answer', 'notes:create'])
-    const res = await volApi.post(`/api/auth/admin/re-enroll/${targetPubkey}`)
+    // User tries to re-enroll target — should be 403
+    const userApi = createAuthedRequest(request, userSk, ['calls:answer', 'notes:create'])
+    const res = await userApi.post(`/api/auth/admin/re-enroll/${targetPubkey}`)
     expect(res.status()).toBe(403)
   })
 
-  test('POST /api/auth/admin/re-enroll returns 404 for nonexistent volunteer', async () => {
+  test('POST /api/auth/admin/re-enroll returns 404 for nonexistent user', async () => {
     const fakePubkey = getPublicKey(generateSecretKey())
     const res = await adminApi.post(`/api/auth/admin/re-enroll/${fakePubkey}`)
     expect(res.status()).toBe(404)
@@ -244,27 +244,27 @@ test.describe('Auth Facade API', () => {
   // ===== 7. Devices =====
 
   test('GET /api/auth/devices returns credential list', async ({ request }) => {
-    const { sk, pubkey } = await createTestVolunteer(adminApi)
+    const { sk, pubkey } = await createTestUser(adminApi)
     await enrollInAuthentik(adminApi, pubkey)
 
-    const volApi = createAuthedRequest(request, sk)
-    const res = await volApi.get('/api/auth/devices')
+    const userApi = createAuthedRequest(request, sk)
+    const res = await userApi.get('/api/auth/devices')
     expect(res.status()).toBe(200)
 
     const body = await res.json()
     expect(body).toHaveProperty('credentials')
     expect(Array.isArray(body.credentials)).toBe(true)
-    // New volunteer has no WebAuthn credentials yet
+    // New user has no WebAuthn credentials yet
     expect(body.credentials).toHaveLength(0)
   })
 
   test('GET /api/auth/devices shows warning when only one credential', async ({ request }) => {
     // With 0 credentials, there should be no warning (warning is for exactly 1)
-    const { sk, pubkey } = await createTestVolunteer(adminApi)
+    const { sk, pubkey } = await createTestUser(adminApi)
     await enrollInAuthentik(adminApi, pubkey)
 
-    const volApi = createAuthedRequest(request, sk)
-    const res = await volApi.get('/api/auth/devices')
+    const userApi = createAuthedRequest(request, sk)
+    const res = await userApi.get('/api/auth/devices')
     expect(res.status()).toBe(200)
 
     const body = await res.json()
@@ -275,7 +275,7 @@ test.describe('Auth Facade API', () => {
   // ===== 8. Error handling =====
 
   test('concurrent enrollment of same pubkey is handled', async () => {
-    const { pubkey } = await createTestVolunteer(adminApi)
+    const { pubkey } = await createTestUser(adminApi)
 
     // Fire two enrollments in parallel
     const [res1, res2] = await Promise.all([
@@ -331,11 +331,11 @@ test.describe('Auth Facade API', () => {
   // ===== 9. Rotation lifecycle =====
 
   test('POST /api/auth/rotation/confirm succeeds for enrolled user', async ({ request }) => {
-    const { sk, pubkey } = await createTestVolunteer(adminApi)
+    const { sk, pubkey } = await createTestUser(adminApi)
     await enrollInAuthentik(adminApi, pubkey)
 
-    const volApi = createAuthedRequest(request, sk)
-    const res = await volApi.post('/api/auth/rotation/confirm', {})
+    const userApi = createAuthedRequest(request, sk)
+    const res = await userApi.post('/api/auth/rotation/confirm', {})
     expect(res.status()).toBe(200)
 
     const body = await res.json()
@@ -365,11 +365,11 @@ test.describe('Auth Facade API', () => {
   test('DELETE /api/auth/devices/:id returns 404 for nonexistent credential', async ({
     request,
   }) => {
-    const { sk, pubkey } = await createTestVolunteer(adminApi)
+    const { sk, pubkey } = await createTestUser(adminApi)
     await enrollInAuthentik(adminApi, pubkey)
 
-    const volApi = createAuthedRequest(request, sk)
-    const res = await volApi.delete('/api/auth/devices/nonexistent-credential-id')
+    const userApi = createAuthedRequest(request, sk)
+    const res = await userApi.delete('/api/auth/devices/nonexistent-credential-id')
     expect(res.status()).toBe(404)
   })
 })

@@ -3,10 +3,10 @@ import {
   ADMIN_NSEC,
   TEST_PIN,
   Timeouts,
-  createVolunteerAndGetNsec,
+  createUserAndGetNsec,
   enterPin,
   loginAsAdmin,
-  loginAsVolunteer,
+  loginAsUser,
   navigateAfterLogin,
   uniquePhone,
 } from '../helpers'
@@ -15,7 +15,7 @@ test.describe('GDPR Compliance', () => {
   test.describe('Consent gate', () => {
     /**
      * The consent gate is shown when the user first authenticates.
-     * Since test volunteers start without consent, it should appear.
+     * Since test users start without consent, it should appear.
      * After agreeing it should disappear and not appear again.
      */
     test('consent gate hidden for admin (already consented or skipped)', async ({ page }) => {
@@ -30,16 +30,16 @@ test.describe('GDPR Compliance', () => {
     })
 
     test('consent gate shown and dismissed after agreement', async ({ page, request }) => {
-      // Create a fresh volunteer
+      // Create a fresh user
       const adminPage = await page.context().newPage()
       await loginAsAdmin(adminPage)
-      const nsec = await createVolunteerAndGetNsec(adminPage, 'ConsentVol', uniquePhone())
+      const nsec = await createUserAndGetNsec(adminPage, 'ConsentVol', uniquePhone())
       await adminPage.close()
 
-      // Login as volunteer — consent gate should appear
-      await loginAsVolunteer(page, nsec)
+      // Login as user — consent gate should appear
+      await loginAsUser(page, nsec)
 
-      // Consent gate may or may not appear depending on whether volunteer has consented before
+      // Consent gate may or may not appear depending on whether user has consented before
       // If it appears, scroll to bottom and agree
       const gate = page.getByTestId('consent-gate')
       const gateVisible = await gate.isVisible({ timeout: 3000 }).catch(() => false)
@@ -106,18 +106,18 @@ test.describe('GDPR Compliance', () => {
   })
 
   test.describe('Right to erasure', () => {
-    let volunteerNsec: string
+    let userNsec: string
 
     test.beforeAll(async ({ browser }) => {
       const page = await browser.newPage()
       await loginAsAdmin(page)
-      volunteerNsec = await createVolunteerAndGetNsec(page, 'ErasureVol', uniquePhone())
+      userNsec = await createUserAndGetNsec(page, 'ErasureVol', uniquePhone())
       await page.close()
     })
 
-    test('volunteer can request account erasure and cancel it', async ({ page }) => {
-      test.slow() // full flow: create volunteer + login + navigate + request + cancel
-      await loginAsVolunteer(page, volunteerNsec)
+    test('user can request account erasure and cancel it', async ({ page }) => {
+      test.slow() // full flow: create user + login + navigate + request + cancel
+      await loginAsUser(page, userNsec)
 
       // Navigate to settings
       await navigateAfterLogin(page, '/settings')

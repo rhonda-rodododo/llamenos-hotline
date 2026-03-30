@@ -3,17 +3,17 @@
  *
  * Verifies that each endpoint enforces the correct permission tier:
  *
- *   contacts:read-summary  — base gate on all routes (volunteer has this)
- *   contacts:create        — POST /contacts, POST /contacts/relationships (volunteer has this)
- *   contacts:read-pii      — GET /contacts/relationships (volunteer LACKS this)
- *   contacts:update-summary — PATCH /contacts/:id with summary fields (volunteer LACKS this)
- *   contacts:update-pii    — PATCH /contacts/:id with PII fields (volunteer LACKS this)
- *   contacts:delete        — DELETE /contacts/:id (volunteer LACKS this)
- *   contacts:link          — POST/DELETE /contacts/:id/link (volunteer LACKS this)
+ *   contacts:read-summary  — base gate on all routes (user has this)
+ *   contacts:create        — POST /contacts, POST /contacts/relationships (user has this)
+ *   contacts:read-pii      — GET /contacts/relationships (user LACKS this)
+ *   contacts:update-summary — PATCH /contacts/:id with summary fields (user LACKS this)
+ *   contacts:update-pii    — PATCH /contacts/:id with PII fields (user LACKS this)
+ *   contacts:delete        — DELETE /contacts/:id (user LACKS this)
+ *   contacts:link          — POST/DELETE /contacts/:id/link (user LACKS this)
  *
  * Permission concern noted: POST /contacts/relationships only requires contacts:create,
  * but GET /contacts/relationships requires contacts:read-pii. This asymmetry means a
- * volunteer can create relationships they cannot read — likely intentional (blind record
+ * user can create relationships they cannot read — likely intentional (blind record
  * creation) but worth flagging for spec review.
  */
 
@@ -30,9 +30,9 @@ import {
 test.describe('Contact Directory — Permission Boundaries', () => {
   test.describe.configure({ mode: 'serial' })
 
-  // Shared volunteer keypair for the test run — registered in the setup test
-  const volunteerSk = generateSecretKey()
-  const volunteerPk = getPublicKey(volunteerSk)
+  // Shared user keypair for the test run — registered in the setup test
+  const userSk = generateSecretKey()
+  const userPk = getPublicKey(userSk)
   let contactId: string
 
   // Helper: create admin API from per-test request fixture
@@ -40,17 +40,17 @@ test.describe('Contact Directory — Permission Boundaries', () => {
     return createAuthedRequestFromNsec(request, ADMIN_NSEC)
   }
 
-  // Helper: create volunteer API from per-test request fixture
-  function volunteerApiFor(request: import('@playwright/test').APIRequestContext) {
-    return createAuthedRequest(request, volunteerSk)
+  // Helper: create user API from per-test request fixture
+  function userApiFor(request: import('@playwright/test').APIRequestContext) {
+    return createAuthedRequest(request, userSk)
   }
 
-  // Setup test: register the volunteer (must run first in serial mode)
-  test('setup: register test volunteer', async ({ request }) => {
+  // Setup test: register the user (must run first in serial mode)
+  test('setup: register test user', async ({ request }) => {
     const admin = adminApi(request)
-    const regRes = await admin.post('/api/volunteers', {
-      pubkey: volunteerPk,
-      name: 'Perm-Test Volunteer',
+    const regRes = await admin.post('/api/users', {
+      pubkey: userPk,
+      name: 'Perm-Test User',
       phone: uniquePhone(),
       roleIds: ['role-volunteer'],
     })
@@ -58,7 +58,7 @@ test.describe('Contact Directory — Permission Boundaries', () => {
       const body = await regRes.text()
       // 409 = already exists from prior run — acceptable
       if (regRes.status() !== 409) {
-        throw new Error(`Failed to register test volunteer: ${regRes.status()} ${body}`)
+        throw new Error(`Failed to register test user: ${regRes.status()} ${body}`)
       }
     }
   })
@@ -106,27 +106,27 @@ test.describe('Contact Directory — Permission Boundaries', () => {
     contactId = data.contact.id
   })
 
-  // ─── Volunteer — allowed operations ──────────────────────────────────────
+  // ─── User — allowed operations ──────────────────────────────────────
 
-  // NOTE: Volunteer tests below require hub-scoped routes (/api/hubs/:hubId/contacts)
+  // NOTE: User tests below require hub-scoped routes (/api/hubs/:hubId/contacts)
   // because requireHubOrSuperAdmin middleware blocks non-super-admin access to global routes.
-  // Currently these tests use global routes which return 400 for volunteers.
-  // TODO: Set up hub + hub membership for volunteer to test hub-scoped permission boundaries.
+  // Currently these tests use global routes which return 400 for users.
+  // TODO: Set up hub + hub membership for user to test hub-scoped permission boundaries.
 
-  test.skip('volunteer can list contacts (contacts:read-summary)', async ({ request }) => {
-    const res = await volunteerApiFor(request).get('/api/contacts')
+  test.skip('user can list contacts (contacts:read-summary)', async ({ request }) => {
+    const res = await userApiFor(request).get('/api/contacts')
     expect(res.status()).toBe(200)
     const data = await res.json()
     expect(data).toHaveProperty('contacts')
   })
 
-  test.skip('volunteer can get a single contact (contacts:read-summary)', async ({ request }) => {
-    const res = await volunteerApiFor(request).get(`/api/contacts/${contactId}`)
+  test.skip('user can get a single contact (contacts:read-summary)', async ({ request }) => {
+    const res = await userApiFor(request).get(`/api/contacts/${contactId}`)
     expect(res.status()).toBe(200)
   })
 
-  test.skip('volunteer can create a contact (contacts:create)', async ({ request }) => {
-    const res = await volunteerApiFor(request).post('/api/contacts', {
+  test.skip('user can create a contact (contacts:create)', async ({ request }) => {
+    const res = await userApiFor(request).post('/api/contacts', {
       contactType: 'caller',
       riskLevel: 'low',
       tags: [],
@@ -136,31 +136,29 @@ test.describe('Contact Directory — Permission Boundaries', () => {
     expect(res.status()).toBe(201)
   })
 
-  test.skip('volunteer can create a relationship (contacts:create)', async ({ request }) => {
-    // POST /contacts/relationships only requires contacts:create — volunteer has this.
-    // NOTE: This is an asymmetry: the volunteer can create relationships they cannot read
+  test.skip('user can create a relationship (contacts:create)', async ({ request }) => {
+    // POST /contacts/relationships only requires contacts:create — user has this.
+    // NOTE: This is an asymmetry: the user can create relationships they cannot read
     // (GET /relationships requires contacts:read-pii). See file-level comment.
-    const res = await volunteerApiFor(request).post('/api/contacts/relationships', {
+    const res = await userApiFor(request).post('/api/contacts/relationships', {
       encryptedPayload: 'vol-rel-payload',
       payloadEnvelopes: [],
     })
     expect(res.status()).toBe(201)
   })
 
-  test.skip('volunteer can query check-duplicate endpoint (contacts:read-summary)', async ({
+  test.skip('user can query check-duplicate endpoint (contacts:read-summary)', async ({
     request,
   }) => {
-    const res = await volunteerApiFor(request).get(
+    const res = await userApiFor(request).get(
       '/api/contacts/check-duplicate?identifierHash=aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899'
     )
     // Returns 200 with { exists: false } for an unknown hash
     expect(res.status()).toBe(200)
   })
 
-  test.skip('volunteer can use hash-phone endpoint (contacts:read-summary)', async ({
-    request,
-  }) => {
-    const res = await volunteerApiFor(request).post('/api/contacts/hash-phone', {
+  test.skip('user can use hash-phone endpoint (contacts:read-summary)', async ({ request }) => {
+    const res = await userApiFor(request).post('/api/contacts/hash-phone', {
       phone: '+15550001234',
     })
     expect(res.status()).toBe(200)
@@ -168,73 +166,67 @@ test.describe('Contact Directory — Permission Boundaries', () => {
     expect(data).toHaveProperty('identifierHash')
   })
 
-  test.skip('volunteer can get recipients list (contacts:read-summary)', async ({ request }) => {
-    const res = await volunteerApiFor(request).get('/api/contacts/recipients')
+  test.skip('user can get recipients list (contacts:read-summary)', async ({ request }) => {
+    const res = await userApiFor(request).get('/api/contacts/recipients')
     expect(res.status()).toBe(200)
   })
 
-  // ─── Volunteer — blocked operations ──────────────────────────────────────
+  // ─── User — blocked operations ──────────────────────────────────────
 
-  test.skip('volunteer cannot delete a contact (missing contacts:delete)', async ({ request }) => {
-    const res = await volunteerApiFor(request).delete(`/api/contacts/${contactId}`)
+  test.skip('user cannot delete a contact (missing contacts:delete)', async ({ request }) => {
+    const res = await userApiFor(request).delete(`/api/contacts/${contactId}`)
     expect(res.status()).toBe(403)
   })
 
-  test.skip('volunteer cannot update PII fields (missing contacts:update-pii)', async ({
-    request,
-  }) => {
-    const res = await volunteerApiFor(request).patch(`/api/contacts/${contactId}`, {
+  test.skip('user cannot update PII fields (missing contacts:update-pii)', async ({ request }) => {
+    const res = await userApiFor(request).patch(`/api/contacts/${contactId}`, {
       encryptedFullName: 'hacked-name',
       fullNameEnvelopes: [],
     })
     expect(res.status()).toBe(403)
   })
 
-  test.skip('volunteer cannot update summary fields (missing contacts:update-summary)', async ({
+  test.skip('user cannot update summary fields (missing contacts:update-summary)', async ({
     request,
   }) => {
-    // Volunteer only has contacts:create and contacts:read-summary —
+    // User only has contacts:create and contacts:read-summary —
     // contacts:update-summary is NOT included in role-volunteer
-    const res = await volunteerApiFor(request).patch(`/api/contacts/${contactId}`, {
+    const res = await userApiFor(request).patch(`/api/contacts/${contactId}`, {
       riskLevel: 'critical',
     })
     expect(res.status()).toBe(403)
   })
 
-  test.skip('volunteer cannot update display name (missing contacts:update-summary)', async ({
+  test.skip('user cannot update display name (missing contacts:update-summary)', async ({
     request,
   }) => {
-    const res = await volunteerApiFor(request).patch(`/api/contacts/${contactId}`, {
+    const res = await userApiFor(request).patch(`/api/contacts/${contactId}`, {
       encryptedDisplayName: 'new-display',
       displayNameEnvelopes: [],
     })
     expect(res.status()).toBe(403)
   })
 
-  test.skip('volunteer cannot link calls to contacts (missing contacts:link)', async ({
-    request,
-  }) => {
-    const res = await volunteerApiFor(request).post(`/api/contacts/${contactId}/link`, {
+  test.skip('user cannot link calls to contacts (missing contacts:link)', async ({ request }) => {
+    const res = await userApiFor(request).post(`/api/contacts/${contactId}/link`, {
       type: 'call',
       targetId: 'some-call-id',
     })
     expect(res.status()).toBe(403)
   })
 
-  test.skip('volunteer cannot unlink calls from contacts (missing contacts:link)', async ({
+  test.skip('user cannot unlink calls from contacts (missing contacts:link)', async ({
     request,
   }) => {
-    const res = await volunteerApiFor(request).delete(`/api/contacts/${contactId}/link`, {
+    const res = await userApiFor(request).delete(`/api/contacts/${contactId}/link`, {
       type: 'call',
       targetId: 'some-call-id',
     })
     expect(res.status()).toBe(403)
   })
 
-  test.skip('volunteer cannot list relationships (missing contacts:read-pii)', async ({
-    request,
-  }) => {
-    const res = await volunteerApiFor(request).get('/api/contacts/relationships')
+  test.skip('user cannot list relationships (missing contacts:read-pii)', async ({ request }) => {
+    const res = await userApiFor(request).get('/api/contacts/relationships')
     expect(res.status()).toBe(403)
   })
 

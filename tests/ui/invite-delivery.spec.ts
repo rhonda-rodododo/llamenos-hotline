@@ -25,16 +25,16 @@ test.describe('Invite delivery', () => {
 
   test('admin creates invite and sees send invite button', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const volName = `SendTest ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `SendTest ${Date.now()}`
+    const userPhone = uniquePhone()
 
     // Create invite
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(volName)
-    await page.getByLabel('Phone Number').fill(volPhone)
+    await page.getByRole('button', { name: /invite user/i }).click()
+    await page.getByLabel('Name').fill(userName)
+    await page.getByLabel('Phone Number').fill(userPhone)
     await page.getByLabel('Phone Number').blur()
     await page.getByRole('button', { name: /create invite/i }).click()
 
@@ -48,15 +48,15 @@ test.describe('Invite delivery', () => {
 
   test('send invite dialog shows copy link fallback', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const volName = `CopyLink ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `CopyLink ${Date.now()}`
+    const userPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(volName)
-    await page.getByLabel('Phone Number').fill(volPhone)
+    await page.getByRole('button', { name: /invite user/i }).click()
+    await page.getByLabel('Name').fill(userName)
+    await page.getByLabel('Phone Number').fill(userPhone)
     await page.getByLabel('Phone Number').blur()
     await page.getByRole('button', { name: /create invite/i }).click()
 
@@ -70,15 +70,15 @@ test.describe('Invite delivery', () => {
 
   test('send invite dialog closes on cancel', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const volName = `Cancel ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `Cancel ${Date.now()}`
+    const userPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(volName)
-    await page.getByLabel('Phone Number').fill(volPhone)
+    await page.getByRole('button', { name: /invite user/i }).click()
+    await page.getByLabel('Name').fill(userName)
+    await page.getByLabel('Phone Number').fill(userPhone)
     await page.getByLabel('Phone Number').blur()
     await page.getByRole('button', { name: /create invite/i }).click()
 
@@ -91,15 +91,15 @@ test.describe('Invite delivery', () => {
 
   test('pending invite shows "Not sent" status before delivery', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const volName = `NotSent ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `NotSent ${Date.now()}`
+    const userPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(volName)
-    await page.getByLabel('Phone Number').fill(volPhone)
+    await page.getByRole('button', { name: /invite user/i }).click()
+    await page.getByLabel('Name').fill(userName)
+    await page.getByLabel('Phone Number').fill(userPhone)
     await page.getByLabel('Phone Number').blur()
     await page.getByRole('button', { name: /create invite/i }).click()
 
@@ -111,7 +111,7 @@ test.describe('Invite delivery', () => {
     await page.getByTestId('dismiss-invite').click()
 
     // Wait for pending invites section to render with the new invite
-    await expect(page.getByText(volName)).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(userName)).toBeVisible({ timeout: 10000 })
 
     // Pending invite section should show "Not sent" for the created invite
     await expect(page.getByText(/not sent/i).first()).toBeVisible({ timeout: 10000 })
@@ -119,15 +119,15 @@ test.describe('Invite delivery', () => {
 
   test('send button opens dialog for an existing pending invite', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    const volName = `ExistInvite ${Date.now()}`
-    const volPhone = uniquePhone()
+    const userName = `ExistInvite ${Date.now()}`
+    const userPhone = uniquePhone()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
-    await page.getByLabel('Name').fill(volName)
-    await page.getByLabel('Phone Number').fill(volPhone)
+    await page.getByRole('button', { name: /invite user/i }).click()
+    await page.getByLabel('Name').fill(userName)
+    await page.getByLabel('Phone Number').fill(userPhone)
     await page.getByLabel('Phone Number').blur()
     await page.getByRole('button', { name: /create invite/i }).click()
 
@@ -150,10 +150,10 @@ test.describe('Invite delivery', () => {
 
   test('invalid phone format rejected in send dialog', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
+    await page.getByRole('button', { name: /invite user/i }).click()
     await page.getByLabel('Name').fill(`PhoneVal ${Date.now()}`)
     await page.getByLabel('Phone Number').fill(uniquePhone())
     await page.getByLabel('Phone Number').blur()
@@ -180,10 +180,10 @@ test.describe('Invite delivery', () => {
 
   test('SMS channel shows insecure warning', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    await page.getByRole('button', { name: /invite volunteer/i }).click()
+    await page.getByRole('button', { name: /invite user/i }).click()
     await page.getByLabel('Name').fill(`SMSWarn ${Date.now()}`)
     await page.getByLabel('Phone Number').fill(uniquePhone())
     await page.getByLabel('Phone Number').blur()

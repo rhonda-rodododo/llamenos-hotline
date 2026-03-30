@@ -452,7 +452,7 @@ authFacade.get('/devices', async (c) => {
 // POST /admin/re-enroll/:pubkey — admin-only: revoke all sessions + delete all WebAuthn credentials
 authFacade.post('/admin/re-enroll/:pubkey', async (c) => {
   const permissions = c.get('permissions')
-  if (!permissions.includes('volunteers:update') && !permissions.includes('*')) {
+  if (!permissions.includes('users:update') && !permissions.includes('*')) {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
@@ -476,7 +476,7 @@ authFacade.post('/admin/re-enroll/:pubkey', async (c) => {
 // POST /enroll — admin-only: create IdP user for a pubkey and return nsecSecret
 authFacade.post('/enroll', jwtAuth, async (c) => {
   const permissions = c.get('permissions')
-  if (!permissions.includes('volunteers:create') && !permissions.includes('*')) {
+  if (!permissions.includes('users:create') && !permissions.includes('*')) {
     return c.json({ error: 'Forbidden' }, 403)
   }
 

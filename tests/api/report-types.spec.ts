@@ -96,7 +96,7 @@ test.describe('Report Type Management', () => {
     expect(res.status()).toBe(200)
   })
 
-  test('volunteer cannot create report types', async () => {
+  test('user cannot create report types', async () => {
     const res = await ctx.api('volunteer').post(ctx.hubPath('/report-types'), {
       name: 'Unauthorized Type',
     })
@@ -110,7 +110,7 @@ test.describe('Report Type Management', () => {
     expect(res.status()).toBe(403)
   })
 
-  test('volunteer cannot archive report types', async () => {
+  test('user cannot archive report types', async () => {
     expect(reportTypeId).toBeDefined()
     const res = await ctx.api('volunteer').delete(ctx.hubPath(`/report-types/${reportTypeId}`))
     expect(res.status()).toBe(403)

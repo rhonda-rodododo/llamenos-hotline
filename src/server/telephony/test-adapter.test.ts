@@ -139,8 +139,8 @@ describe('TestAdapter', () => {
     expect(result.connected).toBe(true)
   })
 
-  test('ringVolunteers returns empty array (no real calls)', async () => {
-    const sids = await adapter.ringVolunteers({
+  test('ringUsers returns empty array (no real calls)', async () => {
+    const sids = await adapter.ringUsers({
       callSid: 'CA_test',
       callerNumber: '+15551111111',
       volunteers: [{ pubkey: 'pk1', phone: '+15553333333' }],

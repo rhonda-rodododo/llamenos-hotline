@@ -24,8 +24,8 @@ test.describe('Multi-hub architecture — UI', () => {
 
   test('existing pages still work with hub context', async ({ page }) => {
     // Verify all main pages load correctly with hub context active
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
     await page.getByRole('link', { name: 'Shifts' }).click()
     await expect(page.getByRole('heading', { name: /shift schedule/i })).toBeVisible()

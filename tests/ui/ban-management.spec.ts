@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 import {
   completeProfileSetup,
-  createVolunteerAndGetNsec,
+  createUserAndGetNsec,
   loginAsAdmin,
-  loginAsVolunteer,
+  loginAsUser,
   navigateAfterLogin,
   uniquePhone,
 } from '../helpers'
@@ -204,17 +204,17 @@ test.describe('Ban management', () => {
     await expect(page.getByText(/invalid phone/i)).toBeVisible({ timeout: 5000 })
   })
 
-  test('volunteer cannot access ban list', async ({ page }) => {
-    // Create a volunteer
+  test('user cannot access ban list', async ({ page }) => {
+    // Create a user
     const phone = uniquePhone()
     const name = `NoBanVol ${Date.now()}`
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    const nsec = await createVolunteerAndGetNsec(page, name, phone)
+    await page.getByRole('link', { name: 'Users' }).click()
+    const nsec = await createUserAndGetNsec(page, name, phone)
     await page.getByTestId('dismiss-nsec').click()
 
-    // Login as volunteer
+    // Login as user
     await page.getByRole('button', { name: /log out/i }).click()
-    await loginAsVolunteer(page, nsec)
+    await loginAsUser(page, nsec)
     await completeProfileSetup(page)
 
     // Navigate directly to bans page (SPA navigate to avoid full reload clearing keyManager)

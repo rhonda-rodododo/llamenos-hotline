@@ -1,6 +1,6 @@
 import { type APIRequestContext, type Page, expect, test } from '@playwright/test'
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools'
-import { ADMIN_NSEC, loginAsAdmin, loginAsVolunteer, uniquePhone } from '../helpers'
+import { ADMIN_NSEC, loginAsAdmin, loginAsUser, uniquePhone } from '../helpers'
 import { createAuthedRequestFromNsec } from '../helpers/authed-request'
 
 // Under parallel execution (3 workers), concurrent browser sessions with ECIES encryption
@@ -344,7 +344,7 @@ test.describe('Reports feature', () => {
   test.describe('Reporter role', () => {
     test('reporter navigation shows only My Reports', async ({ page, request }) => {
       const reporterNsec = await createReporterViaApi(request)
-      await loginAsVolunteer(page, reporterNsec)
+      await loginAsUser(page, reporterNsec)
       await handleProfileSetup(page)
 
       // Wait for the layout to fully render
@@ -353,17 +353,17 @@ test.describe('Reports feature', () => {
       // Reporter should see "Reports" nav link (reporter-only nav)
       await expect(page.getByRole('link', { name: 'Reports' })).toBeVisible({ timeout: 10000 })
 
-      // Reporter should NOT see Dashboard, Notes, Volunteers, or Admin links
+      // Reporter should NOT see Dashboard, Notes, Users, or Admin links
       await expect(page.getByRole('link', { name: 'Dashboard' })).not.toBeVisible()
       await expect(page.getByRole('link', { name: 'Notes' })).not.toBeVisible()
-      await expect(page.getByRole('link', { name: 'Volunteers' })).not.toBeVisible()
+      await expect(page.getByRole('link', { name: 'Users' })).not.toBeVisible()
       await expect(page.getByRole('link', { name: 'Hub Settings' })).not.toBeVisible()
       await expect(page.getByRole('link', { name: 'Audit Log' })).not.toBeVisible()
     })
 
     test('reporter can access reports page', async ({ page, request }) => {
       const reporterNsec = await createReporterViaApi(request)
-      await loginAsVolunteer(page, reporterNsec)
+      await loginAsUser(page, reporterNsec)
       await handleProfileSetup(page)
 
       await page.getByRole('link', { name: 'Reports' }).click()
@@ -376,7 +376,7 @@ test.describe('Reports feature', () => {
 
     test('reporter can create a report', async ({ page, request }) => {
       const reporterNsec = await createReporterViaApi(request)
-      await loginAsVolunteer(page, reporterNsec)
+      await loginAsUser(page, reporterNsec)
       await handleProfileSetup(page)
       await navigateToReports(page)
       const title = `Reporter Report ${Date.now()}`
@@ -396,7 +396,7 @@ test.describe('Reports feature', () => {
 
     test('reporter can reply to own report', async ({ page, request }) => {
       const reporterNsec = await createReporterViaApi(request)
-      await loginAsVolunteer(page, reporterNsec)
+      await loginAsUser(page, reporterNsec)
       await handleProfileSetup(page)
       await navigateToReports(page)
       const title = `Reply Report ${Date.now()}`
@@ -428,7 +428,7 @@ test.describe('Reports feature', () => {
 
     test('reporter sees encryption note in report detail', async ({ page, request }) => {
       const reporterNsec = await createReporterViaApi(request)
-      await loginAsVolunteer(page, reporterNsec)
+      await loginAsUser(page, reporterNsec)
       await handleProfileSetup(page)
       await navigateToReports(page)
       const title = `Encryption Note Report ${Date.now()}`
@@ -442,7 +442,7 @@ test.describe('Reports feature', () => {
 
     test('reporter does not see Claim or Close buttons', async ({ page, request }) => {
       const reporterNsec = await createReporterViaApi(request)
-      await loginAsVolunteer(page, reporterNsec)
+      await loginAsUser(page, reporterNsec)
       await handleProfileSetup(page)
       await navigateToReports(page)
       const title = `No Buttons Report ${Date.now()}`
@@ -457,7 +457,7 @@ test.describe('Reports feature', () => {
 
     test('reporter does not see status filter', async ({ page, request }) => {
       const reporterNsec = await createReporterViaApi(request)
-      await loginAsVolunteer(page, reporterNsec)
+      await loginAsUser(page, reporterNsec)
       await handleProfileSetup(page)
       await navigateToReports(page)
 

@@ -6,9 +6,9 @@ test.describe('Form validation', () => {
     await loginAsAdmin(page)
   })
 
-  test('volunteer form rejects invalid phone', async ({ page }) => {
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await page.getByRole('button', { name: /add volunteer/i }).click()
+  test('user form rejects invalid phone', async ({ page }) => {
+    await page.getByRole('link', { name: 'Users' }).click()
+    await page.getByRole('button', { name: /add user/i }).click()
 
     await page.getByLabel('Name').fill('Test')
     // PhoneInput strips non-digits; use a too-short number that fails E.164 validation
@@ -19,9 +19,9 @@ test.describe('Form validation', () => {
     await expect(page.getByText(/invalid phone/i)).toBeVisible()
   })
 
-  test('volunteer form rejects phone without plus prefix', async ({ page }) => {
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await page.getByRole('button', { name: /add volunteer/i }).click()
+  test('user form rejects phone without plus prefix', async ({ page }) => {
+    await page.getByRole('link', { name: 'Users' }).click()
+    await page.getByRole('button', { name: /add user/i }).click()
 
     await page.getByLabel('Name').fill('Test')
     // PhoneInput auto-prepends +, so '1234' becomes '+1234' which is too short for E.164
@@ -32,10 +32,10 @@ test.describe('Form validation', () => {
     await expect(page.getByText(/invalid phone/i)).toBeVisible()
   })
 
-  test('volunteer form accepts valid E.164 phone', async ({ page }) => {
+  test('user form accepts valid E.164 phone', async ({ page }) => {
     const phone = uniquePhone()
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await page.getByRole('button', { name: /add volunteer/i }).click()
+    await page.getByRole('link', { name: 'Users' }).click()
+    await page.getByRole('button', { name: /add user/i }).click()
 
     await page.getByLabel('Name').fill('Valid Phone Test')
     await page.getByLabel('Phone Number').fill(phone)

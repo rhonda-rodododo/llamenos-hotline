@@ -78,9 +78,9 @@ test.describe('Theme', () => {
     await page.getByRole('button', { name: /dark theme/i }).click()
     await expect(page.locator('html')).toHaveClass(/dark/)
 
-    // Navigate to Volunteers page
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await page.waitForURL(/\/volunteers/)
+    // Navigate to Users page
+    await page.getByRole('link', { name: 'Users' }).click()
+    await page.waitForURL(/\/users/)
     await expect(page.locator('html')).toHaveClass(/dark/)
 
     // Navigate back to Dashboard

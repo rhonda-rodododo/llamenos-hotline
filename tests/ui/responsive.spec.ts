@@ -47,16 +47,16 @@ test('mobile navigation works across pages', async ({ page }) => {
   // Menu should auto-close after navigation
   await expect(page.getByRole('link', { name: 'Dashboard' })).toBeHidden()
 
-  // Navigate to Volunteers
+  // Navigate to Users
   await page.getByRole('button', { name: /open menu/i }).click()
-  await page.getByRole('link', { name: 'Volunteers' }).click()
-  await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+  await page.getByRole('link', { name: 'Users' }).click()
+  await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 })
 
 test('mobile pages have no horizontal overflow across routes', async ({ page }) => {
   await loginAsAdmin(page)
 
-  const routes = ['/notes', '/volunteers', '/admin/settings']
+  const routes = ['/notes', '/users', '/admin/settings']
   for (const route of routes) {
     await page.goto(route)
     await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})

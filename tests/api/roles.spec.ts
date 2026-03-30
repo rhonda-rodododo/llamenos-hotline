@@ -174,43 +174,43 @@ test.describe('Permission Enforcement', () => {
   test.describe.configure({ mode: 'serial' })
 
   let authedApi: AuthedRequest
-  let volunteerApi: AuthedRequest
+  let userApi: AuthedRequest
   let reporterApi: AuthedRequest
 
   // Store secret keys so we can recreate authed requests in beforeEach
-  let volSk: Uint8Array
+  let userSk: Uint8Array
   let repSk: Uint8Array
 
   test.beforeAll(async ({ request }) => {
     const setupApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
-    // Create a volunteer (default role: volunteer)
-    volSk = generateSecretKey()
-    const volPubkey = getPublicKey(volSk)
-    await setupApi.post('/api/volunteers', {
+    // Create a user (default role: volunteer)
+    userSk = generateSecretKey()
+    const userPubkey = getPublicKey(userSk)
+    await setupApi.post('/api/users', {
       name: 'PBAC Vol',
       phone: uniquePhone(),
-      pubkey: volPubkey,
+      pubkey: userPubkey,
       roleIds: ['role-volunteer'],
     })
 
-    // Create a reporter: create as volunteer, then change role to reporter
+    // Create a reporter: create as user, then change role to reporter
     repSk = generateSecretKey()
     const repPubkey = getPublicKey(repSk)
-    await setupApi.post('/api/volunteers', {
+    await setupApi.post('/api/users', {
       name: 'PBAC Reporter',
       phone: uniquePhone(),
       pubkey: repPubkey,
       roleIds: ['role-volunteer'],
     })
-    await setupApi.patch(`/api/volunteers/${repPubkey}`, {
+    await setupApi.patch(`/api/users/${repPubkey}`, {
       roles: ['role-reporter'],
     })
   })
 
   test.beforeEach(async ({ request }) => {
     authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-    volunteerApi = createAuthedRequest(request, volSk)
+    userApi = createAuthedRequest(request, userSk)
     reporterApi = createAuthedRequest(request, repSk)
   })
 
@@ -222,8 +222,8 @@ test.describe('Permission Enforcement', () => {
     expect(meBody.permissions).toContain('*')
 
     // Can access admin-only endpoints
-    const volunteerRes = await authedApi.get('/api/volunteers')
-    expect(volunteerRes.status()).toBe(200)
+    const userRes = await authedApi.get('/api/users')
+    expect(userRes.status()).toBe(200)
 
     const auditRes = await authedApi.get('/api/audit')
     expect(auditRes.status()).toBe(200)
@@ -235,28 +235,28 @@ test.describe('Permission Enforcement', () => {
     expect(rolesRes.status()).toBe(200)
   })
 
-  test('volunteer role gets correct permissions from /auth/me', async () => {
-    const meRes = await volunteerApi.get('/api/auth/me')
+  test('user with volunteer role gets correct permissions from /auth/me', async () => {
+    const meRes = await userApi.get('/api/auth/me')
     expect(meRes.status()).toBe(200)
     const meBody = await meRes.json()
 
-    // Should have volunteer permissions
+    // Should have user permissions
     expect(meBody.permissions).toContain('calls:answer')
     expect(meBody.permissions).toContain('notes:create')
     expect(meBody.permissions).toContain('notes:read-own')
     expect(meBody.permissions).toContain('shifts:read-own')
-    expect(meBody.permissions).toContain('volunteers:read')
+    expect(meBody.permissions).toContain('users:read')
 
     // Should NOT have admin permissions
     expect(meBody.permissions).not.toContain('*')
-    expect(meBody.permissions).not.toContain('volunteers:create')
+    expect(meBody.permissions).not.toContain('users:create')
     expect(meBody.permissions).not.toContain('settings:manage')
     expect(meBody.permissions).not.toContain('audit:read')
   })
 
-  test('volunteer cannot access admin endpoints (403)', async () => {
-    // Volunteers have volunteers:read but NOT volunteers:create
-    const volCreateRes = await volunteerApi.post('/api/volunteers', {
+  test('user cannot access admin endpoints (403)', async () => {
+    // Users have users:read but NOT users:create
+    const volCreateRes = await userApi.post('/api/users', {
       name: 'Hack Vol',
       phone: '+15551111111',
       pubkey: '00'.repeat(32),
@@ -264,16 +264,16 @@ test.describe('Permission Enforcement', () => {
     })
     expect(volCreateRes.status()).toBe(403)
 
-    // Volunteers don't have audit:read (may return 400 if hub context required, or 403)
-    const auditRes = await volunteerApi.get('/api/audit')
+    // Users don't have audit:read (may return 400 if hub context required, or 403)
+    const auditRes = await userApi.get('/api/audit')
     expect([400, 403]).toContain(auditRes.status())
 
-    // Volunteers don't have settings:manage-spam
-    const spamRes = await volunteerApi.get('/api/settings/spam')
+    // Users don't have settings:manage-spam
+    const spamRes = await userApi.get('/api/settings/spam')
     expect(spamRes.status()).toBe(403)
 
-    // Volunteers don't have system:manage-roles
-    const rolesCreateRes = await volunteerApi.post('/api/settings/roles', {
+    // Users don't have system:manage-roles
+    const rolesCreateRes = await userApi.post('/api/settings/roles', {
       name: 'Hack Role',
       slug: `hack-role-${Date.now().toString(36)}`,
       permissions: ['*'],
@@ -281,8 +281,8 @@ test.describe('Permission Enforcement', () => {
     })
     expect(rolesCreateRes.status()).toBe(403)
 
-    // Volunteers don't have settings:manage-telephony
-    const telRes = await volunteerApi.get('/api/settings/telephony-provider')
+    // Users don't have settings:manage-telephony
+    const telRes = await userApi.get('/api/settings/telephony-provider')
     expect(telRes.status()).toBe(403)
   })
 
@@ -297,10 +297,10 @@ test.describe('Permission Enforcement', () => {
     expect(meBody.permissions).toContain('files:upload')
     expect(meBody.permissions).toContain('files:download-own')
 
-    // Reporter should NOT have call or volunteer management permissions
+    // Reporter should NOT have call or user management permissions
     expect(meBody.permissions).not.toContain('calls:answer')
     expect(meBody.permissions).not.toContain('notes:create')
-    expect(meBody.permissions).not.toContain('volunteers:read')
+    expect(meBody.permissions).not.toContain('users:read')
   })
 
   test('reporter cannot access call-related endpoints', async () => {
@@ -312,8 +312,8 @@ test.describe('Permission Enforcement', () => {
     const callHistoryRes = await reporterApi.get('/api/calls/history')
     expect([400, 403]).toContain(callHistoryRes.status())
 
-    // Reporter doesn't have volunteers:read
-    const volRes = await reporterApi.get('/api/volunteers')
+    // Reporter doesn't have users:read
+    const volRes = await reporterApi.get('/api/users')
     expect(volRes.status()).toBe(403)
   })
 })
@@ -330,18 +330,18 @@ test.describe('Multi-role users', () => {
   test.beforeAll(async ({ request }) => {
     const setupApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
 
-    // Create a volunteer
+    // Create a user
     multiRoleSk = generateSecretKey()
     const pubkey = getPublicKey(multiRoleSk)
-    await setupApi.post('/api/volunteers', {
+    await setupApi.post('/api/users', {
       name: 'Multi-Role User',
       phone: uniquePhone(),
       pubkey,
       roleIds: ['role-volunteer'],
     })
 
-    // Assign both volunteer AND reviewer roles
-    await setupApi.patch(`/api/volunteers/${pubkey}`, {
+    // Assign both user AND reviewer roles
+    await setupApi.patch(`/api/users/${pubkey}`, {
       roles: ['role-volunteer', 'role-reviewer'],
     })
   })
@@ -356,7 +356,7 @@ test.describe('Multi-role users', () => {
     expect(meRes.status()).toBe(200)
     const meBody = await meRes.json()
 
-    // Should have volunteer permissions
+    // Should have user permissions
     expect(meBody.permissions).toContain('calls:answer')
     expect(meBody.permissions).toContain('notes:create')
     expect(meBody.permissions).toContain('notes:read-own')
@@ -372,8 +372,8 @@ test.describe('Multi-role users', () => {
     expect(meBody.roles).toContain('role-volunteer')
     expect(meBody.roles).toContain('role-reviewer')
 
-    // Primary role should be the higher-privilege one (reviewer < volunteer in priority)
-    // Reviewer is priority 2, volunteer is priority 3 — so reviewer is primary
+    // Primary role should be the higher-privilege one (reviewer < user in priority)
+    // Reviewer is priority 2, user is priority 3 — so reviewer is primary
     expect(meBody.primaryRole.slug).toBe('reviewer')
   })
 })
@@ -402,10 +402,10 @@ test.describe('Custom role with specific permissions', () => {
     const roleBody = await roleRes.json()
     customRoleId = roleBody.id
 
-    // Create a volunteer
+    // Create a user
     customSk = generateSecretKey()
     const pubkey = getPublicKey(customSk)
-    await setupApi.post('/api/volunteers', {
+    await setupApi.post('/api/users', {
       name: 'Shift Viewer User',
       phone: uniquePhone(),
       pubkey,
@@ -413,7 +413,7 @@ test.describe('Custom role with specific permissions', () => {
     })
 
     // Assign custom role
-    await setupApi.patch(`/api/volunteers/${pubkey}`, {
+    await setupApi.patch(`/api/users/${pubkey}`, {
       roles: [customRoleId],
     })
   })
@@ -435,7 +435,7 @@ test.describe('Custom role with specific permissions', () => {
     // Should NOT have any other permissions
     expect(meBody.permissions).not.toContain('calls:answer')
     expect(meBody.permissions).not.toContain('notes:create')
-    expect(meBody.permissions).not.toContain('volunteers:read')
+    expect(meBody.permissions).not.toContain('users:read')
     expect(meBody.permissions).not.toContain('settings:manage')
   })
 
@@ -450,8 +450,8 @@ test.describe('Custom role with specific permissions', () => {
   })
 
   test('custom role user cannot access endpoints outside permissions', async () => {
-    // Cannot access volunteers
-    const volRes = await customApi.get('/api/volunteers')
+    // Cannot access users
+    const volRes = await customApi.get('/api/users')
     expect(volRes.status()).toBe(403)
 
     // Cannot access audit (may return 400 if hub context required, or 403)
@@ -465,7 +465,7 @@ test.describe('Custom role with specific permissions', () => {
       startTime: '09:00',
       endTime: '17:00',
       days: [1, 2, 3],
-      volunteerPubkeys: [],
+      userPubkeys: [],
     })
     expect([400, 403]).toContain(createShiftRes.status())
 
@@ -508,13 +508,13 @@ test.describe('Wildcard permission resolution', () => {
     // Create user and assign the custom role
     wildcardSk = generateSecretKey()
     const pubkey = getPublicKey(wildcardSk)
-    await setupApi.post('/api/volunteers', {
+    await setupApi.post('/api/users', {
       name: 'Ban Manager User',
       phone: uniquePhone(),
       pubkey,
       roleIds: ['role-volunteer'],
     })
-    await setupApi.patch(`/api/volunteers/${pubkey}`, {
+    await setupApi.patch(`/api/users/${pubkey}`, {
       roles: [roleBody.id],
     })
   })
@@ -538,7 +538,7 @@ test.describe('Wildcard permission resolution', () => {
     expect([200, 400]).toContain(createRes.status())
 
     // But should not have access to other domains
-    const volRes = await wildcardApi.get('/api/volunteers')
+    const volRes = await wildcardApi.get('/api/users')
     expect(volRes.status()).toBe(403)
 
     const auditRes = await wildcardApi.get('/api/audit')

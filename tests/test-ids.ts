@@ -16,7 +16,7 @@ export const TestIds = {
   NAV_SIDEBAR: 'nav-sidebar',
   NAV_ADMIN_SECTION: 'nav-admin-section',
 
-  // ============ Volunteers ============
+  // ============ Users ============
   VOLUNTEER_LIST: 'volunteer-list',
   VOLUNTEER_ROW: 'volunteer-row',
   VOLUNTEER_ADD_BTN: 'volunteer-add-btn',

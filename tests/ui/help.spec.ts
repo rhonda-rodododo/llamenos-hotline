@@ -48,8 +48,8 @@ test.describe('Help & Getting Started', () => {
 
     // Admin guide should be visible
     await expect(page.getByText('Admin Guide')).toBeVisible()
-    // Volunteer guide should also be visible for admins
-    await expect(page.getByText('Volunteer Guide')).toBeVisible()
+    // User guide should also be visible for admins
+    await expect(page.getByText('User Guide')).toBeVisible()
   })
 
   test('help page shows keyboard shortcuts reference', async ({ page }) => {
@@ -73,7 +73,7 @@ test.describe('Help & Getting Started', () => {
     // Scope to main content to avoid matching sidebar nav links
     const mainContent = page.locator('main')
     await expect(mainContent.getByRole('link', { name: 'Dashboard' })).toBeVisible()
-    await expect(mainContent.getByRole('link', { name: 'Volunteers' })).toBeVisible()
+    await expect(mainContent.getByRole('link', { name: 'Users' })).toBeVisible()
   })
 
   test('help link is visible in sidebar', async ({ page }) => {
@@ -117,7 +117,7 @@ test.describe('Help & Getting Started', () => {
       // At least one checklist item should be visible
       const hasItem = await page
         .getByText('Complete setup wizard')
-        .or(page.getByText('Invite volunteers'))
+        .or(page.getByText('Invite users'))
         .or(page.getByText('Create shift schedule'))
         .or(page.getByText('Configure telephony'))
         .first()

@@ -2,10 +2,10 @@ import { expect, test } from '@playwright/test'
 import {
   Timeouts,
   completeProfileSetup,
-  createVolunteerAndGetNsec,
+  createUserAndGetNsec,
   dismissNsecCard,
   loginAsAdmin,
-  loginAsVolunteer,
+  loginAsUser,
   navigateAfterLogin,
   uniquePhone,
 } from '../helpers'
@@ -13,25 +13,25 @@ import {
 test.describe('Blasts — UI', () => {
   // Global setup handles initial reset; tests use unique data for isolation
 
-  /** Helper: create a volunteer and return nsec (logs in as admin, creates vol, closes admin page) */
-  async function setupVolunteer(page: import('@playwright/test').Page): Promise<string> {
+  /** Helper: create a user and return nsec (logs in as admin, creates vol, closes admin page) */
+  async function setupUser(page: import('@playwright/test').Page): Promise<string> {
     await loginAsAdmin(page)
-    const nsec = await createVolunteerAndGetNsec(page, `Blast Vol ${Date.now()}`, uniquePhone())
+    const nsec = await createUserAndGetNsec(page, `Blast Vol ${Date.now()}`, uniquePhone())
     await dismissNsecCard(page)
     return nsec
   }
 
-  test('volunteer cannot access the blasts page (redirected or denied)', async ({ page }) => {
-    const volunteerNsec = await setupVolunteer(page)
+  test('user cannot access the blasts page (redirected or denied)', async ({ page }) => {
+    const userNsec = await setupUser(page)
 
-    await loginAsVolunteer(page, volunteerNsec)
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
 
     // Try to navigate to the blasts page
     await page.goto('/blasts')
     await page.waitForTimeout(Timeouts.ASYNC_SETTLE)
 
-    // Volunteer should NOT see the Message Blasts heading — they should be
+    // User should NOT see the Message Blasts heading — they should be
     // redirected away or shown an access denied state
     const blastsHeading = page.getByRole('heading', { name: 'Message Blasts' })
     const isVisible = await blastsHeading.isVisible().catch(() => false)
@@ -50,10 +50,10 @@ test.describe('Blasts — UI', () => {
     // If redirected away, that's the expected behavior — test passes
   })
 
-  test('volunteer cannot access blasts API endpoint', async ({ page }) => {
-    const volunteerNsec = await setupVolunteer(page)
+  test('user cannot access blasts API endpoint', async ({ page }) => {
+    const userNsec = await setupUser(page)
 
-    await loginAsVolunteer(page, volunteerNsec)
+    await loginAsUser(page, userNsec)
     await completeProfileSetup(page)
 
     // Inject authed fetch helper that uses keyManager for auth headers

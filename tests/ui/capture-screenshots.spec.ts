@@ -149,26 +149,26 @@ async function captureScreen(
  * Seed realistic test data for screenshots.
  */
 async function seedTestData(page: Page): Promise<void> {
-  // Create some volunteers via API
-  const volunteers = [
+  // Create some users via API
+  const users = [
     { name: 'Maria Santos', phone: '+15551234567' },
     { name: 'James Chen', phone: '+15559876543' },
     { name: 'Sarah Johnson', phone: '+15551112222' },
   ]
 
-  for (const vol of volunteers) {
+  for (const vol of users) {
     try {
-      await page.request.post('/api/volunteers', {
+      await page.request.post('/api/users', {
         data: {
           name: vol.name,
           phone: vol.phone,
           roleIds: ['role-volunteer'],
-          // Generate a random pubkey for seeded volunteers
+          // Generate a random pubkey for seeded users
           pubkey: bytesToHex(crypto.getRandomValues(new Uint8Array(32))),
         },
       })
     } catch {
-      // Volunteer might already exist
+      // User might already exist
     }
   }
 
@@ -232,11 +232,11 @@ test.describe('Screenshot Capture', () => {
     await captureScreen(page, 'dashboard', 'desktop')
     await captureScreen(page, 'dashboard', 'mobile')
 
-    // === Volunteers ===
-    console.log('\n📍 Volunteers')
-    await navigateTo(page, '/volunteers')
+    // === Users ===
+    console.log('\n📍 Users')
+    await navigateTo(page, '/users')
     await page.waitForSelector('[data-testid="volunteer-row"]', { timeout: 5000 }).catch(() => {})
-    await captureScreen(page, 'volunteers', 'desktop')
+    await captureScreen(page, 'users', 'desktop')
 
     // === Shifts ===
     console.log('\n📍 Shifts')

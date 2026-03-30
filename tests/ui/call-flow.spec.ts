@@ -3,7 +3,7 @@
  *
  * Tests the full lifecycle of a hotline call:
  *   1. Inbound call webhook → appears in dashboard as ringing
- *   2. Volunteer (admin) answers via UI → shows active call panel
+ *   2. User (admin) answers via UI → shows active call panel
  *   3. Note is saved during the call
  *   4. Call ends → note persists in call history
  *
@@ -180,9 +180,9 @@ test.describe('Call flow', () => {
     await expect(page.getByTestId(TestIds.ANSWER_CALL_BTN)).toBeVisible()
   })
 
-  // ── 2.2: Volunteer answers the call ──────────────────────────────────────
+  // ── 2.2: User answers the call ──────────────────────────────────────
 
-  test('volunteer answers call and sees active call panel', async ({ page }) => {
+  test('user answers call and sees active call panel', async ({ page }) => {
     test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
     // The call should still be ringing from the previous test
     // beforeEach already logged in and navigated to dashboard with authedFetch injected
@@ -279,9 +279,9 @@ test.describe('Call flow', () => {
     }
   })
 
-  // ── 2.5: Volunteer ends call manually ────────────────────────────────────
+  // ── 2.5: User ends call manually ────────────────────────────────────
 
-  test('volunteer can end active call via hang up button', async ({ page }) => {
+  test('user can end active call via hang up button', async ({ page }) => {
     test.skip(!relayAvailable, 'Nostr relay not running — call events require relay for dashboard')
     // Start fresh with a new call for this test
     const hangupCallSid = `CA_hangup_${Date.now()}`

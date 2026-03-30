@@ -1,13 +1,13 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import {
-  loginAsAdmin,
   callHotline,
+  getLiveConfig,
   hangUp,
-  waitForCallStatus,
+  loginAsAdmin,
+  resetStaging,
   sendSMS,
   sleep,
-  getLiveConfig,
-  resetStaging,
+  waitForCallStatus,
 } from './helpers'
 
 test.describe.configure({ mode: 'serial' })
@@ -64,7 +64,7 @@ test.describe('Live Telephony', () => {
     // Wait for call to progress past IVR into queue/ringing
     await waitForCallStatus(sid, 'in-progress', 30_000)
 
-    // Let it ring for a bit (volunteers may or may not be on shift)
+    // Let it ring for a bit (users may or may not be on shift)
     await sleep(10_000)
 
     // Hang up
@@ -82,7 +82,7 @@ test.describe('Live Telephony', () => {
     await expect(page.locator('.divide-y > div').first()).toBeVisible({ timeout: 10_000 })
   })
 
-  test('volunteer receives incoming call notification in browser', async ({ page }) => {
+  test('user receives incoming call notification in browser', async ({ page }) => {
     // Login as admin
     await loginAsAdmin(page)
 
@@ -105,9 +105,7 @@ test.describe('Live Telephony', () => {
     // The WebSocket broadcasts call:incoming events to all connected clients
     try {
       // Wait for the incoming call card to appear (green card with "Incoming Call" text)
-      await expect(
-        page.getByText(/incoming call/i).first()
-      ).toBeVisible({ timeout: 20_000 })
+      await expect(page.getByText(/incoming call/i).first()).toBeVisible({ timeout: 20_000 })
 
       // Security check: verify caller phone number is NOT displayed
       // The UI should show generic "Incoming Call" without any phone digits
@@ -132,7 +130,7 @@ test.describe('Live Telephony', () => {
   test('unanswered call is recorded in call history', async ({ page }) => {
     await loginAsAdmin(page)
 
-    // Place a call with language selection — no volunteers on shift, so it will queue
+    // Place a call with language selection — no users on shift, so it will queue
     const { sid } = await callHotline({ sendDigits: 'wwwwwwwwww2' })
 
     // Wait for call to be in progress
@@ -198,9 +196,7 @@ test.describe('Live Telephony', () => {
     await page.waitForURL(/\/conversations/, { timeout: 10_000 })
 
     // Wait for conversations to load — look for any SMS conversation entry
-    await expect(
-      page.getByText(/sms/i).first()
-    ).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText(/sms/i).first()).toBeVisible({ timeout: 15_000 })
 
     const conversationEntries = page.locator('[class*="cursor-pointer"]')
     await expect(conversationEntries.first()).toBeVisible({ timeout: 10_000 })

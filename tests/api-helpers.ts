@@ -31,7 +31,7 @@ export interface TestUser {
   api: AuthedRequest
 }
 
-interface CreateVolunteerResult {
+interface CreateUserResult {
   pubkey: string
   nsec: string
   name: string
@@ -154,7 +154,7 @@ export class TestContext {
     return ctx
   }
 
-  /** Add a user with the given role, creating them as a volunteer then assigning the role. */
+  /** Add a user with the given role, creating them as a user then assigning the role. */
   async addUser(role: RoleAlias, name?: string): Promise<TestUser> {
     const sk = generateSecretKey()
     const pubkey = nostrGetPubkey(sk)
@@ -163,8 +163,8 @@ export class TestContext {
     const userName = name ?? `Test ${role} ${Date.now().toString(36)}`
     const roleId = ROLE_ID_MAP[role]
 
-    // Create volunteer with the requested role
-    const createRes = await this.adminApi.post('/api/volunteers', {
+    // Create user with the requested role
+    const createRes = await this.adminApi.post('/api/users', {
       name: userName,
       phone,
       pubkey,
@@ -235,7 +235,7 @@ export class TestContext {
 
   /** Assign a user to a custom role (replaces existing roles). */
   async assignRole(pubkey: string, roleIds: string[]): Promise<void> {
-    const res = await this.adminApi.patch(`/api/volunteers/${pubkey}`, { roles: roleIds })
+    const res = await this.adminApi.patch(`/api/users/${pubkey}`, { roles: roleIds })
     if (!res.ok()) {
       throw new Error(`Failed to assign role: ${res.status()} ${await res.text()}`)
     }
@@ -273,13 +273,13 @@ export class TestContext {
 // ─── Standalone helpers (backward-compatible) ────────────────────────────────
 
 /**
- * Create a volunteer directly via API.
+ * Create a user directly via API.
  * Much faster than going through the UI.
  */
-export async function createVolunteerViaApi(
+export async function createUserViaApi(
   request: APIRequestContext,
   options?: { name?: string; phone?: string; roleIds?: string[] }
-): Promise<CreateVolunteerResult> {
+): Promise<CreateUserResult> {
   const name = options?.name || uniqueName('TestVol')
   const phone = options?.phone || uniquePhone()
   const roleIds = options?.roleIds || ['role-volunteer']
@@ -289,10 +289,10 @@ export async function createVolunteerViaApi(
   const nsec = nip19.nsecEncode(sk)
 
   const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-  const res = await adminApi.post('/api/volunteers', { name, phone, roleIds, pubkey: actualPubkey })
+  const res = await adminApi.post('/api/users', { name, phone, roleIds, pubkey: actualPubkey })
 
   if (!res.ok()) {
-    throw new Error(`Failed to create volunteer: ${res.status()} ${await res.text()}`)
+    throw new Error(`Failed to create user: ${res.status()} ${await res.text()}`)
   }
 
   // Enroll in Authentik so userinfo / token refresh works for this user
@@ -302,13 +302,13 @@ export async function createVolunteerViaApi(
 }
 
 /**
- * Create a volunteer and return both the result and the raw secret key.
- * Useful when you need an AuthedRequest for the new volunteer.
+ * Create a user and return both the result and the raw secret key.
+ * Useful when you need an AuthedRequest for the new user.
  */
-export async function createVolunteerWithKey(
+export async function createUserWithKey(
   request: APIRequestContext,
   options?: { name?: string; phone?: string; roleIds?: string[] }
-): Promise<CreateVolunteerResult & { sk: Uint8Array }> {
+): Promise<CreateUserResult & { sk: Uint8Array }> {
   const name = options?.name || uniqueName('TestVol')
   const phone = options?.phone || uniquePhone()
   const roleIds = options?.roleIds || ['role-volunteer']
@@ -318,10 +318,10 @@ export async function createVolunteerWithKey(
   const nsec = nip19.nsecEncode(sk)
 
   const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-  const res = await adminApi.post('/api/volunteers', { name, phone, roleIds, pubkey: actualPubkey })
+  const res = await adminApi.post('/api/users', { name, phone, roleIds, pubkey: actualPubkey })
 
   if (!res.ok()) {
-    throw new Error(`Failed to create volunteer: ${res.status()} ${await res.text()}`)
+    throw new Error(`Failed to create user: ${res.status()} ${await res.text()}`)
   }
 
   // Enroll in Authentik so userinfo / token refresh works for this user
@@ -330,14 +330,11 @@ export async function createVolunteerWithKey(
   return { pubkey: actualPubkey, nsec, name, phone, sk }
 }
 
-export async function deleteVolunteerViaApi(
-  request: APIRequestContext,
-  pubkey: string
-): Promise<void> {
+export async function deleteUserViaApi(request: APIRequestContext, pubkey: string): Promise<void> {
   const adminApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
-  const res = await adminApi.delete(`/api/volunteers/${pubkey}`)
+  const res = await adminApi.delete(`/api/users/${pubkey}`)
   if (!res.ok()) {
-    throw new Error(`Failed to delete volunteer: ${res.status()} ${await res.text()}`)
+    throw new Error(`Failed to delete user: ${res.status()} ${await res.text()}`)
   }
 }
 
@@ -373,17 +370,17 @@ export async function createShiftViaApi(
     startTime?: string
     endTime?: string
     days?: number[]
-    volunteerPubkeys?: string[]
+    userPubkeys?: string[]
   }
 ): Promise<CreateShiftResult> {
   const name = options?.name || uniqueName('TestShift')
   const startTime = options?.startTime || '09:00'
   const endTime = options?.endTime || '17:00'
   const days = options?.days || [1, 2, 3, 4, 5]
-  const volunteerPubkeys = options?.volunteerPubkeys || []
+  const userPubkeys = options?.userPubkeys || []
 
   const res = await request.post('/api/shifts', {
-    data: { name, startTime, endTime, days, volunteerPubkeys },
+    data: { name, startTime, endTime, days, userPubkeys },
   })
 
   if (!res.ok()) {
@@ -401,15 +398,15 @@ export async function deleteShiftViaApi(request: APIRequestContext, id: string):
   }
 }
 
-export async function listVolunteersViaApi(
+export async function listUsersViaApi(
   request: APIRequestContext
 ): Promise<Array<{ pubkey: string; name: string; phone: string }>> {
-  const res = await request.get('/api/volunteers')
+  const res = await request.get('/api/users')
   if (!res.ok()) {
-    throw new Error(`Failed to list volunteers: ${res.status()} ${await res.text()}`)
+    throw new Error(`Failed to list users: ${res.status()} ${await res.text()}`)
   }
   const data = await res.json()
-  return data.volunteers
+  return data.users
 }
 
 export async function listBansViaApi(
@@ -437,16 +434,16 @@ export async function listShiftsViaApi(
 export async function cleanupTestData(
   request: APIRequestContext,
   data: {
-    volunteerPubkeys?: string[]
+    userPubkeys?: string[]
     banPhones?: string[]
     shiftIds?: string[]
   }
 ): Promise<void> {
   const errors: Error[] = []
 
-  for (const pubkey of data.volunteerPubkeys || []) {
+  for (const pubkey of data.userPubkeys || []) {
     try {
-      await deleteVolunteerViaApi(request, pubkey)
+      await deleteUserViaApi(request, pubkey)
     } catch (e) {
       errors.push(e as Error)
     }

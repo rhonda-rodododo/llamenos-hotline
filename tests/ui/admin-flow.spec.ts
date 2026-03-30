@@ -8,7 +8,7 @@ test.describe('Admin flow', () => {
 
   test('login shows dashboard with admin nav', async ({ page }) => {
     await expect(page.locator('nav').getByText('Admin', { exact: true }).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Volunteers' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Users' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Shifts' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Ban List' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Call History' })).toBeVisible()
@@ -17,18 +17,18 @@ test.describe('Admin flow', () => {
     await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible()
   })
 
-  test('volunteer CRUD', async ({ page }) => {
+  test('user CRUD', async ({ page }) => {
     const phone = uniquePhone()
-    const volName = `Vol ${Date.now()}`
-    await page.getByRole('link', { name: 'Volunteers' }).click()
-    await expect(page.getByRole('heading', { name: 'Volunteers' })).toBeVisible()
+    const userName = `Vol ${Date.now()}`
+    await page.getByRole('link', { name: 'Users' }).click()
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
 
-    // Add volunteer — wait for data to load, then use force click to bypass
+    // Add user — wait for data to load, then use force click to bypass
     // React re-render instability (button detaches during async state updates)
     await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
     await page.waitForTimeout(1000)
     await page.getByTestId('volunteer-add-btn').click({ force: true })
-    await page.getByLabel('Name').fill(volName)
+    await page.getByLabel('Name').fill(userName)
     await page.getByLabel('Phone Number').fill(phone)
     await page.getByLabel('Phone Number').blur()
     await page.getByRole('button', { name: /save/i }).click()
@@ -39,15 +39,15 @@ test.describe('Admin flow', () => {
     // Close the nsec card
     await page.getByTestId('dismiss-nsec').click()
 
-    // Volunteer should appear (phone is masked by default)
+    // User should appear (phone is masked by default)
     // Allow time for async decrypt-on-fetch to resolve the encrypted name
-    await expect(page.getByText(volName).first()).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText(userName).first()).toBeVisible({ timeout: 15000 })
 
-    // Delete the volunteer — scope to the row containing the volunteer name
+    // Delete the user — scope to the row containing the user name
     const volRow = page
       .getByTestId('volunteer-list')
       .locator('div')
-      .filter({ hasText: volName })
+      .filter({ hasText: userName })
       .first()
     await volRow.getByTestId('volunteer-delete-btn').click()
     // Confirm dialog has a "Delete" button
@@ -58,8 +58,8 @@ test.describe('Admin flow', () => {
     // Wait for dialog to close
     await expect(page.getByRole('dialog')).toBeHidden()
 
-    // Volunteer should be removed from the list
-    await expect(page.locator('main').getByText(volName)).not.toBeVisible()
+    // User should be removed from the list
+    await expect(page.locator('main').getByText(userName)).not.toBeVisible()
   })
 
   test('shift creation', async ({ page }) => {
@@ -152,7 +152,7 @@ test.describe('Admin flow', () => {
   })
 
   test('phone validation rejects bad numbers', async ({ page }) => {
-    await page.getByRole('link', { name: 'Volunteers' }).click()
+    await page.getByRole('link', { name: 'Users' }).click()
     await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
     await page.waitForTimeout(1000)
     await page.getByTestId('volunteer-add-btn').click({ force: true })

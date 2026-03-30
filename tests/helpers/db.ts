@@ -3,7 +3,7 @@ import type { APIRequestContext, Page } from '@playwright/test'
 const TEST_RESET_SECRET = process.env.DEV_RESET_SECRET || 'test-reset-secret'
 
 /**
- * Full test reset: clears all state (call records, shifts, conversations, volunteers)
+ * Full test reset: clears all state (call records, shifts, conversations, users)
  * except the admin account. Use in beforeEach/afterEach for complete isolation.
  */
 export async function resetTestState(request: APIRequestContext) {

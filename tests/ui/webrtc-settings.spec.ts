@@ -6,9 +6,9 @@ test.describe('WebRTC & Call Preference Settings', () => {
     await loginAsAdmin(page)
   })
 
-  // --- Volunteer Settings: Call Preference ---
+  // --- User Settings: Call Preference ---
 
-  test('call preference section is visible in volunteer settings', async ({ page }) => {
+  test('call preference section is visible in user settings', async ({ page }) => {
     await page.getByRole('link', { name: 'Settings', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Account Settings', exact: true })).toBeVisible()
 
