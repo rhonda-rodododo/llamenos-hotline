@@ -17,6 +17,8 @@ import {
 } from '@/lib/queries/roles'
 import { useToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
+import type { PermissionMeta } from '@shared/permissions'
+import { PERMISSION_GROUP_LABELS } from '@shared/permissions'
 import {
   ChevronDown,
   ChevronRight,
@@ -42,6 +44,160 @@ interface RoleFormData {
   slug: string
   description: string
   permissions: string[]
+}
+
+// ---------------------------------------------------------------------------
+// Subgroup renderers
+// ---------------------------------------------------------------------------
+
+const SCOPE_LEVEL_ORDER: Record<string, number> = { own: 0, assigned: 1, all: 2 }
+
+function ScopeGroup({
+  scopePerms,
+  permissions,
+  onChange,
+}: {
+  scopePerms: { key: string; meta: PermissionMeta }[]
+  permissions: string[]
+  onChange: (newPermissions: string[]) => void
+}) {
+  // Group by action prefix (e.g., contacts:read-, contacts:update-)
+  const groups = new Map<string, { key: string; meta: PermissionMeta }[]>()
+  for (const perm of scopePerms) {
+    const prefix = perm.key.replace(/-(own|assigned|all)$/, '')
+    if (!groups.has(prefix)) groups.set(prefix, [])
+    groups.get(prefix)!.push(perm)
+  }
+
+  return (
+    <div className="space-y-3">
+      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+        Scope
+      </span>
+      {[...groups.entries()].map(([prefix, perms]) => {
+        const sorted = [...perms].sort((a, b) => {
+          const aScope = a.key.match(/-(own|assigned|all)$/)?.[1] ?? ''
+          const bScope = b.key.match(/-(own|assigned|all)$/)?.[1] ?? ''
+          return (SCOPE_LEVEL_ORDER[aScope] ?? 0) - (SCOPE_LEVEL_ORDER[bScope] ?? 0)
+        })
+        const selectedKey = sorted.find((p) => permissions.includes(p.key))?.key ?? null
+        const actionLabel = prefix.split(':')[1] // e.g., "read", "update"
+
+        return (
+          <div key={prefix} className="space-y-1">
+            <span className="text-xs text-muted-foreground capitalize">{actionLabel}</span>
+            <div className="space-y-0.5">
+              <label className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted/30 cursor-pointer transition-colors">
+                <input
+                  type="radio"
+                  name={`scope-${prefix}`}
+                  checked={selectedKey === null}
+                  onChange={() => {
+                    onChange(permissions.filter((p) => !sorted.some((s) => s.key === p)))
+                  }}
+                  className="h-4 w-4 accent-primary"
+                  data-testid={`scope-${prefix}-none`}
+                />
+                <span className="text-sm text-muted-foreground">None</span>
+              </label>
+              {sorted.map((perm) => (
+                <label
+                  key={perm.key}
+                  className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted/30 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="radio"
+                    name={`scope-${prefix}`}
+                    checked={selectedKey === perm.key}
+                    onChange={() => {
+                      // Remove all other scope levels, add this one
+                      const without = permissions.filter((p) => !sorted.some((s) => s.key === p))
+                      onChange([...without, perm.key])
+                    }}
+                    className="h-4 w-4 accent-primary"
+                    data-testid={`scope-${perm.key}`}
+                  />
+                  <span className="text-sm">{perm.meta.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ExpandedDomainSection({
+  perms,
+  permissions,
+  onPermissionsChange,
+  onTogglePermission,
+}: {
+  perms: { key: string; meta: PermissionMeta }[]
+  permissions: string[]
+  onPermissionsChange: (newPermissions: string[]) => void
+  onTogglePermission: (key: string) => void
+}) {
+  const scopePerms = perms.filter((p) => p.meta.subgroup === 'scope')
+  const tierPerms = perms.filter((p) => p.meta.subgroup === 'tiers')
+  const actionPerms = perms.filter((p) => p.meta.subgroup === 'actions')
+
+  return (
+    <div className="border-t border-border px-3 py-2 space-y-3">
+      {scopePerms.length > 0 && (
+        <ScopeGroup
+          scopePerms={scopePerms}
+          permissions={permissions}
+          onChange={onPermissionsChange}
+        />
+      )}
+      {tierPerms.length > 0 && (
+        <div className="space-y-1">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Data Access
+          </span>
+          {tierPerms.map((perm) => (
+            <label
+              key={perm.key}
+              className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted/30 cursor-pointer transition-colors"
+            >
+              <input
+                type="checkbox"
+                checked={permissions.includes(perm.key)}
+                onChange={() => onTogglePermission(perm.key)}
+                className="h-4 w-4 rounded border-input accent-primary shrink-0"
+                data-testid={`tier-${perm.key}`}
+              />
+              <span className="text-sm">{perm.meta.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      {actionPerms.length > 0 && (
+        <div className="space-y-1">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Actions
+          </span>
+          {actionPerms.map((perm) => (
+            <label
+              key={perm.key}
+              className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted/30 cursor-pointer transition-colors"
+            >
+              <input
+                type="checkbox"
+                checked={permissions.includes(perm.key)}
+                onChange={() => onTogglePermission(perm.key)}
+                className="h-4 w-4 rounded border-input accent-primary shrink-0"
+                data-testid={`action-${perm.key}`}
+              />
+              <span className="text-sm">{perm.meta.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
@@ -117,14 +273,35 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     const domainPerms = catalog.byDomain[domain]
     if (!domainPerms) return
     const domainKeys: string[] = domainPerms.map((p) => p.key)
-    const allSelected = domainKeys.every((k) => form.permissions.includes(k))
+    const allCurrentlySelected = isDomainFullySelected(domain)
 
     setForm((prev) => {
-      if (allSelected) {
+      if (allCurrentlySelected) {
+        // Deselect all
         return { ...prev, permissions: prev.permissions.filter((p) => !domainKeys.includes(p)) }
       }
+      // Select all — for scope perms, select only the highest level (-all)
+      const scopePerms = domainPerms.filter((p) => p.meta.subgroup === 'scope')
+      const nonScopePerms = domainPerms.filter((p) => p.meta.subgroup !== 'scope')
+
+      // Group scope perms by prefix, keep only highest scope level
+      const scopeGroups = new Map<string, string>()
+      const scopeOrder: Record<string, number> = { own: 0, assigned: 1, all: 2 }
+      for (const perm of scopePerms) {
+        const prefix = perm.key.replace(/-(own|assigned|all)$/, '')
+        const suffix = perm.key.match(/-(own|assigned|all)$/)?.[1] ?? ''
+        const current = scopeGroups.get(prefix)
+        const currentSuffix = current?.match(/-(own|assigned|all)$/)?.[1] ?? ''
+        if (!current || (scopeOrder[suffix] ?? 0) > (scopeOrder[currentSuffix] ?? 0)) {
+          scopeGroups.set(prefix, perm.key)
+        }
+      }
+
+      const keysToAdd = [...nonScopePerms.map((p) => p.key), ...scopeGroups.values()]
       const existing = new Set(prev.permissions)
-      for (const k of domainKeys) existing.add(k)
+      // Remove any existing domain keys first (clears lower scope levels)
+      for (const k of domainKeys) existing.delete(k)
+      for (const k of keysToAdd) existing.add(k)
       return { ...prev, permissions: Array.from(existing) }
     })
   }
@@ -206,6 +383,34 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     })
   }
 
+  /** Check if the domain is "fully selected" — highest scope for each scope group + all non-scope */
+  function isDomainFullySelected(domain: string): boolean {
+    if (!catalog) return false
+    const domainPerms = catalog.byDomain[domain]
+    if (!domainPerms?.length) return false
+
+    const scopeOrder: Record<string, number> = { own: 0, assigned: 1, all: 2 }
+    for (const perm of domainPerms) {
+      if (perm.meta.subgroup !== 'scope') {
+        // Non-scope: must be selected
+        if (!form.permissions.includes(perm.key)) return false
+      } else {
+        // Scope: the highest level in each group must be selected
+        const prefix = perm.key.replace(/-(own|assigned|all)$/, '')
+        const suffix = perm.key.match(/-(own|assigned|all)$/)?.[1] ?? ''
+        const isHighest = !domainPerms.some((other) => {
+          if (other.meta.subgroup !== 'scope') return false
+          const otherPrefix = other.key.replace(/-(own|assigned|all)$/, '')
+          if (otherPrefix !== prefix) return false
+          const otherSuffix = other.key.match(/-(own|assigned|all)$/)?.[1] ?? ''
+          return (scopeOrder[otherSuffix] ?? 0) > (scopeOrder[suffix] ?? 0)
+        })
+        if (isHighest && !form.permissions.includes(perm.key)) return false
+      }
+    }
+    return true
+  }
+
   function getDomainSelectionState(domain: string): 'all' | 'some' | 'none' {
     if (!catalog) return 'none'
     const domainPerms = catalog.byDomain[domain]
@@ -213,12 +418,8 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     const domainKeys: string[] = domainPerms.map((p) => p.key)
     const selectedCount = domainKeys.filter((k) => form.permissions.includes(k)).length
     if (selectedCount === 0) return 'none'
-    if (selectedCount === domainKeys.length) return 'all'
+    if (isDomainFullySelected(domain)) return 'all'
     return 'some'
-  }
-
-  function formatDomainName(domain: string): string {
-    return domain.charAt(0).toUpperCase() + domain.slice(1).replace(/-/g, ' ')
   }
 
   const canEdit = (role: RoleDefinition) => !role.isSystem
@@ -378,7 +579,11 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
               const isExpanded = expandedDomains.has(domain)
 
               return (
-                <div key={domain} className="rounded-md border border-border">
+                <div
+                  key={domain}
+                  className="rounded-md border border-border"
+                  data-testid={`permission-domain-${domain}`}
+                >
                   <button
                     type="button"
                     className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors"
@@ -402,29 +607,23 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
                       onClick={(e) => e.stopPropagation()}
                       className="h-4 w-4 rounded border-input accent-primary shrink-0"
                     />
-                    <span className="text-sm font-medium flex-1">{formatDomainName(domain)}</span>
+                    <span className="text-sm font-medium flex-1">
+                      {PERMISSION_GROUP_LABELS[domain] ?? domain}
+                    </span>
                     <Badge variant="outline" className="text-[10px]">
                       {perms.filter((p) => form.permissions.includes(p.key)).length}/{perms.length}
                     </Badge>
                   </button>
 
                   {isExpanded && (
-                    <div className="border-t border-border px-3 py-2 space-y-1">
-                      {perms.map((perm) => (
-                        <label
-                          key={perm.key}
-                          className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted/30 cursor-pointer transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={form.permissions.includes(perm.key)}
-                            onChange={() => togglePermission(perm.key)}
-                            className="h-4 w-4 rounded border-input accent-primary shrink-0"
-                          />
-                          <span className="text-sm">{perm.meta.label}</span>
-                        </label>
-                      ))}
-                    </div>
+                    <ExpandedDomainSection
+                      perms={perms}
+                      permissions={form.permissions}
+                      onPermissionsChange={(newPerms) =>
+                        setForm((prev) => ({ ...prev, permissions: newPerms }))
+                      }
+                      onTogglePermission={togglePermission}
+                    />
                   )}
                 </div>
               )
@@ -432,7 +631,11 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
           </div>
 
           <div className="flex gap-2">
-            <Button disabled={isSaving || !form.name.trim()} onClick={handleSave}>
+            <Button
+              disabled={isSaving || !form.name.trim()}
+              onClick={handleSave}
+              data-testid="save-role-btn"
+            >
               <Save className="h-4 w-4" />
               {isSaving
                 ? t('common.loading', { defaultValue: 'Loading...' })
@@ -448,7 +651,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
 
       {/* Create button (shown when not editing) */}
       {editingId === null && (
-        <Button variant="outline" onClick={startCreate}>
+        <Button variant="outline" onClick={startCreate} data-testid="create-role-btn">
           <Plus className="h-4 w-4" />
           {t('roles.createRole', { defaultValue: 'Create Role' })}
         </Button>
