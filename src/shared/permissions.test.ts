@@ -1,5 +1,42 @@
 import { describe, expect, test } from 'bun:test'
-import { DEFAULT_ROLES, PERMISSION_CATALOG, hasPermission } from './permissions'
+import {
+  DEFAULT_ROLES,
+  PERMISSION_CATALOG,
+  PERMISSION_GROUP_LABELS,
+  type Permission,
+  type PermissionMeta,
+  hasPermission,
+} from './permissions'
+
+describe('typed permission catalog', () => {
+  test('every permission has label, group, and subgroup', () => {
+    for (const [key, meta] of Object.entries(PERMISSION_CATALOG)) {
+      expect(meta.label).toBeTruthy()
+      expect(meta.group).toBeTruthy()
+      expect(['scope', 'actions', 'tiers']).toContain(meta.subgroup)
+    }
+  })
+
+  test('every group has a label', () => {
+    const groups = new Set(Object.values(PERMISSION_CATALOG).map((m) => m.group))
+    for (const group of groups) {
+      expect(PERMISSION_GROUP_LABELS[group]).toBeTruthy()
+    }
+  })
+
+  test('scope permissions follow naming convention', () => {
+    for (const [key, meta] of Object.entries(PERMISSION_CATALOG)) {
+      if (meta.subgroup === 'scope') {
+        expect(key).toMatch(/-(own|assigned|all)$/)
+      }
+    }
+  })
+
+  test('Permission type includes all catalog keys', () => {
+    const keys = Object.keys(PERMISSION_CATALOG) as Permission[]
+    expect(keys.length).toBeGreaterThan(60)
+  })
+})
 
 describe('voicemail permissions', () => {
   test('voicemail:* permissions exist in catalog', () => {
