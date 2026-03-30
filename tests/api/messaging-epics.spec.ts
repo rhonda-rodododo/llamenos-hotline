@@ -55,8 +55,7 @@ test.describe('Epic 68: Messaging Channel Permissions', () => {
 
     // Create a custom role with only SMS permission
     const roleRes = await setupApi.post('/api/settings/roles', {
-      name: 'SMS Only',
-      slug: 'sms-only',
+      encryptedName: 'encrypted-sms-only',
       permissions: [
         'conversations:claim',
         'conversations:claim-sms',
@@ -341,8 +340,7 @@ test.describe('Channel Permission Integration', () => {
   test('admin can create role with specific channel permissions', async () => {
     // Create a role with only WhatsApp and Signal permissions
     const res = await adminApi.post('/api/settings/roles', {
-      name: 'WA+Signal Only',
-      slug: 'wa-signal-only',
+      encryptedName: 'encrypted-wa-signal-only',
       permissions: [
         'conversations:claim',
         'conversations:claim-whatsapp',
@@ -363,8 +361,7 @@ test.describe('Channel Permission Integration', () => {
   test('claim-any permission bypasses channel restrictions', async () => {
     // Create a role with claim-any
     const res = await adminApi.post('/api/settings/roles', {
-      name: 'All Channels',
-      slug: 'all-channels',
+      encryptedName: 'encrypted-all-channels',
       permissions: [
         'conversations:claim',
         'conversations:claim-any',
@@ -415,10 +412,9 @@ test.describe('Cleanup test data', () => {
     expect(rolesRes.status()).toBe(200)
     const rolesBody = await rolesRes.json()
 
-    // Delete custom roles created by these tests
+    // Delete custom roles created by these tests (non-default, non-system roles)
     const customRoles = rolesBody.roles.filter(
-      (r: { isDefault: boolean; slug: string }) =>
-        !r.isDefault && ['sms-only', 'wa-signal-only', 'all-channels'].includes(r.slug)
+      (r: { isDefault: boolean; isSystem: boolean }) => !r.isDefault && !r.isSystem
     )
 
     for (const role of customRoles) {

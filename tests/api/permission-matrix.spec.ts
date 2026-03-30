@@ -292,8 +292,7 @@ test.describe('Permission Matrix', () => {
 
     test('role creation requires system:manage-roles', async () => {
       const body = {
-        name: 'Unauthorized Role',
-        slug: `unauth-role-${Date.now().toString(36)}`,
+        encryptedName: 'encrypted-unauthorized-role',
         permissions: ['calls:read-active'],
       }
 

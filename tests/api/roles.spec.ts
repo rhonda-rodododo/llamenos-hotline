@@ -15,7 +15,6 @@ test.describe('Role Management API', () => {
 
   let authedApi: AuthedRequest
   let customRoleId: string
-  let customRoleSlug: string
 
   test.beforeEach(async ({ request }) => {
     authedApi = createAuthedRequestFromNsec(request, ADMIN_NSEC)
@@ -28,15 +27,21 @@ test.describe('Role Management API', () => {
     expect(body.roles).toBeDefined()
     expect(body.roles.length).toBeGreaterThanOrEqual(5)
 
-    const roleNames = body.roles.map((r: { name: string }) => r.name)
-    expect(roleNames).toContain('Super Admin')
-    expect(roleNames).toContain('Hub Admin')
-    expect(roleNames).toContain('Reviewer')
-    expect(roleNames).toContain('Volunteer')
-    expect(roleNames).toContain('Reporter')
+    // Default role IDs must be present
+    const roleIds = body.roles.map((r: { id: string }) => r.id)
+    expect(roleIds).toContain('role-super-admin')
+    expect(roleIds).toContain('role-hub-admin')
+    expect(roleIds).toContain('role-reviewer')
+    expect(roleIds).toContain('role-volunteer')
+    expect(roleIds).toContain('role-reporter')
+
+    // Names are E2EE — verify encryptedName exists
+    for (const role of body.roles) {
+      expect(role.encryptedName).toBeTruthy()
+    }
 
     // Verify Super Admin has wildcard permission
-    const superAdmin = body.roles.find((r: { slug: string }) => r.slug === 'super-admin')
+    const superAdmin = body.roles.find((r: { id: string }) => r.id === 'role-super-admin')
     expect(superAdmin.permissions).toContain('*')
     expect(superAdmin.isSystem).toBe(true)
     expect(superAdmin.isDefault).toBe(true)
@@ -45,15 +50,13 @@ test.describe('Role Management API', () => {
   test('creates a custom role', async () => {
     const suffix = Date.now().toString(36)
     const res = await authedApi.post('/api/settings/roles', {
-      name: `Call Monitor ${suffix}`,
-      slug: `call-monitor-${suffix}`,
+      encryptedName: `encrypted-call-monitor-${suffix}`,
       permissions: ['calls:read-active', 'calls:read-history', 'calls:read-presence'],
       description: 'Can view call activity but not answer calls',
     })
     expect(res.status()).toBe(201)
     const body = await res.json()
-    expect(body.name).toBe(`Call Monitor ${suffix}`)
-    expect(body.slug).toBe(`call-monitor-${suffix}`)
+    expect(body.encryptedName).toBeTruthy()
     expect(body.permissions).toEqual([
       'calls:read-active',
       'calls:read-history',
@@ -63,29 +66,6 @@ test.describe('Role Management API', () => {
     expect(body.isSystem).toBe(false)
     expect(body.id).toMatch(/^role-/)
     customRoleId = body.id
-    customRoleSlug = body.slug
-  })
-
-  test('rejects duplicate slug', async () => {
-    const res = await authedApi.post('/api/settings/roles', {
-      name: 'Call Monitor Dupe',
-      slug: customRoleSlug,
-      permissions: ['calls:read-active'],
-      description: 'Duplicate slug test',
-    })
-    expect(res.status()).toBe(409)
-  })
-
-  test('rejects invalid slug format', async () => {
-    const res = await authedApi.post('/api/settings/roles', {
-      name: 'Bad Slug',
-      slug: 'BAD SLUG!!!',
-      permissions: ['calls:read-active'],
-      description: 'Invalid slug test',
-    })
-    // Server may reject (400), accept then conflict (409), or accept (201)
-    // The important thing is it doesn't crash (500)
-    expect(res.status()).not.toBe(500)
   })
 
   test('updates a custom role permissions', async () => {
@@ -108,7 +88,7 @@ test.describe('Role Management API', () => {
 
   test('cannot modify system role (Super Admin)', async () => {
     const res = await authedApi.patch('/api/settings/roles/role-super-admin', {
-      name: 'Hacked Admin',
+      encryptedName: 'encrypted-hacked-admin',
       permissions: [],
     })
     expect(res.status()).toBe(403)
@@ -274,8 +254,7 @@ test.describe('Permission Enforcement', () => {
 
     // Users don't have system:manage-roles
     const rolesCreateRes = await userApi.post('/api/settings/roles', {
-      name: 'Hack Role',
-      slug: `hack-role-${Date.now().toString(36)}`,
+      encryptedName: 'encrypted-hack-role',
       permissions: ['*'],
       description: 'Attempt to escalate privileges',
     })
@@ -374,7 +353,7 @@ test.describe('Multi-role users', () => {
 
     // Primary role should be the higher-privilege one (reviewer < user in priority)
     // Reviewer is priority 2, user is priority 3 — so reviewer is primary
-    expect(meBody.primaryRole.slug).toBe('reviewer')
+    expect(meBody.primaryRole.id).toBe('role-reviewer')
   })
 })
 
@@ -393,8 +372,7 @@ test.describe('Custom role with specific permissions', () => {
 
     // Create a custom role with very specific permissions
     const roleRes = await setupApi.post('/api/settings/roles', {
-      name: 'Shift Viewer',
-      slug: `shift-viewer-${Date.now().toString(36)}`,
+      encryptedName: 'encrypted-shift-viewer',
       permissions: ['shifts:read-all', 'bans:read'],
       description: 'Can only view shifts and bans',
     })
@@ -497,8 +475,7 @@ test.describe('Wildcard permission resolution', () => {
 
     // Create a custom role with domain wildcard (bans:*)
     const roleRes = await setupApi.post('/api/settings/roles', {
-      name: 'Ban Manager',
-      slug: `ban-manager-${Date.now().toString(36)}`,
+      encryptedName: 'encrypted-ban-manager',
       permissions: ['bans:*'],
       description: 'Full access to ban management',
     })

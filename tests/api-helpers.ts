@@ -217,11 +217,9 @@ export class TestContext {
   }
 
   /** Create a custom role within the test hub and return its ID. */
-  async createCustomRole(name: string, permissions: string[], slug?: string): Promise<string> {
-    const roleSlug = slug ?? uniqueSlug(name.toLowerCase().replace(/\s+/g, '-'))
+  async createCustomRole(name: string, permissions: string[]): Promise<string> {
     const res = await this.adminApi.post('/api/settings/roles', {
-      name,
-      slug: roleSlug,
+      encryptedName: `encrypted-${name.toLowerCase().replace(/\s+/g, '-')}`,
       permissions,
       description: `Test role: ${name}`,
     })

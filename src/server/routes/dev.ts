@@ -51,6 +51,11 @@ dev.post('/test-reset', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
   const services = c.get('services')
+  await services.tags.resetForTest('default-hub')
+  await services.teams.resetForTest('default-hub')
+  await services.intakes.resetForTest('default-hub')
+  await services.blasts.resetForTest()
+  await services.reportTypes.resetForTest()
   await services.contacts.resetForTest('default-hub')
   await services.identity.resetForTest()
   await services.records.resetForTest()
@@ -119,6 +124,11 @@ dev.post('/test-reset-no-admin', async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
   const services = c.get('services')
+  await services.tags.resetForTest('default-hub')
+  await services.teams.resetForTest('default-hub')
+  await services.intakes.resetForTest('default-hub')
+  await services.blasts.resetForTest()
+  await services.reportTypes.resetForTest()
   await services.contacts.resetForTest('default-hub')
   await services.identity.resetForTest()
   await services.records.resetForTest()
