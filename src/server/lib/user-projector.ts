@@ -1,18 +1,18 @@
 /**
- * Volunteer PII Projector
+ * User PII Projector
  *
- * Controls which volunteer fields are visible based on the requestor's role:
+ * Controls which user fields are visible based on the requestor's role:
  *   - 'admin' view:  all fields, phone masked by default (unmask requires ?unmask=true + admin role)
  *   - 'self' view:   own data only, phone always masked
  *   - 'public' view: non-sensitive fields only (no name, no phone)
  *
- * NEVER call c.json(volunteer) directly — always project first.
+ * NEVER call c.json(user) directly — always project first.
  */
 import type { MessagingChannelType, RecipientEnvelope } from '../../shared/types'
 
 // ── Discriminated-union view types ────────────────────────────────────────────
 
-export interface VolunteerPublicView {
+export interface UserPublicView {
   readonly view: 'public'
   pubkey: string
   roles: string[]
@@ -25,7 +25,7 @@ export interface VolunteerPublicView {
   messagingEnabled?: boolean
 }
 
-export interface VolunteerSelfView {
+export interface UserSelfView {
   readonly view: 'self'
   pubkey: string
   name: string
@@ -45,7 +45,7 @@ export interface VolunteerSelfView {
   messagingEnabled?: boolean
 }
 
-export interface VolunteerAdminView {
+export interface UserAdminView {
   readonly view: 'admin'
   pubkey: string
   name: string
@@ -80,9 +80,9 @@ export function maskPhone(phone: string): string {
   return phone.slice(0, 3) + '•'.repeat(phone.length - 5) + phone.slice(-2)
 }
 
-// ── Volunteer source shape (minimal fields needed for projection) ──────────────
+// ── User source shape (minimal fields needed for projection) ──────────────
 
-interface VolunteerSource {
+interface UserSource {
   pubkey: string
   name: string
   phone: string
@@ -107,79 +107,79 @@ interface VolunteerSource {
 // ── Projection function ────────────────────────────────────────────────────────
 
 /**
- * Project a Volunteer record into the appropriate view based on who is requesting.
+ * Project a User record into the appropriate view based on who is requesting.
  *
- * @param volunteer     - Full volunteer record from the database
- * @param requestorPubkey - Pubkey of the authenticated user making the request
- * @param requestorIsAdmin - Whether the requestor has admin (settings:manage) permission
- * @param unmask        - Admin requested full phone number via ?unmask=true (ignored for non-admins)
+ * @param user              - Full user record from the database
+ * @param requestorPubkey   - Pubkey of the authenticated user making the request
+ * @param requestorIsAdmin  - Whether the requestor has admin (settings:manage) permission
+ * @param unmask            - Admin requested full phone number via ?unmask=true (ignored for non-admins)
  */
-export function projectVolunteer(
-  volunteer: VolunteerSource,
+export function projectUser(
+  user: UserSource,
   requestorPubkey: string,
   requestorIsAdmin: boolean,
   unmask = false
-): VolunteerPublicView | VolunteerSelfView | VolunteerAdminView {
+): UserPublicView | UserSelfView | UserAdminView {
   if (requestorIsAdmin) {
-    const phone = unmask ? volunteer.phone : maskPhone(volunteer.phone)
-    const result: VolunteerAdminView = {
+    const phone = unmask ? user.phone : maskPhone(user.phone)
+    const result: UserAdminView = {
       view: 'admin',
-      pubkey: volunteer.pubkey,
-      name: volunteer.name,
+      pubkey: user.pubkey,
+      name: user.name,
       phone,
-      roles: volunteer.roles,
-      hubRoles: volunteer.hubRoles,
-      active: volunteer.active,
-      createdAt: volunteer.createdAt,
-      encryptedSecretKey: volunteer.encryptedSecretKey,
-      transcriptionEnabled: volunteer.transcriptionEnabled,
-      spokenLanguages: volunteer.spokenLanguages,
-      uiLanguage: volunteer.uiLanguage,
-      profileCompleted: volunteer.profileCompleted,
-      onBreak: volunteer.onBreak,
-      callPreference: volunteer.callPreference,
-      supportedMessagingChannels: volunteer.supportedMessagingChannels,
-      messagingEnabled: volunteer.messagingEnabled,
+      roles: user.roles,
+      hubRoles: user.hubRoles,
+      active: user.active,
+      createdAt: user.createdAt,
+      encryptedSecretKey: user.encryptedSecretKey,
+      transcriptionEnabled: user.transcriptionEnabled,
+      spokenLanguages: user.spokenLanguages,
+      uiLanguage: user.uiLanguage,
+      profileCompleted: user.profileCompleted,
+      onBreak: user.onBreak,
+      callPreference: user.callPreference,
+      supportedMessagingChannels: user.supportedMessagingChannels,
+      messagingEnabled: user.messagingEnabled,
       // E2EE envelope fields — pass through for client-side decryption
-      encryptedName: volunteer.encryptedName,
-      nameEnvelopes: volunteer.nameEnvelopes,
+      encryptedName: user.encryptedName,
+      nameEnvelopes: user.nameEnvelopes,
     }
     return result
   }
 
-  if (volunteer.pubkey === requestorPubkey) {
-    const result: VolunteerSelfView = {
+  if (user.pubkey === requestorPubkey) {
+    const result: UserSelfView = {
       view: 'self',
-      pubkey: volunteer.pubkey,
-      name: volunteer.name,
-      phone: maskPhone(volunteer.phone),
-      roles: volunteer.roles,
-      hubRoles: volunteer.hubRoles,
-      active: volunteer.active,
-      createdAt: volunteer.createdAt,
-      encryptedSecretKey: volunteer.encryptedSecretKey,
-      transcriptionEnabled: volunteer.transcriptionEnabled,
-      spokenLanguages: volunteer.spokenLanguages,
-      uiLanguage: volunteer.uiLanguage,
-      profileCompleted: volunteer.profileCompleted,
-      onBreak: volunteer.onBreak,
-      callPreference: volunteer.callPreference,
-      supportedMessagingChannels: volunteer.supportedMessagingChannels,
-      messagingEnabled: volunteer.messagingEnabled,
+      pubkey: user.pubkey,
+      name: user.name,
+      phone: maskPhone(user.phone),
+      roles: user.roles,
+      hubRoles: user.hubRoles,
+      active: user.active,
+      createdAt: user.createdAt,
+      encryptedSecretKey: user.encryptedSecretKey,
+      transcriptionEnabled: user.transcriptionEnabled,
+      spokenLanguages: user.spokenLanguages,
+      uiLanguage: user.uiLanguage,
+      profileCompleted: user.profileCompleted,
+      onBreak: user.onBreak,
+      callPreference: user.callPreference,
+      supportedMessagingChannels: user.supportedMessagingChannels,
+      messagingEnabled: user.messagingEnabled,
     }
     return result
   }
 
-  const result: VolunteerPublicView = {
+  const result: UserPublicView = {
     view: 'public',
-    pubkey: volunteer.pubkey,
-    roles: volunteer.roles,
-    hubRoles: volunteer.hubRoles,
-    spokenLanguages: volunteer.spokenLanguages,
-    onBreak: volunteer.onBreak,
-    active: volunteer.active,
-    supportedMessagingChannels: volunteer.supportedMessagingChannels,
-    messagingEnabled: volunteer.messagingEnabled,
+    pubkey: user.pubkey,
+    roles: user.roles,
+    hubRoles: user.hubRoles,
+    spokenLanguages: user.spokenLanguages,
+    onBreak: user.onBreak,
+    active: user.active,
+    supportedMessagingChannels: user.supportedMessagingChannels,
+    messagingEnabled: user.messagingEnabled,
   }
   return result
 }

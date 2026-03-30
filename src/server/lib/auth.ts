@@ -1,12 +1,12 @@
-import type { Volunteer } from '../types'
+import type { User } from '../types'
 import { verifyAccessToken } from './jwt'
 
 export async function authenticateRequest(
   request: Request,
   identity: {
-    getVolunteer(pubkey: string): Promise<Volunteer | null>
+    getUser(pubkey: string): Promise<User | null>
   }
-): Promise<{ pubkey: string; volunteer: Volunteer } | null> {
+): Promise<{ pubkey: string; user: User } | null> {
   const authHeader = request.headers.get('Authorization')
   if (!authHeader?.startsWith('Bearer ')) return null
 
@@ -16,9 +16,9 @@ export async function authenticateRequest(
 
   try {
     const payload = await verifyAccessToken(token, jwtSecret)
-    const volunteer = await identity.getVolunteer(payload.sub)
-    if (!volunteer) return null
-    return { pubkey: payload.sub, volunteer }
+    const user = await identity.getUser(payload.sub)
+    if (!user) return null
+    return { pubkey: payload.sub, user }
   } catch {
     return null
   }

@@ -1,11 +1,11 @@
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
-import { HMAC_PHONE_PREFIX, LABEL_AUDIT_EVENT, LABEL_VOLUNTEER_PII } from '@shared/crypto-labels'
+import { HMAC_PHONE_PREFIX, LABEL_AUDIT_EVENT, LABEL_USER_PII } from '@shared/crypto-labels'
 import type { Ciphertext } from '@shared/crypto-types'
 import { and, asc, desc, eq, gte, inArray, lte, or, sql } from 'drizzle-orm'
 import type { KeyEnvelope, RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
-import { auditLog, bans, callRecords, noteEnvelopes, volunteers } from '../db/schema'
+import { auditLog, bans, callRecords, noteEnvelopes, users } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
@@ -47,7 +47,7 @@ export class RecordsService {
         phone = '[encrypted]'
       } else {
         try {
-          phone = this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_VOLUNTEER_PII)
+          phone = this.crypto.serverDecrypt(r.encryptedPhone as Ciphertext, LABEL_USER_PII)
         } catch {
           // Decryption failed — leave empty
         }
@@ -60,7 +60,7 @@ export class RecordsService {
         reason = '[encrypted]'
       } else {
         try {
-          reason = this.crypto.serverDecrypt(r.encryptedReason as Ciphertext, LABEL_VOLUNTEER_PII)
+          reason = this.crypto.serverDecrypt(r.encryptedReason as Ciphertext, LABEL_USER_PII)
         } catch {
           // Decryption failed — leave empty
         }
@@ -103,20 +103,20 @@ export class RecordsService {
     ].filter((pk, i, arr) => arr.indexOf(pk) === i) // deduplicate
     const phoneEnvelope =
       recipientPubkeys.length > 0
-        ? this.crypto.envelopeEncrypt(data.phone, recipientPubkeys, LABEL_VOLUNTEER_PII)
+        ? this.crypto.envelopeEncrypt(data.phone, recipientPubkeys, LABEL_USER_PII)
         : undefined
     const reasonEnvelope =
       data.reason && recipientPubkeys.length > 0
-        ? this.crypto.envelopeEncrypt(data.reason, recipientPubkeys, LABEL_VOLUNTEER_PII)
+        ? this.crypto.envelopeEncrypt(data.reason, recipientPubkeys, LABEL_USER_PII)
         : undefined
 
     // E2EE phone+reason: use envelope ciphertext if available, fallback to server-key
     const encryptedPhone = phoneEnvelope
       ? phoneEnvelope.encrypted
-      : this.crypto.serverEncrypt(data.phone, LABEL_VOLUNTEER_PII)
+      : this.crypto.serverEncrypt(data.phone, LABEL_USER_PII)
     const encryptedReason = reasonEnvelope
       ? reasonEnvelope.encrypted
-      : this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII)
+      : this.crypto.serverEncrypt(data.reason ?? '', LABEL_USER_PII)
 
     const [row] = await this.db
       .insert(bans)
@@ -165,11 +165,11 @@ export class RecordsService {
         ].filter((pk, i, arr) => arr.indexOf(pk) === i)
         const phoneEnvelope =
           recipientPubkeys.length > 0
-            ? this.crypto.envelopeEncrypt(phone, recipientPubkeys, LABEL_VOLUNTEER_PII)
+            ? this.crypto.envelopeEncrypt(phone, recipientPubkeys, LABEL_USER_PII)
             : undefined
         const reasonEnvelope =
           data.reason && recipientPubkeys.length > 0
-            ? this.crypto.envelopeEncrypt(data.reason, recipientPubkeys, LABEL_VOLUNTEER_PII)
+            ? this.crypto.envelopeEncrypt(data.reason, recipientPubkeys, LABEL_USER_PII)
             : undefined
         return {
           id: crypto.randomUUID(),
@@ -179,11 +179,11 @@ export class RecordsService {
           // E2EE: use envelope ciphertext if available, fallback to server-key
           encryptedPhone: phoneEnvelope
             ? phoneEnvelope.encrypted
-            : this.crypto.serverEncrypt(phone, LABEL_VOLUNTEER_PII),
+            : this.crypto.serverEncrypt(phone, LABEL_USER_PII),
           phoneEnvelopes: phoneEnvelope?.envelopes ?? [],
           encryptedReason: reasonEnvelope
             ? reasonEnvelope.encrypted
-            : this.crypto.serverEncrypt(data.reason ?? '', LABEL_VOLUNTEER_PII),
+            : this.crypto.serverEncrypt(data.reason ?? '', LABEL_USER_PII),
           reasonEnvelopes: reasonEnvelope?.envelopes ?? [],
         }
       })
@@ -226,11 +226,7 @@ export class RecordsService {
     let callerLast4Envelopes: RecipientEnvelope[] = []
     if (data.callerLast4 && data.adminEnvelopes && data.adminEnvelopes.length > 0) {
       const adminPubkeys = data.adminEnvelopes.map((e) => e.pubkey)
-      const envelope = this.crypto.envelopeEncrypt(
-        data.callerLast4,
-        adminPubkeys,
-        LABEL_VOLUNTEER_PII
-      )
+      const envelope = this.crypto.envelopeEncrypt(data.callerLast4, adminPubkeys, LABEL_USER_PII)
       encryptedCallerLast4 = envelope.encrypted
       callerLast4Envelopes = envelope.envelopes
     }
@@ -738,7 +734,7 @@ export class RecordsService {
     return Array.from({ length: 24 }, (_, h) => ({ hour: h, count: map.get(h) ?? 0 }))
   }
 
-  async getVolunteerCallStats(
+  async getUserCallStats(
     hubId: string | undefined,
     days: 30
   ): Promise<Array<{ pubkey: string; callsAnswered: number; avgDuration: number }>> {
@@ -747,8 +743,8 @@ export class RecordsService {
     since.setDate(since.getDate() - days)
     since.setUTCHours(0, 0, 0, 0)
 
-    // NOTE: answeredBy (volunteer pubkey) is stored inside encrypted content for privacy.
-    // We can only do volunteer-level stats from the audit log where callAnswered events record actorPubkey.
+    // NOTE: answeredBy (user pubkey) is stored inside encrypted content for privacy.
+    // We can only do user-level stats from the audit log where callAnswered events record actorPubkey.
     // Event column is encrypted — fetch all entries in range and filter post-decrypt.
     const rows = await this.db
       .select({
@@ -778,12 +774,12 @@ export class RecordsService {
 
   // ------------------------------------------------------------------ Admin Pubkey Helper
 
-  /** Return pubkeys of all active super-admin volunteers for E2EE envelope recipients */
+  /** Return pubkeys of all active super-admin users for E2EE envelope recipients */
   async #getSuperAdminPubkeys(): Promise<string[]> {
     const rows = await this.db
-      .select({ pubkey: volunteers.pubkey, roles: volunteers.roles })
-      .from(volunteers)
-      .where(eq(volunteers.active, true))
+      .select({ pubkey: users.pubkey, roles: users.roles })
+      .from(users)
+      .where(eq(users.active, true))
     return rows
       .filter((r) => (r.roles as string[]).includes('role-super-admin'))
       .map((r) => r.pubkey)

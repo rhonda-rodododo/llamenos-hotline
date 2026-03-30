@@ -77,7 +77,7 @@ export class ShiftService {
         startTime: data.startTime,
         endTime: data.endTime,
         days: data.days,
-        volunteerPubkeys: data.volunteerPubkeys,
+        userPubkeys: data.userPubkeys,
         ringGroupId: data.ringGroupId ?? null,
       })
       .returning()
@@ -113,7 +113,7 @@ export class ShiftService {
         ...(data.startTime !== undefined ? { startTime: data.startTime } : {}),
         ...(data.endTime !== undefined ? { endTime: data.endTime } : {}),
         ...(data.days !== undefined ? { days: data.days } : {}),
-        ...(data.volunteerPubkeys !== undefined ? { volunteerPubkeys: data.volunteerPubkeys } : {}),
+        ...(data.userPubkeys !== undefined ? { userPubkeys: data.userPubkeys } : {}),
         ...(data.ringGroupId !== undefined ? { ringGroupId: data.ringGroupId } : {}),
         ...encFields,
       })
@@ -151,7 +151,7 @@ export class ShiftService {
         scheduleId: data.scheduleId ?? null,
         date: data.date,
         type: data.type,
-        volunteerPubkeys: data.volunteerPubkeys ?? null,
+        userPubkeys: data.userPubkeys ?? null,
       })
       .returning()
     return this.#rowToOverride(row)
@@ -190,7 +190,7 @@ export class ShiftService {
         id,
         hubId: hId,
         encryptedName,
-        volunteerPubkeys: data.volunteerPubkeys,
+        userPubkeys: data.userPubkeys,
       })
       .returning()
     return this.#rowToRingGroup(row, data.name)
@@ -211,7 +211,7 @@ export class ShiftService {
     const [row] = await this.db
       .update(ringGroups)
       .set({
-        ...(data.volunteerPubkeys !== undefined ? { volunteerPubkeys: data.volunteerPubkeys } : {}),
+        ...(data.userPubkeys !== undefined ? { userPubkeys: data.userPubkeys } : {}),
         ...encFields,
       })
       .where(eq(ringGroups.id, id))
@@ -265,10 +265,10 @@ export class ShiftService {
   }
 
   /**
-   * Get the effective set of volunteer pubkeys who should currently be on shift.
-   * Applies schedule overrides (cancel/substitute) and filters to only clocked-in volunteers.
+   * Get the effective set of user pubkeys who should currently be on shift.
+   * Applies schedule overrides (cancel/substitute) and filters to only clocked-in users.
    */
-  async getEffectiveVolunteers(hubId?: string): Promise<string[]> {
+  async getEffectiveUsers(hubId?: string): Promise<string[]> {
     const hId = hubId ?? 'global'
     const schedules = await this.getSchedules(hId)
     const now = new Date()
@@ -276,8 +276,8 @@ export class ShiftService {
     const currentTime = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`
     const todayStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`
 
-    // Build a map of schedule id → volunteer pubkeys for active schedules right now
-    const activeScheduleVolunteers = new Map<string, string[]>()
+    // Build a map of schedule id → user pubkeys for active schedules right now
+    const activeScheduleUsers = new Map<string, string[]>()
     for (const shift of schedules) {
       if (!shift.days.includes(currentDay)) continue
       const startsBeforeEnds = shift.startTime <= shift.endTime
@@ -289,7 +289,7 @@ export class ShiftService {
         isActive = currentTime >= shift.startTime || currentTime < shift.endTime
       }
       if (isActive) {
-        activeScheduleVolunteers.set(shift.id, [...shift.volunteerPubkeys])
+        activeScheduleUsers.set(shift.id, [...shift.userPubkeys])
       }
     }
 
@@ -300,27 +300,27 @@ export class ShiftService {
       if (override.scheduleId) {
         // Override targets a specific schedule
         if (override.type === 'cancel') {
-          activeScheduleVolunteers.delete(override.scheduleId)
-        } else if (override.type === 'substitute' && override.volunteerPubkeys) {
-          if (activeScheduleVolunteers.has(override.scheduleId)) {
-            activeScheduleVolunteers.set(override.scheduleId, override.volunteerPubkeys)
+          activeScheduleUsers.delete(override.scheduleId)
+        } else if (override.type === 'substitute' && override.userPubkeys) {
+          if (activeScheduleUsers.has(override.scheduleId)) {
+            activeScheduleUsers.set(override.scheduleId, override.userPubkeys)
           }
         }
       } else {
         // Override targets all schedules (global cancel/substitute for the day)
         if (override.type === 'cancel') {
-          activeScheduleVolunteers.clear()
-        } else if (override.type === 'substitute' && override.volunteerPubkeys) {
-          for (const schedId of activeScheduleVolunteers.keys()) {
-            activeScheduleVolunteers.set(schedId, override.volunteerPubkeys)
+          activeScheduleUsers.clear()
+        } else if (override.type === 'substitute' && override.userPubkeys) {
+          for (const schedId of activeScheduleUsers.keys()) {
+            activeScheduleUsers.set(schedId, override.userPubkeys)
           }
         }
       }
     }
 
-    // Collect all schedule-assigned volunteers
+    // Collect all schedule-assigned users
     const scheduledSet = new Set<string>()
-    for (const pubkeys of activeScheduleVolunteers.values()) {
+    for (const pubkeys of activeScheduleUsers.values()) {
       for (const pubkey of pubkeys) {
         scheduledSet.add(pubkey)
       }
@@ -333,7 +333,7 @@ export class ShiftService {
     return Array.from(scheduledSet).filter((pk) => clockedSet.has(pk))
   }
 
-  async getVolunteerStatus(
+  async getUserStatus(
     pubkey: string,
     hubId?: string
   ): Promise<{
@@ -343,7 +343,7 @@ export class ShiftService {
   }> {
     const hId = hubId ?? 'global'
     const schedules = await this.getSchedules(hId)
-    const myShifts = schedules.filter((s) => s.volunteerPubkeys.includes(pubkey))
+    const myShifts = schedules.filter((s) => s.userPubkeys.includes(pubkey))
 
     const now = new Date()
     const currentDay = now.getUTCDay()
@@ -406,7 +406,7 @@ export class ShiftService {
       startTime: r.startTime,
       endTime: r.endTime,
       days: r.days as number[],
-      volunteerPubkeys: r.volunteerPubkeys as string[],
+      userPubkeys: r.userPubkeys as string[],
       ringGroupId: r.ringGroupId,
       createdAt: r.createdAt,
     }
@@ -419,7 +419,7 @@ export class ShiftService {
       scheduleId: r.scheduleId,
       date: r.date,
       type: r.type,
-      volunteerPubkeys: r.volunteerPubkeys as string[] | null,
+      userPubkeys: r.userPubkeys as string[] | null,
       createdAt: r.createdAt,
     }
   }
@@ -430,7 +430,7 @@ export class ShiftService {
       hubId: r.hubId,
       name: decryptedName ?? '',
       encryptedName: r.encryptedName ?? undefined,
-      volunteerPubkeys: r.volunteerPubkeys as string[],
+      userPubkeys: r.userPubkeys as string[],
       createdAt: r.createdAt,
     }
   }

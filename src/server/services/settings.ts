@@ -63,7 +63,7 @@ import {
   subscribers,
   telephonyConfig,
   transcriptionSettings,
-  volunteers,
+  users,
 } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
@@ -158,7 +158,7 @@ export class SettingsService {
     const row = rows[0]
     return {
       globalEnabled: row?.globalEnabled ?? true,
-      allowVolunteerOptOut: row?.allowVolunteerOptOut ?? false,
+      allowUserOptOut: row?.allowUserOptOut ?? false,
     }
   }
 
@@ -324,7 +324,7 @@ export class SettingsService {
       return this.#rowToCustomField(r, fieldName, label, options)
     })
 
-    return role !== 'admin' ? fields.filter((f) => f.visibleToVolunteers) : fields
+    return role !== 'admin' ? fields.filter((f) => f.visibleToUsers) : fields
   }
 
   async updateCustomFields(
@@ -360,7 +360,7 @@ export class SettingsService {
           hubId: hId,
           fieldType: f.type,
           required: f.required,
-          showInVolunteerView: f.visibleToVolunteers,
+          showInUserView: f.visibleToUsers,
           order: i,
           encryptedFieldName: encrypt(f.name),
           encryptedLabel: encrypt(f.label),
@@ -694,7 +694,7 @@ export class SettingsService {
       .from(fallbackGroup)
       .where(eq(fallbackGroup.hubId, hId))
       .limit(1)
-    if (rows[0]) return (rows[0].volunteerPubkeys as string[]) ?? []
+    if (rows[0]) return (rows[0].userPubkeys as string[]) ?? []
     // Fall back to global fallback group when hub-specific is not configured
     if (hId !== 'global') {
       const globalRows = await this.db
@@ -702,7 +702,7 @@ export class SettingsService {
         .from(fallbackGroup)
         .where(eq(fallbackGroup.hubId, 'global'))
         .limit(1)
-      return (globalRows[0]?.volunteerPubkeys as string[]) ?? []
+      return (globalRows[0]?.userPubkeys as string[]) ?? []
     }
     return []
   }
@@ -711,10 +711,10 @@ export class SettingsService {
     const hId = hubId ?? 'global'
     await this.db
       .insert(fallbackGroup)
-      .values({ hubId: hId, volunteerPubkeys: pubkeys })
+      .values({ hubId: hId, userPubkeys: pubkeys })
       .onConflictDoUpdate({
         target: fallbackGroup.hubId,
-        set: { volunteerPubkeys: pubkeys },
+        set: { userPubkeys: pubkeys },
       })
   }
 
@@ -1192,7 +1192,7 @@ export class SettingsService {
 
       // --- Remove hub from volunteers' hubRoles JSONB arrays ---
       await tx.execute(
-        sql`UPDATE volunteers
+        sql`UPDATE users
           SET hub_roles = COALESCE(
             (SELECT jsonb_agg(elem)
              FROM jsonb_array_elements(hub_roles) AS elem
@@ -1258,8 +1258,8 @@ export class SettingsService {
       encryptedFieldName: r.encryptedFieldName ?? undefined,
       encryptedLabel: r.encryptedLabel ?? undefined,
       encryptedOptions: r.encryptedOptions ?? undefined,
-      visibleToVolunteers: r.showInVolunteerView,
-      editableByVolunteers: r.showInVolunteerView,
+      visibleToUsers: r.showInUserView,
+      editableByUsers: r.showInUserView,
       context: 'all',
       order: r.order,
       createdAt: r.createdAt.toISOString(),
