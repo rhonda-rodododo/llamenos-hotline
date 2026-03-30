@@ -8,6 +8,7 @@ import {
   type PermissionMeta,
   type PermissionOrWildcard,
   type WildcardPermission,
+  getPermissionsByDomain,
   hasPermission,
   permissionGranted,
 } from './permissions'
@@ -156,6 +157,75 @@ describe('case manager role', () => {
     expect(cm.permissions).not.toContain('settings:manage')
     expect(cm.permissions).not.toContain('contacts:delete')
     expect(cm.permissions).not.toContain('contacts:read-all')
+  })
+})
+
+describe('getPermissionsByDomain()', () => {
+  test('returns a record keyed by domain', () => {
+    const byDomain = getPermissionsByDomain()
+    expect(typeof byDomain).toBe('object')
+    expect(Object.keys(byDomain).length).toBeGreaterThan(0)
+  })
+
+  test('every entry has key and meta with correct types', () => {
+    const byDomain = getPermissionsByDomain()
+    for (const [domain, entries] of Object.entries(byDomain)) {
+      expect(entries.length).toBeGreaterThan(0)
+      for (const entry of entries) {
+        expect(entry.key).toMatch(new RegExp(`^${domain}:`))
+        expect(entry.meta).toHaveProperty('label')
+        expect(entry.meta).toHaveProperty('group')
+        expect(entry.meta).toHaveProperty('subgroup')
+        expect(entry.meta.group).toBe(domain)
+      }
+    }
+  })
+
+  test('contacts domain includes scope, tiers, and actions subgroups', () => {
+    const byDomain = getPermissionsByDomain()
+    const contacts = byDomain.contacts
+    expect(contacts).toBeDefined()
+    const subgroups = new Set(contacts.map((e) => e.meta.subgroup))
+    expect(subgroups.has('scope')).toBe(true)
+    expect(subgroups.has('tiers')).toBe(true)
+    expect(subgroups.has('actions')).toBe(true)
+  })
+
+  test('all catalog permissions are represented exactly once', () => {
+    const byDomain = getPermissionsByDomain()
+    const allKeys = Object.values(byDomain)
+      .flat()
+      .map((e) => e.key)
+      .sort()
+    const catalogKeys = (Object.keys(PERMISSION_CATALOG) as Permission[]).sort()
+    expect(allKeys).toEqual(catalogKeys)
+  })
+})
+
+describe('default role permission completeness', () => {
+  test('every permission in every default role exists in PERMISSION_CATALOG or is a wildcard', () => {
+    const catalogKeys = new Set(Object.keys(PERMISSION_CATALOG))
+    const domains = new Set(Object.keys(PERMISSION_CATALOG).map((k) => k.split(':')[0]))
+
+    for (const role of DEFAULT_ROLES) {
+      for (const perm of role.permissions) {
+        if (perm === '*') continue
+        if (perm.endsWith(':*')) {
+          // Domain wildcard — the domain must exist
+          const domain = perm.replace(':*', '')
+          expect(domains.has(domain)).toBe(true)
+          continue
+        }
+        expect(catalogKeys.has(perm)).toBe(true)
+      }
+    }
+  })
+
+  test('no duplicate permissions within any default role', () => {
+    for (const role of DEFAULT_ROLES) {
+      const unique = new Set(role.permissions)
+      expect(unique.size).toBe(role.permissions.length)
+    }
   })
 })
 

@@ -4,6 +4,7 @@ import {
   createUserAndGetNsec,
   loginAsAdmin,
   loginAsUser,
+  navigateAfterLogin,
   uniquePhone,
 } from '../helpers'
 import { ADMIN_NSEC } from '../helpers'
@@ -159,5 +160,112 @@ test.describe('Role Assignment UI', () => {
 
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: /cancel/i }).click()
+  })
+})
+
+// --- Role Editor: Permission Metadata Rendering ---
+
+test.describe('Role Editor — Permission Metadata UI', () => {
+  test.describe.configure({ mode: 'serial' })
+
+  test('Roles & Permissions section renders in Hub Settings', async ({ page }) => {
+    await loginAsAdmin(page)
+    await page.getByRole('link', { name: 'Hub Settings' }).click()
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+
+    // Look for the Roles section
+    await expect(page.getByText('Roles & Permissions')).toBeVisible()
+  })
+
+  test('role list includes Case Manager and Voicemail Reviewer roles', async ({ page }) => {
+    await loginAsAdmin(page)
+    await navigateAfterLogin(page, '/admin/settings?section=roles')
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+
+    // Expand the Roles section if needed
+    await page.getByText('Roles & Permissions').click()
+
+    // Default roles should be listed
+    await expect(page.getByText('Case Manager')).toBeVisible()
+    await expect(page.getByText('Voicemail Reviewer')).toBeVisible()
+    await expect(page.getByText('Volunteer')).toBeVisible()
+    await expect(page.getByText('Hub Admin')).toBeVisible()
+  })
+
+  test('Create Role button opens editor with permission domains', async ({ page }) => {
+    await loginAsAdmin(page)
+    await navigateAfterLogin(page, '/admin/settings?section=roles')
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+
+    // Expand the Roles section
+    await page.getByText('Roles & Permissions').click()
+    await expect(page.getByTestId('create-role-btn')).toBeVisible()
+    await page.getByTestId('create-role-btn').click()
+
+    // Permission group labels should render with human-friendly names, not raw domains
+    await expect(page.getByText('Contact Directory')).toBeVisible()
+    await expect(page.getByText('User Management')).toBeVisible()
+    await expect(page.getByText('Audit Log')).toBeVisible()
+    await expect(page.getByText('GDPR / Privacy')).toBeVisible()
+
+    // Domain sections should be present via data-testid
+    await expect(page.getByTestId('permission-domain-contacts')).toBeVisible()
+    await expect(page.getByTestId('permission-domain-notes')).toBeVisible()
+    await expect(page.getByTestId('permission-domain-calls')).toBeVisible()
+    await expect(page.getByTestId('permission-domain-users')).toBeVisible()
+  })
+
+  test('expanding contacts domain shows scope radio buttons, tier checkboxes, and action checkboxes', async ({
+    page,
+  }) => {
+    await loginAsAdmin(page)
+    await navigateAfterLogin(page, '/admin/settings?section=roles')
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+
+    // Expand Roles section and open Create Role editor
+    await page.getByText('Roles & Permissions').click()
+    await page.getByTestId('create-role-btn').click()
+
+    // Expand the contacts domain
+    const contactsDomain = page.getByTestId('permission-domain-contacts')
+    await contactsDomain.click()
+
+    // Scope radio buttons should exist (data-testid="scope-<perm-key>")
+    await expect(page.getByTestId('scope-contacts:read-own')).toBeVisible()
+    await expect(page.getByTestId('scope-contacts:read-assigned')).toBeVisible()
+    await expect(page.getByTestId('scope-contacts:read-all')).toBeVisible()
+    await expect(page.getByTestId('scope-contacts:update-own')).toBeVisible()
+    await expect(page.getByTestId('scope-contacts:update-assigned')).toBeVisible()
+    await expect(page.getByTestId('scope-contacts:update-all')).toBeVisible()
+
+    // Tier checkboxes (data-testid="tier-<perm-key>")
+    await expect(page.getByTestId('tier-contacts:envelope-summary')).toBeVisible()
+    await expect(page.getByTestId('tier-contacts:envelope-full')).toBeVisible()
+
+    // Action checkboxes (data-testid="action-<perm-key>")
+    await expect(page.getByTestId('action-contacts:create')).toBeVisible()
+    await expect(page.getByTestId('action-contacts:update-summary')).toBeVisible()
+    await expect(page.getByTestId('action-contacts:update-pii')).toBeVisible()
+    await expect(page.getByTestId('action-contacts:delete')).toBeVisible()
+    await expect(page.getByTestId('action-contacts:link')).toBeVisible()
+  })
+
+  test('cancel button closes the editor without creating a role', async ({ page }) => {
+    await loginAsAdmin(page)
+    await navigateAfterLogin(page, '/admin/settings?section=roles')
+    await expect(page.getByRole('heading', { name: 'Hub Settings', exact: true })).toBeVisible()
+
+    await page.getByText('Roles & Permissions').click()
+    await page.getByTestId('create-role-btn').click()
+
+    // Editor should be visible
+    await expect(page.getByTestId('save-role-btn')).toBeVisible()
+
+    // Click cancel
+    await page.getByRole('button', { name: /cancel/i }).click()
+
+    // Editor should be gone, create button back
+    await expect(page.getByTestId('create-role-btn')).toBeVisible()
+    await expect(page.getByTestId('save-role-btn')).not.toBeVisible()
   })
 })
