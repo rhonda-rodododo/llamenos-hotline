@@ -89,6 +89,67 @@ contacts.post('/hash-phone', async (c) => {
   return c.json({ identifierHash })
 })
 
+// POST /contacts/from-call/:callId — create contact from call + auto-link + auto-assign
+contacts.post('/from-call/:callId', requirePermission('contacts:create'), async (c) => {
+  const services = c.get('services')
+  const hubId = c.get('hubId') ?? 'global'
+  const pubkey = c.get('pubkey')
+  const callId = c.req.param('callId')
+
+  const body = await c.req.json<{
+    contactType: string
+    riskLevel: string
+    tags?: string[]
+    encryptedDisplayName: Ciphertext
+    displayNameEnvelopes: RecipientEnvelope[]
+    encryptedPhone?: Ciphertext
+    phoneEnvelopes?: RecipientEnvelope[]
+    identifierHash?: HmacHash
+    encryptedFullName?: Ciphertext
+    fullNameEnvelopes?: RecipientEnvelope[]
+    encryptedPII?: Ciphertext
+    piiEnvelopes?: RecipientEnvelope[]
+  }>()
+
+  if (
+    !body.contactType ||
+    !body.riskLevel ||
+    !body.encryptedDisplayName ||
+    !body.displayNameEnvelopes
+  ) {
+    return c.json(
+      {
+        error:
+          'contactType, riskLevel, encryptedDisplayName, and displayNameEnvelopes are required',
+      },
+      400
+    )
+  }
+
+  // Create contact
+  const contact = await services.contacts.createContact({
+    hubId,
+    contactType: body.contactType,
+    riskLevel: body.riskLevel,
+    tags: body.tags ?? [],
+    identifierHash: body.identifierHash,
+    encryptedDisplayName: body.encryptedDisplayName,
+    displayNameEnvelopes: body.displayNameEnvelopes,
+    encryptedPhone: body.encryptedPhone,
+    phoneEnvelopes: body.phoneEnvelopes,
+    encryptedFullName: body.encryptedFullName,
+    fullNameEnvelopes: body.fullNameEnvelopes,
+    encryptedPII: body.encryptedPII,
+    piiEnvelopes: body.piiEnvelopes,
+    createdBy: pubkey ?? '',
+  })
+
+  // Auto-link to call
+  await services.contacts.linkCall(contact.id, callId, hubId, pubkey ?? '')
+
+  return c.json({ contact, linked: true }, 201)
+})
+
 // GET /contacts/relationships — list all relationships for hub
 contacts.get('/relationships', requirePermission('contacts:envelope-full'), async (c) => {
   const services = c.get('services')

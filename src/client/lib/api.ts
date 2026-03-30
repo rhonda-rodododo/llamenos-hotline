@@ -2169,6 +2169,29 @@ export async function deleteContactRelationship(id: string): Promise<void> {
   return request(hp(`/contacts/relationships/${id}`), { method: 'DELETE' })
 }
 
+export async function createContactFromCall(
+  callId: string,
+  data: {
+    contactType: string
+    riskLevel: string
+    tags?: string[]
+    encryptedDisplayName: string
+    displayNameEnvelopes: RecipientEnvelope[]
+    encryptedPhone?: string
+    phoneEnvelopes?: RecipientEnvelope[]
+    identifierHash?: string
+    encryptedFullName?: string
+    fullNameEnvelopes?: RecipientEnvelope[]
+    encryptedPII?: string
+    piiEnvelopes?: RecipientEnvelope[]
+  }
+): Promise<{ contact: ContactRecord; linked: boolean }> {
+  return request(hp(`/contacts/from-call/${callId}`), {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
 export interface ContactNotification {
   contactId: string
   channel: { type: string; identifier: string }
