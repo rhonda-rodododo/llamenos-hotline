@@ -26,6 +26,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { Link, Outlet, createRootRoute, useLocation, useNavigate } from '@tanstack/react-router'
 import {
   Building2,
+  ClipboardList,
   Clock,
   Contact,
   FileText,
@@ -420,6 +421,11 @@ function AuthenticatedLayout() {
                 {hasPermission('contacts:read') && (
                   <NavLink to="/contacts" icon={<Contact className="h-4 w-4" />}>
                     {t('nav.contacts', { defaultValue: 'Contacts' })}
+                  </NavLink>
+                )}
+                {(hasPermission('contacts:triage') || hasPermission('notes:create')) && (
+                  <NavLink to="/intakes" icon={<ClipboardList className="h-4 w-4" />}>
+                    {t('nav.intakes', { defaultValue: 'Intakes' })}
                   </NavLink>
                 )}
                 <NavLink to="/audit" icon={<ScrollText className="h-4 w-4" />}>

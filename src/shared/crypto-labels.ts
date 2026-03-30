@@ -138,6 +138,11 @@ export const LABEL_VOICEMAIL_WRAP = 'llamenos:voicemail-audio'
 /** Voicemail transcript encryption (domain-separated from generic LABEL_MESSAGE) */
 export const LABEL_VOICEMAIL_TRANSCRIPT = 'llamenos:voicemail-transcript'
 
+// --- Contact Intake Encryption ---
+
+/** Contact intake payload — E2EE, enveloped for submitter + triage users. */
+export const LABEL_CONTACT_INTAKE = 'llamenos:contact-intake:v1'
+
 // --- Contact Directory Encryption ---
 
 /** Contact summary (Tier 1) — display name, notes, languages. Enveloped for contacts:envelope-summary recipients. */

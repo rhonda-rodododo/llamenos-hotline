@@ -24,6 +24,7 @@ import gdprRoutes from './routes/gdpr'
 import geocodingRoutes from './routes/geocoding'
 import healthRoutes from './routes/health'
 import hubRoutes from './routes/hubs'
+import intakesRoutes from './routes/intakes'
 import invitesRoutes from './routes/invites'
 import signalRegistrationRoutes from './routes/messaging/signal-registration'
 import metricsRoutes from './routes/metrics'
@@ -218,6 +219,8 @@ authenticated.use('/tags/*', requireHubOrSuperAdmin)
 authenticated.use('/tags', requireHubOrSuperAdmin)
 authenticated.use('/teams/*', requireHubOrSuperAdmin)
 authenticated.use('/teams', requireHubOrSuperAdmin)
+authenticated.use('/intakes/*', requireHubOrSuperAdmin)
+authenticated.use('/intakes', requireHubOrSuperAdmin)
 authenticated.route('/analytics', analyticsRoutes)
 authenticated.route('/shifts', shiftsRoutes)
 authenticated.route('/bans', bansRoutes)
@@ -238,6 +241,7 @@ authenticated.route('/blasts', blastsRoutes)
 authenticated.route('/contacts', contactsRoutes)
 authenticated.route('/tags', tagsRoutes)
 authenticated.route('/teams', teamsRoutes)
+authenticated.route('/intakes', intakesRoutes)
 authenticated.route('/gdpr', gdprRoutes)
 authenticated.route('/geocoding', geocodingRoutes)
 authenticated.route('/notifications', notificationsRoutes)
@@ -258,6 +262,7 @@ hubScoped.route('/blasts', blastsRoutes)
 hubScoped.route('/contacts', contactsRoutes)
 hubScoped.route('/tags', tagsRoutes)
 hubScoped.route('/teams', teamsRoutes)
+hubScoped.route('/intakes', intakesRoutes)
 
 authenticated.route('/hubs/:hubId', hubScoped)
 

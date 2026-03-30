@@ -112,6 +112,11 @@ export const PERMISSION_CATALOG = {
     group: 'contacts',
     subgroup: 'actions',
   },
+  'contacts:triage': {
+    label: 'Review and merge intake submissions into contact records',
+    group: 'contacts',
+    subgroup: 'actions',
+  },
 
   // --- Tags: Actions ---
   'tags:create': {
@@ -529,6 +534,7 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
       'contacts:envelope-full',
       'contacts:create',
       'contacts:link',
+      'contacts:triage',
       'tags:create',
       'notes:read-all',
       'notes:create',

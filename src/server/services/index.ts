@@ -8,6 +8,7 @@ import { ConversationService } from './conversations'
 import { FilesService } from './files'
 import { GdprService } from './gdpr'
 import { IdentityService } from './identity'
+import { IntakesService } from './intakes'
 import type { ProviderHealthService } from './provider-health'
 import { PushService } from './push'
 import { RecordsService } from './records'
@@ -25,6 +26,7 @@ export type {
   FilesService,
   GdprService,
   IdentityService,
+  IntakesService,
   PushService,
   RecordsService,
   ReportTypeService,
@@ -48,6 +50,7 @@ export interface Services {
   reportTypes: ReportTypeService
   push: PushService
   contacts: ContactService
+  intakes: IntakesService
   tags: TagsService
   teams: TeamsService
   providerHealth?: ProviderHealthService
@@ -79,6 +82,7 @@ export function createServices(
     reportTypes: new ReportTypeService(db, crypto),
     push: new PushService(db, crypto),
     contacts: contactService,
+    intakes: new IntakesService(db, crypto),
     tags: new TagsService(db, crypto),
     teams: teamsService,
     storage,

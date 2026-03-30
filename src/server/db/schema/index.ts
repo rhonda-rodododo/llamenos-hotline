@@ -16,3 +16,4 @@ export {
 } from './contacts'
 export * from './teams'
 export * from './tags'
+export * from './intakes'

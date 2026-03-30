@@ -152,6 +152,12 @@ export const queryKeys = {
     permissions: () => ['roles', 'permissions'] as const,
   },
 
+  intakes: {
+    all: ['intakes'] as const,
+    list: (status?: string) => ['intakes', 'list', status ?? ''] as const,
+    detail: (id: string) => ['intakes', 'detail', id] as const,
+  },
+
   tags: {
     all: ['tags'] as const,
     list: (hubId?: string) => ['tags', 'list', hubId ?? ''] as const,
