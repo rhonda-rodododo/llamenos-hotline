@@ -568,7 +568,6 @@ export interface IvrAudioMeta {
 
 export interface CreateRoleData {
   name: string
-  slug: string
   permissions: string[]
   description: string
   hubId?: string

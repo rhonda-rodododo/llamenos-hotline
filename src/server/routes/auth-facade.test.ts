@@ -89,7 +89,6 @@ function createMockSettings(overrides: Record<string, unknown> = {}): SettingsSe
         {
           id: 'role-volunteer',
           name: 'Volunteer',
-          slug: 'volunteer',
           permissions: [
             'calls:answer',
             'calls:read-active',
@@ -109,7 +108,6 @@ function createMockSettings(overrides: Record<string, unknown> = {}): SettingsSe
         {
           id: 'role-super-admin',
           name: 'Super Admin',
-          slug: 'super-admin',
           permissions: ['*'],
           isDefault: true,
           isSystem: true,

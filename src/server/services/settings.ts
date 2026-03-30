@@ -791,7 +791,6 @@ export class SettingsService {
           DEFAULT_ROLES.map((r) => ({
             id: r.id,
             hubId: hId,
-            slug: r.slug,
             encryptedName: hubKey ? this.crypto.hubEncrypt(r.name, hubKey) : (r.name as Ciphertext), // Plaintext until hub key available (pre-production)
             encryptedDescription: r.description
               ? hubKey
@@ -819,16 +818,6 @@ export class SettingsService {
 
   async createRole(data: CreateRoleData): Promise<Role> {
     const hubId = data.hubId ?? null
-    const existing = await this.db
-      .select({ id: roles.id })
-      .from(roles)
-      .where(
-        hubId
-          ? and(eq(roles.slug, data.slug), eq(roles.hubId, hubId))
-          : and(eq(roles.slug, data.slug), sql`${roles.hubId} IS NULL`)
-      )
-      .limit(1)
-    if (existing[0]) throw new AppError(409, `Role slug "${data.slug}" already exists`)
 
     // Client provides hub-key encrypted name/description
     const encryptedName = (data.encryptedName ?? data.name) as Ciphertext
@@ -842,7 +831,6 @@ export class SettingsService {
       .values({
         id,
         hubId,
-        slug: data.slug,
         encryptedName,
         encryptedDescription,
         permissions: data.permissions,
@@ -1142,7 +1130,6 @@ export class SettingsService {
     return {
       id: r.id,
       name: '', // Client decrypts encryptedName with hub key
-      slug: r.slug,
       permissions: r.permissions as string[],
       isDefault: r.isDefault,
       isSystem: r.id === 'role-super-admin',

@@ -33,7 +33,6 @@ export const RoleSchema = z.object({
   id: z.uuid(),
   hubId: z.string().optional(),
   name: z.string(),
-  slug: z.string(),
   permissions: z.array(z.string()),
   isDefault: z.boolean(),
   createdAt: z.iso.datetime(),
@@ -42,7 +41,6 @@ export type Role = z.infer<typeof RoleSchema>
 
 export const CreateRoleSchema = z.object({
   name: z.string().min(1).max(100),
-  slug: z.string().min(1).max(100),
   permissions: z.array(z.string()),
   isDefault: z.boolean().optional(),
   hubId: z.string().optional(),

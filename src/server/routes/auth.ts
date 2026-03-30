@@ -83,9 +83,7 @@ auth.get('/me', async (c) => {
     roles: user.roles,
     hubRoles: user.hubRoles ?? [],
     permissions,
-    primaryRole: primaryRole
-      ? { id: primaryRole.id, name: primaryRole.name, slug: primaryRole.slug }
-      : null,
+    primaryRole: primaryRole ? { id: primaryRole.id, name: primaryRole.name } : null,
     name: user.name,
     // E2EE envelope fields — client uses these to decrypt name with their private key
     ...(user.encryptedName !== undefined ? { encryptedName: user.encryptedName } : {}),

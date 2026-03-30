@@ -34,7 +34,6 @@ export const hubKeys = pgTable(
 export const roles = pgTable('roles', {
   id: text('id').primaryKey(),
   hubId: text('hub_id'), // null = global role
-  slug: text('slug').notNull(),
   encryptedName: ciphertext('encrypted_name').notNull(),
   encryptedDescription: ciphertext('encrypted_description'),
   permissions: jsonb<string[]>()('permissions').notNull().default([]),

@@ -72,7 +72,6 @@ export function useCreateRole() {
   return useMutation({
     mutationFn: (data: {
       name: string
-      slug: string
       permissions: string[]
       description: string
       encryptedName?: Ciphertext

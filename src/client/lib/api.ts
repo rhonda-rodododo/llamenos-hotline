@@ -128,7 +128,7 @@ export async function getMe() {
     roles: string[]
     hubRoles: { hubId: string; roleIds: string[] }[]
     permissions: string[]
-    primaryRole: { id: string; name: string; slug: string } | null
+    primaryRole: { id: string; name: string } | null
     name: string
     encryptedName?: Ciphertext
     nameEnvelopes?: RecipientEnvelope[]
@@ -657,7 +657,6 @@ export async function updateWebAuthnSettings(data: Partial<WebAuthnSettings>) {
 export interface RoleDefinition {
   id: string
   name: string
-  slug: string
   permissions: string[]
   isDefault: boolean
   isSystem: boolean
@@ -676,7 +675,6 @@ export async function listRoles() {
 
 export async function createRole(data: {
   name: string
-  slug: string
   permissions: string[]
   description: string
   encryptedName?: Ciphertext

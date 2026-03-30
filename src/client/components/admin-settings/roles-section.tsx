@@ -41,7 +41,6 @@ interface Props {
 
 interface RoleFormData {
   name: string
-  slug: string
   description: string
   permissions: string[]
 }
@@ -216,7 +215,6 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<RoleFormData>({
     name: '',
-    slug: '',
     description: '',
     permissions: [],
   })
@@ -229,7 +227,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
 
   function startCreate() {
     setEditingId('new')
-    setForm({ name: '', slug: '', description: '', permissions: [] })
+    setForm({ name: '', description: '', permissions: [] })
     setExpandedDomains(new Set())
   }
 
@@ -237,7 +235,6 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     setEditingId(role.id)
     setForm({
       name: decryptHubField(role.encryptedName, hubId, role.name),
-      slug: role.slug,
       description: decryptHubField(role.encryptedDescription, hubId, role.description),
       permissions: [...role.permissions],
     })
@@ -255,7 +252,7 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
 
   function cancelEdit() {
     setEditingId(null)
-    setForm({ name: '', slug: '', description: '', permissions: [] })
+    setForm({ name: '', description: '', permissions: [] })
     setExpandedDomains(new Set())
   }
 
@@ -315,24 +312,14 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
     })
   }
 
-  function autoSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 50)
-  }
-
   function handleSave() {
     if (!form.name.trim()) return
     if (editingId === 'new') {
-      const slug = form.slug.trim() || autoSlug(form.name)
       const trimmedName = form.name.trim()
       const trimmedDesc = form.description.trim()
       createRole.mutate(
         {
           name: trimmedName,
-          slug,
           description: trimmedDesc,
           permissions: form.permissions,
           encryptedName: encryptHubField(trimmedName, hubId),
@@ -528,28 +515,12 @@ export function RolesSection({ expanded, onToggle, statusSummary }: Props) {
               <Input
                 value={form.name}
                 onChange={(e) => {
-                  const name = e.target.value
-                  setForm((prev) => ({
-                    ...prev,
-                    name,
-                    ...(editingId === 'new' ? { slug: autoSlug(name) } : {}),
-                  }))
+                  setForm((prev) => ({ ...prev, name: e.target.value }))
                 }}
                 placeholder={t('roles.namePlaceholder', { defaultValue: 'e.g. Team Lead' })}
                 maxLength={50}
               />
             </div>
-            {editingId === 'new' && (
-              <div className="space-y-1">
-                <Label>{t('roles.slug', { defaultValue: 'Slug' })}</Label>
-                <Input
-                  value={form.slug}
-                  onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
-                  placeholder={t('roles.slugPlaceholder', { defaultValue: 'e.g. team-lead' })}
-                  maxLength={50}
-                />
-              </div>
-            )}
           </div>
 
           <div className="space-y-1">

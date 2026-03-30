@@ -450,7 +450,6 @@ export function getPermissionsByDomain(): Record<
 export interface Role {
   id: string
   name: string
-  slug: string
   permissions: string[]
   isDefault: boolean // ships with system
   isSystem: boolean // can't be modified at all (super-admin)
@@ -469,7 +468,6 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'role-super-admin',
     name: 'Super Admin',
-    slug: 'super-admin',
     permissions: ['*'],
     isDefault: true,
     isSystem: true,
@@ -478,7 +476,6 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'role-hub-admin',
     name: 'Hub Admin',
-    slug: 'hub-admin',
     permissions: [
       'users:*',
       'shifts:*',
@@ -505,7 +502,6 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'role-reviewer',
     name: 'Reviewer',
-    slug: 'reviewer',
     permissions: [
       'notes:read-assigned',
       'notes:reply',
@@ -526,7 +522,6 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'role-case-manager',
     name: 'Case Manager',
-    slug: 'case-manager',
     permissions: [
       'contacts:read-assigned',
       'contacts:update-assigned',
@@ -562,7 +557,6 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'role-volunteer',
     name: 'Volunteer',
-    slug: 'volunteer',
     permissions: [
       'calls:answer',
       'calls:read-active',
@@ -601,7 +595,6 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'role-reporter',
     name: 'Reporter',
-    slug: 'reporter',
     permissions: [
       'reports:create',
       'reports:read-own',
@@ -616,7 +609,6 @@ export const DEFAULT_ROLES: Omit<Role, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'role-voicemail-reviewer',
     name: 'Voicemail Reviewer',
-    slug: 'voicemail-reviewer',
     permissions: [
       'voicemail:listen',
       'voicemail:read',
