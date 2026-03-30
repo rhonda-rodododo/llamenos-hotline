@@ -717,8 +717,11 @@
     },
     "context": "Context",
     "empty": "No custom fields defined",
-    "visibleToUsers": "Hiển thị cho người dùng",
-    "editableByUsers": "Người dùng có thể chỉnh sửa"
+    "visibleTo": "Visible to",
+    "visibleToOptions": {
+      "summary": "All members with contact access",
+      "full": "Members with full PII access only"
+    }
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",

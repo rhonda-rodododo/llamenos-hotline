@@ -47,7 +47,7 @@ export const customFieldDefinitions = pgTable('custom_field_definitions', {
   hubId: text('hub_id'), // null = global
   fieldType: text('field_type').notNull(), // 'text' | 'select' | 'multiselect' | 'checkbox' | 'date'
   required: boolean('required').notNull().default(false),
-  showInUserView: boolean('show_in_user_view').notNull().default(false),
+  visibleTo: text('visible_to').notNull().default('contacts:envelope-summary'),
   /** Context distinguishes where this field appears */
   context: text('context').notNull().default('notes'), // 'notes' | 'conversations' | 'reports' | 'all'
   /** IDs of report types that show this field. Empty array = shown for all types (when context includes 'reports'). */

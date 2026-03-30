@@ -725,8 +725,11 @@
     },
     "context": "Context",
     "empty": "No custom fields defined",
-    "visibleToUsers": "Visible para usuarios",
-    "editableByUsers": "Editable por usuarios"
+    "visibleTo": "Visible to",
+    "visibleToOptions": {
+      "summary": "All members with contact access",
+      "full": "Members with full PII access only"
+    }
   },
   "notifications": {
     "promptText": "Activa las notificaciones para recibir alertas cuando lleguen llamadas.",

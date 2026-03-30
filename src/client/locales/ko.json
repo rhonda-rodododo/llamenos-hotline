@@ -717,8 +717,11 @@
     },
     "context": "Context",
     "empty": "No custom fields defined",
-    "visibleToUsers": "사용자에게 표시",
-    "editableByUsers": "사용자가 편집 가능"
+    "visibleTo": "Visible to",
+    "visibleToOptions": {
+      "summary": "All members with contact access",
+      "full": "Members with full PII access only"
+    }
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",

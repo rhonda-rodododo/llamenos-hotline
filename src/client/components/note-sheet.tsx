@@ -71,10 +71,8 @@ export function NoteSheet() {
   function validateFields(): boolean {
     const errors: Record<string, string> = {}
     for (const field of customFields) {
-      // Volunteers can only see visible fields
-      if (!isAdmin && !field.visibleToUsers) continue
-      // Read-only fields for volunteers shouldn't be validated
-      if (!isAdmin && !field.editableByUsers) continue
+      // Volunteers can only see fields they have permission for
+      if (!isAdmin && field.visibleTo !== 'contacts:envelope-summary') continue
 
       const value = draft.fields[field.id]
       if (field.required && (value === undefined || value === '' || value === false)) {
@@ -156,7 +154,9 @@ export function NoteSheet() {
   const modKey = isMac ? '\u2318' : 'Ctrl'
 
   // Filter fields based on role visibility
-  const visibleFields = customFields.filter((f) => isAdmin || f.visibleToUsers)
+  const visibleFields = customFields.filter(
+    (f) => isAdmin || f.visibleTo === 'contacts:envelope-summary'
+  )
 
   return (
     <Sheet
@@ -225,7 +225,7 @@ export function NoteSheet() {
             <div className="space-y-3 rounded-lg border border-border p-3">
               <p className="text-xs font-medium text-muted-foreground">{t('customFields.title')}</p>
               {visibleFields.map((field) => {
-                const disabled = !isAdmin && !field.editableByUsers
+                const disabled = !isAdmin && field.visibleTo !== 'contacts:envelope-summary'
                 const error = validationErrors[field.id]
                 const value = draft.fields[field.id]
                 return (

@@ -717,8 +717,11 @@
     },
     "context": "Context",
     "empty": "No custom fields defined",
-    "visibleToUsers": "Видимое для волонтёров",
-    "editableByUsers": "Редактируемое волонтёрами"
+    "visibleTo": "Visible to",
+    "visibleToOptions": {
+      "summary": "All members with contact access",
+      "full": "Members with full PII access only"
+    }
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",

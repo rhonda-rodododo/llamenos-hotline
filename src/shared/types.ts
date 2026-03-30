@@ -208,8 +208,8 @@ export interface CustomFieldDefinition {
     min?: number // number
     max?: number // number
   }
-  visibleToUsers: boolean
-  editableByUsers: boolean
+  /** Permission string controlling which users can see this field (e.g. 'contacts:envelope-summary' | 'contacts:envelope-full') */
+  visibleTo: string
   context: CustomFieldContext // where this field appears
   /**
    * IDs of report types that display this field.

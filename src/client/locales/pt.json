@@ -717,8 +717,11 @@
     },
     "context": "Context",
     "empty": "No custom fields defined",
-    "visibleToUsers": "Visível para usuários",
-    "editableByUsers": "Editável por usuários"
+    "visibleTo": "Visible to",
+    "visibleToOptions": {
+      "summary": "All members with contact access",
+      "full": "Members with full PII access only"
+    }
   },
   "notifications": {
     "promptText": "Enable notifications to get alerted when calls come in.",

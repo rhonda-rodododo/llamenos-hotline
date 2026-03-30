@@ -844,8 +844,11 @@
       "city": "City level (address only)",
       "none": "None (text only)"
     },
-    "visibleToUsers": "Visible to users",
-    "editableByUsers": "Editable by users"
+    "visibleTo": "Visible to",
+    "visibleToOptions": {
+      "summary": "All members with contact access",
+      "full": "Members with full PII access only"
+    }
   },
   "setup": {
     "title": "Setup Wizard",

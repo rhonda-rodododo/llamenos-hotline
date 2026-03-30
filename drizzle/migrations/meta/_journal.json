@@ -260,6 +260,13 @@
       "when": 1743638400000,
       "tag": "0035_contact_merge",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1743724800000,
+      "tag": "0036_custom_field_visible_to",
+      "breakpoints": true
     }
   ]
 }

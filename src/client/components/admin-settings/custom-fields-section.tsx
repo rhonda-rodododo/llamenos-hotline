@@ -3,6 +3,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { type CustomFieldDefinition, updateCustomFields } from '@/lib/api'
 import { useConfig } from '@/lib/config'
@@ -74,8 +81,7 @@ export function CustomFieldsSection({
           required: editing.required ?? false,
           options: editing.options,
           validation: editing.validation,
-          visibleToUsers: editing.visibleToUsers ?? true,
-          editableByUsers: editing.editableByUsers ?? true,
+          visibleTo: editing.visibleTo ?? 'contacts:envelope-summary',
           context: editing.context ?? 'all',
           order: fields.length,
           createdAt: new Date().toISOString(),
@@ -145,7 +151,7 @@ export function CustomFieldsSection({
                       {t('customFields.required')}
                     </Badge>
                   )}
-                  {!field.visibleToUsers && (
+                  {field.visibleTo === 'contacts:envelope-full' && (
                     <Badge variant="secondary" className="text-[10px]">
                       {t('customFields.adminOnly')}
                     </Badge>
@@ -420,25 +426,26 @@ export function CustomFieldsSection({
           )}
 
           {/* Visibility */}
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={editing.visibleToUsers ?? true}
-                onCheckedChange={(checked) =>
-                  setEditing((prev) => ({ ...(prev ?? {}), visibleToUsers: checked }))
-                }
-              />
-              <Label className="text-sm">{t('customFields.visibleToUsers')}</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={editing.editableByUsers ?? true}
-                onCheckedChange={(checked) =>
-                  setEditing((prev) => ({ ...(prev ?? {}), editableByUsers: checked }))
-                }
-              />
-              <Label className="text-sm">{t('customFields.editableByUsers')}</Label>
-            </div>
+          <div className="space-y-1">
+            <Label className="text-sm">{t('customFields.visibleTo')}</Label>
+            <Select
+              value={editing.visibleTo ?? 'contacts:envelope-summary'}
+              onValueChange={(value) =>
+                setEditing((prev) => ({ ...(prev ?? {}), visibleTo: value }))
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="contacts:envelope-summary">
+                  {t('customFields.visibleToOptions.summary')}
+                </SelectItem>
+                <SelectItem value="contacts:envelope-full">
+                  {t('customFields.visibleToOptions.full')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex gap-2">
@@ -464,8 +471,7 @@ export function CustomFieldsSection({
               setEditing({
                 type: 'text',
                 required: false,
-                visibleToUsers: true,
-                editableByUsers: true,
+                visibleTo: 'contacts:envelope-summary',
               })
             }
           >

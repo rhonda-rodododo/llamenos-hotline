@@ -324,7 +324,9 @@ export class SettingsService {
       return this.#rowToCustomField(r, fieldName, label, options)
     })
 
-    return role !== 'admin' ? fields.filter((f) => f.visibleToUsers) : fields
+    return role !== 'admin'
+      ? fields.filter((f) => f.visibleTo === 'contacts:envelope-summary')
+      : fields
   }
 
   async updateCustomFields(
@@ -360,7 +362,7 @@ export class SettingsService {
           hubId: hId,
           fieldType: f.type,
           required: f.required,
-          showInUserView: f.visibleToUsers,
+          visibleTo: f.visibleTo ?? 'contacts:envelope-summary',
           order: i,
           encryptedFieldName: encrypt(f.name),
           encryptedLabel: encrypt(f.label),
@@ -1258,8 +1260,7 @@ export class SettingsService {
       encryptedFieldName: r.encryptedFieldName ?? undefined,
       encryptedLabel: r.encryptedLabel ?? undefined,
       encryptedOptions: r.encryptedOptions ?? undefined,
-      visibleToUsers: r.showInUserView,
-      editableByUsers: r.showInUserView,
+      visibleTo: r.visibleTo,
       context: 'all',
       order: r.order,
       createdAt: r.createdAt.toISOString(),

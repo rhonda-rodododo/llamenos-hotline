@@ -81,7 +81,9 @@ function NoteDetailPage() {
       .finally(() => setLoading(false))
   }, [noteId, hasNsec, publicKey, isAdmin])
 
-  const visibleFields = customFields.filter((f) => isAdmin || f.visibleToUsers)
+  const visibleFields = customFields.filter(
+    (f) => isAdmin || f.visibleTo === 'contacts:envelope-summary'
+  )
 
   if (loading) {
     return (

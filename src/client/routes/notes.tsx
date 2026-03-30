@@ -159,7 +159,9 @@ function NotesPage() {
   }, {})
 
   const totalPages = Math.ceil(total / limit)
-  const visibleFields = customFields.filter((f) => isAdmin || f.visibleToUsers)
+  const visibleFields = customFields.filter(
+    (f) => isAdmin || f.visibleTo === 'contacts:envelope-summary'
+  )
   const saving = createNoteMutation.isPending || updateNoteMutation.isPending
 
   async function handleExport() {
