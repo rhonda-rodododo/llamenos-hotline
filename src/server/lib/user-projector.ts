@@ -43,6 +43,9 @@ export interface UserSelfView {
   callPreference: 'phone' | 'browser' | 'both'
   supportedMessagingChannels?: MessagingChannelType[]
   messagingEnabled?: boolean
+  // E2EE envelope fields (Phase 2D) — present when phone is envelope-encrypted
+  encryptedPhone?: string
+  phoneEnvelopes?: RecipientEnvelope[]
 }
 
 export interface UserAdminView {
@@ -63,9 +66,11 @@ export interface UserAdminView {
   callPreference: 'phone' | 'browser' | 'both'
   supportedMessagingChannels?: MessagingChannelType[]
   messagingEnabled?: boolean
-  // E2EE envelope fields (Phase 2D) — present when name is envelope-encrypted
+  // E2EE envelope fields (Phase 2D) — present when name/phone is envelope-encrypted
   encryptedName?: string
   nameEnvelopes?: RecipientEnvelope[]
+  encryptedPhone?: string
+  phoneEnvelopes?: RecipientEnvelope[]
 }
 
 // ── Phone masking ──────────────────────────────────────────────────────────────
@@ -102,6 +107,8 @@ interface UserSource {
   // E2EE envelope fields (Phase 2D)
   encryptedName?: string
   nameEnvelopes?: RecipientEnvelope[]
+  encryptedPhone?: string
+  phoneEnvelopes?: RecipientEnvelope[]
 }
 
 // ── Projection function ────────────────────────────────────────────────────────
@@ -143,6 +150,8 @@ export function projectUser(
       // E2EE envelope fields — pass through for client-side decryption
       encryptedName: user.encryptedName,
       nameEnvelopes: user.nameEnvelopes,
+      encryptedPhone: user.encryptedPhone,
+      phoneEnvelopes: user.phoneEnvelopes,
     }
     return result
   }
@@ -166,6 +175,9 @@ export function projectUser(
       callPreference: user.callPreference,
       supportedMessagingChannels: user.supportedMessagingChannels,
       messagingEnabled: user.messagingEnabled,
+      // E2EE envelope fields — pass through for client-side decryption
+      encryptedPhone: user.encryptedPhone,
+      phoneEnvelopes: user.phoneEnvelopes,
     }
     return result
   }

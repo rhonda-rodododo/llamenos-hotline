@@ -274,6 +274,13 @@
       "when": 1743811200000,
       "tag": "0037_drop_role_slug",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1743897600000,
+      "tag": "0038_user_phone_envelopes",
+      "breakpoints": true
     }
   ]
 }

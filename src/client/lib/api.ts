@@ -869,9 +869,11 @@ export interface User {
   // Messaging capabilities (Epic 68)
   supportedMessagingChannels?: string[] // SMS, WhatsApp, Signal, RCS (empty = all)
   messagingEnabled?: boolean // Whether user can handle messaging conversations
-  // E2EE envelope-encrypted name (Phase 2D)
+  // E2EE envelope-encrypted fields (Phase 2D)
   encryptedName?: Ciphertext
   nameEnvelopes?: RecipientEnvelope[]
+  encryptedPhone?: Ciphertext
+  phoneEnvelopes?: RecipientEnvelope[]
 }
 
 export interface Shift {
@@ -980,9 +982,11 @@ export interface InviteCode {
   usedAt?: string
   deliveryChannel?: string
   deliverySentAt?: string
-  // E2EE envelope-encrypted name (Phase 2D)
+  // E2EE envelope-encrypted fields (Phase 2D)
   encryptedName?: Ciphertext
   nameEnvelopes?: RecipientEnvelope[]
+  encryptedPhone?: Ciphertext
+  phoneEnvelopes?: RecipientEnvelope[]
 }
 
 // --- Conversations ---

@@ -20,6 +20,7 @@ export const users = pgTable('users', {
   encryptedName: ciphertext('encrypted_name').notNull(),
   nameEnvelopes: jsonb<RecipientEnvelope[]>()('name_envelopes').notNull().default([]),
   encryptedPhone: ciphertext('encrypted_phone').notNull(),
+  phoneEnvelopes: jsonb<RecipientEnvelope[]>()('phone_envelopes').notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -66,6 +67,7 @@ export const inviteCodes = pgTable('invite_codes', {
   encryptedName: ciphertext('encrypted_name').notNull(),
   nameEnvelopes: jsonb<RecipientEnvelope[]>()('name_envelopes').notNull().default([]),
   encryptedPhone: ciphertext('encrypted_phone').notNull(),
+  phoneEnvelopes: jsonb<RecipientEnvelope[]>()('phone_envelopes').notNull().default([]),
   recipientPhoneHash: hmacHashed('recipient_phone_hash'),
   deliveryChannel: varchar('delivery_channel', { length: 16 }),
   deliverySentAt: timestamp('delivery_sent_at', { withTimezone: true }),

@@ -151,9 +151,11 @@ export interface User {
   // Messaging channel capabilities (Epic 68)
   supportedMessagingChannels?: MessagingChannelType[] // SMS, WhatsApp, Signal, RCS (empty = all)
   messagingEnabled?: boolean // Whether user can handle messaging conversations
-  // E2EE envelope-encrypted name (Phase 2D)
+  // E2EE envelope-encrypted fields (Phase 2D)
   encryptedName?: string // ECIES ciphertext
   nameEnvelopes?: RecipientEnvelope[] // Per-recipient wrapped keys
+  encryptedPhone?: string // ECIES ciphertext (when envelope-encrypted)
+  phoneEnvelopes?: RecipientEnvelope[] // Per-recipient wrapped keys for phone
 }
 
 export interface Shift {
@@ -290,9 +292,11 @@ export interface InviteCode {
   recipientPhoneHash?: string
   deliveryChannel?: string
   deliverySentAt?: string
-  // E2EE envelope-encrypted name (Phase 2D)
+  // E2EE envelope-encrypted fields (Phase 2D)
   encryptedName?: string
   nameEnvelopes?: RecipientEnvelope[]
+  encryptedPhone?: string
+  phoneEnvelopes?: RecipientEnvelope[]
 }
 
 export interface WebAuthnCredential {

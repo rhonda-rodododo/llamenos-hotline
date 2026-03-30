@@ -339,6 +339,7 @@ export class GdprService {
           encryptedName: '' as import('@shared/crypto-types').Ciphertext,
           encryptedPhone: '' as import('@shared/crypto-types').Ciphertext,
           nameEnvelopes: [],
+          phoneEnvelopes: [],
           spokenLanguages: [],
           hubRoles: [],
         })
