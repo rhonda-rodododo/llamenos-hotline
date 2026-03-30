@@ -10,6 +10,7 @@ export function createDatabase(url: string) {
     url,
     max: Number(process.env.PG_POOL_SIZE) || 10,
     idleTimeout: Number(process.env.PG_IDLE_TIMEOUT) || 30,
+    maxLifetime: Number(process.env.PG_MAX_LIFETIME) || 3600,
     connectionTimeout: 30,
   })
   return drizzle({ client, schema })

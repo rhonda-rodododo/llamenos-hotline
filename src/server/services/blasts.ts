@@ -2,7 +2,7 @@ import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq, lte, or } from 'drizzle-orm'
 import type { RecipientEnvelope } from '../../shared/types'
 import type { Database } from '../db'
-import { blastDeliveries, blasts, hubKeys, subscribers } from '../db/schema'
+import { blastDeliveries, blasts, subscribers } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
@@ -15,6 +15,7 @@ import type {
   Subscriber,
   SubscriberChannel,
 } from '../types'
+import type { SettingsService } from './settings'
 
 /** Pure filter: does a subscriber match the blast's targeting criteria? */
 export function matchesBlastFilters(
@@ -50,26 +51,14 @@ export function selectChannel(sub: Subscriber, targetChannels: string[]): Subscr
 }
 
 export class BlastService {
+  #settings: SettingsService
+
   constructor(
     protected readonly db: Database,
-    private readonly crypto: CryptoService
-  ) {}
-
-  async #getHubKey(hubId: string): Promise<Uint8Array | null> {
-    if (!hubId || hubId === 'global') return null
-    const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
-    if (envelopes.length === 0) return null
-    try {
-      return this.crypto.unwrapHubKey(
-        envelopes.map((r) => ({
-          pubkey: r.pubkey,
-          wrappedKey: r.encryptedKey,
-          ephemeralPubkey: r.ephemeralPubkey ?? '',
-        }))
-      )
-    } catch {
-      return null
-    }
+    private readonly crypto: CryptoService,
+    settings: SettingsService
+  ) {
+    this.#settings = settings
   }
 
   // ------------------------------------------------------------------ Blasts
@@ -77,7 +66,7 @@ export class BlastService {
   async listBlasts(hubId?: string): Promise<Blast[]> {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(blasts).where(eq(blasts.hubId, hId))
-    const hubKey = await this.#getHubKey(hId)
+    const hubKey = await this.#settings.getHubKey(hId)
     return rows.map((r) => {
       const name = this.crypto.decryptField(
         r.encryptedName as Ciphertext,
@@ -92,7 +81,7 @@ export class BlastService {
     const rows = await this.db.select().from(blasts).where(eq(blasts.id, id)).limit(1)
     if (!rows[0]) return null
     const r = rows[0]
-    const hubKey = await this.#getHubKey(r.hubId)
+    const hubKey = await this.#settings.getHubKey(r.hubId)
     const name = this.crypto.decryptField(
       r.encryptedName as Ciphertext,
       hubKey,
@@ -104,7 +93,7 @@ export class BlastService {
   async createBlast(data: CreateBlastData): Promise<Blast> {
     const id = crypto.randomUUID()
     const hId = data.hubId ?? 'global'
-    const hubKey = await this.#getHubKey(hId)
+    const hubKey = await this.#settings.getHubKey(hId)
     const encryptedName = hubKey
       ? this.crypto.hubEncrypt(data.name, hubKey)
       : this.crypto.serverEncrypt(data.name, 'llamenos:blast-name')
@@ -142,7 +131,7 @@ export class BlastService {
     const statsUpdate = data.stats ? { stats: { ...existing.stats, ...data.stats } } : {}
 
     // Encrypt name — hub key for hub-scoped, server key as fallback
-    const hubKey = await this.#getHubKey(existing.hubId)
+    const hubKey = await this.#settings.getHubKey(existing.hubId)
     const encFields: Record<string, unknown> = {}
     if (data.name !== undefined) {
       encFields.encryptedName = hubKey
@@ -342,7 +331,7 @@ export class BlastService {
       )
     const result: Blast[] = []
     for (const r of rows) {
-      const hubKey = await this.#getHubKey(r.hubId)
+      const hubKey = await this.#settings.getHubKey(r.hubId)
       const name = this.crypto.decryptField(
         r.encryptedName as Ciphertext,
         hubKey,

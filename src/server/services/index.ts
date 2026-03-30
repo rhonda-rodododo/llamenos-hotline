@@ -54,17 +54,18 @@ export function createServices(
   crypto: CryptoService,
   storage: StorageManager | null = null
 ): Services {
+  const settings = new SettingsService(db, crypto)
   return {
     identity: new IdentityService(db, crypto),
-    settings: new SettingsService(db, crypto),
+    settings,
     records: new RecordsService(db, crypto),
-    shifts: new ShiftService(db, crypto),
+    shifts: new ShiftService(db, crypto, settings),
     calls: new CallService(db, crypto),
     conversations: new ConversationService(db, crypto),
-    blasts: new BlastService(db, crypto),
+    blasts: new BlastService(db, crypto, settings),
     files: new FilesService(db, storage),
     gdpr: new GdprService(db, crypto),
-    reportTypes: new ReportTypeService(db, crypto),
+    reportTypes: new ReportTypeService(db, crypto, settings),
     push: new PushService(db, crypto),
     contacts: new ContactService(db, crypto),
     storage,

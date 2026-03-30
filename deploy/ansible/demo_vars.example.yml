@@ -82,8 +82,8 @@ hmac_secret: ""
 # Database password (generate with: openssl rand -base64 24)
 pg_password: ""
 
-# Connection pool size
-pg_pool_size: 10
+# Connection pool size (app-side pool per process)
+pg_pool_size: 20
 
 # ─── Storage (RustFS) ──────────────────────────────────────────
 # Access credentials (generate with: openssl rand -base64 24)

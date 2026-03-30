@@ -1,7 +1,7 @@
 import type { Ciphertext } from '@shared/crypto-types'
 import { and, eq } from 'drizzle-orm'
 import type { Database } from '../db'
-import { activeShifts, hubKeys, ringGroups, shiftOverrides, shiftSchedules } from '../db/schema'
+import { activeShifts, ringGroups, shiftOverrides, shiftSchedules } from '../db/schema'
 import type { CryptoService } from '../lib/crypto-service'
 import { AppError } from '../lib/errors'
 import type {
@@ -14,32 +14,21 @@ import type {
   ShiftSchedule,
   StartShiftData,
 } from '../types'
+import type { SettingsService } from './settings'
 
 function isValidTimeFormat(time: string): boolean {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(time)
 }
 
 export class ShiftService {
+  #settings: SettingsService
+
   constructor(
     protected readonly db: Database,
-    private readonly crypto: CryptoService
-  ) {}
-
-  async #getHubKey(hubId: string): Promise<Uint8Array | null> {
-    if (!hubId || hubId === 'global') return null
-    const envelopes = await this.db.select().from(hubKeys).where(eq(hubKeys.hubId, hubId))
-    if (envelopes.length === 0) return null
-    try {
-      return this.crypto.unwrapHubKey(
-        envelopes.map((r) => ({
-          pubkey: r.pubkey,
-          wrappedKey: r.encryptedKey,
-          ephemeralPubkey: r.ephemeralPubkey ?? '',
-        }))
-      )
-    } catch {
-      return null
-    }
+    private readonly crypto: CryptoService,
+    settings: SettingsService
+  ) {
+    this.#settings = settings
   }
 
   // ------------------------------------------------------------------ Schedules
@@ -47,7 +36,7 @@ export class ShiftService {
   async getSchedules(hubId?: string): Promise<ShiftSchedule[]> {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(shiftSchedules).where(eq(shiftSchedules.hubId, hId))
-    const hubKey = await this.#getHubKey(hId)
+    const hubKey = await this.#settings.getHubKey(hId)
     return rows.map((r) => {
       const name = this.crypto.decryptField(
         r.encryptedName as Ciphertext,
@@ -64,7 +53,7 @@ export class ShiftService {
     }
     const id = crypto.randomUUID()
     const hId = data.hubId ?? 'global'
-    const hubKey = await this.#getHubKey(hId)
+    const hubKey = await this.#settings.getHubKey(hId)
     const encryptedName = hubKey
       ? this.crypto.hubEncrypt(data.name, hubKey)
       : this.crypto.serverEncrypt(data.name, 'llamenos:shift-name')
@@ -99,7 +88,7 @@ export class ShiftService {
     const rows = await this.db.select().from(shiftSchedules).where(whereClause).limit(1)
     if (!rows[0]) throw new AppError(404, 'Schedule not found')
 
-    const hubKey = await this.#getHubKey(hubId)
+    const hubKey = await this.#settings.getHubKey(hubId)
     const encFields: Record<string, unknown> = {}
     if (data.name !== undefined) {
       encFields.encryptedName = hubKey
@@ -166,7 +155,7 @@ export class ShiftService {
   async getRingGroups(hubId?: string): Promise<RingGroup[]> {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(ringGroups).where(eq(ringGroups.hubId, hId))
-    const hubKey = await this.#getHubKey(hId)
+    const hubKey = await this.#settings.getHubKey(hId)
     return rows.map((r) => {
       const name = this.crypto.decryptField(
         r.encryptedName as Ciphertext,
@@ -180,7 +169,7 @@ export class ShiftService {
   async createRingGroup(data: CreateRingGroupData): Promise<RingGroup> {
     const id = crypto.randomUUID()
     const hId = data.hubId ?? 'global'
-    const hubKey = await this.#getHubKey(hId)
+    const hubKey = await this.#settings.getHubKey(hId)
     const encryptedName = hubKey
       ? this.crypto.hubEncrypt(data.name, hubKey)
       : this.crypto.serverEncrypt(data.name, 'llamenos:ring-group-name')
@@ -200,7 +189,7 @@ export class ShiftService {
     const rows = await this.db.select().from(ringGroups).where(eq(ringGroups.id, id)).limit(1)
     if (!rows[0]) throw new AppError(404, 'Ring group not found')
 
-    const hubKey = await this.#getHubKey(rows[0].hubId)
+    const hubKey = await this.#settings.getHubKey(rows[0].hubId)
     const encFields: Record<string, unknown> = {}
     if (data.name !== undefined) {
       encFields.encryptedName = hubKey
