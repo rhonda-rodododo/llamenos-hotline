@@ -572,12 +572,20 @@ export interface CreateRoleData {
   permissions: string[]
   description: string
   hubId?: string
+  /** Hub-key encrypted name (client provides). */
+  encryptedName?: string
+  /** Hub-key encrypted description (client provides). */
+  encryptedDescription?: string
 }
 
 export interface UpdateRoleData {
   name?: string
   description?: string
   permissions?: string[]
+  /** Hub-key encrypted name (client provides). */
+  encryptedName?: string
+  /** Hub-key encrypted description (client provides). */
+  encryptedDescription?: string
 }
 
 export interface CreateHubData {
@@ -587,6 +595,10 @@ export interface CreateHubData {
   status?: 'active' | 'suspended' | 'archived'
   phoneNumber?: string
   createdBy: string
+  /** Hub-key encrypted name (client provides). */
+  encryptedName?: string
+  /** Hub-key encrypted description (client provides). */
+  encryptedDescription?: string
 }
 
 export interface HubKeyEntry {
@@ -721,6 +733,8 @@ export interface CreateScheduleData {
   days: number[]
   userPubkeys: string[]
   ringGroupId?: string
+  /** Hub-key encrypted name (client provides). */
+  encryptedName?: string
 }
 
 export interface ShiftOverride {
@@ -754,6 +768,8 @@ export interface CreateRingGroupData {
   hubId?: string
   name: string
   userPubkeys: string[]
+  /** Hub-key encrypted name (client provides). */
+  encryptedName?: string
 }
 
 export interface ActiveShift {
@@ -917,6 +933,8 @@ export interface CreateBlastData {
   contentEnvelopes?: RecipientEnvelope[]
   status?: string
   scheduledAt?: Date
+  /** Hub-key encrypted name (client provides). */
+  encryptedName?: string
 }
 
 export interface Subscriber {

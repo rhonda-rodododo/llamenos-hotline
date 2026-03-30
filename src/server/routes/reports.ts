@@ -155,8 +155,8 @@ reports.post('/', requirePermission('reports:create'), async (c) => {
 reports.get('/categories', async (c) => {
   const services = c.get('services')
   const hubId = c.get('hubId')
-  const categories = await services.settings.getReportCategories(hubId ?? undefined)
-  return c.json({ categories })
+  const result = await services.settings.getReportCategories(hubId ?? undefined)
+  return c.json(result)
 })
 
 // Get a single report

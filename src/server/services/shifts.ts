@@ -47,15 +47,8 @@ export class ShiftService {
   async getSchedules(hubId?: string): Promise<ShiftSchedule[]> {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(shiftSchedules).where(eq(shiftSchedules.hubId, hId))
-    const hubKey = await this.#getHubKey(hId)
-    return rows.map((r) => {
-      const name = this.crypto.decryptField(
-        r.encryptedName as Ciphertext,
-        hubKey,
-        'llamenos:shift-name'
-      )
-      return this.#rowToSchedule(r, name)
-    })
+    // Client decrypts encryptedName with hub key
+    return rows.map((r) => this.#rowToSchedule(r))
   }
 
   async createSchedule(data: CreateScheduleData): Promise<ShiftSchedule> {
@@ -64,10 +57,8 @@ export class ShiftService {
     }
     const id = crypto.randomUUID()
     const hId = data.hubId ?? 'global'
-    const hubKey = await this.#getHubKey(hId)
-    const encryptedName = hubKey
-      ? this.crypto.hubEncrypt(data.name, hubKey)
-      : this.crypto.serverEncrypt(data.name, 'llamenos:shift-name')
+    // Client provides hub-key encrypted name
+    const encryptedName = (data.encryptedName ?? data.name) as Ciphertext
     const [row] = await this.db
       .insert(shiftSchedules)
       .values({
@@ -81,7 +72,7 @@ export class ShiftService {
         ringGroupId: data.ringGroupId ?? null,
       })
       .returning()
-    return this.#rowToSchedule(row, data.name)
+    return this.#rowToSchedule(row)
   }
 
   async updateSchedule(
@@ -99,12 +90,10 @@ export class ShiftService {
     const rows = await this.db.select().from(shiftSchedules).where(whereClause).limit(1)
     if (!rows[0]) throw new AppError(404, 'Schedule not found')
 
-    const hubKey = await this.#getHubKey(hubId)
+    // Client provides hub-key encrypted name
     const encFields: Record<string, unknown> = {}
-    if (data.name !== undefined) {
-      encFields.encryptedName = hubKey
-        ? this.crypto.hubEncrypt(data.name, hubKey)
-        : this.crypto.serverEncrypt(data.name, 'llamenos:shift-name')
+    if (data.encryptedName !== undefined) {
+      encFields.encryptedName = data.encryptedName
     }
 
     const [row] = await this.db
@@ -119,12 +108,7 @@ export class ShiftService {
       })
       .where(whereClause)
       .returning()
-    const name = this.crypto.decryptField(
-      row.encryptedName as Ciphertext,
-      hubKey,
-      'llamenos:shift-name'
-    )
-    return this.#rowToSchedule(row, name)
+    return this.#rowToSchedule(row)
   }
 
   async deleteSchedule(id: string, hubId: string): Promise<void> {
@@ -166,24 +150,15 @@ export class ShiftService {
   async getRingGroups(hubId?: string): Promise<RingGroup[]> {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(ringGroups).where(eq(ringGroups.hubId, hId))
-    const hubKey = await this.#getHubKey(hId)
-    return rows.map((r) => {
-      const name = this.crypto.decryptField(
-        r.encryptedName as Ciphertext,
-        hubKey,
-        'llamenos:ring-group-name'
-      )
-      return this.#rowToRingGroup(r, name)
-    })
+    // Client decrypts encryptedName with hub key
+    return rows.map((r) => this.#rowToRingGroup(r))
   }
 
   async createRingGroup(data: CreateRingGroupData): Promise<RingGroup> {
     const id = crypto.randomUUID()
     const hId = data.hubId ?? 'global'
-    const hubKey = await this.#getHubKey(hId)
-    const encryptedName = hubKey
-      ? this.crypto.hubEncrypt(data.name, hubKey)
-      : this.crypto.serverEncrypt(data.name, 'llamenos:ring-group-name')
+    // Client provides hub-key encrypted name
+    const encryptedName = (data.encryptedName ?? data.name) as Ciphertext
     const [row] = await this.db
       .insert(ringGroups)
       .values({
@@ -193,19 +168,17 @@ export class ShiftService {
         userPubkeys: data.userPubkeys,
       })
       .returning()
-    return this.#rowToRingGroup(row, data.name)
+    return this.#rowToRingGroup(row)
   }
 
   async updateRingGroup(id: string, data: Partial<CreateRingGroupData>): Promise<RingGroup> {
     const rows = await this.db.select().from(ringGroups).where(eq(ringGroups.id, id)).limit(1)
     if (!rows[0]) throw new AppError(404, 'Ring group not found')
 
-    const hubKey = await this.#getHubKey(rows[0].hubId)
+    // Client provides hub-key encrypted name
     const encFields: Record<string, unknown> = {}
-    if (data.name !== undefined) {
-      encFields.encryptedName = hubKey
-        ? this.crypto.hubEncrypt(data.name, hubKey)
-        : this.crypto.serverEncrypt(data.name, 'llamenos:ring-group-name')
+    if (data.encryptedName !== undefined) {
+      encFields.encryptedName = data.encryptedName
     }
 
     const [row] = await this.db
@@ -216,12 +189,7 @@ export class ShiftService {
       })
       .where(eq(ringGroups.id, id))
       .returning()
-    const name = this.crypto.decryptField(
-      row.encryptedName as Ciphertext,
-      hubKey,
-      'llamenos:ring-group-name'
-    )
-    return this.#rowToRingGroup(row, name)
+    return this.#rowToRingGroup(row)
   }
 
   async deleteRingGroup(id: string): Promise<void> {
@@ -397,11 +365,11 @@ export class ShiftService {
 
   // ------------------------------------------------------------------ Private helpers
 
-  #rowToSchedule(r: typeof shiftSchedules.$inferSelect, decryptedName?: string): ShiftSchedule {
+  #rowToSchedule(r: typeof shiftSchedules.$inferSelect): ShiftSchedule {
     return {
       id: r.id,
       hubId: r.hubId,
-      name: decryptedName ?? '',
+      name: '', // Client decrypts encryptedName with hub key
       encryptedName: r.encryptedName ?? undefined,
       startTime: r.startTime,
       endTime: r.endTime,
@@ -424,11 +392,11 @@ export class ShiftService {
     }
   }
 
-  #rowToRingGroup(r: typeof ringGroups.$inferSelect, decryptedName?: string): RingGroup {
+  #rowToRingGroup(r: typeof ringGroups.$inferSelect): RingGroup {
     return {
       id: r.id,
       hubId: r.hubId,
-      name: decryptedName ?? '',
+      name: '', // Client decrypts encryptedName with hub key
       encryptedName: r.encryptedName ?? undefined,
       userPubkeys: r.userPubkeys as string[],
       createdAt: r.createdAt,
