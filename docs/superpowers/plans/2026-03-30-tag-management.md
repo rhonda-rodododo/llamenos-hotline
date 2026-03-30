@@ -6,7 +6,7 @@
 
 **Architecture:** New `tags` table with hub-key encrypted labels/categories and plaintext slugs/colors. Contacts continue to store tag slugs as `string[]` JSONB (no joins needed for filtering). GIN index enables efficient server-side tag queries. `TagInput` component replaces freeform text input. `strictTags` hub setting controls whether users can create new tags.
 
-**Tech Stack:** Drizzle ORM, Hono, React, React Query, shadcn/ui (Command + Popover), bun:test, Playwright
+**Tech Stack:** Drizzle ORM, Hono, React, React Query, shadcn/ui (Combobox — multi-select with chips), bun:test, Playwright
 
 **Prerequisite:** PBAC Scope Hierarchy plan (for `tags:create` permission).
 
@@ -193,13 +193,30 @@ tags: {
 },
 ```
 
-- [ ] **Step 2: Build TagInput component**
+- [ ] **Step 2: Install shadcn Combobox and build TagInput component**
 
-Create `src/client/components/tag-input.tsx` using shadcn `Command` + `Popover`:
+First, install the shadcn Combobox component (multi-select with chips):
+```bash
+bunx shadcn@latest add combobox
+```
+
+This also opens an opportunity to migrate existing `Command` + `Popover` combo patterns (like `ContactSelect`, command palette) to the new `Combobox` — but that's optional cleanup, not required for this task.
+
+Create `src/client/components/tag-input.tsx` using shadcn `Combobox`:
+
+```tsx
+import {
+  Combobox, ComboboxChip, ComboboxChips, ComboboxChipsInput,
+  ComboboxContent, ComboboxEmpty, ComboboxItem, ComboboxList,
+  ComboboxValue, useComboboxAnchor,
+} from '@/components/ui/combobox'
+```
+
+Features:
+- Multi-select with colored chip badges (removable) via `ComboboxChip` with dynamic `style={{ backgroundColor: tag.color }}`
 - Searchable dropdown of defined tags with color dots and decrypted labels
-- Multi-select with colored badge chips (removable)
-- "Create [typed text]" option when user has `tags:create` and hub allows freeform
-- No freeform option when `strictTags` or lacking permission
+- "Create [typed text]" option at bottom of list when user has `tags:create` and hub allows freeform
+- No freeform option when `strictTags` or user lacks permission
 
 - [ ] **Step 3: Replace freeform tag input in create contact dialog**
 
@@ -220,25 +237,47 @@ In settings page, add a section for tag management:
 - Create/edit/delete actions
 - `strictTags` toggle
 
-- [ ] **Step 7: Write E2E tests**
+- [ ] **Step 7: Write tests across all three suites**
 
-Create `tests/ui/tags.spec.ts`:
-- Tag autocomplete shows defined tags with colors
-- Freeform creation when permitted
-- Tag filter on directory
-- Tag admin CRUD
-- Colored badges
+**Unit tests** — add to `src/server/services/tags.integration.test.ts`:
+- Tag CRUD operations
+- Hub-scoped uniqueness constraint
+- strictTags enforcement
+- Freeform auto-creation with/without `tags:create`
+- Default tag seeding
+- GIN index tag filtering queries
 
-- [ ] **Step 8: Run all tests**
+**API tests** — create `tests/api/tags.spec.ts`:
+- `GET /api/tags` returns encrypted labels for hub
+- `POST /api/tags` requires `tags:create` or `settings:manage-fields`
+- `PATCH /api/tags/:id` requires `settings:manage-fields`
+- `DELETE /api/tags/:id` requires `settings:manage-fields`, warns if in use
+- Freeform tag rejection when `strictTags = true`
+- Freeform tag rejection when user lacks `tags:create`
+- `GET /api/contacts?tag=detained` uses GIN index filtering
+- `GET /api/contacts?tags=detained,legal-aid` multi-tag filtering
+
+**UI E2E tests** — create `tests/ui/tags.spec.ts`:
+- Tag Combobox shows defined tags with color dots
+- Multi-select creates colored chip badges
+- Freeform "Create" option visible when permitted, hidden when not
+- `strictTags` toggle disables freeform for all users
+- Tag filter on contact directory returns correct results
+- Tag admin section: create tag (label + color + category), edit, delete
+- Delete confirmation warns about N contacts using this tag
+- Colored tag badges in directory table and profile page
+
+- [ ] **Step 8: Run all three test suites**
 
 ```bash
-bun run typecheck && bun run build
+bun run test:unit
+bunx playwright test tests/api/tags.spec.ts
 bunx playwright test tests/ui/tags.spec.ts
 ```
 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/client/ tests/ui/tags.spec.ts
+git add src/client/ tests/
 git commit -m "feat: add TagInput component, tag filtering, tag admin, colored badges"
 ```

@@ -487,16 +487,65 @@ git commit -m "feat: metadata-driven role editor with scope/tier/action groups"
 
 ---
 
-### Task 6: Final Verification
+### Task 6: Test Coverage Across All Three Suites
 
-**Files:** None new — verification only.
+**Files:**
+- Modify: `src/shared/permissions.test.ts` (unit tests — extended)
+- Modify: `tests/api/contacts-permissions.spec.ts` (API tests — scope enforcement)
+- Create: `tests/api/pbac-scope.spec.ts` (API tests — scope hierarchy)
+- Modify: `tests/ui/roles.spec.ts` (UI E2E — role editor)
 
-- [ ] **Step 1: Full test suite**
+- [ ] **Step 1: Unit tests (bun:test)**
+
+Verify these are covered in `src/shared/permissions.test.ts`:
+- Typed catalog structure validation (every permission has label/group/subgroup)
+- Every group has a PERMISSION_GROUP_LABELS entry
+- Scope naming convention (all scope permissions end with `-own`/`-assigned`/`-all`)
+- Scope hierarchy: `-all` subsumes `-assigned` subsumes `-own`
+- Scope hierarchy cross-domain isolation
+- Wildcards still work with scope hierarchy
+- Non-scoped permissions unaffected
+- `getPermissionsByDomain()` returns typed metadata
+- Case Manager role has correct permissions
+- Default role permission completeness
+
+Run: `bun test src/shared/permissions.test.ts`
+
+- [ ] **Step 2: API tests (Playwright, no browser)**
+
+Create `tests/api/pbac-scope.spec.ts`:
+- User with `contacts:read-own` can only fetch contacts they created
+- User with `contacts:read-assigned` can fetch contacts assigned to them (via `assignedTo`)
+- User with `contacts:read-all` can fetch all contacts in hub
+- User with `contacts:update-own` can only PATCH contacts they created
+- User with `contacts:update-own` gets 403 on PATCH for others' contacts
+- Scope subsumption: user with `contacts:read-all` can access the `contacts:read-own` check
+- Case Manager with `contacts:read-assigned` + `contacts:envelope-full` sees full PII for assigned contacts
+- Volunteer with `contacts:read-own` + `contacts:envelope-summary` sees only display names for own contacts
+
+Update `tests/api/contacts-permissions.spec.ts`:
+- Replace all `contacts:read-summary` → `contacts:envelope-summary`
+- Replace all `contacts:read-pii` → `contacts:envelope-full`
+- Add scope + tier combination tests
+
+Run: `bunx playwright test tests/api/pbac-scope.spec.ts tests/api/contacts-permissions.spec.ts`
+
+- [ ] **Step 3: UI E2E tests (Playwright, Chromium)**
+
+Update `tests/ui/roles.spec.ts`:
+- Scope radio buttons are mutually exclusive (select `-all`, verify `-own` and `-assigned` deselected)
+- Tier checkboxes are additive (can select both `envelope-summary` and `envelope-full`)
+- Action checkboxes are independent
+- Create custom role with specific scope/tier/action combination
+- Verify Case Manager role appears in role list with correct description
+- Permission groups render with correct PERMISSION_GROUP_LABELS
+
+Run: `bunx playwright test tests/ui/roles.spec.ts`
+
+- [ ] **Step 4: Full test suite verification**
 
 ```bash
-bun run typecheck
-bun run build
-bun run lint
+bun run typecheck && bun run build && bun run lint
 bun run test:unit
 bun run test:api
 bun run test:e2e
@@ -504,7 +553,7 @@ bun run test:e2e
 
 All must pass.
 
-- [ ] **Step 2: Verify no old permission names remain**
+- [ ] **Step 5: Verify no old permission names remain**
 
 ```bash
 grep -rn "contacts:read-summary\|contacts:read-pii" src/ tests/ --include="*.ts" --include="*.tsx"
@@ -512,8 +561,8 @@ grep -rn "contacts:read-summary\|contacts:read-pii" src/ tests/ --include="*.ts"
 
 Expected: Zero hits.
 
-- [ ] **Step 3: Commit any fixes**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add -A && git commit -m "fix: address remaining PBAC migration issues"
+git add -A && git commit -m "test: comprehensive PBAC test coverage across unit, API, and UI suites"
 ```

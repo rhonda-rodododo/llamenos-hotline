@@ -10,6 +10,12 @@
 
 **Prerequisites:** Volunteer → User rename, PBAC Scope Hierarchy, Teams & Assignment, Tag Management.
 
+**Note on Combobox:** The Tag Management plan installs the shadcn `Combobox` component (multi-select with chips, searchable). This pattern should be used consistently:
+- **TagInput** — multi-select tags with colored chips and freeform "Create" option
+- **ContactSelect** — migrate from `Command` + `Popover` to `Combobox`. Add "Create new contact" option at bottom of dropdown so users can inline-create contacts from report forms, support contact fields, intake forms, etc. without leaving context.
+- **UserMultiSelect** — migrate to `Combobox` for consistency
+- **Command palette** — keep as-is (different interaction pattern, full-page overlay)
+
 ---
 
 ### Task 1: PBAC Alignment of Existing Contact Routes
@@ -429,19 +435,61 @@ git commit -m "feat: replace showInUserView with visibleTo permission on custom 
 
 ---
 
-### Task 9: Final Verification
+### Task 9: Cross-Cutting Test Coverage Audit
 
-- [ ] **Step 1: Full test suite**
+Before final verification, ensure every feature has tests across all three suites:
+
+- [ ] **Step 1: Unit test audit (bun:test)**
+
+Verify these unit tests exist and pass:
+- `src/client/lib/transcript-extraction.test.ts` — phone/email/name patterns, confidence levels
+- `src/server/services/intakes.integration.test.ts` — CRUD, status transitions, envelope recipients
+- `src/shared/permissions.test.ts` — `contacts:triage` in catalog, Case Manager includes it
+- Channel resolution: preferred channel, fallback order, no-match error
 
 ```bash
-bun run typecheck && bun run build && bun run lint
 bun run test:unit
+```
+
+- [ ] **Step 2: API test audit (Playwright, no browser)**
+
+Verify these API tests exist and pass:
+- `tests/api/contacts-permissions.spec.ts` — updated for `envelope-summary`/`envelope-full` names
+- `tests/api/contact-notify.spec.ts` — notify endpoint, permission gating, messaging adapter routing
+- `tests/api/call-to-contact.spec.ts` — from-call creation, support contact creation, team auto-assignment
+- `tests/api/intakes.spec.ts` — submit, list (scoped), triage, merge, dismiss
+- `tests/api/bulk-contacts.spec.ts` — bulk tag/untag/risk/delete/blast, scope enforcement, skipped counts
+- `tests/api/contact-import.spec.ts` — batch import, dedup, merge, permission gating
+
+```bash
 bun run test:api
+```
+
+- [ ] **Step 3: UI E2E test audit (Playwright, Chromium)**
+
+Verify these E2E tests exist and pass:
+- `tests/ui/contacts.spec.ts` — updated for scope filtering (volunteer sees own, case manager sees assigned)
+- Contact profile: notify button visible/hidden, alert emergency, add report, channels section
+- Call detail: add-as-contact, link-to-existing, unlink, transcript extraction panel
+- Intake: volunteer submits from call detail, case manager triages in queue, merge workflow
+- Bulk: multi-select, toolbar actions, scope enforcement (can't bulk-edit unowned contacts)
+- Import: CSV upload → column mapping → dedup preview → import complete
+- Merge: side-by-side comparison → field selection → merged result
+- Command palette: search contacts by name, navigate to profile
+
+```bash
 bun run test:e2e
 ```
 
-- [ ] **Step 2: Commit any fixes**
+- [ ] **Step 4: Full verification**
 
 ```bash
-git add -A && git commit -m "fix: address final contact enhancement issues"
+bun run typecheck && bun run build && bun run lint
+bun run test:all
+```
+
+- [ ] **Step 5: Commit any fixes**
+
+```bash
+git add -A && git commit -m "test: comprehensive contact enhancement test coverage"
 ```

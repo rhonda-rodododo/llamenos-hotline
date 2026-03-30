@@ -13,7 +13,7 @@
 ### Task 1: Database Migration
 
 **Files:**
-- Create: `drizzle/migrations/XXXX_volunteer_to_user_rename.sql` (Drizzle will generate)
+- Create: `drizzle/migrations/XXXX_volunteer_to_user_rename.sql` (custom — Drizzle Kit does NOT support table/column renames natively, it would generate DROP+CREATE instead)
 - Modify: `src/server/db/schema/identity.ts:6,88`
 - Modify: `src/server/db/schema/calls.ts:21`
 - Modify: `src/server/db/schema/shifts.ts:12,23,31`
@@ -78,16 +78,15 @@ volunteerPubkeys: jsonb<string[]>()('volunteer_pubkeys').notNull().default([]),
 userPubkeys: jsonb<string[]>()('user_pubkeys').notNull().default([]),
 ```
 
-- [ ] **Step 5: Generate Drizzle migration**
+- [ ] **Step 5: Generate custom Drizzle migration**
 
-Run: `bun run migrate:generate`
+**IMPORTANT:** Drizzle Kit does NOT support table/column renames. Running `drizzle-kit generate` would produce `DROP TABLE volunteers; CREATE TABLE users;` which destroys data. Instead, generate a custom empty migration:
 
-This will generate a SQL migration file. Verify it contains:
-- `ALTER TABLE volunteers RENAME TO users`
-- Column renames for all changed columns
-- Permission string replacement
+```bash
+bunx drizzle-kit generate --custom --name=volunteer-to-user-rename
+```
 
-If Drizzle doesn't generate column renames automatically (it may not for renames vs drop+add), manually write the migration:
+Then write the migration SQL manually:
 
 ```sql
 ALTER TABLE volunteers RENAME TO users;
@@ -480,7 +479,7 @@ git mv src/client/components/dashboard/volunteer-stats-table.tsx src/client/comp
 
 Inside each renamed file:
 - Component names: `VolunteerMultiSelect` → `UserMultiSelect`, etc.
-- TanStack Router route paths: `createFileRoute('/volunteers')` → `createFileRoute('/users')`
+- TanStack Router route paths: **Do NOT manually edit the `createFileRoute('/...')` path string** — the TanStack Router Vite plugin auto-updates it when the file is renamed. Run `bun run dev` or `bun run build` to trigger the plugin. Verify the path string was updated correctly.
 - Import paths for queries: `from '@/lib/queries/volunteers'` → `from '@/lib/queries/users'`
 - Hook names: `useVolunteers()` → `useUsers()`
 - Variable names: `volunteer` → `user` (identity concept only)
@@ -609,15 +608,33 @@ For ALL test files (unit, API, UI, integration), replace:
 - Demo data: update pubkey variable names
 - Keep "Volunteer" where it refers to the role name (e.g., `'role-volunteer'`)
 
-- [ ] **Step 3: Run all tests**
+- [ ] **Step 3: Run all three test suites**
 
 ```bash
+# Unit tests (fast, no dependencies)
 bun run test:unit
-bun run test:api    # requires dev:docker running
-bun run test:e2e    # requires dev:docker + dev:server running
+
+# API integration tests (requires backing services)
+bun run dev:docker   # if not already running
+bun run test:api
+
+# UI E2E tests (requires server + browser)
+bun run dev:docker   # if not already running
+bun run dev:server & # start server in background
+bun run test:e2e
 ```
 
-Expected: All tests pass with renamed paths and identifiers.
+**Expected per suite:**
+- **Unit**: All passing — type imports, crypto labels, permission strings, custom field tests
+- **API**: All passing — `/api/users` endpoints, permission matrix, lifecycle tests, PII tests
+- **UI E2E**: All passing — user management flows, admin flow, shifts (user multi-select), dashboard stats
+
+**Critical test files to verify manually:**
+- `tests/api/user-lifecycle.spec.ts` (renamed) — user CRUD via API
+- `tests/api/user-pii.spec.ts` (renamed) — E2EE for user name/phone
+- `tests/ui/user-flow.spec.ts` (renamed) — volunteer management UI
+- `tests/api/permission-matrix.spec.ts` — `users:*` permissions
+- `tests/ui/shift-management.spec.ts` — user multi-select in shifts
 
 - [ ] **Step 4: Commit**
 

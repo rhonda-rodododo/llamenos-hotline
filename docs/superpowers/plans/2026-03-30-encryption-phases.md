@@ -245,9 +245,45 @@ git commit -m "feat(phase2d): upgrade user phone and invite phone from server-ke
 
 ---
 
-### Task 4: Final Verification & Documentation
+### Task 4: Test Coverage & Final Verification
 
-- [ ] **Step 1: Full test suite**
+- [ ] **Step 1: Unit tests (bun:test)**
+
+Verify or create:
+- `src/server/lib/hub-key-e2ee.test.ts` — hub-key encrypt/decrypt round-trip for all 13 org metadata fields, hub isolation (hub A key can't decrypt hub B data)
+- `src/server/lib/e2ee-verification.test.ts` — extend with newly upgraded fields (user phone, invite phone), verify server service cannot decrypt E2EE fields
+- `src/shared/crypto-labels.test.ts` — verify `LABEL_USER_PII` string value unchanged after rename
+
+```bash
+bun run test:unit
+```
+
+- [ ] **Step 2: API tests (Playwright, no browser)**
+
+Verify or create:
+- `tests/api/hub-encryption.spec.ts` — API returns ciphertext (not plaintext) for hub name, role name, custom field name, report type name, shift name, ring group name, blast name
+- `tests/api/user-pii.spec.ts` — user phone returned with `phoneEnvelopes` (not plaintext), client can decrypt
+- `tests/api/roles.spec.ts` — role creation accepts encrypted name/description, API returns ciphertext
+- Settings endpoints accept and return ciphertext for all Phase 2B fields
+
+```bash
+bun run test:api
+```
+
+- [ ] **Step 3: UI E2E tests (Playwright, Chromium)**
+
+Verify:
+- Hub switcher shows placeholders before PIN unlock, decrypted names after
+- Role editor shows decrypted role names after unlock
+- Settings pages (custom fields, report types, shifts, ring groups) show decrypted names after unlock
+- Admin forms encrypt on submit (verify via network request inspection or API test)
+- User profile shows decrypted phone after unlock
+
+```bash
+bun run test:e2e
+```
+
+- [ ] **Step 4: Full test suite**
 
 ```bash
 bun run typecheck && bun run build && bun run lint
