@@ -152,6 +152,14 @@ export const queryKeys = {
     permissions: () => ['roles', 'permissions'] as const,
   },
 
+  teams: {
+    all: ['teams'] as const,
+    list: (hubId?: string) => ['teams', 'list', hubId ?? ''] as const,
+    detail: (id: string) => ['teams', 'detail', id] as const,
+    members: (id: string) => ['teams', 'members', id] as const,
+    contacts: (id: string) => ['teams', 'contacts', id] as const,
+  },
+
   provider: {
     health: () => ['provider', 'health'] as const,
   },

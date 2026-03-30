@@ -11,7 +11,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useConfig } from '@/lib/config'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import { useContacts } from '@/lib/queries/contacts'
+import { useTeamContacts, useTeams } from '@/lib/queries/teams'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { BookUser, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -34,6 +37,7 @@ type ContactsSearch = {
   contactType: string
   riskLevel: string
   q: string
+  teamId: string
 }
 
 export const Route = createFileRoute('/contacts')({
@@ -41,6 +45,7 @@ export const Route = createFileRoute('/contacts')({
     contactType: (search?.contactType as string) || '',
     riskLevel: (search?.riskLevel as string) || '',
     q: (search?.q as string) || '',
+    teamId: (search?.teamId as string) || '',
   }),
   component: ContactDirectoryPage,
 })
@@ -55,24 +60,43 @@ const RISK_COLORS: Record<string, string> = {
 function ContactDirectoryPage() {
   const { t } = useTranslation()
   const navigate = useNavigate({ from: '/contacts' })
-  const { contactType, riskLevel, q } = Route.useSearch()
+  const { contactType, riskLevel, q, teamId } = Route.useSearch()
   const [searchInput, setSearchInput] = useState(q)
   const [createOpen, setCreateOpen] = useState(false)
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
 
   const { data: contacts = [], isLoading: loading } = useContacts({
     contactType: contactType || undefined,
     riskLevel: riskLevel || undefined,
   })
+  const { data: teams = [] } = useTeams()
+  const { data: teamContacts = [] } = useTeamContacts(teamId || '')
 
   const decryptedContacts = contacts as unknown as DecryptedContact[]
 
+  // Team contact IDs for filtering
+  const teamContactIds = useMemo(
+    () => (teamId ? new Set(teamContacts.map((tc) => tc.contactId)) : null),
+    [teamId, teamContacts]
+  )
+
   const filtered = useMemo(() => {
-    if (!q) return decryptedContacts
-    const lower = q.toLowerCase()
-    return decryptedContacts.filter((c) =>
-      (c.displayName ?? '[encrypted]').toLowerCase().includes(lower)
-    )
-  }, [decryptedContacts, q])
+    let result = decryptedContacts
+
+    // Filter by team
+    if (teamContactIds) {
+      result = result.filter((c) => teamContactIds.has(c.id))
+    }
+
+    // Filter by search query
+    if (q) {
+      const lower = q.toLowerCase()
+      result = result.filter((c) => (c.displayName ?? '[encrypted]').toLowerCase().includes(lower))
+    }
+
+    return result
+  }, [decryptedContacts, q, teamContactIds])
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -85,6 +109,10 @@ function ContactDirectoryPage() {
 
   function handleRiskLevelChange(value: string) {
     navigate({ search: (prev) => ({ ...prev, riskLevel: value === 'all' ? '' : value }) })
+  }
+
+  function handleTeamChange(value: string) {
+    navigate({ search: (prev) => ({ ...prev, teamId: value === 'all' ? '' : value }) })
   }
 
   function getContactTypeLabel(type: string): string {
@@ -157,6 +185,23 @@ function ContactDirectoryPage() {
                   <SelectItem value="critical">{t('contacts.critical')}</SelectItem>
                 </SelectContent>
               </Select>
+              {teams.length > 0 && (
+                <Select value={teamId || 'all'} onValueChange={handleTeamChange}>
+                  <SelectTrigger data-testid="team-filter" className="w-40">
+                    <SelectValue placeholder={t('teams.team', { defaultValue: 'Team' })} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      {t('teams.allTeams', { defaultValue: 'All Teams' })}
+                    </SelectItem>
+                    {teams.map((team) => (
+                      <SelectItem key={team.id} value={team.id}>
+                        {decryptHubField(team.encryptedName, hubId, '[encrypted]')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
         </CardContent>

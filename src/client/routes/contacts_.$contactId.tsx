@@ -4,8 +4,17 @@ import { ContactTimeline } from '@/components/contacts/contact-timeline'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/lib/auth'
+import { useConfig } from '@/lib/config'
+import { decryptHubField } from '@/lib/hub-field-crypto'
 import {
   useContact,
   useContactRelationships,
@@ -13,8 +22,14 @@ import {
   useContacts,
   useDeleteContact,
 } from '@/lib/queries/contacts'
+import {
+  useAssignTeamContacts,
+  useTeamContacts,
+  useTeams,
+  useUnassignTeamContact,
+} from '@/lib/queries/teams'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, BookUser, Lock } from 'lucide-react'
+import { ArrowLeft, BookUser, Lock, Users, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -49,6 +64,11 @@ function ContactProfilePage() {
   const { data: relationships = [] } = useContactRelationships()
   const { data: allContacts = [] } = useContacts()
   const deleteContactMutation = useDeleteContact()
+  const { data: teams = [] } = useTeams()
+  const assignTeamContacts = useAssignTeamContacts()
+  const unassignTeamContact = useUnassignTeamContact()
+  const { currentHubId } = useConfig()
+  const hubId = currentHubId ?? 'global'
 
   // useContact already decrypts summary+PII tiers — access fields directly
   const contactAny = contact as (typeof contact & Record<string, unknown>) | undefined
@@ -78,7 +98,7 @@ function ContactProfilePage() {
   async function handleDelete() {
     await deleteContactMutation.mutateAsync(contactId)
     toast.success(t('contacts.deleted'))
-    navigate({ to: '/contacts', search: { contactType: '', riskLevel: '', q: '' } })
+    navigate({ to: '/contacts', search: { contactType: '', riskLevel: '', q: '', teamId: '' } })
   }
 
   if (loading) {
@@ -107,7 +127,10 @@ function ContactProfilePage() {
           type="button"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           onClick={() =>
-            navigate({ to: '/contacts', search: { contactType: '', riskLevel: '', q: '' } })
+            navigate({
+              to: '/contacts',
+              search: { contactType: '', riskLevel: '', q: '', teamId: '' },
+            })
           }
         >
           <ArrowLeft className="h-4 w-4" />
@@ -128,7 +151,10 @@ function ContactProfilePage() {
             data-testid="contact-back-btn"
             className="shrink-0 text-muted-foreground hover:text-foreground"
             onClick={() =>
-              navigate({ to: '/contacts', search: { contactType: '', riskLevel: '', q: '' } })
+              navigate({
+                to: '/contacts',
+                search: { contactType: '', riskLevel: '', q: '', teamId: '' },
+              })
             }
           >
             <ArrowLeft className="h-5 w-5" />
@@ -253,6 +279,35 @@ function ContactProfilePage() {
             </CardContent>
           </Card>
 
+          {/* Teams */}
+          <ContactTeamsCard
+            contactId={contactId}
+            teams={teams}
+            hubId={hubId}
+            onAssign={(teamId) => {
+              assignTeamContacts.mutate(
+                { teamId, contactIds: [contactId] },
+                {
+                  onSuccess: () =>
+                    toast.success(t('teams.contactAssigned', { defaultValue: 'Assigned to team' })),
+                  onError: () => toast.error(t('common.error', { defaultValue: 'Error' })),
+                }
+              )
+            }}
+            onUnassign={(teamId) => {
+              unassignTeamContact.mutate(
+                { teamId, contactId },
+                {
+                  onSuccess: () =>
+                    toast.success(
+                      t('teams.contactUnassigned', { defaultValue: 'Removed from team' })
+                    ),
+                  onError: () => toast.error(t('common.error', { defaultValue: 'Error' })),
+                }
+              )
+            }}
+          />
+
           {/* Support contacts */}
           <ContactRelationshipSection
             contactId={contactId}
@@ -262,7 +317,7 @@ function ContactProfilePage() {
               navigate({
                 to: '/contacts/$contactId',
                 params: { contactId: cid },
-                search: { contactType: '', riskLevel: '', q: '' },
+                search: { contactType: '', riskLevel: '', q: '', teamId: '' },
               })
             }
           />
@@ -284,5 +339,156 @@ function ContactProfilePage() {
         onConfirm={handleDelete}
       />
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// ContactTeamsCard — shows team badges and assign/unassign for admins
+// ---------------------------------------------------------------------------
+
+function ContactTeamsCard({
+  contactId,
+  teams,
+  hubId,
+  onAssign,
+  onUnassign,
+}: {
+  contactId: string
+  teams: import('@/lib/api').Team[]
+  hubId: string
+  onAssign: (teamId: string) => void
+  onUnassign: (teamId: string) => void
+}) {
+  const { t } = useTranslation()
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('contacts:update-assigned')
+
+  if (teams.length === 0) return null
+
+  return (
+    <Card data-testid="contact-teams-card">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Users className="h-4 w-4" />
+          {t('teams.title', { defaultValue: 'Teams' })}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Render each team as a separate component to satisfy rules of hooks */}
+        <ContactTeamBadges
+          contactId={contactId}
+          teams={teams}
+          hubId={hubId}
+          canManage={canManage}
+          onAssign={onAssign}
+          onUnassign={onUnassign}
+        />
+      </CardContent>
+    </Card>
+  )
+}
+
+/**
+ * Renders team badges and assign dropdown for a contact.
+ * Queries all teams' contacts once per team using individual badge components.
+ */
+function ContactTeamBadges({
+  contactId,
+  teams,
+  hubId,
+  canManage,
+  onAssign,
+  onUnassign,
+}: {
+  contactId: string
+  teams: import('@/lib/api').Team[]
+  hubId: string
+  canManage: boolean
+  onAssign: (teamId: string) => void
+  onUnassign: (teamId: string) => void
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <>
+      {/* Each team gets its own component so hooks are called unconditionally */}
+      <div className="flex flex-wrap gap-1.5" data-testid="contact-team-badges">
+        {teams.map((team) => (
+          <ContactTeamBadge
+            key={team.id}
+            team={team}
+            contactId={contactId}
+            hubId={hubId}
+            canManage={canManage}
+            onUnassign={onUnassign}
+          />
+        ))}
+      </div>
+
+      {/* Assign dropdown */}
+      {canManage && (
+        <Select
+          value=""
+          onValueChange={(teamId) => {
+            if (teamId) onAssign(teamId)
+          }}
+        >
+          <SelectTrigger data-testid="team-assign-select" className="w-full">
+            <SelectValue
+              placeholder={t('teams.assignToTeam', { defaultValue: 'Assign to team...' })}
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {teams.map((team) => (
+              <SelectItem key={team.id} value={team.id}>
+                {decryptHubField(team.encryptedName, hubId, '[encrypted]')}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </>
+  )
+}
+
+/**
+ * Single team badge — uses useTeamContacts hook safely (one per component instance).
+ */
+function ContactTeamBadge({
+  team,
+  contactId,
+  hubId,
+  canManage,
+  onUnassign,
+}: {
+  team: import('@/lib/api').Team
+  contactId: string
+  hubId: string
+  canManage: boolean
+  onUnassign: (teamId: string) => void
+}) {
+  const { data: assignments = [] } = useTeamContacts(team.id)
+  const isAssigned = assignments.some((a) => a.contactId === contactId)
+
+  if (!isAssigned) return null
+
+  return (
+    <Badge
+      variant="secondary"
+      className="text-xs flex items-center gap-1"
+      data-testid={`team-badge-${team.id}`}
+    >
+      {decryptHubField(team.encryptedName, hubId, '[encrypted]')}
+      {canManage && (
+        <button
+          type="button"
+          className="ml-0.5 hover:text-destructive transition-colors"
+          onClick={() => onUnassign(team.id)}
+          data-testid={`team-unassign-${team.id}`}
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </Badge>
   )
 }
