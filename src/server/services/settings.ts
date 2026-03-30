@@ -112,7 +112,7 @@ export class SettingsService {
     })
   }
 
-  /** Expose hub key lookup for other services (uses same cache). */
+  /** @internal Hub key lookup for dependent services. Uses shared TTL cache. */
   getHubKey(hubId: string): Promise<Uint8Array | null> {
     return this.#getHubKey(hubId)
   }

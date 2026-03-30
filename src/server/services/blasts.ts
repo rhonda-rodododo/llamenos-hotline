@@ -51,18 +51,22 @@ export function selectChannel(sub: Subscriber, targetChannels: string[]): Subscr
 }
 
 export class BlastService {
+  #settings: SettingsService
+
   constructor(
     protected readonly db: Database,
     private readonly crypto: CryptoService,
-    private readonly settings: SettingsService
-  ) {}
+    settings: SettingsService
+  ) {
+    this.#settings = settings
+  }
 
   // ------------------------------------------------------------------ Blasts
 
   async listBlasts(hubId?: string): Promise<Blast[]> {
     const hId = hubId ?? 'global'
     const rows = await this.db.select().from(blasts).where(eq(blasts.hubId, hId))
-    const hubKey = await this.settings.getHubKey(hId)
+    const hubKey = await this.#settings.getHubKey(hId)
     return rows.map((r) => {
       const name = this.crypto.decryptField(
         r.encryptedName as Ciphertext,
@@ -77,7 +81,7 @@ export class BlastService {
     const rows = await this.db.select().from(blasts).where(eq(blasts.id, id)).limit(1)
     if (!rows[0]) return null
     const r = rows[0]
-    const hubKey = await this.settings.getHubKey(r.hubId)
+    const hubKey = await this.#settings.getHubKey(r.hubId)
     const name = this.crypto.decryptField(
       r.encryptedName as Ciphertext,
       hubKey,
@@ -89,7 +93,7 @@ export class BlastService {
   async createBlast(data: CreateBlastData): Promise<Blast> {
     const id = crypto.randomUUID()
     const hId = data.hubId ?? 'global'
-    const hubKey = await this.settings.getHubKey(hId)
+    const hubKey = await this.#settings.getHubKey(hId)
     const encryptedName = hubKey
       ? this.crypto.hubEncrypt(data.name, hubKey)
       : this.crypto.serverEncrypt(data.name, 'llamenos:blast-name')
@@ -127,7 +131,7 @@ export class BlastService {
     const statsUpdate = data.stats ? { stats: { ...existing.stats, ...data.stats } } : {}
 
     // Encrypt name — hub key for hub-scoped, server key as fallback
-    const hubKey = await this.settings.getHubKey(existing.hubId)
+    const hubKey = await this.#settings.getHubKey(existing.hubId)
     const encFields: Record<string, unknown> = {}
     if (data.name !== undefined) {
       encFields.encryptedName = hubKey
@@ -327,7 +331,7 @@ export class BlastService {
       )
     const result: Blast[] = []
     for (const r of rows) {
-      const hubKey = await this.settings.getHubKey(r.hubId)
+      const hubKey = await this.#settings.getHubKey(r.hubId)
       const name = this.crypto.decryptField(
         r.encryptedName as Ciphertext,
         hubKey,

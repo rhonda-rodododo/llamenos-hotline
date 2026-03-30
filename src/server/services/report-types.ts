@@ -8,11 +8,15 @@ import { AppError } from '../lib/errors'
 import type { SettingsService } from './settings'
 
 export class ReportTypeService {
+  #settings: SettingsService
+
   constructor(
     private readonly db: Database,
     private readonly crypto: CryptoService,
-    private readonly settings: SettingsService
-  ) {}
+    settings: SettingsService
+  ) {
+    this.#settings = settings
+  }
 
   async listReportTypes(hubId: string): Promise<ReportType[]> {
     const rows = await this.db
@@ -20,7 +24,7 @@ export class ReportTypeService {
       .from(reportTypes)
       .where(eq(reportTypes.hubId, hubId))
       .orderBy(reportTypes.createdAt)
-    const hubKey = await this.settings.getHubKey(hubId)
+    const hubKey = await this.#settings.getHubKey(hubId)
     return rows.map((r) => {
       const name = this.crypto.decryptField(
         r.encryptedName as Ciphertext,
@@ -46,7 +50,7 @@ export class ReportTypeService {
       .limit(1)
     if (!rows[0]) return null
     const r = rows[0]
-    const hubKey = await this.settings.getHubKey(hubId)
+    const hubKey = await this.#settings.getHubKey(hubId)
     const name = this.crypto.decryptField(
       r.encryptedName as Ciphertext,
       hubKey,
@@ -81,7 +85,7 @@ export class ReportTypeService {
     }
 
     // Encrypt name/description — hub key for hub-scoped, server key as fallback
-    const hubKey = await this.settings.getHubKey(hubId)
+    const hubKey = await this.#settings.getHubKey(hubId)
     const encryptedName = hubKey
       ? this.crypto.hubEncrypt(data.name, hubKey)
       : this.crypto.serverEncrypt(data.name, 'llamenos:report-type-name')
@@ -132,7 +136,7 @@ export class ReportTypeService {
     }
 
     // Encrypt updated name/description — hub key for hub-scoped, server key as fallback
-    const hubKey = await this.settings.getHubKey(hubId)
+    const hubKey = await this.#settings.getHubKey(hubId)
     const encFields: Record<string, unknown> = {}
     if (data.name !== undefined) {
       encFields.encryptedName = hubKey
@@ -199,7 +203,7 @@ export class ReportTypeService {
       .where(and(eq(reportTypes.id, id), eq(reportTypes.hubId, hubId)))
       .returning()
 
-    const hubKey = await this.settings.getHubKey(hubId)
+    const hubKey = await this.#settings.getHubKey(hubId)
     const name = this.crypto.decryptField(
       row.encryptedName as Ciphertext,
       hubKey,
@@ -236,7 +240,7 @@ export class ReportTypeService {
       .where(and(eq(reportTypes.id, id), eq(reportTypes.hubId, hubId)))
       .returning()
 
-    const hubKey = await this.settings.getHubKey(hubId)
+    const hubKey = await this.#settings.getHubKey(hubId)
     const name = this.crypto.decryptField(
       row.encryptedName as Ciphertext,
       hubKey,
