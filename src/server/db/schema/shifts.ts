@@ -9,7 +9,7 @@ export const shiftSchedules = pgTable('shift_schedules', {
   startTime: text('start_time').notNull(), // HH:MM
   endTime: text('end_time').notNull(), // HH:MM
   days: jsonb<number[]>()('days').notNull().default([]), // 0=Sun, 6=Sat
-  volunteerPubkeys: jsonb<string[]>()('volunteer_pubkeys').notNull().default([]),
+  userPubkeys: jsonb<string[]>()('user_pubkeys').notNull().default([]),
   ringGroupId: text('ring_group_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -20,7 +20,7 @@ export const shiftOverrides = pgTable('shift_overrides', {
   scheduleId: text('schedule_id'),
   date: text('date').notNull(), // YYYY-MM-DD
   type: text('type').notNull(), // 'cancel' | 'substitute'
-  volunteerPubkeys: jsonb<string[]>()('volunteer_pubkeys'),
+  userPubkeys: jsonb<string[]>()('user_pubkeys'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -28,7 +28,7 @@ export const ringGroups = pgTable('ring_groups', {
   id: text('id').primaryKey(),
   hubId: text('hub_id').notNull().default('global'),
   encryptedName: ciphertext('encrypted_name').notNull(),
-  volunteerPubkeys: jsonb<string[]>()('volunteer_pubkeys').notNull().default([]),
+  userPubkeys: jsonb<string[]>()('user_pubkeys').notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

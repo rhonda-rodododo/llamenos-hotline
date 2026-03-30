@@ -3,7 +3,7 @@ import type { RecipientEnvelope } from '../../../shared/types'
 import { jsonb } from '../bun-jsonb'
 import { ciphertext, hmacHashed } from '../crypto-columns'
 
-export const volunteers = pgTable('volunteers', {
+export const users = pgTable('users', {
   pubkey: text('pubkey').primaryKey(),
   roles: jsonb<string[]>()('roles').notNull().default([]),
   hubRoles: jsonb<Array<{ hubId: string; roleIds: string[] }>>()('hub_roles').notNull().default([]),
@@ -85,5 +85,5 @@ export const provisionRooms = pgTable('provision_rooms', {
 export const webauthnSettings = pgTable('webauthn_settings', {
   id: text('id').primaryKey().default('global'),
   requireForAdmins: boolean('require_for_admins').notNull().default(false),
-  requireForVolunteers: boolean('require_for_volunteers').notNull().default(false),
+  requireForUsers: boolean('require_for_users').notNull().default(false),
 })

@@ -32,7 +32,7 @@ export const conversations = pgTable(
       .notNull()
       .default([]),
     externalId: text('external_id'), // provider's thread/contact ID
-    assignedTo: text('assigned_to'), // volunteer pubkey
+    assignedTo: text('assigned_to'), // user pubkey
     status: text('status').notNull().default('active'), // 'active' | 'waiting' | 'closed'
     metadata: jsonb<Record<string, unknown>>()('metadata').notNull().default({}),
     /** FK to report_types (nullable) — set when channelType='web' and metadata.type='report' */
